@@ -2,6 +2,15 @@ import { z } from "zod";
 
 import { classifiedCategories, idahoRegions, vehicleOptions } from "@/config/classifieds";
 
+type NonEmpty = [string, ...string[]];
+const categorySlugs = classifiedCategories.map((category) => category.slug) as NonEmpty;
+const regionNames = [...idahoRegions] as NonEmpty;
+const bodyStyles = [...vehicleOptions.bodyStyles] as NonEmpty;
+const transmissions = [...vehicleOptions.transmissions] as NonEmpty;
+const drivetrains = [...vehicleOptions.drivetrains] as NonEmpty;
+const fuelTypes = [...vehicleOptions.fuelTypes] as NonEmpty;
+const titleStatuses = [...vehicleOptions.titleStatuses] as NonEmpty;
+
 const emptyToUndefined = (value: unknown) =>
   typeof value === "string" && value.trim() === "" ? undefined : value;
 
@@ -9,10 +18,10 @@ export const classifiedListingSchema = z
   .object({
     title: z.string().trim().min(3).max(120),
     description: z.string().trim().min(20).max(5000),
-    category: z.enum(classifiedCategories.map((category) => category.slug)),
+    category: z.enum(categorySlugs),
     condition: z.enum(["new_with_tags", "new_without_tags", "used_excellent", "used_good"]),
     priceCents: z.number().int().min(100).max(50_000_000),
-    region: z.enum(idahoRegions),
+    region: z.enum(regionNames),
     city: z.string().trim().min(2).max(80),
     postalCode: z.preprocess(emptyToUndefined, z.string().regex(/^\d{5}$/).optional()),
     fulfillmentMode: z.enum(["local_pickup", "shipping", "both"]),
@@ -24,12 +33,12 @@ export const classifiedListingSchema = z
         year: z.number().int().min(1900).max(2100),
         trim: z.string().trim().max(80).optional(),
         mileage: z.number().int().min(0).max(2_000_000),
-        bodyStyle: z.enum(vehicleOptions.bodyStyles),
-        transmission: z.enum(vehicleOptions.transmissions),
-        drivetrain: z.enum(vehicleOptions.drivetrains),
-        fuelType: z.enum(vehicleOptions.fuelTypes),
+        bodyStyle: z.enum(bodyStyles),
+        transmission: z.enum(transmissions),
+        drivetrain: z.enum(drivetrains),
+        fuelType: z.enum(fuelTypes),
         exteriorColor: z.string().trim().max(50).optional(),
-        titleStatus: z.enum(vehicleOptions.titleStatuses),
+        titleStatus: z.enum(titleStatuses),
         vin: z.preprocess(
           emptyToUndefined,
           z.string().trim().toUpperCase().regex(/^[A-HJ-NPR-Z0-9]{17}$/).optional(),
