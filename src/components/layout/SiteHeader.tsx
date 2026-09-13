@@ -4,11 +4,11 @@ import { useQuery } from "@tanstack/react-query";
 import { MagnifyingGlass, UserCircle, List, X } from "@phosphor-icons/react";
 
 import { NotificationBell } from "@/components/layout/NotificationBell";
+import { BrandMark } from "@/components/layout/BrandMark";
 import { brand } from "@/config/brand";
 import { useAuth } from "@/hooks/useAuth";
 import { getCatalogFacets } from "@/lib/catalog.functions";
 import { useHydrated } from "@/hooks/useHydrated";
-import logoAsset from "@/assets/parkvault-logo.png.asset.json";
 
 /*
  * Two-level marketplace header.
@@ -133,18 +133,13 @@ export function SiteHeader() {
       {/* Level 1 */}
       <div className="mx-auto grid h-[68px] max-w-[1400px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 px-3 sm:px-8">
         <Link to="/" className="flex shrink-0 items-center" {...pinned}>
-          <img
-            src={logoAsset.url}
-            alt={`${brand.name} home`}
-            width={216}
-            height={48}
-            className="h-12 w-auto object-contain"
-          />
+          <BrandMark className="hidden sm:inline-flex" />
+          <BrandMark compact className="sm:hidden" />
         </Link>
 
         <form className="min-w-0" onSubmit={submitSearch} role="search">
           <label className="relative block">
-            <span className="sr-only">Search park merchandise</span>
+            <span className="sr-only">Search Idaho classifieds</span>
             <MagnifyingGlass
               size={16}
               aria-hidden="true"
@@ -155,7 +150,7 @@ export function SiteHeader() {
               name="q"
               value={term}
               onChange={(e) => setTerm(e.target.value)}
-              placeholder="Search by product, collection or park"
+              placeholder="Search cars, tools, furniture, and more"
               className="h-10 w-full border border-input bg-card pl-9 pr-3 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-border-strong focus:outline-none"
             />
           </label>

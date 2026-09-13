@@ -35,7 +35,7 @@ export const Route = createFileRoute("/policies")({
 
 function policyBodies(): Record<string, React.ReactNode> {
   return {
-  "non-affiliation": (
+  "marketplace-disclosure": (
     <>
       <p>{brand.legal.disclaimer}</p>
       <p>

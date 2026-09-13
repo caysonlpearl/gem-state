@@ -581,6 +581,94 @@ export type Database = {
           },
         ]
       }
+      classified_listing_details: {
+        Row: {
+          city: string
+          created_at: string
+          fulfillment_mode: string
+          listing_id: string
+          postal_code: string | null
+          region: string
+          updated_at: string
+          vehicle_body_style: string | null
+          vehicle_drivetrain: string | null
+          vehicle_exterior_color: string | null
+          vehicle_fuel_type: string | null
+          vehicle_make: string | null
+          vehicle_mileage: number | null
+          vehicle_model: string | null
+          vehicle_title_status: string | null
+          vehicle_transmission: string | null
+          vehicle_trim: string | null
+          vehicle_year: number | null
+          vin: string | null
+        }
+        Insert: {
+          city: string
+          created_at?: string
+          fulfillment_mode: string
+          listing_id: string
+          postal_code?: string | null
+          region: string
+          updated_at?: string
+          vehicle_body_style?: string | null
+          vehicle_drivetrain?: string | null
+          vehicle_exterior_color?: string | null
+          vehicle_fuel_type?: string | null
+          vehicle_make?: string | null
+          vehicle_mileage?: number | null
+          vehicle_model?: string | null
+          vehicle_title_status?: string | null
+          vehicle_transmission?: string | null
+          vehicle_trim?: string | null
+          vehicle_year?: number | null
+          vin?: string | null
+        }
+        Update: {
+          city?: string
+          created_at?: string
+          fulfillment_mode?: string
+          listing_id?: string
+          postal_code?: string | null
+          region?: string
+          updated_at?: string
+          vehicle_body_style?: string | null
+          vehicle_drivetrain?: string | null
+          vehicle_exterior_color?: string | null
+          vehicle_fuel_type?: string | null
+          vehicle_make?: string | null
+          vehicle_mileage?: number | null
+          vehicle_model?: string | null
+          vehicle_title_status?: string | null
+          vehicle_transmission?: string | null
+          vehicle_trim?: string | null
+          vehicle_year?: number | null
+          vin?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classified_listing_details_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: true
+            referencedRelation: "active_seller_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classified_listing_details_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: true
+            referencedRelation: "asks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classified_listing_details_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: true
+            referencedRelation: "variant_sourcing_offers"
+            referencedColumns: ["ask_id"]
+          },
+        ]
+      }
       collections: {
         Row: {
           created_at: string
@@ -4472,6 +4560,28 @@ export type Database = {
       consume_review_worker_token: {
         Args: { _token: string }
         Returns: boolean
+      }
+      create_classified_listing: {
+        Args: {
+          _category_id: string
+          _city: string
+          _description: string
+          _evidence_paths: string[]
+          _fulfillment_mode: string
+          _item_condition: Database["public"]["Enums"]["item_condition"]
+          _parcel_height_in: number
+          _parcel_length_in: number
+          _parcel_weight_lb: number
+          _parcel_width_in: number
+          _postal_code: string
+          _price_cents: number
+          _public_media_paths: string[]
+          _region: string
+          _seller_note: string
+          _title: string
+          _vehicle?: Json
+        }
+        Returns: string
       }
       create_sourcing_request: {
         Args: {

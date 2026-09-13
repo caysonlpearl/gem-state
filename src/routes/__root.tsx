@@ -83,10 +83,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: `${brand.name} — Disney Parks merchandise marketplace` },
+      { title: `${brand.name} — Idaho's local marketplace` },
       { name: "description", content: brand.description },
       { name: "author", content: brand.name },
-      { property: "og:title", content: `${brand.name} — Disney Parks merchandise marketplace` },
+      { property: "og:title", content: `${brand.name} — Idaho's local marketplace` },
       { property: "og:description", content: brand.description },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -105,7 +105,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       {
         rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600&family=DM+Mono:wght@400;500&family=Newsreader:opsz,wght@6..72,300..600&display=swap",
+        href: "https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Sora:wght@500;600;700&display=swap",
       },
     ],
   }),
