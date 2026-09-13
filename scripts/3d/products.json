@@ -1,0 +1,62 @@
+[
+  {
+    "slug": "haunted-mansion-hatbox-ghost-popcorn-bucket",
+    "name": "Haunted Mansion Hatbox Ghost Popcorn Bucket",
+    "source": "public/images/products/launch-10/hatbox-ghost-bucket.png",
+    "sourceStatus": "ready"
+  },
+  {
+    "slug": "headless-horseman-popcorn-bucket-2026",
+    "name": "Headless Horseman Popcorn Bucket (2026)",
+    "source": "public/images/products/launch-10/headless-horseman-bucket.jpg",
+    "sourceStatus": "ready"
+  },
+  {
+    "slug": "disney-beyond-the-magic-popcorn-buckets-mystery-pin-pack",
+    "name": "Disney Beyond the Magic Popcorn Buckets Mystery Pin Pack",
+    "source": "public/images/products/launch-10/beyond-the-magic-pin-pack.jpg",
+    "sourceStatus": "ready"
+  },
+  {
+    "slug": "mnsshp-headless-horseman-loungefly-convertible-bag-2026",
+    "name": "Mickey's Not-So-Scary Halloween Party Headless Horseman Loungefly Convertible Bag (2026)",
+    "source": "public/images/products/launch-10/mnsshp-loungefly.png",
+    "sourceStatus": "ready"
+  },
+  {
+    "slug": "salvaged-protocol-droid-light-up-popcorn-bucket",
+    "name": "Salvaged Protocol Droid Light-Up Popcorn Bucket",
+    "source": "public/images/products/launch-10/salvaged-protocol-droid.jpg",
+    "sourceStatus": "ready"
+  },
+  {
+    "slug": "star-wars-bantha-sound-effect-sipper",
+    "name": "Star Wars Bantha Sound-Effect Sipper",
+    "source": "public/images/products/launch-10/bantha-sipper.jpg",
+    "sourceStatus": "ready"
+  },
+  {
+    "slug": "toy-story-bullseye-popcorn-bucket",
+    "name": "Toy Story Bullseye Popcorn Bucket",
+    "source": "public/images/products/launch-10/bullseye-bucket.jpg",
+    "sourceStatus": "ready"
+  },
+  {
+    "slug": "vampire-mickey-mouse-light-up-popcorn-bucket-2026",
+    "name": "Vampire Mickey Mouse Light-Up Popcorn Bucket (2026)",
+    "source": "public/images/products/launch-10/vampire-mickey-bucket.jpg",
+    "sourceStatus": "ready"
+  },
+  {
+    "slug": "jack-skellington-sipper",
+    "name": "Jack Skellington Sipper",
+    "source": "public/images/products/launch-10/nightmare-before-christmas-novelties.jpg",
+    "sourceStatus": "needs-crop"
+  },
+  {
+    "slug": "mayor-popcorn-bucket",
+    "name": "The Mayor Popcorn Bucket",
+    "source": "public/images/products/launch-10/nightmare-before-christmas-novelties.jpg",
+    "sourceStatus": "needs-crop"
+  }
+]

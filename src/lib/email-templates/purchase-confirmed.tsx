@@ -1,0 +1,41 @@
+import * as React from "react";
+import type { TemplateEntry } from "./registry";
+import { EmailShell, money } from "./shell";
+
+interface Props {
+  itemName?: string;
+  orderNumber?: string;
+  totalCents?: number;
+  currency?: string;
+  orderPath?: string;
+}
+
+const Email = ({ itemName, orderNumber, totalCents, currency, orderPath }: Props) => (
+  <EmailShell
+    preview={`Your ParkVault order ${orderNumber ?? ""} is confirmed`}
+    heading="Your order is confirmed"
+    intro={`Thanks for your purchase${itemName ? ` of ${itemName}` : ""}. Your payment went through and the seller has been notified to ship it.`}
+    facts={[
+      { label: "Item", value: itemName ?? "" },
+      { label: "Order", value: orderNumber ?? "" },
+      { label: "Total paid", value: money(totalCents, currency) },
+    ]}
+    ctaLabel="View your order"
+    ctaPath={orderPath ?? "/buying"}
+    note="You'll get another email as soon as tracking is added."
+  />
+);
+
+export const template = {
+  component: Email,
+  subject: (d: Record<string, any>) =>
+    d["orderNumber"] ? `Order ${d["orderNumber"]} confirmed` : "Your ParkVault order is confirmed",
+  displayName: "Purchase confirmed (buyer)",
+  previewData: {
+    itemName: "Haunted Mansion Holiday Sipper",
+    orderNumber: "PV-100234",
+    totalCents: 6499,
+    currency: "USD",
+    orderPath: "/orders/example",
+  },
+} satisfies TemplateEntry;

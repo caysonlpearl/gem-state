@@ -1,0 +1,265 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * ParkVault design system — warm, editorial, restrained premium marketplace.
+ *
+ * Every hue is derived from the supplied ParkVault logo palette only:
+ *   deep teal   #14544B  → primary action, active state, focus ring
+ *   burnt amber #D2681F  → small brand highlights only
+ *   warm cream  #F3EAE0  → foreground type, logo tile
+ * Neutrals are warm near-black. Compact radii (4-10px), thin hairlines,
+ * minimal shadow, tabular numerals for every price.
+ * Bid and Ask are distinguished by label and weight, never by hue.
+ */
+
+@theme inline {
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 10px;
+  --radius-2xl: 12px;
+
+  --font-sans: "Archivo", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "DM Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-editorial: "Newsreader", Georgia, serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-foreground: var(--surface-foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-product-well: var(--product-well);
+  --color-product-ink: var(--product-ink);
+  --color-brand-warm: var(--brand-warm);
+  --color-nav-accent: var(--nav-accent);
+}
+
+/*
+ * The marketplace ships in the warm cream palette from the supplied design.
+ * `.dark` intentionally resolves to the same tokens until a complete alternate
+ * theme is designed, preventing mismatched component surfaces.
+ */
+:root,
+.dark {
+  --radius: 8px;
+
+  --background: #f7eee4;
+  --foreground: #22201b;
+  --surface: #f1e6d8;
+  --surface-foreground: #22201b;
+  --card: #fdf8f1;
+  --card-foreground: #22201b;
+  --popover: #fdf8f1;
+  --popover-foreground: #22201b;
+
+  /* Deep teal owns interaction. Amber is reserved for tiny brand details. */
+  --primary: #14544a;
+  --primary-foreground: #fdf8f1;
+  --secondary: #efe3d3;
+  --secondary-foreground: #22201b;
+  --muted: #f4eadc;
+  --muted-foreground: #756d60;
+  --accent: #dfeae5;
+  --accent-foreground: #14544a;
+  --brand-warm: #c8601f;
+  /* Emphasis green: header nav hover/active states, and the shopper "go live" CTA. */
+  --nav-accent: #00873c;
+  --product-well: #f1e6d8;
+  --product-ink: #8a8272;
+  --destructive: oklch(0.62 0.16 27);
+  --destructive-foreground: oklch(0.98 0.003 95);
+
+  --border: #e1d3bf;
+  --border-strong: #9c8f7c;
+  --input: #d5c4ac;
+  --ring: #c8601f;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    color-scheme: light;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+    /* Dense marketplace rows must never introduce a sideways scroll. */
+    overflow-x: hidden;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    text-wrap: balance;
+  }
+
+  /*
+   * One visible focus treatment for every interactive element, including the
+   * ones that only carry Tailwind hover styles. Amber ring from the logo
+   * palette, offset so it reads against cards and hairlines alike.
+   */
+  :is(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Horizontal marketplace rows: swipeable on touch, no visible scrollbar. */
+@utility no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Prices, market depth, quantities: always tabular. */
+@utility numeric {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+@utility hairline-t {
+  border-top: 1px solid var(--color-border);
+}
+
+@utility hairline-b {
+  border-bottom: 1px solid var(--color-border);
+}
+
+@utility product-placeholder {
+  background-color: #f1e6d8;
+  background-image: repeating-linear-gradient(135deg, #e8daca 0 8px, #f1e6d8 8px 16px);
+}
+
+/* Gentle floating bob for the product-page watcher badge. */
+@keyframes watcher-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+.watcher-bob {
+  animation: watcher-bob 3s ease-in-out infinite;
+}
+
+/* Slow auto-scroll plus direct mouse-drag and touch-swipe browsing. */
+.top-ten-marquee-viewport {
+  cursor: grab;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  touch-action: pan-x pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+.top-ten-marquee-track {
+  display: flex;
+  width: max-content;
+}
+
+.top-ten-marquee-viewport.is-dragging {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.top-ten-marquee-set {
+  display: flex;
+  gap: 1rem;
+  padding-right: 1rem;
+}
+
+.top-ten-item {
+  position: relative;
+  width: 274px;
+  flex: 0 0 274px;
+  padding-left: 56px;
+}
+
+/* Two-digit ranks need extra room so the second digit is not hidden by the card. */
+.top-ten-item.is-wide {
+  width: 322px;
+  flex: 0 0 322px;
+  padding-left: 104px;
+}
+
+.top-ten-item.is-wide .top-ten-rank {
+  left: 0;
+}
+
+.top-ten-rank {
+  position: absolute;
+  bottom: 72px;
+  left: 5px;
+  z-index: 0;
+  color: var(--color-card);
+  font-family: var(--font-editorial);
+  font-size: 104px;
+  font-weight: 700;
+  line-height: 0.72;
+  letter-spacing: -0.08em;
+  -webkit-text-stroke: 2px var(--color-primary);
+  text-shadow: 3px 3px 0 color-mix(in srgb, var(--color-brand-warm) 55%, transparent);
+}
+
+.top-ten-card {
+  position: relative;
+  z-index: 1;
+  width: 218px;
+  box-shadow: 0 10px 28px rgb(34 32 27 / 10%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .watcher-bob {
+    animation: none;
+  }
+
+  .top-ten-marquee-set[aria-hidden="true"] {
+    display: flex;
+  }
+}

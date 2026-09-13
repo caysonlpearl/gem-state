@@ -1,0 +1,1 @@
+REVOKE UPDATE ON public.products, public.product_resorts, public.product_variants, public.product_images FROM sandbox_exec;

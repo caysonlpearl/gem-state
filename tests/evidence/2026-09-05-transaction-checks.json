@@ -1,0 +1,111 @@
+{
+  "scope": "Private-schema PostgreSQL tests; no Stripe payments created by SQL tests",
+  "payout": {
+    "order": "PV-420CCF8344",
+    "stripeTransfer": "tr_3UCO7qEb2KTmmJmL0FaswpWg",
+    "amountCents": 4050,
+    "destination": "acct_1UC6JzRCwyto0sjW",
+    "mode": "test",
+    "verifiedInStripeDashboard": true,
+    "inspectionWindow": "Elapsed time simulated for this single sandbox order; global policy unchanged"
+  },
+  "database": [
+    {
+      "at": "2026-09-05 19:48:38.284173+00",
+      "result": {
+        "amount_total": 5694,
+        "elapsed_ms": 5031.915,
+        "ok": true,
+        "order_id": "bbe70ca7-4e85-4d6d-8a94-ad5fde82d29f",
+        "payment_intent_id": "pi_qa_fake_1"
+      },
+      "test": "offer_1"
+    },
+    {
+      "at": "2026-09-05 19:48:40.873957+00",
+      "result": {
+        "elapsed_ms": 5.021,
+        "error": "That exact listing is no longer available",
+        "ok": false
+      },
+      "test": "offer_2"
+    },
+    {
+      "at": "2026-09-05 19:51:25.742566+00",
+      "result": {
+        "amount_total": 5694,
+        "elapsed_ms": 20029.202,
+        "ok": true,
+        "order_id": "7757cb86-53bd-489c-82ed-8a431475d4a2",
+        "payment_intent_id": "pi_qa_fake_4"
+      },
+      "test": "offer_4"
+    },
+    {
+      "at": "2026-09-05 19:51:25.74743+00",
+      "result": {
+        "elapsed_ms": 9829.953,
+        "error": "That exact listing is no longer available",
+        "ok": false
+      },
+      "test": "offer_3"
+    },
+    {
+      "at": "2026-09-05 19:54:26.503496+00",
+      "result": {
+        "amount_cents": 200,
+        "attempt": 1,
+        "checkout_id": "41ba7b05-8d4c-4684-b469-367223831bfe",
+        "currency": "USD",
+        "elapsed_ms": 20036.548,
+        "ok": true,
+        "session_id": null,
+        "status": "creating"
+      },
+      "test": "balance_2"
+    },
+    {
+      "at": "2026-09-05 19:54:46.523839+00",
+      "result": {
+        "amount_cents": 200,
+        "attempt": 1,
+        "checkout_id": "41ba7b05-8d4c-4684-b469-367223831bfe",
+        "currency": "USD",
+        "elapsed_ms": 29529.551,
+        "ok": true,
+        "session_id": null,
+        "status": "creating"
+      },
+      "test": "balance_1"
+    },
+    {
+      "at": "2026-09-05 20:06:51.417637+00",
+      "result": {
+        "passed": true
+      },
+      "test": "frozen_params"
+    },
+    {
+      "at": "2026-09-05 20:06:51.474226+00",
+      "result": {
+        "duplicate_rejected": true,
+        "late_record_preserved_success": true,
+        "ledger_entries": 1,
+        "passed": true
+      },
+      "test": "balance_finalization"
+    },
+    {
+      "at": "2026-09-05 20:13:39.250141+00",
+      "result": {
+        "passed": true,
+        "payment_cents": 212,
+        "repeated_event_no_double_tax": true,
+        "shopper_payout_cents": 5200,
+        "tax_cents": 12,
+        "tax_not_paid_to_shopper": true
+      },
+      "test": "balance_tax"
+    }
+  ]
+}
