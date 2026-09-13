@@ -6,4 +6,4 @@
 - [ ] Phase 2: Public marketplace (awaiting approval)
 - [ ] Phase 3: Seller experience (awaiting approval)
 - [ ] Phase 4: Buyer and account experience (awaiting approval)
-- [ ] Phase 5: Admin and launch pass (awaiting approval)
+- [ ] Phase 5: Admin and launch pass (awaiting approval)- [ ] Connect Google Search Console in the new workspace
