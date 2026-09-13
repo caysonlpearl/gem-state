@@ -1,50 +1,30 @@
 import { Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
 
 import { brand, policyTopics } from "@/config/brand";
-import { getCatalogFacets } from "@/lib/catalog.functions";
-import { useHydrated } from "@/hooks/useHydrated";
+import { classifiedCategories, idahoRegions } from "@/config/classifieds";
 
 /*
- * Dense multi-column footer. Resort and category columns are generated from
- * real catalog rows; nothing is padded out with placeholder links. There are no
- * app-store badges, review scores, social accounts or trust marks, because none
- * of those exist.
+ * Dense multi-column footer for Gem State Classifieds. Columns are generated
+ * from the classifieds taxonomy and Idaho regions; nothing is padded out with
+ * placeholder links, review scores, or trust marks.
  */
 const linkClass =
   "inline-block py-1 text-[12.5px] text-muted-foreground transition-colors hover:text-foreground";
 const headingClass = "text-[11px] font-semibold uppercase tracking-[0.08em] text-foreground";
 const pinned = { activeProps: { className: "" }, inactiveProps: { className: "" } } as const;
 
-export function SiteFooter() {
-  const facets = useQuery({
-    queryKey: ["catalog-facets"],
-    queryFn: () => getCatalogFacets(),
-    staleTime: 5 * 60 * 1000,
-  });
-  // See SiteHeader: gate client-query data behind hydration.
-  const hydrated = useHydrated();
-  const geography = hydrated ? (facets.data?.geography ?? []) : [];
-  const categories = hydrated ? (facets.data?.categories ?? []) : [];
+const motorsCategories = classifiedCategories.filter((c) => c.group === "motors");
+const generalCategories = classifiedCategories.filter((c) => c.group === "classifieds");
 
+export function SiteFooter() {
   return (
     <footer className="mt-14 border-t border-border bg-surface">
       <div className="mx-auto max-w-[1360px] px-4 py-9 sm:px-6">
         <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-5">
           <div>
-            <h2 className={headingClass}>Browse</h2>
+            <h2 className={headingClass}>Cars &amp; motors</h2>
             <ul className="mt-2">
-              <li>
-                <Link to="/browse" search={{}} className={linkClass} {...pinned}>
-                  All products
-                </Link>
-              </li>
-              <li>
-                <Link to="/browse" search={{ sort: "newest" }} className={linkClass} {...pinned}>
-                  New to catalog
-                </Link>
-              </li>
-              {categories.slice(0, 8).map((c) => (
+              {motorsCategories.map((c) => (
                 <li key={c.slug}>
                   <Link
                     to="/browse"
@@ -60,34 +40,33 @@ export function SiteFooter() {
           </div>
 
           <div>
-            <h2 className={headingClass}>Resorts and parks</h2>
+            <h2 className={headingClass}>Other classifieds</h2>
             <ul className="mt-2">
-              {geography.map((r) => (
-                <li key={r.resortCode}>
+              {generalCategories.map((c) => (
+                <li key={c.slug}>
                   <Link
                     to="/browse"
-                    search={{ resort: r.resortCode }}
+                    search={{ category: c.slug }}
                     className={linkClass}
                     {...pinned}
                   >
-                    {r.resortName}
+                    {c.name}
                   </Link>
                 </li>
               ))}
-              {geography.flatMap((r) =>
-                r.parks.slice(0, 4).map((p) => (
-                  <li key={p.id}>
-                    <Link
-                      to="/browse"
-                      search={{ resort: r.resortCode, park: p.slug }}
-                      className={linkClass}
-                      {...pinned}
-                    >
-                      {p.name}
-                    </Link>
-                  </li>
-                )),
-              )}
+            </ul>
+          </div>
+
+          <div>
+            <h2 className={headingClass}>Idaho regions</h2>
+            <ul className="mt-2">
+              {idahoRegions.map((region) => (
+                <li key={region}>
+                  <Link to="/browse" search={{ q: region }} className={linkClass} {...pinned}>
+                    {region}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
@@ -100,44 +79,23 @@ export function SiteFooter() {
                 </Link>
               </li>
               <li>
-                <Link to="/buying" className={linkClass} {...pinned}>
-                  Your purchase requests
+                <Link to="/create-listing" className={linkClass} {...pinned}>
+                  Post a listing
                 </Link>
               </li>
               <li>
-                <Link to="/sell" className={linkClass} {...pinned}>
+                <Link to="/selling" className={linkClass} {...pinned}>
                   Your listings and sales
                 </Link>
               </li>
               <li>
+                <Link to="/buying" className={linkClass} {...pinned}>
+                  Your purchases
+                </Link>
+              </li>
+              <li>
                 <Link to="/watchlist" className={linkClass} {...pinned}>
-                  Watchlist
-                </Link>
-              </li>
-              <li>
-                <Link to="/suggest" className={linkClass} {...pinned}>
-                  Suggest a missing product
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          <div>
-            <h2 className={headingClass}>Park shoppers</h2>
-            <ul className="mt-2">
-              <li>
-                <Link to="/shopper" className={linkClass} {...pinned}>
-                  Apply to source in park
-                </Link>
-              </li>
-              <li>
-                <Link to="/policies" hash="shopper-terms" className={linkClass} {...pinned}>
-                  Park shopper terms
-                </Link>
-              </li>
-              <li>
-                <Link to="/policies" hash="identity-verification" className={linkClass} {...pinned}>
-                  Government ID: purpose and access
+                  Saved listings
                 </Link>
               </li>
             </ul>
