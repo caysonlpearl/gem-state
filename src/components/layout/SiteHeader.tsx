@@ -1,85 +1,33 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { MagnifyingGlass, UserCircle, List, X } from "@phosphor-icons/react";
+import { MagnifyingGlass, UserCircle, List, X, PlusCircle } from "@phosphor-icons/react";
 
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import { BrandMark } from "@/components/layout/BrandMark";
 import { brand } from "@/config/brand";
+import { classifiedCategories } from "@/config/classifieds";
 import { useAuth } from "@/hooks/useAuth";
-import { getCatalogFacets } from "@/lib/catalog.functions";
-import { useHydrated } from "@/hooks/useHydrated";
 
 /*
- * Two-level marketplace header.
+ * Two-level classifieds header.
  *
- * Level 1: brand mark, the primary product search, account and utility links.
- * Level 2: secondary marketplace navigation generated from real catalog rows —
- *          resorts from `resorts`, categories from `categories`. Nothing is
- *          hardcoded, so an empty category never appears just to fill the bar.
+ * Level 1: brand mark, keyword search, post-a-listing, account and utilities.
+ * Level 2: category navigation driven by the Gem State classifieds taxonomy —
+ *          motors first, then general categories.
  *
- * Header links are never styled by active state. Pinning the active and
- * inactive class names to the same value keeps the server-rendered markup and
- * the hydrated markup identical even when the router resolves a redirect
- * (for example a protected route bouncing to sign-in) after the SSR pass.
+ * Header links are never styled by active state, so the server-rendered markup
+ * and the hydrated markup stay identical even when the router resolves a
+ * redirect after the SSR pass.
  */
 const navLinkClass =
   "inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap px-3 text-[14.5px] font-semibold tracking-[-0.01em] text-foreground transition-colors hover:text-nav-accent";
 
-/*
- * Display-only shortening for the dense navigation bar. The catalog rows keep
- * their full names everywhere else; only the header chrome is abbreviated so
- * every entry fits on a single line.
- */
-const navLabelOverrides: Record<string, string> = {
-  "Walt Disney World": "Disney World",
-  "Ears & Headwear": "Headwear",
-  "Pins & Trading": "Pins",
-  "Drinkware & Sippers": "Drinkware",
-  "Bags & Loungefly-style": "Bags",
-  "Home & Collectibles": "Home",
-};
-
-/*
- * The header bar shows only the original short list of headline categories, in
- * this order. New catalog categories stay browsable on /browse but do not grow
- * the nav bar.
- */
-const navCategorySlugs = [
-  "ears-headwear",
-  "apparel",
-  "pins",
-  "plush",
-  "drinkware",
-  "bags",
-  "home-decor",
-] as const;
-
-const navCategoryLabels: Record<string, string> = {
-  "ears-headwear": "Headwear",
-  apparel: "Apparel",
-  pins: "Pins",
-  plush: "Plush",
-  drinkware: "Drinkware",
-  bags: "Bags",
-  "home-decor": "Home",
-};
-
-function orderNavCategories<T extends { slug: string }>(rows: T[]) {
-  return navCategorySlugs
-    .map((slug) => rows.find((r) => r.slug === slug))
-    .filter((r): r is T => Boolean(r));
-}
-
-function navLabel(label: string) {
-  if (navLabelOverrides[label]) return navLabelOverrides[label];
-  // Fall back to the segment before an ampersand or "and" pairing.
-  const split = label.split(/\s+(?:&|and)\s+/i)[0];
-  return split || label;
-}
 const utilityLinkClass =
   "hidden h-9 items-center px-2.5 text-[12.5px] text-muted-foreground transition-colors hover:text-primary md:inline-flex";
 const pinned = { activeProps: { className: "" }, inactiveProps: { className: "" } } as const;
+
+const motorsCategories = classifiedCategories.filter((c) => c.group === "motors");
+const generalCategories = classifiedCategories.filter((c) => c.group === "classifieds");
 
 export function SiteHeader() {
   const { isSignedIn } = useAuth();
@@ -87,12 +35,6 @@ export function SiteHeader() {
   const [term, setTerm] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
-  const hydrated = useHydrated();
-  const facets = useQuery({
-    queryKey: ["catalog-facets"],
-    queryFn: () => getCatalogFacets(),
-    staleTime: 5 * 60 * 1000,
-  });
 
   // Close the mobile sheet on Escape and return focus to its trigger.
   useEffect(() => {
@@ -106,14 +48,6 @@ export function SiteHeader() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [menuOpen]);
-
-  // Catalog navigation is client-data driven. Streaming SSR can resolve this
-  // query on the server while the hydrating client cache is still empty, so the
-  // rows only render once hydrated — otherwise the two passes disagree.
-  const resorts = hydrated ? (facets.data?.geography ?? []) : [];
-  const categories = hydrated
-    ? orderNavCategories(facets.data?.categories ?? []).filter((c) => c.slug !== "home-decor")
-    : [];
 
   function submitSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -157,20 +91,22 @@ export function SiteHeader() {
         </form>
 
         <nav aria-label="Account and utilities" className="flex shrink-0 items-center gap-1">
-          <Link to="/sell" className={utilityLinkClass} {...pinned}>
-            Selling
-          </Link>
           <Link to="/glossary" className={utilityLinkClass} {...pinned}>
             How it works
+          </Link>
+          <Link
+            to="/create-listing"
+            className="hidden h-9 items-center gap-1.5 bg-accent px-3.5 text-[12.5px] font-semibold text-accent-foreground transition-opacity hover:opacity-90 sm:inline-flex"
+            {...pinned}
+          >
+            <PlusCircle size={16} aria-hidden="true" />
+            Post a listing
           </Link>
           {isSignedIn && <NotificationBell />}
           {/*
             A button rather than a router Link: this control's destination can
             equal the current location, and the router's active-state attribute
-            would then differ between the server-rendered shell of a protected
-            route and the sign-in screen the client resolves after the auth
-            gate redirects. A plain button carries no active state, so the
-            markup is identical on both passes.
+            would then differ between SSR and the client-resolved sign-in page.
           */}
           <button
             type="button"
@@ -194,36 +130,26 @@ export function SiteHeader() {
         </nav>
       </div>
 
-      {/* Level 2 — generated from real catalog rows only. */}
-      <nav aria-label="Marketplace" className="hidden border-t border-border bg-card lg:block">
+      {/* Level 2 — Gem State classifieds taxonomy. */}
+      <nav aria-label="Categories" className="hidden border-t border-border bg-card lg:block">
         <ul className="no-scrollbar mx-auto flex max-w-[1400px] flex-nowrap items-center justify-center gap-1 overflow-x-auto px-4 py-1.5 sm:px-8">
           <li>
             <Link to="/browse" search={{}} className={navLinkClass} {...pinned}>
-              All
+              All listings
             </Link>
           </li>
-          <li>
-            <Link to="/browse" search={{ sort: "newest" }} className={navLinkClass} {...pinned}>
-              New
-            </Link>
-          </li>
-          {resorts.map((r) => (
-            <li key={r.resortCode}>
-              <Link
-                to="/browse"
-                search={{ resort: r.resortCode }}
-                className={navLinkClass}
-                {...pinned}
-              >
-                {navLabel(r.resortName.replace(" Resort", ""))}
+          {motorsCategories.map((c) => (
+            <li key={c.slug}>
+              <Link to="/browse" search={{ category: c.slug }} className={navLinkClass} {...pinned}>
+                {c.name}
               </Link>
             </li>
           ))}
           <li aria-hidden="true" className="mx-1 h-4 w-px shrink-0 bg-border" />
-          {categories.map((c) => (
+          {generalCategories.slice(0, 5).map((c) => (
             <li key={c.slug}>
               <Link to="/browse" search={{ category: c.slug }} className={navLinkClass} {...pinned}>
-                {navCategoryLabels[c.slug] ?? navLabel(c.name)}
+                {c.name}
               </Link>
             </li>
           ))}
@@ -232,12 +158,12 @@ export function SiteHeader() {
               <li aria-hidden="true" className="mx-1 h-4 w-px shrink-0 bg-border" />
               <li>
                 <Link to="/watchlist" className={navLinkClass} {...pinned}>
-                  Watchlist
+                  Saved
                 </Link>
               </li>
               <li>
-                <Link to="/shopper" className={navLinkClass} {...pinned}>
-                  Park shopper
+                <Link to="/selling" className={navLinkClass} {...pinned}>
+                  Selling
                 </Link>
               </li>
             </>
@@ -250,29 +176,23 @@ export function SiteHeader() {
         <div id="marketplace-menu" className="border-t border-border bg-surface lg:hidden">
           <ul className="mx-auto grid max-w-[1360px] grid-cols-2 gap-1 px-3 py-3">
             {[
-              { label: "All products", to: "/browse" as const, search: {} },
-              { label: "New to catalog", to: "/browse" as const, search: { sort: "newest" } },
-              ...resorts.map((r) => ({
-                label: r.resortName.replace(" Resort", ""),
-                to: "/browse" as const,
-                search: { resort: r.resortCode },
-              })),
-              ...categories.map((c) => ({
-                label: navCategoryLabels[c.slug] ?? c.name,
+              { label: "Post a listing", to: "/create-listing" as const, search: {} },
+              { label: "All listings", to: "/browse" as const, search: {} },
+              { label: "Newest", to: "/browse" as const, search: { sort: "newest" } },
+              ...classifiedCategories.map((c) => ({
+                label: c.name,
                 to: "/browse" as const,
                 search: { category: c.slug },
               })),
-              { label: "Park shopper", to: "/shopper" as const, search: {} },
               ...(isSignedIn
                 ? [
-                    { label: "Watchlist", to: "/watchlist" as const, search: {} },
+                    { label: "Saved", to: "/watchlist" as const, search: {} },
+                    { label: "Selling", to: "/selling" as const, search: {} },
                     { label: "Notifications", to: "/notifications" as const, search: {} },
                   ]
                 : []),
               { label: "How it works", to: "/glossary" as const, search: {} },
-              { label: "Selling on ParkVault", to: "/sell" as const, search: {} },
               { label: "Policies", to: "/policies" as const, search: {} },
-
             ].map((item) => (
               <li key={`${item.label}-${item.to}`}>
                 <Link

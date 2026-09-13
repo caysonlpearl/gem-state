@@ -13,4 +13,4 @@ Allow: /
 User-agent: *
 Allow: /
 
-Sitemap: https://getparkvault.com/sitemap.xml
+Sitemap: https://gemstateclassifieds.com/sitemap.xml
