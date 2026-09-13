@@ -1,20 +1,20 @@
 /**
  * Central brand configuration.
  *
- * "ParkVault" is a working name. Everything replaceable — name, logo, contact,
+ * Brand-facing names, contact details, and policy language live here so no
  * URLs, legal language — lives here so no component hardcodes brand strings.
  */
 
 export const brand = {
-  name: "ParkVault",
-  shortName: "ParkVault",
-  wordmarkInitials: "PV",
-  tagline: "One page per product. Every seller, shopper, and offer in one place.",
+  name: "Gem State Classifieds",
+  shortName: "Gem State",
+  wordmarkInitials: "GSC",
+  tagline: "Buy and sell locally across Idaho.",
   description:
-    "A curated marketplace for Walt Disney World and Disneyland park merchandise: one canonical page per product, with real listings and offers underneath.",
-  domain: "parkvault.example",
-  supportEmail: "support@parkvault.example",
-  pressEmail: "hello@parkvault.example",
+    "Idaho classifieds for cars, trucks, outdoor gear, tools, home goods, and more from local sellers.",
+  domain: "gemstateclassifieds.com",
+  supportEmail: "support@gemstateclassifieds.com",
+  pressEmail: "hello@gemstateclassifieds.com",
   urls: {
     home: "/",
     auth: "/auth",
@@ -22,19 +22,16 @@ export const brand = {
     stripePlatformSetup: "https://dashboard.stripe.com/register",
     // Absolute origin for building fully-qualified URLs in <meta> tags
     // (og:image etc.), which crawlers require rather than resolving relative.
-    siteUrl: "https://www.getparkvault.com",
+    siteUrl: "https://gemstateclassifieds.com",
   },
   legal: {
     disclaimer:
-      "ParkVault is an independent marketplace and is not affiliated with, endorsed by, or sponsored by The Walt Disney Company. All product names, trademarks, and registered trademarks are the property of their respective owners.",
+      "Gem State Classifieds is an independent marketplace. Listings are created by individual sellers, who are responsible for their descriptions, photos, pricing, and legal right to sell each item.",
     checkoutNotice:
-      "Card payments on ParkVault are processed by Stripe. ParkVault does not operate escrow: sellers and in-park shoppers are paid after the item is delivered and the order completes.",
+      "Card payments on Gem State Classifieds are processed by Stripe. Gem State Classifieds does not operate escrow. Seller payouts follow the delivery and order-completion terms shown at checkout.",
     copyright: (year: number) => `© ${year} ${brand.name}.`,
   },
-  markets: [
-    { code: "WDW", label: "Walt Disney World Resort", currency: "USD" },
-    { code: "DLR", label: "Disneyland Resort", currency: "USD" },
-  ],
+  markets: [{ code: "ID", label: "Idaho", currency: "USD" }],
   defaultCurrency: "USD",
 } as const;
 
@@ -43,14 +40,13 @@ export const brand = {
  * `/policies`. These are the operator's published terms: each section states a
  * binding rule the marketplace actually applies today.
  */
-export const policyEffectiveDate = "September 3, 2026";
+export const policyEffectiveDate = "September 13, 2026";
 
 export const policyTopics = [
-  { slug: "non-affiliation", title: "Non-affiliation" },
+  { slug: "marketplace-disclosure", title: "Marketplace disclosure" },
   { slug: "privacy", title: "Privacy and what we store" },
   { slug: "buyer-terms", title: "Buyer terms" },
   { slug: "seller-terms", title: "Seller terms" },
-  { slug: "shopper-terms", title: "Park shopper terms" },
   { slug: "cancellation", title: "Cancellation and refunds" },
   { slug: "prohibited-items", title: "Prohibited items" },
   {

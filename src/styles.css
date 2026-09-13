@@ -5,7 +5,7 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * ParkVault design system — warm, editorial, restrained premium marketplace.
+ * Gem State Classifieds — bright, compact Idaho marketplace utility system.
  *
  * Every hue is derived from the supplied ParkVault logo palette only:
  *   deep teal   #14544B  → primary action, active state, focus ring
@@ -23,9 +23,10 @@
   --radius-xl: 10px;
   --radius-2xl: 12px;
 
-  --font-sans: "Archivo", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "DM Mono", ui-monospace, SFMono-Regular, monospace;
-  --font-editorial: "Newsreader", Georgia, serif;
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Sora", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Manrope", ui-monospace, SFMono-Regular, monospace;
+  --font-editorial: "Sora", ui-sans-serif, system-ui, sans-serif;
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -64,36 +65,36 @@
 .dark {
   --radius: 8px;
 
-  --background: #f7eee4;
-  --foreground: #22201b;
-  --surface: #f1e6d8;
-  --surface-foreground: #22201b;
-  --card: #fdf8f1;
-  --card-foreground: #22201b;
-  --popover: #fdf8f1;
-  --popover-foreground: #22201b;
+  --background: oklch(0.975 0.004 230);
+  --foreground: oklch(0.28 0.015 240);
+  --surface: oklch(0.95 0.008 235);
+  --surface-foreground: oklch(0.28 0.015 240);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.28 0.015 240);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.28 0.015 240);
 
   /* Deep teal owns interaction. Amber is reserved for tiny brand details. */
-  --primary: #14544a;
-  --primary-foreground: #fdf8f1;
-  --secondary: #efe3d3;
-  --secondary-foreground: #22201b;
-  --muted: #f4eadc;
-  --muted-foreground: #756d60;
-  --accent: #dfeae5;
-  --accent-foreground: #14544a;
-  --brand-warm: #c8601f;
+  --primary: oklch(0.32 0.07 245);
+  --primary-foreground: oklch(0.985 0.003 230);
+  --secondary: oklch(0.94 0.01 235);
+  --secondary-foreground: oklch(0.28 0.015 240);
+  --muted: oklch(0.95 0.008 235);
+  --muted-foreground: oklch(0.5 0.02 240);
+  --accent: oklch(0.72 0.16 57);
+  --accent-foreground: oklch(0.22 0.02 245);
+  --brand-warm: oklch(0.72 0.16 57);
   /* Emphasis green: header nav hover/active states, and the shopper "go live" CTA. */
-  --nav-accent: #00873c;
-  --product-well: #f1e6d8;
-  --product-ink: #8a8272;
+  --nav-accent: oklch(0.72 0.16 57);
+  --product-well: oklch(0.94 0.01 235);
+  --product-ink: oklch(0.55 0.02 240);
   --destructive: oklch(0.62 0.16 27);
   --destructive-foreground: oklch(0.98 0.003 95);
 
-  --border: #e1d3bf;
-  --border-strong: #9c8f7c;
-  --input: #d5c4ac;
-  --ring: #c8601f;
+  --border: oklch(0.88 0.012 235);
+  --border-strong: oklch(0.66 0.025 240);
+  --input: oklch(0.85 0.015 235);
+  --ring: oklch(0.72 0.16 57);
 }
 
 @layer base {
@@ -120,6 +121,7 @@
   h2,
   h3,
   h4 {
+    font-family: var(--font-display);
     text-wrap: balance;
   }
 
@@ -170,8 +172,8 @@
 }
 
 @utility product-placeholder {
-  background-color: #f1e6d8;
-  background-image: repeating-linear-gradient(135deg, #e8daca 0 8px, #f1e6d8 8px 16px);
+  background-color: var(--color-product-well);
+  background-image: repeating-linear-gradient(135deg, var(--color-border) 0 8px, var(--color-product-well) 8px 16px);
 }
 
 /* Gentle floating bob for the product-page watcher badge. */
