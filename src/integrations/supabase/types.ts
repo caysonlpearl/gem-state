@@ -589,6 +589,7 @@ export type Database = {
           listing_id: string
           postal_code: string | null
           region: string
+          state: string
           updated_at: string
           vehicle_body_style: string | null
           vehicle_drivetrain: string | null
@@ -610,6 +611,7 @@ export type Database = {
           listing_id: string
           postal_code?: string | null
           region: string
+          state?: string
           updated_at?: string
           vehicle_body_style?: string | null
           vehicle_drivetrain?: string | null
@@ -631,6 +633,7 @@ export type Database = {
           listing_id?: string
           postal_code?: string | null
           region?: string
+          state?: string
           updated_at?: string
           vehicle_body_style?: string | null
           vehicle_drivetrain?: string | null

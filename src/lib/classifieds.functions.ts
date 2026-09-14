@@ -36,6 +36,7 @@ export type ClassifiedCard = {
   priceCents: number;
   currency: string;
   city: string;
+  state: string;
   region: string;
   categorySlug: string | null;
   categoryName: string | null;
@@ -62,11 +63,17 @@ export type ClassifiedBrowseResult = {
 };
 
 const PAGE_SIZE = 24;
+const conditionValues = [
+  "new_with_tags",
+  "new_without_tags",
+  "used_excellent",
+  "used_good",
+] as const;
 
 const LISTING_SELECT =
   "id, product_id, variant_id, price_cents, currency, item_condition, seller_note, created_at, " +
   "products!inner(id, slug, name, description, status, category_id, categories(slug, name)), " +
-  "classified_listing_details!inner(region, city, postal_code, fulfillment_mode, vehicle_make, vehicle_model, vehicle_year, vehicle_trim, vehicle_mileage, vehicle_body_style, vehicle_transmission, vehicle_drivetrain, vehicle_fuel_type, vehicle_exterior_color, vehicle_title_status, vin), " +
+  "classified_listing_details!inner(region, city, state, postal_code, fulfillment_mode, vehicle_make, vehicle_model, vehicle_year, vehicle_trim, vehicle_mileage, vehicle_body_style, vehicle_transmission, vehicle_drivetrain, vehicle_fuel_type, vehicle_exterior_color, vehicle_title_status, vin), " +
   "listing_media(storage_path, position)";
 
 /** PostgREST `or=` treats these as structural characters; escape them. */
@@ -134,6 +141,7 @@ function toCard(row: Record<string, unknown>, urlByPath: Map<string, string>): C
     priceCents: row["price_cents"] as number,
     currency: (row["currency"] as string) ?? "USD",
     city: details["city"] as string,
+    state: ((details["state"] as string | null) ?? "ID").toUpperCase(),
     region: details["region"] as string,
     categorySlug: product.categories?.slug ?? null,
     categoryName: product.categories?.name ?? null,
@@ -150,6 +158,7 @@ export type ClassifiedBrowseInput = {
   category?: string | undefined;
   group?: string | undefined;
   region?: string | undefined;
+  state?: string | undefined;
   city?: string | undefined;
   condition?: string | undefined;
   fulfillment?: string | undefined;
@@ -164,6 +173,7 @@ export type ClassifiedBrowseInput = {
   transmission?: string | undefined;
   drivetrain?: string | undefined;
   fuelType?: string | undefined;
+  exteriorColor?: string | undefined;
   titleStatus?: string | undefined;
   sort?: "newest" | "price_low" | "price_high" | "mileage_low" | undefined;
   page?: number | undefined;
@@ -177,35 +187,37 @@ const num = (value: unknown) => {
 };
 
 export const browseClassifieds = createServerFn({ method: "GET" })
-  .inputValidator(
-    (input: ClassifiedBrowseInput): ClassifiedBrowseInput => ({
-      q: text(input?.q),
-      category: text(input?.category, 60),
-      group: text(input?.group, 20),
-      region: text(input?.region),
-      city: text(input?.city),
-      condition: text(input?.condition, 30),
-      fulfillment: text(input?.fulfillment, 20),
-      priceMin: num(input?.priceMin),
-      priceMax: num(input?.priceMax),
-      make: text(input?.make),
-      model: text(input?.model),
-      yearMin: num(input?.yearMin),
-      yearMax: num(input?.yearMax),
-      mileageMax: num(input?.mileageMax),
-      bodyStyle: text(input?.bodyStyle, 30),
-      transmission: text(input?.transmission, 30),
-      drivetrain: text(input?.drivetrain, 20),
-      fuelType: text(input?.fuelType, 30),
-      titleStatus: text(input?.titleStatus, 30),
-      sort: (["newest", "price_low", "price_high", "mileage_low"] as const).includes(
-        input?.sort as never,
-      )
-        ? input.sort
-        : "newest",
-      page: Math.max(1, Math.min(50, Number(input?.page ?? 1) || 1)),
-    }),
-  )
+  .inputValidator((input: ClassifiedBrowseInput): ClassifiedBrowseInput => ({
+    q: text(input?.q),
+    category: text(input?.category, 60),
+    group: text(input?.group, 20),
+    region: text(input?.region),
+    state: text(input?.state, 2)?.toUpperCase(),
+    city: text(input?.city),
+    condition: conditionValues.includes(input?.condition as never)
+      ? (input.condition as (typeof conditionValues)[number])
+      : undefined,
+    fulfillment: text(input?.fulfillment, 20),
+    priceMin: num(input?.priceMin),
+    priceMax: num(input?.priceMax),
+    make: text(input?.make),
+    model: text(input?.model),
+    yearMin: num(input?.yearMin),
+    yearMax: num(input?.yearMax),
+    mileageMax: num(input?.mileageMax),
+    bodyStyle: text(input?.bodyStyle, 30),
+    transmission: text(input?.transmission, 30),
+    drivetrain: text(input?.drivetrain, 20),
+    fuelType: text(input?.fuelType, 30),
+    exteriorColor: text(input?.exteriorColor, 30),
+    titleStatus: text(input?.titleStatus, 30),
+    sort: (["newest", "price_low", "price_high", "mileage_low"] as const).includes(
+      input?.sort as never,
+    )
+      ? input.sort
+      : "newest",
+    page: Math.max(1, Math.min(50, Number(input?.page ?? 1) || 1)),
+  }))
   .handler(async ({ data }): Promise<ClassifiedBrowseResult> => {
     const client = publicServerClient();
     const page = data.page ?? 1;
@@ -247,8 +259,10 @@ export const browseClassifieds = createServerFn({ method: "GET" })
       });
     }
     if (data.region) query = query.eq("classified_listing_details.region", data.region);
+    if (data.state) query = query.eq("classified_listing_details.state", data.state);
     if (data.city) query = query.ilike("classified_listing_details.city", data.city);
-    if (data.condition) query = query.eq("item_condition", data.condition);
+    if (data.condition)
+      query = query.eq("item_condition", data.condition as (typeof conditionValues)[number]);
     if (data.fulfillment) {
       query =
         data.fulfillment === "both"
@@ -273,6 +287,8 @@ export const browseClassifieds = createServerFn({ method: "GET" })
       query = query.eq("classified_listing_details.vehicle_drivetrain", data.drivetrain);
     if (data.fuelType)
       query = query.eq("classified_listing_details.vehicle_fuel_type", data.fuelType);
+    if (data.exteriorColor)
+      query = query.eq("classified_listing_details.vehicle_exterior_color", data.exteriorColor);
     if (data.titleStatus)
       query = query.eq("classified_listing_details.vehicle_title_status", data.titleStatus);
 
@@ -305,9 +321,13 @@ export const browseClassifieds = createServerFn({ method: "GET" })
     }
 
     const urlByPath = await signListingMedia(
-      (rows ?? []).flatMap((row) => sortedMedia(row as Record<string, unknown>).slice(0, 1)),
+      (rows ?? []).flatMap((row) =>
+        sortedMedia(row as unknown as Record<string, unknown>).slice(0, 1),
+      ),
     );
-    const listings = (rows ?? []).map((row) => toCard(row as Record<string, unknown>, urlByPath));
+    const listings = (rows ?? []).map((row) =>
+      toCard(row as unknown as Record<string, unknown>, urlByPath),
+    );
     return { listings, total: count ?? listings.length, page, pageSize: PAGE_SIZE };
   });
 
@@ -329,7 +349,7 @@ export const getClassifiedListing = createServerFn({ method: "GET" })
     if (error) console.error("getClassifiedListing failed", error.message);
     if (!row) return null;
 
-    const record = row as Record<string, unknown>;
+    const record = row as unknown as Record<string, unknown>;
     const paths = sortedMedia(record);
     const urlByPath = await signListingMedia(paths);
     const product = record["products"] as { id: string; slug: string; description: string | null };
@@ -380,7 +400,9 @@ export const getClassifiedsHome = createServerFn({ method: "GET" }).handler(
     const [{ data: categoryRows }, motors, recent] = await Promise.all([
       client
         .from("asks")
-        .select("id, products!inner(status, categories!inner(slug)), classified_listing_details!inner(listing_id)")
+        .select(
+          "id, products!inner(status, categories!inner(slug)), classified_listing_details!inner(listing_id)",
+        )
         .eq("status", "active")
         .eq("is_demo", false)
         .not("approved_at", "is", null)

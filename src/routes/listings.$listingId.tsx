@@ -26,7 +26,12 @@ export const Route = createFileRoute("/listings/$listingId")({
   loader: async ({ context, params }) => {
     const listing = await context.queryClient.ensureQueryData(listingQuery(params.listingId));
     if (!listing) throw notFound();
-    return { title: listing.title, price: listing.priceCents, city: listing.city };
+    return {
+      title: listing.title,
+      price: listing.priceCents,
+      city: listing.city,
+      state: listing.state,
+    };
   },
   head: ({ loaderData }) => {
     if (!loaderData) {
@@ -37,8 +42,8 @@ export const Route = createFileRoute("/listings/$listingId")({
         ],
       };
     }
-    const title = `${loaderData.title} — ${formatUsd(loaderData.price)} in ${loaderData.city}, ID`;
-    const description = `${loaderData.title} listed for ${formatUsd(loaderData.price)} by a seller in ${loaderData.city}, Idaho on ${brand.name}.`;
+    const title = `${loaderData.title} — ${formatUsd(loaderData.price)} in ${loaderData.city}, ${loaderData.state}`;
+    const description = `${loaderData.title} listed for ${formatUsd(loaderData.price)} by a seller in ${loaderData.city}, ${loaderData.state} on ${brand.name}.`;
     return {
       meta: [
         { title },
@@ -97,7 +102,7 @@ function ListingDetail() {
       queryFn: () =>
         getRelatedClassifieds({
           data: {
-            category: listing?.categorySlug ?? undefined,
+            ...(listing?.categorySlug ? { category: listing.categorySlug } : {}),
             excludeId: listingId,
           },
         }),
@@ -151,11 +156,7 @@ function ListingDetail() {
         <div className="min-w-0">
           {photo ? (
             <div className="overflow-hidden rounded-md border border-border bg-secondary">
-              <img
-                src={photo.url}
-                alt={photo.alt}
-                className="max-h-[520px] w-full object-cover"
-              />
+              <img src={photo.url} alt={photo.alt} className="max-h-[520px] w-full object-cover" />
             </div>
           ) : (
             <div className="flex h-[280px] items-center justify-center rounded-md border border-border bg-secondary text-[12px] text-muted-foreground">
@@ -189,7 +190,7 @@ function ListingDetail() {
           <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] text-muted-foreground">
             <span className="flex items-center gap-1">
               <MapPin size={13} weight="fill" className="text-primary" />
-              {listing.city}, Idaho ({listing.region})
+              {listing.city}, {listing.state} ({listing.region})
             </span>
             <span>Posted {postedAge(listing.createdAt).toLowerCase()}</span>
           </p>
@@ -231,7 +232,8 @@ function ListingDetail() {
               {listing.fulfillmentMode !== "shipping" && (
                 <li className="flex items-start gap-2">
                   <Handbag size={15} className="mt-0.5 shrink-0 text-primary" />
-                  Local pickup in {listing.city}, Idaho, arranged with the seller after purchase.
+                  Local pickup in {listing.city}, {listing.state}, arranged with the seller after
+                  purchase.
                 </li>
               )}
               {listing.fulfillmentMode !== "local_pickup" && (

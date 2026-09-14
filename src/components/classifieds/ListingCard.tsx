@@ -76,7 +76,7 @@ export function ListingCard({ listing }: { listing: ClassifiedCard }) {
         <Facts listing={listing} />
         <p className="mt-2 flex items-center gap-1 truncate text-[11.5px] text-muted-foreground">
           <MapPin size={12} weight="fill" className="shrink-0 text-primary" />
-          {listing.city}, Idaho
+          {listing.city}, {listing.state}
         </p>
         <div className="mt-2 flex items-center justify-between gap-2 text-[10.5px] text-muted-foreground">
           <span className="truncate">{fulfillmentLabels[listing.fulfillmentMode]}</span>
@@ -108,7 +108,7 @@ export function ListingRow({ listing }: { listing: ClassifiedCard }) {
           <Facts listing={listing} />
           <p className="mt-2 flex items-center gap-1 truncate text-[11.5px] text-muted-foreground">
             <MapPin size={12} weight="fill" className="shrink-0 text-primary" />
-            {listing.city}, Idaho · {fulfillmentLabels[listing.fulfillmentMode]}
+            {listing.city}, {listing.state} · {fulfillmentLabels[listing.fulfillmentMode]}
           </p>
           <p className="mt-1 text-[10.5px] text-muted-foreground">{postedAge(listing.createdAt)}</p>
         </div>
