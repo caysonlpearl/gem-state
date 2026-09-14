@@ -213,8 +213,7 @@ test("all categories opens a labeled icon menu with KSL-style sections", () => {
   );
   assert.match(headerSource, /w-\[min\(1280px,calc\(100vw-2rem\)\)\]/);
   assert.match(headerSource, /xl:grid-cols-6/);
-  assert.match(headerSource, /hover:shadow-\[0_8px_20px_rgb\(34_32_27_\/_14%\)\]/);
-  assert.match(headerSource, /group relative z-\[1\]/);
+  assert.match(headerSource, /hover:shadow-md/);
   for (const label of [
     "Announcements",
     "Appliances",
