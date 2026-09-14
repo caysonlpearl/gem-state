@@ -1,7 +1,13 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- the generated client types lag the classified listing RPC additions */
 import { createServerFn } from "@tanstack/react-start";
 
 import { publicServerClient } from "./supabase-public.server";
 import { classifiedCategories } from "@/config/classifieds";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import {
+  classifiedListingSchema,
+  type ClassifiedListingInput,
+} from "@/lib/classified-listing-contracts";
 
 /**
  * Public read layer for individual classified listings.
@@ -61,6 +67,235 @@ export type ClassifiedBrowseResult = {
   page: number;
   pageSize: number;
 };
+
+export type ClassifiedCategoryOption = {
+  id: string;
+  slug: string;
+  name: string;
+};
+
+export const getClassifiedCategoryOptions = createServerFn({ method: "GET" }).handler(
+  async (): Promise<ClassifiedCategoryOption[]> => {
+    const client = publicServerClient();
+    const slugs = classifiedCategories.map((category) => category.slug);
+    const { data, error } = await client
+      .from("categories")
+      .select("id, slug, name")
+      .in("slug", slugs)
+      .order("position");
+    if (error) throw new Error(error.message);
+    return (data ?? []) as ClassifiedCategoryOption[];
+  },
+);
+
+export type CreateClassifiedListingInput = ClassifiedListingInput & {
+  parcelLengthIn?: number | null;
+  parcelWidthIn?: number | null;
+  parcelHeightIn?: number | null;
+  parcelWeightLb?: number | null;
+  evidencePaths: string[];
+  publicMediaPaths: string[];
+};
+
+export const createClassifiedListing = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: CreateClassifiedListingInput): CreateClassifiedListingInput => {
+    const parsed = classifiedListingSchema.parse(input);
+    const positive = (value: number | null | undefined) =>
+      value == null || (Number.isFinite(value) && value > 0) ? (value ?? null) : null;
+    const evidencePaths = (input.evidencePaths ?? []).filter(Boolean).slice(0, 8);
+    const publicMediaPaths = (input.publicMediaPaths ?? []).filter(Boolean).slice(0, 8);
+    if (evidencePaths.length === 0 || publicMediaPaths.length === 0)
+      throw new Error("Add at least one exact-item photo.");
+    return {
+      ...parsed,
+      state: parsed.state.toUpperCase(),
+      evidencePaths,
+      publicMediaPaths,
+      parcelLengthIn: positive(input.parcelLengthIn),
+      parcelWidthIn: positive(input.parcelWidthIn),
+      parcelHeightIn: positive(input.parcelHeightIn),
+      parcelWeightLb: positive(input.parcelWeightLb),
+    };
+  })
+  .handler(async ({ data, context }): Promise<{ listingId: string }> => {
+    const client = context.supabase as any;
+    const { data: category, error: categoryError } = await client
+      .from("categories")
+      .select("id")
+      .eq("slug", data.category)
+      .maybeSingle();
+    if (categoryError) throw new Error(categoryError.message);
+    if (!category?.id) throw new Error("Choose a valid classified category.");
+
+    const { data: listingId, error } = await client.rpc("create_classified_listing", {
+      _title: data.title,
+      _description: data.description,
+      _category_id: category.id,
+      _price_cents: data.priceCents,
+      _item_condition: data.condition,
+      _seller_note: data.sellerNote ?? null,
+      _region: data.region,
+      _city: data.city,
+      _state: data.state,
+      _postal_code: data.postalCode ?? null,
+      _fulfillment_mode: data.fulfillmentMode,
+      _parcel_length_in: data.parcelLengthIn ?? null,
+      _parcel_width_in: data.parcelWidthIn ?? null,
+      _parcel_height_in: data.parcelHeightIn ?? null,
+      _parcel_weight_lb: data.parcelWeightLb ?? null,
+      _evidence_paths: data.evidencePaths,
+      _public_media_paths: data.publicMediaPaths,
+      _vehicle: data.vehicle ?? {},
+    });
+    if (error) throw new Error(error.message);
+    return { listingId: listingId as string };
+  });
+
+export type ClassifiedListingEditor = {
+  id: string;
+  title: string;
+  description: string;
+  category: string;
+  priceCents: number;
+  condition: string;
+  sellerNote: string;
+  state: string;
+  region: string;
+  city: string;
+  postalCode: string;
+  fulfillmentMode: string;
+  vehicle: ClassifiedVehicle | null;
+  parcelLengthIn: string;
+  parcelWidthIn: string;
+  parcelHeightIn: string;
+  parcelWeightLb: string;
+  status: string;
+  approvedAt: string | null;
+  imageUrls: string[];
+};
+
+export const getClassifiedListingEditor = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { listingId: string }) => ({ listingId: String(input.listingId) }))
+  .handler(async ({ data, context }): Promise<ClassifiedListingEditor | null> => {
+    const client = context.supabase as any;
+    const { data: row, error } = await client
+      .from("asks")
+      .select(
+        "id,status,approved_at,price_cents,item_condition,seller_note,parcel_length_in,parcel_width_in,parcel_height_in,parcel_weight_lb,products!inner(name,description,categories(slug)),classified_listing_details!inner(state,region,city,postal_code,fulfillment_mode,vehicle_make,vehicle_model,vehicle_year,vehicle_trim,vehicle_mileage,vehicle_body_style,vehicle_transmission,vehicle_drivetrain,vehicle_fuel_type,vehicle_exterior_color,vehicle_title_status,vin),listing_media(storage_path,position)",
+      )
+      .eq("id", data.listingId)
+      .eq("seller_id", context.userId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!row) return null;
+
+    const record = row as any;
+    const details = record.classified_listing_details as Record<string, unknown>;
+    const media = ((record.listing_media ?? []) as { storage_path: string; position: number }[])
+      .sort((a, b) => a.position - b.position)
+      .map((item) => item.storage_path);
+    const urls = await signListingMedia(media);
+    const category = record.products?.categories?.slug ?? "general";
+    return {
+      id: record.id,
+      title: record.products?.name ?? "",
+      description: record.products?.description ?? "",
+      category,
+      priceCents: Number(record.price_cents),
+      condition: record.item_condition,
+      sellerNote: record.seller_note ?? "",
+      state: String(details["state"] ?? "ID").toUpperCase(),
+      region: String(details["region"] ?? ""),
+      city: String(details["city"] ?? ""),
+      postalCode: String(details["postal_code"] ?? ""),
+      fulfillmentMode: String(details["fulfillment_mode"] ?? "local_pickup"),
+      vehicle: vehicleOf(details),
+      parcelLengthIn: record.parcel_length_in == null ? "" : String(record.parcel_length_in),
+      parcelWidthIn: record.parcel_width_in == null ? "" : String(record.parcel_width_in),
+      parcelHeightIn: record.parcel_height_in == null ? "" : String(record.parcel_height_in),
+      parcelWeightLb: record.parcel_weight_lb == null ? "" : String(record.parcel_weight_lb),
+      status: record.status,
+      approvedAt: record.approved_at ?? null,
+      imageUrls: media.map((path) => urls.get(path)).filter((url): url is string => Boolean(url)),
+    };
+  });
+
+export type UpdateClassifiedListingInput = {
+  listingId: string;
+  title: string;
+  description: string;
+  category: string;
+  priceCents: number;
+  condition: string;
+  sellerNote?: string | undefined;
+  state: string;
+  region: string;
+  city: string;
+  postalCode?: string | undefined;
+  fulfillmentMode: string;
+  parcelLengthIn?: number | null;
+  parcelWidthIn?: number | null;
+  parcelHeightIn?: number | null;
+  parcelWeightLb?: number | null;
+  vehicle?: ClassifiedListingInput["vehicle"];
+  publicMediaPaths?: string[];
+};
+
+export const updateClassifiedListing = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: UpdateClassifiedListingInput): UpdateClassifiedListingInput => {
+    const parsed = classifiedListingSchema.parse(input);
+    return {
+      ...parsed,
+      listingId: String(input.listingId),
+      publicMediaPaths: (input.publicMediaPaths ?? []).filter(Boolean).slice(0, 8),
+      parcelLengthIn: input.parcelLengthIn ?? null,
+      parcelWidthIn: input.parcelWidthIn ?? null,
+      parcelHeightIn: input.parcelHeightIn ?? null,
+      parcelWeightLb: input.parcelWeightLb ?? null,
+    };
+  })
+  .handler(async ({ data, context }): Promise<{ ok: true }> => {
+    const client = context.supabase as any;
+    const { data: category, error: categoryError } = await client
+      .from("categories")
+      .select("id")
+      .eq("slug", data.category)
+      .maybeSingle();
+    if (categoryError) throw new Error(categoryError.message);
+    if (!category?.id) throw new Error("Choose a valid classified category.");
+
+    const { error } = await client.rpc("update_classified_listing", {
+      _listing_id: data.listingId,
+      _title: data.title,
+      _description: data.description,
+      _category_id: category.id,
+      _price_cents: data.priceCents,
+      _item_condition: data.condition,
+      _seller_note: data.sellerNote ?? null,
+      _region: data.region,
+      _city: data.city,
+      _state: data.state,
+      _postal_code: data.postalCode ?? null,
+      _fulfillment_mode: data.fulfillmentMode,
+      _parcel_length_in: data.parcelLengthIn ?? null,
+      _parcel_width_in: data.parcelWidthIn ?? null,
+      _parcel_height_in: data.parcelHeightIn ?? null,
+      _parcel_weight_lb: data.parcelWeightLb ?? null,
+      _vehicle: data.vehicle ?? {},
+    });
+    if (error) throw new Error(error.message);
+    if (data.publicMediaPaths && data.publicMediaPaths.length > 0) {
+      const replaced = await client.rpc("replace_listing_media", {
+        _ask_id: data.listingId,
+        _paths: data.publicMediaPaths,
+      });
+      if (replaced.error) throw new Error(replaced.error.message);
+    }
+    return { ok: true };
+  });
 
 const PAGE_SIZE = 24;
 const conditionValues = [
