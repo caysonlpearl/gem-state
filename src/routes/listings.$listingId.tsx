@@ -35,7 +35,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { CategoryIcon } from "@/components/classifieds/CategoryIcon";
+import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 
 const listingQuery = (id: string) =>
   queryOptions({
@@ -243,7 +243,7 @@ function ListingDetail() {
           ) : (
             <div className="flex h-[320px] flex-col items-center justify-center rounded-[28px] bg-gradient-to-br from-secondary via-card to-accent/25 text-[12px] text-muted-foreground">
               <span className="grid h-16 w-16 place-items-center rounded-2xl bg-card/80 text-primary shadow-sm">
-                <CategoryIcon slug={listing.categorySlug ?? "general"} size={32} weight="duotone" />
+                <CategoryArtwork slug={listing.categorySlug ?? "general"} size={96} />
               </span>
               <span className="mt-3">This seller has not added photos yet.</span>
             </div>

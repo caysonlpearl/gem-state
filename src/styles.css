@@ -201,6 +201,23 @@
     border: 1px solid var(--color-input);
     background: var(--color-card);
   }
+
+  .category-art {
+    transform-origin: 50% 78%;
+    filter: drop-shadow(0 4px 5px rgb(34 32 27 / 7%));
+    transition: transform 360ms cubic-bezier(0.22, 1, 0.36, 1), filter 360ms ease;
+  }
+
+  .category-art--nav {
+    max-height: 100%;
+    max-width: 100%;
+  }
+
+  .group:hover .category-art,
+  .group:focus-visible .category-art {
+    transform: translateY(-4px) rotate(-2deg) scale(1.04);
+    filter: drop-shadow(0 8px 8px rgb(34 32 27 / 12%));
+  }
 }
 
 @utility product-placeholder {
@@ -225,6 +242,22 @@
 
 .watcher-bob {
   animation: watcher-bob 3s ease-in-out infinite;
+}
+
+@keyframes category-art-bob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-2px) rotate(1deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .category-art--nav {
+    animation: category-art-bob 5.5s ease-in-out infinite;
+  }
 }
 
 /* Slow auto-scroll plus direct mouse-drag and touch-swipe browsing. */

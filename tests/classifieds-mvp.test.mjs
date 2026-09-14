@@ -23,6 +23,7 @@ const homeSource = await read("src/routes/index.tsx");
 const categoryIconSource = await read("src/components/classifieds/CategoryIcon.tsx");
 const listingCardSource = await read("src/components/classifieds/ListingCard.tsx");
 const detailSource = await read("src/routes/listings.$listingId.tsx");
+const stylesSource = await read("src/styles.css");
 const { classifiedSeedListings } = await import("../scripts/classified-seed-data.mjs");
 
 test("classified taxonomy includes Idaho categories and automotive inventory", () => {
@@ -154,11 +155,17 @@ test("shared category icons and no-photo cards have deterministic presentation",
   ]) {
     assert.match(categoryIconSource, new RegExp(`(?:[\\\"']${slug}[\\\"']|${slug}:)`));
   }
-  assert.match(listingCardSource, /weight="duotone"/);
+  assert.match(categoryIconSource, /weight="duotone"/);
+  assert.match(categoryIconSource, /category-icons\/cars-trucks\.jpg/);
+  assert.match(categoryIconSource, /category-icons\/general\.jpg/);
+  assert.match(categoryIconSource, /function CategoryArtwork/);
   assert.match(categoryIconSource, /SquaresFour/);
   assert.match(listingCardSource, /listing\.categorySlug \?\? "general"/);
+  assert.match(listingCardSource, /CategoryArtwork/);
   assert.match(listingCardSource, /bg-gradient-to-br/);
   assert.match(listingCardSource, /rounded-2xl/);
+  assert.match(stylesSource, /@keyframes category-art-bob/);
+  assert.match(stylesSource, /prefers-reduced-motion: no-preference/);
 });
 
 test("browse filters remain complete inside the spacious drawer", () => {

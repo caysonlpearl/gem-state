@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { MapPin } from "@phosphor-icons/react";
 
 import { formatUsd } from "@/config/fees";
-import { CategoryIcon } from "@/components/classifieds/CategoryIcon";
+import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { WatchHeartButton } from "@/components/community/WatchHeartButton";
 import {
   conditionLabels,
@@ -22,7 +22,7 @@ function Photo({ listing, tall }: { listing: ClassifiedCard; tall?: boolean }) {
         <span className="absolute -right-6 -top-8 h-28 w-28 rounded-full bg-primary/5" />
         <span className="absolute -bottom-10 -left-5 h-28 w-28 rounded-full bg-brand-warm/10" />
         <span className="relative grid h-14 w-14 place-items-center rounded-2xl bg-card/75 text-primary shadow-sm backdrop-blur">
-          <CategoryIcon slug={listing.categorySlug ?? "general"} size={28} weight="duotone" />
+          <CategoryArtwork slug={listing.categorySlug ?? "general"} size={84} />
         </span>
       </div>
     );

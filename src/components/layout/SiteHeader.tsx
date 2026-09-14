@@ -12,7 +12,7 @@ import {
 
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import { BrandMark } from "@/components/layout/BrandMark";
-import { CategoryIcon } from "@/components/classifieds/CategoryIcon";
+import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { brand } from "@/config/brand";
 import { classifiedCategories } from "@/config/classifieds";
 import { useAuth } from "@/hooks/useAuth";
@@ -159,14 +159,14 @@ export function SiteHeader() {
         <ul className="no-scrollbar mx-auto flex max-w-[1440px] flex-nowrap items-center justify-center gap-1 overflow-x-auto px-4 sm:gap-2 sm:px-8">
           <li>
             <Link to="/browse" search={{}} className={navLinkClass} {...pinned}>
-              <CategoryIcon slug="general" size={23} weight="duotone" />
+              <CategoryArtwork slug="general" size={34} className="category-art--nav" />
               All listings
             </Link>
           </li>
           {motorsCategories.map((c) => (
             <li key={c.slug}>
               <Link to="/browse" search={{ category: c.slug }} className={navLinkClass} {...pinned}>
-                <CategoryIcon slug={c.slug} size={23} weight="duotone" />
+                <CategoryArtwork slug={c.slug} size={34} className="category-art--nav" />
                 {c.name}
               </Link>
             </li>
@@ -175,7 +175,7 @@ export function SiteHeader() {
           {generalCategories.slice(0, 5).map((c) => (
             <li key={c.slug}>
               <Link to="/browse" search={{ category: c.slug }} className={navLinkClass} {...pinned}>
-                <CategoryIcon slug={c.slug} size={23} weight="duotone" />
+                <CategoryArtwork slug={c.slug} size={34} className="category-art--nav" />
                 {c.name}
               </Link>
             </li>

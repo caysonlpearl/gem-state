@@ -5,7 +5,7 @@ import { ArrowRight, MagnifyingGlass, Car } from "@phosphor-icons/react";
 
 import { brand } from "@/config/brand";
 import { classifiedCategories, idahoRegions } from "@/config/classifieds";
-import { CategoryIcon } from "@/components/classifieds/CategoryIcon";
+import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { ListingCard } from "@/components/classifieds/ListingCard";
 import { getClassifiedsHome } from "@/lib/classifieds.functions";
 import { trackEvent } from "@/lib/analytics";
@@ -199,14 +199,16 @@ function Home() {
               key={option.slug}
               to="/browse"
               search={{ category: option.slug }}
-              className="group w-[118px] shrink-0 rounded-2xl border border-transparent bg-card p-4 shadow-sm transition-shadow hover:shadow-md"
+              className="group w-[166px] shrink-0 overflow-hidden rounded-[24px] border border-border/70 bg-card shadow-[0_8px_24px_rgb(34_32_27_/_5%)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-[0_16px_34px_rgb(34_32_27_/_11%)]"
             >
-              <span className="grid h-11 w-11 place-items-center rounded-2xl bg-secondary text-primary transition-colors group-hover:bg-accent">
-                <CategoryIcon slug={option.slug} size={24} weight="duotone" />
+              <span className="flex h-[118px] items-center justify-center bg-card px-2">
+                <CategoryArtwork slug={option.slug} size={104} className="category-art--nav" />
               </span>
-              <span className="mt-3 block text-[12px] font-semibold leading-tight">{option.name}</span>
-              <span className="mt-1 block text-[11px] text-muted-foreground">
-                {home.categoryCounts[option.slug] ?? 0} listings
+              <span className="border-t border-border/70 px-4 py-3.5">
+                <span className="block text-[12px] font-semibold leading-tight">{option.name}</span>
+                <span className="mt-1 block text-[11px] text-muted-foreground">
+                  {home.categoryCounts[option.slug] ?? 0} listings
+                </span>
               </span>
             </Link>
           ))}
@@ -268,8 +270,8 @@ function Home() {
               search={{ category: option.slug }}
               className="group rounded-2xl border border-transparent bg-card px-4 py-5 shadow-sm transition-shadow hover:shadow-md"
             >
-              <span className="grid h-10 w-10 place-items-center rounded-xl bg-secondary text-primary group-hover:bg-accent">
-                <CategoryIcon slug={option.slug} size={22} weight="duotone" />
+              <span className="flex h-12 items-center">
+                <CategoryArtwork slug={option.slug} size={54} className="category-art--nav" />
               </span>
               <span className="block text-[13px] font-semibold">{option.name}</span>
               <span className="mt-1 block text-[11.5px] text-muted-foreground">
