@@ -31,7 +31,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
  * redirect after the SSR pass.
  */
 const navLinkClass =
-  "inline-flex h-[88px] w-[158px] shrink-0 flex-row items-center justify-start gap-3 rounded-2xl px-4 text-left text-[12px] font-semibold leading-tight tracking-[-0.01em] text-foreground transition-colors hover:bg-secondary hover:text-primary";
+  "inline-flex h-[88px] w-[158px] shrink-0 flex-row items-center justify-start gap-3 rounded-2xl px-4 text-left text-[12px] font-semibold leading-tight tracking-[-0.01em] text-foreground transition-[background-color,color,box-shadow] hover:bg-secondary hover:text-primary hover:shadow-md";
 
 const utilityLinkClass =
   "hidden h-9 items-center px-2.5 text-[12.5px] text-muted-foreground transition-colors hover:text-primary md:inline-flex";
@@ -135,7 +135,7 @@ function AllCategoriesPopover({
             Browse every corner of Gem State classifieds.
           </p>
         </div>
-        <div className="mt-3 grid max-h-[min(720px,70vh)] gap-1 overflow-y-auto pr-1 sm:grid-cols-2 sm:gap-2 lg:grid-cols-3 xl:grid-cols-4 xl:gap-3">
+        <div className="mt-3 grid max-h-[min(720px,70vh)] gap-1 overflow-y-auto pr-1 sm:grid-cols-2 sm:gap-2 lg:grid-cols-4 xl:grid-cols-6 xl:max-h-none xl:overflow-visible xl:gap-3">
           {allCategoryMenuItems.map((category) => (
             <Link
               key={category.slug}
