@@ -88,6 +88,102 @@ export const getClassifiedCategoryOptions = createServerFn({ method: "GET" }).ha
   },
 );
 
+export type AdminClassifiedRow = {
+  id: string;
+  title: string;
+  priceCents: number;
+  condition: string;
+  categoryName: string;
+  city: string;
+  state: string;
+  region: string;
+  fulfillmentMode: string;
+  sellerDisplayName: string;
+  sellerHandle: string;
+  sellerNote: string | null;
+  vehicle: ClassifiedVehicle | null;
+  listingImageUrls: string[];
+  evidenceImageUrls: string[];
+  createdAt: string;
+};
+
+/** Admin-only queue for the actual classified listings awaiting moderation. */
+export const getAdminClassifiedQueue = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data: isAdmin, error: roleError } = await context.supabase.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "admin",
+    });
+    if (roleError) throw new Error(roleError.message);
+    if (!isAdmin) return { isAdmin: false, listings: [] as AdminClassifiedRow[] };
+
+    const { data: rawRows, error: queueError } =
+      await context.supabase.rpc("admin_ask_review_queue");
+    if (queueError) throw new Error(queueError.message);
+    const rows = (rawRows ?? []) as Array<{
+      ask_id: string;
+      product_name: string;
+      price_cents: number;
+      item_condition: string;
+      seller_display_name: string;
+      seller_handle: string;
+      seller_note: string | null;
+      listing_media_paths: string[] | null;
+      evidence_paths: string[] | null;
+      created_at: string;
+    }>;
+    if (rows.length === 0) return { isAdmin: true, listings: [] as AdminClassifiedRow[] };
+
+    const listingIds = rows.map((row) => row.ask_id);
+    const { data: detailRows, error: detailsError } = await context.supabase
+      .from("classified_listing_details")
+      .select(
+        "listing_id,region,city,state,fulfillment_mode,vehicle_make,vehicle_model,vehicle_year,vehicle_trim,vehicle_mileage,vehicle_body_style,vehicle_transmission,vehicle_drivetrain,vehicle_fuel_type,vehicle_exterior_color,vehicle_title_status,vin,asks!inner(products!inner(categories(name)))",
+      )
+      .in("listing_id", listingIds);
+    if (detailsError) throw new Error(detailsError.message);
+
+    const detailsByListing = new Map(
+      ((detailRows ?? []) as Array<Record<string, unknown>>).map((row) => [
+        String(row["listing_id"]),
+        row,
+      ]),
+    );
+    const listings = await Promise.all(
+      rows.map(async (row) => {
+        const details = detailsByListing.get(row.ask_id);
+        if (!details) return null;
+        const category = details["asks"] as {
+          products?: { categories?: { name?: string } };
+        } | null;
+        return {
+          id: row.ask_id,
+          title: row.product_name,
+          priceCents: Number(row.price_cents),
+          condition: row.item_condition,
+          categoryName: category?.products?.categories?.name ?? "Classified",
+          city: String(details["city"] ?? ""),
+          state: String(details["state"] ?? "ID").toUpperCase(),
+          region: String(details["region"] ?? ""),
+          fulfillmentMode: String(details["fulfillment_mode"] ?? ""),
+          sellerDisplayName: row.seller_display_name,
+          sellerHandle: row.seller_handle,
+          sellerNote: row.seller_note,
+          vehicle: vehicleOf(details),
+          listingImageUrls: await signedAdminUrls("listing-media", row.listing_media_paths),
+          evidenceImageUrls: await signedAdminUrls("ask-evidence", row.evidence_paths),
+          createdAt: row.created_at,
+        } satisfies AdminClassifiedRow;
+      }),
+    );
+
+    return {
+      isAdmin: true,
+      listings: listings.filter((listing): listing is AdminClassifiedRow => listing !== null),
+    };
+  });
+
 export type CreateClassifiedListingInput = ClassifiedListingInput & {
   parcelLengthIn?: number | null;
   parcelWidthIn?: number | null;
@@ -357,6 +453,16 @@ async function signListingMedia(paths: string[]): Promise<Map<string, string>> {
       .filter((item) => item.signedUrl)
       .map((item) => [item.path as string, item.signedUrl as string]),
   );
+}
+
+async function signedAdminUrls(bucket: string, paths: string[] | null): Promise<string[]> {
+  if (!paths?.length) return [];
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin.storage.from(bucket).createSignedUrls(paths, 60 * 60);
+  if (error) return [];
+  return (data ?? [])
+    .map((item) => item.signedUrl)
+    .filter((url): url is string => typeof url === "string" && url.length > 0);
 }
 
 function toCard(row: Record<string, unknown>, urlByPath: Map<string, string>): ClassifiedCard {

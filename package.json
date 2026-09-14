@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
+    "test:classifieds": "node --experimental-strip-types --test tests/classifieds-mvp.test.mjs",
     "test:payments": "node --experimental-strip-types --test tests/*.test.mjs",
     "build:dev": "vite build --mode development",
     "models:generate": "node scripts/3d/model-workflow.mjs generate",
