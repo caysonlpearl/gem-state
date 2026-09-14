@@ -16,6 +16,8 @@ const seedRunnerSource = await read("scripts/seed-classifieds.mjs");
 const seedMigrationSource = await read(
   "supabase/migrations/20260914110000_add_classified_seed_listing_function.sql",
 );
+const emailShellSource = await read("src/lib/email-templates/shell.tsx");
+const authEmailSource = await read("src/routes/lovable/email/auth/webhook.ts");
 const { classifiedSeedListings } = await import("../scripts/classified-seed-data.mjs");
 
 test("classified taxonomy includes Idaho categories and automotive inventory", () => {
@@ -98,4 +100,13 @@ test("step five preserves vehicle filters and keeps seeded records safe to revie
   assert.match(seedMigrationSource, /auth\.role\(\).*service_role/);
   assert.match(seedMigrationSource, /pending_review/);
   assert.match(seedMigrationSource, /classified_listing_details/);
+});
+
+test("step six keeps customer email surfaces on the Gem State brand", () => {
+  assert.match(emailShellSource, /Gem State Classifieds is an independent marketplace/);
+  assert.match(emailShellSource, /https:\/\/gemstateclassifieds\.com/);
+  assert.match(authEmailSource, /const SITE_NAME = "Gem State Classifieds"/);
+  assert.match(authEmailSource, /notify\.gemstateclassifieds\.com/);
+  assert.doesNotMatch(emailShellSource, /ParkVault|Disney/);
+  assert.doesNotMatch(authEmailSource, /ParkVault|getparkvault/);
 });

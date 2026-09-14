@@ -9,10 +9,10 @@ import { EmailChangeEmail } from '@/lib/email-templates/email-change'
 import { ReauthenticationEmail } from '@/lib/email-templates/reauthentication'
 
 // Configuration
-const SITE_NAME = "ParkVault"
-const SENDER_DOMAIN = "notify.getparkvault.com"
-const ROOT_DOMAIN = "getparkvault.com"
-const FROM_DOMAIN = "getparkvault.com"
+const SITE_NAME = "Gem State Classifieds"
+const SENDER_DOMAIN = "notify.gemstateclassifieds.com"
+const ROOT_DOMAIN = "gemstateclassifieds.com"
+const FROM_DOMAIN = "gemstateclassifieds.com"
 const SITE_URL = `https://${ROOT_DOMAIN}`
 
 // The SDK handler owns verification, dispatch, and retry semantics; this file
