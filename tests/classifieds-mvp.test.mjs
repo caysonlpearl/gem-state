@@ -11,6 +11,9 @@ const contractsSource = await read("src/lib/classified-listing-contracts.ts");
 const actionsSource = await read("src/components/classifieds/ListingActions.tsx");
 const moderationSource = await read("src/routes/_authenticated/admin.classifieds.tsx");
 const sellSource = await read("src/routes/sell.tsx");
+const classifiedsFunctionsSource = await read("src/lib/classifieds.functions.ts");
+const seedRunnerSource = await read("scripts/seed-classifieds.mjs");
+const { classifiedSeedListings } = await import("../scripts/classified-seed-data.mjs");
 
 test("classified taxonomy includes Idaho categories and automotive inventory", () => {
   assert.match(configSource, /cars-trucks/);
@@ -57,4 +60,35 @@ test("public seller landing page is Gem State-specific", () => {
   assert.doesNotMatch(sellSource, /ParkVault|Disney|park merchandise|catalog product/i);
   assert.match(sellSource, /Gem State seller/);
   assert.match(sellSource, /exact-item photos/);
+});
+
+test("step five seed fixtures cover realistic Idaho vehicle browse cases", () => {
+  assert.equal(classifiedSeedListings.length, 8);
+  assert.ok(new Set(classifiedSeedListings.map((listing) => listing.state)).size === 1);
+  assert.equal(classifiedSeedListings[0].state, "ID");
+  assert.equal(new Set(classifiedSeedListings.map((listing) => listing.category)).size, 1);
+  assert.equal(classifiedSeedListings[0].category, "cars-trucks");
+
+  for (const listing of classifiedSeedListings) {
+    assert.match(listing.title, /^20\d{2} /);
+    assert.ok(listing.priceCents > 0);
+    assert.ok(listing.city);
+    assert.ok(listing.vehicle.make);
+    assert.ok(listing.vehicle.model);
+    assert.ok(listing.vehicle.year >= 2010);
+    assert.ok(listing.vehicle.drivetrain);
+    assert.ok(listing.vehicle.title_status);
+    assert.match(listing.description, /Fictional seed listing for MVP flow testing/);
+  }
+});
+
+test("step five preserves vehicle filters and keeps seeded records safe to review", () => {
+  assert.match(classifiedsFunctionsSource, /vehicleForRpc/);
+  assert.match(classifiedsFunctionsSource, /body_style: vehicle\.bodyStyle/);
+  assert.match(classifiedsFunctionsSource, /title_status: vehicle\.titleStatus/);
+  assert.match(classifiedsFunctionsSource, /_vehicle: vehicleForRpc\(data\.vehicle\)/);
+  assert.match(seedRunnerSource, /--apply/);
+  assert.match(seedRunnerSource, /SUPABASE_SEED_ACCESS_TOKEN/);
+  assert.match(seedRunnerSource, /pending listings/);
+  assert.match(seedRunnerSource, /create_classified_listing/);
 });

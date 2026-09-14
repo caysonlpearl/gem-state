@@ -242,7 +242,7 @@ export const createClassifiedListing = createServerFn({ method: "POST" })
       _parcel_weight_lb: data.parcelWeightLb ?? null,
       _evidence_paths: data.evidencePaths,
       _public_media_paths: data.publicMediaPaths,
-      _vehicle: data.vehicle ?? {},
+      _vehicle: vehicleForRpc(data.vehicle),
     });
     if (error) throw new Error(error.message);
     return { listingId: listingId as string };
@@ -380,7 +380,7 @@ export const updateClassifiedListing = createServerFn({ method: "POST" })
       _parcel_width_in: data.parcelWidthIn ?? null,
       _parcel_height_in: data.parcelHeightIn ?? null,
       _parcel_weight_lb: data.parcelWeightLb ?? null,
-      _vehicle: data.vehicle ?? {},
+      _vehicle: vehicleForRpc(data.vehicle),
     });
     if (error) throw new Error(error.message);
     if (data.publicMediaPaths && data.publicMediaPaths.length > 0) {
@@ -430,6 +430,25 @@ function vehicleOf(details: Record<string, unknown>): ClassifiedVehicle | null {
     exteriorColor: (details["vehicle_exterior_color"] as string | null) ?? null,
     titleStatus: (details["vehicle_title_status"] as string | null) ?? null,
     vin: (details["vin"] as string | null) ?? null,
+  };
+}
+
+/** The database compatibility function stores vehicle JSON with SQL-style keys. */
+function vehicleForRpc(vehicle: ClassifiedListingInput["vehicle"] | undefined) {
+  if (!vehicle) return {};
+  return {
+    make: vehicle.make,
+    model: vehicle.model,
+    year: vehicle.year,
+    trim: vehicle.trim,
+    mileage: vehicle.mileage,
+    body_style: vehicle.bodyStyle,
+    transmission: vehicle.transmission,
+    drivetrain: vehicle.drivetrain,
+    fuel_type: vehicle.fuelType,
+    exterior_color: vehicle.exteriorColor,
+    title_status: vehicle.titleStatus,
+    vin: vehicle.vin,
   };
 }
 
