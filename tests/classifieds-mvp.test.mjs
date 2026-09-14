@@ -19,6 +19,7 @@ const seedMigrationSource = await read(
 const emailShellSource = await read("src/lib/email-templates/shell.tsx");
 const authEmailSource = await read("src/routes/lovable/email/auth/webhook.ts");
 const brandMarkSource = await read("src/components/layout/BrandMark.tsx");
+const headerSource = await read("src/components/layout/SiteHeader.tsx");
 const homeSource = await read("src/routes/index.tsx");
 const categoryIconSource = await read("src/components/classifieds/CategoryIcon.tsx");
 const listingCardSource = await read("src/components/classifieds/ListingCard.tsx");
@@ -128,7 +129,10 @@ test("homepage headline rotates through four-item classifieds combinations", () 
   assert.match(homeSource, /Fishing Lures/);
   assert.match(homeSource, /Massage Chairs/);
   assert.match(homeSource, /Air Hockey Tables/);
-  assert.match(homeSource, /headlineItems\[0\].*headlineItems\[1\].*headlineItems\[2\].*headlineItems\[3\]/s);
+  assert.match(
+    homeSource,
+    /headlineItems\[0\].*headlineItems\[1\].*headlineItems\[2\].*headlineItems\[3\]/s,
+  );
   assert.match(homeSource, /last-headline/);
 });
 
@@ -169,6 +173,16 @@ test("shared category icons and no-photo cards have deterministic presentation",
   assert.match(listingCardSource, /rounded-2xl/);
   assert.match(stylesSource, /@keyframes category-art-bob/);
   assert.match(stylesSource, /prefers-reduced-motion: no-preference/);
+});
+
+test("header categories use a spacious horizontal carousel with arrow controls", () => {
+  assert.match(headerSource, /id="category-strip"/);
+  assert.match(headerSource, /overflow-x-auto/);
+  assert.match(headerSource, /scrollBy\(/);
+  assert.match(headerSource, /Scroll categories left/);
+  assert.match(headerSource, /Scroll categories right/);
+  assert.match(headerSource, /generalCategories\.map/);
+  assert.match(headerSource, /size=\{64\}/);
 });
 
 test("browse filters remain complete inside the spacious drawer", () => {
