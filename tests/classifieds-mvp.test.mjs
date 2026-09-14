@@ -160,6 +160,7 @@ test("shared category icons and no-photo cards have deterministic presentation",
   assert.match(categoryIconSource, /category-icons\/cars-trucks\.png/);
   assert.match(categoryIconSource, /category-icons\/general\.png/);
   assert.match(categoryIconSource, /function CategoryArtwork/);
+  assert.match(categoryIconSource, /loading="eager"/);
   assert.match(categoryIconSource, /SquaresFour/);
   assert.match(listingCardSource, /listing\.categorySlug \?\? "general"/);
   assert.match(listingCardSource, /CategoryArtwork/);

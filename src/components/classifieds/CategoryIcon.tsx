@@ -78,7 +78,7 @@ export function CategoryArtwork({
       aria-hidden="true"
       width={size}
       height={size}
-      loading="lazy"
+      loading="eager"
       className={`category-art h-auto w-auto object-contain ${className ?? ""}`}
     />
   );
