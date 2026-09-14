@@ -416,7 +416,7 @@ export const respondToListingOffer = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     if (data.action === "accept" || data.action === "accept_counter") {
-      throw new Error("Use ParkVault Checkout to complete this offer.");
+      throw new Error("Use Gem State Checkout to complete this offer.");
     }
     const client = context.supabase as any;
     const { applyOfferResponse } = await import("./offer-response.server");

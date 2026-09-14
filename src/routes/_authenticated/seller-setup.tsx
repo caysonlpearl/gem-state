@@ -174,7 +174,7 @@ function SellerSetupPage() {
           </h1>
           <p className="mt-1 max-w-[620px] text-[12.5px] leading-relaxed text-muted-foreground">
             Your public storefront and private shipping information live here. Bank and identity
-            details go directly to Stripe, not ParkVault.
+            details go directly to Stripe, not Gem State Classifieds.
           </p>
         </div>
       </div>
@@ -372,7 +372,7 @@ function SellerSetupPage() {
             />
             <span>
               I agree to list only items I possess, describe condition accurately, ship on time, and
-              grant ParkVault permission to display the listing photos I submit.
+              grant Gem State Classifieds permission to display the listing photos I submit.
             </span>
           </label>
           <button
@@ -401,8 +401,8 @@ function SellerSetupPage() {
             </h2>
             <p className="mt-1 max-w-[610px] text-[11.5px] leading-relaxed text-muted-foreground">
               Stripe's hosted form collects the identity, tax and bank details it requires,
-              including a government ID when Stripe requests one. ParkVault receives only account
-              readiness flags, never the ID image or bank details.
+              including a government ID when Stripe requests one. Gem State Classifieds receives
+              only account readiness flags, never the ID image or bank details.
             </p>
           </div>
           <div className="flex gap-2">
@@ -436,10 +436,10 @@ function SellerSetupPage() {
         {!setup.data?.payoutProviderConfigured ? (
           <div className="mt-4 border border-brand-warm/40 bg-brand-warm/10 p-4">
             <p className="text-[12.5px] font-semibold">
-              ParkVault marketplace payouts are not configured yet
+              Gem State Classifieds marketplace payouts are not configured yet
             </p>
             <p className="mt-1 max-w-[680px] text-[11.5px] leading-relaxed text-muted-foreground">
-              This is a ParkVault platform issue, not a problem with your seller profile. The
+              This is a Gem State platform issue, not a problem with your seller profile. The
               Lovable workspace connector is enabled, but it does not supply the custom Stripe
               Connect credentials used to onboard individual marketplace sellers. Bank and identity
               details cannot be collected until that secure payout backend is configured.
@@ -452,17 +452,17 @@ function SellerSetupPage() {
                   rel="noreferrer"
                   className="inline-flex h-10 items-center bg-primary px-4 text-[12px] font-semibold text-primary-foreground"
                 >
-                  Open Stripe for ParkVault
+                  Open Stripe for Gem State
                 </a>
                 <p className="max-w-[520px] text-[10.5px] leading-relaxed text-muted-foreground">
-                  Create or open the Stripe account ParkVault will use. Its Connect credential must
-                  then be installed in a secure backend. Never place the key in source code, chat or
-                  a public form.
+                  Create or open the Stripe account Gem State Classifieds will use. Its Connect
+                  credential must then be installed in a secure backend. Never place the key in
+                  source code, chat or a public form.
                 </p>
               </div>
             ) : (
               <p className="mt-2 text-[11px] text-muted-foreground">
-                A ParkVault administrator must complete the platform connection before seller payout
+                A Gem State administrator must complete the platform connection before seller payout
                 setup becomes available.
               </p>
             )}
@@ -476,8 +476,8 @@ function SellerSetupPage() {
           <div>
             <h2 className="text-[15px] font-semibold">Create your first listing</h2>
             <p className="mt-1 max-w-[620px] text-[11.5px] leading-relaxed text-muted-foreground">
-              Search the ParkVault catalog, choose the product you own and add your exact-item
-              photos, condition, price and package details.
+              Choose a category, add the exact item you own, and provide your photos, condition,
+              location, price and package details.
             </p>
             {profileReady && !payoutReady ? (
               <p className="mt-2 text-[11px] text-brand-warm">

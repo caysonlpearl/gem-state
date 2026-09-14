@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { trackEvent } from "@/lib/analytics";
 
+import { brand } from "@/config/brand";
 import { formatUsd } from "@/config/fees";
 import { getOrder, type OrderDetail } from "@/lib/market.functions";
 import {
@@ -37,16 +38,15 @@ export const Route = createFileRoute("/_authenticated/orders/$orderId")({
   component: OrderPage,
   head: () => ({
     meta: [
-      { title: "Your ParkVault order" },
+      { title: `Your ${brand.name} order` },
       {
         name: "description",
-        content:
-          "Your ParkVault order confirmation: what you paid, when it ships, and how to track it.",
+        content: `Your ${brand.name} order confirmation: what you paid, when it ships, and how to track it.`,
       },
-      { property: "og:title", content: "Your ParkVault order" },
+      { property: "og:title", content: `Your ${brand.name} order` },
       {
         property: "og:description",
-        content: "Order confirmation and delivery status for your ParkVault purchase.",
+        content: `Order confirmation and delivery status for your ${brand.name} purchase.`,
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -70,7 +70,7 @@ function OrderPage() {
   const isPaid = Boolean(data && (data.paymentAuthorized || PAID_STATUSES.has(data.status)));
   const isClosed = Boolean(data && CLOSED_STATUSES.has(data.status));
   const isSourcing = data?.origin === "sourcing_shopper";
-  // Jobs created before ParkVault charged up front never had a checkout session.
+  // Jobs created before upfront checkout never had a checkout session.
   const isLegacySourcingRequest = Boolean(isSourcing && !data?.paymentStatus);
   const needsConfirmation = Boolean(
     isBuyer &&

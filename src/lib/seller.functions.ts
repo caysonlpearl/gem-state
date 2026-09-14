@@ -353,7 +353,7 @@ export const saveSellerSetup = createServerFn({ method: "POST" })
       const displayName = requireText(input.displayName, "seller display name", 80);
       const avatarUrl = String(input.avatarUrl ?? "").trim();
       if (avatarUrl && !avatarUrl.includes("/storage/v1/object/public/seller-avatars/")) {
-        throw new Error("Upload the seller photo through ParkVault.");
+        throw new Error("Upload the seller photo through Gem State Classifieds.");
       }
       if (!input.acceptTerms) throw new Error("Accept the seller and photo-display terms.");
       const defaultShippingMethod = String(input.defaultShippingMethod ?? "");
@@ -1053,7 +1053,7 @@ export const purchaseShippingLabel = createServerFn({ method: "POST" })
     }
     if (reservation?.state !== "reserved") {
       throw new Error(
-        "A label purchase is already being processed for this order. ParkVault support must reconcile it before another label can be purchased.",
+        "A label purchase is already being processed for this order. Gem State support must reconcile it before another label can be purchased.",
       );
     }
 

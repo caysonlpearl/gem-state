@@ -14,11 +14,11 @@ import { useAuth } from "@/hooks/useAuth";
 export const Route = createFileRoute("/sell")({
   head: () => ({
     meta: [
-      { title: `Sell park merchandise — ${brand.name}` },
+      { title: `Sell on ${brand.name}` },
       {
         name: "description",
         content:
-          "Create a verified ParkVault seller profile, connect payouts and list Disney Parks merchandise with exact-item photos.",
+          "Create a verified seller profile, connect payouts and list cars, trucks, outdoor gear, tools, home goods and more across Idaho.",
       },
     ],
   }),
@@ -34,14 +34,15 @@ function SellLandingPage() {
         <div className="mx-auto grid max-w-[1240px] gap-10 px-4 py-14 sm:px-8 lg:grid-cols-[1.2fr_0.8fr] lg:py-20">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-primary">
-              ParkVault Seller
+              Gem State seller
             </p>
             <h1 className="mt-3 max-w-[760px] font-editorial text-[48px] font-normal leading-[0.98] tracking-[-0.045em] sm:text-[64px]">
-              Turn park finds into a trusted storefront.
+              Turn what you own into a trusted local listing.
             </h1>
             <p className="mt-5 max-w-[650px] text-[14px] leading-relaxed text-muted-foreground">
               Build a seller profile, connect your payout account and list the exact item you own.
-              Buyers see your photos, price, condition, reviews and fulfillment record in one place.
+              Buyers across Idaho see your photos, price, condition, location and fulfillment record
+              in one place.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
               {isSignedIn ? (
@@ -58,7 +59,7 @@ function SellLandingPage() {
                   search={{ redirect: "/selling", mode: "signup" }}
                   className="inline-flex h-12 items-center gap-2 bg-primary px-5 text-[13px] font-semibold text-primary-foreground"
                 >
-                  Become a ParkVault Seller
+                  Become a Gem State seller
                   <ArrowRight size={16} />
                 </Link>
               )}
@@ -89,7 +90,7 @@ function SellLandingPage() {
               <Step
                 number="3"
                 title="Create your first listing"
-                text="Choose a catalog product, add exact-item photos, condition and your price."
+                text="Choose a category, add exact-item photos, location, condition and your price."
               />
             </ol>
           </div>
@@ -121,8 +122,8 @@ function SellLandingPage() {
         </div>
         <div className="mt-8 flex items-start gap-2 border-l-2 border-primary pl-4 text-[12px] leading-relaxed text-muted-foreground">
           <CheckCircle size={16} weight="fill" className="mt-0.5 shrink-0 text-primary" />
-          ParkVault never asks sellers to send government ID or bank details through messages. Those
-          details belong in the connected payout provider's hosted form.
+          Gem State Classifieds never asks sellers to send government ID or bank details through
+          messages. Those details belong in the connected payout provider's hosted form.
         </div>
       </section>
     </main>

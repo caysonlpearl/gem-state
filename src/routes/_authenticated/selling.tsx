@@ -118,7 +118,7 @@ function SellingPage() {
     mutationFn: (listingId: string) => relist({ data: { listingId } }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["my-listings"] });
-      toast.success("Listing resubmitted for ParkVault approval.");
+      toast.success("Listing resubmitted for Gem State review.");
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "Could not relist."),
   });
@@ -202,7 +202,7 @@ function SellingPage() {
               Seller center
             </p>
             <h1 className="mt-2 font-editorial text-[46px] font-normal leading-none tracking-[-0.04em]">
-              Become a ParkVault Seller
+              Become a Gem State seller
             </h1>
             <p className="mt-4 max-w-[620px] text-[13px] leading-relaxed text-muted-foreground">
               Create your public seller profile, add your private return address, connect verified
@@ -296,7 +296,7 @@ function SellingPage() {
           <div>
             <p className="text-[13px] font-semibold">Payout verification is not complete</p>
             <p className="mt-1 text-[11.5px] text-muted-foreground">
-              Complete identity and bank setup before ParkVault can send seller payouts.
+              Complete identity and bank setup before Gem State Classifieds can send seller payouts.
             </p>
           </div>
           <Link
@@ -406,7 +406,7 @@ function SellingPage() {
                     <p className="mt-0.5 text-[11.5px] text-muted-foreground">
                       {ask.variantLabel} ·{" "}
                       {ask.status === "active" && !ask.approvedAt
-                        ? "Awaiting ParkVault approval"
+                        ? "Awaiting Gem State review"
                         : (listingStatusLabels[ask.status] ?? ask.status)}{" "}
                       · {ask.publicMediaCount ?? 0} photos
                     </p>
@@ -512,7 +512,7 @@ function SellingPage() {
               : listingTab === "pending"
                 ? heldRequests.length > 0
                   ? ""
-                  : "Nothing waiting on ParkVault approval."
+                  : "Nothing waiting on Gem State review."
                 : listingTab === "sold"
                   ? "No sold listings yet."
                   : "No removed listings."}
@@ -569,7 +569,7 @@ function SellingPage() {
                     </p>
                     {offer.status === "pending" || offer.paymentStatus === "capture_pending" ? (
                       <dl className="numeric mt-2 grid grid-cols-2 gap-x-5 gap-y-0.5 text-[11px] text-muted-foreground">
-                        <dt>ParkVault selling fee</dt>
+                        <dt>Gem State selling fee</dt>
                         <dd className="text-right">−{formatUsd(offer.sellerFeeCents)}</dd>
                         <dt>You’ll receive</dt>
                         <dd className="text-right font-semibold text-foreground">
@@ -733,7 +733,7 @@ function SellingPage() {
           <div>
             <h2 className="text-[14px] font-semibold">Your seller reviews</h2>
             <p className="mt-0.5 text-[11px] text-muted-foreground">
-              Reviews from completed ParkVault orders.
+              Reviews from completed Gem State orders.
             </p>
           </div>
           <p className="numeric text-[12px] font-semibold">

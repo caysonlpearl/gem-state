@@ -51,8 +51,8 @@ export function OrderReviewCard({ orderId, role }: { orderId: string; role: "buy
           ))}
         </p>
         <p className="mt-2 text-[12.5px] text-muted-foreground">
-          You rated this {counterparty} {data.myReviewRating} out of 5. Thanks for helping keep
-          ParkVault honest.
+          You rated this {counterparty} {data.myReviewRating} out of 5. Thanks for helping keep Gem
+          State honest.
         </p>
       </section>
     );
