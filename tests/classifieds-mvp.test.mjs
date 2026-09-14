@@ -181,6 +181,8 @@ test("header categories use a spacious horizontal carousel with arrow controls",
   assert.match(headerSource, /scrollBy\(/);
   assert.match(headerSource, /Scroll categories left/);
   assert.match(headerSource, /Scroll categories right/);
+  assert.match(headerSource, /navigationCategories = classifiedCategories\.filter\(\(c\) => c\.slug !== "general"\)/);
+  assert.match(headerSource, /navigationCategories\.map/);
   assert.match(headerSource, /generalCategories\.map/);
   assert.match(headerSource, /size=\{64\}/);
 });

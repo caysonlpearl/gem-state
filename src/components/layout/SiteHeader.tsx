@@ -37,8 +37,9 @@ const utilityLinkClass =
   "hidden h-9 items-center px-2.5 text-[12.5px] text-muted-foreground transition-colors hover:text-primary md:inline-flex";
 const pinned = { activeProps: { className: "" }, inactiveProps: { className: "" } } as const;
 
-const motorsCategories = classifiedCategories.filter((c) => c.group === "motors");
-const generalCategories = classifiedCategories.filter((c) => c.group === "classifieds");
+const navigationCategories = classifiedCategories.filter((c) => c.slug !== "general");
+const motorsCategories = navigationCategories.filter((c) => c.group === "motors");
+const generalCategories = navigationCategories.filter((c) => c.group === "classifieds");
 
 export function SiteHeader() {
   const { isSignedIn } = useAuth();
@@ -278,7 +279,7 @@ export function SiteHeader() {
               { label: "Post a listing", to: "/create-listing" as const, search: {} },
               { label: "All listings", to: "/browse" as const, search: {} },
               { label: "Newest", to: "/browse" as const, search: { sort: "newest" } },
-              ...classifiedCategories.map((c) => ({
+              ...navigationCategories.map((c) => ({
                 label: c.name,
                 to: "/browse" as const,
                 search: { category: c.slug },
