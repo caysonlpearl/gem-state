@@ -31,7 +31,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
  * redirect after the SSR pass.
  */
 const navLinkClass =
-  "inline-flex h-[88px] w-[158px] shrink-0 flex-row items-center justify-start gap-3 rounded-2xl px-4 text-left text-[12px] font-semibold leading-tight tracking-[-0.01em] text-foreground transition-[background-color,color,box-shadow] hover:bg-secondary hover:text-primary hover:shadow-md";
+  "group relative z-[1] inline-flex h-[88px] w-[158px] shrink-0 flex-row items-center justify-start gap-3 rounded-2xl px-4 text-left text-[12px] font-semibold leading-tight tracking-[-0.01em] text-foreground transition-[background-color,color,box-shadow,transform] hover:-translate-y-0.5 hover:bg-secondary hover:text-primary hover:shadow-[0_8px_20px_rgb(34_32_27_/_14%)] focus-visible:bg-secondary focus-visible:text-primary focus-visible:shadow-md";
 
 const utilityLinkClass =
   "hidden h-9 items-center px-2.5 text-[12.5px] text-muted-foreground transition-colors hover:text-primary md:inline-flex";
