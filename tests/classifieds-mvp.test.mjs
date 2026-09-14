@@ -127,3 +127,9 @@ test("homepage headline rotates through four-item classifieds combinations", () 
   assert.match(homeSource, /headlineItems\[0\].*headlineItems\[1\].*headlineItems\[2\].*headlineItems\[3\]/s);
   assert.match(homeSource, /last-headline/);
 });
+
+test("homepage hero uses the expanded headline width and updated subline", () => {
+  assert.match(homeSource, /max-w-\[34ch\]/);
+  assert.match(homeSource, /And so much more across Idaho and surrounding states\./);
+  assert.doesNotMatch(homeSource, /listed one item at a time by sellers/);
+});

@@ -87,12 +87,11 @@ function Home() {
     <main className="mx-auto max-w-[1280px] px-4 pb-14 sm:px-6">
       {/* Search first: this is a marketplace, not a brochure. */}
       <section className="mt-6 rounded-lg border border-border bg-primary px-5 py-8 text-primary-foreground sm:px-9 sm:py-10">
-        <h1 className="max-w-[20ch] text-[30px] font-bold leading-[1.05] tracking-tight sm:text-[40px]">
+        <h1 className="max-w-[34ch] text-[30px] font-bold leading-[1.05] tracking-tight sm:text-[40px]">
           Find {headlineItems[0]} to {headlineItems[1]} to {headlineItems[2]} to {headlineItems[3]}.
         </h1>
         <p className="mt-3 max-w-[56ch] text-[13.5px] leading-relaxed text-primary-foreground/80">
-          Cars, trucks, trailers, tools, furniture and more — listed one item at a time by sellers
-          in your part of the state.
+          And so much more across Idaho and surrounding states.
         </p>
 
         <form
