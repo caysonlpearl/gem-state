@@ -157,8 +157,8 @@ test("shared category icons and no-photo cards have deterministic presentation",
     assert.match(categoryIconSource, new RegExp(`(?:[\\\"']${slug}[\\\"']|${slug}:)`));
   }
   assert.match(categoryIconSource, /weight="duotone"/);
-  assert.match(categoryIconSource, /category-icons\/cars-trucks\.jpg/);
-  assert.match(categoryIconSource, /category-icons\/general\.jpg/);
+  assert.match(categoryIconSource, /category-icons\/cars-trucks\.png/);
+  assert.match(categoryIconSource, /category-icons\/general\.png/);
   assert.match(categoryIconSource, /function CategoryArtwork/);
   assert.match(categoryIconSource, /SquaresFour/);
   assert.match(listingCardSource, /listing\.categorySlug \?\? "general"/);
