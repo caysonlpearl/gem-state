@@ -175,9 +175,6 @@ function Home() {
           </button>
         </form>
 
-        <p className="mt-4 text-[12px] text-muted-foreground">
-          {home.totalActive} live {home.totalActive === 1 ? "listing" : "listings"} right now.
-        </p>
         </div>
       </section>
 
