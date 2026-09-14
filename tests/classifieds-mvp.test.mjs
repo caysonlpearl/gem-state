@@ -13,6 +13,9 @@ const moderationSource = await read("src/routes/_authenticated/admin.classifieds
 const sellSource = await read("src/routes/sell.tsx");
 const classifiedsFunctionsSource = await read("src/lib/classifieds.functions.ts");
 const seedRunnerSource = await read("scripts/seed-classifieds.mjs");
+const seedMigrationSource = await read(
+  "supabase/migrations/20260914110000_add_classified_seed_listing_function.sql",
+);
 const { classifiedSeedListings } = await import("../scripts/classified-seed-data.mjs");
 
 test("classified taxonomy includes Idaho categories and automotive inventory", () => {
@@ -88,7 +91,11 @@ test("step five preserves vehicle filters and keeps seeded records safe to revie
   assert.match(classifiedsFunctionsSource, /title_status: vehicle\.titleStatus/);
   assert.match(classifiedsFunctionsSource, /_vehicle: vehicleForRpc\(data\.vehicle\)/);
   assert.match(seedRunnerSource, /--apply/);
-  assert.match(seedRunnerSource, /SUPABASE_SEED_ACCESS_TOKEN/);
+  assert.match(seedRunnerSource, /SUPABASE_SERVICE_ROLE_KEY/);
+  assert.match(seedRunnerSource, /SUPABASE_SEED_ACTOR_USER_ID/);
   assert.match(seedRunnerSource, /pending listings/);
-  assert.match(seedRunnerSource, /create_classified_listing/);
+  assert.match(seedRunnerSource, /seed_classified_listing/);
+  assert.match(seedMigrationSource, /auth\.role\(\).*service_role/);
+  assert.match(seedMigrationSource, /pending_review/);
+  assert.match(seedMigrationSource, /classified_listing_details/);
 });

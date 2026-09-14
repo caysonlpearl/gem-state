@@ -3,7 +3,7 @@ import { classifiedSeedListings } from "./classified-seed-data.mjs";
 
 const apply = process.argv.includes("--apply");
 const env = process.env;
-const required = ["SUPABASE_URL", "SUPABASE_PUBLISHABLE_KEY", "SUPABASE_SEED_ACCESS_TOKEN"];
+const required = ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SEED_ACTOR_USER_ID"];
 
 if (!apply) {
   console.log(
@@ -14,7 +14,9 @@ if (!apply) {
       `- ${listing.title} · $${(listing.priceCents / 100).toLocaleString()} · ${listing.city}, ${listing.state}`,
     );
   }
-  console.log("\nRun with --apply and a real seller access token to create pending listings.");
+  console.log(
+    "\nRun with --apply, the Lovable Cloud service key, and a seed actor user ID to create pending listings.",
+  );
   process.exit(0);
 }
 
@@ -23,32 +25,14 @@ if (missing.length > 0) {
   throw new Error(`Missing required seed configuration: ${missing.join(", ")}`);
 }
 
-const client = createClient(env.SUPABASE_URL, env.SUPABASE_PUBLISHABLE_KEY, {
+const client = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
-  global: { headers: { Authorization: `Bearer ${env.SUPABASE_SEED_ACCESS_TOKEN}` } },
 });
 
-const { data: userData, error: userError } = await client.auth.getUser(
-  env.SUPABASE_SEED_ACCESS_TOKEN,
+const { data: userData, error: userError } = await client.auth.admin.getUserById(
+  env.SUPABASE_SEED_ACTOR_USER_ID,
 );
-if (userError || !userData.user)
-  throw new Error(userError?.message ?? "Seed access token is invalid.");
-
-const { data: seller, error: sellerError } = await client
-  .from("seller_profiles")
-  .select("status,terms_accepted_at,default_shipping_method,default_handling_days")
-  .eq("user_id", userData.user.id)
-  .maybeSingle();
-if (sellerError) throw new Error(sellerError.message);
-if (
-  !seller ||
-  seller.status !== "active" ||
-  !seller.terms_accepted_at ||
-  !seller.default_shipping_method ||
-  !seller.default_handling_days
-) {
-  throw new Error("The seed account must have an active, verified seller profile first.");
-}
+if (userError || !userData.user) throw new Error(userError?.message ?? "Seed actor is invalid.");
 
 const { data: categories, error: categoriesError } = await client
   .from("categories")
@@ -99,7 +83,8 @@ for (const listing of classifiedSeedListings) {
     if (error) throw new Error(`${bucket} upload failed for ${listing.title}: ${error.message}`);
   }
 
-  const { data: listingId, error } = await client.rpc("create_classified_listing", {
+  const { data: listingId, error } = await client.rpc("seed_classified_listing", {
+    _owner_id: userData.user.id,
     _title: listing.title,
     _description: listing.description,
     _category_id: categoryId,
