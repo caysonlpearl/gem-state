@@ -65,8 +65,8 @@ export function SiteHeader() {
       </a>
 
       {/* Level 1 */}
-      <div className="mx-auto grid h-[68px] max-w-[1400px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 px-3 sm:px-8">
-        <Link to="/" className="flex shrink-0 items-center" {...pinned}>
+      <div className="mx-auto grid h-[76px] max-w-[1400px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-6 px-3 sm:gap-10 sm:px-8">
+        <Link to="/" className="flex shrink-0 items-center pr-1 sm:pr-2" {...pinned}>
           <BrandMark className="hidden sm:inline-flex" />
           <BrandMark compact className="sm:hidden" />
         </Link>

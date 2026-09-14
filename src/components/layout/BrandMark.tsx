@@ -7,7 +7,7 @@ export function BrandMark({ compact = false, className }: { compact?: boolean; c
       <img
         src={compact ? "/images/brand/gem-state-classifieds-mark.png" : "/images/brand/gem-state-classifieds-logo.png"}
         alt={brand.name}
-        className={compact ? "h-10 w-8 shrink-0 object-contain" : "h-14 w-auto max-w-[190px] shrink-0 object-contain"}
+        className={compact ? "h-10 w-8 shrink-0 object-contain" : "h-16 w-auto max-w-[220px] shrink-0 object-contain"}
       />
     </span>
   );

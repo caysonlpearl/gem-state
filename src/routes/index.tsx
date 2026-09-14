@@ -42,14 +42,41 @@ export const Route = createFileRoute("/")({
 const seeAll =
   "inline-flex shrink-0 items-center gap-1 text-[12.5px] font-semibold text-primary hover:underline";
 
+const headlineOptions = [
+  ["Cars", "Toys", "Appliances", "Fishing Lures"],
+  ["Trucks", "Tools", "Furniture", "Massage Chairs"],
+  ["RVs", "Outdoor Gear", "Electronics", "Air Hockey Tables"],
+  ["Motorcycles", "Farm Equipment", "Home Goods", "Kayaks"],
+  ["Auto Parts", "Camping Gear", "Bikes", "Vintage Signs"],
+  ["Boats", "Garden Gear", "Collectibles", "Smoker Grills"],
+  ["Trailers", "Lawn Equipment", "Appliances", "Arcade Cabinets"],
+  ["SUVs", "Toys", "Tools", "Fishing Tackle"],
+] as const;
+
+const headlineStorageKey = "gem-state-classifieds:last-headline";
+
+function pickHeadlineItems() {
+  if (typeof window === "undefined") return headlineOptions[0];
+
+  const previous = window.localStorage.getItem(headlineStorageKey);
+  const available = headlineOptions.filter((option) => option.join("|") !== previous);
+  const selected = available[Math.floor(Math.random() * available.length)] ?? headlineOptions[0];
+  window.localStorage.setItem(headlineStorageKey, selected.join("|"));
+  return selected;
+}
+
 function Home() {
   const navigate = useNavigate();
   const { data: home } = useSuspenseQuery(homeQuery);
+  const [headlineItems, setHeadlineItems] = useState<(typeof headlineOptions)[number]>(
+    headlineOptions[0],
+  );
   const [term, setTerm] = useState("");
   const [category, setCategory] = useState("");
   const [region, setRegion] = useState("");
 
   useEffect(() => {
+    setHeadlineItems(pickHeadlineItems());
     void trackEvent("page_view", { route: "/" });
   }, []);
 
@@ -61,7 +88,7 @@ function Home() {
       {/* Search first: this is a marketplace, not a brochure. */}
       <section className="mt-6 rounded-lg border border-border bg-primary px-5 py-8 text-primary-foreground sm:px-9 sm:py-10">
         <h1 className="max-w-[20ch] text-[30px] font-bold leading-[1.05] tracking-tight sm:text-[40px]">
-          Buy and sell locally across Idaho.
+          Find {headlineItems[0]} to {headlineItems[1]} to {headlineItems[2]} to {headlineItems[3]}.
         </h1>
         <p className="mt-3 max-w-[56ch] text-[13.5px] leading-relaxed text-primary-foreground/80">
           Cars, trucks, trailers, tools, furniture and more — listed one item at a time by sellers

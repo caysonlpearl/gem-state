@@ -19,6 +19,7 @@ const seedMigrationSource = await read(
 const emailShellSource = await read("src/lib/email-templates/shell.tsx");
 const authEmailSource = await read("src/routes/lovable/email/auth/webhook.ts");
 const brandMarkSource = await read("src/components/layout/BrandMark.tsx");
+const homeSource = await read("src/routes/index.tsx");
 const { classifiedSeedListings } = await import("../scripts/classified-seed-data.mjs");
 
 test("classified taxonomy includes Idaho categories and automotive inventory", () => {
@@ -116,4 +117,13 @@ test("approved Idaho gem logo is used across the responsive brand mark", () => {
   assert.match(brandMarkSource, /gem-state-classifieds-logo\.png/);
   assert.match(brandMarkSource, /gem-state-classifieds-mark\.png/);
   assert.doesNotMatch(brandMarkSource, /Diamond/);
+});
+
+test("homepage headline rotates through four-item classifieds combinations", () => {
+  assert.match(homeSource, /headlineOptions = \[/);
+  assert.match(homeSource, /Fishing Lures/);
+  assert.match(homeSource, /Massage Chairs/);
+  assert.match(homeSource, /Air Hockey Tables/);
+  assert.match(homeSource, /headlineItems\[0\].*headlineItems\[1\].*headlineItems\[2\].*headlineItems\[3\]/s);
+  assert.match(homeSource, /last-headline/);
 });
