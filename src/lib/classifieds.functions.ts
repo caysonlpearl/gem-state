@@ -31,6 +31,8 @@ export type ClassifiedVehicle = {
 export type ClassifiedCard = {
   id: string;
   title: string;
+  productId: string;
+  productSlug: string;
   priceCents: number;
   currency: string;
   city: string;
@@ -48,8 +50,6 @@ export type ClassifiedDetail = ClassifiedCard & {
   description: string | null;
   postalCode: string | null;
   sellerNote: string | null;
-  productId: string;
-  productSlug: string;
   variantId: string;
   images: { url: string; alt: string }[];
 };
@@ -119,6 +119,8 @@ async function signListingMedia(paths: string[]): Promise<Map<string, string>> {
 
 function toCard(row: Record<string, unknown>, urlByPath: Map<string, string>): ClassifiedCard {
   const product = row["products"] as {
+    id: string;
+    slug: string;
     name: string;
     categories: { slug: string; name: string } | null;
   };
@@ -127,6 +129,8 @@ function toCard(row: Record<string, unknown>, urlByPath: Map<string, string>): C
   return {
     id: row["id"] as string,
     title: product.name,
+    productId: product.id,
+    productSlug: product.slug,
     priceCents: row["price_cents"] as number,
     currency: (row["currency"] as string) ?? "USD",
     city: details["city"] as string,
@@ -337,8 +341,6 @@ export const getClassifiedListing = createServerFn({ method: "GET" })
       description: product.description,
       postalCode: (details["postal_code"] as string | null) ?? null,
       sellerNote: (record["seller_note"] as string | null) ?? null,
-      productId: product.id,
-      productSlug: product.slug,
       variantId: record["variant_id"] as string,
       images: paths
         .map((path) => urlByPath.get(path))
