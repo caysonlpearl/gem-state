@@ -269,6 +269,37 @@ test("all categories opens a labeled icon menu with KSL-style sections", () => {
   }
 });
 
+test("expanded category menu entries use transparent dimensional artwork", () => {
+  for (const slug of [
+    "announcements",
+    "appliances",
+    "baby",
+    "books-media",
+    "clothing-apparel",
+    "computers",
+    "cycling",
+    "fitness-equipment",
+    "for-trade-barter",
+    "free",
+    "home-garden",
+    "hunting-fishing",
+    "industrial",
+    "jobs",
+    "livestock",
+    "musical-instruments",
+    "other-real-estate",
+    "pets",
+    "services",
+    "tickets",
+    "toys",
+    "water-sports",
+    "weddings",
+    "winter-sports",
+  ]) {
+    assert.match(categoryIconSource, new RegExp(`src: "/category-icons/${slug}\\.png"`));
+  }
+});
+
 test("browse filters remain complete inside the spacious drawer", () => {
   assert.match(browseSource, /SheetContent/);
   assert.match(browseSource, /Filter listings/);

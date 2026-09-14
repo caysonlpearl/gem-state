@@ -129,6 +129,102 @@ const categoryArtwork = {
     src: "/category-icons/general.png",
     alt: "Dimensional shipping boxes and household goods illustration",
   },
+  announcements: {
+    src: "/category-icons/announcements.png",
+    alt: "Dimensional navy and cream megaphone illustration",
+  },
+  appliances: {
+    src: "/category-icons/appliances.png",
+    alt: "Dimensional countertop oven illustration",
+  },
+  baby: {
+    src: "/category-icons/baby.png",
+    alt: "Dimensional modern baby stroller illustration",
+  },
+  "books-media": {
+    src: "/category-icons/books-media.png",
+    alt: "Dimensional books and vinyl record illustration",
+  },
+  "clothing-apparel": {
+    src: "/category-icons/clothing-apparel.png",
+    alt: "Dimensional folded cream sweater illustration",
+  },
+  computers: {
+    src: "/category-icons/computers.png",
+    alt: "Dimensional laptop illustration",
+  },
+  cycling: {
+    src: "/category-icons/cycling.png",
+    alt: "Dimensional teal bicycle illustration",
+  },
+  "fitness-equipment": {
+    src: "/category-icons/fitness-equipment.png",
+    alt: "Dimensional navy and amber dumbbell illustration",
+  },
+  "for-trade-barter": {
+    src: "/category-icons/for-trade-barter.png",
+    alt: "Dimensional navy and amber exchange arrows illustration",
+  },
+  free: {
+    src: "/category-icons/free.png",
+    alt: "Dimensional cream gift box illustration",
+  },
+  "home-garden": {
+    src: "/category-icons/home-garden.png",
+    alt: "Dimensional leafy houseplant illustration",
+  },
+  "hunting-fishing": {
+    src: "/category-icons/hunting-fishing.png",
+    alt: "Dimensional teal fishing rod and lure illustration",
+  },
+  industrial: {
+    src: "/category-icons/industrial.png",
+    alt: "Dimensional yellow forklift illustration",
+  },
+  jobs: {
+    src: "/category-icons/jobs.png",
+    alt: "Dimensional navy briefcase illustration",
+  },
+  livestock: {
+    src: "/category-icons/livestock.png",
+    alt: "Dimensional cream and brown cow illustration",
+  },
+  "musical-instruments": {
+    src: "/category-icons/musical-instruments.png",
+    alt: "Dimensional teal acoustic guitar illustration",
+  },
+  "other-real-estate": {
+    src: "/category-icons/other-real-estate.png",
+    alt: "Dimensional house and for-sale sign illustration",
+  },
+  pets: {
+    src: "/category-icons/pets.png",
+    alt: "Dimensional golden retriever puppy illustration",
+  },
+  services: {
+    src: "/category-icons/services.png",
+    alt: "Dimensional navy and amber adjustable wrench illustration",
+  },
+  tickets: {
+    src: "/category-icons/tickets.png",
+    alt: "Dimensional cream event tickets illustration",
+  },
+  toys: {
+    src: "/category-icons/toys.png",
+    alt: "Dimensional teddy bear illustration",
+  },
+  "water-sports": {
+    src: "/category-icons/water-sports.png",
+    alt: "Dimensional teal kayak and paddle illustration",
+  },
+  weddings: {
+    src: "/category-icons/weddings.png",
+    alt: "Dimensional wedding ring box illustration",
+  },
+  "winter-sports": {
+    src: "/category-icons/winter-sports.png",
+    alt: "Dimensional crossed teal skis illustration",
+  },
 } as const;
 
 export type CategoryIconSlug = keyof typeof categoryIcons;
