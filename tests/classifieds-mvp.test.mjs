@@ -175,18 +175,27 @@ test("shared category icons and no-photo cards have deterministic presentation",
   assert.match(stylesSource, /prefers-reduced-motion: no-preference/);
 });
 
-test("header categories use a spacious horizontal carousel with arrow controls", () => {
-  assert.match(headerSource, /id="category-strip"/);
-  assert.match(headerSource, /overflow-x-auto/);
-  assert.match(headerSource, /scrollBy\(/);
-  assert.match(headerSource, /Scroll categories left/);
-  assert.match(headerSource, /Scroll categories right/);
+test("header categories show six featured categories and an all-categories control", () => {
+  assert.match(headerSource, /function AllCategoriesPopover/);
+  assert.match(headerSource, /featuredHeaderCategories = \[/);
+  for (const label of [
+    "Cars & Trucks",
+    "Appliances",
+    "Electronics",
+    "Furniture",
+    "Home & Garden",
+    "Pets",
+  ]) {
+    assert.match(headerSource, new RegExp(`name: "${label.replace(/&/g, "\\&")}"`));
+  }
+  assert.doesNotMatch(headerSource, /Scroll categories left/);
+  assert.doesNotMatch(headerSource, /Scroll categories right/);
+  assert.doesNotMatch(headerSource, /scrollBy\(/);
   assert.match(
     headerSource,
     /navigationCategories = classifiedCategories\.filter\(\(c\) => c\.slug !== "general"\)/,
   );
   assert.match(headerSource, /navigationCategories\.map/);
-  assert.match(headerSource, /generalCategories\.map/);
   assert.match(headerSource, /size=\{64\}/);
 });
 

@@ -3,8 +3,6 @@ import { useEffect, useRef, useState } from "react";
 import {
   BookmarkSimple,
   CaretDown,
-  CaretLeft,
-  CaretRight,
   List,
   MagnifyingGlass,
   PlusCircle,
@@ -25,8 +23,8 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
  * Two-level classifieds header.
  *
  * Level 1: brand mark, keyword search, post-a-listing, account and utilities.
- * Level 2: category navigation driven by the Gem State classifieds taxonomy —
- *          motors first, then general categories.
+ * Level 2: a small set of featured categories, with the complete taxonomy
+ *          available through the All categories popover.
  *
  * Header links are never styled by active state, so the server-rendered markup
  * and the hydrated markup stay identical even when the router resolves a
@@ -40,8 +38,15 @@ const utilityLinkClass =
 const pinned = { activeProps: { className: "" }, inactiveProps: { className: "" } } as const;
 
 const navigationCategories = classifiedCategories.filter((c) => c.slug !== "general");
-const motorsCategories = navigationCategories.filter((c) => c.group === "motors");
-const generalCategories = navigationCategories.filter((c) => c.group === "classifieds");
+
+const featuredHeaderCategories = [
+  { slug: "cars-trucks", name: "Cars & Trucks" },
+  { slug: "appliances", name: "Appliances" },
+  { slug: "electronics", name: "Electronics" },
+  { slug: "furniture", name: "Furniture" },
+  { slug: "home-garden", name: "Home & Garden" },
+  { slug: "pets", name: "Pets" },
+] as const;
 
 type CategoryMenuItem = {
   slug: string;
@@ -155,10 +160,7 @@ export function SiteHeader() {
   const navigate = useNavigate();
   const [term, setTerm] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
-  const [canScrollCategoriesLeft, setCanScrollCategoriesLeft] = useState(false);
-  const [canScrollCategoriesRight, setCanScrollCategoriesRight] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
-  const categoryStripRef = useRef<HTMLUListElement>(null);
 
   // Close the mobile sheet on Escape and return focus to its trigger.
   useEffect(() => {
@@ -172,33 +174,6 @@ export function SiteHeader() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [menuOpen]);
-
-  useEffect(() => {
-    const strip = categoryStripRef.current;
-    if (!strip) return;
-
-    const updateScrollState = () => {
-      setCanScrollCategoriesLeft(strip.scrollLeft > 4);
-      setCanScrollCategoriesRight(strip.scrollLeft + strip.clientWidth < strip.scrollWidth - 4);
-    };
-
-    updateScrollState();
-    strip.addEventListener("scroll", updateScrollState, { passive: true });
-    window.addEventListener("resize", updateScrollState);
-    return () => {
-      strip.removeEventListener("scroll", updateScrollState);
-      window.removeEventListener("resize", updateScrollState);
-    };
-  }, [isSignedIn]);
-
-  function scrollCategories(direction: -1 | 1) {
-    const strip = categoryStripRef.current;
-    if (!strip) return;
-    strip.scrollBy({
-      left: direction * Math.max(strip.clientWidth * 0.72, 420),
-      behavior: "smooth",
-    });
-  }
 
   function submitSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -302,39 +277,12 @@ export function SiteHeader() {
 
       {/* Level 2 — Gem State classifieds taxonomy. */}
       <nav aria-label="Categories" className="hidden border-t border-border bg-background lg:block">
-        <div className="relative mx-auto max-w-[1440px]">
-          <button
-            type="button"
-            aria-label="Scroll categories left"
-            disabled={!canScrollCategoriesLeft}
-            onClick={() => scrollCategories(-1)}
-            className="absolute left-2 top-1/2 z-10 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full border border-border bg-card/95 text-foreground shadow-md transition-opacity hover:bg-secondary disabled:pointer-events-none disabled:opacity-0"
-          >
-            <CaretLeft size={18} weight="bold" aria-hidden="true" />
-          </button>
-          <ul
-            id="category-strip"
-            ref={categoryStripRef}
-            className="no-scrollbar mx-auto flex max-w-[1440px] flex-nowrap items-center justify-start gap-5 overflow-x-auto scroll-smooth px-16 sm:gap-7 sm:px-20"
-          >
+        <div className="mx-auto max-w-[1440px]">
+          <ul className="mx-auto flex max-w-[1280px] flex-nowrap items-center justify-center gap-3 px-4 sm:gap-5 sm:px-8">
             <li>
               <AllCategoriesPopover />
             </li>
-            {motorsCategories.map((c) => (
-              <li key={c.slug}>
-                <Link
-                  to="/browse"
-                  search={{ category: c.slug }}
-                  className={navLinkClass}
-                  {...pinned}
-                >
-                  <CategoryArtwork slug={c.slug} size={64} className="category-art--nav" />
-                  <span>{c.name}</span>
-                </Link>
-              </li>
-            ))}
-            <li aria-hidden="true" className="mx-1 h-4 w-px shrink-0 bg-border" />
-            {generalCategories.map((c) => (
+            {featuredHeaderCategories.map((c) => (
               <li key={c.slug}>
                 <Link
                   to="/browse"
@@ -365,15 +313,6 @@ export function SiteHeader() {
               </>
             )}
           </ul>
-          <button
-            type="button"
-            aria-label="Scroll categories right"
-            disabled={!canScrollCategoriesRight}
-            onClick={() => scrollCategories(1)}
-            className="absolute right-2 top-1/2 z-10 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full border border-border bg-card/95 text-foreground shadow-md transition-opacity hover:bg-secondary disabled:pointer-events-none disabled:opacity-0"
-          >
-            <CaretRight size={18} weight="bold" aria-hidden="true" />
-          </button>
         </div>
       </nav>
 
