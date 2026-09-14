@@ -181,10 +181,83 @@ test("header categories use a spacious horizontal carousel with arrow controls",
   assert.match(headerSource, /scrollBy\(/);
   assert.match(headerSource, /Scroll categories left/);
   assert.match(headerSource, /Scroll categories right/);
-  assert.match(headerSource, /navigationCategories = classifiedCategories\.filter\(\(c\) => c\.slug !== "general"\)/);
+  assert.match(
+    headerSource,
+    /navigationCategories = classifiedCategories\.filter\(\(c\) => c\.slug !== "general"\)/,
+  );
   assert.match(headerSource, /navigationCategories\.map/);
   assert.match(headerSource, /generalCategories\.map/);
   assert.match(headerSource, /size=\{64\}/);
+});
+
+test("all categories opens a labeled icon menu with KSL-style sections", () => {
+  assert.match(headerSource, /PopoverContent/);
+  assert.match(headerSource, /function AllCategoriesPopover/);
+  assert.match(headerSource, /aria-label="All categories"/);
+  assert.match(
+    headerSource,
+    /<p className="text-\[18px\] font-semibold tracking-tight">All categories<\/p>/,
+  );
+  assert.match(
+    headerSource,
+    /CategoryArtwork slug=\{category\.slug\} size=\{48\} className="!h-12 !w-12 shrink-0"/,
+  );
+  for (const label of [
+    "Announcements",
+    "Appliances",
+    "Baby",
+    "Books and Media",
+    "Clothing and Apparel",
+    "Computers",
+    "Cycling",
+    "Fitness Equipment",
+    "For Trade or Barter",
+    "FREE",
+    "Home and Garden",
+    "Hunting and Fishing",
+    "Industrial",
+    "Jobs",
+    "Livestock",
+    "Musical Instruments",
+    "Other Real Estate",
+    "Pets",
+    "Services",
+    "Tickets",
+    "Toys",
+    "Water Sports",
+    "Weddings",
+    "Winter Sports",
+  ]) {
+    assert.match(headerSource, new RegExp(`name: "${label}"`));
+  }
+  for (const slug of [
+    "announcements",
+    "appliances",
+    "baby",
+    "books-media",
+    "clothing-apparel",
+    "computers",
+    "cycling",
+    "fitness-equipment",
+    "for-trade-barter",
+    "free",
+    "home-garden",
+    "hunting-fishing",
+    "industrial",
+    "jobs",
+    "livestock",
+    "musical-instruments",
+    "other-real-estate",
+    "pets",
+    "services",
+    "tickets",
+    "toys",
+    "water-sports",
+    "weddings",
+    "winter-sports",
+  ]) {
+    assert.match(categoryIconSource, new RegExp(`(?:[\\"']${slug}[\\"']|${slug}:)`));
+  }
 });
 
 test("browse filters remain complete inside the spacious drawer", () => {

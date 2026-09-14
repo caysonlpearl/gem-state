@@ -2,6 +2,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import {
   BookmarkSimple,
+  CaretDown,
   CaretLeft,
   CaretRight,
   List,
@@ -18,6 +19,7 @@ import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { brand } from "@/config/brand";
 import { classifiedCategories } from "@/config/classifieds";
 import { useAuth } from "@/hooks/useAuth";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 /*
  * Two-level classifieds header.
@@ -40,6 +42,113 @@ const pinned = { activeProps: { className: "" }, inactiveProps: { className: "" 
 const navigationCategories = classifiedCategories.filter((c) => c.slug !== "general");
 const motorsCategories = navigationCategories.filter((c) => c.group === "motors");
 const generalCategories = navigationCategories.filter((c) => c.group === "classifieds");
+
+type CategoryMenuItem = {
+  slug: string;
+  name: string;
+  group: "motors" | "classifieds";
+};
+
+// These are presentation-only entries for the new all-categories menu. The
+// existing Gem State taxonomy remains the source of truth for create/browse
+// flows while this menu is expanded to match the breadth shoppers expect from
+// a general classifieds marketplace.
+const allCategoryMenuItems = [
+  { slug: "cars-trucks", name: "Cars & Trucks", group: "motors" },
+  { slug: "motorcycles", name: "Motorcycles", group: "motors" },
+  { slug: "rvs-campers", name: "Recreational Vehicles", group: "motors" },
+  { slug: "powersports", name: "Powersports", group: "motors" },
+  { slug: "auto-parts", name: "Auto Parts and Accessories", group: "motors" },
+  { slug: "trailers", name: "Trailers", group: "motors" },
+  { slug: "announcements", name: "Announcements", group: "classifieds" },
+  { slug: "appliances", name: "Appliances", group: "classifieds" },
+  { slug: "baby", name: "Baby", group: "classifieds" },
+  { slug: "books-media", name: "Books and Media", group: "classifieds" },
+  { slug: "clothing-apparel", name: "Clothing and Apparel", group: "classifieds" },
+  { slug: "computers", name: "Computers", group: "classifieds" },
+  { slug: "cycling", name: "Cycling", group: "classifieds" },
+  { slug: "electronics", name: "Electronics", group: "classifieds" },
+  { slug: "fitness-equipment", name: "Fitness Equipment", group: "classifieds" },
+  { slug: "for-trade-barter", name: "For Trade or Barter", group: "classifieds" },
+  { slug: "free", name: "FREE", group: "classifieds" },
+  { slug: "furniture", name: "Furniture", group: "classifieds" },
+  { slug: "general", name: "General", group: "classifieds" },
+  { slug: "home-garden", name: "Home and Garden", group: "classifieds" },
+  { slug: "hunting-fishing", name: "Hunting and Fishing", group: "classifieds" },
+  { slug: "industrial", name: "Industrial", group: "classifieds" },
+  { slug: "jobs", name: "Jobs", group: "classifieds" },
+  { slug: "livestock", name: "Livestock", group: "classifieds" },
+  { slug: "musical-instruments", name: "Musical Instruments", group: "classifieds" },
+  { slug: "other-real-estate", name: "Other Real Estate", group: "classifieds" },
+  { slug: "outdoor-sporting", name: "Outdoors and Sporting", group: "classifieds" },
+  { slug: "pets", name: "Pets", group: "classifieds" },
+  { slug: "services", name: "Services", group: "classifieds" },
+  { slug: "tickets", name: "Tickets", group: "classifieds" },
+  { slug: "toys", name: "Toys", group: "classifieds" },
+  { slug: "water-sports", name: "Water Sports", group: "classifieds" },
+  { slug: "weddings", name: "Weddings", group: "classifieds" },
+  { slug: "winter-sports", name: "Winter Sports", group: "classifieds" },
+  { slug: "tools-equipment", name: "Tools & Equipment", group: "classifieds" },
+  { slug: "farm-garden", name: "Farm & Garden", group: "classifieds" },
+] as const satisfies readonly CategoryMenuItem[];
+
+function AllCategoriesPopover({
+  onSelect,
+  compact = false,
+}: {
+  onSelect?: () => void;
+  compact?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const triggerClassName = compact
+    ? "flex min-h-11 w-full items-center gap-2 rounded-2xl border border-border bg-card px-3 py-2 text-left text-[13px] font-semibold"
+    : `${navLinkClass} w-[178px]`;
+  const artworkClassName = compact ? "!h-9 !w-9 shrink-0" : "category-art--nav";
+
+  function selectCategory() {
+    setOpen(false);
+    onSelect?.();
+  }
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button type="button" aria-label="All categories" className={triggerClassName}>
+          <CategoryArtwork slug="general" size={compact ? 36 : 64} className={artworkClassName} />
+          <span>All categories</span>
+          <CaretDown size={15} weight="bold" aria-hidden="true" className="ml-auto shrink-0" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        sideOffset={12}
+        className="w-[min(760px,calc(100vw-2rem))] rounded-[24px] p-3 shadow-xl sm:p-5"
+      >
+        <div className="border-b border-border px-2 pb-4 sm:px-3">
+          <p className="text-[18px] font-semibold tracking-tight">All categories</p>
+          <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
+            Browse every corner of Gem State classifieds.
+          </p>
+        </div>
+        <div className="mt-3 grid max-h-[min(620px,70vh)] gap-1 overflow-y-auto pr-1 sm:grid-cols-2 sm:gap-2">
+          {allCategoryMenuItems.map((category) => (
+            <Link
+              key={category.slug}
+              to="/browse"
+              search={{ category: category.slug }}
+              onClick={selectCategory}
+              className="group flex min-h-16 items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-secondary"
+              {...pinned}
+            >
+              <CategoryArtwork slug={category.slug} size={48} className="!h-12 !w-12 shrink-0" />
+              <span className="text-[13px] font-medium leading-tight">{category.name}</span>
+            </Link>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 export function SiteHeader() {
   const { isSignedIn } = useAuth();
@@ -209,10 +318,7 @@ export function SiteHeader() {
             className="no-scrollbar mx-auto flex max-w-[1440px] flex-nowrap items-center justify-start gap-5 overflow-x-auto scroll-smooth px-16 sm:gap-7 sm:px-20"
           >
             <li>
-              <Link to="/browse" search={{}} className={navLinkClass} {...pinned}>
-                <CategoryArtwork slug="general" size={64} className="category-art--nav" />
-                <span>All listings</span>
-              </Link>
+              <AllCategoriesPopover />
             </li>
             {motorsCategories.map((c) => (
               <li key={c.slug}>
@@ -277,7 +383,6 @@ export function SiteHeader() {
           <ul className="mx-auto grid max-w-[1360px] grid-cols-2 gap-1 px-3 py-3">
             {[
               { label: "Post a listing", to: "/create-listing" as const, search: {} },
-              { label: "All listings", to: "/browse" as const, search: {} },
               { label: "Newest", to: "/browse" as const, search: { sort: "newest" } },
               ...navigationCategories.map((c) => ({
                 label: c.name,
@@ -306,6 +411,9 @@ export function SiteHeader() {
                 </Link>
               </li>
             ))}
+            <li className="col-span-2">
+              <AllCategoriesPopover compact onSelect={() => setMenuOpen(false)} />
+            </li>
           </ul>
         </div>
       )}
