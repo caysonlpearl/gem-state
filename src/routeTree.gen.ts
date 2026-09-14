@@ -29,6 +29,7 @@ import { Route as AuthenticatedShopperRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedShopperPayoutsRouteImport } from './routes/_authenticated/shopper-payouts'
 import { Route as AuthenticatedSuggestRouteImport } from './routes/_authenticated/suggest'
 import { Route as AuthenticatedWatchlistRouteImport } from './routes/_authenticated/watchlist'
+import { Route as ListingsListingIdRouteImport } from './routes/listings.$listingId'
 import { Route as ProductsSlugRouteImport } from './routes/products.$slug'
 import { Route as SellersSlugRouteImport } from './routes/sellers.$slug'
 import { Route as ShoppersSlugRouteImport } from './routes/shoppers.$slug'
@@ -150,6 +151,11 @@ const AuthenticatedWatchlistRoute = AuthenticatedWatchlistRouteImport.update({
   path: '/watchlist',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const ListingsListingIdRoute = ListingsListingIdRouteImport.update({
+  id: '/listings/$listingId',
+  path: '/listings/$listingId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ProductsSlugRoute = ProductsSlugRouteImport.update({
   id: '/products/$slug',
   path: '/products/$slug',
@@ -260,6 +266,7 @@ export interface FileRoutesByFullPath {
   '/shopper-payouts': typeof AuthenticatedShopperPayoutsRoute
   '/suggest': typeof AuthenticatedSuggestRoute
   '/watchlist': typeof AuthenticatedWatchlistRoute
+  '/listings/$listingId': typeof ListingsListingIdRoute
   '/products/$slug': typeof ProductsSlugRoute
   '/sellers/$slug': typeof SellersSlugRoute
   '/shoppers/$slug': typeof ShoppersSlugRoute
@@ -297,6 +304,7 @@ export interface FileRoutesByTo {
   '/shopper-payouts': typeof AuthenticatedShopperPayoutsRoute
   '/suggest': typeof AuthenticatedSuggestRoute
   '/watchlist': typeof AuthenticatedWatchlistRoute
+  '/listings/$listingId': typeof ListingsListingIdRoute
   '/products/$slug': typeof ProductsSlugRoute
   '/sellers/$slug': typeof SellersSlugRoute
   '/shoppers/$slug': typeof ShoppersSlugRoute
@@ -336,6 +344,7 @@ export interface FileRoutesById {
   '/_authenticated/shopper-payouts': typeof AuthenticatedShopperPayoutsRoute
   '/_authenticated/suggest': typeof AuthenticatedSuggestRoute
   '/_authenticated/watchlist': typeof AuthenticatedWatchlistRoute
+  '/listings/$listingId': typeof ListingsListingIdRoute
   '/products/$slug': typeof ProductsSlugRoute
   '/sellers/$slug': typeof SellersSlugRoute
   '/shoppers/$slug': typeof ShoppersSlugRoute
@@ -375,6 +384,7 @@ export interface FileRouteTypes {
     | '/shopper-payouts'
     | '/suggest'
     | '/watchlist'
+    | '/listings/$listingId'
     | '/products/$slug'
     | '/sellers/$slug'
     | '/shoppers/$slug'
@@ -412,6 +422,7 @@ export interface FileRouteTypes {
     | '/shopper-payouts'
     | '/suggest'
     | '/watchlist'
+    | '/listings/$listingId'
     | '/products/$slug'
     | '/sellers/$slug'
     | '/shoppers/$slug'
@@ -450,6 +461,7 @@ export interface FileRouteTypes {
     | '/_authenticated/shopper-payouts'
     | '/_authenticated/suggest'
     | '/_authenticated/watchlist'
+    | '/listings/$listingId'
     | '/products/$slug'
     | '/sellers/$slug'
     | '/shoppers/$slug'
@@ -477,6 +489,7 @@ export interface RootRouteChildren {
   GlossaryRoute: typeof GlossaryRoute
   PoliciesRoute: typeof PoliciesRoute
   SellRoute: typeof SellRoute
+  ListingsListingIdRoute: typeof ListingsListingIdRoute
   ProductsSlugRoute: typeof ProductsSlugRoute
   SellersSlugRoute: typeof SellersSlugRoute
   ShoppersSlugRoute: typeof ShoppersSlugRoute
@@ -628,6 +641,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/watchlist'
       preLoaderRoute: typeof AuthenticatedWatchlistRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/listings/$listingId': {
+      id: '/listings/$listingId'
+      path: '/listings/$listingId'
+      fullPath: '/listings/$listingId'
+      preLoaderRoute: typeof ListingsListingIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/products/$slug': {
       id: '/products/$slug'
@@ -804,6 +824,7 @@ const rootRouteChildren: RootRouteChildren = {
   GlossaryRoute: GlossaryRoute,
   PoliciesRoute: PoliciesRoute,
   SellRoute: SellRoute,
+  ListingsListingIdRoute: ListingsListingIdRoute,
   ProductsSlugRoute: ProductsSlugRoute,
   SellersSlugRoute: SellersSlugRoute,
   ShoppersSlugRoute: ShoppersSlugRoute,
