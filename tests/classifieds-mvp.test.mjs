@@ -213,6 +213,8 @@ test("all categories opens a labeled icon menu with KSL-style sections", () => {
   );
   assert.match(headerSource, /w-\[min\(1280px,calc\(100vw-2rem\)\)\]/);
   assert.match(headerSource, /xl:grid-cols-6/);
+  assert.match(headerSource, /w-auto min-w-\[158px\]/);
+  assert.match(headerSource, /sm:gap-2/);
   assert.match(headerSource, /hover:shadow-md/);
   for (const label of [
     "Announcements",
