@@ -181,40 +181,6 @@ function Home() {
         </div>
       </section>
 
-      <section className="mt-10">
-        <div className="flex items-end justify-between gap-4">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              Start exploring
-            </p>
-            <h2 className="mt-1 text-[24px] font-bold tracking-tight">What are you looking for?</h2>
-          </div>
-          <Link to="/browse" search={{}} className={seeAll}>
-            See all <ArrowRight size={12} />
-          </Link>
-        </div>
-        <div className="no-scrollbar mt-5 flex gap-3 overflow-x-auto pb-2">
-          {classifiedCategories.map((option) => (
-            <Link
-              key={option.slug}
-              to="/browse"
-              search={{ category: option.slug }}
-              className="group w-[166px] shrink-0 overflow-hidden rounded-[24px] border border-border/70 bg-card shadow-[0_8px_24px_rgb(34_32_27_/_5%)] transition-all duration-300 hover:-translate-y-1 hover:border-primary/40 hover:shadow-[0_16px_34px_rgb(34_32_27_/_11%)]"
-            >
-              <span className="flex h-[118px] items-center justify-center bg-card px-2">
-                <CategoryArtwork slug={option.slug} size={104} className="category-art--nav" />
-              </span>
-              <span className="border-t border-border/70 px-4 py-3.5">
-                <span className="block text-[12px] font-semibold leading-tight">{option.name}</span>
-                <span className="mt-1 block text-[11px] text-muted-foreground">
-                  {home.categoryCounts[option.slug] ?? 0} listings
-                </span>
-              </span>
-            </Link>
-          ))}
-        </div>
-      </section>
-
       {/* Motors lead */}
       <section className="mt-14">
         <div className="flex items-end justify-between gap-4">

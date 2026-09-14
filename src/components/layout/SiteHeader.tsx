@@ -29,7 +29,7 @@ import { useAuth } from "@/hooks/useAuth";
  * redirect after the SSR pass.
  */
 const navLinkClass =
-  "inline-flex h-[68px] shrink-0 flex-col items-center justify-center gap-1 rounded-2xl px-3 text-[11.5px] font-semibold tracking-[-0.01em] text-foreground transition-colors hover:bg-secondary hover:text-primary";
+  "inline-flex h-[76px] shrink-0 flex-row items-center justify-center gap-2 rounded-2xl px-3 text-[12px] font-semibold leading-none tracking-[-0.01em] text-foreground transition-colors hover:bg-secondary hover:text-primary";
 
 const utilityLinkClass =
   "hidden h-9 items-center px-2.5 text-[12.5px] text-muted-foreground transition-colors hover:text-primary md:inline-flex";
@@ -159,14 +159,14 @@ export function SiteHeader() {
         <ul className="no-scrollbar mx-auto flex max-w-[1440px] flex-nowrap items-center justify-center gap-1 overflow-x-auto px-4 sm:gap-2 sm:px-8">
           <li>
             <Link to="/browse" search={{}} className={navLinkClass} {...pinned}>
-              <CategoryArtwork slug="general" size={34} className="category-art--nav" />
+              <CategoryArtwork slug="general" size={58} className="category-art--nav" />
               All listings
             </Link>
           </li>
           {motorsCategories.map((c) => (
             <li key={c.slug}>
               <Link to="/browse" search={{ category: c.slug }} className={navLinkClass} {...pinned}>
-                <CategoryArtwork slug={c.slug} size={34} className="category-art--nav" />
+                <CategoryArtwork slug={c.slug} size={58} className="category-art--nav" />
                 {c.name}
               </Link>
             </li>
@@ -175,7 +175,7 @@ export function SiteHeader() {
           {generalCategories.slice(0, 5).map((c) => (
             <li key={c.slug}>
               <Link to="/browse" search={{ category: c.slug }} className={navLinkClass} {...pinned}>
-                <CategoryArtwork slug={c.slug} size={34} className="category-art--nav" />
+                <CategoryArtwork slug={c.slug} size={58} className="category-art--nav" />
                 {c.name}
               </Link>
             </li>

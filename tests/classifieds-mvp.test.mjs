@@ -136,6 +136,7 @@ test("homepage hero uses the expanded headline width and updated subline", () =>
   assert.match(homeSource, /max-w-\[34ch\]/);
   assert.match(homeSource, /And so much more across Idaho and surrounding states\./);
   assert.doesNotMatch(homeSource, /listed one item at a time by sellers/);
+  assert.doesNotMatch(homeSource, /What are you looking for\?/);
 });
 
 test("shared category icons and no-photo cards have deterministic presentation", () => {
