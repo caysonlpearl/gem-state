@@ -50,6 +50,8 @@ export type PricePoint = {
 
 export type WatchedVariant = {
   variantId: string;
+  /** Classified listings use one private product/variant adapter per item. */
+  listingId: string | null;
   productSlug: string;
   productName: string;
   variantLabel: string;
@@ -275,12 +277,22 @@ export const getMyWatchlist = createServerFn({ method: "GET" })
     if (variantIds.length === 0) return [];
 
     const client = publicServerClient();
-    const [{ data: markets }, { data: sightings }] = await Promise.all([
+    const [{ data: markets }, { data: sightings }, { data: classifiedListings }] = await Promise.all([
       client
         .from("variant_market_summary")
         .select("variant_id, lowest_ask_cents, highest_bid_cents, active_ask_count, active_bid_count")
         .in("variant_id", variantIds),
       client.from("variant_sightings_public").select("variant_id").in("variant_id", variantIds),
+      client
+        .from("asks")
+        .select("id,variant_id,products!inner(status)")
+        .in("variant_id", variantIds)
+        .eq("status", "active")
+        .eq("is_demo", false)
+        .not("approved_at", "is", null)
+        .gt("expires_at", new Date().toISOString())
+        .eq("products.status", "published")
+        .limit(100),
     ]);
 
     const marketByVariant = new Map(
@@ -291,6 +303,9 @@ export const getMyWatchlist = createServerFn({ method: "GET" })
       const key = s.variant_id as string;
       sightingCounts.set(key, (sightingCounts.get(key) ?? 0) + 1);
     }
+    const listingByVariant = new Map(
+      (classifiedListings ?? []).map((row) => [row.variant_id as string, row.id as string]),
+    );
 
     return (rows ?? []).map((r) => {
       const variant = r.product_variants as unknown as {
@@ -302,6 +317,7 @@ export const getMyWatchlist = createServerFn({ method: "GET" })
       const market = marketByVariant.get(r.variant_id as string);
       return {
         variantId: r.variant_id as string,
+        listingId: listingByVariant.get(r.variant_id as string) ?? null,
         productSlug: variant.products.slug,
         productName: variant.products.name,
         variantLabel: variantLabel(variant),

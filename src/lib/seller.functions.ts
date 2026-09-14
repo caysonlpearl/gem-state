@@ -682,8 +682,6 @@ export const getPublicSeller = createServerFn({ method: "GET" })
         .not("approved_at", "is", null)
         .eq("is_demo", false)
         .gt("expires_at", new Date().toISOString())
-        .gt("evidence_count", 0)
-        .gt("public_media_count", 0)
         .order("created_at", { ascending: false }),
       client
         .from("order_reviews")

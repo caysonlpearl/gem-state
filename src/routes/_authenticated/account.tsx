@@ -20,16 +20,16 @@ export const Route = createFileRoute("/_authenticated/account")({
 });
 
 const intentLabels: Record<MemberIntent, string> = {
-  buying: "Buying merchandise",
-  selling: "Selling merchandise",
-  shopping_in_park: "Shopping in the parks",
-  browsing: "Following prices",
+  buying: "Buying items",
+  selling: "Selling items",
+  shopping_in_park: "Buying and selling locally",
+  browsing: "Browsing classifieds",
 };
 
 const roleLabels: Record<string, string> = {
   user: "Member",
-  shopper: "Approved in-park shopper",
-  moderator: "Catalog moderator",
+  shopper: "Member",
+  moderator: "Moderator",
   admin: "Administrator",
 };
 
@@ -86,7 +86,6 @@ function AccountPage() {
 
   const roles = data?.roles.length ? data.roles : ["user"];
   const isSeller = data?.primaryIntent === "selling";
-  const isShopper = roles.includes("shopper") || data?.primaryIntent === "shopping_in_park";
 
   return (
     <div className="mx-auto max-w-[760px] px-4 py-12 sm:px-6">
@@ -141,7 +140,7 @@ function AccountPage() {
                     Your profile is {Math.round(data.completion * 100)}% complete
                   </p>
                   <p className="mt-1 text-[12.5px] text-muted-foreground">
-                    Add a display name, home resort and what you plan to do so the market pages
+                    Add a display name, primary market and what you plan to do so the marketplace
                     match your intent.
                   </p>
                 </div>
@@ -210,14 +209,14 @@ function AccountPage() {
                 className="mt-1.5 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
               />
               <p className="mt-2 text-[12px] text-muted-foreground">
-                Shown next to your listings and sightings. Your email is never public.
+                Shown next to your listings and reviews. Your email is never public.
               </p>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label htmlFor="home-resort" className="text-[12px] font-medium">
-                  Home resort
+                  Primary market
                 </label>
                 <select
                   id="home-resort"
@@ -225,7 +224,7 @@ function AccountPage() {
                   onChange={(event) => setDraftResort(event.target.value)}
                   className="mt-1.5 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                 >
-                  <option value="">Select a resort</option>
+                  <option value="">Select a market</option>
                   {brand.markets.map((market) => (
                     <option key={market.code} value={market.code}>
                       {market.label}
@@ -267,19 +266,17 @@ function AccountPage() {
               <h2 className="text-[13px] font-semibold tracking-tight">
                 {isSeller
                   ? "Seller next steps"
-                  : isShopper
-                    ? "In-park next steps"
-                    : "Buyer next steps"}
+                  : "Buyer next steps"}
               </h2>
             </div>
             <ul>
               <li className="hairline-b flex items-start gap-3 px-4 py-3">
                 <Storefront size={16} className="mt-0.5 text-primary" />
                 <span className="text-[13px] text-muted-foreground">
-                  <Link to="/browse" className="font-medium text-foreground hover:underline">
-                    Browse the catalog
+                <Link to="/browse" className="font-medium text-foreground hover:underline">
+                    Browse listings
                   </Link>{" "}
-                  and open the exact variation you care about.
+                  and open the exact item you care about.
                 </span>
               </li>
               <li className="hairline-b flex items-start gap-3 px-4 py-3">
@@ -287,7 +284,7 @@ function AccountPage() {
                 <span className="text-[13px] text-muted-foreground">
                   {isSeller
                     ? "Your seller dashboard supports public listings, editing, order fulfillment and payout setup."
-                    : "Place an offer on a variation, and complete payment at checkout when a seller accepts."}
+                    : "Place an offer on a listing, and complete payment at checkout when a seller accepts."}
                 </span>
               </li>
               <li className="flex items-start gap-3 px-4 py-3">

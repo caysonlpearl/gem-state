@@ -27,12 +27,12 @@ export const Route = createFileRoute("/auth")({
       { title: `Sign in — ${brand.name}` },
       {
         name: "description",
-        content: `Sign in or create a ${brand.name} account to make offers, list listings, and follow park merchandise across Walt Disney World and Disneyland Resort.`,
+        content: `Sign in or create a ${brand.name} account to save listings, make offers, buy items, and post your own listings across Idaho.`,
       },
       { property: "og:title", content: `Sign in — ${brand.name}` },
       {
         property: "og:description",
-        content: `Buy, sell and follow Disney Parks merchandise with a ${brand.name} account.`,
+        content: `Buy and sell cars, trucks, tools, furniture, and more with a ${brand.name} account.`,
       },
     ],
   }),

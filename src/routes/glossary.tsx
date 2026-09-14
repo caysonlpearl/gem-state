@@ -4,9 +4,9 @@ import { useEffect } from "react";
 import { brand } from "@/config/brand";
 import { trackEvent } from "@/lib/analytics";
 
-const title = `How ParkVault works — offers, listings, Buy Now, Sell Now`;
+const title = `How Gem State Classifieds works — listings, offers, buying and selling`;
 const description =
-  "Plain-language definitions of the ParkVault marketplace: what an offer is, what a listing is, how Buy Now and Sell Now work, and how prepaid in-park sourcing and sightings work.";
+  "Plain-language definitions of Gem State Classifieds: how listings, offers, buying, selling, payments, delivery and reviews work across Idaho.";
 
 export const Route = createFileRoute("/glossary")({
   head: () => ({
@@ -24,57 +24,52 @@ const terms: { term: string; short: string; body: string }[] = [
   {
     term: "Listing",
     short: "What a seller wants for an item",
-    body: "A listing is a seller's price for one exact variation of a product — a specific size, colorway, edition or release. Every listing sits on the product page for that item, so buyers can compare all of them side by side. The lowest listing price is the cheapest price anyone is currently willing to sell at.",
+    body: "A listing is one seller's offer to sell one specific item. It includes the item's title, condition, price, photos, location and pickup or shipping options. Cars and trucks can also include year, make, model, mileage, drivetrain, title status and other vehicle details.",
   },
   {
     term: "Offer",
     short: "What a buyer will pay",
-    body: "An offer is the price a buyer is willing to pay for one exact variation. The best offer is the most anyone is currently offering. An offer is recorded as interest in a variation at that price; a seller can accept it, and payment is collected at checkout.",
+    body: "An offer is the price a buyer proposes for one exact listing. The seller can accept, decline or counter it. If the seller accepts, the buyer completes payment at checkout before the seller fulfills the order.",
   },
   {
     term: "Buy Now",
-    short: "Take the lowest listing price",
-    body: "Taking the lowest listing price on a variation instead of waiting for a seller to accept your offer. The price you see is the seller's price, and marketplace fees are always recalculated by ParkVault on the server. Buy Now reserves the listing for you and takes you straight to checkout.",
+    short: "Start checkout at the seller's price",
+    body: "Buy Now starts checkout for the exact item shown on the listing page. The final total includes the seller's price plus any applicable marketplace fees, tax and shipping shown at checkout.",
   },
   {
-    term: "Accept the best offer",
-    short: "Take the best offer",
-    body: "Accepting the best offer on a variation instead of posting your own listing and waiting. The sale is created at that price and the buyer is asked to complete payment before you ship.",
+    term: "Seller review",
+    short: "Moderation before publication",
+    body: "New listings are reviewed for prohibited items, missing information and clear photos before they appear publicly. Approval does not authenticate, inspect or guarantee an item.",
   },
   {
-    term: "Variation",
-    short: "The exact version of a product",
-    body: "Park merchandise is often released in several versions of the same design. A variation captures the exact one: size, colorway, edition, park exclusivity, release. Listings and offers always attach to a variation, never to the general product, so prices stay comparable.",
+    term: "Pickup or shipping",
+    short: "How the buyer receives the item",
+    body: "A seller chooses local pickup, shipping, or both when creating a listing. Pickup details are arranged with the seller after purchase. Shipping rates and the seller's handling details are shown before payment when shipping is available.",
   },
   {
-    term: "Sighting",
-    short: "Someone saw it in a park store",
-    body: "A sighting is a timestamped report that an item was seen at a specific resort, park or district, and store. Sightings are about availability and location — they are not offers and never set a price.",
+    term: "Saved listing",
+    short: "A private listing bookmark",
+    body: "Saving a listing adds it to your private saved list so you can find the exact item again. Saved listings are not public and do not reserve the item.",
   },
   {
-    term: "Sourcing listing",
-    short: "A shopper's fixed price to find it in park",
-    body: "An approved in-park shopper sets fixed earnings and a sourcing window for covered products. The buyer sees the item estimate, shopper earnings, ParkVault sourcing and protection fee, and tracked shipping before paying. There is no negotiation or direct messaging.",
+    term: "Moderation",
+    short: "A marketplace safety review",
+    body: "Gem State Classifieds may review listing content and photos before publication and may remove listings that violate the published policies. Moderation is not an inspection or a warranty.",
   },
   {
-    term: "In-park shopper",
-    short: "An approved member who buys on your behalf",
-    body: "Shoppers apply and are approved after manual identity review. They choose $10–$25 in earnings per item, and ParkVault does not deduct from that amount. ParkVault's separate buyer-paid sourcing and protection fee is disclosed before checkout.",
+    term: "Order status",
+    short: "Where a paid purchase stands",
+    body: "An order moves through payment, fulfillment, shipment or pickup, delivery and completion. Buyers and sellers can see the current status and relevant updates from their account.",
   },
   {
-    term: "Watchlist",
-    short: "Variations you follow, privately",
-    body: "Following a variation saves it to your own watchlist so you can check its listing prices, offers and sighting activity in one place. It is private to you.",
+    term: "Seller payout",
+    short: "Funds released after completion",
+    body: "Seller payout timing follows the order terms shown at checkout and the delivery or completion state recorded for the order. Gem State Classifieds does not operate escrow.",
   },
   {
-    term: "Product suggestion",
-    short: "How a missing product gets added",
-    body: "ParkVault trades on one canonical page per product, so members cannot create catalog entries. If a product is missing, suggest it and a curator decides whether to add it, merge it with an existing page, or decline it.",
-  },
-  {
-    term: "Verified sale",
-    short: "A completed transaction",
-    body: "Only eligible completed transactions count toward last sale, sales count and price history. Seed, demonstration, cancelled, disputed and refunded transactions are excluded, so market statistics stay trustworthy.",
+    term: "Dispute",
+    short: "A problem reported about an order",
+    body: "A buyer or seller can report an order problem through the available support and dispute flow. Evidence may be requested, and the order's completion or payout can be held while it is reviewed.",
   },
 ];
 
@@ -121,7 +116,7 @@ function GlossaryPage() {
             to="/browse"
             className="inline-flex h-9 items-center rounded-md bg-primary px-4 text-[13px] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Browse the catalog
+            Browse listings
           </Link>
           <Link
             to={brand.urls.auth}

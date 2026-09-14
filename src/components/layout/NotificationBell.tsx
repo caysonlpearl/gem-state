@@ -148,7 +148,7 @@ export function NotificationBell() {
 
           {!isLoading && preview.length === 0 && (
             <p className="px-3.5 py-4 text-[12.5px] leading-relaxed text-muted-foreground">
-              No notifications yet. Order, sourcing, shipment and review updates appear here.
+              No notifications yet. Order, offer, shipment and review updates appear here.
             </p>
           )}
 

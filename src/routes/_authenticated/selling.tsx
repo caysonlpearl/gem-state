@@ -367,7 +367,7 @@ function SellingPage() {
           <div className="border-b border-border py-8">
             <p className="text-[13px] font-semibold">No listings yet</p>
             <p className="mt-1 text-[12px] text-muted-foreground">
-              Choose a catalog product and publish your exact item.
+              Create one listing for the specific item you want to sell.
             </p>
             <Link
               to="/create-listing"
@@ -396,9 +396,8 @@ function SellingPage() {
                   </span>
                   <div className="min-w-0">
                     <Link
-                      to="/products/$slug"
-                      params={{ slug: ask.productSlug }}
-                      search={{ sell: false }}
+                      to="/listings/$listingId"
+                      params={{ listingId: ask.id }}
                       className="text-[13px] font-semibold hover:underline"
                     >
                       {ask.productName}
@@ -552,8 +551,8 @@ function SellingPage() {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <Link
-                      to="/products/$slug"
-                      params={{ slug: offer.productSlug }}
+                      to="/listings/$listingId"
+                      params={{ listingId: offer.askId }}
                       className="text-[13px] font-semibold hover:underline"
                     >
                       {offer.productName}

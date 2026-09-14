@@ -16,23 +16,23 @@ export const Route = createFileRoute("/_authenticated/onboarding")({
 const intents: { value: MemberIntent; label: string; body: string }[] = [
   {
     value: "buying",
-    label: "Buying merchandise",
-    body: "Find an exact variation, compare listings, and buy or place an offer.",
+    label: "Buying items",
+    body: "Find an exact listing, compare details, and buy or place an offer.",
   },
   {
     value: "selling",
-    label: "Selling merchandise",
-    body: "List variations you own and watch the best offer.",
+    label: "Selling items",
+    body: "Post items you own and manage offers, orders and fulfillment.",
   },
   {
     value: "shopping_in_park",
-    label: "Shopping in the parks",
-    body: "You visit often and may want to source items for other members later.",
+    label: "Buying and selling locally",
+    body: "Use Gem State Classifieds for local pickup, shipping and both.",
   },
   {
     value: "browsing",
-    label: "Just following prices",
-    body: "Track the catalog and market activity without transacting yet.",
+    label: "Browsing classifieds",
+    body: "Explore listings and save items without transacting yet.",
   },
 ];
 
@@ -88,7 +88,7 @@ function OnboardingPage() {
       </p>
       <h1 className="mt-3 text-[26px] font-semibold tracking-tight">Welcome to {brand.name}</h1>
       <p className="mt-2 text-[13.5px] leading-relaxed text-muted-foreground">
-        Three quick answers so your account, navigation and market pages match what you actually
+        Three quick answers so your account, navigation and marketplace pages match what you actually
         want to do. You can change any of this later from your account.
       </p>
 
@@ -114,12 +114,12 @@ function OnboardingPage() {
               className="mt-1.5 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
             />
             <p className="mt-2 text-[12px] text-muted-foreground">
-              Shown next to your listings and sightings. Your email is never public.
+              Shown next to your listings and reviews. Your email is never public.
             </p>
           </div>
 
           <fieldset className="rounded-lg border border-border bg-card p-4">
-            <legend className="px-1 text-[12px] font-medium">Home resort</legend>
+            <legend className="px-1 text-[12px] font-medium">Primary market</legend>
             <div className="mt-1.5 grid gap-2 sm:grid-cols-2">
               {brand.markets.map((market) => (
                 <label
@@ -132,7 +132,7 @@ function OnboardingPage() {
                 >
                   <input
                     type="radio"
-                    name="resort"
+                name="market"
                     value={market.code}
                     checked={resort === market.code}
                     onChange={() => setResort(market.code)}
@@ -143,7 +143,7 @@ function OnboardingPage() {
               ))}
             </div>
             <p className="mt-2 text-[12px] text-muted-foreground">
-              Used to default your filters. Both resorts stay browsable.
+              Used to default your marketplace experience. Idaho listings remain browsable statewide.
             </p>
           </fieldset>
 

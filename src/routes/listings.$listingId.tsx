@@ -221,6 +221,41 @@ function ListingDetail() {
               <p className="mt-1 text-[13px] leading-relaxed">{listing.sellerNote}</p>
             </section>
           )}
+
+          {listing.seller && (
+            <section className="mt-6 rounded-md border border-border bg-card p-4">
+              <div className="flex items-center gap-3">
+                <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full bg-primary text-sm font-semibold text-primary-foreground">
+                  {listing.seller.avatarUrl ? (
+                    <img src={listing.seller.avatarUrl} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    listing.seller.displayName.slice(0, 1).toUpperCase()
+                  )}
+                </div>
+                <div className="min-w-0">
+                  <h2 className="text-[14px] font-semibold">About the seller</h2>
+                  <Link
+                    to="/sellers/$slug"
+                    params={{ slug: listing.seller.slug }}
+                    className="text-[12.5px] text-primary hover:underline"
+                  >
+                    {listing.seller.displayName}
+                  </Link>
+                  {listing.seller.ratingAverage != null && (
+                    <p className="text-[11.5px] text-muted-foreground">
+                      {listing.seller.ratingAverage.toFixed(1)} / 5 · {listing.seller.reviewCount} review
+                      {listing.seller.reviewCount === 1 ? "" : "s"}
+                    </p>
+                  )}
+                </div>
+              </div>
+              {listing.seller.bio && (
+                <p className="mt-3 text-[12.5px] leading-relaxed text-muted-foreground">
+                  {listing.seller.bio}
+                </p>
+              )}
+            </section>
+          )}
         </div>
 
         <aside className="min-w-0 space-y-4 lg:sticky lg:top-24 lg:self-start">

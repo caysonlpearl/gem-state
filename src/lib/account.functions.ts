@@ -16,7 +16,9 @@ export type MyAccount = {
   completion: number;
 };
 
-const RESORT_CODES = ["WDW", "DLR"] as const;
+// The legacy column is retained for schema compatibility, but it now stores
+// the member's primary marketplace/state code rather than a resort.
+const MARKET_CODES = ["ID"] as const;
 
 function isIntent(value: unknown): value is MemberIntent {
   return typeof value === "string" && (MEMBER_INTENTS as readonly string[]).includes(value);
@@ -99,8 +101,8 @@ export const saveMyProfile = createServerFn({ method: "POST" })
       if (displayName.length < 2 || displayName.length > 40) {
         throw new Error("Display name must be between 2 and 40 characters.");
       }
-      if (!(RESORT_CODES as readonly string[]).includes(input.homeResortCode)) {
-        throw new Error("Choose Walt Disney World Resort or Disneyland Resort.");
+      if (!(MARKET_CODES as readonly string[]).includes(input.homeResortCode)) {
+        throw new Error("Choose Idaho as your primary marketplace.");
       }
       if (!isIntent(input.primaryIntent)) {
         throw new Error("Choose what you mainly plan to do.");

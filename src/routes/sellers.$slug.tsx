@@ -15,11 +15,27 @@ export const Route = createFileRoute("/sellers/$slug")({
     return { seller };
   },
   component: SellerPage,
+  head: ({ loaderData }) => ({
+    meta: [
+      {
+        title: loaderData?.seller
+          ? `${loaderData.seller.displayName} — Seller on Gem State Classifieds`
+          : `Seller profile — Gem State Classifieds`,
+      },
+      {
+        name: "description",
+        content: loaderData?.seller
+          ? `${loaderData.seller.displayName}'s active listings on Gem State Classifieds.`
+          : "Seller profile on Gem State Classifieds.",
+      },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
   notFoundComponent: () => (
     <main className="mx-auto max-w-[720px] px-4 py-20 text-center">
       <h1 className="font-editorial text-[34px]">Seller not found</h1>
       <Link to="/browse" search={{}} className="mt-4 inline-block underline">
-        Browse products
+        Browse listings
       </Link>
     </main>
   ),
@@ -75,7 +91,7 @@ function SellerPage() {
       <section className="pt-7">
         <div className="mb-5 flex items-end justify-between">
           <h2 className="font-editorial text-[27px] font-normal">Listings</h2>
-          <span className="text-[11.5px] text-muted-foreground">Exact-item photos</span>
+          <span className="text-[11.5px] text-muted-foreground">Seller listings</span>
         </div>
         <SellerListingGrid listings={seller.listings} showProduct />
       </section>

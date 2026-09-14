@@ -94,7 +94,7 @@ function BuyingPage() {
         {listings.isLoading && <p className="mt-2 text-[13px] text-muted-foreground">Loading…</p>}
         {!listings.isLoading && bids.length === 0 && (
           <p className="mt-2 text-[13px] text-muted-foreground">
-            No active offers yet. Open a product and place an offer on the exact variation you want.
+            No active offers yet. Open a listing and make an offer on the exact item you want.
           </p>
         )}
         {bids.length > 0 && (
@@ -106,8 +106,8 @@ function BuyingPage() {
               >
                 <div>
                   <Link
-                    to="/products/$slug"
-                    params={{ slug: bid.productSlug }}
+                    to="/browse"
+                    search={{ q: bid.productName }}
                     className="text-[13px] font-medium hover:underline"
                   >
                     {bid.productName}
@@ -156,13 +156,23 @@ function BuyingPage() {
                 className="hairline-b flex flex-wrap items-center justify-between gap-3 px-4 py-3 last:border-b-0"
               >
                 <div>
-                  <Link
-                    to="/products/$slug"
-                    params={{ slug: offer.productSlug }}
-                    className="text-[13px] font-medium hover:underline"
-                  >
-                    {offer.productName}
-                  </Link>
+                  {offer.askId ? (
+                    <Link
+                      to="/listings/$listingId"
+                      params={{ listingId: offer.askId }}
+                      className="text-[13px] font-medium hover:underline"
+                    >
+                      {offer.productName}
+                    </Link>
+                  ) : (
+                    <Link
+                      to="/browse"
+                      search={{ q: offer.productName }}
+                      className="text-[13px] font-medium hover:underline"
+                    >
+                      {offer.productName}
+                    </Link>
+                  )}
                   <p className="text-[12px] text-muted-foreground">
                     {offer.variantLabel} · offered {formatUsd(offer.amountCents)} ·{" "}
                     {offer.status.replace(/_/g, " ")}

@@ -58,6 +58,15 @@ export type ClassifiedDetail = ClassifiedCard & {
   postalCode: string | null;
   sellerNote: string | null;
   variantId: string;
+  seller: {
+    slug: string;
+    displayName: string;
+    bio: string | null;
+    avatarUrl: string | null;
+    payoutVerified: boolean;
+    ratingAverage: number | null;
+    reviewCount: number;
+  } | null;
   images: { url: string; alt: string }[];
 };
 
@@ -402,7 +411,7 @@ const conditionValues = [
 ] as const;
 
 const LISTING_SELECT =
-  "id, product_id, variant_id, price_cents, currency, item_condition, seller_note, created_at, " +
+  "id, product_id, variant_id, seller_id, price_cents, currency, item_condition, seller_note, created_at, " +
   "products!inner(id, slug, name, description, status, category_id, categories(slug, name)), " +
   "classified_listing_details!inner(region, city, state, postal_code, fulfillment_mode, vehicle_make, vehicle_model, vehicle_year, vehicle_trim, vehicle_mileage, vehicle_body_style, vehicle_transmission, vehicle_drivetrain, vehicle_fuel_type, vehicle_exterior_color, vehicle_title_status, vin), " +
   "listing_media(storage_path, position)";
@@ -715,6 +724,14 @@ export const getClassifiedListing = createServerFn({ method: "GET" })
     const product = record["products"] as { id: string; slug: string; description: string | null };
     const details = record["classified_listing_details"] as Record<string, unknown>;
     const card = toCard(record, urlByPath);
+    const sellerId = record["seller_id"] as string | null;
+    const { data: sellerRow } = sellerId
+      ? await client
+          .from("seller_storefronts")
+          .select("slug,display_name,bio,avatar_url,payout_verified,rating_average,review_count")
+          .eq("user_id", sellerId)
+          .maybeSingle()
+      : { data: null };
 
     return {
       ...card,
@@ -722,6 +739,18 @@ export const getClassifiedListing = createServerFn({ method: "GET" })
       postalCode: (details["postal_code"] as string | null) ?? null,
       sellerNote: (record["seller_note"] as string | null) ?? null,
       variantId: record["variant_id"] as string,
+      seller: sellerRow
+        ? {
+            slug: sellerRow.slug ?? "",
+            displayName: sellerRow.display_name ?? "Seller",
+            bio: sellerRow.bio ?? null,
+            avatarUrl: sellerRow.avatar_url ?? null,
+            payoutVerified: sellerRow.payout_verified === true,
+            ratingAverage:
+              sellerRow.rating_average == null ? null : Number(sellerRow.rating_average),
+            reviewCount: Number(sellerRow.review_count ?? 0),
+          }
+        : null,
       images: paths
         .map((path) => urlByPath.get(path))
         .filter((url): url is string => Boolean(url))
