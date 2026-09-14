@@ -209,8 +209,10 @@ test("all categories opens a labeled icon menu with KSL-style sections", () => {
   );
   assert.match(
     headerSource,
-    /CategoryArtwork slug=\{category\.slug\} size=\{48\} className="!h-12 !w-12 shrink-0"/,
+    /CategoryArtwork[\s\S]*slug=\{category\.slug\}[\s\S]*size=\{58\}[\s\S]*className="!h-\[58px\] !w-\[58px\] shrink-0"/,
   );
+  assert.match(headerSource, /w-\[min\(1280px,calc\(100vw-2rem\)\)\]/);
+  assert.match(headerSource, /xl:grid-cols-4/);
   for (const label of [
     "Announcements",
     "Appliances",

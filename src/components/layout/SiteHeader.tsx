@@ -127,7 +127,7 @@ function AllCategoriesPopover({
       <PopoverContent
         align="start"
         sideOffset={12}
-        className="w-[min(760px,calc(100vw-2rem))] rounded-[24px] p-3 shadow-xl sm:p-5"
+        className="w-[min(1280px,calc(100vw-2rem))] rounded-[24px] p-3 shadow-xl sm:p-5"
       >
         <div className="border-b border-border px-2 pb-4 sm:px-3">
           <p className="text-[18px] font-semibold tracking-tight">All categories</p>
@@ -135,17 +135,21 @@ function AllCategoriesPopover({
             Browse every corner of Gem State classifieds.
           </p>
         </div>
-        <div className="mt-3 grid max-h-[min(620px,70vh)] gap-1 overflow-y-auto pr-1 sm:grid-cols-2 sm:gap-2">
+        <div className="mt-3 grid max-h-[min(720px,70vh)] gap-1 overflow-y-auto pr-1 sm:grid-cols-2 sm:gap-2 lg:grid-cols-3 xl:grid-cols-4 xl:gap-3">
           {allCategoryMenuItems.map((category) => (
             <Link
               key={category.slug}
               to="/browse"
               search={{ category: category.slug }}
               onClick={selectCategory}
-              className="group flex min-h-16 items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-secondary"
+              className="group flex min-h-20 items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-secondary"
               {...pinned}
             >
-              <CategoryArtwork slug={category.slug} size={48} className="!h-12 !w-12 shrink-0" />
+              <CategoryArtwork
+                slug={category.slug}
+                size={58}
+                className="!h-[58px] !w-[58px] shrink-0"
+              />
               <span className="text-[13px] font-medium leading-tight">{category.name}</span>
             </Link>
           ))}
