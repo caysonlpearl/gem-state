@@ -1,20 +1,14 @@
-import { Diamond } from "@phosphor-icons/react";
-
 import { brand } from "@/config/brand";
 import { cn } from "@/lib/utils";
 
 export function BrandMark({ compact = false, className }: { compact?: boolean; className?: string }) {
   return (
     <span className={cn("inline-flex items-center gap-2.5", className)}>
-      <span className="grid size-9 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground shadow-sm">
-        <Diamond size={20} weight="fill" aria-hidden="true" />
-      </span>
-      {!compact && (
-        <span className="font-display text-[18px] font-bold leading-none text-foreground">
-          Gem State <span className="text-primary">Classifieds</span>
-        </span>
-      )}
-      <span className="sr-only">{brand.name}</span>
+      <img
+        src={compact ? "/images/brand/gem-state-classifieds-mark.png" : "/images/brand/gem-state-classifieds-logo.png"}
+        alt={brand.name}
+        className={compact ? "h-10 w-8 shrink-0 object-contain" : "h-14 w-auto max-w-[190px] shrink-0 object-contain"}
+      />
     </span>
   );
 }

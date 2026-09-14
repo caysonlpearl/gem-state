@@ -18,6 +18,7 @@ const seedMigrationSource = await read(
 );
 const emailShellSource = await read("src/lib/email-templates/shell.tsx");
 const authEmailSource = await read("src/routes/lovable/email/auth/webhook.ts");
+const brandMarkSource = await read("src/components/layout/BrandMark.tsx");
 const { classifiedSeedListings } = await import("../scripts/classified-seed-data.mjs");
 
 test("classified taxonomy includes Idaho categories and automotive inventory", () => {
@@ -109,4 +110,10 @@ test("step six keeps customer email surfaces on the Gem State brand", () => {
   assert.match(authEmailSource, /notify\.gemstateclassifieds\.com/);
   assert.doesNotMatch(emailShellSource, /ParkVault|Disney/);
   assert.doesNotMatch(authEmailSource, /ParkVault|getparkvault/);
+});
+
+test("approved Idaho gem logo is used across the responsive brand mark", () => {
+  assert.match(brandMarkSource, /gem-state-classifieds-logo\.png/);
+  assert.match(brandMarkSource, /gem-state-classifieds-mark\.png/);
+  assert.doesNotMatch(brandMarkSource, /Diamond/);
 });
