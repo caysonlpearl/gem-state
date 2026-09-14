@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { brand } from "@/config/brand";
 import { estimateBuyerTotalCents, formatUsd } from "@/config/fees";
 import { useAuth } from "@/hooks/useAuth";
-import { buyNow, placeBid, getMarketSettings } from "@/lib/market.functions";
+import { getMarketSettings, makeListingOffer, requestExactListing } from "@/lib/market.functions";
 import { ParkVaultCheckoutFlow } from "@/components/market/ParkVaultCheckoutFlow";
 import type { ClassifiedDetail } from "@/lib/classifieds.functions";
 
@@ -24,8 +24,8 @@ export function ListingActions({ listing }: { listing: ClassifiedDetail }) {
   const { isSignedIn } = useAuth();
   const navigate = useNavigate();
   const fetchSettings = useServerFn(getMarketSettings);
-  const runBuyNow = useServerFn(buyNow);
-  const submitOffer = useServerFn(placeBid);
+  const runBuyNow = useServerFn(requestExactListing);
+  const submitOffer = useServerFn(makeListingOffer);
 
   const [offerOpen, setOfferOpen] = useState(false);
   const [offerPrice, setOfferPrice] = useState("");
@@ -39,7 +39,7 @@ export function ListingActions({ listing }: { listing: ClassifiedDetail }) {
   const liveCheckout = settingsQuery.data?.liveCheckoutEnabled ?? false;
 
   const buyMutation = useMutation({
-    mutationFn: () => runBuyNow({ data: { variantId: listing.variantId } }),
+    mutationFn: () => runBuyNow({ data: { askId: listing.id } }),
     onSuccess: async (result) => {
       toast.success("Order created.");
       await navigate({ to: "/orders/$orderId", params: { orderId: result.orderId } });
@@ -50,7 +50,7 @@ export function ListingActions({ listing }: { listing: ClassifiedDetail }) {
 
   const offerMutation = useMutation({
     mutationFn: () =>
-      submitOffer({ data: { variantId: listing.variantId, priceCents: toCents(offerPrice) } }),
+      submitOffer({ data: { askId: listing.id, amountCents: toCents(offerPrice) } }),
     onSuccess: () => {
       setOfferPrice("");
       setOfferOpen(false);
