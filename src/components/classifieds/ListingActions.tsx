@@ -63,7 +63,7 @@ export function ListingActions({ listing }: { listing: ClassifiedDetail }) {
   const estimate = estimateBuyerTotalCents(listing.priceCents);
 
   return (
-    <div className="rounded-md border border-foreground bg-card">
+    <div className="floating-card overflow-hidden border-foreground/20">
       <div className="px-4 pt-4">
         <p className="numeric text-[30px] font-bold leading-none">
           {formatUsd(listing.priceCents)}
@@ -83,14 +83,14 @@ export function ListingActions({ listing }: { listing: ClassifiedDetail }) {
                   if (liveCheckout) setCheckoutOpen(true);
                   else buyMutation.mutate();
                 }}
-                className="h-12 w-full rounded-md bg-nav-accent text-[14.5px] font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-45"
+                className="h-12 w-full rounded-full bg-nav-accent text-[14.5px] font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-45"
               >
                 {buyMutation.isPending ? "Starting…" : "Buy now"}
               </button>
               <button
                 type="button"
                 onClick={() => setOfferOpen((open) => !open)}
-                className="h-11 w-full rounded-md border border-foreground text-[13.5px] font-semibold"
+                className="h-11 w-full rounded-full border border-foreground text-[13.5px] font-semibold"
               >
                 Make an offer
               </button>
@@ -98,7 +98,7 @@ export function ListingActions({ listing }: { listing: ClassifiedDetail }) {
           ) : (
             <Link
               to={brand.urls.auth}
-              className="flex h-12 w-full items-center justify-center rounded-md bg-nav-accent text-[14.5px] font-semibold text-primary-foreground"
+              className="flex h-12 w-full items-center justify-center rounded-full bg-nav-accent text-[14.5px] font-semibold text-primary-foreground"
             >
               Sign in to buy or make an offer
             </Link>

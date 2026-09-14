@@ -9,6 +9,14 @@ import { ListingCard, ListingRow } from "@/components/classifieds/ListingCard";
 import { conditionLabels, isMotorsCategory } from "@/lib/classifieds-display";
 import { browseClassifieds, type ClassifiedBrowseInput } from "@/lib/classifieds.functions";
 import { trackEvent } from "@/lib/analytics";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 
 type Sort = NonNullable<ClassifiedBrowseInput["sort"]>;
 type View = "grid" | "list";
@@ -173,6 +181,7 @@ function Browse() {
   const navigate = useNavigate({ from: Route.fullPath });
   const { data: result } = useSuspenseQuery(classifiedQuery(inputFromSearch(search)));
   const [term, setTerm] = useState(search.q ?? "");
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   useEffect(() => setTerm(search.q ?? ""), [search.q]);
 
@@ -246,17 +255,18 @@ function Browse() {
         titleStatus: motors ? value("titleStatus") : undefined,
       }),
     });
+    setFiltersOpen(false);
   }
 
   return (
-    <main className="mx-auto max-w-[1360px] px-4 py-7 sm:px-6">
+    <main className="mx-auto max-w-[1400px] px-4 py-10 sm:px-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-primary">
             Gem State classifieds
           </p>
-          <h1 className="mt-1 text-[24px] font-semibold tracking-tight">{heading}</h1>
-          <p className="mt-1 max-w-[62ch] text-[13px] text-muted-foreground">
+          <h1 className="mt-2 text-[30px] font-bold tracking-tight">{heading}</h1>
+          <p className="mt-2 max-w-[62ch] text-[14px] leading-relaxed text-muted-foreground">
             Search listings from sellers across Idaho. Vehicle shoppers can narrow by the details
             that matter before they open a listing.
           </p>
@@ -299,7 +309,7 @@ function Browse() {
       </div>
 
       <form
-        className="mt-5"
+        className="floating-card mt-8 p-2 sm:p-3"
         onSubmit={(event) => {
           event.preventDefault();
           void navigate({ to: "/browse", search: scoped({ q: term.trim() || undefined }) });
@@ -320,12 +330,12 @@ function Browse() {
                 : "Search cars, tools, furniture, and more"
             }
             aria-label="Search classifieds"
-            className="h-11 w-full rounded-md border border-input bg-card pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:border-border-strong focus:outline-none"
+            className="h-12 w-full rounded-full border-0 bg-transparent pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none"
           />
         </label>
       </form>
 
-      <div className="no-scrollbar mt-3 flex gap-2 overflow-x-auto pb-1">
+      <div className="no-scrollbar mt-5 flex gap-2 overflow-x-auto pb-1">
         <BrowsePill
           active={!search.group && !search.category}
           search={scoped({ group: undefined, category: undefined })}
@@ -351,30 +361,35 @@ function Browse() {
           ))}
       </div>
 
-      <div className="mt-6 grid gap-7 lg:grid-cols-[270px_minmax(0,1fr)]">
-        <aside className="rounded-lg border border-border bg-card">
-          <div className="hairline-b flex items-center justify-between px-4 py-3">
-            <div className="flex items-center gap-1.5">
-              <FunnelSimple size={15} className="text-primary" />
-              <h2 className="text-[13px] font-semibold tracking-tight">Filters</h2>
-              {activeFilterCount > 0 && (
-                <span className="rounded-full bg-accent px-1.5 py-0.5 text-[10px] font-semibold">
-                  {activeFilterCount}
-                </span>
-              )}
-            </div>
-            {activeFilterCount > 0 && (
-              <Link
-                to="/browse"
-                search={scoped({ category: undefined, group: search.group })}
-                className="text-[11px] font-medium text-primary hover:underline"
+      <div className="mt-8">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-[13px] text-muted-foreground">
+            <span className="numeric font-semibold text-foreground">{result.total}</span>{" "}
+            {result.total === 1 ? "listing" : "listings"}
+          </p>
+          <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
+            <SheetTrigger asChild>
+              <button
+                type="button"
+                className="inline-flex h-11 items-center gap-2 rounded-full border border-input bg-card px-5 text-[13px] font-semibold shadow-sm transition-shadow hover:shadow-md"
               >
-                Clear all
-              </Link>
-            )}
-          </div>
-
-          <form onSubmit={applyFilters} className="space-y-5 p-4">
+                <FunnelSimple size={17} className="text-primary" />
+                Filters
+                {activeFilterCount > 0 && (
+                  <span className="grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1.5 text-[10px] font-bold">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-full overflow-y-auto p-0 sm:max-w-lg">
+              <SheetHeader className="border-b border-border px-6 py-6 pr-16 text-left">
+                <SheetTitle className="text-[22px] tracking-tight">Filter listings</SheetTitle>
+                <SheetDescription>
+                  Narrow down local items, or add every vehicle detail that matters.
+                </SheetDescription>
+              </SheetHeader>
+              <form onSubmit={applyFilters} className="space-y-6 px-6 py-6">
             <input type="hidden" name="group" value={search.group ?? ""} />
             <FilterSection title="Category">
               <select name="category" defaultValue={search.category ?? ""} className="filter-input">
@@ -589,17 +604,19 @@ function Browse() {
               </FilterSection>
             )}
 
-            <button
-              type="submit"
-              className="inline-flex h-10 w-full items-center justify-center rounded-md bg-primary px-3 text-[13px] font-semibold text-primary-foreground hover:opacity-90"
-            >
-              Apply filters
-            </button>
-          </form>
-        </aside>
+                <button
+                  type="submit"
+                  className="mt-2 inline-flex h-12 w-full items-center justify-center rounded-full bg-primary px-3 text-[13px] font-semibold text-primary-foreground shadow-sm hover:opacity-90"
+                >
+                  Show {result.total} {result.total === 1 ? "listing" : "listings"}
+                </button>
+              </form>
+            </SheetContent>
+          </Sheet>
+        </div>
 
-        <section>
-          <div className="flex flex-wrap items-center justify-between gap-2">
+        <section className="mt-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="text-[12.5px] text-muted-foreground">
               <span className="numeric">{result.total}</span>{" "}
               {result.total === 1 ? "listing" : "listings"}
@@ -627,7 +644,7 @@ function Browse() {
           </div>
 
           {result.listings.length === 0 ? (
-            <div className="mt-3 rounded-lg border border-border bg-card px-5 py-10 text-center">
+            <div className="soft-card mt-5 px-5 py-12 text-center">
               <p className="text-[14px] font-medium">No listings match these filters.</p>
               <p className="mx-auto mt-1.5 max-w-md text-[13px] leading-relaxed text-muted-foreground">
                 Try widening the year, price, mileage, location, or vehicle filters.
@@ -641,7 +658,7 @@ function Browse() {
               </Link>
             </div>
           ) : search.view === "list" ? (
-            <ul className="mt-3 space-y-3">
+            <ul className="mt-5 space-y-4">
               {result.listings.map((listing) => (
                 <li key={listing.id}>
                   <ListingRow listing={listing} />
@@ -649,7 +666,7 @@ function Browse() {
               ))}
             </ul>
           ) : (
-            <ul className="mt-3 grid grid-cols-2 gap-x-3 gap-y-7 md:grid-cols-3 xl:grid-cols-4">
+            <ul className="mt-5 grid grid-cols-2 gap-x-4 gap-y-9 md:grid-cols-3 xl:grid-cols-4">
               {result.listings.map((listing) => (
                 <li key={listing.id}>
                   <ListingCard listing={listing} />

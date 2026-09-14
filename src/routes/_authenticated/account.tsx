@@ -88,7 +88,7 @@ function AccountPage() {
   const isSeller = data?.primaryIntent === "selling";
 
   return (
-    <div className="mx-auto max-w-[760px] px-4 py-12 sm:px-6">
+    <div className="mx-auto max-w-[800px] px-4 py-16 sm:px-8">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-[22px] font-semibold tracking-tight">Your account</h1>
@@ -133,7 +133,7 @@ function AccountPage() {
       {data && (
         <div className="mt-8 space-y-6">
           {data.completion < 1 && (
-            <div className="rounded-lg border border-border bg-surface p-4">
+            <div className="soft-card bg-secondary/55 p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-[13px] font-semibold tracking-tight">
@@ -161,7 +161,7 @@ function AccountPage() {
             </div>
           )}
 
-          <dl className="overflow-hidden rounded-lg border border-border bg-card">
+          <dl className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
             <div className="hairline-b flex items-center justify-between gap-4 px-4 py-3">
               <dt className="text-[13px] text-muted-foreground">Email</dt>
               <dd className="text-[13px] font-medium">{data.email ?? "—"}</dd>
@@ -196,7 +196,7 @@ function AccountPage() {
               event.preventDefault();
               mutation.mutate();
             }}
-            className="space-y-4 rounded-lg border border-border bg-card p-4"
+            className="soft-card space-y-5 p-5"
           >
             <div>
               <label htmlFor="display-name" className="text-[12px] font-medium">
@@ -261,7 +261,7 @@ function AccountPage() {
             </button>
           </form>
 
-          <div className="rounded-lg border border-border bg-card">
+          <div className="soft-card overflow-hidden">
             <div className="hairline-b px-4 py-3">
               <h2 className="text-[13px] font-semibold tracking-tight">
                 {isSeller

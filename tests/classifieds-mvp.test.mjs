@@ -20,6 +20,9 @@ const emailShellSource = await read("src/lib/email-templates/shell.tsx");
 const authEmailSource = await read("src/routes/lovable/email/auth/webhook.ts");
 const brandMarkSource = await read("src/components/layout/BrandMark.tsx");
 const homeSource = await read("src/routes/index.tsx");
+const categoryIconSource = await read("src/components/classifieds/CategoryIcon.tsx");
+const listingCardSource = await read("src/components/classifieds/ListingCard.tsx");
+const detailSource = await read("src/routes/listings.$listingId.tsx");
 const { classifiedSeedListings } = await import("../scripts/classified-seed-data.mjs");
 
 test("classified taxonomy includes Idaho categories and automotive inventory", () => {
@@ -132,4 +135,58 @@ test("homepage hero uses the expanded headline width and updated subline", () =>
   assert.match(homeSource, /max-w-\[34ch\]/);
   assert.match(homeSource, /And so much more across Idaho and surrounding states\./);
   assert.doesNotMatch(homeSource, /listed one item at a time by sellers/);
+});
+
+test("shared category icons and no-photo cards have deterministic presentation", () => {
+  for (const slug of [
+    "cars-trucks",
+    "motorcycles",
+    "boats",
+    "rvs-campers",
+    "powersports",
+    "furniture",
+    "electronics",
+    "clothing",
+    "outdoor-sporting",
+    "tools-equipment",
+    "farm-garden",
+    "general",
+  ]) {
+    assert.match(categoryIconSource, new RegExp(`(?:[\\\"']${slug}[\\\"']|${slug}:)`));
+  }
+  assert.match(listingCardSource, /weight="duotone"/);
+  assert.match(categoryIconSource, /SquaresFour/);
+  assert.match(listingCardSource, /listing\.categorySlug \?\? "general"/);
+  assert.match(listingCardSource, /bg-gradient-to-br/);
+  assert.match(listingCardSource, /rounded-2xl/);
+});
+
+test("browse filters remain complete inside the spacious drawer", () => {
+  assert.match(browseSource, /SheetContent/);
+  assert.match(browseSource, /Filter listings/);
+  assert.match(browseSource, /Show \{result\.total\}/);
+  for (const field of [
+    "make",
+    "model",
+    "yearMin",
+    "yearMax",
+    "mileageMax",
+    "bodyStyle",
+    "drivetrain",
+    "transmission",
+    "fuelType",
+    "exteriorColor",
+    "titleStatus",
+  ]) {
+    assert.match(browseSource, new RegExp(field));
+  }
+  assert.match(browseSource, /setFiltersOpen\(false\)/);
+});
+
+test("listing detail keeps a responsive photo gallery and floating action card", () => {
+  assert.match(detailSource, /Show all photos/);
+  assert.match(detailSource, /row-span-2/);
+  assert.match(detailSource, /DialogContent/);
+  assert.match(actionsSource, /floating-card/);
+  assert.match(detailSource, /specIcons/);
 });

@@ -5,6 +5,7 @@ import { ArrowRight, MagnifyingGlass, Car } from "@phosphor-icons/react";
 
 import { brand } from "@/config/brand";
 import { classifiedCategories, idahoRegions } from "@/config/classifieds";
+import { CategoryIcon } from "@/components/classifieds/CategoryIcon";
 import { ListingCard } from "@/components/classifieds/ListingCard";
 import { getClassifiedsHome } from "@/lib/classifieds.functions";
 import { trackEvent } from "@/lib/analytics";
@@ -54,14 +55,27 @@ const headlineOptions = [
 ] as const;
 
 const headlineStorageKey = "gem-state-classifieds:last-headline";
+const headlineWindowKey = "gem-state-classifieds:last-headline=";
 
 function pickHeadlineItems() {
   if (typeof window === "undefined") return headlineOptions[0];
 
-  const previous = window.localStorage.getItem(headlineStorageKey);
+  let previous: string | null = null;
+  try {
+    previous = window.localStorage.getItem(headlineStorageKey);
+  } catch {
+    previous = window.name.startsWith(headlineWindowKey)
+      ? window.name.slice(headlineWindowKey.length)
+      : null;
+  }
+
   const available = headlineOptions.filter((option) => option.join("|") !== previous);
   const selected = available[Math.floor(Math.random() * available.length)] ?? headlineOptions[0];
-  window.localStorage.setItem(headlineStorageKey, selected.join("|"));
+  try {
+    window.localStorage.setItem(headlineStorageKey, selected.join("|"));
+  } catch {
+    window.name = `${headlineWindowKey}${selected.join("|")}`;
+  }
   return selected;
 }
 
@@ -84,18 +98,23 @@ function Home() {
   const generalCategories = classifiedCategories.filter((c) => c.group === "classifieds");
 
   return (
-    <main className="mx-auto max-w-[1280px] px-4 pb-14 sm:px-6">
-      {/* Search first: this is a marketplace, not a brochure. */}
-      <section className="mt-6 rounded-lg border border-border bg-primary px-5 py-8 text-primary-foreground sm:px-9 sm:py-10">
-        <h1 className="max-w-[34ch] text-[30px] font-bold leading-[1.05] tracking-tight sm:text-[40px]">
+    <main className="mx-auto max-w-[1360px] px-4 pb-16 sm:px-6">
+      <section className="relative mt-8 overflow-hidden rounded-[28px] bg-secondary px-5 py-9 sm:px-10 sm:py-12">
+        <span className="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-brand-warm/10" />
+        <span className="absolute -bottom-28 left-1/3 h-72 w-72 rounded-full bg-primary/5" />
+        <div className="relative">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
+          Gem State classifieds
+        </p>
+        <h1 className="mt-3 max-w-[34ch] text-[34px] font-bold leading-[1.08] tracking-tight sm:text-[48px]">
           Find {headlineItems[0]} to {headlineItems[1]} to {headlineItems[2]} to {headlineItems[3]}.
         </h1>
-        <p className="mt-3 max-w-[56ch] text-[13.5px] leading-relaxed text-primary-foreground/80">
+        <p className="mt-4 max-w-[56ch] text-[15px] leading-relaxed text-muted-foreground">
           And so much more across Idaho and surrounding states.
         </p>
 
         <form
-          className="mt-6 grid gap-2 sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_auto]"
+          className="floating-card mt-8 grid gap-2 p-2 sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:p-3"
           onSubmit={(event) => {
             event.preventDefault();
             void navigate({
@@ -119,14 +138,14 @@ function Home() {
               onChange={(event) => setTerm(event.target.value)}
               placeholder="Search listings"
               aria-label="Search listings"
-              className="h-11 w-full rounded-md border border-transparent bg-card pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+              className="h-12 w-full rounded-full border-0 bg-transparent pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
             />
           </label>
           <select
             value={category}
             onChange={(event) => setCategory(event.target.value)}
             aria-label="Category"
-            className="h-11 rounded-md bg-card px-3 text-sm text-foreground"
+            className="soft-control h-12 px-4 text-sm text-foreground outline-none"
           >
             <option value="">All categories</option>
             {classifiedCategories.map((option) => (
@@ -139,7 +158,7 @@ function Home() {
             value={region}
             onChange={(event) => setRegion(event.target.value)}
             aria-label="Idaho region"
-            className="h-11 rounded-md bg-card px-3 text-sm text-foreground"
+            className="soft-control h-12 px-4 text-sm text-foreground outline-none"
           >
             <option value="">All of Idaho</option>
             {idahoRegions.map((option) => (
@@ -150,37 +169,70 @@ function Home() {
           </select>
           <button
             type="submit"
-            className="h-11 rounded-md bg-nav-accent px-6 text-[13.5px] font-semibold text-primary-foreground"
+            className="h-12 rounded-full bg-primary px-7 text-[13.5px] font-semibold text-primary-foreground shadow-sm transition-transform hover:scale-[1.02]"
           >
             Search
           </button>
         </form>
 
-        <p className="mt-3 text-[11.5px] text-primary-foreground/70">
+        <p className="mt-4 text-[12px] text-muted-foreground">
           {home.totalActive} live {home.totalActive === 1 ? "listing" : "listings"} right now.
         </p>
+        </div>
+      </section>
+
+      <section className="mt-10">
+        <div className="flex items-end justify-between gap-4">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Start exploring
+            </p>
+            <h2 className="mt-1 text-[24px] font-bold tracking-tight">What are you looking for?</h2>
+          </div>
+          <Link to="/browse" search={{}} className={seeAll}>
+            See all <ArrowRight size={12} />
+          </Link>
+        </div>
+        <div className="no-scrollbar mt-5 flex gap-3 overflow-x-auto pb-2">
+          {classifiedCategories.map((option) => (
+            <Link
+              key={option.slug}
+              to="/browse"
+              search={{ category: option.slug }}
+              className="group w-[118px] shrink-0 rounded-2xl border border-transparent bg-card p-4 shadow-sm transition-shadow hover:shadow-md"
+            >
+              <span className="grid h-11 w-11 place-items-center rounded-2xl bg-secondary text-primary transition-colors group-hover:bg-accent">
+                <CategoryIcon slug={option.slug} size={24} weight="duotone" />
+              </span>
+              <span className="mt-3 block text-[12px] font-semibold leading-tight">{option.name}</span>
+              <span className="mt-1 block text-[11px] text-muted-foreground">
+                {home.categoryCounts[option.slug] ?? 0} listings
+              </span>
+            </Link>
+          ))}
+        </div>
       </section>
 
       {/* Motors lead */}
-      <section className="mt-10">
+      <section className="mt-14">
         <div className="flex items-end justify-between gap-4">
           <div>
             <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">
               <Car size={14} weight="fill" /> Cars &amp; motors
             </p>
-            <h2 className="mt-1 text-[22px] font-bold tracking-tight">Vehicles for sale in Idaho</h2>
+            <h2 className="mt-1 text-[26px] font-bold tracking-tight">Vehicles for sale in Idaho</h2>
           </div>
           <Link to="/browse" search={{ group: "motors" }} className={seeAll}>
             All vehicles <ArrowRight size={12} />
           </Link>
         </div>
-        <div className="mt-2 flex flex-wrap gap-2">
+        <div className="mt-4 flex flex-wrap gap-2">
           {motorCategories.map((option) => (
             <Link
               key={option.slug}
               to="/browse"
               search={{ category: option.slug }}
-              className="rounded-full border border-input px-3 py-1.5 text-[12px] hover:border-primary"
+              className="rounded-full border border-input bg-card px-3.5 py-2 text-[12px] transition-colors hover:border-primary hover:bg-secondary"
             >
               {option.name}
               {home.categoryCounts[option.slug] ? (
@@ -192,7 +244,7 @@ function Home() {
           ))}
         </div>
         {home.motors.length > 0 ? (
-          <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
+          <div className="mt-5 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
             {home.motors.map((listing) => (
               <ListingCard key={listing.id} listing={listing} />
             ))}
@@ -206,16 +258,19 @@ function Home() {
       </section>
 
       {/* Everything else */}
-      <section className="mt-12">
-        <h2 className="text-[22px] font-bold tracking-tight">Browse other classifieds</h2>
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <section className="mt-16">
+        <h2 className="text-[26px] font-bold tracking-tight">Browse other classifieds</h2>
+        <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
           {generalCategories.map((option) => (
             <Link
               key={option.slug}
               to="/browse"
               search={{ category: option.slug }}
-              className="rounded-md border border-border bg-card px-4 py-5 transition-colors hover:border-primary"
+              className="group rounded-2xl border border-transparent bg-card px-4 py-5 shadow-sm transition-shadow hover:shadow-md"
             >
+              <span className="grid h-10 w-10 place-items-center rounded-xl bg-secondary text-primary group-hover:bg-accent">
+                <CategoryIcon slug={option.slug} size={22} weight="duotone" />
+              </span>
               <span className="block text-[13px] font-semibold">{option.name}</span>
               <span className="mt-1 block text-[11.5px] text-muted-foreground">
                 {home.categoryCounts[option.slug] ?? 0} listings
@@ -226,15 +281,15 @@ function Home() {
       </section>
 
       {/* Recently posted */}
-      <section className="mt-12">
+      <section className="mt-16">
         <div className="flex items-end justify-between gap-4">
-          <h2 className="text-[22px] font-bold tracking-tight">Recently posted</h2>
+          <h2 className="text-[26px] font-bold tracking-tight">Recently posted</h2>
           <Link to="/browse" search={{}} className={seeAll}>
             See all <ArrowRight size={12} />
           </Link>
         </div>
         {home.recent.length > 0 ? (
-          <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4">
+          <div className="mt-5 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
             {home.recent.map((listing) => (
               <ListingCard key={listing.id} listing={listing} />
             ))}
@@ -247,7 +302,7 @@ function Home() {
         )}
       </section>
 
-      <section className="mt-12 rounded-lg border border-border bg-secondary px-6 py-7">
+      <section className="soft-card mt-16 px-6 py-8 sm:px-8">
         <h2 className="text-[20px] font-bold tracking-tight">Have something to sell?</h2>
         <p className="mt-2 max-w-[60ch] text-[13px] leading-relaxed text-muted-foreground">
           Post one item at a time with your own photos, your price, and your city. Buyers pay by
@@ -255,7 +310,7 @@ function Home() {
         </p>
         <Link
           to="/sell"
-          className="mt-4 inline-flex h-11 items-center rounded-md bg-nav-accent px-5 text-[13.5px] font-semibold text-primary-foreground"
+          className="mt-5 inline-flex h-11 items-center rounded-full bg-primary px-6 text-[13.5px] font-semibold text-primary-foreground shadow-sm"
         >
           Post a listing
         </Link>
@@ -266,7 +321,7 @@ function Home() {
 
 function EmptyState({ title, body }: { title: string; body: string }) {
   return (
-    <div className="mt-4 rounded-md border border-border bg-card px-5 py-10 text-center">
+    <div className="soft-card mt-5 px-5 py-12 text-center">
       <p className="text-[14px] font-semibold">{title}</p>
       <p className="mx-auto mt-1.5 max-w-[52ch] text-[12.5px] leading-relaxed text-muted-foreground">
         {body}

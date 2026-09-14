@@ -1,9 +1,18 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
-import { MagnifyingGlass, UserCircle, List, X, PlusCircle } from "@phosphor-icons/react";
+import {
+  BookmarkSimple,
+  List,
+  MagnifyingGlass,
+  PlusCircle,
+  Storefront,
+  UserCircle,
+  X,
+} from "@phosphor-icons/react";
 
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import { BrandMark } from "@/components/layout/BrandMark";
+import { CategoryIcon } from "@/components/classifieds/CategoryIcon";
 import { brand } from "@/config/brand";
 import { classifiedCategories } from "@/config/classifieds";
 import { useAuth } from "@/hooks/useAuth";
@@ -20,7 +29,7 @@ import { useAuth } from "@/hooks/useAuth";
  * redirect after the SSR pass.
  */
 const navLinkClass =
-  "inline-flex h-10 shrink-0 items-center justify-center whitespace-nowrap px-3 text-[14.5px] font-semibold tracking-[-0.01em] text-foreground transition-colors hover:text-nav-accent";
+  "inline-flex h-[68px] shrink-0 flex-col items-center justify-center gap-1 rounded-2xl px-3 text-[11.5px] font-semibold tracking-[-0.01em] text-foreground transition-colors hover:bg-secondary hover:text-primary";
 
 const utilityLinkClass =
   "hidden h-9 items-center px-2.5 text-[12.5px] text-muted-foreground transition-colors hover:text-primary md:inline-flex";
@@ -56,7 +65,7 @@ export function SiteHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-2 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-1.5 focus:text-[12.5px] focus:font-medium focus:text-primary-foreground"
@@ -65,19 +74,19 @@ export function SiteHeader() {
       </a>
 
       {/* Level 1 */}
-      <div className="mx-auto grid h-[76px] max-w-[1400px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-6 px-3 sm:gap-10 sm:px-8">
+      <div className="mx-auto grid h-[88px] max-w-[1440px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-3 sm:gap-8 sm:px-8">
         <Link to="/" className="flex shrink-0 items-center pr-1 sm:pr-2" {...pinned}>
           <BrandMark className="hidden sm:inline-flex" />
           <BrandMark compact className="sm:hidden" />
         </Link>
 
-        <form className="min-w-0" onSubmit={submitSearch} role="search">
-          <label className="relative block">
+        <form className="hidden w-full max-w-[620px] justify-self-center md:block" onSubmit={submitSearch} role="search">
+          <label className="soft-control flex h-14 items-center gap-2 px-3 shadow-sm transition-shadow focus-within:shadow-md">
             <span className="sr-only">Search Idaho classifieds</span>
             <MagnifyingGlass
               size={16}
               aria-hidden="true"
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              className="shrink-0 text-muted-foreground"
             />
             <input
               type="search"
@@ -85,18 +94,33 @@ export function SiteHeader() {
               value={term}
               onChange={(e) => setTerm(e.target.value)}
               placeholder="Search cars, tools, furniture, and more"
-              className="h-10 w-full border border-input bg-card pl-9 pr-3 text-[13px] text-foreground placeholder:text-muted-foreground focus:border-border-strong focus:outline-none"
+              className="min-w-0 flex-1 bg-transparent px-1 text-[13px] text-foreground outline-none placeholder:text-muted-foreground"
             />
+            <button
+              type="submit"
+              aria-label="Search"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground transition-transform hover:scale-105"
+            >
+              <MagnifyingGlass size={17} aria-hidden="true" />
+            </button>
           </label>
         </form>
 
-        <nav aria-label="Account and utilities" className="flex shrink-0 items-center gap-1">
+        <nav aria-label="Account and utilities" className="flex shrink-0 items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => void navigate({ to: "/browse" })}
+            aria-label="Search classifieds"
+            className="grid h-11 w-11 place-items-center rounded-full border border-input text-foreground transition-colors hover:bg-secondary md:hidden"
+          >
+            <MagnifyingGlass size={18} aria-hidden="true" />
+          </button>
           <Link to="/glossary" className={utilityLinkClass} {...pinned}>
             How it works
           </Link>
           <Link
             to="/create-listing"
-            className="hidden h-9 items-center gap-1.5 bg-accent px-3.5 text-[12.5px] font-semibold text-accent-foreground transition-opacity hover:opacity-90 sm:inline-flex"
+            className="hidden h-11 items-center gap-1.5 rounded-full bg-accent px-4 text-[12.5px] font-semibold text-accent-foreground transition-opacity hover:opacity-90 sm:inline-flex"
             {...pinned}
           >
             <PlusCircle size={16} aria-hidden="true" />
@@ -111,7 +135,7 @@ export function SiteHeader() {
           <button
             type="button"
             onClick={() => void navigate({ to: isSignedIn ? brand.urls.account : brand.urls.auth })}
-            className="inline-flex h-9 min-h-11 items-center gap-1.5 border border-foreground px-3.5 text-[12.5px] font-medium transition-colors hover:bg-foreground hover:text-background md:min-h-9"
+            className="inline-flex h-11 min-h-11 items-center gap-1.5 rounded-full border border-foreground px-4 text-[12.5px] font-medium transition-colors hover:bg-foreground hover:text-background md:min-h-11"
           >
             <UserCircle size={16} aria-hidden="true" />
             {isSignedIn ? "Account" : "Sign in"}
@@ -122,7 +146,7 @@ export function SiteHeader() {
             onClick={() => setMenuOpen((v) => !v)}
             aria-expanded={menuOpen}
             aria-controls="marketplace-menu"
-            className="inline-flex h-11 w-11 items-center justify-center border border-input text-foreground transition-colors hover:bg-secondary lg:hidden"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-input text-foreground transition-colors hover:bg-secondary lg:hidden"
           >
             {menuOpen ? <X size={17} aria-hidden="true" /> : <List size={17} aria-hidden="true" />}
             <span className="sr-only">{menuOpen ? "Close menu" : "Open menu"}</span>
@@ -131,16 +155,18 @@ export function SiteHeader() {
       </div>
 
       {/* Level 2 — Gem State classifieds taxonomy. */}
-      <nav aria-label="Categories" className="hidden border-t border-border bg-card lg:block">
-        <ul className="no-scrollbar mx-auto flex max-w-[1400px] flex-nowrap items-center justify-center gap-1 overflow-x-auto px-4 py-1.5 sm:px-8">
+      <nav aria-label="Categories" className="hidden border-t border-border bg-background lg:block">
+        <ul className="no-scrollbar mx-auto flex max-w-[1440px] flex-nowrap items-center justify-center gap-1 overflow-x-auto px-4 sm:gap-2 sm:px-8">
           <li>
             <Link to="/browse" search={{}} className={navLinkClass} {...pinned}>
+              <CategoryIcon slug="general" size={23} weight="duotone" />
               All listings
             </Link>
           </li>
           {motorsCategories.map((c) => (
             <li key={c.slug}>
               <Link to="/browse" search={{ category: c.slug }} className={navLinkClass} {...pinned}>
+                <CategoryIcon slug={c.slug} size={23} weight="duotone" />
                 {c.name}
               </Link>
             </li>
@@ -149,6 +175,7 @@ export function SiteHeader() {
           {generalCategories.slice(0, 5).map((c) => (
             <li key={c.slug}>
               <Link to="/browse" search={{ category: c.slug }} className={navLinkClass} {...pinned}>
+                <CategoryIcon slug={c.slug} size={23} weight="duotone" />
                 {c.name}
               </Link>
             </li>
@@ -158,11 +185,13 @@ export function SiteHeader() {
               <li aria-hidden="true" className="mx-1 h-4 w-px shrink-0 bg-border" />
               <li>
                 <Link to="/watchlist" className={navLinkClass} {...pinned}>
+                  <BookmarkSimple size={23} weight="duotone" />
                   Saved
                 </Link>
               </li>
               <li>
                 <Link to="/selling" className={navLinkClass} {...pinned}>
+                  <Storefront size={23} weight="duotone" />
                   Selling
                 </Link>
               </li>
