@@ -16,3 +16,6 @@
 ## Phase 3 — Seller experience (awaiting approval)
 ## Phase 4 — Buyer and account experience (awaiting approval)
 ## Phase 5 — Admin, policies, emails, launch pass (awaiting approval)
+
+## Workspace move follow-up
+- [ ] Reconnect Google Search Console in the new workspace
