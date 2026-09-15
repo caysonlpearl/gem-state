@@ -16,6 +16,9 @@ const seedRunnerSource = await read("scripts/seed-classifieds.mjs");
 const seedMigrationSource = await read(
   "supabase/migrations/20260914110000_add_classified_seed_listing_function.sql",
 );
+const approvalRepairSource = await read(
+  "supabase/migrations/20260915130000_publish_classified_product_after_approval.sql",
+);
 const emailShellSource = await read("src/lib/email-templates/shell.tsx");
 const authEmailSource = await read("src/routes/lovable/email/auth/webhook.ts");
 const brandMarkSource = await read("src/components/layout/BrandMark.tsx");
@@ -66,6 +69,14 @@ test("admin moderation reviews classified listings instead of publishing them di
   assert.match(moderationSource, /adminReviewAsk/);
   assert.match(moderationSource, /Approve listing/);
   assert.match(moderationSource, /Reject listing/);
+});
+
+test("classified approval publishes the linked product", () => {
+  assert.match(approvalRepairSource, /publish_classified_product_after_approval/);
+  assert.match(approvalRepairSource, /NEW\.approved_at IS NOT NULL/);
+  assert.match(approvalRepairSource, /classified_listing_details/);
+  assert.match(approvalRepairSource, /status = 'published'::public\.product_status/);
+  assert.match(approvalRepairSource, /AFTER UPDATE OF status, approved_at ON public\.asks/);
 });
 
 test("public seller landing page is Gem State-specific", () => {
