@@ -118,8 +118,8 @@ function CreateListingPage() {
   const profileReady = Boolean(
     setup.data?.exists &&
     setup.data?.termsAccepted &&
-    setup.data?.stripeDetailsSubmitted &&
-    setup.data?.stripePayoutsEnabled,
+    setup.data?.defaultShippingMethod &&
+    setup.data?.defaultHandlingDays,
   );
   const isVehicle = isMotorsCategory(form.category);
   const set = (key: keyof FormState, value: string) =>
@@ -218,10 +218,9 @@ function CreateListingPage() {
       <main className="mx-auto max-w-[1180px] px-4 py-10 sm:px-8">
         <SellerCenterNav storefrontSlug={setup.data?.slug} />
         <section className="mt-8 border border-brand-warm/40 bg-brand-warm/10 p-6">
-          <p className="text-[15px] font-semibold">Complete seller verification first</p>
+          <p className="text-[15px] font-semibold">Complete your seller profile first</p>
           <p className="mt-2 max-w-[640px] text-[12px] leading-relaxed text-muted-foreground">
-            Add your seller profile, accept the seller agreement, and finish payout verification
-            before creating a listing.
+            Add your seller profile and accept the seller agreement before creating a listing.
           </p>
           <Link
             to="/seller-setup"

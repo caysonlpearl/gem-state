@@ -7,7 +7,7 @@ const required = ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SEED_AC
 
 if (!apply) {
   console.log(
-    `Dry run: ${classifiedSeedListings.length} fictional Idaho vehicle listings are ready.`,
+    `Dry run: ${classifiedSeedListings.length} example Idaho vehicle listings are ready.`,
   );
   for (const listing of classifiedSeedListings) {
     console.log(
@@ -63,7 +63,7 @@ function xml(value) {
 function demoPhoto(listing) {
   const title = xml(listing.title);
   const location = xml(`${listing.city}, ${listing.state}`);
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800"><rect width="1200" height="800" fill="#eef1ee"/><rect x="40" y="40" width="1120" height="720" rx="24" fill="#d8e2dd" stroke="#183a35" stroke-width="8"/><path d="M210 520h780l-80-180H390z" fill="#f5f1e8" stroke="#183a35" stroke-width="10"/><circle cx="420" cy="540" r="66" fill="#183a35"/><circle cx="780" cy="540" r="66" fill="#183a35"/><text x="600" y="180" fill="#183a35" font-family="Arial,sans-serif" font-size="42" font-weight="700" text-anchor="middle">GEM STATE DEMO PHOTO</text><text x="600" y="650" fill="#183a35" font-family="Arial,sans-serif" font-size="30" text-anchor="middle">${title}</text><text x="600" y="700" fill="#183a35" font-family="Arial,sans-serif" font-size="24" text-anchor="middle">${location} · Replace before launch</text></svg>`;
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800"><rect width="1200" height="800" fill="#eef1ee"/><rect x="40" y="40" width="1120" height="720" rx="24" fill="#d8e2dd" stroke="#183a35" stroke-width="8"/><path d="M210 520h780l-80-180H390z" fill="#f5f1e8" stroke="#183a35" stroke-width="10"/><circle cx="420" cy="540" r="66" fill="#183a35"/><circle cx="780" cy="540" r="66" fill="#183a35"/><text x="600" y="180" fill="#183a35" font-family="Arial,sans-serif" font-size="42" font-weight="700" text-anchor="middle">GEM STATE SAMPLE IMAGE</text><text x="600" y="650" fill="#183a35" font-family="Arial,sans-serif" font-size="30" text-anchor="middle">${title}</text><text x="600" y="700" fill="#183a35" font-family="Arial,sans-serif" font-size="24" text-anchor="middle">${location} · Example listing image</text></svg>`;
 }
 
 for (const listing of classifiedSeedListings) {
@@ -90,7 +90,7 @@ for (const listing of classifiedSeedListings) {
     _category_id: categoryId,
     _price_cents: listing.priceCents,
     _item_condition: listing.condition,
-    _seller_note: "Seed record for MVP testing; replace demo photo and copy before approval.",
+    _seller_note: "Example listing for marketplace testing. Confirm item details and availability directly with the seller.",
     _region: listing.region,
     _city: listing.city,
     _state: listing.state,

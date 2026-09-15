@@ -41,7 +41,7 @@ function policyBodies(): Record<string, React.ReactNode> {
       <p>
         {brand.name} does not inspect, authenticate, manufacture or warrant items listed by
         sellers. Listing information is supplied by the seller and should be evaluated by the
-        buyer before purchase.
+        buyer before contacting the seller, meeting, shipping or paying.
       </p>
     </>
   ),
@@ -49,8 +49,9 @@ function policyBodies(): Record<string, React.ReactNode> {
     <>
       <p>
         We store the account email held by our authentication provider, the display name and
-        marketplace preferences you enter, your marketplace activity, and — only when you take part in a
-        transaction — a shipping address snapshot for that order.
+        marketplace preferences you enter, your marketplace activity, and the contact details and
+        message you submit when you inquire about a listing. Your inquiry is shared with that
+        listing's seller so they can reply.
       </p>
       <p>
         Product-usage analytics record event names, counts, route names and price buckets. They
@@ -58,27 +59,25 @@ function policyBodies(): Record<string, React.ReactNode> {
         anything else you typed into a form.
       </p>
       <p>
-        Addresses, evidence files and identity documents are stored in private storage and reached
-        only through short-lived signed links, restricted to the order's participants and an
-        authorised administrator. Administrative access to identity documents and receipts is
-        logged.
+        Listing photos and account data are protected by account and staff permissions. Gem State
+        does not collect payment-card or bank details through the direct-contact listing flow.
       </p>
     </>
   ),
   "buyer-terms": (
     <>
       <p>
-        An offer records what you are willing to pay for one exact listing. A Buy Now action
-        starts checkout for that listing, where payment is processed by Stripe. The order advances
-        once that payment is confirmed.
+        Contact the seller through the listing page to ask questions about one exact item. Confirm
+        the item's condition, ownership, price, location and availability before you meet, arrange
+        shipping or make payment.
       </p>
       <p>
-        Fees are snapshotted onto the order when it is created and are not recalculated afterwards.
-        The applicable total is shown before payment.
+        {brand.name} does not process payment, hold funds or provide escrow in this MVP. Arrange the
+        payment method and any shipping cost directly with the seller.
       </p>
       <p>
-        {brand.name} does not hold your funds and does not operate escrow. Seller payouts are
-        delayed until delivery or completion is confirmed.
+        Future transaction features may add hosted payment and payout flows. Those features are not
+        part of the current direct-contact marketplace experience.
       </p>
     </>
   ),
@@ -86,25 +85,25 @@ function policyBodies(): Record<string, React.ReactNode> {
     <>
       <p>
         A listing states a price for one specific item. You are responsible for describing the item
-        accurately, providing clear photos, fulfilling it promptly after payment, and taking down
-        the listing if the item is no longer available.
+        accurately, providing clear photos, responding to buyer inquiries, arranging pickup or
+        shipping details directly, and taking down the listing if the item is no longer available.
       </p>
       <p>
-        Payout is recorded from the immutable order snapshot and marked pending until delivery is
-        confirmed and the completion period has passed. A pending payout is never described as paid.
+        Do not request a buyer's government ID, bank credentials or card details through Gem State
+        messages. Future payment features, if enabled, will use their own hosted flow.
       </p>
     </>
   ),
   cancellation: (
     <>
       <p>
-        Before payment evidence is recorded, either side may cancel and nothing is owed. Unpaid
-        reservations release automatically and the listing returns to the market.
+        There is no platform order, reservation or payment to cancel in the current MVP. Either
+        party should communicate directly if an item becomes unavailable or plans change.
       </p>
       <p>
-        If an item is unavailable or an order problem is confirmed, the order may be cancelled or
-        refunded through the payment provider. Refunds and disputes can block or reverse completion
-        and payout.
+        Report unsafe, prohibited, fraudulent or misleading listings through Contact us. Any
+        payment disagreement arranged directly between buyer and seller must be handled by those
+        parties and their chosen payment provider.
       </p>
     </>
   ),
@@ -120,30 +119,32 @@ function policyBodies(): Record<string, React.ReactNode> {
   "identity-verification": (
     <>
       <p>
-        Some sellers may be asked to provide government-issued identity information so an operator
-        or payment provider can confirm the person receiving marketplace payouts.
+        The current listing and contact flow does not ask sellers for government-issued identity
+        information, bank details or payout credentials. A future payment feature may require
+        hosted verification.
       </p>
       <p>
-        Identity information is stored privately and is not shown to buyers or other members. Access
-        is limited to authorized marketplace operations and payment-provider workflows.
+        If hosted verification is added later, identity information will be stored privately and not
+        shown to buyers or other members. Access will be limited to authorized marketplace
+        operations and payment-provider workflows.
       </p>
       <p>
-        Identity information is retained only as long as needed for the account, payout and legal
-        obligations described on this page.
+        Any future identity information will be retained only as long as needed for the account,
+        payout and legal obligations described on this page.
       </p>
     </>
   ),
   "evidence-privacy": (
     <>
       <p>
-        Listing photos, purchase receipts and delivery evidence live in private storage. The
-        submitting seller or buyer and an authorized administrator may open the original file
-        through a short-lived signed link when needed for an order or dispute.
+        Listing photos and buyer inquiry messages are protected by account and staff permissions.
+        The seller of the referenced listing can read an inquiry so they can reply, and an
+        authorized administrator may review listing or message content when needed for moderation.
       </p>
       <p>
-        Buyers and sellers see order status and relevant confirmations — not payment-instrument
-        information. {brand.name} never stores card numbers or bank
-        credentials.
+        {brand.name} does not collect or store card numbers or bank credentials in this direct-
+        contact MVP. Future transaction evidence will be governed by the policies in effect when
+        those features are enabled.
       </p>
     </>
   ),
@@ -196,7 +197,7 @@ function Policies() {
         </p>
         <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-muted-foreground">
           These are the terms that govern buying and selling on {brand.name}. Each section states a
-          rule the marketplace applies today. By creating an account, placing an offer, buying or
+          rule the marketplace applies today. By creating an account, contacting a seller, or
           listing an item, you agree to the sections that apply to
           you. If we change a rule, this page is updated and the effective date above changes.
         </p>

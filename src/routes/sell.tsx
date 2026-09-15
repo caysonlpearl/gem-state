@@ -18,7 +18,7 @@ export const Route = createFileRoute("/sell")({
       {
         name: "description",
         content:
-          "Create a verified seller profile, connect payouts and list cars, trucks, outdoor gear, tools, home goods and more across Idaho.",
+          "Create a seller profile and list cars, trucks, outdoor gear, tools, home goods and more across Idaho.",
       },
     ],
   }),
@@ -40,9 +40,9 @@ function SellLandingPage() {
               Turn what you own into a trusted local listing.
             </h1>
             <p className="mt-5 max-w-[650px] text-[14px] leading-relaxed text-muted-foreground">
-              Build a seller profile, connect your payout account and list the exact item you own.
-              Buyers across Idaho see your photos, price, condition, location and fulfillment record
-              in one place.
+              Build a seller profile and list the exact item you own. Buyers across Idaho see your
+              photos, price, condition, location and pickup or shipping details in one place, then
+              contact you directly.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
               {isSignedIn ? (
@@ -84,8 +84,8 @@ function SellLandingPage() {
               />
               <Step
                 number="2"
-                title="Verify identity and payouts"
-                text="Complete Stripe's hosted identity, tax and bank-account setup."
+                title="Add listing details"
+                text="Choose a category, location, condition, price and how buyers can receive the item."
               />
               <Step
                 number="3"
@@ -111,19 +111,19 @@ function SellLandingPage() {
           />
           <Feature
             icon={<IdentificationCard size={21} />}
-            title="Verified payouts"
-            text="Identity and banking details are collected in Stripe's secure hosted flow."
+            title="Direct buyer contact"
+            text="Buyers can message you about the exact listing and reply to your email."
           />
           <Feature
             icon={<Package size={21} />}
-            title="Shipping center"
-            text="Find orders, shipping addresses, labels, tracking and payout status together."
+            title="Flexible handoff"
+            text="Arrange local pickup or shipping details directly with the buyer."
           />
         </div>
         <div className="mt-8 flex items-start gap-2 border-l-2 border-primary pl-4 text-[12px] leading-relaxed text-muted-foreground">
           <CheckCircle size={16} weight="fill" className="mt-0.5 shrink-0 text-primary" />
           Gem State Classifieds never asks sellers to send government ID or bank details through
-          messages. Those details belong in the connected payout provider's hosted form.
+          messages. Payment and payout features are reserved for a future marketplace phase.
         </div>
       </section>
     </main>

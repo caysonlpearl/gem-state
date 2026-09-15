@@ -283,8 +283,8 @@ function AccountPage() {
                 <Tag size={16} className="mt-0.5 text-primary" />
                 <span className="text-[13px] text-muted-foreground">
                   {isSeller
-                    ? "Your seller dashboard supports public listings, editing, order fulfillment and payout setup."
-                    : "Place an offer on a listing, and complete payment at checkout when a seller accepts."}
+                    ? "Your seller dashboard supports public listings, editing, buyer inquiries and moderation status."
+                    : "Save listings, contact sellers and arrange pickup, shipping and payment directly."}
                 </span>
               </li>
               <li className="flex items-start gap-3 px-4 py-3">

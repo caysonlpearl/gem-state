@@ -279,10 +279,6 @@ function SellingPage() {
           ? soldAsks
           : removedAsks;
 
-  const payoutReady = Boolean(
-    sellerSetup.data?.stripeDetailsSubmitted && sellerSetup.data?.stripePayoutsEnabled,
-  );
-
   return (
     <main className="mx-auto max-w-[1120px] px-4 py-10 sm:px-8">
       <div>
@@ -293,27 +289,10 @@ function SellingPage() {
           Seller dashboard
         </h1>
         <p className="mt-1 text-[13px] text-muted-foreground">
-          Listings, offers, sales, shipping, reviews and payouts in one place.
+          Listings, buyer inquiries, moderation status and seller tools in one place.
         </p>
       </div>
       <SellerCenterNav storefrontSlug={sellerSetup.data?.slug} />
-
-      {!payoutReady ? (
-        <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border border-brand-warm/40 bg-brand-warm/10 p-4">
-          <div>
-            <p className="text-[13px] font-semibold">Payout verification is not complete</p>
-            <p className="mt-1 text-[11.5px] text-muted-foreground">
-              Complete identity and bank setup before Gem State Classifieds can send seller payouts.
-            </p>
-          </div>
-          <Link
-            to="/seller-setup"
-            className="inline-flex h-9 items-center bg-primary px-3 text-[12px] font-medium text-primary-foreground"
-          >
-            Finish payout setup
-          </Link>
-        </div>
-      ) : null}
 
       <section className="mt-7 grid grid-cols-2 gap-px border border-border bg-border lg:grid-cols-4">
         <Metric label="Active listings" value={String(activeAsks.length)} />
@@ -321,8 +300,8 @@ function SellingPage() {
           label="Awaiting approval"
           value={String(pendingAsks.length + heldRequests.length)}
         />
-        <Metric label="Sales to ship" value={String(salesToShip.length)} />
-        <Metric label="Awaiting payout" value={formatUsd(summary.data?.pendingPayoutCents ?? 0)} />
+        <Metric label="Buyer inquiries" value={String(listingInquiries.data?.length ?? 0)} />
+        <Metric label="Platform payments" value="Not active" />
       </section>
 
       <section id="listings" className="mt-9 scroll-mt-28">

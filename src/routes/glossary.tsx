@@ -4,9 +4,9 @@ import { useEffect } from "react";
 import { brand } from "@/config/brand";
 import { trackEvent } from "@/lib/analytics";
 
-const title = `How Gem State Classifieds works — listings, offers, buying and selling`;
+const title = `How Gem State Classifieds works — listings, contact and selling`;
 const description =
-  "Plain-language definitions of Gem State Classifieds: how listings, offers, buying, selling, payments, delivery and reviews work across Idaho.";
+  "Plain-language definitions of Gem State Classifieds: how listings, seller contact, buying, selling, pickup, shipping and reviews work across Idaho.";
 
 export const Route = createFileRoute("/glossary")({
   head: () => ({
@@ -28,13 +28,13 @@ const terms: { term: string; short: string; body: string }[] = [
   },
   {
     term: "Offer",
-    short: "What a buyer will pay",
-    body: "An offer is the price a buyer proposes for one exact listing. The seller can accept, decline or counter it. If the seller accepts, the buyer completes payment at checkout before the seller fulfills the order.",
+    short: "A price discussed with the seller",
+    body: "Offers and checkout are reserved for a future marketplace phase. For now, contact the seller directly to discuss price, condition and availability before making payment.",
   },
   {
-    term: "Buy Now",
-    short: "Start checkout at the seller's price",
-    body: "Buy Now starts checkout for the exact item shown on the listing page. The final total includes the seller's price plus any applicable marketplace fees, tax and shipping shown at checkout.",
+    term: "Contact seller",
+    short: "Message the person who listed the item",
+    body: "Contact seller sends your message and email address to the seller of that exact listing. Continue the conversation directly to confirm the item, price, meeting place, shipping and payment details.",
   },
   {
     term: "Seller review",
@@ -44,7 +44,7 @@ const terms: { term: string; short: string; body: string }[] = [
   {
     term: "Pickup or shipping",
     short: "How the buyer receives the item",
-    body: "A seller chooses local pickup, shipping, or both when creating a listing. Pickup details are arranged with the seller after purchase. Shipping rates and the seller's handling details are shown before payment when shipping is available.",
+    body: "A seller chooses local pickup, shipping, or both when creating a listing. Ask the seller about pickup details, shipping availability and cost, then arrange the details directly.",
   },
   {
     term: "Saved listing",
@@ -57,19 +57,19 @@ const terms: { term: string; short: string; body: string }[] = [
     body: "Gem State Classifieds may review listing content and photos before publication and may remove listings that violate the published policies. Moderation is not an inspection or a warranty.",
   },
   {
-    term: "Order status",
-    short: "Where a paid purchase stands",
-    body: "An order moves through payment, fulfillment, shipment or pickup, delivery and completion. Buyers and sellers can see the current status and relevant updates from their account.",
+    term: "Buyer inquiry",
+    short: "A message about one listing",
+    body: "A buyer inquiry is a message attached to one exact listing. The seller can read it in Seller Center and reply to the buyer by email.",
   },
   {
     term: "Seller payout",
-    short: "Funds released after completion",
-    body: "Seller payout timing follows the order terms shown at checkout and the delivery or completion state recorded for the order. Gem State Classifieds does not operate escrow.",
+    short: "Not part of the current MVP",
+    body: "Gem State Classifieds does not process payment or seller payouts in this direct-contact MVP. Future transaction features may add hosted payment and payout setup.",
   },
   {
-    term: "Dispute",
-    short: "A problem reported about an order",
-    body: "A buyer or seller can report an order problem through the available support and dispute flow. Evidence may be requested, and the order's completion or payout can be held while it is reviewed.",
+    term: "Report a problem",
+    short: "Tell Gem State about a listing issue",
+    body: "Use Contact us or report the listing when content appears unsafe, prohibited, fraudulent or otherwise violates the published policies. Gem State does not process payment or hold funds in this MVP.",
   },
 ];
 
@@ -106,10 +106,11 @@ function GlossaryPage() {
       </dl>
 
       <div className="mt-8 rounded-lg border border-border bg-surface p-5">
-        <h2 className="text-[13px] font-semibold tracking-tight">How payment works</h2>
+        <h2 className="text-[13px] font-semibold tracking-tight">How payment works right now</h2>
         <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
-          {brand.legal.checkoutNotice} {brand.name} does not authenticate or grade items, and does
-          not operate escrow — nothing on this site should be read as offering either.
+          {brand.name} does not process payment or hold funds in this MVP. Confirm the item, price,
+          ownership, meeting or shipping details, and payment method directly with the seller.
+          Gem State does not authenticate or grade items.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <Link

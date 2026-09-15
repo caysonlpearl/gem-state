@@ -109,8 +109,8 @@ function SellerSetupPage() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["seller-setup"] });
       setAvatarFile(null);
-      toast.success("Seller profile saved. Continue to payout verification.");
-      document.getElementById("payout-setup")?.scrollIntoView({ behavior: "smooth" });
+      toast.success("Seller profile saved. You can now create listings.");
+      document.getElementById("first-listing")?.scrollIntoView({ behavior: "smooth" });
     },
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "Could not save seller setup."),
@@ -160,7 +160,9 @@ function SellerSetupPage() {
     setup.data?.defaultShippingMethod &&
     setup.data?.defaultHandlingDays,
   );
-  const sellerReady = Boolean(profileReady && payoutReady);
+  // Direct-contact classifieds do not require payment or payout onboarding. The Stripe
+  // connection remains available for a future transaction phase, but it must not block MVP sellers.
+  const sellerReady = profileReady;
 
   return (
     <main className="mx-auto max-w-[940px] px-4 py-10 sm:px-6">
@@ -173,8 +175,8 @@ function SellerSetupPage() {
             Set up your shop
           </h1>
           <p className="mt-1 max-w-[620px] text-[12.5px] leading-relaxed text-muted-foreground">
-            Your public storefront and private shipping information live here. Bank and identity
-            details go directly to Stripe, not Gem State Classifieds.
+            Your public storefront and private shipping information live here. Payment and payout
+            onboarding are optional while Gem State uses direct seller contact.
           </p>
         </div>
       </div>
@@ -183,14 +185,14 @@ function SellerSetupPage() {
 
       <ol className="mt-7 grid gap-px border border-border bg-border sm:grid-cols-3">
         <SetupStep number="1" label="Seller information" complete={profileReady} />
-        <SetupStep number="2" label="Identity & payouts" complete={Boolean(payoutReady)} />
+        <SetupStep number="2" label="Listing details" complete={profileReady} />
         <SetupStep number="3" label="First listing" complete={false} />
       </ol>
 
       <div className="mt-7 grid gap-4 sm:grid-cols-3">
         {[
           [Storefront, "Storefront", setup.data?.exists ? "Complete" : "Required"],
-          [IdentificationCard, "Payout identity", payoutReady ? "Verified" : "Not ready"],
+          [IdentificationCard, "Future payouts", payoutReady ? "Verified" : "Optional"],
           [LockKey, "Private address", setup.data?.shipFromLine1 ? "Saved" : "Required"],
         ].map(([Icon, label, value]) => {
           const Glyph = Icon as typeof Storefront;
@@ -380,7 +382,7 @@ function SellerSetupPage() {
             disabled={saveMutation.isPending}
             className="h-10 bg-primary px-4 text-[12.5px] font-medium text-primary-foreground disabled:opacity-50"
           >
-            {saveMutation.isPending ? "Saving…" : "Save and continue to payouts"}
+            {saveMutation.isPending ? "Saving…" : "Save seller profile"}
           </button>
         </form>
       ) : (
@@ -394,15 +396,15 @@ function SellerSetupPage() {
               Step 2
             </p>
             <h2 className="mt-1 flex items-center gap-2 text-[15px] font-semibold">
-              Verify identity and connect payouts{" "}
+              Payment and payout setup{" "}
               {payoutReady ? (
                 <CheckCircle size={17} weight="fill" className="text-primary" />
               ) : null}
             </h2>
             <p className="mt-1 max-w-[610px] text-[11.5px] leading-relaxed text-muted-foreground">
-              Stripe's hosted form collects the identity, tax and bank details it requires,
-              including a government ID when Stripe requests one. Gem State Classifieds receives
-              only account readiness flags, never the ID image or bank details.
+              Payment and payout onboarding is reserved for a future transaction phase. If enabled,
+              Stripe's hosted form would collect the identity, tax and bank details it requires;
+              Gem State Classifieds would receive only account readiness flags.
             </p>
           </div>
           <div className="flex gap-2">
@@ -428,7 +430,7 @@ function SellerSetupPage() {
               </>
             ) : (
               <span className="border border-brand-warm/40 bg-brand-warm/10 px-3 py-2 text-[11.5px] text-brand-warm">
-                Payout setup temporarily unavailable
+                Not needed for direct-contact listings
               </span>
             )}
           </div>
@@ -436,13 +438,12 @@ function SellerSetupPage() {
         {!setup.data?.payoutProviderConfigured ? (
           <div className="mt-4 border border-brand-warm/40 bg-brand-warm/10 p-4">
             <p className="text-[12.5px] font-semibold">
-              Gem State Classifieds marketplace payouts are not configured yet
+              Marketplace payouts are not part of the current MVP
             </p>
             <p className="mt-1 max-w-[680px] text-[11.5px] leading-relaxed text-muted-foreground">
-              This is a Gem State platform issue, not a problem with your seller profile. The
-              Lovable workspace connector is enabled, but it does not supply the custom Stripe
-              Connect credentials used to onboard individual marketplace sellers. Bank and identity
-              details cannot be collected until that secure payout backend is configured.
+              Buyers contact sellers directly in this MVP, so you can publish listings without
+              connecting a bank account or providing payout information. The future Stripe Connect
+              setup remains available for when platform checkout is enabled.
             </p>
             {setup.data?.isAdmin ? (
               <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -462,15 +463,14 @@ function SellerSetupPage() {
               </div>
             ) : (
               <p className="mt-2 text-[11px] text-muted-foreground">
-                A Gem State administrator must complete the platform connection before seller payout
-                setup becomes available.
+                You can continue to create listings and receive buyer inquiries without payout setup.
               </p>
             )}
           </div>
         ) : null}
       </section>
 
-      <section className="mt-6 border border-border bg-card p-5">
+      <section id="first-listing" className="mt-6 border border-border bg-card p-5">
         <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-primary">Step 3</p>
         <div className="mt-1 flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -479,11 +479,9 @@ function SellerSetupPage() {
               Choose a category, add the exact item you own, and provide your photos, condition,
               location, price and package details.
             </p>
-            {profileReady && !payoutReady ? (
-              <p className="mt-2 text-[11px] text-brand-warm">
-                Finish Stripe identity and payout verification before creating a listing.
-              </p>
-            ) : null}
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              Buyers will contact you directly about the listing.
+            </p>
           </div>
           <Link
             to="/create-listing"

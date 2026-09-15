@@ -270,8 +270,8 @@ function Home() {
       <section className="soft-card mt-16 px-6 py-8 sm:px-8">
         <h2 className="text-[20px] font-bold tracking-tight">Have something to sell?</h2>
         <p className="mt-2 max-w-[60ch] text-[13px] leading-relaxed text-muted-foreground">
-          Post one item at a time with your own photos, your price, and your city. Buyers pay by
-          card and you arrange pickup or shipping.
+              Post one item at a time with your own photos, your price, and your city. Buyers contact
+              you directly to ask questions and arrange pickup, shipping, and payment.
         </p>
         <Link
           to="/sell"

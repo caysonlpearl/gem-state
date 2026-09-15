@@ -14,6 +14,11 @@ const moderationSource = await read("src/routes/_authenticated/admin.classifieds
 const authenticatedRouteSource = await read("src/routes/_authenticated/route.tsx");
 const authMiddlewareSource = await read("src/integrations/supabase/auth-middleware.ts");
 const sellSource = await read("src/routes/sell.tsx");
+const sellerSetupSource = await read("src/routes/_authenticated/seller-setup.tsx");
+const sellingSource = await read("src/routes/_authenticated/selling.tsx");
+const accountSource = await read("src/routes/_authenticated/account.tsx");
+const glossarySource = await read("src/routes/glossary.tsx");
+const policiesSource = await read("src/routes/policies.tsx");
 const classifiedsFunctionsSource = await read("src/lib/classifieds.functions.ts");
 const marketFunctionsSource = await read("src/lib/market.functions.ts");
 const stripeMarketplaceSource = await read("src/lib/stripe-marketplace.functions.ts");
@@ -27,6 +32,9 @@ const classifiedSchemaSource = await read(
 );
 const inquiryMigrationSource = await read(
   "supabase/migrations/20260915160000_add_classified_listing_inquiries.sql",
+);
+const mvpCopyMigrationSource = await read(
+  "supabase/migrations/20260915170000_refresh_classified_mvp_copy.sql",
 );
 const seedRunnerSource = await read("scripts/seed-classifieds.mjs");
 const seedMigrationSource = await read(
@@ -92,6 +100,19 @@ test("buyer inquiries are stored against the exact listing and shown to its sell
   assert.match(inquiryMigrationSource, /buyer_id = auth\.uid\(\)/);
   assert.match(inquiryMigrationSource, /seller_id = auth\.uid\(\)/);
   assert.match(inquiryMigrationSource, /references public\.asks\(id\)/);
+});
+
+test("direct-contact MVP copy is consistent across buyer and seller surfaces", () => {
+  assert.match(homeSource, /Buyers contact\s+you directly/);
+  assert.match(glossarySource, /Contact seller sends your message/);
+  assert.match(policiesSource, /does not process payment, hold funds or provide escrow in this MVP/);
+  assert.match(accountSource, /Save listings, contact sellers and arrange pickup/);
+  assert.match(sellSource, /Buyers can message you about the exact listing/);
+  assert.match(sellerSetupSource, /do not require payment or payout onboarding/);
+  assert.match(sellerSetupSource, /const sellerReady = profileReady/);
+  assert.doesNotMatch(sellingSource, /Finish payout setup/);
+  assert.match(mvpCopyMigrationSource, /UPDATE public\.products/);
+  assert.match(mvpCopyMigrationSource, /UPDATE public\.asks/);
 });
 
 test("admin moderation reviews classified listings instead of publishing them directly", () => {
@@ -172,7 +193,10 @@ test("step five seed fixtures cover realistic Idaho vehicle browse cases", () =>
     assert.ok(listing.vehicle.year >= 2010);
     assert.ok(listing.vehicle.drivetrain);
     assert.ok(listing.vehicle.title_status);
-    assert.match(listing.description, /Fictional seed listing for MVP flow testing/);
+    assert.match(
+      listing.description,
+      /Example Idaho vehicle listing used to validate browsing and seller contact flows/,
+    );
   }
 });
 
