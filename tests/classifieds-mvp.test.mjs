@@ -14,6 +14,7 @@ const authenticatedRouteSource = await read("src/routes/_authenticated/route.tsx
 const authMiddlewareSource = await read("src/integrations/supabase/auth-middleware.ts");
 const sellSource = await read("src/routes/sell.tsx");
 const classifiedsFunctionsSource = await read("src/lib/classifieds.functions.ts");
+const stripeMarketplaceSource = await read("src/lib/stripe-marketplace.functions.ts");
 const classifiedSchemaSource = await read(
   "supabase/migrations/20260913173736_32625455-cc9d-4572-a1dc-713b70e33dce.sql",
 );
@@ -92,6 +93,15 @@ test("step four protects authenticated, seller-owned, and admin-only surfaces", 
   assert.match(classifiedSchemaSource, /a\.seller_id = auth\.uid\(\)/);
   assert.match(classifiedSchemaSource, /public\.is_staff\(auth\.uid\(\)\)/);
   assert.match(classifiedSchemaSource, /created_by = auth\.uid\(\)/);
+});
+
+test("step five keeps classified checkout delivery labels on the Gem State brand", () => {
+  assert.match(stripeMarketplaceSource, /id: "gemstate_flat_ground"/);
+  assert.match(stripeMarketplaceSource, /carrier: "Gem State Classifieds"/);
+  assert.doesNotMatch(
+    stripeMarketplaceSource,
+    /id: "parkvault_flat_ground"[\s\S]*carrier: "ParkVault"/,
+  );
 });
 
 test("classified approval publishes the linked product", () => {

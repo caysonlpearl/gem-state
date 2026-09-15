@@ -148,8 +148,8 @@ function sandboxShippingRate(): CheckoutShippingRate | null {
   const stripeSecret = serverEnv("STRIPE_SECRET_KEY").trim();
   if (!stripeSecret.startsWith("sk_test_")) return null;
   return {
-    id: "parkvault_flat_ground",
-    carrier: "ParkVault",
+    id: "gemstate_flat_ground",
+    carrier: "Gem State Classifieds",
     service: "Tracked ground delivery",
     amountCents: 995,
     currency: "USD",
