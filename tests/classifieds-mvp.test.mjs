@@ -10,8 +10,13 @@ const createSource = await read("src/routes/_authenticated/create-listing.tsx");
 const contractsSource = await read("src/lib/classified-listing-contracts.ts");
 const actionsSource = await read("src/components/classifieds/ListingActions.tsx");
 const moderationSource = await read("src/routes/_authenticated/admin.classifieds.tsx");
+const authenticatedRouteSource = await read("src/routes/_authenticated/route.tsx");
+const authMiddlewareSource = await read("src/integrations/supabase/auth-middleware.ts");
 const sellSource = await read("src/routes/sell.tsx");
 const classifiedsFunctionsSource = await read("src/lib/classifieds.functions.ts");
+const classifiedSchemaSource = await read(
+  "supabase/migrations/20260913173736_32625455-cc9d-4572-a1dc-713b70e33dce.sql",
+);
 const seedRunnerSource = await read("scripts/seed-classifieds.mjs");
 const seedMigrationSource = await read(
   "supabase/migrations/20260914110000_add_classified_seed_listing_function.sql",
@@ -69,6 +74,24 @@ test("admin moderation reviews classified listings instead of publishing them di
   assert.match(moderationSource, /adminReviewAsk/);
   assert.match(moderationSource, /Approve listing/);
   assert.match(moderationSource, /Reject listing/);
+});
+
+test("step four protects authenticated, seller-owned, and admin-only surfaces", () => {
+  assert.match(authenticatedRouteSource, /supabase\.auth\.getUser\(\)/);
+  assert.match(authenticatedRouteSource, /throw redirect\(\{ to: "\/auth"/);
+  assert.match(authenticatedRouteSource, /sellerRedirects = \[/);
+  assert.match(authMiddlewareSource, /getClaims/);
+  assert.match(authMiddlewareSource, /userId: data\.claims\.sub/);
+
+  assert.match(classifiedsFunctionsSource, /middleware\(\[requireSupabaseAuth\]\)/);
+  assert.match(classifiedsFunctionsSource, /_user_id: context\.userId/);
+  assert.match(classifiedsFunctionsSource, /_role: "admin"/);
+  assert.match(moderationSource, /if \(!data\.isAdmin\)/);
+  assert.match(moderationSource, /Administrator access required/);
+
+  assert.match(classifiedSchemaSource, /a\.seller_id = auth\.uid\(\)/);
+  assert.match(classifiedSchemaSource, /public\.is_staff\(auth\.uid\(\)\)/);
+  assert.match(classifiedSchemaSource, /created_by = auth\.uid\(\)/);
 });
 
 test("classified approval publishes the linked product", () => {
