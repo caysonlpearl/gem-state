@@ -15,6 +15,7 @@ const authMiddlewareSource = await read("src/integrations/supabase/auth-middlewa
 const sellSource = await read("src/routes/sell.tsx");
 const classifiedsFunctionsSource = await read("src/lib/classifieds.functions.ts");
 const stripeMarketplaceSource = await read("src/lib/stripe-marketplace.functions.ts");
+const stripeServerSource = await read("src/lib/stripe-marketplace.server.ts");
 const seedScriptSource = await read("scripts/seed-classifieds.mjs");
 const mediaCountMigrationSource = await read(
   "supabase/migrations/20260915140000_repair_classified_media_counts.sql",
@@ -113,6 +114,13 @@ test("step five seeds media counters required by classified offer and checkout g
   assert.match(mediaCountMigrationSource, /evidence_count = counts\.evidence_count/);
   assert.match(mediaCountMigrationSource, /public_media_count = counts\.public_media_count/);
   assert.match(seedScriptSource, /sync_classified_media_counts/);
+});
+
+test("offer checkout has a buyer-return fallback when the Stripe webhook is delayed", () => {
+  assert.match(stripeMarketplaceSource, /reconcileMyListingOfferCheckouts/);
+  assert.match(stripeServerSource, /reconcileListingOfferCheckout/);
+  assert.match(stripeServerSource, /finalizeCheckoutSession\(stripe, session\)/);
+  assert.match(stripeMarketplaceSource, /stripe_checkout_session_id/);
 });
 
 test("classified approval publishes the linked product", () => {

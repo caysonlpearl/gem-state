@@ -14,6 +14,7 @@ import {
   retryListingOfferAuthorizationRelease,
   respondToListingOffer,
 } from "@/lib/market.functions";
+import { reconcileMyListingOfferCheckouts } from "@/lib/stripe-marketplace.functions";
 import { listingStatusLabels, orderStatusLabels, originLabels } from "@/lib/market-labels";
 import { ParkVaultCheckoutFlow } from "@/components/market/ParkVaultCheckoutFlow";
 
@@ -29,6 +30,7 @@ function BuyingPage() {
   const fetchListingOffers = useServerFn(getMyListingOffers);
   const respondToOffer = useServerFn(respondToListingOffer);
   const retryAuthorizationRelease = useServerFn(retryListingOfferAuthorizationRelease);
+  const reconcileOfferCheckouts = useServerFn(reconcileMyListingOfferCheckouts);
   const [counterCheckout, setCounterCheckout] = useState<{
     offerId: string;
     askId: string;
@@ -38,6 +40,15 @@ function BuyingPage() {
   useEffect(() => {
     void trackEvent("page_view", { route: "/buying" });
   }, []);
+
+  useEffect(() => {
+    void reconcileOfferCheckouts().then(() => {
+      void queryClient.invalidateQueries({ queryKey: ["listing-offers", "buyer"] });
+    }).catch(() => {
+      // The webhook remains the primary settlement path; a transient
+      // reconciliation failure should not interrupt the buyer page.
+    });
+  }, [reconcileOfferCheckouts, queryClient]);
 
   const listings = useQuery({ queryKey: ["my-listings"], queryFn: () => fetchListings() });
   const orders = useQuery({ queryKey: ["my-orders"], queryFn: () => fetchOrders() });

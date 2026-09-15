@@ -645,6 +645,35 @@ export const startListingOfferCheckout = createServerFn({ method: "POST" })
     }
   });
 
+export const reconcileMyListingOfferCheckouts = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = supabaseAdmin as any;
+    const { data: offers, error } = await admin
+      .from("listing_offers")
+      .select("id")
+      .eq("buyer_id", context.userId)
+      .eq("status", "pending")
+      .eq("payment_authorized", false)
+      .not("stripe_checkout_session_id", "is", null)
+      .limit(20);
+    if (error) throw new Error(error.message);
+
+    const { reconcileListingOfferCheckout } = await import("./stripe-marketplace.server");
+    let authorized = 0;
+    for (const offer of offers ?? []) {
+      try {
+        const result = await reconcileListingOfferCheckout(offer.id, context.userId);
+        if (result === "authorized") authorized += 1;
+      } catch {
+        // The webhook may still be processing or Stripe may be temporarily
+        // unavailable; leave the offer for the next page load or webhook retry.
+      }
+    }
+    return { authorized };
+  });
+
 export const startCounterofferCheckout = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { offerId: string; quoteId: string; rateId: string }) => ({
