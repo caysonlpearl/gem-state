@@ -468,23 +468,38 @@ function sortedMedia(row: Record<string, unknown>): string[] {
     .map((item) => item.storage_path);
 }
 
-/** Listing photos live in a private bucket, so public pages need signed URLs. */
+/** Listing photos are public marketplace media used by buyer-facing pages. */
 async function signListingMedia(paths: string[]): Promise<Map<string, string>> {
   const unique = [...new Set(paths)];
   if (unique.length === 0) return new Map();
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data } = await supabaseAdmin.storage
-    .from("listing-media")
-    .createSignedUrls(unique, 60 * 60);
-  return new Map(
-    (data ?? [])
-      .filter((item) => item.signedUrl)
-      .map((item) => [item.path as string, item.signedUrl as string]),
-  );
+
+  // Listing photos are intentionally public marketplace media. Using the
+  // public object URL keeps buyer-facing pages available in Lovable Cloud,
+  // where the service-role secret is not required for public reads.
+  const supabaseUrl = process.env["SUPABASE_URL"];
+  if (supabaseUrl) {
+    return new Map(
+      unique.map((path) => [
+        path,
+        `${supabaseUrl}/storage/v1/object/public/listing-media/${path
+          .split("/")
+          .map(encodeURIComponent)
+          .join("/")}`,
+      ]),
+    );
+  }
+
+  return new Map();
 }
 
 async function signedAdminUrls(bucket: string, paths: string[] | null): Promise<string[]> {
   if (!paths?.length) return [];
+
+  if (bucket === "listing-media") {
+    const publicUrls = await signListingMedia(paths);
+    return paths.map((path) => publicUrls.get(path)).filter((url): url is string => Boolean(url));
+  }
+
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin.storage.from(bucket).createSignedUrls(paths, 60 * 60);
   if (error) return [];

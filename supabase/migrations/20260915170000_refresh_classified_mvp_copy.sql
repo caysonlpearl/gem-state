@@ -1,6 +1,12 @@
 -- Keep existing seeded records honest and aligned with the direct-contact MVP.
 -- This changes only the demo fixture copy; seller-owned listings are untouched.
 
+-- Classified listing photos are public marketplace media. Public object URLs
+-- avoid requiring a service-role secret for buyer-facing pages in Lovable Cloud.
+UPDATE storage.buckets
+SET public = true
+WHERE id = 'listing-media';
+
 UPDATE public.products
 SET description = replace(
   replace(
