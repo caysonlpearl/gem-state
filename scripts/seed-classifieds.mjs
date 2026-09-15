@@ -105,5 +105,10 @@ for (const listing of classifiedSeedListings) {
     _vehicle: listing.vehicle,
   });
   if (error) throw new Error(`Could not create ${listing.title}: ${error.message}`);
+  const { error: counterError } = await client.rpc("sync_classified_media_counts", {
+    _listing_id: listingId,
+  });
+  if (counterError)
+    throw new Error(`Could not finalize media counts for ${listing.title}: ${counterError.message}`);
   console.log(`Created pending listing ${listingId}: ${listing.title}`);
 }

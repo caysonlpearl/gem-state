@@ -15,6 +15,10 @@ const authMiddlewareSource = await read("src/integrations/supabase/auth-middlewa
 const sellSource = await read("src/routes/sell.tsx");
 const classifiedsFunctionsSource = await read("src/lib/classifieds.functions.ts");
 const stripeMarketplaceSource = await read("src/lib/stripe-marketplace.functions.ts");
+const seedScriptSource = await read("scripts/seed-classifieds.mjs");
+const mediaCountMigrationSource = await read(
+  "supabase/migrations/20260915140000_repair_classified_media_counts.sql",
+);
 const classifiedSchemaSource = await read(
   "supabase/migrations/20260913173736_32625455-cc9d-4572-a1dc-713b70e33dce.sql",
 );
@@ -102,6 +106,12 @@ test("step five keeps classified checkout delivery labels on the Gem State brand
     stripeMarketplaceSource,
     /id: "parkvault_flat_ground"[\s\S]*carrier: "ParkVault"/,
   );
+});
+
+test("step five seeds media counters required by classified offer and checkout guards", () => {
+  assert.match(mediaCountMigrationSource, /evidence_count = counts\.evidence_count/);
+  assert.match(mediaCountMigrationSource, /public_media_count = counts\.public_media_count/);
+  assert.match(seedScriptSource, /sync_classified_media_counts/);
 });
 
 test("classified approval publishes the linked product", () => {
