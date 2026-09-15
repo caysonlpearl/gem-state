@@ -109,6 +109,8 @@ for (const listing of classifiedSeedListings) {
     _listing_id: listingId,
   });
   if (counterError)
-    throw new Error(`Could not finalize media counts for ${listing.title}: ${counterError.message}`);
+    throw new Error(
+      `Could not finalize media counts for ${listing.title}: ${counterError.message}`,
+    );
   console.log(`Created pending listing ${listingId}: ${listing.title}`);
 }

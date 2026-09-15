@@ -69,7 +69,8 @@ test("browse and create flows expose the same vehicle fields", () => {
 
 test("classified checkout and offers stay attached to one exact listing", () => {
   assert.match(actionsSource, /requestExactListing/);
-  assert.match(actionsSource, /makeListingOffer/);
+  assert.match(actionsSource, /mode=\{checkout\.mode\}/);
+  assert.match(actionsSource, /setCheckout\(\{ mode: "offer", amountCents \}\)/);
   assert.match(actionsSource, /askId: listing\.id/);
   assert.doesNotMatch(actionsSource, /variantId: listing\.variantId/);
 });

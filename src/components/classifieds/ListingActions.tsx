@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { brand } from "@/config/brand";
 import { estimateBuyerTotalCents, formatUsd } from "@/config/fees";
 import { useAuth } from "@/hooks/useAuth";
-import { getMarketSettings, makeListingOffer, requestExactListing } from "@/lib/market.functions";
+import { getMarketSettings, requestExactListing } from "@/lib/market.functions";
 import { ParkVaultCheckoutFlow } from "@/components/market/ParkVaultCheckoutFlow";
 import type { ClassifiedDetail } from "@/lib/classifieds.functions";
 
@@ -25,11 +25,13 @@ export function ListingActions({ listing }: { listing: ClassifiedDetail }) {
   const navigate = useNavigate();
   const fetchSettings = useServerFn(getMarketSettings);
   const runBuyNow = useServerFn(requestExactListing);
-  const submitOffer = useServerFn(makeListingOffer);
 
   const [offerOpen, setOfferOpen] = useState(false);
   const [offerPrice, setOfferPrice] = useState("");
-  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [checkout, setCheckout] = useState<{
+    mode: "purchase" | "offer";
+    amountCents: number;
+  } | null>(null);
 
   const settingsQuery = useQuery({
     queryKey: ["market-settings"],
@@ -46,18 +48,6 @@ export function ListingActions({ listing }: { listing: ClassifiedDetail }) {
     },
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "Purchase request failed."),
-  });
-
-  const offerMutation = useMutation({
-    mutationFn: () =>
-      submitOffer({ data: { askId: listing.id, amountCents: toCents(offerPrice) } }),
-    onSuccess: () => {
-      setOfferPrice("");
-      setOfferOpen(false);
-      toast.success("Offer sent to the seller.");
-    },
-    onError: (error) =>
-      toast.error(error instanceof Error ? error.message : "Could not send your offer."),
   });
 
   const estimate = estimateBuyerTotalCents(listing.priceCents);
@@ -80,7 +70,8 @@ export function ListingActions({ listing }: { listing: ClassifiedDetail }) {
                 type="button"
                 disabled={buyMutation.isPending}
                 onClick={() => {
-                  if (liveCheckout) setCheckoutOpen(true);
+                  if (liveCheckout)
+                    setCheckout({ mode: "purchase", amountCents: listing.priceCents });
                   else buyMutation.mutate();
                 }}
                 className="h-12 w-full rounded-full bg-nav-accent text-[14.5px] font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-45"
@@ -111,7 +102,13 @@ export function ListingActions({ listing }: { listing: ClassifiedDetail }) {
           className="mt-4 space-y-3 border-t border-border px-4 py-4"
           onSubmit={(event) => {
             event.preventDefault();
-            offerMutation.mutate();
+            const amountCents = toCents(offerPrice);
+            if (!Number.isFinite(amountCents) || amountCents < 100) {
+              toast.error("Enter an offer of at least $1.");
+              return;
+            }
+            setOfferOpen(false);
+            setCheckout({ mode: "offer", amountCents });
           }}
         >
           <label htmlFor="offer-price" className="block text-[12px] font-medium">
@@ -131,10 +128,9 @@ export function ListingActions({ listing }: { listing: ClassifiedDetail }) {
           </p>
           <button
             type="submit"
-            disabled={offerMutation.isPending}
             className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-[12.5px] font-semibold text-primary-foreground disabled:opacity-60"
           >
-            {offerMutation.isPending ? "Sending…" : "Send offer"}
+            Review offer
           </button>
         </form>
       )}
@@ -143,12 +139,12 @@ export function ListingActions({ listing }: { listing: ClassifiedDetail }) {
         {brand.legal.checkoutNotice}
       </p>
 
-      {checkoutOpen ? (
+      {checkout ? (
         <ParkVaultCheckoutFlow
-          mode="purchase"
+          mode={checkout.mode}
           askId={listing.id}
-          amountCents={listing.priceCents}
-          onClose={() => setCheckoutOpen(false)}
+          amountCents={checkout.amountCents}
+          onClose={() => setCheckout(null)}
         />
       ) : null}
     </div>
