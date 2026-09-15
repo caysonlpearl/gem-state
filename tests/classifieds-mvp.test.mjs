@@ -14,6 +14,7 @@ const authenticatedRouteSource = await read("src/routes/_authenticated/route.tsx
 const authMiddlewareSource = await read("src/integrations/supabase/auth-middleware.ts");
 const sellSource = await read("src/routes/sell.tsx");
 const classifiedsFunctionsSource = await read("src/lib/classifieds.functions.ts");
+const marketFunctionsSource = await read("src/lib/market.functions.ts");
 const stripeMarketplaceSource = await read("src/lib/stripe-marketplace.functions.ts");
 const stripeServerSource = await read("src/lib/stripe-marketplace.server.ts");
 const seedScriptSource = await read("scripts/seed-classifieds.mjs");
@@ -121,6 +122,7 @@ test("offer checkout has a buyer-return fallback when the Stripe webhook is dela
   assert.match(stripeServerSource, /reconcileListingOfferCheckout/);
   assert.match(stripeServerSource, /finalizeCheckoutSession\(stripe, session\)/);
   assert.match(stripeMarketplaceSource, /stripe_checkout_session_id/);
+  assert.match(marketFunctionsSource, /reconcileListingOfferCheckout/);
 });
 
 test("classified approval publishes the linked product", () => {

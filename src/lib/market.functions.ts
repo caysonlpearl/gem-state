@@ -482,6 +482,24 @@ export const getMyListingOffers = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const client = supabaseAdmin as any;
     const participantColumn = data.role === "seller" ? "seller_id" : "buyer_id";
+    if (data.role === "buyer") {
+      const { data: pendingCheckouts } = await client
+        .from("listing_offers")
+        .select("id")
+        .eq("buyer_id", context.userId)
+        .eq("status", "pending")
+        .eq("payment_authorized", false)
+        .not("stripe_checkout_session_id", "is", null)
+        .limit(20);
+      if (pendingCheckouts?.length) {
+        const { reconcileListingOfferCheckout } = await import("./stripe-marketplace.server");
+        await Promise.allSettled(
+          pendingCheckouts.map((offer: { id: string }) =>
+            reconcileListingOfferCheckout(offer.id, context.userId),
+          ),
+        );
+      }
+    }
     // A transient Stripe error must not leave a card hold stuck indefinitely.
     // Re-open of either participant's offer page retries every pending release;
     // the UI also exposes an explicit retry action below.
