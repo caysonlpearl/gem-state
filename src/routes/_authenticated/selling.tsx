@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { SellerCenterNav } from "@/components/seller/SellerCenterNav";
 import { formatUsd } from "@/config/fees";
 import { trackEvent } from "@/lib/analytics";
+import { getSellerListingInquiries } from "@/lib/classified-inquiry.functions";
 import {
   cancelListing,
   getMyListingOffers,
@@ -70,6 +71,7 @@ function SellingPage() {
   const retryAuthorizationRelease = useServerFn(retryListingOfferAuthorizationRelease);
   const acceptSecuredOffer = useServerFn(acceptSecuredListingOffer);
   const fetchMissingRequests = useServerFn(getMyMissingListingRequests);
+  const fetchListingInquiries = useServerFn(getSellerListingInquiries);
   const [counterPrices, setCounterPrices] = useState<Record<string, string>>({});
   const [listingTab, setListingTab] = useState<ListingTab>("active");
 
@@ -102,6 +104,11 @@ function SellingPage() {
   const missingRequests = useQuery({
     queryKey: ["my-missing-listing-requests"],
     queryFn: () => fetchMissingRequests(),
+    enabled: profileReady,
+  });
+  const listingInquiries = useQuery({
+    queryKey: ["seller-listing-inquiries"],
+    queryFn: () => fetchListingInquiries(),
     enabled: profileReady,
   });
 
@@ -516,6 +523,53 @@ function SellingPage() {
                   ? "No sold listings yet."
                   : "No removed listings."}
           </p>
+        ) : null}
+      </section>
+
+      <section id="inquiries" className="mt-10 scroll-mt-28">
+        <div className="border-b border-border pb-3">
+          <h2 className="text-[14px] font-semibold">Buyer inquiries</h2>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">
+            Questions from buyers about your exact listings. Reply directly by email.
+          </p>
+        </div>
+        {listingInquiries.isLoading ? (
+          <p className="py-5 text-[12.5px] text-muted-foreground">Loading inquiries…</p>
+        ) : null}
+        {!listingInquiries.isLoading && (listingInquiries.data ?? []).length === 0 ? (
+          <p className="py-6 text-[12.5px] text-muted-foreground">No buyer inquiries yet.</p>
+        ) : null}
+        {(listingInquiries.data ?? []).length > 0 ? (
+          <ul className="divide-y divide-border border-b border-border">
+            {(listingInquiries.data ?? []).map((inquiry) => (
+              <li key={inquiry.id} className="py-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <Link
+                      to="/listings/$listingId"
+                      params={{ listingId: inquiry.listingId }}
+                      className="text-[13px] font-semibold hover:underline"
+                    >
+                      {inquiry.listingTitle}
+                    </Link>
+                    <p className="mt-0.5 text-[11.5px] text-muted-foreground">
+                      {inquiry.buyerName} · {inquiry.buyerEmail} ·{" "}
+                      {new Date(inquiry.createdAt).toLocaleDateString()}
+                    </p>
+                    <p className="mt-2 whitespace-pre-line text-[12.5px] leading-relaxed">
+                      {inquiry.message}
+                    </p>
+                  </div>
+                  <a
+                    href={`mailto:${inquiry.buyerEmail}?subject=${encodeURIComponent(`Re: ${inquiry.listingTitle}`)}`}
+                    className="inline-flex h-9 shrink-0 items-center rounded-full border border-foreground px-3 text-[11.5px] font-medium hover:bg-secondary"
+                  >
+                    Reply by email
+                  </a>
+                </div>
+              </li>
+            ))}
+          </ul>
         ) : null}
       </section>
 

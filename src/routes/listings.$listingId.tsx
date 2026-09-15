@@ -347,20 +347,19 @@ function ListingDetail() {
           <ListingActions listing={listing} />
 
               <div className="soft-card px-5 py-5">
-            <h2 className="text-[13px] font-semibold">How you get it</h2>
+            <h2 className="text-[13px] font-semibold">Arrange the details</h2>
             <ul className="mt-2 space-y-2 text-[12.5px] text-muted-foreground">
               {listing.fulfillmentMode !== "shipping" && (
                 <li className="flex items-start gap-2">
                   <Handbag size={15} className="mt-0.5 shrink-0 text-primary" />
-                  Local pickup in {listing.city}, {listing.state}, arranged with the seller after
-                  purchase.
+                  Local pickup in {listing.city}, {listing.state}. Arrange a pickup time and place
+                  directly with the seller.
                 </li>
               )}
               {listing.fulfillmentMode !== "local_pickup" && (
                 <li className="flex items-start gap-2">
                   <Truck size={15} className="mt-0.5 shrink-0 text-primary" />
-                  Shipping available. Rates are calculated at checkout from the seller&apos;s
-                  address.
+                  Shipping may be available. Ask the seller about shipping options and cost.
                 </li>
               )}
             </ul>

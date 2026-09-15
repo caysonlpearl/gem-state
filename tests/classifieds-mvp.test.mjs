@@ -9,6 +9,7 @@ const browseSource = await read("src/routes/browse.tsx");
 const createSource = await read("src/routes/_authenticated/create-listing.tsx");
 const contractsSource = await read("src/lib/classified-listing-contracts.ts");
 const actionsSource = await read("src/components/classifieds/ListingActions.tsx");
+const inquirySource = await read("src/lib/classified-inquiry.functions.ts");
 const moderationSource = await read("src/routes/_authenticated/admin.classifieds.tsx");
 const authenticatedRouteSource = await read("src/routes/_authenticated/route.tsx");
 const authMiddlewareSource = await read("src/integrations/supabase/auth-middleware.ts");
@@ -23,6 +24,9 @@ const mediaCountMigrationSource = await read(
 );
 const classifiedSchemaSource = await read(
   "supabase/migrations/20260913173736_32625455-cc9d-4572-a1dc-713b70e33dce.sql",
+);
+const inquiryMigrationSource = await read(
+  "supabase/migrations/20260915160000_add_classified_listing_inquiries.sql",
 );
 const seedRunnerSource = await read("scripts/seed-classifieds.mjs");
 const seedMigrationSource = await read(
@@ -69,12 +73,25 @@ test("browse and create flows expose the same vehicle fields", () => {
   assert.match(contractsSource, /region:/);
 });
 
-test("classified checkout and offers stay attached to one exact listing", () => {
-  assert.match(actionsSource, /requestExactListing/);
-  assert.match(actionsSource, /mode=\{checkout\.mode\}/);
-  assert.match(actionsSource, /setCheckout\(\{ mode: "offer", amountCents \}\)/);
-  assert.match(actionsSource, /askId: listing\.id/);
-  assert.doesNotMatch(actionsSource, /variantId: listing\.variantId/);
+test("classified MVP contacts the seller while future checkout stays available", () => {
+  assert.match(actionsSource, /sendClassifiedListingInquiry/);
+  assert.match(actionsSource, /Contact seller/);
+  assert.match(actionsSource, /Send message/);
+  assert.doesNotMatch(actionsSource, /ParkVaultCheckoutFlow/);
+  assert.match(marketFunctionsSource, /requestExactListing/);
+  assert.match(stripeMarketplaceSource, /reconcileMyListingOfferCheckouts/);
+});
+
+test("buyer inquiries are stored against the exact listing and shown to its seller", () => {
+  assert.match(inquirySource, /sendClassifiedListingInquiry/);
+  assert.match(inquirySource, /listing_id: data\.listingId/);
+  assert.match(inquirySource, /seller_id: listing\.seller_id/);
+  assert.match(inquirySource, /buyer_email: email/);
+  assert.match(inquirySource, /getSellerListingInquiries/);
+  assert.match(inquiryMigrationSource, /create table if not exists public\.listing_inquiries/);
+  assert.match(inquiryMigrationSource, /buyer_id = auth\.uid\(\)/);
+  assert.match(inquiryMigrationSource, /seller_id = auth\.uid\(\)/);
+  assert.match(inquiryMigrationSource, /references public\.asks\(id\)/);
 });
 
 test("admin moderation reviews classified listings instead of publishing them directly", () => {
