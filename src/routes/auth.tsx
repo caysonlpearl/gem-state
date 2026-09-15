@@ -27,7 +27,7 @@ export const Route = createFileRoute("/auth")({
       { title: `Sign in — ${brand.name}` },
       {
         name: "description",
-        content: `Sign in or create a ${brand.name} account to save listings, make offers, buy items, and post your own listings across Idaho.`,
+        content: `Sign in or create a ${brand.name} account to save listings, contact sellers, and post your own listings across Idaho.`,
       },
       { property: "og:title", content: `Sign in — ${brand.name}` },
       {
@@ -120,7 +120,7 @@ function AuthPage() {
         {mode === "signin" ? `Sign in to ${brand.name}` : `Create your ${brand.name} account`}
       </h1>
       <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
-        An account is needed to make offers, list items and buy on the marketplace.
+        An account is needed to save listings, contact sellers and post on the marketplace.
       </p>
 
       {pendingConfirm ? (

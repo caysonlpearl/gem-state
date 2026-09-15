@@ -75,7 +75,7 @@ export function SiteFooter() {
             <ul className="mt-2">
               <li>
                 <Link to="/glossary" className={linkClass} {...pinned}>
-                  How listings and offers work
+                  How listings and seller contact work
                 </Link>
               </li>
               <li>

@@ -13,7 +13,24 @@ SET description = replace(
 )
 WHERE description LIKE 'Fictional seed listing for MVP flow testing.%';
 
+UPDATE public.products
+SET description = replace(
+  replace(
+    description,
+    'MVP demo listing for flow testing.',
+    'Example Idaho vehicle listing used to validate browsing and seller contact flows.'
+  ),
+  'Verify details and replace demo media before launch.',
+  'Buyers should confirm availability, condition, title and ownership directly with the seller.'
+)
+WHERE description LIKE 'MVP demo listing for flow testing.%';
+
 UPDATE public.asks
 SET seller_note =
   'Example listing for marketplace testing. Confirm item details and availability directly with the seller.'
 WHERE seller_note = 'Seed record for MVP testing; replace demo photo and copy before approval.';
+
+UPDATE public.asks
+SET seller_note =
+  'Example listing for marketplace testing. Confirm item details and availability directly with the seller.'
+WHERE seller_note = 'MVP seed record; replace demo media and copy before launch.';

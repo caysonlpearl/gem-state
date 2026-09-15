@@ -112,7 +112,9 @@ test("direct-contact MVP copy is consistent across buyer and seller surfaces", (
   assert.match(sellerSetupSource, /const sellerReady = profileReady/);
   assert.doesNotMatch(sellingSource, /Finish payout setup/);
   assert.match(mvpCopyMigrationSource, /UPDATE public\.products/);
+  assert.match(mvpCopyMigrationSource, /MVP demo listing for flow testing/);
   assert.match(mvpCopyMigrationSource, /UPDATE public\.asks/);
+  assert.match(mvpCopyMigrationSource, /MVP seed record; replace demo media and copy before launch/);
 });
 
 test("admin moderation reviews classified listings instead of publishing them directly", () => {
