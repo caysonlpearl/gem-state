@@ -66,6 +66,9 @@ export const sendClassifiedListingInquiry = createServerFn({ method: "POST" })
       .single();
     if (error || !inquiry) throw new Error("We could not send your message. Please try again.");
 
+    const { emailListingInquiry } = await import("./email-notifications.server");
+    await emailListingInquiry(inquiry.id);
+
     return { ok: true, inquiryId: inquiry.id };
   });
 

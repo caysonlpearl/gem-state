@@ -10,6 +10,10 @@ const createSource = await read("src/routes/_authenticated/create-listing.tsx");
 const contractsSource = await read("src/lib/classified-listing-contracts.ts");
 const actionsSource = await read("src/components/classifieds/ListingActions.tsx");
 const inquirySource = await read("src/lib/classified-inquiry.functions.ts");
+const emailNotificationsSource = await read("src/lib/email-notifications.server.ts");
+const inquiryEmailTemplateSource = await read(
+  "src/lib/email-templates/listing-inquiry-received.tsx",
+);
 const moderationSource = await read("src/routes/_authenticated/admin.classifieds.tsx");
 const authenticatedRouteSource = await read("src/routes/_authenticated/route.tsx");
 const authMiddlewareSource = await read("src/integrations/supabase/auth-middleware.ts");
@@ -48,6 +52,12 @@ const mvpCopyMigrationSource = await read(
 const seedRunnerSource = await read("scripts/seed-classifieds.mjs");
 const seedMigrationSource = await read(
   "supabase/migrations/20260914110000_add_classified_seed_listing_function.sql",
+);
+const seedOwnerRepairSource = await read(
+  "supabase/migrations/20260915200000_repair_classified_seed_owner_without_fixed_uuid.sql",
+);
+const fixedSeedOwnerRepairSource = await read(
+  "supabase/migrations/20260915110000_repair_classified_seed_owner_fixed.sql",
 );
 const approvalRepairSource = await read(
   "supabase/migrations/20260915130000_publish_classified_product_after_approval.sql",
@@ -111,12 +121,47 @@ test("buyer inquiries are stored against the exact listing and shown to its sell
   assert.match(inquiryMigrationSource, /references public\.asks\(id\)/);
 });
 
+test("new inquiries notify the seller and support direct email replies", () => {
+  assert.match(inquirySource, /emailListingInquiry/);
+  assert.match(emailNotificationsSource, /listing-inquiry-received/);
+  assert.match(emailNotificationsSource, /replyTo: inquiry\.buyer_email/);
+  assert.match(inquiryEmailTemplateSource, /Reply directly to this email/);
+  assert.match(inquiryEmailTemplateSource, /Open Selling/);
+});
+
 test("classified inquiry writes are server-only", () => {
   assert.match(inquiryWriteLockMigrationSource, /revoke insert, update, delete on table public\.listing_inquiries from authenticated/);
   assert.match(inquiryWriteLockMigrationSource, /drop policy if exists "Buyers create listing inquiries"/);
   assert.match(inquiryWriteLockMigrationSource, /drop policy if exists "Sellers update listing inquiries"/);
   assert.match(inquirySource, /const admin = supabaseAdmin as any/);
   assert.match(inquirySource, /\.from\("listing_inquiries"\)/);
+});
+
+test("switching away from vehicle categories clears vehicle-only browse filters", () => {
+  for (const field of [
+    "make",
+    "model",
+    "yearMin",
+    "yearMax",
+    "mileageMax",
+    "bodyStyle",
+    "transmission",
+    "drivetrain",
+    "fuelType",
+    "exteriorColor",
+    "titleStatus",
+  ]) {
+    assert.match(browseSource, new RegExp(`${field}: undefined`));
+  }
+  assert.match(browseSource, /const nextMotors = value\("group"\) === "motors"/);
+  assert.match(browseSource, /scopedWithoutVehicleFilters/);
+});
+
+test("classified seed owner repair resolves the account instead of hard-coding its UUID", () => {
+  assert.match(seedOwnerRepairSource, /FROM auth\.users/);
+  assert.match(seedOwnerRepairSource, /lower\(email\) = lower\('cayson@xstayproperties\.com'\)/);
+  assert.doesNotMatch(seedOwnerRepairSource, /live_owner[^\n]*'[0-9a-f]{8}-[0-9a-f-]{27}'/i);
+  assert.doesNotMatch(fixedSeedOwnerRepairSource, /live_owner[^\n]*'[0-9a-f]{8}-[0-9a-f-]{27}'/i);
 });
 
 test("approved classified edits return to moderation", () => {

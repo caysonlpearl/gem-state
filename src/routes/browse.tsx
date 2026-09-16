@@ -206,6 +206,22 @@ function Browse() {
       ),
     ) as Search;
 
+  const scopedWithoutVehicleFilters = (patch: Partial<Search>): Search =>
+    scoped({
+      make: undefined,
+      model: undefined,
+      yearMin: undefined,
+      yearMax: undefined,
+      mileageMax: undefined,
+      bodyStyle: undefined,
+      transmission: undefined,
+      drivetrain: undefined,
+      fuelType: undefined,
+      exteriorColor: undefined,
+      titleStatus: undefined,
+      ...patch,
+    });
+
   const selectedCategory = classifiedCategories.find(
     (category) => category.slug === search.category,
   );
@@ -229,6 +245,7 @@ function Browse() {
       return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
     };
     const category = value("category");
+    const nextMotors = value("group") === "motors" || isMotorsCategory(category);
 
     void navigate({
       to: "/browse",
@@ -242,17 +259,17 @@ function Browse() {
         fulfillment: value("fulfillment"),
         priceMin: numeric("priceMin"),
         priceMax: numeric("priceMax"),
-        make: motors ? value("make") : undefined,
-        model: motors ? value("model") : undefined,
-        yearMin: motors ? numeric("yearMin") : undefined,
-        yearMax: motors ? numeric("yearMax") : undefined,
-        mileageMax: motors ? numeric("mileageMax") : undefined,
-        bodyStyle: motors ? value("bodyStyle") : undefined,
-        transmission: motors ? value("transmission") : undefined,
-        drivetrain: motors ? value("drivetrain") : undefined,
-        fuelType: motors ? value("fuelType") : undefined,
-        exteriorColor: motors ? value("exteriorColor") : undefined,
-        titleStatus: motors ? value("titleStatus") : undefined,
+        make: nextMotors ? value("make") : undefined,
+        model: nextMotors ? value("model") : undefined,
+        yearMin: nextMotors ? numeric("yearMin") : undefined,
+        yearMax: nextMotors ? numeric("yearMax") : undefined,
+        mileageMax: nextMotors ? numeric("mileageMax") : undefined,
+        bodyStyle: nextMotors ? value("bodyStyle") : undefined,
+        transmission: nextMotors ? value("transmission") : undefined,
+        drivetrain: nextMotors ? value("drivetrain") : undefined,
+        fuelType: nextMotors ? value("fuelType") : undefined,
+        exteriorColor: nextMotors ? value("exteriorColor") : undefined,
+        titleStatus: nextMotors ? value("titleStatus") : undefined,
       }),
     });
     setFiltersOpen(false);
@@ -338,7 +355,7 @@ function Browse() {
       <div className="no-scrollbar mt-5 flex gap-2 overflow-x-auto pb-1">
         <BrowsePill
           active={!search.group && !search.category}
-          search={scoped({ group: undefined, category: undefined })}
+          search={scopedWithoutVehicleFilters({ group: undefined, category: undefined })}
         >
           All listings
         </BrowsePill>
@@ -354,7 +371,7 @@ function Browse() {
             <BrowsePill
               key={category.slug}
               active={search.category === category.slug}
-              search={scoped({ category: category.slug, group: undefined })}
+              search={scopedWithoutVehicleFilters({ category: category.slug, group: undefined })}
             >
               {category.name}
             </BrowsePill>

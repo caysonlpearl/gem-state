@@ -1,6 +1,5 @@
--- Ensure demo seed fixtures point at the authenticated seller account used for
--- the marketplace flow test. Resolve the account by email instead of baking a
--- user UUID into the migration.
+-- Re-run the demo-fixture owner repair without depending on a hard-coded
+-- account UUID. This is safe to apply after earlier seed-repair migrations.
 DO $repair$
 DECLARE
   live_owner uuid;
@@ -21,9 +20,8 @@ BEGIN
    WHERE a.is_demo
      AND NOT EXISTS (SELECT 1 FROM auth.users u WHERE u.id = a.seller_id)
      AND EXISTS (
-       SELECT 1
-         FROM public.classified_listing_details AS d
-        WHERE d.listing_id = a.id
+       SELECT 1 FROM public.classified_listing_details AS d
+       WHERE d.listing_id = a.id
      );
 
   UPDATE public.products AS p
@@ -31,17 +29,17 @@ BEGIN
    WHERE NOT EXISTS (SELECT 1 FROM auth.users u WHERE u.id = p.created_by)
      AND EXISTS (
        SELECT 1
-         FROM public.asks AS a
-         JOIN public.classified_listing_details AS d ON d.listing_id = a.id
-        WHERE a.product_id = p.id AND a.is_demo
-          AND a.seller_id = live_owner
+       FROM public.asks AS a
+       JOIN public.classified_listing_details AS d ON d.listing_id = a.id
+       WHERE a.product_id = p.id AND a.is_demo AND a.seller_id = live_owner
      );
 
   UPDATE public.ask_events AS e
      SET actor_id = live_owner
    WHERE NOT EXISTS (SELECT 1 FROM auth.users u WHERE u.id = e.actor_id)
      AND EXISTS (
-       SELECT 1 FROM public.asks AS a
+       SELECT 1
+       FROM public.asks AS a
        JOIN public.classified_listing_details AS d ON d.listing_id = a.id
        WHERE a.id = e.ask_id AND a.is_demo AND a.seller_id = live_owner
      );
