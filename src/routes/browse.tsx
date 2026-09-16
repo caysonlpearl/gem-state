@@ -1381,8 +1381,8 @@ function JobsFilterPage({
         </div>
         <form className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-[1.65fr_repeat(3,minmax(0,1fr))_auto]" onSubmit={(event) => { event.preventDefault(); apply(); }}>
           <label className="flex h-12 min-w-0 items-center gap-2 rounded-xl border border-input bg-card px-3 focus-within:border-primary"><MagnifyingGlass size={16} className="shrink-0 text-primary" aria-hidden="true" /><span className="sr-only">Search jobs</span><input value={term} onChange={(event) => setTerm(event.target.value)} placeholder="Search for a job, company, or title" className="min-w-0 flex-1 bg-transparent text-[12px] outline-none placeholder:text-muted-foreground" /></label>
-          <JobSelect label="Category" value={category} options={jobCategoryOptions} onChange={setCategory} />
-          <JobSelect label="Job type" value={jobType} options={jobTypeOptions} onChange={setJobType} />
+          <JobChecklist label="Category" value={category} options={jobCategoryOptions} onChange={setCategory} />
+          <JobChecklist label="Job type" value={jobType} options={jobTypeOptions} onChange={setJobType} />
           <JobSelect label="Job pay range" value={payType} options={jobPayTypeOptions} onChange={setPayType} />
           <button type="submit" className="h-12 rounded-xl bg-primary px-5 text-[12px] font-bold text-primary-foreground hover:opacity-90">Search</button>
         </form>
@@ -1391,10 +1391,10 @@ function JobsFilterPage({
       <div className="mt-7 grid gap-6 lg:grid-cols-[250px_minmax(0,1fr)]">
         {showAll && (
           <aside className="space-y-3">
-            <JobFilterGroup title="Category"><JobSelect label="Category" value={category} options={jobCategoryOptions} onChange={setCategory} /></JobFilterGroup>
-            <JobFilterGroup title="Job type"><JobSelect label="Job type" value={jobType} options={jobTypeOptions} onChange={setJobType} /></JobFilterGroup>
-            <JobFilterGroup title="Education level"><JobSelect label="Education level" value={education} options={jobEducationOptions} onChange={setEducation} /></JobFilterGroup>
-            <JobFilterGroup title="Years of experience"><JobSelect label="Years of experience" value={experience} options={jobExperienceOptions} onChange={setExperience} /></JobFilterGroup>
+            <JobFilterGroup title="Category"><JobChecklist label="Category" value={category} options={jobCategoryOptions} onChange={setCategory} /></JobFilterGroup>
+            <JobFilterGroup title="Job type"><JobChecklist label="Job type" value={jobType} options={jobTypeOptions} onChange={setJobType} /></JobFilterGroup>
+            <JobFilterGroup title="Education level"><JobChecklist label="Education level" value={education} options={jobEducationOptions} onChange={setEducation} /></JobFilterGroup>
+            <JobFilterGroup title="Years of experience"><JobChecklist label="Years of experience" value={experience} options={jobExperienceOptions} onChange={setExperience} /></JobFilterGroup>
             <JobFilterGroup title="Job pay range">
               <div className="grid grid-cols-3 gap-1.5">{jobPayTypeOptions.map((option, index) => { const value = index === 0 ? "" : option; return <button key={option} type="button" onClick={() => setPayType(value)} className={`rounded-lg border px-2 py-2 text-[11px] font-semibold ${payType === value ? "border-primary bg-primary text-primary-foreground" : "border-primary text-primary hover:bg-secondary"}`}>{index === 0 ? "All" : option}</button>; })}</div>
               <div className="grid grid-cols-2 gap-2"><input inputMode="numeric" value={payMin} onChange={(event) => setPayMin(event.target.value)} placeholder="$ From" className="filter-input" /><input inputMode="numeric" value={payMax} onChange={(event) => setPayMax(event.target.value)} placeholder="$ To" className="filter-input" /></div>
@@ -1415,6 +1415,39 @@ function JobsFilterPage({
 
 function JobSelect({ label, value, options, onChange }: { label: string; value?: string; options: readonly string[]; onChange?: (value: string) => void }) {
   return <label className="relative block min-w-0"><span className="sr-only">{label}</span><select aria-label={label} value={value ?? ""} onChange={(event) => onChange?.(event.target.value)} className="h-12 w-full appearance-none rounded-xl border border-input bg-card px-3 pr-8 text-[12px] text-foreground outline-none focus:border-primary">{options.map((option, index) => <option key={option} value={index === 0 ? "" : option}>{option}</option>)}</select><CaretDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" /></label>;
+}
+
+function JobChecklist({ label, value, options, onChange }: { label: string; value?: string; options: readonly string[]; onChange: (value: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const selected = value ? value.split("|").filter(Boolean) : [];
+  const anyOption = options[0] ?? "Any";
+  const displayValue = selected.length === 0 ? anyOption : selected.length === 1 ? selected[0] : `${selected.length} selected`;
+
+  function toggle(option: string) {
+    if (option === anyOption) {
+      onChange("");
+      return;
+    }
+    const next = selected.includes(option) ? selected.filter((item) => item !== option) : [...selected, option];
+    onChange(next.join("|"));
+  }
+
+  return (
+    <div className="relative min-w-0">
+      <button type="button" aria-label={label} aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((current) => !current)} className="flex h-12 w-full items-center justify-between gap-2 rounded-xl border border-input bg-card px-3 text-left text-[12px] text-foreground outline-none focus:border-primary">
+        <span className="truncate">{displayValue}</span>
+        <CaretDown size={14} className={`shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true" />
+      </button>
+      {open && (
+        <div role="listbox" aria-label={`${label} options`} className="absolute left-0 top-[calc(100%+6px)] z-30 max-h-72 w-full min-w-[220px] overflow-y-auto rounded-xl border border-border bg-card p-1 shadow-xl">
+          {[anyOption, ...options.slice(1)].map((option) => {
+            const checked = option === anyOption ? selected.length === 0 : selected.includes(option);
+            return <label key={option} className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-[12px] hover:bg-secondary"><input type="checkbox" checked={checked} onChange={() => toggle(option)} className="size-4 accent-primary" />{option}</label>;
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function JobFilterGroup({ title, children }: { title: string; children: React.ReactNode }) {

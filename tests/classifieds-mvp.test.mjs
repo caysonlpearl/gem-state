@@ -604,12 +604,16 @@ test("homes browse has a large landing hero and tab-specific filter views", () =
 test("jobs browse has a landing hero and expanded local job filters", () => {
   assert.match(browseSource, /function JobsLandingHero/);
   assert.match(browseSource, /function JobsFilterPage/);
+  assert.match(browseSource, /function JobChecklist/);
+  assert.match(browseSource, /selected\.includes\(option\)/);
+  assert.match(browseSource, /next\.join\("\|"\)/);
   assert.match(browseSource, /Find <span className="text-accent">local<\/span> work that fits your life/);
   assert.match(browseSource, /Search jobs from local employers across Idaho and surrounding states/);
   assert.match(browseSource, /Search Jobs/);
   assert.match(browseSource, /Post a Job/);
   assert.match(browseSource, /More filters/);
   assert.match(browseSource, /jobMode: "results"/);
+  assert.match(browseSource, /<JobSelect label="Time on site"/);
   for (const label of [
     "Category",
     "Job type",
