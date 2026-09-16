@@ -780,7 +780,7 @@ function VehicleBrowseHero({
               Gem State motors
             </p>
             <h1 className="mt-2 max-w-[22ch] text-[30px] font-bold leading-tight tracking-tight sm:text-[38px]">
-              Find your next vehicle in Idaho.
+              Find your next gem on wheels.
             </h1>
             <p className="mt-2 max-w-[52ch] text-[13.5px] leading-relaxed text-muted-foreground">
               Shop cars, trucks, powersports, trailers, and more from local sellers.
