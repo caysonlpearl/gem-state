@@ -936,9 +936,11 @@ function VehicleBrowseHero({
   }
 
   return (
-    <section className="floating-card relative overflow-hidden bg-surface px-5 py-6 sm:px-8 sm:py-8">
-      <div className="pointer-events-none absolute -right-24 -top-32 h-72 w-72 rounded-full bg-brand-warm/35" />
-      <div className="pointer-events-none absolute -bottom-36 left-1/3 h-64 w-64 rounded-full bg-primary/5" />
+    <section className="floating-card relative overflow-visible bg-surface px-5 py-6 sm:px-8 sm:py-8">
+      <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]">
+        <div className="absolute -right-24 -top-32 h-72 w-72 rounded-full bg-brand-warm/35" />
+        <div className="absolute -bottom-36 left-1/3 h-64 w-64 rounded-full bg-primary/5" />
+      </div>
 
       <div className="relative">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
@@ -1097,7 +1099,7 @@ function VehicleQuickFilter({
         />
       </button>
       {expanded && (
-        <div className="absolute left-0 top-[calc(100%+8px)] z-40 min-w-full rounded-xl bg-card p-4 shadow-xl ring-1 ring-border/70">
+        <div className="absolute left-0 top-[calc(100%+8px)] z-40 w-[min(360px,calc(100vw-48px))] max-w-[calc(100vw-32px)] rounded-xl bg-card p-4 shadow-xl ring-1 ring-border/70">
           {children}
         </div>
       )}
@@ -1114,6 +1116,7 @@ function InlineMakeModelFilter({
 }) {
   const [make, setMake] = useState(search.make ?? "");
   const [model, setModel] = useState(search.model ?? "");
+  const [showMakes, setShowMakes] = useState(false);
 
   useEffect(() => {
     setMake(search.make ?? "");
@@ -1123,17 +1126,35 @@ function InlineMakeModelFilter({
   return (
     <div className="w-[min(360px,calc(100vw-48px))] space-y-2.5">
       <input
-        list="hero-vehicle-makes"
         value={make}
-        onChange={(event) => setMake(event.target.value)}
+        onFocus={() => setShowMakes(true)}
+        onChange={(event) => {
+          setMake(event.target.value);
+          setShowMakes(true);
+        }}
         placeholder="Make or brand"
         className="filter-input"
       />
-      <datalist id="hero-vehicle-makes">
-        {vehicleOptions.makes.map((option) => (
-          <option key={option} value={option} />
-        ))}
-      </datalist>
+      {showMakes && (
+        <div className="max-h-44 overflow-y-auto rounded-xl border border-border bg-card p-1 shadow-sm">
+          {vehicleOptions.makes
+            .filter((option) => !make || option.toLowerCase().includes(make.toLowerCase()))
+            .map((option) => (
+              <button
+                key={option}
+                type="button"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => {
+                  setMake(option);
+                  setShowMakes(false);
+                }}
+                className="block w-full rounded-lg px-3 py-2 text-left text-[12px] hover:bg-secondary"
+              >
+                {option}
+              </button>
+            ))}
+        </div>
+      )}
       <input
         value={model}
         onChange={(event) => setModel(event.target.value)}
