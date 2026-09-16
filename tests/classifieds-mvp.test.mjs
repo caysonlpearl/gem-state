@@ -561,6 +561,10 @@ test("homes browse has a large landing hero and tab-specific filter views", () =
   ]) {
     assert.match(browseSource, new RegExp(label));
   }
+  assert.match(browseSource, /function HomeMultiSelectControl/);
+  assert.match(browseSource, /multi: true/);
+  assert.match(browseSource, /selected\.length === 1/);
+  assert.match(browseSource, /\$\{selected\.length\} selected/);
   for (const option of [
     "<250",
     "10000+",
