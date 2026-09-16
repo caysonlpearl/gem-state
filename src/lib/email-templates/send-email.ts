@@ -9,7 +9,7 @@ import { TEMPLATES } from './registry'
 const SITE_NAME = "Gem State Classifieds"
 // This is the verified sending domain currently configured in Lovable Cloud.
 // Replace it with the Gem State domain after that domain is verified there.
-const SENDER_DOMAIN = "getparkvault.com"
+const SENDER_DOMAIN = "notify.getparkvault.com"
 const FROM_DOMAIN = "getparkvault.com"
 
 export type SendTemplateEmailResult =
