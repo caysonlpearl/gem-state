@@ -890,7 +890,7 @@ function VehicleQuickFilter({ label, onClick }: { label: string; onClick: () => 
     <button
       type="button"
       onClick={onClick}
-      className="flex h-14 items-center justify-between rounded-xl border border-transparent bg-secondary/55 px-4 text-left text-[13.5px] font-semibold transition-colors hover:border-primary/40 hover:bg-card"
+      className="flex h-[70px] items-center justify-between rounded-xl border border-transparent bg-secondary/55 px-4 text-left text-[13.5px] font-semibold transition-colors hover:border-primary/40 hover:bg-card"
     >
       <span className="truncate">{label}</span>
       <CaretDown size={16} weight="bold" aria-hidden="true" className="ml-2 text-muted-foreground" />
