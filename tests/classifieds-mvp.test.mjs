@@ -561,6 +561,19 @@ test("homes browse has a large landing hero and tab-specific filter views", () =
   ]) {
     assert.match(browseSource, new RegExp(label));
   }
+  for (const option of [
+    "<250",
+    "10000+",
+    "< .10",
+    "2.5+",
+    "Air Conditioning",
+    "WiFi in Common Areas",
+    "Month-to-month",
+    "24 Months or Less",
+  ]) {
+    assert.ok(browseSource.includes(option), `missing homes filter option: ${option}`);
+  }
+  assert.match(browseSource, /h-\[88px\]/g);
   assert.match(browseSource, /Hide all filters/);
   assert.match(browseSource, /homeTab: row\.title\.includes/);
 });

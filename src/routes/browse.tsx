@@ -109,6 +109,70 @@ const homePriceOptions = ["Any price", "Under $250k", "$250k–$500k", "$500k–
 const rentPriceOptions = ["Any price", "Under $1,500", "$1,500–$2,500", "$2,500–$3,500", "$3,500+"];
 const homeBedroomOptions = ["Any bedrooms", "Studio", "1+ bedrooms", "2+ bedrooms", "3+ bedrooms", "4+ bedrooms"];
 const homeBathroomOptions = ["Any bathrooms", "1+ bathrooms", "2+ bathrooms", "3+ bathrooms", "4+ bathrooms"];
+const homeSquareFeetOptions = ["Any", "<250", "250+", "500+", "1000+", "1500+", "2000+", "3000+", "4000+", "5000+", "10000+"];
+const homeAcresOptions = ["Any", "< .10", ".10+", ".20+", ".25+", ".30+", ".5+", ".75+", "1+", "1.5+", "2+", "2.5+"];
+const homeAmenitiesOptions = [
+  "Any",
+  "Air Conditioning",
+  "Attached Garage",
+  "Balcony",
+  "Carpet",
+  "Ceiling Fan(s)",
+  "Crown Molding",
+  "Controlled Access",
+  "Deck",
+  "Dishwasher",
+  "Energy Efficient",
+  "Fireplace",
+  "Furnished",
+  "Handicap Accessible",
+  "Hardwood Flooring",
+  "Heating",
+  "High ceilings",
+  "Internet Ready",
+  "New Paint",
+  "Newly Remodeled",
+  "Parking",
+];
+const communityAmenitiesOptions = [
+  "Any",
+  "BBQ Area(s)",
+  "Basketball Court",
+  "Bike Lockers/Storage",
+  "Bluetooth Enabled Spaces",
+  "Business Center",
+  "Clubhouse",
+  "Community Garden",
+  "Dog Park",
+  "Elevator Access",
+  "Fenced Yard",
+  "Parcel Lockers",
+  "Pet Washing Station",
+  "Pickleball",
+  "Playground",
+  "Pool",
+  "Public Transit Nearby",
+  "Splash Pad",
+  "Storage",
+  "Tennis",
+  "Theater Room",
+  "Volleyball",
+  "WiFi in Common Areas",
+];
+const leaseLengthOptions = [
+  "Any",
+  "Month-to-month",
+  "1 Month or Less",
+  "2 Months or Less",
+  "3 Months or Less",
+  "4 Months or Less",
+  "5 Months or Less",
+  "6 Months or Less",
+  "9 Months or Less",
+  "12 Months or Less",
+  "18 Months or Less",
+  "24 Months or Less",
+];
 
 const homePreviewRows = [
   {
@@ -1110,23 +1174,23 @@ function HomesFilterPage({
   const priceOptions = activeTab === "rent" ? rentPriceOptions : homePriceOptions;
   const extraFields = activeTab === "build"
     ? [
-        { key: "homeSquareFeet", label: "Square feet", options: ["Any size", "Under 1,500 sqft", "1,500–2,500 sqft", "2,500+ sqft"] },
+        { key: "homeSquareFeet", label: "Square feet", options: homeSquareFeetOptions },
         { key: "homeBuilder", label: "Home builder", options: ["Any builder", "Local builders", "National builders"] },
       ]
-    : activeTab === "buy"
+      : activeTab === "buy"
       ? [
-          { key: "homeSquareFeet", label: "Square feet", options: ["Any size", "Under 1,500 sqft", "1,500–2,500 sqft", "2,500+ sqft"] },
+          { key: "homeSquareFeet", label: "Square feet", options: homeSquareFeetOptions },
           { key: "constructionType", label: "Construction type", options: ["Any construction", "New construction", "Existing home"] },
-          { key: "homeAcres", label: "Acres", options: ["Any acreage", "Under 0.25 acre", "0.25–1 acre", "1+ acres"] },
+          { key: "homeAcres", label: "Acres", options: homeAcresOptions },
           { key: "homeSellerType", label: "Seller type", options: ["Any seller", "Owner", "Agent", "Builder"] },
         ]
       : [
           { key: "petsCats", label: "Cats", options: ["Any cat policy", "Cats allowed", "Cats not allowed"] },
           { key: "petsDogs", label: "Dogs", options: ["Any dog policy", "Dogs allowed", "Dogs not allowed"] },
-          { key: "homeAmenities", label: "Home amenities", options: ["Any home amenities", "Garage", "Washer and dryer", "Furnished"] },
-          { key: "communityAmenities", label: "Community amenities", options: ["Any community amenities", "Pool", "Gym", "Gated community"] },
-          { key: "leaseLength", label: "Lease length", options: ["Any lease length", "Month to month", "6 months", "12 months"] },
-          { key: "homeSquareFeet", label: "Square feet", options: ["Any size", "Under 1,000 sqft", "1,000–2,000 sqft", "2,000+ sqft"] },
+          { key: "homeAmenities", label: "Home amenities", options: homeAmenitiesOptions },
+          { key: "communityAmenities", label: "Community amenities", options: communityAmenitiesOptions },
+          { key: "leaseLength", label: "Lease length", options: leaseLengthOptions },
+          { key: "homeSquareFeet", label: "Square feet", options: homeSquareFeetOptions },
         ];
 
   function apply() {
@@ -1224,7 +1288,7 @@ function HomeFilterControl({
   input?: boolean;
 }) {
   return input ? (
-    <label className="flex h-11 min-w-0 items-center gap-2 rounded-xl border border-input bg-card px-3 focus-within:border-primary">
+    <label className="flex h-[88px] min-w-0 items-center gap-2 rounded-xl border border-input bg-card px-3 focus-within:border-primary">
       <MapPin size={15} className="shrink-0 text-primary" aria-hidden="true" />
       <span className="sr-only">{label}</span>
       <input value={value} onChange={(event) => onChange(event.target.value)} placeholder={label} className="min-w-0 flex-1 bg-transparent text-[12px] outline-none placeholder:text-muted-foreground" />
@@ -1232,7 +1296,7 @@ function HomeFilterControl({
   ) : (
     <label className="relative block">
       <span className="sr-only">{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)} aria-label={label} className="h-11 w-full appearance-none rounded-xl border border-input bg-card px-3 pr-8 text-[12px] text-foreground outline-none focus:border-primary">
+      <select value={value} onChange={(event) => onChange(event.target.value)} aria-label={label} className="h-[88px] w-full appearance-none rounded-xl border border-input bg-card px-3 pr-8 text-[12px] text-foreground outline-none focus:border-primary">
         {options?.map((option) => <option key={option} value={option === options[0] ? "" : option}>{option}</option>)}
       </select>
       <CaretDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
