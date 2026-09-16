@@ -516,6 +516,10 @@ test("browse filters remain complete inside the spacious drawer", () => {
 test("vehicle browse uses a branded buy and eight-filter discovery hero", () => {
   assert.match(browseSource, /function VehicleBrowseHero/);
   assert.match(browseSource, /Find your next gem on wheels/);
+  assert.match(browseSource, /setShowAllFilters/);
+  assert.match(browseSource, /expandedFilter/);
+  assert.match(browseSource, /function InlineMakeModelFilter/);
+  assert.match(browseSource, /function InlineLocationFilter/);
   assert.match(browseSource, /Show all search filters/);
   assert.match(browseSource, /Select location/);
   assert.match(browseSource, /Show \{resultCount\.toLocaleString\(\)\}/);
