@@ -33,6 +33,9 @@ const classifiedSchemaSource = await read(
 const inquiryMigrationSource = await read(
   "supabase/migrations/20260915160000_add_classified_listing_inquiries.sql",
 );
+const inquiryWriteLockMigrationSource = await read(
+  "supabase/migrations/20260915180000_lock_classified_inquiry_writes.sql",
+);
 const mvpCopyMigrationSource = await read(
   "supabase/migrations/20260915170000_refresh_classified_mvp_copy.sql",
 );
@@ -100,6 +103,14 @@ test("buyer inquiries are stored against the exact listing and shown to its sell
   assert.match(inquiryMigrationSource, /buyer_id = auth\.uid\(\)/);
   assert.match(inquiryMigrationSource, /seller_id = auth\.uid\(\)/);
   assert.match(inquiryMigrationSource, /references public\.asks\(id\)/);
+});
+
+test("classified inquiry writes are server-only", () => {
+  assert.match(inquiryWriteLockMigrationSource, /revoke insert, update, delete on table public\.listing_inquiries from authenticated/);
+  assert.match(inquiryWriteLockMigrationSource, /drop policy if exists "Buyers create listing inquiries"/);
+  assert.match(inquiryWriteLockMigrationSource, /drop policy if exists "Sellers update listing inquiries"/);
+  assert.match(inquirySource, /const admin = supabaseAdmin as any/);
+  assert.match(inquirySource, /\.from\("listing_inquiries"\)/);
 });
 
 test("direct-contact MVP copy is consistent across buyer and seller surfaces", () => {
