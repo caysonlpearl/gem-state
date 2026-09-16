@@ -408,7 +408,7 @@ function Browse() {
   const activeFilterCount = countActiveFilters(search, motors);
   const heading =
     selectedCategory?.name ??
-    (search.group === "motors" ? "Cars & motors" : "All Idaho classifieds");
+    (search.group === "motors" ? "Cars & motors" : "All classifieds");
 
   function applyFilters(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
