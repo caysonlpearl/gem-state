@@ -1266,11 +1266,10 @@ function JobsLandingHero({
         <div className="w-full max-w-[720px] rounded-[28px] border border-white/20 bg-primary/80 p-5 text-primary-foreground shadow-2xl backdrop-blur-md sm:p-8">
           <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">GemList Jobs</p>
           <h1 className="mt-3 text-center font-display text-[34px] font-bold leading-[1.05] tracking-tight sm:text-[54px]">
-            Find work that fits your life.
-            <span className="block text-accent">Hire local. Grow together.</span>
+            Find <span className="text-accent">local</span> work that fits your life.
           </h1>
           <p className="mx-auto mt-4 max-w-[46ch] text-center text-[14px] leading-relaxed text-white/80 sm:text-[15px]">
-            Search jobs from local employers across Idaho, Utah, and Wyoming — or post your next opportunity.
+            Search jobs from local employers across Idaho and surrounding states — or post your next opportunity.
           </p>
 
           <div className="mt-7 grid grid-cols-2 rounded-2xl bg-white/10 p-1.5 ring-1 ring-white/20">
