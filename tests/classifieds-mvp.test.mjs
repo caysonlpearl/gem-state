@@ -539,6 +539,32 @@ test("vehicle browse uses a branded buy and eight-filter discovery hero", () => 
   assert.match(browseSource, /Sell/);
 });
 
+test("homes browse has a large landing hero and tab-specific filter views", () => {
+  assert.match(browseSource, /function HomesLandingHero/);
+  assert.match(browseSource, /function HomesFilterPage/);
+  assert.match(browseSource, /Build\. Buy\. Rent\./);
+  assert.match(browseSource, /County, city, neighborhood, or ZIP/);
+  assert.match(browseSource, /More filters/);
+  assert.match(browseSource, /homeMode: "results"/);
+  assert.match(browseSource, /homeTabs/);
+  for (const label of [
+    "Square feet",
+    "Home builder",
+    "Construction type",
+    "Acres",
+    "Seller type",
+    "Cats",
+    "Dogs",
+    "Home amenities",
+    "Community amenities",
+    "Lease length",
+  ]) {
+    assert.match(browseSource, new RegExp(label));
+  }
+  assert.match(browseSource, /Hide all filters/);
+  assert.match(browseSource, /homeTab: row\.title\.includes/);
+});
+
 test("listing detail keeps a responsive photo gallery and floating action card", () => {
   assert.match(detailSource, /Show all photos/);
   assert.match(detailSource, /row-span-2/);

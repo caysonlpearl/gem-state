@@ -1,7 +1,14 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { CaretDown, FunnelSimple, MapPin, MagnifyingGlass, X } from "@phosphor-icons/react";
+import {
+  ArrowRight,
+  CaretDown,
+  FunnelSimple,
+  MapPin,
+  MagnifyingGlass,
+  X,
+} from "@phosphor-icons/react";
 
 import { brand } from "@/config/brand";
 import { classifiedCategories, idahoRegions, usStates, vehicleOptions } from "@/config/classifieds";
@@ -20,6 +27,7 @@ import {
 
 type Sort = NonNullable<ClassifiedBrowseInput["sort"]>;
 type View = "grid" | "list";
+type HomeTab = "build" | "buy" | "rent";
 
 type Search = {
   q?: string | undefined;
@@ -46,6 +54,23 @@ type Search = {
   sort?: Sort | undefined;
   view?: View | undefined;
   page?: number | undefined;
+  homeMode?: "landing" | "results" | undefined;
+  homeTab?: HomeTab | undefined;
+  homeLocation?: string | undefined;
+  homePrice?: string | undefined;
+  propertyType?: string | undefined;
+  bedrooms?: string | undefined;
+  bathrooms?: string | undefined;
+  homeSquareFeet?: string | undefined;
+  homeBuilder?: string | undefined;
+  constructionType?: string | undefined;
+  homeAcres?: string | undefined;
+  homeSellerType?: string | undefined;
+  petsCats?: string | undefined;
+  petsDogs?: string | undefined;
+  homeAmenities?: string | undefined;
+  communityAmenities?: string | undefined;
+  leaseLength?: string | undefined;
 };
 
 type VehicleHeroFilter =
@@ -72,6 +97,57 @@ const sortOptions: { value: Sort; label: string }[] = [
   { value: "price_high", label: "Price: high to low" },
   { value: "mileage_low", label: "Mileage: low to high" },
 ];
+
+const homeTabs: { value: HomeTab; label: string; eyebrow: string }[] = [
+  { value: "build", label: "Build", eyebrow: "New construction" },
+  { value: "buy", label: "Buy", eyebrow: "Homes for sale" },
+  { value: "rent", label: "Rent", eyebrow: "Places to rent" },
+];
+
+const homePropertyTypes = ["Any property type", "Single family", "Townhome", "Condo", "Land", "Multi-family"];
+const homePriceOptions = ["Any price", "Under $250k", "$250k–$500k", "$500k–$750k", "$750k+"];
+const rentPriceOptions = ["Any price", "Under $1,500", "$1,500–$2,500", "$2,500–$3,500", "$3,500+"];
+const homeBedroomOptions = ["Any bedrooms", "Studio", "1+ bedrooms", "2+ bedrooms", "3+ bedrooms", "4+ bedrooms"];
+const homeBathroomOptions = ["Any bathrooms", "1+ bathrooms", "2+ bathrooms", "3+ bathrooms", "4+ bathrooms"];
+
+const homePreviewRows = [
+  {
+    title: "Featured homes for sale",
+    action: "Browse homes for sale",
+    cards: [
+      { name: "Riverstone at Banbury", location: "Eagle, ID", price: "$524,900", facts: "3 bed · 2.5 bath · 2,146 sqft", image: "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=900&q=80" },
+      { name: "North End Bungalow", location: "Boise, ID", price: "$649,000", facts: "4 bed · 2 bath · 1,988 sqft", image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=900&q=80" },
+      { name: "Sage Creek Townhomes", location: "Meridian, ID", price: "$419,900", facts: "3 bed · 2.5 bath · 1,742 sqft", image: "https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&w=900&q=80" },
+      { name: "Canyon Rim Estates", location: "Nampa, ID", price: "$489,900", facts: "3 bed · 2 bath · 1,876 sqft", image: "https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?auto=format&fit=crop&w=900&q=80" },
+      { name: "Juniper Ridge", location: "Star, ID", price: "$719,000", facts: "4 bed · 3 bath · 2,492 sqft", image: "https://images.unsplash.com/photo-1600585154526-990dced4db0d?auto=format&fit=crop&w=900&q=80" },
+      { name: "The Owyhee Collection", location: "Kuna, ID", price: "$379,900", facts: "3 bed · 2 bath · 1,604 sqft", image: "https://images.unsplash.com/photo-1600607688969-a5bfcd646154?auto=format&fit=crop&w=900&q=80" },
+    ],
+  },
+  {
+    title: "New builds to explore",
+    action: "Find new construction",
+    cards: [
+      { name: "Aspen Grove", location: "Meridian, ID", price: "From $499,900", facts: "2–5 bed · 1,550–2,800 sqft", image: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=900&q=80" },
+      { name: "Cottonwood Crossing", location: "Star, ID", price: "From $559,900", facts: "3–4 bed · 2–3 bath", image: "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=900&q=80" },
+      { name: "The Preserve", location: "Eagle, ID", price: "From $799,900", facts: "3–5 bed · 2,100+ sqft", image: "https://images.unsplash.com/photo-1600047508788-786f386c0f2d?auto=format&fit=crop&w=900&q=80" },
+      { name: "Overland Park", location: "Boise, ID", price: "From $449,900", facts: "Townhomes · 2–3 bed", image: "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=900&q=80" },
+      { name: "Hillside Terrace", location: "Nampa, ID", price: "Call for pricing", facts: "Single-family homes", image: "https://images.unsplash.com/photo-1600585152915-d208bec867a1?auto=format&fit=crop&w=900&q=80" },
+      { name: "Harvest Point", location: "Caldwell, ID", price: "From $389,900", facts: "2–4 bed · 2 bath", image: "https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&w=900&q=80" },
+    ],
+  },
+  {
+    title: "Rentals worth a look",
+    action: "Browse rentals",
+    cards: [
+      { name: "The Franklin", location: "Boise, ID", price: "$1,895 / mo", facts: "2 bed · 2 bath · Downtown", image: "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=80" },
+      { name: "Parkside Flats", location: "Meridian, ID", price: "$1,650 / mo", facts: "1 bed · 1 bath · Pet friendly", image: "https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=900&q=80" },
+      { name: "Warm Springs House", location: "Boise, ID", price: "$2,750 / mo", facts: "3 bed · 2 bath · Fenced yard", image: "https://images.unsplash.com/photo-1600607688969-a5bfcd646154?auto=format&fit=crop&w=900&q=80" },
+      { name: "The Village Lofts", location: "Meridian, ID", price: "$2,150 / mo", facts: "2 bed · 2 bath · Garage", image: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=900&q=80" },
+      { name: "Canyon View Apartments", location: "Nampa, ID", price: "$1,425 / mo", facts: "1 bed · 1 bath · Pool", image: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=900&q=80" },
+      { name: "Maple Street Cottage", location: "Eagle, ID", price: "$2,400 / mo", facts: "3 bed · 2 bath · No HOA", image: "https://images.unsplash.com/photo-1449844908441-8829872d2607?auto=format&fit=crop&w=900&q=80" },
+    ],
+  },
+] as const;
 
 const classifiedQuery = (input: ClassifiedBrowseInput) =>
   queryOptions({
@@ -122,6 +198,8 @@ export const Route = createFileRoute("/browse")({
     const group = stringParam(search, "group", 20);
     const sort = stringParam(search, "sort", 20);
     const view = stringParam(search, "view", 10);
+    const homeMode = stringParam(search, "homeMode", 10);
+    const homeTab = stringParam(search, "homeTab", 10);
     const page = Number(search["page"]);
     return {
       q: stringParam(search, "q"),
@@ -150,6 +228,23 @@ export const Route = createFileRoute("/browse")({
         : undefined,
       view: view === "list" ? "list" : view === "grid" ? "grid" : undefined,
       page: page > 1 ? page : undefined,
+      homeMode: homeMode === "results" ? "results" : homeMode === "landing" ? "landing" : undefined,
+      homeTab: homeTab === "build" || homeTab === "rent" ? homeTab : homeTab === "buy" ? "buy" : undefined,
+      homeLocation: stringParam(search, "homeLocation"),
+      homePrice: stringParam(search, "homePrice", 30),
+      propertyType: stringParam(search, "propertyType", 40),
+      bedrooms: stringParam(search, "bedrooms", 30),
+      bathrooms: stringParam(search, "bathrooms", 30),
+      homeSquareFeet: stringParam(search, "homeSquareFeet", 30),
+      homeBuilder: stringParam(search, "homeBuilder", 60),
+      constructionType: stringParam(search, "constructionType", 40),
+      homeAcres: stringParam(search, "homeAcres", 30),
+      homeSellerType: stringParam(search, "homeSellerType", 40),
+      petsCats: stringParam(search, "petsCats", 20),
+      petsDogs: stringParam(search, "petsDogs", 20),
+      homeAmenities: stringParam(search, "homeAmenities", 40),
+      communityAmenities: stringParam(search, "communityAmenities", 40),
+      leaseLength: stringParam(search, "leaseLength", 30),
     };
   },
   head: () => ({
@@ -242,6 +337,9 @@ function Browse() {
     (category) => category.slug === search.category,
   );
   const motors = search.group === "motors" || isMotorsCategory(search.category);
+  const homes = search.category === "other-real-estate";
+  const homeTab: HomeTab = search.homeTab ?? "buy";
+  const homeLanding = homes && search.homeMode !== "results";
   const page = search.page ?? 1;
   const pageCount = Math.max(1, Math.ceil(result.total / result.pageSize));
   const activeFilterCount = countActiveFilters(search, motors);
@@ -308,7 +406,61 @@ function Browse() {
         />
       )}
 
-      <div className={`flex flex-wrap items-end justify-between gap-3 ${motors ? "mt-7" : ""}`}>
+      {homeLanding && (
+        <HomesLandingHero
+          activeTab={homeTab}
+          location={search.homeLocation ?? search.q ?? ""}
+          resultCount={result.total}
+          onTabChange={(tab) =>
+            void navigate({
+              to: "/browse",
+              search: scoped({ category: "other-real-estate", homeTab: tab, homeMode: "landing" }),
+            })
+          }
+          onSearch={(location) =>
+            void navigate({
+              to: "/browse",
+              search: scoped({
+                category: "other-real-estate",
+                homeTab,
+                homeMode: "results",
+                q: location.trim() || undefined,
+                homeLocation: location.trim() || undefined,
+              }),
+            })
+          }
+          onMoreFilters={() =>
+            void navigate({
+              to: "/browse",
+              search: scoped({ category: "other-real-estate", homeTab, homeMode: "results" }),
+            })
+          }
+        />
+      )}
+
+      {homes && !homeLanding && (
+        <HomesFilterPage
+          activeTab={homeTab}
+          search={search}
+          resultCount={result.total}
+          onTabChange={(tab) =>
+            void navigate({
+              to: "/browse",
+              search: scoped({ category: "other-real-estate", homeTab: tab, homeMode: "results" }),
+            })
+          }
+          onApply={(patch) =>
+            void navigate({
+              to: "/browse",
+              search: scoped({ category: "other-real-estate", homeTab, homeMode: "results", ...patch }),
+            })
+          }
+        />
+      )}
+
+      {homeLanding && <HomeShowcaseRows />}
+
+      <div className={`flex flex-wrap items-end justify-between gap-3 ${motors || homes ? "mt-7" : ""} ${homes ? "hidden" : ""}`}>
         <div className={motors ? "hidden" : ""}>
           <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-primary">
             Gem State classifieds
@@ -356,7 +508,7 @@ function Browse() {
         </div>
       </div>
 
-      {!motors && (
+      {!motors && !homes && (
         <form
           className="floating-card mt-8 p-2 sm:p-3"
           onSubmit={(event) => {
@@ -381,7 +533,7 @@ function Browse() {
         </form>
       )}
 
-      {!motors && <div className="no-scrollbar mt-5 flex gap-2 overflow-x-auto pb-1">
+      {!motors && !homes && <div className="no-scrollbar mt-5 flex gap-2 overflow-x-auto pb-1">
         <BrowsePill
           active={!search.group && !search.category}
           search={scopedWithoutVehicleFilters({ group: undefined, category: undefined })}
@@ -407,17 +559,17 @@ function Browse() {
         ))}
       </div>}
 
-      <div className={motors ? "mt-6" : "mt-8"}>
+      <div className={`${motors || homes ? "mt-6" : "mt-8"} ${homeLanding ? "hidden" : ""}`}>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className={motors ? "hidden" : "text-[13px] text-muted-foreground"}>
+          <p className={motors || homes ? "hidden" : "text-[13px] text-muted-foreground"}>
             <span className="numeric font-semibold text-foreground">{result.total}</span>{" "}
             {result.total === 1 ? "listing" : "listings"}
           </p>
-          <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
+          {!motors && !homes && <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
             <SheetTrigger asChild>
               <button
                 type="button"
-                className={`inline-flex h-11 items-center gap-2 rounded-full border border-input bg-card px-5 text-[13px] font-semibold shadow-sm transition-shadow hover:shadow-md ${motors ? "hidden" : ""}`}
+                className={`inline-flex h-11 items-center gap-2 rounded-full border border-input bg-card px-5 text-[13px] font-semibold shadow-sm transition-shadow hover:shadow-md ${motors || homes ? "hidden" : ""}`}
               >
                 <FunnelSimple size={17} className="text-primary" />
                 Filters
@@ -658,7 +810,7 @@ function Browse() {
                 </button>
               </form>
             </SheetContent>
-          </Sheet>
+          </Sheet>}
         </div>
 
         <section id="results" className="mt-6">
@@ -693,7 +845,9 @@ function Browse() {
             <div className="soft-card mt-5 px-5 py-12 text-center">
               <p className="text-[14px] font-medium">No listings match these filters.</p>
               <p className="mx-auto mt-1.5 max-w-md text-[13px] leading-relaxed text-muted-foreground">
-                Try widening the year, price, mileage, location, or vehicle filters.
+                {homes
+                  ? "Try widening the price, location, property type, or bedroom filters."
+                  : "Try widening the year, price, mileage, location, or vehicle filters."}
               </p>
               <Link
                 to="/browse"
@@ -749,6 +903,340 @@ function Browse() {
         </section>
       </div>
     </main>
+  );
+}
+
+function HomesLandingHero({
+  activeTab,
+  location,
+  resultCount,
+  onTabChange,
+  onSearch,
+  onMoreFilters,
+}: {
+  activeTab: HomeTab;
+  location: string;
+  resultCount: number;
+  onTabChange: (tab: HomeTab) => void;
+  onSearch: (location: string) => void;
+  onMoreFilters: () => void;
+}) {
+  const [draft, setDraft] = useState(location);
+
+  useEffect(() => setDraft(location), [location]);
+
+  return (
+    <section
+      aria-label="GemList Homes"
+      className="relative isolate min-h-[610px] overflow-hidden rounded-[32px] bg-primary bg-cover bg-center shadow-xl sm:min-h-[680px]"
+      style={{
+        backgroundImage:
+          "linear-gradient(90deg, rgb(11 26 38 / 72%), rgb(11 26 38 / 38%) 52%, rgb(11 26 38 / 18%)), url(https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=2200&q=85)",
+      }}
+    >
+      <div className="absolute inset-0 bg-gradient-to-t from-primary/55 via-transparent to-primary/15" />
+      <div className="relative flex min-h-[610px] items-center justify-center px-4 py-12 sm:min-h-[680px] sm:px-8">
+        <div className="w-full max-w-[650px] rounded-[28px] border border-white/20 bg-primary/80 p-5 text-primary-foreground shadow-2xl backdrop-blur-md sm:p-8">
+          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">GemList Homes</p>
+          <h1 className="mt-3 text-center font-display text-[34px] font-bold leading-[1.05] tracking-tight sm:text-[52px]">
+            Build. Buy. Rent.
+            <span className="block text-accent">All in one place.</span>
+          </h1>
+          <p className="mx-auto mt-4 max-w-[43ch] text-center text-[14px] leading-relaxed text-white/80 sm:text-[15px]">
+            Find your next home, discover new communities, and explore rentals from local Idaho sellers and property managers.
+          </p>
+
+          <div className="mt-7 grid grid-cols-3 rounded-2xl bg-white/10 p-1.5 ring-1 ring-white/20">
+            {homeTabs.map((tab) => (
+              <button
+                key={tab.value}
+                type="button"
+                aria-pressed={activeTab === tab.value}
+                onClick={() => onTabChange(tab.value)}
+                className={`rounded-xl px-2 py-3 text-[13px] font-bold transition-colors sm:text-[15px] ${activeTab === tab.value ? "bg-accent text-accent-foreground shadow-sm" : "text-white/85 hover:bg-white/10"}`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          <form
+            className="mt-3 flex flex-col gap-2 rounded-2xl bg-card p-2 text-foreground sm:flex-row"
+            onSubmit={(event) => {
+              event.preventDefault();
+              onSearch(draft);
+            }}
+          >
+            <label className="flex min-w-0 flex-1 items-center gap-2 px-3">
+              <MapPin size={19} weight="duotone" className="shrink-0 text-primary" aria-hidden="true" />
+              <span className="sr-only">County, city, neighborhood, or ZIP</span>
+              <input
+                type="search"
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                placeholder="County, city, neighborhood, or ZIP"
+                aria-label="County, city, neighborhood, or ZIP"
+                className="h-12 min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground"
+              />
+            </label>
+            <button
+              type="submit"
+              className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-[13px] font-bold text-primary-foreground transition-transform hover:-translate-y-0.5"
+            >
+              <MagnifyingGlass size={17} aria-hidden="true" />
+              Search homes
+            </button>
+          </form>
+
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-[12px]">
+            <span className="text-white/70">{resultCount.toLocaleString()} local listings to explore</span>
+            <button
+              type="button"
+              onClick={onMoreFilters}
+              className="inline-flex items-center gap-1.5 rounded-full border border-accent/70 px-4 py-2 font-bold text-accent transition-colors hover:bg-accent hover:text-accent-foreground"
+            >
+              More filters
+              <ArrowRight size={14} aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function HomeShowcaseRows() {
+  return (
+    <div className="mt-10 space-y-12 sm:mt-14 sm:space-y-16">
+      {homePreviewRows.map((row) => (
+        <section key={row.title} aria-labelledby={row.title.replaceAll(" ", "-").toLowerCase()}>
+          <div className="mb-4 flex items-end justify-between gap-3 border-b border-border pb-3">
+            <div>
+              <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">GemList Homes</p>
+              <h2 id={row.title.replaceAll(" ", "-").toLowerCase()} className="mt-1 text-[22px] font-bold tracking-tight sm:text-[27px]">
+                {row.title}
+              </h2>
+            </div>
+            <Link
+              to="/browse"
+              search={{ category: "other-real-estate", homeMode: "results", homeTab: row.title.includes("Rent") ? "rent" : row.title.includes("build") ? "build" : "buy" }}
+              className="inline-flex shrink-0 items-center gap-1 text-[12px] font-bold text-primary hover:underline"
+            >
+              {row.action}
+              <ArrowRight size={14} aria-hidden="true" />
+            </Link>
+          </div>
+          <ul className="no-scrollbar grid grid-flow-col auto-cols-[minmax(215px,1fr)] gap-4 overflow-x-auto pb-2 sm:auto-cols-[minmax(240px,1fr)] lg:grid-flow-row lg:grid-cols-6 lg:overflow-visible">
+            {row.cards.map((card) => (
+              <li key={`${row.title}-${card.name}`}>
+                <HomePreviewCard card={card} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function HomePreviewCard({
+  card,
+}: {
+  card: (typeof homePreviewRows)[number]["cards"][number];
+}) {
+  return (
+    <article className="group overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm transition-shadow hover:shadow-lg">
+      <div className="relative aspect-[4/3] overflow-hidden bg-secondary">
+        <img
+          src={card.image}
+          alt=""
+          loading="lazy"
+          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+        />
+        <span className="absolute left-3 top-3 rounded-full bg-primary/85 px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.12em] text-primary-foreground backdrop-blur">
+          GemList Homes
+        </span>
+      </div>
+      <div className="p-3.5">
+        <p className="numeric text-[16px] font-bold text-primary">{card.price}</p>
+        <h3 className="mt-1 text-[13px] font-bold leading-tight">{card.name}</h3>
+        <p className="mt-1 text-[11.5px] text-muted-foreground">{card.location}</p>
+        <p className="mt-2 truncate text-[11px] text-muted-foreground">{card.facts}</p>
+      </div>
+    </article>
+  );
+}
+
+function HomesFilterPage({
+  activeTab,
+  search,
+  resultCount,
+  onTabChange,
+  onApply,
+}: {
+  activeTab: HomeTab;
+  search: Search;
+  resultCount: number;
+  onTabChange: (tab: HomeTab) => void;
+  onApply: (patch: Partial<Search>) => void;
+}) {
+  const [showAll, setShowAll] = useState(false);
+  const [location, setLocation] = useState(search.homeLocation ?? search.q ?? "");
+  const [propertyType, setPropertyType] = useState(search.propertyType ?? "");
+  const [homePrice, setHomePrice] = useState(search.homePrice ?? "");
+  const [bedrooms, setBedrooms] = useState(search.bedrooms ?? "");
+  const [bathrooms, setBathrooms] = useState(search.bathrooms ?? "");
+  const [extra, setExtra] = useState<Record<string, string>>({
+    homeSquareFeet: search.homeSquareFeet ?? "",
+    homeBuilder: search.homeBuilder ?? "",
+    constructionType: search.constructionType ?? "",
+    homeAcres: search.homeAcres ?? "",
+    homeSellerType: search.homeSellerType ?? "",
+    petsCats: search.petsCats ?? "",
+    petsDogs: search.petsDogs ?? "",
+    homeAmenities: search.homeAmenities ?? "",
+    communityAmenities: search.communityAmenities ?? "",
+    leaseLength: search.leaseLength ?? "",
+  });
+
+  useEffect(() => {
+    setLocation(search.homeLocation ?? search.q ?? "");
+    setPropertyType(search.propertyType ?? "");
+    setHomePrice(search.homePrice ?? "");
+    setBedrooms(search.bedrooms ?? "");
+    setBathrooms(search.bathrooms ?? "");
+  }, [search.homeLocation, search.q, search.homePrice, search.propertyType, search.bedrooms, search.bathrooms]);
+
+  const priceOptions = activeTab === "rent" ? rentPriceOptions : homePriceOptions;
+  const extraFields = activeTab === "build"
+    ? [
+        { key: "homeSquareFeet", label: "Square feet", options: ["Any size", "Under 1,500 sqft", "1,500–2,500 sqft", "2,500+ sqft"] },
+        { key: "homeBuilder", label: "Home builder", options: ["Any builder", "Local builders", "National builders"] },
+      ]
+    : activeTab === "buy"
+      ? [
+          { key: "homeSquareFeet", label: "Square feet", options: ["Any size", "Under 1,500 sqft", "1,500–2,500 sqft", "2,500+ sqft"] },
+          { key: "constructionType", label: "Construction type", options: ["Any construction", "New construction", "Existing home"] },
+          { key: "homeAcres", label: "Acres", options: ["Any acreage", "Under 0.25 acre", "0.25–1 acre", "1+ acres"] },
+          { key: "homeSellerType", label: "Seller type", options: ["Any seller", "Owner", "Agent", "Builder"] },
+        ]
+      : [
+          { key: "petsCats", label: "Cats", options: ["Any cat policy", "Cats allowed", "Cats not allowed"] },
+          { key: "petsDogs", label: "Dogs", options: ["Any dog policy", "Dogs allowed", "Dogs not allowed"] },
+          { key: "homeAmenities", label: "Home amenities", options: ["Any home amenities", "Garage", "Washer and dryer", "Furnished"] },
+          { key: "communityAmenities", label: "Community amenities", options: ["Any community amenities", "Pool", "Gym", "Gated community"] },
+          { key: "leaseLength", label: "Lease length", options: ["Any lease length", "Month to month", "6 months", "12 months"] },
+          { key: "homeSquareFeet", label: "Square feet", options: ["Any size", "Under 1,000 sqft", "1,000–2,000 sqft", "2,000+ sqft"] },
+        ];
+
+  function apply() {
+    onApply({
+      q: location.trim() || undefined,
+      homeLocation: location.trim() || undefined,
+      propertyType: propertyType || undefined,
+      homePrice: homePrice || undefined,
+      bedrooms: bedrooms || undefined,
+      bathrooms: bathrooms || undefined,
+      ...Object.fromEntries(extraFields.map(({ key }) => [key, extra[key] || undefined])),
+    });
+  }
+
+  return (
+    <section className="floating-card relative mt-2 overflow-visible bg-surface px-4 py-5 sm:px-7 sm:py-7">
+      <div className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">GemList Homes</p>
+          <h1 className="mt-2 text-[28px] font-bold tracking-tight sm:text-[36px]">Find a place that fits.</h1>
+          <p className="mt-1 max-w-[55ch] text-[13px] text-muted-foreground">Search new builds, homes for sale, and rentals across Idaho.</p>
+        </div>
+        <div className="grid w-full max-w-[390px] grid-cols-3 rounded-2xl bg-card p-1.5 shadow-sm ring-1 ring-border/70">
+          {homeTabs.map((tab) => (
+            <button
+              key={tab.value}
+              type="button"
+              aria-pressed={activeTab === tab.value}
+              onClick={() => onTabChange(tab.value)}
+              className={`rounded-xl px-2 py-3 text-[13px] font-bold transition-colors ${activeTab === tab.value ? "bg-primary text-primary-foreground" : "hover:bg-secondary"}`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <form
+        className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-[1.45fr_repeat(4,minmax(0,1fr))_auto]"
+        onSubmit={(event) => {
+          event.preventDefault();
+          apply();
+        }}
+      >
+        <HomeFilterControl label="County, city, neighborhood, or ZIP" value={location} onChange={setLocation} input />
+        <HomeFilterControl label="Property type" value={propertyType} options={homePropertyTypes} onChange={setPropertyType} />
+        <HomeFilterControl label="Price" value={homePrice} options={priceOptions} onChange={setHomePrice} />
+        <HomeFilterControl label="Bedrooms" value={bedrooms} options={homeBedroomOptions} onChange={setBedrooms} />
+        <HomeFilterControl label={activeTab === "rent" ? "Bathrooms" : "Bathrooms"} value={bathrooms} options={homeBathroomOptions} onChange={setBathrooms} />
+        <button type="submit" className="h-11 rounded-xl border border-primary px-4 text-[12px] font-bold text-primary hover:bg-primary hover:text-primary-foreground">Search</button>
+      </form>
+
+      <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+        <span className="text-[12px] text-muted-foreground"><strong className="numeric text-foreground">{resultCount.toLocaleString()}</strong> {homeTabs.find((tab) => tab.value === activeTab)?.eyebrow.toLowerCase()}</span>
+        <button
+          type="button"
+          onClick={() => setShowAll((current) => !current)}
+          aria-expanded={showAll}
+          className="inline-flex items-center gap-2 rounded-full border border-primary px-4 py-2.5 text-[12px] font-bold text-primary hover:bg-secondary"
+        >
+          <FunnelSimple size={15} aria-hidden="true" />
+          {showAll ? "Hide all filters" : "All filters"}
+          <CaretDown size={14} className={showAll ? "rotate-180" : ""} aria-hidden="true" />
+        </button>
+      </div>
+
+      {showAll && (
+        <div className="mt-4 grid gap-2 border-t border-border pt-4 sm:grid-cols-2 lg:grid-cols-4">
+          {extraFields.map((field) => (
+            <HomeFilterControl
+              key={field.key}
+              label={field.label}
+              value={extra[field.key] ?? ""}
+              options={field.options}
+              onChange={(value) => setExtra((current) => ({ ...current, [field.key]: value }))}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function HomeFilterControl({
+  label,
+  value,
+  options,
+  onChange,
+  input = false,
+}: {
+  label: string;
+  value: string;
+  options?: readonly string[];
+  onChange: (value: string) => void;
+  input?: boolean;
+}) {
+  return input ? (
+    <label className="flex h-11 min-w-0 items-center gap-2 rounded-xl border border-input bg-card px-3 focus-within:border-primary">
+      <MapPin size={15} className="shrink-0 text-primary" aria-hidden="true" />
+      <span className="sr-only">{label}</span>
+      <input value={value} onChange={(event) => onChange(event.target.value)} placeholder={label} className="min-w-0 flex-1 bg-transparent text-[12px] outline-none placeholder:text-muted-foreground" />
+    </label>
+  ) : (
+    <label className="relative block">
+      <span className="sr-only">{label}</span>
+      <select value={value} onChange={(event) => onChange(event.target.value)} aria-label={label} className="h-11 w-full appearance-none rounded-xl border border-input bg-card px-3 pr-8 text-[12px] text-foreground outline-none focus:border-primary">
+        {options?.map((option) => <option key={option} value={option === options[0] ? "" : option}>{option}</option>)}
+      </select>
+      <CaretDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+    </label>
   );
 }
 
