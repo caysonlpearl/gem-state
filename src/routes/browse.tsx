@@ -812,7 +812,7 @@ function VehicleBrowseHero({
             onSearch();
           }}
         >
-          <label className="relative flex h-12 items-center rounded-xl border border-transparent bg-secondary/55 px-3 focus-within:border-primary/40 focus-within:bg-card">
+          <label className="relative flex h-14 items-center rounded-xl border border-transparent bg-secondary/55 px-3 focus-within:border-primary/40 focus-within:bg-card">
             <MagnifyingGlass size={18} className="shrink-0 text-muted-foreground" aria-hidden="true" />
             <span className="sr-only">Search vehicles</span>
             <input
@@ -821,7 +821,7 @@ function VehicleBrowseHero({
               onChange={(event) => onTermChange(event.target.value)}
               placeholder="Search for..."
               aria-label="Search vehicles"
-              className="min-w-0 flex-1 bg-transparent px-2 text-[13px] outline-none placeholder:text-muted-foreground"
+              className="min-w-0 flex-1 bg-transparent px-2 text-[13.5px] outline-none placeholder:text-muted-foreground"
             />
             {term && (
               <button
@@ -890,7 +890,7 @@ function VehicleQuickFilter({ label, onClick }: { label: string; onClick: () => 
     <button
       type="button"
       onClick={onClick}
-      className="flex h-12 items-center justify-between rounded-xl border border-transparent bg-secondary/55 px-3 text-left text-[13px] font-semibold transition-colors hover:border-primary/40 hover:bg-card"
+      className="flex h-14 items-center justify-between rounded-xl border border-transparent bg-secondary/55 px-4 text-left text-[13.5px] font-semibold transition-colors hover:border-primary/40 hover:bg-card"
     >
       <span className="truncate">{label}</span>
       <CaretDown size={16} weight="bold" aria-hidden="true" className="ml-2 text-muted-foreground" />
