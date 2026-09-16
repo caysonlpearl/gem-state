@@ -633,10 +633,17 @@ test("services browse has a category-led landing page", () => {
   assert.match(configSource, /slug: "services"/);
   assert.match(browseSource, /function ServicesLandingHero/);
   assert.match(browseSource, /function ServicesCategoryShowcase/);
+  assert.match(browseSource, /function ServicesFilterPage/);
+  assert.match(browseSource, /function ServiceCategoryPicker/);
+  assert.match(browseSource, /function ServiceFilterGroup/);
   assert.match(browseSource, /Popular services/);
   assert.match(browseSource, /Seasonal categories/);
   assert.match(browseSource, /Browse all categories/);
   assert.match(browseSource, /What service are you looking for\?/);
+  assert.match(browseSource, /Expand Your Search/);
+  assert.match(browseSource, /Only show listings with photos/);
+  assert.match(browseSource, /Seller Type/);
+  assert.match(browseSource, /Time On Site/);
   assert.match(browseSource, /serviceMode: "results"/);
 });
 

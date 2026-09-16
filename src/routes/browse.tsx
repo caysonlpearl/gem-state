@@ -61,6 +61,13 @@ type Search = {
   homeTab?: HomeTab | undefined;
   jobMode?: JobMode | undefined;
   serviceMode?: ServiceMode | undefined;
+  serviceSubcategory?: string | undefined;
+  serviceExpandSearch?: string | undefined;
+  servicePhotos?: string | undefined;
+  serviceVideo?: string | undefined;
+  serviceSellerType?: string | undefined;
+  serviceCondition?: string | undefined;
+  serviceTimeOnSite?: string | undefined;
   jobCategory?: string | undefined;
   jobType?: string | undefined;
   jobPayType?: string | undefined;
@@ -360,6 +367,29 @@ const allServiceCategories: ServiceCategory[] = [
   { name: "Windows & Glass Installation", count: 11, image: "" },
 ];
 
+const serviceSubcategoryOptions = ["Any subcategory", ...allServiceCategories.map((category) => category.name)] as const;
+const serviceConditionOptions = ["Any condition", "New", "Used", "Like new"] as const;
+const serviceTimeOnSiteOptions = ["Any time", "Last hour", "Last 24 hours", "Last 7 days", "Last 30 days"] as const;
+
+type ServicePreviewCard = {
+  title: string;
+  location: string;
+  age: string;
+  price: string;
+  image: string;
+};
+
+const servicePreviewRows: ServicePreviewCard[] = [
+  { title: "Hardwood | LVP | Laminate flooring", location: "South Jordan, UT", age: "", price: "Call for quote", image: "https://images.unsplash.com/photo-1560185008-b033106af5c3?auto=format&fit=crop&w=900&q=80" },
+  { title: "General Contractor | New Home Construction | Home Additions", location: "Salt Lake City, UT", age: "", price: "Call for quote", image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=900&q=80" },
+  { title: "Fence Installation & Repair | Vinyl Fence | Wood Fence", location: "Salt Lake City, UT", age: "", price: "Call for quote", image: "https://images.unsplash.com/photo-1558904541-efa843a96f01?auto=format&fit=crop&w=900&q=80" },
+  { title: "All Pro Handyman | Home Repairs | Remodels | Drywall", location: "West Jordan, UT", age: "", price: "Call for quote", image: "https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=900&q=80" },
+  { title: "NT llc", location: "Salt Lake City, UT", age: "1 Hour", price: "Call for quote", image: "https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&w=900&q=80" },
+  { title: "Medico Excavation & Landscape", location: "Collinston, UT", age: "1 Hour", price: "Call for quote", image: "https://images.unsplash.com/photo-1558904541-efa843a96f01?auto=format&fit=crop&w=900&q=80" },
+  { title: "Slate Canyon Landscaping", location: "Springville, UT", age: "1 Hour", price: "Call for quote", image: "https://images.unsplash.com/photo-1599685315640-3f3c8e3d9b4b?auto=format&fit=crop&w=900&q=80" },
+  { title: "C Buxton Exteriors LLC", location: "Salt Lake City, UT", age: "1 Hour", price: "Call for quote", image: "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=900&q=80" },
+];
+
 const classifiedQuery = (input: ClassifiedBrowseInput) =>
   queryOptions({
     queryKey: ["classified-browse", input],
@@ -445,6 +475,13 @@ export const Route = createFileRoute("/browse")({
       homeTab: homeTab === "build" || homeTab === "rent" ? homeTab : homeTab === "buy" ? "buy" : undefined,
       jobMode: jobMode === "results" ? "results" : jobMode === "landing" ? "landing" : undefined,
       serviceMode: serviceMode === "results" ? "results" : serviceMode === "landing" ? "landing" : undefined,
+      serviceSubcategory: stringParam(search, "serviceSubcategory", 80),
+      serviceExpandSearch: stringParam(search, "serviceExpandSearch", 10),
+      servicePhotos: stringParam(search, "servicePhotos", 10),
+      serviceVideo: stringParam(search, "serviceVideo", 10),
+      serviceSellerType: stringParam(search, "serviceSellerType", 30),
+      serviceCondition: stringParam(search, "serviceCondition", 30),
+      serviceTimeOnSite: stringParam(search, "serviceTimeOnSite", 30),
       jobCategory: stringParam(search, "jobCategory", 60),
       jobType: stringParam(search, "jobType", 30),
       jobPayType: stringParam(search, "jobPayType", 30),
@@ -719,10 +756,23 @@ function Browse() {
       {services && serviceLanding && (
         <ServicesLandingHero
           resultCount={serviceListingCount}
-          onSearch={(term) =>
+          onSearch={(subcategory) =>
             void navigate({
               to: "/browse",
-              search: scoped({ category: "services", serviceMode: "results", q: term.trim() || undefined }),
+              search: scoped({ category: "services", serviceMode: "results", q: undefined, serviceSubcategory: subcategory || undefined }),
+            })
+          }
+          onPost={() => void navigate({ to: "/create-listing" })}
+        />
+      )}
+
+      {services && !serviceLanding && (
+        <ServicesFilterPage
+          search={search}
+          onApply={(patch) =>
+            void navigate({
+              to: "/browse",
+              search: scoped({ category: "services", serviceMode: "results", ...patch }),
             })
           }
           onPost={() => void navigate({ to: "/create-listing" })}
@@ -734,13 +784,13 @@ function Browse() {
           onCategorySelect={(category) =>
             void navigate({
               to: "/browse",
-              search: scoped({ category: "services", serviceMode: "results", q: category }),
+              search: scoped({ category: "services", serviceMode: "results", q: undefined, serviceSubcategory: category }),
             })
           }
         />
       )}
 
-      <div className={`flex flex-wrap items-end justify-between gap-3 ${motors || homes || jobs || (services && serviceLanding) ? "mt-7" : ""} ${homes || jobs || serviceLanding ? "hidden" : ""}`}>
+      <div className={`flex flex-wrap items-end justify-between gap-3 ${motors || homes || jobs || services ? "mt-7" : ""} ${homes || jobs || services || serviceLanding ? "hidden" : ""}`}>
         <div className={motors ? "hidden" : ""}>
           <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-primary">
             Gem State classifieds
@@ -788,7 +838,7 @@ function Browse() {
         </div>
       </div>
 
-      {!motors && !homes && !jobs && (
+      {!motors && !homes && !jobs && !services && (
         <form
           className="floating-card mt-8 p-2 sm:p-3"
           onSubmit={(event) => {
@@ -813,7 +863,7 @@ function Browse() {
         </form>
       )}
 
-      {!motors && !homes && !jobs && <div className="no-scrollbar mt-5 flex gap-2 overflow-x-auto pb-1">
+      {!motors && !homes && !jobs && !services && <div className="no-scrollbar mt-5 flex gap-2 overflow-x-auto pb-1">
         <BrowsePill
           active={!search.group && !search.category}
           search={scopedWithoutVehicleFilters({ group: undefined, category: undefined })}
@@ -839,7 +889,7 @@ function Browse() {
         ))}
       </div>}
 
-      {!jobs && !(services && serviceLanding) && <div className={`${motors || homes ? "mt-6" : "mt-8"} ${homeLanding ? "hidden" : ""}`}>
+      {!jobs && !services && <div className={`${motors || homes ? "mt-6" : "mt-8"} ${homeLanding ? "hidden" : ""}`}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className={motors || homes ? "hidden" : "text-[13px] text-muted-foreground"}>
             <span className="numeric font-semibold text-foreground">{result.total}</span>{" "}
@@ -1353,11 +1403,11 @@ function ServicesLandingHero({
   onPost,
 }: {
   resultCount: number;
-  onSearch: (term: string) => void;
+  onSearch: (subcategory: string) => void;
   onPost: () => void;
 }) {
   const [mode, setMode] = useState<"search" | "post">("search");
-  const [draft, setDraft] = useState("");
+  const [subcategory, setSubcategory] = useState("");
 
   return (
     <section
@@ -1385,13 +1435,9 @@ function ServicesLandingHero({
           </div>
 
           {mode === "search" ? (
-            <form className="mt-3 flex flex-col gap-2 rounded-2xl bg-card p-2 text-foreground sm:flex-row" onSubmit={(event) => { event.preventDefault(); onSearch(draft); }}>
-              <label className="flex min-w-0 flex-1 items-center gap-2 px-3">
-                <MagnifyingGlass size={19} className="shrink-0 text-primary" aria-hidden="true" />
-                <span className="sr-only">What service are you looking for?</span>
-                <input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="What service are you looking for?" aria-label="What service are you looking for?" className="h-12 min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground" />
-              </label>
-              <button type="submit" className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-[13px] font-bold text-primary-foreground transition-transform hover:-translate-y-0.5"><MagnifyingGlass size={17} aria-hidden="true" />Search</button>
+            <form className="mt-3" onSubmit={(event) => { event.preventDefault(); onSearch(subcategory.trim()); }}>
+              <ServiceCategoryPicker value={subcategory} onChange={setSubcategory} />
+              <button type="submit" className="mx-auto mt-4 inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-accent px-6 text-[13px] font-bold text-accent-foreground shadow-sm transition-transform hover:-translate-y-0.5"><MagnifyingGlass size={17} aria-hidden="true" />Show {resultCount.toLocaleString()} results</button>
             </form>
           ) : (
             <div className="mt-3 rounded-2xl bg-card p-6 text-center text-foreground sm:p-8">
@@ -1405,6 +1451,59 @@ function ServicesLandingHero({
         </div>
       </div>
     </section>
+  );
+}
+
+function ServiceCategoryPicker({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const options = allServiceCategories.filter((category) =>
+    !value.trim() || category.name.toLowerCase().includes(value.trim().toLowerCase()),
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", closeOnOutsideClick);
+    return () => document.removeEventListener("mousedown", closeOnOutsideClick);
+  }, [open]);
+
+  return (
+    <div ref={containerRef} className="relative text-foreground">
+      <label className="relative flex h-12 items-center rounded-xl bg-card px-3 ring-1 ring-border focus-within:ring-2 focus-within:ring-primary">
+        <MagnifyingGlass size={18} className="mr-2 shrink-0 text-primary" aria-hidden="true" />
+        <span className="sr-only">What service are you looking for?</span>
+        <input
+          value={value}
+          onChange={(event) => { onChange(event.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          placeholder="What service are you looking for?"
+          aria-label="What service are you looking for?"
+          aria-expanded={open}
+          className="min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground"
+        />
+        <CaretDown size={16} className={`shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true" />
+      </label>
+      {open && (
+        <div role="listbox" aria-label="Service categories" className="absolute left-0 right-0 top-full z-40 mt-1 max-h-72 overflow-y-auto rounded-b-xl border border-border bg-card shadow-xl">
+          {options.length > 0 ? options.map((category) => (
+            <button
+              key={category.name}
+              type="button"
+              role="option"
+              aria-selected={value === category.name}
+              onClick={() => { onChange(category.name); setOpen(false); }}
+              className="flex w-full items-center justify-between border-b border-border/70 px-3 py-2.5 text-left text-[13px] last:border-b-0 hover:bg-secondary"
+            >
+              <span>{category.name}</span>
+              <span className="numeric text-[11px] text-muted-foreground">{category.count}</span>
+            </button>
+          )) : <p className="px-3 py-3 text-[12px] text-muted-foreground">No service categories found.</p>}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1445,6 +1544,132 @@ function ServicesCategoryShowcase({ onCategorySelect }: { onCategorySelect: (cat
       </section>
     </div>
   );
+}
+
+function ServicesFilterPage({
+  search,
+  onApply,
+  onPost,
+}: {
+  search: Search;
+  onApply: (patch: Partial<Search>) => void;
+  onPost: () => void;
+}) {
+  const [showAll, setShowAll] = useState(true);
+  const [term, setTerm] = useState(search.q ?? "");
+  const [subcategory, setSubcategory] = useState(search.serviceSubcategory ?? "");
+  const [priceMin, setPriceMin] = useState(search.priceMin == null ? "" : String(search.priceMin));
+  const [priceMax, setPriceMax] = useState(search.priceMax == null ? "" : String(search.priceMax));
+  const [expandSearch, setExpandSearch] = useState(search.serviceExpandSearch === "true");
+  const [photos, setPhotos] = useState(search.servicePhotos === "true");
+  const [video, setVideo] = useState(search.serviceVideo === "true");
+  const [sellerType, setSellerType] = useState(search.serviceSellerType ?? "");
+  const [condition, setCondition] = useState(search.serviceCondition ?? "");
+  const [timeOnSite, setTimeOnSite] = useState(search.serviceTimeOnSite ?? "");
+
+  useEffect(() => {
+    setTerm(search.q ?? "");
+    setSubcategory(search.serviceSubcategory ?? "");
+    setPriceMin(search.priceMin == null ? "" : String(search.priceMin));
+    setPriceMax(search.priceMax == null ? "" : String(search.priceMax));
+    setExpandSearch(search.serviceExpandSearch === "true");
+    setPhotos(search.servicePhotos === "true");
+    setVideo(search.serviceVideo === "true");
+    setSellerType(search.serviceSellerType ?? "");
+    setCondition(search.serviceCondition ?? "");
+    setTimeOnSite(search.serviceTimeOnSite ?? "");
+  }, [search]);
+
+  function apply() {
+    const numberValue = (value: string) => {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
+    };
+    onApply({
+      q: term.trim() || undefined,
+      serviceSubcategory: subcategory || undefined,
+      priceMin: numberValue(priceMin),
+      priceMax: numberValue(priceMax),
+      serviceExpandSearch: expandSearch ? "true" : undefined,
+      servicePhotos: photos ? "true" : undefined,
+      serviceVideo: video ? "true" : undefined,
+      serviceSellerType: sellerType || undefined,
+      serviceCondition: condition || undefined,
+      serviceTimeOnSite: timeOnSite || undefined,
+    });
+  }
+
+  return (
+    <div className="mt-8">
+      <section className="floating-card overflow-visible p-4 sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+          <div className="grid w-full max-w-[390px] grid-cols-2 rounded-2xl bg-secondary p-1.5 ring-1 ring-border/70">
+            <button type="button" aria-pressed="true" className="rounded-xl bg-primary px-3 py-3 text-[13px] font-bold text-primary-foreground shadow-sm">Search Listings</button>
+            <button type="button" onClick={onPost} className="rounded-xl px-3 py-3 text-[13px] font-bold hover:bg-card">Post a Listing</button>
+          </div>
+          <button type="button" onClick={() => setShowAll((current) => !current)} className="inline-flex items-center gap-2 rounded-full border border-primary px-4 py-2.5 text-[12px] font-bold text-primary hover:bg-secondary"><FunnelSimple size={15} aria-hidden="true" />{showAll ? "Hide all filters" : "Show all filters"}<CaretDown size={14} className={showAll ? "rotate-180" : ""} aria-hidden="true" /></button>
+        </div>
+        <form className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-[1.65fr_minmax(0,1fr)_auto]" onSubmit={(event) => { event.preventDefault(); apply(); }}>
+          <label className="flex h-12 min-w-0 items-center gap-2 rounded-xl border border-input bg-card px-3 focus-within:border-primary"><MagnifyingGlass size={16} className="shrink-0 text-primary" aria-hidden="true" /><span className="sr-only">Search services</span><input value={term} onChange={(event) => setTerm(event.target.value)} placeholder="Search for a service, company, or description" className="min-w-0 flex-1 bg-transparent text-[12px] outline-none placeholder:text-muted-foreground" /></label>
+          <ServiceOptionSelect label="Subcategory" value={subcategory} options={serviceSubcategoryOptions} onChange={setSubcategory} />
+          <button type="submit" className="h-12 rounded-xl bg-primary px-5 text-[12px] font-bold text-primary-foreground hover:opacity-90">Search</button>
+        </form>
+      </section>
+
+      <div className="mt-7 grid gap-6 lg:grid-cols-[250px_minmax(0,1fr)]">
+        {showAll && (
+          <aside className="space-y-3">
+            <ServiceFilterGroup title="Category">
+              <ServiceOptionSelect label="Category" value="Services" options={["Any category", "Services"]} onChange={() => undefined} />
+              <ServiceOptionSelect label="Subcategory" value={subcategory} options={serviceSubcategoryOptions} onChange={setSubcategory} />
+            </ServiceFilterGroup>
+            <ServiceFilterGroup title="Price">
+              <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2"><input inputMode="numeric" value={priceMin} onChange={(event) => setPriceMin(event.target.value)} placeholder="$0" className="filter-input" /><span className="text-muted-foreground">–</span><input inputMode="numeric" value={priceMax} onChange={(event) => setPriceMax(event.target.value)} placeholder="$200,000+" className="filter-input" /></div>
+            </ServiceFilterGroup>
+            <ServiceFilterGroup title="Expand Your Search">
+              <ServiceToggle label="Include listing descriptions in keyword searches" checked={expandSearch} onChange={setExpandSearch} />
+            </ServiceFilterGroup>
+            <ServiceFilterGroup title="Photos/Video">
+              <ServiceToggle label="Only show listings with photos" checked={photos} onChange={setPhotos} />
+              <ServiceToggle label="Only show listings with a video" checked={video} onChange={setVideo} />
+            </ServiceFilterGroup>
+            <ServiceFilterGroup title="Seller Type">
+              <div className="space-y-2">{["Private", "Business"].map((option) => <button key={option} type="button" onClick={() => setSellerType(sellerType === option ? "" : option)} className={`h-10 w-full rounded-lg border px-3 text-[12px] font-bold ${sellerType === option ? "border-primary bg-primary text-primary-foreground" : "border-primary text-primary hover:bg-secondary"}`}>{option}</button>)}</div>
+            </ServiceFilterGroup>
+            <ServiceFilterGroup title="Condition" initiallyOpen={false}>
+              <ServiceOptionSelect label="Condition" value={condition} options={serviceConditionOptions} onChange={setCondition} />
+            </ServiceFilterGroup>
+            <ServiceFilterGroup title="Time On Site" initiallyOpen={false}>
+              <div className="space-y-2">{serviceTimeOnSiteOptions.slice(1).map((option) => <button key={option} type="button" onClick={() => setTimeOnSite(timeOnSite === option ? "" : option)} className={`h-10 w-full rounded-lg border px-3 text-[12px] font-bold ${timeOnSite === option ? "border-primary bg-primary text-primary-foreground" : "border-primary text-primary hover:bg-secondary"}`}>{option.replace("Last ", "Last ")}</button>)}</div>
+            </ServiceFilterGroup>
+            <button type="button" onClick={apply} className="h-11 w-full rounded-xl bg-primary text-[12px] font-bold text-primary-foreground hover:opacity-90">Show {serviceListingCount.toLocaleString()} results</button>
+          </aside>
+        )}
+
+        <section aria-label="Service listings">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4"><p className="text-[13px] text-muted-foreground"><strong className="numeric text-foreground">{serviceListingCount.toLocaleString()}</strong> services in Idaho, Utah, and Wyoming</p><label className="flex items-center gap-2 text-[12px] text-muted-foreground">Sort by<select className="h-9 rounded-lg border border-input bg-card px-2 text-[12px] text-foreground" defaultValue="newest"><option value="newest">Newest to oldest</option><option value="price_low">Lowest price</option><option value="price_high">Highest price</option></select></label></div>
+          <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">{servicePreviewRows.map((card, index) => <ServiceCard key={card.title} card={card} favorites={index % 4 === 0 ? 7 : index + 1} />)}</div>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function ServiceOptionSelect({ label, value, options, onChange }: { label: string; value: string; options: readonly string[]; onChange: (value: string) => void }) {
+  return <label className="relative block"><span className="sr-only">{label}</span><select aria-label={label} value={value} onChange={(event) => onChange(event.target.value)} className="h-12 w-full appearance-none rounded-xl border border-input bg-card px-3 pr-8 text-[12px] text-foreground outline-none focus:border-primary">{options.map((option, index) => <option key={option} value={index === 0 ? "" : option}>{option}</option>)}</select><CaretDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" /></label>;
+}
+
+function ServiceFilterGroup({ title, children, initiallyOpen = true }: { title: string; children: React.ReactNode; initiallyOpen?: boolean }) {
+  const [open, setOpen] = useState(initiallyOpen);
+  return <section className="overflow-visible rounded-2xl border border-border bg-card shadow-sm"><button type="button" aria-expanded={open} onClick={() => setOpen((current) => !current)} className="flex w-full items-center justify-between px-3.5 py-3 text-left text-[13px] font-bold"><span>{title}</span><CaretDown size={15} className={`transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true" /></button>{open && <div className="space-y-2 border-t border-border px-3.5 pb-3.5 pt-3">{children}</div>}</section>;
+}
+
+function ServiceToggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
+  return <label className="flex items-center justify-between gap-3 text-[12px] leading-tight"><span>{label}</span><button type="button" aria-label={label} aria-pressed={checked} onClick={() => onChange(!checked)} className={`relative h-8 w-14 shrink-0 rounded-full transition-colors ${checked ? "bg-primary" : "bg-muted"}`}><span className={`absolute top-1.5 size-5 rounded-full bg-card shadow-sm transition-transform ${checked ? "translate-x-7" : "translate-x-1.5"}`} /></button></label>;
+}
+
+function ServiceCard({ card, favorites }: { card: ServicePreviewCard; favorites: number }) {
+  return <article className="group overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm transition-shadow hover:shadow-lg"><div className="relative aspect-[4/3] overflow-hidden bg-secondary"><img src={card.image} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" /><span className="absolute left-3 top-3 rounded-md bg-primary/85 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.12em] text-primary-foreground">Service</span></div><div className="p-4"><h3 className="min-h-[36px] text-[15px] font-bold leading-tight">{card.title}</h3><p className="mt-2 flex items-center gap-1 text-[11.5px] text-primary"><MapPin size={12} aria-hidden="true" />{card.location}{card.age ? <><span className="text-muted-foreground">|</span><span className="text-foreground">{card.age}</span></> : null}</p><div className="mt-5 flex items-end justify-between gap-2"><p className="text-[18px] font-bold text-primary">{card.price}</p><span className="text-[12px] text-muted-foreground">♡ {favorites}</span></div></div></article>;
 }
 
 function JobsLandingHero({
