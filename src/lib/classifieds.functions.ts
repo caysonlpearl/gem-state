@@ -180,7 +180,7 @@ export const getAdminClassifiedQueue = createServerFn({ method: "GET" })
           sellerHandle: row.seller_handle,
           sellerNote: row.seller_note,
           vehicle: vehicleOf(details),
-          listingImageUrls: await signedAdminUrls("listing-media", row.listing_media_paths),
+          listingImageUrls: await signedAdminUrls("listing-media", row.listing_media_paths, context.supabase),
           evidenceImageUrls: await signedAdminUrls("ask-evidence", row.evidence_paths),
           createdAt: row.created_at,
         } satisfies AdminClassifiedRow;
@@ -301,7 +301,7 @@ export const getClassifiedListingEditor = createServerFn({ method: "GET" })
     const media = ((record.listing_media ?? []) as { storage_path: string; position: number }[])
       .sort((a, b) => a.position - b.position)
       .map((item) => item.storage_path);
-    const urls = await signListingMedia(media);
+    const urls = await signListingMedia(media, client);
     const category = record.products?.categories?.slug ?? "general";
     return {
       id: record.id,
@@ -468,36 +468,38 @@ function sortedMedia(row: Record<string, unknown>): string[] {
     .map((item) => item.storage_path);
 }
 
-/** Listing photos are public marketplace media used by buyer-facing pages. */
-async function signListingMedia(paths: string[]): Promise<Map<string, string>> {
+/** Buyer-facing listing photos are short-lived signed URLs for approved media. */
+async function signListingMedia(paths: string[], client = publicServerClient()): Promise<Map<string, string>> {
   const unique = [...new Set(paths)];
   if (unique.length === 0) return new Map();
 
-  // Listing photos are intentionally public marketplace media. Using the
-  // public object URL keeps buyer-facing pages available in Lovable Cloud,
-  // where the service-role secret is not required for public reads.
-  const supabaseUrl = process.env["SUPABASE_URL"];
-  if (supabaseUrl) {
-    return new Map(
-      unique.map((path) => [
-        path,
-        `${supabaseUrl}/storage/v1/object/public/listing-media/${path
-          .split("/")
-          .map(encodeURIComponent)
-          .join("/")}`,
-      ]),
-    );
+  const { data, error } = await client.storage
+    .from("listing-media")
+    .createSignedUrls(unique, 60 * 60);
+  if (error) {
+    console.error("Could not sign classified listing media", error.message);
+    return new Map();
   }
-
-  return new Map();
+  return new Map(
+    (data ?? [])
+      .filter(
+        (item) =>
+          typeof item.path === "string" &&
+          typeof item.signedUrl === "string" &&
+          item.signedUrl.length > 0,
+      )
+      .map((item) => [item.path as string, item.signedUrl as string]),
+  );
 }
 
-async function signedAdminUrls(bucket: string, paths: string[] | null): Promise<string[]> {
+async function signedAdminUrls(bucket: string, paths: string[] | null, client?: any): Promise<string[]> {
   if (!paths?.length) return [];
 
   if (bucket === "listing-media") {
-    const publicUrls = await signListingMedia(paths);
-    return paths.map((path) => publicUrls.get(path)).filter((url): url is string => Boolean(url));
+    if (client) {
+      const signedUrls = await signListingMedia(paths, client);
+      return paths.map((path) => signedUrls.get(path)).filter((url): url is string => Boolean(url));
+    }
   }
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

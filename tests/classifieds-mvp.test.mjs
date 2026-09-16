@@ -36,6 +36,12 @@ const inquiryMigrationSource = await read(
 const inquiryWriteLockMigrationSource = await read(
   "supabase/migrations/20260915180000_lock_classified_inquiry_writes.sql",
 );
+const requeueEditedListingMigrationSource = await read(
+  "supabase/migrations/20260915190000_requeue_edited_classified_listings.sql",
+);
+const classifiedMediaSecurityMigrationSource = await read(
+  "supabase/migrations/20260915191000_secure_classified_listing_media.sql",
+);
 const mvpCopyMigrationSource = await read(
   "supabase/migrations/20260915170000_refresh_classified_mvp_copy.sql",
 );
@@ -111,6 +117,21 @@ test("classified inquiry writes are server-only", () => {
   assert.match(inquiryWriteLockMigrationSource, /drop policy if exists "Sellers update listing inquiries"/);
   assert.match(inquirySource, /const admin = supabaseAdmin as any/);
   assert.match(inquirySource, /\.from\("listing_inquiries"\)/);
+});
+
+test("approved classified edits return to moderation", () => {
+  assert.match(requeueEditedListingMigrationSource, /status = 'pending_review'::public\.product_status/);
+  assert.match(requeueEditedListingMigrationSource, /SET approved_at = NULL/);
+  assert.match(requeueEditedListingMigrationSource, /seller_id = uid/);
+});
+
+test("classified listing media stays private until approval", () => {
+  assert.match(classifiedMediaSecurityMigrationSource, /SET public = false/);
+  assert.match(classifiedMediaSecurityMigrationSource, /can_read_approved_classified_media/);
+  assert.match(classifiedMediaSecurityMigrationSource, /a\.approved_at IS NOT NULL/);
+  assert.match(classifiedMediaSecurityMigrationSource, /p\.status = 'published'/);
+  assert.match(classifiedsFunctionsSource, /createSignedUrls\(unique, 60 \* 60\)/);
+  assert.doesNotMatch(classifiedsFunctionsSource, /object\/public\/listing-media/);
 });
 
 test("direct-contact MVP copy is consistent across buyer and seller surfaces", () => {
