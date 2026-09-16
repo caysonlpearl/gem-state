@@ -1,14 +1,15 @@
 /**
  * Fictional but realistic Idaho vehicle records for staging/MVP flow testing.
  * These records are created as pending seller listings and are not public until
- * an administrator reviews them. Replace the generated placeholder photos with
- * seller-owned photos before approving any record for a live launch.
+ * an administrator reviews them. The staged records intentionally use the
+ * marketplace's no-photo illustration treatment until seller-owned photos are
+ * available.
  */
 export const classifiedSeedListings = [
   {
     title: "2019 Toyota Tacoma TRD Off-Road 4x4",
     description:
-      "Example Idaho vehicle listing used to validate browsing and seller contact flows. Double cab pickup with the 3.5L V6, automatic transmission, backup camera, and a clean title. Buyers should confirm availability, condition, title and ownership directly with the seller.",
+      "Double cab pickup with the 3.5L V6, automatic transmission, backup camera, and a clean title. Staged Idaho listing for marketplace testing; buyers should confirm availability, condition, title, and ownership directly with the seller.",
     category: "cars-trucks",
     priceCents: 31750_00,
     condition: "used_good",
@@ -34,7 +35,7 @@ export const classifiedSeedListings = [
   {
     title: "2021 Ford F-150 XLT SuperCrew 4WD",
     description:
-      "Example Idaho vehicle listing used to validate browsing and seller contact flows. SuperCrew pickup with a 5.0L V8, tow package, bed liner, and clean title. Buyers should confirm availability, condition, title and ownership directly with the seller.",
+      "SuperCrew pickup with a 5.0L V8, tow package, bed liner, and clean title. Staged Idaho listing for marketplace testing; buyers should confirm availability, condition, title, and ownership directly with the seller.",
     category: "cars-trucks",
     priceCents: 34500_00,
     condition: "used_excellent",
@@ -60,7 +61,7 @@ export const classifiedSeedListings = [
   {
     title: "2018 Subaru Outback 2.5i Premium AWD",
     description:
-      "Example Idaho vehicle listing used to validate browsing and seller contact flows. All-wheel-drive wagon with heated seats, roof rails, and a clean title. Buyers should confirm availability, condition, title and ownership directly with the seller.",
+      "All-wheel-drive wagon with heated seats, roof rails, and a clean title. Staged Idaho listing for marketplace testing; buyers should confirm availability, condition, title, and ownership directly with the seller.",
     category: "cars-trucks",
     priceCents: 16900_00,
     condition: "used_good",
@@ -86,7 +87,7 @@ export const classifiedSeedListings = [
   {
     title: "2020 Jeep Wrangler Sport 4WD",
     description:
-      "Example Idaho vehicle listing used to validate browsing and seller contact flows. Two-door Wrangler with removable top, manual transmission, and clean title. Buyers should confirm availability, condition, title and ownership directly with the seller.",
+      "Two-door Wrangler with removable top, manual transmission, and clean title. Staged Idaho listing for marketplace testing; buyers should confirm availability, condition, title, and ownership directly with the seller.",
     category: "cars-trucks",
     priceCents: 28900_00,
     condition: "used_good",
@@ -112,7 +113,7 @@ export const classifiedSeedListings = [
   {
     title: "2016 Honda Civic EX Sedan",
     description:
-      "Example Idaho vehicle listing used to validate browsing and seller contact flows. Fuel-efficient sedan with a backup camera, sunroof, and clean title. Buyers should confirm availability, condition, title and ownership directly with the seller.",
+      "Fuel-efficient sedan with a backup camera, sunroof, and clean title. Staged Idaho listing for marketplace testing; buyers should confirm availability, condition, title, and ownership directly with the seller.",
     category: "cars-trucks",
     priceCents: 14250_00,
     condition: "used_good",
@@ -138,7 +139,7 @@ export const classifiedSeedListings = [
   {
     title: "2022 Hyundai Tucson SEL AWD",
     description:
-      "Example Idaho vehicle listing used to validate browsing and seller contact flows. Compact SUV with heated seats, adaptive cruise, and clean title. Buyers should confirm availability, condition, title and ownership directly with the seller.",
+      "Compact SUV with heated seats, adaptive cruise, and clean title. Staged Idaho listing for marketplace testing; buyers should confirm availability, condition, title, and ownership directly with the seller.",
     category: "cars-trucks",
     priceCents: 25900_00,
     condition: "used_excellent",
@@ -164,7 +165,7 @@ export const classifiedSeedListings = [
   {
     title: "2017 Chevrolet Silverado 1500 LT 4WD",
     description:
-      "Example Idaho vehicle listing used to validate browsing and seller contact flows. Full-size pickup with crew cab, trailer brake controller, and clean title. Buyers should confirm availability, condition, title and ownership directly with the seller.",
+      "Full-size pickup with crew cab, trailer brake controller, and clean title. Staged Idaho listing for marketplace testing; buyers should confirm availability, condition, title, and ownership directly with the seller.",
     category: "cars-trucks",
     priceCents: 19600_00,
     condition: "used_good",
@@ -190,7 +191,7 @@ export const classifiedSeedListings = [
   {
     title: "2015 Ram 1500 Big Horn 4WD",
     description:
-      "Example Idaho vehicle listing used to validate browsing and seller contact flows. Crew cab truck with a 5.7L V8, spray-in bed liner, and clean title. Buyers should confirm availability, condition, title and ownership directly with the seller.",
+      "Crew cab truck with a 5.7L V8, spray-in bed liner, and clean title. Staged Idaho listing for marketplace testing; buyers should confirm availability, condition, title, and ownership directly with the seller.",
     category: "cars-trucks",
     priceCents: 24800_00,
     condition: "used_good",

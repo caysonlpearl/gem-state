@@ -59,7 +59,7 @@ export const template = {
   displayName: "Offer update (buyer)",
   previewData: {
     outcome: "countered",
-    itemName: "Figment Attraction Pin",
+    itemName: "2021 Ford F-150 XLT SuperCrew 4WD",
     offerCents: 3200,
     counterCents: 3500,
     currency: "USD",

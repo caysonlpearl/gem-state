@@ -31,7 +31,7 @@ export const template = {
     d["itemName"] ? `New offer on ${d["itemName"]}` : "New offer on your listing",
   displayName: "Offer received (seller)",
   previewData: {
-    itemName: "Figment Attraction Pin",
+    itemName: "2021 Ford F-150 XLT SuperCrew 4WD",
     offerCents: 3200,
     listingCents: 3800,
     currency: "USD",

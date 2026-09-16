@@ -32,8 +32,8 @@ export const template = {
     d["itemName"] ? `Shipped: ${d["itemName"]}` : "Your Gem State Classifieds order has shipped",
   displayName: "Order shipped (buyer)",
   previewData: {
-    itemName: "Haunted Mansion Holiday Sipper",
-    orderNumber: "PV-100234",
+    itemName: "2019 Toyota Tacoma TRD Off-Road 4x4",
+    orderNumber: "GS-100234",
     carrier: "USPS",
     trackingNumber: "9400100000000000000000",
     orderPath: "/orders/example",

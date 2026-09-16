@@ -40,8 +40,8 @@ export const template = {
   displayName: "Dispute update (buyer / seller)",
   previewData: {
     stage: "opened",
-    itemName: "Haunted Mansion Holiday Sipper",
-    orderNumber: "PV-100234",
+    itemName: "2019 Toyota Tacoma TRD Off-Road 4x4",
+    orderNumber: "GS-100234",
     orderPath: "/orders/example",
   },
 } satisfies TemplateEntry;

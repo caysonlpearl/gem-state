@@ -7,7 +7,7 @@ const required = ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SEED_AC
 
 if (!apply) {
   console.log(
-    `Dry run: ${classifiedSeedListings.length} example Idaho vehicle listings are ready.`,
+    `Dry run: ${classifiedSeedListings.length} staged Idaho vehicle listings are ready.`,
   );
   for (const listing of classifiedSeedListings) {
     console.log(
@@ -52,18 +52,8 @@ const { data: existingProducts, error: existingError } = await client
 if (existingError) throw new Error(existingError.message);
 const existingNames = new Set((existingProducts ?? []).map((product) => product.name));
 
-function xml(value) {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
-}
-
-function demoPhoto(listing) {
-  const title = xml(listing.title);
-  const location = xml(`${listing.city}, ${listing.state}`);
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800"><rect width="1200" height="800" fill="#eef1ee"/><rect x="40" y="40" width="1120" height="720" rx="24" fill="#d8e2dd" stroke="#183a35" stroke-width="8"/><path d="M210 520h780l-80-180H390z" fill="#f5f1e8" stroke="#183a35" stroke-width="10"/><circle cx="420" cy="540" r="66" fill="#183a35"/><circle cx="780" cy="540" r="66" fill="#183a35"/><text x="600" y="180" fill="#183a35" font-family="Arial,sans-serif" font-size="42" font-weight="700" text-anchor="middle">GEM STATE SAMPLE IMAGE</text><text x="600" y="650" fill="#183a35" font-family="Arial,sans-serif" font-size="30" text-anchor="middle">${title}</text><text x="600" y="700" fill="#183a35" font-family="Arial,sans-serif" font-size="24" text-anchor="middle">${location} · Example listing image</text></svg>`;
+function illustrationPhoto() {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800"><rect width="1200" height="800" fill="#f4efe5"/><circle cx="980" cy="150" r="190" fill="#eadcc2"/><circle cx="170" cy="700" r="210" fill="#dce9e3"/><path d="M210 520h780l-80-180H390z" fill="#183a35"/><path d="M330 340h520l-55-86H420z" fill="#f3a542"/><circle cx="420" cy="540" r="66" fill="#102b43"/><circle cx="780" cy="540" r="66" fill="#102b43"/><circle cx="420" cy="540" r="27" fill="#e8c98e"/><circle cx="780" cy="540" r="27" fill="#e8c98e"/><path d="M490 385h220v80H490z" fill="#d9e7e2"/><path d="M520 405h55v35h-55zM625 405h55v35h-55z" fill="#7ba9a1"/></svg>`;
 }
 
 for (const listing of classifiedSeedListings) {
@@ -74,7 +64,7 @@ for (const listing of classifiedSeedListings) {
   const categoryId = categoryIds.get(listing.category);
   if (!categoryId) throw new Error(`Missing category in database: ${listing.category}`);
   const path = `${userData.user.id}/seed/${crypto.randomUUID()}.svg`;
-  const body = new TextEncoder().encode(demoPhoto(listing));
+  const body = new TextEncoder().encode(illustrationPhoto());
   for (const bucket of ["ask-evidence", "listing-media"]) {
     const { error } = await client.storage.from(bucket).upload(path, body, {
       contentType: "image/svg+xml",
@@ -90,7 +80,7 @@ for (const listing of classifiedSeedListings) {
     _category_id: categoryId,
     _price_cents: listing.priceCents,
     _item_condition: listing.condition,
-    _seller_note: "Example listing for marketplace testing. Confirm item details and availability directly with the seller.",
+    _seller_note: "Staged listing for marketplace testing. Confirm item details and availability directly with the seller.",
     _region: listing.region,
     _city: listing.city,
     _state: listing.state,

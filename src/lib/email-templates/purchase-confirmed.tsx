@@ -32,8 +32,8 @@ export const template = {
     d["orderNumber"] ? `Order ${d["orderNumber"]} confirmed` : "Your Gem State Classifieds order is confirmed",
   displayName: "Purchase confirmed (buyer)",
   previewData: {
-    itemName: "Haunted Mansion Holiday Sipper",
-    orderNumber: "PV-100234",
+    itemName: "2019 Toyota Tacoma TRD Off-Road 4x4",
+    orderNumber: "GS-100234",
     totalCents: 6499,
     currency: "USD",
     orderPath: "/orders/example",

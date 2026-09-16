@@ -13,9 +13,9 @@ interface Props {
 
 const Email = ({ itemName, orderNumber, feeCents, maxSpendCents, currency, orderPath }: Props) => (
   <EmailShell
-    preview="You have a new park shopping job"
+    preview="You have a new marketplace assistance request"
     heading="New shopping job"
-    intro={`A buyer has paid for a park-sourcing job${itemName ? ` for ${itemName}` : ""}. Open the job to start shopping, then record the receipt and ship it.`}
+    intro={`A buyer has paid for a marketplace assistance request${itemName ? ` for ${itemName}` : ""}. Open the request to review the details and next steps.`}
     facts={[
       { label: "Item", value: itemName ?? "" },
       { label: "Order", value: orderNumber ?? "" },
@@ -29,11 +29,11 @@ const Email = ({ itemName, orderNumber, feeCents, maxSpendCents, currency, order
 
 export const template = {
   component: Email,
-  subject: "New park shopping job",
+  subject: "New marketplace assistance request",
   displayName: "New shopping job (shopper)",
   previewData: {
-    itemName: "Figment Attraction Pin",
-    orderNumber: "PV-100240",
+    itemName: "Portable propane fire pit",
+    orderNumber: "GS-100240",
     feeCents: 2500,
     maxSpendCents: 3500,
     currency: "USD",

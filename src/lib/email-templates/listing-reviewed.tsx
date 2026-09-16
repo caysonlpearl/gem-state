@@ -36,7 +36,7 @@ export const template = {
   displayName: "Listing review outcome (seller)",
   previewData: {
     approved: true,
-    itemName: "Figment Attraction Pin",
+    itemName: "2021 Ford F-150 XLT SuperCrew 4WD",
     priceCents: 3800,
     currency: "USD",
   },

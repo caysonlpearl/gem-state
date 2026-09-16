@@ -15,12 +15,12 @@ const copy = {
   started: {
     heading: "Your shopper is shopping",
     intro:
-      "Your park shopper has started looking for your item. You will hear back as soon as they find it.",
+      "Your marketplace assistance request is in progress. You will hear back as soon as there is an update.",
     cta: "View your order",
   },
   purchased: {
     heading: "Your shopper found your item",
-    intro: "Your shopper bought your item in the park and will ship it next.",
+    intro: "Your marketplace helper found the item and will move it to the next step.",
     cta: "View your order",
   },
   balance_due: {
@@ -32,7 +32,7 @@ const copy = {
   unavailable: {
     heading: "Your item could not be found",
     intro:
-      "Your shopper could not find this item in the park, so your order was cancelled and refunded in full.",
+      "Your marketplace helper could not complete this request, so the order was cancelled and refunded in full.",
     cta: "View your order",
   },
 } as const;
@@ -81,8 +81,8 @@ export const template = {
   displayName: "Sourcing update (buyer)",
   previewData: {
     stage: "started",
-    itemName: "Figment Attraction Pin",
-    orderNumber: "PV-100240",
+    itemName: "Portable propane fire pit",
+    orderNumber: "GS-100240",
     currency: "USD",
     orderPath: "/orders/example",
   },

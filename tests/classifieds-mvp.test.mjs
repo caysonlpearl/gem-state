@@ -275,7 +275,7 @@ test("step five seed fixtures cover realistic Idaho vehicle browse cases", () =>
     assert.ok(listing.vehicle.title_status);
     assert.match(
       listing.description,
-      /Example Idaho vehicle listing used to validate browsing and seller contact flows/,
+      /Staged Idaho listing for marketplace testing/,
     );
   }
 });
