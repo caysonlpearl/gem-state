@@ -1171,24 +1171,24 @@ function HomesFilterPage({
   }, [search.homeLocation, search.q, search.homePrice, search.propertyType, search.bedrooms, search.bathrooms]);
 
   const extraFields = activeTab === "build"
-    ? [
-        { key: "homeSquareFeet", label: "Square feet", options: homeSquareFeetOptions },
-        { key: "homeBuilder", label: "Home builder", options: ["Any builder", "Local builders", "National builders"] },
-      ]
+      ? [
+          { key: "homeSquareFeet", label: "Square feet", options: homeSquareFeetOptions, multi: false },
+          { key: "homeBuilder", label: "Home builder", options: ["Any builder", "Local builders", "National builders"], multi: true },
+        ]
       : activeTab === "buy"
       ? [
-          { key: "homeSquareFeet", label: "Square feet", options: homeSquareFeetOptions },
-          { key: "constructionType", label: "Construction type", options: ["Any construction", "New construction", "Existing home"] },
-          { key: "homeAcres", label: "Acres", options: homeAcresOptions },
-          { key: "homeSellerType", label: "Seller type", options: ["Any seller", "Owner", "Agent", "Builder"] },
+          { key: "homeSquareFeet", label: "Square feet", options: homeSquareFeetOptions, multi: false },
+          { key: "constructionType", label: "Construction type", options: ["Any construction", "New construction", "Existing home"], multi: true },
+          { key: "homeAcres", label: "Acres", options: homeAcresOptions, multi: false },
+          { key: "homeSellerType", label: "Seller type", options: ["Any seller", "Owner", "Agent", "Builder"], multi: true },
         ]
       : [
-          { key: "petsCats", label: "Cats", options: ["Any cat policy", "Cats allowed", "Cats not allowed"] },
-          { key: "petsDogs", label: "Dogs", options: ["Any dog policy", "Dogs allowed", "Dogs not allowed"] },
-          { key: "homeAmenities", label: "Home amenities", options: homeAmenitiesOptions },
-          { key: "communityAmenities", label: "Community amenities", options: communityAmenitiesOptions },
-          { key: "leaseLength", label: "Lease length", options: leaseLengthOptions },
-          { key: "homeSquareFeet", label: "Square feet", options: homeSquareFeetOptions },
+          { key: "petsCats", label: "Cats", options: ["Any cat policy", "Cats allowed", "Cats not allowed"], multi: false },
+          { key: "petsDogs", label: "Dogs", options: ["Any dog policy", "Dogs allowed", "Dogs not allowed"], multi: false },
+          { key: "homeAmenities", label: "Home amenities", options: homeAmenitiesOptions, multi: true },
+          { key: "communityAmenities", label: "Community amenities", options: communityAmenitiesOptions, multi: true },
+          { key: "leaseLength", label: "Lease length", options: leaseLengthOptions, multi: false },
+          { key: "homeSquareFeet", label: "Square feet", options: homeSquareFeetOptions, multi: false },
         ];
 
   function apply() {
@@ -1234,10 +1234,10 @@ function HomesFilterPage({
         }}
       >
         <HomeFilterControl label="County, city, neighborhood, or ZIP" value={location} onChange={setLocation} input />
-        <HomeFilterControl label="Property type" value={propertyType} options={homePropertyTypes} onChange={setPropertyType} />
+        <HomeFilterControl label="Property type" value={propertyType} options={homePropertyTypes} multi onChange={setPropertyType} />
         <HomePriceRangeControl value={homePrice} onChange={setHomePrice} />
-        <HomeFilterControl label="Bedrooms" value={bedrooms} options={homeBedroomOptions} onChange={setBedrooms} />
-        <HomeFilterControl label={activeTab === "rent" ? "Bathrooms" : "Bathrooms"} value={bathrooms} options={homeBathroomOptions} onChange={setBathrooms} />
+        <HomeFilterControl label="Bedrooms" value={bedrooms} options={homeBedroomOptions} multi={false} onChange={setBedrooms} />
+        <HomeFilterControl label={activeTab === "rent" ? "Bathrooms" : "Bathrooms"} value={bathrooms} options={homeBathroomOptions} multi={false} onChange={setBathrooms} />
         <button type="submit" className="h-11 rounded-xl border border-primary px-4 text-[12px] font-bold text-primary hover:bg-primary hover:text-primary-foreground">Search</button>
       </form>
 
@@ -1264,6 +1264,7 @@ function HomesFilterPage({
                 label={field.label}
                 value={extra[field.key] ?? ""}
                 options={field.options}
+                multi={field.multi}
                 onChange={(value) => setExtra((current) => ({ ...current, [field.key]: value }))}
               />
             </div>
@@ -1280,15 +1281,17 @@ function HomeFilterControl({
   options,
   onChange,
   input = false,
+  multi = false,
 }: {
   label: string;
   value: string;
   options?: readonly string[];
   onChange: (value: string) => void;
   input?: boolean;
+  multi?: boolean;
 }) {
   if (!input && options) {
-    return <HomeMultiSelectControl label={label} value={value} options={options} onChange={onChange} />;
+    return <HomeMultiSelectControl label={label} value={value} options={options} multi={multi} onChange={onChange} />;
   }
 
   return input ? (
@@ -1384,21 +1387,24 @@ function HomeMultiSelectControl({
   label,
   value,
   options,
+  multi = false,
   onChange,
 }: {
   label: string;
   value: string;
   options: readonly string[];
+  multi?: boolean;
   onChange: (value: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const selected = value ? value.split("||").filter(Boolean) : [];
-  const summary = selected.length === 0
+  const visibleSelected = multi ? selected : selected.slice(0, 1);
+  const summary = visibleSelected.length === 0
     ? options[0]
-    : selected.length === 1
-      ? selected[0]
-      : `${selected.length} selected`;
+    : visibleSelected.length === 1
+      ? visibleSelected[0]
+      : `${visibleSelected.length} selected`;
 
   useEffect(() => {
     if (!open) return;
@@ -1412,6 +1418,10 @@ function HomeMultiSelectControl({
   function toggle(option: string) {
     if (option === options[0]) {
       onChange("");
+      return;
+    }
+    if (!multi) {
+      onChange(visibleSelected[0] === option ? "" : option);
       return;
     }
     const next = selected.includes(option)
@@ -1435,7 +1445,7 @@ function HomeMultiSelectControl({
       {open && (
         <div className="absolute left-0 top-full z-40 mt-2 max-h-72 w-full min-w-[230px] overflow-y-auto rounded-xl border border-border bg-card p-1 shadow-xl">
           {options.map((option) => {
-            const checked = option === options[0] ? selected.length === 0 : selected.includes(option);
+            const checked = option === options[0] ? visibleSelected.length === 0 : visibleSelected.includes(option);
             return (
               <button
                 key={option}

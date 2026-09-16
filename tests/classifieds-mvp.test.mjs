@@ -566,8 +566,24 @@ test("homes browse has a large landing hero and tab-specific filter views", () =
   assert.match(browseSource, /if \(!input && options\)/);
   assert.match(browseSource, /Minimum price/);
   assert.match(browseSource, /Maximum price/);
-  assert.match(browseSource, /selected\.length === 1/);
-  assert.match(browseSource, /\$\{selected\.length\} selected/);
+  assert.match(browseSource, /visibleSelected\.length === 1/);
+  assert.match(browseSource, /\$\{visibleSelected\.length\} selected/);
+  for (const selectionRule of [
+    'label="Property type" value={propertyType} options={homePropertyTypes} multi onChange',
+    'label="Bedrooms" value={bedrooms} options={homeBedroomOptions} multi={false}',
+    'label={activeTab === "rent" ? "Bathrooms" : "Bathrooms"} value={bathrooms} options={homeBathroomOptions} multi={false}',
+    'label: "Square feet", options: homeSquareFeetOptions, multi: false',
+    'label: "Construction type", options: ["Any construction", "New construction", "Existing home"], multi: true',
+    'label: "Acres", options: homeAcresOptions, multi: false',
+    'label: "Seller type", options: ["Any seller", "Owner", "Agent", "Builder"], multi: true',
+    'label: "Cats", options: ["Any cat policy", "Cats allowed", "Cats not allowed"], multi: false',
+    'label: "Dogs", options: ["Any dog policy", "Dogs allowed", "Dogs not allowed"], multi: false',
+    'label: "Home amenities", options: homeAmenitiesOptions, multi: true',
+    'label: "Community amenities", options: communityAmenitiesOptions, multi: true',
+    'label: "Lease length", options: leaseLengthOptions, multi: false',
+  ]) {
+    assert.ok(browseSource.includes(selectionRule), `missing home filter selection rule: ${selectionRule}`);
+  }
   for (const option of [
     "<250",
     "10000+",
