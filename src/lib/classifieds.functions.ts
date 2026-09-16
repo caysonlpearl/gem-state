@@ -248,7 +248,7 @@ export const browseClassifieds = createServerFn({ method: "GET" })
     }
     if (data.region) query = query.eq("classified_listing_details.region", data.region);
     if (data.city) query = query.ilike("classified_listing_details.city", data.city);
-    if (data.condition) query = query.eq("item_condition", data.condition);
+    if (data.condition) query = query.eq("item_condition", data.condition as never);
     if (data.fulfillment) {
       query =
         data.fulfillment === "both"
@@ -304,10 +304,11 @@ export const browseClassifieds = createServerFn({ method: "GET" })
       return empty;
     }
 
+    const records = (rows ?? []) as unknown as Record<string, unknown>[];
     const urlByPath = await signListingMedia(
-      (rows ?? []).flatMap((row) => sortedMedia(row as Record<string, unknown>).slice(0, 1)),
+      records.flatMap((row) => sortedMedia(row).slice(0, 1)),
     );
-    const listings = (rows ?? []).map((row) => toCard(row as Record<string, unknown>, urlByPath));
+    const listings = records.map((row) => toCard(row, urlByPath));
     return { listings, total: count ?? listings.length, page, pageSize: PAGE_SIZE };
   });
 
@@ -352,11 +353,17 @@ export const getClassifiedListing = createServerFn({ method: "GET" })
 export type ClassifiedRelated = { listings: ClassifiedCard[] };
 
 export const getRelatedClassifieds = createServerFn({ method: "GET" })
-  .inputValidator((input: { category?: string; region?: string; excludeId: string }) => ({
-    category: text(input?.category, 60),
-    region: text(input?.region),
-    excludeId: String(input?.excludeId ?? "").slice(0, 64),
-  }))
+  .inputValidator(
+    (input: {
+      category?: string | undefined;
+      region?: string | undefined;
+      excludeId: string;
+    }) => ({
+      category: text(input?.category, 60),
+      region: text(input?.region),
+      excludeId: String(input?.excludeId ?? "").slice(0, 64),
+    }),
+  )
   .handler(async ({ data }): Promise<ClassifiedRelated> => {
     if (!data.category) return { listings: [] };
     const result = await browseClassifieds({
