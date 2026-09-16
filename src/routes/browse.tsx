@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
   CaretDown,
@@ -106,8 +106,6 @@ const homeTabs: { value: HomeTab; label: string; eyebrow: string }[] = [
 ];
 
 const homePropertyTypes = ["Any property type", "Single family", "Townhome", "Condo", "Land", "Multi-family"];
-const homePriceOptions = ["Any price", "Under $250k", "$250k–$500k", "$500k–$750k", "$750k+"];
-const rentPriceOptions = ["Any price", "Under $1,500", "$1,500–$2,500", "$2,500–$3,500", "$3,500+"];
 const homeBedroomOptions = ["Any bedrooms", "Studio", "1+ bedrooms", "2+ bedrooms", "3+ bedrooms", "4+ bedrooms"];
 const homeBathroomOptions = ["Any bathrooms", "1+ bathrooms", "2+ bathrooms", "3+ bathrooms", "4+ bathrooms"];
 const homeSquareFeetOptions = ["Any", "<250", "250+", "500+", "1000+", "1500+", "2000+", "3000+", "4000+", "5000+", "10000+"];
@@ -307,8 +305,8 @@ export const Route = createFileRoute("/browse")({
       homeSellerType: stringParam(search, "homeSellerType", 40),
       petsCats: stringParam(search, "petsCats", 20),
       petsDogs: stringParam(search, "petsDogs", 20),
-      homeAmenities: stringParam(search, "homeAmenities", 40),
-      communityAmenities: stringParam(search, "communityAmenities", 40),
+      homeAmenities: stringParam(search, "homeAmenities", 600),
+      communityAmenities: stringParam(search, "communityAmenities", 800),
       leaseLength: stringParam(search, "leaseLength", 30),
     };
   },
@@ -1172,26 +1170,25 @@ function HomesFilterPage({
     setBathrooms(search.bathrooms ?? "");
   }, [search.homeLocation, search.q, search.homePrice, search.propertyType, search.bedrooms, search.bathrooms]);
 
-  const priceOptions = activeTab === "rent" ? rentPriceOptions : homePriceOptions;
   const extraFields = activeTab === "build"
     ? [
-        { key: "homeSquareFeet", label: "Square feet", options: homeSquareFeetOptions, multi: false },
-        { key: "homeBuilder", label: "Home builder", options: ["Any builder", "Local builders", "National builders"], multi: false },
+        { key: "homeSquareFeet", label: "Square feet", options: homeSquareFeetOptions },
+        { key: "homeBuilder", label: "Home builder", options: ["Any builder", "Local builders", "National builders"] },
       ]
       : activeTab === "buy"
       ? [
-          { key: "homeSquareFeet", label: "Square feet", options: homeSquareFeetOptions, multi: false },
-          { key: "constructionType", label: "Construction type", options: ["Any construction", "New construction", "Existing home"], multi: false },
-          { key: "homeAcres", label: "Acres", options: homeAcresOptions, multi: false },
-          { key: "homeSellerType", label: "Seller type", options: ["Any seller", "Owner", "Agent", "Builder"], multi: false },
+          { key: "homeSquareFeet", label: "Square feet", options: homeSquareFeetOptions },
+          { key: "constructionType", label: "Construction type", options: ["Any construction", "New construction", "Existing home"] },
+          { key: "homeAcres", label: "Acres", options: homeAcresOptions },
+          { key: "homeSellerType", label: "Seller type", options: ["Any seller", "Owner", "Agent", "Builder"] },
         ]
       : [
-          { key: "petsCats", label: "Cats", options: ["Any cat policy", "Cats allowed", "Cats not allowed"], multi: false },
-          { key: "petsDogs", label: "Dogs", options: ["Any dog policy", "Dogs allowed", "Dogs not allowed"], multi: false },
-          { key: "homeAmenities", label: "Home amenities", options: homeAmenitiesOptions, multi: true },
-          { key: "communityAmenities", label: "Community amenities", options: communityAmenitiesOptions, multi: true },
-          { key: "leaseLength", label: "Lease length", options: leaseLengthOptions, multi: false },
-          { key: "homeSquareFeet", label: "Square feet", options: homeSquareFeetOptions, multi: false },
+          { key: "petsCats", label: "Cats", options: ["Any cat policy", "Cats allowed", "Cats not allowed"] },
+          { key: "petsDogs", label: "Dogs", options: ["Any dog policy", "Dogs allowed", "Dogs not allowed"] },
+          { key: "homeAmenities", label: "Home amenities", options: homeAmenitiesOptions },
+          { key: "communityAmenities", label: "Community amenities", options: communityAmenitiesOptions },
+          { key: "leaseLength", label: "Lease length", options: leaseLengthOptions },
+          { key: "homeSquareFeet", label: "Square feet", options: homeSquareFeetOptions },
         ];
 
   function apply() {
@@ -1238,7 +1235,7 @@ function HomesFilterPage({
       >
         <HomeFilterControl label="County, city, neighborhood, or ZIP" value={location} onChange={setLocation} input />
         <HomeFilterControl label="Property type" value={propertyType} options={homePropertyTypes} onChange={setPropertyType} />
-        <HomeFilterControl label="Price" value={homePrice} options={priceOptions} onChange={setHomePrice} />
+        <HomePriceRangeControl value={homePrice} onChange={setHomePrice} />
         <HomeFilterControl label="Bedrooms" value={bedrooms} options={homeBedroomOptions} onChange={setBedrooms} />
         <HomeFilterControl label={activeTab === "rent" ? "Bathrooms" : "Bathrooms"} value={bathrooms} options={homeBathroomOptions} onChange={setBathrooms} />
         <button type="submit" className="h-11 rounded-xl border border-primary px-4 text-[12px] font-bold text-primary hover:bg-primary hover:text-primary-foreground">Search</button>
@@ -1267,7 +1264,6 @@ function HomesFilterPage({
                 label={field.label}
                 value={extra[field.key] ?? ""}
                 options={field.options}
-                multi={field.multi}
                 onChange={(value) => setExtra((current) => ({ ...current, [field.key]: value }))}
               />
             </div>
@@ -1284,16 +1280,14 @@ function HomeFilterControl({
   options,
   onChange,
   input = false,
-  multi = false,
 }: {
   label: string;
   value: string;
   options?: readonly string[];
   onChange: (value: string) => void;
   input?: boolean;
-  multi?: boolean;
 }) {
-  if (multi && options) {
+  if (!input && options) {
     return <HomeMultiSelectControl label={label} value={value} options={options} onChange={onChange} />;
   }
 
@@ -1314,6 +1308,78 @@ function HomeFilterControl({
   );
 }
 
+function HomePriceRangeControl({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [min, max] = value.split("||");
+  const summary = min || max ? `$${min || "0"} – ${max ? `$${max}` : "No max"}` : "Any price";
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", closeOnOutsideClick);
+    return () => document.removeEventListener("mousedown", closeOnOutsideClick);
+  }, [open]);
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        type="button"
+        aria-label="Price"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+        className="flex h-[88px] w-full items-center justify-between gap-3 rounded-xl border border-input bg-card px-3 text-left text-[12px] text-foreground outline-none focus:border-primary"
+      >
+        <span className="min-w-0 truncate">{summary}</span>
+        <CaretDown size={14} className={`shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true" />
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full z-40 mt-2 w-full min-w-[260px] rounded-xl border border-border bg-card p-3 shadow-xl">
+          <div className="grid grid-cols-2 gap-2">
+            <label className="min-w-0">
+              <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Min price</span>
+              <span className="flex h-12 items-center gap-1 rounded-lg border border-input px-2">
+                <span className="text-muted-foreground">$</span>
+                <input
+                  aria-label="Minimum price"
+                  inputMode="numeric"
+                  value={min ?? ""}
+                  onChange={(event) => onChange(`${event.target.value}||${max ?? ""}`)}
+                  placeholder="0"
+                  className="min-w-0 w-full bg-transparent text-[12px] outline-none"
+                />
+              </span>
+            </label>
+            <label className="min-w-0">
+              <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Max price</span>
+              <span className="flex h-12 items-center gap-1 rounded-lg border border-input px-2">
+                <span className="text-muted-foreground">$</span>
+                <input
+                  aria-label="Maximum price"
+                  inputMode="numeric"
+                  value={max ?? ""}
+                  onChange={(event) => onChange(`${min ?? ""}||${event.target.value}`)}
+                  placeholder="No max"
+                  className="min-w-0 w-full bg-transparent text-[12px] outline-none"
+                />
+              </span>
+            </label>
+          </div>
+          <button type="button" onClick={() => setOpen(false)} className="mt-3 h-10 w-full rounded-lg bg-primary text-[12px] font-semibold text-primary-foreground">Done</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function HomeMultiSelectControl({
   label,
   value,
@@ -1326,12 +1392,22 @@ function HomeMultiSelectControl({
   onChange: (value: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   const selected = value ? value.split("||").filter(Boolean) : [];
   const summary = selected.length === 0
     ? options[0]
     : selected.length === 1
       ? selected[0]
       : `${selected.length} selected`;
+
+  useEffect(() => {
+    if (!open) return;
+    const closeOnOutsideClick = (event: MouseEvent) => {
+      if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", closeOnOutsideClick);
+    return () => document.removeEventListener("mousedown", closeOnOutsideClick);
+  }, [open]);
 
   function toggle(option: string) {
     if (option === options[0]) {
@@ -1345,7 +1421,7 @@ function HomeMultiSelectControl({
   }
 
   return (
-    <div className="relative">
+    <div ref={containerRef} className="relative">
       <button
         type="button"
         aria-label={label}
