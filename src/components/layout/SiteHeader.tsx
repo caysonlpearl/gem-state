@@ -24,7 +24,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
  *
  * Level 1: brand mark, keyword search, post-a-listing, account and utilities.
  * Level 2: a small set of featured categories, with the complete taxonomy
- *          available through the All categories popover.
+ *          available through the Classifieds popover.
  *
  * Header links are never styled by active state, so the server-rendered markup
  * and the hydrated markup stay identical even when the router resolves a
@@ -40,12 +40,10 @@ const pinned = { activeProps: { className: "" }, inactiveProps: { className: "" 
 const navigationCategories = classifiedCategories.filter((c) => c.slug !== "general");
 
 const featuredHeaderCategories = [
-  { slug: "cars-trucks", name: "Cars & Trucks" },
-  { slug: "appliances", name: "Appliances" },
-  { slug: "electronics", name: "Electronics" },
-  { slug: "furniture", name: "Furniture" },
-  { slug: "home-garden", name: "Home & Garden" },
-  { slug: "pets", name: "Pets" },
+  { slug: "cars-trucks", name: "Cars" },
+  { slug: "other-real-estate", name: "Homes" },
+  { slug: "jobs", name: "Jobs" },
+  { slug: "services", name: "Services" },
 ] as const;
 
 type CategoryMenuItem = {
@@ -84,7 +82,7 @@ const allCategoryMenuItems = [
   { slug: "jobs", name: "Jobs", group: "classifieds" },
   { slug: "livestock", name: "Livestock", group: "classifieds" },
   { slug: "musical-instruments", name: "Musical Instruments", group: "classifieds" },
-  { slug: "other-real-estate", name: "Other Real Estate", group: "classifieds" },
+  { slug: "other-real-estate", name: "Homes", group: "classifieds" },
   { slug: "outdoor-sporting", name: "Outdoors and Sporting", group: "classifieds" },
   { slug: "pets", name: "Pets", group: "classifieds" },
   { slug: "services", name: "Services", group: "classifieds" },
@@ -118,9 +116,9 @@ function AllCategoriesPopover({
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button type="button" aria-label="All categories" className={triggerClassName}>
+        <button type="button" aria-label="Classifieds" className={triggerClassName}>
           <CategoryArtwork slug="general" size={compact ? 36 : 64} className={artworkClassName} />
-          <span>All categories</span>
+          <span>Classifieds</span>
           <CaretDown size={15} weight="bold" aria-hidden="true" className="ml-auto shrink-0" />
         </button>
       </PopoverTrigger>

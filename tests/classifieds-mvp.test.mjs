@@ -361,19 +361,19 @@ test("shared category icons and no-photo cards have deterministic presentation",
   assert.match(stylesSource, /prefers-reduced-motion: no-preference/);
 });
 
-test("header categories show six featured categories and an all-categories control", () => {
+test("header categories show four primary destinations and a Classifieds control", () => {
   assert.match(headerSource, /function AllCategoriesPopover/);
   assert.match(headerSource, /featuredHeaderCategories = \[/);
   for (const label of [
-    "Cars & Trucks",
-    "Appliances",
-    "Electronics",
-    "Furniture",
-    "Home & Garden",
-    "Pets",
+    "Cars",
+    "Homes",
+    "Jobs",
+    "Services",
   ]) {
     assert.match(headerSource, new RegExp(`name: "${label.replace(/&/g, "\\&")}"`));
   }
+  assert.match(headerSource, /aria-label="Classifieds"/);
+  assert.match(headerSource, /<span>Classifieds<\/span>/);
   assert.doesNotMatch(headerSource, /Scroll categories left/);
   assert.doesNotMatch(headerSource, /Scroll categories right/);
   assert.doesNotMatch(headerSource, /scrollBy\(/);
@@ -388,7 +388,7 @@ test("header categories show six featured categories and an all-categories contr
 test("all categories opens a labeled icon menu with KSL-style sections", () => {
   assert.match(headerSource, /PopoverContent/);
   assert.match(headerSource, /function AllCategoriesPopover/);
-  assert.match(headerSource, /aria-label="All categories"/);
+  assert.match(headerSource, /aria-label="Classifieds"/);
   assert.match(
     headerSource,
     /<p className="text-\[18px\] font-semibold tracking-tight">All categories<\/p>/,
@@ -419,7 +419,7 @@ test("all categories opens a labeled icon menu with KSL-style sections", () => {
     "Jobs",
     "Livestock",
     "Musical Instruments",
-    "Other Real Estate",
+    "Homes",
     "Pets",
     "Services",
     "Tickets",
