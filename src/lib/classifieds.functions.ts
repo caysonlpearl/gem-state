@@ -56,6 +56,7 @@ export type ClassifiedCard = {
 export type ClassifiedDetail = ClassifiedCard & {
   description: string | null;
   postalCode: string | null;
+  expiresAt: string | null;
   sellerNote: string | null;
   variantId: string;
   seller: {
@@ -180,7 +181,11 @@ export const getAdminClassifiedQueue = createServerFn({ method: "GET" })
           sellerHandle: row.seller_handle,
           sellerNote: row.seller_note,
           vehicle: vehicleOf(details),
-          listingImageUrls: await signedAdminUrls("listing-media", row.listing_media_paths, context.supabase),
+          listingImageUrls: await signedAdminUrls(
+            "listing-media",
+            row.listing_media_paths,
+            context.supabase,
+          ),
           evidenceImageUrls: await signedAdminUrls("ask-evidence", row.evidence_paths),
           createdAt: row.created_at,
         } satisfies AdminClassifiedRow;
@@ -412,7 +417,7 @@ const conditionValues = [
 ] as const;
 
 const LISTING_SELECT =
-  "id, product_id, variant_id, seller_id, price_cents, currency, item_condition, seller_note, created_at, " +
+  "id, product_id, variant_id, seller_id, price_cents, currency, item_condition, seller_note, created_at, expires_at, " +
   "products!inner(id, slug, name, description, status, category_id, categories(slug, name)), " +
   "classified_listing_details!inner(region, city, state, postal_code, fulfillment_mode, vehicle_make, vehicle_model, vehicle_year, vehicle_trim, vehicle_mileage, vehicle_body_style, vehicle_transmission, vehicle_drivetrain, vehicle_fuel_type, vehicle_exterior_color, vehicle_title_status, vin), " +
   "listing_media(storage_path, position)";
@@ -477,7 +482,10 @@ function sortedMedia(row: Record<string, unknown>): string[] {
 }
 
 /** Buyer-facing listing photos are short-lived signed URLs for approved media. */
-async function signListingMedia(paths: string[], client = publicServerClient()): Promise<Map<string, string>> {
+async function signListingMedia(
+  paths: string[],
+  client = publicServerClient(),
+): Promise<Map<string, string>> {
   const unique = [...new Set(paths)];
   if (unique.length === 0) return new Map();
 
@@ -500,7 +508,11 @@ async function signListingMedia(paths: string[], client = publicServerClient()):
   );
 }
 
-async function signedAdminUrls(bucket: string, paths: string[] | null, client?: any): Promise<string[]> {
+async function signedAdminUrls(
+  bucket: string,
+  paths: string[] | null,
+  client?: any,
+): Promise<string[]> {
   if (!paths?.length) return [];
 
   if (bucket === "listing-media") {
@@ -554,6 +566,7 @@ export type ClassifiedBrowseInput = {
   region?: string | undefined;
   state?: string | undefined;
   city?: string | undefined;
+  sellerSlug?: string | undefined;
   condition?: string | undefined;
   fulfillment?: string | undefined;
   priceMin?: number | undefined;
@@ -576,7 +589,10 @@ export type ClassifiedBrowseInput = {
 const text = (value: unknown, max = 80) =>
   typeof value === "string" && value.trim() ? value.trim().slice(0, max) : undefined;
 const filterValues = (value: string | undefined) =>
-  value?.split("||").map((item) => item.trim()).filter(Boolean) ?? [];
+  value
+    ?.split("||")
+    .map((item) => item.trim())
+    .filter(Boolean) ?? [];
 const num = (value: unknown) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : undefined;
@@ -590,7 +606,11 @@ export const browseClassifieds = createServerFn({ method: "GET" })
     region: text(input?.region),
     state: text(input?.state, 2)?.toUpperCase(),
     city: text(input?.city),
-    condition: filterValues(text(input?.condition, 120)).filter((value) => conditionValues.includes(value as never)).join("||") || undefined,
+    sellerSlug: text(input?.sellerSlug, 60),
+    condition:
+      filterValues(text(input?.condition, 120))
+        .filter((value) => conditionValues.includes(value as never))
+        .join("||") || undefined,
     fulfillment: text(input?.fulfillment, 20),
     priceMin: num(input?.priceMin),
     priceMax: num(input?.priceMax),
@@ -655,14 +675,30 @@ export const browseClassifieds = createServerFn({ method: "GET" })
     if (data.region) query = query.eq("classified_listing_details.region", data.region);
     if (data.state) query = query.eq("classified_listing_details.state", data.state);
     if (data.city) query = query.ilike("classified_listing_details.city", data.city);
+    if (data.sellerSlug) {
+      const { data: seller } = await client
+        .from("seller_storefronts")
+        .select("user_id")
+        .eq("slug", data.sellerSlug)
+        .maybeSingle();
+      if (!seller?.user_id) return empty;
+      query = query.eq("seller_id", seller.user_id);
+    }
     if (data.condition) {
-      const conditions = filterValues(data.condition).filter((value) => conditionValues.includes(value as never));
+      const conditions = filterValues(data.condition).filter((value) =>
+        conditionValues.includes(value as never),
+      );
       const expandedConditions = conditions.includes("new_with_tags")
         ? [...new Set([...conditions, "new_without_tags"])]
         : conditions;
       const [firstCondition, ...otherConditions] = expandedConditions;
-      if (firstCondition && otherConditions.length === 0) query = query.eq("item_condition", firstCondition as (typeof conditionValues)[number]);
-      if (firstCondition && otherConditions.length > 0) query = query.in("item_condition", [firstCondition, ...otherConditions] as (typeof conditionValues)[number][]);
+      if (firstCondition && otherConditions.length === 0)
+        query = query.eq("item_condition", firstCondition as (typeof conditionValues)[number]);
+      if (firstCondition && otherConditions.length > 0)
+        query = query.in("item_condition", [
+          firstCondition,
+          ...otherConditions,
+        ] as (typeof conditionValues)[number][]);
     }
     if (data.fulfillment) {
       const fulfillment = filterValues(data.fulfillment);
@@ -696,7 +732,12 @@ export const browseClassifieds = createServerFn({ method: "GET" })
       [data.titleStatus, "classified_listing_details.vehicle_title_status"],
     ] as const) {
       const values = filterValues(value);
-      if (values.length > 0) query = applyReferencedFilter(query, column.replace("classified_listing_details.", ""), values);
+      if (values.length > 0)
+        query = applyReferencedFilter(
+          query,
+          column.replace("classified_listing_details.", ""),
+          values,
+        );
     }
 
     switch (data.sort) {
@@ -775,6 +816,7 @@ export const getClassifiedListing = createServerFn({ method: "GET" })
       ...card,
       description: product.description,
       postalCode: (details["postal_code"] as string | null) ?? null,
+      expiresAt: (record["expires_at"] as string | null) ?? null,
       sellerNote: (record["seller_note"] as string | null) ?? null,
       variantId: record["variant_id"] as string,
       seller: sellerRow
@@ -799,15 +841,24 @@ export const getClassifiedListing = createServerFn({ method: "GET" })
 export type ClassifiedRelated = { listings: ClassifiedCard[] };
 
 export const getRelatedClassifieds = createServerFn({ method: "GET" })
-  .inputValidator((input: { category?: string; region?: string; excludeId: string }) => ({
-    category: text(input?.category, 60),
-    region: text(input?.region),
-    excludeId: String(input?.excludeId ?? "").slice(0, 64),
-  }))
+  .inputValidator(
+    (input: { category?: string; region?: string; sellerSlug?: string; excludeId: string }) => ({
+      category: text(input?.category, 60),
+      region: text(input?.region),
+      sellerSlug: text(input?.sellerSlug, 60),
+      excludeId: String(input?.excludeId ?? "").slice(0, 64),
+    }),
+  )
   .handler(async ({ data }): Promise<ClassifiedRelated> => {
-    if (!data.category) return { listings: [] };
+    if (!data.category && !data.sellerSlug) return { listings: [] };
     const result = await browseClassifieds({
-      data: { category: data.category, region: data.region, sort: "newest", page: 1 },
+      data: {
+        ...(data.category ? { category: data.category } : {}),
+        ...(data.region ? { region: data.region } : {}),
+        ...(data.sellerSlug ? { sellerSlug: data.sellerSlug } : {}),
+        sort: "newest",
+        page: 1,
+      },
     });
     return { listings: result.listings.filter((row) => row.id !== data.excludeId).slice(0, 8) };
   });

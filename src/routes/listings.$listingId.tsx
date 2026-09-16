@@ -11,6 +11,7 @@ import {
   Clock,
   Eye,
   Flag,
+  FileText,
   GearSix,
   Gauge,
   Info,
@@ -300,6 +301,95 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
   );
 }
 
+function VehicleHistoryCard({ vehicle }: { vehicle: ClassifiedDetail["vehicle"] }) {
+  if (!vehicle) return null;
+  return (
+    <section className="soft-card px-5 py-5">
+      <div className="flex items-center gap-2">
+        <FileText size={18} weight="duotone" className="text-primary" />
+        <h2 className="text-[14px] font-bold">Vehicle history</h2>
+      </div>
+      <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">
+        Review title, accident, and ownership history before you buy. A CARFAX report may require a
+        separate purchase.
+      </p>
+      <a
+        href="https://www.carfax.com/vehicle-history-reports/"
+        target="_blank"
+        rel="noreferrer"
+        className="mt-4 inline-flex items-center gap-1 text-[12.5px] font-semibold text-primary hover:underline"
+      >
+        Get a CARFAX report <CaretRight size={15} />
+      </a>
+    </section>
+  );
+}
+
+function PageStatsCard({ listing }: { listing: ClassifiedDetail }) {
+  const formatDate = (value: string) =>
+    new Date(value).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+  return (
+    <section className="soft-card px-5 py-5">
+      <h2 className="text-[14px] font-bold">Page stats</h2>
+      <dl className="mt-3 divide-y divide-border/70 text-[12px]">
+        <div className="flex items-center justify-between gap-4 py-2 first:pt-0">
+          <dt className="text-muted-foreground">Listing ID</dt>
+          <dd className="numeric text-right font-medium">{listing.id}</dd>
+        </div>
+        <div className="flex items-center justify-between gap-4 py-2">
+          <dt className="text-muted-foreground">Posted</dt>
+          <dd className="text-right font-medium">{formatDate(listing.createdAt)}</dd>
+        </div>
+        {listing.expiresAt && (
+          <div className="flex items-center justify-between gap-4 py-2">
+            <dt className="text-muted-foreground">Expires</dt>
+            <dd className="text-right font-medium">{formatDate(listing.expiresAt)}</dd>
+          </div>
+        )}
+        <div className="flex items-center justify-between gap-4 py-2 last:pb-0">
+          <dt className="text-muted-foreground">Status</dt>
+          <dd className="inline-flex items-center gap-1.5 text-right font-medium text-primary">
+            <CheckCircle size={13} weight="fill" /> Active
+          </dd>
+        </div>
+      </dl>
+    </section>
+  );
+}
+
+function TrustSafetyCard({ listing }: { listing: ClassifiedDetail }) {
+  return (
+    <section className="soft-card px-5 py-5">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-[14px] font-bold">Safe. Simple. Local.</h2>
+        <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary">
+          <ShieldCheck size={13} weight="fill" /> GemList trust
+        </span>
+      </div>
+      <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">
+        GemList reviews listings for marketplace policy. Always inspect the vehicle, verify the
+        paperwork, and confirm the final price before exchanging money.
+      </p>
+      <Link
+        to="/contact"
+        className="mt-4 flex h-10 items-center justify-center gap-1.5 rounded-full border border-primary/40 text-[12px] font-semibold text-primary hover:bg-primary/5"
+      >
+        <Flag size={14} /> Flag this listing
+      </Link>
+      {listing.seller?.payoutVerified && (
+        <p className="mt-3 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+          <CheckCircle size={13} weight="fill" className="text-primary" /> Seller account
+          verification is complete.
+        </p>
+      )}
+    </section>
+  );
+}
+
 function ListingDetail() {
   const { listingId } = Route.useParams();
   const { data: listing } = useSuspenseQuery(listingQuery(listingId));
@@ -315,6 +405,7 @@ function ListingDetail() {
         getRelatedClassifieds({
           data: {
             ...(listing?.categorySlug ? { category: listing.categorySlug } : {}),
+            ...(listing?.seller?.slug ? { sellerSlug: listing.seller.slug } : {}),
             excludeId: listingId,
           },
         }),
@@ -584,31 +675,10 @@ function ListingDetail() {
         </div>
 
         <aside className="min-w-0 space-y-5 lg:sticky lg:top-24">
-          <section className="floating-card overflow-hidden">
-            <div className="bg-primary px-5 py-4 text-primary-foreground">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary-foreground/75">
-                Seller price
-              </p>
-              <p className="numeric mt-1 text-[32px] font-bold leading-none">
-                {formatUsd(listing.priceCents)}
-              </p>
-            </div>
-            <div className="space-y-3 px-5 py-5">
-              <div className="flex items-start gap-2 text-[12px] leading-relaxed text-muted-foreground">
-                <Info size={15} className="mt-0.5 shrink-0 text-primary" />
-                <span>
-                  Taxes, title, registration, and any seller or dealer fees may apply. Confirm the
-                  final amount directly with the seller.
-                </span>
-              </div>
-              <div className="flex items-center gap-2 border-t border-border/70 pt-3 text-[12px] font-medium">
-                <MapPin size={15} className="text-primary" /> Located in {listing.city},{" "}
-                {listing.state}
-              </div>
-            </div>
-          </section>
           <SellerCard listing={listing} />
           <ListingActions listing={listing} />
+          <VehicleHistoryCard vehicle={vehicle} />
+          <PageStatsCard listing={listing} />
           <section className="soft-card px-5 py-5">
             <h2 className="text-[14px] font-bold">Before you meet</h2>
             <ul className="mt-3 space-y-3 text-[12px] leading-relaxed text-muted-foreground">
@@ -626,12 +696,7 @@ function ListingDetail() {
               </li>
             </ul>
           </section>
-          <Link
-            to="/contact"
-            className="flex items-center justify-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground"
-          >
-            <Flag size={14} /> Report this listing
-          </Link>
+          <TrustSafetyCard listing={listing} />
         </aside>
       </div>
 
@@ -640,10 +705,14 @@ function ListingDetail() {
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <h2 className="text-[23px] font-bold tracking-tight">
-                Similar {isVehicle ? "vehicles" : "listings"}
+                {listing.seller
+                  ? "More from this seller"
+                  : `Similar ${isVehicle ? "vehicles" : "listings"}`}
               </h2>
               <p className="mt-1 text-[13px] text-muted-foreground">
-                More options in {listing.categoryName}
+                {listing.seller
+                  ? `Other listings from ${listing.seller.displayName}`
+                  : `More options in ${listing.categoryName}`}
               </p>
             </div>
             <Link
