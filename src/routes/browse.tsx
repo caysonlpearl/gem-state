@@ -30,6 +30,7 @@ type Sort = NonNullable<ClassifiedBrowseInput["sort"]>;
 type View = "grid" | "list";
 type HomeTab = "build" | "buy" | "rent";
 type JobMode = "landing" | "results";
+type ServiceMode = "landing" | "results";
 
 type Search = {
   q?: string | undefined;
@@ -59,6 +60,7 @@ type Search = {
   homeMode?: "landing" | "results" | undefined;
   homeTab?: HomeTab | undefined;
   jobMode?: JobMode | undefined;
+  serviceMode?: ServiceMode | undefined;
   jobCategory?: string | undefined;
   jobType?: string | undefined;
   jobPayType?: string | undefined;
@@ -187,6 +189,7 @@ const leaseLengthOptions = [
 ];
 
 const jobListingCount = 1780;
+const serviceListingCount = 1568;
 type JobPreviewCard = {
   title: string;
   employer: string;
@@ -277,6 +280,86 @@ const homePreviewRows = [
   },
 ] as const;
 
+type ServiceCategory = { name: string; count: number; image: string };
+
+const serviceCategoryRows: { title: string; categories: ServiceCategory[] }[] = [
+  {
+    title: "Popular services",
+    categories: [
+      { name: "Drywall", count: 49, image: "https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=700&q=80" },
+      { name: "Electricians", count: 48, image: "https://images.unsplash.com/photo-1621905251918-48416bd8575a?auto=format&fit=crop&w=700&q=80" },
+      { name: "Handyman", count: 75, image: "https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=700&q=80" },
+      { name: "Heating & Air Conditioning", count: 66, image: "https://images.unsplash.com/photo-1631545806609-ccf5d6f5c2ab?auto=format&fit=crop&w=700&q=80" },
+      { name: "Movers", count: 19, image: "https://images.unsplash.com/photo-1600518464441-9154a4dea21b?auto=format&fit=crop&w=700&q=80" },
+      { name: "Painters", count: 55, image: "https://images.unsplash.com/photo-1562259949-e8e7689d7828?auto=format&fit=crop&w=700&q=80" },
+    ],
+  },
+  {
+    title: "Seasonal categories",
+    categories: [
+      { name: "Lawn Care & Maintenance", count: 38, image: "https://images.unsplash.com/photo-1599685315640-3f3c8e3d9b4b?auto=format&fit=crop&w=700&q=80" },
+      { name: "Landscape Contractors", count: 100, image: "https://images.unsplash.com/photo-1558904541-efa843a96f01?auto=format&fit=crop&w=700&q=80" },
+      { name: "House Cleaning", count: 54, image: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=700&q=80" },
+      { name: "Cabinet & Countertops", count: 18, image: "https://images.unsplash.com/photo-1556912167-f556f1f39fdf?auto=format&fit=crop&w=700&q=80" },
+      { name: "Carpet & Flooring Installation", count: 39, image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=700&q=80" },
+      { name: "Automotive", count: 54, image: "https://images.unsplash.com/photo-1486006920555-c77dcf18193c?auto=format&fit=crop&w=700&q=80" },
+    ],
+  },
+];
+
+const allServiceCategories: ServiceCategory[] = [
+  { name: "Accounting & Bookkeeping", count: 14, image: "" },
+  { name: "Appliance & Electronics Repair", count: 9, image: "" },
+  { name: "Automotive", count: 54, image: "" },
+  { name: "Cabinets & Countertops", count: 18, image: "" },
+  { name: "Carpentry", count: 20, image: "" },
+  { name: "Carpet & Flooring Installation", count: 39, image: "" },
+  { name: "Carpet Cleaning", count: 9, image: "" },
+  { name: "Childcare", count: 5, image: "" },
+  { name: "Concrete Contractors", count: 86, image: "" },
+  { name: "Concrete Foundations & Footings", count: 16, image: "" },
+  { name: "Deck & Patio Construction", count: 27, image: "" },
+  { name: "Drywall", count: 49, image: "" },
+  { name: "Electricians", count: 48, image: "" },
+  { name: "Excavation", count: 37, image: "" },
+  { name: "Fence Installation & Repair", count: 28, image: "" },
+  { name: "Garage Doors", count: 18, image: "" },
+  { name: "General Contractors", count: 126, image: "" },
+  { name: "Gutters & Downspouts", count: 15, image: "" },
+  { name: "Handyman", count: 75, image: "" },
+  { name: "Healthcare", count: 9, image: "" },
+  { name: "Heating & Air Conditioning", count: 66, image: "" },
+  { name: "Hot Tub & Pool", count: 12, image: "" },
+  { name: "House Cleaning", count: 54, image: "" },
+  { name: "Insulation", count: 5, image: "" },
+  { name: "IT Services", count: 9, image: "" },
+  { name: "Landscape Contractors", count: 100, image: "" },
+  { name: "Legal Services", count: 2, image: "" },
+  { name: "Masonry", count: 19, image: "" },
+  { name: "Miscellaneous Services", count: 55, image: "" },
+  { name: "Movers", count: 19, image: "" },
+  { name: "Other Home Services", count: 21, image: "" },
+  { name: "Painters", count: 55, image: "" },
+  { name: "Paving & Asphalt", count: 6, image: "" },
+  { name: "Pest Control", count: 4, image: "" },
+  { name: "Pet Training", count: 2, image: "" },
+  { name: "Plumbers", count: 76, image: "" },
+  { name: "Real Estate Services", count: 7, image: "" },
+  { name: "Remodelers", count: 42, image: "" },
+  { name: "Roofing", count: 50, image: "" },
+  { name: "RV & Boat Repair", count: 15, image: "" },
+  { name: "Scrap & Junk Removal", count: 36, image: "" },
+  { name: "Siding Installation & Repair", count: 18, image: "" },
+  { name: "Small Engine Repair", count: 7, image: "" },
+  { name: "Sprinkler Installation & Repair", count: 38, image: "" },
+  { name: "Tile, Marble & Granite Installation", count: 25, image: "" },
+  { name: "Tree Trimming & Removal", count: 30, image: "" },
+  { name: "Tutoring", count: 9, image: "" },
+  { name: "Welding & Fabrication", count: 23, image: "" },
+  { name: "Window Cleaning", count: 12, image: "" },
+  { name: "Windows & Glass Installation", count: 11, image: "" },
+];
+
 const classifiedQuery = (input: ClassifiedBrowseInput) =>
   queryOptions({
     queryKey: ["classified-browse", input],
@@ -329,6 +412,7 @@ export const Route = createFileRoute("/browse")({
     const homeMode = stringParam(search, "homeMode", 10);
     const homeTab = stringParam(search, "homeTab", 10);
     const jobMode = stringParam(search, "jobMode", 10);
+    const serviceMode = stringParam(search, "serviceMode", 10);
     const page = Number(search["page"]);
     return {
       q: stringParam(search, "q"),
@@ -360,6 +444,7 @@ export const Route = createFileRoute("/browse")({
       homeMode: homeMode === "results" ? "results" : homeMode === "landing" ? "landing" : undefined,
       homeTab: homeTab === "build" || homeTab === "rent" ? homeTab : homeTab === "buy" ? "buy" : undefined,
       jobMode: jobMode === "results" ? "results" : jobMode === "landing" ? "landing" : undefined,
+      serviceMode: serviceMode === "results" ? "results" : serviceMode === "landing" ? "landing" : undefined,
       jobCategory: stringParam(search, "jobCategory", 60),
       jobType: stringParam(search, "jobType", 30),
       jobPayType: stringParam(search, "jobPayType", 30),
@@ -480,9 +565,11 @@ function Browse() {
   const motors = search.group === "motors" || isMotorsCategory(search.category);
   const homes = search.category === "other-real-estate";
   const jobs = search.category === "jobs";
+  const services = search.category === "services";
   const homeTab: HomeTab = search.homeTab ?? "buy";
   const homeLanding = homes && search.homeMode !== "results";
   const jobLanding = jobs && search.jobMode !== "results";
+  const serviceLanding = services && search.serviceMode !== "results";
   const page = search.page ?? 1;
   const pageCount = Math.max(1, Math.ceil(result.total / result.pageSize));
   const activeFilterCount = countActiveFilters(search, motors);
@@ -629,7 +716,31 @@ function Browse() {
         />
       )}
 
-      <div className={`flex flex-wrap items-end justify-between gap-3 ${motors || homes || jobs ? "mt-7" : ""} ${homes || jobs ? "hidden" : ""}`}>
+      {services && serviceLanding && (
+        <ServicesLandingHero
+          resultCount={serviceListingCount}
+          onSearch={(term) =>
+            void navigate({
+              to: "/browse",
+              search: scoped({ category: "services", serviceMode: "results", q: term.trim() || undefined }),
+            })
+          }
+          onPost={() => void navigate({ to: "/create-listing" })}
+        />
+      )}
+
+      {services && serviceLanding && (
+        <ServicesCategoryShowcase
+          onCategorySelect={(category) =>
+            void navigate({
+              to: "/browse",
+              search: scoped({ category: "services", serviceMode: "results", q: category }),
+            })
+          }
+        />
+      )}
+
+      <div className={`flex flex-wrap items-end justify-between gap-3 ${motors || homes || jobs || (services && serviceLanding) ? "mt-7" : ""} ${homes || jobs || serviceLanding ? "hidden" : ""}`}>
         <div className={motors ? "hidden" : ""}>
           <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-primary">
             Gem State classifieds
@@ -728,7 +839,7 @@ function Browse() {
         ))}
       </div>}
 
-      {!jobs && <div className={`${motors || homes ? "mt-6" : "mt-8"} ${homeLanding ? "hidden" : ""}`}>
+      {!jobs && !(services && serviceLanding) && <div className={`${motors || homes ? "mt-6" : "mt-8"} ${homeLanding ? "hidden" : ""}`}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className={motors || homes ? "hidden" : "text-[13px] text-muted-foreground"}>
             <span className="numeric font-semibold text-foreground">{result.total}</span>{" "}
@@ -1233,6 +1344,106 @@ function HomePreviewCard({
         <p className="mt-2 truncate text-[11px] text-muted-foreground">{card.facts}</p>
       </div>
     </article>
+  );
+}
+
+function ServicesLandingHero({
+  resultCount,
+  onSearch,
+  onPost,
+}: {
+  resultCount: number;
+  onSearch: (term: string) => void;
+  onPost: () => void;
+}) {
+  const [mode, setMode] = useState<"search" | "post">("search");
+  const [draft, setDraft] = useState("");
+
+  return (
+    <section
+      aria-label="GemList Services"
+      className="relative isolate min-h-[610px] overflow-hidden rounded-[32px] bg-primary bg-cover bg-center shadow-xl sm:min-h-[680px]"
+      style={{
+        backgroundImage:
+          "linear-gradient(90deg, rgb(11 26 38 / 64%), rgb(11 26 38 / 30%) 58%, rgb(11 26 38 / 12%)), url(https://images.unsplash.com/photo-1556912167-f556f1f39fdf?auto=format&fit=crop&w=2200&q=85)",
+      }}
+    >
+      <div className="absolute inset-0 bg-gradient-to-t from-primary/60 via-transparent to-primary/10" />
+      <div className="relative flex min-h-[610px] items-center justify-center px-4 py-12 sm:min-h-[680px] sm:px-8">
+        <div className="w-full max-w-[720px] rounded-[28px] border border-white/20 bg-primary/80 p-5 text-primary-foreground shadow-2xl backdrop-blur-md sm:p-8">
+          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">GemList Services</p>
+          <h1 className="mt-3 text-center font-display text-[34px] font-bold leading-[1.05] tracking-tight sm:text-[54px]">
+            Find qualified <span className="text-accent">local pros.</span>
+          </h1>
+          <p className="mx-auto mt-4 max-w-[46ch] text-center text-[14px] leading-relaxed text-white/80 sm:text-[15px]">
+            Connect with trusted service providers across Idaho and surrounding states — or share what you do with local customers.
+          </p>
+
+          <div className="mt-7 grid grid-cols-2 rounded-2xl bg-white/10 p-1.5 ring-1 ring-white/20">
+            <button type="button" aria-pressed={mode === "search"} onClick={() => setMode("search")} className={`rounded-xl px-2 py-3 text-[13px] font-bold transition-colors sm:text-[15px] ${mode === "search" ? "bg-accent text-accent-foreground shadow-sm" : "text-white/85 hover:bg-white/10"}`}>Search Listings</button>
+            <button type="button" aria-pressed={mode === "post"} onClick={() => setMode("post")} className={`rounded-xl px-2 py-3 text-[13px] font-bold transition-colors sm:text-[15px] ${mode === "post" ? "bg-accent text-accent-foreground shadow-sm" : "text-white/85 hover:bg-white/10"}`}>Post a Listing</button>
+          </div>
+
+          {mode === "search" ? (
+            <form className="mt-3 flex flex-col gap-2 rounded-2xl bg-card p-2 text-foreground sm:flex-row" onSubmit={(event) => { event.preventDefault(); onSearch(draft); }}>
+              <label className="flex min-w-0 flex-1 items-center gap-2 px-3">
+                <MagnifyingGlass size={19} className="shrink-0 text-primary" aria-hidden="true" />
+                <span className="sr-only">What service are you looking for?</span>
+                <input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="What service are you looking for?" aria-label="What service are you looking for?" className="h-12 min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground" />
+              </label>
+              <button type="submit" className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-[13px] font-bold text-primary-foreground transition-transform hover:-translate-y-0.5"><MagnifyingGlass size={17} aria-hidden="true" />Search</button>
+            </form>
+          ) : (
+            <div className="mt-3 rounded-2xl bg-card p-6 text-center text-foreground sm:p-8">
+              <p className="text-[18px] font-bold">Have a service to offer?</p>
+              <p className="mx-auto mt-2 max-w-[40ch] text-[13px] leading-relaxed text-muted-foreground">Reach local customers and show them what makes your work worth choosing.</p>
+              <button type="button" onClick={onPost} className="mt-5 inline-flex h-12 items-center justify-center rounded-xl bg-primary px-6 text-[13px] font-bold text-primary-foreground hover:opacity-90">Post a Service Listing</button>
+            </div>
+          )}
+
+          {mode === "search" && <div className="mt-5 text-center text-[12px] text-white/70">{resultCount.toLocaleString()} local services to explore</div>}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ServicesCategoryShowcase({ onCategorySelect }: { onCategorySelect: (category: string) => void }) {
+  return (
+    <div className="mt-10 space-y-12 sm:mt-14 sm:space-y-16">
+      {serviceCategoryRows.map((row) => (
+        <section key={row.title} aria-labelledby={row.title.replaceAll(" ", "-").toLowerCase()}>
+          <div className="mb-4 border-b border-border pb-3">
+            <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">GemList Services</p>
+            <h2 id={row.title.replaceAll(" ", "-").toLowerCase()} className="mt-1 text-[22px] font-bold tracking-tight sm:text-[27px]">{row.title}</h2>
+          </div>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+            {row.categories.map((category) => (
+              <button key={category.name} type="button" onClick={() => onCategorySelect(category.name)} className="group text-left">
+                <div className="aspect-[1.65/1] overflow-hidden rounded-2xl border border-border/70 bg-secondary shadow-sm">
+                  <img src={category.image} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" />
+                </div>
+                <p className="mt-2 text-center text-[13px] font-semibold leading-tight group-hover:text-primary">{category.name}</p>
+              </button>
+            ))}
+          </div>
+        </section>
+      ))}
+
+      <section aria-labelledby="browse-all-service-categories">
+        <div className="mb-4 border-b border-border pb-3">
+          <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">GemList Services</p>
+          <h2 id="browse-all-service-categories" className="mt-1 text-[22px] font-bold tracking-tight sm:text-[27px]">Browse all categories</h2>
+        </div>
+        <div className="grid gap-x-6 gap-y-2 sm:grid-cols-2 lg:grid-cols-4">
+          {allServiceCategories.map((category) => (
+            <button key={category.name} type="button" onClick={() => onCategorySelect(category.name)} className="flex items-center justify-between border-b border-border/60 py-2 text-left text-[13px] transition-colors hover:text-primary">
+              <span>{category.name}</span><span className="numeric text-muted-foreground">({category.count})</span>
+            </button>
+          ))}
+        </div>
+      </section>
+    </div>
   );
 }
 

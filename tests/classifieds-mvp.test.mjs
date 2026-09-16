@@ -629,6 +629,17 @@ test("jobs browse has a landing hero and expanded local job filters", () => {
   assert.match(browseSource, /function JobCard/);
 });
 
+test("services browse has a category-led landing page", () => {
+  assert.match(configSource, /slug: "services"/);
+  assert.match(browseSource, /function ServicesLandingHero/);
+  assert.match(browseSource, /function ServicesCategoryShowcase/);
+  assert.match(browseSource, /Popular services/);
+  assert.match(browseSource, /Seasonal categories/);
+  assert.match(browseSource, /Browse all categories/);
+  assert.match(browseSource, /What service are you looking for\?/);
+  assert.match(browseSource, /serviceMode: "results"/);
+});
+
 test("listing detail keeps a responsive photo gallery and floating action card", () => {
   assert.match(detailSource, /Show all photos/);
   assert.match(detailSource, /row-span-2/);
