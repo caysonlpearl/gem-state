@@ -935,13 +935,6 @@ function VehicleBrowseHero({
     }
   }
 
-  function filterPanelPositionClass(index: number) {
-    const gridIndex = index + 1;
-    const tabletRight = gridIndex % 2 === 1 ? "sm:left-auto sm:right-0" : "";
-    const desktopRight = gridIndex % 4 === 3 ? "lg:left-auto lg:right-0" : "";
-    return `${tabletRight} ${desktopRight}`;
-  }
-
   return (
     <section className="floating-card relative overflow-visible bg-surface px-5 py-6 sm:px-8 sm:py-8">
       <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]">
@@ -1016,7 +1009,6 @@ function VehicleBrowseHero({
               label={label}
               expanded={expandedFilter === key}
               onClick={() => toggleFilter(key)}
-              panelPositionClass={filterPanelPositionClass(index)}
             >
               {filterPanel(key)}
             </VehicleQuickFilter>
@@ -1028,7 +1020,6 @@ function VehicleBrowseHero({
                 label={label}
                 expanded={expandedFilter === key}
                 onClick={() => toggleFilter(key)}
-                panelPositionClass={filterPanelPositionClass(index + quickFilters.length)}
               >
                 {filterPanel(key)}
               </VehicleQuickFilter>
@@ -1084,13 +1075,11 @@ function VehicleQuickFilter({
   label,
   onClick,
   expanded,
-  panelPositionClass,
   children,
 }: {
   label: string;
   onClick: () => void;
   expanded: boolean;
-  panelPositionClass: string;
   children: React.ReactNode;
 }) {
   return (
@@ -1110,7 +1099,7 @@ function VehicleQuickFilter({
         />
       </button>
       {expanded && (
-        <div className={`absolute left-0 top-[calc(100%+8px)] z-40 w-[min(360px,calc(100vw-48px))] max-w-[calc(100vw-32px)] rounded-xl bg-card p-4 shadow-xl ring-1 ring-border/70 ${panelPositionClass}`}>
+        <div className="absolute left-0 top-[calc(100%+8px)] z-40 w-full rounded-xl bg-card p-4 shadow-xl ring-1 ring-border/70">
           {children}
         </div>
       )}
@@ -1135,7 +1124,7 @@ function InlineMakeModelFilter({
   }, [search.make, search.model]);
 
   return (
-    <div className="w-[min(360px,calc(100vw-48px))] space-y-2.5">
+    <div className="w-full space-y-2.5">
       <input
         value={make}
         onFocus={() => setShowMakes(true)}
@@ -1208,7 +1197,7 @@ function InlineRangeFilter({
   };
 
   return (
-    <div className="w-[min(360px,calc(100vw-48px))] space-y-2.5">
+    <div className="w-full space-y-2.5">
       <div className="grid grid-cols-2 gap-2">
         <label className="relative">
           <span className="sr-only">{firstLabel}</span>
@@ -1254,7 +1243,7 @@ function InlineNumberFilter({
   useEffect(() => setDraft(value == null ? "" : String(value)), [value]);
 
   return (
-    <div className="w-[min(360px,calc(100vw-48px))] space-y-2.5">
+    <div className="w-full space-y-2.5">
       <label>
         <span className="sr-only">{label}</span>
         <input
@@ -1294,7 +1283,7 @@ function InlineSelectFilter({
       autoFocus
       value={value ?? ""}
       onChange={(event) => onChange(event.target.value || undefined)}
-      className="filter-input w-[min(360px,calc(100vw-48px))]"
+      className="filter-input w-full"
     >
       <option value="">{placeholder}</option>
       {options.map((option) => {
@@ -1328,7 +1317,7 @@ function InlineLocationFilter({
   }, [search.region, search.state, search.city]);
 
   return (
-    <div className="w-[min(360px,calc(100vw-48px))] space-y-2.5">
+    <div className="w-full space-y-2.5">
       <select value={region} onChange={(event) => setRegion(event.target.value)} className="filter-input w-full">
         <option value="">All of Idaho</option>
         {idahoRegions.map((option) => <option key={option} value={option}>{option}</option>)}
