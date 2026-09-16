@@ -935,6 +935,13 @@ function VehicleBrowseHero({
     }
   }
 
+  function filterPanelPositionClass(index: number) {
+    const gridIndex = index + 1;
+    const tabletRight = gridIndex % 2 === 1 ? "sm:left-auto sm:right-0" : "";
+    const desktopRight = gridIndex % 4 === 3 ? "lg:left-auto lg:right-0" : "";
+    return `${tabletRight} ${desktopRight}`;
+  }
+
   return (
     <section className="floating-card relative overflow-visible bg-surface px-5 py-6 sm:px-8 sm:py-8">
       <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]">
@@ -1003,23 +1010,25 @@ function VehicleBrowseHero({
               </button>
             )}
           </label>
-          {quickFilters.map(({ key, label }) => (
+          {quickFilters.map(({ key, label }, index) => (
             <VehicleQuickFilter
               key={key}
               label={label}
               expanded={expandedFilter === key}
               onClick={() => toggleFilter(key)}
+              panelPositionClass={filterPanelPositionClass(index)}
             >
               {filterPanel(key)}
             </VehicleQuickFilter>
           ))}
           {showAllFilters &&
-            additionalFilters.map(({ key, label }) => (
+            additionalFilters.map(({ key, label }, index) => (
               <VehicleQuickFilter
                 key={key}
                 label={label}
                 expanded={expandedFilter === key}
                 onClick={() => toggleFilter(key)}
+                panelPositionClass={filterPanelPositionClass(index + quickFilters.length)}
               >
                 {filterPanel(key)}
               </VehicleQuickFilter>
@@ -1075,11 +1084,13 @@ function VehicleQuickFilter({
   label,
   onClick,
   expanded,
+  panelPositionClass,
   children,
 }: {
   label: string;
   onClick: () => void;
   expanded: boolean;
+  panelPositionClass: string;
   children: React.ReactNode;
 }) {
   return (
@@ -1099,7 +1110,7 @@ function VehicleQuickFilter({
         />
       </button>
       {expanded && (
-        <div className="absolute left-0 top-[calc(100%+8px)] z-40 w-[min(360px,calc(100vw-48px))] max-w-[calc(100vw-32px)] rounded-xl bg-card p-4 shadow-xl ring-1 ring-border/70">
+        <div className={`absolute left-0 top-[calc(100%+8px)] z-40 w-[min(360px,calc(100vw-48px))] max-w-[calc(100vw-32px)] rounded-xl bg-card p-4 shadow-xl ring-1 ring-border/70 ${panelPositionClass}`}>
           {children}
         </div>
       )}
