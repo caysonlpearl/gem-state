@@ -7,12 +7,10 @@ import { TEMPLATES } from './registry'
 
 // Configuration baked in at scaffold time
 const SITE_NAME = "Gem State Classifieds"
-// SENDER_DOMAIN is the verified sender subdomain FQDN (e.g., "notify.example.com").
-// It MUST match the subdomain delegated to Lovable's nameservers. NEVER use the root domain.
-const SENDER_DOMAIN = "notify.gemstateclassifieds.com"
-// FROM_DOMAIN is the domain shown in the From: header (e.g., "example.com").
-// Can be the root domain when display_from_root is enabled — this is cosmetic only.
-const FROM_DOMAIN = "gemstateclassifieds.com"
+// This is the verified sending domain currently configured in Lovable Cloud.
+// Replace it with the Gem State domain after that domain is verified there.
+const SENDER_DOMAIN = "getparkvault.com"
+const FROM_DOMAIN = "getparkvault.com"
 
 export type SendTemplateEmailResult =
   | { sent: true }
