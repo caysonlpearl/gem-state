@@ -408,6 +408,7 @@ const conditionValues = [
   "new_without_tags",
   "used_excellent",
   "used_good",
+  "broken_needs_repairs",
 ] as const;
 
 const LISTING_SELECT =
@@ -656,7 +657,10 @@ export const browseClassifieds = createServerFn({ method: "GET" })
     if (data.city) query = query.ilike("classified_listing_details.city", data.city);
     if (data.condition) {
       const conditions = filterValues(data.condition).filter((value) => conditionValues.includes(value as never));
-      const [firstCondition, ...otherConditions] = conditions;
+      const expandedConditions = conditions.includes("new_with_tags")
+        ? [...new Set([...conditions, "new_without_tags"])]
+        : conditions;
+      const [firstCondition, ...otherConditions] = expandedConditions;
       if (firstCondition && otherConditions.length === 0) query = query.eq("item_condition", firstCondition as (typeof conditionValues)[number]);
       if (firstCondition && otherConditions.length > 0) query = query.in("item_condition", [firstCondition, ...otherConditions] as (typeof conditionValues)[number][]);
     }

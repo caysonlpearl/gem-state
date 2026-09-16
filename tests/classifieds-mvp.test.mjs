@@ -521,6 +521,8 @@ test("vehicle browse uses a branded buy and eight-filter discovery hero", () => 
   assert.match(browseSource, /function InlineVehicleMakeModelFilter/);
   assert.match(browseSource, /function VehicleResultsPage/);
   assert.match(browseSource, /function VehicleCheckboxList/);
+  assert.match(browseSource, /function VehicleSingleSelectList/);
+  assert.match(browseSource, /function InlineSingleFilter/);
   assert.match(browseSource, /vehicleModelsByMake/);
   assert.match(browseSource, /modelsForMakes/);
   assert.match(browseSource, /selectedMakes\.length > 0/);
@@ -531,6 +533,8 @@ test("vehicle browse uses a branded buy and eight-filter discovery hero", () => 
   assert.match(browseSource, /Show \{resultCount\.toLocaleString\(\)\}/);
   assert.match(browseSource, /vehicleMode: "results"/);
   assert.match(browseSource, /selected\.includes\(optionValue\)/);
+  assert.match(browseSource, /label: "Broken\/needs repairs"/);
+  assert.doesNotMatch(browseSource, /vehicleConditionOptions[\s\S]*New, no tags/);
   for (const label of [
     "Make / model",
     "Year",

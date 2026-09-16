@@ -236,6 +236,12 @@ const vehicleModelsByMake: Record<string, readonly string[]> = {
 const splitVehicleFilter = (value: string | undefined) => value?.split("||").filter(Boolean) ?? [];
 const modelsForMakes = (makes: readonly string[]) =>
   [...new Set(makes.flatMap((make) => vehicleModelsByMake[make] ?? []))].sort();
+const vehicleConditionOptions = [
+  { value: "new_with_tags", label: "New" },
+  { value: "used_excellent", label: "Used excellent" },
+  { value: "used_good", label: "Used good" },
+  { value: "broken_needs_repairs", label: "Broken/needs repairs" },
+] as const;
 const vehicleSellerTypeOptions = ["Private", "Dealer"] as const;
 type JobPreviewCard = {
   title: string;
@@ -2309,7 +2315,7 @@ function VehicleResultsPage({
   const [yearMax, setYearMax] = useState(search.yearMax == null ? "" : String(search.yearMax));
   const [priceMin, setPriceMin] = useState(search.priceMin == null ? "" : String(search.priceMin));
   const [priceMax, setPriceMax] = useState(search.priceMax == null ? "" : String(search.priceMax));
-  const [mileageBands, setMileageBands] = useState(search.mileageBands ?? "");
+  const [mileageBands, setMileageBands] = useState(splitVehicleFilter(search.mileageBands)[0] ?? "");
   const [bodyStyle, setBodyStyle] = useState(search.bodyStyle ?? "");
   const [sellerType, setSellerType] = useState(search.sellerType ?? "");
   const [condition, setCondition] = useState(search.condition ?? "");
@@ -2333,7 +2339,7 @@ function VehicleResultsPage({
     setYearMax(search.yearMax == null ? "" : String(search.yearMax));
     setPriceMin(search.priceMin == null ? "" : String(search.priceMin));
     setPriceMax(search.priceMax == null ? "" : String(search.priceMax));
-    setMileageBands(search.mileageBands ?? "");
+    setMileageBands(splitVehicleFilter(search.mileageBands)[0] ?? "");
     setBodyStyle(search.bodyStyle ?? "");
     setSellerType(search.sellerType ?? "");
     setCondition(search.condition ?? "");
@@ -2412,10 +2418,10 @@ function VehicleResultsPage({
             <div className="grid grid-cols-2 gap-2"><VehicleTextField label="Year from" value={yearMin} onChange={setYearMin} placeholder="From" numeric /><VehicleTextField label="Year to" value={yearMax} onChange={setYearMax} placeholder="To" numeric /></div>
           </VehicleFilterGroup>
           <VehicleFilterGroup title="Price"><div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2"><VehicleTextField label="Minimum price" value={priceMin} onChange={setPriceMin} placeholder="$ From" numeric /><span className="text-muted-foreground">–</span><VehicleTextField label="Maximum price" value={priceMax} onChange={setPriceMax} placeholder="$ To" numeric /></div></VehicleFilterGroup>
-          <VehicleFilterGroup title="Mileage"><VehicleCheckboxList label="Mileage" value={mileageBands} options={mileageBandOptions} onChange={setMileageBands} /></VehicleFilterGroup>
+          <VehicleFilterGroup title="Mileage"><VehicleSingleSelectList label="Mileage" value={mileageBands} options={mileageBandOptions} onChange={setMileageBands} /></VehicleFilterGroup>
           <VehicleFilterGroup title="Body type"><VehicleCheckboxList label="Body type" value={bodyStyle} options={vehicleOptions.bodyStyles} onChange={setBodyStyle} /></VehicleFilterGroup>
           <VehicleFilterGroup title="Seller type"><VehicleCheckboxList label="Seller type" value={sellerType} options={vehicleSellerTypeOptions} onChange={setSellerType} /></VehicleFilterGroup>
-          <VehicleFilterGroup title="Condition"><VehicleCheckboxList label="Condition" value={condition} options={conditionOptions.map(([value, label]) => ({ value, label }))} onChange={setCondition} /></VehicleFilterGroup>
+          <VehicleFilterGroup title="Condition"><VehicleCheckboxList label="Condition" value={condition} options={vehicleConditionOptions} onChange={setCondition} /></VehicleFilterGroup>
           <VehicleFilterGroup title="Delivery"><VehicleCheckboxList label="Delivery" value={fulfillment} options={[{ value: "local_pickup", label: "Local pickup" }, { value: "shipping", label: "Ships" }, { value: "both", label: "Pickup or shipping" }]} onChange={setFulfillment} /></VehicleFilterGroup>
           <VehicleFilterGroup title="Drive type"><VehicleCheckboxList label="Drive type" value={drivetrain} options={vehicleOptions.drivetrains} onChange={setDrivetrain} /></VehicleFilterGroup>
           <VehicleFilterGroup title="Transmission"><VehicleCheckboxList label="Transmission" value={transmission} options={vehicleOptions.transmissions} onChange={setTransmission} /></VehicleFilterGroup>
@@ -2444,6 +2450,12 @@ function VehicleCheckboxList({ label, value, options, onChange }: { label: strin
     onChange(selected.includes(optionValue) ? selected.filter((item) => item !== optionValue).join("||") : [...selected, optionValue].join("||"));
   };
   return <div role="group" aria-label={label} className="max-h-56 space-y-1 overflow-y-auto pr-1">{options.map((option) => { const optionValue = typeof option === "string" ? option : option.value; const optionLabel = typeof option === "string" ? option : option.label; const checked = selected.includes(optionValue); return <label key={optionValue} className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-2 text-[12px] hover:bg-secondary"><span>{optionLabel}</span><input type="checkbox" checked={checked} onChange={() => toggle(option)} className="size-4 accent-primary" /></label>; })}</div>;
+}
+
+function VehicleSingleSelectList({ label, value, options, onChange }: { label: string; value: string; options: readonly VehicleFilterOption[]; onChange: (value: string) => void }) {
+  const selected = splitVehicleFilter(value)[0] ?? "";
+  const radioName = label.toLowerCase().replace(/\s+/g, "-");
+  return <div role="radiogroup" aria-label={label} className="max-h-56 space-y-1 overflow-y-auto pr-1">{options.map((option) => { const optionValue = typeof option === "string" ? option : option.value; const optionLabel = typeof option === "string" ? option : option.label; return <label key={optionValue} className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-2 text-[12px] hover:bg-secondary"><span>{optionLabel}</span><input type="radio" name={radioName} value={optionValue} checked={selected === optionValue} onChange={() => onChange(optionValue)} className="size-4 accent-primary" /></label>; })}</div>;
 }
 
 function VehicleMultiSelectPanel({ label, value, options, onApply }: { label: string; value: string; options: readonly string[]; onApply: (value: string) => void }) {
@@ -2517,7 +2529,7 @@ function VehicleBrowseHero({
     { key: "price", label: priceLabel },
     {
       key: "mileage",
-      label: search.mileageMax != null ? `≤ ${search.mileageMax.toLocaleString()} mi` : "Mileage",
+      label: selectedSummary(search.mileageBands, search.mileageMax != null ? `≤ ${search.mileageMax.toLocaleString()} mi` : "Mileage"),
     },
     { key: "bodyStyle", label: selectedSummary(search.bodyStyle, "Body type") },
     { key: "sellerType", label: selectedSummary(search.sellerType, "Seller type") },
@@ -2562,7 +2574,7 @@ function VehicleBrowseHero({
           />
         );
       case "mileage":
-        return <InlineMultiFilter label="Mileage" value={search.mileageBands} options={mileageBandOptions} onApply={(value) => applyInlineFilter({ mileageBands: value })} />;
+        return <InlineSingleFilter label="Mileage" value={search.mileageBands} options={mileageBandOptions} onApply={(value) => applyInlineFilter({ mileageBands: value })} />;
       case "bodyStyle":
         return <InlineMultiFilter label="Body type" value={search.bodyStyle} options={vehicleOptions.bodyStyles} onApply={(value) => applyInlineFilter({ bodyStyle: value })} />;
       case "titleStatus":
@@ -2578,7 +2590,7 @@ function VehicleBrowseHero({
       case "location":
         return <InlineLocationFilter search={search} onApply={applyInlineFilter} />;
       case "condition":
-        return <InlineMultiFilter label="Condition" value={search.condition} options={conditionOptions.map(([value, label]) => ({ value, label }))} onApply={(value) => applyInlineFilter({ condition: value })} />;
+        return <InlineMultiFilter label="Condition" value={search.condition} options={vehicleConditionOptions} onApply={(value) => applyInlineFilter({ condition: value })} />;
       case "fulfillment":
         return <InlineMultiFilter label="Delivery" value={search.fulfillment} options={[{ value: "local_pickup", label: "Local pickup" }, { value: "shipping", label: "Ships" }, { value: "both", label: "Pickup or shipping" }]} onApply={(value) => applyInlineFilter({ fulfillment: value })} />;
       case "sellerType":
@@ -2800,6 +2812,12 @@ function InlineMultiFilter({ label, value, options, onApply }: { label: string; 
   const [draft, setDraft] = useState(value ?? "");
   useEffect(() => setDraft(value ?? ""), [value]);
   return <div className="space-y-2"><p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{label}</p><VehicleCheckboxList label={label} value={draft} options={options} onChange={setDraft} /><InlineApplyButton onClick={() => onApply(draft)} /></div>;
+}
+
+function InlineSingleFilter({ label, value, options, onApply }: { label: string; value: string | undefined; options: readonly VehicleFilterOption[]; onApply: (value: string) => void }) {
+  const [draft, setDraft] = useState(splitVehicleFilter(value)[0] ?? "");
+  useEffect(() => setDraft(splitVehicleFilter(value)[0] ?? ""), [value]);
+  return <div className="space-y-2"><p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{label}</p><VehicleSingleSelectList label={label} value={draft} options={options} onChange={setDraft} /><InlineApplyButton onClick={() => onApply(draft)} /></div>;
 }
 
 function InlineRangeFilter({
