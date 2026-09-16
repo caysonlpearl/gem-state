@@ -589,6 +589,7 @@ export type Database = {
           listing_id: string
           postal_code: string | null
           region: string
+          state: string
           updated_at: string
           vehicle_body_style: string | null
           vehicle_drivetrain: string | null
@@ -610,6 +611,7 @@ export type Database = {
           listing_id: string
           postal_code?: string | null
           region: string
+          state?: string
           updated_at?: string
           vehicle_body_style?: string | null
           vehicle_drivetrain?: string | null
@@ -631,6 +633,7 @@ export type Database = {
           listing_id?: string
           postal_code?: string | null
           region?: string
+          state?: string
           updated_at?: string
           vehicle_body_style?: string | null
           vehicle_drivetrain?: string | null
@@ -773,6 +776,64 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "resorts"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      listing_inquiries: {
+        Row: {
+          buyer_email: string
+          buyer_id: string
+          buyer_name: string
+          created_at: string
+          id: string
+          listing_id: string
+          message: string
+          seller_id: string
+          status: string
+        }
+        Insert: {
+          buyer_email: string
+          buyer_id: string
+          buyer_name: string
+          created_at?: string
+          id?: string
+          listing_id: string
+          message: string
+          seller_id: string
+          status?: string
+        }
+        Update: {
+          buyer_email?: string
+          buyer_id?: string
+          buyer_name?: string
+          created_at?: string
+          id?: string
+          listing_id?: string
+          message?: string
+          seller_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "listing_inquiries_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "active_seller_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listing_inquiries_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "asks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listing_inquiries_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "variant_sourcing_offers"
+            referencedColumns: ["ask_id"]
           },
         ]
       }
@@ -4471,6 +4532,10 @@ export type Database = {
         Returns: Json
       }
       buy_now: { Args: { _variant_id: string }; Returns: string }
+      can_read_approved_classified_media: {
+        Args: { _storage_path: string }
+        Returns: boolean
+      }
       cancel_ask: { Args: { _ask_id: string }; Returns: undefined }
       cancel_bid: { Args: { _bid_id: string }; Returns: undefined }
       cancel_sourcing_request: {
@@ -4561,28 +4626,52 @@ export type Database = {
         Args: { _token: string }
         Returns: boolean
       }
-      create_classified_listing: {
-        Args: {
-          _category_id: string
-          _city: string
-          _description: string
-          _evidence_paths: string[]
-          _fulfillment_mode: string
-          _item_condition: Database["public"]["Enums"]["item_condition"]
-          _parcel_height_in: number
-          _parcel_length_in: number
-          _parcel_weight_lb: number
-          _parcel_width_in: number
-          _postal_code: string
-          _price_cents: number
-          _public_media_paths: string[]
-          _region: string
-          _seller_note: string
-          _title: string
-          _vehicle?: Json
-        }
-        Returns: string
-      }
+      create_classified_listing:
+        | {
+            Args: {
+              _category_id: string
+              _city: string
+              _description: string
+              _evidence_paths: string[]
+              _fulfillment_mode: string
+              _item_condition: Database["public"]["Enums"]["item_condition"]
+              _parcel_height_in: number
+              _parcel_length_in: number
+              _parcel_weight_lb: number
+              _parcel_width_in: number
+              _postal_code: string
+              _price_cents: number
+              _public_media_paths: string[]
+              _region: string
+              _seller_note: string
+              _title: string
+              _vehicle?: Json
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              _category_id: string
+              _city: string
+              _description: string
+              _evidence_paths: string[]
+              _fulfillment_mode: string
+              _item_condition: Database["public"]["Enums"]["item_condition"]
+              _parcel_height_in: number
+              _parcel_length_in: number
+              _parcel_weight_lb: number
+              _parcel_width_in: number
+              _postal_code: string
+              _price_cents: number
+              _public_media_paths: string[]
+              _region: string
+              _seller_note: string
+              _state: string
+              _title: string
+              _vehicle?: Json
+            }
+            Returns: string
+          }
       create_sourcing_request: {
         Args: {
           _buyer_note?: string
@@ -5146,6 +5235,28 @@ export type Database = {
           _parcel_width_in: number
           _price_cents: number
           _seller_note: string
+        }
+        Returns: undefined
+      }
+      update_classified_listing: {
+        Args: {
+          _category_id: string
+          _city: string
+          _description: string
+          _fulfillment_mode: string
+          _item_condition: Database["public"]["Enums"]["item_condition"]
+          _listing_id: string
+          _parcel_height_in: number
+          _parcel_length_in: number
+          _parcel_weight_lb: number
+          _parcel_width_in: number
+          _postal_code: string
+          _price_cents: number
+          _region: string
+          _seller_note: string
+          _state: string
+          _title: string
+          _vehicle?: Json
         }
         Returns: undefined
       }
