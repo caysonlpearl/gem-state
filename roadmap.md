@@ -19,3 +19,4 @@
 
 ## Workspace move follow-up
 - [ ] Reconnect Google Search Console in the new workspace
+- [ ] Set up email infrastructure for notify.getparkvault.com
