@@ -601,6 +601,29 @@ test("homes browse has a large landing hero and tab-specific filter views", () =
   assert.match(browseSource, /homeTab: row\.title\.includes/);
 });
 
+test("jobs browse has a landing hero and expanded local job filters", () => {
+  assert.match(browseSource, /function JobsLandingHero/);
+  assert.match(browseSource, /function JobsFilterPage/);
+  assert.match(browseSource, /Find work that fits your life/);
+  assert.match(browseSource, /Search Jobs/);
+  assert.match(browseSource, /Post a Job/);
+  assert.match(browseSource, /More filters/);
+  assert.match(browseSource, /jobMode: "results"/);
+  for (const label of [
+    "Category",
+    "Job type",
+    "Job pay range",
+    "Education level",
+    "Years of experience",
+    "Photos / video",
+    "Time on site",
+  ]) {
+    assert.match(browseSource, new RegExp(label));
+  }
+  assert.match(browseSource, /function JobToggle/);
+  assert.match(browseSource, /function JobCard/);
+});
+
 test("listing detail keeps a responsive photo gallery and floating action card", () => {
   assert.match(detailSource, /Show all photos/);
   assert.match(detailSource, /row-span-2/);

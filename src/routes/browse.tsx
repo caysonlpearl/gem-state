@@ -29,6 +29,7 @@ import {
 type Sort = NonNullable<ClassifiedBrowseInput["sort"]>;
 type View = "grid" | "list";
 type HomeTab = "build" | "buy" | "rent";
+type JobMode = "landing" | "results";
 
 type Search = {
   q?: string | undefined;
@@ -57,6 +58,18 @@ type Search = {
   page?: number | undefined;
   homeMode?: "landing" | "results" | undefined;
   homeTab?: HomeTab | undefined;
+  jobMode?: JobMode | undefined;
+  jobCategory?: string | undefined;
+  jobType?: string | undefined;
+  jobPayType?: string | undefined;
+  jobPayMin?: number | undefined;
+  jobPayMax?: number | undefined;
+  jobExperience?: string | undefined;
+  jobPosted?: string | undefined;
+  jobEducation?: string | undefined;
+  jobPhotos?: string | undefined;
+  jobVideo?: string | undefined;
+  jobTimeOnSite?: string | undefined;
   homeLocation?: string | undefined;
   homePrice?: string | undefined;
   propertyType?: string | undefined;
@@ -173,6 +186,58 @@ const leaseLengthOptions = [
   "24 Months or Less",
 ];
 
+const jobListingCount = 1780;
+type JobPreviewCard = {
+  title: string;
+  employer: string;
+  location: string;
+  pay: string;
+  image: string;
+};
+
+const jobCategoryOptions = [
+  "Any category",
+  "Accounting & Finance",
+  "Administrative",
+  "Architecture & Engineering",
+  "Automotive",
+  "Construction",
+  "Education",
+  "Healthcare",
+  "Hospitality",
+  "Human Resources",
+  "Information Technology",
+  "Retail",
+] as const;
+const jobTypeOptions = ["Any job type", "Contract", "Full-time", "Internships", "Part-time", "Seasonal", "Temporary", "Weekend only"] as const;
+const jobPayTypeOptions = ["All pay types", "Hourly", "Salary"] as const;
+const jobExperienceOptions = ["Any experience", "1–2 years", "3–4 years", "5–7 years", "8–10 years", "10+ years"] as const;
+const jobPostedOptions = ["Any time", "Last hour", "Last 24 hours", "Last 7 days", "Last 30 days"] as const;
+const jobEducationOptions = ["Any education", "2-year Degree", "4-year Degree", "Advanced Degree", "High School", "None"] as const;
+
+const jobPreviewRows: { title: string; action: string; cards: JobPreviewCard[] }[] = [
+  {
+    title: "Newest listings",
+    action: "Browse all jobs",
+    cards: [
+      { title: "Laborer needed", employer: "JB Landscaping & Construction", location: "Salt Lake City, UT", pay: "$18–$20/hr", image: "https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=900&q=80" },
+      { title: "Development Director", employer: "Weber State University", location: "Ogden, UT", pay: "$75k–$145k/yr", image: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=900&q=80" },
+      { title: "Sales Representative", employer: "Gem State Home Services", location: "Salt Lake City, UT", pay: "$18–$26/hr", image: "https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=900&q=80" },
+      { title: "Human Resources Coordinator", employer: "B&D Bush Excavation", location: "Bluffdale, UT", pay: "Salary", image: "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=900&q=80" },
+    ],
+  },
+  {
+    title: "Jobs near you",
+    action: "Explore local work",
+    cards: [
+      { title: "Associate Attorney", employer: "International Law Group", location: "Eagle Mountain, UT", pay: "Salary", image: "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&w=900&q=80" },
+      { title: "Shipping Associate", employer: "Growing local team", location: "Salt Lake City, UT", pay: "$18–$21/hr", image: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=900&q=80" },
+      { title: "Servers, Hosts & Bussers", employer: "Porcupine Pub & Grille", location: "Salt Lake City, UT", pay: "$13/hr", image: "https://images.unsplash.com/photo-1515003197210-e0cd71810b5f?auto=format&fit=crop&w=900&q=80" },
+      { title: "Utility Superintendent", employer: "Staker Parson", location: "Draper, UT", pay: "Salary", image: "https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?auto=format&fit=crop&w=900&q=80" },
+    ],
+  },
+];
+
 const homePreviewRows = [
   {
     title: "Featured homes for sale",
@@ -263,6 +328,7 @@ export const Route = createFileRoute("/browse")({
     const view = stringParam(search, "view", 10);
     const homeMode = stringParam(search, "homeMode", 10);
     const homeTab = stringParam(search, "homeTab", 10);
+    const jobMode = stringParam(search, "jobMode", 10);
     const page = Number(search["page"]);
     return {
       q: stringParam(search, "q"),
@@ -293,6 +359,18 @@ export const Route = createFileRoute("/browse")({
       page: page > 1 ? page : undefined,
       homeMode: homeMode === "results" ? "results" : homeMode === "landing" ? "landing" : undefined,
       homeTab: homeTab === "build" || homeTab === "rent" ? homeTab : homeTab === "buy" ? "buy" : undefined,
+      jobMode: jobMode === "results" ? "results" : jobMode === "landing" ? "landing" : undefined,
+      jobCategory: stringParam(search, "jobCategory", 60),
+      jobType: stringParam(search, "jobType", 30),
+      jobPayType: stringParam(search, "jobPayType", 30),
+      jobPayMin: numberParam(search, "jobPayMin"),
+      jobPayMax: numberParam(search, "jobPayMax"),
+      jobExperience: stringParam(search, "jobExperience", 30),
+      jobPosted: stringParam(search, "jobPosted", 30),
+      jobEducation: stringParam(search, "jobEducation", 30),
+      jobPhotos: stringParam(search, "jobPhotos", 10),
+      jobVideo: stringParam(search, "jobVideo", 10),
+      jobTimeOnSite: stringParam(search, "jobTimeOnSite", 30),
       homeLocation: stringParam(search, "homeLocation"),
       homePrice: stringParam(search, "homePrice", 30),
       propertyType: stringParam(search, "propertyType", 40),
@@ -401,8 +479,10 @@ function Browse() {
   );
   const motors = search.group === "motors" || isMotorsCategory(search.category);
   const homes = search.category === "other-real-estate";
+  const jobs = search.category === "jobs";
   const homeTab: HomeTab = search.homeTab ?? "buy";
   const homeLanding = homes && search.homeMode !== "results";
+  const jobLanding = jobs && search.jobMode !== "results";
   const page = search.page ?? 1;
   const pageCount = Math.max(1, Math.ceil(result.total / result.pageSize));
   const activeFilterCount = countActiveFilters(search, motors);
@@ -523,7 +603,33 @@ function Browse() {
 
       {homeLanding && <HomeShowcaseRows />}
 
-      <div className={`flex flex-wrap items-end justify-between gap-3 ${motors || homes ? "mt-7" : ""} ${homes ? "hidden" : ""}`}>
+      {jobs && jobLanding && (
+        <JobsLandingHero
+          search={search}
+          onSearch={(term) =>
+            void navigate({
+              to: "/browse",
+              search: scoped({ category: "jobs", jobMode: "results", q: term.trim() || undefined }),
+            })
+          }
+          onMoreFilters={() =>
+            void navigate({ to: "/browse", search: scoped({ category: "jobs", jobMode: "results" }) })
+          }
+          onPost={() => void navigate({ to: "/create-listing" })}
+        />
+      )}
+
+      {jobs && !jobLanding && (
+        <JobsFilterPage
+          search={search}
+          onApply={(patch) =>
+            void navigate({ to: "/browse", search: scoped({ category: "jobs", jobMode: "results", ...patch }) })
+          }
+          onPost={() => void navigate({ to: "/create-listing" })}
+        />
+      )}
+
+      <div className={`flex flex-wrap items-end justify-between gap-3 ${motors || homes || jobs ? "mt-7" : ""} ${homes || jobs ? "hidden" : ""}`}>
         <div className={motors ? "hidden" : ""}>
           <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-primary">
             Gem State classifieds
@@ -571,7 +677,7 @@ function Browse() {
         </div>
       </div>
 
-      {!motors && !homes && (
+      {!motors && !homes && !jobs && (
         <form
           className="floating-card mt-8 p-2 sm:p-3"
           onSubmit={(event) => {
@@ -596,7 +702,7 @@ function Browse() {
         </form>
       )}
 
-      {!motors && !homes && <div className="no-scrollbar mt-5 flex gap-2 overflow-x-auto pb-1">
+      {!motors && !homes && !jobs && <div className="no-scrollbar mt-5 flex gap-2 overflow-x-auto pb-1">
         <BrowsePill
           active={!search.group && !search.category}
           search={scopedWithoutVehicleFilters({ group: undefined, category: undefined })}
@@ -622,7 +728,7 @@ function Browse() {
         ))}
       </div>}
 
-      <div className={`${motors || homes ? "mt-6" : "mt-8"} ${homeLanding ? "hidden" : ""}`}>
+      {!jobs && <div className={`${motors || homes ? "mt-6" : "mt-8"} ${homeLanding ? "hidden" : ""}`}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className={motors || homes ? "hidden" : "text-[13px] text-muted-foreground"}>
             <span className="numeric font-semibold text-foreground">{result.total}</span>{" "}
@@ -964,7 +1070,7 @@ function Browse() {
             </div>
           )}
         </section>
-      </div>
+      </div>}
     </main>
   );
 }
@@ -1128,6 +1234,200 @@ function HomePreviewCard({
       </div>
     </article>
   );
+}
+
+function JobsLandingHero({
+  search,
+  onSearch,
+  onMoreFilters,
+  onPost,
+}: {
+  search: Search;
+  onSearch: (term: string) => void;
+  onMoreFilters: () => void;
+  onPost: () => void;
+}) {
+  const [mode, setMode] = useState<"search" | "post">("search");
+  const [draft, setDraft] = useState(search.q ?? "");
+
+  useEffect(() => setDraft(search.q ?? ""), [search.q]);
+
+  return (
+    <section
+      aria-label="GemList Jobs"
+      className="relative isolate min-h-[590px] overflow-hidden rounded-[32px] bg-primary bg-cover bg-center shadow-xl sm:min-h-[670px]"
+      style={{
+        backgroundImage:
+          "linear-gradient(90deg, rgb(11 26 38 / 78%), rgb(11 26 38 / 42%) 55%, rgb(11 26 38 / 18%)), url(https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=2200&q=85)",
+      }}
+    >
+      <div className="absolute inset-0 bg-gradient-to-t from-primary/60 via-transparent to-primary/10" />
+      <div className="relative flex min-h-[590px] items-center justify-center px-4 py-12 sm:min-h-[670px] sm:px-8">
+        <div className="w-full max-w-[720px] rounded-[28px] border border-white/20 bg-primary/80 p-5 text-primary-foreground shadow-2xl backdrop-blur-md sm:p-8">
+          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">GemList Jobs</p>
+          <h1 className="mt-3 text-center font-display text-[34px] font-bold leading-[1.05] tracking-tight sm:text-[54px]">
+            Find work that fits your life.
+            <span className="block text-accent">Hire local. Grow together.</span>
+          </h1>
+          <p className="mx-auto mt-4 max-w-[46ch] text-center text-[14px] leading-relaxed text-white/80 sm:text-[15px]">
+            Search jobs from local employers across Idaho, Utah, and Wyoming — or post your next opportunity.
+          </p>
+
+          <div className="mt-7 grid grid-cols-2 rounded-2xl bg-white/10 p-1.5 ring-1 ring-white/20">
+            <button type="button" aria-pressed={mode === "search"} onClick={() => setMode("search")} className={`rounded-xl px-2 py-3 text-[13px] font-bold transition-colors sm:text-[15px] ${mode === "search" ? "bg-accent text-accent-foreground shadow-sm" : "text-white/85 hover:bg-white/10"}`}>Search Jobs</button>
+            <button type="button" aria-pressed={mode === "post"} onClick={() => setMode("post")} className={`rounded-xl px-2 py-3 text-[13px] font-bold transition-colors sm:text-[15px] ${mode === "post" ? "bg-accent text-accent-foreground shadow-sm" : "text-white/85 hover:bg-white/10"}`}>Post a Job</button>
+          </div>
+
+          {mode === "search" ? (
+            <>
+              <form className="mt-3 flex flex-col gap-2 rounded-2xl bg-card p-2 text-foreground" onSubmit={(event) => { event.preventDefault(); onSearch(draft); }}>
+                <label className="flex min-w-0 items-center gap-2 px-3">
+                  <MagnifyingGlass size={19} className="shrink-0 text-primary" aria-hidden="true" />
+                  <span className="sr-only">Search jobs</span>
+                  <input type="search" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="What job are you looking for?" aria-label="Search jobs" className="h-12 min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground" />
+                  <button type="submit" className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-[13px] font-bold text-primary-foreground hover:opacity-90">Search</button>
+                </label>
+              </form>
+              <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                <JobSelect label="Category" options={jobCategoryOptions} />
+                <JobSelect label="Job type" options={jobTypeOptions} />
+                <JobSelect label="Job pay range" options={jobPayTypeOptions} />
+              </div>
+              <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-[12px]">
+                <span className="text-white/70">{jobListingCount.toLocaleString()} local jobs to explore</span>
+                <button type="button" onClick={onMoreFilters} className="inline-flex items-center gap-1.5 rounded-full border border-accent/70 px-4 py-2 font-bold text-accent transition-colors hover:bg-accent hover:text-accent-foreground">More filters <ArrowRight size={14} aria-hidden="true" /></button>
+              </div>
+            </>
+          ) : (
+            <div className="mt-3 rounded-2xl bg-card p-6 text-center text-foreground sm:p-8">
+              <p className="text-[18px] font-bold">Have a great opportunity?</p>
+              <p className="mx-auto mt-2 max-w-[40ch] text-[13px] leading-relaxed text-muted-foreground">Reach local candidates and share the details that make your team worth joining.</p>
+              <button type="button" onClick={onPost} className="mt-5 inline-flex h-12 items-center justify-center rounded-xl bg-primary px-6 text-[13px] font-bold text-primary-foreground hover:opacity-90">Post a Job Listing</button>
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function JobsFilterPage({
+  search,
+  onApply,
+  onPost,
+}: {
+  search: Search;
+  onApply: (patch: Partial<Search>) => void;
+  onPost: () => void;
+}) {
+  const [showAll, setShowAll] = useState(true);
+  const [term, setTerm] = useState(search.q ?? "");
+  const [category, setCategory] = useState(search.jobCategory ?? "");
+  const [jobType, setJobType] = useState(search.jobType ?? "");
+  const [payType, setPayType] = useState(search.jobPayType ?? "");
+  const [payMin, setPayMin] = useState(search.jobPayMin == null ? "" : String(search.jobPayMin));
+  const [payMax, setPayMax] = useState(search.jobPayMax == null ? "" : String(search.jobPayMax));
+  const [experience, setExperience] = useState(search.jobExperience ?? "");
+  const [posted, setPosted] = useState(search.jobPosted ?? "");
+  const [education, setEducation] = useState(search.jobEducation ?? "");
+  const [photos, setPhotos] = useState(search.jobPhotos === "true");
+  const [video, setVideo] = useState(search.jobVideo === "true");
+  const [timeOnSite, setTimeOnSite] = useState(search.jobTimeOnSite ?? "");
+
+  useEffect(() => {
+    setTerm(search.q ?? "");
+    setCategory(search.jobCategory ?? "");
+    setJobType(search.jobType ?? "");
+    setPayType(search.jobPayType ?? "");
+    setPayMin(search.jobPayMin == null ? "" : String(search.jobPayMin));
+    setPayMax(search.jobPayMax == null ? "" : String(search.jobPayMax));
+    setExperience(search.jobExperience ?? "");
+    setPosted(search.jobPosted ?? "");
+    setEducation(search.jobEducation ?? "");
+    setPhotos(search.jobPhotos === "true");
+    setVideo(search.jobVideo === "true");
+    setTimeOnSite(search.jobTimeOnSite ?? "");
+  }, [search]);
+
+  function apply() {
+    const numberValue = (value: string) => {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
+    };
+    onApply({
+      q: term.trim() || undefined,
+      jobCategory: category || undefined,
+      jobType: jobType || undefined,
+      jobPayType: payType || undefined,
+      jobPayMin: numberValue(payMin),
+      jobPayMax: numberValue(payMax),
+      jobExperience: experience || undefined,
+      jobPosted: posted || undefined,
+      jobEducation: education || undefined,
+      jobPhotos: photos ? "true" : undefined,
+      jobVideo: video ? "true" : undefined,
+      jobTimeOnSite: timeOnSite || undefined,
+    });
+  }
+
+  return (
+    <div className="mt-8">
+      <section className="floating-card overflow-visible p-4 sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+          <div className="grid w-full max-w-[390px] grid-cols-2 rounded-2xl bg-secondary p-1.5 ring-1 ring-border/70">
+            <button type="button" aria-pressed="true" className="rounded-xl bg-primary px-3 py-3 text-[13px] font-bold text-primary-foreground shadow-sm">Search Jobs</button>
+            <button type="button" onClick={onPost} className="rounded-xl px-3 py-3 text-[13px] font-bold hover:bg-card">Post a Job</button>
+          </div>
+          <button type="button" onClick={() => setShowAll((current) => !current)} className="inline-flex items-center gap-2 rounded-full border border-primary px-4 py-2.5 text-[12px] font-bold text-primary hover:bg-secondary"><FunnelSimple size={15} aria-hidden="true" />{showAll ? "Hide all filters" : "Show all filters"}<CaretDown size={14} className={showAll ? "rotate-180" : ""} aria-hidden="true" /></button>
+        </div>
+        <form className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-[1.65fr_repeat(3,minmax(0,1fr))_auto]" onSubmit={(event) => { event.preventDefault(); apply(); }}>
+          <label className="flex h-12 min-w-0 items-center gap-2 rounded-xl border border-input bg-card px-3 focus-within:border-primary"><MagnifyingGlass size={16} className="shrink-0 text-primary" aria-hidden="true" /><span className="sr-only">Search jobs</span><input value={term} onChange={(event) => setTerm(event.target.value)} placeholder="Search for a job, company, or title" className="min-w-0 flex-1 bg-transparent text-[12px] outline-none placeholder:text-muted-foreground" /></label>
+          <JobSelect label="Category" value={category} options={jobCategoryOptions} onChange={setCategory} />
+          <JobSelect label="Job type" value={jobType} options={jobTypeOptions} onChange={setJobType} />
+          <JobSelect label="Job pay range" value={payType} options={jobPayTypeOptions} onChange={setPayType} />
+          <button type="submit" className="h-12 rounded-xl bg-primary px-5 text-[12px] font-bold text-primary-foreground hover:opacity-90">Search</button>
+        </form>
+      </section>
+
+      <div className="mt-7 grid gap-6 lg:grid-cols-[250px_minmax(0,1fr)]">
+        {showAll && (
+          <aside className="space-y-3">
+            <JobFilterGroup title="Category"><JobSelect label="Category" value={category} options={jobCategoryOptions} onChange={setCategory} /></JobFilterGroup>
+            <JobFilterGroup title="Job type"><JobSelect label="Job type" value={jobType} options={jobTypeOptions} onChange={setJobType} /></JobFilterGroup>
+            <JobFilterGroup title="Education level"><JobSelect label="Education level" value={education} options={jobEducationOptions} onChange={setEducation} /></JobFilterGroup>
+            <JobFilterGroup title="Years of experience"><JobSelect label="Years of experience" value={experience} options={jobExperienceOptions} onChange={setExperience} /></JobFilterGroup>
+            <JobFilterGroup title="Job pay range">
+              <div className="grid grid-cols-3 gap-1.5">{jobPayTypeOptions.map((option, index) => { const value = index === 0 ? "" : option; return <button key={option} type="button" onClick={() => setPayType(value)} className={`rounded-lg border px-2 py-2 text-[11px] font-semibold ${payType === value ? "border-primary bg-primary text-primary-foreground" : "border-primary text-primary hover:bg-secondary"}`}>{index === 0 ? "All" : option}</button>; })}</div>
+              <div className="grid grid-cols-2 gap-2"><input inputMode="numeric" value={payMin} onChange={(event) => setPayMin(event.target.value)} placeholder="$ From" className="filter-input" /><input inputMode="numeric" value={payMax} onChange={(event) => setPayMax(event.target.value)} placeholder="$ To" className="filter-input" /></div>
+            </JobFilterGroup>
+            <JobFilterGroup title="Photos / video"><JobToggle label="Only show listings with photos" checked={photos} onChange={setPhotos} /><JobToggle label="Only show listings with a video" checked={video} onChange={setVideo} /></JobFilterGroup>
+            <JobFilterGroup title="Time on site"><JobSelect label="Time on site" value={timeOnSite} options={jobPostedOptions} onChange={setTimeOnSite} /></JobFilterGroup>
+          </aside>
+        )}
+
+        <section aria-label="Job listings">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4"><p className="text-[13px] text-muted-foreground"><strong className="numeric text-foreground">{jobListingCount.toLocaleString()}</strong> jobs in Idaho, Utah, and Wyoming</p><label className="flex items-center gap-2 text-[12px] text-muted-foreground">Sort by<select className="h-9 rounded-lg border border-input bg-card px-2 text-[12px] text-foreground" defaultValue="newest"><option value="newest">Newest to oldest</option><option value="pay_high">Highest pay</option><option value="pay_low">Lowest pay</option></select></label></div>
+          <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">{jobPreviewRows.flatMap((row) => row.cards).map((card) => <JobCard key={`${card.title}-${card.employer}`} card={card} />)}</div>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function JobSelect({ label, value, options, onChange }: { label: string; value?: string; options: readonly string[]; onChange?: (value: string) => void }) {
+  return <label className="relative block min-w-0"><span className="sr-only">{label}</span><select aria-label={label} value={value ?? ""} onChange={(event) => onChange?.(event.target.value)} className="h-12 w-full appearance-none rounded-xl border border-input bg-card px-3 pr-8 text-[12px] text-foreground outline-none focus:border-primary">{options.map((option, index) => <option key={option} value={index === 0 ? "" : option}>{option}</option>)}</select><CaretDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" /></label>;
+}
+
+function JobFilterGroup({ title, children }: { title: string; children: React.ReactNode }) {
+  return <section className="rounded-2xl border border-border bg-card p-3 shadow-sm"><h2 className="mb-3 text-[13px] font-bold">{title}</h2><div className="space-y-2">{children}</div></section>;
+}
+
+function JobToggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
+  return <label className="flex items-center justify-between gap-3 text-[12px] leading-tight"><span>{label}</span><button type="button" aria-label={label} aria-pressed={checked} onClick={() => onChange(!checked)} className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${checked ? "bg-primary" : "bg-muted"}`}><span className={`absolute top-1 size-5 rounded-full bg-card shadow-sm transition-transform ${checked ? "translate-x-6" : "translate-x-1"}`} /></button></label>;
+}
+
+function JobCard({ card }: { card: (typeof jobPreviewRows)[number]["cards"][number] }) {
+  return <article className="group overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm transition-shadow hover:shadow-lg"><div className="relative aspect-[4/3] overflow-hidden bg-secondary"><img src={card.image} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" /><span className="absolute left-3 top-3 rounded-md bg-primary/85 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.12em] text-primary-foreground">Job</span></div><div className="p-4"><h3 className="min-h-[36px] text-[15px] font-bold leading-tight">{card.title}</h3><p className="mt-1 text-[12px] text-muted-foreground">{card.employer}</p><p className="mt-2 flex items-center gap-1 text-[11.5px] text-muted-foreground"><MapPin size={12} className="text-primary" aria-hidden="true" />{card.location}</p><p className="mt-5 text-[18px] font-bold text-primary">{card.pay}</p></div></article>;
 }
 
 function HomesFilterPage({
