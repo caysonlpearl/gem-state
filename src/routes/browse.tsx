@@ -1146,7 +1146,7 @@ function HomesFilterPage({
       <div className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">GemList Homes</p>
-          <h1 className="mt-2 text-[28px] font-bold tracking-tight sm:text-[36px]">Find a place that fits.</h1>
+          <h1 className="mt-2 text-[28px] font-bold tracking-tight sm:text-[36px]">Find a gem to call home.</h1>
           <p className="mt-1 max-w-[55ch] text-[13px] text-muted-foreground">Search new builds, homes for sale, and rentals across Idaho.</p>
         </div>
         <div className="grid w-full max-w-[390px] grid-cols-3 rounded-2xl bg-card p-1.5 shadow-sm ring-1 ring-border/70">
