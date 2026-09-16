@@ -521,6 +521,10 @@ test("vehicle browse uses a branded buy and eight-filter discovery hero", () => 
   assert.match(browseSource, /function InlineVehicleMakeModelFilter/);
   assert.match(browseSource, /function VehicleResultsPage/);
   assert.match(browseSource, /function VehicleCheckboxList/);
+  assert.match(browseSource, /vehicleModelsByMake/);
+  assert.match(browseSource, /modelsForMakes/);
+  assert.match(browseSource, /selectedMakes\.length > 0/);
+  assert.match(browseSource, /options={availableModels}/);
   assert.match(browseSource, /function InlineLocationFilter/);
   assert.match(browseSource, /Show all search filters/);
   assert.match(browseSource, /Select location/);

@@ -201,7 +201,41 @@ const leaseLengthOptions = [
 const jobListingCount = 1780;
 const serviceListingCount = 1568;
 const mileageBandOptions = ["Under 25,000 miles", "Under 50,000 miles", "Under 75,000 miles", "Under 100,000 miles", "Under 150,000 miles"] as const;
-const vehicleModelOptions = ["1500", "F-150", "Civic", "Outback", "Silverado 1500", "Tacoma", "Tucson", "Wrangler"] as const;
+const vehicleModelsByMake: Record<string, readonly string[]> = {
+  Acura: ["Integra", "TLX", "MDX", "RDX"],
+  Audi: ["A3", "A4", "Q5", "Q7"],
+  BMW: ["3 Series", "5 Series", "X3", "X5"],
+  Buick: ["Encore", "Enclave", "Envision"],
+  Cadillac: ["CT4", "CT5", "XT4", "XT5", "Escalade"],
+  Chevrolet: ["Equinox", "Malibu", "Silverado 1500", "Tahoe", "Traverse"],
+  Chrysler: ["300", "Pacifica", "Voyager"],
+  Dodge: ["Challenger", "Charger", "Durango", "Hornet"],
+  Ford: ["Bronco", "Edge", "Escape", "Explorer", "F-150", "Maverick", "Mustang"],
+  Genesis: ["G70", "G80", "GV70", "GV80"],
+  GMC: ["Canyon", "Sierra 1500", "Terrain", "Acadia", "Yukon"],
+  Honda: ["Accord", "Civic", "CR-V", "Pilot", "Ridgeline"],
+  Hyundai: ["Elantra", "Santa Fe", "Sonata", "Tucson", "Palisade"],
+  Infiniti: ["Q50", "QX50", "QX60"],
+  Jeep: ["Cherokee", "Compass", "Grand Cherokee", "Gladiator", "Wrangler"],
+  Kia: ["Forte", "K5", "Sorento", "Sportage", "Telluride"],
+  "Land Rover": ["Defender", "Discovery", "Range Rover"],
+  Lexus: ["ES", "IS", "NX", "RX", "GX"],
+  Lincoln: ["Aviator", "Corsair", "Nautilus", "Navigator"],
+  Mazda: ["Mazda3", "CX-5", "CX-30", "CX-50", "CX-90"],
+  "Mercedes-Benz": ["C-Class", "E-Class", "GLC", "GLE", "Sprinter"],
+  Mitsubishi: ["Eclipse Cross", "Outlander", "Outlander Sport"],
+  Nissan: ["Altima", "Frontier", "Kicks", "Rogue", "Titan"],
+  Porsche: ["911", "Cayenne", "Macan", "Taycan"],
+  Ram: ["1500", "2500", "3500", "ProMaster"],
+  Subaru: ["Ascent", "Crosstrek", "Forester", "Outback", "Impreza"],
+  Tesla: ["Model 3", "Model S", "Model X", "Model Y"],
+  Toyota: ["4Runner", "Camry", "Corolla", "RAV4", "Tacoma", "Tundra"],
+  Volkswagen: ["Atlas", "Golf", "Jetta", "Tiguan"],
+  Volvo: ["S60", "XC40", "XC60", "XC90"],
+};
+const splitVehicleFilter = (value: string | undefined) => value?.split("||").filter(Boolean) ?? [];
+const modelsForMakes = (makes: readonly string[]) =>
+  [...new Set(makes.flatMap((make) => vehicleModelsByMake[make] ?? []))].sort();
 const vehicleSellerTypeOptions = ["Private", "Dealer"] as const;
 type JobPreviewCard = {
   title: string;
@@ -2288,6 +2322,8 @@ function VehicleResultsPage({
   const [region, setRegion] = useState(search.region ?? "");
   const [state, setState] = useState(search.state ?? "");
   const [city, setCity] = useState(search.city ?? "");
+  const selectedMakes = splitVehicleFilter(make);
+  const availableModels = modelsForMakes(selectedMakes);
 
   useEffect(() => {
     setTerm(search.q ?? "");
@@ -2311,6 +2347,11 @@ function VehicleResultsPage({
     setState(search.state ?? "");
     setCity(search.city ?? "");
   }, [search]);
+
+  useEffect(() => {
+    const available = new Set(modelsForMakes(splitVehicleFilter(make)));
+    setModel((current) => splitVehicleFilter(current).filter((value) => available.has(value)).join("||"));
+  }, [make]);
 
   function apply() {
     const numberValue = (value: string) => {
@@ -2363,7 +2404,10 @@ function VehicleResultsPage({
 
       <div className="mt-7 grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
         {showAll && <aside className="space-y-3">
-          <VehicleFilterGroup title="Make / model"><VehicleCheckboxList label="Makes" value={make} options={vehicleOptions.makes} onChange={setMake} /><VehicleCheckboxList label="Models" value={model} options={vehicleModelOptions} onChange={setModel} /></VehicleFilterGroup>
+          <VehicleFilterGroup title="Make / model">
+            <VehicleCheckboxList label="Makes" value={make} options={vehicleOptions.makes} onChange={setMake} />
+            {selectedMakes.length > 0 && <VehicleCheckboxList label="Models" value={model} options={availableModels} onChange={setModel} />}
+          </VehicleFilterGroup>
           <VehicleFilterGroup title="Year">
             <div className="grid grid-cols-2 gap-2"><VehicleTextField label="Year from" value={yearMin} onChange={setYearMin} placeholder="From" numeric /><VehicleTextField label="Year to" value={yearMax} onChange={setYearMax} placeholder="To" numeric /></div>
           </VehicleFilterGroup>
@@ -2724,16 +2768,29 @@ function InlineVehicleMakeModelFilter({
 }) {
   const [make, setMake] = useState(search.make ?? "");
   const [model, setModel] = useState(search.model ?? "");
+  const selectedMakes = splitVehicleFilter(make);
+  const availableModels = modelsForMakes(selectedMakes);
 
   useEffect(() => {
     setMake(search.make ?? "");
     setModel(search.model ?? "");
   }, [search.make, search.model]);
 
+  useEffect(() => {
+    const available = new Set(modelsForMakes(splitVehicleFilter(make)));
+    setModel((current) => splitVehicleFilter(current).filter((value) => available.has(value)).join("||"));
+  }, [make]);
+
   return (
     <div className="w-full space-y-2.5">
-      <InlineMultiFilter label="Makes" value={make} options={vehicleOptions.makes} onApply={setMake} />
-      <InlineMultiFilter label="Models" value={model} options={vehicleModelOptions} onApply={setModel} />
+      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Makes</p>
+      <VehicleCheckboxList label="Makes" value={make} options={vehicleOptions.makes} onChange={setMake} />
+      {selectedMakes.length > 0 && (
+        <>
+          <p className="pt-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Models</p>
+          <VehicleCheckboxList label="Models" value={model} options={availableModels} onChange={setModel} />
+        </>
+      )}
       <InlineApplyButton onClick={() => onApply({ make: make || undefined, model: model || undefined })} />
     </div>
   );
