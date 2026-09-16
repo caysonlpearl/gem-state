@@ -109,8 +109,8 @@ function SellerSetupPage() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["seller-setup"] });
       setAvatarFile(null);
-      toast.success("Seller profile saved. You can now create listings.");
-      document.getElementById("first-listing")?.scrollIntoView({ behavior: "smooth" });
+      toast.success("Seller profile saved. Continue to payout verification.");
+      document.getElementById("payout-setup")?.scrollIntoView({ behavior: "smooth" });
     },
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "Could not save seller setup."),
@@ -160,9 +160,7 @@ function SellerSetupPage() {
     setup.data?.defaultShippingMethod &&
     setup.data?.defaultHandlingDays,
   );
-  // Direct-contact classifieds do not require payment or payout onboarding. The Stripe
-  // connection remains available for a future transaction phase, but it must not block MVP sellers.
-  const sellerReady = profileReady;
+  const sellerReady = Boolean(profileReady && payoutReady);
 
   return (
     <main className="mx-auto max-w-[940px] px-4 py-10 sm:px-6">
@@ -175,8 +173,8 @@ function SellerSetupPage() {
             Set up your shop
           </h1>
           <p className="mt-1 max-w-[620px] text-[12.5px] leading-relaxed text-muted-foreground">
-            Your public storefront and private shipping information live here. Payment and payout
-            onboarding are optional while Gem State uses direct seller contact.
+            Your public storefront and private shipping information live here. Bank and identity
+            details go directly to Stripe, not ParkVault.
           </p>
         </div>
       </div>
@@ -185,14 +183,14 @@ function SellerSetupPage() {
 
       <ol className="mt-7 grid gap-px border border-border bg-border sm:grid-cols-3">
         <SetupStep number="1" label="Seller information" complete={profileReady} />
-        <SetupStep number="2" label="Listing details" complete={profileReady} />
+        <SetupStep number="2" label="Identity & payouts" complete={Boolean(payoutReady)} />
         <SetupStep number="3" label="First listing" complete={false} />
       </ol>
 
       <div className="mt-7 grid gap-4 sm:grid-cols-3">
         {[
           [Storefront, "Storefront", setup.data?.exists ? "Complete" : "Required"],
-          [IdentificationCard, "Future payouts", payoutReady ? "Verified" : "Optional"],
+          [IdentificationCard, "Payout identity", payoutReady ? "Verified" : "Not ready"],
           [LockKey, "Private address", setup.data?.shipFromLine1 ? "Saved" : "Required"],
         ].map(([Icon, label, value]) => {
           const Glyph = Icon as typeof Storefront;
@@ -374,7 +372,7 @@ function SellerSetupPage() {
             />
             <span>
               I agree to list only items I possess, describe condition accurately, ship on time, and
-              grant Gem State Classifieds permission to display the listing photos I submit.
+              grant ParkVault permission to display the listing photos I submit.
             </span>
           </label>
           <button
@@ -382,7 +380,7 @@ function SellerSetupPage() {
             disabled={saveMutation.isPending}
             className="h-10 bg-primary px-4 text-[12.5px] font-medium text-primary-foreground disabled:opacity-50"
           >
-            {saveMutation.isPending ? "Saving…" : "Save seller profile"}
+            {saveMutation.isPending ? "Saving…" : "Save and continue to payouts"}
           </button>
         </form>
       ) : (
@@ -396,15 +394,15 @@ function SellerSetupPage() {
               Step 2
             </p>
             <h2 className="mt-1 flex items-center gap-2 text-[15px] font-semibold">
-              Payment and payout setup{" "}
+              Verify identity and connect payouts{" "}
               {payoutReady ? (
                 <CheckCircle size={17} weight="fill" className="text-primary" />
               ) : null}
             </h2>
             <p className="mt-1 max-w-[610px] text-[11.5px] leading-relaxed text-muted-foreground">
-              Payment and payout onboarding is reserved for a future transaction phase. If enabled,
-              Stripe's hosted form would collect the identity, tax and bank details it requires;
-              Gem State Classifieds would receive only account readiness flags.
+              Stripe's hosted form collects the identity, tax and bank details it requires,
+              including a government ID when Stripe requests one. ParkVault receives only account
+              readiness flags, never the ID image or bank details.
             </p>
           </div>
           <div className="flex gap-2">
@@ -430,7 +428,7 @@ function SellerSetupPage() {
               </>
             ) : (
               <span className="border border-brand-warm/40 bg-brand-warm/10 px-3 py-2 text-[11.5px] text-brand-warm">
-                Not needed for direct-contact listings
+                Payout setup temporarily unavailable
               </span>
             )}
           </div>
@@ -438,12 +436,13 @@ function SellerSetupPage() {
         {!setup.data?.payoutProviderConfigured ? (
           <div className="mt-4 border border-brand-warm/40 bg-brand-warm/10 p-4">
             <p className="text-[12.5px] font-semibold">
-              Marketplace payouts are not part of the current MVP
+              ParkVault marketplace payouts are not configured yet
             </p>
             <p className="mt-1 max-w-[680px] text-[11.5px] leading-relaxed text-muted-foreground">
-              Buyers contact sellers directly in this MVP, so you can publish listings without
-              connecting a bank account or providing payout information. The future Stripe Connect
-              setup remains available for when platform checkout is enabled.
+              This is a ParkVault platform issue, not a problem with your seller profile. The
+              Lovable workspace connector is enabled, but it does not supply the custom Stripe
+              Connect credentials used to onboard individual marketplace sellers. Bank and identity
+              details cannot be collected until that secure payout backend is configured.
             </p>
             {setup.data?.isAdmin ? (
               <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -453,35 +452,38 @@ function SellerSetupPage() {
                   rel="noreferrer"
                   className="inline-flex h-10 items-center bg-primary px-4 text-[12px] font-semibold text-primary-foreground"
                 >
-                  Open Stripe for Gem State
+                  Open Stripe for ParkVault
                 </a>
                 <p className="max-w-[520px] text-[10.5px] leading-relaxed text-muted-foreground">
-                  Create or open the Stripe account Gem State Classifieds will use. Its Connect
-                  credential must then be installed in a secure backend. Never place the key in
-                  source code, chat or a public form.
+                  Create or open the Stripe account ParkVault will use. Its Connect credential must
+                  then be installed in a secure backend. Never place the key in source code, chat or
+                  a public form.
                 </p>
               </div>
             ) : (
               <p className="mt-2 text-[11px] text-muted-foreground">
-                You can continue to create listings and receive buyer inquiries without payout setup.
+                A ParkVault administrator must complete the platform connection before seller payout
+                setup becomes available.
               </p>
             )}
           </div>
         ) : null}
       </section>
 
-      <section id="first-listing" className="mt-6 border border-border bg-card p-5">
+      <section className="mt-6 border border-border bg-card p-5">
         <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-primary">Step 3</p>
         <div className="mt-1 flex flex-wrap items-center justify-between gap-4">
           <div>
             <h2 className="text-[15px] font-semibold">Create your first listing</h2>
             <p className="mt-1 max-w-[620px] text-[11.5px] leading-relaxed text-muted-foreground">
-              Choose a category, add the exact item you own, and provide your photos, condition,
-              location, price and package details.
+              Search the ParkVault catalog, choose the product you own and add your exact-item
+              photos, condition, price and package details.
             </p>
-            <p className="mt-2 text-[11px] text-muted-foreground">
-              Buyers will contact you directly about the listing.
-            </p>
+            {profileReady && !payoutReady ? (
+              <p className="mt-2 text-[11px] text-brand-warm">
+                Finish Stripe identity and payout verification before creating a listing.
+              </p>
+            ) : null}
           </div>
           <Link
             to="/create-listing"

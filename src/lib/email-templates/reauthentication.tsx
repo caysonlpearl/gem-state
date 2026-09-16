@@ -10,7 +10,7 @@ interface ReauthenticationEmailProps {
 }
 
 export const ReauthenticationEmail = ({
-  siteName = "Gem State Classifieds",
+  siteName = "ParkVault",
   token,
 }: ReauthenticationEmailProps) => (
   <Html lang="en" dir="ltr">

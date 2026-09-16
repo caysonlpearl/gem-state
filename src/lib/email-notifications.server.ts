@@ -99,48 +99,15 @@ export async function emailMember(
   templateName: string,
   templateData: Record<string, unknown>,
   idempotencyKey: string,
-  options?: { replyTo?: string },
 ): Promise<void> {
   try {
     const to = await memberEmail(userId);
     if (!to) return;
-    await sendTemplateEmail(templateName, to, {
-      templateData,
-      idempotencyKey,
-      ...(options?.replyTo ? { replyTo: options.replyTo } : {}),
-    });
+    await sendTemplateEmail(templateName, to, { templateData, idempotencyKey });
   } catch (error) {
     // Delivery problems are platform-side; the in-app notification already
     // recorded the event, so the member is never left without the update.
     console.error(`Notification email '${templateName}' was not delivered`, error);
-  }
-}
-
-/** Seller email when a buyer sends a message about an exact classified listing. */
-export async function emailListingInquiry(inquiryId: string): Promise<void> {
-  try {
-    const client = await admin();
-    const { data: inquiry } = await client
-      .from("listing_inquiries")
-      .select("id,seller_id,buyer_name,buyer_email,message,listing_id,asks(products(name))")
-      .eq("id", inquiryId)
-      .maybeSingle();
-    if (!inquiry?.seller_id) return;
-
-    const listingTitle = inquiry.asks?.products?.name ?? "your listing";
-    await emailMember(
-      inquiry.seller_id,
-      "listing-inquiry-received",
-      {
-        itemName: listingTitle,
-        buyerName: inquiry.buyer_name,
-        message: inquiry.message,
-      },
-      `listing-inquiry-${inquiry.id}`,
-      { replyTo: inquiry.buyer_email },
-    );
-  } catch (error) {
-    console.error("Listing inquiry email was not delivered", error);
   }
 }
 

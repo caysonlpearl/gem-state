@@ -35,8 +35,8 @@ export const InviteEmail = ({ siteName, siteUrl, confirmationUrl }: InviteEmailP
         <Hr style={rule} />
         <Heading style={h1}>You&apos;ve been invited</Heading>
         <Text style={text}>
-          You&apos;ve been invited to join {siteName}, an Idaho marketplace for cars, trucks, outdoor
-          gear, tools, home goods, and more. Accept the invitation below to set up your account.
+          You&apos;ve been invited to join {siteName}, a marketplace for Walt Disney World and
+          Disneyland park merchandise. Accept the invitation below to set up your account.
         </Text>
         <Button className="dm-btn" style={button} href={confirmationUrl}>
           Accept invitation

@@ -8,7 +8,6 @@ import { toast } from "sonner";
 import { SellerCenterNav } from "@/components/seller/SellerCenterNav";
 import { formatUsd } from "@/config/fees";
 import { trackEvent } from "@/lib/analytics";
-import { getSellerListingInquiries } from "@/lib/classified-inquiry.functions";
 import {
   cancelListing,
   getMyListingOffers,
@@ -71,7 +70,6 @@ function SellingPage() {
   const retryAuthorizationRelease = useServerFn(retryListingOfferAuthorizationRelease);
   const acceptSecuredOffer = useServerFn(acceptSecuredListingOffer);
   const fetchMissingRequests = useServerFn(getMyMissingListingRequests);
-  const fetchListingInquiries = useServerFn(getSellerListingInquiries);
   const [counterPrices, setCounterPrices] = useState<Record<string, string>>({});
   const [listingTab, setListingTab] = useState<ListingTab>("active");
 
@@ -106,11 +104,6 @@ function SellingPage() {
     queryFn: () => fetchMissingRequests(),
     enabled: profileReady,
   });
-  const listingInquiries = useQuery({
-    queryKey: ["seller-listing-inquiries"],
-    queryFn: () => fetchListingInquiries(),
-    enabled: profileReady,
-  });
 
   const cancelMutation = useMutation({
     mutationFn: (id: string) => cancel({ data: { kind: "ask", id } }),
@@ -125,7 +118,7 @@ function SellingPage() {
     mutationFn: (listingId: string) => relist({ data: { listingId } }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["my-listings"] });
-      toast.success("Listing resubmitted for Gem State review.");
+      toast.success("Listing resubmitted for ParkVault approval.");
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "Could not relist."),
   });
@@ -209,7 +202,7 @@ function SellingPage() {
               Seller center
             </p>
             <h1 className="mt-2 font-editorial text-[46px] font-normal leading-none tracking-[-0.04em]">
-              Become a Gem State seller
+              Become a ParkVault Seller
             </h1>
             <p className="mt-4 max-w-[620px] text-[13px] leading-relaxed text-muted-foreground">
               Create your public seller profile, add your private return address, connect verified
@@ -279,6 +272,10 @@ function SellingPage() {
           ? soldAsks
           : removedAsks;
 
+  const payoutReady = Boolean(
+    sellerSetup.data?.stripeDetailsSubmitted && sellerSetup.data?.stripePayoutsEnabled,
+  );
+
   return (
     <main className="mx-auto max-w-[1120px] px-4 py-10 sm:px-8">
       <div>
@@ -289,10 +286,27 @@ function SellingPage() {
           Seller dashboard
         </h1>
         <p className="mt-1 text-[13px] text-muted-foreground">
-          Listings, buyer inquiries, moderation status and seller tools in one place.
+          Listings, offers, sales, shipping, reviews and payouts in one place.
         </p>
       </div>
       <SellerCenterNav storefrontSlug={sellerSetup.data?.slug} />
+
+      {!payoutReady ? (
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border border-brand-warm/40 bg-brand-warm/10 p-4">
+          <div>
+            <p className="text-[13px] font-semibold">Payout verification is not complete</p>
+            <p className="mt-1 text-[11.5px] text-muted-foreground">
+              Complete identity and bank setup before ParkVault can send seller payouts.
+            </p>
+          </div>
+          <Link
+            to="/seller-setup"
+            className="inline-flex h-9 items-center bg-primary px-3 text-[12px] font-medium text-primary-foreground"
+          >
+            Finish payout setup
+          </Link>
+        </div>
+      ) : null}
 
       <section className="mt-7 grid grid-cols-2 gap-px border border-border bg-border lg:grid-cols-4">
         <Metric label="Active listings" value={String(activeAsks.length)} />
@@ -300,8 +314,8 @@ function SellingPage() {
           label="Awaiting approval"
           value={String(pendingAsks.length + heldRequests.length)}
         />
-        <Metric label="Buyer inquiries" value={String(listingInquiries.data?.length ?? 0)} />
-        <Metric label="Platform payments" value="Not active" />
+        <Metric label="Sales to ship" value={String(salesToShip.length)} />
+        <Metric label="Awaiting payout" value={formatUsd(summary.data?.pendingPayoutCents ?? 0)} />
       </section>
 
       <section id="listings" className="mt-9 scroll-mt-28">
@@ -353,7 +367,7 @@ function SellingPage() {
           <div className="border-b border-border py-8">
             <p className="text-[13px] font-semibold">No listings yet</p>
             <p className="mt-1 text-[12px] text-muted-foreground">
-              Create one listing for the specific item you want to sell.
+              Choose a catalog product and publish your exact item.
             </p>
             <Link
               to="/create-listing"
@@ -382,8 +396,9 @@ function SellingPage() {
                   </span>
                   <div className="min-w-0">
                     <Link
-                      to="/listings/$listingId"
-                      params={{ listingId: ask.id }}
+                      to="/products/$slug"
+                      params={{ slug: ask.productSlug }}
+                      search={{ sell: false }}
                       className="text-[13px] font-semibold hover:underline"
                     >
                       {ask.productName}
@@ -391,7 +406,7 @@ function SellingPage() {
                     <p className="mt-0.5 text-[11.5px] text-muted-foreground">
                       {ask.variantLabel} ·{" "}
                       {ask.status === "active" && !ask.approvedAt
-                        ? "Awaiting Gem State review"
+                        ? "Awaiting ParkVault approval"
                         : (listingStatusLabels[ask.status] ?? ask.status)}{" "}
                       · {ask.publicMediaCount ?? 0} photos
                     </p>
@@ -497,58 +512,11 @@ function SellingPage() {
               : listingTab === "pending"
                 ? heldRequests.length > 0
                   ? ""
-                  : "Nothing waiting on Gem State review."
+                  : "Nothing waiting on ParkVault approval."
                 : listingTab === "sold"
                   ? "No sold listings yet."
                   : "No removed listings."}
           </p>
-        ) : null}
-      </section>
-
-      <section id="inquiries" className="mt-10 scroll-mt-28">
-        <div className="border-b border-border pb-3">
-          <h2 className="text-[14px] font-semibold">Buyer inquiries</h2>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">
-            Questions from buyers about your exact listings. Reply directly by email.
-          </p>
-        </div>
-        {listingInquiries.isLoading ? (
-          <p className="py-5 text-[12.5px] text-muted-foreground">Loading inquiries…</p>
-        ) : null}
-        {!listingInquiries.isLoading && (listingInquiries.data ?? []).length === 0 ? (
-          <p className="py-6 text-[12.5px] text-muted-foreground">No buyer inquiries yet.</p>
-        ) : null}
-        {(listingInquiries.data ?? []).length > 0 ? (
-          <ul className="divide-y divide-border border-b border-border">
-            {(listingInquiries.data ?? []).map((inquiry) => (
-              <li key={inquiry.id} className="py-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <Link
-                      to="/listings/$listingId"
-                      params={{ listingId: inquiry.listingId }}
-                      className="text-[13px] font-semibold hover:underline"
-                    >
-                      {inquiry.listingTitle}
-                    </Link>
-                    <p className="mt-0.5 text-[11.5px] text-muted-foreground">
-                      {inquiry.buyerName} · {inquiry.buyerEmail} ·{" "}
-                      {new Date(inquiry.createdAt).toLocaleDateString()}
-                    </p>
-                    <p className="mt-2 whitespace-pre-line text-[12.5px] leading-relaxed">
-                      {inquiry.message}
-                    </p>
-                  </div>
-                  <a
-                    href={`mailto:${inquiry.buyerEmail}?subject=${encodeURIComponent(`Re: ${inquiry.listingTitle}`)}`}
-                    className="inline-flex h-9 shrink-0 items-center rounded-full border border-foreground px-3 text-[11.5px] font-medium hover:bg-secondary"
-                  >
-                    Reply by email
-                  </a>
-                </div>
-              </li>
-            ))}
-          </ul>
         ) : null}
       </section>
 
@@ -584,8 +552,8 @@ function SellingPage() {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <Link
-                      to="/listings/$listingId"
-                      params={{ listingId: offer.askId }}
+                      to="/products/$slug"
+                      params={{ slug: offer.productSlug }}
                       className="text-[13px] font-semibold hover:underline"
                     >
                       {offer.productName}
@@ -601,7 +569,7 @@ function SellingPage() {
                     </p>
                     {offer.status === "pending" || offer.paymentStatus === "capture_pending" ? (
                       <dl className="numeric mt-2 grid grid-cols-2 gap-x-5 gap-y-0.5 text-[11px] text-muted-foreground">
-                        <dt>Gem State selling fee</dt>
+                        <dt>ParkVault selling fee</dt>
                         <dd className="text-right">−{formatUsd(offer.sellerFeeCents)}</dd>
                         <dt>You’ll receive</dt>
                         <dd className="text-right font-semibold text-foreground">
@@ -765,7 +733,7 @@ function SellingPage() {
           <div>
             <h2 className="text-[14px] font-semibold">Your seller reviews</h2>
             <p className="mt-0.5 text-[11px] text-muted-foreground">
-              Reviews from completed Gem State orders.
+              Reviews from completed ParkVault orders.
             </p>
           </div>
           <p className="numeric text-[12px] font-semibold">

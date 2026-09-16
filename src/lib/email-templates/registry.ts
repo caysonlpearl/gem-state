@@ -11,7 +11,6 @@ import { template as listingReviewed } from "./listing-reviewed";
 import { template as sourcingUpdate } from "./sourcing-update";
 import { template as disputeUpdate } from "./dispute-update";
 import { template as sellerReviewRequest } from "./seller-review-request";
-import { template as listingInquiryReceived } from "./listing-inquiry-received";
 
 export interface TemplateEntry {
   component: ComponentType<any>;
@@ -38,5 +37,4 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   "listing-reviewed": listingReviewed,
   "sourcing-update": sourcingUpdate,
   "dispute-update": disputeUpdate,
-  "listing-inquiry-received": listingInquiryReceived,
 };

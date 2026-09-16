@@ -2,7 +2,6 @@ import { Link } from "@tanstack/react-router";
 import { MapPin } from "@phosphor-icons/react";
 
 import { formatUsd } from "@/config/fees";
-import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { WatchHeartButton } from "@/components/community/WatchHeartButton";
 import {
   conditionLabels,
@@ -17,13 +16,9 @@ function Photo({ listing, tall }: { listing: ClassifiedCard; tall?: boolean }) {
   if (!listing.imageUrl) {
     return (
       <div
-        className={`relative flex ${ratio} items-center justify-center overflow-hidden bg-gradient-to-br from-secondary via-card to-accent/25 text-muted-foreground`}
+        className={`flex ${ratio} items-center justify-center bg-secondary text-[11px] text-muted-foreground`}
       >
-        <span className="absolute -right-6 -top-8 h-28 w-28 rounded-full bg-primary/5" />
-        <span className="absolute -bottom-10 -left-5 h-28 w-28 rounded-full bg-brand-warm/10" />
-        <span className="relative grid h-14 w-14 place-items-center rounded-2xl bg-card/75 text-primary shadow-sm backdrop-blur">
-          <CategoryArtwork slug={listing.categorySlug ?? "general"} size={84} />
-        </span>
+        No photo yet
       </div>
     );
   }
@@ -53,7 +48,7 @@ function Facts({ listing }: { listing: ClassifiedCard }) {
 
 export function ListingCard({ listing }: { listing: ClassifiedCard }) {
   return (
-    <article className="group relative min-w-0 overflow-hidden rounded-2xl border border-transparent bg-card shadow-sm transition-shadow hover:shadow-md">
+    <article className="group relative min-w-0 rounded-md border border-border bg-card transition-colors hover:border-primary">
       <div className="relative">
         <Link to="/listings/$listingId" params={{ listingId: listing.id }} className="block">
           <Photo listing={listing} />
@@ -70,7 +65,7 @@ export function ListingCard({ listing }: { listing: ClassifiedCard }) {
       <Link
         to="/listings/$listingId"
         params={{ listingId: listing.id }}
-        className="block px-3.5 pb-4 pt-3.5"
+        className="block border-t border-border px-3 py-3"
       >
         <p className="numeric text-[17px] font-bold leading-none text-foreground">
           {formatUsd(listing.priceCents)}
@@ -81,7 +76,7 @@ export function ListingCard({ listing }: { listing: ClassifiedCard }) {
         <Facts listing={listing} />
         <p className="mt-2 flex items-center gap-1 truncate text-[11.5px] text-muted-foreground">
           <MapPin size={12} weight="fill" className="shrink-0 text-primary" />
-          {listing.city}, {listing.state}
+          {listing.city}, Idaho
         </p>
         <div className="mt-2 flex items-center justify-between gap-2 text-[10.5px] text-muted-foreground">
           <span className="truncate">{fulfillmentLabels[listing.fulfillmentMode]}</span>
@@ -94,7 +89,7 @@ export function ListingCard({ listing }: { listing: ClassifiedCard }) {
 
 export function ListingRow({ listing }: { listing: ClassifiedCard }) {
   return (
-    <article className="group relative overflow-hidden rounded-2xl border border-transparent bg-card shadow-sm transition-shadow hover:shadow-md">
+    <article className="group relative rounded-md border border-border bg-card transition-colors hover:border-primary">
       <Link
         to="/listings/$listingId"
         params={{ listingId: listing.id }}
@@ -113,7 +108,7 @@ export function ListingRow({ listing }: { listing: ClassifiedCard }) {
           <Facts listing={listing} />
           <p className="mt-2 flex items-center gap-1 truncate text-[11.5px] text-muted-foreground">
             <MapPin size={12} weight="fill" className="shrink-0 text-primary" />
-            {listing.city}, {listing.state} · {fulfillmentLabels[listing.fulfillmentMode]}
+            {listing.city}, Idaho · {fulfillmentLabels[listing.fulfillmentMode]}
           </p>
           <p className="mt-1 text-[10.5px] text-muted-foreground">{postedAge(listing.createdAt)}</p>
         </div>

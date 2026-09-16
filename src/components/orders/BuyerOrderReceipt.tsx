@@ -112,7 +112,10 @@ export function BuyerOrderReceipt({ order }: { order: OrderDetail }) {
           {isSourcing ? (
             <>
               <PayRow label="Park Shopper earnings" value={formatUsd(shopperEarningsCents)} />
-              <PayRow label="Sourcing & protection" value={formatUsd(order.buyerFeeCents)} />
+              <PayRow
+                label="ParkVault sourcing & protection"
+                value={formatUsd(order.buyerFeeCents)}
+              />
               <PayRow label="Shipping" value={formatUsd(order.shippingCents)} />
               <PayRow label="Tax" value={formatUsd(order.taxCents)} />
             </>

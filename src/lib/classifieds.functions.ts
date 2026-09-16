@@ -1,13 +1,7 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- the generated client types lag the classified listing RPC additions */
 import { createServerFn } from "@tanstack/react-start";
 
 import { publicServerClient } from "./supabase-public.server";
 import { classifiedCategories } from "@/config/classifieds";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import {
-  classifiedListingSchema,
-  type ClassifiedListingInput,
-} from "@/lib/classified-listing-contracts";
 
 /**
  * Public read layer for individual classified listings.
@@ -42,7 +36,6 @@ export type ClassifiedCard = {
   priceCents: number;
   currency: string;
   city: string;
-  state: string;
   region: string;
   categorySlug: string | null;
   categoryName: string | null;
@@ -58,15 +51,6 @@ export type ClassifiedDetail = ClassifiedCard & {
   postalCode: string | null;
   sellerNote: string | null;
   variantId: string;
-  seller: {
-    slug: string;
-    displayName: string;
-    bio: string | null;
-    avatarUrl: string | null;
-    payoutVerified: boolean;
-    ratingAverage: number | null;
-    reviewCount: number;
-  } | null;
   images: { url: string; alt: string }[];
 };
 
@@ -77,343 +61,12 @@ export type ClassifiedBrowseResult = {
   pageSize: number;
 };
 
-export type ClassifiedCategoryOption = {
-  id: string;
-  slug: string;
-  name: string;
-};
-
-export const getClassifiedCategoryOptions = createServerFn({ method: "GET" }).handler(
-  async (): Promise<ClassifiedCategoryOption[]> => {
-    const client = publicServerClient();
-    const slugs = classifiedCategories.map((category) => category.slug);
-    const { data, error } = await client
-      .from("categories")
-      .select("id, slug, name")
-      .in("slug", slugs)
-      .order("position");
-    if (error) throw new Error(error.message);
-    return (data ?? []) as ClassifiedCategoryOption[];
-  },
-);
-
-export type AdminClassifiedRow = {
-  id: string;
-  title: string;
-  priceCents: number;
-  condition: string;
-  categoryName: string;
-  city: string;
-  state: string;
-  region: string;
-  fulfillmentMode: string;
-  sellerDisplayName: string;
-  sellerHandle: string;
-  sellerNote: string | null;
-  vehicle: ClassifiedVehicle | null;
-  listingImageUrls: string[];
-  evidenceImageUrls: string[];
-  createdAt: string;
-};
-
-/** Admin-only queue for the actual classified listings awaiting moderation. */
-export const getAdminClassifiedQueue = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
-    const { data: isAdmin, error: roleError } = await context.supabase.rpc("has_role", {
-      _user_id: context.userId,
-      _role: "admin",
-    });
-    if (roleError) throw new Error(roleError.message);
-    if (!isAdmin) return { isAdmin: false, listings: [] as AdminClassifiedRow[] };
-
-    const { data: rawRows, error: queueError } =
-      await context.supabase.rpc("admin_ask_review_queue");
-    if (queueError) throw new Error(queueError.message);
-    const rows = (rawRows ?? []) as Array<{
-      ask_id: string;
-      product_name: string;
-      price_cents: number;
-      item_condition: string;
-      seller_display_name: string;
-      seller_handle: string;
-      seller_note: string | null;
-      listing_media_paths: string[] | null;
-      evidence_paths: string[] | null;
-      created_at: string;
-    }>;
-    if (rows.length === 0) return { isAdmin: true, listings: [] as AdminClassifiedRow[] };
-
-    const listingIds = rows.map((row) => row.ask_id);
-    const { data: detailRows, error: detailsError } = await context.supabase
-      .from("classified_listing_details")
-      .select(
-        "listing_id,region,city,state,fulfillment_mode,vehicle_make,vehicle_model,vehicle_year,vehicle_trim,vehicle_mileage,vehicle_body_style,vehicle_transmission,vehicle_drivetrain,vehicle_fuel_type,vehicle_exterior_color,vehicle_title_status,vin,asks!inner(products!inner(categories(name)))",
-      )
-      .in("listing_id", listingIds);
-    if (detailsError) throw new Error(detailsError.message);
-
-    const detailsByListing = new Map(
-      ((detailRows ?? []) as Array<Record<string, unknown>>).map((row) => [
-        String(row["listing_id"]),
-        row,
-      ]),
-    );
-    const listings = await Promise.all(
-      rows.map(async (row) => {
-        const details = detailsByListing.get(row.ask_id);
-        if (!details) return null;
-        const category = details["asks"] as {
-          products?: { categories?: { name?: string } };
-        } | null;
-        return {
-          id: row.ask_id,
-          title: row.product_name,
-          priceCents: Number(row.price_cents),
-          condition: row.item_condition,
-          categoryName: category?.products?.categories?.name ?? "Classified",
-          city: String(details["city"] ?? ""),
-          state: String(details["state"] ?? "ID").toUpperCase(),
-          region: String(details["region"] ?? ""),
-          fulfillmentMode: String(details["fulfillment_mode"] ?? ""),
-          sellerDisplayName: row.seller_display_name,
-          sellerHandle: row.seller_handle,
-          sellerNote: row.seller_note,
-          vehicle: vehicleOf(details),
-          listingImageUrls: await signedAdminUrls("listing-media", row.listing_media_paths, context.supabase),
-          evidenceImageUrls: await signedAdminUrls("ask-evidence", row.evidence_paths),
-          createdAt: row.created_at,
-        } satisfies AdminClassifiedRow;
-      }),
-    );
-
-    return {
-      isAdmin: true,
-      listings: listings.filter((listing): listing is AdminClassifiedRow => listing !== null),
-    };
-  });
-
-export type CreateClassifiedListingInput = ClassifiedListingInput & {
-  parcelLengthIn?: number | null;
-  parcelWidthIn?: number | null;
-  parcelHeightIn?: number | null;
-  parcelWeightLb?: number | null;
-  evidencePaths: string[];
-  publicMediaPaths: string[];
-};
-
-export const createClassifiedListing = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: CreateClassifiedListingInput): CreateClassifiedListingInput => {
-    const parsed = classifiedListingSchema.parse(input);
-    const positive = (value: number | null | undefined) =>
-      value == null || (Number.isFinite(value) && value > 0) ? (value ?? null) : null;
-    const evidencePaths = (input.evidencePaths ?? []).filter(Boolean).slice(0, 8);
-    const publicMediaPaths = (input.publicMediaPaths ?? []).filter(Boolean).slice(0, 8);
-    if (evidencePaths.length === 0 || publicMediaPaths.length === 0)
-      throw new Error("Add at least one exact-item photo.");
-    return {
-      ...parsed,
-      state: parsed.state.toUpperCase(),
-      evidencePaths,
-      publicMediaPaths,
-      parcelLengthIn: positive(input.parcelLengthIn),
-      parcelWidthIn: positive(input.parcelWidthIn),
-      parcelHeightIn: positive(input.parcelHeightIn),
-      parcelWeightLb: positive(input.parcelWeightLb),
-    };
-  })
-  .handler(async ({ data, context }): Promise<{ listingId: string }> => {
-    const client = context.supabase as any;
-    const { data: category, error: categoryError } = await client
-      .from("categories")
-      .select("id")
-      .eq("slug", data.category)
-      .maybeSingle();
-    if (categoryError) throw new Error(categoryError.message);
-    if (!category?.id) throw new Error("Choose a valid classified category.");
-
-    const { data: listingId, error } = await client.rpc("create_classified_listing", {
-      _title: data.title,
-      _description: data.description,
-      _category_id: category.id,
-      _price_cents: data.priceCents,
-      _item_condition: data.condition,
-      _seller_note: data.sellerNote ?? null,
-      _region: data.region,
-      _city: data.city,
-      _state: data.state,
-      _postal_code: data.postalCode ?? null,
-      _fulfillment_mode: data.fulfillmentMode,
-      _parcel_length_in: data.parcelLengthIn ?? null,
-      _parcel_width_in: data.parcelWidthIn ?? null,
-      _parcel_height_in: data.parcelHeightIn ?? null,
-      _parcel_weight_lb: data.parcelWeightLb ?? null,
-      _evidence_paths: data.evidencePaths,
-      _public_media_paths: data.publicMediaPaths,
-      _vehicle: vehicleForRpc(data.vehicle),
-    });
-    if (error) throw new Error(error.message);
-    return { listingId: listingId as string };
-  });
-
-export type ClassifiedListingEditor = {
-  id: string;
-  title: string;
-  description: string;
-  category: string;
-  priceCents: number;
-  condition: string;
-  sellerNote: string;
-  state: string;
-  region: string;
-  city: string;
-  postalCode: string;
-  fulfillmentMode: string;
-  vehicle: ClassifiedVehicle | null;
-  parcelLengthIn: string;
-  parcelWidthIn: string;
-  parcelHeightIn: string;
-  parcelWeightLb: string;
-  status: string;
-  approvedAt: string | null;
-  imageUrls: string[];
-};
-
-export const getClassifiedListingEditor = createServerFn({ method: "GET" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: { listingId: string }) => ({ listingId: String(input.listingId) }))
-  .handler(async ({ data, context }): Promise<ClassifiedListingEditor | null> => {
-    const client = context.supabase as any;
-    const { data: row, error } = await client
-      .from("asks")
-      .select(
-        "id,status,approved_at,price_cents,item_condition,seller_note,parcel_length_in,parcel_width_in,parcel_height_in,parcel_weight_lb,products!inner(name,description,categories(slug)),classified_listing_details!inner(state,region,city,postal_code,fulfillment_mode,vehicle_make,vehicle_model,vehicle_year,vehicle_trim,vehicle_mileage,vehicle_body_style,vehicle_transmission,vehicle_drivetrain,vehicle_fuel_type,vehicle_exterior_color,vehicle_title_status,vin),listing_media(storage_path,position)",
-      )
-      .eq("id", data.listingId)
-      .eq("seller_id", context.userId)
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (!row) return null;
-
-    const record = row as any;
-    const details = record.classified_listing_details as Record<string, unknown>;
-    const media = ((record.listing_media ?? []) as { storage_path: string; position: number }[])
-      .sort((a, b) => a.position - b.position)
-      .map((item) => item.storage_path);
-    const urls = await signListingMedia(media, client);
-    const category = record.products?.categories?.slug ?? "general";
-    return {
-      id: record.id,
-      title: record.products?.name ?? "",
-      description: record.products?.description ?? "",
-      category,
-      priceCents: Number(record.price_cents),
-      condition: record.item_condition,
-      sellerNote: record.seller_note ?? "",
-      state: String(details["state"] ?? "ID").toUpperCase(),
-      region: String(details["region"] ?? ""),
-      city: String(details["city"] ?? ""),
-      postalCode: String(details["postal_code"] ?? ""),
-      fulfillmentMode: String(details["fulfillment_mode"] ?? "local_pickup"),
-      vehicle: vehicleOf(details),
-      parcelLengthIn: record.parcel_length_in == null ? "" : String(record.parcel_length_in),
-      parcelWidthIn: record.parcel_width_in == null ? "" : String(record.parcel_width_in),
-      parcelHeightIn: record.parcel_height_in == null ? "" : String(record.parcel_height_in),
-      parcelWeightLb: record.parcel_weight_lb == null ? "" : String(record.parcel_weight_lb),
-      status: record.status,
-      approvedAt: record.approved_at ?? null,
-      imageUrls: media.map((path) => urls.get(path)).filter((url): url is string => Boolean(url)),
-    };
-  });
-
-export type UpdateClassifiedListingInput = {
-  listingId: string;
-  title: string;
-  description: string;
-  category: string;
-  priceCents: number;
-  condition: string;
-  sellerNote?: string | undefined;
-  state: string;
-  region: string;
-  city: string;
-  postalCode?: string | undefined;
-  fulfillmentMode: string;
-  parcelLengthIn?: number | null;
-  parcelWidthIn?: number | null;
-  parcelHeightIn?: number | null;
-  parcelWeightLb?: number | null;
-  vehicle?: ClassifiedListingInput["vehicle"];
-  publicMediaPaths?: string[];
-};
-
-export const updateClassifiedListing = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: UpdateClassifiedListingInput): UpdateClassifiedListingInput => {
-    const parsed = classifiedListingSchema.parse(input);
-    return {
-      ...parsed,
-      listingId: String(input.listingId),
-      publicMediaPaths: (input.publicMediaPaths ?? []).filter(Boolean).slice(0, 8),
-      parcelLengthIn: input.parcelLengthIn ?? null,
-      parcelWidthIn: input.parcelWidthIn ?? null,
-      parcelHeightIn: input.parcelHeightIn ?? null,
-      parcelWeightLb: input.parcelWeightLb ?? null,
-    };
-  })
-  .handler(async ({ data, context }): Promise<{ ok: true }> => {
-    const client = context.supabase as any;
-    const { data: category, error: categoryError } = await client
-      .from("categories")
-      .select("id")
-      .eq("slug", data.category)
-      .maybeSingle();
-    if (categoryError) throw new Error(categoryError.message);
-    if (!category?.id) throw new Error("Choose a valid classified category.");
-
-    const { error } = await client.rpc("update_classified_listing", {
-      _listing_id: data.listingId,
-      _title: data.title,
-      _description: data.description,
-      _category_id: category.id,
-      _price_cents: data.priceCents,
-      _item_condition: data.condition,
-      _seller_note: data.sellerNote ?? null,
-      _region: data.region,
-      _city: data.city,
-      _state: data.state,
-      _postal_code: data.postalCode ?? null,
-      _fulfillment_mode: data.fulfillmentMode,
-      _parcel_length_in: data.parcelLengthIn ?? null,
-      _parcel_width_in: data.parcelWidthIn ?? null,
-      _parcel_height_in: data.parcelHeightIn ?? null,
-      _parcel_weight_lb: data.parcelWeightLb ?? null,
-      _vehicle: vehicleForRpc(data.vehicle),
-    });
-    if (error) throw new Error(error.message);
-    if (data.publicMediaPaths && data.publicMediaPaths.length > 0) {
-      const replaced = await client.rpc("replace_listing_media", {
-        _ask_id: data.listingId,
-        _paths: data.publicMediaPaths,
-      });
-      if (replaced.error) throw new Error(replaced.error.message);
-    }
-    return { ok: true };
-  });
-
 const PAGE_SIZE = 24;
-const conditionValues = [
-  "new_with_tags",
-  "new_without_tags",
-  "used_excellent",
-  "used_good",
-] as const;
 
 const LISTING_SELECT =
-  "id, product_id, variant_id, seller_id, price_cents, currency, item_condition, seller_note, created_at, " +
+  "id, product_id, variant_id, price_cents, currency, item_condition, seller_note, created_at, " +
   "products!inner(id, slug, name, description, status, category_id, categories(slug, name)), " +
-  "classified_listing_details!inner(region, city, state, postal_code, fulfillment_mode, vehicle_make, vehicle_model, vehicle_year, vehicle_trim, vehicle_mileage, vehicle_body_style, vehicle_transmission, vehicle_drivetrain, vehicle_fuel_type, vehicle_exterior_color, vehicle_title_status, vin), " +
+  "classified_listing_details!inner(region, city, postal_code, fulfillment_mode, vehicle_make, vehicle_model, vehicle_year, vehicle_trim, vehicle_mileage, vehicle_body_style, vehicle_transmission, vehicle_drivetrain, vehicle_fuel_type, vehicle_exterior_color, vehicle_title_status, vin), " +
   "listing_media(storage_path, position)";
 
 /** PostgREST `or=` treats these as structural characters; escape them. */
@@ -442,25 +95,6 @@ function vehicleOf(details: Record<string, unknown>): ClassifiedVehicle | null {
   };
 }
 
-/** The database compatibility function stores vehicle JSON with SQL-style keys. */
-function vehicleForRpc(vehicle: ClassifiedListingInput["vehicle"] | undefined) {
-  if (!vehicle) return {};
-  return {
-    make: vehicle.make,
-    model: vehicle.model,
-    year: vehicle.year,
-    trim: vehicle.trim,
-    mileage: vehicle.mileage,
-    body_style: vehicle.bodyStyle,
-    transmission: vehicle.transmission,
-    drivetrain: vehicle.drivetrain,
-    fuel_type: vehicle.fuelType,
-    exterior_color: vehicle.exteriorColor,
-    title_status: vehicle.titleStatus,
-    vin: vehicle.vin,
-  };
-}
-
 function sortedMedia(row: Record<string, unknown>): string[] {
   const media = (row["listing_media"] as { storage_path: string; position: number }[] | null) ?? [];
   return [...media]
@@ -468,46 +102,19 @@ function sortedMedia(row: Record<string, unknown>): string[] {
     .map((item) => item.storage_path);
 }
 
-/** Buyer-facing listing photos are short-lived signed URLs for approved media. */
-async function signListingMedia(paths: string[], client = publicServerClient()): Promise<Map<string, string>> {
+/** Listing photos live in a private bucket, so public pages need signed URLs. */
+async function signListingMedia(paths: string[]): Promise<Map<string, string>> {
   const unique = [...new Set(paths)];
   if (unique.length === 0) return new Map();
-
-  const { data, error } = await client.storage
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data } = await supabaseAdmin.storage
     .from("listing-media")
     .createSignedUrls(unique, 60 * 60);
-  if (error) {
-    console.error("Could not sign classified listing media", error.message);
-    return new Map();
-  }
   return new Map(
     (data ?? [])
-      .filter(
-        (item) =>
-          typeof item.path === "string" &&
-          typeof item.signedUrl === "string" &&
-          item.signedUrl.length > 0,
-      )
+      .filter((item) => item.signedUrl)
       .map((item) => [item.path as string, item.signedUrl as string]),
   );
-}
-
-async function signedAdminUrls(bucket: string, paths: string[] | null, client?: any): Promise<string[]> {
-  if (!paths?.length) return [];
-
-  if (bucket === "listing-media") {
-    if (client) {
-      const signedUrls = await signListingMedia(paths, client);
-      return paths.map((path) => signedUrls.get(path)).filter((url): url is string => Boolean(url));
-    }
-  }
-
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data, error } = await supabaseAdmin.storage.from(bucket).createSignedUrls(paths, 60 * 60);
-  if (error) return [];
-  return (data ?? [])
-    .map((item) => item.signedUrl)
-    .filter((url): url is string => typeof url === "string" && url.length > 0);
 }
 
 function toCard(row: Record<string, unknown>, urlByPath: Map<string, string>): ClassifiedCard {
@@ -527,7 +134,6 @@ function toCard(row: Record<string, unknown>, urlByPath: Map<string, string>): C
     priceCents: row["price_cents"] as number,
     currency: (row["currency"] as string) ?? "USD",
     city: details["city"] as string,
-    state: ((details["state"] as string | null) ?? "ID").toUpperCase(),
     region: details["region"] as string,
     categorySlug: product.categories?.slug ?? null,
     categoryName: product.categories?.name ?? null,
@@ -544,7 +150,6 @@ export type ClassifiedBrowseInput = {
   category?: string | undefined;
   group?: string | undefined;
   region?: string | undefined;
-  state?: string | undefined;
   city?: string | undefined;
   condition?: string | undefined;
   fulfillment?: string | undefined;
@@ -559,7 +164,6 @@ export type ClassifiedBrowseInput = {
   transmission?: string | undefined;
   drivetrain?: string | undefined;
   fuelType?: string | undefined;
-  exteriorColor?: string | undefined;
   titleStatus?: string | undefined;
   sort?: "newest" | "price_low" | "price_high" | "mileage_low" | undefined;
   page?: number | undefined;
@@ -573,37 +177,35 @@ const num = (value: unknown) => {
 };
 
 export const browseClassifieds = createServerFn({ method: "GET" })
-  .inputValidator((input: ClassifiedBrowseInput): ClassifiedBrowseInput => ({
-    q: text(input?.q),
-    category: text(input?.category, 60),
-    group: text(input?.group, 20),
-    region: text(input?.region),
-    state: text(input?.state, 2)?.toUpperCase(),
-    city: text(input?.city),
-    condition: conditionValues.includes(input?.condition as never)
-      ? (input.condition as (typeof conditionValues)[number])
-      : undefined,
-    fulfillment: text(input?.fulfillment, 20),
-    priceMin: num(input?.priceMin),
-    priceMax: num(input?.priceMax),
-    make: text(input?.make),
-    model: text(input?.model),
-    yearMin: num(input?.yearMin),
-    yearMax: num(input?.yearMax),
-    mileageMax: num(input?.mileageMax),
-    bodyStyle: text(input?.bodyStyle, 30),
-    transmission: text(input?.transmission, 30),
-    drivetrain: text(input?.drivetrain, 20),
-    fuelType: text(input?.fuelType, 30),
-    exteriorColor: text(input?.exteriorColor, 30),
-    titleStatus: text(input?.titleStatus, 30),
-    sort: (["newest", "price_low", "price_high", "mileage_low"] as const).includes(
-      input?.sort as never,
-    )
-      ? input.sort
-      : "newest",
-    page: Math.max(1, Math.min(50, Number(input?.page ?? 1) || 1)),
-  }))
+  .inputValidator(
+    (input: ClassifiedBrowseInput): ClassifiedBrowseInput => ({
+      q: text(input?.q),
+      category: text(input?.category, 60),
+      group: text(input?.group, 20),
+      region: text(input?.region),
+      city: text(input?.city),
+      condition: text(input?.condition, 30),
+      fulfillment: text(input?.fulfillment, 20),
+      priceMin: num(input?.priceMin),
+      priceMax: num(input?.priceMax),
+      make: text(input?.make),
+      model: text(input?.model),
+      yearMin: num(input?.yearMin),
+      yearMax: num(input?.yearMax),
+      mileageMax: num(input?.mileageMax),
+      bodyStyle: text(input?.bodyStyle, 30),
+      transmission: text(input?.transmission, 30),
+      drivetrain: text(input?.drivetrain, 20),
+      fuelType: text(input?.fuelType, 30),
+      titleStatus: text(input?.titleStatus, 30),
+      sort: (["newest", "price_low", "price_high", "mileage_low"] as const).includes(
+        input?.sort as never,
+      )
+        ? input.sort
+        : "newest",
+      page: Math.max(1, Math.min(50, Number(input?.page ?? 1) || 1)),
+    }),
+  )
   .handler(async ({ data }): Promise<ClassifiedBrowseResult> => {
     const client = publicServerClient();
     const page = data.page ?? 1;
@@ -645,10 +247,8 @@ export const browseClassifieds = createServerFn({ method: "GET" })
       });
     }
     if (data.region) query = query.eq("classified_listing_details.region", data.region);
-    if (data.state) query = query.eq("classified_listing_details.state", data.state);
     if (data.city) query = query.ilike("classified_listing_details.city", data.city);
-    if (data.condition)
-      query = query.eq("item_condition", data.condition as (typeof conditionValues)[number]);
+    if (data.condition) query = query.eq("item_condition", data.condition as never);
     if (data.fulfillment) {
       query =
         data.fulfillment === "both"
@@ -673,8 +273,6 @@ export const browseClassifieds = createServerFn({ method: "GET" })
       query = query.eq("classified_listing_details.vehicle_drivetrain", data.drivetrain);
     if (data.fuelType)
       query = query.eq("classified_listing_details.vehicle_fuel_type", data.fuelType);
-    if (data.exteriorColor)
-      query = query.eq("classified_listing_details.vehicle_exterior_color", data.exteriorColor);
     if (data.titleStatus)
       query = query.eq("classified_listing_details.vehicle_title_status", data.titleStatus);
 
@@ -706,14 +304,11 @@ export const browseClassifieds = createServerFn({ method: "GET" })
       return empty;
     }
 
+    const records = (rows ?? []) as unknown as Record<string, unknown>[];
     const urlByPath = await signListingMedia(
-      (rows ?? []).flatMap((row) =>
-        sortedMedia(row as unknown as Record<string, unknown>).slice(0, 1),
-      ),
+      records.flatMap((row) => sortedMedia(row).slice(0, 1)),
     );
-    const listings = (rows ?? []).map((row) =>
-      toCard(row as unknown as Record<string, unknown>, urlByPath),
-    );
+    const listings = records.map((row) => toCard(row, urlByPath));
     return { listings, total: count ?? listings.length, page, pageSize: PAGE_SIZE };
   });
 
@@ -741,14 +336,6 @@ export const getClassifiedListing = createServerFn({ method: "GET" })
     const product = record["products"] as { id: string; slug: string; description: string | null };
     const details = record["classified_listing_details"] as Record<string, unknown>;
     const card = toCard(record, urlByPath);
-    const sellerId = record["seller_id"] as string | null;
-    const { data: sellerRow } = sellerId
-      ? await client
-          .from("seller_storefronts")
-          .select("slug,display_name,bio,avatar_url,payout_verified,rating_average,review_count")
-          .eq("user_id", sellerId)
-          .maybeSingle()
-      : { data: null };
 
     return {
       ...card,
@@ -756,18 +343,6 @@ export const getClassifiedListing = createServerFn({ method: "GET" })
       postalCode: (details["postal_code"] as string | null) ?? null,
       sellerNote: (record["seller_note"] as string | null) ?? null,
       variantId: record["variant_id"] as string,
-      seller: sellerRow
-        ? {
-            slug: sellerRow.slug ?? "",
-            displayName: sellerRow.display_name ?? "Seller",
-            bio: sellerRow.bio ?? null,
-            avatarUrl: sellerRow.avatar_url ?? null,
-            payoutVerified: sellerRow.payout_verified === true,
-            ratingAverage:
-              sellerRow.rating_average == null ? null : Number(sellerRow.rating_average),
-            reviewCount: Number(sellerRow.review_count ?? 0),
-          }
-        : null,
       images: paths
         .map((path) => urlByPath.get(path))
         .filter((url): url is string => Boolean(url))
@@ -778,11 +353,17 @@ export const getClassifiedListing = createServerFn({ method: "GET" })
 export type ClassifiedRelated = { listings: ClassifiedCard[] };
 
 export const getRelatedClassifieds = createServerFn({ method: "GET" })
-  .inputValidator((input: { category?: string; region?: string; excludeId: string }) => ({
-    category: text(input?.category, 60),
-    region: text(input?.region),
-    excludeId: String(input?.excludeId ?? "").slice(0, 64),
-  }))
+  .inputValidator(
+    (input: {
+      category?: string | undefined;
+      region?: string | undefined;
+      excludeId: string;
+    }) => ({
+      category: text(input?.category, 60),
+      region: text(input?.region),
+      excludeId: String(input?.excludeId ?? "").slice(0, 64),
+    }),
+  )
   .handler(async ({ data }): Promise<ClassifiedRelated> => {
     if (!data.category) return { listings: [] };
     const result = await browseClassifieds({
@@ -806,9 +387,7 @@ export const getClassifiedsHome = createServerFn({ method: "GET" }).handler(
     const [{ data: categoryRows }, motors, recent] = await Promise.all([
       client
         .from("asks")
-        .select(
-          "id, products!inner(status, categories!inner(slug)), classified_listing_details!inner(listing_id)",
-        )
+        .select("id, products!inner(status, categories!inner(slug)), classified_listing_details!inner(listing_id)")
         .eq("status", "active")
         .eq("is_demo", false)
         .not("approved_at", "is", null)

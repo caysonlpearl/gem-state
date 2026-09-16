@@ -1,5 +1,5 @@
 /**
- * Shared Gem State Classifieds email styling. Body background stays #ffffff for
+ * Shared ParkVault email styling. Body background stays #ffffff for
  * deliverability; brand colors are used for the wordmark, headings and CTA.
  */
 

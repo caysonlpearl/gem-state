@@ -35,7 +35,6 @@ import { Route as SellersSlugRouteImport } from './routes/sellers.$slug'
 import { Route as ShoppersSlugRouteImport } from './routes/shoppers.$slug'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as AuthenticatedAdminCatalogRouteImport } from './routes/_authenticated/admin.catalog'
-import { Route as AuthenticatedAdminClassifiedsRouteImport } from './routes/_authenticated/admin.classifieds'
 import { Route as AuthenticatedAdminMembersRouteImport } from './routes/_authenticated/admin.members'
 import { Route as AuthenticatedAdminProductsRouteImport } from './routes/_authenticated/admin.products'
 import { Route as AuthenticatedAdminValidationRouteImport } from './routes/_authenticated/admin.validation'
@@ -183,12 +182,6 @@ const AuthenticatedAdminCatalogRoute =
     path: '/admin/catalog',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const AuthenticatedAdminClassifiedsRoute =
-  AuthenticatedAdminClassifiedsRouteImport.update({
-    id: '/admin/classifieds',
-    path: '/admin/classifieds',
-    getParentRoute: () => AuthenticatedRouteRoute,
-  } as any)
 const AuthenticatedAdminMembersRoute =
   AuthenticatedAdminMembersRouteImport.update({
     id: '/admin/members',
@@ -278,7 +271,6 @@ export interface FileRoutesByFullPath {
   '/sellers/$slug': typeof SellersSlugRoute
   '/shoppers/$slug': typeof ShoppersSlugRoute
   '/admin/catalog': typeof AuthenticatedAdminCatalogRoute
-  '/admin/classifieds': typeof AuthenticatedAdminClassifiedsRoute
   '/admin/members': typeof AuthenticatedAdminMembersRoute
   '/admin/products': typeof AuthenticatedAdminProductsRoute
   '/admin/validation': typeof AuthenticatedAdminValidationRoute
@@ -317,7 +309,6 @@ export interface FileRoutesByTo {
   '/sellers/$slug': typeof SellersSlugRoute
   '/shoppers/$slug': typeof ShoppersSlugRoute
   '/admin/catalog': typeof AuthenticatedAdminCatalogRoute
-  '/admin/classifieds': typeof AuthenticatedAdminClassifiedsRoute
   '/admin/members': typeof AuthenticatedAdminMembersRoute
   '/admin/products': typeof AuthenticatedAdminProductsRoute
   '/admin/validation': typeof AuthenticatedAdminValidationRoute
@@ -358,7 +349,6 @@ export interface FileRoutesById {
   '/sellers/$slug': typeof SellersSlugRoute
   '/shoppers/$slug': typeof ShoppersSlugRoute
   '/_authenticated/admin/catalog': typeof AuthenticatedAdminCatalogRoute
-  '/_authenticated/admin/classifieds': typeof AuthenticatedAdminClassifiedsRoute
   '/_authenticated/admin/members': typeof AuthenticatedAdminMembersRoute
   '/_authenticated/admin/products': typeof AuthenticatedAdminProductsRoute
   '/_authenticated/admin/validation': typeof AuthenticatedAdminValidationRoute
@@ -399,7 +389,6 @@ export interface FileRouteTypes {
     | '/sellers/$slug'
     | '/shoppers/$slug'
     | '/admin/catalog'
-    | '/admin/classifieds'
     | '/admin/members'
     | '/admin/products'
     | '/admin/validation'
@@ -438,7 +427,6 @@ export interface FileRouteTypes {
     | '/sellers/$slug'
     | '/shoppers/$slug'
     | '/admin/catalog'
-    | '/admin/classifieds'
     | '/admin/members'
     | '/admin/products'
     | '/admin/validation'
@@ -478,7 +466,6 @@ export interface FileRouteTypes {
     | '/sellers/$slug'
     | '/shoppers/$slug'
     | '/_authenticated/admin/catalog'
-    | '/_authenticated/admin/classifieds'
     | '/_authenticated/admin/members'
     | '/_authenticated/admin/products'
     | '/_authenticated/admin/validation'
@@ -697,13 +684,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminCatalogRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
-    '/_authenticated/admin/classifieds': {
-      id: '/_authenticated/admin/classifieds'
-      path: '/admin/classifieds'
-      fullPath: '/admin/classifieds'
-      preLoaderRoute: typeof AuthenticatedAdminClassifiedsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
     '/_authenticated/admin/members': {
       id: '/_authenticated/admin/members'
       path: '/admin/members'
@@ -798,7 +778,6 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedSuggestRoute: typeof AuthenticatedSuggestRoute
   AuthenticatedWatchlistRoute: typeof AuthenticatedWatchlistRoute
   AuthenticatedAdminCatalogRoute: typeof AuthenticatedAdminCatalogRoute
-  AuthenticatedAdminClassifiedsRoute: typeof AuthenticatedAdminClassifiedsRoute
   AuthenticatedAdminMembersRoute: typeof AuthenticatedAdminMembersRoute
   AuthenticatedAdminProductsRoute: typeof AuthenticatedAdminProductsRoute
   AuthenticatedAdminValidationRoute: typeof AuthenticatedAdminValidationRoute
@@ -823,7 +802,6 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedSuggestRoute: AuthenticatedSuggestRoute,
   AuthenticatedWatchlistRoute: AuthenticatedWatchlistRoute,
   AuthenticatedAdminCatalogRoute: AuthenticatedAdminCatalogRoute,
-  AuthenticatedAdminClassifiedsRoute: AuthenticatedAdminClassifiedsRoute,
   AuthenticatedAdminMembersRoute: AuthenticatedAdminMembersRoute,
   AuthenticatedAdminProductsRoute: AuthenticatedAdminProductsRoute,
   AuthenticatedAdminValidationRoute: AuthenticatedAdminValidationRoute,

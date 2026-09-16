@@ -4,9 +4,9 @@ import { useEffect } from "react";
 import { brand } from "@/config/brand";
 import { trackEvent } from "@/lib/analytics";
 
-const title = `How Gem State Classifieds works — listings, contact and selling`;
+const title = `How ParkVault works — offers, listings, Buy Now, Sell Now`;
 const description =
-  "Plain-language definitions of Gem State Classifieds: how listings, seller contact, buying, selling, pickup, shipping and reviews work across Idaho.";
+  "Plain-language definitions of the ParkVault marketplace: what an offer is, what a listing is, how Buy Now and Sell Now work, and how prepaid in-park sourcing and sightings work.";
 
 export const Route = createFileRoute("/glossary")({
   head: () => ({
@@ -24,52 +24,57 @@ const terms: { term: string; short: string; body: string }[] = [
   {
     term: "Listing",
     short: "What a seller wants for an item",
-    body: "A listing is one seller's offer to sell one specific item. It includes the item's title, condition, price, photos, location and pickup or shipping options. Cars and trucks can also include year, make, model, mileage, drivetrain, title status and other vehicle details.",
+    body: "A listing is a seller's price for one exact variation of a product — a specific size, colorway, edition or release. Every listing sits on the product page for that item, so buyers can compare all of them side by side. The lowest listing price is the cheapest price anyone is currently willing to sell at.",
   },
   {
     term: "Offer",
-    short: "A price discussed with the seller",
-    body: "Offers and checkout are reserved for a future marketplace phase. For now, contact the seller directly to discuss price, condition and availability before making payment.",
+    short: "What a buyer will pay",
+    body: "An offer is the price a buyer is willing to pay for one exact variation. The best offer is the most anyone is currently offering. An offer is recorded as interest in a variation at that price; a seller can accept it, and payment is collected at checkout.",
   },
   {
-    term: "Contact seller",
-    short: "Message the person who listed the item",
-    body: "Contact seller sends your message and email address to the seller of that exact listing. Continue the conversation directly to confirm the item, price, meeting place, shipping and payment details.",
+    term: "Buy Now",
+    short: "Take the lowest listing price",
+    body: "Taking the lowest listing price on a variation instead of waiting for a seller to accept your offer. The price you see is the seller's price, and marketplace fees are always recalculated by ParkVault on the server. Buy Now reserves the listing for you and takes you straight to checkout.",
   },
   {
-    term: "Seller review",
-    short: "Moderation before publication",
-    body: "New listings are reviewed for prohibited items, missing information and clear photos before they appear publicly. Approval does not authenticate, inspect or guarantee an item.",
+    term: "Accept the best offer",
+    short: "Take the best offer",
+    body: "Accepting the best offer on a variation instead of posting your own listing and waiting. The sale is created at that price and the buyer is asked to complete payment before you ship.",
   },
   {
-    term: "Pickup or shipping",
-    short: "How the buyer receives the item",
-    body: "A seller chooses local pickup, shipping, or both when creating a listing. Ask the seller about pickup details, shipping availability and cost, then arrange the details directly.",
+    term: "Variation",
+    short: "The exact version of a product",
+    body: "Park merchandise is often released in several versions of the same design. A variation captures the exact one: size, colorway, edition, park exclusivity, release. Listings and offers always attach to a variation, never to the general product, so prices stay comparable.",
   },
   {
-    term: "Saved listing",
-    short: "A private listing bookmark",
-    body: "Saving a listing adds it to your private saved list so you can find the exact item again. Saved listings are not public and do not reserve the item.",
+    term: "Sighting",
+    short: "Someone saw it in a park store",
+    body: "A sighting is a timestamped report that an item was seen at a specific resort, park or district, and store. Sightings are about availability and location — they are not offers and never set a price.",
   },
   {
-    term: "Moderation",
-    short: "A marketplace safety review",
-    body: "Gem State Classifieds may review listing content and photos before publication and may remove listings that violate the published policies. Moderation is not an inspection or a warranty.",
+    term: "Sourcing listing",
+    short: "A shopper's fixed price to find it in park",
+    body: "An approved in-park shopper sets fixed earnings and a sourcing window for covered products. The buyer sees the item estimate, shopper earnings, ParkVault sourcing and protection fee, and tracked shipping before paying. There is no negotiation or direct messaging.",
   },
   {
-    term: "Buyer inquiry",
-    short: "A message about one listing",
-    body: "A buyer inquiry is a message attached to one exact listing. The seller can read it in Seller Center and reply to the buyer by email.",
+    term: "In-park shopper",
+    short: "An approved member who buys on your behalf",
+    body: "Shoppers apply and are approved after manual identity review. They choose $10–$25 in earnings per item, and ParkVault does not deduct from that amount. ParkVault's separate buyer-paid sourcing and protection fee is disclosed before checkout.",
   },
   {
-    term: "Seller payout",
-    short: "Not part of the current MVP",
-    body: "Gem State Classifieds does not process payment or seller payouts in this direct-contact MVP. Future transaction features may add hosted payment and payout setup.",
+    term: "Watchlist",
+    short: "Variations you follow, privately",
+    body: "Following a variation saves it to your own watchlist so you can check its listing prices, offers and sighting activity in one place. It is private to you.",
   },
   {
-    term: "Report a problem",
-    short: "Tell Gem State about a listing issue",
-    body: "Use Contact us or report the listing when content appears unsafe, prohibited, fraudulent or otherwise violates the published policies. Gem State does not process payment or hold funds in this MVP.",
+    term: "Product suggestion",
+    short: "How a missing product gets added",
+    body: "ParkVault trades on one canonical page per product, so members cannot create catalog entries. If a product is missing, suggest it and a curator decides whether to add it, merge it with an existing page, or decline it.",
+  },
+  {
+    term: "Verified sale",
+    short: "A completed transaction",
+    body: "Only eligible completed transactions count toward last sale, sales count and price history. Seed, demonstration, cancelled, disputed and refunded transactions are excluded, so market statistics stay trustworthy.",
   },
 ];
 
@@ -106,18 +111,17 @@ function GlossaryPage() {
       </dl>
 
       <div className="mt-8 rounded-lg border border-border bg-surface p-5">
-        <h2 className="text-[13px] font-semibold tracking-tight">How payment works right now</h2>
+        <h2 className="text-[13px] font-semibold tracking-tight">How payment works</h2>
         <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
-          {brand.name} does not process payment or hold funds in this MVP. Confirm the item, price,
-          ownership, meeting or shipping details, and payment method directly with the seller.
-          Gem State does not authenticate or grade items.
+          {brand.legal.checkoutNotice} {brand.name} does not authenticate or grade items, and does
+          not operate escrow — nothing on this site should be read as offering either.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <Link
             to="/browse"
             className="inline-flex h-9 items-center rounded-md bg-primary px-4 text-[13px] font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
-            Browse listings
+            Browse the catalog
           </Link>
           <Link
             to={brand.urls.auth}

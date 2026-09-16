@@ -224,7 +224,7 @@ export function OrderOperations({
     onSuccess: async () => {
       await trackEvent("delivery_confirmed", {});
       await refresh();
-      toast.success("Delivery confirmed. Gem State will complete the order after review.");
+      toast.success("Delivery confirmed. ParkVault will complete the order after review.");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not confirm delivery."),
   });
@@ -774,7 +774,7 @@ export function OrderOperations({
           ) : (
             <p className="text-muted-foreground">
               Seller proceeds remain pending until delivery is confirmed and the review window ends.
-              Gem State then releases the payout to the seller's connected Stripe account.
+              ParkVault then releases the payout to the seller's connected Stripe account.
             </p>
           )}
         </Section>

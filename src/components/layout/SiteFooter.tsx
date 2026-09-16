@@ -18,9 +18,9 @@ const generalCategories = classifiedCategories.filter((c) => c.group === "classi
 
 export function SiteFooter() {
   return (
-    <footer className="mt-20 border-t border-border bg-secondary/45">
-      <div className="mx-auto max-w-[1400px] px-4 py-14 sm:px-8">
-        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-5">
+    <footer className="mt-14 border-t border-border bg-surface">
+      <div className="mx-auto max-w-[1360px] px-4 py-9 sm:px-6">
+        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-5">
           <div>
             <h2 className={headingClass}>Cars &amp; motors</h2>
             <ul className="mt-2">
@@ -75,7 +75,7 @@ export function SiteFooter() {
             <ul className="mt-2">
               <li>
                 <Link to="/glossary" className={linkClass} {...pinned}>
-                  How listings and seller contact work
+                  How listings and offers work
                 </Link>
               </li>
               <li>
@@ -125,7 +125,7 @@ export function SiteFooter() {
           </div>
         </div>
 
-        <div className="mt-12 border-t border-border pt-7">
+        <div className="mt-9 border-t border-border pt-6">
           <p className="text-[12px] leading-relaxed text-muted-foreground">
             {brand.legal.disclaimer}
           </p>

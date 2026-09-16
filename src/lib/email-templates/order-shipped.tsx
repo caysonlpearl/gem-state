@@ -12,7 +12,7 @@ interface Props {
 
 const Email = ({ itemName, orderNumber, carrier, trackingNumber, orderPath }: Props) => (
   <EmailShell
-    preview={`${itemName ?? "Your Gem State Classifieds order"} is on its way`}
+    preview={`${itemName ?? "Your ParkVault order"} is on its way`}
     heading="Your order has shipped"
     intro={`${itemName ?? "Your order"} is on its way. Confirm delivery when it arrives so we can close out the order.`}
     facts={[
@@ -29,7 +29,7 @@ const Email = ({ itemName, orderNumber, carrier, trackingNumber, orderPath }: Pr
 export const template = {
   component: Email,
   subject: (d: Record<string, any>) =>
-    d["itemName"] ? `Shipped: ${d["itemName"]}` : "Your Gem State Classifieds order has shipped",
+    d["itemName"] ? `Shipped: ${d["itemName"]}` : "Your ParkVault order has shipped",
   displayName: "Order shipped (buyer)",
   previewData: {
     itemName: "Haunted Mansion Holiday Sipper",

@@ -13,8 +13,8 @@ const Email = ({
 }) => (
   <EmailShell
     preview="Your item arrived. How was your experience?"
-    heading="How was your Gem State Classifieds purchase?"
-    intro="Your order is complete. Leave an honest review to help other buyers choose a seller."
+    heading="How was your ParkVault purchase?"
+    intro="Your order is complete. Leave an honest review to help other buyers choose a seller or park shopper."
     facts={[
       { label: "Item", value: itemName ?? "" },
       { label: "Order", value: orderNumber ?? "" },
@@ -26,7 +26,7 @@ const Email = ({
 
 export const template = {
   component: Email,
-  subject: "How was your Gem State Classifieds purchase?",
+  subject: "How was your ParkVault purchase?",
   displayName: "Completed order review request",
-  previewData: { itemName: "2019 Toyota Tacoma", orderNumber: "GSC-PREVIEW", orderPath: "/buying" },
+  previewData: { itemName: "Park merchandise", orderNumber: "PV-PREVIEW", orderPath: "/buying" },
 } satisfies TemplateEntry;

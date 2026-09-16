@@ -624,41 +624,6 @@ export async function reconcileOrderCheckout(
 }
 
 /**
- * Buyer-return fallback for a listing-offer Checkout Session.
- *
- * Offer checkout uses manual capture, so the normal order confirmation path
- * cannot settle it. The webhook remains primary; this idempotent read-through
- * closes the same authorization when Stripe delivered the buyer back before
- * the webhook did.
- */
-export async function reconcileListingOfferCheckout(
-  offerId: string,
-  buyerId: string,
-): Promise<"authorized" | "pending" | "unavailable"> {
-  const { data: offer } = await supabaseAdmin
-    .from("listing_offers")
-    .select("id,buyer_id,status,payment_authorized,stripe_checkout_session_id")
-    .eq("id", offerId)
-    .eq("buyer_id", buyerId)
-    .maybeSingle();
-  if (!offer) return "unavailable";
-  if (offer.payment_authorized) return "authorized";
-  if (offer.status !== "pending" || !offer.stripe_checkout_session_id) return "pending";
-
-  const stripe = getStripe();
-  const session = await stripe.checkout.sessions.retrieve(offer.stripe_checkout_session_id);
-  if (session.payment_status !== "paid" && session.status !== "complete") return "pending";
-  await finalizeCheckoutSession(stripe, session);
-
-  const { data: settled } = await supabaseAdmin
-    .from("listing_offers")
-    .select("payment_authorized")
-    .eq("id", offerId)
-    .maybeSingle();
-  return settled?.payment_authorized ? "authorized" : "pending";
-}
-
-/**
  * Buyer-return fallback for a Park Shopper receipt-balance payment. The
  * webhook is primary, but this closes the same payment if the webhook is late.
  */

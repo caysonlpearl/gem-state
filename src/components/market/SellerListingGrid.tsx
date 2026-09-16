@@ -85,7 +85,7 @@ export function SellerListingGrid({
                   {formatUsd(listing.priceCents)}
                 </span>
                 <span className="mt-1 block text-[10px] font-medium text-primary opacity-80 group-hover:opacity-100">
-                  View listing details
+                  View photos and details
                 </span>
               </span>
             </button>
@@ -335,13 +335,15 @@ function ListingDetailModal({ listing, onClose }: { listing: PublicListing; onCl
             </Link>
           </section>
 
-          <Link
-            to="/listings/$listingId"
-            params={{ listingId: listing.id }}
-            className="mt-auto inline-flex h-11 items-center justify-center border border-foreground px-4 text-[12.5px] font-semibold"
-          >
-            View listing page
-          </Link>
+          {listing.productSlug ? (
+            <Link
+              to="/products/$slug"
+              params={{ slug: listing.productSlug }}
+              className="mt-auto inline-flex h-11 items-center justify-center border border-foreground px-4 text-[12.5px] font-semibold"
+            >
+              View canonical product page
+            </Link>
+          ) : null}
         </div>
       </section>
       {checkout ? (

@@ -1,9 +1,10 @@
 import { z } from "zod";
 
-import { classifiedCategories, vehicleOptions } from "@/config/classifieds";
+import { classifiedCategories, idahoRegions, vehicleOptions } from "@/config/classifieds";
 
 type NonEmpty = [string, ...string[]];
 const categorySlugs = classifiedCategories.map((category) => category.slug) as NonEmpty;
+const regionNames = [...idahoRegions] as NonEmpty;
 const bodyStyles = [...vehicleOptions.bodyStyles] as NonEmpty;
 const transmissions = [...vehicleOptions.transmissions] as NonEmpty;
 const drivetrains = [...vehicleOptions.drivetrains] as NonEmpty;
@@ -20,20 +21,9 @@ export const classifiedListingSchema = z
     category: z.enum(categorySlugs),
     condition: z.enum(["new_with_tags", "new_without_tags", "used_excellent", "used_good"]),
     priceCents: z.number().int().min(100).max(50_000_000),
-    state: z
-      .string()
-      .trim()
-      .toUpperCase()
-      .regex(/^[A-Z]{2}$/),
-    region: z.string().trim().min(2).max(80),
+    region: z.enum(regionNames),
     city: z.string().trim().min(2).max(80),
-    postalCode: z.preprocess(
-      emptyToUndefined,
-      z
-        .string()
-        .regex(/^\d{5}$/)
-        .optional(),
-    ),
+    postalCode: z.preprocess(emptyToUndefined, z.string().regex(/^\d{5}$/).optional()),
     fulfillmentMode: z.enum(["local_pickup", "shipping", "both"]),
     sellerNote: z.string().trim().max(500).optional(),
     vehicle: z
@@ -51,12 +41,7 @@ export const classifiedListingSchema = z
         titleStatus: z.enum(titleStatuses),
         vin: z.preprocess(
           emptyToUndefined,
-          z
-            .string()
-            .trim()
-            .toUpperCase()
-            .regex(/^[A-HJ-NPR-Z0-9]{17}$/)
-            .optional(),
+          z.string().trim().toUpperCase().regex(/^[A-HJ-NPR-Z0-9]{17}$/).optional(),
         ),
       })
       .optional(),

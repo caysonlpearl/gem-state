@@ -14,11 +14,11 @@ import { useAuth } from "@/hooks/useAuth";
 export const Route = createFileRoute("/sell")({
   head: () => ({
     meta: [
-      { title: `Sell on ${brand.name}` },
+      { title: `Sell park merchandise — ${brand.name}` },
       {
         name: "description",
         content:
-          "Create a seller profile and list cars, trucks, outdoor gear, tools, home goods and more across Idaho.",
+          "Create a verified ParkVault seller profile, connect payouts and list Disney Parks merchandise with exact-item photos.",
       },
     ],
   }),
@@ -30,25 +30,24 @@ function SellLandingPage() {
 
   return (
     <main>
-      <section className="border-b border-border bg-secondary/45">
-        <div className="mx-auto grid max-w-[1280px] gap-12 px-4 py-16 sm:px-8 lg:grid-cols-[1.2fr_0.8fr] lg:py-24">
+      <section className="border-b border-border bg-card">
+        <div className="mx-auto grid max-w-[1240px] gap-10 px-4 py-14 sm:px-8 lg:grid-cols-[1.2fr_0.8fr] lg:py-20">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-primary">
-              Gem State seller
+              ParkVault Seller
             </p>
-            <h1 className="mt-4 max-w-[760px] font-editorial text-[48px] font-normal leading-[1] tracking-[-0.045em] sm:text-[68px]">
-              Turn what you own into a trusted local listing.
+            <h1 className="mt-3 max-w-[760px] font-editorial text-[48px] font-normal leading-[0.98] tracking-[-0.045em] sm:text-[64px]">
+              Turn park finds into a trusted storefront.
             </h1>
             <p className="mt-5 max-w-[650px] text-[14px] leading-relaxed text-muted-foreground">
-              Build a seller profile and list the exact item you own. Buyers across Idaho see your
-              photos, price, condition, location and pickup or shipping details in one place, then
-              contact you directly.
+              Build a seller profile, connect your payout account and list the exact item you own.
+              Buyers see your photos, price, condition, reviews and fulfillment record in one place.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
               {isSignedIn ? (
                 <Link
                   to="/selling"
-                  className="inline-flex h-12 items-center gap-2 rounded-full bg-primary px-6 text-[13px] font-semibold text-primary-foreground shadow-sm"
+                  className="inline-flex h-12 items-center gap-2 bg-primary px-5 text-[13px] font-semibold text-primary-foreground"
                 >
                   Open Seller Center
                   <ArrowRight size={16} />
@@ -57,22 +56,22 @@ function SellLandingPage() {
                 <Link
                   to="/auth"
                   search={{ redirect: "/selling", mode: "signup" }}
-                  className="inline-flex h-12 items-center gap-2 rounded-full bg-primary px-6 text-[13px] font-semibold text-primary-foreground shadow-sm"
+                  className="inline-flex h-12 items-center gap-2 bg-primary px-5 text-[13px] font-semibold text-primary-foreground"
                 >
-                  Become a Gem State seller
+                  Become a ParkVault Seller
                   <ArrowRight size={16} />
                 </Link>
               )}
               <a
                 href="#how-it-works"
-                className="inline-flex h-12 items-center rounded-full border border-foreground px-6 text-[13px] font-semibold"
+                className="inline-flex h-12 items-center border border-foreground px-5 text-[13px] font-semibold"
               >
                 How selling works
               </a>
             </div>
           </div>
 
-          <div className="floating-card p-6 sm:p-7">
+          <div className="border border-border bg-background p-5 sm:p-6">
             <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
               Seller setup
             </p>
@@ -84,13 +83,13 @@ function SellLandingPage() {
               />
               <Step
                 number="2"
-                title="Add listing details"
-                text="Choose a category, location, condition, price and how buyers can receive the item."
+                title="Verify identity and payouts"
+                text="Complete Stripe's hosted identity, tax and bank-account setup."
               />
               <Step
                 number="3"
                 title="Create your first listing"
-                text="Choose a category, add exact-item photos, location, condition and your price."
+                text="Choose a catalog product, add exact-item photos, condition and your price."
               />
             </ol>
           </div>
@@ -98,7 +97,7 @@ function SellLandingPage() {
       </section>
 
       <section id="how-it-works" className="mx-auto max-w-[1240px] px-4 py-14 sm:px-8">
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-px border border-border bg-border md:grid-cols-4">
           <Feature
             icon={<Storefront size={21} />}
             title="Your storefront"
@@ -111,19 +110,19 @@ function SellLandingPage() {
           />
           <Feature
             icon={<IdentificationCard size={21} />}
-            title="Direct buyer contact"
-            text="Buyers can message you about the exact listing and reply to your email."
+            title="Verified payouts"
+            text="Identity and banking details are collected in Stripe's secure hosted flow."
           />
           <Feature
             icon={<Package size={21} />}
-            title="Flexible handoff"
-            text="Arrange local pickup or shipping details directly with the buyer."
+            title="Shipping center"
+            text="Find orders, shipping addresses, labels, tracking and payout status together."
           />
         </div>
         <div className="mt-8 flex items-start gap-2 border-l-2 border-primary pl-4 text-[12px] leading-relaxed text-muted-foreground">
           <CheckCircle size={16} weight="fill" className="mt-0.5 shrink-0 text-primary" />
-          Gem State Classifieds never asks sellers to send government ID or bank details through
-          messages. Payment and payout features are reserved for a future marketplace phase.
+          ParkVault never asks sellers to send government ID or bank details through messages. Those
+          details belong in the connected payout provider's hosted form.
         </div>
       </section>
     </main>
@@ -146,7 +145,7 @@ function Step({ number, title, text }: { number: string; title: string; text: st
 
 function Feature({ icon, title, text }: { icon: React.ReactNode; title: string; text: string }) {
   return (
-    <article className="soft-card p-6">
+    <article className="bg-card p-5">
       <div className="text-primary">{icon}</div>
       <h2 className="mt-4 text-[13px] font-semibold">{title}</h2>
       <p className="mt-1.5 text-[11.5px] leading-relaxed text-muted-foreground">{text}</p>

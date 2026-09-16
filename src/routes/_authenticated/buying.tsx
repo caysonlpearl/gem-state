@@ -14,7 +14,6 @@ import {
   retryListingOfferAuthorizationRelease,
   respondToListingOffer,
 } from "@/lib/market.functions";
-import { reconcileMyListingOfferCheckouts } from "@/lib/stripe-marketplace.functions";
 import { listingStatusLabels, orderStatusLabels, originLabels } from "@/lib/market-labels";
 import { ParkVaultCheckoutFlow } from "@/components/market/ParkVaultCheckoutFlow";
 
@@ -30,7 +29,6 @@ function BuyingPage() {
   const fetchListingOffers = useServerFn(getMyListingOffers);
   const respondToOffer = useServerFn(respondToListingOffer);
   const retryAuthorizationRelease = useServerFn(retryListingOfferAuthorizationRelease);
-  const reconcileOfferCheckouts = useServerFn(reconcileMyListingOfferCheckouts);
   const [counterCheckout, setCounterCheckout] = useState<{
     offerId: string;
     askId: string;
@@ -40,15 +38,6 @@ function BuyingPage() {
   useEffect(() => {
     void trackEvent("page_view", { route: "/buying" });
   }, []);
-
-  useEffect(() => {
-    void reconcileOfferCheckouts().then(() => {
-      void queryClient.invalidateQueries({ queryKey: ["listing-offers", "buyer"] });
-    }).catch(() => {
-      // The webhook remains the primary settlement path; a transient
-      // reconciliation failure should not interrupt the buyer page.
-    });
-  }, [reconcileOfferCheckouts, queryClient]);
 
   const listings = useQuery({ queryKey: ["my-listings"], queryFn: () => fetchListings() });
   const orders = useQuery({ queryKey: ["my-orders"], queryFn: () => fetchOrders() });
@@ -105,7 +94,7 @@ function BuyingPage() {
         {listings.isLoading && <p className="mt-2 text-[13px] text-muted-foreground">Loading…</p>}
         {!listings.isLoading && bids.length === 0 && (
           <p className="mt-2 text-[13px] text-muted-foreground">
-            No active offers yet. Open a listing and make an offer on the exact item you want.
+            No active offers yet. Open a product and place an offer on the exact variation you want.
           </p>
         )}
         {bids.length > 0 && (
@@ -117,8 +106,8 @@ function BuyingPage() {
               >
                 <div>
                   <Link
-                    to="/browse"
-                    search={{ q: bid.productName }}
+                    to="/products/$slug"
+                    params={{ slug: bid.productSlug }}
                     className="text-[13px] font-medium hover:underline"
                   >
                     {bid.productName}
@@ -167,23 +156,13 @@ function BuyingPage() {
                 className="hairline-b flex flex-wrap items-center justify-between gap-3 px-4 py-3 last:border-b-0"
               >
                 <div>
-                  {offer.askId ? (
-                    <Link
-                      to="/listings/$listingId"
-                      params={{ listingId: offer.askId }}
-                      className="text-[13px] font-medium hover:underline"
-                    >
-                      {offer.productName}
-                    </Link>
-                  ) : (
-                    <Link
-                      to="/browse"
-                      search={{ q: offer.productName }}
-                      className="text-[13px] font-medium hover:underline"
-                    >
-                      {offer.productName}
-                    </Link>
-                  )}
+                  <Link
+                    to="/products/$slug"
+                    params={{ slug: offer.productSlug }}
+                    className="text-[13px] font-medium hover:underline"
+                  >
+                    {offer.productName}
+                  </Link>
                   <p className="text-[12px] text-muted-foreground">
                     {offer.variantLabel} · offered {formatUsd(offer.amountCents)} ·{" "}
                     {offer.status.replace(/_/g, " ")}

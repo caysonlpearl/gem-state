@@ -4,7 +4,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 
-import { brand } from "@/config/brand";
 import { formatUsd } from "@/config/fees";
 import { trackEvent } from "@/lib/analytics";
 import { RelativeTime } from "@/components/ui/relative-time";
@@ -24,17 +23,16 @@ import {
 export const Route = createFileRoute("/_authenticated/admin/")({
   head: () => ({
     meta: [
-      { title: `${brand.name} operations console` },
+      { title: "ParkVault pilot operations console" },
       {
         name: "description",
         content:
-          "Role-protected operator queues for Gem State Classifieds listings, orders, disputes, and seller activity.",
+          "Role-protected operator queues for ParkVault pilot orders, purchase evidence, disputes, product suggestions, flagged sightings and shopper applications.",
       },
-      { property: "og:title", content: `${brand.name} operations console` },
+      { property: "og:title", content: "ParkVault pilot operations console" },
       {
         property: "og:description",
-        content:
-          "Role-protected operator queues for Gem State Classifieds orders and trust review.",
+        content: "Role-protected operator queues for ParkVault pilot orders and trust review.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -189,7 +187,7 @@ function AdminPage() {
       <div className="mx-auto max-w-[760px] px-4 py-16 sm:px-6">
         <h1 className="text-[20px] font-semibold tracking-tight">Operator access required</h1>
         <p className="mt-2 text-[13px] text-muted-foreground">
-          This console is limited to Gem State moderators and administrators.
+          This console is limited to ParkVault moderators and administrators.
         </p>
       </div>
     );
@@ -206,12 +204,6 @@ function AdminPage() {
         </p>
         {data.isAdmin && (
           <div className="mt-3 flex flex-wrap gap-2">
-            <Link
-              to="/admin/classifieds"
-              className="inline-flex h-9 items-center rounded-md bg-primary px-3 text-[12.5px] font-medium text-primary-foreground hover:opacity-90"
-            >
-              Classified moderation
-            </Link>
             <Link
               to="/admin/catalog"
               className="inline-flex h-9 items-center rounded-md border border-input px-3 text-[12.5px] font-medium hover:bg-secondary"

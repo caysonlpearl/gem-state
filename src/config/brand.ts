@@ -9,7 +9,7 @@ export const brand = {
   name: "Gem State Classifieds",
   shortName: "Gem State",
   wordmarkInitials: "GSC",
-  tagline: "Idaho's local marketplace for cars, gear, home goods, and more.",
+  tagline: "Buy and sell locally across Idaho.",
   description:
     "Idaho classifieds for cars, trucks, outdoor gear, tools, home goods, and more from local sellers.",
   domain: "gemstateclassifieds.com",

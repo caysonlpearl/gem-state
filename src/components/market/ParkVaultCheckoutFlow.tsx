@@ -4,7 +4,6 @@ import { useServerFn } from "@tanstack/react-start";
 import { LockKey, ShieldCheck, X } from "@phosphor-icons/react";
 import { toast } from "sonner";
 
-import { brand } from "@/config/brand";
 import { estimateSourcingPlatformFeeCents, formatUsd } from "@/config/fees";
 import { quoteTotals } from "@/lib/market.functions";
 import {
@@ -26,7 +25,7 @@ export type SourcingCheckoutTarget = {
   optionRef: string;
   /** The ceiling the buyer approves for the item itself. */
   maxPurchaseCents: number;
-  /** What the platform charges for the item now (the park reference price when known). */
+  /** What ParkVault charges for the item now (the park reference price when known). */
   itemCents: number;
   shopperFeeCents: number;
   shopperName: string;
@@ -159,14 +158,12 @@ export function ParkVaultCheckoutFlow({
       window.location.assign(url);
     },
     onError: (error) =>
-      toast.error(
-        error instanceof Error ? error.message : `Could not open ${brand.name} Checkout.`,
-      ),
+      toast.error(error instanceof Error ? error.message : "Could not open ParkVault Checkout."),
   });
   const checkoutError = checkoutMutation.error
     ? checkoutMutation.error instanceof Error
       ? checkoutMutation.error.message
-      : `Could not open ${brand.name} Checkout.`
+      : "Could not open ParkVault Checkout."
     : null;
 
   const update = (key: keyof CheckoutAddress, value: string) => {
@@ -196,7 +193,7 @@ export function ParkVaultCheckoutFlow({
           <X size={18} />
         </button>
         <p className="text-[10px] font-semibold uppercase tracking-[0.11em] text-primary">
-          {brand.name} Checkout
+          ParkVault Checkout
         </p>
         <h3 className="mt-2 pr-10 font-editorial text-[29px] leading-none tracking-[-0.03em]">
           {mode === "offer"
@@ -254,8 +251,8 @@ export function ParkVaultCheckoutFlow({
           </p>
         ) : !quote ? (
           <p className="mt-2 text-[10.5px] leading-relaxed text-muted-foreground">
-            Optional. Continue now and {brand.name} will select the lowest tracked delivery option,
-            or compare the available services first.
+            Optional. Continue now and ParkVault will select the lowest tracked delivery option, or
+            compare the available services first.
           </p>
         ) : null}
 
@@ -314,7 +311,7 @@ export function ParkVaultCheckoutFlow({
             />
           )}
           <PriceRow
-            label={mode === "sourcing" ? "Sourcing & protection" : "Buyer protection fee"}
+            label={mode === "sourcing" ? "ParkVault sourcing & protection" : "Buyer protection fee"}
             value={totals.isLoading ? "Calculating…" : formatUsd(buyerFeeCents)}
           />
           <PriceRow
@@ -353,7 +350,7 @@ export function ParkVaultCheckoutFlow({
             ? `You pay now so ${sourcing.shopperName} can start. If the item costs less in park you are refunded the difference; if it is unavailable you are refunded in full.`
             : mode === "offer"
               ? "Stripe places a temporary authorization on your card. You are charged only if the seller accepts before the authorization expires."
-              : `Payment is processed securely by Stripe. ${brand.name} does not release the seller payout until the order is completed.`}
+              : "Payment is processed securely by Stripe. ParkVault does not release the seller payout until the order is completed."}
         </p>
       </section>
     </div>

@@ -18,13 +18,13 @@ export const Route = createFileRoute("/policies")({
       {
         name: "description",
         content:
-          "Gem State Classifieds policies: marketplace disclosures, privacy, buyer and seller terms, cancellation rules, prohibited items, identity verification and contact information.",
+          "ParkVault policies: non-affiliation with The Walt Disney Company, what data is stored, buyer, seller and park shopper terms, cancellation rules, prohibited items, identity verification and takedown contact.",
       },
       { property: "og:title", content: `Policies and disclosures — ${brand.name}` },
       {
         property: "og:description",
         content:
-          "Read Gem State Classifieds' marketplace disclosure, privacy explanation, buyer and seller terms, cancellation rules and contact information.",
+          "Read ParkVault's non-affiliation statement, privacy explanation, buyer, seller and shopper terms, cancellation rules and takedown contact.",
       },
       { property: "og:type", content: "article" },
       { name: "twitter:card", content: "summary" },
@@ -39,9 +39,8 @@ function policyBodies(): Record<string, React.ReactNode> {
     <>
       <p>{brand.legal.disclaimer}</p>
       <p>
-        {brand.name} does not inspect, authenticate, manufacture or warrant items listed by
-        sellers. Listing information is supplied by the seller and should be evaluated by the
-        buyer before contacting the seller, meeting, shipping or paying.
+        {brand.name} does not sell, manufacture or authenticate on behalf of any rights holder. All
+        catalog entries are descriptive records created so members can refer to the same item.
       </p>
     </>
   ),
@@ -49,9 +48,8 @@ function policyBodies(): Record<string, React.ReactNode> {
     <>
       <p>
         We store the account email held by our authentication provider, the display name and
-        marketplace preferences you enter, your marketplace activity, and the contact details and
-        message you submit when you inquire about a listing. Your inquiry is shared with that
-        listing's seller so they can reply.
+        shopping intent you enter, your marketplace activity, and — only when you take part in a
+        transaction — a shipping address snapshot for that order.
       </p>
       <p>
         Product-usage analytics record event names, counts, route names and price buckets. They
@@ -59,92 +57,113 @@ function policyBodies(): Record<string, React.ReactNode> {
         anything else you typed into a form.
       </p>
       <p>
-        Listing photos and account data are protected by account and staff permissions. Gem State
-        does not collect payment-card or bank details through the direct-contact listing flow.
+        Addresses, evidence files and identity documents are stored in private storage and reached
+        only through short-lived signed links, restricted to the order's participants and an
+        authorised administrator. Administrative access to identity documents and receipts is
+        logged.
       </p>
     </>
   ),
   "buyer-terms": (
     <>
       <p>
-        Contact the seller through the listing page to ask questions about one exact item. Confirm
-        the item's condition, ownership, price, location and availability before you meet, arrange
-        shipping or make payment.
+        An offer records what you are willing to pay. A Buy Now action reserves the listing and
+        takes you to checkout, where payment is processed by Stripe. The order advances once that
+        payment is confirmed.
       </p>
       <p>
-        {brand.name} does not process payment, hold funds or provide escrow in this MVP. Arrange the
-        payment method and any shipping cost directly with the seller.
+        Fees are snapshotted onto the order when a match is created and never recalculated
+        afterwards. For a park-sourced order you approve a maximum purchase cost in advance; a
+        shopper may not exceed it without your explicit approval of a revised maximum.
       </p>
       <p>
-        Future transaction features may add hosted payment and payout flows. Those features are not
-        part of the current direct-contact marketplace experience.
+        {brand.name} does not hold your funds and does not operate escrow. Payouts to sellers and
+        shoppers are delayed until delivery is confirmed.
       </p>
     </>
   ),
   "seller-terms": (
     <>
       <p>
-        A listing states a price for one specific item. You are responsible for describing the item
-        accurately, providing clear photos, responding to buyer inquiries, arranging pickup or
-        shipping details directly, and taking down the listing if the item is no longer available.
+        A listing states a fixed price for one exact variation you already hold. You are responsible
+        for describing the item accurately, shipping it promptly once a match is confirmed, and
+        cancelling your listing if the item is no longer available.
       </p>
       <p>
-        Do not request a buyer's government ID, bank credentials or card details through Gem State
-        messages. Future payment features, if enabled, will use their own hosted flow.
+        Payout is recorded from the immutable order snapshot and marked pending until delivery is
+        confirmed and the completion period has passed. A pending payout is never described as paid.
+      </p>
+    </>
+  ),
+  "shopper-terms": (
+    <>
+      <p>
+        Park shoppers are approved individually after identity verification. Availability means you
+        are willing to attempt a purchase inside the window you disclosed — it never claims that the
+        merchandise is in stock.
+      </p>
+      <p>
+        You may not be instructed to purchase until external evidence confirms the buyer's full
+        payment obligation is committed. You must submit a purchase receipt and item photograph, and
+        must not exceed the buyer-approved maximum without an approved revision.
+      </p>
+      <p>
+        Your compensation is the flat fee shown on the option at the time it was selected, plus
+        reimbursement of the merchandise cost and agreed shipping. It is frozen when the transaction
+        is created.
       </p>
     </>
   ),
   cancellation: (
     <>
       <p>
-        There is no platform order, reservation or payment to cancel in the current MVP. Either
-        party should communicate directly if an item becomes unavailable or plans change.
+        Before payment evidence is recorded, either side may cancel and nothing is owed. Unpaid
+        reservations release automatically and the listing returns to the market.
       </p>
       <p>
-        Report unsafe, prohibited, fraudulent or misleading listings through Contact us. Any
-        payment disagreement arranged directly between buyer and seller must be handled by those
-        parties and their chosen payment provider.
+        If a park shopper cannot find the item, the order is closed as unavailable and any external
+        payment is refunded through the same external provider. Refunds and disputes block or
+        reverse completion and payout.
       </p>
     </>
   ),
   "prohibited-items": (
     <>
       <p>
-        No stolen goods, counterfeit or illegal items, regulated goods offered without required
-        authorization, unsafe hazardous materials, or listings for an item you do not hold or cannot
-        lawfully sell. Sellers are responsible for following applicable laws.
+        No counterfeit or replica merchandise, no stolen goods, no items obtained by breaking park
+        rules or purchase limits, no food or perishable items, no gift cards or park admission
+        media, and no listings for an item you do not hold or cannot lawfully resell.
       </p>
     </>
   ),
   "identity-verification": (
     <>
       <p>
-        The current listing and contact flow does not ask sellers for government-issued identity
-        information, bank details or payout credentials. A future payment feature may require
-        hosted verification.
+        Applicants to source in park upload a government-issued photo ID so an operator can confirm
+        the person accepting funds and buyer instructions is a real, identifiable adult.
       </p>
       <p>
-        If hosted verification is added later, identity information will be stored privately and not
-        shown to buyers or other members. Access will be limited to authorized marketplace
-        operations and payment-provider workflows.
+        The file is written to private storage. The applicant can reopen their own upload; reviewers
+        access it through an audited internal channel, and every administrative access is logged. It
+        is never shown to buyers, sellers or other shoppers, and is never used for marketing.
       </p>
       <p>
-        Any future identity information will be retained only as long as needed for the account,
-        payout and legal obligations described on this page.
+        Documents are retained only while an application or approval is active, and are removed when
+        an application is withdrawn or approval ends.
       </p>
     </>
   ),
   "evidence-privacy": (
     <>
       <p>
-        Listing photos and buyer inquiry messages are protected by account and staff permissions.
-        The seller of the referenced listing can read an inquiry so they can reply, and an
-        authorized administrator may review listing or message content when needed for moderation.
+        Purchase receipts, item photographs and delivery evidence live in private storage. The
+        submitting shopper or seller and an authorised administrator may open the original file
+        through a short-lived signed link.
       </p>
       <p>
-        {brand.name} does not collect or store card numbers or bank credentials in this direct-
-        contact MVP. Future transaction evidence will be governed by the policies in effect when
-        those features are enabled.
+        Buyers see the verified purchase amount and item confirmation — not the receipt itself, and
+        never payment-instrument information. {brand.name} never stores card numbers or bank
+        credentials.
       </p>
     </>
   ),
@@ -152,11 +171,11 @@ function policyBodies(): Record<string, React.ReactNode> {
     <>
       <p>
         Use the contact us form for support, account questions, or a rights-holder takedown request.
-        Include the listing URL and the specific content at issue.
+        Include the product page address and the specific content at issue.
       </p>
       <p>
-        Listings may be removed when they violate these policies, applicable law, or a substantiated
-        rights-holder request. Use the contact us form for support and takedown enquiries.
+        Catalog entries are removed on a substantiated rights-holder request. Use the contact us
+        form for press and partnership enquiries.
       </p>
     </>
   ),
@@ -196,9 +215,9 @@ function Policies() {
           Effective {policyEffectiveDate}
         </p>
         <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-muted-foreground">
-          These are the terms that govern buying and selling on {brand.name}. Each section states a
-          rule the marketplace applies today. By creating an account, contacting a seller, or
-          listing an item, you agree to the sections that apply to
+          These are the terms that govern buying, selling and park sourcing on {brand.name}. Each
+          section states a rule the marketplace applies today. By creating an account, placing an
+          offer, buying, listing an item or sourcing in park, you agree to the sections that apply to
           you. If we change a rule, this page is updated and the effective date above changes.
         </p>
         <p className="mt-2 max-w-2xl text-[12.5px] leading-relaxed text-muted-foreground">

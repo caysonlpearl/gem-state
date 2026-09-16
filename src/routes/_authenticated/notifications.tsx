@@ -13,13 +13,13 @@ export const Route = createFileRoute("/_authenticated/notifications")({
       {
         name: "description",
         content:
-          "Private in-app updates about your Gem State Classifieds orders, offers, shipments and reviews.",
+          "Private in-app updates about your ParkVault orders, park-sourcing assignments, shipments and reviews.",
       },
-      { property: "og:title", content: "Your Gem State Classifieds notifications" },
+      { property: "og:title", content: "Your ParkVault notifications" },
       {
         property: "og:description",
         content:
-          "Private in-app updates about your Gem State Classifieds orders, offers and shipments.",
+          "Private in-app updates about your ParkVault orders and park-sourcing assignments.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -57,7 +57,7 @@ function NotificationsPage() {
           <h1 className="text-[22px] font-semibold tracking-tight">Notifications</h1>
           <p className="mt-1 text-[13px] text-muted-foreground">
             Order, listing and offer updates appear here. Email, SMS and push notifications are not
-            connected yet, so nothing here has been sent to you outside Gem State Classifieds.
+            connected yet, so nothing here has been sent to you outside ParkVault.
           </p>
         </div>
         {(data?.unread ?? 0) > 0 && (
@@ -75,7 +75,7 @@ function NotificationsPage() {
       {isLoading && <p className="mt-6 text-[13px] text-muted-foreground">Loading…</p>}
       {!isLoading && items.length === 0 && (
         <p className="mt-6 text-[13px] text-muted-foreground">
-          No notifications yet. Order, offer, shipment, dispute and review updates will appear
+          No notifications yet. Order, sourcing, shipment, dispute and review updates will appear
           here.
         </p>
       )}

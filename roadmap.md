@@ -19,3 +19,4 @@
 
 ## Workspace move follow-up
 - [ ] Reconnect Google Search Console in the new workspace
+- [x] Email infrastructure verified on notify.getparkvault.com (domain verified, auth + transactional templates in place)

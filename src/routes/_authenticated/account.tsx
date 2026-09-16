@@ -20,16 +20,16 @@ export const Route = createFileRoute("/_authenticated/account")({
 });
 
 const intentLabels: Record<MemberIntent, string> = {
-  buying: "Buying items",
-  selling: "Selling items",
-  shopping_in_park: "Buying and selling locally",
-  browsing: "Browsing classifieds",
+  buying: "Buying merchandise",
+  selling: "Selling merchandise",
+  shopping_in_park: "Shopping in the parks",
+  browsing: "Following prices",
 };
 
 const roleLabels: Record<string, string> = {
   user: "Member",
-  shopper: "Member",
-  moderator: "Moderator",
+  shopper: "Approved in-park shopper",
+  moderator: "Catalog moderator",
   admin: "Administrator",
 };
 
@@ -86,9 +86,10 @@ function AccountPage() {
 
   const roles = data?.roles.length ? data.roles : ["user"];
   const isSeller = data?.primaryIntent === "selling";
+  const isShopper = roles.includes("shopper") || data?.primaryIntent === "shopping_in_park";
 
   return (
-    <div className="mx-auto max-w-[800px] px-4 py-16 sm:px-8">
+    <div className="mx-auto max-w-[760px] px-4 py-12 sm:px-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-[22px] font-semibold tracking-tight">Your account</h1>
@@ -133,14 +134,14 @@ function AccountPage() {
       {data && (
         <div className="mt-8 space-y-6">
           {data.completion < 1 && (
-            <div className="soft-card bg-secondary/55 p-5">
+            <div className="rounded-lg border border-border bg-surface p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-[13px] font-semibold tracking-tight">
                     Your profile is {Math.round(data.completion * 100)}% complete
                   </p>
                   <p className="mt-1 text-[12.5px] text-muted-foreground">
-                    Add a display name, primary market and what you plan to do so the marketplace
+                    Add a display name, home resort and what you plan to do so the market pages
                     match your intent.
                   </p>
                 </div>
@@ -161,7 +162,7 @@ function AccountPage() {
             </div>
           )}
 
-          <dl className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
+          <dl className="overflow-hidden rounded-lg border border-border bg-card">
             <div className="hairline-b flex items-center justify-between gap-4 px-4 py-3">
               <dt className="text-[13px] text-muted-foreground">Email</dt>
               <dd className="text-[13px] font-medium">{data.email ?? "—"}</dd>
@@ -196,7 +197,7 @@ function AccountPage() {
               event.preventDefault();
               mutation.mutate();
             }}
-            className="soft-card space-y-5 p-5"
+            className="space-y-4 rounded-lg border border-border bg-card p-4"
           >
             <div>
               <label htmlFor="display-name" className="text-[12px] font-medium">
@@ -209,14 +210,14 @@ function AccountPage() {
                 className="mt-1.5 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
               />
               <p className="mt-2 text-[12px] text-muted-foreground">
-                Shown next to your listings and reviews. Your email is never public.
+                Shown next to your listings and sightings. Your email is never public.
               </p>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <label htmlFor="home-resort" className="text-[12px] font-medium">
-                  Primary market
+                  Home resort
                 </label>
                 <select
                   id="home-resort"
@@ -224,7 +225,7 @@ function AccountPage() {
                   onChange={(event) => setDraftResort(event.target.value)}
                   className="mt-1.5 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                 >
-                  <option value="">Select a market</option>
+                  <option value="">Select a resort</option>
                   {brand.markets.map((market) => (
                     <option key={market.code} value={market.code}>
                       {market.label}
@@ -261,30 +262,32 @@ function AccountPage() {
             </button>
           </form>
 
-          <div className="soft-card overflow-hidden">
+          <div className="rounded-lg border border-border bg-card">
             <div className="hairline-b px-4 py-3">
               <h2 className="text-[13px] font-semibold tracking-tight">
                 {isSeller
                   ? "Seller next steps"
-                  : "Buyer next steps"}
+                  : isShopper
+                    ? "In-park next steps"
+                    : "Buyer next steps"}
               </h2>
             </div>
             <ul>
               <li className="hairline-b flex items-start gap-3 px-4 py-3">
                 <Storefront size={16} className="mt-0.5 text-primary" />
                 <span className="text-[13px] text-muted-foreground">
-                <Link to="/browse" className="font-medium text-foreground hover:underline">
-                    Browse listings
+                  <Link to="/browse" className="font-medium text-foreground hover:underline">
+                    Browse the catalog
                   </Link>{" "}
-                  and open the exact item you care about.
+                  and open the exact variation you care about.
                 </span>
               </li>
               <li className="hairline-b flex items-start gap-3 px-4 py-3">
                 <Tag size={16} className="mt-0.5 text-primary" />
                 <span className="text-[13px] text-muted-foreground">
                   {isSeller
-                    ? "Your seller dashboard supports public listings, editing, buyer inquiries and moderation status."
-                    : "Save listings, contact sellers and arrange pickup, shipping and payment directly."}
+                    ? "Your seller dashboard supports public listings, editing, order fulfillment and payout setup."
+                    : "Place an offer on a variation, and complete payment at checkout when a seller accepts."}
                 </span>
               </li>
               <li className="flex items-start gap-3 px-4 py-3">

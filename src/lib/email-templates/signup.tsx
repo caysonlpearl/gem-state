@@ -56,7 +56,7 @@ export const SignupEmail = ({
           <Link href={`mailto:${recipient}`} style={link}>
             {recipient}
           </Link>{" "}
-          to start buying, listing and saving items across Idaho.
+          to start buying, listing and following park merchandise.
         </Text>
         <Button className="dm-btn" style={button} href={confirmationUrl}>
           Confirm email

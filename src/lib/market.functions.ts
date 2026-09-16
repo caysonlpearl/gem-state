@@ -54,7 +54,6 @@ export type MyListing = {
 
 export type MyOrder = {
   id: string;
-  askId: string | null;
   orderNumber: string;
   role: "buyer" | "seller";
   productSlug: string;
@@ -417,7 +416,7 @@ export const respondToListingOffer = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     if (data.action === "accept" || data.action === "accept_counter") {
-      throw new Error("Use Gem State Checkout to complete this offer.");
+      throw new Error("Use ParkVault Checkout to complete this offer.");
     }
     const client = context.supabase as any;
     const { applyOfferResponse } = await import("./offer-response.server");
@@ -482,24 +481,6 @@ export const getMyListingOffers = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const client = supabaseAdmin as any;
     const participantColumn = data.role === "seller" ? "seller_id" : "buyer_id";
-    if (data.role === "buyer") {
-      const { data: pendingCheckouts } = await client
-        .from("listing_offers")
-        .select("id")
-        .eq("buyer_id", context.userId)
-        .eq("status", "pending")
-        .eq("payment_authorized", false)
-        .not("stripe_checkout_session_id", "is", null)
-        .limit(20);
-      if (pendingCheckouts?.length) {
-        const { reconcileListingOfferCheckout } = await import("./stripe-marketplace.server");
-        await Promise.allSettled(
-          pendingCheckouts.map((offer: { id: string }) =>
-            reconcileListingOfferCheckout(offer.id, context.userId),
-          ),
-        );
-      }
-    }
     // A transient Stripe error must not leave a card hold stuck indefinitely.
     // Re-open of either participant's offer page retries every pending release;
     // the UI also exposes an explicit retry action below.
@@ -688,7 +669,7 @@ export const getMyOrders = createServerFn({ method: "GET" })
     const { data, error } = await supabase
       .from("orders")
       .select(
-        "id, ask_id, order_number, buyer_id, seller_id, origin, status, currency, merchandise_cents, buyer_fee_cents, seller_fee_cents, shipping_cents, tax_cents, total_cents, payout_cents, reservation_expires_at, payment_authorized, stripe_payment_status, created_at, products(slug, name), product_variants(size, color, edition)",
+        "id, order_number, buyer_id, seller_id, origin, status, currency, merchandise_cents, buyer_fee_cents, seller_fee_cents, shipping_cents, tax_cents, total_cents, payout_cents, reservation_expires_at, payment_authorized, stripe_payment_status, created_at, products(slug, name), product_variants(size, color, edition)",
       )
       .order("created_at", { ascending: false });
 
@@ -698,7 +679,6 @@ export const getMyOrders = createServerFn({ method: "GET" })
       const product = row.products as { slug: string; name: string } | null;
       return {
         id: row.id,
-        askId: row.ask_id,
         orderNumber: row.order_number,
         role: row.buyer_id === userId ? ("buyer" as const) : ("seller" as const),
         productSlug: product?.slug ?? "",
@@ -736,7 +716,7 @@ export const getOrder = createServerFn({ method: "GET" })
     const { data: row, error } = await supabase
       .from("orders")
       .select(
-        "id, ask_id, order_number, buyer_id, seller_id, origin, status, currency, merchandise_cents, buyer_fee_cents, seller_fee_cents, shipping_cents, tax_cents, total_cents, payout_cents, reservation_expires_at, payment_authorized, stripe_payment_status, fee_snapshot, created_at, products(id, slug, name), product_variants(size, color, edition)",
+        "id, order_number, buyer_id, seller_id, origin, status, currency, merchandise_cents, buyer_fee_cents, seller_fee_cents, shipping_cents, tax_cents, total_cents, payout_cents, reservation_expires_at, payment_authorized, stripe_payment_status, fee_snapshot, created_at, products(id, slug, name), product_variants(size, color, edition)",
       )
       .eq("id", data.orderId)
       .maybeSingle();
@@ -766,7 +746,6 @@ export const getOrder = createServerFn({ method: "GET" })
 
     return {
       id: row.id,
-      askId: row.ask_id,
       orderNumber: row.order_number,
       imageSrc: image?.storage_path ?? null,
       imageAlt: image?.alt?.trim() || (product?.name ?? "Purchased item"),

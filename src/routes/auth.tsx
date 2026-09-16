@@ -27,12 +27,12 @@ export const Route = createFileRoute("/auth")({
       { title: `Sign in — ${brand.name}` },
       {
         name: "description",
-        content: `Sign in or create a ${brand.name} account to save listings, contact sellers, and post your own listings across Idaho.`,
+        content: `Sign in or create a ${brand.name} account to make offers, list listings, and follow park merchandise across Walt Disney World and Disneyland Resort.`,
       },
       { property: "og:title", content: `Sign in — ${brand.name}` },
       {
         property: "og:description",
-        content: `Buy and sell cars, trucks, tools, furniture, and more with a ${brand.name} account.`,
+        content: `Buy, sell and follow Disney Parks merchandise with a ${brand.name} account.`,
       },
     ],
   }),
@@ -114,17 +114,16 @@ function AuthPage() {
 
 
   return (
-    <div className="mx-auto max-w-[460px] px-4 py-16 sm:px-6">
-      <div className="soft-card p-6 sm:p-8">
-      <h1 className="text-[26px] font-bold tracking-tight">
+    <div className="mx-auto max-w-[420px] px-4 py-14 sm:px-6">
+      <h1 className="text-[22px] font-semibold tracking-tight">
         {mode === "signin" ? `Sign in to ${brand.name}` : `Create your ${brand.name} account`}
       </h1>
       <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
-        An account is needed to save listings, contact sellers and post on the marketplace.
+        An account is needed to make offers, list items and buy on the marketplace.
       </p>
 
       {pendingConfirm ? (
-          <div className="mt-6 rounded-2xl bg-secondary p-5">
+        <div className="mt-6 rounded-md border border-border bg-card p-4">
           <p className="text-[13.5px] font-medium">Check your email</p>
           <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
             We sent a confirmation link to {email}. You are not signed in until you open it.
@@ -137,7 +136,7 @@ function AuthPage() {
               type="button"
               onClick={() => handleOAuth("google")}
               disabled={busy}
-              className="inline-flex h-12 w-full items-center justify-center rounded-full border border-input bg-card text-[13.5px] font-medium transition-colors hover:bg-secondary disabled:opacity-60"
+              className="inline-flex h-10 w-full items-center justify-center rounded-md border border-input bg-card text-[13.5px] font-medium transition-colors hover:bg-secondary disabled:opacity-60"
             >
               Continue with Google
             </button>
@@ -145,7 +144,7 @@ function AuthPage() {
               type="button"
               onClick={() => handleOAuth("apple")}
               disabled={busy}
-              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border border-input bg-card text-[13.5px] font-medium transition-colors hover:bg-secondary disabled:opacity-60"
+              className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-input bg-card text-[13.5px] font-medium transition-colors hover:bg-secondary disabled:opacity-60"
             >
               <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 fill-current">
                 <path d="M17.05 12.9c.02 2.6 2.28 3.46 2.3 3.47-.02.06-.36 1.24-1.2 2.45-.72 1.05-1.47 2.1-2.66 2.12-1.16.02-1.54-.69-2.87-.69-1.33 0-1.75.67-2.85.71-1.14.04-2.01-1.12-2.74-2.17-1.5-2.17-2.64-6.14-1.1-8.82.76-1.33 2.13-2.17 3.61-2.19 1.12-.02 2.17.75 2.87.75.69 0 1.98-.93 3.33-.79.57.02 2.17.2 3.19 1.55-.08.05-1.9 1.11-1.88 3.31M14.9 4.6c.62-.75 1.04-1.79.93-2.83-.9.04-2 .6-2.64 1.35-.58.66-1.08 1.72-.95 2.74 1 .08 2.03-.51 2.66-1.26" />
@@ -174,7 +173,7 @@ function AuthPage() {
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   autoComplete="nickname"
-                  className="soft-control mt-1 h-11 w-full px-4 text-sm outline-none"
+                  className="mt-1 h-10 w-full rounded-md border border-input bg-card px-3 text-sm"
                 />
               </div>
             )}
@@ -189,7 +188,7 @@ function AuthPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="email"
-                className="soft-control mt-1 h-11 w-full px-4 text-sm outline-none"
+                className="mt-1 h-10 w-full rounded-md border border-input bg-card px-3 text-sm"
               />
             </div>
             <div>
@@ -204,13 +203,13 @@ function AuthPage() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete={mode === "signin" ? "current-password" : "new-password"}
-                className="soft-control mt-1 h-11 w-full px-4 text-sm outline-none"
+                className="mt-1 h-10 w-full rounded-md border border-input bg-card px-3 text-sm"
               />
             </div>
             <button
               type="submit"
               disabled={busy}
-              className="inline-flex h-12 w-full items-center justify-center rounded-full bg-primary text-[13.5px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+              className="inline-flex h-10 w-full items-center justify-center rounded-md bg-primary text-[13.5px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
             >
               {mode === "signin" ? "Sign in" : "Create account"}
             </button>
@@ -225,7 +224,6 @@ function AuthPage() {
           </button>
         </>
       )}
-      </div>
     </div>
   );
 }

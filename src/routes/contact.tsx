@@ -12,9 +12,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
-const title = "Contact Gem State Classifieds";
+const title = "Contact ParkVault";
 const description =
-  "Send the Gem State Classifieds team a message about an order, listing, payment, delivery, or anything else you need help with.";
+  "Send the ParkVault team a message about an order, a listing, an in-park sourcing job, or anything else you need help with.";
 
 export const Route = createFileRoute("/contact")({
   head: () => ({
@@ -74,7 +74,7 @@ function ContactPage() {
           role="status"
           className="mt-7 rounded-md border border-border bg-surface p-5 text-[13.5px] leading-relaxed text-foreground"
         >
-          <p className="font-semibold">Your message is with the Gem State Classifieds team.</p>
+          <p className="font-semibold">Your message is with the ParkVault team.</p>
           <p className="mt-1 text-muted-foreground">
             We reply to the email address you provided. You can send another message below if you
             need to add anything.
