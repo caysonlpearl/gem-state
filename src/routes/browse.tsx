@@ -48,6 +48,22 @@ type Search = {
   page?: number | undefined;
 };
 
+type VehicleHeroFilter =
+  | "makeModel"
+  | "year"
+  | "price"
+  | "mileage"
+  | "bodyStyle"
+  | "sellerType"
+  | "titleStatus"
+  | "location"
+  | "condition"
+  | "fulfillment"
+  | "drivetrain"
+  | "transmission"
+  | "fuelType"
+  | "exteriorColor";
+
 const conditionOptions = Object.entries(conditionLabels);
 
 const sortOptions: { value: Sort; label: string }[] = [
@@ -287,7 +303,7 @@ function Browse() {
           onSearch={() =>
             void navigate({ to: "/browse", search: scoped({ q: term.trim() || undefined }) })
           }
-          onOpenFilters={() => setFiltersOpen(true)}
+          onFilterChange={(patch) => void navigate({ to: "/browse", search: scoped(patch) })}
           onSell={() => void navigate({ to: "/create-listing" })}
         />
       )}
@@ -743,7 +759,7 @@ function VehicleBrowseHero({
   term,
   onTermChange,
   onSearch,
-  onOpenFilters,
+  onFilterChange,
   onSell,
 }: {
   search: Search;
@@ -752,9 +768,11 @@ function VehicleBrowseHero({
   term: string;
   onTermChange: (value: string) => void;
   onSearch: () => void;
-  onOpenFilters: () => void;
+  onFilterChange: (patch: Partial<Search>) => void;
   onSell: () => void;
 }) {
+  const [expandedFilter, setExpandedFilter] = useState<VehicleHeroFilter | null>(null);
+  const [showAllFilters, setShowAllFilters] = useState(false);
   const locationLabel = search.city
     ? `${search.city}${search.state ? `, ${search.state}` : ""}`
     : search.region ?? search.state ?? "All of Idaho";
@@ -767,6 +785,155 @@ function VehicleBrowseHero({
       ? `$${search.priceMin ?? 0}–${search.priceMax ?? "up"}`
       : "Price";
   const makeModelLabel = search.make || search.model || "Make / model";
+  const toggleFilter = (filter: VehicleHeroFilter) =>
+    setExpandedFilter((current) => (current === filter ? null : filter));
+  const applyInlineFilter = (patch: Partial<Search>) => {
+    onFilterChange(patch);
+    setExpandedFilter(null);
+  };
+
+  const quickFilters: { key: VehicleHeroFilter; label: string; value?: string }[] = [
+    { key: "makeModel", label: makeModelLabel },
+    { key: "year", label: yearLabel },
+    { key: "price", label: priceLabel },
+    {
+      key: "mileage",
+      label: search.mileageMax != null ? `≤ ${search.mileageMax.toLocaleString()} mi` : "Mileage",
+    },
+    { key: "bodyStyle", label: search.bodyStyle ?? "Body type" },
+    { key: "sellerType", label: "Seller type" },
+    { key: "titleStatus", label: search.titleStatus ?? "Title type" },
+  ];
+  const additionalFilters: { key: VehicleHeroFilter; label: string }[] = [
+    { key: "location", label: locationLabel === "All of Idaho" ? "Location" : locationLabel },
+    { key: "condition", label: search.condition ?? "Condition" },
+    { key: "fulfillment", label: search.fulfillment ?? "Delivery" },
+    { key: "drivetrain", label: search.drivetrain ?? "Drive type" },
+    { key: "transmission", label: search.transmission ?? "Transmission" },
+    { key: "fuelType", label: search.fuelType ?? "Fuel type" },
+    { key: "exteriorColor", label: search.exteriorColor ?? "Exterior color" },
+  ];
+
+  function filterPanel(filter: VehicleHeroFilter) {
+    switch (filter) {
+      case "makeModel":
+        return <InlineMakeModelFilter search={search} onApply={applyInlineFilter} />;
+      case "year":
+        return (
+          <InlineRangeFilter
+            firstLabel="Year from"
+            secondLabel="Year to"
+            firstValue={search.yearMin}
+            secondValue={search.yearMax}
+            onApply={(first, second) =>
+              applyInlineFilter({ yearMin: first, yearMax: second })
+            }
+          />
+        );
+      case "price":
+        return (
+          <InlineRangeFilter
+            firstLabel="Min price"
+            secondLabel="Max price"
+            firstValue={search.priceMin}
+            secondValue={search.priceMax}
+            onApply={(first, second) =>
+              applyInlineFilter({ priceMin: first, priceMax: second })
+            }
+            prefix="$"
+          />
+        );
+      case "mileage":
+        return (
+          <InlineNumberFilter
+            label="Maximum mileage"
+            value={search.mileageMax}
+            onApply={(value) => applyInlineFilter({ mileageMax: value })}
+          />
+        );
+      case "bodyStyle":
+        return (
+          <InlineSelectFilter
+            value={search.bodyStyle}
+            options={vehicleOptions.bodyStyles}
+            placeholder="Any body style"
+            onChange={(value) => applyInlineFilter({ bodyStyle: value })}
+          />
+        );
+      case "titleStatus":
+        return (
+          <InlineSelectFilter
+            value={search.titleStatus}
+            options={vehicleOptions.titleStatuses}
+            placeholder="Any title type"
+            onChange={(value) => applyInlineFilter({ titleStatus: value })}
+          />
+        );
+      case "drivetrain":
+        return (
+          <InlineSelectFilter
+            value={search.drivetrain}
+            options={vehicleOptions.drivetrains}
+            placeholder="Any drive type"
+            onChange={(value) => applyInlineFilter({ drivetrain: value })}
+          />
+        );
+      case "transmission":
+        return (
+          <InlineSelectFilter
+            value={search.transmission}
+            options={vehicleOptions.transmissions}
+            placeholder="Any transmission"
+            onChange={(value) => applyInlineFilter({ transmission: value })}
+          />
+        );
+      case "fuelType":
+        return (
+          <InlineSelectFilter
+            value={search.fuelType}
+            options={vehicleOptions.fuelTypes}
+            placeholder="Any fuel type"
+            onChange={(value) => applyInlineFilter({ fuelType: value })}
+          />
+        );
+      case "exteriorColor":
+        return (
+          <InlineSelectFilter
+            value={search.exteriorColor}
+            options={vehicleOptions.exteriorColors}
+            placeholder="Any exterior color"
+            onChange={(value) => applyInlineFilter({ exteriorColor: value })}
+          />
+        );
+      case "location":
+        return <InlineLocationFilter search={search} onApply={applyInlineFilter} />;
+      case "condition":
+        return (
+          <InlineSelectFilter
+            value={search.condition}
+            options={conditionOptions.map(([value, label]) => ({ value, label }))}
+            placeholder="Any condition"
+            onChange={(value) => applyInlineFilter({ condition: value })}
+          />
+        );
+      case "fulfillment":
+        return (
+          <InlineSelectFilter
+            value={search.fulfillment}
+            options={["local_pickup", "shipping", "both"]}
+            optionLabels={{ local_pickup: "Local pickup", shipping: "Ships", both: "Pickup or shipping" }}
+            placeholder="Any delivery option"
+            onChange={(value) => applyInlineFilter({ fulfillment: value })}
+          />
+        );
+      case "sellerType":
+        return (
+          <p className="max-w-[24ch] text-[12px] leading-relaxed text-muted-foreground">
+            Seller type details will appear here as verified dealer and private-seller profiles are added.
+          </p>
+        );
+    }
+  }
 
   return (
     <section className="floating-card relative overflow-hidden bg-surface px-5 py-6 sm:px-8 sm:py-8">
@@ -834,22 +1001,36 @@ function VehicleBrowseHero({
               </button>
             )}
           </label>
-          <VehicleQuickFilter label={makeModelLabel} onClick={onOpenFilters} />
-          <VehicleQuickFilter label={yearLabel} onClick={onOpenFilters} />
-          <VehicleQuickFilter label={priceLabel} onClick={onOpenFilters} />
-          <VehicleQuickFilter
-            label={search.mileageMax != null ? `≤ ${search.mileageMax.toLocaleString()} mi` : "Mileage"}
-            onClick={onOpenFilters}
-          />
-          <VehicleQuickFilter label={search.bodyStyle ?? "Body type"} onClick={onOpenFilters} />
-          <VehicleQuickFilter label="Seller type" onClick={onOpenFilters} />
-          <VehicleQuickFilter label={search.titleStatus ?? "Title type"} onClick={onOpenFilters} />
+          {quickFilters.map(({ key, label }) => (
+            <VehicleQuickFilter
+              key={key}
+              label={label}
+              expanded={expandedFilter === key}
+              onClick={() => toggleFilter(key)}
+            >
+              {filterPanel(key)}
+            </VehicleQuickFilter>
+          ))}
+          {showAllFilters &&
+            additionalFilters.map(({ key, label }) => (
+              <VehicleQuickFilter
+                key={key}
+                label={label}
+                expanded={expandedFilter === key}
+                onClick={() => toggleFilter(key)}
+              >
+                {filterPanel(key)}
+              </VehicleQuickFilter>
+            ))}
         </form>
 
         <div className="mt-5 flex flex-col gap-3 text-[12.5px] sm:flex-row sm:items-center sm:justify-between">
           <button
             type="button"
-            onClick={onOpenFilters}
+            onClick={() => {
+              setShowAllFilters(true);
+              setExpandedFilter("location");
+            }}
             className="inline-flex items-center gap-2 self-start text-primary hover:underline"
           >
             <MapPin size={18} weight="duotone" aria-hidden="true" />
@@ -861,11 +1042,14 @@ function VehicleBrowseHero({
           <div className="flex flex-wrap items-center gap-4">
             <button
               type="button"
-              onClick={onOpenFilters}
+              onClick={() => {
+                setShowAllFilters((current) => !current);
+                setExpandedFilter(null);
+              }}
               className="inline-flex items-center gap-2 font-semibold text-primary hover:underline"
             >
               <FunnelSimple size={17} weight="duotone" aria-hidden="true" />
-              Show all search filters
+              {showAllFilters ? "Hide all search filters" : "Show all search filters"}
               {activeFilterCount > 0 && (
                 <span className="grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1.5 text-[10px] font-bold text-accent-foreground">
                   {activeFilterCount}
@@ -885,15 +1069,256 @@ function VehicleBrowseHero({
   );
 }
 
-function VehicleQuickFilter({ label, onClick }: { label: string; onClick: () => void }) {
+function VehicleQuickFilter({
+  label,
+  onClick,
+  expanded,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  expanded: boolean;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={`relative ${expanded ? "z-30" : ""}`}>
+      <button
+        type="button"
+        onClick={onClick}
+        aria-expanded={expanded}
+        className="flex h-[70px] w-full items-center justify-between rounded-xl border border-transparent bg-secondary/55 px-4 text-left text-[13.5px] font-semibold transition-colors hover:border-primary/40 hover:bg-card"
+      >
+        <span className="truncate">{label}</span>
+        <CaretDown
+          size={16}
+          weight="bold"
+          aria-hidden="true"
+          className={`ml-2 shrink-0 text-muted-foreground transition-transform ${expanded ? "rotate-180" : ""}`}
+        />
+      </button>
+      {expanded && (
+        <div className="absolute left-0 top-[calc(100%+8px)] z-40 min-w-full rounded-xl bg-card p-4 shadow-xl ring-1 ring-border/70">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function InlineMakeModelFilter({
+  search,
+  onApply,
+}: {
+  search: Search;
+  onApply: (patch: Partial<Search>) => void;
+}) {
+  const [make, setMake] = useState(search.make ?? "");
+  const [model, setModel] = useState(search.model ?? "");
+
+  useEffect(() => {
+    setMake(search.make ?? "");
+    setModel(search.model ?? "");
+  }, [search.make, search.model]);
+
+  return (
+    <div className="w-[min(360px,calc(100vw-48px))] space-y-2.5">
+      <input
+        list="hero-vehicle-makes"
+        value={make}
+        onChange={(event) => setMake(event.target.value)}
+        placeholder="Make or brand"
+        className="filter-input"
+      />
+      <datalist id="hero-vehicle-makes">
+        {vehicleOptions.makes.map((option) => (
+          <option key={option} value={option} />
+        ))}
+      </datalist>
+      <input
+        value={model}
+        onChange={(event) => setModel(event.target.value)}
+        placeholder="Model"
+        className="filter-input"
+      />
+      <InlineApplyButton
+        onClick={() => onApply({ make: make.trim() || undefined, model: model.trim() || undefined })}
+      />
+    </div>
+  );
+}
+
+function InlineRangeFilter({
+  firstLabel,
+  secondLabel,
+  firstValue,
+  secondValue,
+  onApply,
+  prefix = "",
+}: {
+  firstLabel: string;
+  secondLabel: string;
+  firstValue: number | undefined;
+  secondValue: number | undefined;
+  onApply: (first?: number, second?: number) => void;
+  prefix?: string;
+}) {
+  const [first, setFirst] = useState(firstValue == null ? "" : String(firstValue));
+  const [second, setSecond] = useState(secondValue == null ? "" : String(secondValue));
+
+  useEffect(() => {
+    setFirst(firstValue == null ? "" : String(firstValue));
+    setSecond(secondValue == null ? "" : String(secondValue));
+  }, [firstValue, secondValue]);
+
+  const parse = (value: string) => {
+    const parsed = Number(value);
+    return value.trim() && Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
+  };
+
+  return (
+    <div className="w-[min(360px,calc(100vw-48px))] space-y-2.5">
+      <div className="grid grid-cols-2 gap-2">
+        <label className="relative">
+          <span className="sr-only">{firstLabel}</span>
+          {prefix && <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">{prefix}</span>}
+          <input
+            type="number"
+            min="0"
+            value={first}
+            onChange={(event) => setFirst(event.target.value)}
+            placeholder={firstLabel}
+            className={`filter-input w-full ${prefix ? "pl-7" : ""}`}
+          />
+        </label>
+        <label className="relative">
+          <span className="sr-only">{secondLabel}</span>
+          {prefix && <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">{prefix}</span>}
+          <input
+            type="number"
+            min="0"
+            value={second}
+            onChange={(event) => setSecond(event.target.value)}
+            placeholder={secondLabel}
+            className={`filter-input w-full ${prefix ? "pl-7" : ""}`}
+          />
+        </label>
+      </div>
+      <InlineApplyButton onClick={() => onApply(parse(first), parse(second))} />
+    </div>
+  );
+}
+
+function InlineNumberFilter({
+  label,
+  value,
+  onApply,
+}: {
+  label: string;
+  value: number | undefined;
+  onApply: (value?: number) => void;
+}) {
+  const [draft, setDraft] = useState(value == null ? "" : String(value));
+
+  useEffect(() => setDraft(value == null ? "" : String(value)), [value]);
+
+  return (
+    <div className="w-[min(360px,calc(100vw-48px))] space-y-2.5">
+      <label>
+        <span className="sr-only">{label}</span>
+        <input
+          type="number"
+          min="0"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          placeholder={label}
+          className="filter-input w-full"
+        />
+      </label>
+      <InlineApplyButton
+        onClick={() => {
+          const parsed = Number(draft);
+          onApply(draft.trim() && Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined);
+        }}
+      />
+    </div>
+  );
+}
+
+function InlineSelectFilter({
+  value,
+  options,
+  placeholder,
+  onChange,
+  optionLabels,
+}: {
+  value: string | undefined;
+  options: readonly (string | { value: string; label: string })[];
+  placeholder: string;
+  onChange: (value?: string) => void;
+  optionLabels?: Record<string, string>;
+}) {
+  return (
+    <select
+      autoFocus
+      value={value ?? ""}
+      onChange={(event) => onChange(event.target.value || undefined)}
+      className="filter-input w-[min(360px,calc(100vw-48px))]"
+    >
+      <option value="">{placeholder}</option>
+      {options.map((option) => {
+        const optionValue = typeof option === "string" ? option : option.value;
+        const label = typeof option === "string" ? optionLabels?.[option] ?? option : option.label;
+        return (
+          <option key={optionValue} value={optionValue}>
+            {label}
+          </option>
+        );
+      })}
+    </select>
+  );
+}
+
+function InlineLocationFilter({
+  search,
+  onApply,
+}: {
+  search: Search;
+  onApply: (patch: Partial<Search>) => void;
+}) {
+  const [region, setRegion] = useState(search.region ?? "");
+  const [state, setState] = useState(search.state ?? "");
+  const [city, setCity] = useState(search.city ?? "");
+
+  useEffect(() => {
+    setRegion(search.region ?? "");
+    setState(search.state ?? "");
+    setCity(search.city ?? "");
+  }, [search.region, search.state, search.city]);
+
+  return (
+    <div className="w-[min(360px,calc(100vw-48px))] space-y-2.5">
+      <select value={region} onChange={(event) => setRegion(event.target.value)} className="filter-input w-full">
+        <option value="">All of Idaho</option>
+        {idahoRegions.map((option) => <option key={option} value={option}>{option}</option>)}
+      </select>
+      <select value={state} onChange={(event) => setState(event.target.value)} className="filter-input w-full">
+        <option value="">All states</option>
+        {usStates.map(([code, name]) => <option key={code} value={code}>{name}</option>)}
+      </select>
+      <input value={city} onChange={(event) => setCity(event.target.value)} placeholder="City" className="filter-input w-full" />
+      <InlineApplyButton onClick={() => onApply({ region: region || undefined, state: state || undefined, city: city.trim() || undefined })} />
+    </div>
+  );
+}
+
+function InlineApplyButton({ onClick }: { onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex h-[70px] items-center justify-between rounded-xl border border-transparent bg-secondary/55 px-4 text-left text-[13.5px] font-semibold transition-colors hover:border-primary/40 hover:bg-card"
+      className="inline-flex h-9 w-full items-center justify-center rounded-full bg-primary px-4 text-[12px] font-semibold text-primary-foreground shadow-sm hover:opacity-90"
     >
-      <span className="truncate">{label}</span>
-      <CaretDown size={16} weight="bold" aria-hidden="true" className="ml-2 text-muted-foreground" />
+      Apply filters
     </button>
   );
 }
