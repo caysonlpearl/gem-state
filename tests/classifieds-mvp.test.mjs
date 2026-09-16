@@ -518,12 +518,15 @@ test("vehicle browse uses a branded buy and eight-filter discovery hero", () => 
   assert.match(browseSource, /Find your next gem on wheels/);
   assert.match(browseSource, /setShowAllFilters/);
   assert.match(browseSource, /expandedFilter/);
-  assert.match(browseSource, /function InlineMakeModelFilter/);
+  assert.match(browseSource, /function InlineVehicleMakeModelFilter/);
+  assert.match(browseSource, /function VehicleResultsPage/);
+  assert.match(browseSource, /function VehicleCheckboxList/);
   assert.match(browseSource, /function InlineLocationFilter/);
   assert.match(browseSource, /Show all search filters/);
   assert.match(browseSource, /Select location/);
   assert.match(browseSource, /Show \{resultCount\.toLocaleString\(\)\}/);
-  assert.match(browseSource, /href="#results"/);
+  assert.match(browseSource, /vehicleMode: "results"/);
+  assert.match(browseSource, /selected\.includes\(optionValue\)/);
   for (const label of [
     "Make / model",
     "Year",

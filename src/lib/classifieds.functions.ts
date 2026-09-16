@@ -421,6 +421,13 @@ function escapeFilterValue(value: string) {
   return value.replace(/[\\,.()]/g, "\\$&");
 }
 
+function applyReferencedFilter(query: any, field: string, values: string[]) {
+  if (values.length === 1) return query.eq(`classified_listing_details.${field}`, values[0]);
+  return query.or(values.map((value) => `${field}.eq.${escapeFilterValue(value)}`).join(","), {
+    referencedTable: "classified_listing_details",
+  });
+}
+
 function vehicleOf(details: Record<string, unknown>): ClassifiedVehicle | null {
   const make = (details["vehicle_make"] as string | null) ?? null;
   const model = (details["vehicle_model"] as string | null) ?? null;
@@ -567,6 +574,8 @@ export type ClassifiedBrowseInput = {
 
 const text = (value: unknown, max = 80) =>
   typeof value === "string" && value.trim() ? value.trim().slice(0, max) : undefined;
+const filterValues = (value: string | undefined) =>
+  value?.split("||").map((item) => item.trim()).filter(Boolean) ?? [];
 const num = (value: unknown) => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : undefined;
@@ -580,9 +589,7 @@ export const browseClassifieds = createServerFn({ method: "GET" })
     region: text(input?.region),
     state: text(input?.state, 2)?.toUpperCase(),
     city: text(input?.city),
-    condition: conditionValues.includes(input?.condition as never)
-      ? (input.condition as (typeof conditionValues)[number])
-      : undefined,
+    condition: filterValues(text(input?.condition, 120)).filter((value) => conditionValues.includes(value as never)).join("||") || undefined,
     fulfillment: text(input?.fulfillment, 20),
     priceMin: num(input?.priceMin),
     priceMax: num(input?.priceMax),
@@ -647,36 +654,46 @@ export const browseClassifieds = createServerFn({ method: "GET" })
     if (data.region) query = query.eq("classified_listing_details.region", data.region);
     if (data.state) query = query.eq("classified_listing_details.state", data.state);
     if (data.city) query = query.ilike("classified_listing_details.city", data.city);
-    if (data.condition)
-      query = query.eq("item_condition", data.condition as (typeof conditionValues)[number]);
+    if (data.condition) {
+      const conditions = filterValues(data.condition).filter((value) => conditionValues.includes(value as never));
+      const [firstCondition, ...otherConditions] = conditions;
+      if (firstCondition && otherConditions.length === 0) query = query.eq("item_condition", firstCondition as (typeof conditionValues)[number]);
+      if (firstCondition && otherConditions.length > 0) query = query.in("item_condition", [firstCondition, ...otherConditions] as (typeof conditionValues)[number][]);
+    }
     if (data.fulfillment) {
-      query =
-        data.fulfillment === "both"
-          ? query.eq("classified_listing_details.fulfillment_mode", "both")
-          : query.in("classified_listing_details.fulfillment_mode", [data.fulfillment, "both"]);
+      const fulfillment = filterValues(data.fulfillment);
+      const modes = fulfillment.includes("both")
+        ? ["local_pickup", "shipping", "both"]
+        : [...fulfillment, "both"];
+      if (modes.length > 0) query = applyReferencedFilter(query, "fulfillment_mode", modes);
     }
     if (data.priceMin != null) query = query.gte("price_cents", Math.round(data.priceMin * 100));
     if (data.priceMax != null) query = query.lte("price_cents", Math.round(data.priceMax * 100));
-    if (data.make) query = query.ilike("classified_listing_details.vehicle_make", data.make);
-    if (data.model) query = query.ilike("classified_listing_details.vehicle_model", data.model);
+    if (data.make) {
+      const makes = filterValues(data.make);
+      if (makes.length > 0) query = applyReferencedFilter(query, "vehicle_make", makes);
+    }
+    if (data.model) {
+      const models = filterValues(data.model);
+      if (models.length > 0) query = applyReferencedFilter(query, "vehicle_model", models);
+    }
     if (data.yearMin != null)
       query = query.gte("classified_listing_details.vehicle_year", data.yearMin);
     if (data.yearMax != null)
       query = query.lte("classified_listing_details.vehicle_year", data.yearMax);
     if (data.mileageMax != null)
       query = query.lte("classified_listing_details.vehicle_mileage", data.mileageMax);
-    if (data.bodyStyle)
-      query = query.eq("classified_listing_details.vehicle_body_style", data.bodyStyle);
-    if (data.transmission)
-      query = query.eq("classified_listing_details.vehicle_transmission", data.transmission);
-    if (data.drivetrain)
-      query = query.eq("classified_listing_details.vehicle_drivetrain", data.drivetrain);
-    if (data.fuelType)
-      query = query.eq("classified_listing_details.vehicle_fuel_type", data.fuelType);
-    if (data.exteriorColor)
-      query = query.eq("classified_listing_details.vehicle_exterior_color", data.exteriorColor);
-    if (data.titleStatus)
-      query = query.eq("classified_listing_details.vehicle_title_status", data.titleStatus);
+    for (const [value, column] of [
+      [data.bodyStyle, "classified_listing_details.vehicle_body_style"],
+      [data.transmission, "classified_listing_details.vehicle_transmission"],
+      [data.drivetrain, "classified_listing_details.vehicle_drivetrain"],
+      [data.fuelType, "classified_listing_details.vehicle_fuel_type"],
+      [data.exteriorColor, "classified_listing_details.vehicle_exterior_color"],
+      [data.titleStatus, "classified_listing_details.vehicle_title_status"],
+    ] as const) {
+      const values = filterValues(value);
+      if (values.length > 0) query = applyReferencedFilter(query, column.replace("classified_listing_details.", ""), values);
+    }
 
     switch (data.sort) {
       case "price_low":

@@ -15,7 +15,7 @@ import { brand } from "@/config/brand";
 import { classifiedCategories, idahoRegions, usStates, vehicleOptions } from "@/config/classifieds";
 import { ListingCard, ListingRow } from "@/components/classifieds/ListingCard";
 import { conditionLabels, isMotorsCategory } from "@/lib/classifieds-display";
-import { browseClassifieds, type ClassifiedBrowseInput } from "@/lib/classifieds.functions";
+import { browseClassifieds, type ClassifiedBrowseInput, type ClassifiedBrowseResult } from "@/lib/classifieds.functions";
 import { trackEvent } from "@/lib/analytics";
 import {
   Sheet,
@@ -54,6 +54,8 @@ type Search = {
   fuelType?: string | undefined;
   exteriorColor?: string | undefined;
   titleStatus?: string | undefined;
+  sellerType?: string | undefined;
+  mileageBands?: string | undefined;
   sort?: Sort | undefined;
   view?: View | undefined;
   page?: number | undefined;
@@ -61,6 +63,7 @@ type Search = {
   homeTab?: HomeTab | undefined;
   jobMode?: JobMode | undefined;
   serviceMode?: ServiceMode | undefined;
+  vehicleMode?: "landing" | "results" | undefined;
   serviceSubcategory?: string | undefined;
   serviceExpandSearch?: string | undefined;
   servicePhotos?: string | undefined;
@@ -197,6 +200,9 @@ const leaseLengthOptions = [
 
 const jobListingCount = 1780;
 const serviceListingCount = 1568;
+const mileageBandOptions = ["Under 25,000 miles", "Under 50,000 miles", "Under 75,000 miles", "Under 100,000 miles", "Under 150,000 miles"] as const;
+const vehicleModelOptions = ["1500", "F-150", "Civic", "Outback", "Silverado 1500", "Tacoma", "Tucson", "Wrangler"] as const;
+const vehicleSellerTypeOptions = ["Private", "Dealer"] as const;
 type JobPreviewCard = {
   title: string;
   employer: string;
@@ -443,6 +449,7 @@ export const Route = createFileRoute("/browse")({
     const homeTab = stringParam(search, "homeTab", 10);
     const jobMode = stringParam(search, "jobMode", 10);
     const serviceMode = stringParam(search, "serviceMode", 10);
+    const vehicleMode = stringParam(search, "vehicleMode", 10);
     const page = Number(search["page"]);
     return {
       q: stringParam(search, "q"),
@@ -475,6 +482,9 @@ export const Route = createFileRoute("/browse")({
       homeTab: homeTab === "build" || homeTab === "rent" ? homeTab : homeTab === "buy" ? "buy" : undefined,
       jobMode: jobMode === "results" ? "results" : jobMode === "landing" ? "landing" : undefined,
       serviceMode: serviceMode === "results" ? "results" : serviceMode === "landing" ? "landing" : undefined,
+      vehicleMode: vehicleMode === "results" ? "results" : vehicleMode === "landing" ? "landing" : undefined,
+      sellerType: stringParam(search, "sellerType", 30),
+      mileageBands: stringParam(search, "mileageBands", 300),
       serviceSubcategory: stringParam(search, "serviceSubcategory", 80),
       serviceExpandSearch: stringParam(search, "serviceExpandSearch", 10),
       servicePhotos: stringParam(search, "servicePhotos", 10),
@@ -587,12 +597,14 @@ function Browse() {
       yearMin: undefined,
       yearMax: undefined,
       mileageMax: undefined,
+      mileageBands: undefined,
       bodyStyle: undefined,
       transmission: undefined,
       drivetrain: undefined,
       fuelType: undefined,
       exteriorColor: undefined,
       titleStatus: undefined,
+      sellerType: undefined,
       ...patch,
     });
 
@@ -603,6 +615,8 @@ function Browse() {
   const homes = search.category === "other-real-estate";
   const jobs = search.category === "jobs";
   const services = search.category === "services";
+  const vehicleLanding = motors && search.vehicleMode !== "results";
+  const showGenericBrowse = !motors || vehicleLanding;
   const homeTab: HomeTab = search.homeTab ?? "buy";
   const homeLanding = homes && search.homeMode !== "results";
   const jobLanding = jobs && search.jobMode !== "results";
@@ -658,17 +672,24 @@ function Browse() {
 
   return (
     <main className="mx-auto max-w-[1400px] px-4 py-10 sm:px-8">
-      {motors && (
+      {motors && vehicleLanding && (
         <VehicleBrowseHero
           search={search}
           resultCount={result.total}
           activeFilterCount={activeFilterCount}
           term={term}
           onTermChange={setTerm}
-          onSearch={() =>
-            void navigate({ to: "/browse", search: scoped({ q: term.trim() || undefined }) })
-          }
+          onSearch={() => void navigate({ to: "/browse", search: scoped({ q: term.trim() || undefined, vehicleMode: "results" }) })}
           onFilterChange={(patch) => void navigate({ to: "/browse", search: scoped(patch) })}
+          onSell={() => void navigate({ to: "/create-listing" })}
+        />
+      )}
+
+      {motors && !vehicleLanding && (
+        <VehicleResultsPage
+          search={search}
+          result={result}
+          onApply={(patch) => void navigate({ to: "/browse", search: scoped({ vehicleMode: "results", ...patch }) })}
           onSell={() => void navigate({ to: "/create-listing" })}
         />
       )}
@@ -790,7 +811,7 @@ function Browse() {
         />
       )}
 
-      <div className={`flex flex-wrap items-end justify-between gap-3 ${motors || homes || jobs || services ? "mt-7" : ""} ${homes || jobs || services || serviceLanding ? "hidden" : ""}`}>
+      <div className={`flex flex-wrap items-end justify-between gap-3 ${motors || homes || jobs || services ? "mt-7" : ""} ${homes || jobs || services || serviceLanding || !showGenericBrowse ? "hidden" : ""}`}>
         <div className={motors ? "hidden" : ""}>
           <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-primary">
             Gem State classifieds
@@ -889,7 +910,7 @@ function Browse() {
         ))}
       </div>}
 
-      {!jobs && !services && <div className={`${motors || homes ? "mt-6" : "mt-8"} ${homeLanding ? "hidden" : ""}`}>
+      {!jobs && !services && showGenericBrowse && <div className={`${motors || homes ? "mt-6" : "mt-8"} ${homeLanding ? "hidden" : ""}`}>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className={motors || homes ? "hidden" : "text-[13px] text-muted-foreground"}>
             <span className="numeric font-semibold text-foreground">{result.total}</span>{" "}
@@ -2235,6 +2256,166 @@ function HomeMultiSelectControl({
   );
 }
 
+function VehicleResultsPage({
+  search,
+  result,
+  onApply,
+  onSell,
+}: {
+  search: Search;
+  result: ClassifiedBrowseResult;
+  onApply: (patch: Partial<Search>) => void;
+  onSell: () => void;
+}) {
+  const [showAll, setShowAll] = useState(true);
+  const [term, setTerm] = useState(search.q ?? "");
+  const [make, setMake] = useState(search.make ?? "");
+  const [model, setModel] = useState(search.model ?? "");
+  const [yearMin, setYearMin] = useState(search.yearMin == null ? "" : String(search.yearMin));
+  const [yearMax, setYearMax] = useState(search.yearMax == null ? "" : String(search.yearMax));
+  const [priceMin, setPriceMin] = useState(search.priceMin == null ? "" : String(search.priceMin));
+  const [priceMax, setPriceMax] = useState(search.priceMax == null ? "" : String(search.priceMax));
+  const [mileageBands, setMileageBands] = useState(search.mileageBands ?? "");
+  const [bodyStyle, setBodyStyle] = useState(search.bodyStyle ?? "");
+  const [sellerType, setSellerType] = useState(search.sellerType ?? "");
+  const [condition, setCondition] = useState(search.condition ?? "");
+  const [fulfillment, setFulfillment] = useState(search.fulfillment ?? "");
+  const [drivetrain, setDrivetrain] = useState(search.drivetrain ?? "");
+  const [transmission, setTransmission] = useState(search.transmission ?? "");
+  const [fuelType, setFuelType] = useState(search.fuelType ?? "");
+  const [exteriorColor, setExteriorColor] = useState(search.exteriorColor ?? "");
+  const [titleStatus, setTitleStatus] = useState(search.titleStatus ?? "");
+  const [region, setRegion] = useState(search.region ?? "");
+  const [state, setState] = useState(search.state ?? "");
+  const [city, setCity] = useState(search.city ?? "");
+
+  useEffect(() => {
+    setTerm(search.q ?? "");
+    setMake(search.make ?? "");
+    setModel(search.model ?? "");
+    setYearMin(search.yearMin == null ? "" : String(search.yearMin));
+    setYearMax(search.yearMax == null ? "" : String(search.yearMax));
+    setPriceMin(search.priceMin == null ? "" : String(search.priceMin));
+    setPriceMax(search.priceMax == null ? "" : String(search.priceMax));
+    setMileageBands(search.mileageBands ?? "");
+    setBodyStyle(search.bodyStyle ?? "");
+    setSellerType(search.sellerType ?? "");
+    setCondition(search.condition ?? "");
+    setFulfillment(search.fulfillment ?? "");
+    setDrivetrain(search.drivetrain ?? "");
+    setTransmission(search.transmission ?? "");
+    setFuelType(search.fuelType ?? "");
+    setExteriorColor(search.exteriorColor ?? "");
+    setTitleStatus(search.titleStatus ?? "");
+    setRegion(search.region ?? "");
+    setState(search.state ?? "");
+    setCity(search.city ?? "");
+  }, [search]);
+
+  function apply() {
+    const numberValue = (value: string) => {
+      const parsed = Number(value);
+      return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
+    };
+    onApply({
+      q: term.trim() || undefined,
+      make: make || undefined,
+      model: model || undefined,
+      yearMin: numberValue(yearMin),
+      yearMax: numberValue(yearMax),
+      priceMin: numberValue(priceMin),
+      priceMax: numberValue(priceMax),
+      mileageBands: mileageBands || undefined,
+      bodyStyle: bodyStyle || undefined,
+      sellerType: sellerType || undefined,
+      condition: condition || undefined,
+      fulfillment: fulfillment || undefined,
+      drivetrain: drivetrain || undefined,
+      transmission: transmission || undefined,
+      fuelType: fuelType || undefined,
+      exteriorColor: exteriorColor || undefined,
+      titleStatus: titleStatus || undefined,
+      region: region || undefined,
+      state: state || undefined,
+      city: city.trim() || undefined,
+    });
+  }
+
+  return (
+    <div className="mt-8">
+      <section className="floating-card overflow-visible p-4 sm:p-6">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+          <div>
+            <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">Gem State motors</p>
+            <h1 className="mt-1 text-[28px] font-bold tracking-tight">Cars & Trucks</h1>
+          </div>
+          <div className="grid w-full max-w-[330px] grid-cols-2 rounded-2xl bg-secondary p-1.5 ring-1 ring-border/70">
+            <button type="button" aria-pressed="true" className="rounded-xl bg-primary px-3 py-3 text-[13px] font-bold text-primary-foreground shadow-sm">Buy</button>
+            <button type="button" onClick={onSell} className="rounded-xl px-3 py-3 text-[13px] font-bold hover:bg-card">Sell</button>
+          </div>
+        </div>
+        <form className="mt-5 grid gap-2 sm:grid-cols-[1fr_auto]" onSubmit={(event) => { event.preventDefault(); apply(); }}>
+          <label className="flex h-12 min-w-0 items-center gap-2 rounded-xl border border-input bg-card px-3 focus-within:border-primary"><MagnifyingGlass size={16} className="shrink-0 text-primary" aria-hidden="true" /><span className="sr-only">Search cars</span><input value={term} onChange={(event) => setTerm(event.target.value)} placeholder="Search cars, trucks, and more" className="min-w-0 flex-1 bg-transparent text-[12px] outline-none placeholder:text-muted-foreground" /></label>
+          <button type="submit" className="h-12 rounded-xl bg-primary px-5 text-[12px] font-bold text-primary-foreground hover:opacity-90">Search</button>
+        </form>
+        <div className="mt-5 flex justify-end border-t border-border pt-4"><button type="button" onClick={() => setShowAll((current) => !current)} className="inline-flex items-center gap-2 rounded-full border border-primary px-4 py-2.5 text-[12px] font-bold text-primary hover:bg-secondary"><FunnelSimple size={15} aria-hidden="true" />{showAll ? "Hide all filters" : "Show all filters"}<CaretDown size={14} className={showAll ? "rotate-180" : ""} aria-hidden="true" /></button></div>
+      </section>
+
+      <div className="mt-7 grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
+        {showAll && <aside className="space-y-3">
+          <VehicleFilterGroup title="Make / model"><VehicleCheckboxList label="Makes" value={make} options={vehicleOptions.makes} onChange={setMake} /><VehicleCheckboxList label="Models" value={model} options={vehicleModelOptions} onChange={setModel} /></VehicleFilterGroup>
+          <VehicleFilterGroup title="Year">
+            <div className="grid grid-cols-2 gap-2"><VehicleTextField label="Year from" value={yearMin} onChange={setYearMin} placeholder="From" numeric /><VehicleTextField label="Year to" value={yearMax} onChange={setYearMax} placeholder="To" numeric /></div>
+          </VehicleFilterGroup>
+          <VehicleFilterGroup title="Price"><div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2"><VehicleTextField label="Minimum price" value={priceMin} onChange={setPriceMin} placeholder="$ From" numeric /><span className="text-muted-foreground">–</span><VehicleTextField label="Maximum price" value={priceMax} onChange={setPriceMax} placeholder="$ To" numeric /></div></VehicleFilterGroup>
+          <VehicleFilterGroup title="Mileage"><VehicleCheckboxList label="Mileage" value={mileageBands} options={mileageBandOptions} onChange={setMileageBands} /></VehicleFilterGroup>
+          <VehicleFilterGroup title="Body type"><VehicleCheckboxList label="Body type" value={bodyStyle} options={vehicleOptions.bodyStyles} onChange={setBodyStyle} /></VehicleFilterGroup>
+          <VehicleFilterGroup title="Seller type"><VehicleCheckboxList label="Seller type" value={sellerType} options={vehicleSellerTypeOptions} onChange={setSellerType} /></VehicleFilterGroup>
+          <VehicleFilterGroup title="Condition"><VehicleCheckboxList label="Condition" value={condition} options={conditionOptions.map(([value, label]) => ({ value, label }))} onChange={setCondition} /></VehicleFilterGroup>
+          <VehicleFilterGroup title="Delivery"><VehicleCheckboxList label="Delivery" value={fulfillment} options={[{ value: "local_pickup", label: "Local pickup" }, { value: "shipping", label: "Ships" }, { value: "both", label: "Pickup or shipping" }]} onChange={setFulfillment} /></VehicleFilterGroup>
+          <VehicleFilterGroup title="Drive type"><VehicleCheckboxList label="Drive type" value={drivetrain} options={vehicleOptions.drivetrains} onChange={setDrivetrain} /></VehicleFilterGroup>
+          <VehicleFilterGroup title="Transmission"><VehicleCheckboxList label="Transmission" value={transmission} options={vehicleOptions.transmissions} onChange={setTransmission} /></VehicleFilterGroup>
+          <VehicleFilterGroup title="Fuel type"><VehicleCheckboxList label="Fuel type" value={fuelType} options={vehicleOptions.fuelTypes} onChange={setFuelType} /></VehicleFilterGroup>
+          <VehicleFilterGroup title="Exterior color"><VehicleCheckboxList label="Exterior color" value={exteriorColor} options={vehicleOptions.exteriorColors} onChange={setExteriorColor} /></VehicleFilterGroup>
+          <VehicleFilterGroup title="Title type"><VehicleCheckboxList label="Title type" value={titleStatus} options={vehicleOptions.titleStatuses} onChange={setTitleStatus} /></VehicleFilterGroup>
+          <VehicleFilterGroup title="Location"><select aria-label="Region" value={region} onChange={(event) => setRegion(event.target.value)} className="filter-input w-full"><option value="">All of Idaho</option>{idahoRegions.map((option) => <option key={option} value={option}>{option}</option>)}</select><select aria-label="State" value={state} onChange={(event) => setState(event.target.value)} className="filter-input w-full"><option value="">All states</option>{usStates.map(([code, name]) => <option key={code} value={code}>{name}</option>)}</select><VehicleTextField label="City" value={city} onChange={setCity} placeholder="City" /></VehicleFilterGroup>
+          <button type="button" onClick={apply} className="h-11 w-full rounded-xl bg-primary text-[12px] font-bold text-primary-foreground hover:opacity-90">Show {result.total.toLocaleString()} results</button>
+        </aside>}
+
+        <section id="results" aria-label="Car listings">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4"><p className="text-[13px] text-muted-foreground"><strong className="numeric text-foreground">{result.total}</strong> cars and trucks</p><label className="flex items-center gap-2 text-[12px] text-muted-foreground">Sort by<select className="h-9 rounded-lg border border-input bg-card px-2 text-[12px] text-foreground" defaultValue="newest"><option value="newest">Newest first</option><option value="price_low">Lowest price</option><option value="price_high">Highest price</option></select></label></div>
+          {result.listings.length === 0 ? <div className="soft-card mt-5 px-5 py-12 text-center"><p className="text-[14px] font-medium">No cars match these filters.</p><p className="mt-1.5 text-[13px] text-muted-foreground">Try widening your year, price, make, model, or location choices.</p></div> : <ul className="mt-5 grid grid-cols-2 gap-x-4 gap-y-9 md:grid-cols-3 xl:grid-cols-4">{result.listings.map((listing) => <li key={listing.id}><ListingCard listing={listing} /></li>)}</ul>}
+        </section>
+      </div>
+    </div>
+  );
+}
+
+type VehicleFilterOption = string | { value: string; label: string };
+
+function VehicleCheckboxList({ label, value, options, onChange }: { label: string; value: string; options: readonly VehicleFilterOption[]; onChange: (value: string) => void }) {
+  const selected = value.split("||").filter(Boolean);
+  const toggle = (option: VehicleFilterOption) => {
+    const optionValue = typeof option === "string" ? option : option.value;
+    onChange(selected.includes(optionValue) ? selected.filter((item) => item !== optionValue).join("||") : [...selected, optionValue].join("||"));
+  };
+  return <div role="group" aria-label={label} className="max-h-56 space-y-1 overflow-y-auto pr-1">{options.map((option) => { const optionValue = typeof option === "string" ? option : option.value; const optionLabel = typeof option === "string" ? option : option.label; const checked = selected.includes(optionValue); return <label key={optionValue} className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-2 text-[12px] hover:bg-secondary"><span>{optionLabel}</span><input type="checkbox" checked={checked} onChange={() => toggle(option)} className="size-4 accent-primary" /></label>; })}</div>;
+}
+
+function VehicleMultiSelectPanel({ label, value, options, onApply }: { label: string; value: string; options: readonly string[]; onApply: (value: string) => void }) {
+  const [draft, setDraft] = useState(value);
+  useEffect(() => setDraft(value), [value]);
+  return <div className="min-w-0"><VehicleCheckboxList label={label} value={draft} options={options} onChange={setDraft} /><button type="button" onClick={() => onApply(draft)} className="mt-2 h-9 w-full rounded-lg border border-primary text-[11px] font-bold text-primary hover:bg-secondary">Apply {label}</button></div>;
+}
+
+function VehicleTextField({ label, value, onChange, placeholder, numeric = false }: { label: string; value: string; onChange: (value: string) => void; placeholder: string; numeric?: boolean }) {
+  return <label className="block min-w-0"><span className="sr-only">{label}</span><input aria-label={label} inputMode={numeric ? "numeric" : undefined} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className="filter-input w-full" /></label>;
+}
+
+function VehicleFilterGroup({ title, children }: { title: string; children: React.ReactNode }) {
+  return <section className="rounded-2xl border border-border bg-card p-3 shadow-sm"><h2 className="mb-3 text-[13px] font-bold">{title}</h2><div className="space-y-2">{children}</div></section>;
+}
+
 function VehicleBrowseHero({
   search,
   resultCount,
@@ -2267,7 +2448,18 @@ function VehicleBrowseHero({
     search.priceMin != null || search.priceMax != null
       ? `$${search.priceMin ?? 0}–${search.priceMax ?? "up"}`
       : "Price";
-  const makeModelLabel = search.make || search.model || "Make / model";
+  const selectedSummary = (value: string | undefined, fallback: string) => {
+    const values = value?.split("||").filter(Boolean) ?? [];
+    return values.length === 0 ? fallback : values.length === 1 ? values[0] ?? fallback : `${values.length} selected`;
+  };
+  const makeModelValues = [search.make, search.model]
+    .flatMap((value) => value?.split("||").filter(Boolean) ?? []);
+  const makeModelLabel =
+    makeModelValues.length === 0
+      ? "Make / model"
+      : makeModelValues.length === 1
+        ? makeModelValues[0] ?? "Make / model"
+        : `${makeModelValues.length} selected`;
   const toggleFilter = (filter: VehicleHeroFilter) =>
     setExpandedFilter((current) => (current === filter ? null : filter));
   const applyInlineFilter = (patch: Partial<Search>) => {
@@ -2283,24 +2475,23 @@ function VehicleBrowseHero({
       key: "mileage",
       label: search.mileageMax != null ? `≤ ${search.mileageMax.toLocaleString()} mi` : "Mileage",
     },
-    { key: "bodyStyle", label: search.bodyStyle ?? "Body type" },
-    { key: "sellerType", label: "Seller type" },
-    { key: "titleStatus", label: search.titleStatus ?? "Title type" },
+    { key: "bodyStyle", label: selectedSummary(search.bodyStyle, "Body type") },
+    { key: "sellerType", label: selectedSummary(search.sellerType, "Seller type") },
+    { key: "titleStatus", label: selectedSummary(search.titleStatus, "Title type") },
   ];
   const additionalFilters: { key: VehicleHeroFilter; label: string }[] = [
-    { key: "location", label: locationLabel === "All of Idaho" ? "Location" : locationLabel },
-    { key: "condition", label: search.condition ?? "Condition" },
-    { key: "fulfillment", label: search.fulfillment ?? "Delivery" },
-    { key: "drivetrain", label: search.drivetrain ?? "Drive type" },
-    { key: "transmission", label: search.transmission ?? "Transmission" },
-    { key: "fuelType", label: search.fuelType ?? "Fuel type" },
-    { key: "exteriorColor", label: search.exteriorColor ?? "Exterior color" },
+    { key: "condition", label: selectedSummary(search.condition, "Condition") },
+    { key: "fulfillment", label: selectedSummary(search.fulfillment, "Delivery") },
+    { key: "drivetrain", label: selectedSummary(search.drivetrain, "Drive type") },
+    { key: "transmission", label: selectedSummary(search.transmission, "Transmission") },
+    { key: "fuelType", label: selectedSummary(search.fuelType, "Fuel type") },
+    { key: "exteriorColor", label: selectedSummary(search.exteriorColor, "Exterior color") },
   ];
 
   function filterPanel(filter: VehicleHeroFilter) {
     switch (filter) {
       case "makeModel":
-        return <InlineMakeModelFilter search={search} onApply={applyInlineFilter} />;
+        return <InlineVehicleMakeModelFilter search={search} onApply={applyInlineFilter} />;
       case "year":
         return (
           <InlineRangeFilter
@@ -2327,94 +2518,27 @@ function VehicleBrowseHero({
           />
         );
       case "mileage":
-        return (
-          <InlineNumberFilter
-            label="Maximum mileage"
-            value={search.mileageMax}
-            onApply={(value) => applyInlineFilter({ mileageMax: value })}
-          />
-        );
+        return <InlineMultiFilter label="Mileage" value={search.mileageBands} options={mileageBandOptions} onApply={(value) => applyInlineFilter({ mileageBands: value })} />;
       case "bodyStyle":
-        return (
-          <InlineSelectFilter
-            value={search.bodyStyle}
-            options={vehicleOptions.bodyStyles}
-            placeholder="Any body style"
-            onChange={(value) => applyInlineFilter({ bodyStyle: value })}
-          />
-        );
+        return <InlineMultiFilter label="Body type" value={search.bodyStyle} options={vehicleOptions.bodyStyles} onApply={(value) => applyInlineFilter({ bodyStyle: value })} />;
       case "titleStatus":
-        return (
-          <InlineSelectFilter
-            value={search.titleStatus}
-            options={vehicleOptions.titleStatuses}
-            placeholder="Any title type"
-            onChange={(value) => applyInlineFilter({ titleStatus: value })}
-          />
-        );
+        return <InlineMultiFilter label="Title type" value={search.titleStatus} options={vehicleOptions.titleStatuses} onApply={(value) => applyInlineFilter({ titleStatus: value })} />;
       case "drivetrain":
-        return (
-          <InlineSelectFilter
-            value={search.drivetrain}
-            options={vehicleOptions.drivetrains}
-            placeholder="Any drive type"
-            onChange={(value) => applyInlineFilter({ drivetrain: value })}
-          />
-        );
+        return <InlineMultiFilter label="Drive type" value={search.drivetrain} options={vehicleOptions.drivetrains} onApply={(value) => applyInlineFilter({ drivetrain: value })} />;
       case "transmission":
-        return (
-          <InlineSelectFilter
-            value={search.transmission}
-            options={vehicleOptions.transmissions}
-            placeholder="Any transmission"
-            onChange={(value) => applyInlineFilter({ transmission: value })}
-          />
-        );
+        return <InlineMultiFilter label="Transmission" value={search.transmission} options={vehicleOptions.transmissions} onApply={(value) => applyInlineFilter({ transmission: value })} />;
       case "fuelType":
-        return (
-          <InlineSelectFilter
-            value={search.fuelType}
-            options={vehicleOptions.fuelTypes}
-            placeholder="Any fuel type"
-            onChange={(value) => applyInlineFilter({ fuelType: value })}
-          />
-        );
+        return <InlineMultiFilter label="Fuel type" value={search.fuelType} options={vehicleOptions.fuelTypes} onApply={(value) => applyInlineFilter({ fuelType: value })} />;
       case "exteriorColor":
-        return (
-          <InlineSelectFilter
-            value={search.exteriorColor}
-            options={vehicleOptions.exteriorColors}
-            placeholder="Any exterior color"
-            onChange={(value) => applyInlineFilter({ exteriorColor: value })}
-          />
-        );
+        return <InlineMultiFilter label="Exterior color" value={search.exteriorColor} options={vehicleOptions.exteriorColors} onApply={(value) => applyInlineFilter({ exteriorColor: value })} />;
       case "location":
         return <InlineLocationFilter search={search} onApply={applyInlineFilter} />;
       case "condition":
-        return (
-          <InlineSelectFilter
-            value={search.condition}
-            options={conditionOptions.map(([value, label]) => ({ value, label }))}
-            placeholder="Any condition"
-            onChange={(value) => applyInlineFilter({ condition: value })}
-          />
-        );
+        return <InlineMultiFilter label="Condition" value={search.condition} options={conditionOptions.map(([value, label]) => ({ value, label }))} onApply={(value) => applyInlineFilter({ condition: value })} />;
       case "fulfillment":
-        return (
-          <InlineSelectFilter
-            value={search.fulfillment}
-            options={["local_pickup", "shipping", "both"]}
-            optionLabels={{ local_pickup: "Local pickup", shipping: "Ships", both: "Pickup or shipping" }}
-            placeholder="Any delivery option"
-            onChange={(value) => applyInlineFilter({ fulfillment: value })}
-          />
-        );
+        return <InlineMultiFilter label="Delivery" value={search.fulfillment} options={[{ value: "local_pickup", label: "Local pickup" }, { value: "shipping", label: "Ships" }, { value: "both", label: "Pickup or shipping" }]} onApply={(value) => applyInlineFilter({ fulfillment: value })} />;
       case "sellerType":
-        return (
-          <p className="max-w-[24ch] text-[12px] leading-relaxed text-muted-foreground">
-            Seller type details will appear here as verified dealer and private-seller profiles are added.
-          </p>
-        );
+        return <InlineMultiFilter label="Seller type" value={search.sellerType} options={vehicleSellerTypeOptions} onApply={(value) => applyInlineFilter({ sellerType: value })} />;
     }
   }
 
@@ -2510,20 +2634,24 @@ function VehicleBrowseHero({
         </form>
 
         <div className="mt-5 flex flex-col gap-3 text-[12.5px] sm:flex-row sm:items-center sm:justify-between">
-          <button
-            type="button"
-            onClick={() => {
-              setShowAllFilters(true);
-              setExpandedFilter("location");
-            }}
-            className="inline-flex items-center gap-2 self-start text-primary hover:underline"
-          >
-            <MapPin size={18} weight="duotone" aria-hidden="true" />
-            <span className="flex flex-col items-start leading-tight">
-              <span className="text-[10px] font-bold uppercase tracking-[0.08em]">Select location</span>
-              <span className="mt-0.5 text-[12.5px] font-semibold">{locationLabel}</span>
-            </span>
-          </button>
+          <div className="relative self-start">
+            <button
+              type="button"
+              onClick={() => setExpandedFilter((current) => (current === "location" ? null : "location"))}
+              className="inline-flex items-center gap-2 text-primary hover:underline"
+            >
+              <MapPin size={18} weight="duotone" aria-hidden="true" />
+              <span className="flex flex-col items-start leading-tight">
+                <span className="text-[10px] font-bold uppercase tracking-[0.08em]">Select location</span>
+                <span className="mt-0.5 text-[12.5px] font-semibold">{locationLabel}</span>
+              </span>
+            </button>
+            {expandedFilter === "location" && (
+              <div className="absolute left-0 top-[calc(100%+8px)] z-40 w-[280px] rounded-xl bg-card p-4 text-left shadow-xl ring-1 ring-border/70">
+                <InlineLocationFilter search={search} onApply={applyInlineFilter} />
+              </div>
+            )}
+          </div>
           <div className="flex flex-wrap items-center gap-4">
             <button
               type="button"
@@ -2541,12 +2669,9 @@ function VehicleBrowseHero({
                 </span>
               )}
             </button>
-            <a
-              href="#results"
-              className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2.5 font-bold text-primary-foreground shadow-sm transition-transform hover:-translate-y-0.5"
-            >
+            <button type="button" onClick={onSearch} className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2.5 font-bold text-primary-foreground shadow-sm transition-transform hover:-translate-y-0.5">
               Show {resultCount.toLocaleString()} {resultCount === 1 ? "result" : "results"}
-            </a>
+            </button>
           </div>
         </div>
       </div>
@@ -2590,7 +2715,7 @@ function VehicleQuickFilter({
   );
 }
 
-function InlineMakeModelFilter({
+function InlineVehicleMakeModelFilter({
   search,
   onApply,
 }: {
@@ -2599,7 +2724,6 @@ function InlineMakeModelFilter({
 }) {
   const [make, setMake] = useState(search.make ?? "");
   const [model, setModel] = useState(search.model ?? "");
-  const [showMakes, setShowMakes] = useState(false);
 
   useEffect(() => {
     setMake(search.make ?? "");
@@ -2608,47 +2732,17 @@ function InlineMakeModelFilter({
 
   return (
     <div className="w-full space-y-2.5">
-      <input
-        value={make}
-        onFocus={() => setShowMakes(true)}
-        onChange={(event) => {
-          setMake(event.target.value);
-          setShowMakes(true);
-        }}
-        placeholder="Make or brand"
-        className="filter-input"
-      />
-      {showMakes && (
-        <div className="max-h-44 overflow-y-auto rounded-xl border border-border bg-card p-1 shadow-sm">
-          {vehicleOptions.makes
-            .filter((option) => !make || option.toLowerCase().includes(make.toLowerCase()))
-            .map((option) => (
-              <button
-                key={option}
-                type="button"
-                onMouseDown={(event) => event.preventDefault()}
-                onClick={() => {
-                  setMake(option);
-                  setShowMakes(false);
-                }}
-                className="block w-full rounded-lg px-3 py-2 text-left text-[12px] hover:bg-secondary"
-              >
-                {option}
-              </button>
-            ))}
-        </div>
-      )}
-      <input
-        value={model}
-        onChange={(event) => setModel(event.target.value)}
-        placeholder="Model"
-        className="filter-input"
-      />
-      <InlineApplyButton
-        onClick={() => onApply({ make: make.trim() || undefined, model: model.trim() || undefined })}
-      />
+      <InlineMultiFilter label="Makes" value={make} options={vehicleOptions.makes} onApply={setMake} />
+      <InlineMultiFilter label="Models" value={model} options={vehicleModelOptions} onApply={setModel} />
+      <InlineApplyButton onClick={() => onApply({ make: make || undefined, model: model || undefined })} />
     </div>
   );
+}
+
+function InlineMultiFilter({ label, value, options, onApply }: { label: string; value: string | undefined; options: readonly VehicleFilterOption[]; onApply: (value: string) => void }) {
+  const [draft, setDraft] = useState(value ?? "");
+  useEffect(() => setDraft(value ?? ""), [value]);
+  return <div className="space-y-2"><p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{label}</p><VehicleCheckboxList label={label} value={draft} options={options} onChange={setDraft} /><InlineApplyButton onClick={() => onApply(draft)} /></div>;
 }
 
 function InlineRangeFilter({
@@ -2846,12 +2940,14 @@ function countActiveFilters(search: Search, motors: boolean) {
       "yearMin",
       "yearMax",
       "mileageMax",
+      "mileageBands",
       "bodyStyle",
       "transmission",
       "drivetrain",
       "fuelType",
       "exteriorColor",
       "titleStatus",
+      "sellerType",
     );
   return keys.filter((key) => search[key] !== undefined && search[key] !== "").length;
 }
