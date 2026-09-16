@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { FunnelSimple, MapPin, MagnifyingGlass, X } from "@phosphor-icons/react";
+import { CaretDown, FunnelSimple, MapPin, MagnifyingGlass, X } from "@phosphor-icons/react";
 
 import { brand } from "@/config/brand";
 import { classifiedCategories, idahoRegions, usStates, vehicleOptions } from "@/config/classifieds";
@@ -277,8 +277,23 @@ function Browse() {
 
   return (
     <main className="mx-auto max-w-[1400px] px-4 py-10 sm:px-8">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
+      {motors && (
+        <VehicleBrowseHero
+          search={search}
+          resultCount={result.total}
+          activeFilterCount={activeFilterCount}
+          term={term}
+          onTermChange={setTerm}
+          onSearch={() =>
+            void navigate({ to: "/browse", search: scoped({ q: term.trim() || undefined }) })
+          }
+          onOpenFilters={() => setFiltersOpen(true)}
+          onSell={() => void navigate({ to: "/create-listing" })}
+        />
+      )}
+
+      <div className={`flex flex-wrap items-end justify-between gap-3 ${motors ? "mt-7" : ""}`}>
+        <div className={motors ? "hidden" : ""}>
           <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-primary">
             Gem State classifieds
           </p>
@@ -325,34 +340,32 @@ function Browse() {
         </div>
       </div>
 
-      <form
-        className="floating-card mt-8 p-2 sm:p-3"
-        onSubmit={(event) => {
-          event.preventDefault();
-          void navigate({ to: "/browse", search: scoped({ q: term.trim() || undefined }) });
-        }}
-      >
-        <label className="relative block">
-          <MagnifyingGlass
-            size={16}
-            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-          />
-          <input
-            type="search"
-            value={term}
-            onChange={(event) => setTerm(event.target.value)}
-            placeholder={
-              motors
-                ? "Search make, model, trim, or keyword"
-                : "Search cars, tools, furniture, and more"
-            }
-            aria-label="Search classifieds"
-            className="h-12 w-full rounded-full border-0 bg-transparent pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none"
-          />
-        </label>
-      </form>
+      {!motors && (
+        <form
+          className="floating-card mt-8 p-2 sm:p-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void navigate({ to: "/browse", search: scoped({ q: term.trim() || undefined }) });
+          }}
+        >
+          <label className="relative block">
+            <MagnifyingGlass
+              size={16}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
+            <input
+              type="search"
+              value={term}
+              onChange={(event) => setTerm(event.target.value)}
+              placeholder="Search cars, tools, furniture, and more"
+              aria-label="Search classifieds"
+              className="h-12 w-full rounded-full border-0 bg-transparent pl-9 pr-3 text-sm placeholder:text-muted-foreground focus:outline-none"
+            />
+          </label>
+        </form>
+      )}
 
-      <div className="no-scrollbar mt-5 flex gap-2 overflow-x-auto pb-1">
+      {!motors && <div className="no-scrollbar mt-5 flex gap-2 overflow-x-auto pb-1">
         <BrowsePill
           active={!search.group && !search.category}
           search={scopedWithoutVehicleFilters({ group: undefined, category: undefined })}
@@ -374,13 +387,13 @@ function Browse() {
               search={scopedWithoutVehicleFilters({ category: category.slug, group: undefined })}
             >
               {category.name}
-            </BrowsePill>
-          ))}
-      </div>
+          </BrowsePill>
+        ))}
+      </div>}
 
-      <div className="mt-8">
+      <div className={motors ? "mt-6" : "mt-8"}>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-[13px] text-muted-foreground">
+          <p className={motors ? "hidden" : "text-[13px] text-muted-foreground"}>
             <span className="numeric font-semibold text-foreground">{result.total}</span>{" "}
             {result.total === 1 ? "listing" : "listings"}
           </p>
@@ -388,7 +401,7 @@ function Browse() {
             <SheetTrigger asChild>
               <button
                 type="button"
-                className="inline-flex h-11 items-center gap-2 rounded-full border border-input bg-card px-5 text-[13px] font-semibold shadow-sm transition-shadow hover:shadow-md"
+                className={`inline-flex h-11 items-center gap-2 rounded-full border border-input bg-card px-5 text-[13px] font-semibold shadow-sm transition-shadow hover:shadow-md ${motors ? "hidden" : ""}`}
               >
                 <FunnelSimple size={17} className="text-primary" />
                 Filters
@@ -632,9 +645,9 @@ function Browse() {
           </Sheet>
         </div>
 
-        <section className="mt-6">
+        <section id="results" className="mt-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-[12.5px] text-muted-foreground">
+            <p className={motors ? "hidden" : "text-[12.5px] text-muted-foreground"}>
               <span className="numeric">{result.total}</span>{" "}
               {result.total === 1 ? "listing" : "listings"}
               {search.q ? <span> matching “{search.q}”</span> : null}
@@ -720,6 +733,168 @@ function Browse() {
         </section>
       </div>
     </main>
+  );
+}
+
+function VehicleBrowseHero({
+  search,
+  resultCount,
+  activeFilterCount,
+  term,
+  onTermChange,
+  onSearch,
+  onOpenFilters,
+  onSell,
+}: {
+  search: Search;
+  resultCount: number;
+  activeFilterCount: number;
+  term: string;
+  onTermChange: (value: string) => void;
+  onSearch: () => void;
+  onOpenFilters: () => void;
+  onSell: () => void;
+}) {
+  const locationLabel = search.city
+    ? `${search.city}${search.state ? `, ${search.state}` : ""}`
+    : search.region ?? search.state ?? "All of Idaho";
+  const yearLabel =
+    search.yearMin != null || search.yearMax != null
+      ? `${search.yearMin ?? "Any"}–${search.yearMax ?? "Any"}`
+      : "Year";
+  const priceLabel =
+    search.priceMin != null || search.priceMax != null
+      ? `$${search.priceMin ?? 0}–${search.priceMax ?? "up"}`
+      : "Price";
+  const makeModelLabel = search.make || search.model || "Make / model";
+
+  return (
+    <section className="floating-card relative overflow-hidden bg-surface px-5 py-6 sm:px-8 sm:py-8">
+      <div className="pointer-events-none absolute -right-24 -top-32 h-72 w-72 rounded-full bg-brand-warm/35" />
+      <div className="pointer-events-none absolute -bottom-36 left-1/3 h-64 w-64 rounded-full bg-primary/5" />
+
+      <div className="relative">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
+              Gem State motors
+            </p>
+            <h1 className="mt-2 max-w-[22ch] text-[30px] font-bold leading-tight tracking-tight sm:text-[38px]">
+              Find your next vehicle in Idaho.
+            </h1>
+            <p className="mt-2 max-w-[52ch] text-[13.5px] leading-relaxed text-muted-foreground">
+              Shop cars, trucks, powersports, trailers, and more from local sellers.
+            </p>
+          </div>
+
+          <div className="grid w-full max-w-[360px] grid-cols-2 rounded-2xl bg-card p-1.5 shadow-sm ring-1 ring-border/70">
+            <button
+              type="button"
+              className="h-14 rounded-xl bg-primary px-5 text-[16px] font-bold text-primary-foreground shadow-sm"
+              aria-pressed="true"
+            >
+              Buy
+            </button>
+            <button
+              type="button"
+              onClick={onSell}
+              className="h-14 rounded-xl px-5 text-[16px] font-bold text-foreground transition-colors hover:bg-secondary"
+            >
+              Sell
+            </button>
+          </div>
+        </div>
+
+        <form
+          className="mt-7 grid gap-2 rounded-2xl bg-card p-2 shadow-sm ring-1 ring-border/60 sm:grid-cols-2 lg:grid-cols-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onSearch();
+          }}
+        >
+          <label className="relative flex h-12 items-center rounded-xl border border-transparent bg-secondary/55 px-3 focus-within:border-primary/40 focus-within:bg-card">
+            <MagnifyingGlass size={18} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+            <span className="sr-only">Search vehicles</span>
+            <input
+              type="search"
+              value={term}
+              onChange={(event) => onTermChange(event.target.value)}
+              placeholder="Search for..."
+              aria-label="Search vehicles"
+              className="min-w-0 flex-1 bg-transparent px-2 text-[13px] outline-none placeholder:text-muted-foreground"
+            />
+            {term && (
+              <button
+                type="button"
+                onClick={() => onTermChange("")}
+                aria-label="Clear vehicle search"
+                className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-card hover:text-foreground"
+              >
+                <X size={14} aria-hidden="true" />
+              </button>
+            )}
+          </label>
+          <VehicleQuickFilter label={makeModelLabel} onClick={onOpenFilters} />
+          <VehicleQuickFilter label={yearLabel} onClick={onOpenFilters} />
+          <VehicleQuickFilter label={priceLabel} onClick={onOpenFilters} />
+          <VehicleQuickFilter
+            label={search.mileageMax != null ? `≤ ${search.mileageMax.toLocaleString()} mi` : "Mileage"}
+            onClick={onOpenFilters}
+          />
+          <VehicleQuickFilter label={search.bodyStyle ?? "Body type"} onClick={onOpenFilters} />
+          <VehicleQuickFilter label="Seller type" onClick={onOpenFilters} />
+          <VehicleQuickFilter label={search.titleStatus ?? "Title type"} onClick={onOpenFilters} />
+        </form>
+
+        <div className="mt-5 flex flex-col gap-3 text-[12.5px] sm:flex-row sm:items-center sm:justify-between">
+          <button
+            type="button"
+            onClick={onOpenFilters}
+            className="inline-flex items-center gap-2 self-start text-primary hover:underline"
+          >
+            <MapPin size={18} weight="duotone" aria-hidden="true" />
+            <span className="flex flex-col items-start leading-tight">
+              <span className="text-[10px] font-bold uppercase tracking-[0.08em]">Select location</span>
+              <span className="mt-0.5 text-[12.5px] font-semibold">{locationLabel}</span>
+            </span>
+          </button>
+          <div className="flex flex-wrap items-center gap-4">
+            <button
+              type="button"
+              onClick={onOpenFilters}
+              className="inline-flex items-center gap-2 font-semibold text-primary hover:underline"
+            >
+              <FunnelSimple size={17} weight="duotone" aria-hidden="true" />
+              Show all search filters
+              {activeFilterCount > 0 && (
+                <span className="grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1.5 text-[10px] font-bold text-accent-foreground">
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+            <a
+              href="#results"
+              className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2.5 font-bold text-primary-foreground shadow-sm transition-transform hover:-translate-y-0.5"
+            >
+              Show {resultCount.toLocaleString()} {resultCount === 1 ? "result" : "results"}
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function VehicleQuickFilter({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex h-12 items-center justify-between rounded-xl border border-transparent bg-secondary/55 px-3 text-left text-[13px] font-semibold transition-colors hover:border-primary/40 hover:bg-card"
+    >
+      <span className="truncate">{label}</span>
+      <CaretDown size={16} weight="bold" aria-hidden="true" className="ml-2 text-muted-foreground" />
+    </button>
   );
 }
 

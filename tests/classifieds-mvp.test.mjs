@@ -513,6 +513,28 @@ test("browse filters remain complete inside the spacious drawer", () => {
   assert.match(browseSource, /setFiltersOpen\(false\)/);
 });
 
+test("vehicle browse uses a branded buy and eight-filter discovery hero", () => {
+  assert.match(browseSource, /function VehicleBrowseHero/);
+  assert.match(browseSource, /Find your next vehicle in Idaho/);
+  assert.match(browseSource, /Show all search filters/);
+  assert.match(browseSource, /Select location/);
+  assert.match(browseSource, /Show \{resultCount\.toLocaleString\(\)\}/);
+  assert.match(browseSource, /href="#results"/);
+  for (const label of [
+    "Make / model",
+    "Year",
+    "Price",
+    "Mileage",
+    "Body type",
+    "Seller type",
+    "Title type",
+  ]) {
+    assert.match(browseSource, new RegExp(`"${label.replace(/[/.]/g, "\\$&")}"`));
+  }
+  assert.match(browseSource, /Buy/);
+  assert.match(browseSource, /Sell/);
+});
+
 test("listing detail keeps a responsive photo gallery and floating action card", () => {
   assert.match(detailSource, /Show all photos/);
   assert.match(detailSource, /row-span-2/);
