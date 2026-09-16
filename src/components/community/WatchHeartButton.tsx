@@ -19,11 +19,13 @@ export function WatchHeartButton({
   productSlug,
   productName,
   isDemo,
+  className,
 }: {
   productId: string;
   productSlug: string;
   productName: string;
   isDemo: boolean;
+  className?: string;
 }) {
   const { isSignedIn } = useAuth();
   const navigate = useNavigate();
@@ -82,7 +84,10 @@ export function WatchHeartButton({
         }
         mutation.mutate(!watching);
       }}
-      className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-border bg-card/95 text-muted-foreground shadow-sm backdrop-blur transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+      className={
+        className ??
+        "inline-flex h-7 w-7 items-center justify-center rounded-full border border-border bg-card/95 text-muted-foreground shadow-sm backdrop-blur transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+      }
     >
       <Heart
         size={14}

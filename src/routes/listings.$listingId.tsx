@@ -1,24 +1,34 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import { toast } from "sonner";
 import {
-  FileText,
+  ArrowLeft,
+  ArrowRight,
+  CaretDown,
+  CaretRight,
+  CheckCircle,
+  Clock,
+  Eye,
   Flag,
-  GasPump,
-  Gauge,
   GearSix,
-  Handbag,
-  Images,
+  Gauge,
   Info,
   MapPin,
+  MapTrifold,
   Palette,
+  Printer,
+  ShareNetwork,
+  ShieldCheck,
   Truck,
+  Wrench,
 } from "@phosphor-icons/react";
 
 import { brand } from "@/config/brand";
 import { formatUsd } from "@/config/fees";
 import { ListingActions } from "@/components/classifieds/ListingActions";
 import { ListingCard } from "@/components/classifieds/ListingCard";
+import { WatchHeartButton } from "@/components/community/WatchHeartButton";
 import {
   conditionLabels,
   formatMileage,
@@ -27,6 +37,7 @@ import {
   vehicleHeadline,
 } from "@/lib/classifieds-display";
 import { getClassifiedListing, getRelatedClassifieds } from "@/lib/classifieds.functions";
+import type { ClassifiedDetail } from "@/lib/classifieds.functions";
 import {
   Dialog,
   DialogContent,
@@ -98,29 +109,33 @@ function ListingMissing() {
   );
 }
 
-function SpecGrid({ rows }: { rows: [string, string][] }) {
-  if (rows.length === 0) return null;
-  const specIcons = {
+function SpecIcon({ label }: { label: string }) {
+  const specIcons: Record<string, typeof Gauge> = {
     Mileage: Gauge,
     Transmission: GearSix,
     Drivetrain: GearSix,
-    Fuel: GasPump,
+    Fuel: Wrench,
     Exterior: Palette,
-    Title: FileText,
-    VIN: FileText,
+    Title: ShieldCheck,
+    VIN: Info,
     Condition: Info,
-    Category: Info,
     Fulfillment: Truck,
-  } as const;
+  };
+  const Icon = specIcons[label] ?? Info;
+  return <Icon size={16} weight="duotone" className="text-primary" aria-hidden="true" />;
+}
+
+function SpecGrid({ rows }: { rows: [string, string][] }) {
+  if (rows.length === 0) return null;
   return (
     <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3">
       {rows.map(([label, value]) => (
-        <div key={label} className="rounded-2xl bg-secondary/70 px-3.5 py-3.5">
+        <div
+          key={label}
+          className="rounded-2xl border border-border/70 bg-secondary/45 px-3.5 py-3.5"
+        >
           <dt className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.08em] text-muted-foreground">
-            {(() => {
-              const Icon = specIcons[label as keyof typeof specIcons] ?? Info;
-              return <Icon size={14} weight="duotone" className="text-primary" />;
-            })()}
+            <SpecIcon label={label} />
             {label}
           </dt>
           <dd className="mt-1.5 text-[13px] font-semibold">{value}</dd>
@@ -130,10 +145,168 @@ function SpecGrid({ rows }: { rows: [string, string][] }) {
   );
 }
 
+function QuickFact({ label, value, icon }: { label: string; value: string; icon: ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-border/70 bg-card px-4 py-3.5">
+      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+        {icon}
+        {label}
+      </div>
+      <p className="mt-1.5 text-[14px] font-semibold">{value}</p>
+    </div>
+  );
+}
+
+function Gallery({ listing }: { listing: ClassifiedDetail }) {
+  const [activeImage, setActiveImage] = useState(0);
+  const images = listing.images;
+
+  if (images.length === 0) {
+    return (
+      <div className="flex min-h-[360px] flex-col items-center justify-center rounded-[28px] border border-border/70 bg-secondary/55 text-[12px] text-muted-foreground sm:min-h-[520px]">
+        <span className="grid h-20 w-20 place-items-center rounded-3xl bg-card text-primary">
+          <CategoryArtwork slug={listing.categorySlug ?? "general"} size={110} />
+        </span>
+        <span className="mt-4">This seller has not added photos yet.</span>
+      </div>
+    );
+  }
+
+  const goToImage = (next: number) => {
+    setActiveImage((next + images.length) % images.length);
+  };
+
+  return (
+    <Dialog>
+      <div className="overflow-hidden rounded-[28px] border border-border/70 bg-foreground">
+        <div
+          className="group relative flex min-h-[360px] items-center justify-center overflow-hidden sm:min-h-[560px]"
+          data-reference-layout="row-span-2"
+        >
+          <img
+            src={images[activeImage].url}
+            alt={images[activeImage].alt}
+            className="max-h-[560px] w-full object-contain"
+            fetchPriority="high"
+          />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/55 to-transparent" />
+          <div className="absolute bottom-4 left-4 rounded-full bg-black/65 px-3 py-1 text-[11px] font-medium text-white">
+            {activeImage + 1} / {images.length}
+          </div>
+          <DialogTrigger asChild>
+            <button
+              type="button"
+              className="absolute right-4 top-4 rounded-full bg-card/95 px-3.5 py-2 text-[11px] font-semibold text-foreground opacity-100 transition hover:bg-card sm:opacity-0 sm:group-hover:opacity-100"
+            >
+              Show all photos
+            </button>
+          </DialogTrigger>
+          {images.length > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={() => goToImage(activeImage - 1)}
+                aria-label="Previous vehicle photo"
+                className="absolute left-3 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-card/95 text-foreground transition hover:scale-105"
+              >
+                <ArrowLeft size={18} />
+              </button>
+              <button
+                type="button"
+                onClick={() => goToImage(activeImage + 1)}
+                aria-label="Next vehicle photo"
+                className="absolute right-3 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-card/95 text-foreground transition hover:scale-105"
+              >
+                <ArrowRight size={18} />
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+      {images.length > 1 && (
+        <div className="no-scrollbar mt-2 flex gap-2 overflow-x-auto pb-1">
+          {images.map((image, index) => (
+            <button
+              key={image.url}
+              type="button"
+              onClick={() => setActiveImage(index)}
+              aria-label={`Show vehicle photo ${index + 1}`}
+              aria-current={index === activeImage}
+              className={`h-16 w-24 shrink-0 overflow-hidden rounded-xl border-2 bg-secondary transition sm:h-[76px] sm:w-[112px] ${index === activeImage ? "border-primary" : "border-transparent opacity-75 hover:opacity-100"}`}
+            >
+              <img src={image.url} alt="" loading="lazy" className="h-full w-full object-cover" />
+            </button>
+          ))}
+        </div>
+      )}
+      <DialogContent className="max-h-[90vh] max-w-6xl overflow-y-auto rounded-[28px] p-5 sm:p-7">
+        <DialogHeader>
+          <DialogTitle>Vehicle photos</DialogTitle>
+          <DialogDescription>{listing.title}</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {images.map((image) => (
+            <img
+              key={image.url}
+              src={image.url}
+              alt={image.alt}
+              className="w-full rounded-2xl object-cover"
+            />
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function SellerCard({ listing }: { listing: ClassifiedDetail }) {
+  const seller = listing.seller;
+  if (!seller) return null;
+  return (
+    <section className="soft-card p-5 sm:p-6">
+      <div className="flex items-start gap-3">
+        <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-2xl bg-primary text-base font-semibold text-primary-foreground">
+          {seller.avatarUrl ? (
+            <img src={seller.avatarUrl} alt="" className="h-full w-full object-cover" />
+          ) : (
+            seller.displayName.slice(0, 1).toUpperCase()
+          )}
+        </div>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-[15px] font-bold">{seller.displayName}</h2>
+            {seller.payoutVerified && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary">
+                <CheckCircle size={12} weight="fill" /> Verified seller
+              </span>
+            )}
+          </div>
+          {seller.ratingAverage != null && (
+            <p className="mt-1 text-[12px] text-muted-foreground">
+              {seller.ratingAverage.toFixed(1)} / 5 · {seller.reviewCount} review
+              {seller.reviewCount === 1 ? "" : "s"}
+            </p>
+          )}
+        </div>
+      </div>
+      <Link
+        to="/sellers/$slug"
+        params={{ slug: seller.slug }}
+        className="mt-4 flex items-center justify-between border-t border-border/70 pt-4 text-[12.5px] font-semibold text-primary hover:underline"
+      >
+        View seller profile <CaretRight size={15} />
+      </Link>
+    </section>
+  );
+}
+
 function ListingDetail() {
   const { listingId } = Route.useParams();
   const { data: listing } = useSuspenseQuery(listingQuery(listingId));
-  const [activeImage, setActiveImage] = useState(0);
+  const [activeTab, setActiveTab] = useState<"description" | "specifications" | "location">(
+    "description",
+  );
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
 
   const relatedQuery = useSuspenseQuery(
     queryOptions({
@@ -151,9 +324,10 @@ function ListingDetail() {
   if (!listing) return <ListingMissing />;
 
   const vehicle = listing.vehicle;
+  const isVehicle = Boolean(vehicle);
+  const condition = conditionLabels[listing.condition] ?? listing.condition;
   const specRows: [string, string][] = vehicle
     ? ([
-        ["Mileage", formatMileage(vehicle.mileage)],
         ["Body style", vehicle.bodyStyle],
         ["Transmission", vehicle.transmission],
         ["Drivetrain", vehicle.drivetrain],
@@ -161,23 +335,47 @@ function ListingDetail() {
         ["Exterior", vehicle.exteriorColor],
         ["Title", vehicle.titleStatus],
         ["VIN", vehicle.vin],
-        ["Condition", conditionLabels[listing.condition] ?? listing.condition],
+        ["Condition", condition],
+        ["Fulfillment", fulfillmentLabels[listing.fulfillmentMode]],
       ].filter(([, value]) => Boolean(value)) as [string, string][])
     : ([
-        ["Condition", conditionLabels[listing.condition] ?? listing.condition],
-        ["Category", listing.categoryName],
+        ["Condition", condition],
         ["Fulfillment", fulfillmentLabels[listing.fulfillmentMode]],
       ].filter(([, value]) => Boolean(value)) as [string, string][]);
 
+  const title = vehicle ? vehicleHeadline(vehicle) || listing.title : listing.title;
+  const description = listing.description?.trim() ?? "";
+  const locationQuery = encodeURIComponent(`${listing.city}, ${listing.state}`);
+  const handleShare = async () => {
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, url: window.location.href });
+        return;
+      }
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(window.location.href);
+        toast.success("Listing link copied.");
+        return;
+      }
+      toast.error("Sharing is not available in this browser.");
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      toast.error("We could not share this listing.");
+    }
+  };
+
   return (
-    <main className="mx-auto max-w-[1280px] px-4 py-8 sm:px-8">
-      <nav className="text-[12px] text-muted-foreground">
+    <main className="mx-auto max-w-[1360px] px-4 py-6 sm:px-7 sm:py-8 lg:px-10">
+      <nav
+        aria-label="Breadcrumb"
+        className="flex flex-wrap items-center gap-1 text-[11.5px] text-muted-foreground"
+      >
         <Link to="/browse" search={{}} className="hover:text-foreground">
           All listings
         </Link>
+        <CaretRight size={13} />
         {listing.categorySlug && (
           <>
-            <span className="px-1.5">/</span>
             <Link
               to="/browse"
               search={{ category: listing.categorySlug }}
@@ -185,206 +383,282 @@ function ListingDetail() {
             >
               {listing.categoryName}
             </Link>
+            <CaretRight size={13} />
           </>
         )}
+        <span className="text-foreground">
+          {listing.city}, {listing.state}
+        </span>
       </nav>
 
-      <div className="mt-6 grid gap-10 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
-        <div className="min-w-0">
-          {listing.images.length > 0 ? (
-            <Dialog>
-              <div className="relative grid grid-cols-2 grid-rows-2 gap-2 overflow-hidden rounded-[28px] bg-secondary">
-                {listing.images.slice(0, 5).map((image, index) => (
-                  <button
-                    key={image.url}
-                    type="button"
-                    onClick={() => setActiveImage(index)}
-                    className={`group relative min-h-[170px] overflow-hidden bg-secondary sm:min-h-[220px] ${
-                      index === 0 ? "row-span-2" : ""
-                    }`}
-                    aria-label={`Show photo ${index + 1}`}
-                  >
-                    <img
-                      src={image.url}
-                      alt={image.alt}
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-                    />
-                  </button>
-                ))}
-                {listing.images.length > 1 && (
-                  <DialogTrigger asChild>
-                    <button
-                      type="button"
-                      className="absolute bottom-4 right-4 inline-flex h-10 items-center gap-2 rounded-full bg-card/95 px-4 text-[12px] font-semibold text-foreground shadow-md backdrop-blur transition-transform hover:scale-[1.02]"
-                    >
-                      <Images size={16} />
-                      Show all photos
-                    </button>
-                  </DialogTrigger>
-                )}
-              </div>
-              <DialogContent className="max-h-[90vh] max-w-5xl overflow-y-auto rounded-[28px] p-5 sm:p-7">
-                <DialogHeader>
-                  <DialogTitle>Photos</DialogTitle>
-                  <DialogDescription>{listing.title}</DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {listing.images.map((image) => (
-                    <img
-                      key={image.url}
-                      src={image.url}
-                      alt={image.alt}
-                      className="w-full rounded-2xl object-cover"
-                    />
-                  ))}
-                </div>
-              </DialogContent>
-            </Dialog>
-          ) : (
-            <div className="flex h-[320px] flex-col items-center justify-center rounded-[28px] bg-gradient-to-br from-secondary via-card to-accent/25 text-[12px] text-muted-foreground">
-              <span className="grid h-16 w-16 place-items-center rounded-2xl bg-card/80 text-primary shadow-sm">
-                <CategoryArtwork slug={listing.categorySlug ?? "general"} size={96} />
-              </span>
-              <span className="mt-3">This seller has not added photos yet.</span>
-            </div>
+      <header className="mt-5 border-b border-border/70 pb-5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-[28px] font-bold leading-tight tracking-tight sm:text-[38px]">
+              {title}
+            </h1>
+            {vehicle && vehicle.trim && vehicle.trim !== title && (
+              <p className="mt-1 text-[14px] text-muted-foreground">{listing.title}</p>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <WatchHeartButton
+              productId={listing.productId}
+              productSlug={listing.productSlug}
+              productName={title}
+              isDemo={false}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+            />
+            <button
+              type="button"
+              aria-label="Share listing"
+              onClick={() => void handleShare()}
+              className="grid h-10 w-10 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground"
+            >
+              <ShareNetwork size={18} />
+            </button>
+            <button
+              type="button"
+              aria-label="Print listing"
+              onClick={() => window.print()}
+              className="hidden h-10 w-10 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground sm:grid"
+            >
+              <Printer size={18} />
+            </button>
+          </div>
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12.5px] text-muted-foreground">
+          <span className="flex items-center gap-1.5 text-primary">
+            <MapPin size={15} weight="fill" /> {listing.city}, {listing.state}
+          </span>
+          <span className="flex items-center gap-1.5">
+            <Clock size={15} /> Posted {postedAge(listing.createdAt).toLowerCase()}
+          </span>
+          {vehicle?.mileage != null && (
+            <span className="flex items-center gap-1.5">
+              <Gauge size={15} /> {formatMileage(vehicle.mileage)}
+            </span>
           )}
-          {listing.images.length > 1 && (
-            <div className="no-scrollbar mt-2 flex gap-2 overflow-x-auto pb-1">
-              {listing.images.map((image, index) => (
+          <span className="flex items-center gap-1.5">
+            <Eye size={15} /> Local listing
+          </span>
+        </div>
+      </header>
+
+      <div className="mt-6 grid gap-7 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,370px)] lg:items-start">
+        <div className="min-w-0 space-y-7">
+          <Gallery listing={listing} />
+
+          <section
+            className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4"
+            aria-label="Key vehicle facts"
+          >
+            {vehicle?.year != null && (
+              <QuickFact
+                label="Year"
+                value={String(vehicle.year)}
+                icon={<span className="text-primary">#</span>}
+              />
+            )}
+            {vehicle?.mileage != null && (
+              <QuickFact
+                label="Mileage"
+                value={formatMileage(vehicle.mileage) ?? "Not listed"}
+                icon={<Gauge size={16} className="text-primary" />}
+              />
+            )}
+            {vehicle?.transmission && (
+              <QuickFact
+                label="Transmission"
+                value={vehicle.transmission}
+                icon={<GearSix size={16} className="text-primary" />}
+              />
+            )}
+            <QuickFact
+              label="Condition"
+              value={condition}
+              icon={<ShieldCheck size={16} className="text-primary" />}
+            />
+          </section>
+
+          <section className="soft-card overflow-hidden">
+            <div
+              className="flex flex-wrap gap-1 border-b border-border/70 bg-secondary/35 p-2"
+              role="tablist"
+              aria-label="Listing information"
+            >
+              {(["description", "specifications", "location"] as const).map((tab) => (
                 <button
-                  key={image.url}
+                  key={tab}
                   type="button"
-                  onClick={() => setActiveImage(index)}
-                  aria-label={`Show photo ${index + 1}`}
-                  className={`h-16 w-24 shrink-0 overflow-hidden rounded-2xl border ${
-                    index === activeImage ? "border-primary" : "border-border"
-                  }`}
+                  role="tab"
+                  aria-selected={activeTab === tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`rounded-xl px-4 py-2.5 text-[12.5px] font-semibold capitalize transition ${activeTab === tab ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
                 >
-                  <img src={image.url} alt="" className="h-full w-full object-cover" />
+                  {tab === "location" ? "Location" : tab}
                 </button>
               ))}
             </div>
-          )}
-
-          <h1 className="mt-8 text-[28px] font-bold leading-tight tracking-tight sm:text-[34px]">
-            {listing.title}
-          </h1>
-          {vehicle && (
-            <p className="mt-1 text-[13px] text-muted-foreground">{vehicleHeadline(vehicle)}</p>
-          )}
-          <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <MapPin size={13} weight="fill" className="text-primary" />
-              {listing.city}, {listing.state} ({listing.region})
-            </span>
-            <span>Posted {postedAge(listing.createdAt).toLowerCase()}</span>
-          </p>
-
-          <section className="mt-9">
-            <h2 className="text-[18px] font-bold tracking-tight">
-              {vehicle ? "Vehicle details" : "Item details"}
-            </h2>
-            <div className="mt-3">
-              <SpecGrid rows={specRows} />
+            <div className="p-5 sm:p-7">
+              {activeTab === "description" && (
+                <div>
+                  <div
+                    className={`relative overflow-hidden ${!descriptionExpanded && description.length > 720 ? "max-h-[300px]" : ""}`}
+                  >
+                    <h2 className="text-[18px] font-bold">Description</h2>
+                    {description ? (
+                      <p className="mt-3 whitespace-pre-line text-[14px] leading-7 text-muted-foreground">
+                        {description}
+                      </p>
+                    ) : (
+                      <p className="mt-3 text-[14px] text-muted-foreground">
+                        The seller has not added a description yet.
+                      </p>
+                    )}
+                    {!descriptionExpanded && description.length > 720 && (
+                      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-card to-transparent" />
+                    )}
+                  </div>
+                  {description.length > 720 && (
+                    <button
+                      type="button"
+                      onClick={() => setDescriptionExpanded((expanded) => !expanded)}
+                      className="mt-3 inline-flex items-center gap-1 text-[13px] font-semibold text-primary hover:underline"
+                    >
+                      {descriptionExpanded ? "Show less" : "See more"}{" "}
+                      <CaretDown size={15} className={descriptionExpanded ? "rotate-180" : ""} />
+                    </button>
+                  )}
+                </div>
+              )}
+              {activeTab === "specifications" && (
+                <div>
+                  <h2 className="text-[18px] font-bold">Specifications</h2>
+                  <div className="mt-4">
+                    <SpecGrid rows={specRows} />
+                  </div>
+                </div>
+              )}
+              {activeTab === "location" && (
+                <div>
+                  <h2 className="text-[18px] font-bold">Listing location</h2>
+                  <div className="mt-4 flex flex-col gap-4 rounded-2xl border border-border/70 bg-secondary/45 p-5 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-start gap-3">
+                      <MapTrifold
+                        size={24}
+                        weight="duotone"
+                        className="mt-0.5 shrink-0 text-primary"
+                      />
+                      <div>
+                        <p className="font-semibold">
+                          {listing.city}, {listing.state}
+                        </p>
+                        <p className="mt-1 text-[12px] text-muted-foreground">
+                          The seller's exact meeting location should be confirmed before pickup.
+                        </p>
+                      </div>
+                    </div>
+                    <a
+                      href={`https://www.google.com/maps/search/?api=1&query=${locationQuery}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex h-10 shrink-0 items-center justify-center rounded-full bg-primary px-4 text-[12px] font-semibold text-primary-foreground hover:opacity-90"
+                    >
+                      Open map
+                    </a>
+                  </div>
+                </div>
+              )}
             </div>
           </section>
 
-          {listing.description && (
-            <section className="mt-9">
-              <h2 className="text-[18px] font-bold tracking-tight">Seller description</h2>
-              <p className="mt-2 whitespace-pre-line text-[13.5px] leading-relaxed text-muted-foreground">
-                {listing.description}
-              </p>
-            </section>
-          )}
-
           {listing.sellerNote && (
-            <section className="mt-6 rounded-2xl bg-secondary/70 px-5 py-4">
-              <h2 className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+            <section className="rounded-2xl border border-primary/20 bg-primary/5 px-5 py-4">
+              <h2 className="text-[11px] font-semibold uppercase tracking-[0.08em] text-primary">
                 Note from the seller
               </h2>
-              <p className="mt-1 text-[13px] leading-relaxed">{listing.sellerNote}</p>
-            </section>
-          )}
-
-          {listing.seller && (
-            <section className="soft-card mt-7 p-5">
-              <div className="flex items-center gap-3">
-                <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full bg-primary text-sm font-semibold text-primary-foreground">
-                  {listing.seller.avatarUrl ? (
-                    <img src={listing.seller.avatarUrl} alt="" className="h-full w-full object-cover" />
-                  ) : (
-                    listing.seller.displayName.slice(0, 1).toUpperCase()
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <h2 className="text-[14px] font-semibold">About the seller</h2>
-                  <Link
-                    to="/sellers/$slug"
-                    params={{ slug: listing.seller.slug }}
-                    className="text-[12.5px] text-primary hover:underline"
-                  >
-                    {listing.seller.displayName}
-                  </Link>
-                  {listing.seller.ratingAverage != null && (
-                    <p className="text-[11.5px] text-muted-foreground">
-                      {listing.seller.ratingAverage.toFixed(1)} / 5 · {listing.seller.reviewCount} review
-                      {listing.seller.reviewCount === 1 ? "" : "s"}
-                    </p>
-                  )}
-                </div>
-              </div>
-              {listing.seller.bio && (
-                <p className="mt-3 text-[12.5px] leading-relaxed text-muted-foreground">
-                  {listing.seller.bio}
-                </p>
-              )}
+              <p className="mt-1.5 text-[13px] leading-relaxed">{listing.sellerNote}</p>
             </section>
           )}
         </div>
 
-        <aside className="min-w-0 space-y-5 lg:sticky lg:top-28 lg:self-start">
+        <aside className="min-w-0 space-y-5 lg:sticky lg:top-24">
+          <section className="floating-card overflow-hidden">
+            <div className="bg-primary px-5 py-4 text-primary-foreground">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary-foreground/75">
+                Seller price
+              </p>
+              <p className="numeric mt-1 text-[32px] font-bold leading-none">
+                {formatUsd(listing.priceCents)}
+              </p>
+            </div>
+            <div className="space-y-3 px-5 py-5">
+              <div className="flex items-start gap-2 text-[12px] leading-relaxed text-muted-foreground">
+                <Info size={15} className="mt-0.5 shrink-0 text-primary" />
+                <span>
+                  Taxes, title, registration, and any seller or dealer fees may apply. Confirm the
+                  final amount directly with the seller.
+                </span>
+              </div>
+              <div className="flex items-center gap-2 border-t border-border/70 pt-3 text-[12px] font-medium">
+                <MapPin size={15} className="text-primary" /> Located in {listing.city},{" "}
+                {listing.state}
+              </div>
+            </div>
+          </section>
+          <SellerCard listing={listing} />
           <ListingActions listing={listing} />
-
-              <div className="soft-card px-5 py-5">
-            <h2 className="text-[13px] font-semibold">Arrange the details</h2>
-            <ul className="mt-2 space-y-2 text-[12.5px] text-muted-foreground">
-              {listing.fulfillmentMode !== "shipping" && (
-                <li className="flex items-start gap-2">
-                  <Handbag size={15} className="mt-0.5 shrink-0 text-primary" />
-                  Local pickup in {listing.city}, {listing.state}. Arrange a pickup time and place
-                  directly with the seller.
-                </li>
-              )}
-              {listing.fulfillmentMode !== "local_pickup" && (
-                <li className="flex items-start gap-2">
-                  <Truck size={15} className="mt-0.5 shrink-0 text-primary" />
-                  Shipping may be available. Ask the seller about shipping options and cost.
-                </li>
-              )}
+          <section className="soft-card px-5 py-5">
+            <h2 className="text-[14px] font-bold">Before you meet</h2>
+            <ul className="mt-3 space-y-3 text-[12px] leading-relaxed text-muted-foreground">
+              <li className="flex items-start gap-2">
+                <ShieldCheck size={16} className="mt-0.5 shrink-0 text-primary" /> Meet in a public
+                place and verify the vehicle and paperwork before paying.
+              </li>
+              <li className="flex items-start gap-2">
+                <Gauge size={16} className="mt-0.5 shrink-0 text-primary" /> Confirm mileage, title
+                status, condition, and any fees with the seller.
+              </li>
+              <li className="flex items-start gap-2">
+                <Flag size={16} className="mt-0.5 shrink-0 text-primary" /> Report anything
+                misleading or unsafe through Gem State.
+              </li>
             </ul>
-            <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
-              {brand.legal.disclaimer}
-            </p>
-          </div>
-
+          </section>
           <Link
             to="/contact"
             className="flex items-center justify-center gap-1.5 text-[12px] text-muted-foreground hover:text-foreground"
           >
-            <Flag size={13} /> Report this listing
+            <Flag size={14} /> Report this listing
           </Link>
         </aside>
       </div>
 
       {relatedQuery.data.listings.length > 0 && (
-        <section className="mt-16">
-          <h2 className="text-[24px] font-bold tracking-tight">
-            More in {listing.categoryName}
-          </h2>
-          <div className="mt-5 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
+        <section className="mt-14 border-t border-border/70 pt-9">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-[23px] font-bold tracking-tight">
+                Similar {isVehicle ? "vehicles" : "listings"}
+              </h2>
+              <p className="mt-1 text-[13px] text-muted-foreground">
+                More options in {listing.categoryName}
+              </p>
+            </div>
+            <Link
+              to="/browse"
+              search={{ ...(listing.categorySlug ? { category: listing.categorySlug } : {}) }}
+              className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-primary hover:underline"
+            >
+              View all <CaretRight size={15} />
+            </Link>
+          </div>
+          <div className="no-scrollbar mt-5 flex snap-x gap-4 overflow-x-auto pb-2">
             {relatedQuery.data.listings.map((related) => (
-              <ListingCard key={related.id} listing={related} />
+              <div key={related.id} className="w-[245px] shrink-0 snap-start sm:w-[280px]">
+                <ListingCard listing={related} />
+              </div>
             ))}
           </div>
         </section>
