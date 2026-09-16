@@ -330,7 +330,7 @@ export const getClassifiedListing = createServerFn({ method: "GET" })
     if (error) console.error("getClassifiedListing failed", error.message);
     if (!row) return null;
 
-    const record = row as Record<string, unknown>;
+    const record = row as unknown as Record<string, unknown>;
     const paths = sortedMedia(record);
     const urlByPath = await signListingMedia(paths);
     const product = record["products"] as { id: string; slug: string; description: string | null };
