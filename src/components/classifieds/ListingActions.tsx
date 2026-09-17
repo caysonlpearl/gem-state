@@ -1,14 +1,13 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Calculator, Info } from "@phosphor-icons/react";
 
 import { brand } from "@/config/brand";
 import { formatUsd } from "@/config/fees";
 import { useAuth } from "@/hooks/useAuth";
-import { sendClassifiedListingInquiry } from "@/lib/classified-inquiry.functions";
+import { supabase } from "@/integrations/supabase/client";
 import type { ClassifiedDetail } from "@/lib/classifieds.functions";
 
 const DEFAULT_MESSAGE = "Hi, is this still available? I would love to learn more.";
@@ -28,7 +27,6 @@ export function ListingActions({
   showPriceHeader?: boolean;
 }) {
   const { isSignedIn } = useAuth();
-  const sendInquiry = useServerFn(sendClassifiedListingInquiry);
   const [contactOpen, setContactOpen] = useState(false);
   const [message, setMessage] = useState(DEFAULT_MESSAGE);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
@@ -46,7 +44,16 @@ export function ListingActions({
     principal === 0 ? 0 : (principal * monthlyRate) / (1 - Math.pow(1 + monthlyRate, -payments));
 
   const inquiryMutation = useMutation({
-    mutationFn: () => sendInquiry({ data: { listingId: listing.id, message } }),
+    mutationFn: async () => {
+      const { data: inquiryId, error } = await supabase.rpc("create_listing_inquiry", {
+        _listing_id: listing.id,
+        _message: message,
+      });
+      if (error || !inquiryId) {
+        throw new Error(error?.message ?? "We could not send your message.");
+      }
+      return inquiryId;
+    },
     onSuccess: () => {
       toast.success("Message sent to the seller.");
       setMessage(DEFAULT_MESSAGE);
