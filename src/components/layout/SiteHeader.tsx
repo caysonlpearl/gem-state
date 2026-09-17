@@ -2,7 +2,6 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import {
   BookmarkSimple,
-  CaretDown,
   List,
   MagnifyingGlass,
   PlusCircle,
@@ -179,12 +178,6 @@ export function SiteHeader() {
               >
                 <CategoryArtwork slug="general" size={64} className="category-art--nav" />
                 <span>Classifieds</span>
-                <CaretDown
-                  size={15}
-                  weight="bold"
-                  aria-hidden="true"
-                  className="ml-auto shrink-0"
-                />
               </Link>
             </li>
             {featuredHeaderCategories.map((c) => (

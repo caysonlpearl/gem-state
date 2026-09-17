@@ -53,9 +53,11 @@ const allCategoryMenuItems = [
 
 export function AllCategoriesPopover({
   onSelect,
+  label = "Browse Categories",
   className = "",
 }: {
   onSelect?: () => void;
+  label?: string;
   className?: string;
 }) {
   const triggerClassName =
@@ -66,7 +68,7 @@ export function AllCategoriesPopover({
     <Popover>
       <PopoverTrigger asChild>
         <button type="button" className={triggerClassName}>
-          <span>Browse Categories</span>
+          <span>{label}</span>
           <CaretDown size={15} weight="bold" aria-hidden="true" />
         </button>
       </PopoverTrigger>

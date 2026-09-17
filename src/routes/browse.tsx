@@ -1352,7 +1352,7 @@ function ClassifiedsLandingHero({
           GemList Classifieds
         </p>
         <h1 className="mx-auto mt-3 max-w-[22ch] text-[36px] font-bold leading-[1.05] tracking-tight sm:text-[56px]">
-          Find what you need. <span className="text-primary">List what you love.</span>
+          Discover <span className="text-primary">local gems.</span>
         </h1>
         <p className="mx-auto mt-4 max-w-[54ch] text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">
           Browse local listings from people and businesses across Idaho and surrounding states.
@@ -1408,13 +1408,7 @@ function GeneralClassifiedShowcase({ listings }: { listings: ClassifiedBrowseRes
               Top categories
             </h2>
           </div>
-          <Link
-            to="/browse"
-            search={{ allCategories: true }}
-            className="inline-flex shrink-0 items-center gap-1 text-[12px] font-bold text-primary hover:underline"
-          >
-            Browse all <ArrowRight size={14} aria-hidden="true" />
-          </Link>
+          <AllCategoriesPopover label="Browse all" className="h-10 rounded-full px-4 text-[12px]" />
         </div>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
           {generalCategoryHighlights.map((category) => (
