@@ -33,7 +33,8 @@ export const Route = createFileRoute("/api/public/db-restore")({
         const client = new Client({ connectionString: dbUrl, ssl: { rejectUnauthorized: false } });
         try {
           await client.connect();
-          await client.query("INSERT INTO public._restore_chunks (body) VALUES ($1)", [body]);
+          await client.query("DELETE FROM public._restore_chunks");
+          await client.query("INSERT INTO public._restore_chunks (id, body) VALUES (1, $1)", [body]);
           return new Response(JSON.stringify({ ok: true, bytes: body.length }), {
             headers: { "Content-Type": "application/json" },
           });
