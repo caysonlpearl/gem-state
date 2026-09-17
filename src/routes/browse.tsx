@@ -1499,7 +1499,7 @@ function HomesLandingHero({
             <span className="block text-accent">All in one place.</span>
           </h1>
           <p className="mx-auto mt-4 max-w-[43ch] text-center text-[14px] leading-relaxed text-white/80 sm:text-[15px]">
-            Find your next home, discover new communities, and explore rentals from local Idaho sellers and property managers.
+            Find your next home, discover new communities, and explore rentals from local sellers in Idaho and surrounding states.
           </p>
 
           <div className="mt-7 grid grid-cols-3 rounded-2xl bg-white/10 p-1.5 ring-1 ring-white/20">
