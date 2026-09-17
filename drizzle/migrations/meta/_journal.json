@@ -1,5 +1,20 @@
 {
   "version": "7",
   "dialect": "postgresql",
-  "entries": []
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1789664503914,
+      "tag": "0000_probe_fn",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789664563396,
+      "tag": "0001_temp_restore_runner",
+      "breakpoints": true
+    }
+  ]
 }
