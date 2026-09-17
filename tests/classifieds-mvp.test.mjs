@@ -66,6 +66,7 @@ const emailShellSource = await read("src/lib/email-templates/shell.tsx");
 const authEmailSource = await read("src/routes/lovable/email/auth/webhook.ts");
 const brandMarkSource = await read("src/components/layout/BrandMark.tsx");
 const headerSource = await read("src/components/layout/SiteHeader.tsx");
+const allCategoriesSource = await read("src/components/classifieds/AllCategoriesPopover.tsx");
 const homeSource = await read("src/routes/index.tsx");
 const categoryIconSource = await read("src/components/classifieds/CategoryIcon.tsx");
 const listingCardSource = await read("src/components/classifieds/ListingCard.tsx");
@@ -378,7 +379,6 @@ test("shared category icons and no-photo cards have deterministic presentation",
 });
 
 test("header categories show four primary destinations and a Classifieds control", () => {
-  assert.match(headerSource, /function AllCategoriesPopover/);
   assert.match(headerSource, /featuredHeaderCategories = \[/);
   for (const label of ["Cars", "Homes", "Jobs", "Services"]) {
     assert.match(headerSource, new RegExp(`name: "${label.replace(/&/g, "\\&")}"`));
@@ -397,22 +397,22 @@ test("header categories show four primary destinations and a Classifieds control
 });
 
 test("all categories opens a labeled icon menu with KSL-style sections", () => {
-  assert.match(headerSource, /PopoverContent/);
-  assert.match(headerSource, /function AllCategoriesPopover/);
+  assert.match(allCategoriesSource, /PopoverContent/);
+  assert.match(allCategoriesSource, /function AllCategoriesPopover/);
   assert.match(headerSource, /aria-label="Classifieds"/);
   assert.match(
-    headerSource,
+    allCategoriesSource,
     /<p className="text-\[18px\] font-semibold tracking-tight">All categories<\/p>/,
   );
   assert.match(
-    headerSource,
+    allCategoriesSource,
     /CategoryArtwork[\s\S]*slug=\{category\.slug\}[\s\S]*size=\{58\}[\s\S]*className="!h-\[58px\] !w-\[58px\] shrink-0"/,
   );
-  assert.match(headerSource, /w-\[min\(1280px,calc\(100vw-2rem\)\)\]/);
-  assert.match(headerSource, /xl:grid-cols-6/);
+  assert.match(allCategoriesSource, /w-\[min\(1280px,calc\(100vw-2rem\)\)\]/);
+  assert.match(allCategoriesSource, /xl:grid-cols-6/);
   assert.match(headerSource, /w-auto min-w-\[158px\]/);
-  assert.match(headerSource, /sm:gap-2/);
-  assert.match(headerSource, /hover:shadow-md/);
+  assert.match(allCategoriesSource, /sm:gap-2/);
+  assert.match(allCategoriesSource, /hover:bg-secondary/);
   for (const label of [
     "Announcements",
     "Appliances",
@@ -439,7 +439,7 @@ test("all categories opens a labeled icon menu with KSL-style sections", () => {
     "Weddings",
     "Winter Sports",
   ]) {
-    assert.match(headerSource, new RegExp(`name: "${label}"`));
+    assert.match(allCategoriesSource, new RegExp(`name: "${label}"`));
   }
   for (const slug of [
     "announcements",
@@ -562,6 +562,7 @@ test("vehicle browse uses a branded buy and eight-filter discovery hero", () => 
 });
 
 test("homes browse has a large landing hero and tab-specific filter views", () => {
+  const normalizedBrowseSource = browseSource.replace(/\s+/g, " ");
   assert.match(browseSource, /function HomesLandingHero/);
   assert.match(browseSource, /function HomesFilterPage/);
   assert.match(browseSource, /Build\. Buy\. Rent\./);
@@ -605,7 +606,7 @@ test("homes browse has a large landing hero and tab-specific filter views", () =
     'label: "Lease length", options: leaseLengthOptions, multi: false',
   ]) {
     assert.ok(
-      browseSource.includes(selectionRule),
+      normalizedBrowseSource.includes(selectionRule),
       `missing home filter selection rule: ${selectionRule}`,
     );
   }
@@ -644,7 +645,10 @@ test("jobs browse has a landing hero and expanded local job filters", () => {
   assert.match(browseSource, /Post a Job/);
   assert.match(browseSource, /More filters/);
   assert.match(browseSource, /jobMode: "results"/);
-  assert.match(browseSource, /<JobSelect label="Time on site"/);
+  assert.match(
+    browseSource,
+    /<JobSelect[\s\S]*label="Time on site"[\s\S]*options=\{jobPostedOptions\}/,
+  );
   for (const label of [
     "Category",
     "Job type",
@@ -696,4 +700,23 @@ test("general classifieds have mock detail fixtures without changing category se
   assert.match(detailSource, /More From This Seller/);
   assert.match(detailSource, /Safe\. Simple\. Trusted\./);
   assert.match(detailSource, /showPaymentCalculator={false}/);
+});
+
+test("all categories routes to its own general classifieds landing page", () => {
+  assert.match(headerSource, /search=\{\{ allCategories: true \}\}/);
+  assert.match(allCategoriesSource, /Browse Categories/);
+  assert.match(browseSource, /function ClassifiedsLandingHero/);
+  assert.match(browseSource, /function GeneralClassifiedShowcase/);
+  for (const category of [
+    "Furniture",
+    "Electronics",
+    "Tools & Equipment",
+    "Outdoor & Sporting",
+    "Farm & Garden",
+    "General",
+  ]) {
+    assert.match(browseSource, new RegExp(category.replace(/[&]/g, "\\&")));
+  }
+  assert.match(browseSource, /Top listings/);
+  assert.match(browseSource, /Newest listings/);
 });

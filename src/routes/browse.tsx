@@ -13,6 +13,8 @@ import {
 
 import { brand } from "@/config/brand";
 import { classifiedCategories, idahoRegions, usStates, vehicleOptions } from "@/config/classifieds";
+import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
+import { AllCategoriesPopover } from "@/components/classifieds/AllCategoriesPopover";
 import { ListingCard, ListingRow } from "@/components/classifieds/ListingCard";
 import { conditionLabels, isMotorsCategory } from "@/lib/classifieds-display";
 import { browseClassifieds, type ClassifiedBrowseInput, type ClassifiedBrowseResult } from "@/lib/classifieds.functions";
@@ -33,6 +35,7 @@ type JobMode = "landing" | "results";
 type ServiceMode = "landing" | "results";
 
 type Search = {
+  allCategories?: boolean | undefined;
   q?: string | undefined;
   category?: string | undefined;
   group?: "motors" | "classifieds" | undefined;
@@ -494,6 +497,7 @@ export const Route = createFileRoute("/browse")({
     const vehicleMode = stringParam(search, "vehicleMode", 10);
     const page = Number(search["page"]);
     return {
+      allCategories: search["allCategories"] === true || stringParam(search, "allCategories", 5) === "true",
       q: stringParam(search, "q"),
       category: stringParam(search, "category", 60),
       group: group === "motors" || group === "classifieds" ? group : undefined,
@@ -654,12 +658,13 @@ function Browse() {
   const selectedCategory = classifiedCategories.find(
     (category) => category.slug === search.category,
   );
+  const allCategoriesLanding = search.allCategories === true;
   const motors = search.group === "motors" || isMotorsCategory(search.category);
   const homes = search.category === "other-real-estate";
   const jobs = search.category === "jobs";
   const services = search.category === "services";
   const vehicleLanding = motors && search.vehicleMode !== "results";
-  const showGenericBrowse = !motors || vehicleLanding;
+  const showGenericBrowse = !allCategoriesLanding && (!motors || vehicleLanding);
   const homeTab: HomeTab = search.homeTab ?? "buy";
   const homeLanding = homes && search.homeMode !== "results";
   const jobLanding = jobs && search.jobMode !== "results";
@@ -715,6 +720,22 @@ function Browse() {
 
   return (
     <main className="mx-auto max-w-[1400px] px-4 py-10 sm:px-8">
+      {allCategoriesLanding && (
+        <>
+          <ClassifiedsLandingHero
+            term={term}
+            onTermChange={setTerm}
+            onSearch={() =>
+              void navigate({
+                to: "/browse",
+                search: scoped({ allCategories: undefined, q: term.trim() || undefined }),
+              })
+            }
+          />
+          <GeneralClassifiedShowcase listings={result.listings} />
+        </>
+      )}
+
       {motors && vehicleLanding && (
         <VehicleBrowseHero
           search={search}
@@ -902,7 +923,7 @@ function Browse() {
         </div>
       </div>
 
-      {!motors && !homes && !jobs && !services && (
+      {!allCategoriesLanding && !motors && !homes && !jobs && !services && (
         <form
           className="floating-card mt-8 p-2 sm:p-3"
           onSubmit={(event) => {
@@ -927,7 +948,7 @@ function Browse() {
         </form>
       )}
 
-      {!motors && !homes && !jobs && !services && <div className="no-scrollbar mt-5 flex gap-2 overflow-x-auto pb-1">
+      {!allCategoriesLanding && !motors && !homes && !jobs && !services && <div className="no-scrollbar mt-5 flex gap-2 overflow-x-auto pb-1">
         <BrowsePill
           active={!search.group && !search.category}
           search={scopedWithoutVehicleFilters({ group: undefined, category: undefined })}
@@ -1297,6 +1318,153 @@ function Browse() {
         </section>
       </div>}
     </main>
+  );
+}
+
+
+const generalCategoryHighlights = [
+  { slug: "furniture", name: "Furniture", description: "Home pieces and decor" },
+  { slug: "electronics", name: "Electronics", description: "Devices, audio, and gear" },
+  { slug: "tools-equipment", name: "Tools & Equipment", description: "Workshop and jobsite finds" },
+  { slug: "outdoor-sporting", name: "Outdoor & Sporting", description: "Gear for your next outing" },
+  { slug: "farm-garden", name: "Farm & Garden", description: "Yard, farm, and garden" },
+  { slug: "general", name: "General", description: "Everyday local finds" },
+] as const;
+
+function ClassifiedsLandingHero({
+  term,
+  onTermChange,
+  onSearch,
+}: {
+  term: string;
+  onTermChange: (value: string) => void;
+  onSearch: () => void;
+}) {
+  return (
+    <section
+      aria-label="GemList all classifieds"
+      className="relative isolate overflow-hidden rounded-[32px] bg-secondary px-5 py-10 shadow-xl sm:px-10 sm:py-14"
+    >
+      <span className="absolute -right-20 -top-24 h-72 w-72 rounded-full bg-brand-warm/15" />
+      <span className="absolute -bottom-36 left-1/3 h-80 w-80 rounded-full bg-primary/5" />
+      <div className="relative mx-auto max-w-[920px] text-center">
+        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">
+          GemList Classifieds
+        </p>
+        <h1 className="mx-auto mt-3 max-w-[22ch] text-[36px] font-bold leading-[1.05] tracking-tight sm:text-[56px]">
+          Find what you need. <span className="text-primary">List what you love.</span>
+        </h1>
+        <p className="mx-auto mt-4 max-w-[54ch] text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">
+          Browse local listings from people and businesses across Idaho and surrounding states.
+        </p>
+
+        <form
+          className="mx-auto mt-8 flex max-w-[860px] flex-col gap-2 rounded-[24px] bg-card p-2 shadow-lg sm:flex-row"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onSearch();
+          }}
+        >
+          <label className="flex min-w-0 flex-1 items-center gap-2 px-3">
+            <MagnifyingGlass size={19} className="shrink-0 text-primary" aria-hidden="true" />
+            <span className="sr-only">Search classifieds</span>
+            <input
+              type="search"
+              value={term}
+              onChange={(event) => onTermChange(event.target.value)}
+              placeholder="Search classifieds"
+              aria-label="Search classifieds"
+              className="h-12 min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground"
+            />
+          </label>
+          <button
+            type="submit"
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-7 text-[13px] font-bold text-primary-foreground transition-transform hover:-translate-y-0.5"
+          >
+            <MagnifyingGlass size={17} aria-hidden="true" />
+            Search
+          </button>
+          <AllCategoriesPopover className="w-full sm:w-auto" />
+        </form>
+      </div>
+    </section>
+  );
+}
+
+function GeneralClassifiedShowcase({ listings }: { listings: ClassifiedBrowseResult["listings"] }) {
+  const generalListings = listings.filter((listing) => !listing.vehicle);
+  const listingRows = [
+    { title: "Top listings", listings: generalListings.slice(0, Math.ceil(generalListings.length / 2)) },
+    { title: "Newest listings", listings: generalListings.slice(Math.ceil(generalListings.length / 2)) },
+  ].filter((row) => row.listings.length > 0);
+
+  return (
+    <div className="mt-10 space-y-12 sm:mt-14 sm:space-y-16">
+      <section aria-labelledby="top-general-categories">
+        <div className="mb-4 flex items-end justify-between gap-3 border-b border-border pb-3">
+          <div>
+            <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">GemList Classifieds</p>
+            <h2 id="top-general-categories" className="mt-1 text-[22px] font-bold tracking-tight sm:text-[27px]">
+              Top categories
+            </h2>
+          </div>
+          <Link
+            to="/browse"
+            search={{ allCategories: true }}
+            className="inline-flex shrink-0 items-center gap-1 text-[12px] font-bold text-primary hover:underline"
+          >
+            Browse all <ArrowRight size={14} aria-hidden="true" />
+          </Link>
+        </div>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+          {generalCategoryHighlights.map((category) => (
+            <Link
+              key={category.slug}
+              to="/browse"
+              search={{ category: category.slug }}
+              className="group rounded-2xl border border-border/70 bg-card px-4 py-5 text-center shadow-sm transition-shadow hover:shadow-lg"
+            >
+              <span className="mx-auto flex h-16 items-center justify-center">
+                <CategoryArtwork slug={category.slug} size={68} className="category-art--nav" />
+              </span>
+              <span className="mt-2 block text-[13px] font-semibold leading-tight group-hover:text-primary">
+                {category.name}
+              </span>
+              <span className="mt-1 block text-[11px] leading-tight text-muted-foreground">
+                {category.description}
+              </span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {listingRows.map((row) => (
+        <section key={row.title} aria-labelledby={row.title.replaceAll(" ", "-")}>
+          <div className="mb-4 flex items-end justify-between gap-3 border-b border-border pb-3">
+            <div>
+              <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">GemList Classifieds</p>
+              <h2 id={row.title.replaceAll(" ", "-")} className="mt-1 text-[22px] font-bold tracking-tight sm:text-[27px]">
+                {row.title}
+              </h2>
+            </div>
+            <Link
+              to="/browse"
+              search={{ category: "general" }}
+              className="inline-flex shrink-0 items-center gap-1 text-[12px] font-bold text-primary hover:underline"
+            >
+              See all <ArrowRight size={14} aria-hidden="true" />
+            </Link>
+          </div>
+          <ul className="no-scrollbar flex gap-4 overflow-x-auto pb-2">
+            {row.listings.map((listing) => (
+              <li key={row.title + "-" + listing.id} className="min-w-[220px] flex-1 sm:min-w-[245px]">
+                <ListingCard listing={listing} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </div>
   );
 }
 
