@@ -306,11 +306,11 @@ function VehicleHistoryCard({ vehicle }: { vehicle: ClassifiedDetail["vehicle"] 
   return (
     <section className="soft-card px-5 py-5">
       <div className="flex items-center gap-4 rounded-2xl bg-[#101820] px-4 py-4 text-white shadow-md ring-1 ring-[#f6b544]/40">
-        <span className="grid h-20 w-16 shrink-0 place-items-end overflow-hidden rounded-xl bg-[#f6b544] shadow-sm">
+        <span className="grid h-14 w-12 shrink-0 place-items-end overflow-hidden rounded-xl bg-[#f6b544] shadow-sm">
           <img
             src="https://images.carfax.com/image/1000257/Car-Fox_Looking-Left-cropped-med.png?width=416"
             alt="CARFAX Car Fox"
-            className="h-[92px] w-auto max-w-none translate-y-1 object-contain"
+            className="h-[66px] w-auto max-w-none translate-y-1 object-contain"
           />
         </span>
         <div>
