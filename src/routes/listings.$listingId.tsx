@@ -33,6 +33,7 @@ import { ListingCard } from "@/components/classifieds/ListingCard";
 import { WatchHeartButton } from "@/components/community/WatchHeartButton";
 import {
   conditionLabels,
+  formatJobPay,
   formatMileage,
   fulfillmentLabels,
   postedAge,
@@ -62,7 +63,7 @@ export const Route = createFileRoute("/listings/$listingId")({
     if (!listing) throw notFound();
     return {
       title: listing.title,
-      price: listing.priceCents,
+      priceLabel: listing.job ? formatJobPay(listing.job) : formatUsd(listing.priceCents),
       city: listing.city,
       state: listing.state,
     };
@@ -76,8 +77,8 @@ export const Route = createFileRoute("/listings/$listingId")({
         ],
       };
     }
-    const title = `${loaderData.title} — ${formatUsd(loaderData.price)} in ${loaderData.city}, ${loaderData.state}`;
-    const description = `${loaderData.title} listed for ${formatUsd(loaderData.price)} by a seller in ${loaderData.city}, ${loaderData.state} on ${brand.name}.`;
+    const title = `${loaderData.title} — ${loaderData.priceLabel} in ${loaderData.city}, ${loaderData.state}`;
+    const description = `${loaderData.title} listed for ${loaderData.priceLabel} by a seller in ${loaderData.city}, ${loaderData.state} on ${brand.name}.`;
     return {
       meta: [
         { title },
@@ -317,7 +318,12 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
         params={{ slug: seller.slug }}
         className="mt-4 flex items-center justify-between border-t border-border/70 pt-4 text-[12.5px] font-semibold text-primary hover:underline"
       >
-        {listing.vehicle ? "View seller profile" : "More From This Seller"} <CaretRight size={15} />
+        {listing.vehicle
+          ? "View seller profile"
+          : listing.job
+            ? "All Jobs from This Employer"
+            : "More From This Seller"}{" "}
+        <CaretRight size={15} />
       </Link>
     </section>
   );
@@ -371,6 +377,11 @@ function PageStatsCard({ listing }: { listing: ClassifiedDetail }) {
       day: "numeric",
       year: "numeric",
     });
+  const daysBetween = (from: string, to: number) =>
+    Math.max(0, Math.round((to - new Date(from).getTime()) / (1000 * 60 * 60 * 24)));
+  const now = Date.now();
+  const daysOnline = daysBetween(listing.createdAt, now);
+  const daysLeft = listing.expiresAt ? daysBetween(listing.createdAt, new Date(listing.expiresAt).getTime()) - daysOnline : null;
   return (
     <section className="soft-card px-5 py-5">
       <h2 className="text-[14px] font-bold">Page stats</h2>
@@ -387,6 +398,16 @@ function PageStatsCard({ listing }: { listing: ClassifiedDetail }) {
           <div className="flex items-center justify-between gap-4 py-2">
             <dt className="text-muted-foreground">Expires</dt>
             <dd className="text-right font-medium">{formatDate(listing.expiresAt)}</dd>
+          </div>
+        )}
+        <div className="flex items-center justify-between gap-4 py-2">
+          <dt className="text-muted-foreground">Days online</dt>
+          <dd className="numeric text-right font-medium">{daysOnline}</dd>
+        </div>
+        {daysLeft != null && (
+          <div className="flex items-center justify-between gap-4 py-2">
+            <dt className="text-muted-foreground">Days left</dt>
+            <dd className="numeric text-right font-medium">{Math.max(0, daysLeft)}</dd>
           </div>
         )}
         <div className="flex items-center justify-between gap-4 py-2">
@@ -517,6 +538,17 @@ function ListingDetail() {
           listing={listing}
           title={title}
           description={description}
+          locationQuery={locationQuery}
+          relatedListings={relatedQuery.data.listings}
+          handleShare={handleShare}
+        />
+      );
+    }
+    if (listing.categorySlug === "jobs") {
+      return (
+        <JobListingDetail
+          listing={listing}
+          title={title}
           locationQuery={locationQuery}
           relatedListings={relatedQuery.data.listings}
           handleShare={handleShare}
@@ -878,6 +910,19 @@ function homeRentalDetails(listing: ClassifiedDetail, description: string) {
     utilities: home?.utilities ?? [],
     amenities: home?.amenities ?? [],
     openHouse: home?.openHouse ?? null,
+    community: home?.community ?? null,
+    schoolDistrict: home?.schoolDistrict ?? "Ask seller",
+    acreage: home?.acreage ?? "Ask seller",
+    heating: home?.heating ?? "Ask seller",
+    cooling: home?.cooling ?? "Ask seller",
+    garageParking: home?.garageParking ?? "Ask seller",
+    yard: home?.yard ?? "Ask seller",
+    appliancesIncluded: home?.appliancesIncluded ?? "Ask seller",
+    basementType: home?.basementType ?? "Ask seller",
+    floorCoverings: home?.floorCoverings ?? "Ask seller",
+    exteriorMaterial: home?.exteriorMaterial ?? "Ask seller",
+    specialFeatures: home?.specialFeatures ?? "Ask seller",
+    hoaFees: home?.hoaFees ?? "N/A",
     isRental,
   };
 }
@@ -1019,7 +1064,19 @@ function HomeRentalInformation({
                   {[
                     ["Property type", details.propertyType],
                     ["Seller type", details.sellerType],
+                    ["School district", details.schoolDistrict],
                     ["Year built", details.yearBuilt],
+                    ["Acreage", details.acreage],
+                    ["Heating", details.heating],
+                    ["Cooling", details.cooling],
+                    ["Garage/Parking", details.garageParking],
+                    ["Yard", details.yard],
+                    ["Appliances included", details.appliancesIncluded],
+                    ["Basement type", details.basementType],
+                    ["Floor coverings", details.floorCoverings],
+                    ["Exterior material", details.exteriorMaterial],
+                    ["Special features", details.specialFeatures],
+                    ["HOA fees", details.hoaFees],
                     ...(details.openHouse ? [["Open house", details.openHouse]] : []),
                   ].map(([label, value]) => (
                     <div key={label} className="flex items-center justify-between gap-4 py-3">
@@ -1125,7 +1182,15 @@ function HomeListingDetail({
       <header className="mt-5 border-b border-border/70 pb-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-[28px] font-bold leading-tight tracking-tight sm:text-[38px]">
+            {details.community && (
+              <a
+                href="#community-homes"
+                className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-primary hover:underline"
+              >
+                Part of the {details.community.name} community
+              </a>
+            )}
+            <h1 className="mt-1 text-[28px] font-bold leading-tight tracking-tight sm:text-[38px]">
               {title}
             </h1>
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12.5px] text-muted-foreground">
@@ -1191,17 +1256,351 @@ function HomeListingDetail({
 
         <aside className="min-w-0 space-y-5 lg:sticky lg:top-24">
           <SellerCard listing={listing} />
-          <ListingActions listing={listing} showPaymentCalculator={false} showPriceHeader={false} />
+          <ListingActions
+            listing={listing}
+            showPaymentCalculator={!details.isRental}
+            calculatorVariant="mortgage"
+            showPriceHeader={false}
+          />
           <PageStatsCard listing={listing} />
         </aside>
       </div>
 
+      {!!listing.communityListings?.length && (
+        <section id="community-homes" className="mt-14 scroll-mt-24 border-t border-border/70 pt-9">
+          <h2 className="text-[23px] font-bold tracking-tight">More Homes in This Community</h2>
+          <p className="mt-1 text-[13px] text-muted-foreground">
+            Other listings in the {details.community?.name} community
+          </p>
+          <div className="no-scrollbar mt-5 flex snap-x gap-4 overflow-x-auto pb-2">
+            {listing.communityListings.map((related) => (
+              <div key={related.id} className="w-[245px] shrink-0 snap-start sm:w-[280px]">
+                <ListingCard listing={related} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {!!listing.communityFloorplans?.length && (
+        <section className="mt-14 border-t border-border/70 pt-9">
+          <h2 className="text-[23px] font-bold tracking-tight">Floorplans in This Community</h2>
+          <p className="mt-1 text-[13px] text-muted-foreground">
+            Available plans from the builder in {details.community?.name}
+          </p>
+          <div className="no-scrollbar mt-5 flex snap-x gap-4 overflow-x-auto pb-2">
+            {listing.communityFloorplans.map((plan) => (
+              <div
+                key={plan.name}
+                className="w-[220px] shrink-0 snap-start overflow-hidden rounded-2xl border border-border/70 bg-card sm:w-[250px]"
+              >
+                <img src={plan.image} alt={plan.name} className="h-36 w-full object-cover" />
+                <div className="p-3.5">
+                  <p className="text-[14px] font-bold">{plan.name}</p>
+                  <p className="mt-1 text-[12px] text-muted-foreground">
+                    {plan.bedrooms} beds · {plan.bathrooms} bath
+                    {plan.squareFeet ? ` · ${plan.squareFeet.toLocaleString()} sq ft` : ""}
+                  </p>
+                  {plan.builderUrl && (
+                    <a
+                      href={plan.builderUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-2 inline-flex items-center gap-1 text-[12px] font-semibold text-primary hover:underline"
+                    >
+                      HomeBuilder website <CaretRight size={13} />
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {relatedListings.length > 0 && (
         <section className="mt-14 border-t border-border/70 pt-9">
-          <h2 className="text-[23px] font-bold tracking-tight">More from this community</h2>
+          <h2 className="text-[23px] font-bold tracking-tight">More listings like this</h2>
           <p className="mt-1 text-[13px] text-muted-foreground">
             Other homes and rentals in this category
           </p>
+          <div className="no-scrollbar mt-5 flex snap-x gap-4 overflow-x-auto pb-2">
+            {relatedListings.map((related) => (
+              <div key={related.id} className="w-[245px] shrink-0 snap-start sm:w-[280px]">
+                <ListingCard listing={related} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+    </main>
+  );
+}
+
+function jobDetails(listing: ClassifiedDetail) {
+  const job = listing.job;
+  return {
+    employerName: job?.employerName ?? listing.seller?.displayName ?? "the employer",
+    payRange: job ? formatJobPay(job) : formatUsd(listing.priceCents),
+    payType: job?.payType ?? "Ask employer",
+    employmentType: job?.employmentType ?? "Ask employer",
+    experienceRequired: job?.experienceRequired ?? "Ask employer",
+    educationLevel: job?.educationLevel ?? "Ask employer",
+    jobSummary: job?.jobSummary ?? listing.description ?? "",
+    responsibilities: job?.responsibilities ?? [],
+    qualifications: job?.qualifications ?? [],
+  };
+}
+
+function JobListingDetail({
+  listing,
+  title,
+  locationQuery,
+  relatedListings,
+  handleShare,
+}: {
+  listing: ClassifiedDetail;
+  title: string;
+  locationQuery: string;
+  relatedListings: ClassifiedCard[];
+  handleShare: () => Promise<void>;
+}) {
+  const [activeTab, setActiveTab] = useState<"description" | "specifications" | "map">(
+    "description",
+  );
+  const details = jobDetails(listing);
+
+  return (
+    <main className="mx-auto max-w-[1360px] px-4 py-6 sm:px-7 sm:py-8 lg:px-10">
+      <nav
+        aria-label="Breadcrumb"
+        className="flex flex-wrap items-center gap-1 text-[11.5px] text-muted-foreground"
+      >
+        <Link to="/browse" search={{}} className="hover:text-foreground">
+          All listings
+        </Link>
+        <CaretRight size={13} />
+        <Link to="/browse" search={{ category: "jobs" }} className="hover:text-foreground">
+          Jobs
+        </Link>
+        <CaretRight size={13} />
+        <span className="text-foreground">
+          {listing.city}, {listing.state}
+        </span>
+      </nav>
+
+      <header className="mt-5 border-b border-border/70 pb-5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-[28px] font-bold leading-tight tracking-tight sm:text-[38px]">
+              {title}
+            </h1>
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12.5px] text-muted-foreground">
+              <span className="flex items-center gap-1.5 text-primary">
+                <MapPin size={15} weight="fill" /> {listing.city}, {listing.state}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Clock size={15} /> Posted {postedAge(listing.createdAt).toLowerCase()}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Eye size={15} /> Local listing
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {listing.isMock ? (
+              <button
+                type="button"
+                aria-label="Save listing"
+                onClick={() => toast.info("Saving is shown here in the mock listing preview.")}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <Heart size={18} />
+              </button>
+            ) : (
+              <WatchHeartButton
+                productId={listing.productId}
+                productSlug={listing.productSlug}
+                productName={title}
+                isDemo={false}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+              />
+            )}
+            <button
+              type="button"
+              aria-label="Share listing"
+              onClick={() => void handleShare()}
+              className="grid h-10 w-10 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground"
+            >
+              <ShareNetwork size={18} />
+            </button>
+            <button
+              type="button"
+              aria-label="Print listing"
+              onClick={() => window.print()}
+              className="hidden h-10 w-10 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground sm:grid"
+            >
+              <Printer size={18} />
+            </button>
+          </div>
+        </div>
+        <p className="numeric mt-4 text-[30px] font-bold leading-none text-brand-warm sm:text-[34px]">
+          {details.payRange}
+        </p>
+      </header>
+
+      <div className="mt-6 grid gap-7 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,370px)] lg:items-start">
+        <div className="min-w-0 space-y-7">
+          <Gallery listing={listing} />
+
+          <section className="soft-card overflow-hidden">
+            <div
+              className="flex gap-1 border-b border-border/70 bg-secondary/35 p-2"
+              role="tablist"
+              aria-label="Job information"
+            >
+              {(["description", "specifications", "map"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`rounded-xl px-5 py-2.5 text-[12.5px] font-semibold capitalize transition ${activeTab === tab ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                >
+                  {tab === "specifications"
+                    ? "Job specifications"
+                    : tab === "map"
+                      ? "Map"
+                      : "Description"}
+                </button>
+              ))}
+            </div>
+            <div className="p-5 sm:p-7">
+              {activeTab === "description" && (
+                <div>
+                  <h2 className="text-[21px] font-bold">Job description</h2>
+                  <p className="mt-5 whitespace-pre-line text-[14px] leading-7 text-muted-foreground">
+                    {details.jobSummary || "The employer has not added a description yet."}
+                  </p>
+                  {details.responsibilities.length > 0 && (
+                    <div className="mt-8 border-t border-border/70 pt-6">
+                      <h3 className="text-[18px] font-bold">Key responsibilities</h3>
+                      <ul className="mt-3 space-y-2 text-[13px] leading-relaxed text-muted-foreground">
+                        {details.responsibilities.map((item) => (
+                          <li key={item} className="flex items-start gap-2">
+                            <CheckCircle
+                              size={15}
+                              weight="fill"
+                              className="mt-0.5 shrink-0 text-primary"
+                            />{" "}
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {details.qualifications.length > 0 && (
+                    <div className="mt-8 border-t border-border/70 pt-6">
+                      <h3 className="text-[18px] font-bold">Qualifications</h3>
+                      <ul className="mt-3 space-y-2 text-[13px] leading-relaxed text-muted-foreground">
+                        {details.qualifications.map((item) => (
+                          <li key={item} className="flex items-start gap-2">
+                            <CheckCircle
+                              size={15}
+                              weight="fill"
+                              className="mt-0.5 shrink-0 text-primary"
+                            />{" "}
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+              {activeTab === "specifications" && (
+                <div>
+                  <h2 className="text-[21px] font-bold">Job specifications</h2>
+                  <dl className="mt-5 divide-y divide-border/70 text-[13px]">
+                    {[
+                      ["Pay range", details.payRange],
+                      ["Pay type", details.payType],
+                      ["Employment type", details.employmentType],
+                      ["Years of experience", details.experienceRequired],
+                      ["Education level", details.educationLevel],
+                    ].map(([label, value]) => (
+                      <div key={label} className="flex items-center justify-between gap-4 py-3">
+                        <dt>{label}</dt>
+                        <dd className="text-right font-semibold text-muted-foreground">{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              )}
+              {activeTab === "map" && (
+                <div>
+                  <h2 className="text-[21px] font-bold">Location</h2>
+                  <p className="mt-2 text-[13px] text-muted-foreground">
+                    {listing.city}, {listing.state}
+                  </p>
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${locationQuery}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-4 inline-flex items-center gap-1 text-[12.5px] font-semibold text-primary hover:underline"
+                  >
+                    Get directions <CaretRight size={15} />
+                  </a>
+                  <div className="mt-4 overflow-hidden rounded-2xl border border-border/70">
+                    <iframe
+                      title="Job location map"
+                      src={`https://www.google.com/maps?q=${locationQuery}&output=embed`}
+                      className="h-[320px] w-full"
+                      loading="lazy"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+
+        <aside className="min-w-0 space-y-5 lg:sticky lg:top-24">
+          <SellerCard listing={listing} />
+          <ListingActions
+            listing={listing}
+            showPaymentCalculator={false}
+            showPriceHeader={false}
+            ctaVerb="apply"
+          />
+          <PageStatsCard listing={listing} />
+          <TrustSafetyCard listing={listing} />
+        </aside>
+      </div>
+
+      {!!listing.employerListings?.length && (
+        <section className="mt-14 border-t border-border/70 pt-9">
+          <h2 className="text-[23px] font-bold tracking-tight">
+            More Jobs from {details.employerName}
+          </h2>
+          <p className="mt-1 text-[13px] text-muted-foreground">
+            Other open positions from this employer
+          </p>
+          <div className="no-scrollbar mt-5 flex snap-x gap-4 overflow-x-auto pb-2">
+            {listing.employerListings.map((related) => (
+              <div key={related.id} className="w-[245px] shrink-0 snap-start sm:w-[280px]">
+                <ListingCard listing={related} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {relatedListings.length > 0 && (
+        <section className="mt-14 border-t border-border/70 pt-9">
+          <h2 className="text-[23px] font-bold tracking-tight">More jobs like this</h2>
+          <p className="mt-1 text-[13px] text-muted-foreground">Other listings in this category</p>
           <div className="no-scrollbar mt-5 flex snap-x gap-4 overflow-x-auto pb-2">
             {relatedListings.map((related) => (
               <div key={related.id} className="w-[245px] shrink-0 snap-start sm:w-[280px]">

@@ -1,3 +1,18 @@
+export type ClassifiedFloorplan = {
+  name: string;
+  bedrooms: number;
+  bathrooms: number;
+  squareFeet?: number | null;
+  image: string;
+  builderUrl?: string | null;
+};
+
+export type ClassifiedHomeCommunity = {
+  slug: string;
+  name: string;
+  floorplans?: ClassifiedFloorplan[];
+};
+
 export type ClassifiedHomeDetails = {
   mode: "rent" | "buy" | "build";
   propertyType: string;
@@ -13,6 +28,99 @@ export type ClassifiedHomeDetails = {
   utilities?: { label: string; paidBy: string }[];
   amenities?: string[];
   openHouse?: string | null;
+  community?: { slug: string; name: string } | null;
+  schoolDistrict?: string | null;
+  acreage?: string | null;
+  heating?: string | null;
+  cooling?: string | null;
+  garageParking?: string | null;
+  yard?: string | null;
+  appliancesIncluded?: string | null;
+  basementType?: string | null;
+  floorCoverings?: string | null;
+  exteriorMaterial?: string | null;
+  specialFeatures?: string | null;
+  hoaFees?: string | null;
+};
+
+export const homeCommunities: Record<string, ClassifiedHomeCommunity> = {
+  "banbury-meadows": {
+    slug: "banbury-meadows",
+    name: "Banbury Meadows",
+    floorplans: [
+      {
+        name: "Aspen",
+        bedrooms: 4,
+        bathrooms: 2.5,
+        squareFeet: 2410,
+        image:
+          "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=900&q=80",
+        builderUrl: "https://www.riverstonehomes.example/plans/aspen",
+      },
+      {
+        name: "Birch",
+        bedrooms: 3,
+        bathrooms: 2,
+        squareFeet: 1950,
+        image:
+          "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=900&q=80",
+        builderUrl: "https://www.riverstonehomes.example/plans/birch",
+      },
+    ],
+  },
+  "sage-creek": {
+    slug: "sage-creek",
+    name: "Sage Creek",
+    floorplans: [
+      {
+        name: "Cottonwood",
+        bedrooms: 3,
+        bathrooms: 2,
+        squareFeet: 1860,
+        image:
+          "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=900&q=80",
+        builderUrl: "https://www.riverstonehomes.example/plans/cottonwood",
+      },
+      {
+        name: "Sagewood",
+        bedrooms: 4,
+        bathrooms: 2.5,
+        squareFeet: 2240,
+        image:
+          "https://images.unsplash.com/photo-1605146769289-440113cc3d00?auto=format&fit=crop&w=900&q=80",
+        builderUrl: "https://www.riverstonehomes.example/plans/sagewood",
+      },
+    ],
+  },
+  "north-bench-highlands": {
+    slug: "north-bench-highlands",
+    name: "North Bench Highlands",
+    floorplans: [
+      {
+        name: "Highlands Custom",
+        bedrooms: 4,
+        bathrooms: 3,
+        squareFeet: 2780,
+        image:
+          "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=900&q=80",
+        builderUrl: "https://www.riverstonehomes.example/plans/highlands-custom",
+      },
+    ],
+  },
+};
+
+export type ClassifiedJobDetails = {
+  employerName: string;
+  employerAddress?: string | null;
+  payType: "Hourly" | "Salary" | "Commission" | "Contract";
+  payMin: number;
+  payMax: number;
+  employmentType: "Full-time" | "Part-time" | "Seasonal" | "Contract" | "Temporary";
+  experienceRequired?: string | null;
+  educationLevel?: string | null;
+  jobSummary: string;
+  responsibilities: string[];
+  qualifications?: string[];
 };
 
 export type MockClassifiedListing = {
@@ -35,6 +143,7 @@ export type MockClassifiedListing = {
   postalCode: string;
   sellerNote: string;
   home?: ClassifiedHomeDetails;
+  job?: ClassifiedJobDetails;
   seller: {
     slug: string;
     displayName: string;
@@ -115,6 +224,39 @@ const sellers = {
     ratingAverage: 5,
     reviewCount: 16,
     memberSince: 2015,
+    sellerType: "Business",
+  },
+  craig: {
+    slug: "mock-craig-twilite",
+    displayName: "Craig",
+    bio: "Hiring manager for Twilite Lounge, a Boise bar hiring locally since 1947.",
+    avatarUrl: null,
+    payoutVerified: true,
+    ratingAverage: 5,
+    reviewCount: 3,
+    memberSince: 2010,
+    sellerType: "Business",
+  },
+  meridianDental: {
+    slug: "mock-meridian-family-dental",
+    displayName: "Meridian Family Dental",
+    bio: "A family dental practice in Meridian hiring for our growing front office team.",
+    avatarUrl: null,
+    payoutVerified: true,
+    ratingAverage: 4.9,
+    reviewCount: 7,
+    memberSince: 2013,
+    sellerType: "Business",
+  },
+  gemStateLogistics: {
+    slug: "mock-gem-state-logistics",
+    displayName: "Gem State Logistics",
+    bio: "A Nampa-based warehousing and distribution company serving the Treasure Valley.",
+    avatarUrl: null,
+    payoutVerified: true,
+    ratingAverage: 4.7,
+    reviewCount: 11,
+    memberSince: 2017,
     sellerType: "Business",
   },
 } as const;
@@ -488,6 +630,7 @@ export const mockClassifiedListings: MockClassifiedListing[] = [
       yearBuilt: 2024,
       available: "For sale",
       sellerType: "Builder",
+      community: { slug: "banbury-meadows", name: "Banbury Meadows" },
       amenities: [
         "Quartz counters",
         "Covered patio",
@@ -585,6 +728,7 @@ export const mockClassifiedListings: MockClassifiedListing[] = [
       yearBuilt: 2023,
       available: "For sale",
       sellerType: "Builder",
+      community: { slug: "sage-creek", name: "Sage Creek" },
       amenities: ["Bright great room", "Flexible loft", "Covered front porch", "Fenced side yard"],
     },
     images: [
@@ -595,6 +739,337 @@ export const mockClassifiedListings: MockClassifiedListing[] = [
       {
         url: image("photo-1600607688969-a5bfcd646154", "Nearly new home bedroom"),
         alt: "Nearly new home bedroom",
+      },
+    ],
+  },
+  {
+    id: "mock-home-build-banbury-meadows",
+    listingNumber: "40630058",
+    title: "Banbury Meadows | The Aspen Plan by Riverstone Homes",
+    productId: "mock-product-banbury-meadows-aspen",
+    productSlug: "banbury-meadows-aspen-plan-riverstone-homes",
+    priceCents: 549_900_00,
+    city: "Eagle",
+    state: "ID",
+    region: "Treasure Valley",
+    categorySlug: "other-real-estate",
+    categoryName: "Homes",
+    condition: "new_with_tags",
+    fulfillmentMode: "local_pickup",
+    createdAt: "2026-09-16T17:30:00.000Z",
+    expiresAt: "2026-10-17T17:30:00.000Z",
+    description:
+      "The Aspen plan from Riverstone Homes is under construction now in the Banbury Meadows community. This 4 bedroom, 2.5 bathroom home offers 2,410 square feet with a main-floor primary suite, a chef's kitchen with a walk-in pantry, and a 3-car garage. Buyers can still select flooring, counters, and paint at this stage. Estimated completion is December 2026.",
+    postalCode: "83616",
+    sellerNote: "Message to tour the model home or ask about remaining lots in the phase.",
+    seller: sellers.riverstone,
+    home: {
+      mode: "build",
+      propertyType: "Single-family home",
+      bedrooms: 4,
+      bathrooms: 2.5,
+      squareFeet: 2410,
+      yearBuilt: 2026,
+      available: "Est. completion December 2026",
+      sellerType: "Builder",
+      community: { slug: "banbury-meadows", name: "Banbury Meadows" },
+      schoolDistrict: "West Ada School District",
+      acreage: "0.18 acres",
+      heating: "Forced air, gas",
+      cooling: "Central air",
+      garageParking: "3-car attached garage",
+      yard: "Sod front and back, sprinkler system",
+      appliancesIncluded: "Range, dishwasher, microwave",
+      basementType: "Crawl space",
+      floorCoverings: "Luxury vinyl plank, carpet",
+      exteriorMaterial: "Stucco with stone accents",
+      specialFeatures: "Smart thermostat, covered patio",
+      hoaFees: "$45/month",
+      amenities: [
+        "Main-floor primary suite",
+        "Walk-in pantry",
+        "3-car garage",
+        "Buyer design selections available",
+      ],
+    },
+    images: [
+      {
+        url: image("photo-1600585154526-990dced4db0d", "New construction home framing"),
+        alt: "New construction home framing",
+      },
+      {
+        url: image("photo-1600607687939-ce8a6c25118c", "New build kitchen rendering"),
+        alt: "New build kitchen rendering",
+      },
+    ],
+  },
+  {
+    id: "mock-home-build-sage-creek-cottonwood",
+    listingNumber: "40630052",
+    title: "Sage Creek | The Cottonwood Plan, Move-In Ready",
+    productId: "mock-product-sage-creek-cottonwood",
+    productSlug: "sage-creek-cottonwood-plan-move-in-ready",
+    priceCents: 462_500_00,
+    city: "Meridian",
+    state: "ID",
+    region: "Treasure Valley",
+    categorySlug: "other-real-estate",
+    categoryName: "Homes",
+    condition: "new_with_tags",
+    fulfillmentMode: "local_pickup",
+    createdAt: "2026-09-15T15:00:00.000Z",
+    expiresAt: "2026-10-16T15:00:00.000Z",
+    description:
+      "Move-in ready new build in the Sage Creek community. The Cottonwood plan has 3 bedrooms, 2 bathrooms, and 1,860 square feet with a covered patio, a flex room off the entry, and a 2-car garage. Builder warranty included. Photos are of the finished home at this address.",
+    postalCode: "83642",
+    sellerNote: "Sales office is open daily; ask about current builder incentives.",
+    seller: sellers.riverstone,
+    home: {
+      mode: "build",
+      propertyType: "Single-family home",
+      bedrooms: 3,
+      bathrooms: 2,
+      squareFeet: 1860,
+      yearBuilt: 2026,
+      available: "Move-in ready",
+      sellerType: "Builder",
+      community: { slug: "sage-creek", name: "Sage Creek" },
+      schoolDistrict: "West Ada School District",
+      acreage: "0.14 acres",
+      heating: "Forced air, gas",
+      cooling: "Central air",
+      garageParking: "2-car attached garage",
+      yard: "Sod front yard, xeriscape backyard",
+      appliancesIncluded: "Range, dishwasher, microwave",
+      basementType: "Slab, no basement",
+      floorCoverings: "Luxury vinyl plank, carpet",
+      exteriorMaterial: "Vinyl siding with stone accents",
+      specialFeatures: "Builder warranty, covered patio",
+      hoaFees: "$30/month",
+      amenities: ["Covered patio", "Flex room off entry", "2-car garage", "Builder warranty"],
+    },
+    images: [
+      {
+        url: image("photo-1600566753151-384129cf4e3e", "New build home exterior"),
+        alt: "New build home exterior",
+      },
+      {
+        url: image("photo-1600210492486-724fe5c67fb0", "New construction living room"),
+        alt: "New construction living room",
+      },
+    ],
+  },
+  {
+    id: "mock-home-build-north-bench-highlands",
+    listingNumber: "40630047",
+    title: "North Bench Highlands | Custom Build on Your Lot",
+    productId: "mock-product-north-bench-highlands",
+    productSlug: "north-bench-highlands-custom-build",
+    priceCents: 612_000_00,
+    city: "Boise",
+    state: "ID",
+    region: "Treasure Valley",
+    categorySlug: "other-real-estate",
+    categoryName: "Homes",
+    condition: "new_with_tags",
+    fulfillmentMode: "local_pickup",
+    createdAt: "2026-09-14T14:20:00.000Z",
+    expiresAt: "2026-10-15T14:20:00.000Z",
+    description:
+      "Custom build opportunity on a North Bench Highlands view lot. Riverstone Homes offers a 4 bedroom, 3 bathroom plan at 2,780 square feet with a daylight basement, a covered deck facing the foothills, and an oversized 3-car garage. Base pricing shown; final price depends on selected finishes and lot premium. Groundbreaking available for buyers who reserve this quarter.",
+    postalCode: "83703",
+    sellerNote: "Ask about available lots and current framing lumber pricing lock.",
+    seller: sellers.riverstone,
+    home: {
+      mode: "build",
+      propertyType: "Single-family home",
+      bedrooms: 4,
+      bathrooms: 3,
+      squareFeet: 2780,
+      yearBuilt: 2027,
+      available: "Reserve now, groundbreaking this quarter",
+      sellerType: "Builder",
+      community: { slug: "north-bench-highlands", name: "North Bench Highlands" },
+      schoolDistrict: "Boise School District",
+      acreage: "0.42 acres",
+      heating: "Forced air, gas (final selections pending)",
+      cooling: "Central air (final selections pending)",
+      garageParking: "3-car attached garage",
+      yard: "Graded lot, landscaping not yet installed",
+      appliancesIncluded: "Buyer selects at design center",
+      basementType: "Daylight basement",
+      floorCoverings: "Buyer selects at design center",
+      exteriorMaterial: "Board-and-batten siding with stone accents",
+      specialFeatures: "View lot, custom design center selections",
+      hoaFees: "$0",
+      amenities: [
+        "Daylight basement",
+        "Covered deck with foothill views",
+        "Oversized 3-car garage",
+        "Custom finish selections",
+      ],
+    },
+    images: [
+      {
+        url: image("photo-1600047509807-ba8f99d2cdde", "Foothill view building lot"),
+        alt: "Foothill view building lot",
+      },
+      {
+        url: image("photo-1600585154340-be6161a56a0c", "Custom home exterior rendering"),
+        alt: "Custom home exterior rendering",
+      },
+    ],
+  },
+  {
+    id: "mock-job-twilite-bouncer",
+    listingNumber: "82085343",
+    title: "Bouncer/Door Person",
+    productId: "mock-product-twilite-bouncer",
+    productSlug: "bouncer-door-person-twilite-lounge",
+    priceCents: 16_00,
+    city: "Boise",
+    state: "ID",
+    region: "Treasure Valley",
+    categorySlug: "jobs",
+    categoryName: "Jobs",
+    condition: "used_good",
+    fulfillmentMode: "local_pickup",
+    createdAt: "2026-09-17T00:00:00.000Z",
+    expiresAt: "2026-10-17T00:00:00.000Z",
+    description:
+      "Job Title: Bouncer / Security Guard\n\nJob Summary: The bouncer is responsible for ensuring a safe and secure environment for patrons, staff, and the venue. This role involves enforcing entry policies, monitoring crowd behavior, resolving conflicts, and preventing unauthorized or disruptive behavior.",
+    postalCode: "83702",
+    sellerNote: "Weekend availability required. Message Craig with your availability.",
+    seller: sellers.craig,
+    job: {
+      employerName: "Twilite Lounge",
+      employerAddress: "Boise, ID 83702",
+      payType: "Hourly",
+      payMin: 16,
+      payMax: 16,
+      employmentType: "Part-time",
+      experienceRequired: "None",
+      educationLevel: "None",
+      jobSummary:
+        "The bouncer is responsible for ensuring a safe and secure environment for patrons, staff, and the venue. This role involves enforcing entry policies, monitoring crowd behavior, resolving conflicts, and preventing unauthorized or disruptive behavior.",
+      responsibilities: [
+        "Check IDs and enforce entry policies",
+        "Monitor crowd behavior and de-escalate conflicts",
+        "Patrol the venue and respond to disturbances",
+        "Coordinate with staff on capacity and closing procedures",
+      ],
+      qualifications: [
+        "Must be 21 or older",
+        "Comfortable standing for extended shifts",
+        "Prior security or door experience a plus, not required",
+      ],
+    },
+    images: [
+      {
+        url: image("photo-1572116469696-31de0f17cc34", "Bar entrance at night"),
+        alt: "Bar entrance at night",
+      },
+    ],
+  },
+  {
+    id: "mock-job-meridian-dental-front-desk",
+    listingNumber: "82085311",
+    title: "Front Desk Receptionist",
+    productId: "mock-product-meridian-dental-front-desk",
+    productSlug: "front-desk-receptionist-meridian-family-dental",
+    priceCents: 19_00,
+    city: "Meridian",
+    state: "ID",
+    region: "Treasure Valley",
+    categorySlug: "jobs",
+    categoryName: "Jobs",
+    condition: "used_good",
+    fulfillmentMode: "local_pickup",
+    createdAt: "2026-09-16T00:00:00.000Z",
+    expiresAt: "2026-10-16T00:00:00.000Z",
+    description:
+      "Job Title: Front Desk Receptionist\n\nJob Summary: Meridian Family Dental is hiring a front desk receptionist to greet patients, manage scheduling, and handle insurance verification for our growing practice.",
+    postalCode: "83642",
+    sellerNote: "No dental experience required, front office or customer service experience helpful.",
+    seller: sellers.meridianDental,
+    job: {
+      employerName: "Meridian Family Dental",
+      employerAddress: "Meridian, ID 83642",
+      payType: "Hourly",
+      payMin: 18,
+      payMax: 21,
+      employmentType: "Full-time",
+      experienceRequired: "1+ years front office",
+      educationLevel: "High school diploma",
+      jobSummary:
+        "Meridian Family Dental is hiring a front desk receptionist to greet patients, manage scheduling, and handle insurance verification for our growing practice.",
+      responsibilities: [
+        "Greet patients and manage check-in/check-out",
+        "Schedule and confirm appointments",
+        "Verify insurance and collect payments",
+        "Answer phones and respond to patient questions",
+      ],
+      qualifications: [
+        "Comfortable with scheduling software",
+        "Strong communication and organization skills",
+        "Dental office experience a plus, not required",
+      ],
+    },
+    images: [
+      {
+        url: image("photo-1629909613654-28e377c37b09", "Dental office front desk"),
+        alt: "Dental office front desk",
+      },
+    ],
+  },
+  {
+    id: "mock-job-gem-state-logistics-warehouse",
+    listingNumber: "82085290",
+    title: "Warehouse Associate",
+    productId: "mock-product-gem-state-logistics-warehouse",
+    productSlug: "warehouse-associate-gem-state-logistics",
+    priceCents: 3_800_000,
+    city: "Nampa",
+    state: "ID",
+    region: "Treasure Valley",
+    categorySlug: "jobs",
+    categoryName: "Jobs",
+    condition: "used_good",
+    fulfillmentMode: "local_pickup",
+    createdAt: "2026-09-14T00:00:00.000Z",
+    expiresAt: "2026-10-14T00:00:00.000Z",
+    description:
+      "Job Title: Warehouse Associate\n\nJob Summary: Gem State Logistics is hiring a warehouse associate to pick, pack, and stage outbound shipments at our Nampa distribution center.",
+    postalCode: "83651",
+    sellerNote: "Steel-toed boots required on day one. Forklift certification provided on the job.",
+    seller: sellers.gemStateLogistics,
+    job: {
+      employerName: "Gem State Logistics",
+      employerAddress: "Nampa, ID 83651",
+      payType: "Salary",
+      payMin: 38_000,
+      payMax: 44_000,
+      employmentType: "Full-time",
+      experienceRequired: "None",
+      educationLevel: "None",
+      jobSummary:
+        "Gem State Logistics is hiring a warehouse associate to pick, pack, and stage outbound shipments at our Nampa distribution center.",
+      responsibilities: [
+        "Pick and pack orders accurately against pick tickets",
+        "Stage and load outbound shipments",
+        "Operate pallet jacks and forklifts (training provided)",
+        "Keep the warehouse floor clean and organized",
+      ],
+      qualifications: [
+        "Able to lift 50 lbs regularly",
+        "Reliable transportation and attendance",
+        "Forklift certification a plus, training provided",
+      ],
+    },
+    images: [
+      {
+        url: image("photo-1553413077-190dd305871c", "Warehouse distribution center interior"),
+        alt: "Warehouse distribution center interior",
       },
     ],
   },

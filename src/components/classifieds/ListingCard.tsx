@@ -6,6 +6,7 @@ import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { WatchHeartButton } from "@/components/community/WatchHeartButton";
 import {
   conditionLabels,
+  formatJobPay,
   formatMileage,
   fulfillmentLabels,
   postedAge,
@@ -40,6 +41,13 @@ function Photo({ listing, tall }: { listing: ClassifiedCard; tall?: boolean }) {
 }
 
 function Facts({ listing }: { listing: ClassifiedCard }) {
+  if (listing.job) {
+    return (
+      <p className="mt-1 truncate text-[11.5px] text-muted-foreground">
+        {listing.job.employerName} · {listing.job.employmentType}
+      </p>
+    );
+  }
   const mileage = listing.vehicle ? formatMileage(listing.vehicle.mileage) : null;
   const bits = [
     mileage,
@@ -49,6 +57,10 @@ function Facts({ listing }: { listing: ClassifiedCard }) {
   ].filter(Boolean) as string[];
   if (bits.length === 0) return null;
   return <p className="mt-1 truncate text-[11.5px] text-muted-foreground">{bits.join(" · ")}</p>;
+}
+
+function Price({ listing }: { listing: ClassifiedCard }) {
+  return <>{listing.job ? formatJobPay(listing.job) : formatUsd(listing.priceCents)}</>;
 }
 
 export function ListingCard({ listing }: { listing: ClassifiedCard }) {
@@ -73,7 +85,7 @@ export function ListingCard({ listing }: { listing: ClassifiedCard }) {
         className="block px-3.5 pb-4 pt-3.5"
       >
         <p className="numeric text-[17px] font-bold leading-none text-foreground">
-          {formatUsd(listing.priceCents)}
+          <Price listing={listing} />
         </p>
         <h3 className="mt-1.5 line-clamp-2 min-h-[34px] text-[13px] font-semibold leading-[1.3] group-hover:text-primary">
           {listing.title}
@@ -84,7 +96,9 @@ export function ListingCard({ listing }: { listing: ClassifiedCard }) {
           {listing.city}, {listing.state}
         </p>
         <div className="mt-2 flex items-center justify-between gap-2 text-[10.5px] text-muted-foreground">
-          <span className="truncate">{fulfillmentLabels[listing.fulfillmentMode]}</span>
+          <span className="truncate">
+            {listing.job ? "Apply now" : fulfillmentLabels[listing.fulfillmentMode]}
+          </span>
           <span className="shrink-0">{postedAge(listing.createdAt)}</span>
         </div>
       </Link>
@@ -107,13 +121,14 @@ export function ListingRow({ listing }: { listing: ClassifiedCard }) {
               {listing.title}
             </h3>
             <p className="numeric text-[17px] font-bold leading-none">
-              {formatUsd(listing.priceCents)}
+              <Price listing={listing} />
             </p>
           </div>
           <Facts listing={listing} />
           <p className="mt-2 flex items-center gap-1 truncate text-[11.5px] text-muted-foreground">
             <MapPin size={12} weight="fill" className="shrink-0 text-primary" />
-            {listing.city}, {listing.state} · {fulfillmentLabels[listing.fulfillmentMode]}
+            {listing.city}, {listing.state} ·{" "}
+            {listing.job ? "Apply now" : fulfillmentLabels[listing.fulfillmentMode]}
           </p>
           <p className="mt-1 text-[10.5px] text-muted-foreground">{postedAge(listing.createdAt)}</p>
         </div>
