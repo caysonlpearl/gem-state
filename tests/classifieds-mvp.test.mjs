@@ -37,6 +37,9 @@ const classifiedSchemaSource = await read(
 const inquiryMigrationSource = await read(
   "supabase/migrations/20260915160000_add_classified_listing_inquiries.sql",
 );
+const inquiryRpcMigrationSource = await read(
+  "supabase/migrations/20260917222000_secure_classified_inquiry_rpc.sql",
+);
 const inquiryWriteLockMigrationSource = await read(
   "supabase/migrations/20260915180000_lock_classified_inquiry_writes.sql",
 );
@@ -103,7 +106,7 @@ test("browse and create flows expose the same vehicle fields", () => {
 });
 
 test("classified MVP contacts the seller while future checkout stays available", () => {
-  assert.match(actionsSource, /sendClassifiedListingInquiry/);
+  assert.match(actionsSource, /create_listing_inquiry/);
   assert.match(actionsSource, /Contact seller/);
   assert.match(actionsSource, /Send message/);
   assert.doesNotMatch(actionsSource, /ParkVaultCheckoutFlow/);
@@ -112,10 +115,9 @@ test("classified MVP contacts the seller while future checkout stays available",
 });
 
 test("buyer inquiries are stored against the exact listing and shown to its seller", () => {
-  assert.match(inquirySource, /sendClassifiedListingInquiry/);
-  assert.match(inquirySource, /listing_id: data\.listingId/);
-  assert.match(inquirySource, /seller_id: listing\.seller_id/);
-  assert.match(inquirySource, /buyer_email: email/);
+  assert.match(inquirySource, /create_listing_inquiry/);
+  assert.match(inquirySource, /_listing_id: data\.listingId/);
+  assert.match(inquiryMigrationSource, /listing_id uuid[\s\S]*seller_id uuid[\s\S]*buyer_id uuid/);
   assert.match(inquirySource, /getSellerListingInquiries/);
   assert.match(inquiryMigrationSource, /create table if not exists public\.listing_inquiries/);
   assert.match(inquiryMigrationSource, /buyer_id = auth\.uid\(\)/);
@@ -144,8 +146,10 @@ test("classified inquiry writes are server-only", () => {
     inquiryWriteLockMigrationSource,
     /drop policy if exists "Sellers update listing inquiries"/,
   );
-  assert.match(inquirySource, /const admin = supabaseAdmin as any/);
-  assert.match(inquirySource, /\.from\("listing_inquiries"\)/);
+  assert.match(inquiryRpcMigrationSource, /SECURITY DEFINER/);
+  assert.match(inquiryRpcMigrationSource, /auth\.uid\(\)/);
+  assert.match(inquirySource, /create_listing_inquiry/);
+  assert.doesNotMatch(inquirySource, /supabaseAdmin/);
 });
 
 test("switching away from vehicle categories clears vehicle-only browse filters", () => {
