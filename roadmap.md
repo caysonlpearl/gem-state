@@ -22,9 +22,9 @@
 
 ## Migrate off Lovable Cloud to user's own Supabase
 - [x] Explain why connect was blocked (Cloud attached; connect lives in Project Settings → Integrations)
-- [ ] Export: schema + RLS + functions (pg-style dump), data rows, storage objects, auth config, secrets list, email templates, cron
-- [ ] User disconnects Cloud (Project Settings → Integrations) — destructive, only after export confirmed
+- [x] Export: schema (69 tables, 148 functions, 131 policies, grants), data, 8 auth accounts, 8 buckets, 18 storage files → /mnt/documents/gemstate-classifieds-db-backup.zip
+- [ ] User disconnects Cloud (Project Settings → Integrations) — destructive, backup confirmed
 - [ ] User connects their Supabase project in Project Settings → Integrations
 - [ ] Restore schema + data + storage into the new project
-- [ ] Re-wire secrets (Stripe, Shippo, webhook secrets), auth providers, email templates/domains
+- [ ] Re-wire secrets (Stripe, Shippo, webhook secrets, site URL), auth providers, email templates/domains
 - [ ] Verify checkout, sign-in, listing flows end-to-end on the new backend
