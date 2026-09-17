@@ -24,18 +24,38 @@ function Photo({ listing, tall }: { listing: ClassifiedCard; tall?: boolean }) {
         <span className="relative grid h-14 w-14 place-items-center rounded-2xl bg-card/75 text-primary shadow-sm backdrop-blur">
           <CategoryArtwork slug={listing.categorySlug ?? "general"} size={84} />
         </span>
+        {listing.vehicle && <CarfaxBadge />}
       </div>
     );
   }
   return (
-    <div className={`${ratio} overflow-hidden bg-secondary`}>
+    <div className={`relative ${ratio} overflow-hidden bg-secondary`}>
       <img
         src={listing.imageUrl}
         alt={listing.title}
         loading="lazy"
         className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
       />
+      {listing.vehicle && <CarfaxBadge />}
     </div>
+  );
+}
+
+function CarfaxBadge() {
+  return (
+    <span
+      aria-label="CARFAX Vehicle History"
+      className="absolute bottom-2 left-2 z-10 inline-flex items-center gap-1.5 rounded-md bg-[#101820]/95 px-2 py-1.5 text-white shadow-lg ring-1 ring-white/35"
+    >
+      <span className="border-r border-white/35 pr-1.5 text-[11px] font-black leading-none tracking-[-0.04em]">
+        CARFAX
+      </span>
+      <span className="text-[8px] font-bold uppercase leading-[1.05] tracking-[0.08em] text-[#f6b544]">
+        Vehicle
+        <br />
+        History
+      </span>
+    </span>
   );
 }
 
