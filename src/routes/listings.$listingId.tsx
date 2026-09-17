@@ -187,8 +187,8 @@ function Gallery({ listing }: { listing: ClassifiedDetail }) {
           data-reference-layout="row-span-2"
         >
           <img
-            src={images[activeImage].url}
-            alt={images[activeImage].alt}
+            src={images[activeImage]?.url}
+            alt={images[activeImage]?.alt ?? ""}
             className="max-h-[560px] w-full object-contain"
             fetchPriority="high"
           />
