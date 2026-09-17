@@ -34,8 +34,12 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 export const requireSupabaseAuth = createMiddleware({ type: 'function' }).server(
   async ({ next }) => {
     
-    const SUPABASE_URL = process.env['SUPABASE_URL'];
-    const SUPABASE_PUBLISHABLE_KEY = process.env['SUPABASE_PUBLISHABLE_KEY'];
+    // Lovable reserves SUPABASE_* names for its managed backend. Use the
+    // Gem State names in hosted environments, with the legacy names retained
+    // for local development and any existing deployments.
+    const SUPABASE_URL = process.env['GEM_STATE_SUPABASE_URL'] || process.env['SUPABASE_URL'];
+    const SUPABASE_PUBLISHABLE_KEY =
+      process.env['GEM_STATE_SUPABASE_PUBLISHABLE_KEY'] || process.env['SUPABASE_PUBLISHABLE_KEY'];
 
     if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
       const missing = [

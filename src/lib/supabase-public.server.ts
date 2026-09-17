@@ -6,9 +6,12 @@ import type { Database } from "@/integrations/supabase/types";
  * RLS still applies as `anon`, so only published catalog rows are reachable.
  */
 export function publicServerClient() {
-  const key = (process.env["SUPABASE_PUBLISHABLE_KEY"] ||
+  const key = (process.env["GEM_STATE_SUPABASE_PUBLISHABLE_KEY"] ||
+    process.env["SUPABASE_PUBLISHABLE_KEY"] ||
     import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"]) as string;
-  const url = (process.env["SUPABASE_URL"] || import.meta.env["VITE_SUPABASE_URL"]) as string;
+  const url = (process.env["GEM_STATE_SUPABASE_URL"] ||
+    process.env["SUPABASE_URL"] ||
+    import.meta.env["VITE_SUPABASE_URL"]) as string;
 
   return createClient<Database>(url, key, {
     auth: { persistSession: false, autoRefreshToken: false },
