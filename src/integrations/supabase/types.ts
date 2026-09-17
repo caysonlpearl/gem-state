@@ -4339,7 +4339,6 @@ export type Database = {
       }
     }
     Functions: {
-      _run_restore: { Args: { batch?: number }; Returns: number }
       accept_shopper_quote: { Args: { _quote_id: string }; Returns: string }
       admin_add_product_image: {
         Args: {
