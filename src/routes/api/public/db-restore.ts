@@ -18,8 +18,8 @@ export const Route = createFileRoute("/api/public/db-restore")({
         if (request.headers.get("x-restore-token") !== RESTORE_TOKEN) {
           return new Response("Forbidden", { status: 403 });
         }
-        const sqlText = await request.text();
-        if (!sqlText.trim()) {
+        const body = await request.text();
+        if (!body.trim()) {
           return new Response("Empty body", { status: 400 });
         }
         let dbUrl = process.env["SUPABASE_DB_URL"] ?? "";
@@ -33,8 +33,8 @@ export const Route = createFileRoute("/api/public/db-restore")({
         const client = new Client({ connectionString: dbUrl, ssl: { rejectUnauthorized: false } });
         try {
           await client.connect();
-          await client.query(sqlText);
-          return new Response(JSON.stringify({ ok: true }), {
+          await client.query("INSERT INTO public._restore_chunks (body) VALUES ($1)", [body]);
+          return new Response(JSON.stringify({ ok: true, bytes: body.length }), {
             headers: { "Content-Type": "application/json" },
           });
         } catch (err) {
