@@ -706,6 +706,24 @@ test("general classifieds have mock detail fixtures without changing category se
   assert.match(detailSource, /showPaymentCalculator={false}/);
 });
 
+test("job and service previews link to realistic mock listing details", () => {
+  for (const listing of [
+    "mock-job-twilite-bouncer",
+    "mock-job-meridian-dental-front-desk",
+    "mock-job-gem-state-logistics-warehouse",
+    "mock-service-boise-home-works",
+    "mock-service-treasure-valley-lawn",
+    "mock-service-gem-state-tech",
+  ]) {
+    assert.match(mockListingsSource, new RegExp(listing));
+    assert.match(browseSource, new RegExp(listing));
+  }
+  assert.match(browseSource, /to="\/listings\/\$listingId"/);
+  assert.match(classifiedsFunctionsSource, /service\?: ClassifiedServiceDetails/);
+  assert.match(listingCardSource, /listing\.service\?\.pricing/);
+  assert.match(detailSource, /listing\.service\?\.pricing/);
+});
+
 test("home listings use a rental-specific detail layout", () => {
   assert.match(mockListingsSource, /mock-home-rental-crescent-townhome/);
   assert.match(mockListingsSource, /mock-home-rental-parkside-flats/);

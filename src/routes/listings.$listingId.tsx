@@ -1727,7 +1727,7 @@ function GeneralListingDetail({
               </span>
             </div>
             <p className="numeric mt-4 text-[32px] font-bold leading-none text-primary">
-              {formatUsd(listing.priceCents)}
+              {listing.service?.pricing ?? formatUsd(listing.priceCents)}
             </p>
             <div className="mt-5 flex items-center gap-2">
               {listing.isMock ? (

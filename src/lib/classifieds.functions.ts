@@ -9,6 +9,7 @@ import {
   type ClassifiedFloorplan,
   type ClassifiedHomeDetails,
   type ClassifiedJobDetails,
+  type ClassifiedServiceDetails,
 } from "@/config/classified-mocks";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
@@ -60,6 +61,7 @@ export type ClassifiedCard = {
   vehicle: ClassifiedVehicle | null;
   home?: ClassifiedHomeDetails | null;
   job?: ClassifiedJobDetails | null;
+  service?: ClassifiedServiceDetails | null;
   isMock?: boolean;
   listingNumber?: string;
 };
@@ -598,6 +600,7 @@ function mockCard(listing: (typeof mockClassifiedListings)[number]): ClassifiedC
     vehicle: null,
     home: listing.home ?? null,
     job: listing.job ?? null,
+    service: listing.service ?? null,
     isMock: true,
     listingNumber: listing.listingNumber,
   };

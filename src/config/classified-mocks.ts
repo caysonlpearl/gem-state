@@ -123,6 +123,15 @@ export type ClassifiedJobDetails = {
   qualifications?: string[];
 };
 
+export type ClassifiedServiceDetails = {
+  subcategory: string;
+  pricing: string;
+  serviceArea: string;
+  availability: string;
+  serviceSummary: string;
+  offerings: string[];
+};
+
 export type MockClassifiedListing = {
   id: string;
   listingNumber: string;
@@ -144,6 +153,7 @@ export type MockClassifiedListing = {
   sellerNote: string;
   home?: ClassifiedHomeDetails;
   job?: ClassifiedJobDetails;
+  service?: ClassifiedServiceDetails;
   seller: {
     slug: string;
     displayName: string;
@@ -152,6 +162,8 @@ export type MockClassifiedListing = {
     payoutVerified: boolean;
     ratingAverage: number;
     reviewCount: number;
+    contactPhone?: string;
+    contactEmail?: string;
   };
   images: { url: string; alt: string }[];
 };
@@ -258,6 +270,47 @@ const sellers = {
     reviewCount: 11,
     memberSince: 2017,
     sellerType: "Business",
+    contactPhone: "208-555-0103",
+    contactEmail: "hiring@gemstatelogistics.example",
+  },
+  boiseHomeWorks: {
+    slug: "mock-boise-home-works",
+    displayName: "Boise Home Works",
+    bio: "A local handyman team helping Treasure Valley homeowners keep projects moving.",
+    avatarUrl: null,
+    payoutVerified: true,
+    ratingAverage: 4.9,
+    reviewCount: 18,
+    memberSince: 2022,
+    sellerType: "Business",
+    contactPhone: "208-555-0104",
+    contactEmail: "hello@boisehomeworks.example",
+  },
+  treasureValleyLawn: {
+    slug: "mock-treasure-valley-lawn",
+    displayName: "Treasure Valley Lawn Co.",
+    bio: "Reliable weekly lawn care and sprinkler help for homes across the Treasure Valley.",
+    avatarUrl: null,
+    payoutVerified: true,
+    ratingAverage: 5,
+    reviewCount: 27,
+    memberSince: 2020,
+    sellerType: "Business",
+    contactPhone: "208-555-0105",
+    contactEmail: "quotes@treasurevalleylawn.example",
+  },
+  gemStateTech: {
+    slug: "mock-gem-state-tech",
+    displayName: "Gem State Tech Help",
+    bio: "Friendly in-home technology help for families, remote workers, and small offices.",
+    avatarUrl: null,
+    payoutVerified: false,
+    ratingAverage: 4.8,
+    reviewCount: 9,
+    memberSince: 2023,
+    sellerType: "Private",
+    contactPhone: "208-555-0106",
+    contactEmail: "help@gemstatetech.example",
   },
 } as const;
 
@@ -1070,6 +1123,144 @@ export const mockClassifiedListings: MockClassifiedListing[] = [
       {
         url: image("photo-1553413077-190dd305871c", "Warehouse distribution center interior"),
         alt: "Warehouse distribution center interior",
+      },
+    ],
+  },
+  {
+    id: "mock-service-boise-home-works",
+    listingNumber: "83010421",
+    title: "Boise Home Works | Handyman & Drywall Repair",
+    productId: "mock-product-boise-home-works",
+    productSlug: "boise-home-works-handyman-drywall-repair",
+    priceCents: 0,
+    city: "Boise",
+    state: "ID",
+    region: "Treasure Valley",
+    categorySlug: "services",
+    categoryName: "Services",
+    condition: "new_with_tags",
+    fulfillmentMode: "local_pickup",
+    createdAt: "2026-09-17T10:30:00.000Z",
+    expiresAt: "2026-10-17T10:30:00.000Z",
+    description:
+      "Boise Home Works helps homeowners with the projects that never seem to make it to the top of the list. We handle drywall patching, interior repairs, trim, doors, and small remodel punch lists with clear scheduling and upfront communication.",
+    postalCode: "83704",
+    sellerNote: "Send a few photos of the project and your preferred timing for a quick estimate.",
+    seller: sellers.boiseHomeWorks,
+    service: {
+      subcategory: "Handyman",
+      pricing: "Call for quote",
+      serviceArea: "Boise, Meridian, Eagle, and nearby Treasure Valley communities",
+      availability: "Weekday and Saturday appointments",
+      serviceSummary:
+        "Practical home repairs and small improvement projects from a local Treasure Valley team.",
+      offerings: [
+        "Drywall patching and texture matching",
+        "Trim, doors, and hardware installation",
+        "Small remodel punch lists",
+        "Interior repairs and finish work",
+      ],
+    },
+    images: [
+      {
+        url: image("photo-1504148455328-c376907d081c", "Handyman tools and home repair work"),
+        alt: "Handyman tools and home repair work",
+      },
+      {
+        url: image("photo-1562259949-e8e7689d7828", "Interior wall repair and painting"),
+        alt: "Interior wall repair and painting",
+      },
+    ],
+  },
+  {
+    id: "mock-service-treasure-valley-lawn",
+    listingNumber: "83010408",
+    title: "Treasure Valley Lawn Co. | Lawn Care & Sprinklers",
+    productId: "mock-product-treasure-valley-lawn",
+    productSlug: "treasure-valley-lawn-care-sprinklers",
+    priceCents: 4_500,
+    city: "Meridian",
+    state: "ID",
+    region: "Treasure Valley",
+    categorySlug: "services",
+    categoryName: "Services",
+    condition: "new_with_tags",
+    fulfillmentMode: "local_pickup",
+    createdAt: "2026-09-16T15:45:00.000Z",
+    expiresAt: "2026-10-16T15:45:00.000Z",
+    description:
+      "Keep your yard looking good without giving up every Saturday. Treasure Valley Lawn Co. offers recurring mowing, seasonal cleanup, sprinkler checks, and basic landscape maintenance for homes and small businesses.",
+    postalCode: "83642",
+    sellerNote: "Ask about weekly service, one-time cleanup, and sprinkler repair availability.",
+    seller: sellers.treasureValleyLawn,
+    service: {
+      subcategory: "Lawn Care & Maintenance",
+      pricing: "From $45 / visit",
+      serviceArea: "Meridian, Boise, Eagle, Star, and Nampa",
+      availability: "Weekly routes available; spring and fall cleanups",
+      serviceSummary:
+        "Recurring lawn care and sprinkler help tailored to Treasure Valley homes and small businesses.",
+      offerings: [
+        "Weekly mowing and edging",
+        "Spring and fall yard cleanup",
+        "Sprinkler startup and winterization",
+        "Basic landscape maintenance",
+      ],
+    },
+    images: [
+      {
+        url: image("photo-1558904541-efa843a96f01", "Freshly maintained residential lawn"),
+        alt: "Freshly maintained residential lawn",
+      },
+      {
+        url: image("photo-1599685315640-3f3c8e3d9b4b", "Lawn care and landscaping service"),
+        alt: "Lawn care and landscaping service",
+      },
+    ],
+  },
+  {
+    id: "mock-service-gem-state-tech",
+    listingNumber: "83010394",
+    title: "Gem State Tech Help | Home Wi-Fi & Computer Setup",
+    productId: "mock-product-gem-state-tech",
+    productSlug: "gem-state-tech-help-home-wifi-computer-setup",
+    priceCents: 8_500,
+    city: "Boise",
+    state: "ID",
+    region: "Treasure Valley",
+    categorySlug: "services",
+    categoryName: "Services",
+    condition: "new_with_tags",
+    fulfillmentMode: "local_pickup",
+    createdAt: "2026-09-15T19:20:00.000Z",
+    expiresAt: "2026-10-15T19:20:00.000Z",
+    description:
+      "Need a hand getting the technology at home to work the way it should? Gem State Tech Help provides friendly in-home setup for Wi-Fi, printers, computers, smart TVs, and small-office basics, with patient explanations and no confusing jargon.",
+    postalCode: "83702",
+    sellerNote: "Tell us what is not working and whether you prefer an in-home or remote appointment.",
+    seller: sellers.gemStateTech,
+    service: {
+      subcategory: "IT Services",
+      pricing: "From $85 / visit",
+      serviceArea: "Boise, Meridian, Eagle, and remote support across Idaho",
+      availability: "Evening and weekend appointments available",
+      serviceSummary:
+        "Patient, practical technology help for homes, remote workers, and small offices.",
+      offerings: [
+        "Home Wi-Fi setup and troubleshooting",
+        "Computer and printer setup",
+        "Smart TV and streaming setup",
+        "Small-office technology tune-ups",
+      ],
+    },
+    images: [
+      {
+        url: image("photo-1516321318423-f06f85e504b3", "Laptop and home technology setup"),
+        alt: "Laptop and home technology setup",
+      },
+      {
+        url: image("photo-1558494949-ef010cbdcc31", "Home networking equipment"),
+        alt: "Home networking equipment",
       },
     ],
   },

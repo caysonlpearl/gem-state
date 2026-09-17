@@ -248,6 +248,7 @@ const vehicleConditionOptions = [
 ] as const;
 const vehicleSellerTypeOptions = ["Private", "Dealer"] as const;
 type JobPreviewCard = {
+  listingId?: string;
   title: string;
   employer: string;
   location: string;
@@ -280,9 +281,9 @@ const jobPreviewRows: { title: string; action: string; cards: JobPreviewCard[] }
     title: "Newest listings",
     action: "Browse all jobs",
     cards: [
-      { title: "Laborer needed", employer: "JB Landscaping & Construction", location: "Salt Lake City, UT", pay: "$18–$20/hr", image: "https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=900&q=80" },
-      { title: "Development Director", employer: "Weber State University", location: "Ogden, UT", pay: "$75k–$145k/yr", image: "https://images.unsplash.com/photo-1523240795612-9a054b0db644?auto=format&fit=crop&w=900&q=80" },
-      { title: "Sales Representative", employer: "Gem State Home Services", location: "Salt Lake City, UT", pay: "$18–$26/hr", image: "https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=900&q=80" },
+      { listingId: "mock-job-twilite-bouncer", title: "Bouncer / Door Person", employer: "Twilite Lounge", location: "Boise, ID", pay: "$16/hr", image: "https://images.unsplash.com/photo-1572116469696-31de0f17cc34?auto=format&fit=crop&w=900&q=80" },
+      { listingId: "mock-job-meridian-dental-front-desk", title: "Front Desk Receptionist", employer: "Meridian Family Dental", location: "Meridian, ID", pay: "$18–$21/hr", image: "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=900&q=80" },
+      { listingId: "mock-job-gem-state-logistics-warehouse", title: "Warehouse Associate", employer: "Gem State Logistics", location: "Nampa, ID", pay: "$38k–$44k/yr", image: "https://images.unsplash.com/photo-1553413077-190dd305871c?auto=format&fit=crop&w=900&q=80" },
       { title: "Human Resources Coordinator", employer: "B&D Bush Excavation", location: "Bluffdale, UT", pay: "Salary", image: "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=900&q=80" },
     ],
   },
@@ -422,6 +423,7 @@ const serviceConditionOptions = ["Any condition", "New", "Used", "Like new"] as 
 const serviceTimeOnSiteOptions = ["Any time", "Last hour", "Last 24 hours", "Last 7 days", "Last 30 days"] as const;
 
 type ServicePreviewCard = {
+  listingId?: string;
   title: string;
   location: string;
   age: string;
@@ -430,9 +432,9 @@ type ServicePreviewCard = {
 };
 
 const servicePreviewRows: ServicePreviewCard[] = [
-  { title: "Hardwood | LVP | Laminate flooring", location: "South Jordan, UT", age: "", price: "Call for quote", image: "https://images.unsplash.com/photo-1560185008-b033106af5c3?auto=format&fit=crop&w=900&q=80" },
-  { title: "General Contractor | New Home Construction | Home Additions", location: "Salt Lake City, UT", age: "", price: "Call for quote", image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=900&q=80" },
-  { title: "Fence Installation & Repair | Vinyl Fence | Wood Fence", location: "Salt Lake City, UT", age: "", price: "Call for quote", image: "https://images.unsplash.com/photo-1558904541-efa843a96f01?auto=format&fit=crop&w=900&q=80" },
+  { listingId: "mock-service-boise-home-works", title: "Boise Home Works | Handyman & Drywall Repair", location: "Boise, ID", age: "Just listed", price: "Call for quote", image: "https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=900&q=80" },
+  { listingId: "mock-service-treasure-valley-lawn", title: "Treasure Valley Lawn Co. | Lawn Care & Sprinklers", location: "Meridian, ID", age: "1 day", price: "From $45 / visit", image: "https://images.unsplash.com/photo-1558904541-efa843a96f01?auto=format&fit=crop&w=900&q=80" },
+  { listingId: "mock-service-gem-state-tech", title: "Gem State Tech Help | Home Wi-Fi & Computer Setup", location: "Boise, ID", age: "2 days", price: "From $85 / visit", image: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=80" },
   { title: "All Pro Handyman | Home Repairs | Remodels | Drywall", location: "West Jordan, UT", age: "", price: "Call for quote", image: "https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=900&q=80" },
   { title: "NT llc", location: "Salt Lake City, UT", age: "1 Hour", price: "Call for quote", image: "https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&w=900&q=80" },
   { title: "Medico Excavation & Landscape", location: "Collinston, UT", age: "1 Hour", price: "Call for quote", image: "https://images.unsplash.com/photo-1558904541-efa843a96f01?auto=format&fit=crop&w=900&q=80" },
@@ -1896,7 +1898,8 @@ function ServiceToggle({ label, checked, onChange }: { label: string; checked: b
 }
 
 function ServiceCard({ card, favorites }: { card: ServicePreviewCard; favorites: number }) {
-  return <article className="group overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm transition-shadow hover:shadow-lg"><div className="relative aspect-[4/3] overflow-hidden bg-secondary"><img src={card.image} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" /><span className="absolute left-3 top-3 rounded-md bg-primary/85 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.12em] text-primary-foreground">Service</span></div><div className="p-4"><h3 className="min-h-[36px] text-[15px] font-bold leading-tight">{card.title}</h3><p className="mt-2 flex items-center gap-1 text-[11.5px] text-primary"><MapPin size={12} aria-hidden="true" />{card.location}{card.age ? <><span className="text-muted-foreground">|</span><span className="text-foreground">{card.age}</span></> : null}</p><div className="mt-5 flex items-end justify-between gap-2"><p className="text-[18px] font-bold text-primary">{card.price}</p><span className="text-[12px] text-muted-foreground">♡ {favorites}</span></div></div></article>;
+  const content = <article className="group overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm transition-shadow hover:shadow-lg"><div className="relative aspect-[4/3] overflow-hidden bg-secondary"><img src={card.image} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" /><span className="absolute left-3 top-3 rounded-md bg-primary/85 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.12em] text-primary-foreground">Service</span></div><div className="p-4"><h3 className="min-h-[36px] text-[15px] font-bold leading-tight">{card.title}</h3><p className="mt-2 flex items-center gap-1 text-[11.5px] text-primary"><MapPin size={12} aria-hidden="true" />{card.location}{card.age ? <><span className="text-muted-foreground">|</span><span className="text-foreground">{card.age}</span></> : null}</p><div className="mt-5 flex items-end justify-between gap-2"><p className="text-[18px] font-bold text-primary">{card.price}</p><span className="text-[12px] text-muted-foreground">♡ {favorites}</span></div></div></article>;
+  return card.listingId ? <Link to="/listings/$listingId" params={{ listingId: card.listingId }} className="block">{content}</Link> : content;
 }
 
 function JobsLandingHero({
@@ -2122,7 +2125,8 @@ function JobToggle({ label, checked, onChange }: { label: string; checked: boole
 }
 
 function JobCard({ card }: { card: (typeof jobPreviewRows)[number]["cards"][number] }) {
-  return <article className="group overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm transition-shadow hover:shadow-lg"><div className="relative aspect-[4/3] overflow-hidden bg-secondary"><img src={card.image} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" /><span className="absolute left-3 top-3 rounded-md bg-primary/85 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.12em] text-primary-foreground">Job</span></div><div className="p-4"><h3 className="min-h-[36px] text-[15px] font-bold leading-tight">{card.title}</h3><p className="mt-1 text-[12px] text-muted-foreground">{card.employer}</p><p className="mt-2 flex items-center gap-1 text-[11.5px] text-muted-foreground"><MapPin size={12} className="text-primary" aria-hidden="true" />{card.location}</p><p className="mt-5 text-[18px] font-bold text-primary">{card.pay}</p></div></article>;
+  const content = <article className="group overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm transition-shadow hover:shadow-lg"><div className="relative aspect-[4/3] overflow-hidden bg-secondary"><img src={card.image} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" /><span className="absolute left-3 top-3 rounded-md bg-primary/85 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.12em] text-primary-foreground">Job</span></div><div className="p-4"><h3 className="min-h-[36px] text-[15px] font-bold leading-tight">{card.title}</h3><p className="mt-1 text-[12px] text-muted-foreground">{card.employer}</p><p className="mt-2 flex items-center gap-1 text-[11.5px] text-muted-foreground"><MapPin size={12} className="text-primary" aria-hidden="true" />{card.location}</p><p className="mt-5 text-[18px] font-bold text-primary">{card.pay}</p></div></article>;
+  return card.listingId ? <Link to="/listings/$listingId" params={{ listingId: card.listingId }} className="block">{content}</Link> : content;
 }
 
 function HomesFilterPage({
