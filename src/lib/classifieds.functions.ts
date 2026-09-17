@@ -719,7 +719,12 @@ export const browseClassifieds = createServerFn({ method: "GET" })
       : "newest",
     page: Math.max(1, Math.min(50, Number(input?.page ?? 1) || 1)),
   }))
-  .handler(async ({ data }): Promise<ClassifiedBrowseResult> => {
+  .handler(async ({ data }): Promise<ClassifiedBrowseResult> => runBrowseClassifieds(data));
+
+async function runBrowseClassifieds(
+  data: ClassifiedBrowseInput,
+): Promise<ClassifiedBrowseResult> {
+  {
     const client = publicServerClient();
     const page = data.page ?? 1;
     const empty = { listings: [], total: 0, page, pageSize: PAGE_SIZE };
@@ -893,7 +898,8 @@ export const browseClassifieds = createServerFn({ method: "GET" })
       page,
       pageSize: PAGE_SIZE,
     };
-  });
+  }
+}
 
 export const getClassifiedListing = createServerFn({ method: "GET" })
   .inputValidator((input: { id: string }) => ({ id: String(input.id).slice(0, 64) }))
@@ -1006,8 +1012,8 @@ export const getClassifiedsHome = createServerFn({ method: "GET" }).handler(
         .gt("expires_at", nowIso)
         .eq("products.status", "published")
         .limit(1000),
-      browseClassifieds({ data: { group: "motors", sort: "newest", page: 1 } }),
-      browseClassifieds({ data: { sort: "newest", page: 1 } }),
+      runBrowseClassifieds({ group: "motors", sort: "newest", page: 1 }),
+      runBrowseClassifieds({ sort: "newest", page: 1 }),
     ]);
 
     const categoryCounts: Record<string, number> = {};
