@@ -41,7 +41,6 @@ import { Route as AuthenticatedAdminProductsRouteImport } from './routes/_authen
 import { Route as AuthenticatedAdminValidationRouteImport } from './routes/_authenticated/admin.validation'
 import { Route as AuthenticatedOrdersOrderIdRouteImport } from './routes/_authenticated/orders.$orderId'
 import { Route as ApiInternalReviewEmailsRouteImport } from './routes/api/internal/review-emails'
-import { Route as ApiPublicDbRestoreRouteImport } from './routes/api/public/db-restore'
 import { Route as AuthenticatedAdminOrdersOrderIdRouteImport } from './routes/_authenticated/admin.orders.$orderId'
 import { Route as AuthenticatedListingsListingIdEditRouteImport } from './routes/_authenticated/listings.$listingId.edit'
 import { Route as ApiPublicCatalogMediaSplatRouteImport } from './routes/api/public/catalog-media.$'
@@ -219,11 +218,6 @@ const ApiInternalReviewEmailsRoute = ApiInternalReviewEmailsRouteImport.update({
   path: '/api/internal/review-emails',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiPublicDbRestoreRoute = ApiPublicDbRestoreRouteImport.update({
-  id: '/api/public/db-restore',
-  path: '/api/public/db-restore',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AuthenticatedAdminOrdersOrderIdRoute =
   AuthenticatedAdminOrdersOrderIdRouteImport.update({
     id: '/admin/orders/$orderId',
@@ -290,7 +284,6 @@ export interface FileRoutesByFullPath {
   '/admin/validation': typeof AuthenticatedAdminValidationRoute
   '/orders/$orderId': typeof AuthenticatedOrdersOrderIdRoute
   '/api/internal/review-emails': typeof ApiInternalReviewEmailsRoute
-  '/api/public/db-restore': typeof ApiPublicDbRestoreRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/admin/orders/$orderId': typeof AuthenticatedAdminOrdersOrderIdRoute
   '/listings/$listingId/edit': typeof AuthenticatedListingsListingIdEditRoute
@@ -330,7 +323,6 @@ export interface FileRoutesByTo {
   '/admin/validation': typeof AuthenticatedAdminValidationRoute
   '/orders/$orderId': typeof AuthenticatedOrdersOrderIdRoute
   '/api/internal/review-emails': typeof ApiInternalReviewEmailsRoute
-  '/api/public/db-restore': typeof ApiPublicDbRestoreRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/admin/orders/$orderId': typeof AuthenticatedAdminOrdersOrderIdRoute
   '/listings/$listingId/edit': typeof AuthenticatedListingsListingIdEditRoute
@@ -372,7 +364,6 @@ export interface FileRoutesById {
   '/_authenticated/admin/validation': typeof AuthenticatedAdminValidationRoute
   '/_authenticated/orders/$orderId': typeof AuthenticatedOrdersOrderIdRoute
   '/api/internal/review-emails': typeof ApiInternalReviewEmailsRoute
-  '/api/public/db-restore': typeof ApiPublicDbRestoreRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/admin/orders/$orderId': typeof AuthenticatedAdminOrdersOrderIdRoute
   '/_authenticated/listings/$listingId/edit': typeof AuthenticatedListingsListingIdEditRoute
@@ -414,7 +405,6 @@ export interface FileRouteTypes {
     | '/admin/validation'
     | '/orders/$orderId'
     | '/api/internal/review-emails'
-    | '/api/public/db-restore'
     | '/admin/'
     | '/admin/orders/$orderId'
     | '/listings/$listingId/edit'
@@ -454,7 +444,6 @@ export interface FileRouteTypes {
     | '/admin/validation'
     | '/orders/$orderId'
     | '/api/internal/review-emails'
-    | '/api/public/db-restore'
     | '/admin'
     | '/admin/orders/$orderId'
     | '/listings/$listingId/edit'
@@ -495,7 +484,6 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/validation'
     | '/_authenticated/orders/$orderId'
     | '/api/internal/review-emails'
-    | '/api/public/db-restore'
     | '/_authenticated/admin/'
     | '/_authenticated/admin/orders/$orderId'
     | '/_authenticated/listings/$listingId/edit'
@@ -519,7 +507,6 @@ export interface RootRouteChildren {
   SellersSlugRoute: typeof SellersSlugRoute
   ShoppersSlugRoute: typeof ShoppersSlugRoute
   ApiInternalReviewEmailsRoute: typeof ApiInternalReviewEmailsRoute
-  ApiPublicDbRestoreRoute: typeof ApiPublicDbRestoreRoute
   ApiPublicCatalogMediaSplatRoute: typeof ApiPublicCatalogMediaSplatRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
   LovableEmailAuthWebhookRoute: typeof LovableEmailAuthWebhookRoute
@@ -752,13 +739,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiInternalReviewEmailsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/public/db-restore': {
-      id: '/api/public/db-restore'
-      path: '/api/public/db-restore'
-      fullPath: '/api/public/db-restore'
-      preLoaderRoute: typeof ApiPublicDbRestoreRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/_authenticated/admin/orders/$orderId': {
       id: '/_authenticated/admin/orders/$orderId'
       path: '/admin/orders/$orderId'
@@ -871,7 +851,6 @@ const rootRouteChildren: RootRouteChildren = {
   SellersSlugRoute: SellersSlugRoute,
   ShoppersSlugRoute: ShoppersSlugRoute,
   ApiInternalReviewEmailsRoute: ApiInternalReviewEmailsRoute,
-  ApiPublicDbRestoreRoute: ApiPublicDbRestoreRoute,
   ApiPublicCatalogMediaSplatRoute: ApiPublicCatalogMediaSplatRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
   LovableEmailAuthWebhookRoute: LovableEmailAuthWebhookRoute,
