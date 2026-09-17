@@ -153,7 +153,29 @@ export type Database = {
           price_cents?: number | null
           to_status?: Database["public"]["Enums"]["listing_status"] | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "ask_events_ask_id_fkey"
+            columns: ["ask_id"]
+            isOneToOne: false
+            referencedRelation: "active_seller_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ask_events_ask_id_fkey"
+            columns: ["ask_id"]
+            isOneToOne: false
+            referencedRelation: "asks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ask_events_ask_id_fkey"
+            columns: ["ask_id"]
+            isOneToOne: false
+            referencedRelation: "variant_sourcing_offers"
+            referencedColumns: ["ask_id"]
+          },
+        ]
       }
       ask_media: {
         Row: {
@@ -180,7 +202,162 @@ export type Database = {
           position?: number
           storage_path?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "ask_media_ask_id_fkey"
+            columns: ["ask_id"]
+            isOneToOne: false
+            referencedRelation: "active_seller_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ask_media_ask_id_fkey"
+            columns: ["ask_id"]
+            isOneToOne: false
+            referencedRelation: "asks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ask_media_ask_id_fkey"
+            columns: ["ask_id"]
+            isOneToOne: false
+            referencedRelation: "variant_sourcing_offers"
+            referencedColumns: ["ask_id"]
+          },
+        ]
+      }
+      asks: {
+        Row: {
+          acquired_location_id: string | null
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          currency: string
+          evidence_count: number
+          expires_at: string
+          fulfillment_window_days: number | null
+          id: string
+          in_hand: boolean
+          is_demo: boolean
+          item_condition: Database["public"]["Enums"]["item_condition"]
+          matched_order_id: string | null
+          parcel_height_in: number | null
+          parcel_length_in: number | null
+          parcel_weight_lb: number | null
+          parcel_width_in: number | null
+          price_cents: number
+          product_id: string
+          public_media_count: number
+          review_note: string | null
+          seller_id: string
+          seller_note: string | null
+          ship_by_days: number
+          status: Database["public"]["Enums"]["listing_status"]
+          updated_at: string
+          variant_id: string
+        }
+        Insert: {
+          acquired_location_id?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          currency?: string
+          evidence_count?: number
+          expires_at?: string
+          fulfillment_window_days?: number | null
+          id?: string
+          in_hand?: boolean
+          is_demo?: boolean
+          item_condition?: Database["public"]["Enums"]["item_condition"]
+          matched_order_id?: string | null
+          parcel_height_in?: number | null
+          parcel_length_in?: number | null
+          parcel_weight_lb?: number | null
+          parcel_width_in?: number | null
+          price_cents: number
+          product_id: string
+          public_media_count?: number
+          review_note?: string | null
+          seller_id: string
+          seller_note?: string | null
+          ship_by_days?: number
+          status?: Database["public"]["Enums"]["listing_status"]
+          updated_at?: string
+          variant_id: string
+        }
+        Update: {
+          acquired_location_id?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          currency?: string
+          evidence_count?: number
+          expires_at?: string
+          fulfillment_window_days?: number | null
+          id?: string
+          in_hand?: boolean
+          is_demo?: boolean
+          item_condition?: Database["public"]["Enums"]["item_condition"]
+          matched_order_id?: string | null
+          parcel_height_in?: number | null
+          parcel_length_in?: number | null
+          parcel_weight_lb?: number | null
+          parcel_width_in?: number | null
+          price_cents?: number
+          product_id?: string
+          public_media_count?: number
+          review_note?: string | null
+          seller_id?: string
+          seller_note?: string | null
+          ship_by_days?: number
+          status?: Database["public"]["Enums"]["listing_status"]
+          updated_at?: string
+          variant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asks_acquired_location_id_fkey"
+            columns: ["acquired_location_id"]
+            isOneToOne: false
+            referencedRelation: "locations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asks_matched_order_fk"
+            columns: ["matched_order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asks_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asks_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asks_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "variant_market_summary"
+            referencedColumns: ["variant_id"]
+          },
+          {
+            foreignKeyName: "asks_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "variant_watch_counts"
+            referencedColumns: ["variant_id"]
+          },
+        ]
       }
       bid_events: {
         Row: {
@@ -301,6 +478,13 @@ export type Database = {
             foreignKeyName: "bids_variant_id_fkey"
             columns: ["variant_id"]
             isOneToOne: false
+            referencedRelation: "variant_market_summary"
+            referencedColumns: ["variant_id"]
+          },
+          {
+            foreignKeyName: "bids_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
             referencedRelation: "variant_watch_counts"
             referencedColumns: ["variant_id"]
           },
@@ -393,11 +577,39 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "checkout_shipping_quotes_ask_id_fkey"
+            columns: ["ask_id"]
+            isOneToOne: false
+            referencedRelation: "active_seller_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checkout_shipping_quotes_ask_id_fkey"
+            columns: ["ask_id"]
+            isOneToOne: false
+            referencedRelation: "asks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checkout_shipping_quotes_ask_id_fkey"
+            columns: ["ask_id"]
+            isOneToOne: false
+            referencedRelation: "variant_sourcing_offers"
+            referencedColumns: ["ask_id"]
+          },
+          {
             foreignKeyName: "checkout_shipping_quotes_variant_id_fkey"
             columns: ["variant_id"]
             isOneToOne: false
             referencedRelation: "product_variants"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checkout_shipping_quotes_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "variant_market_summary"
+            referencedColumns: ["variant_id"]
           },
           {
             foreignKeyName: "checkout_shipping_quotes_variant_id_fkey"
@@ -475,7 +687,29 @@ export type Database = {
           vehicle_year?: number | null
           vin?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "classified_listing_details_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: true
+            referencedRelation: "active_seller_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classified_listing_details_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: true
+            referencedRelation: "asks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classified_listing_details_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: true
+            referencedRelation: "variant_sourcing_offers"
+            referencedColumns: ["ask_id"]
+          },
+        ]
       }
       collections: {
         Row: {
@@ -531,6 +765,59 @@ export type Database = {
         }
         Relationships: []
       }
+      fee_schedules: {
+        Row: {
+          active: boolean
+          buyer_fee_bps: number
+          created_at: string
+          created_by: string | null
+          currency: string
+          effective_end: string | null
+          effective_start: string
+          id: string
+          label: string
+          minimum_fee_cents: number
+          resort_id: string | null
+          seller_fee_bps: number
+        }
+        Insert: {
+          active?: boolean
+          buyer_fee_bps: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          effective_end?: string | null
+          effective_start?: string
+          id?: string
+          label: string
+          minimum_fee_cents?: number
+          resort_id?: string | null
+          seller_fee_bps: number
+        }
+        Update: {
+          active?: boolean
+          buyer_fee_bps?: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          effective_end?: string | null
+          effective_start?: string
+          id?: string
+          label?: string
+          minimum_fee_cents?: number
+          resort_id?: string | null
+          seller_fee_bps?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fee_schedules_resort_id_fkey"
+            columns: ["resort_id"]
+            isOneToOne: false
+            referencedRelation: "resorts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       listing_inquiries: {
         Row: {
           buyer_email: string
@@ -565,7 +852,29 @@ export type Database = {
           seller_id?: string
           status?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "listing_inquiries_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "active_seller_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listing_inquiries_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "asks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listing_inquiries_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "variant_sourcing_offers"
+            referencedColumns: ["ask_id"]
+          },
+        ]
       }
       listing_media: {
         Row: {
@@ -595,7 +904,29 @@ export type Database = {
           rights_attested_at?: string
           storage_path?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "listing_media_ask_id_fkey"
+            columns: ["ask_id"]
+            isOneToOne: false
+            referencedRelation: "active_seller_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listing_media_ask_id_fkey"
+            columns: ["ask_id"]
+            isOneToOne: false
+            referencedRelation: "asks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listing_media_ask_id_fkey"
+            columns: ["ask_id"]
+            isOneToOne: false
+            referencedRelation: "variant_sourcing_offers"
+            referencedColumns: ["ask_id"]
+          },
+        ]
       }
       listing_offers: {
         Row: {
@@ -691,7 +1022,36 @@ export type Database = {
           tax_cents?: number | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "listing_offers_ask_id_fkey"
+            columns: ["ask_id"]
+            isOneToOne: false
+            referencedRelation: "active_seller_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listing_offers_ask_id_fkey"
+            columns: ["ask_id"]
+            isOneToOne: false
+            referencedRelation: "asks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listing_offers_ask_id_fkey"
+            columns: ["ask_id"]
+            isOneToOne: false
+            referencedRelation: "variant_sourcing_offers"
+            referencedColumns: ["ask_id"]
+          },
+          {
+            foreignKeyName: "listing_offers_fee_schedule_id_fkey"
+            columns: ["fee_schedule_id"]
+            isOneToOne: false
+            referencedRelation: "fee_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       locations: {
         Row: {
@@ -826,6 +1186,27 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "market_matches_ask_id_fkey"
+            columns: ["ask_id"]
+            isOneToOne: false
+            referencedRelation: "active_seller_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "market_matches_ask_id_fkey"
+            columns: ["ask_id"]
+            isOneToOne: false
+            referencedRelation: "asks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "market_matches_ask_id_fkey"
+            columns: ["ask_id"]
+            isOneToOne: false
+            referencedRelation: "variant_sourcing_offers"
+            referencedColumns: ["ask_id"]
+          },
+          {
             foreignKeyName: "market_matches_bid_id_fkey"
             columns: ["bid_id"]
             isOneToOne: false
@@ -845,6 +1226,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "product_variants"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "market_matches_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "variant_market_summary"
+            referencedColumns: ["variant_id"]
           },
           {
             foreignKeyName: "market_matches_variant_id_fkey"
@@ -1469,10 +1857,38 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "orders_ask_id_fkey"
+            columns: ["ask_id"]
+            isOneToOne: false
+            referencedRelation: "active_seller_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_ask_id_fkey"
+            columns: ["ask_id"]
+            isOneToOne: false
+            referencedRelation: "asks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_ask_id_fkey"
+            columns: ["ask_id"]
+            isOneToOne: false
+            referencedRelation: "variant_sourcing_offers"
+            referencedColumns: ["ask_id"]
+          },
+          {
             foreignKeyName: "orders_bid_id_fkey"
             columns: ["bid_id"]
             isOneToOne: false
             referencedRelation: "bids"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_fee_schedule_id_fkey"
+            columns: ["fee_schedule_id"]
+            isOneToOne: false
+            referencedRelation: "fee_schedules"
             referencedColumns: ["id"]
           },
           {
@@ -1488,6 +1904,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "product_variants"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "variant_market_summary"
+            referencedColumns: ["variant_id"]
           },
           {
             foreignKeyName: "orders_variant_id_fkey"
@@ -1630,6 +2053,13 @@ export type Database = {
             foreignKeyName: "price_snapshots_variant_id_fkey"
             columns: ["variant_id"]
             isOneToOne: false
+            referencedRelation: "variant_market_summary"
+            referencedColumns: ["variant_id"]
+          },
+          {
+            foreignKeyName: "price_snapshots_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
             referencedRelation: "variant_watch_counts"
             referencedColumns: ["variant_id"]
           },
@@ -1730,6 +2160,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "product_variants"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "product_images_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "variant_market_summary"
+            referencedColumns: ["variant_id"]
           },
           {
             foreignKeyName: "product_images_variant_id_fkey"
@@ -2332,6 +2769,27 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "seller_listing_requests_converted_ask_id_fkey"
+            columns: ["converted_ask_id"]
+            isOneToOne: false
+            referencedRelation: "active_seller_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seller_listing_requests_converted_ask_id_fkey"
+            columns: ["converted_ask_id"]
+            isOneToOne: false
+            referencedRelation: "asks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seller_listing_requests_converted_ask_id_fkey"
+            columns: ["converted_ask_id"]
+            isOneToOne: false
+            referencedRelation: "variant_sourcing_offers"
+            referencedColumns: ["ask_id"]
+          },
+          {
             foreignKeyName: "seller_listing_requests_suggestion_id_fkey"
             columns: ["suggestion_id"]
             isOneToOne: true
@@ -2852,6 +3310,13 @@ export type Database = {
             foreignKeyName: "sightings_variant_id_fkey"
             columns: ["variant_id"]
             isOneToOne: false
+            referencedRelation: "variant_market_summary"
+            referencedColumns: ["variant_id"]
+          },
+          {
+            foreignKeyName: "sightings_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
             referencedRelation: "variant_watch_counts"
             referencedColumns: ["variant_id"]
           },
@@ -2960,6 +3425,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "product_variants"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sourcing_assignments_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "variant_market_summary"
+            referencedColumns: ["variant_id"]
           },
           {
             foreignKeyName: "sourcing_assignments_variant_id_fkey"
@@ -3225,6 +3697,13 @@ export type Database = {
             foreignKeyName: "sourcing_requests_variant_id_fkey"
             columns: ["variant_id"]
             isOneToOne: false
+            referencedRelation: "variant_market_summary"
+            referencedColumns: ["variant_id"]
+          },
+          {
+            foreignKeyName: "sourcing_requests_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
             referencedRelation: "variant_watch_counts"
             referencedColumns: ["variant_id"]
           },
@@ -3312,6 +3791,62 @@ export type Database = {
           stripe_event_id?: string
         }
         Relationships: []
+      }
+      transactional_email_queue: {
+        Row: {
+          attempts: number
+          created_at: string
+          id: string
+          last_error: string | null
+          lease_token: string | null
+          locked_until: string | null
+          next_attempt_at: string
+          order_id: string
+          sent_at: string | null
+          status: string
+          template: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          lease_token?: string | null
+          locked_until?: string | null
+          next_attempt_at?: string
+          order_id: string
+          sent_at?: string | null
+          status?: string
+          template: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          lease_token?: string | null
+          locked_until?: string | null
+          next_attempt_at?: string
+          order_id?: string
+          sent_at?: string | null
+          status?: string
+          template?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactional_email_queue_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
@@ -3403,6 +3938,13 @@ export type Database = {
             foreignKeyName: "verified_sales_variant_id_fkey"
             columns: ["variant_id"]
             isOneToOne: false
+            referencedRelation: "variant_market_summary"
+            referencedColumns: ["variant_id"]
+          },
+          {
+            foreignKeyName: "verified_sales_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
             referencedRelation: "variant_watch_counts"
             referencedColumns: ["variant_id"]
           },
@@ -3439,6 +3981,13 @@ export type Database = {
             foreignKeyName: "watchlist_variant_id_fkey"
             columns: ["variant_id"]
             isOneToOne: false
+            referencedRelation: "variant_market_summary"
+            referencedColumns: ["variant_id"]
+          },
+          {
+            foreignKeyName: "watchlist_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
             referencedRelation: "variant_watch_counts"
             referencedColumns: ["variant_id"]
           },
@@ -3446,6 +3995,120 @@ export type Database = {
       }
     }
     Views: {
+      active_seller_listings: {
+        Row: {
+          created_at: string | null
+          currency: string | null
+          default_shipping_method: string | null
+          id: string | null
+          item_condition: Database["public"]["Enums"]["item_condition"] | null
+          media_paths: string[] | null
+          payout_verified: boolean | null
+          price_cents: number | null
+          product_id: string | null
+          seller_display_name: string | null
+          seller_note: string | null
+          seller_rating: number | null
+          seller_slug: string | null
+          ship_by_days: number | null
+          ship_from_city: string | null
+          ship_from_country: string | null
+          ship_from_region: string | null
+          variant_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asks_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asks_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asks_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "variant_market_summary"
+            referencedColumns: ["variant_id"]
+          },
+          {
+            foreignKeyName: "asks_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "variant_watch_counts"
+            referencedColumns: ["variant_id"]
+          },
+        ]
+      }
+      seller_storefronts: {
+        Row: {
+          active_listing_count: number | null
+          avatar_url: string | null
+          bio: string | null
+          completed_sales_count: number | null
+          default_handling_days: number | null
+          default_shipping_method: string | null
+          display_name: string | null
+          member_since: string | null
+          payout_verified: boolean | null
+          rating_average: number | null
+          review_count: number | null
+          ship_from_city: string | null
+          ship_from_country: string | null
+          ship_from_region: string | null
+          slug: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
+      variant_ask_depth_public: {
+        Row: {
+          currency: string | null
+          first_listed_at: string | null
+          item_condition: Database["public"]["Enums"]["item_condition"] | null
+          price_cents: number | null
+          product_id: string | null
+          quantity: number | null
+          variant_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asks_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asks_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asks_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "variant_market_summary"
+            referencedColumns: ["variant_id"]
+          },
+          {
+            foreignKeyName: "asks_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "variant_watch_counts"
+            referencedColumns: ["variant_id"]
+          },
+        ]
+      }
       variant_bid_depth_public: {
         Row: {
           currency: string | null
@@ -3474,8 +4137,59 @@ export type Database = {
             foreignKeyName: "bids_variant_id_fkey"
             columns: ["variant_id"]
             isOneToOne: false
+            referencedRelation: "variant_market_summary"
+            referencedColumns: ["variant_id"]
+          },
+          {
+            foreignKeyName: "bids_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
             referencedRelation: "variant_watch_counts"
             referencedColumns: ["variant_id"]
+          },
+        ]
+      }
+      variant_market_summary: {
+        Row: {
+          active_ask_count: number | null
+          active_bid_count: number | null
+          active_sourcing_ask_count: number | null
+          authorized_bid_count: number | null
+          highest_bid_cents: number | null
+          lowest_ask_cents: number | null
+          lowest_sourcing_ask_cents: number | null
+          product_id: string | null
+          variant_id: string | null
+        }
+        Insert: {
+          active_ask_count?: never
+          active_bid_count?: never
+          active_sourcing_ask_count?: never
+          authorized_bid_count?: never
+          highest_bid_cents?: never
+          lowest_ask_cents?: never
+          lowest_sourcing_ask_cents?: never
+          product_id?: string | null
+          variant_id?: string | null
+        }
+        Update: {
+          active_ask_count?: never
+          active_bid_count?: never
+          active_sourcing_ask_count?: never
+          authorized_bid_count?: never
+          highest_bid_cents?: never
+          lowest_ask_cents?: never
+          lowest_sourcing_ask_cents?: never
+          product_id?: string | null
+          variant_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_variants_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -3520,6 +4234,57 @@ export type Database = {
             foreignKeyName: "sightings_variant_id_fkey"
             columns: ["variant_id"]
             isOneToOne: false
+            referencedRelation: "variant_market_summary"
+            referencedColumns: ["variant_id"]
+          },
+          {
+            foreignKeyName: "sightings_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "variant_watch_counts"
+            referencedColumns: ["variant_id"]
+          },
+        ]
+      }
+      variant_sourcing_offers: {
+        Row: {
+          ask_id: string | null
+          avg_rating: number | null
+          created_at: string | null
+          currency: string | null
+          fulfillment_window_days: number | null
+          price_cents: number | null
+          product_id: string | null
+          review_count: number | null
+          shopper_label: string | null
+          variant_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "asks_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asks_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asks_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "variant_market_summary"
+            referencedColumns: ["variant_id"]
+          },
+          {
+            foreignKeyName: "asks_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
             referencedRelation: "variant_watch_counts"
             referencedColumns: ["variant_id"]
           },
@@ -3553,6 +4318,13 @@ export type Database = {
             foreignKeyName: "verified_sales_variant_id_fkey"
             columns: ["variant_id"]
             isOneToOne: false
+            referencedRelation: "variant_market_summary"
+            referencedColumns: ["variant_id"]
+          },
+          {
+            foreignKeyName: "verified_sales_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
             referencedRelation: "variant_watch_counts"
             referencedColumns: ["variant_id"]
           },
@@ -3567,8 +4339,983 @@ export type Database = {
       }
     }
     Functions: {
-      _probe_fn: { Args: never; Returns: number }
-      _run_restore: { Args: { batch?: number }; Returns: number }
+      accept_shopper_quote: { Args: { _quote_id: string }; Returns: string }
+      admin_add_product_image: {
+        Args: {
+          _alt?: string
+          _position?: number
+          _product_id: string
+          _storage_path: string
+          _view_role?: string
+        }
+        Returns: string
+      }
+      admin_advance_order: {
+        Args: {
+          _note?: string
+          _order_id: string
+          _to: Database["public"]["Enums"]["order_status"]
+        }
+        Returns: undefined
+      }
+      admin_ask_review_queue: {
+        Args: never
+        Returns: {
+          approved_at: string
+          ask_id: string
+          created_at: string
+          evidence_count: number
+          evidence_paths: string[]
+          in_hand: boolean
+          item_condition: Database["public"]["Enums"]["item_condition"]
+          listing_media_paths: string[]
+          price_cents: number
+          product_name: string
+          product_slug: string
+          public_media_count: number
+          seller_display_name: string
+          seller_handle: string
+          seller_note: string
+          variant_label: string
+        }[]
+      }
+      admin_confirm_evidence: {
+        Args: { _evidence_id: string; _note?: string }
+        Returns: undefined
+      }
+      admin_confirm_verified_sale: {
+        Args: { _note?: string; _order_id: string }
+        Returns: string
+      }
+      admin_create_product: {
+        Args: {
+          _brand_text?: string
+          _category_id: string
+          _collection_text?: string
+          _description?: string
+          _name: string
+          _release_date?: string
+          _release_type?: Database["public"]["Enums"]["release_type"]
+          _resort_codes: string[]
+          _retail_price_cents?: number
+          _retail_price_source?: string
+          _slug: string
+          _status?: Database["public"]["Enums"]["product_status"]
+          _suggestion_id?: string
+          _variations?: string[]
+        }
+        Returns: string
+      }
+      admin_delete_product_image: {
+        Args: { _image_id: string }
+        Returns: undefined
+      }
+      admin_product_detail: { Args: { _product_id: string }; Returns: Json }
+      admin_product_search: {
+        Args: { _limit?: number; _query?: string }
+        Returns: {
+          image_count: number
+          is_demo: boolean
+          name: string
+          product_id: string
+          slug: string
+          status: Database["public"]["Enums"]["product_status"]
+          updated_at: string
+          variant_count: number
+        }[]
+      }
+      admin_record_order_payment: {
+        Args: {
+          _amount_cents: number
+          _currency: string
+          _external_reference: string
+          _kind: Database["public"]["Enums"]["payment_record_kind"]
+          _note?: string
+          _occurred_at?: string
+          _order_id: string
+          _provider: string
+          _provider_status: Database["public"]["Enums"]["payment_record_status"]
+        }
+        Returns: string
+      }
+      admin_record_payout: {
+        Args: {
+          _amount_cents: number
+          _currency: string
+          _external_reference: string
+          _note?: string
+          _occurred_at?: string
+          _order_id: string
+          _provider: string
+          _status: Database["public"]["Enums"]["payout_status"]
+        }
+        Returns: string
+      }
+      admin_resolve_dispute: {
+        Args: {
+          _dispute_id: string
+          _note?: string
+          _order_status?: Database["public"]["Enums"]["order_status"]
+          _status: Database["public"]["Enums"]["dispute_status"]
+        }
+        Returns: undefined
+      }
+      admin_review_ask: {
+        Args: { _approve: boolean; _ask_id: string; _note?: string }
+        Returns: undefined
+      }
+      admin_review_product_suggestion: {
+        Args: {
+          _merged_product_id?: string
+          _note?: string
+          _status: Database["public"]["Enums"]["suggestion_status"]
+          _suggestion_id: string
+        }
+        Returns: undefined
+      }
+      admin_save_variant: {
+        Args: {
+          _active?: boolean
+          _color?: string
+          _edition?: string
+          _label: string
+          _position?: number
+          _product_id: string
+          _size?: string
+          _variant_id?: string
+        }
+        Returns: string
+      }
+      admin_suggestion_queue: {
+        Args: never
+        Returns: {
+          brand_text: string
+          category_id: string
+          collection_text: string
+          created_at: string
+          created_product_id: string
+          name: string
+          proposed_variations: string
+          release_notes: string
+          resort_codes: string[]
+          reviewer_note: string
+          status: Database["public"]["Enums"]["suggestion_status"]
+          suggestion_id: string
+        }[]
+      }
+      admin_update_ask_price: {
+        Args: { _ask_id: string; _note?: string; _price_cents: number }
+        Returns: undefined
+      }
+      admin_update_product: {
+        Args: {
+          _brand_text?: string
+          _category_id: string
+          _collection_text?: string
+          _description?: string
+          _name: string
+          _product_id: string
+          _release_date?: string
+          _release_type?: Database["public"]["Enums"]["release_type"]
+          _resort_codes: string[]
+          _retail_price_cents?: number
+          _retail_price_source?: string
+          _slug: string
+          _status?: Database["public"]["Enums"]["product_status"]
+        }
+        Returns: undefined
+      }
+      admin_update_product_image:
+        | {
+            Args: { _alt?: string; _image_id: string; _position?: number }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              _alt?: string
+              _image_id: string
+              _position?: number
+              _storage_path?: string
+              _view_role?: string
+            }
+            Returns: undefined
+          }
+      apply_as_shopper: {
+        Args: {
+          _applicant_note?: string
+          _home_resort_id: string
+          _id_document_path: string
+          _park_frequency: string
+        }
+        Returns: string
+      }
+      approve_revised_max: {
+        Args: { _new_max_cents: number; _order_id: string }
+        Returns: undefined
+      }
+      begin_listing_offer_checkout: {
+        Args: { _offer_id: string }
+        Returns: string
+      }
+      begin_sourcing_balance_checkout: {
+        Args: { _buyer_id: string; _order_id: string }
+        Returns: Json
+      }
+      begin_sourcing_tip_checkout: {
+        Args: {
+          _amount_cents: number
+          _buyer_id: string
+          _order_id: string
+          _params: Json
+        }
+        Returns: Json
+      }
+      buy_now: { Args: { _variant_id: string }; Returns: string }
+      can_read_approved_classified_media: {
+        Args: { _storage_path: string }
+        Returns: boolean
+      }
+      cancel_ask: { Args: { _ask_id: string }; Returns: undefined }
+      cancel_bid: { Args: { _bid_id: string }; Returns: undefined }
+      cancel_sourcing_request: {
+        Args: { _request_id: string }
+        Returns: undefined
+      }
+      capture_price_snapshots: { Args: never; Returns: number }
+      claim_review_emails: {
+        Args: { _order_id?: string }
+        Returns: {
+          attempts: number
+          created_at: string
+          id: string
+          last_error: string | null
+          lease_token: string | null
+          locked_until: string | null
+          next_attempt_at: string
+          order_id: string
+          sent_at: string | null
+          status: string
+          template: string
+          updated_at: string
+          user_id: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "transactional_email_queue"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      claim_sourcing_tip_payment: {
+        Args: {
+          _amount_cents: number
+          _intent_id: string
+          _order_id: string
+          _session_id: string
+          _tip_id: string
+        }
+        Returns: boolean
+      }
+      complete_captured_stripe_offer: {
+        Args: { _amount_total: number; _charge: string; _offer_id: string }
+        Returns: string
+      }
+      complete_exact_ask_order: {
+        Args: {
+          _actor_id: string
+          _ask_id: string
+          _buyer_id: string
+          _merchandise_cents: number
+          _note: string
+        }
+        Returns: string
+      }
+      complete_shipping_label_purchase: {
+        Args: {
+          _carrier: string
+          _label_url: string
+          _provider: string
+          _provider_reference: string
+          _quote_id: string
+          _rate_cents: number
+          _rate_id: string
+          _service_level: string
+          _tracking_number: string
+          _tracking_url: string
+        }
+        Returns: undefined
+      }
+      compute_order_totals: {
+        Args: {
+          _currency: string
+          _merchandise_cents: number
+          _resort_id?: string
+        }
+        Returns: Json
+      }
+      compute_sourcing_platform_fee: {
+        Args: { _merchandise_and_shopper_cents: number }
+        Returns: number
+      }
+      confirm_delivery: {
+        Args: { _order_id: string; _proof_path?: string }
+        Returns: undefined
+      }
+      consume_review_worker_token: {
+        Args: { _token: string }
+        Returns: boolean
+      }
+      create_classified_listing:
+        | {
+            Args: {
+              _category_id: string
+              _city: string
+              _description: string
+              _evidence_paths: string[]
+              _fulfillment_mode: string
+              _item_condition: Database["public"]["Enums"]["item_condition"]
+              _parcel_height_in: number
+              _parcel_length_in: number
+              _parcel_weight_lb: number
+              _parcel_width_in: number
+              _postal_code: string
+              _price_cents: number
+              _public_media_paths: string[]
+              _region: string
+              _seller_note: string
+              _title: string
+              _vehicle?: Json
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              _category_id: string
+              _city: string
+              _description: string
+              _evidence_paths: string[]
+              _fulfillment_mode: string
+              _item_condition: Database["public"]["Enums"]["item_condition"]
+              _parcel_height_in: number
+              _parcel_length_in: number
+              _parcel_weight_lb: number
+              _parcel_width_in: number
+              _postal_code: string
+              _price_cents: number
+              _public_media_paths: string[]
+              _region: string
+              _seller_note: string
+              _state: string
+              _title: string
+              _vehicle?: Json
+            }
+            Returns: string
+          }
+      create_sourcing_request: {
+        Args: {
+          _buyer_note?: string
+          _max_budget_cents?: number
+          _media_paths?: string[]
+          _needed_by?: string
+          _target_location_id?: string
+          _variant_id: string
+        }
+        Returns: string
+      }
+      dispatch_review_email_worker: { Args: never; Returns: undefined }
+      effective_fee_schedule: {
+        Args: { _currency: string; _resort_id?: string }
+        Returns: {
+          active: boolean
+          buyer_fee_bps: number
+          created_at: string
+          created_by: string | null
+          currency: string
+          effective_end: string | null
+          effective_start: string
+          id: string
+          label: string
+          minimum_fee_cents: number
+          resort_id: string | null
+          seller_fee_bps: number
+        }
+        SetofOptions: {
+          from: "*"
+          to: "fee_schedules"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      enforce_rate_limit: {
+        Args: { _action: string; _max: number; _window: string }
+        Returns: undefined
+      }
+      expire_shopper_availability: { Args: never; Returns: number }
+      expire_sourcing_balance_checkout: {
+        Args: { _session_id: string }
+        Returns: undefined
+      }
+      fail_listing_offer_checkout: {
+        Args: { _attempt: string; _offer_id: string }
+        Returns: undefined
+      }
+      finalize_dispute_stripe_refund: {
+        Args: {
+          _admin_id: string
+          _dispute_id: string
+          _note?: string
+          _payout_reversal?: string
+          _refunds: Json
+        }
+        Returns: undefined
+      }
+      finalize_sourcing_balance_payment: {
+        Args: {
+          _amount_cents: number
+          _charge: string
+          _checkout_session: string
+          _order_id: string
+          _payment_intent: string
+          _tax_cents?: number
+        }
+        Returns: string
+      }
+      finalize_sourcing_refund: {
+        Args: {
+          _amount_cents: number
+          _order_id: string
+          _refund_reference: string
+        }
+        Returns: undefined
+      }
+      finalize_sourcing_tip: {
+        Args: {
+          _amount_cents: number
+          _checkout_session: string
+          _order_id: string
+          _payment_intent: string
+          _transfer: string
+        }
+        Returns: undefined
+      }
+      finalize_stripe_offer_authorization: {
+        Args: {
+          _address: Json
+          _amount_total: number
+          _authorization_expires_at: string
+          _charge: string
+          _checkout_session: string
+          _offer_id: string
+          _payment_intent: string
+          _shipping_cents: number
+          _shipping_rate: Json
+          _tax_cents: number
+        }
+        Returns: undefined
+      }
+      finalize_stripe_order_payment: {
+        Args: {
+          _amount_total: number
+          _charge: string
+          _checkout_session: string
+          _offer_id?: string
+          _order_id: string
+          _payment_intent: string
+          _payment_status: string
+          _tax_cents: number
+        }
+        Returns: undefined
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_staff: { Args: { _user_id: string }; Returns: boolean }
+      is_trusted_operation: { Args: never; Returns: boolean }
+      make_listing_offer: {
+        Args: { _amount_cents: number; _ask_id: string }
+        Returns: string
+      }
+      mark_notifications_read: { Args: { _ids?: string[] }; Returns: number }
+      member_performance: { Args: { _user_id: string }; Returns: Json }
+      notify_member: {
+        Args: {
+          _body: string
+          _kind: string
+          _order_id?: string
+          _title: string
+          _user_id: string
+        }
+        Returns: undefined
+      }
+      open_dispute: {
+        Args: { _order_id: string; _reason: string }
+        Returns: string
+      }
+      order_evidence_file: { Args: { _evidence_id: string }; Returns: string }
+      order_funding_committed: { Args: { _order_id: string }; Returns: boolean }
+      order_payment_captured: { Args: { _order_id: string }; Returns: boolean }
+      pilot_feature_enabled: { Args: { _feature: string }; Returns: boolean }
+      place_ask: {
+        Args: {
+          _acquired_location_id?: string
+          _evidence_paths: string[]
+          _item_condition: Database["public"]["Enums"]["item_condition"]
+          _price_cents: number
+          _seller_note?: string
+          _variant_id: string
+        }
+        Returns: string
+      }
+      place_ask_v2: {
+        Args: {
+          _evidence_paths: string[]
+          _item_condition: Database["public"]["Enums"]["item_condition"]
+          _parcel_height_in?: number
+          _parcel_length_in?: number
+          _parcel_weight_lb?: number
+          _parcel_width_in?: number
+          _price_cents: number
+          _public_media_paths: string[]
+          _seller_note?: string
+          _variant_id: string
+        }
+        Returns: string
+      }
+      place_bid: {
+        Args: { _price_cents: number; _variant_id: string }
+        Returns: string
+      }
+      place_sourcing_ask: {
+        Args: {
+          _fulfillment_window_days: number
+          _price_cents: number
+          _seller_note?: string
+          _variant_id: string
+        }
+        Returns: string
+      }
+      prepare_sourcing_balance_checkout: {
+        Args: {
+          _attempt: number
+          _buyer_id: string
+          _checkout_id: string
+          _order_id: string
+          _params: Json
+        }
+        Returns: Json
+      }
+      prepare_stripe_listing_offer: {
+        Args: { _amount_cents: number; _ask_id: string }
+        Returns: string
+      }
+      public_shopper_profile: { Args: { _slug: string }; Returns: Json }
+      quotes_for_my_requests: {
+        Args: never
+        Returns: {
+          availability_note: string
+          buyer_fee_estimate_cents: number
+          created_at: string
+          currency: string
+          delivered_estimate_cents: number
+          expires_at: string
+          fulfillment_window_days: number
+          matched_order_id: string
+          merch_cost_cents: number
+          quote_id: string
+          request_id: string
+          shipping_estimate_cents: number
+          shopper_comp_cents: number
+          status: Database["public"]["Enums"]["shopper_quote_status"]
+        }[]
+      }
+      record_duplicate_sourcing_balance_refund: {
+        Args: {
+          _amount_cents: number
+          _checkout_session: string
+          _order_id: string
+          _payment_intent: string
+          _refund_id: string
+        }
+        Returns: undefined
+      }
+      record_provider_shipment: {
+        Args: {
+          _carrier: string
+          _label_url: string
+          _order_id: string
+          _provider: string
+          _provider_reference: string
+          _rate_cents: number
+          _service_level: string
+          _tracking_number: string
+          _tracking_url: string
+        }
+        Returns: undefined
+      }
+      record_purchase_evidence: {
+        Args: {
+          _item_photo_path: string
+          _order_id: string
+          _receipt_amount_cents: number
+          _receipt_path: string
+        }
+        Returns: undefined
+      }
+      record_shipment: {
+        Args: { _carrier: string; _order_id: string; _tracking_number: string }
+        Returns: undefined
+      }
+      record_sourcing_balance_checkout: {
+        Args: {
+          _attempt: number
+          _buyer_id: string
+          _checkout_id: string
+          _expires_at: string
+          _order_id: string
+          _session_id: string
+        }
+        Returns: undefined
+      }
+      release_authorized_offer_capture_reservation: {
+        Args: {
+          _authorization_still_valid: boolean
+          _note: string
+          _offer_id: string
+          _order_id: string
+          _payment_status: string
+        }
+        Returns: undefined
+      }
+      release_expired_reservations: { Args: never; Returns: number }
+      release_sourcing_checkout_order: {
+        Args: { _note?: string; _order_id: string }
+        Returns: undefined
+      }
+      release_stripe_checkout_order: {
+        Args: { _note: string; _order_id: string }
+        Returns: undefined
+      }
+      relist_ask: { Args: { _ask_id: string }; Returns: undefined }
+      replace_listing_media: {
+        Args: { _ask_id: string; _paths: string[] }
+        Returns: undefined
+      }
+      report_sighting: {
+        Args: {
+          _availability: Database["public"]["Enums"]["sighting_availability"]
+          _location_id: string
+          _note?: string
+          _price_cents?: number
+          _seen_at?: string
+          _variant_id: string
+        }
+        Returns: string
+      }
+      request_exact_ask: { Args: { _ask_id: string }; Returns: string }
+      request_sourcing_ask: { Args: { _ask_id: string }; Returns: string }
+      reservation_window: { Args: never; Returns: string }
+      reserve_authorized_offer_for_capture: {
+        Args: { _offer_id: string; _seller_id: string }
+        Returns: Json
+      }
+      reserve_exact_ask_for_stripe: {
+        Args: {
+          _ask_id: string
+          _buyer_id: string
+          _merchandise_cents: number
+          _offer_id?: string
+          _shipping_address: Json
+          _shipping_cents: number
+          _shipping_rate: Json
+        }
+        Returns: string
+      }
+      reserve_shipping_label_purchase: {
+        Args: { _quote_id: string; _rate_cents: number; _rate_id: string }
+        Returns: Json
+      }
+      reserve_sourcing_order_for_stripe: {
+        Args: {
+          _buyer_id: string
+          _max_purchase_cents: number
+          _option_ref: string
+          _shipping_address: Json
+          _shipping_cents: number
+          _shipping_rate: Json
+          _variant_id: string
+        }
+        Returns: string
+      }
+      respond_to_listing_offer: {
+        Args: { _action: string; _counter_cents?: number; _offer_id: string }
+        Returns: string
+      }
+      respond_to_sighting: {
+        Args: { _kind: string; _sighting_id: string }
+        Returns: undefined
+      }
+      review_shopper_application: {
+        Args: { _application_id: string; _approve: boolean; _note?: string }
+        Returns: undefined
+      }
+      save_seller_profile: {
+        Args: {
+          _accept_terms: boolean
+          _bio: string
+          _default_handling_days: number
+          _default_shipping_method: string
+          _ship_from_city: string
+          _ship_from_country: string
+          _ship_from_line1: string
+          _ship_from_line2: string
+          _ship_from_name: string
+          _ship_from_phone: string
+          _ship_from_postal_code: string
+          _ship_from_region: string
+          _slug: string
+        }
+        Returns: undefined
+      }
+      save_shopper_public_profile: {
+        Args: {
+          _avatar_url?: string
+          _bio?: string
+          _display_name: string
+          _public_location?: string
+          _slug: string
+        }
+        Returns: undefined
+      }
+      save_shopper_service_profile:
+        | {
+            Args: {
+              _flat_fee_cents: number
+              _location_ids?: string[]
+              _max_active_orders: number
+              _offer_across_catalog: boolean
+              _park_ids?: string[]
+              _purchase_window_days: number
+              _resort_ids?: string[]
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              _bio?: string
+              _flat_fee_cents: number
+              _location_ids?: string[]
+              _max_active_orders: number
+              _offer_across_catalog: boolean
+              _park_ids?: string[]
+              _purchase_window_days: number
+              _resort_ids?: string[]
+            }
+            Returns: string
+          }
+      save_shopper_shipping: { Args: { _shipping: Json }; Returns: undefined }
+      sell_now: { Args: { _variant_id: string }; Returns: string }
+      set_shopper_availability: {
+        Args: { _available: boolean; _hours?: number }
+        Returns: string
+      }
+      shopper_active_assignment_count: {
+        Args: { _shopper_id: string }
+        Returns: number
+      }
+      shopper_application_document: {
+        Args: { _application_id: string }
+        Returns: string
+      }
+      shopper_confirm_purchase: {
+        Args: {
+          _actual_cost_cents: number
+          _order_id: string
+          _receipt_path: string
+        }
+        Returns: Json
+      }
+      shopper_mark_unavailable: {
+        Args: { _note?: string; _order_id: string }
+        Returns: undefined
+      }
+      shopper_start_shopping: {
+        Args: { _order_id: string }
+        Returns: undefined
+      }
+      sourcing_board: {
+        Args: never
+        Returns: {
+          buyer_note: string
+          created_at: string
+          currency: string
+          expires_at: string
+          max_budget_cents: number
+          media_count: number
+          my_quote_id: string
+          needed_by: string
+          product_name: string
+          product_slug: string
+          quote_count: number
+          request_id: string
+          variant_color: string
+          variant_edition: string
+          variant_id: string
+          variant_size: string
+        }[]
+      }
+      sourcing_option_shipment_context: {
+        Args: { _option_ref: string; _variant_id: string }
+        Returns: Json
+      }
+      sourcing_options: {
+        Args: { _variant_id: string }
+        Returns: {
+          available_until: string
+          avatar_url: string
+          avg_rating: number
+          cancelled_orders: number
+          capacity_remaining: number
+          completed_orders: number
+          coverage_label: string
+          currency: string
+          estimated_buyer_total_cents: number
+          fee_cents: number
+          is_live_now: boolean
+          is_priceable: boolean
+          option_ref: string
+          profile_slug: string
+          purchase_window_days: number
+          reference_confidence: string
+          reference_location: string
+          reference_observed_at: string
+          reference_price_cents: number
+          review_count: number
+          satisfaction_pct: number
+          shopper_label: string
+        }[]
+      }
+      sourcing_request_media: {
+        Args: { _caller: string; _request_id: string }
+        Returns: {
+          caption: string
+          media_id: string
+          sort_position: number
+          storage_path: string
+        }[]
+      }
+      start_sourcing_purchase: {
+        Args: {
+          _max_purchase_cents: number
+          _option_ref: string
+          _variant_id: string
+        }
+        Returns: string
+      }
+      submit_missing_product_listing: {
+        Args: {
+          _brand_text: string
+          _category_id: string
+          _collection_text: string
+          _evidence_paths: string[]
+          _item_condition: Database["public"]["Enums"]["item_condition"]
+          _name: string
+          _parcel_height_in: number
+          _parcel_length_in: number
+          _parcel_weight_lb: number
+          _parcel_width_in: number
+          _price_cents: number
+          _proposed_variations: string
+          _public_media_paths: string[]
+          _release_notes: string
+          _resort_codes: string[]
+          _seller_note: string
+        }
+        Returns: string
+      }
+      submit_order_review: {
+        Args: { _comment?: string; _order_id: string; _rating: number }
+        Returns: string
+      }
+      submit_product_suggestion: {
+        Args: {
+          _brand_text?: string
+          _category_id?: string
+          _collection_text?: string
+          _name: string
+          _proposed_variations?: string
+          _release_notes?: string
+          _resort_codes?: string[]
+        }
+        Returns: string
+      }
+      submit_shopper_quote: {
+        Args: {
+          _availability_note?: string
+          _fulfillment_window_days: number
+          _merch_cost_cents: number
+          _request_id: string
+          _shipping_estimate_cents: number
+          _shopper_comp_cents: number
+          _valid_for_days?: number
+        }
+        Returns: string
+      }
+      update_ask: {
+        Args: {
+          _ask_id: string
+          _item_condition: Database["public"]["Enums"]["item_condition"]
+          _parcel_height_in: number
+          _parcel_length_in: number
+          _parcel_weight_lb: number
+          _parcel_width_in: number
+          _price_cents: number
+          _seller_note: string
+        }
+        Returns: undefined
+      }
+      update_classified_listing: {
+        Args: {
+          _category_id: string
+          _city: string
+          _description: string
+          _fulfillment_mode: string
+          _item_condition: Database["public"]["Enums"]["item_condition"]
+          _listing_id: string
+          _parcel_height_in: number
+          _parcel_length_in: number
+          _parcel_weight_lb: number
+          _parcel_width_in: number
+          _postal_code: string
+          _price_cents: number
+          _region: string
+          _seller_note: string
+          _state: string
+          _title: string
+          _vehicle?: Json
+        }
+        Returns: undefined
+      }
+      variant_price_reference: {
+        Args: { _variant_id: string }
+        Returns: {
+          confidence: string
+          is_priceable: boolean
+          location_label: string
+          observation_count: number
+          observed_at: string
+          price_cents: number
+        }[]
+      }
+      variant_watch_baseline: { Args: { _variant_id: string }; Returns: number }
+      verified_sale_eligibility: { Args: { _order_id: string }; Returns: Json }
+      withdraw_shopper_quote: {
+        Args: { _quote_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "user" | "shopper" | "moderator" | "admin"
