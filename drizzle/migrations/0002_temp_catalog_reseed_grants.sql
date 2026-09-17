@@ -1,1 +1,0 @@
-GRANT UPDATE ON public.products, public.product_resorts, public.product_variants, public.product_images TO sandbox_exec;

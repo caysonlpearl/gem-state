@@ -1,34 +1,5 @@
 {
   "version": "7",
   "dialect": "postgresql",
-  "entries": [
-    {
-      "idx": 0,
-      "version": "7",
-      "when": 1789149938336,
-      "tag": "0000_catalog_step3_index_and_seed_grants",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1789149981941,
-      "tag": "0001_revoke_catalog_seed_grants",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1789150034636,
-      "tag": "0002_temp_catalog_reseed_grants",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1789150051253,
-      "tag": "0003_revoke_catalog_reseed_grants",
-      "breakpoints": true
-    }
-  ]
+  "entries": []
 }

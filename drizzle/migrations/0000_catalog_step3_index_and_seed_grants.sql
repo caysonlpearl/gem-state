@@ -1,2 +1,0 @@
-CREATE UNIQUE INDEX IF NOT EXISTS product_images_product_path_key ON public.product_images(product_id, storage_path);
-GRANT UPDATE ON public.products, public.product_resorts, public.product_variants, public.product_images TO sandbox_exec;
