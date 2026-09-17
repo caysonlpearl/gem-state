@@ -28,56 +28,24 @@ export const sendClassifiedListingInquiry = createServerFn({ method: "POST" })
     message: cleanMessage(input.message),
   }))
   .handler(async ({ data, context }): Promise<{ ok: true; inquiryId: string }> => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const admin = supabaseAdmin as any;
-    const { data: listing, error: listingError } = await admin
-      .from("asks")
-      .select("id,seller_id,status,approved_at,expires_at,products(name)")
-      .eq("id", data.listingId)
-      .eq("status", "active")
-      .not("approved_at", "is", null)
-      .gt("expires_at", new Date().toISOString())
-      .maybeSingle();
-
-    if (listingError || !listing?.seller_id) throw new Error("That listing is no longer available.");
-    if (listing.seller_id === context.userId) throw new Error("You cannot contact yourself.");
-
-    const email = String(context.claims?.email ?? "").trim();
-    if (!email) throw new Error("Your account needs an email address before you can contact a seller.");
-
-    const { data: profile } = await admin
-      .from("profiles")
-      .select("display_name")
-      .eq("id", context.userId)
-      .maybeSingle();
-    const buyerName = String(profile?.display_name ?? email.split("@")[0] ?? "Gem State buyer").trim();
-
-    const { data: inquiry, error } = await admin
-      .from("listing_inquiries")
-      .insert({
-        listing_id: data.listingId,
-        seller_id: listing.seller_id,
-        buyer_id: context.userId,
-        buyer_name: buyerName || "Gem State buyer",
-        buyer_email: email,
-        message: data.message,
-      })
-      .select("id")
-      .single();
-    if (error || !inquiry) throw new Error("We could not send your message. Please try again.");
+    const client = context.supabase as any;
+    const { data: inquiryId, error } = await client.rpc("create_listing_inquiry", {
+      _listing_id: data.listingId,
+      _message: data.message,
+    });
+    if (error || !inquiryId) throw new Error(error?.message ?? "We could not send your message. Please try again.");
 
     const { emailListingInquiry } = await import("./email-notifications.server");
-    await emailListingInquiry(inquiry.id);
+    await emailListingInquiry(inquiryId);
 
-    return { ok: true, inquiryId: inquiry.id };
+    return { ok: true, inquiryId: inquiryId as string };
   });
 
 export const getSellerListingInquiries = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<ListingInquiry[]> => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const admin = supabaseAdmin as any;
-    const { data: rows, error } = await admin
+    const client = context.supabase as any;
+    const { data: rows, error } = await client
       .from("listing_inquiries")
       .select("id,listing_id,buyer_name,buyer_email,message,status,created_at,asks(products(name))")
       .eq("seller_id", context.userId)
