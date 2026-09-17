@@ -44,3 +44,19 @@ export function vehicleHeadline(vehicle: {
 }) {
   return [vehicle.year, vehicle.make, vehicle.model, vehicle.trim].filter(Boolean).join(" ");
 }
+
+export function formatJobPay(job: { payType: string; payMin: number; payMax: number }) {
+  const { payType, payMin, payMax } = job;
+  if (payType === "Salary") {
+    const fmt = (value: number) =>
+      value >= 1000 ? `${Math.round(value / 1000)}k` : `$${value.toLocaleString()}`;
+    return payMin === payMax
+      ? `$${fmt(payMin)}/yr`
+      : `$${fmt(payMin)}–$${fmt(payMax)}/yr`;
+  }
+  if (payType === "Commission") return "Commission";
+  const suffix = payType === "Contract" ? "/hr contract" : "/hr";
+  return payMin === payMax
+    ? `$${payMin}${suffix}`
+    : `$${payMin}–$${payMax}${suffix}`;
+}

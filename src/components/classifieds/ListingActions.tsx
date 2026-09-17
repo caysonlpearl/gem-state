@@ -11,6 +11,8 @@ import { supabase } from "@/integrations/supabase/client";
 import type { ClassifiedDetail } from "@/lib/classifieds.functions";
 
 const DEFAULT_MESSAGE = "Hi, is this still available? I would love to learn more.";
+const DEFAULT_APPLY_MESSAGE =
+  "Hi, I would like to apply for this position. I am available to start right away.";
 
 /**
  * Direct-contact controls for the current classifieds MVP. Transactional
@@ -22,16 +24,19 @@ export function ListingActions({
   showPaymentCalculator = true,
   showPriceHeader = true,
   calculatorVariant = "auto",
+  ctaVerb = "contact",
 }: {
   listing: ClassifiedDetail;
   showPaymentCalculator?: boolean;
   showPriceHeader?: boolean;
   calculatorVariant?: "auto" | "mortgage";
+  ctaVerb?: "contact" | "apply";
 }) {
+  const isJobApply = ctaVerb === "apply";
   const isMortgage = calculatorVariant === "mortgage";
   const { isSignedIn } = useAuth();
   const [contactOpen, setContactOpen] = useState(false);
-  const [message, setMessage] = useState(DEFAULT_MESSAGE);
+  const [message, setMessage] = useState(isJobApply ? DEFAULT_APPLY_MESSAGE : DEFAULT_MESSAGE);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [loanTerm, setLoanTerm] = useState(isMortgage ? "360" : "60");
   const [downPayment, setDownPayment] = useState(
@@ -61,8 +66,8 @@ export function ListingActions({
       return inquiryId;
     },
     onSuccess: () => {
-      toast.success("Message sent to the seller.");
-      setMessage(DEFAULT_MESSAGE);
+      toast.success(isJobApply ? "Application sent to the employer." : "Message sent to the seller.");
+      setMessage(isJobApply ? DEFAULT_APPLY_MESSAGE : DEFAULT_MESSAGE);
       setContactOpen(false);
     },
     onError: (error) =>
@@ -153,8 +158,9 @@ export function ListingActions({
 
         <p className="flex items-start gap-2 text-[12px] leading-relaxed text-muted-foreground">
           <Info size={15} className="mt-0.5 shrink-0 text-primary" />
-          Contact the seller to confirm availability, condition, pickup, shipping, and the final
-          amount.
+          {isJobApply
+            ? "Apply to let the employer know you're interested. They will reach out about next steps."
+            : "Contact the seller to confirm availability, condition, pickup, shipping, and the final amount."}
         </p>
 
         <div>
@@ -164,14 +170,14 @@ export function ListingActions({
               onClick={() => setContactOpen((open) => !open)}
               className="h-12 w-full rounded-full bg-nav-accent text-[14.5px] font-semibold text-primary-foreground transition-opacity hover:opacity-90"
             >
-              {contactOpen ? "Close message" : "Contact seller"}
+              {contactOpen ? "Close message" : isJobApply ? "Apply now" : "Contact seller"}
             </button>
           ) : (
             <Link
               to={brand.urls.auth}
               className="flex h-12 w-full items-center justify-center rounded-full bg-nav-accent text-[14.5px] font-semibold text-primary-foreground"
             >
-              Sign in to contact seller
+              {isJobApply ? "Sign in to apply" : "Sign in to contact seller"}
             </Link>
           )}
         </div>
@@ -186,7 +192,9 @@ export function ListingActions({
           }}
         >
           <label htmlFor="seller-message" className="block text-[12px] font-medium">
-            Message {listing.seller?.displayName ?? "the seller"}
+            {isJobApply
+              ? `Message to ${listing.seller?.displayName ?? "the employer"}`
+              : `Message ${listing.seller?.displayName ?? "the seller"}`}
           </label>
           <textarea
             id="seller-message"
@@ -198,7 +206,11 @@ export function ListingActions({
             rows={5}
             required
             className="w-full resize-y rounded-2xl border border-input bg-background px-3 py-2.5 text-[13px] leading-relaxed outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
-            placeholder="Ask about availability, condition, pickup, or shipping…"
+            placeholder={
+              isJobApply
+                ? "Share your availability and relevant experience…"
+                : "Ask about availability, condition, pickup, or shipping…"
+            }
           />
           <p className="text-[11px] leading-relaxed text-muted-foreground">
             Your email will be shared with the seller so they can reply directly.

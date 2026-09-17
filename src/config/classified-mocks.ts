@@ -109,6 +109,20 @@ export const homeCommunities: Record<string, ClassifiedHomeCommunity> = {
   },
 };
 
+export type ClassifiedJobDetails = {
+  employerName: string;
+  employerAddress?: string | null;
+  payType: "Hourly" | "Salary" | "Commission" | "Contract";
+  payMin: number;
+  payMax: number;
+  employmentType: "Full-time" | "Part-time" | "Seasonal" | "Contract" | "Temporary";
+  experienceRequired?: string | null;
+  educationLevel?: string | null;
+  jobSummary: string;
+  responsibilities: string[];
+  qualifications?: string[];
+};
+
 export type MockClassifiedListing = {
   id: string;
   listingNumber: string;
@@ -129,6 +143,7 @@ export type MockClassifiedListing = {
   postalCode: string;
   sellerNote: string;
   home?: ClassifiedHomeDetails;
+  job?: ClassifiedJobDetails;
   seller: {
     slug: string;
     displayName: string;
@@ -209,6 +224,39 @@ const sellers = {
     ratingAverage: 5,
     reviewCount: 16,
     memberSince: 2015,
+    sellerType: "Business",
+  },
+  craig: {
+    slug: "mock-craig-twilite",
+    displayName: "Craig",
+    bio: "Hiring manager for Twilite Lounge, a Boise bar hiring locally since 1947.",
+    avatarUrl: null,
+    payoutVerified: true,
+    ratingAverage: 5,
+    reviewCount: 3,
+    memberSince: 2010,
+    sellerType: "Business",
+  },
+  meridianDental: {
+    slug: "mock-meridian-family-dental",
+    displayName: "Meridian Family Dental",
+    bio: "A family dental practice in Meridian hiring for our growing front office team.",
+    avatarUrl: null,
+    payoutVerified: true,
+    ratingAverage: 4.9,
+    reviewCount: 7,
+    memberSince: 2013,
+    sellerType: "Business",
+  },
+  gemStateLogistics: {
+    slug: "mock-gem-state-logistics",
+    displayName: "Gem State Logistics",
+    bio: "A Nampa-based warehousing and distribution company serving the Treasure Valley.",
+    avatarUrl: null,
+    payoutVerified: true,
+    ratingAverage: 4.7,
+    reviewCount: 11,
+    memberSince: 2017,
     sellerType: "Business",
   },
 } as const;
@@ -869,6 +917,159 @@ export const mockClassifiedListings: MockClassifiedListing[] = [
       {
         url: image("photo-1600585154340-be6161a56a0c", "Custom home exterior rendering"),
         alt: "Custom home exterior rendering",
+      },
+    ],
+  },
+  {
+    id: "mock-job-twilite-bouncer",
+    listingNumber: "82085343",
+    title: "Bouncer/Door Person",
+    productId: "mock-product-twilite-bouncer",
+    productSlug: "bouncer-door-person-twilite-lounge",
+    priceCents: 16_00,
+    city: "Boise",
+    state: "ID",
+    region: "Treasure Valley",
+    categorySlug: "jobs",
+    categoryName: "Jobs",
+    condition: "used_good",
+    fulfillmentMode: "local_pickup",
+    createdAt: "2026-09-17T00:00:00.000Z",
+    expiresAt: "2026-10-17T00:00:00.000Z",
+    description:
+      "Job Title: Bouncer / Security Guard\n\nJob Summary: The bouncer is responsible for ensuring a safe and secure environment for patrons, staff, and the venue. This role involves enforcing entry policies, monitoring crowd behavior, resolving conflicts, and preventing unauthorized or disruptive behavior.",
+    postalCode: "83702",
+    sellerNote: "Weekend availability required. Message Craig with your availability.",
+    seller: sellers.craig,
+    job: {
+      employerName: "Twilite Lounge",
+      employerAddress: "Boise, ID 83702",
+      payType: "Hourly",
+      payMin: 16,
+      payMax: 16,
+      employmentType: "Part-time",
+      experienceRequired: "None",
+      educationLevel: "None",
+      jobSummary:
+        "The bouncer is responsible for ensuring a safe and secure environment for patrons, staff, and the venue. This role involves enforcing entry policies, monitoring crowd behavior, resolving conflicts, and preventing unauthorized or disruptive behavior.",
+      responsibilities: [
+        "Check IDs and enforce entry policies",
+        "Monitor crowd behavior and de-escalate conflicts",
+        "Patrol the venue and respond to disturbances",
+        "Coordinate with staff on capacity and closing procedures",
+      ],
+      qualifications: [
+        "Must be 21 or older",
+        "Comfortable standing for extended shifts",
+        "Prior security or door experience a plus, not required",
+      ],
+    },
+    images: [
+      {
+        url: image("photo-1572116469696-31de0f17cc34", "Bar entrance at night"),
+        alt: "Bar entrance at night",
+      },
+    ],
+  },
+  {
+    id: "mock-job-meridian-dental-front-desk",
+    listingNumber: "82085311",
+    title: "Front Desk Receptionist",
+    productId: "mock-product-meridian-dental-front-desk",
+    productSlug: "front-desk-receptionist-meridian-family-dental",
+    priceCents: 19_00,
+    city: "Meridian",
+    state: "ID",
+    region: "Treasure Valley",
+    categorySlug: "jobs",
+    categoryName: "Jobs",
+    condition: "used_good",
+    fulfillmentMode: "local_pickup",
+    createdAt: "2026-09-16T00:00:00.000Z",
+    expiresAt: "2026-10-16T00:00:00.000Z",
+    description:
+      "Job Title: Front Desk Receptionist\n\nJob Summary: Meridian Family Dental is hiring a front desk receptionist to greet patients, manage scheduling, and handle insurance verification for our growing practice.",
+    postalCode: "83642",
+    sellerNote: "No dental experience required, front office or customer service experience helpful.",
+    seller: sellers.meridianDental,
+    job: {
+      employerName: "Meridian Family Dental",
+      employerAddress: "Meridian, ID 83642",
+      payType: "Hourly",
+      payMin: 18,
+      payMax: 21,
+      employmentType: "Full-time",
+      experienceRequired: "1+ years front office",
+      educationLevel: "High school diploma",
+      jobSummary:
+        "Meridian Family Dental is hiring a front desk receptionist to greet patients, manage scheduling, and handle insurance verification for our growing practice.",
+      responsibilities: [
+        "Greet patients and manage check-in/check-out",
+        "Schedule and confirm appointments",
+        "Verify insurance and collect payments",
+        "Answer phones and respond to patient questions",
+      ],
+      qualifications: [
+        "Comfortable with scheduling software",
+        "Strong communication and organization skills",
+        "Dental office experience a plus, not required",
+      ],
+    },
+    images: [
+      {
+        url: image("photo-1629909613654-28e377c37b09", "Dental office front desk"),
+        alt: "Dental office front desk",
+      },
+    ],
+  },
+  {
+    id: "mock-job-gem-state-logistics-warehouse",
+    listingNumber: "82085290",
+    title: "Warehouse Associate",
+    productId: "mock-product-gem-state-logistics-warehouse",
+    productSlug: "warehouse-associate-gem-state-logistics",
+    priceCents: 3_800_000,
+    city: "Nampa",
+    state: "ID",
+    region: "Treasure Valley",
+    categorySlug: "jobs",
+    categoryName: "Jobs",
+    condition: "used_good",
+    fulfillmentMode: "local_pickup",
+    createdAt: "2026-09-14T00:00:00.000Z",
+    expiresAt: "2026-10-14T00:00:00.000Z",
+    description:
+      "Job Title: Warehouse Associate\n\nJob Summary: Gem State Logistics is hiring a warehouse associate to pick, pack, and stage outbound shipments at our Nampa distribution center.",
+    postalCode: "83651",
+    sellerNote: "Steel-toed boots required on day one. Forklift certification provided on the job.",
+    seller: sellers.gemStateLogistics,
+    job: {
+      employerName: "Gem State Logistics",
+      employerAddress: "Nampa, ID 83651",
+      payType: "Salary",
+      payMin: 38_000,
+      payMax: 44_000,
+      employmentType: "Full-time",
+      experienceRequired: "None",
+      educationLevel: "None",
+      jobSummary:
+        "Gem State Logistics is hiring a warehouse associate to pick, pack, and stage outbound shipments at our Nampa distribution center.",
+      responsibilities: [
+        "Pick and pack orders accurately against pick tickets",
+        "Stage and load outbound shipments",
+        "Operate pallet jacks and forklifts (training provided)",
+        "Keep the warehouse floor clean and organized",
+      ],
+      qualifications: [
+        "Able to lift 50 lbs regularly",
+        "Reliable transportation and attendance",
+        "Forklift certification a plus, training provided",
+      ],
+    },
+    images: [
+      {
+        url: image("photo-1553413077-190dd305871c", "Warehouse distribution center interior"),
+        alt: "Warehouse distribution center interior",
       },
     ],
   },

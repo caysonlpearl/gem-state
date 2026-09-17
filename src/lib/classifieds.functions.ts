@@ -8,6 +8,7 @@ import {
   homeCommunities,
   type ClassifiedFloorplan,
   type ClassifiedHomeDetails,
+  type ClassifiedJobDetails,
 } from "@/config/classified-mocks";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
@@ -58,6 +59,7 @@ export type ClassifiedCard = {
   imageUrl: string | null;
   vehicle: ClassifiedVehicle | null;
   home?: ClassifiedHomeDetails | null;
+  job?: ClassifiedJobDetails | null;
   isMock?: boolean;
   listingNumber?: string;
 };
@@ -82,6 +84,7 @@ export type ClassifiedDetail = ClassifiedCard & {
   images: { url: string; alt: string }[];
   communityListings?: ClassifiedCard[] | undefined;
   communityFloorplans?: ClassifiedFloorplan[] | undefined;
+  employerListings?: ClassifiedCard[] | undefined;
 };
 
 export type ClassifiedBrowseResult = {
@@ -592,6 +595,7 @@ function mockCard(listing: (typeof mockClassifiedListings)[number]): ClassifiedC
     imageUrl: listing.images[0]?.url ?? null,
     vehicle: null,
     home: listing.home ?? null,
+    job: listing.job ?? null,
     isMock: true,
     listingNumber: listing.listingNumber,
   };
@@ -605,6 +609,12 @@ function mockDetail(listing: (typeof mockClassifiedListings)[number]): Classifie
         .map(mockCard)
     : undefined;
   const communityFloorplans = communitySlug ? homeCommunities[communitySlug]?.floorplans : undefined;
+  const employerName = listing.job?.employerName;
+  const employerListings = employerName
+    ? mockClassifiedListings
+        .filter((other) => other.id !== listing.id && other.job?.employerName === employerName)
+        .map(mockCard)
+    : undefined;
   return {
     ...mockCard(listing),
     description: listing.description,
@@ -613,6 +623,7 @@ function mockDetail(listing: (typeof mockClassifiedListings)[number]): Classifie
     sellerNote: listing.sellerNote,
     variantId: `${listing.id}-variant`,
     seller: listing.seller,
+    employerListings,
     images: listing.images,
     communityListings,
     communityFloorplans,
