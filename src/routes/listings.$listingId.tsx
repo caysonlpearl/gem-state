@@ -305,9 +305,17 @@ function VehicleHistoryCard({ vehicle }: { vehicle: ClassifiedDetail["vehicle"] 
   if (!vehicle) return null;
   return (
     <section className="soft-card px-5 py-5">
-      <div className="flex items-center gap-2">
-        <FileText size={18} weight="duotone" className="text-primary" />
-        <h2 className="text-[14px] font-bold">Vehicle history</h2>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <FileText size={18} weight="duotone" className="text-primary" />
+          <h2 className="text-[14px] font-bold">Vehicle history</h2>
+        </div>
+        <span
+          aria-label="CARFAX"
+          className="inline-flex items-center rounded-sm bg-foreground px-2 py-1 text-[10px] font-black tracking-[0.18em] text-background"
+        >
+          CARFAX
+        </span>
       </div>
       <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">
         Review title, accident, and ownership history before you buy. A CARFAX report may require a
@@ -337,7 +345,7 @@ function PageStatsCard({ listing }: { listing: ClassifiedDetail }) {
       <h2 className="text-[14px] font-bold">Page stats</h2>
       <dl className="mt-3 divide-y divide-border/70 text-[12px]">
         <div className="flex items-center justify-between gap-4 py-2 first:pt-0">
-          <dt className="text-muted-foreground">Listing ID</dt>
+          <dt className="text-muted-foreground">Listing number</dt>
           <dd className="numeric text-right font-medium">{listing.id}</dd>
         </div>
         <div className="flex items-center justify-between gap-4 py-2">
@@ -350,6 +358,14 @@ function PageStatsCard({ listing }: { listing: ClassifiedDetail }) {
             <dd className="text-right font-medium">{formatDate(listing.expiresAt)}</dd>
           </div>
         )}
+        <div className="flex items-center justify-between gap-4 py-2">
+          <dt className="text-muted-foreground">Page views</dt>
+          <dd className="text-right font-medium text-muted-foreground">Not tracked yet</dd>
+        </div>
+        <div className="flex items-center justify-between gap-4 py-2">
+          <dt className="text-muted-foreground">Favorited</dt>
+          <dd className="text-right font-medium text-muted-foreground">Not tracked yet</dd>
+        </div>
         <div className="flex items-center justify-between gap-4 py-2 last:pb-0">
           <dt className="text-muted-foreground">Status</dt>
           <dd className="inline-flex items-center gap-1.5 text-right font-medium text-primary">
@@ -367,7 +383,7 @@ function TrustSafetyCard({ listing }: { listing: ClassifiedDetail }) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-[14px] font-bold">Safe. Simple. Local.</h2>
         <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary">
-          <ShieldCheck size={13} weight="fill" /> GemList trust
+          <ShieldCheck size={13} weight="fill" /> GemList Safety
         </span>
       </div>
       <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">
