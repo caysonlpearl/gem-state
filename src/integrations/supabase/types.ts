@@ -59,6 +59,7 @@ export type Database = {
     }
     Functions: {
       _probe_fn: { Args: never; Returns: number }
+      _run_restore: { Args: { batch?: number }; Returns: number }
     }
     Enums: {
       [_ in never]: never
