@@ -5,7 +5,6 @@ import { toast } from "sonner";
 import {
   ArrowLeft,
   ArrowRight,
-  Car,
   CaretDown,
   CaretRight,
   CheckCircle,
@@ -307,8 +306,12 @@ function VehicleHistoryCard({ vehicle }: { vehicle: ClassifiedDetail["vehicle"] 
   return (
     <section className="soft-card px-5 py-5">
       <div className="flex items-center gap-4 rounded-2xl bg-[#101820] px-4 py-4 text-white shadow-md ring-1 ring-[#f6b544]/40">
-        <span className="grid size-14 shrink-0 place-items-center rounded-xl bg-[#f6b544] text-[#101820] shadow-sm">
-          <Car size={32} weight="fill" aria-hidden="true" />
+        <span className="grid h-20 w-16 shrink-0 place-items-end overflow-hidden rounded-xl bg-[#f6b544] shadow-sm">
+          <img
+            src="https://images.carfax.com/image/1000257/Car-Fox_Looking-Left-cropped-med.png?width=416"
+            alt="CARFAX Car Fox"
+            className="h-[92px] w-auto max-w-none translate-y-1 object-contain"
+          />
         </span>
         <div>
           <p className="text-[23px] font-black leading-none tracking-[-0.04em]">CARFAX</p>
