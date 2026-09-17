@@ -15,7 +15,7 @@ if (!apply) {
     );
   }
   console.log(
-    "\nRun with --apply, the Lovable Cloud service key, and a seed actor user ID to create pending listings.",
+    "\nRun with --apply, the Supabase service-role key, and a seed actor user ID to create pending listings.",
   );
   process.exit(0);
 }

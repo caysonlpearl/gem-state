@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { brand } from "@/config/brand";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (search: Record<string, unknown>): AuthSearch => {
@@ -96,17 +95,17 @@ function AuthPage() {
   async function handleOAuth(provider: "google" | "apple") {
     setBusy(true);
     try {
-      const result = await lovable.auth.signInWithOAuth(provider, {
-        redirect_uri: `${window.location.origin}/auth?redirect=${encodeURIComponent(redirect)}`,
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: `${window.location.origin}/auth?redirect=${encodeURIComponent(redirect)}`,
+        },
       });
-      if (result.error) {
+      if (error) {
         toast.error(
           `${provider === "google" ? "Google" : "Apple"} sign-in failed. Try email instead.`,
         );
-        return;
       }
-      if (result.redirected) return;
-      await navigate({ to: redirect });
     } finally {
       setBusy(false);
     }

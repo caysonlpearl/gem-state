@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 
+import { brand } from "@/config/brand";
 import { supabase } from "@/integrations/supabase/client";
 import {
   getMyShopperPublicProfile,
@@ -136,7 +137,7 @@ export function ShopperPublicProfileForm() {
             value={draft.slug}
             onChange={(value) => set("slug")(value.toLowerCase())}
             placeholder="casey-wdw"
-            hint="parkvault.lovable.app/shoppers/your-handle"
+            hint={`${brand.domain}/shoppers/your-handle`}
           />
           <Field
             label="Where you're from"

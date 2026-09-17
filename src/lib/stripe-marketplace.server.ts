@@ -54,19 +54,9 @@ function runtimeSecretCandidates(runtimeEnv: unknown, name: string) {
 export function parkVaultOrigin(requestUrl?: string) {
   const configured = serverEnv("PARKVAULT_SITE_URL");
   const requestOrigin = requestUrl ? new URL(requestUrl).origin : "";
-  const stripeSecret = serverEnv("STRIPE_SECRET_KEY").trim();
-  const requestHost = requestOrigin ? new URL(requestOrigin).hostname : "";
-  const isLovablePreview =
-    requestHost === "preview--parkvault.lovable.app" ||
-    (requestHost.endsWith(".lovable.app") && requestHost.includes("preview"));
-
-  // Test checkouts started from the Lovable preview must return to that same preview.
-  // Live Stripe sessions still use the configured production origin, and arbitrary
-  // request hosts are never allowed to override the configured site URL.
-  const origin =
-    stripeSecret.startsWith("sk_test_") && isLovablePreview
-      ? requestOrigin
-      : configured || requestOrigin;
+  // Use the explicitly configured site URL in production. A request origin is
+  // retained as a local-development fallback when no deployment URL is set.
+  const origin = configured || requestOrigin;
   if (!origin.startsWith("https://"))
     throw new Error("ParkVault Checkout requires the live HTTPS URL.");
   return origin.replace(/\/$/, "");

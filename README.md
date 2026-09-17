@@ -172,15 +172,10 @@ Retail-price source and observation date
 
 You can use StockX as inspiration for design as well, but should be softer due the fantastical theme park feel. do NOT use the default lucide-react icons.  Use a different icon library. In fact, dont use any of the default design features. I do NOT want this to look or feel vibe coded at all.
 
-This project was built with [Lovable](https://lovable.dev).
-
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/a00b3be0-450f-457d-b870-8f26358ccb17).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
+This project runs independently of the original hosted builder. Supabase provides the
+database, authentication, storage, and server-side data access. See
+[`docs/supabase-migration.md`](docs/supabase-migration.md) for deployment configuration
+and the remaining transactional-email cutover.
 
 ## Development
 
