@@ -1,6 +1,6 @@
 # Supabase migration
 
-This application is now configured to run its browser auth, server auth, database, storage, and RPC calls directly against the Supabase project in `supabase/config.toml` (`iuxituyrgtnircgkmibl`). Lovable is no longer required for OAuth, preview-session storage, error reporting, Stripe return-url handling, or the Vite build wrapper.
+This application is now configured to run its browser auth, server auth, database, storage, and RPC calls directly against the Supabase project in `supabase/config.toml` (`udxxfuticbxwiehoepeg`). Lovable is no longer required for OAuth, preview-session storage, error reporting, Stripe return-url handling, or the Vite build wrapper.
 
 ## Required deployment configuration
 
