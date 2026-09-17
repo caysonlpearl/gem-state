@@ -21,24 +21,30 @@ export function ListingActions({
   listing,
   showPaymentCalculator = true,
   showPriceHeader = true,
+  calculatorVariant = "auto",
 }: {
   listing: ClassifiedDetail;
   showPaymentCalculator?: boolean;
   showPriceHeader?: boolean;
+  calculatorVariant?: "auto" | "mortgage";
 }) {
+  const isMortgage = calculatorVariant === "mortgage";
   const { isSignedIn } = useAuth();
   const [contactOpen, setContactOpen] = useState(false);
   const [message, setMessage] = useState(DEFAULT_MESSAGE);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
-  const [loanTerm, setLoanTerm] = useState("60");
-  const [downPayment, setDownPayment] = useState("0");
+  const [loanTerm, setLoanTerm] = useState(isMortgage ? "360" : "60");
+  const [downPayment, setDownPayment] = useState(
+    isMortgage ? String(Math.round((listing.priceCents / 100) * 0.2)) : "0",
+  );
 
   const principalCents = Math.max(
     0,
     listing.priceCents - Math.round((Number(downPayment) || 0) * 100),
   );
-  const payments = Number(loanTerm) || 60;
-  const monthlyRate = 0.075 / 12;
+  const payments = Number(loanTerm) || (isMortgage ? 360 : 60);
+  const apr = isMortgage ? 0.0675 : 0.075;
+  const monthlyRate = apr / 12;
   const principal = principalCents / 100;
   const monthlyPayment =
     principal === 0 ? 0 : (principal * monthlyRate) / (1 - Math.pow(1 + monthlyRate, -payments));
@@ -108,10 +114,20 @@ export function ListingActions({
                   onChange={(event) => setLoanTerm(event.target.value)}
                   className="mt-1 h-9 w-full rounded-xl border border-input bg-background px-2 text-[12px]"
                 >
-                  <option value="36">36 months</option>
-                  <option value="48">48 months</option>
-                  <option value="60">60 months</option>
-                  <option value="72">72 months</option>
+                  {isMortgage ? (
+                    <>
+                      <option value="180">15-year fixed</option>
+                      <option value="240">20-year fixed</option>
+                      <option value="360">30-year fixed</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="36">36 months</option>
+                      <option value="48">48 months</option>
+                      <option value="60">60 months</option>
+                      <option value="72">72 months</option>
+                    </>
+                  )}
                 </select>
               </label>
               <label className="text-[11px] font-medium">
@@ -126,8 +142,11 @@ export function ListingActions({
               </label>
             </div>
             <p className="flex items-start gap-1.5 text-[10.5px] leading-relaxed text-muted-foreground">
-              <Info size={13} className="mt-0.5 shrink-0 text-primary" /> Estimate uses 7.5% APR and
-              does not include taxes, title, registration, fees, or lender approval.
+              <Info size={13} className="mt-0.5 shrink-0 text-primary" /> Estimate uses{" "}
+              {isMortgage ? "6.75%" : "7.5%"} APR and does not include{" "}
+              {isMortgage
+                ? "property taxes, homeowners insurance, HOA fees, or lender approval."
+                : "taxes, title, registration, fees, or lender approval."}
             </p>
           </div>
         )}

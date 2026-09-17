@@ -721,7 +721,21 @@ test("home listings use a rental-specific detail layout", () => {
   assert.match(detailSource, /Lease terms/);
   assert.match(detailSource, /Important safety tip/);
   assert.match(detailSource, /Property details/);
-  assert.match(detailSource, /More from this community/);
+  assert.match(detailSource, /More listings like this/);
+});
+
+test("build listings show community and floorplan context", () => {
+  assert.match(mockListingsSource, /mock-home-build-banbury-meadows/);
+  assert.match(mockListingsSource, /mock-home-build-sage-creek-cottonwood/);
+  assert.match(mockListingsSource, /mock-home-build-north-bench-highlands/);
+  assert.match(mockListingsSource, /mode: "build"/);
+  assert.match(mockListingsSource, /homeCommunities/);
+  assert.match(classifiedsFunctionsSource, /communityListings/);
+  assert.match(classifiedsFunctionsSource, /communityFloorplans/);
+  assert.match(detailSource, /Part of the \{details\.community\.name\} community/);
+  assert.match(detailSource, /More Homes in This Community/);
+  assert.match(detailSource, /Floorplans in This Community/);
+  assert.match(detailSource, /calculatorVariant="mortgage"/);
 });
 
 test("all categories routes to its own general classifieds landing page", () => {

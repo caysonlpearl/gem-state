@@ -1,3 +1,18 @@
+export type ClassifiedFloorplan = {
+  name: string;
+  bedrooms: number;
+  bathrooms: number;
+  squareFeet?: number | null;
+  image: string;
+  builderUrl?: string | null;
+};
+
+export type ClassifiedHomeCommunity = {
+  slug: string;
+  name: string;
+  floorplans?: ClassifiedFloorplan[];
+};
+
 export type ClassifiedHomeDetails = {
   mode: "rent" | "buy" | "build";
   propertyType: string;
@@ -13,6 +28,85 @@ export type ClassifiedHomeDetails = {
   utilities?: { label: string; paidBy: string }[];
   amenities?: string[];
   openHouse?: string | null;
+  community?: { slug: string; name: string } | null;
+  schoolDistrict?: string | null;
+  acreage?: string | null;
+  heating?: string | null;
+  cooling?: string | null;
+  garageParking?: string | null;
+  yard?: string | null;
+  appliancesIncluded?: string | null;
+  basementType?: string | null;
+  floorCoverings?: string | null;
+  exteriorMaterial?: string | null;
+  specialFeatures?: string | null;
+  hoaFees?: string | null;
+};
+
+export const homeCommunities: Record<string, ClassifiedHomeCommunity> = {
+  "banbury-meadows": {
+    slug: "banbury-meadows",
+    name: "Banbury Meadows",
+    floorplans: [
+      {
+        name: "Aspen",
+        bedrooms: 4,
+        bathrooms: 2.5,
+        squareFeet: 2410,
+        image:
+          "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=900&q=80",
+        builderUrl: "https://www.riverstonehomes.example/plans/aspen",
+      },
+      {
+        name: "Birch",
+        bedrooms: 3,
+        bathrooms: 2,
+        squareFeet: 1950,
+        image:
+          "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=900&q=80",
+        builderUrl: "https://www.riverstonehomes.example/plans/birch",
+      },
+    ],
+  },
+  "sage-creek": {
+    slug: "sage-creek",
+    name: "Sage Creek",
+    floorplans: [
+      {
+        name: "Cottonwood",
+        bedrooms: 3,
+        bathrooms: 2,
+        squareFeet: 1860,
+        image:
+          "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=900&q=80",
+        builderUrl: "https://www.riverstonehomes.example/plans/cottonwood",
+      },
+      {
+        name: "Sagewood",
+        bedrooms: 4,
+        bathrooms: 2.5,
+        squareFeet: 2240,
+        image:
+          "https://images.unsplash.com/photo-1605146769289-440113cc3d00?auto=format&fit=crop&w=900&q=80",
+        builderUrl: "https://www.riverstonehomes.example/plans/sagewood",
+      },
+    ],
+  },
+  "north-bench-highlands": {
+    slug: "north-bench-highlands",
+    name: "North Bench Highlands",
+    floorplans: [
+      {
+        name: "Highlands Custom",
+        bedrooms: 4,
+        bathrooms: 3,
+        squareFeet: 2780,
+        image:
+          "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=900&q=80",
+        builderUrl: "https://www.riverstonehomes.example/plans/highlands-custom",
+      },
+    ],
+  },
 };
 
 export type MockClassifiedListing = {
@@ -488,6 +582,7 @@ export const mockClassifiedListings: MockClassifiedListing[] = [
       yearBuilt: 2024,
       available: "For sale",
       sellerType: "Builder",
+      community: { slug: "banbury-meadows", name: "Banbury Meadows" },
       amenities: [
         "Quartz counters",
         "Covered patio",
@@ -585,6 +680,7 @@ export const mockClassifiedListings: MockClassifiedListing[] = [
       yearBuilt: 2023,
       available: "For sale",
       sellerType: "Builder",
+      community: { slug: "sage-creek", name: "Sage Creek" },
       amenities: ["Bright great room", "Flexible loft", "Covered front porch", "Fenced side yard"],
     },
     images: [
@@ -628,6 +724,19 @@ export const mockClassifiedListings: MockClassifiedListing[] = [
       yearBuilt: 2026,
       available: "Est. completion December 2026",
       sellerType: "Builder",
+      community: { slug: "banbury-meadows", name: "Banbury Meadows" },
+      schoolDistrict: "West Ada School District",
+      acreage: "0.18 acres",
+      heating: "Forced air, gas",
+      cooling: "Central air",
+      garageParking: "3-car attached garage",
+      yard: "Sod front and back, sprinkler system",
+      appliancesIncluded: "Range, dishwasher, microwave",
+      basementType: "Crawl space",
+      floorCoverings: "Luxury vinyl plank, carpet",
+      exteriorMaterial: "Stucco with stone accents",
+      specialFeatures: "Smart thermostat, covered patio",
+      hoaFees: "$45/month",
       amenities: [
         "Main-floor primary suite",
         "Walk-in pantry",
@@ -676,6 +785,19 @@ export const mockClassifiedListings: MockClassifiedListing[] = [
       yearBuilt: 2026,
       available: "Move-in ready",
       sellerType: "Builder",
+      community: { slug: "sage-creek", name: "Sage Creek" },
+      schoolDistrict: "West Ada School District",
+      acreage: "0.14 acres",
+      heating: "Forced air, gas",
+      cooling: "Central air",
+      garageParking: "2-car attached garage",
+      yard: "Sod front yard, xeriscape backyard",
+      appliancesIncluded: "Range, dishwasher, microwave",
+      basementType: "Slab, no basement",
+      floorCoverings: "Luxury vinyl plank, carpet",
+      exteriorMaterial: "Vinyl siding with stone accents",
+      specialFeatures: "Builder warranty, covered patio",
+      hoaFees: "$30/month",
       amenities: ["Covered patio", "Flex room off entry", "2-car garage", "Builder warranty"],
     },
     images: [
@@ -719,6 +841,19 @@ export const mockClassifiedListings: MockClassifiedListing[] = [
       yearBuilt: 2027,
       available: "Reserve now, groundbreaking this quarter",
       sellerType: "Builder",
+      community: { slug: "north-bench-highlands", name: "North Bench Highlands" },
+      schoolDistrict: "Boise School District",
+      acreage: "0.42 acres",
+      heating: "Forced air, gas (final selections pending)",
+      cooling: "Central air (final selections pending)",
+      garageParking: "3-car attached garage",
+      yard: "Graded lot, landscaping not yet installed",
+      appliancesIncluded: "Buyer selects at design center",
+      basementType: "Daylight basement",
+      floorCoverings: "Buyer selects at design center",
+      exteriorMaterial: "Board-and-batten siding with stone accents",
+      specialFeatures: "View lot, custom design center selections",
+      hoaFees: "$0",
       amenities: [
         "Daylight basement",
         "Covered deck with foothill views",

@@ -371,6 +371,11 @@ function PageStatsCard({ listing }: { listing: ClassifiedDetail }) {
       day: "numeric",
       year: "numeric",
     });
+  const daysBetween = (from: string, to: number) =>
+    Math.max(0, Math.round((to - new Date(from).getTime()) / (1000 * 60 * 60 * 24)));
+  const now = Date.now();
+  const daysOnline = daysBetween(listing.createdAt, now);
+  const daysLeft = listing.expiresAt ? daysBetween(listing.createdAt, new Date(listing.expiresAt).getTime()) - daysOnline : null;
   return (
     <section className="soft-card px-5 py-5">
       <h2 className="text-[14px] font-bold">Page stats</h2>
@@ -387,6 +392,16 @@ function PageStatsCard({ listing }: { listing: ClassifiedDetail }) {
           <div className="flex items-center justify-between gap-4 py-2">
             <dt className="text-muted-foreground">Expires</dt>
             <dd className="text-right font-medium">{formatDate(listing.expiresAt)}</dd>
+          </div>
+        )}
+        <div className="flex items-center justify-between gap-4 py-2">
+          <dt className="text-muted-foreground">Days online</dt>
+          <dd className="numeric text-right font-medium">{daysOnline}</dd>
+        </div>
+        {daysLeft != null && (
+          <div className="flex items-center justify-between gap-4 py-2">
+            <dt className="text-muted-foreground">Days left</dt>
+            <dd className="numeric text-right font-medium">{Math.max(0, daysLeft)}</dd>
           </div>
         )}
         <div className="flex items-center justify-between gap-4 py-2">
@@ -878,6 +893,19 @@ function homeRentalDetails(listing: ClassifiedDetail, description: string) {
     utilities: home?.utilities ?? [],
     amenities: home?.amenities ?? [],
     openHouse: home?.openHouse ?? null,
+    community: home?.community ?? null,
+    schoolDistrict: home?.schoolDistrict ?? "Ask seller",
+    acreage: home?.acreage ?? "Ask seller",
+    heating: home?.heating ?? "Ask seller",
+    cooling: home?.cooling ?? "Ask seller",
+    garageParking: home?.garageParking ?? "Ask seller",
+    yard: home?.yard ?? "Ask seller",
+    appliancesIncluded: home?.appliancesIncluded ?? "Ask seller",
+    basementType: home?.basementType ?? "Ask seller",
+    floorCoverings: home?.floorCoverings ?? "Ask seller",
+    exteriorMaterial: home?.exteriorMaterial ?? "Ask seller",
+    specialFeatures: home?.specialFeatures ?? "Ask seller",
+    hoaFees: home?.hoaFees ?? "N/A",
     isRental,
   };
 }
@@ -1019,7 +1047,19 @@ function HomeRentalInformation({
                   {[
                     ["Property type", details.propertyType],
                     ["Seller type", details.sellerType],
+                    ["School district", details.schoolDistrict],
                     ["Year built", details.yearBuilt],
+                    ["Acreage", details.acreage],
+                    ["Heating", details.heating],
+                    ["Cooling", details.cooling],
+                    ["Garage/Parking", details.garageParking],
+                    ["Yard", details.yard],
+                    ["Appliances included", details.appliancesIncluded],
+                    ["Basement type", details.basementType],
+                    ["Floor coverings", details.floorCoverings],
+                    ["Exterior material", details.exteriorMaterial],
+                    ["Special features", details.specialFeatures],
+                    ["HOA fees", details.hoaFees],
                     ...(details.openHouse ? [["Open house", details.openHouse]] : []),
                   ].map(([label, value]) => (
                     <div key={label} className="flex items-center justify-between gap-4 py-3">
@@ -1125,7 +1165,15 @@ function HomeListingDetail({
       <header className="mt-5 border-b border-border/70 pb-5">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-[28px] font-bold leading-tight tracking-tight sm:text-[38px]">
+            {details.community && (
+              <a
+                href="#community-homes"
+                className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-primary hover:underline"
+              >
+                Part of the {details.community.name} community
+              </a>
+            )}
+            <h1 className="mt-1 text-[28px] font-bold leading-tight tracking-tight sm:text-[38px]">
               {title}
             </h1>
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12.5px] text-muted-foreground">
@@ -1191,14 +1239,71 @@ function HomeListingDetail({
 
         <aside className="min-w-0 space-y-5 lg:sticky lg:top-24">
           <SellerCard listing={listing} />
-          <ListingActions listing={listing} showPaymentCalculator={false} showPriceHeader={false} />
+          <ListingActions
+            listing={listing}
+            showPaymentCalculator={!details.isRental}
+            calculatorVariant="mortgage"
+            showPriceHeader={false}
+          />
           <PageStatsCard listing={listing} />
         </aside>
       </div>
 
+      {!!listing.communityListings?.length && (
+        <section id="community-homes" className="mt-14 scroll-mt-24 border-t border-border/70 pt-9">
+          <h2 className="text-[23px] font-bold tracking-tight">More Homes in This Community</h2>
+          <p className="mt-1 text-[13px] text-muted-foreground">
+            Other listings in the {details.community?.name} community
+          </p>
+          <div className="no-scrollbar mt-5 flex snap-x gap-4 overflow-x-auto pb-2">
+            {listing.communityListings.map((related) => (
+              <div key={related.id} className="w-[245px] shrink-0 snap-start sm:w-[280px]">
+                <ListingCard listing={related} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {!!listing.communityFloorplans?.length && (
+        <section className="mt-14 border-t border-border/70 pt-9">
+          <h2 className="text-[23px] font-bold tracking-tight">Floorplans in This Community</h2>
+          <p className="mt-1 text-[13px] text-muted-foreground">
+            Available plans from the builder in {details.community?.name}
+          </p>
+          <div className="no-scrollbar mt-5 flex snap-x gap-4 overflow-x-auto pb-2">
+            {listing.communityFloorplans.map((plan) => (
+              <div
+                key={plan.name}
+                className="w-[220px] shrink-0 snap-start overflow-hidden rounded-2xl border border-border/70 bg-card sm:w-[250px]"
+              >
+                <img src={plan.image} alt={plan.name} className="h-36 w-full object-cover" />
+                <div className="p-3.5">
+                  <p className="text-[14px] font-bold">{plan.name}</p>
+                  <p className="mt-1 text-[12px] text-muted-foreground">
+                    {plan.bedrooms} beds · {plan.bathrooms} bath
+                    {plan.squareFeet ? ` · ${plan.squareFeet.toLocaleString()} sq ft` : ""}
+                  </p>
+                  {plan.builderUrl && (
+                    <a
+                      href={plan.builderUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-2 inline-flex items-center gap-1 text-[12px] font-semibold text-primary hover:underline"
+                    >
+                      HomeBuilder website <CaretRight size={13} />
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {relatedListings.length > 0 && (
         <section className="mt-14 border-t border-border/70 pt-9">
-          <h2 className="text-[23px] font-bold tracking-tight">More from this community</h2>
+          <h2 className="text-[23px] font-bold tracking-tight">More listings like this</h2>
           <p className="mt-1 text-[13px] text-muted-foreground">
             Other homes and rentals in this category
           </p>

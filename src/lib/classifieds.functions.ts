@@ -3,7 +3,12 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { publicServerClient } from "./supabase-public.server";
 import { classifiedCategories } from "@/config/classifieds";
-import { mockClassifiedListings, type ClassifiedHomeDetails } from "@/config/classified-mocks";
+import {
+  mockClassifiedListings,
+  homeCommunities,
+  type ClassifiedFloorplan,
+  type ClassifiedHomeDetails,
+} from "@/config/classified-mocks";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   classifiedListingSchema,
@@ -75,6 +80,8 @@ export type ClassifiedDetail = ClassifiedCard & {
     sellerType?: string;
   } | null;
   images: { url: string; alt: string }[];
+  communityListings?: ClassifiedCard[] | undefined;
+  communityFloorplans?: ClassifiedFloorplan[] | undefined;
 };
 
 export type ClassifiedBrowseResult = {
@@ -591,6 +598,13 @@ function mockCard(listing: (typeof mockClassifiedListings)[number]): ClassifiedC
 }
 
 function mockDetail(listing: (typeof mockClassifiedListings)[number]): ClassifiedDetail {
+  const communitySlug = listing.home?.community?.slug;
+  const communityListings = communitySlug
+    ? mockClassifiedListings
+        .filter((other) => other.id !== listing.id && other.home?.community?.slug === communitySlug)
+        .map(mockCard)
+    : undefined;
+  const communityFloorplans = communitySlug ? homeCommunities[communitySlug]?.floorplans : undefined;
   return {
     ...mockCard(listing),
     description: listing.description,
@@ -600,6 +614,8 @@ function mockDetail(listing: (typeof mockClassifiedListings)[number]): Classifie
     variantId: `${listing.id}-variant`,
     seller: listing.seller,
     images: listing.images,
+    communityListings,
+    communityFloorplans,
   };
 }
 
