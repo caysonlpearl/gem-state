@@ -1,0 +1,8 @@
+CREATE OR REPLACE FUNCTION public._probe_fn()
+RETURNS int
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  RETURN 42;
+END
+$$;

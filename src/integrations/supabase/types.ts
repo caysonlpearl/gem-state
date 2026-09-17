@@ -58,7 +58,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      _probe_fn: { Args: never; Returns: number }
     }
     Enums: {
       [_ in never]: never
