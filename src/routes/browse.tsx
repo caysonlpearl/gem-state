@@ -460,6 +460,7 @@ function inputFromSearch(search: Search): ClassifiedBrowseInput {
   return {
     q: search.q,
     category: search.category,
+    homeTab: search.homeTab,
     group: search.group,
     state: search.state,
     region: search.region,

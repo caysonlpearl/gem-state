@@ -703,12 +703,20 @@ test("general classifieds have mock detail fixtures without changing category se
 });
 
 test("home listings use a rental-specific detail layout", () => {
+  assert.match(mockListingsSource, /mock-home-rental-crescent-townhome/);
+  assert.match(mockListingsSource, /mock-home-rental-parkside-flats/);
+  assert.match(mockListingsSource, /mock-home-sale-riverstone/);
+  assert.match(mockListingsSource, /mode: "rent"/);
+  assert.match(mockListingsSource, /mode: "buy"/);
+  assert.match(classifiedsFunctionsSource, /homeTab\?: "buy" \| "rent" \| "build"/);
+  assert.match(classifiedsFunctionsSource, /listing\.home\?\.mode !== data\.homeTab/);
   assert.match(detailSource, /listing\.categorySlug === "other-real-estate"/);
   assert.match(detailSource, /function HomeListingDetail/);
   assert.match(detailSource, /function HomeRentalInformation/);
   assert.match(detailSource, /Who pays utilities/);
   assert.match(detailSource, /Lease terms/);
   assert.match(detailSource, /Important safety tip/);
+  assert.match(detailSource, /Property details/);
   assert.match(detailSource, /More from this community/);
 });
 

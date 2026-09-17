@@ -818,39 +818,66 @@ function ListingDetail() {
 }
 
 function homeRentalDetails(listing: ClassifiedDetail, description: string) {
+  const home = listing.home;
   const source = `${listing.title} ${description}`;
   const bedrooms = source.match(/\b(\d+(?:\.\d+)?)\s*[- ]?(?:bed|bedroom)s?\b/i)?.[1];
   const bathrooms = source.match(/\b(\d+(?:\.\d+)?)\s*[- ]?(?:bath|bathroom)s?\b/i)?.[1];
   const squareFeet = source.match(/\b([\d,]+)\s*(?:sq\.?\s*ft|square feet)\b/i)?.[1];
-  const availability = /available\s+(?:now|immediately)/i.test(source)
-    ? "Available now"
-    : "Confirm availability";
-  const pets = /no pets|pets?\s+not allowed/i.test(source)
-    ? "Not allowed"
-    : /pets?\s+(?:allowed|welcome)|pet friendly/i.test(source)
-      ? "Allowed"
-      : "Ask seller";
-  const smoking = /no smoking|smoking\s+(?:not allowed|prohibited)/i.test(source)
-    ? "Not allowed"
-    : /smoking\s+allowed/i.test(source)
-      ? "Allowed"
-      : "Ask seller";
-  const leaseLength = source.match(
+  const availability =
+    home?.available ??
+    (/available\s+(?:now|immediately)/i.test(source) ? "Available now" : "Confirm availability");
+  const pets =
+    home?.pets ??
+    (/no pets|pets?\s+not allowed/i.test(source)
+      ? "Not allowed"
+      : /pets?\s+(?:allowed|welcome)|pet friendly/i.test(source)
+        ? "Allowed"
+        : "Ask seller");
+  const smoking =
+    home?.smoking ??
+    (/no smoking|smoking\s+(?:not allowed|prohibited)/i.test(source)
+      ? "Not allowed"
+      : /smoking\s+allowed/i.test(source)
+        ? "Allowed"
+        : "Ask seller");
+  const parsedLeaseLength = source.match(
     /\b(month-to-month|\d+\s*(?:to|-|–)\s*\d+\s*months?|\d+\s*months?)\b/i,
   )?.[1];
   const isRental =
-    listing.priceCents < 1_000_000 || /rent|rental|lease|per month|\/\s*mo/i.test(source);
+    home?.mode === "rent" ||
+    (home?.mode !== "buy" &&
+      home?.mode !== "build" &&
+      (listing.priceCents < 1_000_000 || /rent|rental|lease|per month|\/\s*mo/i.test(source)));
 
   return {
-    bedrooms: bedrooms ? `${bedrooms} ${Number(bedrooms) === 1 ? "bed" : "beds"}` : "Ask seller",
-    bathrooms: bathrooms
-      ? `${bathrooms} ${Number(bathrooms) === 1 ? "bath" : "baths"}`
-      : "Ask seller",
-    squareFeet: squareFeet ? `${squareFeet} sq ft` : "Ask seller",
+    bedrooms:
+      home?.bedrooms != null
+        ? `${home.bedrooms} ${home.bedrooms === 1 ? "bed" : "beds"}`
+        : bedrooms
+          ? `${bedrooms} ${Number(bedrooms) === 1 ? "bed" : "beds"}`
+          : "Ask seller",
+    bathrooms:
+      home?.bathrooms != null
+        ? `${home.bathrooms} ${home.bathrooms === 1 ? "bath" : "baths"}`
+        : bathrooms
+          ? `${bathrooms} ${Number(bathrooms) === 1 ? "bath" : "baths"}`
+          : "Ask seller",
+    squareFeet:
+      home?.squareFeet != null
+        ? `${home.squareFeet.toLocaleString()} sq ft`
+        : squareFeet
+          ? `${squareFeet} sq ft`
+          : "Ask seller",
     availability,
     pets,
     smoking,
-    leaseLength: leaseLength ?? "Confirm with seller",
+    leaseLength: home?.leaseLength ?? parsedLeaseLength ?? "Confirm with seller",
+    propertyType: home?.propertyType ?? "Ask seller",
+    yearBuilt: home?.yearBuilt != null ? String(home.yearBuilt) : "Ask seller",
+    sellerType: home?.sellerType ?? listing.seller?.sellerType ?? "Ask seller",
+    utilities: home?.utilities ?? [],
+    amenities: home?.amenities ?? [],
+    openHouse: home?.openHouse ?? null,
     isRental,
   };
 }
@@ -910,19 +937,20 @@ function HomeRentalInformation({
 }) {
   const [activeTab, setActiveTab] = useState<"description" | "amenities">("description");
   const details = homeRentalDetails(listing, description);
-  const utilityRows = [
-    ["Utilities", "Confirm with seller"],
-    ["Internet", "Confirm with seller"],
-    ["Renter's insurance", "Confirm with seller"],
-  ];
-  const amenityRows = [
-    `Bedrooms: ${details.bedrooms}`,
-    `Bathrooms: ${details.bathrooms}`,
-    `Square feet: ${details.squareFeet}`,
-    `Pets: ${details.pets}`,
-    `Smoking: ${details.smoking}`,
-    "Parking and community amenities: Ask seller",
-  ];
+  const utilityRows =
+    details.utilities.length > 0
+      ? details.utilities.map(({ label, paidBy }) => [label, paidBy])
+      : [["Utilities", "Confirm with seller"]];
+  const amenityRows =
+    details.amenities.length > 0
+      ? details.amenities
+      : [
+          `Bedrooms: ${details.bedrooms}`,
+          `Bathrooms: ${details.bathrooms}`,
+          `Square feet: ${details.squareFeet}`,
+          ...(details.isRental ? [`Pets: ${details.pets}`, `Smoking: ${details.smoking}`] : []),
+          "Additional amenities: Ask seller",
+        ];
 
   return (
     <section className="soft-card overflow-hidden">
@@ -951,41 +979,64 @@ function HomeRentalInformation({
             <p className="mt-5 whitespace-pre-line text-[14px] leading-7 text-muted-foreground">
               {description || "The seller has not added a description yet."}
             </p>
-            <div className="mt-8 border-t border-border/70 pt-6">
-              <h3 className="text-[18px] font-bold">Who pays utilities</h3>
-              <dl className="mt-3 divide-y divide-border/70 text-[13px]">
-                {utilityRows.map(([label, value]) => (
-                  <div key={label} className="flex items-center justify-between gap-4 py-3">
-                    <dt>{label}</dt>
-                    <dd className="font-semibold text-muted-foreground">{value}</dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
-            <div className="mt-8 border-t border-border/70 pt-6">
-              <h3 className="text-[18px] font-bold">Lease terms</h3>
-              <dl className="mt-3 divide-y divide-border/70 text-[13px]">
-                <div className="flex items-center justify-between gap-4 py-3">
-                  <dt>Lease length</dt>
-                  <dd className="font-semibold text-muted-foreground">{details.leaseLength}</dd>
+            {details.isRental ? (
+              <>
+                <div className="mt-8 border-t border-border/70 pt-6">
+                  <h3 className="text-[18px] font-bold">Who pays utilities</h3>
+                  <dl className="mt-3 divide-y divide-border/70 text-[13px]">
+                    {utilityRows.map(([label, value]) => (
+                      <div key={label} className="flex items-center justify-between gap-4 py-3">
+                        <dt>{label}</dt>
+                        <dd className="font-semibold text-muted-foreground">{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
                 </div>
-                <div className="flex items-center justify-between gap-4 py-3">
-                  <dt>Security deposit</dt>
-                  <dd className="font-semibold text-muted-foreground">Confirm with seller</dd>
+                <div className="mt-8 border-t border-border/70 pt-6">
+                  <h3 className="text-[18px] font-bold">Lease terms</h3>
+                  <dl className="mt-3 divide-y divide-border/70 text-[13px]">
+                    <div className="flex items-center justify-between gap-4 py-3">
+                      <dt>Lease length</dt>
+                      <dd className="font-semibold text-muted-foreground">{details.leaseLength}</dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-4 py-3">
+                      <dt>Security deposit</dt>
+                      <dd className="font-semibold text-muted-foreground">Confirm with seller</dd>
+                    </div>
+                    <div className="flex items-center justify-between gap-4 py-3">
+                      <dt>Available</dt>
+                      <dd className="font-semibold text-muted-foreground">
+                        {details.availability}
+                      </dd>
+                    </div>
+                  </dl>
                 </div>
-                <div className="flex items-center justify-between gap-4 py-3">
-                  <dt>Available</dt>
-                  <dd className="font-semibold text-muted-foreground">{details.availability}</dd>
-                </div>
-              </dl>
-            </div>
+              </>
+            ) : (
+              <div className="mt-8 border-t border-border/70 pt-6">
+                <h3 className="text-[18px] font-bold">Property details</h3>
+                <dl className="mt-3 divide-y divide-border/70 text-[13px]">
+                  {[
+                    ["Property type", details.propertyType],
+                    ["Seller type", details.sellerType],
+                    ["Year built", details.yearBuilt],
+                    ...(details.openHouse ? [["Open house", details.openHouse]] : []),
+                  ].map(([label, value]) => (
+                    <div key={label} className="flex items-center justify-between gap-4 py-3">
+                      <dt>{label}</dt>
+                      <dd className="text-right font-semibold text-muted-foreground">{value}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+            )}
           </div>
         ) : (
           <div>
             <h2 className="text-[21px] font-bold">Home amenities</h2>
             <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
-              Amenities and inclusions should be confirmed with the seller before applying or
-              signing a lease.
+              Amenities and inclusions should be confirmed with the seller before applying, signing
+              a lease, or making an offer.
             </p>
             <ul className="mt-5 grid gap-3 sm:grid-cols-2">
               {amenityRows.map((amenity) => (
@@ -1005,7 +1056,7 @@ function HomeRentalInformation({
   );
 }
 
-function HomeSafetyPanel() {
+function HomeSafetyPanel({ isRental }: { isRental: boolean }) {
   return (
     <section className="rounded-2xl border border-brand-warm/50 bg-brand-warm/10 px-5 py-5 sm:px-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1015,8 +1066,9 @@ function HomeSafetyPanel() {
         </span>
       </div>
       <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
-        Never send a deposit before touring the home and verifying the owner or property manager.
-        Review the lease, fees, utilities, and application process before paying.
+        {isRental
+          ? "Never send a deposit before touring the home and verifying the owner or property manager. Review the lease, fees, utilities, and application process before paying."
+          : "Never send money before touring the home and verifying ownership. Review disclosures, fees, inspection details, and the offer terms before making a payment."}
       </p>
       <Link
         to="/contact"
@@ -1045,6 +1097,7 @@ function HomeListingDetail({
 }) {
   const details = homeRentalDetails(listing, description);
   const price = formatUsd(listing.priceCents).replace(/\.00$/, "");
+  const homeTab = details.isRental ? "rent" : "buy";
 
   return (
     <main className="mx-auto max-w-[1360px] px-4 py-6 sm:px-7 sm:py-8 lg:px-10">
@@ -1058,7 +1111,7 @@ function HomeListingDetail({
         <CaretRight size={13} />
         <Link
           to="/browse"
-          search={{ category: "other-real-estate", homeMode: "results", homeTab: "rent" }}
+          search={{ category: "other-real-estate", homeMode: "results", homeTab }}
           className="hover:text-foreground"
         >
           Homes
@@ -1126,11 +1179,14 @@ function HomeListingDetail({
             <HomeFactCard label="Bedrooms" value={details.bedrooms} />
             <HomeFactCard label="Bathrooms" value={details.bathrooms} />
             <HomeFactCard label="Square feet" value={details.squareFeet} />
-            <HomeFactCard label="Availability" value={details.availability} />
+            <HomeFactCard
+              label={details.isRental ? "Availability" : "Status"}
+              value={details.isRental ? details.availability : "For sale"}
+            />
           </section>
           <HomeLocationPanel listing={listing} locationQuery={locationQuery} />
           <HomeRentalInformation listing={listing} description={description} />
-          <HomeSafetyPanel />
+          <HomeSafetyPanel isRental={details.isRental} />
         </div>
 
         <aside className="min-w-0 space-y-5 lg:sticky lg:top-24">

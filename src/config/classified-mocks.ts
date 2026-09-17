@@ -1,3 +1,20 @@
+export type ClassifiedHomeDetails = {
+  mode: "rent" | "buy" | "build";
+  propertyType: string;
+  bedrooms: number | null;
+  bathrooms: number | null;
+  squareFeet: number | null;
+  yearBuilt?: number | null;
+  available?: string | null;
+  pets?: string | null;
+  smoking?: string | null;
+  leaseLength?: string | null;
+  sellerType?: string | null;
+  utilities?: { label: string; paidBy: string }[];
+  amenities?: string[];
+  openHouse?: string | null;
+};
+
 export type MockClassifiedListing = {
   id: string;
   listingNumber: string;
@@ -17,6 +34,7 @@ export type MockClassifiedListing = {
   description: string;
   postalCode: string;
   sellerNote: string;
+  home?: ClassifiedHomeDetails;
   seller: {
     slug: string;
     displayName: string;
@@ -65,6 +83,39 @@ const sellers = {
     reviewCount: 5,
     memberSince: 2021,
     sellerType: "Private",
+  },
+  crescent: {
+    slug: "mock-crescent-apartments",
+    displayName: "Crescent Apartments",
+    bio: "A local property team helping renters find well-kept homes in the Salt Lake Valley.",
+    avatarUrl: null,
+    payoutVerified: true,
+    ratingAverage: 4.8,
+    reviewCount: 34,
+    memberSince: 2017,
+    sellerType: "Property manager",
+  },
+  sagebrush: {
+    slug: "mock-sagebrush-property-group",
+    displayName: "Sagebrush Property Group",
+    bio: "Local property managers with a small collection of homes across the Treasure Valley.",
+    avatarUrl: null,
+    payoutVerified: true,
+    ratingAverage: 4.9,
+    reviewCount: 21,
+    memberSince: 2019,
+    sellerType: "Property manager",
+  },
+  riverstone: {
+    slug: "mock-riverstone-homes",
+    displayName: "Riverstone Homes",
+    bio: "A local home builder and seller focused on comfortable, move-in-ready Idaho homes.",
+    avatarUrl: null,
+    payoutVerified: true,
+    ratingAverage: 5,
+    reviewCount: 16,
+    memberSince: 2015,
+    sellerType: "Business",
   },
 } as const;
 
@@ -238,6 +289,312 @@ export const mockClassifiedListings: MockClassifiedListing[] = [
       {
         url: image("photo-1607453998774-d533f65dac99", "Vintage doll collectible"),
         alt: "Vintage doll collectible",
+      },
+    ],
+  },
+  {
+    id: "mock-home-rental-crescent-townhome",
+    listingNumber: "40630044",
+    title: "New Luxury 2 Bedroom Townhome in SLC!!",
+    productId: "mock-product-crescent-townhome",
+    productSlug: "new-luxury-2-bedroom-townhome-slc",
+    priceCents: 216_000,
+    city: "Salt Lake City",
+    state: "UT",
+    region: "Salt Lake Valley",
+    categorySlug: "other-real-estate",
+    categoryName: "Homes",
+    condition: "new_with_tags",
+    fulfillmentMode: "local_pickup",
+    createdAt: "2026-09-15T16:00:00.000Z",
+    expiresAt: "2026-10-16T16:00:00.000Z",
+    description:
+      "Available now. Discover upscale urban living in this brand-new 2 bedroom, 2 bathroom townhome with 1,139 square feet and a 2025 build. The open layout has bright natural light, a modern kitchen with stainless appliances, a full-size washer and dryer, private fenced patio, attached garage, and smart-home features. Pets are allowed with approval. No smoking. 12 to 15 month lease preferred. Resident pays electric, gas, internet, and renter's insurance; water, sewer, and trash are included. Schedule a tour with Crescent Apartments.",
+    postalCode: "84104",
+    sellerNote: "Tours are available by appointment. Apply after viewing the home.",
+    seller: sellers.crescent,
+    home: {
+      mode: "rent",
+      propertyType: "Townhome",
+      bedrooms: 2,
+      bathrooms: 2,
+      squareFeet: 1139,
+      yearBuilt: 2025,
+      available: "Available now",
+      pets: "Allowed with approval",
+      smoking: "Not allowed",
+      leaseLength: "12–15 months",
+      sellerType: "Property manager",
+      utilities: [
+        { label: "Electric", paidBy: "Resident" },
+        { label: "Gas", paidBy: "Resident" },
+        { label: "Internet", paidBy: "Resident" },
+        { label: "Water, sewer, and trash", paidBy: "Landlord" },
+      ],
+      amenities: [
+        "Stainless steel appliances",
+        "Full-size washer and dryer",
+        "Attached garage",
+        "Private fenced patio",
+        "Smart locks and thermostat",
+        "Google Fiber ready",
+      ],
+    },
+    images: [
+      {
+        url: image("photo-1600607687920-4e2a09cf159d", "Bright townhome living room"),
+        alt: "Bright townhome living room",
+      },
+      {
+        url: image("photo-1600607687939-ce8a6c25118c", "Modern home kitchen"),
+        alt: "Modern home kitchen",
+      },
+      {
+        url: image("photo-1600607688969-a5bfcd646154", "Townhome bedroom"),
+        alt: "Townhome bedroom",
+      },
+    ],
+  },
+  {
+    id: "mock-home-rental-parkside-flats",
+    listingNumber: "40630038",
+    title: "Parkside Flats | Bright 1 Bedroom Apartment",
+    productId: "mock-product-parkside-flats",
+    productSlug: "parkside-flats-bright-1-bedroom-apartment",
+    priceCents: 165_000,
+    city: "Murray",
+    state: "UT",
+    region: "Salt Lake Valley",
+    categorySlug: "other-real-estate",
+    categoryName: "Homes",
+    condition: "used_excellent",
+    fulfillmentMode: "local_pickup",
+    createdAt: "2026-09-14T18:30:00.000Z",
+    expiresAt: "2026-10-15T18:30:00.000Z",
+    description:
+      "Bright 1 bedroom, 1 bathroom apartment with 742 square feet near parks, transit, and neighborhood coffee shops. Available October 1. The home includes an updated kitchen, in-unit laundry, reserved parking, and a shared courtyard. Cats welcome; dogs considered. No smoking. 12 month lease. Resident pays electric and internet; water, sewer, and trash are included.",
+    postalCode: "84107",
+    sellerNote: "Message Parkside Flats to schedule a weekday or Saturday tour.",
+    seller: sellers.crescent,
+    home: {
+      mode: "rent",
+      propertyType: "Apartment",
+      bedrooms: 1,
+      bathrooms: 1,
+      squareFeet: 742,
+      yearBuilt: 2018,
+      available: "October 1",
+      pets: "Cats welcome; dogs considered",
+      smoking: "Not allowed",
+      leaseLength: "12 months",
+      sellerType: "Property manager",
+      utilities: [
+        { label: "Electric", paidBy: "Resident" },
+        { label: "Internet", paidBy: "Resident" },
+        { label: "Water, sewer, and trash", paidBy: "Landlord" },
+      ],
+      amenities: ["Updated kitchen", "In-unit laundry", "Reserved parking", "Shared courtyard"],
+    },
+    images: [
+      {
+        url: image("photo-1505693416388-ac5ce068fe85", "Bright apartment living room"),
+        alt: "Bright apartment living room",
+      },
+      {
+        url: image("photo-1600607687920-4e2a09cf159d", "Apartment kitchen and living area"),
+        alt: "Apartment kitchen and living area",
+      },
+    ],
+  },
+  {
+    id: "mock-home-rental-warm-springs",
+    listingNumber: "40630029",
+    title: "Warm Springs 3 Bedroom Home with Yard",
+    productId: "mock-product-warm-springs",
+    productSlug: "warm-springs-3-bedroom-home-with-yard",
+    priceCents: 275_000,
+    city: "Boise",
+    state: "ID",
+    region: "Treasure Valley",
+    categorySlug: "other-real-estate",
+    categoryName: "Homes",
+    condition: "used_good",
+    fulfillmentMode: "local_pickup",
+    createdAt: "2026-09-13T20:15:00.000Z",
+    expiresAt: "2026-10-14T20:15:00.000Z",
+    description:
+      "Comfortable 3 bedroom, 2 bathroom home with 1,684 square feet, a two-car garage, and a fenced backyard in Boise's Warm Springs area. Available now. The kitchen opens to the living room and the primary suite has a walk-in closet. Dogs and cats are welcome with an additional deposit. No smoking. 12 month lease. Resident pays all utilities.",
+    postalCode: "83712",
+    sellerNote: "Please include your preferred move-in date when you message.",
+    seller: sellers.sagebrush,
+    home: {
+      mode: "rent",
+      propertyType: "Single-family home",
+      bedrooms: 3,
+      bathrooms: 2,
+      squareFeet: 1684,
+      yearBuilt: 2006,
+      available: "Available now",
+      pets: "Allowed with additional deposit",
+      smoking: "Not allowed",
+      leaseLength: "12 months",
+      sellerType: "Property manager",
+      utilities: [{ label: "All utilities", paidBy: "Resident" }],
+      amenities: [
+        "Two-car garage",
+        "Fenced backyard",
+        "Walk-in closet",
+        "Near Warm Springs trails",
+      ],
+    },
+    images: [
+      {
+        url: image("photo-1564013799919-ab600027ffc6", "Boise rental home exterior"),
+        alt: "Boise rental home exterior",
+      },
+      {
+        url: image("photo-1600566753086-00f18fb6b3ea", "Rental home kitchen"),
+        alt: "Rental home kitchen",
+      },
+    ],
+  },
+  {
+    id: "mock-home-sale-riverstone",
+    listingNumber: "40630021",
+    title: "Riverstone at Banbury | Move-In Ready Home",
+    productId: "mock-product-riverstone-banbury",
+    productSlug: "riverstone-at-banbury-move-in-ready-home",
+    priceCents: 524_900_00,
+    city: "Eagle",
+    state: "ID",
+    region: "Treasure Valley",
+    categorySlug: "other-real-estate",
+    categoryName: "Homes",
+    condition: "new_with_tags",
+    fulfillmentMode: "local_pickup",
+    createdAt: "2026-09-12T17:45:00.000Z",
+    expiresAt: "2026-10-13T17:45:00.000Z",
+    description:
+      "Move-in ready 3 bedroom, 2.5 bathroom home with 2,146 square feet in Eagle. Built in 2024 with an open kitchen, quartz counters, covered patio, attached 2-car garage, and a low-maintenance yard. Clean title. Seller is accepting showings and offers now.",
+    postalCode: "83616",
+    sellerNote: "Buyer to verify all measurements, fees, and included features.",
+    seller: sellers.riverstone,
+    home: {
+      mode: "buy",
+      propertyType: "Single-family home",
+      bedrooms: 3,
+      bathrooms: 2.5,
+      squareFeet: 2146,
+      yearBuilt: 2024,
+      available: "For sale",
+      sellerType: "Builder",
+      amenities: [
+        "Quartz counters",
+        "Covered patio",
+        "Attached 2-car garage",
+        "Low-maintenance yard",
+      ],
+    },
+    images: [
+      {
+        url: image("photo-1564013799919-ab600027ffc6", "Move-in ready Idaho home"),
+        alt: "Move-in ready Idaho home",
+      },
+      {
+        url: image("photo-1600607687920-4e2a09cf159d", "Open home interior"),
+        alt: "Open home interior",
+      },
+    ],
+  },
+  {
+    id: "mock-home-sale-north-end",
+    listingNumber: "40630012",
+    title: "North End Craftsman with Garden Studio",
+    productId: "mock-product-north-end-craftsman",
+    productSlug: "north-end-craftsman-with-garden-studio",
+    priceCents: 649_000_00,
+    city: "Boise",
+    state: "ID",
+    region: "Treasure Valley",
+    categorySlug: "other-real-estate",
+    categoryName: "Homes",
+    condition: "used_excellent",
+    fulfillmentMode: "local_pickup",
+    createdAt: "2026-09-11T15:10:00.000Z",
+    expiresAt: "2026-10-12T15:10:00.000Z",
+    description:
+      "Charming North End craftsman with 4 bedrooms, 2 bathrooms, and 1,988 square feet. The 1928 home has original character, an updated kitchen, mature landscaping, and a detached garden studio. Seller welcomes private showings and a September open house.",
+    postalCode: "83702",
+    sellerNote: "Open house details available by message.",
+    seller: sellers.sagebrush,
+    home: {
+      mode: "buy",
+      propertyType: "Single-family home",
+      bedrooms: 4,
+      bathrooms: 2,
+      squareFeet: 1988,
+      yearBuilt: 1928,
+      available: "For sale",
+      sellerType: "By owner",
+      openHouse: "September 20, 2026 · 1:00–3:00 pm",
+      amenities: [
+        "Updated kitchen",
+        "Mature landscaping",
+        "Detached garden studio",
+        "Original craftsman details",
+      ],
+    },
+    images: [
+      {
+        url: image("photo-1600585154340-be6161a56a0c", "North End craftsman home"),
+        alt: "North End craftsman home",
+      },
+      {
+        url: image("photo-1600566753190-17f0baa2a6c3", "Craftsman home interior"),
+        alt: "Craftsman home interior",
+      },
+    ],
+  },
+  {
+    id: "mock-home-sale-sage-creek",
+    listingNumber: "40630003",
+    title: "Sage Creek Home with Mountain Views",
+    productId: "mock-product-sage-creek-home",
+    productSlug: "sage-creek-home-with-mountain-views",
+    priceCents: 419_900_00,
+    city: "Meridian",
+    state: "ID",
+    region: "Treasure Valley",
+    categorySlug: "other-real-estate",
+    categoryName: "Homes",
+    condition: "new_with_tags",
+    fulfillmentMode: "local_pickup",
+    createdAt: "2026-09-10T19:00:00.000Z",
+    expiresAt: "2026-10-11T19:00:00.000Z",
+    description:
+      "Nearly new 3 bedroom, 2.5 bathroom Meridian home with 1,742 square feet and views toward the foothills. Built in 2023 with a bright great room, flexible loft, covered front porch, and fenced side yard. Clean title and ready for a new owner.",
+    postalCode: "83642",
+    sellerNote: "All information is provided as a courtesy; buyer to verify details.",
+    seller: sellers.riverstone,
+    home: {
+      mode: "buy",
+      propertyType: "Single-family home",
+      bedrooms: 3,
+      bathrooms: 2.5,
+      squareFeet: 1742,
+      yearBuilt: 2023,
+      available: "For sale",
+      sellerType: "Builder",
+      amenities: ["Bright great room", "Flexible loft", "Covered front porch", "Fenced side yard"],
+    },
+    images: [
+      {
+        url: image("photo-1605146769289-440113cc3d00", "Meridian home exterior"),
+        alt: "Meridian home exterior",
+      },
+      {
+        url: image("photo-1600607688969-a5bfcd646154", "Nearly new home bedroom"),
+        alt: "Nearly new home bedroom",
       },
     ],
   },

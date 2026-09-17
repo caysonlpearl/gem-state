@@ -3,7 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { publicServerClient } from "./supabase-public.server";
 import { classifiedCategories } from "@/config/classifieds";
-import { mockClassifiedListings } from "@/config/classified-mocks";
+import { mockClassifiedListings, type ClassifiedHomeDetails } from "@/config/classified-mocks";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   classifiedListingSchema,
@@ -52,6 +52,7 @@ export type ClassifiedCard = {
   createdAt: string;
   imageUrl: string | null;
   vehicle: ClassifiedVehicle | null;
+  home?: ClassifiedHomeDetails | null;
   isMock?: boolean;
   listingNumber?: string;
 };
@@ -561,6 +562,7 @@ function toCard(row: Record<string, unknown>, urlByPath: Map<string, string>): C
     createdAt: row["created_at"] as string,
     imageUrl: (firstPath ? (urlByPath.get(firstPath) ?? null) : null) as string | null,
     vehicle: vehicleOf(details),
+    home: null,
   };
 }
 
@@ -582,6 +584,7 @@ function mockCard(listing: (typeof mockClassifiedListings)[number]): ClassifiedC
     createdAt: listing.createdAt,
     imageUrl: listing.images[0]?.url ?? null,
     vehicle: null,
+    home: listing.home ?? null,
     isMock: true,
     listingNumber: listing.listingNumber,
   };
@@ -606,6 +609,8 @@ function mockMatches(
 ) {
   if (data.group === "motors") return false;
   if (data.category && data.category !== listing.categorySlug) return false;
+  if (data.category === "other-real-estate" && data.homeTab && listing.home?.mode !== data.homeTab)
+    return false;
   if (
     data.group === "classifieds" &&
     !classifiedCategories.some(
@@ -636,6 +641,7 @@ function mockMatches(
 export type ClassifiedBrowseInput = {
   q?: string | undefined;
   category?: string | undefined;
+  homeTab?: "buy" | "rent" | "build" | undefined;
   group?: string | undefined;
   region?: string | undefined;
   state?: string | undefined;
@@ -678,6 +684,10 @@ export const browseClassifieds = createServerFn({ method: "GET" })
   .inputValidator((input: ClassifiedBrowseInput): ClassifiedBrowseInput => ({
     q: text(input?.q),
     category: text(input?.category, 60),
+    homeTab:
+      input?.homeTab === "buy" || input?.homeTab === "rent" || input?.homeTab === "build"
+        ? input.homeTab
+        : undefined,
     group: text(input?.group, 20),
     region: text(input?.region),
     state: text(input?.state, 2)?.toUpperCase(),
@@ -715,14 +725,21 @@ export const browseClassifieds = createServerFn({ method: "GET" })
     const empty = { listings: [], total: 0, page, pageSize: PAGE_SIZE };
 
     let categoryIds: string[] | null = null;
+    let mockOnlyCategory = false;
     if (data.category) {
       const { data: category } = await client
         .from("categories")
         .select("id")
         .eq("slug", data.category)
         .maybeSingle();
-      if (!category) return empty;
-      categoryIds = [category.id];
+      if (!category) {
+        mockOnlyCategory = mockClassifiedListings.some(
+          (listing) => listing.categorySlug === data.category,
+        );
+        if (!mockOnlyCategory) return empty;
+      } else {
+        categoryIds = [category.id];
+      }
     } else if (data.group) {
       const slugs = classifiedCategories
         .filter((category) => category.group === data.group)
@@ -845,7 +862,13 @@ export const browseClassifieds = createServerFn({ method: "GET" })
     query = query.order("id", { ascending: true });
 
     const from = (page - 1) * PAGE_SIZE;
-    const { data: rows, count, error } = await query.range(from, from + PAGE_SIZE - 1);
+    const {
+      data: rows,
+      count,
+      error,
+    } = mockOnlyCategory
+      ? { data: [], count: 0, error: null }
+      : await query.range(from, from + PAGE_SIZE - 1);
     if (error) {
       console.error("browseClassifieds failed", error.message);
       return empty;
