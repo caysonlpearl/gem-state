@@ -702,6 +702,16 @@ test("general classifieds have mock detail fixtures without changing category se
   assert.match(detailSource, /showPaymentCalculator={false}/);
 });
 
+test("home listings use a rental-specific detail layout", () => {
+  assert.match(detailSource, /listing\.categorySlug === "other-real-estate"/);
+  assert.match(detailSource, /function HomeListingDetail/);
+  assert.match(detailSource, /function HomeRentalInformation/);
+  assert.match(detailSource, /Who pays utilities/);
+  assert.match(detailSource, /Lease terms/);
+  assert.match(detailSource, /Important safety tip/);
+  assert.match(detailSource, /More from this community/);
+});
+
 test("all categories routes to its own general classifieds landing page", () => {
   assert.match(headerSource, /search=\{\{ allCategories: true \}\}/);
   assert.match(allCategoriesSource, /Browse Categories/);

@@ -511,6 +511,18 @@ function ListingDetail() {
   };
 
   if (!isVehicle) {
+    if (listing.categorySlug === "other-real-estate") {
+      return (
+        <HomeListingDetail
+          listing={listing}
+          title={title}
+          description={description}
+          locationQuery={locationQuery}
+          relatedListings={relatedQuery.data.listings}
+          handleShare={handleShare}
+        />
+      );
+    }
     return (
       <GeneralListingDetail
         listing={listing}
@@ -794,6 +806,348 @@ function ListingDetail() {
           </div>
           <div className="no-scrollbar mt-5 flex snap-x gap-4 overflow-x-auto pb-2">
             {relatedQuery.data.listings.map((related) => (
+              <div key={related.id} className="w-[245px] shrink-0 snap-start sm:w-[280px]">
+                <ListingCard listing={related} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+    </main>
+  );
+}
+
+function homeRentalDetails(listing: ClassifiedDetail, description: string) {
+  const source = `${listing.title} ${description}`;
+  const bedrooms = source.match(/\b(\d+(?:\.\d+)?)\s*[- ]?(?:bed|bedroom)s?\b/i)?.[1];
+  const bathrooms = source.match(/\b(\d+(?:\.\d+)?)\s*[- ]?(?:bath|bathroom)s?\b/i)?.[1];
+  const squareFeet = source.match(/\b([\d,]+)\s*(?:sq\.?\s*ft|square feet)\b/i)?.[1];
+  const availability = /available\s+(?:now|immediately)/i.test(source)
+    ? "Available now"
+    : "Confirm availability";
+  const pets = /no pets|pets?\s+not allowed/i.test(source)
+    ? "Not allowed"
+    : /pets?\s+(?:allowed|welcome)|pet friendly/i.test(source)
+      ? "Allowed"
+      : "Ask seller";
+  const smoking = /no smoking|smoking\s+(?:not allowed|prohibited)/i.test(source)
+    ? "Not allowed"
+    : /smoking\s+allowed/i.test(source)
+      ? "Allowed"
+      : "Ask seller";
+  const leaseLength = source.match(
+    /\b(month-to-month|\d+\s*(?:to|-|–)\s*\d+\s*months?|\d+\s*months?)\b/i,
+  )?.[1];
+  const isRental =
+    listing.priceCents < 1_000_000 || /rent|rental|lease|per month|\/\s*mo/i.test(source);
+
+  return {
+    bedrooms: bedrooms ? `${bedrooms} ${Number(bedrooms) === 1 ? "bed" : "beds"}` : "Ask seller",
+    bathrooms: bathrooms
+      ? `${bathrooms} ${Number(bathrooms) === 1 ? "bath" : "baths"}`
+      : "Ask seller",
+    squareFeet: squareFeet ? `${squareFeet} sq ft` : "Ask seller",
+    availability,
+    pets,
+    smoking,
+    leaseLength: leaseLength ?? "Confirm with seller",
+    isRental,
+  };
+}
+
+function HomeFactCard({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-border/70 bg-card px-4 py-3.5">
+      <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">{label}</p>
+      <p className="mt-1.5 text-[14px] font-semibold">{value}</p>
+    </div>
+  );
+}
+
+function HomeLocationPanel({
+  listing,
+  locationQuery,
+}: {
+  listing: ClassifiedDetail;
+  locationQuery: string;
+}) {
+  return (
+    <section className="soft-card overflow-hidden">
+      <div className="relative h-[210px] overflow-hidden bg-[#e8edf2]">
+        <div className="absolute inset-0 opacity-60 [background-image:linear-gradient(35deg,transparent_46%,#fff_47%,#fff_49%,transparent_50%),linear-gradient(120deg,transparent_44%,#fff_45%,#fff_47%,transparent_48%),linear-gradient(#d8e0e7_1px,transparent_1px),linear-gradient(90deg,#d8e0e7_1px,transparent_1px)] [background-size:180px_140px,220px_180px,34px_34px,34px_34px]" />
+        <div className="absolute left-1/2 top-1/2 grid h-12 w-12 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-brand-warm text-white shadow-lg ring-8 ring-brand-warm/20">
+          <MapPin size={24} weight="fill" />
+        </div>
+      </div>
+      <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-[12px] font-semibold">
+            {listing.city}, {listing.state}
+          </p>
+          <p className="mt-1 text-[11px] text-muted-foreground">
+            Confirm the exact address and tour details with the seller.
+          </p>
+        </div>
+        <a
+          href={`https://www.google.com/maps/search/?api=1&query=${locationQuery}`}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-full bg-primary px-4 text-[12px] font-semibold text-primary-foreground hover:opacity-90"
+        >
+          <MapTrifold size={15} /> Open map
+        </a>
+      </div>
+    </section>
+  );
+}
+
+function HomeRentalInformation({
+  listing,
+  description,
+}: {
+  listing: ClassifiedDetail;
+  description: string;
+}) {
+  const [activeTab, setActiveTab] = useState<"description" | "amenities">("description");
+  const details = homeRentalDetails(listing, description);
+  const utilityRows = [
+    ["Utilities", "Confirm with seller"],
+    ["Internet", "Confirm with seller"],
+    ["Renter's insurance", "Confirm with seller"],
+  ];
+  const amenityRows = [
+    `Bedrooms: ${details.bedrooms}`,
+    `Bathrooms: ${details.bathrooms}`,
+    `Square feet: ${details.squareFeet}`,
+    `Pets: ${details.pets}`,
+    `Smoking: ${details.smoking}`,
+    "Parking and community amenities: Ask seller",
+  ];
+
+  return (
+    <section className="soft-card overflow-hidden">
+      <div
+        className="flex gap-1 border-b border-border/70 bg-secondary/35 p-2"
+        role="tablist"
+        aria-label="Home information"
+      >
+        {(["description", "amenities"] as const).map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab}
+            onClick={() => setActiveTab(tab)}
+            className={`rounded-xl px-5 py-2.5 text-[12.5px] font-semibold capitalize transition ${activeTab === tab ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+          >
+            {tab === "amenities" ? "Home amenities" : "Description"}
+          </button>
+        ))}
+      </div>
+      <div className="p-5 sm:p-7">
+        {activeTab === "description" ? (
+          <div>
+            <h2 className="text-[21px] font-bold">Description</h2>
+            <p className="mt-5 whitespace-pre-line text-[14px] leading-7 text-muted-foreground">
+              {description || "The seller has not added a description yet."}
+            </p>
+            <div className="mt-8 border-t border-border/70 pt-6">
+              <h3 className="text-[18px] font-bold">Who pays utilities</h3>
+              <dl className="mt-3 divide-y divide-border/70 text-[13px]">
+                {utilityRows.map(([label, value]) => (
+                  <div key={label} className="flex items-center justify-between gap-4 py-3">
+                    <dt>{label}</dt>
+                    <dd className="font-semibold text-muted-foreground">{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+            <div className="mt-8 border-t border-border/70 pt-6">
+              <h3 className="text-[18px] font-bold">Lease terms</h3>
+              <dl className="mt-3 divide-y divide-border/70 text-[13px]">
+                <div className="flex items-center justify-between gap-4 py-3">
+                  <dt>Lease length</dt>
+                  <dd className="font-semibold text-muted-foreground">{details.leaseLength}</dd>
+                </div>
+                <div className="flex items-center justify-between gap-4 py-3">
+                  <dt>Security deposit</dt>
+                  <dd className="font-semibold text-muted-foreground">Confirm with seller</dd>
+                </div>
+                <div className="flex items-center justify-between gap-4 py-3">
+                  <dt>Available</dt>
+                  <dd className="font-semibold text-muted-foreground">{details.availability}</dd>
+                </div>
+              </dl>
+            </div>
+          </div>
+        ) : (
+          <div>
+            <h2 className="text-[21px] font-bold">Home amenities</h2>
+            <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
+              Amenities and inclusions should be confirmed with the seller before applying or
+              signing a lease.
+            </p>
+            <ul className="mt-5 grid gap-3 sm:grid-cols-2">
+              {amenityRows.map((amenity) => (
+                <li
+                  key={amenity}
+                  className="flex items-start gap-2 rounded-xl border border-border/70 bg-secondary/35 px-3.5 py-3 text-[13px]"
+                >
+                  <CheckCircle size={16} weight="fill" className="mt-0.5 shrink-0 text-primary" />
+                  {amenity}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+function HomeSafetyPanel() {
+  return (
+    <section className="rounded-2xl border border-brand-warm/50 bg-brand-warm/10 px-5 py-5 sm:px-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-[18px] font-bold">Important safety tip</h2>
+        <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary">
+          <ShieldCheck size={13} weight="fill" /> GemList Safety
+        </span>
+      </div>
+      <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
+        Never send a deposit before touring the home and verifying the owner or property manager.
+        Review the lease, fees, utilities, and application process before paying.
+      </p>
+      <Link
+        to="/contact"
+        className="mt-4 inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-primary/40 px-4 text-[12px] font-semibold text-primary hover:bg-primary/5"
+      >
+        <Flag size={14} /> Flag this listing
+      </Link>
+    </section>
+  );
+}
+
+function HomeListingDetail({
+  listing,
+  title,
+  description,
+  locationQuery,
+  relatedListings,
+  handleShare,
+}: {
+  listing: ClassifiedDetail;
+  title: string;
+  description: string;
+  locationQuery: string;
+  relatedListings: ClassifiedCard[];
+  handleShare: () => Promise<void>;
+}) {
+  const details = homeRentalDetails(listing, description);
+  const price = formatUsd(listing.priceCents).replace(/\.00$/, "");
+
+  return (
+    <main className="mx-auto max-w-[1360px] px-4 py-6 sm:px-7 sm:py-8 lg:px-10">
+      <nav
+        aria-label="Breadcrumb"
+        className="flex flex-wrap items-center gap-1 text-[11.5px] text-muted-foreground"
+      >
+        <Link to="/browse" search={{}} className="hover:text-foreground">
+          All listings
+        </Link>
+        <CaretRight size={13} />
+        <Link
+          to="/browse"
+          search={{ category: "other-real-estate", homeMode: "results", homeTab: "rent" }}
+          className="hover:text-foreground"
+        >
+          Homes
+        </Link>
+        <CaretRight size={13} />
+        <span className="text-foreground">
+          {listing.city}, {listing.state}
+        </span>
+      </nav>
+
+      <header className="mt-5 border-b border-border/70 pb-5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-[28px] font-bold leading-tight tracking-tight sm:text-[38px]">
+              {title}
+            </h1>
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12.5px] text-muted-foreground">
+              <span className="flex items-center gap-1.5 text-primary">
+                <MapPin size={15} weight="fill" /> {listing.city}, {listing.state}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Clock size={15} /> Posted {postedAge(listing.createdAt).toLowerCase()}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Eye size={15} /> Local listing
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <WatchHeartButton
+              productId={listing.productId}
+              productSlug={listing.productSlug}
+              productName={title}
+              isDemo={listing.isMock === true}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+            />
+            <button
+              type="button"
+              aria-label="Share listing"
+              onClick={() => void handleShare()}
+              className="grid h-10 w-10 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground"
+            >
+              <ShareNetwork size={18} />
+            </button>
+            <button
+              type="button"
+              aria-label="Print listing"
+              onClick={() => window.print()}
+              className="hidden h-10 w-10 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground sm:grid"
+            >
+              <Printer size={18} />
+            </button>
+          </div>
+        </div>
+        <p className="numeric mt-4 text-[30px] font-bold leading-none text-brand-warm sm:text-[34px]">
+          {price}
+          {details.isRental ? " / mo." : ""}
+        </p>
+      </header>
+
+      <div className="mt-6 grid gap-7 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,370px)] lg:items-start">
+        <div className="min-w-0 space-y-7">
+          <Gallery listing={listing} />
+          <section className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4" aria-label="Key home facts">
+            <HomeFactCard label="Bedrooms" value={details.bedrooms} />
+            <HomeFactCard label="Bathrooms" value={details.bathrooms} />
+            <HomeFactCard label="Square feet" value={details.squareFeet} />
+            <HomeFactCard label="Availability" value={details.availability} />
+          </section>
+          <HomeLocationPanel listing={listing} locationQuery={locationQuery} />
+          <HomeRentalInformation listing={listing} description={description} />
+          <HomeSafetyPanel />
+        </div>
+
+        <aside className="min-w-0 space-y-5 lg:sticky lg:top-24">
+          <SellerCard listing={listing} />
+          <ListingActions listing={listing} showPaymentCalculator={false} showPriceHeader={false} />
+          <PageStatsCard listing={listing} />
+        </aside>
+      </div>
+
+      {relatedListings.length > 0 && (
+        <section className="mt-14 border-t border-border/70 pt-9">
+          <h2 className="text-[23px] font-bold tracking-tight">More from this community</h2>
+          <p className="mt-1 text-[13px] text-muted-foreground">
+            Other homes and rentals in this category
+          </p>
+          <div className="no-scrollbar mt-5 flex snap-x gap-4 overflow-x-auto pb-2">
+            {relatedListings.map((related) => (
               <div key={related.id} className="w-[245px] shrink-0 snap-start sm:w-[280px]">
                 <ListingCard listing={related} />
               </div>
