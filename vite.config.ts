@@ -24,7 +24,7 @@ export default defineConfig({
     }),
     react(),
     nitro({
-      preset: process.env.NITRO_PRESET ?? "cloudflare-module",
+      preset: process.env["NITRO_PRESET"] ?? "cloudflare-module",
       cloudflare: { deployConfig: true, nodeCompat: true },
     }),
   ],
