@@ -776,12 +776,12 @@ export const browseClassifieds = createServerFn({ method: "GET" })
         : conditions;
       const [firstCondition, ...otherConditions] = expandedConditions;
       if (firstCondition && otherConditions.length === 0)
-        query = query.eq("item_condition", firstCondition as (typeof conditionValues)[number]);
+        query = query.eq("item_condition", firstCondition as never);
       if (firstCondition && otherConditions.length > 0)
         query = query.in("item_condition", [
           firstCondition,
           ...otherConditions,
-        ] as (typeof conditionValues)[number][]);
+        ] as never);
     }
     if (data.fulfillment) {
       const fulfillment = filterValues(data.fulfillment);
