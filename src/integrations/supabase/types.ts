@@ -14,7 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      _restore_chunks: {
+        Row: {
+          body: string | null
+          id: number
+        }
+        Insert: {
+          body?: string | null
+          id?: number
+        }
+        Update: {
+          body?: string | null
+          id?: number
+        }
+        Relationships: []
+      }
+      _restore_errors: {
+        Row: {
+          err: string | null
+          seq: number | null
+          state: string | null
+          stmt: string | null
+          ts: string | null
+        }
+        Insert: {
+          err?: string | null
+          seq?: number | null
+          state?: string | null
+          stmt?: string | null
+          ts?: string | null
+        }
+        Update: {
+          err?: string | null
+          seq?: number | null
+          state?: string | null
+          stmt?: string | null
+          ts?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
