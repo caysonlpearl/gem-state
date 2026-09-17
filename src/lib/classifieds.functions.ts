@@ -3,6 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { publicServerClient } from "./supabase-public.server";
 import { classifiedCategories } from "@/config/classifieds";
+import { mockClassifiedListings } from "@/config/classified-mocks";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   classifiedListingSchema,
@@ -51,6 +52,8 @@ export type ClassifiedCard = {
   createdAt: string;
   imageUrl: string | null;
   vehicle: ClassifiedVehicle | null;
+  isMock?: boolean;
+  listingNumber?: string;
 };
 
 export type ClassifiedDetail = ClassifiedCard & {
@@ -67,6 +70,8 @@ export type ClassifiedDetail = ClassifiedCard & {
     payoutVerified: boolean;
     ratingAverage: number | null;
     reviewCount: number;
+    memberSince?: number;
+    sellerType?: string;
   } | null;
   images: { url: string; alt: string }[];
 };
@@ -559,6 +564,75 @@ function toCard(row: Record<string, unknown>, urlByPath: Map<string, string>): C
   };
 }
 
+function mockCard(listing: (typeof mockClassifiedListings)[number]): ClassifiedCard {
+  return {
+    id: listing.id,
+    title: listing.title,
+    productId: listing.productId,
+    productSlug: listing.productSlug,
+    priceCents: listing.priceCents,
+    currency: "USD",
+    city: listing.city,
+    state: listing.state,
+    region: listing.region,
+    categorySlug: listing.categorySlug,
+    categoryName: listing.categoryName,
+    condition: listing.condition,
+    fulfillmentMode: listing.fulfillmentMode,
+    createdAt: listing.createdAt,
+    imageUrl: listing.images[0]?.url ?? null,
+    vehicle: null,
+    isMock: true,
+    listingNumber: listing.listingNumber,
+  };
+}
+
+function mockDetail(listing: (typeof mockClassifiedListings)[number]): ClassifiedDetail {
+  return {
+    ...mockCard(listing),
+    description: listing.description,
+    postalCode: listing.postalCode,
+    expiresAt: listing.expiresAt,
+    sellerNote: listing.sellerNote,
+    variantId: `${listing.id}-variant`,
+    seller: listing.seller,
+    images: listing.images,
+  };
+}
+
+function mockMatches(
+  listing: (typeof mockClassifiedListings)[number],
+  data: ClassifiedBrowseInput,
+) {
+  if (data.group === "motors") return false;
+  if (data.category && data.category !== listing.categorySlug) return false;
+  if (
+    data.group === "classifieds" &&
+    !classifiedCategories.some(
+      (item) => item.slug === listing.categorySlug && item.group === "classifieds",
+    )
+  )
+    return false;
+  if (data.q) {
+    const needle = data.q.toLowerCase();
+    if (!`${listing.title} ${listing.description}`.toLowerCase().includes(needle)) return false;
+  }
+  if (data.state && data.state !== listing.state) return false;
+  if (data.city && !listing.city.toLowerCase().includes(data.city.toLowerCase())) return false;
+  if (data.sellerSlug && data.sellerSlug !== listing.seller.slug) return false;
+  if (data.condition && !filterValues(data.condition).includes(listing.condition)) return false;
+  if (
+    data.fulfillment &&
+    !filterValues(data.fulfillment).some(
+      (value) => value === listing.fulfillmentMode || value === "both",
+    )
+  )
+    return false;
+  if (data.priceMin != null && listing.priceCents < data.priceMin * 100) return false;
+  if (data.priceMax != null && listing.priceCents > data.priceMax * 100) return false;
+  return true;
+}
+
 export type ClassifiedBrowseInput = {
   q?: string | undefined;
   category?: string | undefined;
@@ -785,12 +859,25 @@ export const browseClassifieds = createServerFn({ method: "GET" })
     const listings = (rows ?? []).map((row) =>
       toCard(row as unknown as Record<string, unknown>, urlByPath),
     );
-    return { listings, total: count ?? listings.length, page, pageSize: PAGE_SIZE };
+    const mockListings =
+      page === 1
+        ? mockClassifiedListings.filter((listing) => mockMatches(listing, data)).map(mockCard)
+        : [];
+    const combinedListings = [...mockListings, ...listings].slice(0, PAGE_SIZE);
+    return {
+      listings: combinedListings,
+      total: (count ?? listings.length) + mockListings.length,
+      page,
+      pageSize: PAGE_SIZE,
+    };
   });
 
 export const getClassifiedListing = createServerFn({ method: "GET" })
   .inputValidator((input: { id: string }) => ({ id: String(input.id).slice(0, 64) }))
   .handler(async ({ data }): Promise<ClassifiedDetail | null> => {
+    const mockListing = mockClassifiedListings.find((listing) => listing.id === data.id);
+    if (mockListing) return mockDetail(mockListing);
+
     const client = publicServerClient();
     const { data: row, error } = await client
       .from("asks")

@@ -18,7 +18,15 @@ const DEFAULT_MESSAGE = "Hi, is this still available? I would love to learn more
  * checkout and offers remain implemented elsewhere for a future phase, but
  * classified buyers currently arrange the sale directly with the seller.
  */
-export function ListingActions({ listing }: { listing: ClassifiedDetail }) {
+export function ListingActions({
+  listing,
+  showPaymentCalculator = true,
+  showPriceHeader = true,
+}: {
+  listing: ClassifiedDetail;
+  showPaymentCalculator?: boolean;
+  showPriceHeader?: boolean;
+}) {
   const { isSignedIn } = useAuth();
   const sendInquiry = useServerFn(sendClassifiedListingInquiry);
   const [contactOpen, setContactOpen] = useState(false);
@@ -50,36 +58,40 @@ export function ListingActions({ listing }: { listing: ClassifiedDetail }) {
 
   return (
     <div className="floating-card overflow-hidden border-foreground/20">
-      <div className="bg-primary px-5 py-4 text-primary-foreground">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary-foreground/75">
-          Seller price
-        </p>
-        <p className="numeric mt-1 text-[32px] font-bold leading-none">
-          {formatUsd(listing.priceCents)}
-        </p>
-      </div>
+      {showPriceHeader && (
+        <div className="bg-primary px-5 py-4 text-primary-foreground">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary-foreground/75">
+            Seller price
+          </p>
+          <p className="numeric mt-1 text-[32px] font-bold leading-none">
+            {formatUsd(listing.priceCents)}
+          </p>
+        </div>
+      )}
 
       <div className="space-y-4 px-5 py-5">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-              Estimated payment
-            </p>
-            <p className="numeric mt-1 text-[22px] font-bold">
-              {formatUsd(Math.round(monthlyPayment * 100))}
-              <span className="ml-1 text-[12px] font-medium text-muted-foreground">/mo</span>
-            </p>
+        {showPaymentCalculator && (
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                Estimated payment
+              </p>
+              <p className="numeric mt-1 text-[22px] font-bold">
+                {formatUsd(Math.round(monthlyPayment * 100))}
+                <span className="ml-1 text-[12px] font-medium text-muted-foreground">/mo</span>
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCalculatorOpen((open) => !open)}
+              className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-primary hover:underline"
+            >
+              <Calculator size={14} /> {calculatorOpen ? "Hide calculator" : "Edit estimate"}
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={() => setCalculatorOpen((open) => !open)}
-            className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-primary hover:underline"
-          >
-            <Calculator size={14} /> {calculatorOpen ? "Hide calculator" : "Edit estimate"}
-          </button>
-        </div>
+        )}
 
-        {calculatorOpen && (
+        {showPaymentCalculator && calculatorOpen && (
           <div className="space-y-3 rounded-2xl border border-border/70 bg-secondary/45 p-3.5">
             <div className="grid grid-cols-2 gap-3">
               <label className="text-[11px] font-medium">

@@ -13,6 +13,7 @@ import {
   Flag,
   FileText,
   GearSix,
+  Heart,
   Gauge,
   Info,
   MapPin,
@@ -38,7 +39,7 @@ import {
   vehicleHeadline,
 } from "@/lib/classifieds-display";
 import { getClassifiedListing, getRelatedClassifieds } from "@/lib/classifieds.functions";
-import type { ClassifiedDetail } from "@/lib/classifieds.functions";
+import type { ClassifiedCard, ClassifiedDetail } from "@/lib/classifieds.functions";
 import {
   Dialog,
   DialogContent,
@@ -161,6 +162,7 @@ function QuickFact({ label, value, icon }: { label: string; value: string; icon:
 function Gallery({ listing }: { listing: ClassifiedDetail }) {
   const [activeImage, setActiveImage] = useState(0);
   const images = listing.images;
+  const subject = listing.vehicle ? "vehicle" : "listing";
 
   if (images.length === 0) {
     return (
@@ -207,7 +209,7 @@ function Gallery({ listing }: { listing: ClassifiedDetail }) {
               <button
                 type="button"
                 onClick={() => goToImage(activeImage - 1)}
-                aria-label="Previous vehicle photo"
+                aria-label={`Previous ${subject} photo`}
                 className="absolute left-3 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-card/95 text-foreground transition hover:scale-105"
               >
                 <ArrowLeft size={18} />
@@ -215,7 +217,7 @@ function Gallery({ listing }: { listing: ClassifiedDetail }) {
               <button
                 type="button"
                 onClick={() => goToImage(activeImage + 1)}
-                aria-label="Next vehicle photo"
+                aria-label={`Next ${subject} photo`}
                 className="absolute right-3 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-card/95 text-foreground transition hover:scale-105"
               >
                 <ArrowRight size={18} />
@@ -231,7 +233,7 @@ function Gallery({ listing }: { listing: ClassifiedDetail }) {
               key={image.url}
               type="button"
               onClick={() => setActiveImage(index)}
-              aria-label={`Show vehicle photo ${index + 1}`}
+              aria-label={`Show ${subject} photo ${index + 1}`}
               aria-current={index === activeImage}
               className={`h-16 w-24 shrink-0 overflow-hidden rounded-xl border-2 bg-secondary transition sm:h-[76px] sm:w-[112px] ${index === activeImage ? "border-primary" : "border-transparent opacity-75 hover:opacity-100"}`}
             >
@@ -242,7 +244,7 @@ function Gallery({ listing }: { listing: ClassifiedDetail }) {
       )}
       <DialogContent className="max-h-[90vh] max-w-6xl overflow-y-auto rounded-[28px] p-5 sm:p-7">
         <DialogHeader>
-          <DialogTitle>Vehicle photos</DialogTitle>
+          <DialogTitle>{subject === "vehicle" ? "Vehicle photos" : "Listing photos"}</DialogTitle>
           <DialogDescription>{listing.title}</DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -288,6 +290,26 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
               {seller.reviewCount === 1 ? "" : "s"}
             </p>
           )}
+          {(seller.memberSince || seller.sellerType) && (
+            <div className="mt-3 space-y-1 text-[12px]">
+              <p>
+                <span className="font-semibold">City:</span> {listing.city}
+              </p>
+              {seller.memberSince && (
+                <p>
+                  <span className="font-semibold">Member since:</span> {seller.memberSince}
+                  <span className="ml-1 rounded-full bg-brand-warm/20 px-1.5 py-0.5 text-[10px] font-bold text-brand-warm">
+                    {new Date().getFullYear() - seller.memberSince} yrs
+                  </span>
+                </p>
+              )}
+              {seller.sellerType && (
+                <p>
+                  <span className="font-semibold">Seller type:</span> {seller.sellerType}
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
       <Link
@@ -295,7 +317,7 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
         params={{ slug: seller.slug }}
         className="mt-4 flex items-center justify-between border-t border-border/70 pt-4 text-[12.5px] font-semibold text-primary hover:underline"
       >
-        View seller profile <CaretRight size={15} />
+        {listing.vehicle ? "View seller profile" : "More From This Seller"} <CaretRight size={15} />
       </Link>
     </section>
   );
@@ -355,7 +377,7 @@ function PageStatsCard({ listing }: { listing: ClassifiedDetail }) {
       <dl className="mt-3 divide-y divide-border/70 text-[12px]">
         <div className="flex items-center justify-between gap-4 py-2 first:pt-0">
           <dt className="text-muted-foreground">Listing number</dt>
-          <dd className="numeric text-right font-medium">{listing.id}</dd>
+          <dd className="numeric text-right font-medium">{listing.listingNumber ?? listing.id}</dd>
         </div>
         <div className="flex items-center justify-between gap-4 py-2">
           <dt className="text-muted-foreground">Posted</dt>
@@ -387,17 +409,18 @@ function PageStatsCard({ listing }: { listing: ClassifiedDetail }) {
 }
 
 function TrustSafetyCard({ listing }: { listing: ClassifiedDetail }) {
+  const isVehicle = Boolean(listing.vehicle);
   return (
     <section className="soft-card px-5 py-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-[14px] font-bold">Safe. Simple. Local.</h2>
+        <h2 className="text-[14px] font-bold">Safe. Simple. Trusted.</h2>
         <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary">
           <ShieldCheck size={13} weight="fill" /> GemList Safety
         </span>
       </div>
       <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">
-        GemList reviews listings for marketplace policy. Always inspect the vehicle, verify the
-        paperwork, and confirm the final price before exchanging money.
+        GemList reviews listings for marketplace policy. Always inspect the item, confirm the
+        details, and agree on the final price before exchanging money.
       </p>
       <Link
         to="/contact"
@@ -409,6 +432,11 @@ function TrustSafetyCard({ listing }: { listing: ClassifiedDetail }) {
         <p className="mt-3 flex items-center gap-1.5 text-[11px] text-muted-foreground">
           <CheckCircle size={13} weight="fill" className="text-primary" /> Seller account
           verification is complete.
+        </p>
+      )}
+      {isVehicle && (
+        <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
+          Vehicle buyers should also verify title, mileage, condition, and ownership paperwork.
         </p>
       )}
     </section>
@@ -430,7 +458,9 @@ function ListingDetail() {
         getRelatedClassifieds({
           data: {
             ...(listing?.categorySlug ? { category: listing.categorySlug } : {}),
-            ...(listing?.seller?.slug ? { sellerSlug: listing.seller.slug } : {}),
+            ...(listing?.vehicle && listing?.seller?.slug
+              ? { sellerSlug: listing.seller.slug }
+              : {}),
             excludeId: listingId,
           },
         }),
@@ -480,6 +510,20 @@ function ListingDetail() {
     }
   };
 
+  if (!isVehicle) {
+    return (
+      <GeneralListingDetail
+        listing={listing}
+        title={title}
+        condition={condition}
+        description={description}
+        locationQuery={locationQuery}
+        relatedListings={relatedQuery.data.listings}
+        handleShare={handleShare}
+      />
+    );
+  }
+
   return (
     <main className="mx-auto max-w-[1360px] px-4 py-6 sm:px-7 sm:py-8 lg:px-10">
       <nav
@@ -522,7 +566,7 @@ function ListingDetail() {
               productId={listing.productId}
               productSlug={listing.productSlug}
               productName={title}
-              isDemo={false}
+              isDemo={listing.isMock === true}
               className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
             />
             <button
@@ -757,6 +801,233 @@ function ListingDetail() {
           </div>
         </section>
       )}
+    </main>
+  );
+}
+
+function GeneralListingDetail({
+  listing,
+  title,
+  condition,
+  description,
+  locationQuery,
+  relatedListings,
+  handleShare,
+}: {
+  listing: ClassifiedDetail;
+  title: string;
+  condition: string;
+  description: string;
+  locationQuery: string;
+  relatedListings: ClassifiedCard[];
+  handleShare: () => Promise<void>;
+}) {
+  const [activeTab, setActiveTab] = useState<"description" | "location">("description");
+  const [descriptionExpanded, setDescriptionExpanded] = useState(false);
+
+  return (
+    <main className="mx-auto max-w-[1360px] px-4 py-6 sm:px-7 sm:py-8 lg:px-10">
+      <nav
+        aria-label="Breadcrumb"
+        className="flex flex-wrap items-center gap-1 text-[11.5px] text-muted-foreground"
+      >
+        <Link to="/browse" search={{}} className="hover:text-foreground">
+          All listings
+        </Link>
+        <CaretRight size={13} />
+        {listing.categorySlug && (
+          <>
+            <Link
+              to="/browse"
+              search={{ category: listing.categorySlug }}
+              className="hover:text-foreground"
+            >
+              {listing.categoryName}
+            </Link>
+            <CaretRight size={13} />
+          </>
+        )}
+        <span className="text-foreground">
+          {listing.city}, {listing.state}
+        </span>
+      </nav>
+
+      <div className="mt-5 grid gap-7 lg:grid-cols-[minmax(255px,330px)_minmax(0,1fr)] lg:items-start">
+        <aside className="order-2 min-w-0 space-y-5 lg:order-1 lg:sticky lg:top-24">
+          <header>
+            <h1 className="text-[28px] font-bold leading-tight tracking-tight sm:text-[36px]">
+              {title}
+            </h1>
+            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-[12.5px] text-muted-foreground">
+              <span className="flex items-center gap-1.5 text-primary">
+                <MapPin size={15} weight="fill" /> {listing.city}, {listing.state}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Clock size={15} /> Posted {postedAge(listing.createdAt).toLowerCase()}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Eye size={15} /> Local listing
+              </span>
+            </div>
+            <p className="numeric mt-4 text-[32px] font-bold leading-none text-primary">
+              {formatUsd(listing.priceCents)}
+            </p>
+            <div className="mt-5 flex items-center gap-2">
+              {listing.isMock ? (
+                <button
+                  type="button"
+                  aria-label="Save listing"
+                  onClick={() => toast.info("Saving is shown here in the mock listing preview.")}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Heart size={18} />
+                </button>
+              ) : (
+                <WatchHeartButton
+                  productId={listing.productId}
+                  productSlug={listing.productSlug}
+                  productName={title}
+                  isDemo={false}
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+                />
+              )}
+              <button
+                type="button"
+                aria-label="Share listing"
+                onClick={() => void handleShare()}
+                className="grid h-10 w-10 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground"
+              >
+                <ShareNetwork size={18} />
+              </button>
+              <button
+                type="button"
+                aria-label="Print listing"
+                onClick={() => window.print()}
+                className="grid h-10 w-10 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground"
+              >
+                <Printer size={18} />
+              </button>
+            </div>
+          </header>
+
+          <SellerCard listing={listing} />
+          <ListingActions listing={listing} showPaymentCalculator={false} showPriceHeader={false} />
+          <PageStatsCard listing={listing} />
+          <TrustSafetyCard listing={listing} />
+        </aside>
+
+        <div className="order-1 min-w-0 space-y-7 lg:order-2">
+          <Gallery listing={listing} />
+
+          <section className="soft-card overflow-hidden">
+            <div
+              className="flex gap-1 border-b border-border/70 bg-secondary/35 p-2"
+              role="tablist"
+              aria-label="Listing information"
+            >
+              {(["description", "location"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={
+                    activeTab === tab
+                      ? "rounded-xl bg-card px-5 py-2.5 text-[12.5px] font-semibold capitalize text-foreground shadow-sm transition"
+                      : "rounded-xl px-5 py-2.5 text-[12.5px] font-semibold capitalize text-muted-foreground transition hover:text-foreground"
+                  }
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
+            <div className="p-5 sm:p-7">
+              {activeTab === "description" ? (
+                <div>
+                  <div
+                    className={
+                      !descriptionExpanded && description.length > 560
+                        ? "relative max-h-[300px] overflow-hidden"
+                        : "relative overflow-hidden"
+                    }
+                  >
+                    <h2 className="text-[21px] font-bold">Description</h2>
+                    <div className="mt-5">
+                      <p className="text-[13px] font-semibold">Condition</p>
+                      <span className="mt-2 inline-flex rounded-xl bg-secondary px-4 py-2 text-[13px] font-semibold shadow-sm">
+                        {condition}
+                      </span>
+                    </div>
+                    <p className="mt-6 whitespace-pre-line text-[14px] leading-7 text-muted-foreground">
+                      {description || "The seller has not added a description yet."}
+                    </p>
+                    {!descriptionExpanded && description.length > 560 && (
+                      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-card to-transparent" />
+                    )}
+                  </div>
+                  {description.length > 560 && (
+                    <button
+                      type="button"
+                      onClick={() => setDescriptionExpanded((expanded) => !expanded)}
+                      className="mt-3 inline-flex items-center gap-1 text-[13px] font-semibold text-primary hover:underline"
+                    >
+                      {descriptionExpanded ? "Show less" : "See more"}{" "}
+                      <CaretDown size={15} className={descriptionExpanded ? "rotate-180" : ""} />
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <h2 className="text-[21px] font-bold">Map</h2>
+                  <div className="mt-5 flex flex-col gap-4 rounded-2xl border border-border/70 bg-secondary/45 p-5 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex items-start gap-3">
+                      <MapTrifold
+                        size={25}
+                        weight="duotone"
+                        className="mt-0.5 shrink-0 text-primary"
+                      />
+                      <div>
+                        <p className="font-semibold">
+                          {listing.city}, {listing.state}
+                        </p>
+                        <p className="mt-1 text-[12px] text-muted-foreground">
+                          Confirm the exact pickup or meeting location with the seller before you
+                          go.
+                        </p>
+                      </div>
+                    </div>
+                    <a
+                      href={"https://www.google.com/maps/search/?api=1&query=" + locationQuery}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex h-10 shrink-0 items-center justify-center rounded-full bg-primary px-4 text-[12px] font-semibold text-primary-foreground hover:opacity-90"
+                    >
+                      Open map
+                    </a>
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {relatedListings.length > 0 && (
+            <section className="border-t border-border/70 pt-9">
+              <div>
+                <h2 className="text-[23px] font-bold tracking-tight">You Might Also Like</h2>
+                <p className="mt-1 text-[13px] text-muted-foreground">
+                  Similar items from other sellers
+                </p>
+              </div>
+              <div className="mt-5 grid grid-cols-2 gap-4 xl:grid-cols-4">
+                {relatedListings.map((related) => (
+                  <ListingCard key={related.id} listing={related} />
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
+      </div>
     </main>
   );
 }

@@ -70,6 +70,7 @@ const homeSource = await read("src/routes/index.tsx");
 const categoryIconSource = await read("src/components/classifieds/CategoryIcon.tsx");
 const listingCardSource = await read("src/components/classifieds/ListingCard.tsx");
 const detailSource = await read("src/routes/listings.$listingId.tsx");
+const mockListingsSource = await read("src/config/classified-mocks.ts");
 const stylesSource = await read("src/styles.css");
 const { classifiedSeedListings } = await import("../scripts/classified-seed-data.mjs");
 
@@ -130,9 +131,18 @@ test("new inquiries notify the seller and support direct email replies", () => {
 });
 
 test("classified inquiry writes are server-only", () => {
-  assert.match(inquiryWriteLockMigrationSource, /revoke insert, update, delete on table public\.listing_inquiries from authenticated/);
-  assert.match(inquiryWriteLockMigrationSource, /drop policy if exists "Buyers create listing inquiries"/);
-  assert.match(inquiryWriteLockMigrationSource, /drop policy if exists "Sellers update listing inquiries"/);
+  assert.match(
+    inquiryWriteLockMigrationSource,
+    /revoke insert, update, delete on table public\.listing_inquiries from authenticated/,
+  );
+  assert.match(
+    inquiryWriteLockMigrationSource,
+    /drop policy if exists "Buyers create listing inquiries"/,
+  );
+  assert.match(
+    inquiryWriteLockMigrationSource,
+    /drop policy if exists "Sellers update listing inquiries"/,
+  );
   assert.match(inquirySource, /const admin = supabaseAdmin as any/);
   assert.match(inquirySource, /\.from\("listing_inquiries"\)/);
 });
@@ -165,7 +175,10 @@ test("classified seed owner repair resolves the account instead of hard-coding i
 });
 
 test("approved classified edits return to moderation", () => {
-  assert.match(requeueEditedListingMigrationSource, /status = 'pending_review'::public\.product_status/);
+  assert.match(
+    requeueEditedListingMigrationSource,
+    /status = 'pending_review'::public\.product_status/,
+  );
   assert.match(requeueEditedListingMigrationSource, /SET approved_at = NULL/);
   assert.match(requeueEditedListingMigrationSource, /seller_id = uid/);
 });
@@ -182,7 +195,10 @@ test("classified listing media stays private until approval", () => {
 test("direct-contact MVP copy is consistent across buyer and seller surfaces", () => {
   assert.match(homeSource, /Buyers contact\s+you directly/);
   assert.match(glossarySource, /Contact seller sends your message/);
-  assert.match(policiesSource, /does not process payment, hold funds or provide escrow in this MVP/);
+  assert.match(
+    policiesSource,
+    /does not process payment, hold funds or provide escrow in this MVP/,
+  );
   assert.match(accountSource, /Save listings, contact sellers and arrange pickup/);
   assert.match(sellSource, /Buyers can message you about the exact listing/);
   assert.match(sellerSetupSource, /do not require payment or payout onboarding/);
@@ -191,7 +207,10 @@ test("direct-contact MVP copy is consistent across buyer and seller surfaces", (
   assert.match(mvpCopyMigrationSource, /UPDATE public\.products/);
   assert.match(mvpCopyMigrationSource, /MVP demo listing for flow testing/);
   assert.match(mvpCopyMigrationSource, /UPDATE public\.asks/);
-  assert.match(mvpCopyMigrationSource, /MVP seed record; replace demo media and copy before launch/);
+  assert.match(
+    mvpCopyMigrationSource,
+    /MVP seed record; replace demo media and copy before launch/,
+  );
   assert.match(mvpCopyMigrationSource, /UPDATE storage\.buckets/);
 });
 
@@ -273,10 +292,7 @@ test("step five seed fixtures cover realistic Idaho vehicle browse cases", () =>
     assert.ok(listing.vehicle.year >= 2010);
     assert.ok(listing.vehicle.drivetrain);
     assert.ok(listing.vehicle.title_status);
-    assert.match(
-      listing.description,
-      /Staged Idaho listing for marketplace testing/,
-    );
+    assert.match(listing.description, /Staged Idaho listing for marketplace testing/);
   }
 });
 
@@ -364,12 +380,7 @@ test("shared category icons and no-photo cards have deterministic presentation",
 test("header categories show four primary destinations and a Classifieds control", () => {
   assert.match(headerSource, /function AllCategoriesPopover/);
   assert.match(headerSource, /featuredHeaderCategories = \[/);
-  for (const label of [
-    "Cars",
-    "Homes",
-    "Jobs",
-    "Services",
-  ]) {
+  for (const label of ["Cars", "Homes", "Jobs", "Services"]) {
     assert.match(headerSource, new RegExp(`name: "${label.replace(/&/g, "\\&")}"`));
   }
   assert.match(headerSource, /aria-label="Classifieds"/);
@@ -593,7 +604,10 @@ test("homes browse has a large landing hero and tab-specific filter views", () =
     'label: "Community amenities", options: communityAmenitiesOptions, multi: true',
     'label: "Lease length", options: leaseLengthOptions, multi: false',
   ]) {
-    assert.ok(browseSource.includes(selectionRule), `missing home filter selection rule: ${selectionRule}`);
+    assert.ok(
+      browseSource.includes(selectionRule),
+      `missing home filter selection rule: ${selectionRule}`,
+    );
   }
   for (const option of [
     "<250",
@@ -618,8 +632,14 @@ test("jobs browse has a landing hero and expanded local job filters", () => {
   assert.match(browseSource, /function JobChecklist/);
   assert.match(browseSource, /selected\.includes\(option\)/);
   assert.match(browseSource, /next\.join\("\|"\)/);
-  assert.match(browseSource, /Find <span className="text-accent">local<\/span> work that fits your life/);
-  assert.match(browseSource, /Search jobs from local employers across Idaho and surrounding states/);
+  assert.match(
+    browseSource,
+    /Find <span className="text-accent">local<\/span> work that fits your life/,
+  );
+  assert.match(
+    browseSource,
+    /Search jobs from local employers across Idaho and surrounding states/,
+  );
   assert.match(browseSource, /Search Jobs/);
   assert.match(browseSource, /Post a Job/);
   assert.match(browseSource, /More filters/);
@@ -664,4 +684,16 @@ test("listing detail keeps a responsive photo gallery and floating action card",
   assert.match(detailSource, /DialogContent/);
   assert.match(actionsSource, /floating-card/);
   assert.match(detailSource, /specIcons/);
+});
+
+test("general classifieds have mock detail fixtures without changing category setup", () => {
+  assert.match(mockListingsSource, /mock-general-squishmallows/);
+  assert.match(mockListingsSource, /mock-general-vintage-plush/);
+  assert.match(mockListingsSource, /mock-general-princess-doll/);
+  assert.match(classifiedsFunctionsSource, /mockClassifiedListings/);
+  assert.match(detailSource, /function GeneralListingDetail/);
+  assert.match(detailSource, /You Might Also Like/);
+  assert.match(detailSource, /More From This Seller/);
+  assert.match(detailSource, /Safe\. Simple\. Trusted\./);
+  assert.match(detailSource, /showPaymentCalculator={false}/);
 });

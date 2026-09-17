@@ -63,7 +63,7 @@ export function ListingCard({ listing }: { listing: ClassifiedCard }) {
             productId={listing.productId}
             productSlug={listing.productSlug}
             productName={listing.title}
-            isDemo={false}
+            isDemo={listing.isMock === true}
           />
         </div>
       </div>
