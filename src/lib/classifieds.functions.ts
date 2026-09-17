@@ -566,6 +566,7 @@ export type ClassifiedBrowseInput = {
   region?: string | undefined;
   state?: string | undefined;
   city?: string | undefined;
+  postalCode?: string | undefined;
   sellerSlug?: string | undefined;
   condition?: string | undefined;
   fulfillment?: string | undefined;
@@ -588,6 +589,7 @@ export type ClassifiedBrowseInput = {
 
 const text = (value: unknown, max = 80) =>
   typeof value === "string" && value.trim() ? value.trim().slice(0, max) : undefined;
+const escapeLikeValue = (value: string) => value.replace(/[\\%_]/g, "\\$&");
 const filterValues = (value: string | undefined) =>
   value
     ?.split("||")
@@ -606,6 +608,7 @@ export const browseClassifieds = createServerFn({ method: "GET" })
     region: text(input?.region),
     state: text(input?.state, 2)?.toUpperCase(),
     city: text(input?.city),
+    postalCode: text(input?.postalCode, 12)?.replace(/[^0-9-]/g, ""),
     sellerSlug: text(input?.sellerSlug, 60),
     condition:
       filterValues(text(input?.condition, 120))
@@ -674,7 +677,13 @@ export const browseClassifieds = createServerFn({ method: "GET" })
     }
     if (data.region) query = query.eq("classified_listing_details.region", data.region);
     if (data.state) query = query.eq("classified_listing_details.state", data.state);
-    if (data.city) query = query.ilike("classified_listing_details.city", data.city);
+    if (data.city)
+      query = query.ilike("classified_listing_details.city", `%${escapeLikeValue(data.city)}%`);
+    if (data.postalCode)
+      query = query.ilike(
+        "classified_listing_details.postal_code",
+        `${escapeLikeValue(data.postalCode)}%`,
+      );
     if (data.sellerSlug) {
       const { data: seller } = await client
         .from("seller_storefronts")

@@ -39,6 +39,7 @@ type Search = {
   state?: string | undefined;
   region?: string | undefined;
   city?: string | undefined;
+  postalCode?: string | undefined;
   condition?: string | undefined;
   fulfillment?: string | undefined;
   priceMin?: number | undefined;
@@ -460,6 +461,7 @@ function inputFromSearch(search: Search): ClassifiedBrowseInput {
     state: search.state,
     region: search.region,
     city: search.city,
+    postalCode: search.postalCode,
     condition: search.condition,
     fulfillment: search.fulfillment,
     priceMin: search.priceMin,
@@ -498,6 +500,7 @@ export const Route = createFileRoute("/browse")({
       state: stringParam(search, "state", 2)?.toUpperCase(),
       region: stringParam(search, "region"),
       city: stringParam(search, "city"),
+      postalCode: stringParam(search, "postalCode", 12),
       condition: stringParam(search, "condition", 30),
       fulfillment: stringParam(search, "fulfillment", 20),
       priceMin: numberParam(search, "priceMin"),
@@ -3003,6 +3006,7 @@ function countActiveFilters(search: Search, motors: boolean) {
     "state",
     "region",
     "city",
+    "postalCode",
     "condition",
     "fulfillment",
     "priceMin",
@@ -3038,6 +3042,7 @@ function activeFilterLabels(search: Search, motors: boolean) {
   if (search.region) labels.push(search.region);
   if (search.state) labels.push(search.state);
   if (search.city) labels.push(search.city);
+  if (search.postalCode) labels.push(search.postalCode);
   if (search.priceMin != null || search.priceMax != null)
     labels.push(`$${search.priceMin ?? 0}–${search.priceMax ?? "up"}`);
   if (motors) {
