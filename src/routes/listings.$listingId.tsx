@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import {
   ArrowLeft,
   ArrowRight,
+  Car,
   CaretDown,
   CaretRight,
   CheckCircle,
@@ -305,17 +306,20 @@ function VehicleHistoryCard({ vehicle }: { vehicle: ClassifiedDetail["vehicle"] 
   if (!vehicle) return null;
   return (
     <section className="soft-card px-5 py-5">
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <FileText size={18} weight="duotone" className="text-primary" />
-          <h2 className="text-[14px] font-bold">Vehicle history</h2>
-        </div>
-        <span
-          aria-label="CARFAX"
-          className="inline-flex items-center rounded-sm bg-foreground px-2 py-1 text-[10px] font-black tracking-[0.18em] text-background"
-        >
-          CARFAX
+      <div className="flex items-center gap-4 rounded-2xl bg-[#101820] px-4 py-4 text-white shadow-md ring-1 ring-[#f6b544]/40">
+        <span className="grid size-14 shrink-0 place-items-center rounded-xl bg-[#f6b544] text-[#101820] shadow-sm">
+          <Car size={32} weight="fill" aria-hidden="true" />
         </span>
+        <div>
+          <p className="text-[23px] font-black leading-none tracking-[-0.04em]">CARFAX</p>
+          <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[#f6b544]">
+            Vehicle history
+          </p>
+        </div>
+      </div>
+      <div className="mt-5 flex items-center gap-2">
+        <FileText size={18} weight="duotone" className="text-primary" />
+        <h2 className="text-[14px] font-bold">Vehicle history report</h2>
       </div>
       <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">
         Review title, accident, and ownership history before you buy. A CARFAX report may require a
