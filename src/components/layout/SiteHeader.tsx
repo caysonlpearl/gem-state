@@ -1,4 +1,4 @@
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import {
   BookmarkSimple,
@@ -49,7 +49,11 @@ export function SiteHeader() {
   const navigate = useNavigate();
   const [term, setTerm] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const accountButtonRef = useRef<HTMLButtonElement>(null);
+  const accountMenuRef = useRef<HTMLDivElement>(null);
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   // Close the mobile sheet on Escape and return focus to its trigger.
   useEffect(() => {
@@ -63,6 +67,31 @@ export function SiteHeader() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [menuOpen]);
+
+  useEffect(() => {
+    setAccountMenuOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!accountMenuOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setAccountMenuOpen(false);
+        accountButtonRef.current?.focus();
+      }
+    };
+    const onPointer = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (accountMenuRef.current?.contains(target) || accountButtonRef.current?.contains(target)) return;
+      setAccountMenuOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("mousedown", onPointer);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("mousedown", onPointer);
+    };
+  }, [accountMenuOpen]);
 
   function submitSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -142,14 +171,63 @@ export function SiteHeader() {
             equal the current location, and the router's active-state attribute
             would then differ between SSR and the client-resolved sign-in page.
           */}
-          <button
-            type="button"
-            onClick={() => void navigate({ to: isSignedIn ? brand.urls.account : brand.urls.auth })}
-            className="inline-flex h-11 min-h-11 items-center gap-1.5 rounded-full border border-foreground px-4 text-[12.5px] font-medium transition-colors hover:bg-foreground hover:text-background md:min-h-11"
-          >
-            <UserCircle size={16} aria-hidden="true" />
-            {isSignedIn ? "Account" : "Sign in"}
-          </button>
+          <div className="relative">
+            <button
+              ref={accountButtonRef}
+              type="button"
+              onClick={() => {
+                if (!isSignedIn) {
+                  void navigate({ to: brand.urls.auth });
+                  return;
+                }
+                setAccountMenuOpen((v) => !v);
+              }}
+              aria-expanded={isSignedIn ? accountMenuOpen : undefined}
+              aria-haspopup={isSignedIn ? "menu" : undefined}
+              className="inline-flex h-11 min-h-11 items-center gap-1.5 rounded-full border border-foreground px-4 text-[12.5px] font-medium transition-colors hover:bg-foreground hover:text-background md:min-h-11"
+            >
+              <UserCircle size={16} aria-hidden="true" />
+              {isSignedIn ? "Account" : "Sign in"}
+            </button>
+            {isSignedIn && accountMenuOpen && (
+              <div
+                ref={accountMenuRef}
+                role="menu"
+                aria-label="Account menu"
+                className="absolute right-0 top-[calc(100%+6px)] z-50 min-w-[170px] overflow-hidden rounded-lg border border-border bg-card p-1.5 shadow-xl"
+              >
+                <Link
+                  to={brand.urls.account}
+                  role="menuitem"
+                  onClick={() => setAccountMenuOpen(false)}
+                  className="flex h-10 items-center rounded-md px-3 text-[12.5px] font-medium transition-colors hover:bg-secondary"
+                  {...pinned}
+                >
+                  Account
+                </Link>
+                <Link
+                  to="/watchlist"
+                  role="menuitem"
+                  onClick={() => setAccountMenuOpen(false)}
+                  className="flex h-10 items-center gap-2 rounded-md px-3 text-[12.5px] font-medium transition-colors hover:bg-secondary"
+                  {...pinned}
+                >
+                  <BookmarkSimple size={17} weight="duotone" aria-hidden="true" />
+                  Saved
+                </Link>
+                <Link
+                  to="/selling"
+                  role="menuitem"
+                  onClick={() => setAccountMenuOpen(false)}
+                  className="flex h-10 items-center gap-2 rounded-md px-3 text-[12.5px] font-medium transition-colors hover:bg-secondary"
+                  {...pinned}
+                >
+                  <Storefront size={17} weight="duotone" aria-hidden="true" />
+                  Selling
+                </Link>
+              </div>
+            )}
+          </div>
           <button
             ref={menuButtonRef}
             type="button"
@@ -193,23 +271,6 @@ export function SiteHeader() {
                 </Link>
               </li>
             ))}
-            {isSignedIn && (
-              <>
-                <li aria-hidden="true" className="mx-1 h-4 w-px shrink-0 bg-border" />
-                <li>
-                  <Link to="/watchlist" className={navLinkClass} {...pinned}>
-                    <BookmarkSimple size={23} weight="duotone" />
-                    <span>Saved</span>
-                  </Link>
-                </li>
-                <li>
-                  <Link to="/selling" className={navLinkClass} {...pinned}>
-                    <Storefront size={23} weight="duotone" />
-                    <span>Selling</span>
-                  </Link>
-                </li>
-              </>
-            )}
           </ul>
         </div>
       </nav>
@@ -228,8 +289,6 @@ export function SiteHeader() {
               })),
               ...(isSignedIn
                 ? [
-                    { label: "Saved", to: "/watchlist" as const, search: {} },
-                    { label: "Selling", to: "/selling" as const, search: {} },
                     { label: "Notifications", to: "/notifications" as const, search: {} },
                   ]
                 : []),
