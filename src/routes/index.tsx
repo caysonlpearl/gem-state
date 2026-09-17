@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { ArrowRight, MagnifyingGlass, Car } from "@phosphor-icons/react";
+import { ArrowRight, MagnifyingGlass, MapPin, Car } from "@phosphor-icons/react";
 
 import { brand } from "@/config/brand";
 import { classifiedCategories, idahoRegions } from "@/config/classifieds";
@@ -87,7 +87,7 @@ function Home() {
   );
   const [term, setTerm] = useState("");
   const [category, setCategory] = useState("");
-  const [region, setRegion] = useState("");
+  const [location, setLocation] = useState("");
 
   useEffect(() => {
     setHeadlineItems(pickHeadlineItems());
@@ -103,78 +103,90 @@ function Home() {
         <span className="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-brand-warm/10" />
         <span className="absolute -bottom-28 left-1/3 h-72 w-72 rounded-full bg-primary/5" />
         <div className="relative">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
-          Gem State classifieds
-        </p>
-        <h1 className="mt-3 max-w-[34ch] text-[34px] font-bold leading-[1.08] tracking-tight sm:text-[48px]">
-          Find {headlineItems[0]} to {headlineItems[1]} to {headlineItems[2]} to {headlineItems[3]}.
-        </h1>
-        <p className="mt-4 max-w-[56ch] text-[15px] leading-relaxed text-muted-foreground">
-          And so much more across Idaho and surrounding states.
-        </p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
+            Gem State classifieds
+          </p>
+          <h1 className="mt-3 max-w-[34ch] text-[34px] font-bold leading-[1.08] tracking-tight sm:text-[48px]">
+            Find {headlineItems[0]} to {headlineItems[1]} to {headlineItems[2]} to{" "}
+            {headlineItems[3]}.
+          </h1>
+          <p className="mt-4 max-w-[56ch] text-[15px] leading-relaxed text-muted-foreground">
+            And so much more across Idaho and surrounding states.
+          </p>
 
-        <form
-          className="floating-card mt-8 grid gap-2 p-2 sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:p-3"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void navigate({
-              to: "/browse",
-              search: {
-                ...(term.trim() ? { q: term.trim() } : {}),
-                ...(category ? { category } : {}),
-                ...(region ? { region } : {}),
-              },
-            });
-          }}
-        >
-          <label className="relative block">
-            <MagnifyingGlass
-              size={16}
-              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-            />
-            <input
-              type="search"
-              value={term}
-              onChange={(event) => setTerm(event.target.value)}
-              placeholder="Search listings"
-              aria-label="Search listings"
-              className="h-12 w-full rounded-full border-0 bg-transparent pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
-            />
-          </label>
-          <select
-            value={category}
-            onChange={(event) => setCategory(event.target.value)}
-            aria-label="Category"
-            className="soft-control h-12 px-4 text-sm text-foreground outline-none"
+          <form
+            className="floating-card mt-8 grid gap-2 p-2 sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:p-3"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const locationValue = location.trim();
+              const matchingRegion = idahoRegions.find(
+                (option) => option.toLowerCase() === locationValue.toLowerCase(),
+              );
+              void navigate({
+                to: "/browse",
+                search: {
+                  ...(term.trim() ? { q: term.trim() } : {}),
+                  ...(category ? { category } : {}),
+                  ...(matchingRegion
+                    ? { region: matchingRegion }
+                    : locationValue
+                      ? { city: locationValue }
+                      : {}),
+                },
+              });
+            }}
           >
-            <option value="">All categories</option>
-            {classifiedCategories.map((option) => (
-              <option key={option.slug} value={option.slug}>
-                {option.name}
-              </option>
-            ))}
-          </select>
-          <select
-            value={region}
-            onChange={(event) => setRegion(event.target.value)}
-            aria-label="Idaho region"
-            className="soft-control h-12 px-4 text-sm text-foreground outline-none"
-          >
-            <option value="">All of Idaho</option>
-            {idahoRegions.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </select>
-          <button
-            type="submit"
-            className="h-12 rounded-full bg-primary px-7 text-[13.5px] font-semibold text-primary-foreground shadow-sm transition-transform hover:scale-[1.02]"
-          >
-            Search
-          </button>
-        </form>
-
+            <label className="relative block">
+              <MagnifyingGlass
+                size={16}
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              />
+              <input
+                type="search"
+                value={term}
+                onChange={(event) => setTerm(event.target.value)}
+                placeholder="Search listings"
+                aria-label="Search listings"
+                className="h-12 w-full rounded-full border-0 bg-transparent pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+              />
+            </label>
+            <select
+              value={category}
+              onChange={(event) => setCategory(event.target.value)}
+              aria-label="Category"
+              className="soft-control h-12 px-4 text-sm text-foreground outline-none"
+            >
+              <option value="">All categories</option>
+              {classifiedCategories.map((option) => (
+                <option key={option.slug} value={option.slug}>
+                  {option.name}
+                </option>
+              ))}
+            </select>
+            <label className="soft-control relative flex h-12 items-center gap-2 px-4">
+              <MapPin
+                size={16}
+                weight="duotone"
+                className="shrink-0 text-primary"
+                aria-hidden="true"
+              />
+              <span className="sr-only">Location</span>
+              <input
+                type="search"
+                value={location}
+                onChange={(event) => setLocation(event.target.value)}
+                placeholder="Search by city or region"
+                aria-label="Location"
+                className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+              />
+            </label>
+            <button
+              type="submit"
+              className="h-12 rounded-full bg-primary px-7 text-[13.5px] font-semibold text-primary-foreground shadow-sm transition-transform hover:scale-[1.02]"
+            >
+              Search
+            </button>
+          </form>
         </div>
       </section>
 
@@ -185,7 +197,9 @@ function Home() {
             <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">
               <Car size={14} weight="fill" /> Cars &amp; motors
             </p>
-            <h2 className="mt-1 text-[26px] font-bold tracking-tight">Vehicles for sale in Idaho</h2>
+            <h2 className="mt-1 text-[26px] font-bold tracking-tight">
+              Vehicles for sale in Idaho
+            </h2>
           </div>
           <Link to="/browse" search={{ group: "motors" }} className={seeAll}>
             All vehicles <ArrowRight size={12} />
@@ -270,8 +284,8 @@ function Home() {
       <section className="soft-card mt-16 px-6 py-8 sm:px-8">
         <h2 className="text-[20px] font-bold tracking-tight">Have something to sell?</h2>
         <p className="mt-2 max-w-[60ch] text-[13px] leading-relaxed text-muted-foreground">
-              Post one item at a time with your own photos, your price, and your city. Buyers contact
-              you directly to ask questions and arrange pickup, shipping, and payment.
+          Post one item at a time with your own photos, your price, and your city. Buyers contact
+          you directly to ask questions and arrange pickup, shipping, and payment.
         </p>
         <Link
           to="/sell"
