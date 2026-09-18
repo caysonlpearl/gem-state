@@ -202,7 +202,6 @@ const leaseLengthOptions = [
   "24 Months or Less",
 ];
 
-const serviceListingCount = 1568;
 const mileageBandOptions = ["Under 25,000 miles", "Under 50,000 miles", "Under 75,000 miles", "Under 100,000 miles", "Under 150,000 miles"] as const;
 const vehicleModelsByMake: Record<string, readonly string[]> = {
   Acura: ["Integra", "TLX", "MDX", "RDX"],
@@ -388,26 +387,6 @@ const allServiceCategories: ServiceCategory[] = [
 const serviceSubcategoryOptions = ["Any subcategory", ...allServiceCategories.map((category) => category.name)] as const;
 const serviceConditionOptions = ["Any condition", "New", "Used", "Like new"] as const;
 const serviceTimeOnSiteOptions = ["Any time", "Last hour", "Last 24 hours", "Last 7 days", "Last 30 days"] as const;
-
-type ServicePreviewCard = {
-  listingId?: string;
-  title: string;
-  location: string;
-  age: string;
-  price: string;
-  image: string;
-};
-
-const servicePreviewRows: ServicePreviewCard[] = [
-  { listingId: "mock-service-boise-home-works", title: "Boise Home Works | Handyman & Drywall Repair", location: "Boise, ID", age: "Just listed", price: "Call for quote", image: "https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=900&q=80" },
-  { listingId: "mock-service-treasure-valley-lawn", title: "Treasure Valley Lawn Co. | Lawn Care & Sprinklers", location: "Meridian, ID", age: "1 day", price: "From $45 / visit", image: "https://images.unsplash.com/photo-1558904541-efa843a96f01?auto=format&fit=crop&w=900&q=80" },
-  { listingId: "mock-service-gem-state-tech", title: "Gem State Tech Help | Home Wi-Fi & Computer Setup", location: "Boise, ID", age: "2 days", price: "From $85 / visit", image: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=80" },
-  { title: "All Pro Handyman | Home Repairs | Remodels | Drywall", location: "West Jordan, UT", age: "", price: "Call for quote", image: "https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=900&q=80" },
-  { title: "NT llc", location: "Salt Lake City, UT", age: "1 Hour", price: "Call for quote", image: "https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&w=900&q=80" },
-  { title: "Medico Excavation & Landscape", location: "Collinston, UT", age: "1 Hour", price: "Call for quote", image: "https://images.unsplash.com/photo-1558904541-efa843a96f01?auto=format&fit=crop&w=900&q=80" },
-  { title: "Slate Canyon Landscaping", location: "Springville, UT", age: "1 Hour", price: "Call for quote", image: "https://images.unsplash.com/photo-1599685315640-3f3c8e3d9b4b?auto=format&fit=crop&w=900&q=80" },
-  { title: "C Buxton Exteriors LLC", location: "Salt Lake City, UT", age: "1 Hour", price: "Call for quote", image: "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=900&q=80" },
-];
 
 const classifiedQuery = (input: ClassifiedBrowseInput) =>
   queryOptions({
@@ -812,7 +791,7 @@ function Browse() {
 
       {services && serviceLanding && (
         <ServicesLandingHero
-          resultCount={serviceListingCount}
+          resultCount={result.total}
           onSearch={(subcategory) =>
             void navigate({
               to: "/browse",
@@ -826,6 +805,7 @@ function Browse() {
       {services && !serviceLanding && (
         <ServicesFilterPage
           search={search}
+          listings={result.listings}
           onApply={(patch) =>
             void navigate({
               to: "/browse",
@@ -1746,10 +1726,12 @@ function ServicesCategoryShowcase({ onCategorySelect }: { onCategorySelect: (cat
 
 function ServicesFilterPage({
   search,
+  listings,
   onApply,
   onPost,
 }: {
   search: Search;
+  listings: ClassifiedBrowseResult["listings"];
   onApply: (patch: Partial<Search>) => void;
   onPost: () => void;
 }) {
@@ -1797,6 +1779,18 @@ function ServicesFilterPage({
     });
   }
 
+  // priceMin/priceMax already filter server-side via inputFromSearch; only
+  // subcategory needs a client-side pass since it has no matching field on
+  // ClassifiedBrowseInput.
+  const filteredListings = listings.filter(
+    (listing) => !subcategory || listing.service?.subcategory === subcategory,
+  );
+  const sortedListings = [...filteredListings].sort((a, b) => {
+    if (search.sort === "price_high") return b.priceCents - a.priceCents;
+    if (search.sort === "price_low") return a.priceCents - b.priceCents;
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+
   return (
     <div className="mt-8">
       <section className="floating-card overflow-visible p-4 sm:p-6">
@@ -1840,13 +1834,59 @@ function ServicesFilterPage({
             <ServiceFilterGroup title="Time On Site" initiallyOpen={false}>
               <div className="space-y-2">{serviceTimeOnSiteOptions.slice(1).map((option) => <button key={option} type="button" onClick={() => setTimeOnSite(timeOnSite === option ? "" : option)} className={`h-10 w-full rounded-lg border px-3 text-[12px] font-bold ${timeOnSite === option ? "border-primary bg-primary text-primary-foreground" : "border-primary text-primary hover:bg-secondary"}`}>{option.replace("Last ", "Last ")}</button>)}</div>
             </ServiceFilterGroup>
-            <button type="button" onClick={apply} className="h-11 w-full rounded-xl bg-primary text-[12px] font-bold text-primary-foreground hover:opacity-90">Show {serviceListingCount.toLocaleString()} results</button>
+            <button type="button" onClick={apply} className="h-11 w-full rounded-xl bg-primary text-[12px] font-bold text-primary-foreground hover:opacity-90">Show {sortedListings.length.toLocaleString()} results</button>
           </aside>
         )}
 
         <section aria-label="Service listings">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4"><p className="text-[13px] text-muted-foreground"><strong className="numeric text-foreground">{serviceListingCount.toLocaleString()}</strong> services in Idaho, Utah, and Wyoming</p><label className="flex items-center gap-2 text-[12px] text-muted-foreground">Sort by<select className="h-9 rounded-lg border border-input bg-card px-2 text-[12px] text-foreground" defaultValue="newest"><option value="newest">Newest to oldest</option><option value="price_low">Lowest price</option><option value="price_high">Highest price</option></select></label></div>
-          <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">{servicePreviewRows.map((card, index) => <ServiceCard key={card.title} card={card} favorites={index % 4 === 0 ? 7 : index + 1} />)}</div>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+            <p className="text-[13px] text-muted-foreground">
+              <strong className="numeric text-foreground">{sortedListings.length}</strong>{" "}
+              {sortedListings.length === 1 ? "service" : "services"} in Idaho
+            </p>
+            <label className="flex items-center gap-2 text-[12px] text-muted-foreground">
+              Sort by
+              <select
+                value={search.sort ?? "newest"}
+                onChange={(event) =>
+                  onApply({
+                    sort:
+                      event.target.value === "newest"
+                        ? undefined
+                        : (event.target.value as Search["sort"]),
+                  })
+                }
+                className="h-9 rounded-lg border border-input bg-card px-2 text-[12px] text-foreground"
+              >
+                <option value="newest">Newest to oldest</option>
+                <option value="price_low">Lowest price</option>
+                <option value="price_high">Highest price</option>
+              </select>
+            </label>
+          </div>
+          {sortedListings.length === 0 ? (
+            <div className="soft-card mt-5 px-5 py-12 text-center">
+              <p className="text-[14px] font-medium">No services match these filters.</p>
+              <p className="mx-auto mt-1.5 max-w-md text-[13px] leading-relaxed text-muted-foreground">
+                Try widening your subcategory, price range, or search terms.
+              </p>
+              <button
+                type="button"
+                onClick={() =>
+                  onApply({ q: undefined, serviceSubcategory: undefined, priceMin: undefined, priceMax: undefined })
+                }
+                className="mt-4 inline-flex h-9 items-center rounded-md border border-input px-3 text-[12px] font-semibold hover:bg-secondary"
+              >
+                Clear filters
+              </button>
+            </div>
+          ) : (
+            <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+              {sortedListings.map((listing) => (
+                <ListingCard key={listing.id} listing={listing} />
+              ))}
+            </div>
+          )}
         </section>
       </div>
     </div>
@@ -1866,10 +1906,6 @@ function ServiceToggle({ label, checked, onChange }: { label: string; checked: b
   return <label className="flex items-center justify-between gap-3 text-[12px] leading-tight"><span>{label}</span><button type="button" aria-label={label} aria-pressed={checked} onClick={() => onChange(!checked)} className={`relative h-8 w-14 shrink-0 rounded-full transition-colors ${checked ? "bg-primary" : "bg-muted"}`}><span className={`absolute top-1.5 size-5 rounded-full bg-card shadow-sm transition-transform ${checked ? "translate-x-7" : "translate-x-1.5"}`} /></button></label>;
 }
 
-function ServiceCard({ card, favorites }: { card: ServicePreviewCard; favorites: number }) {
-  const content = <article className="group overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm transition-shadow hover:shadow-lg"><div className="relative aspect-[4/3] overflow-hidden bg-secondary"><img src={card.image} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" /><span className="absolute left-3 top-3 rounded-md bg-primary/85 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.12em] text-primary-foreground">Service</span></div><div className="p-4"><h3 className="min-h-[36px] text-[15px] font-bold leading-tight">{card.title}</h3><p className="mt-2 flex items-center gap-1 text-[11.5px] text-primary"><MapPin size={12} aria-hidden="true" />{card.location}{card.age ? <><span className="text-muted-foreground">|</span><span className="text-foreground">{card.age}</span></> : null}</p><div className="mt-5 flex items-end justify-between gap-2"><p className="text-[18px] font-bold text-primary">{card.price}</p><span className="text-[12px] text-muted-foreground">♡ {favorites}</span></div></div></article>;
-  return card.listingId ? <Link to="/listings/$listingId" params={{ listingId: card.listingId }} className="block">{content}</Link> : content;
-}
 
 function JobsLandingHero({
   search,

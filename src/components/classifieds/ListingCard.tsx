@@ -48,6 +48,13 @@ function Facts({ listing }: { listing: ClassifiedCard }) {
       </p>
     );
   }
+  if (listing.service) {
+    return (
+      <p className="mt-1 truncate text-[11.5px] text-muted-foreground">
+        {listing.service.subcategory}
+      </p>
+    );
+  }
   const mileage = listing.vehicle ? formatMileage(listing.vehicle.mileage) : null;
   const bits = [
     mileage,
@@ -103,7 +110,11 @@ export function ListingCard({ listing }: { listing: ClassifiedCard }) {
         </p>
         <div className="mt-2 flex items-center justify-between gap-2 text-[10.5px] text-muted-foreground">
           <span className="truncate">
-            {listing.job ? "Apply now" : fulfillmentLabels[listing.fulfillmentMode]}
+            {listing.job
+              ? "Apply now"
+              : listing.service
+                ? "Get a quote"
+                : fulfillmentLabels[listing.fulfillmentMode]}
           </span>
           <span className="shrink-0">{postedAge(listing.createdAt)}</span>
         </div>
@@ -134,7 +145,11 @@ export function ListingRow({ listing }: { listing: ClassifiedCard }) {
           <p className="mt-2 flex items-center gap-1 truncate text-[11.5px] text-muted-foreground">
             <MapPin size={12} weight="fill" className="shrink-0 text-primary" />
             {listing.city}, {listing.state} ·{" "}
-            {listing.job ? "Apply now" : fulfillmentLabels[listing.fulfillmentMode]}
+            {listing.job
+              ? "Apply now"
+              : listing.service
+                ? "Get a quote"
+                : fulfillmentLabels[listing.fulfillmentMode]}
           </p>
           <p className="mt-1 text-[10.5px] text-muted-foreground">{postedAge(listing.createdAt)}</p>
         </div>

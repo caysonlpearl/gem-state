@@ -725,21 +725,32 @@ test("job and service mock listings exist with realistic detail fixtures", () =>
   ]) {
     assert.match(mockListingsSource, new RegExp(listing));
   }
-  // Service previews still use a static preview array, so their mock ids are
-  // linked directly from browse.tsx. Job listings are rendered from the real
-  // browseClassifieds result set instead (see the dedicated jobs browse test
-  // below), so their ids are fetched at runtime rather than hardcoded here.
-  for (const listing of [
-    "mock-service-boise-home-works",
-    "mock-service-treasure-valley-lawn",
-    "mock-service-gem-state-tech",
-  ]) {
-    assert.match(browseSource, new RegExp(listing));
-  }
-  assert.match(browseSource, /to="\/listings\/\$listingId"/);
+  // Both jobs and services are rendered from the real browseClassifieds
+  // result set (see the dedicated browse tests below), so their mock ids are
+  // fetched at runtime rather than hardcoded in browse.tsx.
   assert.match(classifiedsFunctionsSource, /service\?: ClassifiedServiceDetails/);
   assert.match(listingCardSource, /listing\.service\?\.pricing/);
-  assert.match(detailSource, /listing\.service\?\.pricing/);
+});
+
+test("services browse results use real listing data, not static placeholder cards", () => {
+  assert.match(browseSource, /listings: ClassifiedBrowseResult\["listings"\]/);
+  assert.match(browseSource, /No services match these filters\./);
+  assert.doesNotMatch(browseSource, /function ServiceCard/);
+  assert.doesNotMatch(browseSource, /servicePreviewRows/);
+  assert.doesNotMatch(browseSource, /All Pro Handyman/);
+});
+
+test("services have a dedicated detail page with reviews, license, and map tabs", () => {
+  assert.match(detailSource, /function ServiceListingDetail/);
+  assert.match(detailSource, /function StarRating/);
+  assert.match(detailSource, /listing\.categorySlug === "services"/);
+  assert.match(detailSource, /Customer reviews/);
+  assert.match(detailSource, /What's included/);
+  assert.match(detailSource, /License #/);
+  assert.match(detailSource, /Look up business license/);
+  assert.match(mockListingsSource, /businessAddress:/);
+  assert.match(mockListingsSource, /licenseNumber:/);
+  assert.match(mockListingsSource, /reviews:\s*\[/);
 });
 
 test("home listings use a rental-specific detail layout", () => {

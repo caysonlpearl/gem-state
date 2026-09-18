@@ -123,6 +123,14 @@ export type ClassifiedJobDetails = {
   qualifications?: string[];
 };
 
+export type ClassifiedServiceReview = {
+  author: string;
+  rating: number;
+  date: string;
+  title: string;
+  body: string;
+};
+
 export type ClassifiedServiceDetails = {
   subcategory: string;
   pricing: string;
@@ -130,6 +138,10 @@ export type ClassifiedServiceDetails = {
   availability: string;
   serviceSummary: string;
   offerings: string[];
+  businessAddress?: string | null;
+  licenseNumber?: string | null;
+  licenseLookupUrl?: string | null;
+  reviews?: ClassifiedServiceReview[];
 };
 
 export type MockClassifiedListing = {
@@ -1160,6 +1172,32 @@ export const mockClassifiedListings: MockClassifiedListing[] = [
         "Small remodel punch lists",
         "Interior repairs and finish work",
       ],
+      businessAddress: "4210 W Home Works Way, Boise, ID 83704",
+      licenseNumber: "RCE-45892",
+      licenseLookupUrl: "https://dopl.idaho.gov",
+      reviews: [
+        {
+          author: "Marie H.",
+          rating: 5,
+          date: "2026-09-02",
+          title: "Fast and tidy",
+          body: "Patched a ceiling leak repair and repainted the room same day. Cleaned up completely before leaving.",
+        },
+        {
+          author: "Dan T.",
+          rating: 5,
+          date: "2026-08-21",
+          title: "Great communication",
+          body: "Texted photos ahead of time and got a fair quote back within the hour. Work matched the estimate exactly.",
+        },
+        {
+          author: "Priya S.",
+          rating: 4,
+          date: "2026-07-30",
+          title: "Solid work, slightly late",
+          body: "Showed up about 20 minutes past the window but the trim and door install looked great once finished.",
+        },
+      ],
     },
     images: [
       {
@@ -1206,6 +1244,22 @@ export const mockClassifiedListings: MockClassifiedListing[] = [
         "Sprinkler startup and winterization",
         "Basic landscape maintenance",
       ],
+      reviews: [
+        {
+          author: "Kelsey R.",
+          rating: 5,
+          date: "2026-09-05",
+          title: "Reliable every week",
+          body: "Same crew, same day, every week for the past year. They always close the gate and never leave clippings behind.",
+        },
+        {
+          author: "Owen B.",
+          rating: 5,
+          date: "2026-08-14",
+          title: "Sprinkler startup was quick",
+          body: "Had them do spring startup on our sprinkler system. Found and fixed a broken head we didn't know about.",
+        },
+      ],
     },
     images: [
       {
@@ -1251,6 +1305,22 @@ export const mockClassifiedListings: MockClassifiedListing[] = [
         "Computer and printer setup",
         "Smart TV and streaming setup",
         "Small-office technology tune-ups",
+      ],
+      reviews: [
+        {
+          author: "Grace L.",
+          rating: 5,
+          date: "2026-09-01",
+          title: "Patient and clear",
+          body: "Finally got our Wi-Fi dead zones sorted out. Explained everything without making us feel silly for asking.",
+        },
+        {
+          author: "Marcus D.",
+          rating: 4,
+          date: "2026-08-09",
+          title: "Good remote support",
+          body: "Did a remote session to fix a printer driver issue. Took a little longer than expected but got it working.",
+        },
       ],
     },
     images: [
