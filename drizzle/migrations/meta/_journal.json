@@ -43,6 +43,13 @@
       "when": 1789772194367,
       "tag": "0005_views_security_invoker",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789772406666,
+      "tag": "0006_add_classified_broken_condition",
+      "breakpoints": true
     }
   ]
 }

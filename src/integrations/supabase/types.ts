@@ -5330,6 +5330,7 @@ export type Database = {
         | "new_without_tags"
         | "used_excellent"
         | "used_good"
+        | "broken_needs_repairs"
       listing_event_type:
         | "created"
         | "price_changed"
@@ -5584,6 +5585,7 @@ export const Constants = {
         "new_without_tags",
         "used_excellent",
         "used_good",
+        "broken_needs_repairs",
       ],
       listing_event_type: [
         "created",
