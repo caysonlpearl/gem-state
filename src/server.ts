@@ -66,4 +66,13 @@ export default {
       });
     }
   },
+  async scheduled(_controller: unknown, env: unknown, ctx: unknown) {
+    registerRuntimeBindings(env);
+    const task = import("./lib/saved-search-worker.server").then(({ processSavedSearchAlerts }) =>
+      processSavedSearchAlerts(),
+    );
+    const runtime = ctx as { waitUntil?: (promise: Promise<unknown>) => void };
+    if (typeof runtime.waitUntil === "function") runtime.waitUntil(task);
+    else await task;
+  },
 };
