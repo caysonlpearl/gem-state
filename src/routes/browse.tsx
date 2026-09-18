@@ -202,7 +202,6 @@ const leaseLengthOptions = [
   "24 Months or Less",
 ];
 
-const jobListingCount = 1780;
 const serviceListingCount = 1568;
 const mileageBandOptions = ["Under 25,000 miles", "Under 50,000 miles", "Under 75,000 miles", "Under 100,000 miles", "Under 150,000 miles"] as const;
 const vehicleModelsByMake: Record<string, readonly string[]> = {
@@ -247,15 +246,6 @@ const vehicleConditionOptions = [
   { value: "broken_needs_repairs", label: "Broken/needs repairs" },
 ] as const;
 const vehicleSellerTypeOptions = ["Private", "Dealer"] as const;
-type JobPreviewCard = {
-  listingId?: string;
-  title: string;
-  employer: string;
-  location: string;
-  pay: string;
-  image: string;
-};
-
 const jobCategoryOptions = [
   "Any category",
   "Accounting & Finance",
@@ -275,29 +265,6 @@ const jobPayTypeOptions = ["All pay types", "Hourly", "Salary"] as const;
 const jobExperienceOptions = ["Any experience", "1–2 years", "3–4 years", "5–7 years", "8–10 years", "10+ years"] as const;
 const jobPostedOptions = ["Any time", "Last hour", "Last 24 hours", "Last 7 days", "Last 30 days"] as const;
 const jobEducationOptions = ["Any education", "2-year Degree", "4-year Degree", "Advanced Degree", "High School", "None"] as const;
-
-const jobPreviewRows: { title: string; action: string; cards: JobPreviewCard[] }[] = [
-  {
-    title: "Newest listings",
-    action: "Browse all jobs",
-    cards: [
-      { listingId: "mock-job-twilite-bouncer", title: "Bouncer / Door Person", employer: "Twilite Lounge", location: "Boise, ID", pay: "$16/hr", image: "https://images.unsplash.com/photo-1572116469696-31de0f17cc34?auto=format&fit=crop&w=900&q=80" },
-      { listingId: "mock-job-meridian-dental-front-desk", title: "Front Desk Receptionist", employer: "Meridian Family Dental", location: "Meridian, ID", pay: "$18–$21/hr", image: "https://images.unsplash.com/photo-1629909613654-28e377c37b09?auto=format&fit=crop&w=900&q=80" },
-      { listingId: "mock-job-gem-state-logistics-warehouse", title: "Warehouse Associate", employer: "Gem State Logistics", location: "Nampa, ID", pay: "$38k–$44k/yr", image: "https://images.unsplash.com/photo-1553413077-190dd305871c?auto=format&fit=crop&w=900&q=80" },
-      { title: "Human Resources Coordinator", employer: "B&D Bush Excavation", location: "Bluffdale, UT", pay: "Salary", image: "https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=900&q=80" },
-    ],
-  },
-  {
-    title: "Jobs near you",
-    action: "Explore local work",
-    cards: [
-      { title: "Associate Attorney", employer: "International Law Group", location: "Eagle Mountain, UT", pay: "Salary", image: "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&w=900&q=80" },
-      { title: "Shipping Associate", employer: "Growing local team", location: "Salt Lake City, UT", pay: "$18–$21/hr", image: "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=900&q=80" },
-      { title: "Servers, Hosts & Bussers", employer: "Porcupine Pub & Grille", location: "Salt Lake City, UT", pay: "$13/hr", image: "https://images.unsplash.com/photo-1515003197210-e0cd71810b5f?auto=format&fit=crop&w=900&q=80" },
-      { title: "Utility Superintendent", employer: "Staker Parson", location: "Draper, UT", pay: "Salary", image: "https://images.unsplash.com/photo-1504917595217-d4dc5ebe6122?auto=format&fit=crop&w=900&q=80" },
-    ],
-  },
-];
 
 const homePreviewRows = [
   {
@@ -818,6 +785,7 @@ function Browse() {
       {jobs && jobLanding && (
         <JobsLandingHero
           search={search}
+          resultCount={result.total}
           onSearch={(term) =>
             void navigate({
               to: "/browse",
@@ -834,6 +802,7 @@ function Browse() {
       {jobs && !jobLanding && (
         <JobsFilterPage
           search={search}
+          listings={result.listings}
           onApply={(patch) =>
             void navigate({ to: "/browse", search: scoped({ category: "jobs", jobMode: "results", ...patch }) })
           }
@@ -1904,11 +1873,13 @@ function ServiceCard({ card, favorites }: { card: ServicePreviewCard; favorites:
 
 function JobsLandingHero({
   search,
+  resultCount,
   onSearch,
   onMoreFilters,
   onPost,
 }: {
   search: Search;
+  resultCount: number;
   onSearch: (term: string) => void;
   onMoreFilters: () => void;
   onPost: () => void;
@@ -1959,7 +1930,7 @@ function JobsLandingHero({
                 <JobSelect label="Job pay range" options={jobPayTypeOptions} />
               </div>
               <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-[12px]">
-                <span className="text-white/70">{jobListingCount.toLocaleString()} local jobs to explore</span>
+                <span className="text-white/70">{resultCount.toLocaleString()} local jobs to explore</span>
                 <button type="button" onClick={onMoreFilters} className="inline-flex items-center gap-1.5 rounded-full border border-accent/70 px-4 py-2 font-bold text-accent transition-colors hover:bg-accent hover:text-accent-foreground">More filters <ArrowRight size={14} aria-hidden="true" /></button>
               </div>
             </>
@@ -1978,10 +1949,12 @@ function JobsLandingHero({
 
 function JobsFilterPage({
   search,
+  listings,
   onApply,
   onPost,
 }: {
   search: Search;
+  listings: ClassifiedBrowseResult["listings"];
   onApply: (patch: Partial<Search>) => void;
   onPost: () => void;
 }) {
@@ -2035,6 +2008,17 @@ function JobsFilterPage({
     });
   }
 
+  const filteredListings = listings
+    .filter((listing) => !search.jobType || listing.job?.employmentType === search.jobType)
+    .filter((listing) => !search.jobPayType || listing.job?.payType === search.jobPayType)
+    .filter((listing) => search.jobPayMin == null || (listing.job?.payMax ?? 0) >= search.jobPayMin)
+    .filter((listing) => search.jobPayMax == null || (listing.job?.payMin ?? 0) <= search.jobPayMax);
+  const sortedListings = [...filteredListings].sort((a, b) => {
+    if (search.sort === "price_high") return b.priceCents - a.priceCents;
+    if (search.sort === "price_low") return a.priceCents - b.priceCents;
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+
   return (
     <div className="mt-8">
       <section className="floating-card overflow-visible p-4 sm:p-6">
@@ -2071,8 +2055,60 @@ function JobsFilterPage({
         )}
 
         <section aria-label="Job listings">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4"><p className="text-[13px] text-muted-foreground"><strong className="numeric text-foreground">{jobListingCount.toLocaleString()}</strong> jobs in Idaho, Utah, and Wyoming</p><label className="flex items-center gap-2 text-[12px] text-muted-foreground">Sort by<select className="h-9 rounded-lg border border-input bg-card px-2 text-[12px] text-foreground" defaultValue="newest"><option value="newest">Newest to oldest</option><option value="pay_high">Highest pay</option><option value="pay_low">Lowest pay</option></select></label></div>
-          <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">{jobPreviewRows.flatMap((row) => row.cards).map((card) => <JobCard key={`${card.title}-${card.employer}`} card={card} />)}</div>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+            <p className="text-[13px] text-muted-foreground">
+              <strong className="numeric text-foreground">{sortedListings.length}</strong>{" "}
+              {sortedListings.length === 1 ? "job" : "jobs"} in Idaho
+            </p>
+            <label className="flex items-center gap-2 text-[12px] text-muted-foreground">
+              Sort by
+              <select
+                value={search.sort ?? "newest"}
+                onChange={(event) =>
+                  onApply({
+                    sort:
+                      event.target.value === "newest"
+                        ? undefined
+                        : (event.target.value as Search["sort"]),
+                  })
+                }
+                className="h-9 rounded-lg border border-input bg-card px-2 text-[12px] text-foreground"
+              >
+                <option value="newest">Newest to oldest</option>
+                <option value="price_high">Highest pay</option>
+                <option value="price_low">Lowest pay</option>
+              </select>
+            </label>
+          </div>
+          {sortedListings.length === 0 ? (
+            <div className="soft-card mt-5 px-5 py-12 text-center">
+              <p className="text-[14px] font-medium">No jobs match these filters.</p>
+              <p className="mx-auto mt-1.5 max-w-md text-[13px] leading-relaxed text-muted-foreground">
+                Try widening your job type, pay range, or search terms.
+              </p>
+              <button
+                type="button"
+                onClick={() =>
+                  onApply({
+                    q: undefined,
+                    jobType: undefined,
+                    jobPayType: undefined,
+                    jobPayMin: undefined,
+                    jobPayMax: undefined,
+                  })
+                }
+                className="mt-4 inline-flex h-9 items-center rounded-md border border-input px-3 text-[12px] font-semibold hover:bg-secondary"
+              >
+                Clear filters
+              </button>
+            </div>
+          ) : (
+            <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {sortedListings.map((listing) => (
+                <ListingCard key={listing.id} listing={listing} />
+              ))}
+            </div>
+          )}
         </section>
       </div>
     </div>
@@ -2122,11 +2158,6 @@ function JobFilterGroup({ title, children }: { title: string; children: React.Re
 
 function JobToggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
   return <label className="flex items-center justify-between gap-3 text-[12px] leading-tight"><span>{label}</span><button type="button" aria-label={label} aria-pressed={checked} onClick={() => onChange(!checked)} className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${checked ? "bg-primary" : "bg-muted"}`}><span className={`absolute top-1 size-5 rounded-full bg-card shadow-sm transition-transform ${checked ? "translate-x-6" : "translate-x-1"}`} /></button></label>;
-}
-
-function JobCard({ card }: { card: (typeof jobPreviewRows)[number]["cards"][number] }) {
-  const content = <article className="group overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm transition-shadow hover:shadow-lg"><div className="relative aspect-[4/3] overflow-hidden bg-secondary"><img src={card.image} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" /><span className="absolute left-3 top-3 rounded-md bg-primary/85 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.12em] text-primary-foreground">Job</span></div><div className="p-4"><h3 className="min-h-[36px] text-[15px] font-bold leading-tight">{card.title}</h3><p className="mt-1 text-[12px] text-muted-foreground">{card.employer}</p><p className="mt-2 flex items-center gap-1 text-[11.5px] text-muted-foreground"><MapPin size={12} className="text-primary" aria-hidden="true" />{card.location}</p><p className="mt-5 text-[18px] font-bold text-primary">{card.pay}</p></div></article>;
-  return card.listingId ? <Link to="/listings/$listingId" params={{ listingId: card.listingId }} className="block">{content}</Link> : content;
 }
 
 function HomesFilterPage({

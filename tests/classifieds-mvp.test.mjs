@@ -665,7 +665,15 @@ test("jobs browse has a landing hero and expanded local job filters", () => {
     assert.match(browseSource, new RegExp(label));
   }
   assert.match(browseSource, /function JobToggle/);
-  assert.match(browseSource, /function JobCard/);
+});
+
+test("jobs browse results use real listing data, not static placeholder cards", () => {
+  assert.match(browseSource, /listings: ClassifiedBrowseResult\["listings"\]/);
+  assert.match(browseSource, /sortedListings\.map\(\(listing\) => \(/);
+  assert.match(browseSource, /No jobs match these filters\./);
+  assert.doesNotMatch(browseSource, /function JobCard/);
+  assert.doesNotMatch(browseSource, /jobPreviewRows/);
+  assert.doesNotMatch(browseSource, /Laborer needed/);
 });
 
 test("services browse has a category-led landing page", () => {
@@ -709,7 +717,7 @@ test("general classifieds have mock detail fixtures without changing category se
   assert.match(detailSource, /showPaymentCalculator={false}/);
 });
 
-test("job and service previews link to realistic mock listing details", () => {
+test("job and service mock listings exist with realistic detail fixtures", () => {
   for (const listing of [
     "mock-job-twilite-bouncer",
     "mock-job-meridian-dental-front-desk",
@@ -719,6 +727,16 @@ test("job and service previews link to realistic mock listing details", () => {
     "mock-service-gem-state-tech",
   ]) {
     assert.match(mockListingsSource, new RegExp(listing));
+  }
+  // Service previews still use a static preview array, so their mock ids are
+  // linked directly from browse.tsx. Job listings are rendered from the real
+  // browseClassifieds result set instead (see the dedicated jobs browse test
+  // below), so their ids are fetched at runtime rather than hardcoded here.
+  for (const listing of [
+    "mock-service-boise-home-works",
+    "mock-service-treasure-valley-lawn",
+    "mock-service-gem-state-tech",
+  ]) {
     assert.match(browseSource, new RegExp(listing));
   }
   assert.match(browseSource, /to="\/listings\/\$listingId"/);
