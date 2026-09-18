@@ -9,6 +9,7 @@ import {
   type ClassifiedFloorplan,
   type ClassifiedHomeDetails,
   type ClassifiedJobDetails,
+  type ClassifiedServiceDetails,
 } from "@/config/classified-mocks";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
@@ -60,6 +61,7 @@ export type ClassifiedCard = {
   vehicle: ClassifiedVehicle | null;
   home?: ClassifiedHomeDetails | null;
   job?: ClassifiedJobDetails | null;
+  service?: ClassifiedServiceDetails | null;
   isMock?: boolean;
   listingNumber?: string;
 };
@@ -78,6 +80,8 @@ export type ClassifiedDetail = ClassifiedCard & {
     payoutVerified: boolean;
     ratingAverage: number | null;
     reviewCount: number;
+    contactPhone?: string | null;
+    contactEmail?: string | null;
     memberSince?: number;
     sellerType?: string;
   } | null;
@@ -596,6 +600,7 @@ function mockCard(listing: (typeof mockClassifiedListings)[number]): ClassifiedC
     vehicle: null,
     home: listing.home ?? null,
     job: listing.job ?? null,
+    service: listing.service ?? null,
     isMock: true,
     listingNumber: listing.listingNumber,
   };
@@ -956,13 +961,30 @@ export const getClassifiedListing = createServerFn({ method: "GET" })
     const details = record["classified_listing_details"] as Record<string, unknown>;
     const card = toCard(record, urlByPath);
     const sellerId = record["seller_id"] as string | null;
-    const { data: sellerRow } = sellerId
-      ? await client
-          .from("seller_storefronts")
-          .select("slug,display_name,bio,avatar_url,payout_verified,rating_average,review_count")
-          .eq("user_id", sellerId)
-          .maybeSingle()
-      : { data: null };
+    const [{ data: sellerRow }, sellerContact] = sellerId
+      ? await Promise.all([
+          client
+            .from("seller_storefronts")
+            .select("slug,display_name,bio,avatar_url,payout_verified,rating_average,review_count")
+            .eq("user_id", sellerId)
+            .maybeSingle(),
+          (async () => {
+            const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+            const [{ data: sellerProfile }, { data: sellerAuth }] = await Promise.all([
+              supabaseAdmin
+                .from("seller_profiles")
+                .select("ship_from_phone")
+                .eq("user_id", sellerId)
+                .maybeSingle(),
+              supabaseAdmin.auth.admin.getUserById(sellerId),
+            ]);
+            return {
+              phone: sellerProfile?.ship_from_phone ?? null,
+              email: sellerAuth?.user?.email ?? null,
+            };
+          })(),
+        ])
+      : [{ data: null }, { phone: null, email: null }];
 
     return {
       ...card,
@@ -981,6 +1003,8 @@ export const getClassifiedListing = createServerFn({ method: "GET" })
             ratingAverage:
               sellerRow.rating_average == null ? null : Number(sellerRow.rating_average),
             reviewCount: Number(sellerRow.review_count ?? 0),
+            contactPhone: sellerContact.phone,
+            contactEmail: sellerContact.email,
           }
         : null,
       images: paths

@@ -60,7 +60,13 @@ function Facts({ listing }: { listing: ClassifiedCard }) {
 }
 
 function Price({ listing }: { listing: ClassifiedCard }) {
-  return <>{listing.job ? formatJobPay(listing.job) : formatUsd(listing.priceCents)}</>;
+  return (
+    <>
+      {listing.job
+        ? formatJobPay(listing.job)
+        : listing.service?.pricing ?? formatUsd(listing.priceCents)}
+    </>
+  );
 }
 
 export function ListingCard({ listing }: { listing: ClassifiedCard }) {

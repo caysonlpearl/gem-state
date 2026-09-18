@@ -92,19 +92,17 @@ function AuthPage() {
     }
   }
 
-  async function handleOAuth(provider: "google" | "apple") {
+  async function handleOAuth() {
     setBusy(true);
     try {
       const { error } = await supabase.auth.signInWithOAuth({
-        provider,
+        provider: "google",
         options: {
           redirectTo: `${window.location.origin}/auth?redirect=${encodeURIComponent(redirect)}`,
         },
       });
       if (error) {
-        toast.error(
-          `${provider === "google" ? "Google" : "Apple"} sign-in failed. Try email instead.`,
-        );
+        toast.error("Google sign-in failed. Try email instead.");
       }
     } finally {
       setBusy(false);
@@ -134,22 +132,11 @@ function AuthPage() {
           <div className="mt-6 space-y-2.5">
             <button
               type="button"
-              onClick={() => handleOAuth("google")}
+              onClick={handleOAuth}
               disabled={busy}
               className="inline-flex h-12 w-full items-center justify-center rounded-full border border-input bg-card text-[13.5px] font-medium transition-colors hover:bg-secondary disabled:opacity-60"
             >
               Continue with Google
-            </button>
-            <button
-              type="button"
-              onClick={() => handleOAuth("apple")}
-              disabled={busy}
-              className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border border-input bg-card text-[13.5px] font-medium transition-colors hover:bg-secondary disabled:opacity-60"
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 fill-current">
-                <path d="M17.05 12.9c.02 2.6 2.28 3.46 2.3 3.47-.02.06-.36 1.24-1.2 2.45-.72 1.05-1.47 2.1-2.66 2.12-1.16.02-1.54-.69-2.87-.69-1.33 0-1.75.67-2.85.71-1.14.04-2.01-1.12-2.74-2.17-1.5-2.17-2.64-6.14-1.1-8.82.76-1.33 2.13-2.17 3.61-2.19 1.12-.02 2.17.75 2.87.75.69 0 1.98-.93 3.33-.79.57.02 2.17.2 3.19 1.55-.08.05-1.9 1.11-1.88 3.31M14.9 4.6c.62-.75 1.04-1.79.93-2.83-.9.04-2 .6-2.64 1.35-.58.66-1.08 1.72-.95 2.74 1 .08 2.03-.51 2.66-1.26" />
-              </svg>
-              Continue with Apple
             </button>
           </div>
 

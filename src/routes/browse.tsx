@@ -390,6 +390,7 @@ const serviceConditionOptions = ["Any condition", "New", "Used", "Like new"] as 
 const serviceTimeOnSiteOptions = ["Any time", "Last hour", "Last 24 hours", "Last 7 days", "Last 30 days"] as const;
 
 type ServicePreviewCard = {
+  listingId?: string;
   title: string;
   location: string;
   age: string;
@@ -398,9 +399,9 @@ type ServicePreviewCard = {
 };
 
 const servicePreviewRows: ServicePreviewCard[] = [
-  { title: "Hardwood | LVP | Laminate flooring", location: "South Jordan, UT", age: "", price: "Call for quote", image: "https://images.unsplash.com/photo-1560185008-b033106af5c3?auto=format&fit=crop&w=900&q=80" },
-  { title: "General Contractor | New Home Construction | Home Additions", location: "Salt Lake City, UT", age: "", price: "Call for quote", image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=900&q=80" },
-  { title: "Fence Installation & Repair | Vinyl Fence | Wood Fence", location: "Salt Lake City, UT", age: "", price: "Call for quote", image: "https://images.unsplash.com/photo-1558904541-efa843a96f01?auto=format&fit=crop&w=900&q=80" },
+  { listingId: "mock-service-boise-home-works", title: "Boise Home Works | Handyman & Drywall Repair", location: "Boise, ID", age: "Just listed", price: "Call for quote", image: "https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=900&q=80" },
+  { listingId: "mock-service-treasure-valley-lawn", title: "Treasure Valley Lawn Co. | Lawn Care & Sprinklers", location: "Meridian, ID", age: "1 day", price: "From $45 / visit", image: "https://images.unsplash.com/photo-1558904541-efa843a96f01?auto=format&fit=crop&w=900&q=80" },
+  { listingId: "mock-service-gem-state-tech", title: "Gem State Tech Help | Home Wi-Fi & Computer Setup", location: "Boise, ID", age: "2 days", price: "From $85 / visit", image: "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=80" },
   { title: "All Pro Handyman | Home Repairs | Remodels | Drywall", location: "West Jordan, UT", age: "", price: "Call for quote", image: "https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=900&q=80" },
   { title: "NT llc", location: "Salt Lake City, UT", age: "1 Hour", price: "Call for quote", image: "https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&w=900&q=80" },
   { title: "Medico Excavation & Landscape", location: "Collinston, UT", age: "1 Hour", price: "Call for quote", image: "https://images.unsplash.com/photo-1558904541-efa843a96f01?auto=format&fit=crop&w=900&q=80" },
@@ -1866,7 +1867,8 @@ function ServiceToggle({ label, checked, onChange }: { label: string; checked: b
 }
 
 function ServiceCard({ card, favorites }: { card: ServicePreviewCard; favorites: number }) {
-  return <article className="group overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm transition-shadow hover:shadow-lg"><div className="relative aspect-[4/3] overflow-hidden bg-secondary"><img src={card.image} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" /><span className="absolute left-3 top-3 rounded-md bg-primary/85 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.12em] text-primary-foreground">Service</span></div><div className="p-4"><h3 className="min-h-[36px] text-[15px] font-bold leading-tight">{card.title}</h3><p className="mt-2 flex items-center gap-1 text-[11.5px] text-primary"><MapPin size={12} aria-hidden="true" />{card.location}{card.age ? <><span className="text-muted-foreground">|</span><span className="text-foreground">{card.age}</span></> : null}</p><div className="mt-5 flex items-end justify-between gap-2"><p className="text-[18px] font-bold text-primary">{card.price}</p><span className="text-[12px] text-muted-foreground">♡ {favorites}</span></div></div></article>;
+  const content = <article className="group overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm transition-shadow hover:shadow-lg"><div className="relative aspect-[4/3] overflow-hidden bg-secondary"><img src={card.image} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" /><span className="absolute left-3 top-3 rounded-md bg-primary/85 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.12em] text-primary-foreground">Service</span></div><div className="p-4"><h3 className="min-h-[36px] text-[15px] font-bold leading-tight">{card.title}</h3><p className="mt-2 flex items-center gap-1 text-[11.5px] text-primary"><MapPin size={12} aria-hidden="true" />{card.location}{card.age ? <><span className="text-muted-foreground">|</span><span className="text-foreground">{card.age}</span></> : null}</p><div className="mt-5 flex items-end justify-between gap-2"><p className="text-[18px] font-bold text-primary">{card.price}</p><span className="text-[12px] text-muted-foreground">♡ {favorites}</span></div></div></article>;
+  return card.listingId ? <Link to="/listings/$listingId" params={{ listingId: card.listingId }} className="block">{content}</Link> : content;
 }
 
 function JobsLandingHero({
@@ -2157,7 +2159,6 @@ function JobFilterGroup({ title, children }: { title: string; children: React.Re
 function JobToggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
   return <label className="flex items-center justify-between gap-3 text-[12px] leading-tight"><span>{label}</span><button type="button" aria-label={label} aria-pressed={checked} onClick={() => onChange(!checked)} className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${checked ? "bg-primary" : "bg-muted"}`}><span className={`absolute top-1 size-5 rounded-full bg-card shadow-sm transition-transform ${checked ? "translate-x-6" : "translate-x-1"}`} /></button></label>;
 }
-
 
 function HomesFilterPage({
   activeTab,
