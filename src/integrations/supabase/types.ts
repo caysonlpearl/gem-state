@@ -625,9 +625,49 @@ export type Database = {
           city: string
           created_at: string
           fulfillment_mode: string
+          home_acreage: string | null
+          home_appliances_included: string | null
+          home_available: string | null
+          home_basement_type: string | null
+          home_bathrooms: number | null
+          home_bedrooms: number | null
+          home_cooling: string | null
+          home_exterior_material: string | null
+          home_floor_coverings: string | null
+          home_garage_parking: string | null
+          home_heating: string | null
+          home_hoa_fees: string | null
+          home_lease_length: string | null
+          home_mode: string | null
+          home_open_house: string | null
+          home_pets_policy: string | null
+          home_property_type: string | null
+          home_school_district: string | null
+          home_smoking_policy: string | null
+          home_special_features: string | null
+          home_square_feet: number | null
+          home_yard: string | null
+          home_year_built: number | null
+          job_education_level: string | null
+          job_employer_address: string | null
+          job_employer_name: string | null
+          job_employment_type: string | null
+          job_experience_required: string | null
+          job_pay_max: number | null
+          job_pay_min: number | null
+          job_pay_type: string | null
+          job_qualifications: string[] | null
+          job_responsibilities: string[] | null
           listing_id: string
           postal_code: string | null
           region: string
+          service_area: string | null
+          service_availability: string | null
+          service_business_address: string | null
+          service_license_lookup_url: string | null
+          service_license_number: string | null
+          service_offerings: string[] | null
+          service_subcategory: string | null
           state: string
           updated_at: string
           vehicle_body_style: string | null
@@ -647,9 +687,49 @@ export type Database = {
           city: string
           created_at?: string
           fulfillment_mode: string
+          home_acreage?: string | null
+          home_appliances_included?: string | null
+          home_available?: string | null
+          home_basement_type?: string | null
+          home_bathrooms?: number | null
+          home_bedrooms?: number | null
+          home_cooling?: string | null
+          home_exterior_material?: string | null
+          home_floor_coverings?: string | null
+          home_garage_parking?: string | null
+          home_heating?: string | null
+          home_hoa_fees?: string | null
+          home_lease_length?: string | null
+          home_mode?: string | null
+          home_open_house?: string | null
+          home_pets_policy?: string | null
+          home_property_type?: string | null
+          home_school_district?: string | null
+          home_smoking_policy?: string | null
+          home_special_features?: string | null
+          home_square_feet?: number | null
+          home_yard?: string | null
+          home_year_built?: number | null
+          job_education_level?: string | null
+          job_employer_address?: string | null
+          job_employer_name?: string | null
+          job_employment_type?: string | null
+          job_experience_required?: string | null
+          job_pay_max?: number | null
+          job_pay_min?: number | null
+          job_pay_type?: string | null
+          job_qualifications?: string[] | null
+          job_responsibilities?: string[] | null
           listing_id: string
           postal_code?: string | null
           region: string
+          service_area?: string | null
+          service_availability?: string | null
+          service_business_address?: string | null
+          service_license_lookup_url?: string | null
+          service_license_number?: string | null
+          service_offerings?: string[] | null
+          service_subcategory?: string | null
           state?: string
           updated_at?: string
           vehicle_body_style?: string | null
@@ -669,9 +749,49 @@ export type Database = {
           city?: string
           created_at?: string
           fulfillment_mode?: string
+          home_acreage?: string | null
+          home_appliances_included?: string | null
+          home_available?: string | null
+          home_basement_type?: string | null
+          home_bathrooms?: number | null
+          home_bedrooms?: number | null
+          home_cooling?: string | null
+          home_exterior_material?: string | null
+          home_floor_coverings?: string | null
+          home_garage_parking?: string | null
+          home_heating?: string | null
+          home_hoa_fees?: string | null
+          home_lease_length?: string | null
+          home_mode?: string | null
+          home_open_house?: string | null
+          home_pets_policy?: string | null
+          home_property_type?: string | null
+          home_school_district?: string | null
+          home_smoking_policy?: string | null
+          home_special_features?: string | null
+          home_square_feet?: number | null
+          home_yard?: string | null
+          home_year_built?: number | null
+          job_education_level?: string | null
+          job_employer_address?: string | null
+          job_employer_name?: string | null
+          job_employment_type?: string | null
+          job_experience_required?: string | null
+          job_pay_max?: number | null
+          job_pay_min?: number | null
+          job_pay_type?: string | null
+          job_qualifications?: string[] | null
+          job_responsibilities?: string[] | null
           listing_id?: string
           postal_code?: string | null
           region?: string
+          service_area?: string | null
+          service_availability?: string | null
+          service_business_address?: string | null
+          service_license_lookup_url?: string | null
+          service_license_number?: string | null
+          service_offerings?: string[] | null
+          service_subcategory?: string | null
           state?: string
           updated_at?: string
           vehicle_body_style?: string | null
@@ -4339,6 +4459,15 @@ export type Database = {
       }
     }
     Functions: {
+      _apply_classified_category_details: {
+        Args: {
+          _home?: Json
+          _job?: Json
+          _listing_id: string
+          _service?: Json
+        }
+        Returns: undefined
+      }
       accept_shopper_quote: { Args: { _quote_id: string }; Returns: string }
       admin_add_product_image: {
         Args: {
@@ -4708,6 +4837,32 @@ export type Database = {
               _state: string
               _title: string
               _vehicle?: Json
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              _category_id: string
+              _city: string
+              _description: string
+              _evidence_paths: string[]
+              _fulfillment_mode: string
+              _home: Json
+              _item_condition: Database["public"]["Enums"]["item_condition"]
+              _job: Json
+              _parcel_height_in: number
+              _parcel_length_in: number
+              _parcel_weight_lb: number
+              _parcel_width_in: number
+              _postal_code: string
+              _price_cents: number
+              _public_media_paths: string[]
+              _region: string
+              _seller_note: string
+              _service: Json
+              _state: string
+              _title: string
+              _vehicle: Json
             }
             Returns: string
           }
@@ -5281,28 +5436,54 @@ export type Database = {
         }
         Returns: undefined
       }
-      update_classified_listing: {
-        Args: {
-          _category_id: string
-          _city: string
-          _description: string
-          _fulfillment_mode: string
-          _item_condition: Database["public"]["Enums"]["item_condition"]
-          _listing_id: string
-          _parcel_height_in: number
-          _parcel_length_in: number
-          _parcel_weight_lb: number
-          _parcel_width_in: number
-          _postal_code: string
-          _price_cents: number
-          _region: string
-          _seller_note: string
-          _state: string
-          _title: string
-          _vehicle?: Json
-        }
-        Returns: undefined
-      }
+      update_classified_listing:
+        | {
+            Args: {
+              _category_id: string
+              _city: string
+              _description: string
+              _fulfillment_mode: string
+              _item_condition: Database["public"]["Enums"]["item_condition"]
+              _listing_id: string
+              _parcel_height_in: number
+              _parcel_length_in: number
+              _parcel_weight_lb: number
+              _parcel_width_in: number
+              _postal_code: string
+              _price_cents: number
+              _region: string
+              _seller_note: string
+              _state: string
+              _title: string
+              _vehicle?: Json
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              _category_id: string
+              _city: string
+              _description: string
+              _fulfillment_mode: string
+              _home: Json
+              _item_condition: Database["public"]["Enums"]["item_condition"]
+              _job: Json
+              _listing_id: string
+              _parcel_height_in: number
+              _parcel_length_in: number
+              _parcel_weight_lb: number
+              _parcel_width_in: number
+              _postal_code: string
+              _price_cents: number
+              _region: string
+              _seller_note: string
+              _service: Json
+              _state: string
+              _title: string
+              _vehicle: Json
+            }
+            Returns: undefined
+          }
       variant_price_reference: {
         Args: { _variant_id: string }
         Returns: {
