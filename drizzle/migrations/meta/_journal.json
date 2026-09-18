@@ -36,6 +36,13 @@
       "when": 1789772178100,
       "tag": "0004_harden_definer_functions_views_storage",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789772194367,
+      "tag": "0005_views_security_invoker",
+      "breakpoints": true
     }
   ]
 }
