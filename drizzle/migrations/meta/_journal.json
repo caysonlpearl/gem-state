@@ -57,6 +57,13 @@
       "when": 1789772430757,
       "tag": "0007_allow_classified_media_uploads",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789772473540,
+      "tag": "0008_remove_classified_stripe_gate",
+      "breakpoints": true
     }
   ]
 }
