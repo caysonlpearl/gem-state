@@ -563,6 +563,10 @@ test("vehicle browse uses a branded buy and eight-filter discovery hero", () => 
   }
   assert.match(browseSource, /Buy/);
   assert.match(browseSource, /Sell/);
+  assert.match(browseSource, /vehicleShowcaseRows/);
+  assert.match(browseSource, /Popular cars & trucks/);
+  assert.match(browseSource, /Just reduced/);
+  assert.match(browseSource, /GemList Motors/);
 });
 
 test("homes browse has a large landing hero and tab-specific filter views", () => {
@@ -629,6 +633,11 @@ test("homes browse has a large landing hero and tab-specific filter views", () =
   assert.match(browseSource, /h-\[88px\]/g);
   assert.match(browseSource, /Hide all filters/);
   assert.match(browseSource, /homeTab: row\.title\.includes/);
+  assert.match(browseSource, /homePreviewRowsByTab/);
+  assert.match(browseSource, /Price drops to watch/);
+  assert.match(browseSource, /Quick move-in homes/);
+  assert.match(browseSource, /Pet-friendly rentals/);
+  assert.match(browseSource, /HomeShowcaseRows activeTab=\{homeTab\}/);
 });
 
 test("jobs browse has a landing hero and expanded local job filters", () => {
@@ -665,6 +674,9 @@ test("jobs browse has a landing hero and expanded local job filters", () => {
     assert.match(browseSource, new RegExp(label));
   }
   assert.match(browseSource, /function JobToggle/);
+  assert.match(browseSource, /jobsShowcaseRows/);
+  assert.match(browseSource, /Part-time & flexible/);
+  assert.match(browseSource, /Skilled trades & hands-on work/);
 });
 
 test("jobs browse results use real listing data, not static placeholder cards", () => {
@@ -692,6 +704,9 @@ test("services browse has a category-led landing page", () => {
   assert.match(browseSource, /Seller Type/);
   assert.match(browseSource, /Time On Site/);
   assert.match(browseSource, /serviceMode: "results"/);
+  assert.match(browseSource, /servicesShowcaseRows/);
+  assert.match(browseSource, /Recently added pros/);
+  assert.match(browseSource, /Projects to plan this season/);
 });
 
 test("listing detail keeps a responsive photo gallery and floating action card", () => {
@@ -796,4 +811,8 @@ test("all categories routes to its own general classifieds landing page", () => 
   }
   assert.match(browseSource, /Top listings/);
   assert.match(browseSource, /Newest listings/);
+  assert.match(browseSource, /classifiedShowcaseRows/);
+  assert.match(browseSource, /Holiday & seasonal finds/);
+  assert.match(browseSource, /Clothing & accessories/);
+  assert.match(browseSource, /Recently discounted/);
 });
