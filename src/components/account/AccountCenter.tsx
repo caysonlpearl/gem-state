@@ -78,6 +78,25 @@ import {
 } from "@/lib/market.functions";
 import { OrderReviewCard } from "@/components/orders/OrderReviewCard";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import {
   getSellerDashboardSummary,
   getSellerSetup,
   relistSellerListing,
@@ -1705,6 +1724,9 @@ function MessagesSection({
   const [body, setBody] = useState("");
   const [attachment, setAttachment] = useState<File | null>(null);
   const [detail, setDetail] = useState<ConversationDetail | null>(null);
+  const [reportOpen, setReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [blockOpen, setBlockOpen] = useState(false);
   const activeId = conversationId ?? conversations[0]?.id;
   const activeList = conversations.filter(
     (item) =>
@@ -1861,14 +1883,7 @@ function MessagesSection({
               {detail && (
                 <button
                   type="button"
-                  onClick={() => {
-                    if (
-                      window.confirm(
-                        "Block this member? You will no longer receive messages from this conversation.",
-                      )
-                    )
-                      blockMutation.mutate(detail.id);
-                  }}
+                  onClick={() => setBlockOpen(true)}
                   className="text-[11px] font-semibold text-muted-foreground hover:text-destructive"
                 >
                   Block member
@@ -1953,17 +1968,8 @@ function MessagesSection({
                     <button
                       type="button"
                       onClick={() => {
-                        const reason = window.prompt("Why are you reporting this conversation?");
-                        if (reason)
-                          void report({ data: { conversationId: detail.id, reason } })
-                            .then(() => toast.success("Conversation reported."))
-                            .catch((error) =>
-                              toast.error(
-                                error instanceof Error
-                                  ? error.message
-                                  : "Could not report conversation.",
-                              ),
-                            );
+                        setReportReason("");
+                        setReportOpen(true);
                       }}
                       className="text-[11px] text-muted-foreground hover:text-destructive"
                     >
@@ -2008,6 +2014,72 @@ function MessagesSection({
           )}
         </div>
       </div>
+      <Dialog open={reportOpen} onOpenChange={setReportOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Report this conversation</DialogTitle>
+            <DialogDescription>
+              Tell us what happened. Reports are reviewed by Gem State moderators.
+            </DialogDescription>
+          </DialogHeader>
+          <textarea
+            value={reportReason}
+            onChange={(event) => setReportReason(event.target.value)}
+            maxLength={500}
+            rows={4}
+            autoFocus
+            className="w-full resize-none rounded-xl border border-input bg-background px-3 py-2.5 text-[12.5px] outline-none focus:ring-2 focus:ring-ring"
+            placeholder="Reason for reporting"
+          />
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setReportOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={!detail || reportReason.trim().length < 3}
+              onClick={() => {
+                if (!detail) return;
+                void report({ data: { conversationId: detail.id, reason: reportReason } })
+                  .then(() => {
+                    setReportOpen(false);
+                    toast.success("Conversation reported.");
+                  })
+                  .catch((error) =>
+                    toast.error(
+                      error instanceof Error ? error.message : "Could not report conversation.",
+                    ),
+                  );
+              }}
+            >
+              Submit report
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <AlertDialog open={blockOpen} onOpenChange={setBlockOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Block this member?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You will no longer receive messages from this conversation. You can contact support if
+              you need help reversing a block.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (detail) blockMutation.mutate(detail.id);
+              }}
+            >
+              Block member
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
