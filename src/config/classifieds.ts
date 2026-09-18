@@ -75,6 +75,7 @@ export const classifiedCategories = [
   { slug: "outdoor-sporting", name: "Outdoor & Sporting", group: "classifieds" },
   { slug: "farm-garden", name: "Farm & Garden", group: "classifieds" },
   { slug: "general", name: "General", group: "classifieds" },
+  { slug: "other-real-estate", name: "Homes", group: "classifieds" },
   { slug: "services", name: "Services", group: "classifieds" },
   { slug: "jobs", name: "Jobs", group: "classifieds" },
 ] as const;

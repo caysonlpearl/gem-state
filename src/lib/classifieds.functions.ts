@@ -3,6 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { publicServerClient } from "./supabase-public.server";
 import { classifiedCategories } from "@/config/classifieds";
+import { formatUsd } from "@/config/fees";
 import {
   mockClassifiedListings,
   homeCommunities,
@@ -277,6 +278,9 @@ export const createClassifiedListing = createServerFn({ method: "POST" })
       _evidence_paths: data.evidencePaths,
       _public_media_paths: data.publicMediaPaths,
       _vehicle: vehicleForRpc(data.vehicle),
+      _home: homeForRpc(data.home),
+      _job: jobForRpc(data.job),
+      _service: serviceForRpc(data.service),
     });
     if (error) throw new Error(error.message);
     return { listingId: listingId as string };
@@ -296,6 +300,9 @@ export type ClassifiedListingEditor = {
   postalCode: string;
   fulfillmentMode: string;
   vehicle: ClassifiedVehicle | null;
+  home: ClassifiedHomeDetails | null;
+  job: ClassifiedJobDetails | null;
+  service: ClassifiedServiceDetails | null;
   parcelLengthIn: string;
   parcelWidthIn: string;
   parcelHeightIn: string;
@@ -305,6 +312,12 @@ export type ClassifiedListingEditor = {
   imageUrls: string[];
 };
 
+const EDITOR_DETAILS_SELECT =
+  "state,region,city,postal_code,fulfillment_mode,vehicle_make,vehicle_model,vehicle_year,vehicle_trim,vehicle_mileage,vehicle_body_style,vehicle_transmission,vehicle_drivetrain,vehicle_fuel_type,vehicle_exterior_color,vehicle_title_status,vin," +
+  "home_mode,home_property_type,home_bedrooms,home_bathrooms,home_square_feet,home_year_built,home_acreage,home_heating,home_cooling,home_garage_parking,home_yard,home_appliances_included,home_floor_coverings,home_basement_type,home_exterior_material,home_special_features,home_hoa_fees,home_school_district,home_lease_length,home_available,home_pets_policy,home_smoking_policy,home_open_house," +
+  "job_employer_name,job_employer_address,job_pay_type,job_pay_min,job_pay_max,job_employment_type,job_experience_required,job_education_level,job_responsibilities,job_qualifications," +
+  "service_subcategory,service_area,service_availability,service_business_address,service_license_number,service_license_lookup_url,service_offerings";
+
 export const getClassifiedListingEditor = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { listingId: string }) => ({ listingId: String(input.listingId) }))
@@ -313,7 +326,7 @@ export const getClassifiedListingEditor = createServerFn({ method: "GET" })
     const { data: row, error } = await client
       .from("asks")
       .select(
-        "id,status,approved_at,price_cents,item_condition,seller_note,parcel_length_in,parcel_width_in,parcel_height_in,parcel_weight_lb,products!inner(name,description,categories(slug)),classified_listing_details!inner(state,region,city,postal_code,fulfillment_mode,vehicle_make,vehicle_model,vehicle_year,vehicle_trim,vehicle_mileage,vehicle_body_style,vehicle_transmission,vehicle_drivetrain,vehicle_fuel_type,vehicle_exterior_color,vehicle_title_status,vin),listing_media(storage_path,position)",
+        `id,status,approved_at,price_cents,item_condition,seller_note,parcel_length_in,parcel_width_in,parcel_height_in,parcel_weight_lb,products!inner(name,description,categories(slug)),classified_listing_details!inner(${EDITOR_DETAILS_SELECT}),listing_media(storage_path,position)`,
       )
       .eq("id", data.listingId)
       .eq("seller_id", context.userId)
@@ -328,10 +341,11 @@ export const getClassifiedListingEditor = createServerFn({ method: "GET" })
       .map((item) => item.storage_path);
     const urls = await signListingMedia(media, client);
     const category = record.products?.categories?.slug ?? "general";
+    const description = record.products?.description ?? "";
     return {
       id: record.id,
       title: record.products?.name ?? "",
-      description: record.products?.description ?? "",
+      description,
       category,
       priceCents: Number(record.price_cents),
       condition: record.item_condition,
@@ -342,6 +356,9 @@ export const getClassifiedListingEditor = createServerFn({ method: "GET" })
       postalCode: String(details["postal_code"] ?? ""),
       fulfillmentMode: String(details["fulfillment_mode"] ?? "local_pickup"),
       vehicle: vehicleOf(details),
+      home: homeOf(details),
+      job: jobOf(details, description),
+      service: serviceOf(details, description, Number(record.price_cents)),
       parcelLengthIn: record.parcel_length_in == null ? "" : String(record.parcel_length_in),
       parcelWidthIn: record.parcel_width_in == null ? "" : String(record.parcel_width_in),
       parcelHeightIn: record.parcel_height_in == null ? "" : String(record.parcel_height_in),
@@ -370,6 +387,9 @@ export type UpdateClassifiedListingInput = {
   parcelHeightIn?: number | null;
   parcelWeightLb?: number | null;
   vehicle?: ClassifiedListingInput["vehicle"];
+  home?: ClassifiedListingInput["home"];
+  job?: ClassifiedListingInput["job"];
+  service?: ClassifiedListingInput["service"];
   publicMediaPaths?: string[];
 };
 
@@ -415,6 +435,9 @@ export const updateClassifiedListing = createServerFn({ method: "POST" })
       _parcel_height_in: data.parcelHeightIn ?? null,
       _parcel_weight_lb: data.parcelWeightLb ?? null,
       _vehicle: vehicleForRpc(data.vehicle),
+      _home: homeForRpc(data.home),
+      _job: jobForRpc(data.job),
+      _service: serviceForRpc(data.service),
     });
     if (error) throw new Error(error.message);
     if (data.publicMediaPaths && data.publicMediaPaths.length > 0) {
@@ -439,7 +462,10 @@ const conditionValues = [
 const LISTING_SELECT =
   "id, product_id, variant_id, seller_id, price_cents, currency, item_condition, seller_note, created_at, expires_at, " +
   "products!inner(id, slug, name, description, status, category_id, categories(slug, name)), " +
-  "classified_listing_details!inner(region, city, state, postal_code, fulfillment_mode, vehicle_make, vehicle_model, vehicle_year, vehicle_trim, vehicle_mileage, vehicle_body_style, vehicle_transmission, vehicle_drivetrain, vehicle_fuel_type, vehicle_exterior_color, vehicle_title_status, vin), " +
+  "classified_listing_details!inner(region, city, state, postal_code, fulfillment_mode, vehicle_make, vehicle_model, vehicle_year, vehicle_trim, vehicle_mileage, vehicle_body_style, vehicle_transmission, vehicle_drivetrain, vehicle_fuel_type, vehicle_exterior_color, vehicle_title_status, vin, " +
+  "home_mode, home_property_type, home_bedrooms, home_bathrooms, home_square_feet, home_year_built, home_acreage, home_heating, home_cooling, home_garage_parking, home_yard, home_appliances_included, home_floor_coverings, home_basement_type, home_exterior_material, home_special_features, home_hoa_fees, home_school_district, home_lease_length, home_available, home_pets_policy, home_smoking_policy, home_open_house, " +
+  "job_employer_name, job_employer_address, job_pay_type, job_pay_min, job_pay_max, job_employment_type, job_experience_required, job_education_level, job_responsibilities, job_qualifications, " +
+  "service_subcategory, service_area, service_availability, service_business_address, service_license_number, service_license_lookup_url, service_offerings), " +
   "listing_media(storage_path, position)";
 
 /** PostgREST `or=` treats these as structural characters; escape them. */
@@ -491,6 +517,92 @@ function vehicleForRpc(vehicle: ClassifiedListingInput["vehicle"] | undefined) {
     exterior_color: vehicle.exteriorColor,
     title_status: vehicle.titleStatus,
     vin: vehicle.vin,
+  };
+}
+
+/** Home/job/service JSON keys are stored camelCase, matching the SQL extraction. */
+function homeForRpc(home: ClassifiedListingInput["home"] | undefined) {
+  return home ?? {};
+}
+function jobForRpc(job: ClassifiedListingInput["job"] | undefined) {
+  return job ?? {};
+}
+function serviceForRpc(service: ClassifiedListingInput["service"] | undefined) {
+  return service ?? {};
+}
+
+function homeOf(details: Record<string, unknown>): ClassifiedHomeDetails | null {
+  const mode = (details["home_mode"] as string | null) ?? null;
+  const propertyType = (details["home_property_type"] as string | null) ?? null;
+  if (!mode || !propertyType) return null;
+  const bedrooms = details["home_bedrooms"] as number | null;
+  const bathrooms = details["home_bathrooms"] as number | null;
+  return {
+    mode: mode as ClassifiedHomeDetails["mode"],
+    propertyType,
+    bedrooms: bedrooms == null ? null : Number(bedrooms),
+    bathrooms: bathrooms == null ? null : Number(bathrooms),
+    squareFeet: (details["home_square_feet"] as number | null) ?? null,
+    yearBuilt: (details["home_year_built"] as number | null) ?? null,
+    acreage: (details["home_acreage"] as string | null) ?? null,
+    heating: (details["home_heating"] as string | null) ?? null,
+    cooling: (details["home_cooling"] as string | null) ?? null,
+    garageParking: (details["home_garage_parking"] as string | null) ?? null,
+    yard: (details["home_yard"] as string | null) ?? null,
+    appliancesIncluded: (details["home_appliances_included"] as string | null) ?? null,
+    floorCoverings: (details["home_floor_coverings"] as string | null) ?? null,
+    basementType: (details["home_basement_type"] as string | null) ?? null,
+    exteriorMaterial: (details["home_exterior_material"] as string | null) ?? null,
+    specialFeatures: (details["home_special_features"] as string | null) ?? null,
+    hoaFees: (details["home_hoa_fees"] as string | null) ?? null,
+    schoolDistrict: (details["home_school_district"] as string | null) ?? null,
+    leaseLength: (details["home_lease_length"] as string | null) ?? null,
+    available: (details["home_available"] as string | null) ?? null,
+    pets: (details["home_pets_policy"] as string | null) ?? null,
+    smoking: (details["home_smoking_policy"] as string | null) ?? null,
+    openHouse: (details["home_open_house"] as string | null) ?? null,
+  };
+}
+
+function jobOf(details: Record<string, unknown>, description: string): ClassifiedJobDetails | null {
+  const employerName = (details["job_employer_name"] as string | null) ?? null;
+  const payType = (details["job_pay_type"] as string | null) ?? null;
+  const employmentType = (details["job_employment_type"] as string | null) ?? null;
+  if (!employerName || !payType || !employmentType) return null;
+  const qualifications = details["job_qualifications"] as string[] | null;
+  return {
+    employerName,
+    employerAddress: (details["job_employer_address"] as string | null) ?? null,
+    payType: payType as ClassifiedJobDetails["payType"],
+    payMin: Number(details["job_pay_min"] ?? 0),
+    payMax: Number(details["job_pay_max"] ?? 0),
+    employmentType: employmentType as ClassifiedJobDetails["employmentType"],
+    experienceRequired: (details["job_experience_required"] as string | null) ?? null,
+    educationLevel: (details["job_education_level"] as string | null) ?? null,
+    jobSummary: description,
+    responsibilities: (details["job_responsibilities"] as string[] | null) ?? [],
+    ...(qualifications ? { qualifications } : {}),
+  };
+}
+
+function serviceOf(
+  details: Record<string, unknown>,
+  description: string,
+  priceCents: number,
+): ClassifiedServiceDetails | null {
+  const subcategory = (details["service_subcategory"] as string | null) ?? null;
+  const serviceArea = (details["service_area"] as string | null) ?? null;
+  if (!subcategory || !serviceArea) return null;
+  return {
+    subcategory,
+    pricing: formatUsd(priceCents),
+    serviceArea,
+    availability: (details["service_availability"] as string | null) ?? "",
+    serviceSummary: description,
+    offerings: (details["service_offerings"] as string[] | null) ?? [],
+    businessAddress: (details["service_business_address"] as string | null) ?? null,
+    licenseNumber: (details["service_license_number"] as string | null) ?? null,
+    licenseLookupUrl: (details["service_license_lookup_url"] as string | null) ?? null,
   };
 }
 
@@ -555,16 +667,19 @@ function toCard(row: Record<string, unknown>, urlByPath: Map<string, string>): C
     id: string;
     slug: string;
     name: string;
+    description: string | null;
     categories: { slug: string; name: string } | null;
   };
   const details = row["classified_listing_details"] as Record<string, unknown>;
   const firstPath = sortedMedia(row)[0];
+  const priceCents = row["price_cents"] as number;
+  const description = product.description ?? "";
   return {
     id: row["id"] as string,
     title: product.name,
     productId: product.id,
     productSlug: product.slug,
-    priceCents: row["price_cents"] as number,
+    priceCents,
     currency: (row["currency"] as string) ?? "USD",
     city: details["city"] as string,
     state: ((details["state"] as string | null) ?? "ID").toUpperCase(),
@@ -576,7 +691,9 @@ function toCard(row: Record<string, unknown>, urlByPath: Map<string, string>): C
     createdAt: row["created_at"] as string,
     imageUrl: (firstPath ? (urlByPath.get(firstPath) ?? null) : null) as string | null,
     vehicle: vehicleOf(details),
-    home: null,
+    home: homeOf(details),
+    job: jobOf(details, description),
+    service: serviceOf(details, description, priceCents),
   };
 }
 

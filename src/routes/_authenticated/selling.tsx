@@ -455,6 +455,13 @@ function SellingPage() {
                       Relist
                     </button>
                   ) : null}
+                  <Link
+                    to="/create-listing"
+                    search={{ duplicateFrom: ask.id }}
+                    className="inline-flex h-8 items-center border border-input px-2.5 text-[11.5px] font-medium hover:bg-secondary"
+                  >
+                    Duplicate
+                  </Link>
                 </div>
               </li>
             ))}

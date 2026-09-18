@@ -7,6 +7,20 @@ const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 const configSource = await read("src/config/classifieds.ts");
 const browseSource = await read("src/routes/browse.tsx");
 const createSource = await read("src/routes/_authenticated/create-listing.tsx");
+const listingFormSource = await read("src/components/classifieds/listing-form/ListingForm.tsx");
+const vehicleFieldsSource = await read("src/components/classifieds/listing-form/VehicleFields.tsx");
+const homeFieldsSource = await read("src/components/classifieds/listing-form/HomeFields.tsx");
+const jobFieldsSource = await read("src/components/classifieds/listing-form/JobFields.tsx");
+const serviceFieldsSource = await read(
+  "src/components/classifieds/listing-form/ServiceFields.tsx",
+);
+const listingFormPayloadSource = await read(
+  "src/components/classifieds/listing-form/payload.ts",
+);
+const editSource = await read("src/routes/_authenticated/listings.$listingId.edit.tsx");
+const homeJobServiceMigrationSource = await read(
+  "supabase/migrations/20260918100000_add_classified_home_job_service_details.sql",
+);
 const contractsSource = await read("src/lib/classified-listing-contracts.ts");
 const actionsSource = await read("src/components/classifieds/ListingActions.tsx");
 const inquirySource = await read("src/lib/classified-inquiry.functions.ts");
@@ -99,10 +113,68 @@ test("browse and create flows expose the same vehicle fields", () => {
     "titleStatus",
   ]) {
     assert.match(browseSource, new RegExp(field));
-    assert.match(createSource, new RegExp(field.replace(/Min|Max/, "")));
+    assert.match(vehicleFieldsSource, new RegExp(field.replace(/Min|Max/, "")));
   }
   assert.match(contractsSource, /state:/);
   assert.match(contractsSource, /region:/);
+});
+
+test("listing creation and edit share one form, extended with home/job/service fields", () => {
+  // Create/edit used to be two hand-duplicated flat forms; both are now thin
+  // wrappers around the shared ListingForm component.
+  assert.match(createSource, /<ListingForm mode="create"/);
+  assert.match(editSource, /<ListingForm[\s\S]*mode="edit"/);
+  assert.doesNotMatch(createSource, /vehicleOptions\.bodyStyles\.map/);
+  assert.doesNotMatch(editSource, /vehicleOptions\.bodyStyles\.map/);
+
+  assert.match(listingFormSource, /isHome/);
+  assert.match(listingFormSource, /isJob/);
+  assert.match(listingFormSource, /isService/);
+  assert.match(listingFormSource, /HomeFields/);
+  assert.match(listingFormSource, /JobFields/);
+  assert.match(listingFormSource, /ServiceFields/);
+
+  assert.match(homeFieldsSource, /propertyType/);
+  assert.match(homeFieldsSource, /bedrooms/);
+  assert.match(homeFieldsSource, /homeMode/);
+  assert.match(jobFieldsSource, /employerName/);
+  assert.match(jobFieldsSource, /payMin/);
+  assert.match(jobFieldsSource, /employmentType/);
+  assert.match(serviceFieldsSource, /subcategory/);
+  assert.match(serviceFieldsSource, /serviceArea/);
+  assert.match(serviceFieldsSource, /licenseNumber/);
+
+  assert.match(contractsSource, /home: z/);
+  assert.match(contractsSource, /job: z/);
+  assert.match(contractsSource, /service: z/);
+  assert.match(contractsSource, /employerName/);
+  assert.match(contractsSource, /propertyType/);
+  assert.match(contractsSource, /subcategory/);
+
+  assert.match(classifiedsFunctionsSource, /function homeOf/);
+  assert.match(classifiedsFunctionsSource, /function jobOf/);
+  assert.match(classifiedsFunctionsSource, /function serviceOf/);
+  assert.match(classifiedsFunctionsSource, /_home: homeForRpc/);
+  assert.match(classifiedsFunctionsSource, /_job: jobForRpc/);
+  assert.match(classifiedsFunctionsSource, /_service: serviceForRpc/);
+
+  assert.match(homeJobServiceMigrationSource, /home_property_type/);
+  assert.match(homeJobServiceMigrationSource, /job_employer_name/);
+  assert.match(homeJobServiceMigrationSource, /service_subcategory/);
+  assert.match(homeJobServiceMigrationSource, /_apply_classified_category_details/);
+  assert.match(
+    homeJobServiceMigrationSource,
+    /INSERT INTO public\.categories[\s\S]*other-real-estate[\s\S]*ON CONFLICT \(slug\) DO NOTHING/,
+  );
+  assert.match(configSource, /other-real-estate.*Homes/);
+
+  assert.match(listingFormPayloadSource, /function buildHome/);
+  assert.match(listingFormPayloadSource, /function buildJob/);
+  assert.match(listingFormPayloadSource, /function buildService/);
+  assert.match(listingFormPayloadSource, /function fromEditor/);
+
+  assert.match(sellingSource, /Duplicate/);
+  assert.match(sellingSource, /duplicateFrom/);
 });
 
 test("classified MVP contacts the seller while future checkout stays available", () => {
