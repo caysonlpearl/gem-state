@@ -102,6 +102,8 @@ export type SellerDashboardSummary = {
   completedSalesCount: number;
   ratingAverage: number | null;
   reviews: SellerReview[];
+  reviewsWritten: SellerReview[];
+  pendingReviewCount: number;
 };
 
 export type MissingListingRequest = {
@@ -426,11 +428,13 @@ export const getSellerDashboardSummary = createServerFn({ method: "GET" })
       { data: payouts, error: payoutError },
       { data: reviews, error: reviewError },
       { count },
+      { data: completedOrders, error: completedOrdersError },
+      { data: writtenReviews, error: writtenReviewError },
     ] = await Promise.all([
       client.from("order_payouts").select("amount_cents,status").eq("payee_id", context.userId),
       client
         .from("order_reviews")
-        .select("id,rating,comment,created_at")
+        .select("id,order_id,rating,comment,created_at")
         .eq("subject_id", context.userId)
         .order("created_at", { ascending: false })
         .limit(20),
@@ -439,9 +443,24 @@ export const getSellerDashboardSummary = createServerFn({ method: "GET" })
         .select("id", { count: "exact", head: true })
         .eq("seller_id", context.userId)
         .eq("status", "completed"),
+      client
+        .from("orders")
+        .select("id")
+        .or(`buyer_id.eq.${context.userId},seller_id.eq.${context.userId}`)
+        .eq("status", "completed")
+        .eq("is_demo", false)
+        .limit(100),
+      client
+        .from("order_reviews")
+        .select("id,order_id,rating,comment,created_at")
+        .eq("reviewer_id", context.userId)
+        .order("created_at", { ascending: false })
+        .limit(20),
     ]);
     if (payoutError) throw new Error(payoutError.message);
     if (reviewError) throw new Error(reviewError.message);
+    if (completedOrdersError) throw new Error(completedOrdersError.message);
+    if (writtenReviewError) throw new Error(writtenReviewError.message);
     const rows = payouts ?? [];
     const reviewRows = (reviews ?? []).map((row: any) => ({
       id: row.id,
@@ -453,6 +472,15 @@ export const getSellerDashboardSummary = createServerFn({ method: "GET" })
       ? reviewRows.reduce((sum: number, row: SellerReview) => sum + row.rating, 0) /
         reviewRows.length
       : null;
+    const writtenReviewRows = (writtenReviews ?? []).map((row: any) => ({
+      id: row.id,
+      rating: Number(row.rating),
+      comment: row.comment,
+      createdAt: row.created_at,
+    }));
+    const reviewedOrderIds = new Set(
+      (writtenReviews ?? []).map((row: any) => row.order_id).filter(Boolean),
+    );
     return {
       pendingPayoutCents: rows
         .filter((row: any) => row.status === "pending" || row.status === "processing")
@@ -466,6 +494,8 @@ export const getSellerDashboardSummary = createServerFn({ method: "GET" })
       completedSalesCount: Number(count ?? 0),
       ratingAverage,
       reviews: reviewRows,
+      reviewsWritten: writtenReviewRows,
+      pendingReviewCount: (completedOrders ?? []).filter((order: any) => !reviewedOrderIds.has(order.id)).length,
     };
   });
 
