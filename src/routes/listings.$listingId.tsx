@@ -76,10 +76,9 @@ export const Route = createFileRoute("/listings/$listingId")({
     if (!listing) throw notFound();
     return {
       title: listing.title,
-      priceLabel:
-        listing.job
-          ? formatJobPay(listing.job)
-          : listing.service?.pricing ?? formatUsd(listing.priceCents),
+      priceLabel: listing.job
+        ? formatJobPay(listing.job)
+        : listing.service?.pricing ?? formatUsd(listing.priceCents),
       city: listing.city,
       state: listing.state,
     };
@@ -327,6 +326,30 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
           )}
         </div>
       </div>
+      {listing.service?.businessAddress && (
+        <p className="mt-3 flex items-start gap-1.5 text-[12px] leading-relaxed text-primary">
+          <MapPin size={14} weight="fill" className="mt-0.5 shrink-0" />
+          {listing.service.businessAddress}
+        </p>
+      )}
+      {listing.service?.licenseNumber && (
+        <p className="mt-2 text-[12px] leading-relaxed">
+          License # {listing.service.licenseNumber}
+          {listing.service.licenseLookupUrl && (
+            <>
+              {" · "}
+              <a
+                href={listing.service.licenseLookupUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="font-semibold text-primary hover:underline"
+              >
+                Look up business license
+              </a>
+            </>
+          )}
+        </p>
+      )}
       {seller.ratingAverage != null && (
         <div className="mt-4 overflow-hidden rounded-xl border border-border/80 bg-card shadow-sm">
           <div
@@ -630,6 +653,17 @@ function ListingDetail() {
     if (listing.categorySlug === "jobs") {
       return (
         <JobListingDetail
+          listing={listing}
+          title={title}
+          locationQuery={locationQuery}
+          relatedListings={relatedQuery.data.listings}
+          handleShare={handleShare}
+        />
+      );
+    }
+    if (listing.categorySlug === "services") {
+      return (
+        <ServiceListingDetail
           listing={listing}
           title={title}
           locationQuery={locationQuery}
@@ -1684,6 +1718,297 @@ function JobListingDetail({
         <section className="mt-14 border-t border-border/70 pt-9">
           <h2 className="text-[23px] font-bold tracking-tight">More jobs like this</h2>
           <p className="mt-1 text-[13px] text-muted-foreground">Other listings in this category</p>
+          <div className="no-scrollbar mt-5 flex snap-x gap-4 overflow-x-auto pb-2">
+            {relatedListings.map((related) => (
+              <div key={related.id} className="w-[245px] shrink-0 snap-start sm:w-[280px]">
+                <ListingCard listing={related} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+    </main>
+  );
+}
+
+function serviceDetails(listing: ClassifiedDetail) {
+  const service = listing.service;
+  return {
+    subcategory: service?.subcategory ?? "Ask seller",
+    pricing: service?.pricing ?? formatUsd(listing.priceCents),
+    serviceArea: service?.serviceArea ?? "Ask seller",
+    availability: service?.availability ?? "Ask seller",
+    serviceSummary: service?.serviceSummary ?? listing.description ?? "",
+    offerings: service?.offerings ?? [],
+    reviews: service?.reviews ?? [],
+  };
+}
+
+function StarRating({ rating }: { rating: number }) {
+  return (
+    <span className="inline-flex items-center gap-0.5" aria-label={`${rating} out of 5 stars`}>
+      {[1, 2, 3, 4, 5].map((position) => (
+        <Star
+          key={position}
+          size={14}
+          weight={position <= Math.round(rating) ? "fill" : "regular"}
+          className={position <= Math.round(rating) ? "text-brand-warm" : "text-muted-foreground/40"}
+        />
+      ))}
+    </span>
+  );
+}
+
+function ServiceListingDetail({
+  listing,
+  title,
+  locationQuery,
+  relatedListings,
+  handleShare,
+}: {
+  listing: ClassifiedDetail;
+  title: string;
+  locationQuery: string;
+  relatedListings: ClassifiedCard[];
+  handleShare: () => Promise<void>;
+}) {
+  const [activeTab, setActiveTab] = useState<"description" | "reviews" | "map">("description");
+  const details = serviceDetails(listing);
+  const seller = listing.seller;
+
+  return (
+    <main className="mx-auto max-w-[1360px] px-4 py-6 sm:px-7 sm:py-8 lg:px-10">
+      <nav
+        aria-label="Breadcrumb"
+        className="flex flex-wrap items-center gap-1 text-[11.5px] text-muted-foreground"
+      >
+        <Link to="/browse" search={{}} className="hover:text-foreground">
+          All listings
+        </Link>
+        <CaretRight size={13} />
+        <Link to="/browse" search={{ category: "services" }} className="hover:text-foreground">
+          Services
+        </Link>
+        <CaretRight size={13} />
+        <span className="text-foreground">
+          {listing.city}, {listing.state}
+        </span>
+      </nav>
+
+      <header className="mt-5 border-b border-border/70 pb-5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <h1 className="text-[28px] font-bold leading-tight tracking-tight sm:text-[38px]">
+              {title}
+            </h1>
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12.5px] text-muted-foreground">
+              <span className="flex items-center gap-1.5 text-primary">
+                <MapPin size={15} weight="fill" /> {listing.city}, {listing.state}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Clock size={15} /> Posted {postedAge(listing.createdAt).toLowerCase()}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Eye size={15} /> Local listing
+              </span>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {listing.isMock ? (
+              <button
+                type="button"
+                aria-label="Save listing"
+                onClick={() => toast.info("Saving is shown here in the mock listing preview.")}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <Heart size={18} />
+              </button>
+            ) : (
+              <WatchHeartButton
+                productId={listing.productId}
+                productSlug={listing.productSlug}
+                productName={title}
+                isDemo={false}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+              />
+            )}
+            <button
+              type="button"
+              aria-label="Share listing"
+              onClick={() => void handleShare()}
+              className="grid h-10 w-10 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground"
+            >
+              <ShareNetwork size={18} />
+            </button>
+            <button
+              type="button"
+              aria-label="Print listing"
+              onClick={() => window.print()}
+              className="hidden h-10 w-10 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground sm:grid"
+            >
+              <Printer size={18} />
+            </button>
+          </div>
+        </div>
+        <p className="numeric mt-4 text-[30px] font-bold leading-none text-brand-warm sm:text-[34px]">
+          {details.pricing}
+        </p>
+      </header>
+
+      <div className="mt-6 grid gap-7 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,370px)] lg:items-start">
+        <div className="min-w-0 space-y-7">
+          <Gallery listing={listing} />
+
+          <section className="soft-card overflow-hidden">
+            <div className={listingTabListClass} role="tablist" aria-label="Service information">
+              {(["description", "reviews", "map"] as const).map((tab) => (
+                <button
+                  key={tab}
+                  type="button"
+                  role="tab"
+                  aria-selected={activeTab === tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={listingTabClass(activeTab === tab)}
+                >
+                  {tab === "reviews" ? "Reviews" : tab === "map" ? "Map" : "Description"}
+                </button>
+              ))}
+            </div>
+            <div className="p-5 sm:p-7">
+              {activeTab === "description" && (
+                <div>
+                  <h2 className="text-[21px] font-bold">Description</h2>
+                  <p className="mt-5 whitespace-pre-line text-[14px] leading-7 text-muted-foreground">
+                    {details.serviceSummary || "The seller has not added a description yet."}
+                  </p>
+                  {details.offerings.length > 0 && (
+                    <div className="mt-8 border-t border-border/70 pt-6">
+                      <h3 className="text-[18px] font-bold">What's included</h3>
+                      <ul className="mt-3 space-y-2 text-[13px] leading-relaxed text-muted-foreground">
+                        {details.offerings.map((item) => (
+                          <li key={item} className="flex items-start gap-2">
+                            <CheckCircle
+                              size={15}
+                              weight="fill"
+                              className="mt-0.5 shrink-0 text-primary"
+                            />{" "}
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  <div className="mt-8 border-t border-border/70 pt-6">
+                    <h3 className="text-[18px] font-bold">Service details</h3>
+                    <dl className="mt-3 divide-y divide-border/70 text-[13px]">
+                      {[
+                        ["Subcategory", details.subcategory],
+                        ["Service area", details.serviceArea],
+                        ["Availability", details.availability],
+                      ].map(([label, value]) => (
+                        <div key={label} className="flex items-center justify-between gap-4 py-3">
+                          <dt>{label}</dt>
+                          <dd className="text-right font-semibold text-muted-foreground">{value}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </div>
+                </div>
+              )}
+              {activeTab === "reviews" && (
+                <div>
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <h2 className="text-[21px] font-bold">Customer reviews</h2>
+                      {seller?.ratingAverage != null && (
+                        <p className="mt-1 flex items-center gap-2 text-[13px] text-muted-foreground">
+                          <StarRating rating={seller.ratingAverage} />
+                          {seller.ratingAverage.toFixed(1)} · {seller.reviewCount} review
+                          {seller.reviewCount === 1 ? "" : "s"}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  {details.reviews.length === 0 ? (
+                    <p className="mt-5 text-[13px] text-muted-foreground">
+                      No reviews yet. Be the first to leave feedback after working with this seller.
+                    </p>
+                  ) : (
+                    <ul className="mt-5 space-y-4">
+                      {details.reviews.map((review) => (
+                        <li
+                          key={`${review.author}-${review.date}`}
+                          className="rounded-2xl border border-border/70 bg-secondary/35 p-4"
+                        >
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <span className="grid h-8 w-8 place-items-center rounded-full bg-primary text-[12px] font-semibold text-primary-foreground">
+                                {review.author.slice(0, 1).toUpperCase()}
+                              </span>
+                              <span className="text-[13px] font-semibold">{review.author}</span>
+                            </div>
+                            <span className="text-[11.5px] text-muted-foreground">
+                              {new Date(review.date).toLocaleDateString("en-US", {
+                                month: "numeric",
+                                day: "numeric",
+                                year: "numeric",
+                              })}
+                            </span>
+                          </div>
+                          <div className="mt-2">
+                            <StarRating rating={review.rating} />
+                          </div>
+                          <p className="mt-2 text-[13.5px] font-semibold">{review.title}</p>
+                          <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+                            {review.body}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+              {activeTab === "map" && (
+                <div>
+                  <h2 className="text-[21px] font-bold">Location</h2>
+                  <p className="mt-2 text-[13px] text-muted-foreground">
+                    {listing.service?.businessAddress ?? `${listing.city}, ${listing.state}`}
+                  </p>
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(listing.service?.businessAddress ?? `${listing.city}, ${listing.state}`)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mt-4 inline-flex items-center gap-1 text-[12.5px] font-semibold text-primary hover:underline"
+                  >
+                    Get directions <CaretRight size={15} />
+                  </a>
+                  <div className="mt-4 overflow-hidden rounded-2xl border border-border/70">
+                    <iframe
+                      title="Service location map"
+                      src={`https://www.google.com/maps?q=${encodeURIComponent(listing.service?.businessAddress ?? `${listing.city}, ${listing.state}`)}&output=embed`}
+                      className="h-[320px] w-full"
+                      loading="lazy"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+
+        </div>
+
+        <aside className="min-w-0 space-y-5 lg:sticky lg:top-24">
+          <SellerCard listing={listing} />
+          <ListingActions listing={listing} showPaymentCalculator={false} showPriceHeader={false} />
+          <PageStatsCard listing={listing} />
+          <TrustSafetyCard listing={listing} />
+        </aside>
+      </div>
+
+      {relatedListings.length > 0 && (
+        <section className="mt-14 border-t border-border/70 pt-9">
+          <h2 className="text-[23px] font-bold tracking-tight">More listings like this</h2>
+          <p className="mt-1 text-[13px] text-muted-foreground">Other services in this category</p>
           <div className="no-scrollbar mt-5 flex snap-x gap-4 overflow-x-auto pb-2">
             {relatedListings.map((related) => (
               <div key={related.id} className="w-[245px] shrink-0 snap-start sm:w-[280px]">
