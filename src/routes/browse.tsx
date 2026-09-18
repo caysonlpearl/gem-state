@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
@@ -19,6 +20,8 @@ import { ListingCard, ListingRow } from "@/components/classifieds/ListingCard";
 import { conditionLabels, isMotorsCategory } from "@/lib/classifieds-display";
 import { browseClassifieds, type ClassifiedBrowseInput, type ClassifiedBrowseResult } from "@/lib/classifieds.functions";
 import { trackEvent } from "@/lib/analytics";
+import { createSavedSearch } from "@/lib/account-center.functions";
+import { toast } from "sonner";
 import {
   Sheet,
   SheetContent,
@@ -616,6 +619,7 @@ function Browse() {
   const { data: result } = useSuspenseQuery(classifiedQuery(inputFromSearch(search)));
   const [term, setTerm] = useState(search.q ?? "");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const saveSearch = useServerFn(createSavedSearch);
 
   useEffect(() => setTerm(search.q ?? ""), [search.q]);
 
@@ -719,6 +723,28 @@ function Browse() {
       }),
     });
     setFiltersOpen(false);
+  }
+
+  async function saveCurrentSearch() {
+    const suggestedName = [selectedCategory?.name, search.q].filter(Boolean).join(" · ") || "My marketplace search";
+    const name = window.prompt("Name this saved search", suggestedName)?.trim();
+    if (!name) return;
+
+    const searchToSave = Object.fromEntries(
+      Object.entries(search).filter(
+        ([key, value]) =>
+          value !== undefined &&
+          value !== "" &&
+          !["allCategories", "sort", "view", "page", "homeMode", "homeTab", "jobMode", "serviceMode", "vehicleMode"].includes(key),
+      ),
+    );
+
+    try {
+      await saveSearch({ data: { name, search: searchToSave } });
+      toast.success("Saved search created.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Sign in to save this search.");
+    }
   }
 
   return (
@@ -1230,12 +1256,21 @@ function Browse() {
               </FilterSection>
             )}
 
-                <button
-                  type="submit"
-                  className="mt-2 inline-flex h-12 w-full items-center justify-center rounded-full bg-primary px-3 text-[13px] font-semibold text-primary-foreground shadow-sm hover:opacity-90"
-                >
-                  Show {result.total} {result.total === 1 ? "listing" : "listings"}
-                </button>
+                <div className="mt-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                  <button
+                    type="submit"
+                    className="inline-flex h-12 w-full items-center justify-center rounded-full bg-primary px-3 text-[13px] font-semibold text-primary-foreground shadow-sm hover:opacity-90"
+                  >
+                    Show {result.total} {result.total === 1 ? "listing" : "listings"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void saveCurrentSearch()}
+                    className="inline-flex h-12 items-center justify-center rounded-full border border-primary px-5 text-[13px] font-semibold text-primary hover:bg-secondary"
+                  >
+                    Save this search
+                  </button>
+                </div>
               </form>
             </SheetContent>
           </Sheet>}
