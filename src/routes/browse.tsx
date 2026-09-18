@@ -1500,7 +1500,14 @@ const servicesShowcaseRows: HomepagePreviewRow[] = [
     title: "Recently added pros",
     action: "See newest service listings",
     href: "/browse?category=services&serviceMode=results",
-    cards: servicePreviewRows.slice(0, 6).map((card) => previewCard(card.title, card.location, card.price, card.age || "Local service", card.image, "New")),
+    cards: [
+      previewCard("Boise Home Works | Handyman & Drywall Repair", "Boise, ID", "Call for quote", "Just listed · Handyman", "https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=900&q=80", "New"),
+      previewCard("Treasure Valley Lawn Co. | Lawn Care & Sprinklers", "Meridian, ID", "From $45 / visit", "1 day · Lawn care", "https://images.unsplash.com/photo-1558904541-efa843a96f01?auto=format&fit=crop&w=900&q=80", "New"),
+      previewCard("Gem State Tech Help | Home Wi-Fi & Computer Setup", "Boise, ID", "From $85 / visit", "2 days · IT services", "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=80", "New"),
+      previewCard("ClearView Window Care", "Eagle, ID", "Call for quote", "3 days · Window cleaning", "https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?auto=format&fit=crop&w=900&q=80", "New"),
+      previewCard("Valley Fence & Gate", "Nampa, ID", "Call for quote", "4 days · Fence installation", "https://images.unsplash.com/photo-1580130732478-4e339fb6836f?auto=format&fit=crop&w=900&q=80", "New"),
+      previewCard("Mountain Air HVAC", "Caldwell, ID", "From $89 service call", "5 days · Heating & cooling", "https://images.unsplash.com/photo-1631545806609-ccf5d6f5c2ab?auto=format&fit=crop&w=900&q=80", "New"),
+    ],
   },
   {
     title: "Popular with neighbors",
