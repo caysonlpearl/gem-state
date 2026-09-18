@@ -335,6 +335,14 @@ test("account center writes are authenticated and conversations are participant-
   assert.match(accountCenterMigrationSource, /block_conversation/);
 });
 
+test("saved searches reopen their full filters and update in place", () => {
+  assert.match(browseSource, /savedSearchId/);
+  assert.match(browseSource, /updateSearch\(\{ data: \{ id: search\.savedSearchId, search: searchToSave \} \}\)/);
+  assert.match(browseSource, /Update saved search/);
+  assert.match(accountCenterSource, /Edit filters/);
+  assert.match(accountCenterSource, /params\.set\("savedSearchId", item\.id\)/);
+});
+
 test("seller billing is catalog-backed and settles upgrades through Stripe webhooks", () => {
   assert.match(listingUpgradeFunctionsSource, /getListingUpgradeOptions/);
   assert.match(listingUpgradeFunctionsSource, /createListingUpgradeCheckout/);

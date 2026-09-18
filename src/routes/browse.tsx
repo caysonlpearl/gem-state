@@ -20,7 +20,7 @@ import { ListingCard, ListingRow } from "@/components/classifieds/ListingCard";
 import { conditionLabels, isMotorsCategory } from "@/lib/classifieds-display";
 import { browseClassifieds, type ClassifiedBrowseInput, type ClassifiedBrowseResult } from "@/lib/classifieds.functions";
 import { trackEvent } from "@/lib/analytics";
-import { createSavedSearch } from "@/lib/account-center.functions";
+import { createSavedSearch, updateSavedSearch } from "@/lib/account-center.functions";
 import { toast } from "sonner";
 import {
   Sheet,
@@ -40,6 +40,7 @@ type ServiceMode = "landing" | "results";
 type Search = {
   allCategories?: boolean | undefined;
   q?: string | undefined;
+  savedSearchId?: string | undefined;
   category?: string | undefined;
   group?: "motors" | "classifieds" | undefined;
   state?: string | undefined;
@@ -501,10 +502,12 @@ export const Route = createFileRoute("/browse")({
     const jobMode = stringParam(search, "jobMode", 10);
     const serviceMode = stringParam(search, "serviceMode", 10);
     const vehicleMode = stringParam(search, "vehicleMode", 10);
+    const savedSearchId = stringParam(search, "savedSearchId", 64);
     const page = Number(search["page"]);
     return {
       allCategories: search["allCategories"] === true || stringParam(search, "allCategories", 5) === "true",
       q: stringParam(search, "q"),
+      savedSearchId,
       category: stringParam(search, "category", 60),
       group: group === "motors" || group === "classifieds" ? group : undefined,
       state: stringParam(search, "state", 2)?.toUpperCase(),
@@ -620,6 +623,7 @@ function Browse() {
   const [term, setTerm] = useState(search.q ?? "");
   const [filtersOpen, setFiltersOpen] = useState(false);
   const saveSearch = useServerFn(createSavedSearch);
+  const updateSearch = useServerFn(updateSavedSearch);
 
   useEffect(() => setTerm(search.q ?? ""), [search.q]);
 
@@ -735,13 +739,18 @@ function Browse() {
         ([key, value]) =>
           value !== undefined &&
           value !== "" &&
-          !["allCategories", "sort", "view", "page", "homeMode", "homeTab", "jobMode", "serviceMode", "vehicleMode"].includes(key),
+          !["allCategories", "savedSearchId", "sort", "view", "page", "homeMode", "homeTab", "jobMode", "serviceMode", "vehicleMode"].includes(key),
       ),
     );
 
     try {
-      await saveSearch({ data: { name, search: searchToSave } });
-      toast.success("Saved search created.");
+      if (search.savedSearchId) {
+        await updateSearch({ data: { id: search.savedSearchId, search: searchToSave } });
+        toast.success("Saved search updated.");
+      } else {
+        await saveSearch({ data: { name, search: searchToSave } });
+        toast.success("Saved search created.");
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Sign in to save this search.");
     }
@@ -1268,7 +1277,7 @@ function Browse() {
                     onClick={() => void saveCurrentSearch()}
                     className="inline-flex h-12 items-center justify-center rounded-full border border-primary px-5 text-[13px] font-semibold text-primary hover:bg-secondary"
                   >
-                    Save this search
+                    {search.savedSearchId ? "Update saved search" : "Save this search"}
                   </button>
                 </div>
               </form>
