@@ -599,7 +599,10 @@ export const getMyListings = createServerFn({ method: "GET" })
     if (bidError) throw new Error(bidError.message);
 
     const askIds = (asks ?? []).map((row: any) => row.id as string);
-    const [metricsResult, conversationResult, inquiryResult, upgradeResult] = askIds.length
+    // These are seller-workspace enrichments, not prerequisites for showing a
+    // listing. Keep the core listing result usable when a newly deployed
+    // optional table, policy, or migration is temporarily unavailable.
+    const optionalResults = askIds.length
       ? await Promise.all([
           client
             .from("classified_listing_metrics")
@@ -614,18 +617,22 @@ export const getMyListings = createServerFn({ method: "GET" })
             .order("created_at", { ascending: false }),
         ])
       : [{ data: [], error: null }, { data: [], error: null }, { data: [], error: null }, { data: [], error: null }];
+    const [metricsResult, conversationResult, inquiryResult, upgradeResult] = optionalResults;
     for (const result of [metricsResult, conversationResult, inquiryResult, upgradeResult]) {
-      if (result.error) throw new Error(result.error.message);
+      if (result.error) console.warn("Optional seller listing enrichment unavailable", result.error.message);
     }
     const metricsByListing = new Map(
-      (metricsResult.data ?? []).map((row: any) => [row.listing_id, row]),
+      (metricsResult.error ? [] : metricsResult.data ?? []).map((row: any) => [row.listing_id, row]),
     );
     const leadsByListing = new Map<string, number>();
-    for (const row of [...(conversationResult.data ?? []), ...(inquiryResult.data ?? [])] as any[]) {
+    for (const row of [
+      ...(conversationResult.error ? [] : conversationResult.data ?? []),
+      ...(inquiryResult.error ? [] : inquiryResult.data ?? []),
+    ] as any[]) {
       leadsByListing.set(row.listing_id, (leadsByListing.get(row.listing_id) ?? 0) + 1);
     }
     const upgradesByListing = new Map<string, string>();
-    for (const row of (upgradeResult.data ?? []) as any[]) {
+    for (const row of (upgradeResult.error ? [] : upgradeResult.data ?? []) as any[]) {
       if (!upgradesByListing.has(row.listing_id)) upgradesByListing.set(row.listing_id, row.status);
     }
 
@@ -650,17 +657,24 @@ export const getMyListings = createServerFn({ method: "GET" })
     }
     const thumbnailByAsk = new Map<string, string>();
     if (firstPathByAsk.size > 0) {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const paths = [...firstPathByAsk.values()];
-      const { data: signed } = await supabaseAdmin.storage
-        .from("listing-media")
-        .createSignedUrls(paths, 60 * 60);
-      const urlByPath = new Map(
-        (signed ?? []).map((item: any) => [item.path as string, item.signedUrl as string]),
-      );
-      for (const [askId, path] of firstPathByAsk) {
-        const url = urlByPath.get(path);
-        if (url) thumbnailByAsk.set(askId, url);
+      try {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const paths = [...firstPathByAsk.values()];
+        const { data: signed } = await supabaseAdmin.storage
+          .from("listing-media")
+          .createSignedUrls(paths, 60 * 60);
+        const urlByPath = new Map(
+          (signed ?? []).map((item: any) => [item.path as string, item.signedUrl as string]),
+        );
+        for (const [askId, path] of firstPathByAsk) {
+          const url = urlByPath.get(path);
+          if (url) thumbnailByAsk.set(askId, url);
+        }
+      } catch (error) {
+        console.warn(
+          "Optional seller listing thumbnails unavailable",
+          error instanceof Error ? error.message : String(error),
+        );
       }
     }
 
