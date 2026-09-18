@@ -351,6 +351,23 @@ test("homepage hero uses the expanded headline width and updated subline", () =>
   assert.doesNotMatch(homeSource, /live.*listings.*right now/);
 });
 
+test("main homepage presents category-curated listing rows", () => {
+  assert.match(homeSource, /function HomepageListingRow/);
+  for (const title of [
+    "Fresh local finds",
+    "Homes & rentals worth a look",
+    "Jobs hiring now",
+    "Services for your next project",
+    "Everyday finds from local sellers",
+  ]) {
+    assert.match(homeSource, new RegExp(title.replace(/[&]/g, "\\&")));
+  }
+  assert.match(homeSource, /home\.recent\.filter\(\(listing\) => listing\.home\)/);
+  assert.match(homeSource, /home\.recent\.filter\(\(listing\) => listing\.job\)/);
+  assert.match(homeSource, /home\.recent\.filter\(\(listing\) => listing\.service\)/);
+  assert.match(homeSource, /no-scrollbar mt-5 flex gap-4/);
+});
+
 test("shared category icons and no-photo cards have deterministic presentation", () => {
   for (const slug of [
     "cars-trucks",
