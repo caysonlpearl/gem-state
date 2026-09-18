@@ -61,6 +61,15 @@ const listingQuery = (id: string) =>
     queryFn: () => getClassifiedListing({ data: { id } }),
   });
 
+const listingTabListClass =
+  "flex flex-wrap gap-1 rounded-xl border border-border/80 bg-secondary/55 p-1.5 shadow-inner";
+const listingTabClass = (selected: boolean) =>
+  `rounded-lg border px-4 py-2.5 text-[12.5px] font-semibold capitalize transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
+    selected
+      ? "border-primary/25 bg-card text-foreground shadow-sm ring-1 ring-primary/15"
+      : "border-transparent text-muted-foreground hover:border-border/80 hover:bg-card/75 hover:text-foreground hover:shadow-sm"
+  }`;
+
 export const Route = createFileRoute("/listings/$listingId")({
   loader: async ({ context, params }) => {
     const listing = await context.queryClient.ensureQueryData(listingQuery(params.listingId));
@@ -295,12 +304,6 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
               </span>
             )}
           </div>
-          {seller.ratingAverage != null && (
-            <p className="mt-1 text-[12px] text-muted-foreground">
-              {seller.ratingAverage.toFixed(1)} / 5 · {seller.reviewCount} review
-              {seller.reviewCount === 1 ? "" : "s"}
-            </p>
-          )}
           {(seller.memberSince || seller.sellerType) && (
             <div className="mt-3 space-y-1 text-[12px]">
               <p>
@@ -346,6 +349,34 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
             </>
           )}
         </p>
+      )}
+      {seller.ratingAverage != null && (
+        <div className="mt-4 overflow-hidden rounded-xl border border-border/80 bg-card shadow-sm">
+          <div
+            className="flex flex-wrap items-center justify-center gap-2 px-3 py-3"
+            aria-label={`${seller.ratingAverage.toFixed(1)} out of 5 stars from ${seller.reviewCount} reviews`}
+          >
+            <span className="grid h-6 w-6 place-items-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+              G
+            </span>
+            <span className="numeric text-[16px] font-bold">{seller.ratingAverage.toFixed(1)}</span>
+            <span className="flex items-center gap-0.5 text-brand-warm" aria-hidden="true">
+              {Array.from({ length: 5 }, (_, index) => (
+                <Star
+                  key={index}
+                  size={16}
+                  weight={index < Math.round(seller.ratingAverage ?? 0) ? "fill" : "regular"}
+                />
+              ))}
+            </span>
+            <span className="text-[11px] font-medium text-muted-foreground">
+              {seller.reviewCount} review{seller.reviewCount === 1 ? "" : "s"}
+            </span>
+          </div>
+          <div className="bg-primary px-3 py-1.5 text-center text-[11px] font-semibold text-primary-foreground">
+            Gem State Reviews
+          </div>
+        </div>
       )}
       <div className="mt-4 border-t border-border/70 pt-4">
         <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
@@ -773,7 +804,7 @@ function ListingDetail() {
 
           <section className="soft-card overflow-hidden">
             <div
-              className="flex flex-wrap gap-1 border-b border-border/70 bg-secondary/35 p-2"
+              className={listingTabListClass}
               role="tablist"
               aria-label="Listing information"
             >
@@ -784,7 +815,7 @@ function ListingDetail() {
                   role="tab"
                   aria-selected={activeTab === tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`rounded-xl px-4 py-2.5 text-[12.5px] font-semibold capitalize transition ${activeTab === tab ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                  className={listingTabClass(activeTab === tab)}
                 >
                   {tab === "location" ? "Location" : tab}
                 </button>
@@ -1086,7 +1117,7 @@ function HomeRentalInformation({
   return (
     <section className="soft-card overflow-hidden">
       <div
-        className="flex gap-1 border-b border-border/70 bg-secondary/35 p-2"
+        className={listingTabListClass}
         role="tablist"
         aria-label="Home information"
       >
@@ -1097,7 +1128,7 @@ function HomeRentalInformation({
             role="tab"
             aria-selected={activeTab === tab}
             onClick={() => setActiveTab(tab)}
-            className={`rounded-xl px-5 py-2.5 text-[12.5px] font-semibold capitalize transition ${activeTab === tab ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+            className={listingTabClass(activeTab === tab)}
           >
             {tab === "amenities" ? "Home amenities" : "Description"}
           </button>
@@ -1541,7 +1572,7 @@ function JobListingDetail({
 
           <section className="soft-card overflow-hidden">
             <div
-              className="flex gap-1 border-b border-border/70 bg-secondary/35 p-2"
+              className={listingTabListClass}
               role="tablist"
               aria-label="Job information"
             >
@@ -1552,7 +1583,7 @@ function JobListingDetail({
                   role="tab"
                   aria-selected={activeTab === tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`rounded-xl px-5 py-2.5 text-[12.5px] font-semibold capitalize transition ${activeTab === tab ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                  className={listingTabClass(activeTab === tab)}
                 >
                   {tab === "specifications"
                     ? "Job specifications"
@@ -1829,11 +1860,7 @@ function ServiceListingDetail({
           <Gallery listing={listing} />
 
           <section className="soft-card overflow-hidden">
-            <div
-              className="flex gap-1 border-b border-border/70 bg-secondary/35 p-2"
-              role="tablist"
-              aria-label="Service information"
-            >
+            <div className={listingTabListClass} role="tablist" aria-label="Service information">
               {(["description", "reviews", "map"] as const).map((tab) => (
                 <button
                   key={tab}
@@ -1841,7 +1868,7 @@ function ServiceListingDetail({
                   role="tab"
                   aria-selected={activeTab === tab}
                   onClick={() => setActiveTab(tab)}
-                  className={`rounded-xl px-5 py-2.5 text-[12.5px] font-semibold capitalize transition ${activeTab === tab ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                  className={listingTabClass(activeTab === tab)}
                 >
                   {tab === "reviews" ? "Reviews" : tab === "map" ? "Map" : "Description"}
                 </button>
@@ -2111,7 +2138,7 @@ function GeneralListingDetail({
 
           <section className="soft-card overflow-hidden">
             <div
-              className="flex gap-1 border-b border-border/70 bg-secondary/35 p-2"
+              className={listingTabListClass}
               role="tablist"
               aria-label="Listing information"
             >
@@ -2122,11 +2149,7 @@ function GeneralListingDetail({
                   role="tab"
                   aria-selected={activeTab === tab}
                   onClick={() => setActiveTab(tab)}
-                  className={
-                    activeTab === tab
-                      ? "rounded-xl bg-card px-5 py-2.5 text-[12.5px] font-semibold capitalize text-foreground shadow-sm transition"
-                      : "rounded-xl px-5 py-2.5 text-[12.5px] font-semibold capitalize text-muted-foreground transition hover:text-foreground"
-                  }
+                  className={listingTabClass(activeTab === tab)}
                 >
                   {tab}
                 </button>
