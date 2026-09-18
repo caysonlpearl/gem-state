@@ -703,6 +703,8 @@ test("listing detail keeps a responsive photo gallery and floating action card",
   assert.match(detailSource, /listingTabListClass/);
   assert.match(detailSource, /ring-1 ring-primary\/15/);
   assert.match(detailSource, /hover:border-border\/80/);
+  assert.match(detailSource, /Gem State Reviews/);
+  assert.match(detailSource, /Array\.from\(\{ length: 5 \}/);
 });
 
 test("general classifieds have mock detail fixtures without changing category setup", () => {

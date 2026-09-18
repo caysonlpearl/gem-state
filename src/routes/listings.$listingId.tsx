@@ -25,6 +25,7 @@ import {
   Printer,
   ShareNetwork,
   ShieldCheck,
+  Star,
   Truck,
   Wrench,
 } from "@phosphor-icons/react";
@@ -304,12 +305,6 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
               </span>
             )}
           </div>
-          {seller.ratingAverage != null && (
-            <p className="mt-1 text-[12px] text-muted-foreground">
-              {seller.ratingAverage.toFixed(1)} / 5 · {seller.reviewCount} review
-              {seller.reviewCount === 1 ? "" : "s"}
-            </p>
-          )}
           {(seller.memberSince || seller.sellerType) && (
             <div className="mt-3 space-y-1 text-[12px]">
               <p>
@@ -332,6 +327,34 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
           )}
         </div>
       </div>
+      {seller.ratingAverage != null && (
+        <div className="mt-4 overflow-hidden rounded-xl border border-border/80 bg-card shadow-sm">
+          <div
+            className="flex flex-wrap items-center justify-center gap-2 px-3 py-3"
+            aria-label={`${seller.ratingAverage.toFixed(1)} out of 5 stars from ${seller.reviewCount} reviews`}
+          >
+            <span className="grid h-6 w-6 place-items-center rounded-full bg-primary text-[10px] font-bold text-primary-foreground">
+              G
+            </span>
+            <span className="numeric text-[16px] font-bold">{seller.ratingAverage.toFixed(1)}</span>
+            <span className="flex items-center gap-0.5 text-brand-warm" aria-hidden="true">
+              {Array.from({ length: 5 }, (_, index) => (
+                <Star
+                  key={index}
+                  size={16}
+                  weight={index < Math.round(seller.ratingAverage ?? 0) ? "fill" : "regular"}
+                />
+              ))}
+            </span>
+            <span className="text-[11px] font-medium text-muted-foreground">
+              {seller.reviewCount} review{seller.reviewCount === 1 ? "" : "s"}
+            </span>
+          </div>
+          <div className="bg-primary px-3 py-1.5 text-center text-[11px] font-semibold text-primary-foreground">
+            Gem State Reviews
+          </div>
+        </div>
+      )}
       <div className="mt-4 border-t border-border/70 pt-4">
         <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
           Contact seller
