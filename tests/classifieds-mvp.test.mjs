@@ -692,6 +692,9 @@ test("listing detail keeps a responsive photo gallery and floating action card",
   assert.match(detailSource, /DialogContent/);
   assert.match(actionsSource, /floating-card/);
   assert.match(detailSource, /specIcons/);
+  assert.match(detailSource, /listingTabListClass/);
+  assert.match(detailSource, /ring-1 ring-primary\/15/);
+  assert.match(detailSource, /hover:border-border\/80/);
 });
 
 test("general classifieds have mock detail fixtures without changing category setup", () => {
