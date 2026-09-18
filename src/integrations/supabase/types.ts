@@ -307,6 +307,7 @@ export type Database = {
           currency: string
           evidence_count: number
           expires_at: string
+          featured_until: string | null
           fulfillment_window_days: number | null
           id: string
           in_hand: boolean
@@ -319,6 +320,7 @@ export type Database = {
           parcel_width_in: number | null
           price_cents: number
           product_id: string
+          promoted_at: string | null
           public_media_count: number
           review_note: string | null
           seller_id: string
@@ -336,6 +338,7 @@ export type Database = {
           currency?: string
           evidence_count?: number
           expires_at?: string
+          featured_until?: string | null
           fulfillment_window_days?: number | null
           id?: string
           in_hand?: boolean
@@ -348,6 +351,7 @@ export type Database = {
           parcel_width_in?: number | null
           price_cents: number
           product_id: string
+          promoted_at?: string | null
           public_media_count?: number
           review_note?: string | null
           seller_id: string
@@ -365,6 +369,7 @@ export type Database = {
           currency?: string
           evidence_count?: number
           expires_at?: string
+          featured_until?: string | null
           fulfillment_window_days?: number | null
           id?: string
           in_hand?: boolean
@@ -377,6 +382,7 @@ export type Database = {
           parcel_width_in?: number | null
           price_cents?: number
           product_id?: string
+          promoted_at?: string | null
           public_media_count?: number
           review_note?: string | null
           seller_id?: string
@@ -1404,6 +1410,116 @@ export type Database = {
             columns: ["fee_schedule_id"]
             isOneToOne: false
             referencedRelation: "fee_schedules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      listing_upgrade_catalog: {
+        Row: {
+          active: boolean
+          amount_cents: number
+          code: string
+          created_at: string
+          description: string
+          duration_days: number
+          id: string
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          amount_cents: number
+          code: string
+          created_at?: string
+          description: string
+          duration_days?: number
+          id?: string
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          amount_cents?: number
+          code?: string
+          created_at?: string
+          description?: string
+          duration_days?: number
+          id?: string
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      listing_upgrade_purchases: {
+        Row: {
+          amount_cents: number
+          created_at: string
+          id: string
+          listing_id: string
+          paid_at: string | null
+          receipt_url: string | null
+          status: string
+          stripe_checkout_session_id: string | null
+          stripe_payment_intent_id: string | null
+          updated_at: string
+          upgrade_id: string
+          user_id: string
+        }
+        Insert: {
+          amount_cents: number
+          created_at?: string
+          id?: string
+          listing_id: string
+          paid_at?: string | null
+          receipt_url?: string | null
+          status?: string
+          stripe_checkout_session_id?: string | null
+          stripe_payment_intent_id?: string | null
+          updated_at?: string
+          upgrade_id: string
+          user_id: string
+        }
+        Update: {
+          amount_cents?: number
+          created_at?: string
+          id?: string
+          listing_id?: string
+          paid_at?: string | null
+          receipt_url?: string | null
+          status?: string
+          stripe_checkout_session_id?: string | null
+          stripe_payment_intent_id?: string | null
+          updated_at?: string
+          upgrade_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "listing_upgrade_purchases_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "active_seller_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listing_upgrade_purchases_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "asks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "listing_upgrade_purchases_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "variant_sourcing_offers"
+            referencedColumns: ["ask_id"]
+          },
+          {
+            foreignKeyName: "listing_upgrade_purchases_upgrade_id_fkey"
+            columns: ["upgrade_id"]
+            isOneToOne: false
+            referencedRelation: "listing_upgrade_catalog"
             referencedColumns: ["id"]
           },
         ]
