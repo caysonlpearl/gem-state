@@ -665,7 +665,15 @@ test("jobs browse has a landing hero and expanded local job filters", () => {
     assert.match(browseSource, new RegExp(label));
   }
   assert.match(browseSource, /function JobToggle/);
-  assert.match(browseSource, /function JobCard/);
+});
+
+test("jobs browse results use real listing data, not static placeholder cards", () => {
+  assert.match(browseSource, /listings: ClassifiedBrowseResult\["listings"\]/);
+  assert.match(browseSource, /sortedListings\.map\(\(listing\) => \(/);
+  assert.match(browseSource, /No jobs match these filters\./);
+  assert.doesNotMatch(browseSource, /function JobCard/);
+  assert.doesNotMatch(browseSource, /jobPreviewRows/);
+  assert.doesNotMatch(browseSource, /Laborer needed/);
 });
 
 test("services browse has a category-led landing page", () => {
