@@ -64,6 +64,13 @@
       "when": 1789772473540,
       "tag": "0008_remove_classified_stripe_gate",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1789772497842,
+      "tag": "0009_secure_classified_inquiry_rpc",
+      "breakpoints": true
     }
   ]
 }

@@ -4711,6 +4711,10 @@ export type Database = {
             }
             Returns: string
           }
+      create_listing_inquiry: {
+        Args: { _listing_id: string; _message: string }
+        Returns: string
+      }
       create_sourcing_request: {
         Args: {
           _buyer_note?: string
