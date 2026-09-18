@@ -43,6 +43,12 @@ export const Route = createFileRoute("/")({
 const seeAll =
   "inline-flex shrink-0 items-center gap-1 text-[12.5px] font-semibold text-primary hover:underline";
 
+type HomepageBrowseSearch = {
+  allCategories?: boolean;
+  category?: string;
+  group?: "motors";
+};
+
 const headlineOptions = [
   ["Cars", "Toys", "Appliances", "Fishing Lures"],
   ["Trucks", "Tools", "Furniture", "Massage Chairs"],
@@ -152,6 +158,13 @@ function Home() {
 
   const motorCategories = classifiedCategories.filter((c) => c.group === "motors");
   const generalCategories = classifiedCategories.filter((c) => c.group === "classifieds");
+  const freshListings = home.recent.slice(0, 6);
+  const homeListings = home.recent.filter((listing) => listing.home).slice(0, 6);
+  const jobListings = home.recent.filter((listing) => listing.job).slice(0, 6);
+  const serviceListings = home.recent.filter((listing) => listing.service).slice(0, 6);
+  const generalListings = home.recent
+    .filter((listing) => !listing.vehicle && !listing.home && !listing.job && !listing.service)
+    .slice(0, 6);
 
   return (
     <main className="mx-auto max-w-[1360px] px-4 pb-16 sm:px-6">
@@ -272,9 +285,11 @@ function Home() {
           ))}
         </div>
         {home.motors.length > 0 ? (
-          <div className="mt-5 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
+          <div className="no-scrollbar mt-5 flex gap-4 overflow-x-auto pb-2 lg:grid lg:grid-cols-4 lg:overflow-visible">
             {home.motors.map((listing) => (
-              <ListingCard key={listing.id} listing={listing} />
+              <div key={listing.id} className="min-w-[235px] lg:min-w-0">
+                <ListingCard listing={listing} />
+              </div>
             ))}
           </div>
         ) : (
@@ -308,27 +323,45 @@ function Home() {
         </div>
       </section>
 
-      {/* Recently posted */}
-      <section className="mt-16">
-        <div className="flex items-end justify-between gap-4">
-          <h2 className="text-[26px] font-bold tracking-tight">Recently posted</h2>
-          <Link to="/browse" search={{}} className={seeAll}>
-            See all <ArrowRight size={12} />
-          </Link>
-        </div>
-        {home.recent.length > 0 ? (
-          <div className="mt-5 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">
-            {home.recent.map((listing) => (
-              <ListingCard key={listing.id} listing={listing} />
-            ))}
-          </div>
-        ) : (
-          <EmptyState
-            title="No listings are live yet."
-            body="Nothing has been posted and approved so far. Be the first to list something for sale in Idaho."
-          />
-        )}
-      </section>
+      <HomepageListingRow
+        eyebrow="Gem State picks"
+        title="Fresh local finds"
+        listings={freshListings}
+        search={{ allCategories: true }}
+        action="See all fresh listings"
+      />
+
+      <HomepageListingRow
+        eyebrow="Gem State homes"
+        title="Homes & rentals worth a look"
+        listings={homeListings}
+        search={{ category: "other-real-estate" }}
+        action="Browse homes"
+      />
+
+      <HomepageListingRow
+        eyebrow="Gem State jobs"
+        title="Jobs hiring now"
+        listings={jobListings}
+        search={{ category: "jobs" }}
+        action="Browse local jobs"
+      />
+
+      <HomepageListingRow
+        eyebrow="Gem State services"
+        title="Services for your next project"
+        listings={serviceListings}
+        search={{ category: "services" }}
+        action="Find a local pro"
+      />
+
+      <HomepageListingRow
+        eyebrow="Gem State classifieds"
+        title="Everyday finds from local sellers"
+        listings={generalListings}
+        search={{ allCategories: true }}
+        action="Browse all classifieds"
+      />
 
       <section className="soft-card mt-16 px-6 py-8 sm:px-8">
         <h2 className="text-[20px] font-bold tracking-tight">Have something to sell?</h2>
@@ -344,6 +377,43 @@ function Home() {
         </Link>
       </section>
     </main>
+  );
+}
+
+function HomepageListingRow({
+  eyebrow,
+  title,
+  listings,
+  search,
+  action,
+}: {
+  eyebrow: string;
+  title: string;
+  listings: Awaited<ReturnType<typeof getClassifiedsHome>>["recent"];
+  search: HomepageBrowseSearch;
+  action: string;
+}) {
+  if (listings.length === 0) return null;
+
+  return (
+    <section className="mt-16" aria-labelledby={`${title.toLowerCase().replaceAll(" ", "-")}-heading`}>
+      <div className="flex items-end justify-between gap-4 border-b border-border pb-3">
+        <div>
+          <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">{eyebrow}</p>
+          <h2 id={`${title.toLowerCase().replaceAll(" ", "-")}-heading`} className="mt-1 text-[26px] font-bold tracking-tight">{title}</h2>
+        </div>
+        <Link to="/browse" search={search} className={seeAll}>
+          {action} <ArrowRight size={12} />
+        </Link>
+      </div>
+      <div className="no-scrollbar mt-5 flex gap-4 overflow-x-auto pb-2 lg:grid lg:grid-cols-4 lg:overflow-visible">
+        {listings.map((listing) => (
+          <div key={listing.id} className="min-w-[235px] lg:min-w-0">
+            <ListingCard listing={listing} />
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }
 

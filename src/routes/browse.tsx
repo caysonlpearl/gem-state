@@ -304,6 +304,54 @@ const homePreviewRows = [
   },
 ] as const;
 
+const homePreviewRowsByTab: Record<HomeTab, readonly (typeof homePreviewRows)[number][]> = {
+  buy: [
+    homePreviewRows[0],
+    {
+      title: "Price drops to watch",
+      action: "See price drops",
+      cards: [
+        { name: "Brookside Ranch", location: "Meridian, ID", price: "$459,900", facts: "4 bed · 2 bath · 2,012 sqft", image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=900&q=80" },
+        { name: "Foothills Modern", location: "Boise, ID", price: "$589,000", facts: "3 bed · 2 bath · 1,840 sqft", image: "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=900&q=80" },
+        { name: "Cedar Grove", location: "Nampa, ID", price: "$399,500", facts: "3 bed · 2 bath · 1,672 sqft", image: "https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?auto=format&fit=crop&w=900&q=80" },
+        { name: "Banbury Heights", location: "Eagle, ID", price: "$735,000", facts: "4 bed · 3 bath · 2,580 sqft", image: "https://images.unsplash.com/photo-1600607688969-a5bfcd646154?auto=format&fit=crop&w=900&q=80" },
+        { name: "Parkside Landing", location: "Star, ID", price: "$427,900", facts: "3 bed · 2.5 bath · 1,910 sqft", image: "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=900&q=80" },
+        { name: "Warm Springs View", location: "Boise, ID", price: "$682,000", facts: "4 bed · 3 bath · 2,306 sqft", image: "https://images.unsplash.com/photo-1600585154526-990dced4db0d?auto=format&fit=crop&w=900&q=80" },
+      ],
+    },
+  ],
+  build: [
+    homePreviewRows[1],
+    {
+      title: "Quick move-in homes",
+      action: "Find move-in ready builds",
+      cards: [
+        { name: "Aspen Grove — The Juniper", location: "Meridian, ID", price: "From $524,900", facts: "3 bed · 2.5 bath · Ready this fall", image: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=900&q=80" },
+        { name: "Canyon Rim — The Vista", location: "Nampa, ID", price: "From $489,900", facts: "3 bed · 2 bath · Finished basement", image: "https://images.unsplash.com/photo-1600047508788-786f386c0f2d?auto=format&fit=crop&w=900&q=80" },
+        { name: "Cottonwood Crossing — Plan 4", location: "Star, ID", price: "From $574,900", facts: "4 bed · 2.5 bath · December completion", image: "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=900&q=80" },
+        { name: "Harvest Point — The Maple", location: "Caldwell, ID", price: "From $389,900", facts: "3 bed · 2 bath · Single level", image: "https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&w=900&q=80" },
+        { name: "Hillside Terrace — Model 7", location: "Nampa, ID", price: "Call for pricing", facts: "4 bed · 3 bath · Model home", image: "https://images.unsplash.com/photo-1600585152915-d208bec867a1?auto=format&fit=crop&w=900&q=80" },
+        { name: "The Preserve — Alder", location: "Eagle, ID", price: "From $819,900", facts: "4 bed · 3 bath · Mountain views", image: "https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?auto=format&fit=crop&w=900&q=80" },
+      ],
+    },
+  ],
+  rent: [
+    homePreviewRows[2],
+    {
+      title: "Pet-friendly rentals",
+      action: "Browse pet-friendly homes",
+      cards: [
+        { name: "Parkview Commons", location: "Boise, ID", price: "$1,725 / mo", facts: "2 bed · 2 bath · Dogs welcome", image: "https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=900&q=80" },
+        { name: "Meridian Green", location: "Meridian, ID", price: "$1,590 / mo", facts: "1 bed · 1 bath · Cats welcome", image: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=900&q=80" },
+        { name: "Eagle Creek Townhome", location: "Eagle, ID", price: "$2,350 / mo", facts: "3 bed · 2.5 bath · Fenced patio", image: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=900&q=80" },
+        { name: "Canyon Trails", location: "Nampa, ID", price: "$1,480 / mo", facts: "2 bed · 1 bath · Dog park", image: "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=80" },
+        { name: "North End Garden Flat", location: "Boise, ID", price: "$2,050 / mo", facts: "2 bed · 1 bath · Small pets", image: "https://images.unsplash.com/photo-1449844908441-8829872d2607?auto=format&fit=crop&w=900&q=80" },
+        { name: "The Village Lofts", location: "Meridian, ID", price: "$2,150 / mo", facts: "2 bed · 2 bath · Garage", image: "https://images.unsplash.com/photo-1502672023488-70e25813eb80?auto=format&fit=crop&w=900&q=80" },
+      ],
+    },
+  ],
+};
+
 type ServiceCategory = { name: string; count: number; image: string };
 
 const serviceCategoryRows: { title: string; categories: ServiceCategory[] }[] = [
@@ -682,6 +730,7 @@ function Browse() {
             }
           />
           <GeneralClassifiedShowcase listings={result.listings} />
+          <HomepageShowcaseRows eyebrow="GemList Classifieds" rows={classifiedShowcaseRows} />
         </>
       )}
 
@@ -697,6 +746,8 @@ function Browse() {
           onSell={() => void navigate({ to: "/create-listing" })}
         />
       )}
+
+      {motors && vehicleLanding && <HomepageShowcaseRows eyebrow="GemList Motors" rows={vehicleShowcaseRows} />}
 
       {motors && !vehicleLanding && (
         <VehicleResultsPage
@@ -759,7 +810,7 @@ function Browse() {
         />
       )}
 
-      {homeLanding && <HomeShowcaseRows />}
+      {homeLanding && <HomeShowcaseRows activeTab={homeTab} />}
 
       {jobs && jobLanding && (
         <JobsLandingHero
@@ -777,6 +828,8 @@ function Browse() {
           onPost={() => void navigate({ to: "/create-listing" })}
         />
       )}
+
+      {jobs && jobLanding && <HomepageShowcaseRows eyebrow="GemList Jobs" rows={jobsShowcaseRows} />}
 
       {jobs && !jobLanding && (
         <JobsFilterPage
@@ -801,6 +854,8 @@ function Browse() {
           onPost={() => void navigate({ to: "/create-listing" })}
         />
       )}
+
+      {services && serviceLanding && <HomepageShowcaseRows eyebrow="GemList Services" rows={servicesShowcaseRows} />}
 
       {services && !serviceLanding && (
         <ServicesFilterPage
@@ -1283,6 +1338,205 @@ const generalCategoryHighlights = [
   { slug: "general", name: "General", description: "Everyday local finds" },
 ] as const;
 
+type HomepagePreviewCard = {
+  title: string;
+  location: string;
+  price: string;
+  detail: string;
+  image: string;
+  badge?: string;
+};
+
+type HomepagePreviewRow = {
+  title: string;
+  action: string;
+  href: string;
+  cards: HomepagePreviewCard[];
+};
+
+const previewCard = (title: string, location: string, price: string, detail: string, image: string, badge?: string): HomepagePreviewCard => ({ title, location, price, detail, image, badge });
+
+const classifiedShowcaseRows: HomepagePreviewRow[] = [
+  {
+    title: "Popular near you",
+    action: "See popular listings",
+    href: "/browse?allCategories=true",
+    cards: [
+      previewCard("Vintage House of LEGO Lunchbox", "Sandy, UT", "$15.00", "Used · excellent", "https://images.unsplash.com/photo-1607604276583-eef5b076f64f?auto=format&fit=crop&w=900&q=80"),
+      previewCard("Squishmallows 8-Piece Collector Box", "West Jordan, UT", "$5.00", "New", "https://images.unsplash.com/photo-1559454403-b8fb88521f11?auto=format&fit=crop&w=900&q=80"),
+      previewCard("Super Mario Galaxy Princess Peach Doll", "Murray, UT", "$27.00", "New", "https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?auto=format&fit=crop&w=900&q=80"),
+      previewCard("S.T. Dupont Ligne 2 Gold Finish Lighter", "Draper, UT", "$225.00", "Used · excellent", "https://images.unsplash.com/photo-1511499767150-a48a237f0083?auto=format&fit=crop&w=900&q=80"),
+      previewCard("Teenage Mutant Ninja Turtles Fuggler", "South Jordan, UT", "$25.00", "New", "https://images.unsplash.com/photo-1563901935883-cb61f2a2b4b3?auto=format&fit=crop&w=900&q=80"),
+      previewCard("Pair of Mid-Century Nightstands", "Boise, ID", "$120.00", "Pickup available", "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=900&q=80"),
+    ],
+  },
+  {
+    title: "Holiday & seasonal finds",
+    action: "Browse seasonal finds",
+    href: "/browse?category=general",
+    cards: [
+      previewCard("Halloween Yard Display Set", "Meridian, ID", "$45.00", "New", "https://images.unsplash.com/photo-1509557965875-b88c97052f0e?auto=format&fit=crop&w=900&q=80", "Seasonal"),
+      previewCard("Fall Porch Decor Bundle", "Nampa, ID", "$30.00", "Like new", "https://images.unsplash.com/photo-1509474520651-53cf6a80536f?auto=format&fit=crop&w=900&q=80", "Seasonal"),
+      previewCard("Thanksgiving Table Settings", "Boise, ID", "$65.00", "Pickup available", "https://images.unsplash.com/photo-1577140917170-285929fb55b7?auto=format&fit=crop&w=900&q=80", "Seasonal"),
+      previewCard("Holiday Light Installer Kit", "Eagle, ID", "$80.00", "Used · good", "https://images.unsplash.com/photo-1482517967863-00e15c9b44be?auto=format&fit=crop&w=900&q=80", "Seasonal"),
+      previewCard("Kids Costume Lot", "Caldwell, ID", "$22.00", "Like new", "https://images.unsplash.com/photo-1601758003122-53c40e686a19?auto=format&fit=crop&w=900&q=80", "Seasonal"),
+      previewCard("Outdoor Fire Pit", "Star, ID", "$140.00", "Used · excellent", "https://images.unsplash.com/photo-1478827536114-da961b7c7a74?auto=format&fit=crop&w=900&q=80", "Seasonal"),
+    ],
+  },
+  {
+    title: "Clothing & accessories",
+    action: "Shop clothing",
+    href: "/browse?category=general&q=clothing",
+    cards: [
+      previewCard("Women's Winter Coat", "Boise, ID", "$40.00", "Like new · Medium", "https://images.unsplash.com/photo-1544966503-7cc5ac882d5f?auto=format&fit=crop&w=900&q=80"),
+      previewCard("Men's Leather Work Boots", "Meridian, ID", "$55.00", "Used · excellent", "https://images.unsplash.com/photo-1520639888713-7851133b1ed0?auto=format&fit=crop&w=900&q=80"),
+      previewCard("Vintage Denim Jacket", "Nampa, ID", "$28.00", "Used · good", "https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=900&q=80"),
+      previewCard("Designer Handbag", "Eagle, ID", "$180.00", "Like new", "https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=900&q=80"),
+      previewCard("Kids Snow Gear Bundle", "Caldwell, ID", "$35.00", "Used · excellent", "https://images.unsplash.com/photo-1544966503-7cc5ac882d5f?auto=format&fit=crop&w=900&q=80"),
+      previewCard("Handmade Wool Scarf", "Boise, ID", "$24.00", "New", "https://images.unsplash.com/photo-1520903920243-00d872a2d1c9?auto=format&fit=crop&w=900&q=80"),
+    ],
+  },
+  {
+    title: "Recently discounted",
+    action: "See all price drops",
+    href: "/browse?allCategories=true&sort=price_low",
+    cards: [
+      previewCard("Solid Oak Dining Table", "Meridian, ID", "$275.00", "Was $350 · pickup", "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=900&q=80", "Price drop"),
+      previewCard("Cordless Tool Set", "Boise, ID", "$95.00", "Was $125 · like new", "https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=900&q=80", "Price drop"),
+      previewCard("Pair of Patio Chairs", "Eagle, ID", "$60.00", "Was $90 · pickup", "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=900&q=80", "Price drop"),
+      previewCard("Mountain Bike", "Nampa, ID", "$325.00", "Was $400 · excellent", "https://images.unsplash.com/photo-1576435728678-68d0fbf94e91?auto=format&fit=crop&w=900&q=80", "Price drop"),
+      previewCard("Portable Projector", "Caldwell, ID", "$70.00", "Was $90 · tested", "https://images.unsplash.com/photo-1626379953822-baec19c3accd?auto=format&fit=crop&w=900&q=80", "Price drop"),
+      previewCard("Garden Tool Bundle", "Star, ID", "$42.00", "Was $60 · pickup", "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&w=900&q=80", "Price drop"),
+    ],
+  },
+];
+
+const vehicleShowcaseRows: HomepagePreviewRow[] = [
+  {
+    title: "Popular cars & trucks",
+    action: "See popular vehicles",
+    href: "/browse?group=motors&vehicleMode=results",
+    cards: [
+      previewCard("2019 Toyota Tacoma TRD Off-Road 4x4", "Meridian, ID", "$31,750", "68,420 mi · Automatic · 4WD", "https://images.unsplash.com/photo-1559416523-140ddc3d238c?auto=format&fit=crop&w=900&q=80"),
+      previewCard("2020 Jeep Wrangler Sport 4WD", "Idaho Falls, ID", "$28,900", "52,100 mi · Manual · 4WD", "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=900&q=80"),
+      previewCard("2022 Hyundai Tucson SEL AWD", "Coeur d'Alene, ID", "$25,900", "27,400 mi · Automatic · AWD", "https://images.unsplash.com/photo-1619767886558-efdc259cde1a?auto=format&fit=crop&w=900&q=80"),
+      previewCard("2018 Ford F-150 XLT", "Boise, ID", "$26,500", "91,200 mi · Automatic · 4WD", "https://images.unsplash.com/photo-1504215680853-026ed2a45def?auto=format&fit=crop&w=900&q=80"),
+      previewCard("2021 Subaru Outback Premium", "Nampa, ID", "$24,400", "44,800 mi · Automatic · AWD", "https://images.unsplash.com/photo-1519641471654-76ce0107ad1b?auto=format&fit=crop&w=900&q=80"),
+      previewCard("2017 Honda Civic EX", "Pocatello, ID", "$16,900", "73,600 mi · Automatic · FWD", "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?auto=format&fit=crop&w=900&q=80"),
+    ],
+  },
+  {
+    title: "Adventure-ready rides",
+    action: "Explore outdoor vehicles",
+    href: "/browse?group=motors&vehicleMode=results&bodyStyle=SUV||Truck",
+    cards: [
+      previewCard("2021 Ford Bronco Big Bend", "Boise, ID", "$38,500", "39,100 mi · 4WD · Hardtop", "https://images.unsplash.com/photo-1533130061792-64b345e4a833?auto=format&fit=crop&w=900&q=80"),
+      previewCard("2019 Airstream Basecamp", "Meridian, ID", "$29,800", "Sleeps 4 · Like new", "https://images.unsplash.com/photo-1544986581-efac024faf62?auto=format&fit=crop&w=900&q=80"),
+      previewCard("2023 Polaris Ranger XP", "Eagle, ID", "$18,900", "1,240 mi · 4WD · Utility", "https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=900&q=80"),
+      previewCard("2020 Toyota 4Runner TRD Pro", "Caldwell, ID", "$42,700", "61,300 mi · 4WD", "https://images.unsplash.com/photo-1519245659620-e859806a8d3b?auto=format&fit=crop&w=900&q=80"),
+      previewCard("2022 Yamaha Grizzly 700", "Twin Falls, ID", "$9,750", "980 mi · Automatic · 4WD", "https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=900&q=80"),
+      previewCard("2016 Ram 2500 Tradesman", "Idaho Falls, ID", "$31,200", "112,000 mi · Diesel · 4WD", "https://images.unsplash.com/photo-1551830820-330a71b99659?auto=format&fit=crop&w=900&q=80"),
+    ],
+  },
+  {
+    title: "Just reduced",
+    action: "See vehicle price drops",
+    href: "/browse?group=motors&vehicleMode=results&sort=price_low",
+    cards: [
+      previewCard("2015 Ram 1500 Big Horn 4WD", "Nampa, ID", "$24,800", "101,300 mi · Automatic · 4WD", "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=900&q=80", "Price drop"),
+      previewCard("2018 Chevrolet Equinox LT", "Boise, ID", "$15,400", "84,200 mi · Automatic · AWD", "https://images.unsplash.com/photo-1542362567-b07e54358753?auto=format&fit=crop&w=900&q=80", "Price drop"),
+      previewCard("2014 Subaru Forester 2.5i", "Meridian, ID", "$12,900", "116,500 mi · AWD", "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=900&q=80", "Price drop"),
+      previewCard("2022 Hyundai Santa Fe SEL", "Rexburg, ID", "$27,300", "35,400 mi · AWD", "https://images.unsplash.com/photo-1619767886558-efdc259cde1a?auto=format&fit=crop&w=900&q=80", "Price drop"),
+      previewCard("2019 Honda Ridgeline RTL", "Pocatello, ID", "$26,100", "72,600 mi · AWD", "https://images.unsplash.com/photo-1597007066704-67bf2068d5b2?auto=format&fit=crop&w=900&q=80", "Price drop"),
+      previewCard("2017 Mazda CX-5 Touring", "Twin Falls, ID", "$17,800", "88,900 mi · AWD", "https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=900&q=80", "Price drop"),
+    ],
+  },
+];
+
+const jobsShowcaseRows: HomepagePreviewRow[] = [
+  {
+    title: "New opportunities",
+    action: "See newest jobs",
+    href: "/browse?category=jobs&jobMode=results",
+    cards: [
+      previewCard("Front Desk Coordinator", "Boise, ID", "$18–$22 / hr", "Full-time · Healthcare", "https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=900&q=80", "New"),
+      previewCard("Warehouse Team Member", "Meridian, ID", "$20 / hr", "Full-time · Day shift", "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=900&q=80", "New"),
+      previewCard("Customer Support Specialist", "Nampa, ID", "$21 / hr", "Remote friendly · Full-time", "https://images.unsplash.com/photo-1556761175-4b46a572b786?auto=format&fit=crop&w=900&q=80", "New"),
+      previewCard("Line Cook", "Eagle, ID", "$17–$20 / hr", "Part-time · Evenings", "https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=900&q=80", "New"),
+      previewCard("Office Administrator", "Caldwell, ID", "$46,000–$52,000", "Full-time · Benefits", "https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=900&q=80", "New"),
+      previewCard("Delivery Driver", "Boise, ID", "$22 / hr", "Contract · Flexible", "https://images.unsplash.com/photo-1616401784845-180882ba9ba8?auto=format&fit=crop&w=900&q=80", "New"),
+    ],
+  },
+  {
+    title: "Part-time & flexible",
+    action: "Find flexible work",
+    href: "/browse?category=jobs&jobMode=results&jobType=Part-time",
+    cards: [
+      previewCard("Weekend Event Staff", "Boise, ID", "$19 / hr", "Weekend only · Seasonal", "https://images.unsplash.com/photo-1506157786151-b8491531f063?auto=format&fit=crop&w=900&q=80"),
+      previewCard("After-school Tutor", "Meridian, ID", "$24 / hr", "Part-time · Education", "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=900&q=80"),
+      previewCard("Retail Sales Associate", "Nampa, ID", "$16 / hr", "Part-time · Flexible", "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=900&q=80"),
+      previewCard("Barista", "Eagle, ID", "$15 + tips", "Part-time · Mornings", "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=900&q=80"),
+      previewCard("Dog Walker", "Boise, ID", "$25 / visit", "Contract · Flexible", "https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=900&q=80"),
+      previewCard("Seasonal Garden Center", "Caldwell, ID", "$17 / hr", "Seasonal · Part-time", "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&w=900&q=80"),
+    ],
+  },
+  {
+    title: "Skilled trades & hands-on work",
+    action: "Browse skilled trades",
+    href: "/browse?category=jobs&jobMode=results&jobCategory=Construction",
+    cards: [
+      previewCard("Licensed Electrician", "Boise, ID", "$34–$42 / hr", "Full-time · Construction", "https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=900&q=80"),
+      previewCard("HVAC Service Technician", "Meridian, ID", "$28–$36 / hr", "Full-time · Benefits", "https://images.unsplash.com/photo-1631545806609-ccf5d6f5c2ab?auto=format&fit=crop&w=900&q=80"),
+      previewCard("Carpenter / Finish Crew", "Nampa, ID", "$25–$32 / hr", "Full-time · 3+ years", "https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=900&q=80"),
+      previewCard("Diesel Mechanic", "Idaho Falls, ID", "$30–$38 / hr", "Full-time · Shop", "https://images.unsplash.com/photo-1486006920555-c77dcf18193c?auto=format&fit=crop&w=900&q=80"),
+      previewCard("Landscape Crew Lead", "Eagle, ID", "$23–$28 / hr", "Seasonal · Outdoor", "https://images.unsplash.com/photo-1558904541-efa843a96f01?auto=format&fit=crop&w=900&q=80"),
+      previewCard("Apprentice Plumber", "Caldwell, ID", "$20–$26 / hr", "Full-time · Training", "https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?auto=format&fit=crop&w=900&q=80"),
+    ],
+  },
+];
+
+const servicesShowcaseRows: HomepagePreviewRow[] = [
+  {
+    title: "Recently added pros",
+    action: "See newest service listings",
+    href: "/browse?category=services&serviceMode=results",
+    cards: [
+      previewCard("Boise Home Works | Handyman & Drywall Repair", "Boise, ID", "Call for quote", "Just listed · Handyman", "https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=900&q=80", "New"),
+      previewCard("Treasure Valley Lawn Co. | Lawn Care & Sprinklers", "Meridian, ID", "From $45 / visit", "1 day · Lawn care", "https://images.unsplash.com/photo-1558904541-efa843a96f01?auto=format&fit=crop&w=900&q=80", "New"),
+      previewCard("Gem State Tech Help | Home Wi-Fi & Computer Setup", "Boise, ID", "From $85 / visit", "2 days · IT services", "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=80", "New"),
+      previewCard("ClearView Window Care", "Eagle, ID", "Call for quote", "3 days · Window cleaning", "https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?auto=format&fit=crop&w=900&q=80", "New"),
+      previewCard("Valley Fence & Gate", "Nampa, ID", "Call for quote", "4 days · Fence installation", "https://images.unsplash.com/photo-1580130732478-4e339fb6836f?auto=format&fit=crop&w=900&q=80", "New"),
+      previewCard("Mountain Air HVAC", "Caldwell, ID", "From $89 service call", "5 days · Heating & cooling", "https://images.unsplash.com/photo-1631545806609-ccf5d6f5c2ab?auto=format&fit=crop&w=900&q=80", "New"),
+    ],
+  },
+  {
+    title: "Popular with neighbors",
+    action: "Browse popular pros",
+    href: "/browse?category=services&serviceMode=results",
+    cards: [
+      previewCard("Treasure Valley Lawn Co.", "Meridian, ID", "From $45 / visit", "Lawn care · Sprinklers", "https://images.unsplash.com/photo-1558904541-efa843a96f01?auto=format&fit=crop&w=900&q=80"),
+      previewCard("Boise Home Works", "Boise, ID", "Call for quote", "Handyman · Drywall", "https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=900&q=80"),
+      previewCard("Gem State Tech Help", "Boise, ID", "From $85 / visit", "Wi-Fi · Computer setup", "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=80"),
+      previewCard("ClearView Window Care", "Eagle, ID", "From $120", "Windows · Screens", "https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?auto=format&fit=crop&w=900&q=80"),
+      previewCard("Valley Fence & Gate", "Nampa, ID", "Call for quote", "Fence repair · Install", "https://images.unsplash.com/photo-1580130732478-4e339fb6836f?auto=format&fit=crop&w=900&q=80"),
+      previewCard("Mountain Air HVAC", "Caldwell, ID", "From $89 service call", "Heating · Cooling", "https://images.unsplash.com/photo-1631545806609-ccf5d6f5c2ab?auto=format&fit=crop&w=900&q=80"),
+    ],
+  },
+  {
+    title: "Projects to plan this season",
+    action: "Find a local pro",
+    href: "/browse?category=services&serviceMode=results",
+    cards: [
+      previewCard("Holiday Light Installation", "Boise, ID", "Call for quote", "Exterior lighting", "https://images.unsplash.com/photo-1482517967863-00e15c9b44be?auto=format&fit=crop&w=900&q=80", "Seasonal"),
+      previewCard("Fall Yard Cleanup", "Meridian, ID", "From $75", "Leaf removal · Hauling", "https://images.unsplash.com/photo-1599685315640-3f3c8e3d9b4b?auto=format&fit=crop&w=900&q=80", "Seasonal"),
+      previewCard("Interior Painting Refresh", "Eagle, ID", "Free estimates", "Walls · Trim · Cabinets", "https://images.unsplash.com/photo-1562259949-e8e7689d7828?auto=format&fit=crop&w=900&q=80"),
+      previewCard("Kitchen Countertop Install", "Nampa, ID", "Call for quote", "Quartz · Granite", "https://images.unsplash.com/photo-1556912167-f556f1f39fdf?auto=format&fit=crop&w=900&q=80"),
+      previewCard("Carpet & Flooring Install", "Boise, ID", "From $3.50 / sqft", "Carpet · LVP · Tile", "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=900&q=80"),
+      previewCard("Move-out Cleaning", "Caldwell, ID", "From $160", "Deep clean · Turnover", "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=900&q=80"),
+    ],
+  },
+];
+
 function ClassifiedsLandingHero({
   term,
   onTermChange,
@@ -1414,6 +1668,51 @@ function GeneralClassifiedShowcase({ listings }: { listings: ClassifiedBrowseRes
   );
 }
 
+function HomepageShowcaseRows({ eyebrow, rows }: { eyebrow: string; rows: readonly HomepagePreviewRow[] }) {
+  return (
+    <div className="mt-10 space-y-12 sm:mt-14 sm:space-y-16">
+      {rows.map((row) => (
+        <section key={row.title} aria-labelledby={row.title.replaceAll(" ", "-").toLowerCase()}>
+          <div className="mb-4 flex items-end justify-between gap-3 border-b border-border pb-3">
+            <div>
+              <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">{eyebrow}</p>
+              <h2 id={row.title.replaceAll(" ", "-").toLowerCase()} className="mt-1 text-[22px] font-bold tracking-tight sm:text-[27px]">{row.title}</h2>
+            </div>
+            <a href={row.href} className="inline-flex shrink-0 items-center gap-1 text-[12px] font-bold text-primary hover:underline">
+              {row.action}
+              <ArrowRight size={14} aria-hidden="true" />
+            </a>
+          </div>
+          <ul className="no-scrollbar grid grid-flow-col auto-cols-[minmax(215px,1fr)] gap-4 overflow-x-auto pb-2 sm:auto-cols-[minmax(240px,1fr)] lg:grid-flow-row lg:grid-cols-6 lg:overflow-visible">
+            {row.cards.map((card) => (
+              <li key={`${row.title}-${card.title}`}>
+                <HomepagePreviewCard card={card} eyebrow={eyebrow} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function HomepagePreviewCard({ card, eyebrow }: { card: HomepagePreviewCard; eyebrow: string }) {
+  return (
+    <article className="group relative overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm transition-shadow hover:shadow-lg">
+      <div className="relative aspect-[4/3] overflow-hidden bg-secondary">
+        <img src={card.image} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" />
+        <span className="absolute left-3 top-3 rounded-md bg-primary/85 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.12em] text-primary-foreground">{card.badge ?? eyebrow.replace("GemList ", "")}</span>
+      </div>
+      <div className="p-3.5">
+        <p className="numeric text-[16px] font-bold text-primary">{card.price}</p>
+        <h3 className="mt-1 line-clamp-2 min-h-[34px] text-[13px] font-bold leading-tight">{card.title}</h3>
+        <p className="mt-1 truncate text-[11.5px] text-muted-foreground">{card.location}</p>
+        <p className="mt-2 truncate text-[11px] text-muted-foreground">{card.detail}</p>
+      </div>
+    </article>
+  );
+}
+
 function HomesLandingHero({
   activeTab,
   location,
@@ -1513,10 +1812,10 @@ function HomesLandingHero({
   );
 }
 
-function HomeShowcaseRows() {
+function HomeShowcaseRows({ activeTab }: { activeTab: HomeTab }) {
   return (
     <div className="mt-10 space-y-12 sm:mt-14 sm:space-y-16">
-      {homePreviewRows.map((row) => (
+      {homePreviewRowsByTab[activeTab].map((row) => (
         <section key={row.title} aria-labelledby={row.title.replaceAll(" ", "-").toLowerCase()}>
           <div className="mb-4 flex items-end justify-between gap-3 border-b border-border pb-3">
             <div>
