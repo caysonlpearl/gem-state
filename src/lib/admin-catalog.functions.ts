@@ -347,6 +347,10 @@ export const adminReviewAsk = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     const { emailListingReviewed } = await import("./email-notifications.server");
     await emailListingReviewed(data.askId, data.approve, data.note);
+    if (data.approve) {
+      const { processSavedSearchAlerts } = await import("./saved-search-worker.server");
+      void processSavedSearchAlerts(data.askId);
+    }
     return { ok: true as const };
   });
 

@@ -18,7 +18,10 @@ export const Route = createFileRoute("/auth")({
       : "/account";
     return {
       redirect: redirect === "/account" ? undefined : redirect,
-      mode: search["mode"] === "signup" ? ("signup" as const) : undefined,
+      mode:
+        search["mode"] === "signup" || search["mode"] === "forgot" || search["mode"] === "reset"
+          ? (search["mode"] as "signup" | "forgot" | "reset")
+          : undefined,
     };
   },
   head: () => ({
@@ -38,7 +41,7 @@ export const Route = createFileRoute("/auth")({
   component: AuthPage,
 });
 
-type Mode = "signin" | "signup";
+type Mode = "signin" | "signup" | "forgot" | "reset";
 type AuthRedirect =
   "/account" | "/selling" | "/seller-setup" | "/create-listing" | "/create-missing-listing";
 type AuthSearch = { redirect?: AuthRedirect | undefined; mode?: Mode | undefined };
@@ -50,15 +53,24 @@ function AuthPage() {
   const [mode, setMode] = useState<Mode>(search.mode ?? "signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [busy, setBusy] = useState(false);
   const [pendingConfirm, setPendingConfirm] = useState(false);
 
   useEffect(() => {
     void supabase.auth.getSession().then(({ data }) => {
-      if (data.session) void navigate({ to: redirect });
+      if (data.session && mode !== "reset" && mode !== "forgot") void navigate({ to: redirect });
     });
-  }, [navigate, redirect]);
+  }, [navigate, redirect, mode]);
+
+  useEffect(() => {
+    const { data } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") setMode("reset");
+    });
+    return () => data.subscription.unsubscribe();
+  }, []);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -92,6 +104,45 @@ function AuthPage() {
     }
   }
 
+  async function handleForgotPassword(event: React.FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth?mode=reset&redirect=${encodeURIComponent(redirect)}`,
+      });
+      if (error) throw error;
+      toast.success("Password reset email sent. Check your inbox.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not send the reset email.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleResetPassword(event: React.FormEvent) {
+    event.preventDefault();
+    if (newPassword.length < 8) {
+      toast.error("Use at least 8 characters for your new password.");
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      toast.error("The passwords do not match.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      toast.success("Password updated.");
+      await navigate({ to: redirect });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update your password.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function handleOAuth() {
     setBusy(true);
     try {
@@ -114,10 +165,20 @@ function AuthPage() {
     <div className="mx-auto max-w-[460px] px-4 py-16 sm:px-6">
       <div className="soft-card p-6 sm:p-8">
       <h1 className="text-[26px] font-bold tracking-tight">
-        {mode === "signin" ? `Sign in to ${brand.name}` : `Create your ${brand.name} account`}
+        {mode === "signin"
+          ? `Sign in to ${brand.name}`
+          : mode === "signup"
+            ? `Create your ${brand.name} account`
+            : mode === "forgot"
+              ? "Reset your password"
+              : "Choose a new password"}
       </h1>
       <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
-        An account is needed to save listings, contact sellers and post on the marketplace.
+        {mode === "forgot"
+          ? "Enter your email and we’ll send you a secure password reset link."
+          : mode === "reset"
+            ? "Choose a new password for your Gem State account."
+            : "An account is needed to save listings, contact sellers and post on the marketplace."}
       </p>
 
       {pendingConfirm ? (
@@ -127,6 +188,27 @@ function AuthPage() {
             We sent a confirmation link to {email}. You are not signed in until you open it.
           </p>
         </div>
+      ) : mode === "forgot" ? (
+        <form onSubmit={handleForgotPassword} className="mt-6 space-y-3">
+          <div>
+            <label htmlFor="forgot-email" className="text-[12px] font-medium">Email</label>
+            <input id="forgot-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" className="soft-control mt-1 h-11 w-full px-4 text-sm outline-none" />
+          </div>
+          <button type="submit" disabled={busy} className="inline-flex h-12 w-full items-center justify-center rounded-full bg-primary text-[13.5px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60">{busy ? "Sending…" : "Send reset email"}</button>
+          <button type="button" onClick={() => setMode("signin")} className="w-full text-[13px] text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Back to sign in</button>
+        </form>
+      ) : mode === "reset" ? (
+        <form onSubmit={handleResetPassword} className="mt-6 space-y-3">
+          <div>
+            <label htmlFor="new-password" className="text-[12px] font-medium">New password</label>
+            <input id="new-password" type="password" required minLength={8} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoComplete="new-password" className="soft-control mt-1 h-11 w-full px-4 text-sm outline-none" />
+          </div>
+          <div>
+            <label htmlFor="confirm-password" className="text-[12px] font-medium">Confirm new password</label>
+            <input id="confirm-password" type="password" required minLength={8} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} autoComplete="new-password" className="soft-control mt-1 h-11 w-full px-4 text-sm outline-none" />
+          </div>
+          <button type="submit" disabled={busy} className="inline-flex h-12 w-full items-center justify-center rounded-full bg-primary text-[13.5px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60">{busy ? "Updating…" : "Update password"}</button>
+        </form>
       ) : (
         <>
           <div className="mt-6 space-y-2.5">
@@ -209,6 +291,7 @@ function AuthPage() {
           >
             {mode === "signin" ? "Need an account? Create one" : "Already have an account? Sign in"}
           </button>
+          {mode === "signin" && <button type="button" onClick={() => setMode("forgot")} className="mt-3 w-full text-[12.5px] text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Forgot password?</button>}
         </>
       )}
       </div>

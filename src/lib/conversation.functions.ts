@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- conversation tables are added by the linked migration */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { emailMarketplaceMessage } from "./email-notifications.server";
 
 export type ConversationSummary = {
   id: string;
@@ -22,6 +23,9 @@ export type ConversationMessage = {
   senderId: string;
   body: string;
   attachmentPath: string | null;
+  attachmentContentType: string | null;
+  attachmentSize: number | null;
+  attachmentUrl: string | null;
   createdAt: string;
 };
 
@@ -81,6 +85,19 @@ export const getConversation = createServerFn({ method: "GET" })
       .order("created_at", { ascending: true })
       .limit(200);
     if (messageError) throw new Error(messageError.message);
+    const attachmentPaths = (messages ?? [])
+      .map((message: any) => message.attachment_path)
+      .filter((path: unknown): path is string => typeof path === "string" && path.length > 0);
+    const attachmentUrls = new Map<string, string>();
+    if (attachmentPaths.length > 0) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: signedUrls } = await supabaseAdmin.storage
+        .from("conversation-attachments")
+        .createSignedUrls(attachmentPaths, 60 * 60);
+      for (const signedUrl of signedUrls ?? []) {
+        if (signedUrl.path && signedUrl.signedUrl) attachmentUrls.set(signedUrl.path, signedUrl.signedUrl);
+      }
+    }
     return {
       ...summary(row, context.userId),
       messages: (messages ?? []).map((message: any) => ({
@@ -89,6 +106,9 @@ export const getConversation = createServerFn({ method: "GET" })
         senderId: message.sender_id,
         body: message.body,
         attachmentPath: message.attachment_path ?? null,
+        attachmentContentType: message.attachment_content_type ?? null,
+        attachmentSize: message.attachment_size ?? null,
+        attachmentUrl: message.attachment_path ? attachmentUrls.get(message.attachment_path) ?? null : null,
         createdAt: message.created_at,
       })),
     };
@@ -112,6 +132,7 @@ export const startConversation = createServerFn({ method: "POST" })
       _body: data.body,
     });
     if (error || !conversationId) throw new Error(error?.message ?? "We could not start this conversation.");
+    void emailMarketplaceMessage(conversationId as string, context.userId);
     return { conversationId: conversationId as string };
   });
 
@@ -127,6 +148,76 @@ export const sendConversationMessage = createServerFn({ method: "POST" })
       _body: data.body,
     });
     if (error || !messageId) throw new Error(error?.message ?? "We could not send your message.");
+    void emailMarketplaceMessage(data.conversationId, context.userId, messageId as string);
+    return { messageId: messageId as string };
+  });
+
+const attachmentTypes = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
+const attachmentExtensions: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "application/pdf": "pdf",
+};
+
+export const createConversationAttachmentUpload = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { conversationId: string; fileName: string; contentType: string; size: number }) => {
+    const contentType = String(input.contentType ?? "");
+    const size = Number(input.size ?? 0);
+    if (!attachmentTypes.has(contentType)) throw new Error("Use a JPG, PNG, WebP, or PDF attachment.");
+    if (!Number.isInteger(size) || size < 1 || size > 10 * 1024 * 1024) throw new Error("Attachments must be 10 MB or smaller.");
+    return {
+      conversationId: String(input.conversationId),
+      fileName: String(input.fileName ?? "attachment"),
+      contentType,
+      size,
+    };
+  })
+  .handler(async ({ data, context }) => {
+    const { data: participant, error } = await (context.supabase as any)
+      .from("conversation_participants")
+      .select("conversation_id")
+      .eq("conversation_id", data.conversationId)
+      .eq("user_id", context.userId)
+      .is("blocked_at", null)
+      .maybeSingle();
+    if (error || !participant) throw new Error(error?.message ?? "You are not a participant in this conversation.");
+
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const path = `${context.userId}/${data.conversationId}/${crypto.randomUUID()}.${attachmentExtensions[data.contentType]}`;
+    const { data: upload, error: uploadError } = await supabaseAdmin.storage
+      .from("conversation-attachments")
+      .createSignedUploadUrl(path);
+    if (uploadError || !upload?.token) throw new Error(uploadError?.message ?? "Could not prepare the attachment upload.");
+    return { path, token: upload.token, contentType: data.contentType, size: data.size };
+  });
+
+export const sendConversationMessageWithAttachment = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { conversationId: string; body: string; attachmentPath: string; attachmentContentType: string; attachmentSize: number }) => {
+    const contentType = String(input.attachmentContentType ?? "");
+    const size = Number(input.attachmentSize ?? 0);
+    if (!attachmentTypes.has(contentType)) throw new Error("Attachment type is not allowed.");
+    if (!Number.isInteger(size) || size < 1 || size > 10 * 1024 * 1024) throw new Error("Attachments must be 10 MB or smaller.");
+    return {
+      conversationId: String(input.conversationId),
+      body: cleanBody(input.body),
+      attachmentPath: String(input.attachmentPath),
+      attachmentContentType: contentType,
+      attachmentSize: size,
+    };
+  })
+  .handler(async ({ data, context }) => {
+    const { data: messageId, error } = await (context.supabase as any).rpc("send_conversation_message_with_attachment", {
+      _conversation_id: data.conversationId,
+      _body: data.body,
+      _attachment_path: data.attachmentPath,
+      _attachment_content_type: data.attachmentContentType,
+      _attachment_size: data.attachmentSize,
+    });
+    if (error || !messageId) throw new Error(error?.message ?? "We could not send your message.");
+    void emailMarketplaceMessage(data.conversationId, context.userId, messageId as string);
     return { messageId: messageId as string };
   });
 
