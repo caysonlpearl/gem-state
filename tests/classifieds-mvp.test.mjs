@@ -45,6 +45,7 @@ const listingUpgradeMigrationSource = await read(
 const accountCenterMigrationSource = await read(
   "supabase/migrations/20260918110000_add_account_center_tools.sql",
 );
+const savedSearchWorkerSource = await read("src/lib/saved-search-worker.server.ts");
 const glossarySource = await read("src/routes/glossary.tsx");
 const policiesSource = await read("src/routes/policies.tsx");
 const classifiedsFunctionsSource = await read("src/lib/classifieds.functions.ts");
@@ -341,6 +342,14 @@ test("saved searches reopen their full filters and update in place", () => {
   assert.match(browseSource, /Update saved search/);
   assert.match(accountCenterSource, /Edit filters/);
   assert.match(accountCenterSource, /params\.set\("savedSearchId", item\.id\)/);
+});
+
+test("saved-search alerts honor category-specific filters", () => {
+  assert.match(savedSearchWorkerSource, /vehicle_make/);
+  assert.match(savedSearchWorkerSource, /home_mode/);
+  assert.match(savedSearchWorkerSource, /job_employment_type/);
+  assert.match(savedSearchWorkerSource, /service_subcategory/);
+  assert.match(savedSearchWorkerSource, /classified_listing_details\(\*\)/);
 });
 
 test("seller billing is catalog-backed and settles upgrades through Stripe webhooks", () => {
