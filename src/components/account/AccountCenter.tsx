@@ -148,12 +148,15 @@ export function AccountCenter({ section, conversationId }: AccountCenterProps) {
   const notifications = useQuery({
     queryKey: ["notifications"],
     queryFn: () => fetchNotifications(),
-    enabled: section === "overview" || section === "notifications",
+    // Keep the header and account-sidebar unread badge accurate no matter
+    // which section is open.
+    enabled: true,
   });
   const conversations = useQuery({
     queryKey: ["conversations"],
     queryFn: () => fetchConversations(),
-    enabled: section === "overview" || section === "messages",
+    // The sidebar exposes the unread message count on every account view.
+    enabled: true,
   });
   const savedSearches = useQuery({
     queryKey: ["saved-searches"],
@@ -173,7 +176,10 @@ export function AccountCenter({ section, conversationId }: AccountCenterProps) {
   const sellerSetup = useQuery({
     queryKey: ["seller-setup"],
     queryFn: () => fetchSellerSetup(),
-    enabled: section === "overview" || section === "listings" || section === "billing" || section === "reviews",
+    // Seller billing is a persistent account destination, so determine its
+    // visibility for every section rather than only after opening a seller
+    // view.
+    enabled: true,
   });
   const listings = useQuery({
     queryKey: ["my-listings"],
