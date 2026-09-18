@@ -265,7 +265,13 @@ const jobExperienceOptions = ["Any experience", "1–2 years", "3–4 years", "5
 const jobPostedOptions = ["Any time", "Last hour", "Last 24 hours", "Last 7 days", "Last 30 days"] as const;
 const jobEducationOptions = ["Any education", "2-year Degree", "4-year Degree", "Advanced Degree", "High School", "None"] as const;
 
-const homePreviewRows = [
+type HomePreviewRow = {
+  title: string;
+  action: string;
+  cards: { name: string; location: string; price: string; facts: string; image: string }[];
+};
+
+const homePreviewRows: HomePreviewRow[] = [
   {
     title: "Featured homes for sale",
     action: "Browse homes for sale",
@@ -302,11 +308,11 @@ const homePreviewRows = [
       { name: "Maple Street Cottage", location: "Eagle, ID", price: "$2,400 / mo", facts: "3 bed · 2 bath · No HOA", image: "https://images.unsplash.com/photo-1449844908441-8829872d2607?auto=format&fit=crop&w=900&q=80" },
     ],
   },
-] as const;
+];
 
-const homePreviewRowsByTab: Record<HomeTab, readonly (typeof homePreviewRows)[number][]> = {
+const homePreviewRowsByTab: Record<HomeTab, HomePreviewRow[]> = {
   buy: [
-    homePreviewRows[0],
+    homePreviewRows[0]!,
     {
       title: "Price drops to watch",
       action: "See price drops",
@@ -321,7 +327,7 @@ const homePreviewRowsByTab: Record<HomeTab, readonly (typeof homePreviewRows)[nu
     },
   ],
   build: [
-    homePreviewRows[1],
+    homePreviewRows[1]!,
     {
       title: "Quick move-in homes",
       action: "Find move-in ready builds",
@@ -336,7 +342,7 @@ const homePreviewRowsByTab: Record<HomeTab, readonly (typeof homePreviewRows)[nu
     },
   ],
   rent: [
-    homePreviewRows[2],
+    homePreviewRows[2]!,
     {
       title: "Pet-friendly rentals",
       action: "Browse pet-friendly homes",
@@ -1354,7 +1360,7 @@ type HomepagePreviewRow = {
   cards: HomepagePreviewCard[];
 };
 
-const previewCard = (title: string, location: string, price: string, detail: string, image: string, badge?: string): HomepagePreviewCard => ({ title, location, price, detail, image, badge });
+const previewCard = (title: string, location: string, price: string, detail: string, image: string, badge?: string): HomepagePreviewCard => ({ title, location, price, detail, image, ...(badge ? { badge } : {}) });
 
 const classifiedShowcaseRows: HomepagePreviewRow[] = [
   {
