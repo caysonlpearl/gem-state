@@ -2,7 +2,9 @@
 export async function authenticateCronRequest(
   request: Request,
 ): Promise<Response | null> {
-  const currentSecret = process.env['CRON_SECRET']
+  // Lovable's managed scheduled-job secret uses the LOVABLE_CRON_SECRET
+  // name. Keep CRON_SECRET for external schedulers and local deployments.
+  const currentSecret = process.env['CRON_SECRET'] || process.env['LOVABLE_CRON_SECRET']
   const previousSecret = process.env['CRON_SECRET_PREVIOUS']
 
   if (!currentSecret) {

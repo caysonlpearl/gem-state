@@ -50,6 +50,10 @@ export type MyListing = {
   highestBidCents?: number | null;
   activeBidCount?: number;
   authorizedBidCount?: number;
+  impressions?: number;
+  views?: number;
+  leadCount?: number;
+  upgradeStatus?: string | null;
 };
 
 export type MyOrder = {
@@ -594,6 +598,37 @@ export const getMyListings = createServerFn({ method: "GET" })
     if (askError) throw new Error(askError.message);
     if (bidError) throw new Error(bidError.message);
 
+    const askIds = (asks ?? []).map((row: any) => row.id as string);
+    const [metricsResult, conversationResult, inquiryResult, upgradeResult] = askIds.length
+      ? await Promise.all([
+          client
+            .from("classified_listing_metrics")
+            .select("listing_id,impressions,views")
+            .in("listing_id", askIds),
+          client.from("conversations").select("listing_id").in("listing_id", askIds),
+          client.from("listing_inquiries").select("listing_id").in("listing_id", askIds),
+          client
+            .from("listing_upgrade_purchases")
+            .select("listing_id,status,created_at")
+            .in("listing_id", askIds)
+            .order("created_at", { ascending: false }),
+        ])
+      : [{ data: [], error: null }, { data: [], error: null }, { data: [], error: null }, { data: [], error: null }];
+    for (const result of [metricsResult, conversationResult, inquiryResult, upgradeResult]) {
+      if (result.error) throw new Error(result.error.message);
+    }
+    const metricsByListing = new Map(
+      (metricsResult.data ?? []).map((row: any) => [row.listing_id, row]),
+    );
+    const leadsByListing = new Map<string, number>();
+    for (const row of [...(conversationResult.data ?? []), ...(inquiryResult.data ?? [])] as any[]) {
+      leadsByListing.set(row.listing_id, (leadsByListing.get(row.listing_id) ?? 0) + 1);
+    }
+    const upgradesByListing = new Map<string, string>();
+    for (const row of (upgradeResult.data ?? []) as any[]) {
+      if (!upgradesByListing.has(row.listing_id)) upgradesByListing.set(row.listing_id, row.status);
+    }
+
     const variantIds = [...new Set((asks ?? []).map((row: any) => row.variant_id as string))];
     const { data: summaries } =
       variantIds.length > 0
@@ -662,6 +697,14 @@ export const getMyListings = createServerFn({ method: "GET" })
               authorizedBidCount: Number(summary.authorized_bid_count ?? 0),
             }
           : {}),
+        ...(metricsByListing.has(row["id"] as string)
+          ? {
+              impressions: Number(metricsByListing.get(row["id"] as string)?.impressions ?? 0),
+              views: Number(metricsByListing.get(row["id"] as string)?.views ?? 0),
+            }
+          : { impressions: 0, views: 0 }),
+        leadCount: leadsByListing.get(row["id"] as string) ?? 0,
+        upgradeStatus: upgradesByListing.get(row["id"] as string) ?? null,
         ...(row["evidence_count"] != null
           ? { evidenceCount: row["evidence_count"] as number }
           : {}),

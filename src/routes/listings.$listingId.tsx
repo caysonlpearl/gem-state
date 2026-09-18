@@ -283,8 +283,6 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
   if (!seller) return null;
   const contactLinkClass =
     "inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-border text-[12px] font-medium transition-colors hover:border-primary hover:bg-primary/5 hover:text-primary";
-  const unavailableContactClass =
-    "inline-flex h-9 cursor-not-allowed items-center justify-center gap-1.5 rounded-md border border-border/70 text-[12px] font-medium text-muted-foreground/50";
   return (
     <section className="soft-card p-5 sm:p-6">
       <div className="flex items-start gap-3">
@@ -383,24 +381,16 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
           Contact seller
         </p>
         <div className="mt-2 grid grid-cols-2 gap-2">
-          {seller.contactPhone ? (
-            <a href={`sms:${seller.contactPhone}`} className={contactLinkClass}>
+          {seller.contactTextPhone ? (
+            <a href={`sms:${seller.contactTextPhone}`} className={contactLinkClass}>
               <DeviceMobile size={15} aria-hidden="true" /> Text
             </a>
-          ) : (
-            <button type="button" disabled className={unavailableContactClass}>
-              <DeviceMobile size={15} aria-hidden="true" /> Text
-            </button>
-          )}
+          ) : null}
           {seller.contactPhone ? (
             <a href={`tel:${seller.contactPhone}`} className={contactLinkClass}>
               <Phone size={15} aria-hidden="true" /> Call
             </a>
-          ) : (
-            <button type="button" disabled className={unavailableContactClass}>
-              <Phone size={15} aria-hidden="true" /> Call
-            </button>
-          )}
+          ) : null}
           {seller.contactEmail ? (
             <a
               href={`mailto:${seller.contactEmail}?subject=${encodeURIComponent(listing.title)}`}
@@ -408,16 +398,18 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
             >
               <EnvelopeSimple size={15} aria-hidden="true" /> Email
             </a>
-          ) : (
-            <button type="button" disabled className={unavailableContactClass}>
-              <EnvelopeSimple size={15} aria-hidden="true" /> Email
-            </button>
-          )}
+          ) : null}
         </div>
-        <p className="mt-2 text-[10.5px] leading-relaxed text-muted-foreground">
-          Texts, calls, and emails go directly to the seller. Use Gem State messaging below if you
-          prefer to keep the conversation in the marketplace.
-        </p>
+        {seller.contactTextPhone || seller.contactPhone || seller.contactEmail ? (
+          <p className="mt-2 text-[10.5px] leading-relaxed text-muted-foreground">
+            Enabled contact options go directly to the seller. Use Gem State messaging below if you
+            prefer to keep the conversation in the marketplace.
+          </p>
+        ) : (
+          <p className="mt-2 text-[10.5px] leading-relaxed text-muted-foreground">
+            This seller has not enabled direct phone, text, or email contact for this listing.
+          </p>
+        )}
       </div>
       <Link
         to="/sellers/$slug"

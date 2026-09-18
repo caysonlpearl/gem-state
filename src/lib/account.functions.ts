@@ -7,6 +7,10 @@ export type MemberIntent = (typeof MEMBER_INTENTS)[number];
 export type MyAccount = {
   userId: string;
   email: string | null;
+  emailVerified: boolean;
+  phoneVerified: boolean;
+  googleConnected: boolean;
+  lastSignInAt: string | null;
   displayName: string | null;
   avatarUrl: string | null;
   homeResortCode: string | null;
@@ -36,13 +40,18 @@ export const getMyAccount = createServerFn({ method: "GET" })
   .handler(async ({ context }): Promise<MyAccount> => {
     const { supabase, userId, claims } = context;
 
-    const [{ data: profile, error: profileError }, { data: roles, error: rolesError }] = await Promise.all([
+    const [
+      { data: profile, error: profileError },
+      { data: roles, error: rolesError },
+      { data: authUser },
+    ] = await Promise.all([
       supabase
         .from("profiles")
         .select("display_name, avatar_url, home_resort_code, primary_intent, onboarded_at, created_at")
         .eq("id", userId)
         .maybeSingle(),
       supabase.from("user_roles").select("role").eq("user_id", userId),
+      supabase.auth.getUser(),
     ]);
 
     if (profileError) throw new Error(profileError.message);
@@ -57,6 +66,16 @@ export const getMyAccount = createServerFn({ method: "GET" })
     return {
       userId,
       email: (claims as { email?: string } | null)?.email ?? null,
+      emailVerified:
+        Boolean((claims as { email_verified?: boolean } | null)?.email_verified) ||
+        Boolean(authUser?.user?.email_confirmed_at),
+      phoneVerified:
+        Boolean((claims as { phone_verified?: boolean } | null)?.phone_verified) ||
+        Boolean(authUser?.user?.phone_confirmed_at),
+      googleConnected: Boolean(
+        authUser?.user?.identities?.some((identity) => identity.provider === "google"),
+      ),
+      lastSignInAt: authUser?.user?.last_sign_in_at ?? null,
       displayName: profile?.display_name ?? null,
       avatarUrl: profile?.avatar_url ?? null,
       homeResortCode: profile?.home_resort_code ?? null,
