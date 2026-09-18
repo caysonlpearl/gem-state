@@ -13,6 +13,7 @@ import { template as disputeUpdate } from "./dispute-update";
 import { template as sellerReviewRequest } from "./seller-review-request";
 import { template as listingInquiryReceived } from "./listing-inquiry-received";
 import { template as marketplaceMessage } from "./marketplace-message";
+import { template as savedSearchMatch } from "./saved-search-match";
 
 export interface TemplateEntry {
   component: ComponentType<any>;
@@ -41,4 +42,5 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   "dispute-update": disputeUpdate,
   "listing-inquiry-received": listingInquiryReceived,
   "marketplace-message": marketplaceMessage,
+  "saved-search-match": savedSearchMatch,
 };

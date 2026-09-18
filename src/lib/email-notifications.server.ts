@@ -166,6 +166,26 @@ export async function emailMarketplaceMessage(
   }
 }
 
+/** Sends a preference-aware alert for a new saved-search match. */
+export async function emailSavedSearchMatch(
+  userId: string,
+  data: { searchName: string; itemName: string; price?: string; listingPath: string },
+  matchId: string,
+): Promise<void> {
+  try {
+    const client = await admin();
+    const { data: preferences } = await client
+      .from("account_notification_preferences")
+      .select("saved_search_matches")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (preferences?.saved_search_matches === false) return;
+    await emailMember(userId, "saved-search-match", data, `saved-search-match-${matchId}`);
+  } catch (error) {
+    console.error("Saved-search email was not delivered", error);
+  }
+}
+
 /** Seller email when a buyer sends a message about an exact classified listing. */
 export async function emailListingInquiry(inquiryId: string): Promise<void> {
   try {
