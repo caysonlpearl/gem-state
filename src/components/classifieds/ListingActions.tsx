@@ -1,14 +1,18 @@
 import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Calculator, Info } from "@phosphor-icons/react";
 
 import { brand } from "@/config/brand";
 import { formatUsd } from "@/config/fees";
 import { useAuth } from "@/hooks/useAuth";
-import { supabase } from "@/integrations/supabase/client";
 import type { ClassifiedDetail } from "@/lib/classifieds.functions";
+import { startConversation } from "@/lib/conversation.functions";
+
+// The legacy create_listing_inquiry RPC remains available for existing seller records;
+// new listing contact now starts a two-way conversation through startConversation.
 
 const DEFAULT_MESSAGE = "Hi, is this still available? I would love to learn more.";
 const DEFAULT_APPLY_MESSAGE =
@@ -39,6 +43,7 @@ export function ListingActions({
   const [message, setMessage] = useState(isJobApply ? DEFAULT_APPLY_MESSAGE : DEFAULT_MESSAGE);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [loanTerm, setLoanTerm] = useState(isMortgage ? "360" : "60");
+  const start = useServerFn(startConversation);
   const [downPayment, setDownPayment] = useState(
     isMortgage ? String(Math.round((listing.priceCents / 100) * 0.2)) : "0",
   );
@@ -55,16 +60,7 @@ export function ListingActions({
     principal === 0 ? 0 : (principal * monthlyRate) / (1 - Math.pow(1 + monthlyRate, -payments));
 
   const inquiryMutation = useMutation({
-    mutationFn: async () => {
-      const { data: inquiryId, error } = await supabase.rpc("create_listing_inquiry", {
-        _listing_id: listing.id,
-        _message: message,
-      });
-      if (error || !inquiryId) {
-        throw new Error(error?.message ?? "We could not send your message.");
-      }
-      return inquiryId;
-    },
+    mutationFn: () => start({ data: { listingId: listing.id, body: message } }),
     onSuccess: () => {
       toast.success(isJobApply ? "Application sent to the employer." : "Message sent to the seller.");
       setMessage(isJobApply ? DEFAULT_APPLY_MESSAGE : DEFAULT_MESSAGE);
@@ -213,7 +209,8 @@ export function ListingActions({
             }
           />
           <p className="text-[11px] leading-relaxed text-muted-foreground">
-            Your email will be shared with the seller so they can reply directly.
+            Your message will appear in Gem State Messages. The seller will only see contact
+            details you have explicitly enabled in your profile preferences.
           </p>
           <button
             type="submit"

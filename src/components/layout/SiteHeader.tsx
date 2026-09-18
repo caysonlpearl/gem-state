@@ -206,7 +206,8 @@ export function SiteHeader() {
                   Account
                 </Link>
                 <Link
-                  to="/watchlist"
+                  to="/account"
+                  search={{ section: "saved" }}
                   role="menuitem"
                   onClick={() => setAccountMenuOpen(false)}
                   className="flex h-10 items-center gap-2 rounded-md px-3 text-[12.5px] font-medium transition-colors hover:bg-secondary"
@@ -216,7 +217,8 @@ export function SiteHeader() {
                   Saved
                 </Link>
                 <Link
-                  to="/selling"
+                  to="/account"
+                  search={{ section: "listings" }}
                   role="menuitem"
                   onClick={() => setAccountMenuOpen(false)}
                   className="flex h-10 items-center gap-2 rounded-md px-3 text-[12.5px] font-medium transition-colors hover:bg-secondary"
@@ -224,6 +226,26 @@ export function SiteHeader() {
                 >
                   <Storefront size={17} weight="duotone" aria-hidden="true" />
                   Selling
+                </Link>
+                <Link
+                  to="/account"
+                  search={{ section: "messages" }}
+                  role="menuitem"
+                  onClick={() => setAccountMenuOpen(false)}
+                  className="flex h-10 items-center gap-2 rounded-md px-3 text-[12.5px] font-medium transition-colors hover:bg-secondary"
+                  {...pinned}
+                >
+                  Messages
+                </Link>
+                <Link
+                  to="/account"
+                  search={{ section: "notifications" }}
+                  role="menuitem"
+                  onClick={() => setAccountMenuOpen(false)}
+                  className="flex h-10 items-center gap-2 rounded-md px-3 text-[12.5px] font-medium transition-colors hover:bg-secondary"
+                  {...pinned}
+                >
+                  Notifications
                 </Link>
               </div>
             )}

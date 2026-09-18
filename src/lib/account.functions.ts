@@ -8,9 +8,11 @@ export type MyAccount = {
   userId: string;
   email: string | null;
   displayName: string | null;
+  avatarUrl: string | null;
   homeResortCode: string | null;
   primaryIntent: MemberIntent | null;
   onboardedAt: string | null;
+  createdAt: string | null;
   roles: string[];
   /** Fraction 0–1 of the profile fields we ask for during onboarding. */
   completion: number;
@@ -37,7 +39,7 @@ export const getMyAccount = createServerFn({ method: "GET" })
     const [{ data: profile, error: profileError }, { data: roles, error: rolesError }] = await Promise.all([
       supabase
         .from("profiles")
-        .select("display_name, home_resort_code, primary_intent, onboarded_at")
+        .select("display_name, avatar_url, home_resort_code, primary_intent, onboarded_at, created_at")
         .eq("id", userId)
         .maybeSingle(),
       supabase.from("user_roles").select("role").eq("user_id", userId),
@@ -56,9 +58,11 @@ export const getMyAccount = createServerFn({ method: "GET" })
       userId,
       email: (claims as { email?: string } | null)?.email ?? null,
       displayName: profile?.display_name ?? null,
+      avatarUrl: profile?.avatar_url ?? null,
       homeResortCode: profile?.home_resort_code ?? null,
       primaryIntent: isIntent(profile?.primary_intent) ? profile.primary_intent : null,
       onboardedAt: profile?.onboarded_at ?? null,
+      createdAt: profile?.created_at ?? null,
       roles: (roles ?? []).map((r) => r.role as string),
       completion: filled / 3,
     };
