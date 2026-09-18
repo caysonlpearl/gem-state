@@ -473,6 +473,76 @@ async function releaseFailedOfferCapture(intent: Stripe.PaymentIntent) {
     .neq("status", "accepted");
 }
 
+async function finalizeListingUpgradeCheckout(session: Stripe.Checkout.Session) {
+  const purchaseId = session.metadata?.["gemstate_purchase_id"] ?? "";
+  if (!purchaseId) return;
+  if (session.payment_status !== "paid" && session.status !== "complete") return;
+
+  const admin = supabaseAdmin as any;
+  const { data: purchase, error: purchaseError } = await admin
+    .from("listing_upgrade_purchases")
+    .select("id,user_id,listing_id,status,upgrade_id,amount_cents")
+    .eq("id", purchaseId)
+    .maybeSingle();
+  if (purchaseError) throw new Error(purchaseError.message);
+  if (!purchase || purchase.status === "paid") return;
+
+  const { data: upgrade, error: upgradeError } = await admin
+    .from("listing_upgrade_catalog")
+    .select("code,name,duration_days")
+    .eq("id", purchase.upgrade_id)
+    .maybeSingle();
+  if (upgradeError) throw new Error(upgradeError.message);
+  if (!upgrade) throw new Error("Listing upgrade catalog entry is missing.");
+
+  const paidAt = new Date().toISOString();
+  const listingUpdate: Record<string, unknown> = {};
+  if (upgrade.code === "featured") {
+    listingUpdate.featured_until = new Date(Date.now() + Number(upgrade.duration_days || 7) * 864e5).toISOString();
+  } else if (upgrade.code === "bump") {
+    listingUpdate.promoted_at = paidAt;
+  } else if (upgrade.code === "extend") {
+    const { data: listing } = await admin.from("asks").select("expires_at").eq("id", purchase.listing_id).maybeSingle();
+    const base = Math.max(Date.now(), listing?.expires_at ? new Date(listing.expires_at).getTime() : Date.now());
+    listingUpdate.expires_at = new Date(base + Number(upgrade.duration_days || 30) * 864e5).toISOString();
+  }
+  if (Object.keys(listingUpdate).length) {
+    const { error: listingError } = await admin.from("asks").update(listingUpdate).eq("id", purchase.listing_id).eq("seller_id", purchase.user_id);
+    if (listingError) throw new Error(listingError.message);
+  }
+  const saved = await admin
+    .from("listing_upgrade_purchases")
+    .update({
+      status: "paid",
+      stripe_checkout_session_id: session.id,
+      stripe_payment_intent_id: typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id ?? null,
+      paid_at: paidAt,
+    })
+    .eq("id", purchase.id)
+    .eq("status", "pending");
+  if (saved.error) throw new Error(saved.error.message);
+  await admin.from("notifications").insert({
+    user_id: purchase.user_id,
+    kind: "listing_upgrade",
+    title: "Listing upgrade applied",
+    body: `${upgrade.name} was applied to your listing.`,
+    order_id: null,
+    entity_type: "listing_upgrade",
+    entity_id: purchase.id,
+    destination_url: "/account?section=billing",
+  });
+}
+
+async function expireListingUpgradeCheckout(session: Stripe.Checkout.Session) {
+  const purchaseId = session.metadata?.["gemstate_purchase_id"] ?? "";
+  if (!purchaseId) return;
+  await (supabaseAdmin as any)
+    .from("listing_upgrade_purchases")
+    .update({ status: "canceled" })
+    .eq("id", purchaseId)
+    .eq("status", "pending");
+}
+
 export async function handleStripeWebhook(request: Request, runtimeEnv?: unknown) {
   const secrets = [
     ...runtimeSecretCandidates(runtimeEnv, "STRIPE_WEBHOOK_SECRET"),
@@ -520,10 +590,18 @@ export async function handleStripeWebhook(request: Request, runtimeEnv?: unknown
     switch (event.type) {
       case "checkout.session.completed":
       case "checkout.session.async_payment_succeeded":
-        await finalizeCheckoutSession(stripe, event.data.object as Stripe.Checkout.Session);
+        if ((event.data.object as Stripe.Checkout.Session).metadata?.["gemstate_purpose"] === "listing_upgrade") {
+          await finalizeListingUpgradeCheckout(event.data.object as Stripe.Checkout.Session);
+        } else {
+          await finalizeCheckoutSession(stripe, event.data.object as Stripe.Checkout.Session);
+        }
         break;
       case "checkout.session.expired":
-        await expireCheckoutSession(event.data.object as Stripe.Checkout.Session);
+        if ((event.data.object as Stripe.Checkout.Session).metadata?.["gemstate_purpose"] === "listing_upgrade") {
+          await expireListingUpgradeCheckout(event.data.object as Stripe.Checkout.Session);
+        } else {
+          await expireCheckoutSession(event.data.object as Stripe.Checkout.Session);
+        }
         break;
       case "account.updated":
         await syncConnectedAccount(event.data.object as Stripe.Account);

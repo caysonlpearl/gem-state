@@ -54,6 +54,7 @@ export type WatchedVariant = {
   listingId: string | null;
   productSlug: string;
   productName: string;
+  categoryName: string | null;
   variantLabel: string;
   createdAt: string;
   lowestAskCents: number | null;
@@ -267,7 +268,7 @@ export const getMyWatchlist = createServerFn({ method: "GET" })
     const { data: rows, error } = await context.supabase
       .from("watchlist")
       .select(
-        "variant_id, created_at, product_variants!inner(id, size, color, edition, products!inner(slug, name))",
+        "variant_id, created_at, product_variants!inner(id, size, color, edition, products!inner(slug, name, categories(name)))",
       )
       .eq("user_id", context.userId)
       .order("created_at", { ascending: false });
@@ -312,7 +313,7 @@ export const getMyWatchlist = createServerFn({ method: "GET" })
         size: string | null;
         color: string | null;
         edition: string | null;
-        products: { slug: string; name: string };
+        products: { slug: string; name: string; categories?: { name: string } | null };
       };
       const market = marketByVariant.get(r.variant_id as string);
       return {
@@ -320,6 +321,7 @@ export const getMyWatchlist = createServerFn({ method: "GET" })
         listingId: listingByVariant.get(r.variant_id as string) ?? null,
         productSlug: variant.products.slug,
         productName: variant.products.name,
+        categoryName: variant.products.categories?.name ?? null,
         variantLabel: variantLabel(variant),
         createdAt: r.created_at as string,
         lowestAskCents: (market?.lowest_ask_cents as number | null) ?? null,

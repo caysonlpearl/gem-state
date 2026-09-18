@@ -35,6 +35,16 @@ const sellSource = await read("src/routes/sell.tsx");
 const sellerSetupSource = await read("src/routes/_authenticated/seller-setup.tsx");
 const sellingSource = await read("src/routes/_authenticated/selling.tsx");
 const accountSource = await read("src/routes/_authenticated/account.tsx");
+const accountCenterSource = await read("src/components/account/AccountCenter.tsx");
+const accountCenterFunctionsSource = await read("src/lib/account-center.functions.ts");
+const conversationFunctionsSource = await read("src/lib/conversation.functions.ts");
+const listingUpgradeFunctionsSource = await read("src/lib/listing-upgrade.functions.ts");
+const listingUpgradeMigrationSource = await read(
+  "supabase/migrations/20260918113000_add_seller_listing_upgrades.sql",
+);
+const accountCenterMigrationSource = await read(
+  "supabase/migrations/20260918110000_add_account_center_tools.sql",
+);
 const glossarySource = await read("src/routes/glossary.tsx");
 const policiesSource = await read("src/routes/policies.tsx");
 const classifiedsFunctionsSource = await read("src/lib/classifieds.functions.ts");
@@ -289,6 +299,51 @@ test("direct-contact MVP copy is consistent across buyer and seller surfaces", (
     /MVP seed record; replace demo media and copy before launch/,
   );
   assert.match(mvpCopyMigrationSource, /UPDATE storage\.buckets/);
+});
+
+test("account center exposes the unified sections and preserves legacy entry points", () => {
+  for (const section of [
+    "overview",
+    "profile",
+    "settings",
+    "listings",
+    "saved",
+    "searches",
+    "messages",
+    "notifications",
+    "reviews",
+    "billing",
+  ]) {
+    assert.match(accountCenterSource, new RegExp(`\\"${section}\\"`));
+  }
+  assert.match(accountSource, /validateSearch/);
+  assert.match(accountSource, /conversation/);
+  assert.match(accountCenterSource, /Saved listings/);
+  assert.match(accountCenterSource, /Saved searches/);
+  assert.match(accountCenterSource, /Messages/);
+  assert.match(accountCenterSource, /Seller billing/);
+});
+
+test("account center writes are authenticated and conversations are participant-scoped", () => {
+  assert.match(accountCenterFunctionsSource, /requireSupabaseAuth/);
+  assert.match(conversationFunctionsSource, /requireSupabaseAuth/);
+  assert.match(accountCenterMigrationSource, /alter table if exists public\.notifications/);
+  assert.match(accountCenterMigrationSource, /Participants read messages/);
+  assert.match(accountCenterMigrationSource, /security definer/i);
+  assert.match(accountCenterMigrationSource, /conversation_start/);
+  assert.match(accountCenterMigrationSource, /conversation_message/);
+  assert.match(accountCenterMigrationSource, /block_conversation/);
+});
+
+test("seller billing is catalog-backed and settles upgrades through Stripe webhooks", () => {
+  assert.match(listingUpgradeFunctionsSource, /getListingUpgradeOptions/);
+  assert.match(listingUpgradeFunctionsSource, /createListingUpgradeCheckout/);
+  assert.match(listingUpgradeFunctionsSource, /idempotencyKey/);
+  assert.match(listingUpgradeMigrationSource, /listing_upgrade_catalog/);
+  assert.match(listingUpgradeMigrationSource, /listing_upgrade_purchases/);
+  assert.match(stripeServerSource, /gemstate_purpose/);
+  assert.match(stripeServerSource, /finalizeListingUpgradeCheckout/);
+  assert.match(accountCenterSource, /Continue to Stripe/);
 });
 
 test("admin moderation reviews classified listings instead of publishing them directly", () => {

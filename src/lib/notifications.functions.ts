@@ -16,6 +16,9 @@ export type MemberNotification = {
   title: string;
   body: string;
   orderId: string | null;
+  entityType: string | null;
+  entityId: string | null;
+  destinationUrl: string | null;
   readAt: string | null;
   createdAt: string;
 };
@@ -23,9 +26,10 @@ export type MemberNotification = {
 export const getMyNotifications = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<{ items: MemberNotification[]; unread: number }> => {
-    const { data, error } = await context.supabase
+    const client = context.supabase as any;
+    const { data, error } = await client
       .from("notifications")
-      .select("id, kind, title, body, order_id, read_at, created_at")
+      .select("id, kind, title, body, order_id, entity_type, entity_id, destination_url, read_at, created_at")
       .order("created_at", { ascending: false })
       .limit(60);
     if (error) throw new Error(error.message);
@@ -36,6 +40,9 @@ export const getMyNotifications = createServerFn({ method: "GET" })
       title: row.title,
       body: row.body,
       orderId: row.order_id,
+      entityType: row.entity_type ?? null,
+      entityId: row.entity_id ?? null,
+      destinationUrl: row.destination_url ?? null,
       readAt: row.read_at,
       createdAt: row.created_at,
     }));

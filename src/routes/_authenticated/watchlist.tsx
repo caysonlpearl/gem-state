@@ -1,11 +1,5 @@
 import { useEffect } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
-
-import { formatUsd } from "@/config/fees";
-import { trackEvent } from "@/lib/analytics";
-import { getMyWatchlist } from "@/lib/community.functions";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_authenticated/watchlist")({
   head: () => ({
@@ -31,84 +25,11 @@ export const Route = createFileRoute("/_authenticated/watchlist")({
 });
 
 function WatchlistPage() {
-  const fetchWatchlist = useServerFn(getMyWatchlist);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    void trackEvent("page_view", { route: "/watchlist" });
-  }, []);
+    void navigate({ to: "/account", search: { section: "saved" }, replace: true });
+  }, [navigate]);
 
-  const watchlist = useQuery({ queryKey: ["my-watchlist"], queryFn: () => fetchWatchlist() });
-  const list = watchlist.data ?? [];
-
-  return (
-    <div className="mx-auto max-w-[980px] px-4 py-10 sm:px-6">
-      <h1 className="text-[22px] font-semibold tracking-tight">Saved listings</h1>
-      <p className="mt-1 max-w-[62ch] text-[13px] leading-relaxed text-muted-foreground">
-        The listings you save are private to you. Saving an item does not reserve it.
-      </p>
-
-      {watchlist.isLoading && <p className="mt-8 text-[13px] text-muted-foreground">Loading…</p>}
-      {watchlist.isError && (
-        <p className="mt-8 text-[13px] text-destructive">
-          Your watchlist could not be loaded right now. Refresh to try again.
-        </p>
-      )}
-      {!watchlist.isLoading && !watchlist.isError && list.length === 0 && (
-        <p className="mt-8 text-[13px] text-muted-foreground">
-          You have not saved any listings yet. Open a listing and select its save button.{" "}
-          <Link to="/browse" className="underline underline-offset-2">
-            Browse listings
-          </Link>
-          .
-        </p>
-      )}
-
-      {list.length > 0 && (
-        <ul className="mt-8 overflow-hidden rounded-lg border border-border bg-card">
-          {list.map((item) => (
-            <li
-              key={item.variantId}
-              className="hairline-b flex flex-wrap items-center justify-between gap-3 px-4 py-3 last:border-b-0"
-            >
-              <div>
-                {item.listingId ? (
-                  <Link
-                    to="/listings/$listingId"
-                    params={{ listingId: item.listingId }}
-                    className="text-[13px] font-medium hover:underline"
-                  >
-                    {item.productName}
-                  </Link>
-                ) : (
-                  <Link
-                    to="/browse"
-                    search={{ q: item.productName }}
-                    className="text-[13px] font-medium hover:underline"
-                  >
-                    {item.productName}
-                  </Link>
-                )}
-                <p className="text-[12px] text-muted-foreground">
-                  {item.variantLabel} · {item.activeAskCount} active listing
-                  {item.activeAskCount === 1 ? "" : "s"} · {item.activeBidCount} active offer
-                  {item.activeBidCount === 1 ? "" : "s"} · {item.sightingCount} sighting
-                  {item.sightingCount === 1 ? "" : "s"}
-                </p>
-              </div>
-              <p className="numeric text-[12.5px]">
-                <span className="font-semibold">
-                  {item.lowestAskCents != null ? formatUsd(item.lowestAskCents) : "No listing"}
-                </span>
-                <span className="ml-2 text-muted-foreground">
-                  {item.highestBidCents != null
-                    ? `${formatUsd(item.highestBidCents)} offer`
-                    : "No offer"}
-                </span>
-              </p>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  );
+  return <div className="mx-auto max-w-[980px] px-4 py-16 text-[13px] text-muted-foreground">Opening Saved listings…</div>;
 }
