@@ -116,6 +116,56 @@ export async function emailMember(
   }
 }
 
+/** Sends a preference-aware alert for a two-way marketplace conversation. */
+export async function emailMarketplaceMessage(
+  conversationId: string,
+  senderId: string,
+  messageId?: string,
+): Promise<void> {
+  try {
+    const client = await admin();
+    const { data: conversation } = await client
+      .from("conversations")
+      .select("id,buyer_id,seller_id,listing_id,asks(products(name))")
+      .eq("id", conversationId)
+      .maybeSingle();
+    if (!conversation) return;
+
+    const recipientId = conversation.buyer_id === senderId ? conversation.seller_id : conversation.buyer_id;
+    const { data: preferences } = await client
+      .from("account_notification_preferences")
+      .select("message_alerts")
+      .eq("user_id", recipientId)
+      .maybeSingle();
+    if (preferences?.message_alerts === false) return;
+
+    let latestMessageQuery = client
+      .from("conversation_messages")
+      .select("id,body")
+    const { data: latestMessage } = await (messageId
+      ? latestMessageQuery.eq("id", messageId).maybeSingle()
+      : latestMessageQuery
+          .eq("conversation_id", conversationId)
+          .eq("sender_id", senderId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle());
+
+    await emailMember(
+      recipientId,
+      "marketplace-message",
+      {
+        itemName: conversation.asks?.products?.name ?? "Marketplace listing",
+        message: latestMessage?.body ?? "You have a new marketplace message.",
+        conversationPath: `/account?section=messages&conversation=${conversationId}`,
+      },
+      `conversation-message-${latestMessage?.id ?? `${conversationId}-${senderId}`}`,
+    );
+  } catch (error) {
+    console.error("Marketplace message email was not delivered", error);
+  }
+}
+
 /** Seller email when a buyer sends a message about an exact classified listing. */
 export async function emailListingInquiry(inquiryId: string): Promise<void> {
   try {
