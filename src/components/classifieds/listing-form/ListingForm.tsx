@@ -100,9 +100,10 @@ export function ListingForm(props: ListingFormProps) {
     mutationFn: async () => {
       const uploadNew = props.mode === "create" || files.length > 0;
       if (uploadNew) {
-        if (!photoRights) throw new Error("Confirm that you can publish these photos.");
         if (props.mode === "create" && files.length === 0)
           throw new Error("Add at least one listing photo.");
+        if (files.length > 0 && !photoRights)
+          throw new Error("Confirm that you can publish these photos.");
       }
 
       let evidencePaths: string[] = [];

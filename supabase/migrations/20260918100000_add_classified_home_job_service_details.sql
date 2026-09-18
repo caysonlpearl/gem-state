@@ -271,6 +271,6 @@ BEGIN
 END;
 $function$;
 
-REVOKE ALL ON FUNCTION public.update_classified_listing(uuid, text, text, uuid, integer, public.item_condition, text, text, text, text, text, numeric, numeric, numeric, numeric, jsonb, jsonb, jsonb, jsonb) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.update_classified_listing(uuid, text, text, uuid, integer, public.item_condition, text, text, text, text, text, numeric, numeric, numeric, numeric, jsonb, jsonb, jsonb, jsonb) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.update_classified_listing(uuid, text, text, uuid, integer, public.item_condition, text, text, text, text, text, numeric, numeric, numeric, numeric, jsonb, jsonb, jsonb, jsonb) TO service_role;
+REVOKE ALL ON FUNCTION public.update_classified_listing(uuid, text, text, uuid, integer, public.item_condition, text, text, text, text, text, text, numeric, numeric, numeric, numeric, jsonb, jsonb, jsonb, jsonb) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.update_classified_listing(uuid, text, text, uuid, integer, public.item_condition, text, text, text, text, text, text, numeric, numeric, numeric, numeric, jsonb, jsonb, jsonb, jsonb) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.update_classified_listing(uuid, text, text, uuid, integer, public.item_condition, text, text, text, text, text, text, numeric, numeric, numeric, numeric, jsonb, jsonb, jsonb, jsonb) TO service_role;

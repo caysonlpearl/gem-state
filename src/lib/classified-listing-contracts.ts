@@ -19,7 +19,7 @@ export const classifiedListingSchema = z
     description: z.string().trim().min(20).max(5000),
     category: z.enum(categorySlugs),
     condition: z.enum(["new_with_tags", "new_without_tags", "used_excellent", "used_good"]),
-    priceCents: z.number().int().min(100).max(50_000_000),
+    priceCents: z.number().int().min(100).max(1_000_000_000),
     state: z
       .string()
       .trim()

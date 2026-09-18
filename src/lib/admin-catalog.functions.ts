@@ -312,7 +312,7 @@ export const adminUpdateAskPrice = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { askId: string; priceCents: number; note?: string | null }) => {
     const priceCents = Math.round(Number(input.priceCents));
-    if (!Number.isFinite(priceCents) || priceCents < 100 || priceCents > 50000000) {
+    if (!Number.isFinite(priceCents) || priceCents < 100 || priceCents > 1000000000) {
       throw new Error("Enter a realistic listing price.");
     }
     return {
