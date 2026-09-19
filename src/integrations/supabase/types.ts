@@ -909,6 +909,52 @@ export type Database = {
           },
         ]
       }
+      classified_listing_metrics: {
+        Row: {
+          created_at: string
+          impressions: number
+          listing_id: string
+          updated_at: string
+          views: number
+        }
+        Insert: {
+          created_at?: string
+          impressions?: number
+          listing_id: string
+          updated_at?: string
+          views?: number
+        }
+        Update: {
+          created_at?: string
+          impressions?: number
+          listing_id?: string
+          updated_at?: string
+          views?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classified_listing_metrics_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: true
+            referencedRelation: "active_seller_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classified_listing_metrics_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: true
+            referencedRelation: "asks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classified_listing_metrics_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: true
+            referencedRelation: "variant_sourcing_offers"
+            referencedColumns: ["ask_id"]
+          },
+        ]
+      }
       collections: {
         Row: {
           created_at: string
@@ -5578,6 +5624,14 @@ export type Database = {
           shopper_comp_cents: number
           status: Database["public"]["Enums"]["shopper_quote_status"]
         }[]
+      }
+      record_classified_listing_impressions: {
+        Args: { _listing_ids: string[] }
+        Returns: undefined
+      }
+      record_classified_listing_view: {
+        Args: { _listing_id: string }
+        Returns: undefined
       }
       record_duplicate_sourcing_balance_refund: {
         Args: {
