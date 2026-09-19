@@ -36,6 +36,7 @@ import { Route as ShoppersSlugRouteImport } from './routes/shoppers.$slug'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as AuthenticatedAdminCatalogRouteImport } from './routes/_authenticated/admin.catalog'
 import { Route as AuthenticatedAdminClassifiedsRouteImport } from './routes/_authenticated/admin.classifieds'
+import { Route as AuthenticatedAdminDealerInventoryRouteImport } from './routes/_authenticated/admin.dealer-inventory'
 import { Route as AuthenticatedAdminMembersRouteImport } from './routes/_authenticated/admin.members'
 import { Route as AuthenticatedAdminProductsRouteImport } from './routes/_authenticated/admin.products'
 import { Route as AuthenticatedAdminValidationRouteImport } from './routes/_authenticated/admin.validation'
@@ -190,6 +191,12 @@ const AuthenticatedAdminClassifiedsRoute =
     path: '/admin/classifieds',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedAdminDealerInventoryRoute =
+  AuthenticatedAdminDealerInventoryRouteImport.update({
+    id: '/admin/dealer-inventory',
+    path: '/admin/dealer-inventory',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedAdminMembersRoute =
   AuthenticatedAdminMembersRouteImport.update({
     id: '/admin/members',
@@ -286,6 +293,7 @@ export interface FileRoutesByFullPath {
   '/shoppers/$slug': typeof ShoppersSlugRoute
   '/admin/catalog': typeof AuthenticatedAdminCatalogRoute
   '/admin/classifieds': typeof AuthenticatedAdminClassifiedsRoute
+  '/admin/dealer-inventory': typeof AuthenticatedAdminDealerInventoryRoute
   '/admin/members': typeof AuthenticatedAdminMembersRoute
   '/admin/products': typeof AuthenticatedAdminProductsRoute
   '/admin/validation': typeof AuthenticatedAdminValidationRoute
@@ -326,6 +334,7 @@ export interface FileRoutesByTo {
   '/shoppers/$slug': typeof ShoppersSlugRoute
   '/admin/catalog': typeof AuthenticatedAdminCatalogRoute
   '/admin/classifieds': typeof AuthenticatedAdminClassifiedsRoute
+  '/admin/dealer-inventory': typeof AuthenticatedAdminDealerInventoryRoute
   '/admin/members': typeof AuthenticatedAdminMembersRoute
   '/admin/products': typeof AuthenticatedAdminProductsRoute
   '/admin/validation': typeof AuthenticatedAdminValidationRoute
@@ -368,6 +377,7 @@ export interface FileRoutesById {
   '/shoppers/$slug': typeof ShoppersSlugRoute
   '/_authenticated/admin/catalog': typeof AuthenticatedAdminCatalogRoute
   '/_authenticated/admin/classifieds': typeof AuthenticatedAdminClassifiedsRoute
+  '/_authenticated/admin/dealer-inventory': typeof AuthenticatedAdminDealerInventoryRoute
   '/_authenticated/admin/members': typeof AuthenticatedAdminMembersRoute
   '/_authenticated/admin/products': typeof AuthenticatedAdminProductsRoute
   '/_authenticated/admin/validation': typeof AuthenticatedAdminValidationRoute
@@ -410,6 +420,7 @@ export interface FileRouteTypes {
     | '/shoppers/$slug'
     | '/admin/catalog'
     | '/admin/classifieds'
+    | '/admin/dealer-inventory'
     | '/admin/members'
     | '/admin/products'
     | '/admin/validation'
@@ -450,6 +461,7 @@ export interface FileRouteTypes {
     | '/shoppers/$slug'
     | '/admin/catalog'
     | '/admin/classifieds'
+    | '/admin/dealer-inventory'
     | '/admin/members'
     | '/admin/products'
     | '/admin/validation'
@@ -491,6 +503,7 @@ export interface FileRouteTypes {
     | '/shoppers/$slug'
     | '/_authenticated/admin/catalog'
     | '/_authenticated/admin/classifieds'
+    | '/_authenticated/admin/dealer-inventory'
     | '/_authenticated/admin/members'
     | '/_authenticated/admin/products'
     | '/_authenticated/admin/validation'
@@ -718,6 +731,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminClassifiedsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin/dealer-inventory': {
+      id: '/_authenticated/admin/dealer-inventory'
+      path: '/admin/dealer-inventory'
+      fullPath: '/admin/dealer-inventory'
+      preLoaderRoute: typeof AuthenticatedAdminDealerInventoryRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/admin/members': {
       id: '/_authenticated/admin/members'
       path: '/admin/members'
@@ -820,6 +840,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedWatchlistRoute: typeof AuthenticatedWatchlistRoute
   AuthenticatedAdminCatalogRoute: typeof AuthenticatedAdminCatalogRoute
   AuthenticatedAdminClassifiedsRoute: typeof AuthenticatedAdminClassifiedsRoute
+  AuthenticatedAdminDealerInventoryRoute: typeof AuthenticatedAdminDealerInventoryRoute
   AuthenticatedAdminMembersRoute: typeof AuthenticatedAdminMembersRoute
   AuthenticatedAdminProductsRoute: typeof AuthenticatedAdminProductsRoute
   AuthenticatedAdminValidationRoute: typeof AuthenticatedAdminValidationRoute
@@ -845,6 +866,8 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedWatchlistRoute: AuthenticatedWatchlistRoute,
   AuthenticatedAdminCatalogRoute: AuthenticatedAdminCatalogRoute,
   AuthenticatedAdminClassifiedsRoute: AuthenticatedAdminClassifiedsRoute,
+  AuthenticatedAdminDealerInventoryRoute:
+    AuthenticatedAdminDealerInventoryRoute,
   AuthenticatedAdminMembersRoute: AuthenticatedAdminMembersRoute,
   AuthenticatedAdminProductsRoute: AuthenticatedAdminProductsRoute,
   AuthenticatedAdminValidationRoute: AuthenticatedAdminValidationRoute,
