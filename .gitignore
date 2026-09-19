@@ -27,6 +27,10 @@ public/models/drafts/
 # Supabase CLI local cache
 supabase/.temp/
 
+# Local secrets -- never commit real credentials (SUPABASE_SERVICE_ROLE_KEY etc.)
+.env
+.env.local
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
