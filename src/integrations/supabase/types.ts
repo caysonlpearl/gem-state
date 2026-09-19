@@ -3189,6 +3189,59 @@ export type Database = {
         }
         Relationships: []
       }
+      saved_search_matches: {
+        Row: {
+          emailed_at: string | null
+          id: string
+          listing_id: string
+          matched_at: string
+          saved_search_id: string
+        }
+        Insert: {
+          emailed_at?: string | null
+          id?: string
+          listing_id: string
+          matched_at?: string
+          saved_search_id: string
+        }
+        Update: {
+          emailed_at?: string | null
+          id?: string
+          listing_id?: string
+          matched_at?: string
+          saved_search_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_search_matches_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "active_seller_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saved_search_matches_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "asks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saved_search_matches_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "variant_sourcing_offers"
+            referencedColumns: ["ask_id"]
+          },
+          {
+            foreignKeyName: "saved_search_matches_saved_search_id_fkey"
+            columns: ["saved_search_id"]
+            isOneToOne: false
+            referencedRelation: "saved_searches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       saved_searches: {
         Row: {
           created_at: string
@@ -5685,6 +5738,16 @@ export type Database = {
         Args: { _body: string; _conversation_id: string }
         Returns: string
       }
+      send_conversation_message_with_attachment: {
+        Args: {
+          _attachment_content_type: string
+          _attachment_path: string
+          _attachment_size: number
+          _body: string
+          _conversation_id: string
+        }
+        Returns: string
+      }
       set_shopper_availability: {
         Args: { _available: boolean; _hours?: number }
         Returns: string
@@ -5927,7 +5990,6 @@ export type Database = {
         | "new_without_tags"
         | "used_excellent"
         | "used_good"
-        | "broken_needs_repairs"
       listing_event_type:
         | "created"
         | "price_changed"
@@ -6182,7 +6244,6 @@ export const Constants = {
         "new_without_tags",
         "used_excellent",
         "used_good",
-        "broken_needs_repairs",
       ],
       listing_event_type: [
         "created",
