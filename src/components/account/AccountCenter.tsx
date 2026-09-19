@@ -213,7 +213,7 @@ export function AccountCenter({ section, conversationId }: AccountCenterProps) {
   const listings = useQuery({
     queryKey: ["my-listings"],
     queryFn: () => fetchListings(),
-    enabled: section === "overview" || section === "listings",
+    enabled: section === "overview" || section === "listings" || section === "billing",
   });
   const sellerSummary = useQuery({
     queryKey: ["seller-dashboard-summary"],

@@ -376,6 +376,7 @@ test("seller billing is catalog-backed and settles upgrades through Stripe webho
   assert.match(stripeServerSource, /payment_intent\.payment_failed/);
   assert.match(stripeServerSource, /status: "failed"/);
   assert.match(accountCenterSource, /Continue to Stripe/);
+  assert.match(accountCenterSource, /section === "overview" \|\| section === "listings" \|\| section === "billing"/);
 });
 
 test("marketplace notification delivery is Resend-only", () => {
