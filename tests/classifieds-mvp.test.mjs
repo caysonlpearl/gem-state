@@ -341,6 +341,7 @@ test("messaging supports protected attachments, moderation controls, and send re
   assert.match(conversationFunctionsSource, /conversation-attachments/);
   assert.match(conversationFunctionsSource, /image\/jpeg/);
   assert.match(conversationFunctionsSource, /10 \* 1024 \* 1024/);
+  assert.match(conversationFunctionsSource, /await emailMarketplaceMessage/);
   assert.match(conversationFunctionsSource, /reportConversation/);
   assert.match(accountCenterSource, /Block this member\?/);
   assert.match(accountCenterSource, /Report this conversation/);
