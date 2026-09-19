@@ -52,6 +52,7 @@ const classifiedsFunctionsSource = await read("src/lib/classifieds.functions.ts"
 const marketFunctionsSource = await read("src/lib/market.functions.ts");
 const stripeMarketplaceSource = await read("src/lib/stripe-marketplace.functions.ts");
 const stripeServerSource = await read("src/lib/stripe-marketplace.server.ts");
+const emailSenderSource = await read("src/lib/email-templates/send-email.ts");
 const seedScriptSource = await read("scripts/seed-classifieds.mjs");
 const mediaCountMigrationSource = await read(
   "supabase/migrations/20260915140000_repair_classified_media_counts.sql",
@@ -336,6 +337,16 @@ test("account center writes are authenticated and conversations are participant-
   assert.match(accountCenterMigrationSource, /block_conversation/);
 });
 
+test("messaging supports protected attachments, moderation controls, and send retries", () => {
+  assert.match(conversationFunctionsSource, /conversation-attachments/);
+  assert.match(conversationFunctionsSource, /image\/jpeg/);
+  assert.match(conversationFunctionsSource, /10 \* 1024 \* 1024/);
+  assert.match(conversationFunctionsSource, /reportConversation/);
+  assert.match(accountCenterSource, /Block this member\?/);
+  assert.match(accountCenterSource, /Report this conversation/);
+  assert.match(accountCenterSource, /Retry send/);
+});
+
 test("saved searches reopen their full filters and update in place", () => {
   assert.match(browseSource, /savedSearchId/);
   assert.match(browseSource, /updateSearch\(\{ data: \{ id: search\.savedSearchId, search: searchToSave \} \}\)/);
@@ -360,7 +371,17 @@ test("seller billing is catalog-backed and settles upgrades through Stripe webho
   assert.match(listingUpgradeMigrationSource, /listing_upgrade_purchases/);
   assert.match(stripeServerSource, /gemstate_purpose/);
   assert.match(stripeServerSource, /finalizeListingUpgradeCheckout/);
+  assert.match(stripeServerSource, /failListingUpgradePaymentIntent/);
+  assert.match(stripeServerSource, /checkout\.session\.async_payment_failed/);
+  assert.match(stripeServerSource, /payment_intent\.payment_failed/);
+  assert.match(stripeServerSource, /status: "failed"/);
   assert.match(accountCenterSource, /Continue to Stripe/);
+});
+
+test("marketplace notification delivery is Resend-only", () => {
+  assert.match(emailSenderSource, /RESEND_API_KEY/);
+  assert.match(emailSenderSource, /api\.resend\.com\/emails/);
+  assert.doesNotMatch(emailSenderSource, /sendLovableEmail|LOVABLE_API_KEY|LOVABLE_SEND_URL/);
 });
 
 test("admin moderation reviews classified listings instead of publishing them directly", () => {
