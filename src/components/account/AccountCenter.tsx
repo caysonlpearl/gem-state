@@ -213,7 +213,10 @@ export function AccountCenter({ section, conversationId }: AccountCenterProps) {
   const listings = useQuery({
     queryKey: ["my-listings"],
     queryFn: () => fetchListings(),
-    enabled: section === "overview" || section === "listings" || section === "billing",
+    // The account shell uses seller listings for overview metrics, Seller
+    // Center, and billing. Keep one shared query alive across section changes
+    // so billing never renders before its eligible-listing data exists.
+    enabled: true,
   });
   const sellerSummary = useQuery({
     queryKey: ["seller-dashboard-summary"],
