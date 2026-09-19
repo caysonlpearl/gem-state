@@ -5,7 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { ArrowLeft, ArrowRight, Camera, CheckCircle } from "@phosphor-icons/react";
 import { toast } from "sonner";
 
-import { idahoRegions, usStates } from "@/config/classifieds";
+import { classifiedCategories, idahoRegions, usStates } from "@/config/classifieds";
 import { supabase } from "@/integrations/supabase/client";
 import {
   createClassifiedListing,
@@ -28,7 +28,9 @@ import {
   isHomeCategory,
   isJobCategory,
   isServiceCategory,
+  kindForCategory,
   priceCentsFor,
+  type ListingKind,
 } from "./payload";
 import { fieldClass, textareaClass } from "./shared";
 import { initialListingForm, type ListingFormState } from "./types";
@@ -44,6 +46,25 @@ const fulfillmentModes = [
   ["shipping", "Shipping"],
   ["both", "Pickup or shipping"],
 ] as const;
+const kindTabs: { key: ListingKind; label: string }[] = [
+  { key: "item", label: "Item" },
+  { key: "vehicle", label: "Vehicle" },
+  { key: "home", label: "Home" },
+  { key: "job", label: "Job" },
+  { key: "service", label: "Service" },
+];
+const motorsCategorySlugs: Set<string> = new Set(
+  classifiedCategories.filter((category) => category.group === "motors").map((c) => c.slug),
+);
+const itemCategorySlugs: Set<string> = new Set(
+  classifiedCategories
+    .filter(
+      (category) =>
+        category.group === "classifieds" &&
+        !["other-real-estate", "jobs", "services"].includes(category.slug),
+    )
+    .map((c) => c.slug),
+);
 
 function optionalNumber(value: string) {
   return value.trim() ? Number(value) : null;
@@ -71,6 +92,7 @@ export function ListingForm(props: ListingFormProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [photoRights, setPhotoRights] = useState(false);
   const [draggedPhotoIndex, setDraggedPhotoIndex] = useState<number | null>(null);
+  const [kind, setKind] = useState<ListingKind>(() => kindForCategory(form.category));
 
   const filePreviews = useMemo(() => files.map((file) => URL.createObjectURL(file)), [files]);
   useEffect(() => {
@@ -89,13 +111,25 @@ export function ListingForm(props: ListingFormProps) {
   }
 
   useEffect(() => {
-    if (props.mode === "edit") setForm(fromEditor(props.initial));
+    if (props.mode === "edit") {
+      setForm(fromEditor(props.initial));
+      setKind(kindForCategory(props.initial.category));
+    }
     // Only re-hydrate when switching to a different listing, not on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.mode === "edit" ? props.listingId : null]);
 
   const set = (key: keyof ListingFormState, value: string) =>
     setForm((current) => ({ ...current, [key]: value }));
+
+  function selectKind(next: ListingKind) {
+    setKind(next);
+    if (next === "home") set("category", "other-real-estate");
+    else if (next === "job") set("category", "jobs");
+    else if (next === "service") set("category", "services");
+    else if (next === "vehicle" && !motorsCategorySlugs.has(form.category)) set("category", "");
+    else if (next === "item" && !itemCategorySlugs.has(form.category)) set("category", "");
+  }
 
   const isVehicle = isMotorsCategory(form.category);
   const isHome = isHomeCategory(form.category);
@@ -256,6 +290,32 @@ export function ListingForm(props: ListingFormProps) {
       }}
     >
       <section className="border border-border bg-card p-5 sm:p-6">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-primary">
+          Listing type
+        </p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {kindTabs.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => selectKind(tab.key)}
+              aria-pressed={kind === tab.key}
+              className={`h-10 rounded-full border px-4 text-[12.5px] font-semibold transition-colors ${
+                kind === tab.key
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-input bg-background text-foreground hover:border-primary"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-[11px] text-muted-foreground">
+          Choose what you're listing first -- the fields below change to match.
+        </p>
+      </section>
+
+      <section className="border border-border bg-card p-5 sm:p-6">
         <SectionHeading number="1" title="Item basics" />
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <label className="sm:col-span-2 text-[12px] font-medium">
@@ -270,22 +330,30 @@ export function ListingForm(props: ListingFormProps) {
               className={fieldClass}
             />
           </label>
-          <label className="text-[12px] font-medium">
-            Category
-            <select
-              required
-              value={form.category}
-              onChange={(event) => set("category", event.target.value)}
-              className={fieldClass}
-            >
-              <option value="">Choose a category</option>
-              {(categories.data ?? []).map((category) => (
-                <option key={category.id} value={category.slug}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          {(kind === "item" || kind === "vehicle") && (
+            <label className="text-[12px] font-medium">
+              Category
+              <select
+                required
+                value={form.category}
+                onChange={(event) => set("category", event.target.value)}
+                className={fieldClass}
+              >
+                <option value="">Choose a category</option>
+                {(categories.data ?? [])
+                  .filter((category) =>
+                    kind === "vehicle"
+                      ? motorsCategorySlugs.has(category.slug)
+                      : itemCategorySlugs.has(category.slug),
+                  )
+                  .map((category) => (
+                    <option key={category.id} value={category.slug}>
+                      {category.name}
+                    </option>
+                  ))}
+              </select>
+            </label>
+          )}
           {!hidesPrice && (
             <label className="text-[12px] font-medium">
               {priceLabel}

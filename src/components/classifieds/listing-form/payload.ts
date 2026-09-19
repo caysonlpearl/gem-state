@@ -14,6 +14,19 @@ export function isServiceCategory(category: string) {
   return category === "services";
 }
 
+export type ListingKind = "item" | "vehicle" | "home" | "job" | "service";
+
+/** Which top-level listing-type tab a category belongs to. Drives the tab bar
+ * at the top of the form so choosing "Home"/"Job"/"Service" is an explicit,
+ * visible action instead of a side effect of a generic category dropdown. */
+export function kindForCategory(category: string): ListingKind {
+  if (isHomeCategory(category)) return "home";
+  if (isJobCategory(category)) return "job";
+  if (isServiceCategory(category)) return "service";
+  if (isMotorsCategory(category)) return "vehicle";
+  return "item";
+}
+
 export function dollarsToCents(value: string) {
   return Math.round(Number(value.replace(/[^0-9.]/g, "")) * 100);
 }
