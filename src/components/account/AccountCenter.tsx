@@ -2209,14 +2209,18 @@ function ListingsSection({
   const [filter, setFilter] = useState("active");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState("newest");
+  const matchesFilter = (item: MyListing) => {
+    if (filter === "all") return true;
+    if (filter === "active") return item.status === "active" && Boolean(item.approvedAt);
+    if (filter === "pending") return !item.approvedAt || item.status === "pending_review";
+    if (filter === "inactive") return item.status !== "active" && Boolean(item.approvedAt);
+    return filter === item.status;
+  };
   const visible = listings
     .filter(
       (item) =>
         item.productName.toLowerCase().includes(query.toLowerCase()) &&
-        (filter === "all" ||
-          filter === item.status ||
-          (filter === "pending" && !item.approvedAt) ||
-          (filter === "active" && item.status === "active" && item.approvedAt)),
+        matchesFilter(item),
     )
     .sort((a, b) =>
       sort === "views"
