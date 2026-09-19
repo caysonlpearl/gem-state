@@ -64,10 +64,15 @@ export const updateMyContactPreferences = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
+export type SavedSearchFilters = Record<
+  string,
+  string | number | boolean | null | undefined | string[]
+>;
+
 export type SavedSearch = {
   id: string;
   name: string;
-  search: Record<string, unknown>;
+  search: SavedSearchFilters;
   emailAlerts: boolean;
   paused: boolean;
   lastMatchAt: string | null;
@@ -79,7 +84,7 @@ function savedSearch(row: any): SavedSearch {
   return {
     id: row.id,
     name: row.name,
-    search: (row.search ?? {}) as Record<string, unknown>,
+    search: (row.search ?? {}) as SavedSearchFilters,
     emailAlerts: row.email_alerts !== false,
     paused: row.paused === true,
     lastMatchAt: row.last_match_at ?? null,
@@ -135,11 +140,11 @@ export const updateSavedSearch = createServerFn({ method: "POST" })
     if (input.name !== undefined) {
       const name = String(input.name).trim();
       if (name.length < 1 || name.length > 80) throw new Error("Name your saved search.");
-      updates.name = name;
+      updates["name"] = name;
     }
-    if (input.search !== undefined) updates.search = input.search;
-    if (input.emailAlerts !== undefined) updates.email_alerts = input.emailAlerts === true;
-    if (input.paused !== undefined) updates.paused = input.paused === true;
+    if (input.search !== undefined) updates["search"] = input.search;
+    if (input.emailAlerts !== undefined) updates["email_alerts"] = input.emailAlerts === true;
+    if (input.paused !== undefined) updates["paused"] = input.paused === true;
     return { id: String(input.id), updates };
   })
   .handler(async ({ data, context }): Promise<SavedSearch> => {
