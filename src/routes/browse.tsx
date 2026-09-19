@@ -1138,11 +1138,6 @@ function Browse() {
   }
 
   async function saveCurrentSearch() {
-    const suggestedName =
-      [selectedCategory?.name, search.q].filter(Boolean).join(" · ") || "My marketplace search";
-    const name = window.prompt("Name this saved search", suggestedName)?.trim();
-    if (!name) return;
-
     const searchToSave = Object.fromEntries(
       Object.entries(search).filter(
         ([key, value]) =>
@@ -1168,6 +1163,10 @@ function Browse() {
         await updateSearch({ data: { id: search.savedSearchId, search: searchToSave } });
         toast.success("Saved search updated.");
       } else {
+        const suggestedName =
+          [selectedCategory?.name, search.q].filter(Boolean).join(" · ") || "My marketplace search";
+        const name = window.prompt("Name this saved search", suggestedName)?.trim();
+        if (!name) return;
         await saveSearch({ data: { name, search: searchToSave } });
         toast.success("Saved search created.");
       }
