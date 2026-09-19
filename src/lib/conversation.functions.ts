@@ -132,7 +132,7 @@ export const startConversation = createServerFn({ method: "POST" })
       _body: data.body,
     });
     if (error || !conversationId) throw new Error(error?.message ?? "We could not start this conversation.");
-    void emailMarketplaceMessage(conversationId as string, context.userId);
+    await emailMarketplaceMessage(conversationId as string, context.userId);
     return { conversationId: conversationId as string };
   });
 
@@ -148,7 +148,7 @@ export const sendConversationMessage = createServerFn({ method: "POST" })
       _body: data.body,
     });
     if (error || !messageId) throw new Error(error?.message ?? "We could not send your message.");
-    void emailMarketplaceMessage(data.conversationId, context.userId, messageId as string);
+    await emailMarketplaceMessage(data.conversationId, context.userId, messageId as string);
     return { messageId: messageId as string };
   });
 
@@ -217,7 +217,7 @@ export const sendConversationMessageWithAttachment = createServerFn({ method: "P
       _attachment_size: data.attachmentSize,
     });
     if (error || !messageId) throw new Error(error?.message ?? "We could not send your message.");
-    void emailMarketplaceMessage(data.conversationId, context.userId, messageId as string);
+    await emailMarketplaceMessage(data.conversationId, context.userId, messageId as string);
     return { messageId: messageId as string };
   });
 

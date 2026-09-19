@@ -345,6 +345,7 @@ test("messaging supports protected attachments, moderation controls, and send re
   assert.match(conversationFunctionsSource, /conversation-attachments/);
   assert.match(conversationFunctionsSource, /image\/jpeg/);
   assert.match(conversationFunctionsSource, /10 \* 1024 \* 1024/);
+  assert.match(conversationFunctionsSource, /await emailMarketplaceMessage/);
   assert.match(conversationFunctionsSource, /reportConversation/);
   assert.match(accountCenterSource, /Block this member\?/);
   assert.match(accountCenterSource, /Report this conversation/);
@@ -380,6 +381,7 @@ test("seller billing is catalog-backed and settles upgrades through Stripe webho
   assert.match(stripeServerSource, /payment_intent\.payment_failed/);
   assert.match(stripeServerSource, /status: "failed"/);
   assert.match(accountCenterSource, /Continue to Stripe/);
+  assert.match(accountCenterSource, /queryKey: \["my-listings"\][\s\S]*?enabled: true/);
 });
 
 test("marketplace notification delivery is Resend-only", () => {

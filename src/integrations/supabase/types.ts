@@ -3448,6 +3448,36 @@ export type Database = {
         }
         Relationships: []
       }
+      seller_reviews: {
+        Row: {
+          comment: string | null
+          created_at: string
+          id: string
+          rating: number
+          reviewer_id: string
+          seller_id: string
+          updated_at: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          rating: number
+          reviewer_id: string
+          seller_id: string
+          updated_at?: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          id?: string
+          rating?: number
+          reviewer_id?: string
+          seller_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       shipping_quotes: {
         Row: {
           created_at: string
@@ -5334,6 +5364,7 @@ export type Database = {
         }
         Returns: string
       }
+      delete_seller_review: { Args: { _seller_id: string }; Returns: undefined }
       dispatch_review_email_worker: { Args: never; Returns: undefined }
       effective_fee_schedule: {
         Args: { _currency: string; _resort_id?: string }
@@ -5884,6 +5915,10 @@ export type Database = {
           _release_notes?: string
           _resort_codes?: string[]
         }
+        Returns: string
+      }
+      submit_seller_review: {
+        Args: { _comment?: string; _rating: number; _seller_id: string }
         Returns: string
       }
       submit_shopper_quote: {

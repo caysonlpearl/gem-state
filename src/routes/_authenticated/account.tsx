@@ -11,7 +11,12 @@ import {
 export const Route = createFileRoute("/_authenticated/account")({
   validateSearch: (
     search: Record<string, unknown>,
-  ): { section?: AccountSection; conversation?: string | undefined } => {
+  ): {
+    section?: AccountSection;
+    conversation?: string | undefined;
+    checkout?: "success" | "cancelled" | undefined;
+    purchase?: string | undefined;
+  } => {
     const rawSection = typeof search["section"] === "string" ? search["section"] : "overview";
     const section = (ACCOUNT_SECTIONS as readonly string[]).includes(rawSection)
       ? (rawSection as AccountSection)
@@ -19,7 +24,16 @@ export const Route = createFileRoute("/_authenticated/account")({
     const rawConversation =
       typeof search["conversation"] === "string" ? search["conversation"] : undefined;
     const conversation = rawConversation ? rawConversation.slice(0, 80) : undefined;
-    return conversation === undefined ? { section } : { section, conversation };
+    const rawCheckout = typeof search["checkout"] === "string" ? search["checkout"] : undefined;
+    const checkout = rawCheckout === "success" || rawCheckout === "cancelled" ? rawCheckout : undefined;
+    const rawPurchase = typeof search["purchase"] === "string" ? search["purchase"] : undefined;
+    const purchase = rawPurchase ? rawPurchase.slice(0, 80) : undefined;
+    return {
+      section,
+      ...(conversation === undefined ? {} : { conversation }),
+      ...(checkout === undefined ? {} : { checkout }),
+      ...(purchase === undefined ? {} : { purchase }),
+    };
   },
   head: () => ({
     meta: [
@@ -40,6 +54,8 @@ function AccountPage() {
     <AccountCenter
       section={search.section ?? "overview"}
       conversationId={search.conversation}
+      checkout={search.checkout}
+      purchaseId={search.purchase}
     />
   );
 }

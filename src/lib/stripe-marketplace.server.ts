@@ -473,7 +473,7 @@ async function releaseFailedOfferCapture(intent: Stripe.PaymentIntent) {
     .neq("status", "accepted");
 }
 
-async function finalizeListingUpgradeCheckout(session: Stripe.Checkout.Session) {
+export async function finalizeListingUpgradeCheckout(session: Stripe.Checkout.Session) {
   const purchaseId = session.metadata?.["gemstate_purchase_id"] ?? "";
   if (!purchaseId) return;
   if (session.payment_status !== "paid" && session.status !== "complete") return;
@@ -533,7 +533,7 @@ async function finalizeListingUpgradeCheckout(session: Stripe.Checkout.Session) 
   });
 }
 
-async function expireListingUpgradeCheckout(session: Stripe.Checkout.Session) {
+export async function expireListingUpgradeCheckout(session: Stripe.Checkout.Session) {
   const purchaseId = session.metadata?.["gemstate_purchase_id"] ?? "";
   if (!purchaseId) return;
   await (supabaseAdmin as any)
