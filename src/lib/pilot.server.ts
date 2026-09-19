@@ -100,8 +100,6 @@ export type OrderOperations = {
   verifiedSale: { priceCents: number; soldAt: string; isLive: boolean } | null;
   address: AddressSnapshot | null;
   assignment: AssignmentSummary | null;
-  myReviewRating: number | null;
-  canReview: boolean;
 };
 
 export type MemberPerformance = {

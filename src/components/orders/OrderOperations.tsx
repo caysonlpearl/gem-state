@@ -15,7 +15,6 @@ import {
   recordPurchaseEvidence,
   recordShipment,
   setOrderAddress,
-  submitOrderReview,
 } from "@/lib/pilot.functions";
 import { getShippingRates, purchaseShippingLabel, type ShippingRate } from "@/lib/seller.functions";
 import {
@@ -62,7 +61,6 @@ export function OrderOperations({
   showPaymentLedger = true,
   showDispute = true,
   showShipping = true,
-  showReview = true,
 }: {
   orderId: string;
   userId: string;
@@ -72,8 +70,6 @@ export function OrderOperations({
   showDispute?: boolean;
   /** Sellers only see the address and shipping controls once payment is confirmed. */
   showShipping?: boolean;
-  /** Hidden when a dedicated review card is rendered elsewhere on the page. */
-  showReview?: boolean;
 }) {
   const queryClient = useQueryClient();
   const fetchOps = useServerFn(getOrderOperations);
@@ -84,7 +80,6 @@ export function OrderOperations({
   const saveAddress = useServerFn(setOrderAddress);
   const deliver = useServerFn(confirmDelivery);
   const dispute = useServerFn(openDispute);
-  const review = useServerFn(submitOrderReview);
   const fetchShippingRates = useServerFn(getShippingRates);
   const buyShippingLabel = useServerFn(purchaseShippingLabel);
 
@@ -101,8 +96,6 @@ export function OrderOperations({
   const [tracking, setTracking] = useState("");
   const [revisedMax, setRevisedMax] = useState("");
   const [disputeReason, setDisputeReason] = useState("");
-  const [rating, setRating] = useState("5");
-  const [comment, setComment] = useState("");
   const [parcel, setParcel] = useState({ length: "10", width: "8", height: "6", weight: "2" });
   const [address, setAddress] = useState({
     recipientName: "",
@@ -256,18 +249,6 @@ export function OrderOperations({
       toast.success("A dispute was opened and an operator will review it.");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not open a dispute."),
-  });
-
-  const reviewMutation = useMutation({
-    mutationFn: () =>
-      review({ data: { orderId, rating: Number(rating), comment: comment || null } }),
-    onSuccess: async () => {
-      await trackEvent("review_submitted", { rating: Number(rating) });
-      setComment("");
-      await refresh();
-      toast.success("Review submitted.");
-    },
-    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not submit the review."),
   });
 
   const openFile = async (evidenceId: string) => {
@@ -833,53 +814,6 @@ export function OrderOperations({
         </Section>
       )}
 
-      {showReview && (data.canReview || data.myReviewRating != null) && (
-        <Section title={isBuyer ? "Review your seller" : "Review your buyer"}>
-          {data.myReviewRating != null ? (
-            <p className="text-muted-foreground">
-              You rated {isBuyer ? "this seller" : "this buyer"} {data.myReviewRating} out of 5.
-            </p>
-          ) : (
-            <form
-              className="space-y-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                reviewMutation.mutate();
-              }}
-            >
-              <label className="block text-[12px]">
-                <span className="text-muted-foreground">Rating</span>
-                <select
-                  value={rating}
-                  onChange={(e) => setRating(e.target.value)}
-                  className="mt-1 h-9 w-24 rounded-md border border-input bg-surface px-2 text-[13px]"
-                >
-                  {[5, 4, 3, 2, 1].map((n) => (
-                    <option key={n} value={String(n)}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <textarea
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                rows={3}
-                maxLength={1000}
-                placeholder="Optional: how did the transaction go?"
-                className="w-full rounded-md border border-input bg-surface p-2 text-[12.5px]"
-              />
-              <button
-                type="submit"
-                disabled={reviewMutation.isPending}
-                className="h-9 rounded-md bg-primary px-3 text-[12.5px] font-medium text-primary-foreground disabled:opacity-50"
-              >
-                Submit review
-              </button>
-            </form>
-          )}
-        </Section>
-      )}
     </div>
   );
 }

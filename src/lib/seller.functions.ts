@@ -74,6 +74,7 @@ export type PublicListing = {
 };
 
 export type PublicSeller = {
+  userId: string;
   slug: string;
   displayName: string;
   avatarUrl: string | null;
@@ -93,6 +94,8 @@ export type SellerReview = {
   rating: number;
   comment: string | null;
   createdAt: string;
+  reviewerName?: string;
+  reviewerAvatarUrl?: string | null;
 };
 
 export type SellerDashboardSummary = {
@@ -102,8 +105,6 @@ export type SellerDashboardSummary = {
   completedSalesCount: number;
   ratingAverage: number | null;
   reviews: SellerReview[];
-  reviewsWritten: SellerReview[];
-  pendingReviewCount: number;
 };
 
 export type MissingListingRequest = {
@@ -428,14 +429,12 @@ export const getSellerDashboardSummary = createServerFn({ method: "GET" })
       { data: payouts, error: payoutError },
       { data: reviews, error: reviewError },
       { count },
-      { data: completedOrders, error: completedOrdersError },
-      { data: writtenReviews, error: writtenReviewError },
     ] = await Promise.all([
       client.from("order_payouts").select("amount_cents,status").eq("payee_id", context.userId),
       client
-        .from("order_reviews")
-        .select("id,order_id,rating,comment,created_at")
-        .eq("subject_id", context.userId)
+        .from("seller_reviews")
+        .select("id,rating,comment,created_at")
+        .eq("seller_id", context.userId)
         .order("created_at", { ascending: false })
         .limit(20),
       client
@@ -443,24 +442,9 @@ export const getSellerDashboardSummary = createServerFn({ method: "GET" })
         .select("id", { count: "exact", head: true })
         .eq("seller_id", context.userId)
         .eq("status", "completed"),
-      client
-        .from("orders")
-        .select("id")
-        .or(`buyer_id.eq.${context.userId},seller_id.eq.${context.userId}`)
-        .eq("status", "completed")
-        .eq("is_demo", false)
-        .limit(100),
-      client
-        .from("order_reviews")
-        .select("id,order_id,rating,comment,created_at")
-        .eq("reviewer_id", context.userId)
-        .order("created_at", { ascending: false })
-        .limit(20),
     ]);
     if (payoutError) throw new Error(payoutError.message);
     if (reviewError) throw new Error(reviewError.message);
-    if (completedOrdersError) throw new Error(completedOrdersError.message);
-    if (writtenReviewError) throw new Error(writtenReviewError.message);
     const rows = payouts ?? [];
     const reviewRows = (reviews ?? []).map((row: any) => ({
       id: row.id,
@@ -472,15 +456,6 @@ export const getSellerDashboardSummary = createServerFn({ method: "GET" })
       ? reviewRows.reduce((sum: number, row: SellerReview) => sum + row.rating, 0) /
         reviewRows.length
       : null;
-    const writtenReviewRows = (writtenReviews ?? []).map((row: any) => ({
-      id: row.id,
-      rating: Number(row.rating),
-      comment: row.comment,
-      createdAt: row.created_at,
-    }));
-    const reviewedOrderIds = new Set(
-      (writtenReviews ?? []).map((row: any) => row.order_id).filter(Boolean),
-    );
     return {
       pendingPayoutCents: rows
         .filter((row: any) => row.status === "pending" || row.status === "processing")
@@ -494,8 +469,60 @@ export const getSellerDashboardSummary = createServerFn({ method: "GET" })
       completedSalesCount: Number(count ?? 0),
       ratingAverage,
       reviews: reviewRows,
-      reviewsWritten: writtenReviewRows,
-      pendingReviewCount: (completedOrders ?? []).filter((order: any) => !reviewedOrderIds.has(order.id)).length,
+    };
+  });
+
+export const submitSellerReview = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { sellerId: string; rating: number; comment?: string | null }) => {
+    const rating = Math.round(Number(input.rating));
+    if (!Number.isFinite(rating) || rating < 1 || rating > 5)
+      throw new Error("Rate between 1 and 5.");
+    const comment = String(input.comment ?? "").trim();
+    if (comment.length > 1000) throw new Error("Keep your review under 1000 characters.");
+    return { sellerId: String(input.sellerId), rating, comment: comment || null };
+  })
+  .handler(async ({ data, context }) => {
+    const client = context.supabase as any;
+    const { error } = await client.rpc("submit_seller_review", {
+      _seller_id: data.sellerId,
+      _rating: data.rating,
+      ...(data.comment ? { _comment: data.comment } : {}),
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+export const deleteSellerReview = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { sellerId: string }) => ({ sellerId: String(input.sellerId) }))
+  .handler(async ({ data, context }) => {
+    const client = context.supabase as any;
+    const { error } = await client.rpc("delete_seller_review", {
+      _seller_id: data.sellerId,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+export const getMySellerReview = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { sellerId: string }) => ({ sellerId: String(input.sellerId) }))
+  .handler(async ({ data, context }): Promise<SellerReview | null> => {
+    const client = context.supabase as any;
+    const { data: row, error } = await client
+      .from("seller_reviews")
+      .select("id,rating,comment,created_at")
+      .eq("seller_id", data.sellerId)
+      .eq("reviewer_id", context.userId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!row) return null;
+    return {
+      id: row.id,
+      rating: Number(row.rating),
+      comment: row.comment,
+      createdAt: row.created_at,
     };
   });
 
@@ -701,7 +728,7 @@ export const getPublicSeller = createServerFn({ method: "GET" })
     if (error || !seller) return null;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
-    const [{ data: askRows }, { data: reviewRows }] = await Promise.all([
+    const [{ data: askRows }, { data: reviewRows }, { data: allRatings }] = await Promise.all([
       admin
         .from("asks")
         .select(
@@ -714,12 +741,17 @@ export const getPublicSeller = createServerFn({ method: "GET" })
         .gt("expires_at", new Date().toISOString())
         .order("created_at", { ascending: false }),
       client
-        .from("order_reviews")
-        .select("id,rating,comment,created_at")
-        .eq("subject_id", seller.user_id)
+        .from("seller_reviews")
+        .select("id,rating,comment,created_at,reviewer_id,profiles!reviewer_id(display_name,avatar_url)")
+        .eq("seller_id", seller.user_id)
         .order("created_at", { ascending: false })
         .limit(20),
+      client.from("seller_reviews").select("rating").eq("seller_id", seller.user_id),
     ]);
+    const reviewCount = allRatings?.length ?? 0;
+    const ratingAverage = reviewCount
+      ? allRatings!.reduce((sum: number, row: any) => sum + Number(row.rating), 0) / reviewCount
+      : null;
     const listings: PublicListing[] = await Promise.all(
       (askRows ?? []).map(async (row: any) => ({
         id: row.id,
@@ -735,7 +767,7 @@ export const getPublicSeller = createServerFn({ method: "GET" })
         sellerSlug: seller.slug,
         sellerDisplayName: seller.display_name ?? seller.slug,
         payoutVerified: seller.payout_verified === true,
-        sellerRating: seller.rating_average == null ? null : Number(seller.rating_average),
+        sellerRating: ratingAverage,
         imageUrls: await signedListingUrls(
           [...(row.listing_media ?? [])]
             .sort((a: any, b: any) => a.position - b.position)
@@ -750,6 +782,7 @@ export const getPublicSeller = createServerFn({ method: "GET" })
       })),
     );
     return {
+      userId: seller.user_id,
       slug: seller.slug,
       displayName: seller.display_name ?? seller.slug,
       avatarUrl: seller.avatar_url,
@@ -757,8 +790,8 @@ export const getPublicSeller = createServerFn({ method: "GET" })
       memberSince: seller.member_since,
       payoutVerified: seller.payout_verified === true,
       completedSalesCount: Number(seller.completed_sales_count ?? 0),
-      reviewCount: Number(seller.review_count ?? 0),
-      ratingAverage: seller.rating_average == null ? null : Number(seller.rating_average),
+      reviewCount,
+      ratingAverage,
       activeListingCount: Number(seller.active_listing_count ?? 0),
       listings,
       reviews: (reviewRows ?? []).map((row: any) => ({
@@ -766,6 +799,8 @@ export const getPublicSeller = createServerFn({ method: "GET" })
         rating: Number(row.rating),
         comment: row.comment,
         createdAt: row.created_at,
+        reviewerName: row.profiles?.display_name ?? "Gem State member",
+        reviewerAvatarUrl: row.profiles?.avatar_url ?? null,
       })),
     };
   });

@@ -19,7 +19,6 @@ import { getSourcingProgress } from "@/lib/shopper.functions";
 import { BuyerOrderReceipt } from "@/components/orders/BuyerOrderReceipt";
 import { SellerOrderPanel } from "@/components/orders/SellerOrderPanel";
 import { OrderOperations } from "@/components/orders/OrderOperations";
-import { OrderReviewCard } from "@/components/orders/OrderReviewCard";
 import { useAuth } from "@/hooks/useAuth";
 
 const PAID_STATUSES = new Set([
@@ -132,10 +131,9 @@ function OrderPage() {
                   <SourcingProgressCard orderId={orderId} />
                 </div>
               )}
-              {["delivered", "completed"].includes(data.status) && (
-                <div className="mt-6 space-y-6">
-                  {isSourcing && <ShopperTipCard orderId={orderId} />}
-                  <OrderReviewCard orderId={orderId} role="buyer" />
+              {["delivered", "completed"].includes(data.status) && isSourcing && (
+                <div className="mt-6">
+                  <ShopperTipCard orderId={orderId} />
                 </div>
               )}
               {["shipped", "delivered", "completed", "disputed"].includes(data.status) && user && (
@@ -145,7 +143,6 @@ function OrderPage() {
                     userId={user.id}
                     showPayout={false}
                     showPaymentLedger={false}
-                    showReview={false}
                     showDispute={["shipped", "delivered", "disputed"].includes(data.status)}
                   />
                 </div>
@@ -184,15 +181,11 @@ function OrderPage() {
                       : "The buyer's payment is confirmed. Ship the exact photographed item, then record your shipment below."
                 }
               />
-              {["delivered", "completed"].includes(data.status) && (
-                <OrderReviewCard orderId={orderId} role="seller" />
-              )}
               {user && (
                 <OrderOperations
                   orderId={orderId}
                   userId={user.id}
                   showPaymentLedger={false}
-                  showReview={false}
                   showDispute={["shipped", "delivered", "disputed"].includes(data.status)}
                 />
               )}

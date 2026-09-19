@@ -1,14 +1,21 @@
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { queryOptions, useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { CheckCircle, Star } from "@phosphor-icons/react";
+import { toast } from "sonner";
 
-import { getPublicSeller } from "@/lib/seller.functions";
+import { getMySellerReview, getPublicSeller, submitSellerReview } from "@/lib/seller.functions";
 import { SellerListingGrid } from "@/components/market/SellerListingGrid";
+import { useAuth } from "@/hooks/useAuth";
 
 const sellerQuery = (slug: string) =>
   queryOptions({ queryKey: ["seller", slug], queryFn: () => getPublicSeller({ data: { slug } }) });
 
 export const Route = createFileRoute("/sellers/$slug")({
+  validateSearch: (search: Record<string, unknown>): { review?: true } => ({
+    ...(search["review"] ? { review: true as const } : {}),
+  }),
   loader: async ({ context, params }) => {
     const seller = await context.queryClient.ensureQueryData(sellerQuery(params.slug));
     if (!seller) throw notFound();
@@ -43,8 +50,18 @@ export const Route = createFileRoute("/sellers/$slug")({
 
 function SellerPage() {
   const { slug } = Route.useParams();
+  const { review: focusReview } = Route.useSearch();
   const { data: seller } = useSuspenseQuery(sellerQuery(slug));
+  const { user } = useAuth();
+  const formRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (focusReview) formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [focusReview]);
+
   if (!seller) return null;
+  const isOwnProfile = user?.id === seller.userId;
+
   return (
     <main className="mx-auto max-w-[1180px] px-4 py-10 sm:px-8">
       <section className="border-b border-border pb-7">
@@ -100,8 +117,26 @@ function SellerPage() {
           <h2 className="font-editorial text-[27px] font-normal">Seller reviews</h2>
           <span className="text-[11.5px] text-muted-foreground">{seller.reviewCount} total</span>
         </div>
+        <div ref={formRef} className="mt-5 scroll-mt-20">
+          {!isOwnProfile ? (
+            user ? (
+              <ReviewForm sellerId={seller.userId} sellerSlug={seller.slug} />
+            ) : (
+              <p className="border border-dashed border-input bg-card p-4 text-[12.5px] text-muted-foreground">
+                <Link
+                  to="/auth"
+                  search={{ redirect: undefined }}
+                  className="font-semibold text-primary hover:underline"
+                >
+                  Sign in
+                </Link>{" "}
+                to leave {seller.displayName} a review.
+              </p>
+            )
+          ) : null}
+        </div>
         {seller.reviews.length ? (
-          <ul className="mt-4 grid gap-3 md:grid-cols-2">
+          <ul className="mt-6 grid gap-3 md:grid-cols-2">
             {seller.reviews.map((review) => (
               <li key={review.id} className="border border-border bg-card p-4">
                 <p
@@ -117,21 +152,148 @@ function SellerPage() {
                   ))}
                 </p>
                 <p className="mt-2 text-[12.5px] leading-relaxed">
-                  {review.comment || "Verified transaction rating"}
+                  {review.comment || "No written comment."}
                 </p>
                 <p className="mt-3 text-[10.5px] text-muted-foreground">
-                  Verified buyer · {new Date(review.createdAt).toLocaleDateString()}
+                  {review.reviewerName ?? "Gem State member"} ·{" "}
+                  {new Date(review.createdAt).toLocaleDateString()}
                 </p>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="mt-3 text-[12.5px] text-muted-foreground">
-            This seller has not received a completed-order review yet.
+          <p className="mt-6 text-[12.5px] text-muted-foreground">
+            This seller has not received a review yet.
           </p>
         )}
       </section>
     </main>
+  );
+}
+
+function ReviewForm({ sellerId, sellerSlug }: { sellerId: string; sellerSlug: string }) {
+  const queryClient = useQueryClient();
+  const fetchMyReview = useServerFn(getMySellerReview);
+  const submit = useServerFn(submitSellerReview);
+
+  const myReview = useQuery({
+    queryKey: ["my-seller-review", sellerId],
+    queryFn: () => fetchMyReview({ data: { sellerId } }),
+  });
+
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState("");
+  const [editing, setEditing] = useState(false);
+
+  useEffect(() => {
+    if (myReview.data) {
+      setRating(myReview.data.rating);
+      setComment(myReview.data.comment ?? "");
+    }
+  }, [myReview.data]);
+
+  const mutation = useMutation({
+    mutationFn: () => submit({ data: { sellerId, rating, comment: comment.trim() || null } }),
+    onSuccess: async () => {
+      setEditing(false);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["seller", sellerSlug] }),
+        queryClient.invalidateQueries({ queryKey: ["my-seller-review", sellerId] }),
+      ]);
+      toast.success("Review published on their profile.");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not submit the review."),
+  });
+
+  if (myReview.isLoading) return null;
+
+  if (myReview.data && !editing) {
+    return (
+      <section className="border border-border bg-card px-5 py-4">
+        <h3 className="text-[13px] font-semibold tracking-tight">Your review</h3>
+        <p className="mt-2 flex items-center gap-1 text-primary" aria-label={`${myReview.data.rating} out of 5 stars`}>
+          {Array.from({ length: 5 }, (_, i) => (
+            <Star key={i} size={16} weight={i < myReview.data!.rating ? "fill" : "regular"} />
+          ))}
+        </p>
+        {myReview.data.comment ? (
+          <p className="mt-2 text-[12.5px] text-muted-foreground">{myReview.data.comment}</p>
+        ) : null}
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          className="mt-3 text-[12px] font-semibold text-primary hover:underline"
+        >
+          Edit your review
+        </button>
+      </section>
+    );
+  }
+
+  return (
+    <section className="border border-primary/40 bg-card px-5 py-5">
+      <h3 className="font-editorial text-[19px] leading-tight tracking-[-0.02em]">
+        {myReview.data ? "Edit your review" : "Leave a review"}
+      </h3>
+      <p className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground">
+        Rate this seller based on your experience with them.
+      </p>
+      <form
+        className="mt-4 space-y-3"
+        onSubmit={(e) => {
+          e.preventDefault();
+          mutation.mutate();
+        }}
+      >
+        <fieldset>
+          <legend className="text-[11.5px] text-muted-foreground">Rating</legend>
+          <div className="mt-1 flex items-center gap-1">
+            {[1, 2, 3, 4, 5].map((n) => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => setRating(n)}
+                aria-label={`${n} star${n === 1 ? "" : "s"}`}
+                aria-pressed={rating === n}
+                className="rounded p-1 text-primary transition-transform hover:scale-110 focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none"
+              >
+                <Star size={26} weight={n <= rating ? "fill" : "regular"} />
+              </button>
+            ))}
+            <span className="numeric ml-2 text-[12.5px] text-muted-foreground">{rating} / 5</span>
+          </div>
+        </fieldset>
+        <label className="block">
+          <span className="text-[11.5px] text-muted-foreground">Comment (optional)</span>
+          <textarea
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            rows={3}
+            maxLength={1000}
+            placeholder="How was your experience with this seller?"
+            className="mt-1 w-full rounded-md border border-input bg-background p-2 text-[12.5px]"
+          />
+        </label>
+        <div className="flex items-center gap-3">
+          <button
+            type="submit"
+            disabled={mutation.isPending}
+            className="inline-flex h-10 items-center bg-primary px-5 text-[12.5px] font-semibold text-primary-foreground disabled:opacity-50"
+          >
+            {mutation.isPending ? "Submitting…" : myReview.data ? "Save changes" : "Submit review"}
+          </button>
+          {myReview.data ? (
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              className="text-[12.5px] font-semibold text-muted-foreground hover:underline"
+            >
+              Cancel
+            </button>
+          ) : null}
+        </div>
+      </form>
+    </section>
   );
 }
 

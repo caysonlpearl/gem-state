@@ -69,14 +69,7 @@ import {
   markNotificationsRead,
   type MemberNotification,
 } from "@/lib/notifications.functions";
-import {
-  cancelListing,
-  getMyListings,
-  getMyOrders,
-  type MyListing,
-  type MyOrder,
-} from "@/lib/market.functions";
-import { OrderReviewCard } from "@/components/orders/OrderReviewCard";
+import { cancelListing, getMyListings, type MyListing } from "@/lib/market.functions";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -167,7 +160,6 @@ export function AccountCenter({ section, conversationId }: AccountCenterProps) {
   const fetchNotificationPreferences = useServerFn(getMyNotificationPreferences);
   const fetchSellerSetup = useServerFn(getSellerSetup);
   const fetchListings = useServerFn(getMyListings);
-  const fetchOrders = useServerFn(getMyOrders);
   const fetchSellerSummary = useServerFn(getSellerDashboardSummary);
   const fetchUpgradeOptions = useServerFn(getListingUpgradeOptions);
   const fetchBillingHistory = useServerFn(getSellerBillingHistory);
@@ -237,11 +229,6 @@ export function AccountCenter({ section, conversationId }: AccountCenterProps) {
     queryKey: ["seller-billing-history"],
     queryFn: () => fetchBillingHistory(),
     enabled: section === "billing",
-  });
-  const orders = useQuery({
-    queryKey: ["my-orders"],
-    queryFn: () => fetchOrders(),
-    enabled: section === "reviews",
   });
 
   function go(next: AccountSection, extra: { conversation?: string } = {}) {
@@ -344,11 +331,7 @@ export function AccountCenter({ section, conversationId }: AccountCenterProps) {
             <ListingsSection listings={listings.data?.asks ?? []} sellerSetup={sellerSetup.data} />
           )}
           {section === "reviews" && (
-            <ReviewsSection
-              summary={sellerSummary.data}
-              sellerSetup={sellerSetup.data}
-              orders={orders.data ?? []}
-            />
+            <ReviewsSection summary={sellerSummary.data} sellerSetup={sellerSetup.data} />
           )}
           {section === "billing" && (
             <BillingSection
@@ -2508,11 +2491,9 @@ function SellerListingCard({
 function ReviewsSection({
   summary,
   sellerSetup,
-  orders,
 }: {
   summary?: Awaited<ReturnType<typeof getSellerDashboardSummary>> | undefined;
   sellerSetup?: Awaited<ReturnType<typeof getSellerSetup>> | undefined;
-  orders: MyOrder[];
 }) {
   const rating = summary?.ratingAverage;
   const reviews = summary?.reviews ?? [];
@@ -2545,7 +2526,7 @@ function ReviewsSection({
       <SectionHeader
         eyebrow="Trust profile"
         title="Reviews & reputation"
-        body="See the reputation you have earned, the reviews you have written, and any eligible interactions still waiting for feedback."
+        body="See the reputation you have earned on Gem State. Anyone can leave you a review from your public profile — share your link so members you have dealt with can rate you."
         action={
           sellerSetup?.slug ? (
             <Link
@@ -2591,106 +2572,33 @@ function ReviewsSection({
           </button>
         </div>
       </section>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-          <SectionTitle title="Reviews received" />
-          <p className="mt-1 text-[11.5px] text-muted-foreground">
-            Feedback from eligible marketplace interactions.
-          </p>
-          {reviews.length ? (
-            <div className="mt-4 space-y-3">
-              {reviews.map((review) => (
-                <article
-                  key={review.id}
-                  className="border-t border-border pt-3 first:border-t-0 first:pt-0"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold">{"★".repeat(review.rating)}</span>
-                    <span className="text-[11px] text-muted-foreground">
-                      {new Date(review.createdAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">
-                    {review.comment || "No written comment."}
-                  </p>
-                </article>
-              ))}
-            </div>
-          ) : (
-            <p className="mt-4 text-[12px] text-muted-foreground">No completed reviews yet.</p>
-          )}
-        </section>
-        <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-          <SectionTitle title="Your review activity" />
-          <p className="mt-1 text-[11.5px] text-muted-foreground">
-            Reviews you have written and interactions still eligible for feedback.
-          </p>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <MiniMetric label="Written by you" value={summary?.reviewsWritten.length ?? 0} />
-            <MiniMetric label="Pending requests" value={summary?.pendingReviewCount ?? 0} />
-          </div>
-          {(summary?.reviewsWritten.length ?? 0) > 0 ? (
-            <div className="mt-4 space-y-3">
-              {summary?.reviewsWritten.map((review) => (
-                <article
-                  key={review.id}
-                  className="border-t border-border pt-3 first:border-t-0 first:pt-0"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold">{"★".repeat(review.rating)}</span>
-                    <span className="text-[11px] text-muted-foreground">
-                      {new Date(review.createdAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <p className="mt-2 text-[12px] text-muted-foreground">
-                    {review.comment || "No written comment."}
-                  </p>
-                </article>
-              ))}
-            </div>
-          ) : (
-            <p className="mt-4 text-[12px] text-muted-foreground">
-              Reviews become available after an eligible marketplace interaction is completed. Your
-              reviews will appear here once one is ready.
-            </p>
-          )}
-          <Link
-            to="/account"
-            search={{ section: "messages" }}
-            className="mt-4 inline-flex text-[12px] font-semibold text-primary hover:underline"
-          >
-            Open marketplace messages
-            <ArrowRight size={13} className="ml-1" />
-          </Link>
-        </section>
-      </div>
       <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-        <SectionTitle title="Eligible review requests" />
+        <SectionTitle title="Reviews received" />
         <p className="mt-1 text-[11.5px] text-muted-foreground">
-          Completed marketplace transactions appear here with the verified write-a-review form.
-          Reviews are limited to real, completed orders.
+          Anyone can leave you a review from your public profile — no transaction required.
         </p>
-        <div className="mt-4 space-y-4">
-          {orders
-            .filter((order) => order.status === "completed")
-            .map((order) => (
-              <OrderReviewCard key={order.id} orderId={order.id} role={order.role} />
+        {reviews.length ? (
+          <div className="mt-4 space-y-3">
+            {reviews.map((review) => (
+              <article
+                key={review.id}
+                className="border-t border-border pt-3 first:border-t-0 first:pt-0"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold">{"★".repeat(review.rating)}</span>
+                  <span className="text-[11px] text-muted-foreground">
+                    {new Date(review.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+                <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">
+                  {review.comment || "No written comment."}
+                </p>
+              </article>
             ))}
-          {orders.filter((order) => order.status === "completed").length === 0 && (
-            <EmptyState
-              title="No eligible review requests yet"
-              body="Complete a marketplace transaction and the review form will appear here."
-              action={
-                <Link
-                  to="/browse"
-                  className="text-[12px] font-semibold text-primary hover:underline"
-                >
-                  Browse listings
-                </Link>
-              }
-            />
-          )}
-        </div>
+          </div>
+        ) : (
+          <p className="mt-4 text-[12px] text-muted-foreground">No reviews yet.</p>
+        )}
       </section>
     </div>
   );

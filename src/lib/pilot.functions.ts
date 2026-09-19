@@ -101,7 +101,7 @@ export const getOrderOperations = createServerFn({ method: "GET" })
     const isSeller = order.seller_id === userId;
     if (!isBuyer && !isSeller && !isStaff) return null;
 
-    const [payments, payout, shipment, evidence, dispute, sale, address, assignment, review] =
+    const [payments, payout, shipment, evidence, dispute, sale, address, assignment] =
       await Promise.all([
         supabase
           .from("order_payments")
@@ -150,12 +150,6 @@ export const getOrderOperations = createServerFn({ method: "GET" })
             "status, shopper_fee_cents, reference_price_cents, buyer_max_purchase_cents, coverage_label, purchase_deadline, currency",
           )
           .eq("order_id", orderId)
-          .maybeSingle(),
-        supabase
-          .from("order_reviews")
-          .select("rating")
-          .eq("order_id", orderId)
-          .eq("reviewer_id", userId)
           .maybeSingle(),
       ]);
 
@@ -220,12 +214,6 @@ export const getOrderOperations = createServerFn({ method: "GET" })
         : null,
       address: shapeAddress((address.data ?? null) as Record<string, unknown> | null),
       assignment: shapeAssignment((assignment.data ?? null) as Record<string, unknown> | null),
-      myReviewRating: review.data?.rating ?? null,
-      canReview:
-        ["delivered", "completed"].includes(order.status) &&
-        !order.is_demo &&
-        (isBuyer || isSeller) &&
-        !review.data,
     };
   });
 
@@ -406,26 +394,6 @@ export const openDispute = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     const { emailDisputeUpdate } = await import("./email-notifications.server");
     await emailDisputeUpdate(data.orderId, "opened");
-    return { ok: true as const };
-  });
-
-export const submitOrderReview = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((input: { orderId: string; rating: number; comment?: string | null }) => {
-    const rating = Math.round(Number(input.rating));
-    if (!Number.isFinite(rating) || rating < 1 || rating > 5)
-      throw new Error("Rate between 1 and 5.");
-    const comment = String(input.comment ?? "").trim();
-    if (comment.length > 1000) throw new Error("Keep your review under 1000 characters.");
-    return { orderId: String(input.orderId), rating, comment: comment || null };
-  })
-  .handler(async ({ data, context }) => {
-    const { error } = await context.supabase.rpc("submit_order_review", {
-      _order_id: data.orderId,
-      _rating: data.rating,
-      ...(data.comment ? { _comment: data.comment } : {}),
-    });
-    if (error) throw new Error(error.message);
     return { ok: true as const };
   });
 
