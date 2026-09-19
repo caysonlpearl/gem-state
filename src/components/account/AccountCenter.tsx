@@ -98,6 +98,7 @@ import {
   createListingUpgradeCheckout,
   getListingUpgradeOptions,
   getSellerBillingHistory,
+  reconcileListingUpgradeCheckout,
   type ListingUpgradeOption,
   type ListingUpgradePurchase,
 } from "@/lib/listing-upgrade.functions";
@@ -120,6 +121,8 @@ export type AccountSection = (typeof ACCOUNT_SECTIONS)[number];
 type AccountCenterProps = {
   section: AccountSection;
   conversationId?: string | undefined;
+  checkout?: "success" | "cancelled" | undefined;
+  purchaseId?: string | undefined;
 };
 
 const intentLabels: Record<MemberIntent, string> = {
@@ -148,7 +151,7 @@ const navItems: { section: AccountSection; label: string; icon: typeof UserCircl
   { section: "reviews", label: "Reviews & reputation", icon: Star },
 ];
 
-export function AccountCenter({ section, conversationId }: AccountCenterProps) {
+export function AccountCenter({ section, conversationId, checkout, purchaseId }: AccountCenterProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const fetchAccount = useServerFn(getMyAccount);
@@ -163,10 +166,22 @@ export function AccountCenter({ section, conversationId }: AccountCenterProps) {
   const fetchSellerSummary = useServerFn(getSellerDashboardSummary);
   const fetchUpgradeOptions = useServerFn(getListingUpgradeOptions);
   const fetchBillingHistory = useServerFn(getSellerBillingHistory);
+  const reconcileCheckout = useServerFn(reconcileListingUpgradeCheckout);
 
   useEffect(() => {
     void trackEvent("page_view", { route: `/account?section=${section}` });
   }, [section]);
+
+  useEffect(() => {
+    if (section !== "billing" || !purchaseId || !checkout) return;
+    void reconcileCheckout({ data: { purchaseId, cancelled: checkout === "cancelled" } }).then((result) => {
+      queryClient.invalidateQueries({ queryKey: ["seller-billing-history"] });
+      if (result === "paid") toast.success("Listing upgrade applied.");
+      if (result === "canceled") toast.message("Stripe checkout canceled; no upgrade was applied.");
+    }).catch((error) => {
+      toast.error(error instanceof Error ? error.message : "Could not reconcile Stripe checkout.");
+    });
+  }, [checkout, purchaseId, queryClient, reconcileCheckout, section]);
 
   const account = useQuery({ queryKey: ["my-account"], queryFn: () => fetchAccount() });
   const watchlist = useQuery({

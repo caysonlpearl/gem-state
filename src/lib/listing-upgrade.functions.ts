@@ -3,7 +3,12 @@ import { getRequest } from "@tanstack/react-start/server";
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { getStripe, parkVaultOrigin } from "./stripe-marketplace.server";
+import {
+  expireListingUpgradeCheckout,
+  finalizeListingUpgradeCheckout,
+  getStripe,
+  parkVaultOrigin,
+} from "./stripe-marketplace.server";
 
 export type ListingUpgradeOption = {
   id: string;
@@ -74,6 +79,43 @@ export const getSellerBillingHistory = createServerFn({ method: "GET" })
     }));
   });
 
+export const reconcileListingUpgradeCheckout = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { purchaseId: string; cancelled: boolean }) => ({
+    purchaseId: String(input.purchaseId),
+    cancelled: Boolean(input.cancelled),
+  }))
+  .handler(async ({ data, context }): Promise<"paid" | "canceled" | "pending" | "unavailable"> => {
+    const admin = supabaseAdmin as any;
+    const { data: purchase, error } = await admin
+      .from("listing_upgrade_purchases")
+      .select("id,user_id,status,stripe_checkout_session_id")
+      .eq("id", data.purchaseId)
+      .eq("user_id", context.userId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!purchase?.stripe_checkout_session_id) return "unavailable";
+    if (purchase.status === "paid") return "paid";
+    if (["canceled", "failed", "refunded"].includes(purchase.status)) return purchase.status === "canceled" ? "canceled" : "unavailable";
+
+    const stripe = getStripe();
+    const session = await stripe.checkout.sessions.retrieve(purchase.stripe_checkout_session_id);
+    if (data.cancelled) {
+      if (session.status === "open") await stripe.checkout.sessions.expire(session.id);
+      await expireListingUpgradeCheckout(session);
+      return "canceled";
+    }
+    if (session.payment_status === "paid" || session.status === "complete") {
+      await finalizeListingUpgradeCheckout(session);
+      return "paid";
+    }
+    if (session.status === "expired") {
+      await expireListingUpgradeCheckout(session);
+      return "canceled";
+    }
+    return "pending";
+  });
+
 export const createListingUpgradeCheckout = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { listingId: string; upgradeCode: string }) => ({
@@ -131,8 +173,8 @@ export const createListingUpgradeCheckout = createServerFn({ method: "POST" })
           line_items: [{ quantity: 1, price_data: { currency: "usd", unit_amount: Number(upgrade.amount_cents), product_data: { name: upgrade.name, description: upgrade.description } } }],
           metadata,
           payment_intent_data: { metadata },
-          success_url: `${origin}/account?section=billing&checkout=success`,
-          cancel_url: `${origin}/account?section=billing&checkout=cancelled`,
+          success_url: `${origin}/account?section=billing&checkout=success&purchase=${purchase.id}`,
+          cancel_url: `${origin}/account?section=billing&checkout=cancelled&purchase=${purchase.id}`,
           expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
         },
         { idempotencyKey: `gemstate-listing-upgrade-${purchase.id}` },
