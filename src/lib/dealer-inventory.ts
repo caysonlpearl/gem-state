@@ -216,6 +216,115 @@ export function parseCsv(input: string): { headers: string[]; rows: Record<strin
   return { headers, rows };
 }
 
+function toSnakeCase(value: string): string {
+  return value
+    .trim()
+    .replace(/([a-z0-9])([A-Z])/g, "$1_$2")
+    .replace(/[^A-Za-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .toLowerCase();
+}
+
+function jsonValueToString(value: unknown, key: string): string {
+  if (Array.isArray(value)) {
+    if (key === "photos" || key === "photo_urls" || key === "images") {
+      return value
+        .map((item) =>
+          typeof item === "object" && item !== null
+            ? ((item as Record<string, unknown>)["url"] ??
+              (item as Record<string, unknown>)["src"] ??
+              "")
+            : item,
+        )
+        .map(clean)
+        .filter(Boolean)
+        .join("|");
+    }
+    return value.map(clean).filter(Boolean).join("|");
+  }
+  if (value && typeof value === "object") return JSON.stringify(value);
+  return clean(value);
+}
+
+function rowsFromJson(input: string): Record<string, string>[] {
+  const parsed: unknown = JSON.parse(input);
+  const rows = Array.isArray(parsed)
+    ? parsed
+    : parsed && typeof parsed === "object"
+      ? Object.values(parsed as Record<string, unknown>).find(Array.isArray)
+      : null;
+  const candidates = rows ?? (parsed && typeof parsed === "object" ? [parsed] : []);
+  if (!Array.isArray(candidates) || candidates.length === 0) {
+    throw new Error("JSON must contain an array of inventory records.");
+  }
+  if (
+    candidates.some(
+      (candidate) => !candidate || typeof candidate !== "object" || Array.isArray(candidate),
+    )
+  ) {
+    throw new Error("JSON inventory records must be objects.");
+  }
+  return candidates.map((candidate) => {
+    const row: Record<string, string> = {};
+    for (const [key, value] of Object.entries(candidate as Record<string, unknown>)) {
+      const stringValue = jsonValueToString(value, toSnakeCase(key));
+      row[key] = stringValue;
+      row[toSnakeCase(key)] = stringValue;
+    }
+    return row;
+  });
+}
+
+function decodeXml(value: string): string {
+  return value
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .trim();
+}
+
+function rowsFromXml(input: string): Record<string, string>[] {
+  if (/<!DOCTYPE|<!ENTITY/i.test(input)) {
+    throw new Error("XML declarations and entities are not allowed in feed uploads.");
+  }
+  const recordTags = ["vehicle", "item", "listing", "ad", "record"];
+  let matches: RegExpMatchArray[] = [];
+  for (const tag of recordTags) {
+    const tagMatches = [
+      ...input.matchAll(new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)</${tag}>`, "gi")),
+    ];
+    if (tagMatches.length > 0) {
+      matches = tagMatches;
+      break;
+    }
+  }
+  if (matches.length === 0)
+    throw new Error("XML must contain repeated vehicle or listing records.");
+
+  return matches.map((match) => {
+    const row: Record<string, string> = {};
+    const body = match[1] ?? "";
+    const leafTags = /<([A-Za-z_][\w:.-]*)\b[^>]*>([^<]*)<\/\1>/gi;
+    for (const leaf of body.matchAll(leafTags)) {
+      const originalKey = leaf[1] ?? "";
+      const key = toSnakeCase(originalKey);
+      const value = decodeXml(leaf[2] ?? "");
+      row[originalKey] = value;
+      row[key] = value;
+    }
+    const photoValues = [
+      ...body.matchAll(/<(?:photo|photo_url|image|image_url|url)\b[^>]*>([^<]+)<\//gi),
+    ]
+      .map((photo) => decodeXml(photo[1] ?? ""))
+      .filter(Boolean);
+    if (photoValues.length > 0) row["photos"] = photoValues.join("|");
+    return row;
+  });
+}
+
 function valueFor(
   row: Record<string, string>,
   field: InventoryField,
@@ -406,6 +515,30 @@ export function parseAndNormalizeInventoryCsv(
 export const csvInventoryAdapter: InventoryFeedAdapter = {
   format: "csv",
   parse: parseAndNormalizeInventoryCsv,
+};
+
+export function parseAndNormalizeInventoryJson(
+  input: string,
+  mapping: InventoryMapping = {},
+): InventoryParseResult {
+  return normalizeInventoryRows(rowsFromJson(input), mapping);
+}
+
+export function parseAndNormalizeInventoryXml(
+  input: string,
+  mapping: InventoryMapping = {},
+): InventoryParseResult {
+  return normalizeInventoryRows(rowsFromXml(input), mapping);
+}
+
+export const jsonInventoryAdapter: InventoryFeedAdapter = {
+  format: "json",
+  parse: parseAndNormalizeInventoryJson,
+};
+
+export const xmlInventoryAdapter: InventoryFeedAdapter = {
+  format: "xml",
+  parse: parseAndNormalizeInventoryXml,
 };
 
 export function calculateInventoryDiff(

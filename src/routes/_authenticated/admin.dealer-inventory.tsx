@@ -7,7 +7,11 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { dealerInventoryFeedV1 } from "@/config/dealer-inventory-sample";
+import {
+  dealerInventoryFeedJsonV1,
+  dealerInventoryFeedV1,
+  dealerInventoryFeedXmlV1,
+} from "@/config/dealer-inventory-sample";
 import {
   applyDealerInventoryFeed,
   createDealerInventorySource,
@@ -46,6 +50,7 @@ function DealerInventoryPage() {
   const [providerName, setProviderName] = useState(
     "Mock source — replace when a dealer is available",
   );
+  const [fileFormat, setFileFormat] = useState<"csv" | "json" | "xml">("csv");
   const [feedUrl, setFeedUrl] = useState("");
   const [schedule, setSchedule] = useState("");
   const [mappingJson, setMappingJson] = useState("");
@@ -54,11 +59,18 @@ function DealerInventoryPage() {
   const [filename, setFilename] = useState("dealership-inventory.csv");
   const [preview, setPreview] = useState<PreviewResult | null>(null);
 
-  const selectedSourceId = sourceId || sources?.[0]?.id || "";
+  const selectedSourceId = sourceId;
   const selectedSource = useMemo(
     () => sources?.find((source) => source.id === selectedSourceId) ?? null,
     [selectedSourceId, sources],
   );
+  const selectedFormat = (selectedSource?.file_format ?? fileFormat) as "csv" | "json" | "xml";
+  const sampleFeed =
+    selectedFormat === "json"
+      ? dealerInventoryFeedJsonV1
+      : selectedFormat === "xml"
+        ? dealerInventoryFeedXmlV1
+        : dealerInventoryFeedV1;
   const { data: syncRuns, isLoading: syncRunsLoading } = useQuery({
     queryKey: ["dealer-inventory-sync-runs", selectedSourceId],
     queryFn: () => fetchSyncRuns({ data: { sourceId: selectedSourceId } }),
@@ -80,7 +92,7 @@ function DealerInventoryPage() {
           name,
           providerName: providerName || null,
           sourceType: "manual_upload",
-          fileFormat: "csv",
+          fileFormat,
           feedUrl: feedUrl || null,
           schedule: schedule || null,
           minimumRowCount: 1,
@@ -101,8 +113,14 @@ function DealerInventoryPage() {
   const previewMutation = useMutation({
     mutationFn: () => {
       if (!selectedSourceId) throw new Error("Create or select an inventory source first.");
-      if (!csv.trim()) throw new Error("Paste a CSV feed or load the sample feed first.");
-      return previewFeed({ data: { sourceId: selectedSourceId, csv, filename, dryRun: true } });
+      if (!csv.trim()) {
+        throw new Error(
+          `Paste a ${selectedFormat.toUpperCase()} feed or load the sample feed first.`,
+        );
+      }
+      return previewFeed({
+        data: { sourceId: selectedSourceId, payload: csv, filename, dryRun: true },
+      });
     },
     onSuccess: (result) => {
       setPreview(result);
@@ -128,8 +146,14 @@ function DealerInventoryPage() {
   const applyMutation = useMutation({
     mutationFn: () => {
       if (!selectedSourceId) throw new Error("Create or select an inventory source first.");
-      if (!csv.trim()) throw new Error("Paste a CSV feed or load the sample feed first.");
-      return applyFeed({ data: { sourceId: selectedSourceId, csv, filename, dryRun: false } });
+      if (!csv.trim()) {
+        throw new Error(
+          `Paste a ${selectedFormat.toUpperCase()} feed or load the sample feed first.`,
+        );
+      }
+      return applyFeed({
+        data: { sourceId: selectedSourceId, payload: csv, filename, dryRun: false },
+      });
     },
     onSuccess: async (result) => {
       setPreview(null);
@@ -157,9 +181,9 @@ function DealerInventoryPage() {
         </p>
         <h1 className="mt-1 text-[24px] font-semibold tracking-tight">Dealer inventory feeds</h1>
         <p className="mt-2 max-w-[780px] text-[13px] leading-relaxed text-muted-foreground">
-          Provider-neutral CSV intake for the dealership integration foundation. Imported records
-          stay in the inventory layer until a future moderation step links them to public GemList
-          listings.
+          Provider-neutral CSV, JSON, and XML intake for the dealership integration foundation.
+          Imported records stay in the inventory layer until a future moderation step links them to
+          public GemList listings.
         </p>
       </header>
 
@@ -180,6 +204,7 @@ function DealerInventoryPage() {
                 onChange={(event) => setSourceId(event.target.value)}
                 className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-[12px]"
               >
+                <option value="">Select a source to preview or apply</option>
                 {sources.map((source) => (
                   <option key={source.id} value={source.id}>
                     {source.name}
@@ -203,6 +228,24 @@ function DealerInventoryPage() {
               onChange={(event) => setProviderName(event.target.value)}
               className="mt-1"
             />
+          </label>
+          <label className="block text-[12px] font-medium">
+            File format
+            <select
+              value={fileFormat}
+              onChange={(event) => setFileFormat(event.target.value as "csv" | "json" | "xml")}
+              className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-[12px]"
+              disabled={Boolean(sourceId)}
+            >
+              <option value="csv">CSV</option>
+              <option value="json">JSON</option>
+              <option value="xml">XML</option>
+            </select>
+            {selectedSource ? (
+              <span className="mt-1 block text-[11px] font-normal text-muted-foreground">
+                Format is fixed by the selected source.
+              </span>
+            ) : null}
           </label>
           <label className="block text-[12px] font-medium">
             Feed URL (future HTTPS source)
@@ -284,25 +327,26 @@ function DealerInventoryPage() {
         <div className="space-y-4 rounded-lg border border-border bg-card p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="text-[14px] font-semibold">CSV feed</h2>
+              <h2 className="text-[14px] font-semibold">Inventory feed</h2>
               <p className="mt-1 text-[12px] text-muted-foreground">
                 Use the sample dealership feed to test create, update, sold, and photo behavior.
               </p>
             </div>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              onClick={() => setCsv(dealerInventoryFeedV1)}
-            >
-              Load sample feed
+            <Button type="button" variant="secondary" size="sm" onClick={() => setCsv(sampleFeed)}>
+              Load {selectedFormat.toUpperCase()} sample
             </Button>
           </div>
           <label className="block text-[12px] font-medium">
-            Upload CSV file
+            Upload {selectedFormat.toUpperCase()} file
             <Input
               type="file"
-              accept=".csv,text/csv"
+              accept={
+                selectedFormat === "csv"
+                  ? ".csv,text/csv"
+                  : selectedFormat === "json"
+                    ? ".json,application/json"
+                    : ".xml,text/xml,application/xml"
+              }
               className="mt-1 cursor-pointer text-[12px]"
               onChange={async (event) => {
                 const file = event.target.files?.[0];
@@ -322,7 +366,7 @@ function DealerInventoryPage() {
             value={csv}
             onChange={(event) => setCsv(event.target.value)}
             rows={15}
-            placeholder="Paste a dealership CSV feed here…"
+            placeholder={`Paste a dealership ${selectedFormat.toUpperCase()} feed here…`}
             className="font-mono text-[11px]"
           />
           <div className="flex flex-wrap gap-2">

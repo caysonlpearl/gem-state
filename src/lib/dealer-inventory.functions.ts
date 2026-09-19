@@ -6,8 +6,11 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   calculateInventoryDiff,
   defaultInventoryMapping,
+  parseAndNormalizeInventoryJson,
   parseAndNormalizeInventoryCsv,
+  parseAndNormalizeInventoryXml,
   recordsForDatabase,
+  type InventoryFileFormat,
   type InventoryMapping,
 } from "@/lib/dealer-inventory";
 
@@ -63,10 +66,20 @@ export type DealerInventorySyncRunSummary = {
 
 const feedInput = z.object({
   sourceId: z.string().uuid(),
-  csv: z.string().min(1).max(5_000_000),
+  payload: z.string().min(1).max(5_000_000),
   filename: z.string().trim().max(255).optional(),
   dryRun: z.boolean().default(true),
 });
+
+function parseInventoryFeed(
+  format: InventoryFileFormat,
+  payload: string,
+  mapping: InventoryMapping,
+) {
+  if (format === "json") return parseAndNormalizeInventoryJson(payload, mapping);
+  if (format === "xml") return parseAndNormalizeInventoryXml(payload, mapping);
+  return parseAndNormalizeInventoryCsv(payload, mapping);
+}
 
 async function requireStaff(context: { supabase: unknown; userId: string }) {
   const { data, error } = await (context.supabase as any).rpc("is_staff", {
@@ -158,13 +171,13 @@ export const previewDealerInventoryFeed = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: source, error } = await (supabaseAdmin as any)
       .from("dealer_inventory_sources")
-      .select("id,mapping_profile,minimum_row_count")
+      .select("id,file_format,mapping_profile,minimum_row_count")
       .eq("id", data.sourceId)
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!source) throw new Error("Inventory source not found.");
 
-    const result = parseAndNormalizeInventoryCsv(data.csv, {
+    const result = parseInventoryFeed(source.file_format as InventoryFileFormat, data.payload, {
       ...defaultInventoryMapping,
       ...(source.mapping_profile ?? {}),
     } as InventoryMapping);
@@ -184,7 +197,7 @@ export const previewDealerInventoryFeed = createServerFn({ method: "POST" })
         status: rejected ? "rejected" : "completed",
         source_filename: data.filename ?? null,
         source_checksum: result.records.map((record) => record.contentHash).join(":"),
-        raw_payload: data.csv,
+        raw_payload: data.payload,
         started_at: new Date().toISOString(),
         finished_at: new Date().toISOString(),
         received_row_count: result.rows.length,
@@ -235,13 +248,13 @@ export const applyDealerInventoryFeed = createServerFn({ method: "POST" })
     const admin = supabaseAdmin as any;
     const { data: source, error: sourceError } = await admin
       .from("dealer_inventory_sources")
-      .select("id,mapping_profile,minimum_row_count")
+      .select("id,file_format,mapping_profile,minimum_row_count")
       .eq("id", data.sourceId)
       .maybeSingle();
     if (sourceError) throw new Error(sourceError.message);
     if (!source) throw new Error("Inventory source not found.");
 
-    const result = parseAndNormalizeInventoryCsv(data.csv, {
+    const result = parseInventoryFeed(source.file_format as InventoryFileFormat, data.payload, {
       ...defaultInventoryMapping,
       ...(source.mapping_profile ?? {}),
     } as InventoryMapping);
@@ -260,7 +273,7 @@ export const applyDealerInventoryFeed = createServerFn({ method: "POST" })
         status: "running",
         source_filename: data.filename ?? null,
         source_checksum: checksum,
-        raw_payload: data.csv,
+        raw_payload: data.payload,
         received_row_count: result.rows.length,
         valid_row_count: result.records.length,
         invalid_row_count: result.errors.length,
