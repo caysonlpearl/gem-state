@@ -543,6 +543,16 @@ async function expireListingUpgradeCheckout(session: Stripe.Checkout.Session) {
     .eq("status", "pending");
 }
 
+async function failListingUpgradePaymentIntent(intent: Stripe.PaymentIntent) {
+  const purchaseId = intent.metadata?.["gemstate_purchase_id"] ?? "";
+  if (!purchaseId) return;
+  await (supabaseAdmin as any)
+    .from("listing_upgrade_purchases")
+    .update({ status: "failed", stripe_payment_intent_id: intent.id })
+    .eq("id", purchaseId)
+    .eq("status", "pending");
+}
+
 export async function handleStripeWebhook(request: Request, runtimeEnv?: unknown) {
   const secrets = [
     ...runtimeSecretCandidates(runtimeEnv, "STRIPE_WEBHOOK_SECRET"),
@@ -603,6 +613,11 @@ export async function handleStripeWebhook(request: Request, runtimeEnv?: unknown
           await expireCheckoutSession(event.data.object as Stripe.Checkout.Session);
         }
         break;
+      case "checkout.session.async_payment_failed":
+        if ((event.data.object as Stripe.Checkout.Session).metadata?.["gemstate_purpose"] === "listing_upgrade") {
+          await expireListingUpgradeCheckout(event.data.object as Stripe.Checkout.Session);
+        }
+        break;
       case "account.updated":
         await syncConnectedAccount(event.data.object as Stripe.Account);
         break;
@@ -630,11 +645,13 @@ export async function handleStripeWebhook(request: Request, runtimeEnv?: unknown
       case "payment_intent.canceled": {
         const intent = event.data.object as Stripe.PaymentIntent;
         await releaseFailedOfferCapture(intent);
+        await failListingUpgradePaymentIntent(intent);
         break;
       }
       case "payment_intent.payment_failed": {
         const intent = event.data.object as Stripe.PaymentIntent;
         await releaseFailedOfferCapture(intent);
+        await failListingUpgradePaymentIntent(intent);
         break;
       }
       default:

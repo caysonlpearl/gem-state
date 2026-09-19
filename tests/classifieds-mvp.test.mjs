@@ -370,6 +370,10 @@ test("seller billing is catalog-backed and settles upgrades through Stripe webho
   assert.match(listingUpgradeMigrationSource, /listing_upgrade_purchases/);
   assert.match(stripeServerSource, /gemstate_purpose/);
   assert.match(stripeServerSource, /finalizeListingUpgradeCheckout/);
+  assert.match(stripeServerSource, /failListingUpgradePaymentIntent/);
+  assert.match(stripeServerSource, /checkout\.session\.async_payment_failed/);
+  assert.match(stripeServerSource, /payment_intent\.payment_failed/);
+  assert.match(stripeServerSource, /status: "failed"/);
   assert.match(accountCenterSource, /Continue to Stripe/);
 });
 
