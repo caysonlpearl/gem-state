@@ -111,6 +111,67 @@ type Search = {
   leaseLength?: string | undefined;
 };
 
+const savedSearchFilterKeys: readonly (keyof Search)[] = [
+  "q",
+  "category",
+  "group",
+  "state",
+  "region",
+  "city",
+  "postalCode",
+  "condition",
+  "fulfillment",
+  "priceMin",
+  "priceMax",
+  "make",
+  "model",
+  "yearMin",
+  "yearMax",
+  "mileageMax",
+  "mileageBands",
+  "bodyStyle",
+  "transmission",
+  "drivetrain",
+  "fuelType",
+  "exteriorColor",
+  "titleStatus",
+  "sellerType",
+  "homeTab",
+  "serviceSubcategory",
+  "serviceExpandSearch",
+  "servicePhotos",
+  "serviceVideo",
+  "serviceSellerType",
+  "serviceCondition",
+  "serviceTimeOnSite",
+  "jobCategory",
+  "jobType",
+  "jobPayType",
+  "jobPayMin",
+  "jobPayMax",
+  "jobExperience",
+  "jobPosted",
+  "jobEducation",
+  "jobPhotos",
+  "jobVideo",
+  "jobTimeOnSite",
+  "homeLocation",
+  "homePrice",
+  "propertyType",
+  "bedrooms",
+  "bathrooms",
+  "homeSquareFeet",
+  "homeBuilder",
+  "constructionType",
+  "homeAcres",
+  "homeSellerType",
+  "petsCats",
+  "petsDogs",
+  "homeAmenities",
+  "communityAmenities",
+  "leaseLength",
+];
+
 type VehicleHeroFilter =
   | "makeModel"
   | "year"
@@ -1139,23 +1200,10 @@ function Browse() {
 
   async function saveCurrentSearch() {
     const searchToSave = Object.fromEntries(
-      Object.entries(search).filter(
-        ([key, value]) =>
-          value !== undefined &&
-          value !== "" &&
-          ![
-            "allCategories",
-            "savedSearchId",
-            "sort",
-            "view",
-            "page",
-            "homeMode",
-            "homeTab",
-            "jobMode",
-            "serviceMode",
-            "vehicleMode",
-          ].includes(key),
-      ),
+      savedSearchFilterKeys.flatMap((key) => {
+        const value = search[key];
+        return value !== undefined && value !== "" ? [[key, value]] : [];
+      }),
     );
 
     try {
