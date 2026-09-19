@@ -359,32 +359,40 @@ export const saveSellerSetup = createServerFn({ method: "POST" })
         throw new Error("Upload the seller photo through Gem State Classifieds.");
       }
       if (!input.acceptTerms) throw new Error("Accept the seller and photo-display terms.");
-      const defaultShippingMethod = String(input.defaultShippingMethod ?? "");
-      if (!sellerShippingMethods.some((method) => method.value === defaultShippingMethod)) {
-        throw new Error("Choose a default shipping method.");
+      // Shipping method, handling time, and the ship-from address only matter for
+      // Gem State's own checkout-marketplace listings -- direct-contact classifieds
+      // sellers arrange shipping themselves, so none of this is required to save a
+      // profile. Only validate a field if the seller actually filled it in.
+      const rawShippingMethod = String(input.defaultShippingMethod ?? "").trim();
+      if (rawShippingMethod && !sellerShippingMethods.some((m) => m.value === rawShippingMethod)) {
+        throw new Error("Choose a valid default shipping method.");
       }
-      const defaultHandlingDays = Math.round(Number(input.defaultHandlingDays));
-      if (
-        !Number.isFinite(defaultHandlingDays) ||
-        defaultHandlingDays < 1 ||
-        defaultHandlingDays > 5
-      ) {
-        throw new Error("Choose a handling time between 1 and 5 business days.");
+      const defaultShippingMethod = rawShippingMethod || null;
+      const rawHandlingDays = String(input.defaultHandlingDays ?? "").trim();
+      let defaultHandlingDays: number | null = null;
+      if (rawHandlingDays) {
+        const parsed = Math.round(Number(rawHandlingDays));
+        if (!Number.isFinite(parsed) || parsed < 1 || parsed > 5) {
+          throw new Error("Choose a handling time between 1 and 5 business days.");
+        }
+        defaultHandlingDays = parsed;
       }
+      const optionalText = (value: unknown, maxLength: number) => {
+        const trimmed = String(value ?? "").trim();
+        return trimmed ? trimmed.slice(0, maxLength) : null;
+      };
       return {
         slug,
         bio,
         displayName,
         avatarUrl,
-        shipFromName: requireText(input.shipFromName, "ship-from name", 100),
-        shipFromPhone: requireText(input.shipFromPhone, "phone number", 30),
-        shipFromLine1: requireText(input.shipFromLine1, "street address", 120),
-        shipFromLine2: String(input.shipFromLine2 ?? "")
-          .trim()
-          .slice(0, 120),
-        shipFromCity: requireText(input.shipFromCity, "city", 80),
-        shipFromRegion: requireText(input.shipFromRegion, "state", 40),
-        shipFromPostalCode: requireText(input.shipFromPostalCode, "ZIP code", 20),
+        shipFromName: optionalText(input.shipFromName, 100),
+        shipFromPhone: optionalText(input.shipFromPhone, 30),
+        shipFromLine1: optionalText(input.shipFromLine1, 120),
+        shipFromLine2: optionalText(input.shipFromLine2, 120),
+        shipFromCity: optionalText(input.shipFromCity, 80),
+        shipFromRegion: optionalText(input.shipFromRegion, 40),
+        shipFromPostalCode: optionalText(input.shipFromPostalCode, 20),
         shipFromCountry: String(input.shipFromCountry ?? "US")
           .trim()
           .toUpperCase()

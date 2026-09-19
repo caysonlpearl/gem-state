@@ -154,14 +154,12 @@ function SellerSetupPage() {
     setup.data?.stripeAccountModeCurrent &&
     setup.data?.stripeDetailsSubmitted &&
     setup.data?.stripePayoutsEnabled;
-  const profileReady = Boolean(
-    setup.data?.exists &&
-    setup.data?.termsAccepted &&
-    setup.data?.defaultShippingMethod &&
-    setup.data?.defaultHandlingDays,
-  );
-  // Direct-contact classifieds do not require payment or payout onboarding. The Stripe
-  // connection remains available for a future transaction phase, but it must not block MVP sellers.
+  // Direct-contact classifieds do not require payment, payout, or shipping-method
+  // onboarding -- buyer and seller arrange all of that themselves. Only the seller
+  // agreement is required to start listing. Shipping defaults and Stripe remain
+  // available below for a future checkout-marketplace phase, but must not block
+  // classifieds sellers.
+  const profileReady = Boolean(setup.data?.exists && setup.data?.termsAccepted);
   const sellerReady = profileReady;
 
   return (
@@ -274,9 +272,13 @@ function SellerSetupPage() {
             </div>
           </section>
           <section className="border-t border-border pt-5">
-            <h2 className="text-[14px] font-semibold">Private ship-from and return address</h2>
+            <h2 className="text-[14px] font-semibold">
+              Private ship-from and return address <span className="font-normal text-muted-foreground">(optional)</span>
+            </h2>
             <p className="mt-1 text-[11.5px] text-muted-foreground">
-              Used for prepaid labels and returns. Listings show only your city, state and country;
+              Not needed for direct-contact classifieds -- buyer and seller arrange pickup or
+              shipping themselves. Only fill this in if you plan to ship prepaid labels through Gem
+              State's own marketplace checkout. Listings show only your city, state and country;
               your street address and phone remain private.
             </p>
             <div className="mt-3 grid gap-4 sm:grid-cols-2">
@@ -325,16 +327,18 @@ function SellerSetupPage() {
             </div>
           </section>
           <section className="border-t border-border pt-5">
-            <h2 className="text-[14px] font-semibold">Default listing shipping</h2>
+            <h2 className="text-[14px] font-semibold">
+              Default listing shipping <span className="font-normal text-muted-foreground">(optional)</span>
+            </h2>
             <p className="mt-1 text-[11.5px] leading-relaxed text-muted-foreground">
-              These settings appear on all of your listings. Carrier transit times are estimates;
+              Not needed for direct-contact classifieds. Only set this if you plan to ship items
+              through Gem State's own marketplace checkout -- carrier transit times are estimates;
               your handling time is shown separately.
             </p>
             <div className="mt-3 grid gap-4 sm:grid-cols-2">
               <label className="text-[12px] font-medium">
                 Shipping method
                 <select
-                  required
                   value={String(draft["defaultShippingMethod"] ?? "")}
                   onChange={(event) => set("defaultShippingMethod", event.target.value)}
                   className="mt-1.5 h-10 w-full border border-input bg-background px-3 text-sm"
@@ -350,7 +354,6 @@ function SellerSetupPage() {
               <label className="text-[12px] font-medium">
                 Handling time
                 <select
-                  required
                   value={String(draft["defaultHandlingDays"] ?? "")}
                   onChange={(event) => set("defaultHandlingDays", event.target.value)}
                   className="mt-1.5 h-10 w-full border border-input bg-background px-3 text-sm"

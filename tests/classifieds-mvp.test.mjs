@@ -290,8 +290,12 @@ test("direct-contact MVP copy is consistent across buyer and seller surfaces", (
   );
   assert.match(accountSource, /Save listings, contact sellers and arrange pickup/);
   assert.match(sellSource, /Buyers can message you about the exact listing/);
-  assert.match(sellerSetupSource, /do not require payment or payout onboarding/);
+  assert.match(sellerSetupSource, /do not require payment, payout, or shipping-method/);
   assert.match(sellerSetupSource, /const sellerReady = profileReady/);
+  assert.match(
+    sellerSetupSource,
+    /const profileReady = Boolean\(setup\.data\?\.exists && setup\.data\?\.termsAccepted\)/,
+  );
   assert.doesNotMatch(sellingSource, /Finish payout setup/);
   assert.match(mvpCopyMigrationSource, /UPDATE public\.products/);
   assert.match(mvpCopyMigrationSource, /MVP demo listing for flow testing/);

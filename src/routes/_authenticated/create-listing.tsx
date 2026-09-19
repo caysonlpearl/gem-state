@@ -28,12 +28,11 @@ function CreateListingPage() {
     enabled: Boolean(duplicateFrom),
   });
 
-  const profileReady = Boolean(
-    setup.data?.exists &&
-      setup.data?.termsAccepted &&
-      setup.data?.defaultShippingMethod &&
-      setup.data?.defaultHandlingDays,
-  );
+  // Classifieds are direct-contact: buyer and seller arrange shipping and
+  // payment themselves, so posting one only requires accepting the seller
+  // agreement -- not the shipping-method/handling-days setup that only
+  // matters for Gem State's own checkout-marketplace listings.
+  const profileReady = Boolean(setup.data?.exists && setup.data?.termsAccepted);
 
   if (!setup.isLoading && !profileReady) {
     return (
