@@ -1,0 +1,5 @@
+export const dealerInventoryFeedV1 = `stock_number,vin,year,make,model,trim,price,mileage,city,state,postal_code,status,body_style,transmission,drivetrain,fuel_type,exterior_color,title_status,description,photos
+GS-1001,1HGCM82633A004352,2022,Toyota,Tacoma,TRD Sport,36995,28400,Boise,ID,83702,available,Truck,Automatic,4WD,Gas,Blue,Clean,One-owner Tacoma with a full service history.,https://images.example.test/gs-1001-front.jpg|https://images.example.test/gs-1001-side.jpg
+GS-1002,1C4HJXDG4JW123456,2021,Jeep,Wrangler,Unlimited Sport,31900,44100,Nampa,ID,83651,available,SUV,Automatic,4WD,Gas,Green,Clean,Trail-ready Wrangler with removable top.,https://images.example.test/gs-1002-front.jpg
+GS-1003,1FTFW1ET5MFA12345,2020,Ford,F-150,Lariat,42900,51600,Meridian,ID,83642,available,Truck,Automatic,4WD,Gas,White,Clean,Loaded half-ton pickup with towing package.,https://images.example.test/gs-1003-front.jpg
+GS-1004,5NMS3CAD2KH123456,2019,Hyundai,Santa Fe,SEL,21900,70200,Eagle,ID,83616,sold,SUV,Automatic,AWD,Gas,Gray,Clean,Sold vehicle retained in the source history.,https://images.example.test/gs-1004-front.jpg`;
