@@ -48,55 +48,58 @@ function matchesAnyText(value: unknown, expected: unknown) {
 
 function matches(search: Record<string, unknown>, listing: ListingRow) {
   const product = listing.products;
-  const details = listing.classified_listing_details ?? {};
+  const details = (listing.classified_listing_details ?? {}) as Record<string, unknown>;
   const haystack = text(`${product?.name ?? ""} ${product?.description ?? ""}`);
-  const query = text(search.q ?? search.query ?? search.keyword);
+  const query = text(search["q"] ?? search["query"] ?? search["keyword"]);
   if (query && !haystack.includes(query)) return false;
 
-  const category = text(search.category ?? search.categorySlug ?? search.section);
+  const category = text(search["category"] ?? search["categorySlug"] ?? search["section"]);
   const listingCategory = text(product?.categories?.slug);
   if (category && category !== "all" && category !== listingCategory) return false;
 
-  const location = text(search.city ?? search.region ?? search.state ?? search.location);
-  const listingLocation = text(`${details.city ?? ""} ${details.region ?? ""} ${details.state ?? ""}`);
+  const location = text(search["city"] ?? search["region"] ?? search["state"] ?? search["location"]);
+  const listingLocation = text(
+    `${details["city"] ?? ""} ${details["region"] ?? ""} ${details["state"] ?? ""}`,
+  );
   if (location && !listingLocation.includes(location)) return false;
 
-  const minimum = priceCents(search.priceMin ?? search.minPrice);
-  const maximum = priceCents(search.priceMax ?? search.maxPrice);
+  const minimum = priceCents(search["priceMin"] ?? search["minPrice"]);
+  const maximum = priceCents(search["priceMax"] ?? search["maxPrice"]);
   const listingPrice = Number(listing.price_cents ?? 0);
   if (minimum !== null && listingPrice < minimum) return false;
   if (maximum !== null && listingPrice > maximum) return false;
 
-  if (!matchesAnyText(details.fulfillment_mode, search.fulfillment)) return false;
-  if (!matchesAnyText(details.vehicle_make, search.make)) return false;
-  if (!matchesAnyText(details.vehicle_model, search.model)) return false;
-  if (!matchesNumber(details.vehicle_year, search.yearMin, "min")) return false;
-  if (!matchesNumber(details.vehicle_year, search.yearMax, "max")) return false;
-  if (!matchesNumber(details.vehicle_mileage, search.mileageMax, "max")) return false;
-  if (!matchesAnyText(details.vehicle_body_style, search.bodyStyle)) return false;
-  if (!matchesAnyText(details.vehicle_transmission, search.transmission)) return false;
-  if (!matchesAnyText(details.vehicle_drivetrain, search.drivetrain)) return false;
-  if (!matchesAnyText(details.vehicle_fuel_type, search.fuelType)) return false;
-  if (!matchesAnyText(details.vehicle_exterior_color, search.exteriorColor)) return false;
-  if (!matchesAnyText(details.vehicle_title_status, search.titleStatus)) return false;
+  if (!matchesAnyText(details["fulfillment_mode"], search["fulfillment"])) return false;
+  if (!matchesAnyText(details["vehicle_make"], search["make"])) return false;
+  if (!matchesAnyText(details["vehicle_model"], search["model"])) return false;
+  if (!matchesNumber(details["vehicle_year"], search["yearMin"], "min")) return false;
+  if (!matchesNumber(details["vehicle_year"], search["yearMax"], "max")) return false;
+  if (!matchesNumber(details["vehicle_mileage"], search["mileageMax"], "max")) return false;
+  if (!matchesAnyText(details["vehicle_body_style"], search["bodyStyle"])) return false;
+  if (!matchesAnyText(details["vehicle_transmission"], search["transmission"])) return false;
+  if (!matchesAnyText(details["vehicle_drivetrain"], search["drivetrain"])) return false;
+  if (!matchesAnyText(details["vehicle_fuel_type"], search["fuelType"])) return false;
+  if (!matchesAnyText(details["vehicle_exterior_color"], search["exteriorColor"])) return false;
+  if (!matchesAnyText(details["vehicle_title_status"], search["titleStatus"])) return false;
 
-  if (!matchesAnyText(details.home_mode, search.homeTab ?? search.homeMode)) return false;
-  if (!matchesAnyText(details.home_property_type, search.propertyType)) return false;
-  if (!matchesNumber(details.home_bedrooms, search.bedrooms, "min")) return false;
-  if (!matchesNumber(details.home_bathrooms, search.bathrooms, "min")) return false;
-  if (!matchesNumber(details.home_square_feet, search.homeSquareFeet, "min")) return false;
-  if (!matchesAnyText(details.home_lease_length, search.leaseLength)) return false;
-  if (!matchesAnyText(details.home_pets_policy, search.petsCats ?? search.petsDogs)) return false;
+  if (!matchesAnyText(details["home_mode"], search["homeTab"] ?? search["homeMode"])) return false;
+  if (!matchesAnyText(details["home_property_type"], search["propertyType"])) return false;
+  if (!matchesNumber(details["home_bedrooms"], search["bedrooms"], "min")) return false;
+  if (!matchesNumber(details["home_bathrooms"], search["bathrooms"], "min")) return false;
+  if (!matchesNumber(details["home_square_feet"], search["homeSquareFeet"], "min")) return false;
+  if (!matchesAnyText(details["home_lease_length"], search["leaseLength"])) return false;
+  if (!matchesAnyText(details["home_pets_policy"], search["petsCats"] ?? search["petsDogs"]))
+    return false;
 
-  if (!matchesAnyText(details.job_employment_type, search.jobType)) return false;
-  if (!matchesAnyText(details.job_pay_type, search.jobPayType)) return false;
-  if (!matchesNumber(details.job_pay_max, search.jobPayMin, "min")) return false;
-  if (!matchesNumber(details.job_pay_min, search.jobPayMax, "max")) return false;
-  if (!matchesAnyText(details.job_experience_required, search.jobExperience)) return false;
-  if (!matchesAnyText(details.job_education_level, search.jobEducation)) return false;
-  if (!matchesAnyText(haystack, search.jobCategory)) return false;
+  if (!matchesAnyText(details["job_employment_type"], search["jobType"])) return false;
+  if (!matchesAnyText(details["job_pay_type"], search["jobPayType"])) return false;
+  if (!matchesNumber(details["job_pay_max"], search["jobPayMin"], "min")) return false;
+  if (!matchesNumber(details["job_pay_min"], search["jobPayMax"], "max")) return false;
+  if (!matchesAnyText(details["job_experience_required"], search["jobExperience"])) return false;
+  if (!matchesAnyText(details["job_education_level"], search["jobEducation"])) return false;
+  if (!matchesAnyText(haystack, search["jobCategory"])) return false;
 
-  if (!matchesAnyText(details.service_subcategory, search.serviceSubcategory)) return false;
+  if (!matchesAnyText(details["service_subcategory"], search["serviceSubcategory"])) return false;
   return true;
 }
 
@@ -125,7 +128,18 @@ export async function processSavedSearchAlerts(listingId?: string) {
       await admin.from("notifications").insert({ user_id: search.user_id, kind: "saved_search_match", title: "New saved-search match", body: `${itemName} matches “${search.name}”.`, entity_type: "saved_search_match", entity_id: match.id, destination_url: listingPath });
       await admin.from("saved_searches").update({ last_match_at: new Date().toISOString() }).eq("id", search.id);
       if (search.email_alerts) {
-        await emailSavedSearchMatch(search.user_id, { searchName: search.name, itemName, price: listing.price_cents == null ? undefined : `$${(Number(listing.price_cents) / 100).toFixed(2)}`, listingPath }, match.id);
+        await emailSavedSearchMatch(
+          search.user_id,
+          {
+            searchName: search.name,
+            itemName,
+            ...(listing.price_cents == null
+              ? {}
+              : { price: `$${(Number(listing.price_cents) / 100).toFixed(2)}` }),
+            listingPath,
+          },
+          match.id,
+        );
         await admin.from("saved_search_matches").update({ emailed_at: new Date().toISOString() }).eq("id", match.id);
         emailed++;
       }
