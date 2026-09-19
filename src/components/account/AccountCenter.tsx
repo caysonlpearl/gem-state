@@ -245,7 +245,10 @@ export function AccountCenter({ section, conversationId }: AccountCenterProps) {
   });
 
   function go(next: AccountSection, extra: { conversation?: string } = {}) {
-    void navigate({ to: "/account", search: { section: next, ...extra } });
+    void navigate({
+      to: "/account",
+      search: { section: next, conversation: extra.conversation },
+    });
   }
 
   async function signOut() {
@@ -449,7 +452,7 @@ function AccountLoading() {
   );
 }
 
-function AccountError({ message }: { message?: string }) {
+function AccountError({ message }: { message?: string | undefined }) {
   return (
     <main className="mx-auto max-w-[980px] px-4 py-16">
       <div className="rounded-2xl border border-destructive/30 bg-destructive/5 p-5 text-[13px] text-destructive">
@@ -504,8 +507,8 @@ function OverviewSection({
   unreadMessages: number;
   unreadNotifications: number;
   listings: MyListing[];
-  sellerSetup?: Awaited<ReturnType<typeof getSellerSetup>>;
-  sellerSummary?: Awaited<ReturnType<typeof getSellerDashboardSummary>>;
+  sellerSetup?: Awaited<ReturnType<typeof getSellerSetup>> | undefined;
+  sellerSummary?: Awaited<ReturnType<typeof getSellerDashboardSummary>> | undefined;
   notifications: MemberNotification[];
   onSelect: (section: AccountSection) => void;
 }) {
@@ -718,9 +721,9 @@ function ProfileSection({
   sellerSummary,
 }: {
   account: MyAccount;
-  contactPreferences?: ContactPreferences;
-  sellerSetup?: Awaited<ReturnType<typeof getSellerSetup>>;
-  sellerSummary?: Awaited<ReturnType<typeof getSellerDashboardSummary>>;
+  contactPreferences?: ContactPreferences | undefined;
+  sellerSetup?: Awaited<ReturnType<typeof getSellerSetup>> | undefined;
+  sellerSummary?: Awaited<ReturnType<typeof getSellerDashboardSummary>> | undefined;
 }) {
   const queryClient = useQueryClient();
   const save = useServerFn(saveMyProfile);
@@ -987,8 +990,8 @@ function SettingsSection({
   notificationPreferences,
 }: {
   account: MyAccount;
-  contactPreferences?: ContactPreferences;
-  notificationPreferences?: NotificationPreferences;
+  contactPreferences?: ContactPreferences | undefined;
+  notificationPreferences?: NotificationPreferences | undefined;
 }) {
   const queryClient = useQueryClient();
   const updateContact = useServerFn(updateMyContactPreferences);
@@ -1519,7 +1522,7 @@ function SavedSearchesSection({ searches }: { searches: SavedSearch[] }) {
   function editSearch(item: SavedSearch) {
     const nextName = window.prompt("Saved search name", item.name)?.trim();
     if (!nextName || nextName === item.name) return;
-    const currentQuery = typeof item.search.q === "string" ? item.search.q : "";
+    const currentQuery = typeof item.search["q"] === "string" ? item.search["q"] : "";
     const nextQuery = window.prompt("Search phrase", currentQuery);
     updateMutation.mutate({
       id: item.id,
@@ -1627,8 +1630,8 @@ function SavedSearchesSection({ searches }: { searches: SavedSearch[] }) {
                       )}
                     </div>
                     <p className="mt-1 text-[11.5px] text-muted-foreground">
-                      {typeof item.search.q === "string" && item.search.q
-                        ? `“${item.search.q}” · `
+                      {typeof item.search["q"] === "string" && item.search["q"]
+                        ? `“${item.search["q"]}” · `
                         : "All classifieds · "}
                       {filterEntries.length ? `${filterEntries.length} filters · ` : ""}
                       {item.emailAlerts ? "Email alerts on" : "In-app only"}
@@ -1708,7 +1711,7 @@ function MessagesSection({
   onOpen,
 }: {
   conversations: ConversationSummary[];
-  conversationId?: string;
+  conversationId?: string | undefined;
   onOpen: (id: string) => void;
 }) {
   const queryClient = useQueryClient();
@@ -2087,7 +2090,7 @@ function MessagesSection({
 function NotificationsSection({
   data,
 }: {
-  data?: { items: MemberNotification[]; unread: number };
+  data?: { items: MemberNotification[]; unread: number } | undefined;
 }) {
   const queryClient = useQueryClient();
   const markRead = useServerFn(markNotificationsRead);
@@ -2201,7 +2204,7 @@ function ListingsSection({
   sellerSetup,
 }: {
   listings: MyListing[];
-  sellerSetup?: Awaited<ReturnType<typeof getSellerSetup>>;
+  sellerSetup?: Awaited<ReturnType<typeof getSellerSetup>> | undefined;
 }) {
   const queryClient = useQueryClient();
   const cancel = useServerFn(cancelListing);
@@ -2431,7 +2434,7 @@ function SellerListingCard({
           </p>
           <Link
             to="/account"
-            search={{ section: "messages" }}
+            search={{ section: "messages", conversation: undefined }}
             className="mt-1 inline-flex text-muted-foreground hover:text-foreground"
           >
             {item.leadCount ?? 0} buyer leads
@@ -2462,14 +2465,14 @@ function SellerListingCard({
             </Link>
             <Link
               to="/account"
-              search={{ section: "messages" }}
+              search={{ section: "messages", conversation: undefined }}
               className="rounded-lg px-2.5 py-2 text-left text-[11.5px] hover:bg-secondary"
             >
               View leads & messages
             </Link>
             <Link
               to="/account"
-              search={{ section: "billing" }}
+              search={{ section: "billing", conversation: undefined }}
               className="rounded-lg px-2.5 py-2 text-left text-[11.5px] hover:bg-secondary"
             >
               Promote listing
@@ -2510,8 +2513,8 @@ function ReviewsSection({
   sellerSetup,
   orders,
 }: {
-  summary?: Awaited<ReturnType<typeof getSellerDashboardSummary>>;
-  sellerSetup?: Awaited<ReturnType<typeof getSellerSetup>>;
+  summary?: Awaited<ReturnType<typeof getSellerDashboardSummary>> | undefined;
+  sellerSetup?: Awaited<ReturnType<typeof getSellerSetup>> | undefined;
   orders: MyOrder[];
 }) {
   const rating = summary?.ratingAverage;
@@ -2702,7 +2705,7 @@ function BillingSection({
   options,
   history,
 }: {
-  sellerSetup?: Awaited<ReturnType<typeof getSellerSetup>>;
+  sellerSetup?: Awaited<ReturnType<typeof getSellerSetup>> | undefined;
   listings: MyListing[];
   options: ListingUpgradeOption[];
   history: ListingUpgradePurchase[];
