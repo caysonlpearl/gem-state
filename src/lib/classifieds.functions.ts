@@ -202,11 +202,7 @@ export const getAdminClassifiedQueue = createServerFn({ method: "GET" })
           sellerHandle: row.seller_handle,
           sellerNote: row.seller_note,
           vehicle: vehicleOf(details),
-          listingImageUrls: await signedAdminUrls(
-            "listing-media",
-            row.listing_media_paths,
-            context.supabase,
-          ),
+          listingImageUrls: await signedAdminUrls("listing-media", row.listing_media_paths),
           evidenceImageUrls: await signedAdminUrls("ask-evidence", row.evidence_paths),
           createdAt: row.created_at,
         } satisfies AdminClassifiedRow;
@@ -339,7 +335,7 @@ export const getClassifiedListingEditor = createServerFn({ method: "GET" })
     const media = ((record.listing_media ?? []) as { storage_path: string; position: number }[])
       .sort((a, b) => a.position - b.position)
       .map((item) => item.storage_path);
-    const urls = await signListingMedia(media, client);
+    const urls = await signListingMedia(media);
     const category = record.products?.categories?.slug ?? "general";
     const description = record.products?.description ?? "";
     return {
@@ -613,15 +609,16 @@ function sortedMedia(row: Record<string, unknown>): string[] {
     .map((item) => item.storage_path);
 }
 
-/** Buyer-facing listing photos are short-lived signed URLs for approved media. */
-async function signListingMedia(
-  paths: string[],
-  client = publicServerClient(),
-): Promise<Map<string, string>> {
+// Signing requires the service-role client -- the anon/authenticated clients
+// can't call storage's createSignedUrls even for objects their own RLS
+// policies would let them read. Every caller has already scoped which rows
+// (and therefore which paths) the viewer is allowed to see before this runs.
+async function signListingMedia(paths: string[]): Promise<Map<string, string>> {
   const unique = [...new Set(paths)];
   if (unique.length === 0) return new Map();
 
-  const { data, error } = await client.storage
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await supabaseAdmin.storage
     .from("listing-media")
     .createSignedUrls(unique, 60 * 60);
   if (error) {
@@ -640,19 +637,8 @@ async function signListingMedia(
   );
 }
 
-async function signedAdminUrls(
-  bucket: string,
-  paths: string[] | null,
-  client?: any,
-): Promise<string[]> {
+async function signedAdminUrls(bucket: string, paths: string[] | null): Promise<string[]> {
   if (!paths?.length) return [];
-
-  if (bucket === "listing-media") {
-    if (client) {
-      const signedUrls = await signListingMedia(paths, client);
-      return paths.map((path) => signedUrls.get(path)).filter((url): url is string => Boolean(url));
-    }
-  }
 
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin.storage.from(bucket).createSignedUrls(paths, 60 * 60);

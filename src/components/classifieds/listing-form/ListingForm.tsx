@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -70,6 +70,23 @@ export function ListingForm(props: ListingFormProps) {
   });
   const [files, setFiles] = useState<File[]>([]);
   const [photoRights, setPhotoRights] = useState(false);
+  const [draggedPhotoIndex, setDraggedPhotoIndex] = useState<number | null>(null);
+
+  const filePreviews = useMemo(() => files.map((file) => URL.createObjectURL(file)), [files]);
+  useEffect(() => {
+    return () => {
+      filePreviews.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, [filePreviews]);
+
+  function reorderFiles(from: number, to: number) {
+    setFiles((prev) => {
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      if (moved) next.splice(to, 0, moved);
+      return next;
+    });
+  }
 
   useEffect(() => {
     if (props.mode === "edit") setForm(fromEditor(props.initial));
@@ -462,9 +479,35 @@ export function ListingForm(props: ListingFormProps) {
         </label>
         {files.length > 0 && (
           <>
-            <p className="mt-2 text-[11.5px] text-muted-foreground">
-              {files.length} photo{files.length === 1 ? "" : "s"} selected:{" "}
-              {files.map((file) => file.name).join(", ")}
+            <div className="mt-3 flex flex-wrap gap-2">
+              {files.map((file, index) => (
+                <div
+                  key={`${file.name}-${index}`}
+                  draggable
+                  onDragStart={() => setDraggedPhotoIndex(index)}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={(event) => {
+                    event.preventDefault();
+                    if (draggedPhotoIndex !== null && draggedPhotoIndex !== index)
+                      reorderFiles(draggedPhotoIndex, index);
+                    setDraggedPhotoIndex(null);
+                  }}
+                  onDragEnd={() => setDraggedPhotoIndex(null)}
+                  className="relative h-20 w-20 shrink-0 cursor-move overflow-hidden rounded-md border border-border bg-secondary"
+                >
+                  <img
+                    src={filePreviews[index]}
+                    alt={file.name}
+                    className="h-full w-full object-cover"
+                  />
+                  <span className="absolute bottom-0 left-0 right-0 bg-black/60 py-0.5 text-center text-[9px] font-semibold text-white">
+                    {index === 0 ? "Cover" : index + 1}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              Drag photos to reorder. The first photo is the cover image.
             </p>
             <label className="mt-3 flex items-start gap-2 text-[11.5px] text-muted-foreground">
               <input
