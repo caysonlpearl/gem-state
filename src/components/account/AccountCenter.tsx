@@ -1723,6 +1723,7 @@ function MessagesSection({
   const [filter, setFilter] = useState("all");
   const [body, setBody] = useState("");
   const [attachment, setAttachment] = useState<File | null>(null);
+  const [failedSend, setFailedSend] = useState<"message" | "attachment" | null>(null);
   const [detail, setDetail] = useState<ConversationDetail | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState("");
@@ -1757,11 +1758,14 @@ function MessagesSection({
     mutationFn: () => send({ data: { conversationId: selected?.id ?? "", body } }),
     onSuccess: async () => {
       setBody("");
+      setFailedSend(null);
       if (selected) setDetail(await fetchConversation({ data: { id: selected.id } }));
       await queryClient.invalidateQueries({ queryKey: ["conversations"] });
     },
-    onError: (error) =>
-      toast.error(error instanceof Error ? error.message : "Could not send message."),
+    onError: (error) => {
+      setFailedSend("message");
+      toast.error(error instanceof Error ? error.message : "Could not send message.");
+    },
   });
   const sendAttachmentMutation = useMutation({
     mutationFn: async () => {
@@ -1791,11 +1795,14 @@ function MessagesSection({
     onSuccess: async () => {
       setBody("");
       setAttachment(null);
+      setFailedSend(null);
       if (selected) setDetail(await fetchConversation({ data: { id: selected.id } }));
       await queryClient.invalidateQueries({ queryKey: ["conversations"] });
     },
-    onError: (error) =>
-      toast.error(error instanceof Error ? error.message : "Could not send attachment."),
+    onError: (error) => {
+      setFailedSend("attachment");
+      toast.error(error instanceof Error ? error.message : "Could not send attachment.");
+    },
   });
   const blockMutation = useMutation({
     mutationFn: (id: string) => block({ data: { conversationId: id } }),
@@ -1992,6 +1999,26 @@ function MessagesSection({
                     </button>
                   </div>
                 </div>
+                {failedSend && (
+                  <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-[11px] text-destructive">
+                    <span>
+                      {failedSend === "attachment"
+                        ? "Attachment not sent. Your file is still selected."
+                        : "Message not sent. Your text is still here."}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (failedSend === "attachment") sendAttachmentMutation.mutate();
+                        else sendMutation.mutate();
+                      }}
+                      disabled={sendMutation.isPending || sendAttachmentMutation.isPending}
+                      className="font-semibold underline underline-offset-2 disabled:opacity-50"
+                    >
+                      Retry send
+                    </button>
+                  </div>
+                )}
                 <p className="mt-2 text-[10.5px] text-muted-foreground">
                   JPG, PNG, WebP, or PDF · 10 MB maximum. Never send payment details or sensitive
                   information.
