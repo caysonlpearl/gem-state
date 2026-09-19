@@ -38,6 +38,7 @@ export function ListingActions({
 }) {
   const isJobApply = ctaVerb === "apply";
   const isMortgage = calculatorVariant === "mortgage";
+  const internalMessagesEnabled = listing.seller?.allowInternalMessages !== false;
   const { isSignedIn } = useAuth();
   const [contactOpen, setContactOpen] = useState(false);
   const [message, setMessage] = useState(isJobApply ? DEFAULT_APPLY_MESSAGE : DEFAULT_MESSAGE);
@@ -160,7 +161,7 @@ export function ListingActions({
         </p>
 
         <div>
-          {isSignedIn ? (
+          {isSignedIn && internalMessagesEnabled ? (
             <button
               type="button"
               onClick={() => setContactOpen((open) => !open)}
@@ -168,6 +169,11 @@ export function ListingActions({
             >
               {contactOpen ? "Close message" : isJobApply ? "Apply now" : "Contact seller"}
             </button>
+          ) : isSignedIn ? (
+            <div className="rounded-2xl border border-border bg-secondary/45 px-3 py-3 text-[12px] leading-relaxed text-muted-foreground">
+              This seller has disabled Gem State messages. Use an enabled contact option on the
+              listing, or choose another seller.
+            </div>
           ) : (
             <Link
               to={brand.urls.auth}

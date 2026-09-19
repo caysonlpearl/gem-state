@@ -29,6 +29,69 @@
       "when": 1789665537191,
       "tag": "0003_drop_restore_functions",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789772178100,
+      "tag": "0004_harden_definer_functions_views_storage",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789772194367,
+      "tag": "0005_views_security_invoker",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789772406666,
+      "tag": "0006_add_classified_broken_condition",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1789772430757,
+      "tag": "0007_allow_classified_media_uploads",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1789772473540,
+      "tag": "0008_remove_classified_stripe_gate",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1789772497842,
+      "tag": "0009_secure_classified_inquiry_rpc",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1789772568343,
+      "tag": "0010_add_classified_home_job_service_details",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1789772658746,
+      "tag": "0011_add_account_center_tools",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1789772691295,
+      "tag": "0012_add_seller_listing_upgrades",
+      "breakpoints": true
     }
   ]
 }

@@ -80,7 +80,7 @@ export const getConversation = createServerFn({ method: "GET" })
     if (!row) throw new Error("Conversation not found.");
     const { data: messages, error: messageError } = await client
       .from("conversation_messages")
-      .select("id,conversation_id,sender_id,body,attachment_path,created_at")
+      .select("id,conversation_id,sender_id,body,attachment_path,attachment_content_type,attachment_size,created_at")
       .eq("conversation_id", data.id)
       .order("created_at", { ascending: true })
       .limit(200);

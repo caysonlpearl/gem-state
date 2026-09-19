@@ -1,27 +1,28 @@
-# Finishing the backend move
+# Connect the app to your own Supabase project (udxxfuticbxwiehoepeg)
 
-Where things stand: the site now runs on a brand-new backend with everything restored — all tables, rules, functions, the 12 categories, the 9 test listings, the 8 accounts, all 8 storage areas and all 18 photos. The build and all main pages pass.
+Right now the app is still bound to the built-in backend (project qgxmlzsnfqmvsetpzisz) — browser sign-in, database, and storage all point there. The goal is to point everything at your restored Supabase project `udxxfuticbxwiehoepeg` instead, without changing any Gem State UI or marketplace code.
 
-What's left falls into two buckets.
+## Step 1 — you do this (about 2 minutes)
 
-## 1. Things only you can do
+The switch between the built-in backend and your own Supabase account happens in **Project Settings → Integrations → Supabase**, and only you can make it:
 
-- **Shipping key** — the shipping provider key was never re-entered on this backend, so buying a label will fail. Needed before checkout works end to end.
-- **Sign-in passwords** — the backup could not carry passwords, so all 8 accounts must sign in by email link once and set a new password.
-- **Sign-in providers** — if Google sign-in was on before, it has to be switched on again here.
-- **Email sending** — the sender domain still belongs to ParkVault and the email wording still says "ParkVault". Tell me the sender domain you want for Gem State Classifieds and I'll set it up and rewrite the wording.
-- **Your own Supabase (optional)** — if the end goal is still your own account rather than the built-in backend, that switch happens in Project Settings, is irreversible, and should only be done with the backup in hand. The backup zip is already saved in your files.
+1. Open Project Settings → Integrations → Supabase.
+2. Choose to disconnect the built-in backend and connect your own Supabase project `udxxfuticbxwiehoepeg`. You may be asked to authorize the Supabase connection for this workspace.
 
-## 2. Things I can do once you say go
+Important: disconnecting the built-in backend is **permanent** — that backend (and its copy of the data) can't be re-attached. Your backup zip from earlier is already in your files, and your restored project already holds all tables, rules, accounts, and photos, so this is safe to do. But once you disconnect, the app must finish being re-pointed before the site works again, so plan to do the switch and let me finish in one sitting.
 
-- Re-check that the payment keys on this backend point at the right account and that the two payment notification endpoints are registered against the current site address.
-- Walk the full set of flows against the live site and report results: sign in, post a listing, browse, listing page, make an offer, buy now, checkout, order page.
-- Rewrite the remaining ParkVault wording on the sign-in page, onboarding, account area and order receipt.
-- Update the roadmap to reflect the completed restore.
+## Step 2 — I do this
 
-## Technical notes
+1. Re-derive the server-side settings for the newly connected project: the public URL/key for the browser and the server-only service-role setting. The values are fetched through the workspace's Supabase authorization — secret values are never shown, pasted, or written into the code.
+2. Restart the app so the new settings take effect.
+3. Verify the app actually runs on your project:
+   - Home, browse, listing, and sign-in pages load.
+   - Public listing reads come from your project's database.
+   - Sign-in session attaches to protected actions.
+4. Report what works and flag anything your project still needs (for example: sign-in providers, email sending, and the allowed redirect addresses for the live site, which are configured inside your Supabase project's settings).
 
-- Secrets present: PARKVAULT_SITE_URL, STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_CONNECT_WEBHOOK_SECRET. Missing: SHIPPO_API_TOKEN (used by `src/lib/seller.functions.ts` and the shipping label paths).
-- `PARKVAULT_SITE_URL` must resolve to the current published address, since Stripe return URLs and webhook targets are built from it.
-- `auth.users` rows exist with `encrypted_password` NULL; magic link / OTP only until each user resets.
-- Verification will be done with a headless browser pass against the running app plus direct reads of the resulting rows.
+## Notes
+
+- No code, UI, or marketplace-flow changes are part of this plan — only which backend the existing code talks to.
+- Stripe and shipping keys are unchanged; those are separate secrets that carry over.
+- If the connection step in Project Settings fails (usually a revoked or missing Supabase authorization for the workspace), I'll tell you what to reconnect and we retry.

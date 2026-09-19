@@ -82,7 +82,9 @@ export type ClassifiedDetail = ClassifiedCard & {
     ratingAverage: number | null;
     reviewCount: number;
     contactPhone?: string | null;
+    contactTextPhone?: string | null;
     contactEmail?: string | null;
+    allowInternalMessages?: boolean;
     memberSince?: number;
     sellerType?: string;
   } | null;
@@ -1027,6 +1029,11 @@ async function runBrowseClassifieds(
         ? mockClassifiedListings.filter((listing) => mockMatches(listing, data)).map(mockCard)
         : [];
     const combinedListings = [...mockListings, ...listings].slice(0, PAGE_SIZE);
+    if (listings.length > 0) {
+      void import("@/integrations/supabase/client.server")
+        .then(({ supabaseAdmin }) => (supabaseAdmin as any).rpc("record_classified_listing_impressions", { _listing_ids: listings.map((listing) => listing.id) }))
+        .catch(() => undefined);
+    }
     return {
       listings: combinedListings,
       total: (count ?? listings.length) + mockListings.length,
@@ -1058,6 +1065,9 @@ export const getClassifiedListing = createServerFn({ method: "GET" })
     if (!row) return null;
 
     const record = row as unknown as Record<string, unknown>;
+    void import("@/integrations/supabase/client.server")
+      .then(({ supabaseAdmin }) => (supabaseAdmin as any).rpc("record_classified_listing_view", { _listing_id: data.id }))
+      .catch(() => undefined);
     const paths = sortedMedia(record);
     const urlByPath = await signListingMedia(paths);
     const product = record["products"] as { id: string; slug: string; description: string | null };
@@ -1073,21 +1083,30 @@ export const getClassifiedListing = createServerFn({ method: "GET" })
             .maybeSingle(),
           (async () => {
             const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-            const [{ data: sellerProfile }, { data: sellerAuth }] = await Promise.all([
+            const [{ data: sellerProfile }, { data: sellerAuth }, { data: contactPreferences }] = await Promise.all([
               supabaseAdmin
                 .from("seller_profiles")
                 .select("ship_from_phone")
                 .eq("user_id", sellerId)
                 .maybeSingle(),
               supabaseAdmin.auth.admin.getUserById(sellerId),
+              supabaseAdmin
+                .from("account_contact_preferences")
+                .select("allow_email,allow_phone,allow_text,show_contact_buttons,allow_internal_messages")
+                .eq("user_id", sellerId)
+                .maybeSingle(),
             ]);
+            const showButtons = contactPreferences?.show_contact_buttons !== false;
+            const phone = sellerProfile?.ship_from_phone ?? null;
             return {
-              phone: sellerProfile?.ship_from_phone ?? null,
-              email: sellerAuth?.user?.email ?? null,
+              phone: showButtons && contactPreferences?.allow_phone === true ? phone : null,
+              textPhone: showButtons && contactPreferences?.allow_text === true ? phone : null,
+              email: showButtons && contactPreferences?.allow_email !== false ? sellerAuth?.user?.email ?? null : null,
+              allowInternalMessages: contactPreferences?.allow_internal_messages !== false,
             };
           })(),
         ])
-      : [{ data: null }, { phone: null, email: null }];
+      : [{ data: null }, { phone: null, textPhone: null, email: null, allowInternalMessages: true }];
 
     return {
       ...card,
@@ -1107,7 +1126,9 @@ export const getClassifiedListing = createServerFn({ method: "GET" })
               sellerRow.rating_average == null ? null : Number(sellerRow.rating_average),
             reviewCount: Number(sellerRow.review_count ?? 0),
             contactPhone: sellerContact.phone,
+            contactTextPhone: sellerContact.textPhone,
             contactEmail: sellerContact.email,
+            allowInternalMessages: sellerContact.allowInternalMessages,
           }
         : null,
       images: paths

@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
@@ -17,8 +18,14 @@ import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { AllCategoriesPopover } from "@/components/classifieds/AllCategoriesPopover";
 import { ListingCard, ListingRow } from "@/components/classifieds/ListingCard";
 import { conditionLabels, isMotorsCategory } from "@/lib/classifieds-display";
-import { browseClassifieds, type ClassifiedBrowseInput, type ClassifiedBrowseResult } from "@/lib/classifieds.functions";
+import {
+  browseClassifieds,
+  type ClassifiedBrowseInput,
+  type ClassifiedBrowseResult,
+} from "@/lib/classifieds.functions";
 import { trackEvent } from "@/lib/analytics";
+import { createSavedSearch, updateSavedSearch } from "@/lib/account-center.functions";
+import { toast } from "sonner";
 import {
   Sheet,
   SheetContent,
@@ -37,6 +44,7 @@ type ServiceMode = "landing" | "results";
 type Search = {
   allCategories?: boolean | undefined;
   q?: string | undefined;
+  savedSearchId?: string | undefined;
   category?: string | undefined;
   group?: "motors" | "classifieds" | undefined;
   state?: string | undefined;
@@ -134,11 +142,56 @@ const homeTabs: { value: HomeTab; label: string; eyebrow: string }[] = [
   { value: "rent", label: "Rent", eyebrow: "Places to rent" },
 ];
 
-const homePropertyTypes = ["Any property type", "Single family", "Townhome", "Condo", "Land", "Multi-family"];
-const homeBedroomOptions = ["Any bedrooms", "Studio", "1+ bedrooms", "2+ bedrooms", "3+ bedrooms", "4+ bedrooms"];
-const homeBathroomOptions = ["Any bathrooms", "1+ bathrooms", "2+ bathrooms", "3+ bathrooms", "4+ bathrooms"];
-const homeSquareFeetOptions = ["Any", "<250", "250+", "500+", "1000+", "1500+", "2000+", "3000+", "4000+", "5000+", "10000+"];
-const homeAcresOptions = ["Any", "< .10", ".10+", ".20+", ".25+", ".30+", ".5+", ".75+", "1+", "1.5+", "2+", "2.5+"];
+const homePropertyTypes = [
+  "Any property type",
+  "Single family",
+  "Townhome",
+  "Condo",
+  "Land",
+  "Multi-family",
+];
+const homeBedroomOptions = [
+  "Any bedrooms",
+  "Studio",
+  "1+ bedrooms",
+  "2+ bedrooms",
+  "3+ bedrooms",
+  "4+ bedrooms",
+];
+const homeBathroomOptions = [
+  "Any bathrooms",
+  "1+ bathrooms",
+  "2+ bathrooms",
+  "3+ bathrooms",
+  "4+ bathrooms",
+];
+const homeSquareFeetOptions = [
+  "Any",
+  "<250",
+  "250+",
+  "500+",
+  "1000+",
+  "1500+",
+  "2000+",
+  "3000+",
+  "4000+",
+  "5000+",
+  "10000+",
+];
+const homeAcresOptions = [
+  "Any",
+  "< .10",
+  ".10+",
+  ".20+",
+  ".25+",
+  ".30+",
+  ".5+",
+  ".75+",
+  "1+",
+  "1.5+",
+  "2+",
+  "2.5+",
+];
 const homeAmenitiesOptions = [
   "Any",
   "Air Conditioning",
@@ -202,7 +255,13 @@ const leaseLengthOptions = [
   "24 Months or Less",
 ];
 
-const mileageBandOptions = ["Under 25,000 miles", "Under 50,000 miles", "Under 75,000 miles", "Under 100,000 miles", "Under 150,000 miles"] as const;
+const mileageBandOptions = [
+  "Under 25,000 miles",
+  "Under 50,000 miles",
+  "Under 75,000 miles",
+  "Under 100,000 miles",
+  "Under 150,000 miles",
+] as const;
 const vehicleModelsByMake: Record<string, readonly string[]> = {
   Acura: ["Integra", "TLX", "MDX", "RDX"],
   Audi: ["A3", "A4", "Q5", "Q7"],
@@ -259,11 +318,40 @@ const jobCategoryOptions = [
   "Information Technology",
   "Retail",
 ] as const;
-const jobTypeOptions = ["Any job type", "Contract", "Full-time", "Internships", "Part-time", "Seasonal", "Temporary", "Weekend only"] as const;
+const jobTypeOptions = [
+  "Any job type",
+  "Contract",
+  "Full-time",
+  "Internships",
+  "Part-time",
+  "Seasonal",
+  "Temporary",
+  "Weekend only",
+] as const;
 const jobPayTypeOptions = ["All pay types", "Hourly", "Salary"] as const;
-const jobExperienceOptions = ["Any experience", "1–2 years", "3–4 years", "5–7 years", "8–10 years", "10+ years"] as const;
-const jobPostedOptions = ["Any time", "Last hour", "Last 24 hours", "Last 7 days", "Last 30 days"] as const;
-const jobEducationOptions = ["Any education", "2-year Degree", "4-year Degree", "Advanced Degree", "High School", "None"] as const;
+const jobExperienceOptions = [
+  "Any experience",
+  "1–2 years",
+  "3–4 years",
+  "5–7 years",
+  "8–10 years",
+  "10+ years",
+] as const;
+const jobPostedOptions = [
+  "Any time",
+  "Last hour",
+  "Last 24 hours",
+  "Last 7 days",
+  "Last 30 days",
+] as const;
+const jobEducationOptions = [
+  "Any education",
+  "2-year Degree",
+  "4-year Degree",
+  "Advanced Degree",
+  "High School",
+  "None",
+] as const;
 
 type HomePreviewRow = {
   title: string;
@@ -276,36 +364,162 @@ const homePreviewRows: HomePreviewRow[] = [
     title: "Featured homes for sale",
     action: "Browse homes for sale",
     cards: [
-      { name: "Riverstone at Banbury", location: "Eagle, ID", price: "$524,900", facts: "3 bed · 2.5 bath · 2,146 sqft", image: "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=900&q=80" },
-      { name: "North End Bungalow", location: "Boise, ID", price: "$649,000", facts: "4 bed · 2 bath · 1,988 sqft", image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=900&q=80" },
-      { name: "Sage Creek Townhomes", location: "Meridian, ID", price: "$419,900", facts: "3 bed · 2.5 bath · 1,742 sqft", image: "https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&w=900&q=80" },
-      { name: "Canyon Rim Estates", location: "Nampa, ID", price: "$489,900", facts: "3 bed · 2 bath · 1,876 sqft", image: "https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?auto=format&fit=crop&w=900&q=80" },
-      { name: "Juniper Ridge", location: "Star, ID", price: "$719,000", facts: "4 bed · 3 bath · 2,492 sqft", image: "https://images.unsplash.com/photo-1600585154526-990dced4db0d?auto=format&fit=crop&w=900&q=80" },
-      { name: "The Owyhee Collection", location: "Kuna, ID", price: "$379,900", facts: "3 bed · 2 bath · 1,604 sqft", image: "https://images.unsplash.com/photo-1600607688969-a5bfcd646154?auto=format&fit=crop&w=900&q=80" },
+      {
+        name: "Riverstone at Banbury",
+        location: "Eagle, ID",
+        price: "$524,900",
+        facts: "3 bed · 2.5 bath · 2,146 sqft",
+        image:
+          "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=900&q=80",
+      },
+      {
+        name: "North End Bungalow",
+        location: "Boise, ID",
+        price: "$649,000",
+        facts: "4 bed · 2 bath · 1,988 sqft",
+        image:
+          "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=900&q=80",
+      },
+      {
+        name: "Sage Creek Townhomes",
+        location: "Meridian, ID",
+        price: "$419,900",
+        facts: "3 bed · 2.5 bath · 1,742 sqft",
+        image:
+          "https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&w=900&q=80",
+      },
+      {
+        name: "Canyon Rim Estates",
+        location: "Nampa, ID",
+        price: "$489,900",
+        facts: "3 bed · 2 bath · 1,876 sqft",
+        image:
+          "https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?auto=format&fit=crop&w=900&q=80",
+      },
+      {
+        name: "Juniper Ridge",
+        location: "Star, ID",
+        price: "$719,000",
+        facts: "4 bed · 3 bath · 2,492 sqft",
+        image:
+          "https://images.unsplash.com/photo-1600585154526-990dced4db0d?auto=format&fit=crop&w=900&q=80",
+      },
+      {
+        name: "The Owyhee Collection",
+        location: "Kuna, ID",
+        price: "$379,900",
+        facts: "3 bed · 2 bath · 1,604 sqft",
+        image:
+          "https://images.unsplash.com/photo-1600607688969-a5bfcd646154?auto=format&fit=crop&w=900&q=80",
+      },
     ],
   },
   {
     title: "New builds to explore",
     action: "Find new construction",
     cards: [
-      { name: "Aspen Grove", location: "Meridian, ID", price: "From $499,900", facts: "2–5 bed · 1,550–2,800 sqft", image: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=900&q=80" },
-      { name: "Cottonwood Crossing", location: "Star, ID", price: "From $559,900", facts: "3–4 bed · 2–3 bath", image: "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=900&q=80" },
-      { name: "The Preserve", location: "Eagle, ID", price: "From $799,900", facts: "3–5 bed · 2,100+ sqft", image: "https://images.unsplash.com/photo-1600047508788-786f386c0f2d?auto=format&fit=crop&w=900&q=80" },
-      { name: "Overland Park", location: "Boise, ID", price: "From $449,900", facts: "Townhomes · 2–3 bed", image: "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=900&q=80" },
-      { name: "Hillside Terrace", location: "Nampa, ID", price: "Call for pricing", facts: "Single-family homes", image: "https://images.unsplash.com/photo-1600585152915-d208bec867a1?auto=format&fit=crop&w=900&q=80" },
-      { name: "Harvest Point", location: "Caldwell, ID", price: "From $389,900", facts: "2–4 bed · 2 bath", image: "https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&w=900&q=80" },
+      {
+        name: "Aspen Grove",
+        location: "Meridian, ID",
+        price: "From $499,900",
+        facts: "2–5 bed · 1,550–2,800 sqft",
+        image:
+          "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=900&q=80",
+      },
+      {
+        name: "Cottonwood Crossing",
+        location: "Star, ID",
+        price: "From $559,900",
+        facts: "3–4 bed · 2–3 bath",
+        image:
+          "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=900&q=80",
+      },
+      {
+        name: "The Preserve",
+        location: "Eagle, ID",
+        price: "From $799,900",
+        facts: "3–5 bed · 2,100+ sqft",
+        image:
+          "https://images.unsplash.com/photo-1600047508788-786f386c0f2d?auto=format&fit=crop&w=900&q=80",
+      },
+      {
+        name: "Overland Park",
+        location: "Boise, ID",
+        price: "From $449,900",
+        facts: "Townhomes · 2–3 bed",
+        image:
+          "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=900&q=80",
+      },
+      {
+        name: "Hillside Terrace",
+        location: "Nampa, ID",
+        price: "Call for pricing",
+        facts: "Single-family homes",
+        image:
+          "https://images.unsplash.com/photo-1600585152915-d208bec867a1?auto=format&fit=crop&w=900&q=80",
+      },
+      {
+        name: "Harvest Point",
+        location: "Caldwell, ID",
+        price: "From $389,900",
+        facts: "2–4 bed · 2 bath",
+        image:
+          "https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&w=900&q=80",
+      },
     ],
   },
   {
     title: "Rentals worth a look",
     action: "Browse rentals",
     cards: [
-      { name: "The Franklin", location: "Boise, ID", price: "$1,895 / mo", facts: "2 bed · 2 bath · Downtown", image: "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=80" },
-      { name: "Parkside Flats", location: "Meridian, ID", price: "$1,650 / mo", facts: "1 bed · 1 bath · Pet friendly", image: "https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=900&q=80" },
-      { name: "Warm Springs House", location: "Boise, ID", price: "$2,750 / mo", facts: "3 bed · 2 bath · Fenced yard", image: "https://images.unsplash.com/photo-1600607688969-a5bfcd646154?auto=format&fit=crop&w=900&q=80" },
-      { name: "The Village Lofts", location: "Meridian, ID", price: "$2,150 / mo", facts: "2 bed · 2 bath · Garage", image: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=900&q=80" },
-      { name: "Canyon View Apartments", location: "Nampa, ID", price: "$1,425 / mo", facts: "1 bed · 1 bath · Pool", image: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=900&q=80" },
-      { name: "Maple Street Cottage", location: "Eagle, ID", price: "$2,400 / mo", facts: "3 bed · 2 bath · No HOA", image: "https://images.unsplash.com/photo-1449844908441-8829872d2607?auto=format&fit=crop&w=900&q=80" },
+      {
+        name: "The Franklin",
+        location: "Boise, ID",
+        price: "$1,895 / mo",
+        facts: "2 bed · 2 bath · Downtown",
+        image:
+          "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=80",
+      },
+      {
+        name: "Parkside Flats",
+        location: "Meridian, ID",
+        price: "$1,650 / mo",
+        facts: "1 bed · 1 bath · Pet friendly",
+        image:
+          "https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=900&q=80",
+      },
+      {
+        name: "Warm Springs House",
+        location: "Boise, ID",
+        price: "$2,750 / mo",
+        facts: "3 bed · 2 bath · Fenced yard",
+        image:
+          "https://images.unsplash.com/photo-1600607688969-a5bfcd646154?auto=format&fit=crop&w=900&q=80",
+      },
+      {
+        name: "The Village Lofts",
+        location: "Meridian, ID",
+        price: "$2,150 / mo",
+        facts: "2 bed · 2 bath · Garage",
+        image:
+          "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=900&q=80",
+      },
+      {
+        name: "Canyon View Apartments",
+        location: "Nampa, ID",
+        price: "$1,425 / mo",
+        facts: "1 bed · 1 bath · Pool",
+        image:
+          "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=900&q=80",
+      },
+      {
+        name: "Maple Street Cottage",
+        location: "Eagle, ID",
+        price: "$2,400 / mo",
+        facts: "3 bed · 2 bath · No HOA",
+        image:
+          "https://images.unsplash.com/photo-1449844908441-8829872d2607?auto=format&fit=crop&w=900&q=80",
+      },
     ],
   },
 ];
@@ -317,12 +531,54 @@ const homePreviewRowsByTab: Record<HomeTab, HomePreviewRow[]> = {
       title: "Price drops to watch",
       action: "See price drops",
       cards: [
-        { name: "Brookside Ranch", location: "Meridian, ID", price: "$459,900", facts: "4 bed · 2 bath · 2,012 sqft", image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=900&q=80" },
-        { name: "Foothills Modern", location: "Boise, ID", price: "$589,000", facts: "3 bed · 2 bath · 1,840 sqft", image: "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=900&q=80" },
-        { name: "Cedar Grove", location: "Nampa, ID", price: "$399,500", facts: "3 bed · 2 bath · 1,672 sqft", image: "https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?auto=format&fit=crop&w=900&q=80" },
-        { name: "Banbury Heights", location: "Eagle, ID", price: "$735,000", facts: "4 bed · 3 bath · 2,580 sqft", image: "https://images.unsplash.com/photo-1600607688969-a5bfcd646154?auto=format&fit=crop&w=900&q=80" },
-        { name: "Parkside Landing", location: "Star, ID", price: "$427,900", facts: "3 bed · 2.5 bath · 1,910 sqft", image: "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=900&q=80" },
-        { name: "Warm Springs View", location: "Boise, ID", price: "$682,000", facts: "4 bed · 3 bath · 2,306 sqft", image: "https://images.unsplash.com/photo-1600585154526-990dced4db0d?auto=format&fit=crop&w=900&q=80" },
+        {
+          name: "Brookside Ranch",
+          location: "Meridian, ID",
+          price: "$459,900",
+          facts: "4 bed · 2 bath · 2,012 sqft",
+          image:
+            "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=900&q=80",
+        },
+        {
+          name: "Foothills Modern",
+          location: "Boise, ID",
+          price: "$589,000",
+          facts: "3 bed · 2 bath · 1,840 sqft",
+          image:
+            "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=900&q=80",
+        },
+        {
+          name: "Cedar Grove",
+          location: "Nampa, ID",
+          price: "$399,500",
+          facts: "3 bed · 2 bath · 1,672 sqft",
+          image:
+            "https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?auto=format&fit=crop&w=900&q=80",
+        },
+        {
+          name: "Banbury Heights",
+          location: "Eagle, ID",
+          price: "$735,000",
+          facts: "4 bed · 3 bath · 2,580 sqft",
+          image:
+            "https://images.unsplash.com/photo-1600607688969-a5bfcd646154?auto=format&fit=crop&w=900&q=80",
+        },
+        {
+          name: "Parkside Landing",
+          location: "Star, ID",
+          price: "$427,900",
+          facts: "3 bed · 2.5 bath · 1,910 sqft",
+          image:
+            "https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=900&q=80",
+        },
+        {
+          name: "Warm Springs View",
+          location: "Boise, ID",
+          price: "$682,000",
+          facts: "4 bed · 3 bath · 2,306 sqft",
+          image:
+            "https://images.unsplash.com/photo-1600585154526-990dced4db0d?auto=format&fit=crop&w=900&q=80",
+        },
       ],
     },
   ],
@@ -332,12 +588,54 @@ const homePreviewRowsByTab: Record<HomeTab, HomePreviewRow[]> = {
       title: "Quick move-in homes",
       action: "Find move-in ready builds",
       cards: [
-        { name: "Aspen Grove — The Juniper", location: "Meridian, ID", price: "From $524,900", facts: "3 bed · 2.5 bath · Ready this fall", image: "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=900&q=80" },
-        { name: "Canyon Rim — The Vista", location: "Nampa, ID", price: "From $489,900", facts: "3 bed · 2 bath · Finished basement", image: "https://images.unsplash.com/photo-1600047508788-786f386c0f2d?auto=format&fit=crop&w=900&q=80" },
-        { name: "Cottonwood Crossing — Plan 4", location: "Star, ID", price: "From $574,900", facts: "4 bed · 2.5 bath · December completion", image: "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=900&q=80" },
-        { name: "Harvest Point — The Maple", location: "Caldwell, ID", price: "From $389,900", facts: "3 bed · 2 bath · Single level", image: "https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&w=900&q=80" },
-        { name: "Hillside Terrace — Model 7", location: "Nampa, ID", price: "Call for pricing", facts: "4 bed · 3 bath · Model home", image: "https://images.unsplash.com/photo-1600585152915-d208bec867a1?auto=format&fit=crop&w=900&q=80" },
-        { name: "The Preserve — Alder", location: "Eagle, ID", price: "From $819,900", facts: "4 bed · 3 bath · Mountain views", image: "https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?auto=format&fit=crop&w=900&q=80" },
+        {
+          name: "Aspen Grove — The Juniper",
+          location: "Meridian, ID",
+          price: "From $524,900",
+          facts: "3 bed · 2.5 bath · Ready this fall",
+          image:
+            "https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=900&q=80",
+        },
+        {
+          name: "Canyon Rim — The Vista",
+          location: "Nampa, ID",
+          price: "From $489,900",
+          facts: "3 bed · 2 bath · Finished basement",
+          image:
+            "https://images.unsplash.com/photo-1600047508788-786f386c0f2d?auto=format&fit=crop&w=900&q=80",
+        },
+        {
+          name: "Cottonwood Crossing — Plan 4",
+          location: "Star, ID",
+          price: "From $574,900",
+          facts: "4 bed · 2.5 bath · December completion",
+          image:
+            "https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?auto=format&fit=crop&w=900&q=80",
+        },
+        {
+          name: "Harvest Point — The Maple",
+          location: "Caldwell, ID",
+          price: "From $389,900",
+          facts: "3 bed · 2 bath · Single level",
+          image:
+            "https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?auto=format&fit=crop&w=900&q=80",
+        },
+        {
+          name: "Hillside Terrace — Model 7",
+          location: "Nampa, ID",
+          price: "Call for pricing",
+          facts: "4 bed · 3 bath · Model home",
+          image:
+            "https://images.unsplash.com/photo-1600585152915-d208bec867a1?auto=format&fit=crop&w=900&q=80",
+        },
+        {
+          name: "The Preserve — Alder",
+          location: "Eagle, ID",
+          price: "From $819,900",
+          facts: "4 bed · 3 bath · Mountain views",
+          image:
+            "https://images.unsplash.com/photo-1600047509807-ba8f99d2cdde?auto=format&fit=crop&w=900&q=80",
+        },
       ],
     },
   ],
@@ -347,12 +645,54 @@ const homePreviewRowsByTab: Record<HomeTab, HomePreviewRow[]> = {
       title: "Pet-friendly rentals",
       action: "Browse pet-friendly homes",
       cards: [
-        { name: "Parkview Commons", location: "Boise, ID", price: "$1,725 / mo", facts: "2 bed · 2 bath · Dogs welcome", image: "https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=900&q=80" },
-        { name: "Meridian Green", location: "Meridian, ID", price: "$1,590 / mo", facts: "1 bed · 1 bath · Cats welcome", image: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=900&q=80" },
-        { name: "Eagle Creek Townhome", location: "Eagle, ID", price: "$2,350 / mo", facts: "3 bed · 2.5 bath · Fenced patio", image: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=900&q=80" },
-        { name: "Canyon Trails", location: "Nampa, ID", price: "$1,480 / mo", facts: "2 bed · 1 bath · Dog park", image: "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=80" },
-        { name: "North End Garden Flat", location: "Boise, ID", price: "$2,050 / mo", facts: "2 bed · 1 bath · Small pets", image: "https://images.unsplash.com/photo-1449844908441-8829872d2607?auto=format&fit=crop&w=900&q=80" },
-        { name: "The Village Lofts", location: "Meridian, ID", price: "$2,150 / mo", facts: "2 bed · 2 bath · Garage", image: "https://images.unsplash.com/photo-1502672023488-70e25813eb80?auto=format&fit=crop&w=900&q=80" },
+        {
+          name: "Parkview Commons",
+          location: "Boise, ID",
+          price: "$1,725 / mo",
+          facts: "2 bed · 2 bath · Dogs welcome",
+          image:
+            "https://images.unsplash.com/photo-1493809842364-78817add7ffb?auto=format&fit=crop&w=900&q=80",
+        },
+        {
+          name: "Meridian Green",
+          location: "Meridian, ID",
+          price: "$1,590 / mo",
+          facts: "1 bed · 1 bath · Cats welcome",
+          image:
+            "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=900&q=80",
+        },
+        {
+          name: "Eagle Creek Townhome",
+          location: "Eagle, ID",
+          price: "$2,350 / mo",
+          facts: "3 bed · 2.5 bath · Fenced patio",
+          image:
+            "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=900&q=80",
+        },
+        {
+          name: "Canyon Trails",
+          location: "Nampa, ID",
+          price: "$1,480 / mo",
+          facts: "2 bed · 1 bath · Dog park",
+          image:
+            "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?auto=format&fit=crop&w=900&q=80",
+        },
+        {
+          name: "North End Garden Flat",
+          location: "Boise, ID",
+          price: "$2,050 / mo",
+          facts: "2 bed · 1 bath · Small pets",
+          image:
+            "https://images.unsplash.com/photo-1449844908441-8829872d2607?auto=format&fit=crop&w=900&q=80",
+        },
+        {
+          name: "The Village Lofts",
+          location: "Meridian, ID",
+          price: "$2,150 / mo",
+          facts: "2 bed · 2 bath · Garage",
+          image:
+            "https://images.unsplash.com/photo-1502672023488-70e25813eb80?auto=format&fit=crop&w=900&q=80",
+        },
       ],
     },
   ],
@@ -364,23 +704,83 @@ const serviceCategoryRows: { title: string; categories: ServiceCategory[] }[] = 
   {
     title: "Popular services",
     categories: [
-      { name: "Drywall", count: 49, image: "https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=700&q=80" },
-      { name: "Electricians", count: 48, image: "https://images.unsplash.com/photo-1621905251918-48416bd8575a?auto=format&fit=crop&w=700&q=80" },
-      { name: "Handyman", count: 75, image: "https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=700&q=80" },
-      { name: "Heating & Air Conditioning", count: 66, image: "https://images.unsplash.com/photo-1631545806609-ccf5d6f5c2ab?auto=format&fit=crop&w=700&q=80" },
-      { name: "Movers", count: 19, image: "https://images.unsplash.com/photo-1600518464441-9154a4dea21b?auto=format&fit=crop&w=700&q=80" },
-      { name: "Painters", count: 55, image: "https://images.unsplash.com/photo-1562259949-e8e7689d7828?auto=format&fit=crop&w=700&q=80" },
+      {
+        name: "Drywall",
+        count: 49,
+        image:
+          "https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=700&q=80",
+      },
+      {
+        name: "Electricians",
+        count: 48,
+        image:
+          "https://images.unsplash.com/photo-1621905251918-48416bd8575a?auto=format&fit=crop&w=700&q=80",
+      },
+      {
+        name: "Handyman",
+        count: 75,
+        image:
+          "https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=700&q=80",
+      },
+      {
+        name: "Heating & Air Conditioning",
+        count: 66,
+        image:
+          "https://images.unsplash.com/photo-1631545806609-ccf5d6f5c2ab?auto=format&fit=crop&w=700&q=80",
+      },
+      {
+        name: "Movers",
+        count: 19,
+        image:
+          "https://images.unsplash.com/photo-1600518464441-9154a4dea21b?auto=format&fit=crop&w=700&q=80",
+      },
+      {
+        name: "Painters",
+        count: 55,
+        image:
+          "https://images.unsplash.com/photo-1562259949-e8e7689d7828?auto=format&fit=crop&w=700&q=80",
+      },
     ],
   },
   {
     title: "Seasonal categories",
     categories: [
-      { name: "Lawn Care & Maintenance", count: 38, image: "https://images.unsplash.com/photo-1599685315640-3f3c8e3d9b4b?auto=format&fit=crop&w=700&q=80" },
-      { name: "Landscape Contractors", count: 100, image: "https://images.unsplash.com/photo-1558904541-efa843a96f01?auto=format&fit=crop&w=700&q=80" },
-      { name: "House Cleaning", count: 54, image: "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=700&q=80" },
-      { name: "Cabinet & Countertops", count: 18, image: "https://images.unsplash.com/photo-1556912167-f556f1f39fdf?auto=format&fit=crop&w=700&q=80" },
-      { name: "Carpet & Flooring Installation", count: 39, image: "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=700&q=80" },
-      { name: "Automotive", count: 54, image: "https://images.unsplash.com/photo-1486006920555-c77dcf18193c?auto=format&fit=crop&w=700&q=80" },
+      {
+        name: "Lawn Care & Maintenance",
+        count: 38,
+        image:
+          "https://images.unsplash.com/photo-1599685315640-3f3c8e3d9b4b?auto=format&fit=crop&w=700&q=80",
+      },
+      {
+        name: "Landscape Contractors",
+        count: 100,
+        image:
+          "https://images.unsplash.com/photo-1558904541-efa843a96f01?auto=format&fit=crop&w=700&q=80",
+      },
+      {
+        name: "House Cleaning",
+        count: 54,
+        image:
+          "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=700&q=80",
+      },
+      {
+        name: "Cabinet & Countertops",
+        count: 18,
+        image:
+          "https://images.unsplash.com/photo-1556912167-f556f1f39fdf?auto=format&fit=crop&w=700&q=80",
+      },
+      {
+        name: "Carpet & Flooring Installation",
+        count: 39,
+        image:
+          "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=700&q=80",
+      },
+      {
+        name: "Automotive",
+        count: 54,
+        image:
+          "https://images.unsplash.com/photo-1486006920555-c77dcf18193c?auto=format&fit=crop&w=700&q=80",
+      },
     ],
   },
 ];
@@ -438,9 +838,18 @@ const allServiceCategories: ServiceCategory[] = [
   { name: "Windows & Glass Installation", count: 11, image: "" },
 ];
 
-const serviceSubcategoryOptions = ["Any subcategory", ...allServiceCategories.map((category) => category.name)] as const;
+const serviceSubcategoryOptions = [
+  "Any subcategory",
+  ...allServiceCategories.map((category) => category.name),
+] as const;
 const serviceConditionOptions = ["Any condition", "New", "Used", "Like new"] as const;
-const serviceTimeOnSiteOptions = ["Any time", "Last hour", "Last 24 hours", "Last 7 days", "Last 30 days"] as const;
+const serviceTimeOnSiteOptions = [
+  "Any time",
+  "Last hour",
+  "Last 24 hours",
+  "Last 7 days",
+  "Last 30 days",
+] as const;
 
 const classifiedQuery = (input: ClassifiedBrowseInput) =>
   queryOptions({
@@ -498,10 +907,13 @@ export const Route = createFileRoute("/browse")({
     const jobMode = stringParam(search, "jobMode", 10);
     const serviceMode = stringParam(search, "serviceMode", 10);
     const vehicleMode = stringParam(search, "vehicleMode", 10);
+    const savedSearchId = stringParam(search, "savedSearchId", 64);
     const page = Number(search["page"]);
     return {
-      allCategories: search["allCategories"] === true || stringParam(search, "allCategories", 5) === "true",
+      allCategories:
+        search["allCategories"] === true || stringParam(search, "allCategories", 5) === "true",
       q: stringParam(search, "q"),
+      savedSearchId,
       category: stringParam(search, "category", 60),
       group: group === "motors" || group === "classifieds" ? group : undefined,
       state: stringParam(search, "state", 2)?.toUpperCase(),
@@ -529,10 +941,13 @@ export const Route = createFileRoute("/browse")({
       view: view === "list" ? "list" : view === "grid" ? "grid" : undefined,
       page: page > 1 ? page : undefined,
       homeMode: homeMode === "results" ? "results" : homeMode === "landing" ? "landing" : undefined,
-      homeTab: homeTab === "build" || homeTab === "rent" ? homeTab : homeTab === "buy" ? "buy" : undefined,
+      homeTab:
+        homeTab === "build" || homeTab === "rent" ? homeTab : homeTab === "buy" ? "buy" : undefined,
       jobMode: jobMode === "results" ? "results" : jobMode === "landing" ? "landing" : undefined,
-      serviceMode: serviceMode === "results" ? "results" : serviceMode === "landing" ? "landing" : undefined,
-      vehicleMode: vehicleMode === "results" ? "results" : vehicleMode === "landing" ? "landing" : undefined,
+      serviceMode:
+        serviceMode === "results" ? "results" : serviceMode === "landing" ? "landing" : undefined,
+      vehicleMode:
+        vehicleMode === "results" ? "results" : vehicleMode === "landing" ? "landing" : undefined,
       sellerType: stringParam(search, "sellerType", 30),
       mileageBands: stringParam(search, "mileageBands", 300),
       serviceSubcategory: stringParam(search, "serviceSubcategory", 80),
@@ -616,6 +1031,8 @@ function Browse() {
   const { data: result } = useSuspenseQuery(classifiedQuery(inputFromSearch(search)));
   const [term, setTerm] = useState(search.q ?? "");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const saveSearch = useServerFn(createSavedSearch);
+  const updateSearch = useServerFn(updateSavedSearch);
 
   useEffect(() => setTerm(search.q ?? ""), [search.q]);
 
@@ -676,8 +1093,7 @@ function Browse() {
   const pageCount = Math.max(1, Math.ceil(result.total / result.pageSize));
   const activeFilterCount = countActiveFilters(search, motors);
   const heading =
-    selectedCategory?.name ??
-    (search.group === "motors" ? "Cars & motors" : "All classifieds");
+    selectedCategory?.name ?? (search.group === "motors" ? "Cars & motors" : "All classifieds");
 
   function applyFilters(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -721,6 +1137,45 @@ function Browse() {
     setFiltersOpen(false);
   }
 
+  async function saveCurrentSearch() {
+    const suggestedName =
+      [selectedCategory?.name, search.q].filter(Boolean).join(" · ") || "My marketplace search";
+    const name = window.prompt("Name this saved search", suggestedName)?.trim();
+    if (!name) return;
+
+    const searchToSave = Object.fromEntries(
+      Object.entries(search).filter(
+        ([key, value]) =>
+          value !== undefined &&
+          value !== "" &&
+          ![
+            "allCategories",
+            "savedSearchId",
+            "sort",
+            "view",
+            "page",
+            "homeMode",
+            "homeTab",
+            "jobMode",
+            "serviceMode",
+            "vehicleMode",
+          ].includes(key),
+      ),
+    );
+
+    try {
+      if (search.savedSearchId) {
+        await updateSearch({ data: { id: search.savedSearchId, search: searchToSave } });
+        toast.success("Saved search updated.");
+      } else {
+        await saveSearch({ data: { name, search: searchToSave } });
+        toast.success("Saved search created.");
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Sign in to save this search.");
+    }
+  }
+
   return (
     <main className="mx-auto max-w-[1400px] px-4 py-10 sm:px-8">
       {allCategoriesLanding && (
@@ -747,19 +1202,28 @@ function Browse() {
           activeFilterCount={activeFilterCount}
           term={term}
           onTermChange={setTerm}
-          onSearch={() => void navigate({ to: "/browse", search: scoped({ q: term.trim() || undefined, vehicleMode: "results" }) })}
+          onSearch={() =>
+            void navigate({
+              to: "/browse",
+              search: scoped({ q: term.trim() || undefined, vehicleMode: "results" }),
+            })
+          }
           onFilterChange={(patch) => void navigate({ to: "/browse", search: scoped(patch) })}
           onSell={() => void navigate({ to: "/create-listing" })}
         />
       )}
 
-      {motors && vehicleLanding && <HomepageShowcaseRows eyebrow="GemList Motors" rows={vehicleShowcaseRows} />}
+      {motors && vehicleLanding && (
+        <HomepageShowcaseRows eyebrow="GemList Motors" rows={vehicleShowcaseRows} />
+      )}
 
       {motors && !vehicleLanding && (
         <VehicleResultsPage
           search={search}
           result={result}
-          onApply={(patch) => void navigate({ to: "/browse", search: scoped({ vehicleMode: "results", ...patch }) })}
+          onApply={(patch) =>
+            void navigate({ to: "/browse", search: scoped({ vehicleMode: "results", ...patch }) })
+          }
           onSell={() => void navigate({ to: "/create-listing" })}
         />
       )}
@@ -810,9 +1274,15 @@ function Browse() {
           onApply={(patch) =>
             void navigate({
               to: "/browse",
-              search: scoped({ category: "other-real-estate", homeTab, homeMode: "results", ...patch }),
+              search: scoped({
+                category: "other-real-estate",
+                homeTab,
+                homeMode: "results",
+                ...patch,
+              }),
             })
           }
+          onSave={() => void saveCurrentSearch()}
         />
       )}
 
@@ -829,21 +1299,30 @@ function Browse() {
             })
           }
           onMoreFilters={() =>
-            void navigate({ to: "/browse", search: scoped({ category: "jobs", jobMode: "results" }) })
+            void navigate({
+              to: "/browse",
+              search: scoped({ category: "jobs", jobMode: "results" }),
+            })
           }
           onPost={() => void navigate({ to: "/create-listing" })}
         />
       )}
 
-      {jobs && jobLanding && <HomepageShowcaseRows eyebrow="GemList Jobs" rows={jobsShowcaseRows} />}
+      {jobs && jobLanding && (
+        <HomepageShowcaseRows eyebrow="GemList Jobs" rows={jobsShowcaseRows} />
+      )}
 
       {jobs && !jobLanding && (
         <JobsFilterPage
           search={search}
           listings={result.listings}
           onApply={(patch) =>
-            void navigate({ to: "/browse", search: scoped({ category: "jobs", jobMode: "results", ...patch }) })
+            void navigate({
+              to: "/browse",
+              search: scoped({ category: "jobs", jobMode: "results", ...patch }),
+            })
           }
+          onSave={() => void saveCurrentSearch()}
           onPost={() => void navigate({ to: "/create-listing" })}
         />
       )}
@@ -854,14 +1333,21 @@ function Browse() {
           onSearch={(subcategory) =>
             void navigate({
               to: "/browse",
-              search: scoped({ category: "services", serviceMode: "results", q: undefined, serviceSubcategory: subcategory || undefined }),
+              search: scoped({
+                category: "services",
+                serviceMode: "results",
+                q: undefined,
+                serviceSubcategory: subcategory || undefined,
+              }),
             })
           }
           onPost={() => void navigate({ to: "/create-listing" })}
         />
       )}
 
-      {services && serviceLanding && <HomepageShowcaseRows eyebrow="GemList Services" rows={servicesShowcaseRows} />}
+      {services && serviceLanding && (
+        <HomepageShowcaseRows eyebrow="GemList Services" rows={servicesShowcaseRows} />
+      )}
 
       {services && !serviceLanding && (
         <ServicesFilterPage
@@ -873,6 +1359,7 @@ function Browse() {
               search: scoped({ category: "services", serviceMode: "results", ...patch }),
             })
           }
+          onSave={() => void saveCurrentSearch()}
           onPost={() => void navigate({ to: "/create-listing" })}
         />
       )}
@@ -882,13 +1369,20 @@ function Browse() {
           onCategorySelect={(category) =>
             void navigate({
               to: "/browse",
-              search: scoped({ category: "services", serviceMode: "results", q: undefined, serviceSubcategory: category }),
+              search: scoped({
+                category: "services",
+                serviceMode: "results",
+                q: undefined,
+                serviceSubcategory: category,
+              }),
             })
           }
         />
       )}
 
-      <div className={`flex flex-wrap items-end justify-between gap-3 ${motors || homes || jobs || services ? "mt-7" : ""} ${homes || jobs || services || serviceLanding || !showGenericBrowse ? "hidden" : ""}`}>
+      <div
+        className={`flex flex-wrap items-end justify-between gap-3 ${motors || homes || jobs || services ? "mt-7" : ""} ${homes || jobs || services || serviceLanding || !showGenericBrowse ? "hidden" : ""}`}
+      >
         <div className={motors ? "hidden" : ""}>
           <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-primary">
             Gem State classifieds
@@ -961,385 +1455,418 @@ function Browse() {
         </form>
       )}
 
-      {!allCategoriesLanding && !motors && !homes && !jobs && !services && <div className="no-scrollbar mt-5 flex gap-2 overflow-x-auto pb-1">
-        <BrowsePill
-          active={!search.group && !search.category}
-          search={scopedWithoutVehicleFilters({ group: undefined, category: undefined })}
-        >
-          All listings
-        </BrowsePill>
-        <BrowsePill
-          active={search.group === "motors" || motors}
-          search={scoped({ group: "motors", category: undefined })}
-        >
-          Cars & motors
-        </BrowsePill>
-        {classifiedCategories
-          .filter((category) => category.group === "classifieds")
-          .map((category) => (
-            <BrowsePill
-              key={category.slug}
-              active={search.category === category.slug}
-              search={scopedWithoutVehicleFilters({ category: category.slug, group: undefined })}
-            >
-              {category.name}
+      {!allCategoriesLanding && !motors && !homes && !jobs && !services && (
+        <div className="no-scrollbar mt-5 flex gap-2 overflow-x-auto pb-1">
+          <BrowsePill
+            active={!search.group && !search.category}
+            search={scopedWithoutVehicleFilters({ group: undefined, category: undefined })}
+          >
+            All listings
           </BrowsePill>
-        ))}
-      </div>}
-
-      {!jobs && !services && showGenericBrowse && <div className={`${motors || homes ? "mt-6" : "mt-8"} ${homeLanding ? "hidden" : ""}`}>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className={motors || homes ? "hidden" : "text-[13px] text-muted-foreground"}>
-            <span className="numeric font-semibold text-foreground">{result.total}</span>{" "}
-            {result.total === 1 ? "listing" : "listings"}
-          </p>
-          {!motors && !homes && <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
-            <SheetTrigger asChild>
-              <button
-                type="button"
-                className={`inline-flex h-11 items-center gap-2 rounded-full border border-input bg-card px-5 text-[13px] font-semibold shadow-sm transition-shadow hover:shadow-md ${motors || homes ? "hidden" : ""}`}
+          <BrowsePill
+            active={search.group === "motors" || motors}
+            search={scoped({ group: "motors", category: undefined })}
+          >
+            Cars & motors
+          </BrowsePill>
+          {classifiedCategories
+            .filter((category) => category.group === "classifieds")
+            .map((category) => (
+              <BrowsePill
+                key={category.slug}
+                active={search.category === category.slug}
+                search={scopedWithoutVehicleFilters({ category: category.slug, group: undefined })}
               >
-                <FunnelSimple size={17} className="text-primary" />
-                Filters
-                {activeFilterCount > 0 && (
-                  <span className="grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1.5 text-[10px] font-bold">
-                    {activeFilterCount}
-                  </span>
-                )}
-              </button>
-            </SheetTrigger>
-            <SheetContent side="right" className="w-full overflow-y-auto p-0 sm:max-w-lg">
-              <SheetHeader className="border-b border-border px-6 py-6 pr-16 text-left">
-                <SheetTitle className="text-[22px] tracking-tight">Filter listings</SheetTitle>
-                <SheetDescription>
-                  Narrow down local items, or add every vehicle detail that matters.
-                </SheetDescription>
-              </SheetHeader>
-              <form onSubmit={applyFilters} className="space-y-6 px-6 py-6">
-            <input type="hidden" name="group" value={search.group ?? ""} />
-            <FilterSection title="Category">
-              <select name="category" defaultValue={search.category ?? ""} className="filter-input">
-                <option value="">All categories</option>
-                {classifiedCategories.map((category) => (
-                  <option key={category.slug} value={category.slug}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-            </FilterSection>
-
-            <FilterSection title="Location" icon={<MapPin size={13} className="text-primary" />}>
-              <select name="region" defaultValue={search.region ?? ""} className="filter-input">
-                <option value="">All of Idaho</option>
-                {idahoRegions.map((region) => (
-                  <option key={region} value={region}>
-                    {region}
-                  </option>
-                ))}
-              </select>
-              <select name="state" defaultValue={search.state ?? ""} className="filter-input">
-                <option value="">All states</option>
-                {usStates.map(([code, name]) => (
-                  <option key={code} value={code}>
-                    {name}
-                  </option>
-                ))}
-              </select>
-              <input
-                name="city"
-                defaultValue={search.city ?? ""}
-                placeholder="City"
-                className="filter-input"
-                maxLength={80}
-              />
-            </FilterSection>
-
-            <FilterSection title="Price">
-              <div className="grid grid-cols-2 gap-2">
-                <input
-                  name="priceMin"
-                  type="number"
-                  min="0"
-                  step="1"
-                  defaultValue={search.priceMin ?? ""}
-                  placeholder="Min"
-                  className="filter-input"
-                />
-                <input
-                  name="priceMax"
-                  type="number"
-                  min="0"
-                  step="1"
-                  defaultValue={search.priceMax ?? ""}
-                  placeholder="Max"
-                  className="filter-input"
-                />
-              </div>
-            </FilterSection>
-
-            <FilterSection title="Condition and fulfillment">
-              <select
-                name="condition"
-                defaultValue={search.condition ?? ""}
-                className="filter-input"
-              >
-                <option value="">Any condition</option>
-                {conditionOptions.map(([value, label]) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-              <select
-                name="fulfillment"
-                defaultValue={search.fulfillment ?? ""}
-                className="filter-input"
-              >
-                <option value="">Any fulfillment</option>
-                <option value="local_pickup">Local pickup</option>
-                <option value="shipping">Ships</option>
-                <option value="both">Pickup or shipping</option>
-              </select>
-            </FilterSection>
-
-            {motors && (
-              <FilterSection title="Vehicle details">
-                <input
-                  list="vehicle-makes"
-                  name="make"
-                  defaultValue={search.make ?? ""}
-                  placeholder="Make / brand"
-                  className="filter-input"
-                  maxLength={80}
-                />
-                <datalist id="vehicle-makes">
-                  {vehicleOptions.makes.map((make) => (
-                    <option key={make} value={make} />
-                  ))}
-                </datalist>
-                <input
-                  name="model"
-                  defaultValue={search.model ?? ""}
-                  placeholder="Model"
-                  className="filter-input"
-                  maxLength={80}
-                />
-                <div className="grid grid-cols-2 gap-2">
-                  <input
-                    name="yearMin"
-                    type="number"
-                    min="1900"
-                    max="2100"
-                    step="1"
-                    defaultValue={search.yearMin ?? ""}
-                    placeholder="Year from"
-                    className="filter-input"
-                  />
-                  <input
-                    name="yearMax"
-                    type="number"
-                    min="1900"
-                    max="2100"
-                    step="1"
-                    defaultValue={search.yearMax ?? ""}
-                    placeholder="Year to"
-                    className="filter-input"
-                  />
-                </div>
-                <input
-                  name="mileageMax"
-                  type="number"
-                  min="0"
-                  step="1000"
-                  defaultValue={search.mileageMax ?? ""}
-                  placeholder="Max mileage"
-                  className="filter-input"
-                />
-                <select
-                  name="bodyStyle"
-                  defaultValue={search.bodyStyle ?? ""}
-                  className="filter-input"
-                >
-                  <option value="">Any body style</option>
-                  {vehicleOptions.bodyStyles.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  name="drivetrain"
-                  defaultValue={search.drivetrain ?? ""}
-                  className="filter-input"
-                >
-                  <option value="">Any drivetrain</option>
-                  {vehicleOptions.drivetrains.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  name="transmission"
-                  defaultValue={search.transmission ?? ""}
-                  className="filter-input"
-                >
-                  <option value="">Any transmission</option>
-                  {vehicleOptions.transmissions.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  name="fuelType"
-                  defaultValue={search.fuelType ?? ""}
-                  className="filter-input"
-                >
-                  <option value="">Any fuel type</option>
-                  {vehicleOptions.fuelTypes.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  name="exteriorColor"
-                  defaultValue={search.exteriorColor ?? ""}
-                  className="filter-input"
-                >
-                  <option value="">Any exterior color</option>
-                  {vehicleOptions.exteriorColors.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  name="titleStatus"
-                  defaultValue={search.titleStatus ?? ""}
-                  className="filter-input"
-                >
-                  <option value="">Any title status</option>
-                  {vehicleOptions.titleStatuses.map((option) => (
-                    <option key={option} value={option}>
-                      {option}
-                    </option>
-                  ))}
-                </select>
-              </FilterSection>
-            )}
-
-                <button
-                  type="submit"
-                  className="mt-2 inline-flex h-12 w-full items-center justify-center rounded-full bg-primary px-3 text-[13px] font-semibold text-primary-foreground shadow-sm hover:opacity-90"
-                >
-                  Show {result.total} {result.total === 1 ? "listing" : "listings"}
-                </button>
-              </form>
-            </SheetContent>
-          </Sheet>}
+                {category.name}
+              </BrowsePill>
+            ))}
         </div>
+      )}
 
-        <section id="results" className="mt-6">
+      {!jobs && !services && showGenericBrowse && (
+        <div className={`${motors || homes ? "mt-6" : "mt-8"} ${homeLanding ? "hidden" : ""}`}>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className={motors ? "hidden" : "text-[12.5px] text-muted-foreground"}>
-              <span className="numeric">{result.total}</span>{" "}
+            <p className={motors || homes ? "hidden" : "text-[13px] text-muted-foreground"}>
+              <span className="numeric font-semibold text-foreground">{result.total}</span>{" "}
               {result.total === 1 ? "listing" : "listings"}
-              {search.q ? <span> matching “{search.q}”</span> : null}
             </p>
-            {activeFilterCount > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {activeFilterLabels(search, motors).map((label) => (
-                  <span
-                    key={label}
-                    className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-1 text-[10.5px] text-muted-foreground"
+            {!motors && !homes && (
+              <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
+                <SheetTrigger asChild>
+                  <button
+                    type="button"
+                    className={`inline-flex h-11 items-center gap-2 rounded-full border border-input bg-card px-5 text-[13px] font-semibold shadow-sm transition-shadow hover:shadow-md ${motors || homes ? "hidden" : ""}`}
                   >
-                    {label}
-                  </span>
-                ))}
-                <Link
-                  to="/browse"
-                  search={scoped({ category: undefined, group: search.group })}
-                  className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10.5px] font-medium text-primary hover:bg-accent"
-                >
-                  <X size={11} /> Clear
-                </Link>
-              </div>
+                    <FunnelSimple size={17} className="text-primary" />
+                    Filters
+                    {activeFilterCount > 0 && (
+                      <span className="grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1.5 text-[10px] font-bold">
+                        {activeFilterCount}
+                      </span>
+                    )}
+                  </button>
+                </SheetTrigger>
+                <SheetContent side="right" className="w-full overflow-y-auto p-0 sm:max-w-lg">
+                  <SheetHeader className="border-b border-border px-6 py-6 pr-16 text-left">
+                    <SheetTitle className="text-[22px] tracking-tight">Filter listings</SheetTitle>
+                    <SheetDescription>
+                      Narrow down local items, or add every vehicle detail that matters.
+                    </SheetDescription>
+                  </SheetHeader>
+                  <form onSubmit={applyFilters} className="space-y-6 px-6 py-6">
+                    <input type="hidden" name="group" value={search.group ?? ""} />
+                    <FilterSection title="Category">
+                      <select
+                        name="category"
+                        defaultValue={search.category ?? ""}
+                        className="filter-input"
+                      >
+                        <option value="">All categories</option>
+                        {classifiedCategories.map((category) => (
+                          <option key={category.slug} value={category.slug}>
+                            {category.name}
+                          </option>
+                        ))}
+                      </select>
+                    </FilterSection>
+
+                    <FilterSection
+                      title="Location"
+                      icon={<MapPin size={13} className="text-primary" />}
+                    >
+                      <select
+                        name="region"
+                        defaultValue={search.region ?? ""}
+                        className="filter-input"
+                      >
+                        <option value="">All of Idaho</option>
+                        {idahoRegions.map((region) => (
+                          <option key={region} value={region}>
+                            {region}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        name="state"
+                        defaultValue={search.state ?? ""}
+                        className="filter-input"
+                      >
+                        <option value="">All states</option>
+                        {usStates.map(([code, name]) => (
+                          <option key={code} value={code}>
+                            {name}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        name="city"
+                        defaultValue={search.city ?? ""}
+                        placeholder="City"
+                        className="filter-input"
+                        maxLength={80}
+                      />
+                    </FilterSection>
+
+                    <FilterSection title="Price">
+                      <div className="grid grid-cols-2 gap-2">
+                        <input
+                          name="priceMin"
+                          type="number"
+                          min="0"
+                          step="1"
+                          defaultValue={search.priceMin ?? ""}
+                          placeholder="Min"
+                          className="filter-input"
+                        />
+                        <input
+                          name="priceMax"
+                          type="number"
+                          min="0"
+                          step="1"
+                          defaultValue={search.priceMax ?? ""}
+                          placeholder="Max"
+                          className="filter-input"
+                        />
+                      </div>
+                    </FilterSection>
+
+                    <FilterSection title="Condition and fulfillment">
+                      <select
+                        name="condition"
+                        defaultValue={search.condition ?? ""}
+                        className="filter-input"
+                      >
+                        <option value="">Any condition</option>
+                        {conditionOptions.map(([value, label]) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        name="fulfillment"
+                        defaultValue={search.fulfillment ?? ""}
+                        className="filter-input"
+                      >
+                        <option value="">Any fulfillment</option>
+                        <option value="local_pickup">Local pickup</option>
+                        <option value="shipping">Ships</option>
+                        <option value="both">Pickup or shipping</option>
+                      </select>
+                    </FilterSection>
+
+                    {motors && (
+                      <FilterSection title="Vehicle details">
+                        <input
+                          list="vehicle-makes"
+                          name="make"
+                          defaultValue={search.make ?? ""}
+                          placeholder="Make / brand"
+                          className="filter-input"
+                          maxLength={80}
+                        />
+                        <datalist id="vehicle-makes">
+                          {vehicleOptions.makes.map((make) => (
+                            <option key={make} value={make} />
+                          ))}
+                        </datalist>
+                        <input
+                          name="model"
+                          defaultValue={search.model ?? ""}
+                          placeholder="Model"
+                          className="filter-input"
+                          maxLength={80}
+                        />
+                        <div className="grid grid-cols-2 gap-2">
+                          <input
+                            name="yearMin"
+                            type="number"
+                            min="1900"
+                            max="2100"
+                            step="1"
+                            defaultValue={search.yearMin ?? ""}
+                            placeholder="Year from"
+                            className="filter-input"
+                          />
+                          <input
+                            name="yearMax"
+                            type="number"
+                            min="1900"
+                            max="2100"
+                            step="1"
+                            defaultValue={search.yearMax ?? ""}
+                            placeholder="Year to"
+                            className="filter-input"
+                          />
+                        </div>
+                        <input
+                          name="mileageMax"
+                          type="number"
+                          min="0"
+                          step="1000"
+                          defaultValue={search.mileageMax ?? ""}
+                          placeholder="Max mileage"
+                          className="filter-input"
+                        />
+                        <select
+                          name="bodyStyle"
+                          defaultValue={search.bodyStyle ?? ""}
+                          className="filter-input"
+                        >
+                          <option value="">Any body style</option>
+                          {vehicleOptions.bodyStyles.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          name="drivetrain"
+                          defaultValue={search.drivetrain ?? ""}
+                          className="filter-input"
+                        >
+                          <option value="">Any drivetrain</option>
+                          {vehicleOptions.drivetrains.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          name="transmission"
+                          defaultValue={search.transmission ?? ""}
+                          className="filter-input"
+                        >
+                          <option value="">Any transmission</option>
+                          {vehicleOptions.transmissions.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          name="fuelType"
+                          defaultValue={search.fuelType ?? ""}
+                          className="filter-input"
+                        >
+                          <option value="">Any fuel type</option>
+                          {vehicleOptions.fuelTypes.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          name="exteriorColor"
+                          defaultValue={search.exteriorColor ?? ""}
+                          className="filter-input"
+                        >
+                          <option value="">Any exterior color</option>
+                          {vehicleOptions.exteriorColors.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          name="titleStatus"
+                          defaultValue={search.titleStatus ?? ""}
+                          className="filter-input"
+                        >
+                          <option value="">Any title status</option>
+                          {vehicleOptions.titleStatuses.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      </FilterSection>
+                    )}
+
+                    <div className="mt-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                      <button
+                        type="submit"
+                        className="inline-flex h-12 w-full items-center justify-center rounded-full bg-primary px-3 text-[13px] font-semibold text-primary-foreground shadow-sm hover:opacity-90"
+                      >
+                        Show {result.total} {result.total === 1 ? "listing" : "listings"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void saveCurrentSearch()}
+                        className="inline-flex h-12 items-center justify-center rounded-full border border-primary px-5 text-[13px] font-semibold text-primary hover:bg-secondary"
+                      >
+                        {search.savedSearchId ? "Update saved search" : "Save this search"}
+                      </button>
+                    </div>
+                  </form>
+                </SheetContent>
+              </Sheet>
             )}
           </div>
 
-          {result.listings.length === 0 ? (
-            <div className="soft-card mt-5 px-5 py-12 text-center">
-              <p className="text-[14px] font-medium">No listings match these filters.</p>
-              <p className="mx-auto mt-1.5 max-w-md text-[13px] leading-relaxed text-muted-foreground">
-                {homes
-                  ? "Try widening the price, location, property type, or bedroom filters."
-                  : "Try widening the year, price, mileage, location, or vehicle filters."}
+          <section id="results" className="mt-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <p className={motors ? "hidden" : "text-[12.5px] text-muted-foreground"}>
+                <span className="numeric">{result.total}</span>{" "}
+                {result.total === 1 ? "listing" : "listings"}
+                {search.q ? <span> matching “{search.q}”</span> : null}
               </p>
-              <Link
-                to="/browse"
-                search={scoped({ category: undefined, group: search.group })}
-                className="mt-4 inline-flex h-9 items-center rounded-md border border-input px-3 text-[12px] font-semibold hover:bg-secondary"
-              >
-                Clear filters
-              </Link>
+              {activeFilterCount > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {activeFilterLabels(search, motors).map((label) => (
+                    <span
+                      key={label}
+                      className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-1 text-[10.5px] text-muted-foreground"
+                    >
+                      {label}
+                    </span>
+                  ))}
+                  <Link
+                    to="/browse"
+                    search={scoped({ category: undefined, group: search.group })}
+                    className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10.5px] font-medium text-primary hover:bg-accent"
+                  >
+                    <X size={11} /> Clear
+                  </Link>
+                </div>
+              )}
             </div>
-          ) : search.view === "list" ? (
-            <ul className="mt-5 space-y-4">
-              {result.listings.map((listing) => (
-                <li key={listing.id}>
-                  <ListingRow listing={listing} />
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <ul className="mt-5 grid grid-cols-2 gap-x-4 gap-y-9 md:grid-cols-3 xl:grid-cols-4">
-              {result.listings.map((listing) => (
-                <li key={listing.id}>
-                  <ListingCard listing={listing} />
-                </li>
-              ))}
-            </ul>
-          )}
 
-          {pageCount > 1 && (
-            <div className="mt-5 flex items-center justify-between">
-              <Link
-                to="/browse"
-                search={scoped({ page: page > 2 ? page - 1 : undefined })}
-                disabled={page <= 1}
-                className="inline-flex h-9 items-center rounded-md border border-input px-3 text-[13px] font-medium aria-disabled:pointer-events-none aria-disabled:opacity-40"
-                aria-disabled={page <= 1}
-              >
-                Previous
-              </Link>
-              <span className="numeric text-[12.5px] text-muted-foreground">
-                Page {page} of {pageCount}
-              </span>
-              <Link
-                to="/browse"
-                search={scoped({ page: page + 1 })}
-                disabled={page >= pageCount}
-                className="inline-flex h-9 items-center rounded-md border border-input px-3 text-[13px] font-medium aria-disabled:pointer-events-none aria-disabled:opacity-40"
-                aria-disabled={page >= pageCount}
-              >
-                Next
-              </Link>
-            </div>
-          )}
-        </section>
-      </div>}
+            {result.listings.length === 0 ? (
+              <div className="soft-card mt-5 px-5 py-12 text-center">
+                <p className="text-[14px] font-medium">No listings match these filters.</p>
+                <p className="mx-auto mt-1.5 max-w-md text-[13px] leading-relaxed text-muted-foreground">
+                  {homes
+                    ? "Try widening the price, location, property type, or bedroom filters."
+                    : "Try widening the year, price, mileage, location, or vehicle filters."}
+                </p>
+                <Link
+                  to="/browse"
+                  search={scoped({ category: undefined, group: search.group })}
+                  className="mt-4 inline-flex h-9 items-center rounded-md border border-input px-3 text-[12px] font-semibold hover:bg-secondary"
+                >
+                  Clear filters
+                </Link>
+              </div>
+            ) : search.view === "list" ? (
+              <ul className="mt-5 space-y-4">
+                {result.listings.map((listing) => (
+                  <li key={listing.id}>
+                    <ListingRow listing={listing} />
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <ul className="mt-5 grid grid-cols-2 gap-x-4 gap-y-9 md:grid-cols-3 xl:grid-cols-4">
+                {result.listings.map((listing) => (
+                  <li key={listing.id}>
+                    <ListingCard listing={listing} />
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {pageCount > 1 && (
+              <div className="mt-5 flex items-center justify-between">
+                <Link
+                  to="/browse"
+                  search={scoped({ page: page > 2 ? page - 1 : undefined })}
+                  disabled={page <= 1}
+                  className="inline-flex h-9 items-center rounded-md border border-input px-3 text-[13px] font-medium aria-disabled:pointer-events-none aria-disabled:opacity-40"
+                  aria-disabled={page <= 1}
+                >
+                  Previous
+                </Link>
+                <span className="numeric text-[12.5px] text-muted-foreground">
+                  Page {page} of {pageCount}
+                </span>
+                <Link
+                  to="/browse"
+                  search={scoped({ page: page + 1 })}
+                  disabled={page >= pageCount}
+                  className="inline-flex h-9 items-center rounded-md border border-input px-3 text-[13px] font-medium aria-disabled:pointer-events-none aria-disabled:opacity-40"
+                  aria-disabled={page >= pageCount}
+                >
+                  Next
+                </Link>
+              </div>
+            )}
+          </section>
+        </div>
+      )}
     </main>
   );
 }
-
 
 const generalCategoryHighlights = [
   { slug: "furniture", name: "Furniture", description: "Home pieces and decor" },
   { slug: "electronics", name: "Electronics", description: "Devices, audio, and gear" },
   { slug: "tools-equipment", name: "Tools & Equipment", description: "Workshop and jobsite finds" },
-  { slug: "outdoor-sporting", name: "Outdoor & Sporting", description: "Gear for your next outing" },
+  {
+    slug: "outdoor-sporting",
+    name: "Outdoor & Sporting",
+    description: "Gear for your next outing",
+  },
   { slug: "farm-garden", name: "Farm & Garden", description: "Yard, farm, and garden" },
   { slug: "general", name: "General", description: "Everyday local finds" },
 ] as const;
@@ -1360,7 +1887,14 @@ type HomepagePreviewRow = {
   cards: HomepagePreviewCard[];
 };
 
-const previewCard = (title: string, location: string, price: string, detail: string, image: string, badge?: string): HomepagePreviewCard => ({ title, location, price, detail, image, ...(badge ? { badge } : {}) });
+const previewCard = (
+  title: string,
+  location: string,
+  price: string,
+  detail: string,
+  image: string,
+  badge?: string,
+): HomepagePreviewCard => ({ title, location, price, detail, image, ...(badge ? { badge } : {}) });
 
 const classifiedShowcaseRows: HomepagePreviewRow[] = [
   {
@@ -1368,12 +1902,48 @@ const classifiedShowcaseRows: HomepagePreviewRow[] = [
     action: "See popular listings",
     href: "/browse?allCategories=true",
     cards: [
-      previewCard("Vintage House of LEGO Lunchbox", "Sandy, UT", "$15.00", "Used · excellent", "https://images.unsplash.com/photo-1607604276583-eef5b076f64f?auto=format&fit=crop&w=900&q=80"),
-      previewCard("Squishmallows 8-Piece Collector Box", "West Jordan, UT", "$5.00", "New", "https://images.unsplash.com/photo-1559454403-b8fb88521f11?auto=format&fit=crop&w=900&q=80"),
-      previewCard("Super Mario Galaxy Princess Peach Doll", "Murray, UT", "$27.00", "New", "https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?auto=format&fit=crop&w=900&q=80"),
-      previewCard("S.T. Dupont Ligne 2 Gold Finish Lighter", "Draper, UT", "$225.00", "Used · excellent", "https://images.unsplash.com/photo-1511499767150-a48a237f0083?auto=format&fit=crop&w=900&q=80"),
-      previewCard("Teenage Mutant Ninja Turtles Fuggler", "South Jordan, UT", "$25.00", "New", "https://images.unsplash.com/photo-1563901935883-cb61f2a2b4b3?auto=format&fit=crop&w=900&q=80"),
-      previewCard("Pair of Mid-Century Nightstands", "Boise, ID", "$120.00", "Pickup available", "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=900&q=80"),
+      previewCard(
+        "Vintage House of LEGO Lunchbox",
+        "Sandy, UT",
+        "$15.00",
+        "Used · excellent",
+        "https://images.unsplash.com/photo-1607604276583-eef5b076f64f?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "Squishmallows 8-Piece Collector Box",
+        "West Jordan, UT",
+        "$5.00",
+        "New",
+        "https://images.unsplash.com/photo-1559454403-b8fb88521f11?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "Super Mario Galaxy Princess Peach Doll",
+        "Murray, UT",
+        "$27.00",
+        "New",
+        "https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "S.T. Dupont Ligne 2 Gold Finish Lighter",
+        "Draper, UT",
+        "$225.00",
+        "Used · excellent",
+        "https://images.unsplash.com/photo-1511499767150-a48a237f0083?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "Teenage Mutant Ninja Turtles Fuggler",
+        "South Jordan, UT",
+        "$25.00",
+        "New",
+        "https://images.unsplash.com/photo-1563901935883-cb61f2a2b4b3?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "Pair of Mid-Century Nightstands",
+        "Boise, ID",
+        "$120.00",
+        "Pickup available",
+        "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?auto=format&fit=crop&w=900&q=80",
+      ),
     ],
   },
   {
@@ -1381,12 +1951,54 @@ const classifiedShowcaseRows: HomepagePreviewRow[] = [
     action: "Browse seasonal finds",
     href: "/browse?category=general",
     cards: [
-      previewCard("Halloween Yard Display Set", "Meridian, ID", "$45.00", "New", "https://images.unsplash.com/photo-1509557965875-b88c97052f0e?auto=format&fit=crop&w=900&q=80", "Seasonal"),
-      previewCard("Fall Porch Decor Bundle", "Nampa, ID", "$30.00", "Like new", "https://images.unsplash.com/photo-1509474520651-53cf6a80536f?auto=format&fit=crop&w=900&q=80", "Seasonal"),
-      previewCard("Thanksgiving Table Settings", "Boise, ID", "$65.00", "Pickup available", "https://images.unsplash.com/photo-1577140917170-285929fb55b7?auto=format&fit=crop&w=900&q=80", "Seasonal"),
-      previewCard("Holiday Light Installer Kit", "Eagle, ID", "$80.00", "Used · good", "https://images.unsplash.com/photo-1482517967863-00e15c9b44be?auto=format&fit=crop&w=900&q=80", "Seasonal"),
-      previewCard("Kids Costume Lot", "Caldwell, ID", "$22.00", "Like new", "https://images.unsplash.com/photo-1601758003122-53c40e686a19?auto=format&fit=crop&w=900&q=80", "Seasonal"),
-      previewCard("Outdoor Fire Pit", "Star, ID", "$140.00", "Used · excellent", "https://images.unsplash.com/photo-1478827536114-da961b7c7a74?auto=format&fit=crop&w=900&q=80", "Seasonal"),
+      previewCard(
+        "Halloween Yard Display Set",
+        "Meridian, ID",
+        "$45.00",
+        "New",
+        "https://images.unsplash.com/photo-1509557965875-b88c97052f0e?auto=format&fit=crop&w=900&q=80",
+        "Seasonal",
+      ),
+      previewCard(
+        "Fall Porch Decor Bundle",
+        "Nampa, ID",
+        "$30.00",
+        "Like new",
+        "https://images.unsplash.com/photo-1509474520651-53cf6a80536f?auto=format&fit=crop&w=900&q=80",
+        "Seasonal",
+      ),
+      previewCard(
+        "Thanksgiving Table Settings",
+        "Boise, ID",
+        "$65.00",
+        "Pickup available",
+        "https://images.unsplash.com/photo-1577140917170-285929fb55b7?auto=format&fit=crop&w=900&q=80",
+        "Seasonal",
+      ),
+      previewCard(
+        "Holiday Light Installer Kit",
+        "Eagle, ID",
+        "$80.00",
+        "Used · good",
+        "https://images.unsplash.com/photo-1482517967863-00e15c9b44be?auto=format&fit=crop&w=900&q=80",
+        "Seasonal",
+      ),
+      previewCard(
+        "Kids Costume Lot",
+        "Caldwell, ID",
+        "$22.00",
+        "Like new",
+        "https://images.unsplash.com/photo-1601758003122-53c40e686a19?auto=format&fit=crop&w=900&q=80",
+        "Seasonal",
+      ),
+      previewCard(
+        "Outdoor Fire Pit",
+        "Star, ID",
+        "$140.00",
+        "Used · excellent",
+        "https://images.unsplash.com/photo-1478827536114-da961b7c7a74?auto=format&fit=crop&w=900&q=80",
+        "Seasonal",
+      ),
     ],
   },
   {
@@ -1394,12 +2006,48 @@ const classifiedShowcaseRows: HomepagePreviewRow[] = [
     action: "Shop clothing",
     href: "/browse?category=general&q=clothing",
     cards: [
-      previewCard("Women's Winter Coat", "Boise, ID", "$40.00", "Like new · Medium", "https://images.unsplash.com/photo-1544966503-7cc5ac882d5f?auto=format&fit=crop&w=900&q=80"),
-      previewCard("Men's Leather Work Boots", "Meridian, ID", "$55.00", "Used · excellent", "https://images.unsplash.com/photo-1520639888713-7851133b1ed0?auto=format&fit=crop&w=900&q=80"),
-      previewCard("Vintage Denim Jacket", "Nampa, ID", "$28.00", "Used · good", "https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=900&q=80"),
-      previewCard("Designer Handbag", "Eagle, ID", "$180.00", "Like new", "https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=900&q=80"),
-      previewCard("Kids Snow Gear Bundle", "Caldwell, ID", "$35.00", "Used · excellent", "https://images.unsplash.com/photo-1544966503-7cc5ac882d5f?auto=format&fit=crop&w=900&q=80"),
-      previewCard("Handmade Wool Scarf", "Boise, ID", "$24.00", "New", "https://images.unsplash.com/photo-1520903920243-00d872a2d1c9?auto=format&fit=crop&w=900&q=80"),
+      previewCard(
+        "Women's Winter Coat",
+        "Boise, ID",
+        "$40.00",
+        "Like new · Medium",
+        "https://images.unsplash.com/photo-1544966503-7cc5ac882d5f?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "Men's Leather Work Boots",
+        "Meridian, ID",
+        "$55.00",
+        "Used · excellent",
+        "https://images.unsplash.com/photo-1520639888713-7851133b1ed0?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "Vintage Denim Jacket",
+        "Nampa, ID",
+        "$28.00",
+        "Used · good",
+        "https://images.unsplash.com/photo-1551028719-00167b16eac5?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "Designer Handbag",
+        "Eagle, ID",
+        "$180.00",
+        "Like new",
+        "https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "Kids Snow Gear Bundle",
+        "Caldwell, ID",
+        "$35.00",
+        "Used · excellent",
+        "https://images.unsplash.com/photo-1544966503-7cc5ac882d5f?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "Handmade Wool Scarf",
+        "Boise, ID",
+        "$24.00",
+        "New",
+        "https://images.unsplash.com/photo-1520903920243-00d872a2d1c9?auto=format&fit=crop&w=900&q=80",
+      ),
     ],
   },
   {
@@ -1407,12 +2055,54 @@ const classifiedShowcaseRows: HomepagePreviewRow[] = [
     action: "See all price drops",
     href: "/browse?allCategories=true&sort=price_low",
     cards: [
-      previewCard("Solid Oak Dining Table", "Meridian, ID", "$275.00", "Was $350 · pickup", "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=900&q=80", "Price drop"),
-      previewCard("Cordless Tool Set", "Boise, ID", "$95.00", "Was $125 · like new", "https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=900&q=80", "Price drop"),
-      previewCard("Pair of Patio Chairs", "Eagle, ID", "$60.00", "Was $90 · pickup", "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=900&q=80", "Price drop"),
-      previewCard("Mountain Bike", "Nampa, ID", "$325.00", "Was $400 · excellent", "https://images.unsplash.com/photo-1576435728678-68d0fbf94e91?auto=format&fit=crop&w=900&q=80", "Price drop"),
-      previewCard("Portable Projector", "Caldwell, ID", "$70.00", "Was $90 · tested", "https://images.unsplash.com/photo-1626379953822-baec19c3accd?auto=format&fit=crop&w=900&q=80", "Price drop"),
-      previewCard("Garden Tool Bundle", "Star, ID", "$42.00", "Was $60 · pickup", "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&w=900&q=80", "Price drop"),
+      previewCard(
+        "Solid Oak Dining Table",
+        "Meridian, ID",
+        "$275.00",
+        "Was $350 · pickup",
+        "https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?auto=format&fit=crop&w=900&q=80",
+        "Price drop",
+      ),
+      previewCard(
+        "Cordless Tool Set",
+        "Boise, ID",
+        "$95.00",
+        "Was $125 · like new",
+        "https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=900&q=80",
+        "Price drop",
+      ),
+      previewCard(
+        "Pair of Patio Chairs",
+        "Eagle, ID",
+        "$60.00",
+        "Was $90 · pickup",
+        "https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=900&q=80",
+        "Price drop",
+      ),
+      previewCard(
+        "Mountain Bike",
+        "Nampa, ID",
+        "$325.00",
+        "Was $400 · excellent",
+        "https://images.unsplash.com/photo-1576435728678-68d0fbf94e91?auto=format&fit=crop&w=900&q=80",
+        "Price drop",
+      ),
+      previewCard(
+        "Portable Projector",
+        "Caldwell, ID",
+        "$70.00",
+        "Was $90 · tested",
+        "https://images.unsplash.com/photo-1626379953822-baec19c3accd?auto=format&fit=crop&w=900&q=80",
+        "Price drop",
+      ),
+      previewCard(
+        "Garden Tool Bundle",
+        "Star, ID",
+        "$42.00",
+        "Was $60 · pickup",
+        "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&w=900&q=80",
+        "Price drop",
+      ),
     ],
   },
 ];
@@ -1423,12 +2113,48 @@ const vehicleShowcaseRows: HomepagePreviewRow[] = [
     action: "See popular vehicles",
     href: "/browse?group=motors&vehicleMode=results",
     cards: [
-      previewCard("2019 Toyota Tacoma TRD Off-Road 4x4", "Meridian, ID", "$31,750", "68,420 mi · Automatic · 4WD", "https://images.unsplash.com/photo-1559416523-140ddc3d238c?auto=format&fit=crop&w=900&q=80"),
-      previewCard("2020 Jeep Wrangler Sport 4WD", "Idaho Falls, ID", "$28,900", "52,100 mi · Manual · 4WD", "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=900&q=80"),
-      previewCard("2022 Hyundai Tucson SEL AWD", "Coeur d'Alene, ID", "$25,900", "27,400 mi · Automatic · AWD", "https://images.unsplash.com/photo-1619767886558-efdc259cde1a?auto=format&fit=crop&w=900&q=80"),
-      previewCard("2018 Ford F-150 XLT", "Boise, ID", "$26,500", "91,200 mi · Automatic · 4WD", "https://images.unsplash.com/photo-1504215680853-026ed2a45def?auto=format&fit=crop&w=900&q=80"),
-      previewCard("2021 Subaru Outback Premium", "Nampa, ID", "$24,400", "44,800 mi · Automatic · AWD", "https://images.unsplash.com/photo-1519641471654-76ce0107ad1b?auto=format&fit=crop&w=900&q=80"),
-      previewCard("2017 Honda Civic EX", "Pocatello, ID", "$16,900", "73,600 mi · Automatic · FWD", "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?auto=format&fit=crop&w=900&q=80"),
+      previewCard(
+        "2019 Toyota Tacoma TRD Off-Road 4x4",
+        "Meridian, ID",
+        "$31,750",
+        "68,420 mi · Automatic · 4WD",
+        "https://images.unsplash.com/photo-1559416523-140ddc3d238c?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "2020 Jeep Wrangler Sport 4WD",
+        "Idaho Falls, ID",
+        "$28,900",
+        "52,100 mi · Manual · 4WD",
+        "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "2022 Hyundai Tucson SEL AWD",
+        "Coeur d'Alene, ID",
+        "$25,900",
+        "27,400 mi · Automatic · AWD",
+        "https://images.unsplash.com/photo-1619767886558-efdc259cde1a?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "2018 Ford F-150 XLT",
+        "Boise, ID",
+        "$26,500",
+        "91,200 mi · Automatic · 4WD",
+        "https://images.unsplash.com/photo-1504215680853-026ed2a45def?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "2021 Subaru Outback Premium",
+        "Nampa, ID",
+        "$24,400",
+        "44,800 mi · Automatic · AWD",
+        "https://images.unsplash.com/photo-1519641471654-76ce0107ad1b?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "2017 Honda Civic EX",
+        "Pocatello, ID",
+        "$16,900",
+        "73,600 mi · Automatic · FWD",
+        "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?auto=format&fit=crop&w=900&q=80",
+      ),
     ],
   },
   {
@@ -1436,12 +2162,48 @@ const vehicleShowcaseRows: HomepagePreviewRow[] = [
     action: "Explore outdoor vehicles",
     href: "/browse?group=motors&vehicleMode=results&bodyStyle=SUV||Truck",
     cards: [
-      previewCard("2021 Ford Bronco Big Bend", "Boise, ID", "$38,500", "39,100 mi · 4WD · Hardtop", "https://images.unsplash.com/photo-1533130061792-64b345e4a833?auto=format&fit=crop&w=900&q=80"),
-      previewCard("2019 Airstream Basecamp", "Meridian, ID", "$29,800", "Sleeps 4 · Like new", "https://images.unsplash.com/photo-1544986581-efac024faf62?auto=format&fit=crop&w=900&q=80"),
-      previewCard("2023 Polaris Ranger XP", "Eagle, ID", "$18,900", "1,240 mi · 4WD · Utility", "https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=900&q=80"),
-      previewCard("2020 Toyota 4Runner TRD Pro", "Caldwell, ID", "$42,700", "61,300 mi · 4WD", "https://images.unsplash.com/photo-1519245659620-e859806a8d3b?auto=format&fit=crop&w=900&q=80"),
-      previewCard("2022 Yamaha Grizzly 700", "Twin Falls, ID", "$9,750", "980 mi · Automatic · 4WD", "https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=900&q=80"),
-      previewCard("2016 Ram 2500 Tradesman", "Idaho Falls, ID", "$31,200", "112,000 mi · Diesel · 4WD", "https://images.unsplash.com/photo-1551830820-330a71b99659?auto=format&fit=crop&w=900&q=80"),
+      previewCard(
+        "2021 Ford Bronco Big Bend",
+        "Boise, ID",
+        "$38,500",
+        "39,100 mi · 4WD · Hardtop",
+        "https://images.unsplash.com/photo-1533130061792-64b345e4a833?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "2019 Airstream Basecamp",
+        "Meridian, ID",
+        "$29,800",
+        "Sleeps 4 · Like new",
+        "https://images.unsplash.com/photo-1544986581-efac024faf62?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "2023 Polaris Ranger XP",
+        "Eagle, ID",
+        "$18,900",
+        "1,240 mi · 4WD · Utility",
+        "https://images.unsplash.com/photo-1558981806-ec527fa84c39?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "2020 Toyota 4Runner TRD Pro",
+        "Caldwell, ID",
+        "$42,700",
+        "61,300 mi · 4WD",
+        "https://images.unsplash.com/photo-1519245659620-e859806a8d3b?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "2022 Yamaha Grizzly 700",
+        "Twin Falls, ID",
+        "$9,750",
+        "980 mi · Automatic · 4WD",
+        "https://images.unsplash.com/photo-1558981403-c5f9899a28bc?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "2016 Ram 2500 Tradesman",
+        "Idaho Falls, ID",
+        "$31,200",
+        "112,000 mi · Diesel · 4WD",
+        "https://images.unsplash.com/photo-1551830820-330a71b99659?auto=format&fit=crop&w=900&q=80",
+      ),
     ],
   },
   {
@@ -1449,12 +2211,54 @@ const vehicleShowcaseRows: HomepagePreviewRow[] = [
     action: "See vehicle price drops",
     href: "/browse?group=motors&vehicleMode=results&sort=price_low",
     cards: [
-      previewCard("2015 Ram 1500 Big Horn 4WD", "Nampa, ID", "$24,800", "101,300 mi · Automatic · 4WD", "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=900&q=80", "Price drop"),
-      previewCard("2018 Chevrolet Equinox LT", "Boise, ID", "$15,400", "84,200 mi · Automatic · AWD", "https://images.unsplash.com/photo-1542362567-b07e54358753?auto=format&fit=crop&w=900&q=80", "Price drop"),
-      previewCard("2014 Subaru Forester 2.5i", "Meridian, ID", "$12,900", "116,500 mi · AWD", "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=900&q=80", "Price drop"),
-      previewCard("2022 Hyundai Santa Fe SEL", "Rexburg, ID", "$27,300", "35,400 mi · AWD", "https://images.unsplash.com/photo-1619767886558-efdc259cde1a?auto=format&fit=crop&w=900&q=80", "Price drop"),
-      previewCard("2019 Honda Ridgeline RTL", "Pocatello, ID", "$26,100", "72,600 mi · AWD", "https://images.unsplash.com/photo-1597007066704-67bf2068d5b2?auto=format&fit=crop&w=900&q=80", "Price drop"),
-      previewCard("2017 Mazda CX-5 Touring", "Twin Falls, ID", "$17,800", "88,900 mi · AWD", "https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=900&q=80", "Price drop"),
+      previewCard(
+        "2015 Ram 1500 Big Horn 4WD",
+        "Nampa, ID",
+        "$24,800",
+        "101,300 mi · Automatic · 4WD",
+        "https://images.unsplash.com/photo-1533473359331-0135ef1b58bf?auto=format&fit=crop&w=900&q=80",
+        "Price drop",
+      ),
+      previewCard(
+        "2018 Chevrolet Equinox LT",
+        "Boise, ID",
+        "$15,400",
+        "84,200 mi · Automatic · AWD",
+        "https://images.unsplash.com/photo-1542362567-b07e54358753?auto=format&fit=crop&w=900&q=80",
+        "Price drop",
+      ),
+      previewCard(
+        "2014 Subaru Forester 2.5i",
+        "Meridian, ID",
+        "$12,900",
+        "116,500 mi · AWD",
+        "https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?auto=format&fit=crop&w=900&q=80",
+        "Price drop",
+      ),
+      previewCard(
+        "2022 Hyundai Santa Fe SEL",
+        "Rexburg, ID",
+        "$27,300",
+        "35,400 mi · AWD",
+        "https://images.unsplash.com/photo-1619767886558-efdc259cde1a?auto=format&fit=crop&w=900&q=80",
+        "Price drop",
+      ),
+      previewCard(
+        "2019 Honda Ridgeline RTL",
+        "Pocatello, ID",
+        "$26,100",
+        "72,600 mi · AWD",
+        "https://images.unsplash.com/photo-1597007066704-67bf2068d5b2?auto=format&fit=crop&w=900&q=80",
+        "Price drop",
+      ),
+      previewCard(
+        "2017 Mazda CX-5 Touring",
+        "Twin Falls, ID",
+        "$17,800",
+        "88,900 mi · AWD",
+        "https://images.unsplash.com/photo-1541899481282-d53bffe3c35d?auto=format&fit=crop&w=900&q=80",
+        "Price drop",
+      ),
     ],
   },
 ];
@@ -1465,12 +2269,54 @@ const jobsShowcaseRows: HomepagePreviewRow[] = [
     action: "See newest jobs",
     href: "/browse?category=jobs&jobMode=results",
     cards: [
-      previewCard("Front Desk Coordinator", "Boise, ID", "$18–$22 / hr", "Full-time · Healthcare", "https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=900&q=80", "New"),
-      previewCard("Warehouse Team Member", "Meridian, ID", "$20 / hr", "Full-time · Day shift", "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=900&q=80", "New"),
-      previewCard("Customer Support Specialist", "Nampa, ID", "$21 / hr", "Remote friendly · Full-time", "https://images.unsplash.com/photo-1556761175-4b46a572b786?auto=format&fit=crop&w=900&q=80", "New"),
-      previewCard("Line Cook", "Eagle, ID", "$17–$20 / hr", "Part-time · Evenings", "https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=900&q=80", "New"),
-      previewCard("Office Administrator", "Caldwell, ID", "$46,000–$52,000", "Full-time · Benefits", "https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=900&q=80", "New"),
-      previewCard("Delivery Driver", "Boise, ID", "$22 / hr", "Contract · Flexible", "https://images.unsplash.com/photo-1616401784845-180882ba9ba8?auto=format&fit=crop&w=900&q=80", "New"),
+      previewCard(
+        "Front Desk Coordinator",
+        "Boise, ID",
+        "$18–$22 / hr",
+        "Full-time · Healthcare",
+        "https://images.unsplash.com/photo-1556761175-b413da4baf72?auto=format&fit=crop&w=900&q=80",
+        "New",
+      ),
+      previewCard(
+        "Warehouse Team Member",
+        "Meridian, ID",
+        "$20 / hr",
+        "Full-time · Day shift",
+        "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=900&q=80",
+        "New",
+      ),
+      previewCard(
+        "Customer Support Specialist",
+        "Nampa, ID",
+        "$21 / hr",
+        "Remote friendly · Full-time",
+        "https://images.unsplash.com/photo-1556761175-4b46a572b786?auto=format&fit=crop&w=900&q=80",
+        "New",
+      ),
+      previewCard(
+        "Line Cook",
+        "Eagle, ID",
+        "$17–$20 / hr",
+        "Part-time · Evenings",
+        "https://images.unsplash.com/photo-1556910103-1c02745aae4d?auto=format&fit=crop&w=900&q=80",
+        "New",
+      ),
+      previewCard(
+        "Office Administrator",
+        "Caldwell, ID",
+        "$46,000–$52,000",
+        "Full-time · Benefits",
+        "https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=900&q=80",
+        "New",
+      ),
+      previewCard(
+        "Delivery Driver",
+        "Boise, ID",
+        "$22 / hr",
+        "Contract · Flexible",
+        "https://images.unsplash.com/photo-1616401784845-180882ba9ba8?auto=format&fit=crop&w=900&q=80",
+        "New",
+      ),
     ],
   },
   {
@@ -1478,12 +2324,48 @@ const jobsShowcaseRows: HomepagePreviewRow[] = [
     action: "Find flexible work",
     href: "/browse?category=jobs&jobMode=results&jobType=Part-time",
     cards: [
-      previewCard("Weekend Event Staff", "Boise, ID", "$19 / hr", "Weekend only · Seasonal", "https://images.unsplash.com/photo-1506157786151-b8491531f063?auto=format&fit=crop&w=900&q=80"),
-      previewCard("After-school Tutor", "Meridian, ID", "$24 / hr", "Part-time · Education", "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=900&q=80"),
-      previewCard("Retail Sales Associate", "Nampa, ID", "$16 / hr", "Part-time · Flexible", "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=900&q=80"),
-      previewCard("Barista", "Eagle, ID", "$15 + tips", "Part-time · Mornings", "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=900&q=80"),
-      previewCard("Dog Walker", "Boise, ID", "$25 / visit", "Contract · Flexible", "https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=900&q=80"),
-      previewCard("Seasonal Garden Center", "Caldwell, ID", "$17 / hr", "Seasonal · Part-time", "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&w=900&q=80"),
+      previewCard(
+        "Weekend Event Staff",
+        "Boise, ID",
+        "$19 / hr",
+        "Weekend only · Seasonal",
+        "https://images.unsplash.com/photo-1506157786151-b8491531f063?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "After-school Tutor",
+        "Meridian, ID",
+        "$24 / hr",
+        "Part-time · Education",
+        "https://images.unsplash.com/photo-1509062522246-3755977927d7?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "Retail Sales Associate",
+        "Nampa, ID",
+        "$16 / hr",
+        "Part-time · Flexible",
+        "https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "Barista",
+        "Eagle, ID",
+        "$15 + tips",
+        "Part-time · Mornings",
+        "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "Dog Walker",
+        "Boise, ID",
+        "$25 / visit",
+        "Contract · Flexible",
+        "https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "Seasonal Garden Center",
+        "Caldwell, ID",
+        "$17 / hr",
+        "Seasonal · Part-time",
+        "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?auto=format&fit=crop&w=900&q=80",
+      ),
     ],
   },
   {
@@ -1491,12 +2373,48 @@ const jobsShowcaseRows: HomepagePreviewRow[] = [
     action: "Browse skilled trades",
     href: "/browse?category=jobs&jobMode=results&jobCategory=Construction",
     cards: [
-      previewCard("Licensed Electrician", "Boise, ID", "$34–$42 / hr", "Full-time · Construction", "https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=900&q=80"),
-      previewCard("HVAC Service Technician", "Meridian, ID", "$28–$36 / hr", "Full-time · Benefits", "https://images.unsplash.com/photo-1631545806609-ccf5d6f5c2ab?auto=format&fit=crop&w=900&q=80"),
-      previewCard("Carpenter / Finish Crew", "Nampa, ID", "$25–$32 / hr", "Full-time · 3+ years", "https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=900&q=80"),
-      previewCard("Diesel Mechanic", "Idaho Falls, ID", "$30–$38 / hr", "Full-time · Shop", "https://images.unsplash.com/photo-1486006920555-c77dcf18193c?auto=format&fit=crop&w=900&q=80"),
-      previewCard("Landscape Crew Lead", "Eagle, ID", "$23–$28 / hr", "Seasonal · Outdoor", "https://images.unsplash.com/photo-1558904541-efa843a96f01?auto=format&fit=crop&w=900&q=80"),
-      previewCard("Apprentice Plumber", "Caldwell, ID", "$20–$26 / hr", "Full-time · Training", "https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?auto=format&fit=crop&w=900&q=80"),
+      previewCard(
+        "Licensed Electrician",
+        "Boise, ID",
+        "$34–$42 / hr",
+        "Full-time · Construction",
+        "https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "HVAC Service Technician",
+        "Meridian, ID",
+        "$28–$36 / hr",
+        "Full-time · Benefits",
+        "https://images.unsplash.com/photo-1631545806609-ccf5d6f5c2ab?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "Carpenter / Finish Crew",
+        "Nampa, ID",
+        "$25–$32 / hr",
+        "Full-time · 3+ years",
+        "https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "Diesel Mechanic",
+        "Idaho Falls, ID",
+        "$30–$38 / hr",
+        "Full-time · Shop",
+        "https://images.unsplash.com/photo-1486006920555-c77dcf18193c?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "Landscape Crew Lead",
+        "Eagle, ID",
+        "$23–$28 / hr",
+        "Seasonal · Outdoor",
+        "https://images.unsplash.com/photo-1558904541-efa843a96f01?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "Apprentice Plumber",
+        "Caldwell, ID",
+        "$20–$26 / hr",
+        "Full-time · Training",
+        "https://images.unsplash.com/photo-1607472586893-edb57bdc0e39?auto=format&fit=crop&w=900&q=80",
+      ),
     ],
   },
 ];
@@ -1507,12 +2425,54 @@ const servicesShowcaseRows: HomepagePreviewRow[] = [
     action: "See newest service listings",
     href: "/browse?category=services&serviceMode=results",
     cards: [
-      previewCard("Boise Home Works | Handyman & Drywall Repair", "Boise, ID", "Call for quote", "Just listed · Handyman", "https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=900&q=80", "New"),
-      previewCard("Treasure Valley Lawn Co. | Lawn Care & Sprinklers", "Meridian, ID", "From $45 / visit", "1 day · Lawn care", "https://images.unsplash.com/photo-1558904541-efa843a96f01?auto=format&fit=crop&w=900&q=80", "New"),
-      previewCard("Gem State Tech Help | Home Wi-Fi & Computer Setup", "Boise, ID", "From $85 / visit", "2 days · IT services", "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=80", "New"),
-      previewCard("ClearView Window Care", "Eagle, ID", "Call for quote", "3 days · Window cleaning", "https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?auto=format&fit=crop&w=900&q=80", "New"),
-      previewCard("Valley Fence & Gate", "Nampa, ID", "Call for quote", "4 days · Fence installation", "https://images.unsplash.com/photo-1580130732478-4e339fb6836f?auto=format&fit=crop&w=900&q=80", "New"),
-      previewCard("Mountain Air HVAC", "Caldwell, ID", "From $89 service call", "5 days · Heating & cooling", "https://images.unsplash.com/photo-1631545806609-ccf5d6f5c2ab?auto=format&fit=crop&w=900&q=80", "New"),
+      previewCard(
+        "Boise Home Works | Handyman & Drywall Repair",
+        "Boise, ID",
+        "Call for quote",
+        "Just listed · Handyman",
+        "https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=900&q=80",
+        "New",
+      ),
+      previewCard(
+        "Treasure Valley Lawn Co. | Lawn Care & Sprinklers",
+        "Meridian, ID",
+        "From $45 / visit",
+        "1 day · Lawn care",
+        "https://images.unsplash.com/photo-1558904541-efa843a96f01?auto=format&fit=crop&w=900&q=80",
+        "New",
+      ),
+      previewCard(
+        "Gem State Tech Help | Home Wi-Fi & Computer Setup",
+        "Boise, ID",
+        "From $85 / visit",
+        "2 days · IT services",
+        "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=80",
+        "New",
+      ),
+      previewCard(
+        "ClearView Window Care",
+        "Eagle, ID",
+        "Call for quote",
+        "3 days · Window cleaning",
+        "https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?auto=format&fit=crop&w=900&q=80",
+        "New",
+      ),
+      previewCard(
+        "Valley Fence & Gate",
+        "Nampa, ID",
+        "Call for quote",
+        "4 days · Fence installation",
+        "https://images.unsplash.com/photo-1580130732478-4e339fb6836f?auto=format&fit=crop&w=900&q=80",
+        "New",
+      ),
+      previewCard(
+        "Mountain Air HVAC",
+        "Caldwell, ID",
+        "From $89 service call",
+        "5 days · Heating & cooling",
+        "https://images.unsplash.com/photo-1631545806609-ccf5d6f5c2ab?auto=format&fit=crop&w=900&q=80",
+        "New",
+      ),
     ],
   },
   {
@@ -1520,12 +2480,48 @@ const servicesShowcaseRows: HomepagePreviewRow[] = [
     action: "Browse popular pros",
     href: "/browse?category=services&serviceMode=results",
     cards: [
-      previewCard("Treasure Valley Lawn Co.", "Meridian, ID", "From $45 / visit", "Lawn care · Sprinklers", "https://images.unsplash.com/photo-1558904541-efa843a96f01?auto=format&fit=crop&w=900&q=80"),
-      previewCard("Boise Home Works", "Boise, ID", "Call for quote", "Handyman · Drywall", "https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=900&q=80"),
-      previewCard("Gem State Tech Help", "Boise, ID", "From $85 / visit", "Wi-Fi · Computer setup", "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=80"),
-      previewCard("ClearView Window Care", "Eagle, ID", "From $120", "Windows · Screens", "https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?auto=format&fit=crop&w=900&q=80"),
-      previewCard("Valley Fence & Gate", "Nampa, ID", "Call for quote", "Fence repair · Install", "https://images.unsplash.com/photo-1580130732478-4e339fb6836f?auto=format&fit=crop&w=900&q=80"),
-      previewCard("Mountain Air HVAC", "Caldwell, ID", "From $89 service call", "Heating · Cooling", "https://images.unsplash.com/photo-1631545806609-ccf5d6f5c2ab?auto=format&fit=crop&w=900&q=80"),
+      previewCard(
+        "Treasure Valley Lawn Co.",
+        "Meridian, ID",
+        "From $45 / visit",
+        "Lawn care · Sprinklers",
+        "https://images.unsplash.com/photo-1558904541-efa843a96f01?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "Boise Home Works",
+        "Boise, ID",
+        "Call for quote",
+        "Handyman · Drywall",
+        "https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "Gem State Tech Help",
+        "Boise, ID",
+        "From $85 / visit",
+        "Wi-Fi · Computer setup",
+        "https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "ClearView Window Care",
+        "Eagle, ID",
+        "From $120",
+        "Windows · Screens",
+        "https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "Valley Fence & Gate",
+        "Nampa, ID",
+        "Call for quote",
+        "Fence repair · Install",
+        "https://images.unsplash.com/photo-1580130732478-4e339fb6836f?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "Mountain Air HVAC",
+        "Caldwell, ID",
+        "From $89 service call",
+        "Heating · Cooling",
+        "https://images.unsplash.com/photo-1631545806609-ccf5d6f5c2ab?auto=format&fit=crop&w=900&q=80",
+      ),
     ],
   },
   {
@@ -1533,12 +2529,50 @@ const servicesShowcaseRows: HomepagePreviewRow[] = [
     action: "Find a local pro",
     href: "/browse?category=services&serviceMode=results",
     cards: [
-      previewCard("Holiday Light Installation", "Boise, ID", "Call for quote", "Exterior lighting", "https://images.unsplash.com/photo-1482517967863-00e15c9b44be?auto=format&fit=crop&w=900&q=80", "Seasonal"),
-      previewCard("Fall Yard Cleanup", "Meridian, ID", "From $75", "Leaf removal · Hauling", "https://images.unsplash.com/photo-1599685315640-3f3c8e3d9b4b?auto=format&fit=crop&w=900&q=80", "Seasonal"),
-      previewCard("Interior Painting Refresh", "Eagle, ID", "Free estimates", "Walls · Trim · Cabinets", "https://images.unsplash.com/photo-1562259949-e8e7689d7828?auto=format&fit=crop&w=900&q=80"),
-      previewCard("Kitchen Countertop Install", "Nampa, ID", "Call for quote", "Quartz · Granite", "https://images.unsplash.com/photo-1556912167-f556f1f39fdf?auto=format&fit=crop&w=900&q=80"),
-      previewCard("Carpet & Flooring Install", "Boise, ID", "From $3.50 / sqft", "Carpet · LVP · Tile", "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=900&q=80"),
-      previewCard("Move-out Cleaning", "Caldwell, ID", "From $160", "Deep clean · Turnover", "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=900&q=80"),
+      previewCard(
+        "Holiday Light Installation",
+        "Boise, ID",
+        "Call for quote",
+        "Exterior lighting",
+        "https://images.unsplash.com/photo-1482517967863-00e15c9b44be?auto=format&fit=crop&w=900&q=80",
+        "Seasonal",
+      ),
+      previewCard(
+        "Fall Yard Cleanup",
+        "Meridian, ID",
+        "From $75",
+        "Leaf removal · Hauling",
+        "https://images.unsplash.com/photo-1599685315640-3f3c8e3d9b4b?auto=format&fit=crop&w=900&q=80",
+        "Seasonal",
+      ),
+      previewCard(
+        "Interior Painting Refresh",
+        "Eagle, ID",
+        "Free estimates",
+        "Walls · Trim · Cabinets",
+        "https://images.unsplash.com/photo-1562259949-e8e7689d7828?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "Kitchen Countertop Install",
+        "Nampa, ID",
+        "Call for quote",
+        "Quartz · Granite",
+        "https://images.unsplash.com/photo-1556912167-f556f1f39fdf?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "Carpet & Flooring Install",
+        "Boise, ID",
+        "From $3.50 / sqft",
+        "Carpet · LVP · Tile",
+        "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "Move-out Cleaning",
+        "Caldwell, ID",
+        "From $160",
+        "Deep clean · Turnover",
+        "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=900&q=80",
+      ),
     ],
   },
 ];
@@ -1606,8 +2640,14 @@ function ClassifiedsLandingHero({
 function GeneralClassifiedShowcase({ listings }: { listings: ClassifiedBrowseResult["listings"] }) {
   const generalListings = listings.filter((listing) => !listing.vehicle);
   const listingRows = [
-    { title: "Top listings", listings: generalListings.slice(0, Math.ceil(generalListings.length / 2)) },
-    { title: "Newest listings", listings: generalListings.slice(Math.ceil(generalListings.length / 2)) },
+    {
+      title: "Top listings",
+      listings: generalListings.slice(0, Math.ceil(generalListings.length / 2)),
+    },
+    {
+      title: "Newest listings",
+      listings: generalListings.slice(Math.ceil(generalListings.length / 2)),
+    },
   ].filter((row) => row.listings.length > 0);
 
   return (
@@ -1615,8 +2655,13 @@ function GeneralClassifiedShowcase({ listings }: { listings: ClassifiedBrowseRes
       <section aria-labelledby="top-general-categories">
         <div className="mb-4 flex items-end justify-between gap-3 border-b border-border pb-3">
           <div>
-            <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">GemList Classifieds</p>
-            <h2 id="top-general-categories" className="mt-1 text-[22px] font-bold tracking-tight sm:text-[27px]">
+            <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
+              GemList Classifieds
+            </p>
+            <h2
+              id="top-general-categories"
+              className="mt-1 text-[22px] font-bold tracking-tight sm:text-[27px]"
+            >
               Top categories
             </h2>
           </div>
@@ -1648,8 +2693,13 @@ function GeneralClassifiedShowcase({ listings }: { listings: ClassifiedBrowseRes
         <section key={row.title} aria-labelledby={row.title.replaceAll(" ", "-")}>
           <div className="mb-4 flex items-end justify-between gap-3 border-b border-border pb-3">
             <div>
-              <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">GemList Classifieds</p>
-              <h2 id={row.title.replaceAll(" ", "-")} className="mt-1 text-[22px] font-bold tracking-tight sm:text-[27px]">
+              <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
+                GemList Classifieds
+              </p>
+              <h2
+                id={row.title.replaceAll(" ", "-")}
+                className="mt-1 text-[22px] font-bold tracking-tight sm:text-[27px]"
+              >
                 {row.title}
               </h2>
             </div>
@@ -1663,7 +2713,10 @@ function GeneralClassifiedShowcase({ listings }: { listings: ClassifiedBrowseRes
           </div>
           <ul className="no-scrollbar flex gap-4 overflow-x-auto pb-2">
             {row.listings.map((listing) => (
-              <li key={row.title + "-" + listing.id} className="min-w-[220px] flex-1 sm:min-w-[245px]">
+              <li
+                key={row.title + "-" + listing.id}
+                className="min-w-[220px] flex-1 sm:min-w-[245px]"
+              >
                 <ListingCard listing={listing} />
               </li>
             ))}
@@ -1674,17 +2727,33 @@ function GeneralClassifiedShowcase({ listings }: { listings: ClassifiedBrowseRes
   );
 }
 
-function HomepageShowcaseRows({ eyebrow, rows }: { eyebrow: string; rows: readonly HomepagePreviewRow[] }) {
+function HomepageShowcaseRows({
+  eyebrow,
+  rows,
+}: {
+  eyebrow: string;
+  rows: readonly HomepagePreviewRow[];
+}) {
   return (
     <div className="mt-10 space-y-12 sm:mt-14 sm:space-y-16">
       {rows.map((row) => (
         <section key={row.title} aria-labelledby={row.title.replaceAll(" ", "-").toLowerCase()}>
           <div className="mb-4 flex items-end justify-between gap-3 border-b border-border pb-3">
             <div>
-              <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">{eyebrow}</p>
-              <h2 id={row.title.replaceAll(" ", "-").toLowerCase()} className="mt-1 text-[22px] font-bold tracking-tight sm:text-[27px]">{row.title}</h2>
+              <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
+                {eyebrow}
+              </p>
+              <h2
+                id={row.title.replaceAll(" ", "-").toLowerCase()}
+                className="mt-1 text-[22px] font-bold tracking-tight sm:text-[27px]"
+              >
+                {row.title}
+              </h2>
             </div>
-            <a href={row.href} className="inline-flex shrink-0 items-center gap-1 text-[12px] font-bold text-primary hover:underline">
+            <a
+              href={row.href}
+              className="inline-flex shrink-0 items-center gap-1 text-[12px] font-bold text-primary hover:underline"
+            >
               {row.action}
               <ArrowRight size={14} aria-hidden="true" />
             </a>
@@ -1706,12 +2775,21 @@ function HomepagePreviewCard({ card, eyebrow }: { card: HomepagePreviewCard; eye
   return (
     <article className="group relative overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm transition-shadow hover:shadow-lg">
       <div className="relative aspect-[4/3] overflow-hidden bg-secondary">
-        <img src={card.image} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" />
-        <span className="absolute left-3 top-3 rounded-md bg-primary/85 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.12em] text-primary-foreground">{card.badge ?? eyebrow.replace("GemList ", "")}</span>
+        <img
+          src={card.image}
+          alt=""
+          loading="lazy"
+          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+        />
+        <span className="absolute left-3 top-3 rounded-md bg-primary/85 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.12em] text-primary-foreground">
+          {card.badge ?? eyebrow.replace("GemList ", "")}
+        </span>
       </div>
       <div className="p-3.5">
         <p className="numeric text-[16px] font-bold text-primary">{card.price}</p>
-        <h3 className="mt-1 line-clamp-2 min-h-[34px] text-[13px] font-bold leading-tight">{card.title}</h3>
+        <h3 className="mt-1 line-clamp-2 min-h-[34px] text-[13px] font-bold leading-tight">
+          {card.title}
+        </h3>
         <p className="mt-1 truncate text-[11.5px] text-muted-foreground">{card.location}</p>
         <p className="mt-2 truncate text-[11px] text-muted-foreground">{card.detail}</p>
       </div>
@@ -1750,13 +2828,16 @@ function HomesLandingHero({
       <div className="absolute inset-0 bg-gradient-to-t from-primary/55 via-transparent to-primary/15" />
       <div className="relative flex min-h-[610px] items-center justify-center px-4 py-12 sm:min-h-[680px] sm:px-8">
         <div className="w-full max-w-[650px] rounded-[28px] border border-white/20 bg-primary/80 p-5 text-primary-foreground shadow-2xl backdrop-blur-md sm:p-8">
-          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">GemList Homes</p>
+          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">
+            GemList Homes
+          </p>
           <h1 className="mt-3 text-center font-display text-[34px] font-bold leading-[1.05] tracking-tight sm:text-[52px]">
             Build. Buy. Rent.
             <span className="block text-accent">All in one place.</span>
           </h1>
           <p className="mx-auto mt-4 max-w-[43ch] text-center text-[14px] leading-relaxed text-white/80 sm:text-[15px]">
-            Find your next home, discover new communities, and explore rentals from local sellers in Idaho and surrounding states.
+            Find your next home, discover new communities, and explore rentals from local sellers in
+            Idaho and surrounding states.
           </p>
 
           <div className="mt-7 grid grid-cols-3 rounded-2xl bg-white/10 p-1.5 ring-1 ring-white/20">
@@ -1781,7 +2862,12 @@ function HomesLandingHero({
             }}
           >
             <label className="flex min-w-0 flex-1 items-center gap-2 px-3">
-              <MapPin size={19} weight="duotone" className="shrink-0 text-primary" aria-hidden="true" />
+              <MapPin
+                size={19}
+                weight="duotone"
+                className="shrink-0 text-primary"
+                aria-hidden="true"
+              />
               <span className="sr-only">County, city, neighborhood, or ZIP</span>
               <input
                 type="search"
@@ -1802,7 +2888,9 @@ function HomesLandingHero({
           </form>
 
           <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-[12px]">
-            <span className="text-white/70">{resultCount.toLocaleString()} local listings to explore</span>
+            <span className="text-white/70">
+              {resultCount.toLocaleString()} local listings to explore
+            </span>
             <button
               type="button"
               onClick={onMoreFilters}
@@ -1825,14 +2913,27 @@ function HomeShowcaseRows({ activeTab }: { activeTab: HomeTab }) {
         <section key={row.title} aria-labelledby={row.title.replaceAll(" ", "-").toLowerCase()}>
           <div className="mb-4 flex items-end justify-between gap-3 border-b border-border pb-3">
             <div>
-              <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">GemList Homes</p>
-              <h2 id={row.title.replaceAll(" ", "-").toLowerCase()} className="mt-1 text-[22px] font-bold tracking-tight sm:text-[27px]">
+              <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
+                GemList Homes
+              </p>
+              <h2
+                id={row.title.replaceAll(" ", "-").toLowerCase()}
+                className="mt-1 text-[22px] font-bold tracking-tight sm:text-[27px]"
+              >
                 {row.title}
               </h2>
             </div>
             <Link
               to="/browse"
-              search={{ category: "other-real-estate", homeMode: "results", homeTab: row.title.includes("Rent") ? "rent" : row.title.includes("build") ? "build" : "buy" }}
+              search={{
+                category: "other-real-estate",
+                homeMode: "results",
+                homeTab: row.title.includes("Rent")
+                  ? "rent"
+                  : row.title.includes("build")
+                    ? "build"
+                    : "buy",
+              }}
               className="inline-flex shrink-0 items-center gap-1 text-[12px] font-bold text-primary hover:underline"
             >
               {row.action}
@@ -1852,11 +2953,7 @@ function HomeShowcaseRows({ activeTab }: { activeTab: HomeTab }) {
   );
 }
 
-function HomePreviewCard({
-  card,
-}: {
-  card: (typeof homePreviewRows)[number]["cards"][number];
-}) {
+function HomePreviewCard({ card }: { card: (typeof homePreviewRows)[number]["cards"][number] }) {
   return (
     <article className="group overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm transition-shadow hover:shadow-lg">
       <div className="relative aspect-[4/3] overflow-hidden bg-secondary">
@@ -1904,44 +3001,91 @@ function ServicesLandingHero({
       <div className="absolute inset-0 bg-gradient-to-t from-primary/60 via-transparent to-primary/10" />
       <div className="relative flex min-h-[610px] items-center justify-center px-4 py-12 sm:min-h-[680px] sm:px-8">
         <div className="w-full max-w-[720px] rounded-[28px] border border-white/20 bg-primary/80 p-5 text-primary-foreground shadow-2xl backdrop-blur-md sm:p-8">
-          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">GemList Services</p>
+          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">
+            GemList Services
+          </p>
           <h1 className="mt-3 text-center font-display text-[34px] font-bold leading-[1.05] tracking-tight sm:text-[54px]">
             Find qualified <span className="text-accent">local pros.</span>
           </h1>
           <p className="mx-auto mt-4 max-w-[46ch] text-center text-[14px] leading-relaxed text-white/80 sm:text-[15px]">
-            Connect with trusted service providers across Idaho and surrounding states — or share what you do with local customers.
+            Connect with trusted service providers across Idaho and surrounding states — or share
+            what you do with local customers.
           </p>
 
           <div className="mt-7 grid grid-cols-2 rounded-2xl bg-white/10 p-1.5 ring-1 ring-white/20">
-            <button type="button" aria-pressed={mode === "search"} onClick={() => setMode("search")} className={`rounded-xl px-2 py-3 text-[13px] font-bold transition-colors sm:text-[15px] ${mode === "search" ? "bg-accent text-accent-foreground shadow-sm" : "text-white/85 hover:bg-white/10"}`}>Search Listings</button>
-            <button type="button" aria-pressed={mode === "post"} onClick={() => setMode("post")} className={`rounded-xl px-2 py-3 text-[13px] font-bold transition-colors sm:text-[15px] ${mode === "post" ? "bg-accent text-accent-foreground shadow-sm" : "text-white/85 hover:bg-white/10"}`}>Post a Listing</button>
+            <button
+              type="button"
+              aria-pressed={mode === "search"}
+              onClick={() => setMode("search")}
+              className={`rounded-xl px-2 py-3 text-[13px] font-bold transition-colors sm:text-[15px] ${mode === "search" ? "bg-accent text-accent-foreground shadow-sm" : "text-white/85 hover:bg-white/10"}`}
+            >
+              Search Listings
+            </button>
+            <button
+              type="button"
+              aria-pressed={mode === "post"}
+              onClick={() => setMode("post")}
+              className={`rounded-xl px-2 py-3 text-[13px] font-bold transition-colors sm:text-[15px] ${mode === "post" ? "bg-accent text-accent-foreground shadow-sm" : "text-white/85 hover:bg-white/10"}`}
+            >
+              Post a Listing
+            </button>
           </div>
 
           {mode === "search" ? (
-            <form className="mt-3" onSubmit={(event) => { event.preventDefault(); onSearch(subcategory.trim()); }}>
+            <form
+              className="mt-3"
+              onSubmit={(event) => {
+                event.preventDefault();
+                onSearch(subcategory.trim());
+              }}
+            >
               <ServiceCategoryPicker value={subcategory} onChange={setSubcategory} />
-              <button type="submit" className="mx-auto mt-4 inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-accent px-6 text-[13px] font-bold text-accent-foreground shadow-sm transition-transform hover:-translate-y-0.5"><MagnifyingGlass size={17} aria-hidden="true" />Show {resultCount.toLocaleString()} results</button>
+              <button
+                type="submit"
+                className="mx-auto mt-4 inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-accent px-6 text-[13px] font-bold text-accent-foreground shadow-sm transition-transform hover:-translate-y-0.5"
+              >
+                <MagnifyingGlass size={17} aria-hidden="true" />
+                Show {resultCount.toLocaleString()} results
+              </button>
             </form>
           ) : (
             <div className="mt-3 rounded-2xl bg-card p-6 text-center text-foreground sm:p-8">
               <p className="text-[18px] font-bold">Have a service to offer?</p>
-              <p className="mx-auto mt-2 max-w-[40ch] text-[13px] leading-relaxed text-muted-foreground">Reach local customers and show them what makes your work worth choosing.</p>
-              <button type="button" onClick={onPost} className="mt-5 inline-flex h-12 items-center justify-center rounded-xl bg-primary px-6 text-[13px] font-bold text-primary-foreground hover:opacity-90">Post a Service Listing</button>
+              <p className="mx-auto mt-2 max-w-[40ch] text-[13px] leading-relaxed text-muted-foreground">
+                Reach local customers and show them what makes your work worth choosing.
+              </p>
+              <button
+                type="button"
+                onClick={onPost}
+                className="mt-5 inline-flex h-12 items-center justify-center rounded-xl bg-primary px-6 text-[13px] font-bold text-primary-foreground hover:opacity-90"
+              >
+                Post a Service Listing
+              </button>
             </div>
           )}
 
-          {mode === "search" && <div className="mt-5 text-center text-[12px] text-white/70">{resultCount.toLocaleString()} local services to explore</div>}
+          {mode === "search" && (
+            <div className="mt-5 text-center text-[12px] text-white/70">
+              {resultCount.toLocaleString()} local services to explore
+            </div>
+          )}
         </div>
       </div>
     </section>
   );
 }
 
-function ServiceCategoryPicker({ value, onChange }: { value: string; onChange: (value: string) => void }) {
+function ServiceCategoryPicker({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+}) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const options = allServiceCategories.filter((category) =>
-    !value.trim() || category.name.toLowerCase().includes(value.trim().toLowerCase()),
+  const options = allServiceCategories.filter(
+    (category) => !value.trim() || category.name.toLowerCase().includes(value.trim().toLowerCase()),
   );
 
   useEffect(() => {
@@ -1960,52 +3104,95 @@ function ServiceCategoryPicker({ value, onChange }: { value: string; onChange: (
         <span className="sr-only">What service are you looking for?</span>
         <input
           value={value}
-          onChange={(event) => { onChange(event.target.value); setOpen(true); }}
+          onChange={(event) => {
+            onChange(event.target.value);
+            setOpen(true);
+          }}
           onFocus={() => setOpen(true)}
           placeholder="What service are you looking for?"
           aria-label="What service are you looking for?"
           aria-expanded={open}
           className="min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground"
         />
-        <CaretDown size={16} className={`shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true" />
+        <CaretDown
+          size={16}
+          className={`shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+          aria-hidden="true"
+        />
       </label>
       {open && (
-        <div role="listbox" aria-label="Service categories" className="absolute left-0 right-0 top-full z-40 mt-1 max-h-72 overflow-y-auto rounded-b-xl border border-border bg-card shadow-xl">
-          {options.length > 0 ? options.map((category) => (
-            <button
-              key={category.name}
-              type="button"
-              role="option"
-              aria-selected={value === category.name}
-              onClick={() => { onChange(category.name); setOpen(false); }}
-              className="flex w-full items-center justify-between border-b border-border/70 px-3 py-2.5 text-left text-[13px] last:border-b-0 hover:bg-secondary"
-            >
-              <span>{category.name}</span>
-              <span className="numeric text-[11px] text-muted-foreground">{category.count}</span>
-            </button>
-          )) : <p className="px-3 py-3 text-[12px] text-muted-foreground">No service categories found.</p>}
+        <div
+          role="listbox"
+          aria-label="Service categories"
+          className="absolute left-0 right-0 top-full z-40 mt-1 max-h-72 overflow-y-auto rounded-b-xl border border-border bg-card shadow-xl"
+        >
+          {options.length > 0 ? (
+            options.map((category) => (
+              <button
+                key={category.name}
+                type="button"
+                role="option"
+                aria-selected={value === category.name}
+                onClick={() => {
+                  onChange(category.name);
+                  setOpen(false);
+                }}
+                className="flex w-full items-center justify-between border-b border-border/70 px-3 py-2.5 text-left text-[13px] last:border-b-0 hover:bg-secondary"
+              >
+                <span>{category.name}</span>
+                <span className="numeric text-[11px] text-muted-foreground">{category.count}</span>
+              </button>
+            ))
+          ) : (
+            <p className="px-3 py-3 text-[12px] text-muted-foreground">
+              No service categories found.
+            </p>
+          )}
         </div>
       )}
     </div>
   );
 }
 
-function ServicesCategoryShowcase({ onCategorySelect }: { onCategorySelect: (category: string) => void }) {
+function ServicesCategoryShowcase({
+  onCategorySelect,
+}: {
+  onCategorySelect: (category: string) => void;
+}) {
   return (
     <div className="mt-10 space-y-12 sm:mt-14 sm:space-y-16">
       {serviceCategoryRows.map((row) => (
         <section key={row.title} aria-labelledby={row.title.replaceAll(" ", "-").toLowerCase()}>
           <div className="mb-4 border-b border-border pb-3">
-            <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">GemList Services</p>
-            <h2 id={row.title.replaceAll(" ", "-").toLowerCase()} className="mt-1 text-[22px] font-bold tracking-tight sm:text-[27px]">{row.title}</h2>
+            <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
+              GemList Services
+            </p>
+            <h2
+              id={row.title.replaceAll(" ", "-").toLowerCase()}
+              className="mt-1 text-[22px] font-bold tracking-tight sm:text-[27px]"
+            >
+              {row.title}
+            </h2>
           </div>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
             {row.categories.map((category) => (
-              <button key={category.name} type="button" onClick={() => onCategorySelect(category.name)} className="group text-left">
+              <button
+                key={category.name}
+                type="button"
+                onClick={() => onCategorySelect(category.name)}
+                className="group text-left"
+              >
                 <div className="aspect-[1.65/1] overflow-hidden rounded-2xl border border-border/70 bg-secondary shadow-sm">
-                  <img src={category.image} alt="" loading="lazy" className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]" />
+                  <img
+                    src={category.image}
+                    alt=""
+                    loading="lazy"
+                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                  />
                 </div>
-                <p className="mt-2 text-center text-[13px] font-semibold leading-tight group-hover:text-primary">{category.name}</p>
+                <p className="mt-2 text-center text-[13px] font-semibold leading-tight group-hover:text-primary">
+                  {category.name}
+                </p>
               </button>
             ))}
           </div>
@@ -2014,13 +3201,26 @@ function ServicesCategoryShowcase({ onCategorySelect }: { onCategorySelect: (cat
 
       <section aria-labelledby="browse-all-service-categories">
         <div className="mb-4 border-b border-border pb-3">
-          <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">GemList Services</p>
-          <h2 id="browse-all-service-categories" className="mt-1 text-[22px] font-bold tracking-tight sm:text-[27px]">Browse all categories</h2>
+          <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
+            GemList Services
+          </p>
+          <h2
+            id="browse-all-service-categories"
+            className="mt-1 text-[22px] font-bold tracking-tight sm:text-[27px]"
+          >
+            Browse all categories
+          </h2>
         </div>
         <div className="grid gap-x-6 gap-y-2 sm:grid-cols-2 lg:grid-cols-4">
           {allServiceCategories.map((category) => (
-            <button key={category.name} type="button" onClick={() => onCategorySelect(category.name)} className="flex items-center justify-between border-b border-border/60 py-2 text-left text-[13px] transition-colors hover:text-primary">
-              <span>{category.name}</span><span className="numeric text-muted-foreground">({category.count})</span>
+            <button
+              key={category.name}
+              type="button"
+              onClick={() => onCategorySelect(category.name)}
+              className="flex items-center justify-between border-b border-border/60 py-2 text-left text-[13px] transition-colors hover:text-primary"
+            >
+              <span>{category.name}</span>
+              <span className="numeric text-muted-foreground">({category.count})</span>
             </button>
           ))}
         </div>
@@ -2033,11 +3233,13 @@ function ServicesFilterPage({
   search,
   listings,
   onApply,
+  onSave,
   onPost,
 }: {
   search: Search;
   listings: ClassifiedBrowseResult["listings"];
   onApply: (patch: Partial<Search>) => void;
+  onSave: () => void;
   onPost: () => void;
 }) {
   const [showAll, setShowAll] = useState(true);
@@ -2101,15 +3303,69 @@ function ServicesFilterPage({
       <section className="floating-card overflow-visible p-4 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
           <div className="grid w-full max-w-[390px] grid-cols-2 rounded-2xl bg-secondary p-1.5 ring-1 ring-border/70">
-            <button type="button" aria-pressed="true" className="rounded-xl bg-primary px-3 py-3 text-[13px] font-bold text-primary-foreground shadow-sm">Search Listings</button>
-            <button type="button" onClick={onPost} className="rounded-xl px-3 py-3 text-[13px] font-bold hover:bg-card">Post a Listing</button>
+            <button
+              type="button"
+              aria-pressed="true"
+              className="rounded-xl bg-primary px-3 py-3 text-[13px] font-bold text-primary-foreground shadow-sm"
+            >
+              Search Listings
+            </button>
+            <button
+              type="button"
+              onClick={onPost}
+              className="rounded-xl px-3 py-3 text-[13px] font-bold hover:bg-card"
+            >
+              Post a Listing
+            </button>
           </div>
-          <button type="button" onClick={() => setShowAll((current) => !current)} className="inline-flex items-center gap-2 rounded-full border border-primary px-4 py-2.5 text-[12px] font-bold text-primary hover:bg-secondary"><FunnelSimple size={15} aria-hidden="true" />{showAll ? "Hide all filters" : "Show all filters"}<CaretDown size={14} className={showAll ? "rotate-180" : ""} aria-hidden="true" /></button>
+          <button
+            type="button"
+            onClick={() => setShowAll((current) => !current)}
+            className="inline-flex items-center gap-2 rounded-full border border-primary px-4 py-2.5 text-[12px] font-bold text-primary hover:bg-secondary"
+          >
+            <FunnelSimple size={15} aria-hidden="true" />
+            {showAll ? "Hide all filters" : "Show all filters"}
+            <CaretDown size={14} className={showAll ? "rotate-180" : ""} aria-hidden="true" />
+          </button>
         </div>
-        <form className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-[1.65fr_minmax(0,1fr)_auto]" onSubmit={(event) => { event.preventDefault(); apply(); }}>
-          <label className="flex h-12 min-w-0 items-center gap-2 rounded-xl border border-input bg-card px-3 focus-within:border-primary"><MagnifyingGlass size={16} className="shrink-0 text-primary" aria-hidden="true" /><span className="sr-only">Search services</span><input value={term} onChange={(event) => setTerm(event.target.value)} placeholder="Search for a service, company, or description" className="min-w-0 flex-1 bg-transparent text-[12px] outline-none placeholder:text-muted-foreground" /></label>
-          <ServiceOptionSelect label="Subcategory" value={subcategory} options={serviceSubcategoryOptions} onChange={setSubcategory} />
-          <button type="submit" className="h-12 rounded-xl bg-primary px-5 text-[12px] font-bold text-primary-foreground hover:opacity-90">Search</button>
+        <form
+          className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-[1.65fr_minmax(0,1fr)_auto]"
+          onSubmit={(event) => {
+            event.preventDefault();
+            apply();
+          }}
+        >
+          <label className="flex h-12 min-w-0 items-center gap-2 rounded-xl border border-input bg-card px-3 focus-within:border-primary">
+            <MagnifyingGlass size={16} className="shrink-0 text-primary" aria-hidden="true" />
+            <span className="sr-only">Search services</span>
+            <input
+              value={term}
+              onChange={(event) => setTerm(event.target.value)}
+              placeholder="Search for a service, company, or description"
+              className="min-w-0 flex-1 bg-transparent text-[12px] outline-none placeholder:text-muted-foreground"
+            />
+          </label>
+          <ServiceOptionSelect
+            label="Subcategory"
+            value={subcategory}
+            options={serviceSubcategoryOptions}
+            onChange={setSubcategory}
+          />
+          <div className="grid grid-cols-2 gap-2 sm:contents">
+            <button
+              type="submit"
+              className="h-12 rounded-xl bg-primary px-5 text-[12px] font-bold text-primary-foreground hover:opacity-90"
+            >
+              Search
+            </button>
+            <button
+              type="button"
+              onClick={onSave}
+              className="h-12 rounded-xl border border-primary px-4 text-[12px] font-bold text-primary hover:bg-secondary"
+            >
+              Save search
+            </button>
+          </div>
         </form>
       </section>
 
@@ -2117,29 +3373,100 @@ function ServicesFilterPage({
         {showAll && (
           <aside className="space-y-3">
             <ServiceFilterGroup title="Category">
-              <ServiceOptionSelect label="Category" value="Services" options={["Any category", "Services"]} onChange={() => undefined} />
-              <ServiceOptionSelect label="Subcategory" value={subcategory} options={serviceSubcategoryOptions} onChange={setSubcategory} />
+              <ServiceOptionSelect
+                label="Category"
+                value="Services"
+                options={["Any category", "Services"]}
+                onChange={() => undefined}
+              />
+              <ServiceOptionSelect
+                label="Subcategory"
+                value={subcategory}
+                options={serviceSubcategoryOptions}
+                onChange={setSubcategory}
+              />
             </ServiceFilterGroup>
             <ServiceFilterGroup title="Price">
-              <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2"><input inputMode="numeric" value={priceMin} onChange={(event) => setPriceMin(event.target.value)} placeholder="$0" className="filter-input" /><span className="text-muted-foreground">–</span><input inputMode="numeric" value={priceMax} onChange={(event) => setPriceMax(event.target.value)} placeholder="$200,000+" className="filter-input" /></div>
+              <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                <input
+                  inputMode="numeric"
+                  value={priceMin}
+                  onChange={(event) => setPriceMin(event.target.value)}
+                  placeholder="$0"
+                  className="filter-input"
+                />
+                <span className="text-muted-foreground">–</span>
+                <input
+                  inputMode="numeric"
+                  value={priceMax}
+                  onChange={(event) => setPriceMax(event.target.value)}
+                  placeholder="$200,000+"
+                  className="filter-input"
+                />
+              </div>
             </ServiceFilterGroup>
             <ServiceFilterGroup title="Expand Your Search">
-              <ServiceToggle label="Include listing descriptions in keyword searches" checked={expandSearch} onChange={setExpandSearch} />
+              <ServiceToggle
+                label="Include listing descriptions in keyword searches"
+                checked={expandSearch}
+                onChange={setExpandSearch}
+              />
             </ServiceFilterGroup>
             <ServiceFilterGroup title="Photos/Video">
-              <ServiceToggle label="Only show listings with photos" checked={photos} onChange={setPhotos} />
-              <ServiceToggle label="Only show listings with a video" checked={video} onChange={setVideo} />
+              <ServiceToggle
+                label="Only show listings with photos"
+                checked={photos}
+                onChange={setPhotos}
+              />
+              <ServiceToggle
+                label="Only show listings with a video"
+                checked={video}
+                onChange={setVideo}
+              />
             </ServiceFilterGroup>
             <ServiceFilterGroup title="Seller Type">
-              <div className="space-y-2">{["Private", "Business"].map((option) => <button key={option} type="button" onClick={() => setSellerType(sellerType === option ? "" : option)} className={`h-10 w-full rounded-lg border px-3 text-[12px] font-bold ${sellerType === option ? "border-primary bg-primary text-primary-foreground" : "border-primary text-primary hover:bg-secondary"}`}>{option}</button>)}</div>
+              <div className="space-y-2">
+                {["Private", "Business"].map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => setSellerType(sellerType === option ? "" : option)}
+                    className={`h-10 w-full rounded-lg border px-3 text-[12px] font-bold ${sellerType === option ? "border-primary bg-primary text-primary-foreground" : "border-primary text-primary hover:bg-secondary"}`}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
             </ServiceFilterGroup>
             <ServiceFilterGroup title="Condition" initiallyOpen={false}>
-              <ServiceOptionSelect label="Condition" value={condition} options={serviceConditionOptions} onChange={setCondition} />
+              <ServiceOptionSelect
+                label="Condition"
+                value={condition}
+                options={serviceConditionOptions}
+                onChange={setCondition}
+              />
             </ServiceFilterGroup>
             <ServiceFilterGroup title="Time On Site" initiallyOpen={false}>
-              <div className="space-y-2">{serviceTimeOnSiteOptions.slice(1).map((option) => <button key={option} type="button" onClick={() => setTimeOnSite(timeOnSite === option ? "" : option)} className={`h-10 w-full rounded-lg border px-3 text-[12px] font-bold ${timeOnSite === option ? "border-primary bg-primary text-primary-foreground" : "border-primary text-primary hover:bg-secondary"}`}>{option.replace("Last ", "Last ")}</button>)}</div>
+              <div className="space-y-2">
+                {serviceTimeOnSiteOptions.slice(1).map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => setTimeOnSite(timeOnSite === option ? "" : option)}
+                    className={`h-10 w-full rounded-lg border px-3 text-[12px] font-bold ${timeOnSite === option ? "border-primary bg-primary text-primary-foreground" : "border-primary text-primary hover:bg-secondary"}`}
+                  >
+                    {option.replace("Last ", "Last ")}
+                  </button>
+                ))}
+              </div>
             </ServiceFilterGroup>
-            <button type="button" onClick={apply} className="h-11 w-full rounded-xl bg-primary text-[12px] font-bold text-primary-foreground hover:opacity-90">Show {sortedListings.length.toLocaleString()} results</button>
+            <button
+              type="button"
+              onClick={apply}
+              className="h-11 w-full rounded-xl bg-primary text-[12px] font-bold text-primary-foreground hover:opacity-90"
+            >
+              Show {sortedListings.length.toLocaleString()} results
+            </button>
           </aside>
         )}
 
@@ -2178,7 +3505,12 @@ function ServicesFilterPage({
               <button
                 type="button"
                 onClick={() =>
-                  onApply({ q: undefined, serviceSubcategory: undefined, priceMin: undefined, priceMax: undefined })
+                  onApply({
+                    q: undefined,
+                    serviceSubcategory: undefined,
+                    priceMin: undefined,
+                    priceMax: undefined,
+                  })
                 }
                 className="mt-4 inline-flex h-9 items-center rounded-md border border-input px-3 text-[12px] font-semibold hover:bg-secondary"
               >
@@ -2198,19 +3530,99 @@ function ServicesFilterPage({
   );
 }
 
-function ServiceOptionSelect({ label, value, options, onChange }: { label: string; value: string; options: readonly string[]; onChange: (value: string) => void }) {
-  return <label className="relative block"><span className="sr-only">{label}</span><select aria-label={label} value={value} onChange={(event) => onChange(event.target.value)} className="h-12 w-full appearance-none rounded-xl border border-input bg-card px-3 pr-8 text-[12px] text-foreground outline-none focus:border-primary">{options.map((option, index) => <option key={option} value={index === 0 ? "" : option}>{option}</option>)}</select><CaretDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" /></label>;
+function ServiceOptionSelect({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: readonly string[];
+  onChange: (value: string) => void;
+}) {
+  return (
+    <label className="relative block">
+      <span className="sr-only">{label}</span>
+      <select
+        aria-label={label}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        className="h-12 w-full appearance-none rounded-xl border border-input bg-card px-3 pr-8 text-[12px] text-foreground outline-none focus:border-primary"
+      >
+        {options.map((option, index) => (
+          <option key={option} value={index === 0 ? "" : option}>
+            {option}
+          </option>
+        ))}
+      </select>
+      <CaretDown
+        size={14}
+        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+        aria-hidden="true"
+      />
+    </label>
+  );
 }
 
-function ServiceFilterGroup({ title, children, initiallyOpen = true }: { title: string; children: React.ReactNode; initiallyOpen?: boolean }) {
+function ServiceFilterGroup({
+  title,
+  children,
+  initiallyOpen = true,
+}: {
+  title: string;
+  children: React.ReactNode;
+  initiallyOpen?: boolean;
+}) {
   const [open, setOpen] = useState(initiallyOpen);
-  return <section className="overflow-visible rounded-2xl border border-border bg-card shadow-sm"><button type="button" aria-expanded={open} onClick={() => setOpen((current) => !current)} className="flex w-full items-center justify-between px-3.5 py-3 text-left text-[13px] font-bold"><span>{title}</span><CaretDown size={15} className={`transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true" /></button>{open && <div className="space-y-2 border-t border-border px-3.5 pb-3.5 pt-3">{children}</div>}</section>;
+  return (
+    <section className="overflow-visible rounded-2xl border border-border bg-card shadow-sm">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+        className="flex w-full items-center justify-between px-3.5 py-3 text-left text-[13px] font-bold"
+      >
+        <span>{title}</span>
+        <CaretDown
+          size={15}
+          className={`transition-transform ${open ? "rotate-180" : ""}`}
+          aria-hidden="true"
+        />
+      </button>
+      {open && (
+        <div className="space-y-2 border-t border-border px-3.5 pb-3.5 pt-3">{children}</div>
+      )}
+    </section>
+  );
 }
 
-function ServiceToggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
-  return <label className="flex items-center justify-between gap-3 text-[12px] leading-tight"><span>{label}</span><button type="button" aria-label={label} aria-pressed={checked} onClick={() => onChange(!checked)} className={`relative h-8 w-14 shrink-0 rounded-full transition-colors ${checked ? "bg-primary" : "bg-muted"}`}><span className={`absolute top-1.5 size-5 rounded-full bg-card shadow-sm transition-transform ${checked ? "translate-x-7" : "translate-x-1.5"}`} /></button></label>;
+function ServiceToggle({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="flex items-center justify-between gap-3 text-[12px] leading-tight">
+      <span>{label}</span>
+      <button
+        type="button"
+        aria-label={label}
+        aria-pressed={checked}
+        onClick={() => onChange(!checked)}
+        className={`relative h-8 w-14 shrink-0 rounded-full transition-colors ${checked ? "bg-primary" : "bg-muted"}`}
+      >
+        <span
+          className={`absolute top-1.5 size-5 rounded-full bg-card shadow-sm transition-transform ${checked ? "translate-x-7" : "translate-x-1.5"}`}
+        />
+      </button>
+    </label>
+  );
 }
-
 
 function JobsLandingHero({
   search,
@@ -2242,27 +3654,62 @@ function JobsLandingHero({
       <div className="absolute inset-0 bg-gradient-to-t from-primary/60 via-transparent to-primary/10" />
       <div className="relative flex min-h-[590px] items-center justify-center px-4 py-12 sm:min-h-[670px] sm:px-8">
         <div className="w-full max-w-[720px] rounded-[28px] border border-white/20 bg-primary/80 p-5 text-primary-foreground shadow-2xl backdrop-blur-md sm:p-8">
-          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">GemList Jobs</p>
+          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">
+            GemList Jobs
+          </p>
           <h1 className="mt-3 text-center font-display text-[34px] font-bold leading-[1.05] tracking-tight sm:text-[54px]">
             Find <span className="text-accent">local</span> work that fits your life.
           </h1>
           <p className="mx-auto mt-4 max-w-[46ch] text-center text-[14px] leading-relaxed text-white/80 sm:text-[15px]">
-            Search jobs from local employers across Idaho and surrounding states — or post your next opportunity.
+            Search jobs from local employers across Idaho and surrounding states — or post your next
+            opportunity.
           </p>
 
           <div className="mt-7 grid grid-cols-2 rounded-2xl bg-white/10 p-1.5 ring-1 ring-white/20">
-            <button type="button" aria-pressed={mode === "search"} onClick={() => setMode("search")} className={`rounded-xl px-2 py-3 text-[13px] font-bold transition-colors sm:text-[15px] ${mode === "search" ? "bg-accent text-accent-foreground shadow-sm" : "text-white/85 hover:bg-white/10"}`}>Search Jobs</button>
-            <button type="button" aria-pressed={mode === "post"} onClick={() => setMode("post")} className={`rounded-xl px-2 py-3 text-[13px] font-bold transition-colors sm:text-[15px] ${mode === "post" ? "bg-accent text-accent-foreground shadow-sm" : "text-white/85 hover:bg-white/10"}`}>Post a Job</button>
+            <button
+              type="button"
+              aria-pressed={mode === "search"}
+              onClick={() => setMode("search")}
+              className={`rounded-xl px-2 py-3 text-[13px] font-bold transition-colors sm:text-[15px] ${mode === "search" ? "bg-accent text-accent-foreground shadow-sm" : "text-white/85 hover:bg-white/10"}`}
+            >
+              Search Jobs
+            </button>
+            <button
+              type="button"
+              aria-pressed={mode === "post"}
+              onClick={() => setMode("post")}
+              className={`rounded-xl px-2 py-3 text-[13px] font-bold transition-colors sm:text-[15px] ${mode === "post" ? "bg-accent text-accent-foreground shadow-sm" : "text-white/85 hover:bg-white/10"}`}
+            >
+              Post a Job
+            </button>
           </div>
 
           {mode === "search" ? (
             <>
-              <form className="mt-3 flex flex-col gap-2 rounded-2xl bg-card p-2 text-foreground" onSubmit={(event) => { event.preventDefault(); onSearch(draft); }}>
+              <form
+                className="mt-3 flex flex-col gap-2 rounded-2xl bg-card p-2 text-foreground"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  onSearch(draft);
+                }}
+              >
                 <label className="flex min-w-0 items-center gap-2 px-3">
                   <MagnifyingGlass size={19} className="shrink-0 text-primary" aria-hidden="true" />
                   <span className="sr-only">Search jobs</span>
-                  <input type="search" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="What job are you looking for?" aria-label="Search jobs" className="h-12 min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground" />
-                  <button type="submit" className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-[13px] font-bold text-primary-foreground hover:opacity-90">Search</button>
+                  <input
+                    type="search"
+                    value={draft}
+                    onChange={(event) => setDraft(event.target.value)}
+                    placeholder="What job are you looking for?"
+                    aria-label="Search jobs"
+                    className="h-12 min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground"
+                  />
+                  <button
+                    type="submit"
+                    className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-[13px] font-bold text-primary-foreground hover:opacity-90"
+                  >
+                    Search
+                  </button>
                 </label>
               </form>
               <div className="mt-3 grid gap-2 sm:grid-cols-3">
@@ -2271,15 +3718,31 @@ function JobsLandingHero({
                 <JobSelect label="Job pay range" options={jobPayTypeOptions} />
               </div>
               <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-[12px]">
-                <span className="text-white/70">{resultCount.toLocaleString()} local jobs to explore</span>
-                <button type="button" onClick={onMoreFilters} className="inline-flex items-center gap-1.5 rounded-full border border-accent/70 px-4 py-2 font-bold text-accent transition-colors hover:bg-accent hover:text-accent-foreground">More filters <ArrowRight size={14} aria-hidden="true" /></button>
+                <span className="text-white/70">
+                  {resultCount.toLocaleString()} local jobs to explore
+                </span>
+                <button
+                  type="button"
+                  onClick={onMoreFilters}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-accent/70 px-4 py-2 font-bold text-accent transition-colors hover:bg-accent hover:text-accent-foreground"
+                >
+                  More filters <ArrowRight size={14} aria-hidden="true" />
+                </button>
               </div>
             </>
           ) : (
             <div className="mt-3 rounded-2xl bg-card p-6 text-center text-foreground sm:p-8">
               <p className="text-[18px] font-bold">Have a great opportunity?</p>
-              <p className="mx-auto mt-2 max-w-[40ch] text-[13px] leading-relaxed text-muted-foreground">Reach local candidates and share the details that make your team worth joining.</p>
-              <button type="button" onClick={onPost} className="mt-5 inline-flex h-12 items-center justify-center rounded-xl bg-primary px-6 text-[13px] font-bold text-primary-foreground hover:opacity-90">Post a Job Listing</button>
+              <p className="mx-auto mt-2 max-w-[40ch] text-[13px] leading-relaxed text-muted-foreground">
+                Reach local candidates and share the details that make your team worth joining.
+              </p>
+              <button
+                type="button"
+                onClick={onPost}
+                className="mt-5 inline-flex h-12 items-center justify-center rounded-xl bg-primary px-6 text-[13px] font-bold text-primary-foreground hover:opacity-90"
+              >
+                Post a Job Listing
+              </button>
             </div>
           )}
         </div>
@@ -2292,11 +3755,13 @@ function JobsFilterPage({
   search,
   listings,
   onApply,
+  onSave,
   onPost,
 }: {
   search: Search;
   listings: ClassifiedBrowseResult["listings"];
   onApply: (patch: Partial<Search>) => void;
+  onSave: () => void;
   onPost: () => void;
 }) {
   const [showAll, setShowAll] = useState(true);
@@ -2353,7 +3818,9 @@ function JobsFilterPage({
     .filter((listing) => !search.jobType || listing.job?.employmentType === search.jobType)
     .filter((listing) => !search.jobPayType || listing.job?.payType === search.jobPayType)
     .filter((listing) => search.jobPayMin == null || (listing.job?.payMax ?? 0) >= search.jobPayMin)
-    .filter((listing) => search.jobPayMax == null || (listing.job?.payMin ?? 0) <= search.jobPayMax);
+    .filter(
+      (listing) => search.jobPayMax == null || (listing.job?.payMin ?? 0) <= search.jobPayMax,
+    );
   const sortedListings = [...filteredListings].sort((a, b) => {
     if (search.sort === "price_high") return b.priceCents - a.priceCents;
     if (search.sort === "price_low") return a.priceCents - b.priceCents;
@@ -2365,33 +3832,172 @@ function JobsFilterPage({
       <section className="floating-card overflow-visible p-4 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
           <div className="grid w-full max-w-[390px] grid-cols-2 rounded-2xl bg-secondary p-1.5 ring-1 ring-border/70">
-            <button type="button" aria-pressed="true" className="rounded-xl bg-primary px-3 py-3 text-[13px] font-bold text-primary-foreground shadow-sm">Search Jobs</button>
-            <button type="button" onClick={onPost} className="rounded-xl px-3 py-3 text-[13px] font-bold hover:bg-card">Post a Job</button>
+            <button
+              type="button"
+              aria-pressed="true"
+              className="rounded-xl bg-primary px-3 py-3 text-[13px] font-bold text-primary-foreground shadow-sm"
+            >
+              Search Jobs
+            </button>
+            <button
+              type="button"
+              onClick={onPost}
+              className="rounded-xl px-3 py-3 text-[13px] font-bold hover:bg-card"
+            >
+              Post a Job
+            </button>
           </div>
-          <button type="button" onClick={() => setShowAll((current) => !current)} className="inline-flex items-center gap-2 rounded-full border border-primary px-4 py-2.5 text-[12px] font-bold text-primary hover:bg-secondary"><FunnelSimple size={15} aria-hidden="true" />{showAll ? "Hide all filters" : "Show all filters"}<CaretDown size={14} className={showAll ? "rotate-180" : ""} aria-hidden="true" /></button>
+          <button
+            type="button"
+            onClick={() => setShowAll((current) => !current)}
+            className="inline-flex items-center gap-2 rounded-full border border-primary px-4 py-2.5 text-[12px] font-bold text-primary hover:bg-secondary"
+          >
+            <FunnelSimple size={15} aria-hidden="true" />
+            {showAll ? "Hide all filters" : "Show all filters"}
+            <CaretDown size={14} className={showAll ? "rotate-180" : ""} aria-hidden="true" />
+          </button>
         </div>
-        <form className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-[1.65fr_repeat(3,minmax(0,1fr))_auto]" onSubmit={(event) => { event.preventDefault(); apply(); }}>
-          <label className="flex h-12 min-w-0 items-center gap-2 rounded-xl border border-input bg-card px-3 focus-within:border-primary"><MagnifyingGlass size={16} className="shrink-0 text-primary" aria-hidden="true" /><span className="sr-only">Search jobs</span><input value={term} onChange={(event) => setTerm(event.target.value)} placeholder="Search for a job, company, or title" className="min-w-0 flex-1 bg-transparent text-[12px] outline-none placeholder:text-muted-foreground" /></label>
-          <JobChecklist label="Category" value={category} options={jobCategoryOptions} onChange={setCategory} />
-          <JobChecklist label="Job type" value={jobType} options={jobTypeOptions} onChange={setJobType} />
-          <JobSelect label="Job pay range" value={payType} options={jobPayTypeOptions} onChange={setPayType} />
-          <button type="submit" className="h-12 rounded-xl bg-primary px-5 text-[12px] font-bold text-primary-foreground hover:opacity-90">Search</button>
+        <form
+          className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-[1.65fr_repeat(3,minmax(0,1fr))_auto]"
+          onSubmit={(event) => {
+            event.preventDefault();
+            apply();
+          }}
+        >
+          <label className="flex h-12 min-w-0 items-center gap-2 rounded-xl border border-input bg-card px-3 focus-within:border-primary">
+            <MagnifyingGlass size={16} className="shrink-0 text-primary" aria-hidden="true" />
+            <span className="sr-only">Search jobs</span>
+            <input
+              value={term}
+              onChange={(event) => setTerm(event.target.value)}
+              placeholder="Search for a job, company, or title"
+              className="min-w-0 flex-1 bg-transparent text-[12px] outline-none placeholder:text-muted-foreground"
+            />
+          </label>
+          <JobChecklist
+            label="Category"
+            value={category}
+            options={jobCategoryOptions}
+            onChange={setCategory}
+          />
+          <JobChecklist
+            label="Job type"
+            value={jobType}
+            options={jobTypeOptions}
+            onChange={setJobType}
+          />
+          <JobSelect
+            label="Job pay range"
+            value={payType}
+            options={jobPayTypeOptions}
+            onChange={setPayType}
+          />
+          <div className="grid grid-cols-2 gap-2 sm:contents">
+            <button
+              type="submit"
+              className="h-12 rounded-xl bg-primary px-5 text-[12px] font-bold text-primary-foreground hover:opacity-90"
+            >
+              Search
+            </button>
+            <button
+              type="button"
+              onClick={onSave}
+              className="h-12 rounded-xl border border-primary px-4 text-[12px] font-bold text-primary hover:bg-secondary"
+            >
+              Save search
+            </button>
+          </div>
         </form>
       </section>
 
       <div className="mt-7 grid gap-6 lg:grid-cols-[250px_minmax(0,1fr)]">
         {showAll && (
           <aside className="space-y-3">
-            <JobFilterGroup title="Category"><JobChecklist label="Category" value={category} options={jobCategoryOptions} onChange={setCategory} /></JobFilterGroup>
-            <JobFilterGroup title="Job type"><JobChecklist label="Job type" value={jobType} options={jobTypeOptions} onChange={setJobType} /></JobFilterGroup>
-            <JobFilterGroup title="Education level"><JobChecklist label="Education level" value={education} options={jobEducationOptions} onChange={setEducation} /></JobFilterGroup>
-            <JobFilterGroup title="Years of experience"><JobChecklist label="Years of experience" value={experience} options={jobExperienceOptions} onChange={setExperience} /></JobFilterGroup>
-            <JobFilterGroup title="Job pay range">
-              <div className="grid grid-cols-3 gap-1.5">{jobPayTypeOptions.map((option, index) => { const value = index === 0 ? "" : option; return <button key={option} type="button" onClick={() => setPayType(value)} className={`rounded-lg border px-2 py-2 text-[11px] font-semibold ${payType === value ? "border-primary bg-primary text-primary-foreground" : "border-primary text-primary hover:bg-secondary"}`}>{index === 0 ? "All" : option}</button>; })}</div>
-              <div className="grid grid-cols-2 gap-2"><input inputMode="numeric" value={payMin} onChange={(event) => setPayMin(event.target.value)} placeholder="$ From" className="filter-input" /><input inputMode="numeric" value={payMax} onChange={(event) => setPayMax(event.target.value)} placeholder="$ To" className="filter-input" /></div>
+            <JobFilterGroup title="Category">
+              <JobChecklist
+                label="Category"
+                value={category}
+                options={jobCategoryOptions}
+                onChange={setCategory}
+              />
             </JobFilterGroup>
-            <JobFilterGroup title="Photos / video"><JobToggle label="Only show listings with photos" checked={photos} onChange={setPhotos} /><JobToggle label="Only show listings with a video" checked={video} onChange={setVideo} /></JobFilterGroup>
-            <JobFilterGroup title="Time on site"><JobSelect label="Time on site" value={timeOnSite} options={jobPostedOptions} onChange={setTimeOnSite} /></JobFilterGroup>
+            <JobFilterGroup title="Job type">
+              <JobChecklist
+                label="Job type"
+                value={jobType}
+                options={jobTypeOptions}
+                onChange={setJobType}
+              />
+            </JobFilterGroup>
+            <JobFilterGroup title="Education level">
+              <JobChecklist
+                label="Education level"
+                value={education}
+                options={jobEducationOptions}
+                onChange={setEducation}
+              />
+            </JobFilterGroup>
+            <JobFilterGroup title="Years of experience">
+              <JobChecklist
+                label="Years of experience"
+                value={experience}
+                options={jobExperienceOptions}
+                onChange={setExperience}
+              />
+            </JobFilterGroup>
+            <JobFilterGroup title="Job pay range">
+              <div className="grid grid-cols-3 gap-1.5">
+                {jobPayTypeOptions.map((option, index) => {
+                  const value = index === 0 ? "" : option;
+                  return (
+                    <button
+                      key={option}
+                      type="button"
+                      onClick={() => setPayType(value)}
+                      className={`rounded-lg border px-2 py-2 text-[11px] font-semibold ${payType === value ? "border-primary bg-primary text-primary-foreground" : "border-primary text-primary hover:bg-secondary"}`}
+                    >
+                      {index === 0 ? "All" : option}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <input
+                  inputMode="numeric"
+                  value={payMin}
+                  onChange={(event) => setPayMin(event.target.value)}
+                  placeholder="$ From"
+                  className="filter-input"
+                />
+                <input
+                  inputMode="numeric"
+                  value={payMax}
+                  onChange={(event) => setPayMax(event.target.value)}
+                  placeholder="$ To"
+                  className="filter-input"
+                />
+              </div>
+            </JobFilterGroup>
+            <JobFilterGroup title="Photos / video">
+              <JobToggle
+                label="Only show listings with photos"
+                checked={photos}
+                onChange={setPhotos}
+              />
+              <JobToggle
+                label="Only show listings with a video"
+                checked={video}
+                onChange={setVideo}
+              />
+            </JobFilterGroup>
+            <JobFilterGroup title="Time on site">
+              <JobSelect
+                label="Time on site"
+                value={timeOnSite}
+                options={jobPostedOptions}
+                onChange={setTimeOnSite}
+              />
+            </JobFilterGroup>
           </aside>
         )}
 
@@ -2456,36 +4062,113 @@ function JobsFilterPage({
   );
 }
 
-function JobSelect({ label, value, options, onChange }: { label: string; value?: string; options: readonly string[]; onChange?: (value: string) => void }) {
-  return <label className="relative block min-w-0"><span className="sr-only">{label}</span><select aria-label={label} value={value ?? ""} onChange={(event) => onChange?.(event.target.value)} className="h-12 w-full appearance-none rounded-xl border border-input bg-card px-3 pr-8 text-[12px] text-foreground outline-none focus:border-primary">{options.map((option, index) => <option key={option} value={index === 0 ? "" : option}>{option}</option>)}</select><CaretDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" /></label>;
+function JobSelect({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value?: string;
+  options: readonly string[];
+  onChange?: (value: string) => void;
+}) {
+  return (
+    <label className="relative block min-w-0">
+      <span className="sr-only">{label}</span>
+      <select
+        aria-label={label}
+        value={value ?? ""}
+        onChange={(event) => onChange?.(event.target.value)}
+        className="h-12 w-full appearance-none rounded-xl border border-input bg-card px-3 pr-8 text-[12px] text-foreground outline-none focus:border-primary"
+      >
+        {options.map((option, index) => (
+          <option key={option} value={index === 0 ? "" : option}>
+            {option}
+          </option>
+        ))}
+      </select>
+      <CaretDown
+        size={14}
+        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+        aria-hidden="true"
+      />
+    </label>
+  );
 }
 
-function JobChecklist({ label, value, options, onChange }: { label: string; value?: string; options: readonly string[]; onChange: (value: string) => void }) {
+function JobChecklist({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value?: string;
+  options: readonly string[];
+  onChange: (value: string) => void;
+}) {
   const [open, setOpen] = useState(false);
   const selected = value ? value.split("|").filter(Boolean) : [];
   const anyOption = options[0] ?? "Any";
-  const displayValue = selected.length === 0 ? anyOption : selected.length === 1 ? selected[0] : `${selected.length} selected`;
+  const displayValue =
+    selected.length === 0
+      ? anyOption
+      : selected.length === 1
+        ? selected[0]
+        : `${selected.length} selected`;
 
   function toggle(option: string) {
     if (option === anyOption) {
       onChange("");
       return;
     }
-    const next = selected.includes(option) ? selected.filter((item) => item !== option) : [...selected, option];
+    const next = selected.includes(option)
+      ? selected.filter((item) => item !== option)
+      : [...selected, option];
     onChange(next.join("|"));
   }
 
   return (
     <div className="relative min-w-0">
-      <button type="button" aria-label={label} aria-haspopup="listbox" aria-expanded={open} onClick={() => setOpen((current) => !current)} className="flex h-12 w-full items-center justify-between gap-2 rounded-xl border border-input bg-card px-3 text-left text-[12px] text-foreground outline-none focus:border-primary">
+      <button
+        type="button"
+        aria-label={label}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
+        className="flex h-12 w-full items-center justify-between gap-2 rounded-xl border border-input bg-card px-3 text-left text-[12px] text-foreground outline-none focus:border-primary"
+      >
         <span className="truncate">{displayValue}</span>
-        <CaretDown size={14} className={`shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true" />
+        <CaretDown
+          size={14}
+          className={`shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+          aria-hidden="true"
+        />
       </button>
       {open && (
-        <div role="listbox" aria-label={`${label} options`} className="absolute left-0 top-[calc(100%+6px)] z-30 max-h-72 w-full min-w-[220px] overflow-y-auto rounded-xl border border-border bg-card p-1 shadow-xl">
+        <div
+          role="listbox"
+          aria-label={`${label} options`}
+          className="absolute left-0 top-[calc(100%+6px)] z-30 max-h-72 w-full min-w-[220px] overflow-y-auto rounded-xl border border-border bg-card p-1 shadow-xl"
+        >
           {[anyOption, ...options.slice(1)].map((option) => {
-            const checked = option === anyOption ? selected.length === 0 : selected.includes(option);
-            return <label key={option} className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-[12px] hover:bg-secondary"><input type="checkbox" checked={checked} onChange={() => toggle(option)} className="size-4 accent-primary" />{option}</label>;
+            const checked =
+              option === anyOption ? selected.length === 0 : selected.includes(option);
+            return (
+              <label
+                key={option}
+                className="flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-[12px] hover:bg-secondary"
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => toggle(option)}
+                  className="size-4 accent-primary"
+                />
+                {option}
+              </label>
+            );
           })}
         </div>
       )}
@@ -2494,11 +4177,39 @@ function JobChecklist({ label, value, options, onChange }: { label: string; valu
 }
 
 function JobFilterGroup({ title, children }: { title: string; children: React.ReactNode }) {
-  return <section className="rounded-2xl border border-border bg-card p-3 shadow-sm"><h2 className="mb-3 text-[13px] font-bold">{title}</h2><div className="space-y-2">{children}</div></section>;
+  return (
+    <section className="rounded-2xl border border-border bg-card p-3 shadow-sm">
+      <h2 className="mb-3 text-[13px] font-bold">{title}</h2>
+      <div className="space-y-2">{children}</div>
+    </section>
+  );
 }
 
-function JobToggle({ label, checked, onChange }: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
-  return <label className="flex items-center justify-between gap-3 text-[12px] leading-tight"><span>{label}</span><button type="button" aria-label={label} aria-pressed={checked} onClick={() => onChange(!checked)} className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${checked ? "bg-primary" : "bg-muted"}`}><span className={`absolute top-1 size-5 rounded-full bg-card shadow-sm transition-transform ${checked ? "translate-x-6" : "translate-x-1"}`} /></button></label>;
+function JobToggle({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <label className="flex items-center justify-between gap-3 text-[12px] leading-tight">
+      <span>{label}</span>
+      <button
+        type="button"
+        aria-label={label}
+        aria-pressed={checked}
+        onClick={() => onChange(!checked)}
+        className={`relative h-7 w-12 shrink-0 rounded-full transition-colors ${checked ? "bg-primary" : "bg-muted"}`}
+      >
+        <span
+          className={`absolute top-1 size-5 rounded-full bg-card shadow-sm transition-transform ${checked ? "translate-x-6" : "translate-x-1"}`}
+        />
+      </button>
+    </label>
+  );
 }
 
 function HomesFilterPage({
@@ -2507,12 +4218,14 @@ function HomesFilterPage({
   resultCount,
   onTabChange,
   onApply,
+  onSave,
 }: {
   activeTab: HomeTab;
   search: Search;
   resultCount: number;
   onTabChange: (tab: HomeTab) => void;
   onApply: (patch: Partial<Search>) => void;
+  onSave: () => void;
 }) {
   const [showAll, setShowAll] = useState(false);
   const [location, setLocation] = useState(search.homeLocation ?? search.q ?? "");
@@ -2539,28 +4252,91 @@ function HomesFilterPage({
     setHomePrice(search.homePrice ?? "");
     setBedrooms(search.bedrooms ?? "");
     setBathrooms(search.bathrooms ?? "");
-  }, [search.homeLocation, search.q, search.homePrice, search.propertyType, search.bedrooms, search.bathrooms]);
+  }, [
+    search.homeLocation,
+    search.q,
+    search.homePrice,
+    search.propertyType,
+    search.bedrooms,
+    search.bathrooms,
+  ]);
 
-  const extraFields = activeTab === "build"
+  const extraFields =
+    activeTab === "build"
       ? [
-          { key: "homeSquareFeet", label: "Square feet", options: homeSquareFeetOptions, multi: false },
-          { key: "homeBuilder", label: "Home builder", options: ["Any builder", "Local builders", "National builders"], multi: true },
+          {
+            key: "homeSquareFeet",
+            label: "Square feet",
+            options: homeSquareFeetOptions,
+            multi: false,
+          },
+          {
+            key: "homeBuilder",
+            label: "Home builder",
+            options: ["Any builder", "Local builders", "National builders"],
+            multi: true,
+          },
         ]
       : activeTab === "buy"
-      ? [
-          { key: "homeSquareFeet", label: "Square feet", options: homeSquareFeetOptions, multi: false },
-          { key: "constructionType", label: "Construction type", options: ["Any construction", "New construction", "Existing home"], multi: true },
-          { key: "homeAcres", label: "Acres", options: homeAcresOptions, multi: false },
-          { key: "homeSellerType", label: "Seller type", options: ["Any seller", "Owner", "Agent", "Builder"], multi: true },
-        ]
-      : [
-          { key: "petsCats", label: "Cats", options: ["Any cat policy", "Cats allowed", "Cats not allowed"], multi: false },
-          { key: "petsDogs", label: "Dogs", options: ["Any dog policy", "Dogs allowed", "Dogs not allowed"], multi: false },
-          { key: "homeAmenities", label: "Home amenities", options: homeAmenitiesOptions, multi: true },
-          { key: "communityAmenities", label: "Community amenities", options: communityAmenitiesOptions, multi: true },
-          { key: "leaseLength", label: "Lease length", options: leaseLengthOptions, multi: false },
-          { key: "homeSquareFeet", label: "Square feet", options: homeSquareFeetOptions, multi: false },
-        ];
+        ? [
+            {
+              key: "homeSquareFeet",
+              label: "Square feet",
+              options: homeSquareFeetOptions,
+              multi: false,
+            },
+            {
+              key: "constructionType",
+              label: "Construction type",
+              options: ["Any construction", "New construction", "Existing home"],
+              multi: true,
+            },
+            { key: "homeAcres", label: "Acres", options: homeAcresOptions, multi: false },
+            {
+              key: "homeSellerType",
+              label: "Seller type",
+              options: ["Any seller", "Owner", "Agent", "Builder"],
+              multi: true,
+            },
+          ]
+        : [
+            {
+              key: "petsCats",
+              label: "Cats",
+              options: ["Any cat policy", "Cats allowed", "Cats not allowed"],
+              multi: false,
+            },
+            {
+              key: "petsDogs",
+              label: "Dogs",
+              options: ["Any dog policy", "Dogs allowed", "Dogs not allowed"],
+              multi: false,
+            },
+            {
+              key: "homeAmenities",
+              label: "Home amenities",
+              options: homeAmenitiesOptions,
+              multi: true,
+            },
+            {
+              key: "communityAmenities",
+              label: "Community amenities",
+              options: communityAmenitiesOptions,
+              multi: true,
+            },
+            {
+              key: "leaseLength",
+              label: "Lease length",
+              options: leaseLengthOptions,
+              multi: false,
+            },
+            {
+              key: "homeSquareFeet",
+              label: "Square feet",
+              options: homeSquareFeetOptions,
+              multi: false,
+            },
+          ];
 
   function apply() {
     onApply({
@@ -2578,9 +4354,15 @@ function HomesFilterPage({
     <section className="floating-card relative mt-2 overflow-visible bg-surface px-4 py-5 sm:px-7 sm:py-7">
       <div className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">GemList Homes</p>
-          <h1 className="mt-2 text-[28px] font-bold tracking-tight sm:text-[36px]">Find a gem to call home.</h1>
-          <p className="mt-1 max-w-[55ch] text-[13px] text-muted-foreground">Search new builds, homes for sale, and rentals across Idaho.</p>
+          <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
+            GemList Homes
+          </p>
+          <h1 className="mt-2 text-[28px] font-bold tracking-tight sm:text-[36px]">
+            Find a gem to call home.
+          </h1>
+          <p className="mt-1 max-w-[55ch] text-[13px] text-muted-foreground">
+            Search new builds, homes for sale, and rentals across Idaho.
+          </p>
         </div>
         <div className="grid w-full max-w-[390px] grid-cols-3 rounded-2xl bg-card p-1.5 shadow-sm ring-1 ring-border/70">
           {homeTabs.map((tab) => (
@@ -2604,16 +4386,56 @@ function HomesFilterPage({
           apply();
         }}
       >
-        <HomeFilterControl label="County, city, neighborhood, or ZIP" value={location} onChange={setLocation} input />
-        <HomeFilterControl label="Property type" value={propertyType} options={homePropertyTypes} multi onChange={setPropertyType} />
+        <HomeFilterControl
+          label="County, city, neighborhood, or ZIP"
+          value={location}
+          onChange={setLocation}
+          input
+        />
+        <HomeFilterControl
+          label="Property type"
+          value={propertyType}
+          options={homePropertyTypes}
+          multi
+          onChange={setPropertyType}
+        />
         <HomePriceRangeControl value={homePrice} onChange={setHomePrice} />
-        <HomeFilterControl label="Bedrooms" value={bedrooms} options={homeBedroomOptions} multi={false} onChange={setBedrooms} />
-        <HomeFilterControl label={activeTab === "rent" ? "Bathrooms" : "Bathrooms"} value={bathrooms} options={homeBathroomOptions} multi={false} onChange={setBathrooms} />
-        <button type="submit" className="h-11 rounded-xl border border-primary px-4 text-[12px] font-bold text-primary hover:bg-primary hover:text-primary-foreground">Search</button>
+        <HomeFilterControl
+          label="Bedrooms"
+          value={bedrooms}
+          options={homeBedroomOptions}
+          multi={false}
+          onChange={setBedrooms}
+        />
+        <HomeFilterControl
+          label={activeTab === "rent" ? "Bathrooms" : "Bathrooms"}
+          value={bathrooms}
+          options={homeBathroomOptions}
+          multi={false}
+          onChange={setBathrooms}
+        />
+        <div className="grid grid-cols-2 gap-2 sm:contents">
+          <button
+            type="submit"
+            className="h-11 rounded-xl border border-primary px-4 text-[12px] font-bold text-primary hover:bg-primary hover:text-primary-foreground"
+          >
+            Search
+          </button>
+          <button
+            type="button"
+            onClick={onSave}
+            className="h-11 rounded-xl border border-primary px-4 text-[12px] font-bold text-primary hover:bg-secondary"
+          >
+            Save search
+          </button>
+        </div>
       </form>
 
       <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
-        <span className="text-[12px] text-muted-foreground"><strong className="numeric text-foreground">{resultCount.toLocaleString()}</strong> {homeTabs.find((tab) => tab.value === activeTab)?.eyebrow.toLowerCase()}</span>
+        <span className="text-[12px] text-muted-foreground">
+          <strong className="numeric text-foreground">{resultCount.toLocaleString()}</strong>{" "}
+          {homeTabs.find((tab) => tab.value === activeTab)?.eyebrow.toLowerCase()}
+        </span>
         <button
           type="button"
           onClick={() => setShowAll((current) => !current)}
@@ -2630,7 +4452,9 @@ function HomesFilterPage({
         <div className="mt-4 grid gap-2 border-t border-border pt-4 sm:grid-cols-2 lg:grid-cols-4">
           {extraFields.map((field) => (
             <div key={field.key} className="min-w-0">
-              <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{field.label}</p>
+              <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                {field.label}
+              </p>
               <HomeFilterControl
                 label={field.label}
                 value={extra[field.key] ?? ""}
@@ -2662,22 +4486,48 @@ function HomeFilterControl({
   multi?: boolean;
 }) {
   if (!input && options) {
-    return <HomeMultiSelectControl label={label} value={value} options={options} multi={multi} onChange={onChange} />;
+    return (
+      <HomeMultiSelectControl
+        label={label}
+        value={value}
+        options={options}
+        multi={multi}
+        onChange={onChange}
+      />
+    );
   }
 
   return input ? (
     <label className="flex h-[88px] min-w-0 items-center gap-2 rounded-xl border border-input bg-card px-3 focus-within:border-primary">
       <MapPin size={15} className="shrink-0 text-primary" aria-hidden="true" />
       <span className="sr-only">{label}</span>
-      <input value={value} onChange={(event) => onChange(event.target.value)} placeholder={label} className="min-w-0 flex-1 bg-transparent text-[12px] outline-none placeholder:text-muted-foreground" />
+      <input
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={label}
+        className="min-w-0 flex-1 bg-transparent text-[12px] outline-none placeholder:text-muted-foreground"
+      />
     </label>
   ) : (
     <label className="relative block">
       <span className="sr-only">{label}</span>
-      <select value={value} onChange={(event) => onChange(event.target.value)} aria-label={label} className="h-[88px] w-full appearance-none rounded-xl border border-input bg-card px-3 pr-8 text-[12px] text-foreground outline-none focus:border-primary">
-        {options?.map((option) => <option key={option} value={option === options[0] ? "" : option}>{option}</option>)}
+      <select
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        aria-label={label}
+        className="h-[88px] w-full appearance-none rounded-xl border border-input bg-card px-3 pr-8 text-[12px] text-foreground outline-none focus:border-primary"
+      >
+        {options?.map((option) => (
+          <option key={option} value={option === options[0] ? "" : option}>
+            {option}
+          </option>
+        ))}
       </select>
-      <CaretDown size={14} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+      <CaretDown
+        size={14}
+        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+        aria-hidden="true"
+      />
     </label>
   );
 }
@@ -2713,13 +4563,19 @@ function HomePriceRangeControl({
         className="flex h-[88px] w-full items-center justify-between gap-3 rounded-xl border border-input bg-card px-3 text-left text-[12px] text-foreground outline-none focus:border-primary"
       >
         <span className="min-w-0 truncate">{summary}</span>
-        <CaretDown size={14} className={`shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true" />
+        <CaretDown
+          size={14}
+          className={`shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+          aria-hidden="true"
+        />
       </button>
       {open && (
         <div className="absolute left-0 top-full z-40 mt-2 w-full min-w-[260px] rounded-xl border border-border bg-card p-3 shadow-xl">
           <div className="grid grid-cols-2 gap-2">
             <label className="min-w-0">
-              <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Min price</span>
+              <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                Min price
+              </span>
               <span className="flex h-12 items-center gap-1 rounded-lg border border-input px-2">
                 <span className="text-muted-foreground">$</span>
                 <input
@@ -2733,7 +4589,9 @@ function HomePriceRangeControl({
               </span>
             </label>
             <label className="min-w-0">
-              <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">Max price</span>
+              <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+                Max price
+              </span>
               <span className="flex h-12 items-center gap-1 rounded-lg border border-input px-2">
                 <span className="text-muted-foreground">$</span>
                 <input
@@ -2747,7 +4605,13 @@ function HomePriceRangeControl({
               </span>
             </label>
           </div>
-          <button type="button" onClick={() => setOpen(false)} className="mt-3 h-10 w-full rounded-lg bg-primary text-[12px] font-semibold text-primary-foreground">Done</button>
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className="mt-3 h-10 w-full rounded-lg bg-primary text-[12px] font-semibold text-primary-foreground"
+          >
+            Done
+          </button>
         </div>
       )}
     </div>
@@ -2771,11 +4635,12 @@ function HomeMultiSelectControl({
   const containerRef = useRef<HTMLDivElement>(null);
   const selected = value ? value.split("||").filter(Boolean) : [];
   const visibleSelected = multi ? selected : selected.slice(0, 1);
-  const summary = visibleSelected.length === 0
-    ? options[0]
-    : visibleSelected.length === 1
-      ? visibleSelected[0]
-      : `${visibleSelected.length} selected`;
+  const summary =
+    visibleSelected.length === 0
+      ? options[0]
+      : visibleSelected.length === 1
+        ? visibleSelected[0]
+        : `${visibleSelected.length} selected`;
 
   useEffect(() => {
     if (!open) return;
@@ -2811,12 +4676,19 @@ function HomeMultiSelectControl({
         className="flex h-[88px] w-full items-center justify-between gap-3 rounded-xl border border-input bg-card px-3 text-left text-[12px] text-foreground outline-none focus:border-primary"
       >
         <span className="min-w-0 truncate">{summary}</span>
-        <CaretDown size={14} className={`shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true" />
+        <CaretDown
+          size={14}
+          className={`shrink-0 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+          aria-hidden="true"
+        />
       </button>
       {open && (
         <div className="absolute left-0 top-full z-40 mt-2 max-h-72 w-full min-w-[230px] overflow-y-auto rounded-xl border border-border bg-card p-1 shadow-xl">
           {options.map((option) => {
-            const checked = option === options[0] ? visibleSelected.length === 0 : visibleSelected.includes(option);
+            const checked =
+              option === options[0]
+                ? visibleSelected.length === 0
+                : visibleSelected.includes(option);
             return (
               <button
                 key={option}
@@ -2825,7 +4697,9 @@ function HomeMultiSelectControl({
                 onClick={() => toggle(option)}
                 className="flex min-h-10 w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[12px] hover:bg-secondary"
               >
-                <span className={`flex size-4 shrink-0 items-center justify-center rounded border ${checked ? "border-primary bg-primary text-primary-foreground" : "border-input"}`}>
+                <span
+                  className={`flex size-4 shrink-0 items-center justify-center rounded border ${checked ? "border-primary bg-primary text-primary-foreground" : "border-input"}`}
+                >
                   {checked && <Check size={11} weight="bold" aria-hidden="true" />}
                 </span>
                 <span className="truncate">{option}</span>
@@ -2857,7 +4731,9 @@ function VehicleResultsPage({
   const [yearMax, setYearMax] = useState(search.yearMax == null ? "" : String(search.yearMax));
   const [priceMin, setPriceMin] = useState(search.priceMin == null ? "" : String(search.priceMin));
   const [priceMax, setPriceMax] = useState(search.priceMax == null ? "" : String(search.priceMax));
-  const [mileageBands, setMileageBands] = useState(splitVehicleFilter(search.mileageBands)[0] ?? "");
+  const [mileageBands, setMileageBands] = useState(
+    splitVehicleFilter(search.mileageBands)[0] ?? "",
+  );
   const [bodyStyle, setBodyStyle] = useState(search.bodyStyle ?? "");
   const [sellerType, setSellerType] = useState(search.sellerType ?? "");
   const [condition, setCondition] = useState(search.condition ?? "");
@@ -2898,7 +4774,11 @@ function VehicleResultsPage({
 
   useEffect(() => {
     const available = new Set(modelsForMakes(splitVehicleFilter(make)));
-    setModel((current) => splitVehicleFilter(current).filter((value) => available.has(value)).join("||"));
+    setModel((current) =>
+      splitVehicleFilter(current)
+        .filter((value) => available.has(value))
+        .join("||"),
+    );
   }, [make]);
 
   function apply() {
@@ -2935,48 +4815,277 @@ function VehicleResultsPage({
       <section className="floating-card overflow-visible p-4 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
           <div>
-            <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">Gem State motors</p>
+            <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
+              Gem State motors
+            </p>
             <h1 className="mt-1 text-[28px] font-bold tracking-tight">Cars & Trucks</h1>
           </div>
           <div className="grid w-full max-w-[330px] grid-cols-2 rounded-2xl bg-secondary p-1.5 ring-1 ring-border/70">
-            <button type="button" aria-pressed="true" className="rounded-xl bg-primary px-3 py-3 text-[13px] font-bold text-primary-foreground shadow-sm">Buy</button>
-            <button type="button" onClick={onSell} className="rounded-xl px-3 py-3 text-[13px] font-bold hover:bg-card">Sell</button>
+            <button
+              type="button"
+              aria-pressed="true"
+              className="rounded-xl bg-primary px-3 py-3 text-[13px] font-bold text-primary-foreground shadow-sm"
+            >
+              Buy
+            </button>
+            <button
+              type="button"
+              onClick={onSell}
+              className="rounded-xl px-3 py-3 text-[13px] font-bold hover:bg-card"
+            >
+              Sell
+            </button>
           </div>
         </div>
-        <form className="mt-5 grid gap-2 sm:grid-cols-[1fr_auto]" onSubmit={(event) => { event.preventDefault(); apply(); }}>
-          <label className="flex h-12 min-w-0 items-center gap-2 rounded-xl border border-input bg-card px-3 focus-within:border-primary"><MagnifyingGlass size={16} className="shrink-0 text-primary" aria-hidden="true" /><span className="sr-only">Search cars</span><input value={term} onChange={(event) => setTerm(event.target.value)} placeholder="Search cars, trucks, and more" className="min-w-0 flex-1 bg-transparent text-[12px] outline-none placeholder:text-muted-foreground" /></label>
-          <button type="submit" className="h-12 rounded-xl bg-primary px-5 text-[12px] font-bold text-primary-foreground hover:opacity-90">Search</button>
+        <form
+          className="mt-5 grid gap-2 sm:grid-cols-[1fr_auto]"
+          onSubmit={(event) => {
+            event.preventDefault();
+            apply();
+          }}
+        >
+          <label className="flex h-12 min-w-0 items-center gap-2 rounded-xl border border-input bg-card px-3 focus-within:border-primary">
+            <MagnifyingGlass size={16} className="shrink-0 text-primary" aria-hidden="true" />
+            <span className="sr-only">Search cars</span>
+            <input
+              value={term}
+              onChange={(event) => setTerm(event.target.value)}
+              placeholder="Search cars, trucks, and more"
+              className="min-w-0 flex-1 bg-transparent text-[12px] outline-none placeholder:text-muted-foreground"
+            />
+          </label>
+          <button
+            type="submit"
+            className="h-12 rounded-xl bg-primary px-5 text-[12px] font-bold text-primary-foreground hover:opacity-90"
+          >
+            Search
+          </button>
         </form>
-        <div className="mt-5 flex justify-end border-t border-border pt-4"><button type="button" onClick={() => setShowAll((current) => !current)} className="inline-flex items-center gap-2 rounded-full border border-primary px-4 py-2.5 text-[12px] font-bold text-primary hover:bg-secondary"><FunnelSimple size={15} aria-hidden="true" />{showAll ? "Hide all filters" : "Show all filters"}<CaretDown size={14} className={showAll ? "rotate-180" : ""} aria-hidden="true" /></button></div>
+        <div className="mt-5 flex justify-end border-t border-border pt-4">
+          <button
+            type="button"
+            onClick={() => setShowAll((current) => !current)}
+            className="inline-flex items-center gap-2 rounded-full border border-primary px-4 py-2.5 text-[12px] font-bold text-primary hover:bg-secondary"
+          >
+            <FunnelSimple size={15} aria-hidden="true" />
+            {showAll ? "Hide all filters" : "Show all filters"}
+            <CaretDown size={14} className={showAll ? "rotate-180" : ""} aria-hidden="true" />
+          </button>
+        </div>
       </section>
 
       <div className="mt-7 grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
-        {showAll && <aside className="space-y-3">
-          <VehicleFilterGroup title="Make / model">
-            <VehicleCheckboxList label="Makes" value={make} options={vehicleOptions.makes} onChange={setMake} />
-            {selectedMakes.length > 0 && <VehicleCheckboxList label="Models" value={model} options={availableModels} onChange={setModel} />}
-          </VehicleFilterGroup>
-          <VehicleFilterGroup title="Year">
-            <div className="grid grid-cols-2 gap-2"><VehicleTextField label="Year from" value={yearMin} onChange={setYearMin} placeholder="From" numeric /><VehicleTextField label="Year to" value={yearMax} onChange={setYearMax} placeholder="To" numeric /></div>
-          </VehicleFilterGroup>
-          <VehicleFilterGroup title="Price"><div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2"><VehicleTextField label="Minimum price" value={priceMin} onChange={setPriceMin} placeholder="$ From" numeric /><span className="text-muted-foreground">–</span><VehicleTextField label="Maximum price" value={priceMax} onChange={setPriceMax} placeholder="$ To" numeric /></div></VehicleFilterGroup>
-          <VehicleFilterGroup title="Mileage"><VehicleSingleSelectList label="Mileage" value={mileageBands} options={mileageBandOptions} onChange={setMileageBands} /></VehicleFilterGroup>
-          <VehicleFilterGroup title="Body type"><VehicleCheckboxList label="Body type" value={bodyStyle} options={vehicleOptions.bodyStyles} onChange={setBodyStyle} /></VehicleFilterGroup>
-          <VehicleFilterGroup title="Seller type"><VehicleCheckboxList label="Seller type" value={sellerType} options={vehicleSellerTypeOptions} onChange={setSellerType} /></VehicleFilterGroup>
-          <VehicleFilterGroup title="Condition"><VehicleCheckboxList label="Condition" value={condition} options={vehicleConditionOptions} onChange={setCondition} /></VehicleFilterGroup>
-          <VehicleFilterGroup title="Delivery"><VehicleCheckboxList label="Delivery" value={fulfillment} options={[{ value: "local_pickup", label: "Local pickup" }, { value: "shipping", label: "Ships" }, { value: "both", label: "Pickup or shipping" }]} onChange={setFulfillment} /></VehicleFilterGroup>
-          <VehicleFilterGroup title="Drive type"><VehicleCheckboxList label="Drive type" value={drivetrain} options={vehicleOptions.drivetrains} onChange={setDrivetrain} /></VehicleFilterGroup>
-          <VehicleFilterGroup title="Transmission"><VehicleCheckboxList label="Transmission" value={transmission} options={vehicleOptions.transmissions} onChange={setTransmission} /></VehicleFilterGroup>
-          <VehicleFilterGroup title="Fuel type"><VehicleCheckboxList label="Fuel type" value={fuelType} options={vehicleOptions.fuelTypes} onChange={setFuelType} /></VehicleFilterGroup>
-          <VehicleFilterGroup title="Exterior color"><VehicleCheckboxList label="Exterior color" value={exteriorColor} options={vehicleOptions.exteriorColors} onChange={setExteriorColor} /></VehicleFilterGroup>
-          <VehicleFilterGroup title="Title type"><VehicleCheckboxList label="Title type" value={titleStatus} options={vehicleOptions.titleStatuses} onChange={setTitleStatus} /></VehicleFilterGroup>
-          <VehicleFilterGroup title="Location"><select aria-label="Region" value={region} onChange={(event) => setRegion(event.target.value)} className="filter-input w-full"><option value="">All of Idaho</option>{idahoRegions.map((option) => <option key={option} value={option}>{option}</option>)}</select><select aria-label="State" value={state} onChange={(event) => setState(event.target.value)} className="filter-input w-full"><option value="">All states</option>{usStates.map(([code, name]) => <option key={code} value={code}>{name}</option>)}</select><VehicleTextField label="City" value={city} onChange={setCity} placeholder="City" /></VehicleFilterGroup>
-          <button type="button" onClick={apply} className="h-11 w-full rounded-xl bg-primary text-[12px] font-bold text-primary-foreground hover:opacity-90">Show {result.total.toLocaleString()} results</button>
-        </aside>}
+        {showAll && (
+          <aside className="space-y-3">
+            <VehicleFilterGroup title="Make / model">
+              <VehicleCheckboxList
+                label="Makes"
+                value={make}
+                options={vehicleOptions.makes}
+                onChange={setMake}
+              />
+              {selectedMakes.length > 0 && (
+                <VehicleCheckboxList
+                  label="Models"
+                  value={model}
+                  options={availableModels}
+                  onChange={setModel}
+                />
+              )}
+            </VehicleFilterGroup>
+            <VehicleFilterGroup title="Year">
+              <div className="grid grid-cols-2 gap-2">
+                <VehicleTextField
+                  label="Year from"
+                  value={yearMin}
+                  onChange={setYearMin}
+                  placeholder="From"
+                  numeric
+                />
+                <VehicleTextField
+                  label="Year to"
+                  value={yearMax}
+                  onChange={setYearMax}
+                  placeholder="To"
+                  numeric
+                />
+              </div>
+            </VehicleFilterGroup>
+            <VehicleFilterGroup title="Price">
+              <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
+                <VehicleTextField
+                  label="Minimum price"
+                  value={priceMin}
+                  onChange={setPriceMin}
+                  placeholder="$ From"
+                  numeric
+                />
+                <span className="text-muted-foreground">–</span>
+                <VehicleTextField
+                  label="Maximum price"
+                  value={priceMax}
+                  onChange={setPriceMax}
+                  placeholder="$ To"
+                  numeric
+                />
+              </div>
+            </VehicleFilterGroup>
+            <VehicleFilterGroup title="Mileage">
+              <VehicleSingleSelectList
+                label="Mileage"
+                value={mileageBands}
+                options={mileageBandOptions}
+                onChange={setMileageBands}
+              />
+            </VehicleFilterGroup>
+            <VehicleFilterGroup title="Body type">
+              <VehicleCheckboxList
+                label="Body type"
+                value={bodyStyle}
+                options={vehicleOptions.bodyStyles}
+                onChange={setBodyStyle}
+              />
+            </VehicleFilterGroup>
+            <VehicleFilterGroup title="Seller type">
+              <VehicleCheckboxList
+                label="Seller type"
+                value={sellerType}
+                options={vehicleSellerTypeOptions}
+                onChange={setSellerType}
+              />
+            </VehicleFilterGroup>
+            <VehicleFilterGroup title="Condition">
+              <VehicleCheckboxList
+                label="Condition"
+                value={condition}
+                options={vehicleConditionOptions}
+                onChange={setCondition}
+              />
+            </VehicleFilterGroup>
+            <VehicleFilterGroup title="Delivery">
+              <VehicleCheckboxList
+                label="Delivery"
+                value={fulfillment}
+                options={[
+                  { value: "local_pickup", label: "Local pickup" },
+                  { value: "shipping", label: "Ships" },
+                  { value: "both", label: "Pickup or shipping" },
+                ]}
+                onChange={setFulfillment}
+              />
+            </VehicleFilterGroup>
+            <VehicleFilterGroup title="Drive type">
+              <VehicleCheckboxList
+                label="Drive type"
+                value={drivetrain}
+                options={vehicleOptions.drivetrains}
+                onChange={setDrivetrain}
+              />
+            </VehicleFilterGroup>
+            <VehicleFilterGroup title="Transmission">
+              <VehicleCheckboxList
+                label="Transmission"
+                value={transmission}
+                options={vehicleOptions.transmissions}
+                onChange={setTransmission}
+              />
+            </VehicleFilterGroup>
+            <VehicleFilterGroup title="Fuel type">
+              <VehicleCheckboxList
+                label="Fuel type"
+                value={fuelType}
+                options={vehicleOptions.fuelTypes}
+                onChange={setFuelType}
+              />
+            </VehicleFilterGroup>
+            <VehicleFilterGroup title="Exterior color">
+              <VehicleCheckboxList
+                label="Exterior color"
+                value={exteriorColor}
+                options={vehicleOptions.exteriorColors}
+                onChange={setExteriorColor}
+              />
+            </VehicleFilterGroup>
+            <VehicleFilterGroup title="Title type">
+              <VehicleCheckboxList
+                label="Title type"
+                value={titleStatus}
+                options={vehicleOptions.titleStatuses}
+                onChange={setTitleStatus}
+              />
+            </VehicleFilterGroup>
+            <VehicleFilterGroup title="Location">
+              <select
+                aria-label="Region"
+                value={region}
+                onChange={(event) => setRegion(event.target.value)}
+                className="filter-input w-full"
+              >
+                <option value="">All of Idaho</option>
+                {idahoRegions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+              <select
+                aria-label="State"
+                value={state}
+                onChange={(event) => setState(event.target.value)}
+                className="filter-input w-full"
+              >
+                <option value="">All states</option>
+                {usStates.map(([code, name]) => (
+                  <option key={code} value={code}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+              <VehicleTextField label="City" value={city} onChange={setCity} placeholder="City" />
+            </VehicleFilterGroup>
+            <button
+              type="button"
+              onClick={apply}
+              className="h-11 w-full rounded-xl bg-primary text-[12px] font-bold text-primary-foreground hover:opacity-90"
+            >
+              Show {result.total.toLocaleString()} results
+            </button>
+          </aside>
+        )}
 
         <section id="results" aria-label="Car listings">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4"><p className="text-[13px] text-muted-foreground"><strong className="numeric text-foreground">{result.total}</strong> cars and trucks</p><label className="flex items-center gap-2 text-[12px] text-muted-foreground">Sort by<select className="h-9 rounded-lg border border-input bg-card px-2 text-[12px] text-foreground" defaultValue="newest"><option value="newest">Newest first</option><option value="price_low">Lowest price</option><option value="price_high">Highest price</option></select></label></div>
-          {result.listings.length === 0 ? <div className="soft-card mt-5 px-5 py-12 text-center"><p className="text-[14px] font-medium">No cars match these filters.</p><p className="mt-1.5 text-[13px] text-muted-foreground">Try widening your year, price, make, model, or location choices.</p></div> : <ul className="mt-5 grid grid-cols-2 gap-x-4 gap-y-9 md:grid-cols-3 xl:grid-cols-4">{result.listings.map((listing) => <li key={listing.id}><ListingCard listing={listing} /></li>)}</ul>}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
+            <p className="text-[13px] text-muted-foreground">
+              <strong className="numeric text-foreground">{result.total}</strong> cars and trucks
+            </p>
+            <label className="flex items-center gap-2 text-[12px] text-muted-foreground">
+              Sort by
+              <select
+                className="h-9 rounded-lg border border-input bg-card px-2 text-[12px] text-foreground"
+                defaultValue="newest"
+              >
+                <option value="newest">Newest first</option>
+                <option value="price_low">Lowest price</option>
+                <option value="price_high">Highest price</option>
+              </select>
+            </label>
+          </div>
+          {result.listings.length === 0 ? (
+            <div className="soft-card mt-5 px-5 py-12 text-center">
+              <p className="text-[14px] font-medium">No cars match these filters.</p>
+              <p className="mt-1.5 text-[13px] text-muted-foreground">
+                Try widening your year, price, make, model, or location choices.
+              </p>
+            </div>
+          ) : (
+            <ul className="mt-5 grid grid-cols-2 gap-x-4 gap-y-9 md:grid-cols-3 xl:grid-cols-4">
+              {result.listings.map((listing) => (
+                <li key={listing.id}>
+                  <ListingCard listing={listing} />
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       </div>
     </div>
@@ -2985,33 +5094,152 @@ function VehicleResultsPage({
 
 type VehicleFilterOption = string | { value: string; label: string };
 
-function VehicleCheckboxList({ label, value, options, onChange }: { label: string; value: string; options: readonly VehicleFilterOption[]; onChange: (value: string) => void }) {
+function VehicleCheckboxList({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: readonly VehicleFilterOption[];
+  onChange: (value: string) => void;
+}) {
   const selected = value.split("||").filter(Boolean);
   const toggle = (option: VehicleFilterOption) => {
     const optionValue = typeof option === "string" ? option : option.value;
-    onChange(selected.includes(optionValue) ? selected.filter((item) => item !== optionValue).join("||") : [...selected, optionValue].join("||"));
+    onChange(
+      selected.includes(optionValue)
+        ? selected.filter((item) => item !== optionValue).join("||")
+        : [...selected, optionValue].join("||"),
+    );
   };
-  return <div role="group" aria-label={label} className="max-h-56 space-y-1 overflow-y-auto pr-1">{options.map((option) => { const optionValue = typeof option === "string" ? option : option.value; const optionLabel = typeof option === "string" ? option : option.label; const checked = selected.includes(optionValue); return <label key={optionValue} className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-2 text-[12px] hover:bg-secondary"><span>{optionLabel}</span><input type="checkbox" checked={checked} onChange={() => toggle(option)} className="size-4 accent-primary" /></label>; })}</div>;
+  return (
+    <div role="group" aria-label={label} className="max-h-56 space-y-1 overflow-y-auto pr-1">
+      {options.map((option) => {
+        const optionValue = typeof option === "string" ? option : option.value;
+        const optionLabel = typeof option === "string" ? option : option.label;
+        const checked = selected.includes(optionValue);
+        return (
+          <label
+            key={optionValue}
+            className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-2 text-[12px] hover:bg-secondary"
+          >
+            <span>{optionLabel}</span>
+            <input
+              type="checkbox"
+              checked={checked}
+              onChange={() => toggle(option)}
+              className="size-4 accent-primary"
+            />
+          </label>
+        );
+      })}
+    </div>
+  );
 }
 
-function VehicleSingleSelectList({ label, value, options, onChange }: { label: string; value: string; options: readonly VehicleFilterOption[]; onChange: (value: string) => void }) {
+function VehicleSingleSelectList({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  options: readonly VehicleFilterOption[];
+  onChange: (value: string) => void;
+}) {
   const selected = splitVehicleFilter(value)[0] ?? "";
   const radioName = label.toLowerCase().replace(/\s+/g, "-");
-  return <div role="radiogroup" aria-label={label} className="max-h-56 space-y-1 overflow-y-auto pr-1">{options.map((option) => { const optionValue = typeof option === "string" ? option : option.value; const optionLabel = typeof option === "string" ? option : option.label; return <label key={optionValue} className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-2 text-[12px] hover:bg-secondary"><span>{optionLabel}</span><input type="radio" name={radioName} value={optionValue} checked={selected === optionValue} onChange={() => onChange(optionValue)} className="size-4 accent-primary" /></label>; })}</div>;
+  return (
+    <div role="radiogroup" aria-label={label} className="max-h-56 space-y-1 overflow-y-auto pr-1">
+      {options.map((option) => {
+        const optionValue = typeof option === "string" ? option : option.value;
+        const optionLabel = typeof option === "string" ? option : option.label;
+        return (
+          <label
+            key={optionValue}
+            className="flex cursor-pointer items-center justify-between gap-3 rounded-lg px-2 py-2 text-[12px] hover:bg-secondary"
+          >
+            <span>{optionLabel}</span>
+            <input
+              type="radio"
+              name={radioName}
+              value={optionValue}
+              checked={selected === optionValue}
+              onChange={() => onChange(optionValue)}
+              className="size-4 accent-primary"
+            />
+          </label>
+        );
+      })}
+    </div>
+  );
 }
 
-function VehicleMultiSelectPanel({ label, value, options, onApply }: { label: string; value: string; options: readonly string[]; onApply: (value: string) => void }) {
+function VehicleMultiSelectPanel({
+  label,
+  value,
+  options,
+  onApply,
+}: {
+  label: string;
+  value: string;
+  options: readonly string[];
+  onApply: (value: string) => void;
+}) {
   const [draft, setDraft] = useState(value);
   useEffect(() => setDraft(value), [value]);
-  return <div className="min-w-0"><VehicleCheckboxList label={label} value={draft} options={options} onChange={setDraft} /><button type="button" onClick={() => onApply(draft)} className="mt-2 h-9 w-full rounded-lg border border-primary text-[11px] font-bold text-primary hover:bg-secondary">Apply {label}</button></div>;
+  return (
+    <div className="min-w-0">
+      <VehicleCheckboxList label={label} value={draft} options={options} onChange={setDraft} />
+      <button
+        type="button"
+        onClick={() => onApply(draft)}
+        className="mt-2 h-9 w-full rounded-lg border border-primary text-[11px] font-bold text-primary hover:bg-secondary"
+      >
+        Apply {label}
+      </button>
+    </div>
+  );
 }
 
-function VehicleTextField({ label, value, onChange, placeholder, numeric = false }: { label: string; value: string; onChange: (value: string) => void; placeholder: string; numeric?: boolean }) {
-  return <label className="block min-w-0"><span className="sr-only">{label}</span><input aria-label={label} inputMode={numeric ? "numeric" : undefined} value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className="filter-input w-full" /></label>;
+function VehicleTextField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  numeric = false,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  numeric?: boolean;
+}) {
+  return (
+    <label className="block min-w-0">
+      <span className="sr-only">{label}</span>
+      <input
+        aria-label={label}
+        inputMode={numeric ? "numeric" : undefined}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        className="filter-input w-full"
+      />
+    </label>
+  );
 }
 
 function VehicleFilterGroup({ title, children }: { title: string; children: React.ReactNode }) {
-  return <section className="rounded-2xl border border-border bg-card p-3 shadow-sm"><h2 className="mb-3 text-[13px] font-bold">{title}</h2><div className="space-y-2">{children}</div></section>;
+  return (
+    <section className="rounded-2xl border border-border bg-card p-3 shadow-sm">
+      <h2 className="mb-3 text-[13px] font-bold">{title}</h2>
+      <div className="space-y-2">{children}</div>
+    </section>
+  );
 }
 
 function VehicleBrowseHero({
@@ -3037,7 +5265,7 @@ function VehicleBrowseHero({
   const [showAllFilters, setShowAllFilters] = useState(false);
   const locationLabel = search.city
     ? `${search.city}${search.state ? `, ${search.state}` : ""}`
-    : search.region ?? search.state ?? "All of Idaho";
+    : (search.region ?? search.state ?? "All of Idaho");
   const yearLabel =
     search.yearMin != null || search.yearMax != null
       ? `${search.yearMin ?? "Any"}–${search.yearMax ?? "Any"}`
@@ -3048,15 +5276,20 @@ function VehicleBrowseHero({
       : "Price";
   const selectedSummary = (value: string | undefined, fallback: string) => {
     const values = value?.split("||").filter(Boolean) ?? [];
-    return values.length === 0 ? fallback : values.length === 1 ? values[0] ?? fallback : `${values.length} selected`;
+    return values.length === 0
+      ? fallback
+      : values.length === 1
+        ? (values[0] ?? fallback)
+        : `${values.length} selected`;
   };
-  const makeModelValues = [search.make, search.model]
-    .flatMap((value) => value?.split("||").filter(Boolean) ?? []);
+  const makeModelValues = [search.make, search.model].flatMap(
+    (value) => value?.split("||").filter(Boolean) ?? [],
+  );
   const makeModelLabel =
     makeModelValues.length === 0
       ? "Make / model"
       : makeModelValues.length === 1
-        ? makeModelValues[0] ?? "Make / model"
+        ? (makeModelValues[0] ?? "Make / model")
         : `${makeModelValues.length} selected`;
   const toggleFilter = (filter: VehicleHeroFilter) =>
     setExpandedFilter((current) => (current === filter ? null : filter));
@@ -3071,7 +5304,10 @@ function VehicleBrowseHero({
     { key: "price", label: priceLabel },
     {
       key: "mileage",
-      label: selectedSummary(search.mileageBands, search.mileageMax != null ? `≤ ${search.mileageMax.toLocaleString()} mi` : "Mileage"),
+      label: selectedSummary(
+        search.mileageBands,
+        search.mileageMax != null ? `≤ ${search.mileageMax.toLocaleString()} mi` : "Mileage",
+      ),
     },
     { key: "bodyStyle", label: selectedSummary(search.bodyStyle, "Body type") },
     { key: "sellerType", label: selectedSummary(search.sellerType, "Seller type") },
@@ -3097,9 +5333,7 @@ function VehicleBrowseHero({
             secondLabel="Year to"
             firstValue={search.yearMin}
             secondValue={search.yearMax}
-            onApply={(first, second) =>
-              applyInlineFilter({ yearMin: first, yearMax: second })
-            }
+            onApply={(first, second) => applyInlineFilter({ yearMin: first, yearMax: second })}
           />
         );
       case "price":
@@ -3109,34 +5343,106 @@ function VehicleBrowseHero({
             secondLabel="Max price"
             firstValue={search.priceMin}
             secondValue={search.priceMax}
-            onApply={(first, second) =>
-              applyInlineFilter({ priceMin: first, priceMax: second })
-            }
+            onApply={(first, second) => applyInlineFilter({ priceMin: first, priceMax: second })}
             prefix="$"
           />
         );
       case "mileage":
-        return <InlineSingleFilter label="Mileage" value={search.mileageBands} options={mileageBandOptions} onApply={(value) => applyInlineFilter({ mileageBands: value })} />;
+        return (
+          <InlineSingleFilter
+            label="Mileage"
+            value={search.mileageBands}
+            options={mileageBandOptions}
+            onApply={(value) => applyInlineFilter({ mileageBands: value })}
+          />
+        );
       case "bodyStyle":
-        return <InlineMultiFilter label="Body type" value={search.bodyStyle} options={vehicleOptions.bodyStyles} onApply={(value) => applyInlineFilter({ bodyStyle: value })} />;
+        return (
+          <InlineMultiFilter
+            label="Body type"
+            value={search.bodyStyle}
+            options={vehicleOptions.bodyStyles}
+            onApply={(value) => applyInlineFilter({ bodyStyle: value })}
+          />
+        );
       case "titleStatus":
-        return <InlineMultiFilter label="Title type" value={search.titleStatus} options={vehicleOptions.titleStatuses} onApply={(value) => applyInlineFilter({ titleStatus: value })} />;
+        return (
+          <InlineMultiFilter
+            label="Title type"
+            value={search.titleStatus}
+            options={vehicleOptions.titleStatuses}
+            onApply={(value) => applyInlineFilter({ titleStatus: value })}
+          />
+        );
       case "drivetrain":
-        return <InlineMultiFilter label="Drive type" value={search.drivetrain} options={vehicleOptions.drivetrains} onApply={(value) => applyInlineFilter({ drivetrain: value })} />;
+        return (
+          <InlineMultiFilter
+            label="Drive type"
+            value={search.drivetrain}
+            options={vehicleOptions.drivetrains}
+            onApply={(value) => applyInlineFilter({ drivetrain: value })}
+          />
+        );
       case "transmission":
-        return <InlineMultiFilter label="Transmission" value={search.transmission} options={vehicleOptions.transmissions} onApply={(value) => applyInlineFilter({ transmission: value })} />;
+        return (
+          <InlineMultiFilter
+            label="Transmission"
+            value={search.transmission}
+            options={vehicleOptions.transmissions}
+            onApply={(value) => applyInlineFilter({ transmission: value })}
+          />
+        );
       case "fuelType":
-        return <InlineMultiFilter label="Fuel type" value={search.fuelType} options={vehicleOptions.fuelTypes} onApply={(value) => applyInlineFilter({ fuelType: value })} />;
+        return (
+          <InlineMultiFilter
+            label="Fuel type"
+            value={search.fuelType}
+            options={vehicleOptions.fuelTypes}
+            onApply={(value) => applyInlineFilter({ fuelType: value })}
+          />
+        );
       case "exteriorColor":
-        return <InlineMultiFilter label="Exterior color" value={search.exteriorColor} options={vehicleOptions.exteriorColors} onApply={(value) => applyInlineFilter({ exteriorColor: value })} />;
+        return (
+          <InlineMultiFilter
+            label="Exterior color"
+            value={search.exteriorColor}
+            options={vehicleOptions.exteriorColors}
+            onApply={(value) => applyInlineFilter({ exteriorColor: value })}
+          />
+        );
       case "location":
         return <InlineLocationFilter search={search} onApply={applyInlineFilter} />;
       case "condition":
-        return <InlineMultiFilter label="Condition" value={search.condition} options={vehicleConditionOptions} onApply={(value) => applyInlineFilter({ condition: value })} />;
+        return (
+          <InlineMultiFilter
+            label="Condition"
+            value={search.condition}
+            options={vehicleConditionOptions}
+            onApply={(value) => applyInlineFilter({ condition: value })}
+          />
+        );
       case "fulfillment":
-        return <InlineMultiFilter label="Delivery" value={search.fulfillment} options={[{ value: "local_pickup", label: "Local pickup" }, { value: "shipping", label: "Ships" }, { value: "both", label: "Pickup or shipping" }]} onApply={(value) => applyInlineFilter({ fulfillment: value })} />;
+        return (
+          <InlineMultiFilter
+            label="Delivery"
+            value={search.fulfillment}
+            options={[
+              { value: "local_pickup", label: "Local pickup" },
+              { value: "shipping", label: "Ships" },
+              { value: "both", label: "Pickup or shipping" },
+            ]}
+            onApply={(value) => applyInlineFilter({ fulfillment: value })}
+          />
+        );
       case "sellerType":
-        return <InlineMultiFilter label="Seller type" value={search.sellerType} options={vehicleSellerTypeOptions} onApply={(value) => applyInlineFilter({ sellerType: value })} />;
+        return (
+          <InlineMultiFilter
+            label="Seller type"
+            value={search.sellerType}
+            options={vehicleSellerTypeOptions}
+            onApply={(value) => applyInlineFilter({ sellerType: value })}
+          />
+        );
     }
   }
 
@@ -3187,7 +5493,11 @@ function VehicleBrowseHero({
           }}
         >
           <label className="relative flex h-14 items-center rounded-xl border border-transparent bg-secondary/55 px-3 focus-within:border-primary/40 focus-within:bg-card">
-            <MagnifyingGlass size={18} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+            <MagnifyingGlass
+              size={18}
+              className="shrink-0 text-muted-foreground"
+              aria-hidden="true"
+            />
             <span className="sr-only">Search vehicles</span>
             <input
               type="search"
@@ -3235,12 +5545,16 @@ function VehicleBrowseHero({
           <div className="relative self-start">
             <button
               type="button"
-              onClick={() => setExpandedFilter((current) => (current === "location" ? null : "location"))}
+              onClick={() =>
+                setExpandedFilter((current) => (current === "location" ? null : "location"))
+              }
               className="inline-flex items-center gap-2 text-primary hover:underline"
             >
               <MapPin size={18} weight="duotone" aria-hidden="true" />
               <span className="flex flex-col items-start leading-tight">
-                <span className="text-[10px] font-bold uppercase tracking-[0.08em]">Select location</span>
+                <span className="text-[10px] font-bold uppercase tracking-[0.08em]">
+                  Select location
+                </span>
                 <span className="mt-0.5 text-[12.5px] font-semibold">{locationLabel}</span>
               </span>
             </button>
@@ -3267,7 +5581,11 @@ function VehicleBrowseHero({
                 </span>
               )}
             </button>
-            <button type="button" onClick={onSearch} className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2.5 font-bold text-primary-foreground shadow-sm transition-transform hover:-translate-y-0.5">
+            <button
+              type="button"
+              onClick={onSearch}
+              className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2.5 font-bold text-primary-foreground shadow-sm transition-transform hover:-translate-y-0.5"
+            >
               Show {resultCount.toLocaleString()} {resultCount === 1 ? "result" : "results"}
             </button>
           </div>
@@ -3332,34 +5650,90 @@ function InlineVehicleMakeModelFilter({
 
   useEffect(() => {
     const available = new Set(modelsForMakes(splitVehicleFilter(make)));
-    setModel((current) => splitVehicleFilter(current).filter((value) => available.has(value)).join("||"));
+    setModel((current) =>
+      splitVehicleFilter(current)
+        .filter((value) => available.has(value))
+        .join("||"),
+    );
   }, [make]);
 
   return (
     <div className="w-full space-y-2.5">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Makes</p>
-      <VehicleCheckboxList label="Makes" value={make} options={vehicleOptions.makes} onChange={setMake} />
+      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+        Makes
+      </p>
+      <VehicleCheckboxList
+        label="Makes"
+        value={make}
+        options={vehicleOptions.makes}
+        onChange={setMake}
+      />
       {selectedMakes.length > 0 && (
         <>
-          <p className="pt-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">Models</p>
-          <VehicleCheckboxList label="Models" value={model} options={availableModels} onChange={setModel} />
+          <p className="pt-1 text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Models
+          </p>
+          <VehicleCheckboxList
+            label="Models"
+            value={model}
+            options={availableModels}
+            onChange={setModel}
+          />
         </>
       )}
-      <InlineApplyButton onClick={() => onApply({ make: make || undefined, model: model || undefined })} />
+      <InlineApplyButton
+        onClick={() => onApply({ make: make || undefined, model: model || undefined })}
+      />
     </div>
   );
 }
 
-function InlineMultiFilter({ label, value, options, onApply }: { label: string; value: string | undefined; options: readonly VehicleFilterOption[]; onApply: (value: string) => void }) {
+function InlineMultiFilter({
+  label,
+  value,
+  options,
+  onApply,
+}: {
+  label: string;
+  value: string | undefined;
+  options: readonly VehicleFilterOption[];
+  onApply: (value: string) => void;
+}) {
   const [draft, setDraft] = useState(value ?? "");
   useEffect(() => setDraft(value ?? ""), [value]);
-  return <div className="space-y-2"><p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{label}</p><VehicleCheckboxList label={label} value={draft} options={options} onChange={setDraft} /><InlineApplyButton onClick={() => onApply(draft)} /></div>;
+  return (
+    <div className="space-y-2">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+        {label}
+      </p>
+      <VehicleCheckboxList label={label} value={draft} options={options} onChange={setDraft} />
+      <InlineApplyButton onClick={() => onApply(draft)} />
+    </div>
+  );
 }
 
-function InlineSingleFilter({ label, value, options, onApply }: { label: string; value: string | undefined; options: readonly VehicleFilterOption[]; onApply: (value: string) => void }) {
+function InlineSingleFilter({
+  label,
+  value,
+  options,
+  onApply,
+}: {
+  label: string;
+  value: string | undefined;
+  options: readonly VehicleFilterOption[];
+  onApply: (value: string) => void;
+}) {
   const [draft, setDraft] = useState(splitVehicleFilter(value)[0] ?? "");
   useEffect(() => setDraft(splitVehicleFilter(value)[0] ?? ""), [value]);
-  return <div className="space-y-2"><p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">{label}</p><VehicleSingleSelectList label={label} value={draft} options={options} onChange={setDraft} /><InlineApplyButton onClick={() => onApply(draft)} /></div>;
+  return (
+    <div className="space-y-2">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+        {label}
+      </p>
+      <VehicleSingleSelectList label={label} value={draft} options={options} onChange={setDraft} />
+      <InlineApplyButton onClick={() => onApply(draft)} />
+    </div>
+  );
 }
 
 function InlineRangeFilter({
@@ -3395,7 +5769,11 @@ function InlineRangeFilter({
       <div className="grid grid-cols-2 gap-2">
         <label className="relative">
           <span className="sr-only">{firstLabel}</span>
-          {prefix && <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">{prefix}</span>}
+          {prefix && (
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+              {prefix}
+            </span>
+          )}
           <input
             type="number"
             min="0"
@@ -3407,7 +5785,11 @@ function InlineRangeFilter({
         </label>
         <label className="relative">
           <span className="sr-only">{secondLabel}</span>
-          {prefix && <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">{prefix}</span>}
+          {prefix && (
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+              {prefix}
+            </span>
+          )}
           <input
             type="number"
             min="0"
@@ -3482,7 +5864,8 @@ function InlineSelectFilter({
       <option value="">{placeholder}</option>
       {options.map((option) => {
         const optionValue = typeof option === "string" ? option : option.value;
-        const label = typeof option === "string" ? optionLabels?.[option] ?? option : option.label;
+        const label =
+          typeof option === "string" ? (optionLabels?.[option] ?? option) : option.label;
         return (
           <option key={optionValue} value={optionValue}>
             {label}
@@ -3512,16 +5895,45 @@ function InlineLocationFilter({
 
   return (
     <div className="w-full space-y-2.5">
-      <select value={region} onChange={(event) => setRegion(event.target.value)} className="filter-input w-full">
+      <select
+        value={region}
+        onChange={(event) => setRegion(event.target.value)}
+        className="filter-input w-full"
+      >
         <option value="">All of Idaho</option>
-        {idahoRegions.map((option) => <option key={option} value={option}>{option}</option>)}
+        {idahoRegions.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
       </select>
-      <select value={state} onChange={(event) => setState(event.target.value)} className="filter-input w-full">
+      <select
+        value={state}
+        onChange={(event) => setState(event.target.value)}
+        className="filter-input w-full"
+      >
         <option value="">All states</option>
-        {usStates.map(([code, name]) => <option key={code} value={code}>{name}</option>)}
+        {usStates.map(([code, name]) => (
+          <option key={code} value={code}>
+            {name}
+          </option>
+        ))}
       </select>
-      <input value={city} onChange={(event) => setCity(event.target.value)} placeholder="City" className="filter-input w-full" />
-      <InlineApplyButton onClick={() => onApply({ region: region || undefined, state: state || undefined, city: city.trim() || undefined })} />
+      <input
+        value={city}
+        onChange={(event) => setCity(event.target.value)}
+        placeholder="City"
+        className="filter-input w-full"
+      />
+      <InlineApplyButton
+        onClick={() =>
+          onApply({
+            region: region || undefined,
+            state: state || undefined,
+            city: city.trim() || undefined,
+          })
+        }
+      />
     </div>
   );
 }
