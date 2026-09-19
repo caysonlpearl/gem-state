@@ -336,6 +336,16 @@ test("account center writes are authenticated and conversations are participant-
   assert.match(accountCenterMigrationSource, /block_conversation/);
 });
 
+test("messaging supports protected attachments, moderation controls, and send retries", () => {
+  assert.match(conversationFunctionsSource, /conversation-attachments/);
+  assert.match(conversationFunctionsSource, /image\/jpeg/);
+  assert.match(conversationFunctionsSource, /10 \* 1024 \* 1024/);
+  assert.match(conversationFunctionsSource, /reportConversation/);
+  assert.match(accountCenterSource, /Block this member\?/);
+  assert.match(accountCenterSource, /Report this conversation/);
+  assert.match(accountCenterSource, /Retry send/);
+});
+
 test("saved searches reopen their full filters and update in place", () => {
   assert.match(browseSource, /savedSearchId/);
   assert.match(browseSource, /updateSearch\(\{ data: \{ id: search\.savedSearchId, search: searchToSave \} \}\)/);
