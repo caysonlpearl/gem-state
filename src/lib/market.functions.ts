@@ -621,8 +621,11 @@ export const getMyListings = createServerFn({ method: "GET" })
     for (const result of [metricsResult, conversationResult, inquiryResult, upgradeResult]) {
       if (result.error) console.warn("Optional seller listing enrichment unavailable", result.error.message);
     }
-    const metricsByListing = new Map(
-      (metricsResult.error ? [] : metricsResult.data ?? []).map((row: any) => [row.listing_id, row]),
+    const metricsByListing = new Map<string, any>(
+      (metricsResult.error ? [] : metricsResult.data ?? []).map((row: any) => [
+        row.listing_id as string,
+        row,
+      ]),
     );
     const leadsByListing = new Map<string, number>();
     for (const row of [

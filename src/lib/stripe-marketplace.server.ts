@@ -498,13 +498,13 @@ async function finalizeListingUpgradeCheckout(session: Stripe.Checkout.Session) 
   const paidAt = new Date().toISOString();
   const listingUpdate: Record<string, unknown> = {};
   if (upgrade.code === "featured") {
-    listingUpdate.featured_until = new Date(Date.now() + Number(upgrade.duration_days || 7) * 864e5).toISOString();
+    listingUpdate["featured_until"] = new Date(Date.now() + Number(upgrade.duration_days || 7) * 864e5).toISOString();
   } else if (upgrade.code === "bump") {
-    listingUpdate.promoted_at = paidAt;
+    listingUpdate["promoted_at"] = paidAt;
   } else if (upgrade.code === "extend") {
     const { data: listing } = await admin.from("asks").select("expires_at").eq("id", purchase.listing_id).maybeSingle();
     const base = Math.max(Date.now(), listing?.expires_at ? new Date(listing.expires_at).getTime() : Date.now());
-    listingUpdate.expires_at = new Date(base + Number(upgrade.duration_days || 30) * 864e5).toISOString();
+    listingUpdate["expires_at"] = new Date(base + Number(upgrade.duration_days || 30) * 864e5).toISOString();
   }
   if (Object.keys(listingUpdate).length) {
     const { error: listingError } = await admin.from("asks").update(listingUpdate).eq("id", purchase.listing_id).eq("seller_id", purchase.user_id);

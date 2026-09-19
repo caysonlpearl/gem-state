@@ -126,7 +126,7 @@ export type AccountSection = (typeof ACCOUNT_SECTIONS)[number];
 
 type AccountCenterProps = {
   section: AccountSection;
-  conversationId?: string;
+  conversationId?: string | undefined;
 };
 
 const intentLabels: Record<MemberIntent, string> = {
@@ -245,10 +245,7 @@ export function AccountCenter({ section, conversationId }: AccountCenterProps) {
   });
 
   function go(next: AccountSection, extra: { conversation?: string } = {}) {
-    void navigate({
-      to: "/account",
-      search: { section: next, conversation: extra.conversation },
-    });
+    void navigate({ to: "/account", search: { section: next, ...extra } });
   }
 
   async function signOut() {
@@ -2434,7 +2431,7 @@ function SellerListingCard({
           </p>
           <Link
             to="/account"
-            search={{ section: "messages", conversation: undefined }}
+            search={{ section: "messages" }}
             className="mt-1 inline-flex text-muted-foreground hover:text-foreground"
           >
             {item.leadCount ?? 0} buyer leads
@@ -2465,14 +2462,14 @@ function SellerListingCard({
             </Link>
             <Link
               to="/account"
-              search={{ section: "messages", conversation: undefined }}
+              search={{ section: "messages" }}
               className="rounded-lg px-2.5 py-2 text-left text-[11.5px] hover:bg-secondary"
             >
               View leads & messages
             </Link>
             <Link
               to="/account"
-              search={{ section: "billing", conversation: undefined }}
+              search={{ section: "billing" }}
               className="rounded-lg px-2.5 py-2 text-left text-[11.5px] hover:bg-secondary"
             >
               Promote listing

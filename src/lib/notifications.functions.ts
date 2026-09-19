@@ -34,7 +34,7 @@ export const getMyNotifications = createServerFn({ method: "GET" })
       .limit(60);
     if (error) throw new Error(error.message);
 
-    const items = (data ?? []).map((row) => ({
+    const items = (data ?? []).map((row: any) => ({
       id: row.id,
       kind: row.kind,
       title: row.title,
@@ -46,7 +46,7 @@ export const getMyNotifications = createServerFn({ method: "GET" })
       readAt: row.read_at,
       createdAt: row.created_at,
     }));
-    return { items, unread: items.filter((i) => !i.readAt).length };
+    return { items, unread: items.filter((i: { readAt: string | null }) => !i.readAt).length };
   });
 
 export const markNotificationsRead = createServerFn({ method: "POST" })
