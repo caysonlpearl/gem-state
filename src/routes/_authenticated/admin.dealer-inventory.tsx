@@ -12,7 +12,9 @@ import {
   applyDealerInventoryFeed,
   createDealerInventorySource,
   getDealerInventorySources,
+  getDealerInventorySyncRuns,
   previewDealerInventoryFeed,
+  setDealerInventorySourceStatus,
 } from "@/lib/dealer-inventory.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/dealer-inventory")({
@@ -32,8 +34,10 @@ function DealerInventoryPage() {
   const queryClient = useQueryClient();
   const fetchSources = useServerFn(getDealerInventorySources);
   const createSource = useServerFn(createDealerInventorySource);
+  const fetchSyncRuns = useServerFn(getDealerInventorySyncRuns);
   const previewFeed = useServerFn(previewDealerInventoryFeed);
   const applyFeed = useServerFn(applyDealerInventoryFeed);
+  const setSourceStatus = useServerFn(setDealerInventorySourceStatus);
   const { data: sources, isLoading } = useQuery({
     queryKey: ["dealer-inventory-sources"],
     queryFn: () => fetchSources(),
@@ -55,6 +59,11 @@ function DealerInventoryPage() {
     () => sources?.find((source) => source.id === selectedSourceId) ?? null,
     [selectedSourceId, sources],
   );
+  const { data: syncRuns, isLoading: syncRunsLoading } = useQuery({
+    queryKey: ["dealer-inventory-sync-runs", selectedSourceId],
+    queryFn: () => fetchSyncRuns({ data: { sourceId: selectedSourceId } }),
+    enabled: Boolean(selectedSourceId),
+  });
 
   const createMutation = useMutation({
     mutationFn: () => {
@@ -101,6 +110,19 @@ function DealerInventoryPage() {
     },
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "Could not preview feed."),
+  });
+
+  const statusMutation = useMutation({
+    mutationFn: (status: "active" | "paused") => {
+      if (!selectedSourceId) throw new Error("Select an inventory source first.");
+      return setSourceStatus({ data: { sourceId: selectedSourceId, status } });
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["dealer-inventory-sources"] });
+      toast.success("Inventory source status updated.");
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Could not update source status."),
   });
 
   const applyMutation = useMutation({
@@ -220,9 +242,42 @@ function DealerInventoryPage() {
             {createMutation.isPending ? "Creating…" : "Create source"}
           </Button>
           {selectedSource ? (
-            <p className="text-[11px] text-muted-foreground">
-              Status: {selectedSource.status} · Format: {selectedSource.file_format.toUpperCase()}
-            </p>
+            <div className="space-y-2 text-[11px] text-muted-foreground">
+              <p>
+                Status: {selectedSource.status} · Format: {selectedSource.file_format.toUpperCase()}
+              </p>
+              {selectedSource.last_success_at ? (
+                <p>
+                  Last successful sync: {new Date(selectedSource.last_success_at).toLocaleString()}
+                </p>
+              ) : null}
+              {selectedSource.last_error ? (
+                <p className="text-destructive">Last error: {selectedSource.last_error}</p>
+              ) : null}
+              <div className="flex gap-2">
+                {selectedSource.status === "paused" ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => statusMutation.mutate("active")}
+                    disabled={statusMutation.isPending}
+                  >
+                    Reactivate source
+                  </Button>
+                ) : (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => statusMutation.mutate("paused")}
+                    disabled={statusMutation.isPending}
+                  >
+                    Pause source
+                  </Button>
+                )}
+              </div>
+            </div>
           ) : null}
         </div>
 
@@ -291,6 +346,62 @@ function DealerInventoryPage() {
           </div>
         </div>
       </section>
+
+      {selectedSourceId ? (
+        <section className="space-y-3 rounded-lg border border-border bg-card p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-[14px] font-semibold">Sync health</h2>
+              <p className="mt-1 text-[12px] text-muted-foreground">
+                Every applied feed is recorded so changes can be traced back to a specific file and
+                run.
+              </p>
+            </div>
+            <span className="rounded-full bg-secondary px-2 py-1 text-[11px]">
+              {syncRuns?.length ?? 0} recorded run{syncRuns?.length === 1 ? "" : "s"}
+            </span>
+          </div>
+          {syncRunsLoading ? (
+            <p className="text-[12px] text-muted-foreground">Loading sync history…</p>
+          ) : syncRuns && syncRuns.length > 0 ? (
+            <div className="overflow-x-auto rounded-md border border-border">
+              <table className="w-full min-w-[760px] text-left text-[11px]">
+                <thead className="bg-secondary/50">
+                  <tr>
+                    <th className="px-3 py-2">Started</th>
+                    <th className="px-3 py-2">File</th>
+                    <th className="px-3 py-2">Status</th>
+                    <th className="px-3 py-2">Rows</th>
+                    <th className="px-3 py-2">Changes</th>
+                    <th className="px-3 py-2">Errors</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {syncRuns.slice(0, 10).map((run) => (
+                    <tr key={run.id} className="border-t border-border">
+                      <td className="px-3 py-2">{new Date(run.started_at).toLocaleString()}</td>
+                      <td className="px-3 py-2 font-mono">{run.source_filename || "—"}</td>
+                      <td className="px-3 py-2">{run.status}</td>
+                      <td className="px-3 py-2">
+                        {run.valid_row_count}/{run.received_row_count}
+                      </td>
+                      <td className="px-3 py-2">
+                        +{run.created_count} · {run.updated_count} updated · {run.stale_count} stale
+                      </td>
+                      <td className="px-3 py-2">{run.invalid_row_count}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="rounded-md border border-dashed border-border px-3 py-4 text-[12px] text-muted-foreground">
+              No syncs yet. Preview the sample feed, then apply it to create the first traceable
+              run.
+            </p>
+          )}
+        </section>
+      ) : null}
 
       {preview ? (
         <section className="space-y-4 rounded-lg border border-border bg-card p-4">

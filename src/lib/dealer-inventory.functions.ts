@@ -31,11 +31,34 @@ export type DealerInventorySourceSummary = {
   provider_name: string | null;
   source_type: string;
   file_format: string;
+  feed_url: string | null;
+  schedule: string | null;
   mapping_profile: Record<string, string>;
+  minimum_row_count: number;
+  deactivation_grace_runs: number;
   status: string;
   last_success_at: string | null;
+  last_error_at: string | null;
   last_error: string | null;
   created_at: string;
+};
+
+export type DealerInventorySyncRunSummary = {
+  id: string;
+  source_id: string;
+  mode: "dry_run" | "apply";
+  status: "running" | "completed" | "failed" | "rejected";
+  source_filename: string | null;
+  started_at: string;
+  finished_at: string | null;
+  received_row_count: number;
+  valid_row_count: number;
+  invalid_row_count: number;
+  created_count: number;
+  updated_count: number;
+  unchanged_count: number;
+  stale_count: number;
+  error_summary: Array<{ rowNumber?: number; field?: string; message?: string }>;
 };
 
 const feedInput = z.object({
@@ -61,7 +84,7 @@ export const getDealerInventorySources = createServerFn({ method: "GET" })
     const { data, error } = await (supabaseAdmin as any)
       .from("dealer_inventory_sources")
       .select(
-        "id,name,provider_name,source_type,file_format,mapping_profile,status,last_success_at,last_error,created_at",
+        "id,name,provider_name,source_type,file_format,feed_url,schedule,mapping_profile,minimum_row_count,deactivation_grace_runs,status,last_success_at,last_error_at,last_error,created_at",
       )
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
@@ -94,6 +117,39 @@ export const createDealerInventorySource = createServerFn({ method: "POST" })
     return source;
   });
 
+export const getDealerInventorySyncRuns = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) => z.object({ sourceId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }): Promise<DealerInventorySyncRunSummary[]> => {
+    await requireStaff(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: runs, error } = await (supabaseAdmin as any)
+      .from("dealer_inventory_sync_runs")
+      .select(
+        "id,source_id,mode,status,source_filename,started_at,finished_at,received_row_count,valid_row_count,invalid_row_count,created_count,updated_count,unchanged_count,stale_count,error_summary",
+      )
+      .eq("source_id", data.sourceId)
+      .order("started_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (runs ?? []) as DealerInventorySyncRunSummary[];
+  });
+
+export const setDealerInventorySourceStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: unknown) =>
+    z.object({ sourceId: z.string().uuid(), status: z.enum(["active", "paused"]) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await requireStaff(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await (supabaseAdmin as any)
+      .from("dealer_inventory_sources")
+      .update({ status: data.status })
+      .eq("id", data.sourceId);
+    if (error) throw new Error(error.message);
+    return { sourceId: data.sourceId, status: data.status };
+  });
+
 export const previewDealerInventoryFeed = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => feedInput.parse(input))
@@ -120,7 +176,31 @@ export const previewDealerInventoryFeed = createServerFn({ method: "POST" })
 
     const diff = calculateInventoryDiff(result.records, existing ?? []);
     const rejected = result.records.length < Number(source.minimum_row_count ?? 1);
+    const { data: previewRun, error: previewRunError } = await (supabaseAdmin as any)
+      .from("dealer_inventory_sync_runs")
+      .insert({
+        source_id: data.sourceId,
+        mode: "dry_run",
+        status: rejected ? "rejected" : "completed",
+        source_filename: data.filename ?? null,
+        source_checksum: result.records.map((record) => record.contentHash).join(":"),
+        raw_payload: data.csv,
+        started_at: new Date().toISOString(),
+        finished_at: new Date().toISOString(),
+        received_row_count: result.rows.length,
+        valid_row_count: result.records.length,
+        invalid_row_count: result.errors.length,
+        created_count: diff.created,
+        updated_count: diff.updated,
+        unchanged_count: diff.unchanged,
+        stale_count: diff.stale,
+        error_summary: result.errors.slice(0, 100),
+      })
+      .select("id")
+      .single();
+    if (previewRunError) throw new Error(previewRunError.message);
     return {
+      runId: previewRun.id,
       filename: data.filename ?? null,
       headers: result.headers,
       receivedRowCount: result.rows.length,
