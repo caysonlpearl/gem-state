@@ -618,7 +618,7 @@ test("main homepage presents category-curated listing rows", () => {
 test("browse heroes surface the GemList sponsorship opportunity", () => {
   assert.match(browseSource, /function SponsoredHeroBadge\(\)/);
   assert.match(browseSource, /Sponsored by GemList/);
-  assert.match(browseSource, /Your business could be here/);
+  assert.doesNotMatch(browseSource, /Your business could be here/);
   assert.match(browseSource, /to="\/advertise"/);
   assert.match(browseSource, /min-h-\[430px\]/);
   assert.match(browseSource, /min-h-\[500px\]/);
