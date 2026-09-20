@@ -441,7 +441,7 @@ export const getSellerDashboardSummary = createServerFn({ method: "GET" })
       client.from("order_payouts").select("amount_cents,status").eq("payee_id", context.userId),
       client
         .from("seller_reviews")
-        .select("id,rating,comment,created_at,profiles!reviewer_id(display_name)")
+        .select("id,rating,comment,created_at,reviewer_id")
         .eq("seller_id", context.userId)
         .order("created_at", { ascending: false })
         .limit(20),
@@ -454,12 +454,20 @@ export const getSellerDashboardSummary = createServerFn({ method: "GET" })
     if (payoutError) throw new Error(payoutError.message);
     if (reviewError) throw new Error(reviewError.message);
     const rows = payouts ?? [];
+    // seller_reviews.reviewer_id references auth.users, not profiles, so there is
+    // no foreign key for PostgREST to embed "profiles!reviewer_id(...)" through --
+    // look profiles up separately by id instead.
+    const reviewerIds = [...new Set((reviews ?? []).map((row: any) => row.reviewer_id))];
+    const { data: reviewerProfiles } = reviewerIds.length
+      ? await client.from("profiles").select("id,display_name").in("id", reviewerIds)
+      : { data: [] as any[] };
+    const reviewerNameById = new Map((reviewerProfiles ?? []).map((p: any) => [p.id, p.display_name]));
     const reviewRows = (reviews ?? []).map((row: any) => ({
       id: row.id,
       rating: Number(row.rating),
       comment: row.comment,
       createdAt: row.created_at,
-      reviewerName: row.profiles?.display_name ?? undefined,
+      reviewerName: reviewerNameById.get(row.reviewer_id) ?? undefined,
     }));
     const ratingAverage = reviewRows.length
       ? reviewRows.reduce((sum: number, row: SellerReview) => sum + row.rating, 0) /
@@ -579,34 +587,59 @@ export const getFlaggedSellerReviews = createServerFn({ method: "GET" })
     await requireAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
-    const { data: reviews, error } = await admin
-      .from("seller_reviews")
-      .select(
-        "id,seller_id,reviewer_id,rating,comment,created_at," +
-          "seller:profiles!seller_id(display_name)," +
-          "reviewer:profiles!reviewer_id(display_name)," +
-          "seller_review_flags(id,reason,created_at,flagger:profiles!flagger_id(display_name))",
-      )
-      .eq("status", "flagged")
-      .order("created_at", { referencedTable: "seller_review_flags", ascending: false });
+    // seller_reviews/seller_review_flags reference auth.users, not profiles, so
+    // PostgREST has no foreign key to embed "profiles!x_id(...)" through --
+    // look profiles up separately by id instead of relying on embed shorthand.
+    const [{ data: reviews, error }, { data: flags, error: flagsError }] = await Promise.all([
+      admin
+        .from("seller_reviews")
+        .select("id,seller_id,reviewer_id,rating,comment,created_at")
+        .eq("status", "flagged")
+        .order("created_at", { ascending: false }),
+      admin
+        .from("seller_review_flags")
+        .select("id,review_id,flagger_id,reason,created_at,resolved_at")
+        .is("resolved_at", null)
+        .order("created_at", { ascending: false }),
+    ]);
     if (error) throw new Error(error.message);
+    if (flagsError) throw new Error(flagsError.message);
+
+    const userIds = new Set<string>();
+    for (const review of reviews ?? []) {
+      userIds.add(review.seller_id);
+      userIds.add(review.reviewer_id);
+    }
+    for (const flag of flags ?? []) userIds.add(flag.flagger_id);
+    const { data: profiles, error: profilesError } = await admin
+      .from("profiles")
+      .select("id,display_name")
+      .in("id", Array.from(userIds));
+    if (profilesError) throw new Error(profilesError.message);
+    const nameById = new Map((profiles ?? []).map((p: any) => [p.id, p.display_name]));
+
+    const flagsByReview = new Map<string, typeof flags>();
+    for (const flag of flags ?? []) {
+      const list = flagsByReview.get(flag.review_id) ?? [];
+      list.push(flag);
+      flagsByReview.set(flag.review_id, list as any);
+    }
+
     return (reviews ?? []).map((review: any) => ({
       reviewId: review.id,
       sellerId: review.seller_id,
-      sellerName: review.seller?.display_name ?? "Unknown seller",
+      sellerName: nameById.get(review.seller_id) ?? "Unknown seller",
       reviewerId: review.reviewer_id,
-      reviewerName: review.reviewer?.display_name ?? "Unknown member",
+      reviewerName: nameById.get(review.reviewer_id) ?? "Unknown member",
       rating: Number(review.rating),
       comment: review.comment,
       reviewCreatedAt: review.created_at,
-      flags: (review.seller_review_flags ?? [])
-        .filter((flag: any) => !flag.resolved_at)
-        .map((flag: any) => ({
-          id: flag.id,
-          reason: flag.reason,
-          flaggerName: flag.flagger?.display_name ?? "Unknown member",
-          createdAt: flag.created_at,
-        })),
+      flags: (flagsByReview.get(review.id) ?? []).map((flag: any) => ({
+        id: flag.id,
+        reason: flag.reason,
+        flaggerName: nameById.get(flag.flagger_id) ?? "Unknown member",
+        createdAt: flag.created_at,
+      })),
     }));
   });
 
@@ -843,7 +876,7 @@ export const getPublicSeller = createServerFn({ method: "GET" })
         .order("created_at", { ascending: false }),
       client
         .from("seller_reviews")
-        .select("id,rating,comment,created_at,reviewer_id,profiles!reviewer_id(display_name,avatar_url)")
+        .select("id,rating,comment,created_at,reviewer_id")
         .eq("seller_id", seller.user_id)
         .order("created_at", { ascending: false })
         .limit(20),
@@ -853,6 +886,14 @@ export const getPublicSeller = createServerFn({ method: "GET" })
     const ratingAverage = reviewCount
       ? allRatings!.reduce((sum: number, row: any) => sum + Number(row.rating), 0) / reviewCount
       : null;
+    // seller_reviews.reviewer_id references auth.users, not profiles, so there is
+    // no foreign key for PostgREST to embed "profiles!reviewer_id(...)" through --
+    // look profiles up separately by id instead.
+    const reviewerIds = [...new Set((reviewRows ?? []).map((row: any) => row.reviewer_id))];
+    const { data: reviewerProfiles } = reviewerIds.length
+      ? await client.from("profiles").select("id,display_name,avatar_url").in("id", reviewerIds)
+      : { data: [] as any[] };
+    const reviewerById = new Map<string, any>((reviewerProfiles ?? []).map((p: any) => [p.id, p]));
     const listings: PublicListing[] = await Promise.all(
       (askRows ?? []).map(async (row: any) => ({
         id: row.id,
@@ -900,8 +941,8 @@ export const getPublicSeller = createServerFn({ method: "GET" })
         rating: Number(row.rating),
         comment: row.comment,
         createdAt: row.created_at,
-        reviewerName: row.profiles?.display_name ?? "Gem State member",
-        reviewerAvatarUrl: row.profiles?.avatar_url ?? null,
+        reviewerName: reviewerById.get(row.reviewer_id)?.display_name ?? "Gem State member",
+        reviewerAvatarUrl: reviewerById.get(row.reviewer_id)?.avatar_url ?? null,
       })),
     };
   });
