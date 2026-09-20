@@ -294,14 +294,13 @@ function SellingPage() {
       </div>
       <SellerCenterNav storefrontSlug={sellerSetup.data?.slug} />
 
-      <section className="mt-7 grid grid-cols-2 gap-px border border-border bg-border lg:grid-cols-4">
+      <section className="mt-7 grid grid-cols-2 gap-px border border-border bg-border lg:grid-cols-3">
         <Metric label="Active listings" value={String(activeAsks.length)} />
         <Metric
           label="Awaiting approval"
           value={String(pendingAsks.length + heldRequests.length)}
         />
         <Metric label="Buyer inquiries" value={String(listingInquiries.data?.length ?? 0)} />
-        <Metric label="Platform payments" value="Not active" />
       </section>
 
       <section id="listings" className="mt-9 scroll-mt-28">
@@ -689,82 +688,6 @@ function SellingPage() {
               </li>
             ))}
         </ul>
-      </section>
-
-      <section id="sales" className="mt-10 scroll-mt-28">
-        <div className="border-b border-border pb-3">
-          <h2 className="text-[14px] font-semibold">Sales and shipping</h2>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">
-            Paid sales only. Open a sale to see the shipping address, print a label and add
-            tracking.
-          </p>
-        </div>
-        {orders.isLoading ? (
-          <p className="mt-3 text-[13px] text-muted-foreground">Loading…</p>
-        ) : null}
-        {!orders.isLoading && soldOrders.length === 0 ? (
-          <p className="py-7 text-[12.5px] text-muted-foreground">No paid sales yet.</p>
-        ) : null}
-        {soldOrders.length > 0 ? (
-          <ul className="divide-y divide-border border-b border-border">
-            {soldOrders.map((order) => (
-              <li key={order.id} className="flex flex-wrap items-center justify-between gap-3 py-4">
-                <div>
-                  <Link
-                    to="/orders/$orderId"
-                    params={{ orderId: order.id }}
-                    className="text-[13px] font-semibold hover:underline"
-                  >
-                    {order.productName}
-                  </Link>
-                  <p className="mt-0.5 text-[11.5px] text-muted-foreground">
-                    <span className="numeric">{order.orderNumber}</span> · {order.variantLabel} ·{" "}
-                    {sellerStatusLabels[order.status] ?? order.status}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="numeric text-[13px] font-semibold">
-                    {formatUsd(order.payoutCents)}
-                  </p>
-                  <p className="text-[10.5px] text-muted-foreground">your payout</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-
-        {reservedOrders.length > 0 ? (
-          <div className="mt-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-              Reserved — buyer is checking out
-            </p>
-            <ul className="mt-2 divide-y divide-border border-y border-border">
-              {reservedOrders.map((order) => (
-                <li
-                  key={order.id}
-                  className="flex flex-wrap items-center justify-between gap-3 py-4"
-                >
-                  <div>
-                    <p className="text-[13px] font-semibold">{order.productName}</p>
-                    <p className="mt-0.5 text-[11.5px] text-muted-foreground">
-                      {order.variantLabel} · {sellerStatusLabels[order.status] ?? order.status}
-                    </p>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground">Nothing to do yet</p>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : null}
-
-        <div className="mt-4 grid grid-cols-2 gap-px border border-border bg-border sm:grid-cols-3">
-          <Metric
-            label="Awaiting payout"
-            value={formatUsd(summary.data?.pendingPayoutCents ?? 0)}
-          />
-          <Metric label="Paid out" value={formatUsd(summary.data?.paidOutCents ?? 0)} />
-          <Metric label="Items sold" value={String(soldOrders.length)} />
-        </div>
       </section>
 
       <section id="reviews" className="mt-10 scroll-mt-28">
