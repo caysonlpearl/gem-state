@@ -1011,13 +1011,16 @@ function ProfileSection({
           profileMutation.mutate();
         }}
       >
-        <SectionTitle title="Public details" />
+        <SectionTitle
+          title="Public details"
+          action={<span className="text-[11px] text-muted-foreground">Edit the fields below</span>}
+        />
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <Field label="Display name">
             <input
               value={displayName}
               onChange={(event) => setDisplayName(event.target.value)}
-              className="field"
+              className="mt-2 block h-11 w-full rounded-xl border border-input bg-background px-3 text-[13px] outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-ring/30"
               maxLength={40}
             />
           </Field>
@@ -1025,7 +1028,7 @@ function ProfileSection({
             <select
               value={market}
               onChange={(event) => setMarket(event.target.value)}
-              className="field"
+              className="mt-2 block h-11 w-full rounded-xl border border-input bg-background px-3 text-[13px] outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-ring/30"
             >
               <option value="">Select a market</option>
               {brand.markets.map((item) => (
@@ -1040,7 +1043,7 @@ function ProfileSection({
           <select
             value={intent}
             onChange={(event) => setIntent(event.target.value as MemberIntent)}
-            className="field"
+            className="mt-2 block h-11 w-full rounded-xl border border-input bg-background px-3 text-[13px] outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-ring/30"
           >
             <option value="">Select an option</option>
             {MEMBER_INTENTS.map((value) => (
@@ -2864,14 +2867,14 @@ function BillingSection({
           />
         ) : (
           <div className="mt-5 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
-            <label className="field">
+            <label className="block rounded-xl border border-input bg-background px-3 py-2.5 text-[12px] font-medium">
               <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
                 Listing
               </span>
               <select
                 value={listingId}
                 onChange={(event) => setListingId(event.target.value)}
-                className="w-full bg-transparent outline-none"
+                className="mt-1 h-8 w-full rounded-lg bg-transparent text-[13px] outline-none focus:ring-2 focus:ring-ring/30"
               >
                 {eligibleListings.map((item) => (
                   <option key={item.id} value={item.id}>
@@ -2880,14 +2883,14 @@ function BillingSection({
                 ))}
               </select>
             </label>
-            <label className="field">
+            <label className="block rounded-xl border border-input bg-background px-3 py-2.5 text-[12px] font-medium">
               <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
                 Upgrade
               </span>
               <select
                 value={upgradeCode}
                 onChange={(event) => setUpgradeCode(event.target.value)}
-                className="w-full bg-transparent outline-none"
+                className="mt-1 h-8 w-full rounded-lg bg-transparent text-[13px] outline-none focus:ring-2 focus:ring-ring/30"
               >
                 {options.map((item) => (
                   <option key={item.code} value={item.code}>
@@ -2902,7 +2905,7 @@ function BillingSection({
               disabled={checkout.isPending || !listingId || !upgradeCode}
               className="h-10 self-end rounded-xl bg-accent px-4 text-[12px] font-semibold text-accent-foreground disabled:opacity-60"
             >
-              {checkout.isPending ? "Opening Stripe…" : "Continue to Stripe"}
+              {checkout.isPending ? "Opening secure checkout…" : "Upgrade your listing now"}
             </button>
           </div>
         )}
@@ -2919,18 +2922,12 @@ function BillingSection({
             </div>
           ))}
         </div>
-        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-secondary/45 p-3">
-          <p className="text-[11.5px] text-muted-foreground">
-            Stripe seller connection:{" "}
-            {sellerSetup?.stripeAccountModeCurrent ? "Connected" : "Platform checkout ready"}
+        <div className="mt-5 flex items-start gap-2 rounded-xl bg-secondary/45 p-3">
+          <ShieldCheck size={17} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
+          <p className="text-[11.5px] leading-relaxed text-muted-foreground">
+            Secure checkout is handled by Stripe. You do not need to connect a Stripe seller account
+            to purchase a listing upgrade.
           </p>
-          <Link
-            to="/seller-setup"
-            className="text-[12px] font-semibold text-primary hover:underline"
-          >
-            Seller setup
-            <ArrowRight size={13} className="ml-1 inline" />
-          </Link>
         </div>
       </section>
       <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
@@ -3077,7 +3074,7 @@ function Field({
 }) {
   return (
     <label className={`block text-[12px] font-medium ${className}`}>
-      {label}
+      <span className="block">{label}</span>
       {children}
     </label>
   );

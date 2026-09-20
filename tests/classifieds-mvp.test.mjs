@@ -379,6 +379,16 @@ test("account center exposes the unified sections and preserves legacy entry poi
   assert.match(accountCenterSource, /Set up seller profile/);
 });
 
+test("account profile editing and listing upgrades use clear current-state controls", () => {
+  assert.match(accountCenterSource, /Edit the fields below/);
+  assert.match(accountCenterSource, /h-11 w-full rounded-xl border border-input/);
+  assert.match(accountCenterSource, /Upgrade your listing now/);
+  assert.match(accountCenterSource, /Secure checkout is handled by Stripe/);
+  assert.match(accountCenterSource, /do not need to connect a Stripe seller account/);
+  assert.doesNotMatch(accountCenterSource, /Continue to Stripe/);
+  assert.doesNotMatch(accountCenterSource, /Stripe seller connection:/);
+});
+
 test("account profile supports an authenticated public profile picture", () => {
   assert.match(accountCenterSource, /profile-photo-upload/);
   assert.match(accountCenterSource, /profile-avatars/);
@@ -443,7 +453,7 @@ test("seller billing is catalog-backed and settles upgrades through Stripe webho
   assert.match(stripeServerSource, /checkout\.session\.async_payment_failed/);
   assert.match(stripeServerSource, /payment_intent\.payment_failed/);
   assert.match(stripeServerSource, /status: "failed"/);
-  assert.match(accountCenterSource, /Continue to Stripe/);
+  assert.match(accountCenterSource, /Upgrade your listing now/);
   assert.match(accountCenterSource, /queryKey: \["my-listings"\][\s\S]*?enabled: true/);
 });
 
