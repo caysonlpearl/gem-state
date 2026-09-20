@@ -526,13 +526,27 @@ test("main homepage presents category-curated listing rows", () => {
   assert.match(homeSource, /function HomepageListingRow/);
   for (const title of [
     "Fresh local finds",
-    "Homes & rentals worth a look",
+    "New vehicle arrivals",
+    "Trucks, SUVs & pickups",
+    "Affordable vehicles",
+    "Homes for sale",
+    "New builds to explore",
+    "Rentals worth a look",
     "Jobs hiring now",
+    "Flexible and part-time work",
     "Services for your next project",
+    "Home services and repairs",
     "Everyday finds from local sellers",
+    "Toys and collectibles",
+    "Value finds under $100",
+    "More from local sellers",
   ]) {
-    assert.match(homeSource, new RegExp(title.replace(/[&]/g, "\\&")));
+    assert.match(homeSource, new RegExp(title.replaceAll("$", "\\$")));
   }
+  assert.match(homeSource, /function HomepageInfoBand/);
+  assert.match(homeSource, /How GemList works/);
+  assert.match(homeSource, /For sellers and businesses/);
+  assert.match(homeSource, /A marketplace with a local feel/);
   assert.match(homeSource, /home\.recent\.filter\(\(listing\) => listing\.home\)/);
   assert.match(homeSource, /home\.recent\.filter\(\(listing\) => listing\.job\)/);
   assert.match(homeSource, /home\.recent\.filter\(\(listing\) => listing\.service\)/);
