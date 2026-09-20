@@ -627,6 +627,8 @@ test("browse heroes surface the GemList sponsorship opportunity", () => {
   assert.match(browseSource, /GemList Services/);
   assert.match(browseSource, /GemList Jobs/);
   assert.match(browseSource, /Gem State motors/);
+  assert.match(browseSource, /min-h-\[590px\]/);
+  assert.match(browseSource, /absolute right-5 top-5 z-20 sm:right-7 sm:top-7/);
 });
 
 test("shared category icons and no-photo cards have deterministic presentation", () => {

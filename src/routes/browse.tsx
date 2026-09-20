@@ -7648,12 +7648,12 @@ function VehicleBrowseHero({
   }
 
   return (
-    <section className="floating-card relative min-h-[430px] overflow-visible bg-surface px-5 py-10 sm:min-h-[500px] sm:px-8 sm:py-12">
+    <section className="floating-card relative min-h-[500px] overflow-visible bg-surface px-5 py-12 sm:min-h-[590px] sm:px-8 sm:py-14">
       <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]">
         <div className="absolute -right-24 -top-32 h-72 w-72 rounded-full bg-brand-warm/35" />
         <div className="absolute -bottom-36 left-1/3 h-64 w-64 rounded-full bg-primary/5" />
       </div>
-      <div className="absolute left-5 top-5 z-20 sm:left-7 sm:top-7">
+      <div className="absolute right-5 top-5 z-20 sm:right-7 sm:top-7">
         <SponsoredHeroBadge />
       </div>
 
