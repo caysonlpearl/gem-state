@@ -588,24 +588,6 @@ export function ListingForm(props: ListingFormProps) {
             </label>
           </>
         )}
-        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {[
-            ["length", "Length (in)"],
-            ["width", "Width (in)"],
-            ["height", "Height (in)"],
-            ["weight", "Weight (lb)"],
-          ].map(([key, label]) => (
-            <label key={key} className="text-[11px] text-muted-foreground">
-              {label}
-              <input
-                value={form[key as keyof ListingFormState]}
-                onChange={(event) => set(key as keyof ListingFormState, event.target.value)}
-                inputMode="decimal"
-                className={`${fieldClass} numeric`}
-              />
-            </label>
-          ))}
-        </div>
       </section>
 
       <section className="flex flex-wrap items-center justify-between gap-4 border border-border bg-secondary/50 p-5 sm:p-6">
