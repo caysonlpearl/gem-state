@@ -4,9 +4,7 @@ type WeeklyTopCandidate = {
 };
 
 export function getUtcWeekKey(date = new Date()) {
-  const monday = new Date(
-    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
-  );
+  const monday = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
   const daysSinceMonday = (monday.getUTCDay() + 6) % 7;
   monday.setUTCDate(monday.getUTCDate() - daysSinceMonday);
   return monday.toISOString().slice(0, 10);

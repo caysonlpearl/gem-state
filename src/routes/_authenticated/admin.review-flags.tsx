@@ -43,11 +43,12 @@ function FlaggedReviewRow({ review }: { review: FlaggedSellerReview }) {
         <div className="min-w-[260px] flex-1">
           <p className="text-[13px] font-semibold">
             Review of {review.sellerName}
-            <span className="ml-2 font-normal text-muted-foreground">
-              by {review.reviewerName}
-            </span>
+            <span className="ml-2 font-normal text-muted-foreground">by {review.reviewerName}</span>
           </p>
-          <p className="mt-1 flex items-center gap-0.5 text-primary" aria-label={`${review.rating} out of 5 stars`}>
+          <p
+            className="mt-1 flex items-center gap-0.5 text-primary"
+            aria-label={`${review.rating} out of 5 stars`}
+          >
             {Array.from({ length: 5 }, (_, index) => (
               <Star key={index} size={13} weight={index < review.rating ? "fill" : "regular"} />
             ))}
@@ -120,7 +121,8 @@ function ReviewFlagsPage() {
       <section className="rounded-lg border border-border bg-card">
         <div className="border-b border-border px-4 py-3">
           <h2 className="text-[13px] font-semibold">
-            Awaiting review <span className="numeric text-muted-foreground">{data?.length ?? 0}</span>
+            Awaiting review{" "}
+            <span className="numeric text-muted-foreground">{data?.length ?? 0}</span>
           </h2>
         </div>
         {isLoading ? (

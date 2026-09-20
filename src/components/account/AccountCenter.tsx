@@ -499,7 +499,9 @@ const accountSectionTitles: Record<AccountSection, { title: string; body: string
 };
 
 function SkeletonBlock({ className }: { className: string }) {
-  return <div aria-hidden="true" className={`animate-pulse rounded-xl bg-secondary ${className}`} />;
+  return (
+    <div aria-hidden="true" className={`animate-pulse rounded-xl bg-secondary ${className}`} />
+  );
 }
 
 function AccountSectionSkeleton({ section }: { section: AccountSection }) {
@@ -1987,22 +1989,24 @@ function MessagesSection({
       item.listingTitle.toLowerCase().includes(query.toLowerCase()),
   );
   const selected = activeList.find((item) => item.id === activeId) ?? activeList[0];
+  const selectedId = selected?.id;
+  const selectedUnread = selected?.unread ?? false;
   useEffect(() => {
-    if (!selected) {
+    if (!selectedId) {
       setDetail(null);
       return;
     }
-    void fetchConversation({ data: { id: selected.id } })
+    void fetchConversation({ data: { id: selectedId } })
       .then(async (value) => {
         setDetail(value);
-        if (selected.unread) {
-          await markRead({ data: { conversationId: selected.id } });
+        if (selectedUnread) {
+          await markRead({ data: { conversationId: selectedId } });
           await queryClient.invalidateQueries({ queryKey: ["conversations"] });
           await queryClient.invalidateQueries({ queryKey: ["notifications"] });
         }
       })
       .catch(() => setDetail(null));
-  }, [selected?.id]);
+  }, [fetchConversation, markRead, queryClient, selectedId, selectedUnread]);
   const sendMutation = useMutation({
     mutationFn: () => send({ data: { conversationId: selected?.id ?? "", body } }),
     onSuccess: async () => {

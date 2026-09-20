@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- shipping quote rows are migration-backed runtime data */
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -42,7 +43,7 @@ export const getShopperShipping = createServerFn({ method: "GET" })
   });
 export const saveShopperShipping = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: ShopperShipping) => shippingSchema.parse(input))
+  .validator((input: ShopperShipping) => shippingSchema.parse(input))
   .handler(async ({ data, context }) => {
     const { error } = await (context.supabase as any).rpc("save_shopper_shipping", {
       _shipping: data,

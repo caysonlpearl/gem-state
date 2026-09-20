@@ -189,7 +189,7 @@ export const getAdminCatalogConsole = createServerFn({ method: "GET" })
 
 export const adminCreateProduct = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
+  .validator(
     (input: {
       name: string;
       slug?: string | null;
@@ -286,7 +286,7 @@ export const adminCreateProduct = createServerFn({ method: "POST" })
 
 export const adminReviewSuggestion = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { suggestionId: string; status: string; note?: string | null }) => {
+  .validator((input: { suggestionId: string; status: string; note?: string | null }) => {
     const allowed: SuggestionStatus[] = ["in_review", "rejected", "merged_duplicate"];
     const status = input.status as SuggestionStatus;
     if (!allowed.includes(status)) {
@@ -310,7 +310,7 @@ export const adminReviewSuggestion = createServerFn({ method: "POST" })
 
 export const adminUpdateAskPrice = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { askId: string; priceCents: number; note?: string | null }) => {
+  .validator((input: { askId: string; priceCents: number; note?: string | null }) => {
     const priceCents = Math.round(Number(input.priceCents));
     if (!Number.isFinite(priceCents) || priceCents < 100 || priceCents > 1000000000) {
       throw new Error("Enter a realistic listing price.");
@@ -333,7 +333,7 @@ export const adminUpdateAskPrice = createServerFn({ method: "POST" })
 
 export const adminReviewAsk = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { askId: string; approve: boolean; note?: string | null }) => ({
+  .validator((input: { askId: string; approve: boolean; note?: string | null }) => ({
     askId: String(input.askId),
     approve: Boolean(input.approve),
     note: String(input.note ?? "").trim() || null,
@@ -402,7 +402,7 @@ export type AdminProductDetail = {
 
 export const adminSearchProducts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { query?: string | null }) => ({
+  .validator((input: { query?: string | null }) => ({
     query: String(input?.query ?? "")
       .trim()
       .slice(0, 80),
@@ -427,7 +427,7 @@ export const adminSearchProducts = createServerFn({ method: "GET" })
 
 export const adminGetProductDetail = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { productId: string }) => ({ productId: String(input.productId) }))
+  .validator((input: { productId: string }) => ({ productId: String(input.productId) }))
   .handler(async ({ data, context }) => {
     const { data: raw, error } = await context.supabase.rpc("admin_product_detail", {
       _product_id: data.productId,
@@ -470,7 +470,7 @@ export const adminGetProductDetail = createServerFn({ method: "GET" })
 
 export const adminUpdateProduct = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
+  .validator(
     (input: {
       productId: string;
       name: string;
@@ -560,7 +560,7 @@ export const adminUpdateProduct = createServerFn({ method: "POST" })
 
 export const adminSaveVariant = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
+  .validator(
     (input: {
       productId: string;
       variantId?: string | null;
@@ -605,7 +605,7 @@ export const adminSaveVariant = createServerFn({ method: "POST" })
 
 export const adminUpdateProductImage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
+  .validator(
     (input: {
       imageId: string;
       alt?: string | null;
@@ -642,7 +642,7 @@ export const adminUpdateProductImage = createServerFn({ method: "POST" })
 
 export const adminAddProductImage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
+  .validator(
     (input: {
       productId: string;
       storagePath: string;
@@ -679,7 +679,7 @@ export const adminAddProductImage = createServerFn({ method: "POST" })
 
 export const adminDeleteProductImage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { imageId: string }) => ({ imageId: String(input.imageId) }))
+  .validator((input: { imageId: string }) => ({ imageId: String(input.imageId) }))
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase.rpc("admin_delete_product_image", {
       _image_id: data.imageId,

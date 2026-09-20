@@ -73,7 +73,7 @@ export function ShopperJobsDashboard({ userId }: { userId: string }) {
   const [receipt, setReceipt] = useState<File | null>(null);
 
   const jobs = useQuery({ queryKey: ["shopper-jobs"], queryFn: () => fetchJobs() });
-  const rows = jobs.data ?? [];
+  const rows = useMemo(() => jobs.data ?? [], [jobs.data]);
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: ["shopper-jobs"] });
     void queryClient.invalidateQueries({ queryKey: ["my-orders"] });

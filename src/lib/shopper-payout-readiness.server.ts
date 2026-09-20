@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- connected-account readiness uses provider payloads */
 import {
   stripeAccountMatchesCurrentMode,
   getParkVaultConnectedAccount,

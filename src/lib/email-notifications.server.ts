@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- notification payloads are selected by template at runtime */
 /**
  * Server-only email notifications.
  *
@@ -131,7 +132,8 @@ export async function emailMarketplaceMessage(
       .maybeSingle();
     if (!conversation) return;
 
-    const recipientId = conversation.buyer_id === senderId ? conversation.seller_id : conversation.buyer_id;
+    const recipientId =
+      conversation.buyer_id === senderId ? conversation.seller_id : conversation.buyer_id;
     const { data: preferences } = await client
       .from("account_notification_preferences")
       .select("message_alerts")
@@ -139,9 +141,7 @@ export async function emailMarketplaceMessage(
       .maybeSingle();
     if (preferences?.message_alerts === false) return;
 
-    let latestMessageQuery = client
-      .from("conversation_messages")
-      .select("id,body")
+    const latestMessageQuery = client.from("conversation_messages").select("id,body");
     const { data: latestMessage } = await (messageId
       ? latestMessageQuery.eq("id", messageId).maybeSingle()
       : latestMessageQuery

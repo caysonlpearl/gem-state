@@ -42,12 +42,14 @@ function BuyingPage() {
   }, []);
 
   useEffect(() => {
-    void reconcileOfferCheckouts().then(() => {
-      void queryClient.invalidateQueries({ queryKey: ["listing-offers", "buyer"] });
-    }).catch(() => {
-      // The webhook remains the primary settlement path; a transient
-      // reconciliation failure should not interrupt the buyer page.
-    });
+    void reconcileOfferCheckouts()
+      .then(() => {
+        void queryClient.invalidateQueries({ queryKey: ["listing-offers", "buyer"] });
+      })
+      .catch(() => {
+        // The webhook remains the primary settlement path; a transient
+        // reconciliation failure should not interrupt the buyer page.
+      });
   }, [reconcileOfferCheckouts, queryClient]);
 
   const listings = useQuery({ queryKey: ["my-listings"], queryFn: () => fetchListings() });

@@ -140,7 +140,7 @@ export type ClassifiedListingReportInput = {
 /** Members can report a public listing once; moderation staff review the queue. */
 export const reportClassifiedListing = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: ClassifiedListingReportInput) => {
+  .validator((input: ClassifiedListingReportInput) => {
     const listingId = String(input.listingId ?? "").trim();
     const reason = String(input.reason ?? "").trim();
     const details = input.details == null ? null : String(input.details).trim();
@@ -340,7 +340,7 @@ export type CreateClassifiedListingInput = ClassifiedListingInput & {
 
 export const createClassifiedListing = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: CreateClassifiedListingInput): CreateClassifiedListingInput => {
+  .validator((input: CreateClassifiedListingInput): CreateClassifiedListingInput => {
     const parsed = classifiedListingSchema.parse(input);
     const positive = (value: number | null | undefined) =>
       value == null || (Number.isFinite(value) && value > 0) ? (value ?? null) : null;
@@ -437,7 +437,7 @@ const EDITOR_DETAILS_SELECT =
 
 export const getClassifiedListingEditor = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { listingId: string }) => ({ listingId: String(input.listingId) }))
+  .validator((input: { listingId: string }) => ({ listingId: String(input.listingId) }))
   .handler(async ({ data, context }): Promise<ClassifiedListingEditor | null> => {
     const client = context.supabase as any;
     const { data: row, error } = await client
@@ -514,7 +514,7 @@ export type UpdateClassifiedListingInput = {
 
 export const updateClassifiedListing = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: UpdateClassifiedListingInput): UpdateClassifiedListingInput => {
+  .validator((input: UpdateClassifiedListingInput): UpdateClassifiedListingInput => {
     const parsed = classifiedListingSchema.parse(input);
     return {
       ...parsed,
@@ -992,7 +992,7 @@ const num = (value: unknown) => {
 };
 
 export const browseClassifieds = createServerFn({ method: "GET" })
-  .inputValidator((input: ClassifiedBrowseInput): ClassifiedBrowseInput => ({
+  .validator((input: ClassifiedBrowseInput): ClassifiedBrowseInput => ({
     q: text(input?.q),
     category: text(input?.category, 60),
     homeTab:
@@ -1258,7 +1258,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
 }
 
 export const getClassifiedListing = createServerFn({ method: "GET" })
-  .inputValidator((input: { id: string }) => ({ id: String(input.id).slice(0, 64) }))
+  .validator((input: { id: string }) => ({ id: String(input.id).slice(0, 64) }))
   .handler(async ({ data }): Promise<ClassifiedDetail | null> => {
     const mockListing = mockClassifiedListings.find((listing) => listing.id === data.id);
     if (mockListing) return mockDetail(mockListing);
@@ -1366,7 +1366,7 @@ export const getClassifiedListing = createServerFn({ method: "GET" })
 export type ClassifiedRelated = { listings: ClassifiedCard[] };
 
 export const getRelatedClassifieds = createServerFn({ method: "GET" })
-  .inputValidator(
+  .validator(
     (input: { category?: string; region?: string; sellerSlug?: string; excludeId: string }) => ({
       category: text(input?.category, 60),
       region: text(input?.region),

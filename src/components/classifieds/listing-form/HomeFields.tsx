@@ -202,7 +202,8 @@ export function HomeFields({
       ) : (
         <div className="grid gap-4 border-t border-border/70 pt-5 sm:grid-cols-2 lg:grid-cols-3">
           <label className="text-[12px] font-medium">
-            Appliances included <span className="font-normal text-muted-foreground">(optional)</span>
+            Appliances included{" "}
+            <span className="font-normal text-muted-foreground">(optional)</span>
             <input
               value={form.appliancesIncluded}
               onChange={(event) => set("appliancesIncluded", event.target.value)}

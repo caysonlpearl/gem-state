@@ -2063,346 +2063,348 @@ function Browse() {
                   {search.savedSearchId ? "Update saved search" : "Save this search"}
                 </button>
                 <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
-                <SheetTrigger asChild>
-                  <button
-                    type="button"
-                    className={`inline-flex h-11 items-center gap-2 rounded-full border border-input bg-card px-5 text-[13px] font-semibold shadow-sm transition-shadow hover:shadow-md ${motors || homes ? "hidden" : ""}`}
-                  >
-                    <FunnelSimple size={17} className="text-primary" />
-                    Filters
-                    {activeFilterCount > 0 && (
-                      <span className="grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1.5 text-[10px] font-bold">
-                        {activeFilterCount}
-                      </span>
-                    )}
-                  </button>
-                </SheetTrigger>
-                <SheetContent side="right" className="w-full overflow-y-auto p-0 sm:max-w-lg">
-                  <SheetHeader className="border-b border-border px-6 py-6 pr-16 text-left">
-                    <SheetTitle className="text-[22px] tracking-tight">Filter listings</SheetTitle>
-                    <SheetDescription>
-                      Narrow down local items, or add every vehicle detail that matters.
-                    </SheetDescription>
-                  </SheetHeader>
-                  <form onSubmit={applyFilters} className="space-y-6 px-6 py-6">
-                    <input type="hidden" name="group" value={search.group ?? ""} />
-                    <FilterSection title="Category">
-                      <select
-                        name="category"
-                        defaultValue={search.category ?? ""}
-                        className="filter-input"
-                      >
-                        <option value="">All categories</option>
-                        {classifiedCategories.map((category) => (
-                          <option key={category.slug} value={category.slug}>
-                            {category.name}
-                          </option>
-                        ))}
-                      </select>
-                    </FilterSection>
-
-                    <FilterSection
-                      title="Location"
-                      icon={<MapPin size={13} className="text-primary" />}
+                  <SheetTrigger asChild>
+                    <button
+                      type="button"
+                      className={`inline-flex h-11 items-center gap-2 rounded-full border border-input bg-card px-5 text-[13px] font-semibold shadow-sm transition-shadow hover:shadow-md ${motors || homes ? "hidden" : ""}`}
                     >
-                      <select
-                        name="region"
-                        defaultValue={search.region ?? ""}
-                        className="filter-input"
-                      >
-                        <option value="">All of Idaho</option>
-                        {idahoRegions.map((region) => (
-                          <option key={region} value={region}>
-                            {region}
-                          </option>
-                        ))}
-                      </select>
-                      <select
-                        name="state"
-                        defaultValue={search.state ?? ""}
-                        className="filter-input"
-                      >
-                        <option value="">All states</option>
-                        {usStates.map(([code, name]) => (
-                          <option key={code} value={code}>
-                            {name}
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        name="city"
-                        defaultValue={search.city ?? ""}
-                        placeholder="City"
-                        className="filter-input"
-                        maxLength={80}
-                      />
-                    </FilterSection>
-
-                    <FilterSection title="Price">
-                      <div className="grid grid-cols-2 gap-2">
-                        <input
-                          name="priceMin"
-                          type="number"
-                          min="0"
-                          step="1"
-                          defaultValue={search.priceMin ?? ""}
-                          placeholder="Min"
-                          className="filter-input"
-                        />
-                        <input
-                          name="priceMax"
-                          type="number"
-                          min="0"
-                          step="1"
-                          defaultValue={search.priceMax ?? ""}
-                          placeholder="Max"
-                          className="filter-input"
-                        />
-                      </div>
-                    </FilterSection>
-
-                    <FilterSection title="Condition and fulfillment">
-                      <select
-                        name="condition"
-                        defaultValue={search.condition ?? ""}
-                        className="filter-input"
-                      >
-                        <option value="">Any condition</option>
-                        {conditionOptions.map(([value, label]) => (
-                          <option key={value} value={value}>
-                            {label}
-                          </option>
-                        ))}
-                      </select>
-                      <select
-                        name="fulfillment"
-                        defaultValue={search.fulfillment ?? ""}
-                        className="filter-input"
-                      >
-                        <option value="">Any fulfillment</option>
-                        <option value="local_pickup">Local pickup</option>
-                        <option value="shipping">Ships</option>
-                        <option value="both">Pickup or shipping</option>
-                      </select>
-                    </FilterSection>
-
-                    {pets && (
-                      <FilterSection title="Pet details">
+                      <FunnelSimple size={17} className="text-primary" />
+                      Filters
+                      {activeFilterCount > 0 && (
+                        <span className="grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1.5 text-[10px] font-bold">
+                          {activeFilterCount}
+                        </span>
+                      )}
+                    </button>
+                  </SheetTrigger>
+                  <SheetContent side="right" className="w-full overflow-y-auto p-0 sm:max-w-lg">
+                    <SheetHeader className="border-b border-border px-6 py-6 pr-16 text-left">
+                      <SheetTitle className="text-[22px] tracking-tight">
+                        Filter listings
+                      </SheetTitle>
+                      <SheetDescription>
+                        Narrow down local items, or add every vehicle detail that matters.
+                      </SheetDescription>
+                    </SheetHeader>
+                    <form onSubmit={applyFilters} className="space-y-6 px-6 py-6">
+                      <input type="hidden" name="group" value={search.group ?? ""} />
+                      <FilterSection title="Category">
                         <select
-                          name="petSubcategory"
-                          defaultValue={search.petSubcategory ?? ""}
+                          name="category"
+                          defaultValue={search.category ?? ""}
                           className="filter-input"
                         >
-                          <option value="">All pet categories</option>
-                          {petSubcategories.map(([value, label]) => (
-                            <option key={value} value={value}>
-                              {label}
-                            </option>
-                          ))}
-                        </select>
-                        <select
-                          name="petSpecies"
-                          defaultValue={search.petSpecies ?? ""}
-                          className="filter-input"
-                        >
-                          <option value="">Any animal</option>
-                          {petSpecies.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </select>
-                        <input
-                          name="petBreed"
-                          defaultValue={search.petBreed ?? ""}
-                          placeholder="Breed"
-                          className="filter-input"
-                          maxLength={100}
-                        />
-                        <select
-                          name="petPlacementType"
-                          defaultValue={search.petPlacementType ?? ""}
-                          className="filter-input"
-                        >
-                          <option value="">Any listing type</option>
-                          {petPlacementTypes.map(([value, label]) => (
-                            <option key={value} value={value}>
-                              {label}
-                            </option>
-                          ))}
-                        </select>
-                        <select
-                          name="petOfferedBy"
-                          defaultValue={search.petOfferedBy ?? ""}
-                          className="filter-input"
-                        >
-                          <option value="">Any offered by</option>
-                          {petOfferedBy.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </select>
-                        <select
-                          name="petSex"
-                          defaultValue={search.petSex ?? ""}
-                          className="filter-input"
-                        >
-                          <option value="">Any sex</option>
-                          {petSexes.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
+                          <option value="">All categories</option>
+                          {classifiedCategories.map((category) => (
+                            <option key={category.slug} value={category.slug}>
+                              {category.name}
                             </option>
                           ))}
                         </select>
                       </FilterSection>
-                    )}
 
-                    {motors && (
-                      <FilterSection title="Vehicle details">
-                        <input
-                          list="vehicle-makes"
-                          name="make"
-                          defaultValue={search.make ?? ""}
-                          placeholder="Make / brand"
+                      <FilterSection
+                        title="Location"
+                        icon={<MapPin size={13} className="text-primary" />}
+                      >
+                        <select
+                          name="region"
+                          defaultValue={search.region ?? ""}
                           className="filter-input"
-                          maxLength={80}
-                        />
-                        <datalist id="vehicle-makes">
-                          {vehicleOptions.makes.map((make) => (
-                            <option key={make} value={make} />
+                        >
+                          <option value="">All of Idaho</option>
+                          {idahoRegions.map((region) => (
+                            <option key={region} value={region}>
+                              {region}
+                            </option>
                           ))}
-                        </datalist>
+                        </select>
+                        <select
+                          name="state"
+                          defaultValue={search.state ?? ""}
+                          className="filter-input"
+                        >
+                          <option value="">All states</option>
+                          {usStates.map(([code, name]) => (
+                            <option key={code} value={code}>
+                              {name}
+                            </option>
+                          ))}
+                        </select>
                         <input
-                          name="model"
-                          defaultValue={search.model ?? ""}
-                          placeholder="Model"
+                          name="city"
+                          defaultValue={search.city ?? ""}
+                          placeholder="City"
                           className="filter-input"
                           maxLength={80}
                         />
+                      </FilterSection>
+
+                      <FilterSection title="Price">
                         <div className="grid grid-cols-2 gap-2">
                           <input
-                            name="yearMin"
+                            name="priceMin"
                             type="number"
-                            min="1900"
-                            max="2100"
+                            min="0"
                             step="1"
-                            defaultValue={search.yearMin ?? ""}
-                            placeholder="Year from"
+                            defaultValue={search.priceMin ?? ""}
+                            placeholder="Min"
                             className="filter-input"
                           />
                           <input
-                            name="yearMax"
+                            name="priceMax"
                             type="number"
-                            min="1900"
-                            max="2100"
+                            min="0"
                             step="1"
-                            defaultValue={search.yearMax ?? ""}
-                            placeholder="Year to"
+                            defaultValue={search.priceMax ?? ""}
+                            placeholder="Max"
                             className="filter-input"
                           />
                         </div>
-                        <input
-                          name="mileageMax"
-                          type="number"
-                          min="0"
-                          step="1000"
-                          defaultValue={search.mileageMax ?? ""}
-                          placeholder="Max mileage"
-                          className="filter-input"
-                        />
+                      </FilterSection>
+
+                      <FilterSection title="Condition and fulfillment">
                         <select
-                          name="bodyStyle"
-                          defaultValue={search.bodyStyle ?? ""}
+                          name="condition"
+                          defaultValue={search.condition ?? ""}
                           className="filter-input"
                         >
-                          <option value="">Any body style</option>
-                          {vehicleOptions.bodyStyles.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
+                          <option value="">Any condition</option>
+                          {conditionOptions.map(([value, label]) => (
+                            <option key={value} value={value}>
+                              {label}
                             </option>
                           ))}
                         </select>
                         <select
-                          name="drivetrain"
-                          defaultValue={search.drivetrain ?? ""}
+                          name="fulfillment"
+                          defaultValue={search.fulfillment ?? ""}
                           className="filter-input"
                         >
-                          <option value="">Any drivetrain</option>
-                          {vehicleOptions.drivetrains.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </select>
-                        <select
-                          name="transmission"
-                          defaultValue={search.transmission ?? ""}
-                          className="filter-input"
-                        >
-                          <option value="">Any transmission</option>
-                          {vehicleOptions.transmissions.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </select>
-                        <select
-                          name="fuelType"
-                          defaultValue={search.fuelType ?? ""}
-                          className="filter-input"
-                        >
-                          <option value="">Any fuel type</option>
-                          {vehicleOptions.fuelTypes.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </select>
-                        <select
-                          name="exteriorColor"
-                          defaultValue={search.exteriorColor ?? ""}
-                          className="filter-input"
-                        >
-                          <option value="">Any exterior color</option>
-                          {vehicleOptions.exteriorColors.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </select>
-                        <select
-                          name="titleStatus"
-                          defaultValue={search.titleStatus ?? ""}
-                          className="filter-input"
-                        >
-                          <option value="">Any title status</option>
-                          {vehicleOptions.titleStatuses.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
+                          <option value="">Any fulfillment</option>
+                          <option value="local_pickup">Local pickup</option>
+                          <option value="shipping">Ships</option>
+                          <option value="both">Pickup or shipping</option>
                         </select>
                       </FilterSection>
-                    )}
 
-                    <div className="mt-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-                      <button
-                        type="submit"
-                        className="inline-flex h-12 w-full items-center justify-center rounded-full bg-primary px-3 text-[13px] font-semibold text-primary-foreground shadow-sm hover:opacity-90"
-                      >
-                        Show {result.total} {result.total === 1 ? "listing" : "listings"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => requestSaveSearch()}
-                        className="inline-flex h-12 items-center justify-center rounded-full border border-primary px-5 text-[13px] font-semibold text-primary hover:bg-secondary"
-                      >
-                        {search.savedSearchId ? "Update saved search" : "Save this search"}
-                      </button>
-                    </div>
-                  </form>
-                </SheetContent>
+                      {pets && (
+                        <FilterSection title="Pet details">
+                          <select
+                            name="petSubcategory"
+                            defaultValue={search.petSubcategory ?? ""}
+                            className="filter-input"
+                          >
+                            <option value="">All pet categories</option>
+                            {petSubcategories.map(([value, label]) => (
+                              <option key={value} value={value}>
+                                {label}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            name="petSpecies"
+                            defaultValue={search.petSpecies ?? ""}
+                            className="filter-input"
+                          >
+                            <option value="">Any animal</option>
+                            {petSpecies.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            name="petBreed"
+                            defaultValue={search.petBreed ?? ""}
+                            placeholder="Breed"
+                            className="filter-input"
+                            maxLength={100}
+                          />
+                          <select
+                            name="petPlacementType"
+                            defaultValue={search.petPlacementType ?? ""}
+                            className="filter-input"
+                          >
+                            <option value="">Any listing type</option>
+                            {petPlacementTypes.map(([value, label]) => (
+                              <option key={value} value={value}>
+                                {label}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            name="petOfferedBy"
+                            defaultValue={search.petOfferedBy ?? ""}
+                            className="filter-input"
+                          >
+                            <option value="">Any offered by</option>
+                            {petOfferedBy.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            name="petSex"
+                            defaultValue={search.petSex ?? ""}
+                            className="filter-input"
+                          >
+                            <option value="">Any sex</option>
+                            {petSexes.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                        </FilterSection>
+                      )}
+
+                      {motors && (
+                        <FilterSection title="Vehicle details">
+                          <input
+                            list="vehicle-makes"
+                            name="make"
+                            defaultValue={search.make ?? ""}
+                            placeholder="Make / brand"
+                            className="filter-input"
+                            maxLength={80}
+                          />
+                          <datalist id="vehicle-makes">
+                            {vehicleOptions.makes.map((make) => (
+                              <option key={make} value={make} />
+                            ))}
+                          </datalist>
+                          <input
+                            name="model"
+                            defaultValue={search.model ?? ""}
+                            placeholder="Model"
+                            className="filter-input"
+                            maxLength={80}
+                          />
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              name="yearMin"
+                              type="number"
+                              min="1900"
+                              max="2100"
+                              step="1"
+                              defaultValue={search.yearMin ?? ""}
+                              placeholder="Year from"
+                              className="filter-input"
+                            />
+                            <input
+                              name="yearMax"
+                              type="number"
+                              min="1900"
+                              max="2100"
+                              step="1"
+                              defaultValue={search.yearMax ?? ""}
+                              placeholder="Year to"
+                              className="filter-input"
+                            />
+                          </div>
+                          <input
+                            name="mileageMax"
+                            type="number"
+                            min="0"
+                            step="1000"
+                            defaultValue={search.mileageMax ?? ""}
+                            placeholder="Max mileage"
+                            className="filter-input"
+                          />
+                          <select
+                            name="bodyStyle"
+                            defaultValue={search.bodyStyle ?? ""}
+                            className="filter-input"
+                          >
+                            <option value="">Any body style</option>
+                            {vehicleOptions.bodyStyles.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            name="drivetrain"
+                            defaultValue={search.drivetrain ?? ""}
+                            className="filter-input"
+                          >
+                            <option value="">Any drivetrain</option>
+                            {vehicleOptions.drivetrains.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            name="transmission"
+                            defaultValue={search.transmission ?? ""}
+                            className="filter-input"
+                          >
+                            <option value="">Any transmission</option>
+                            {vehicleOptions.transmissions.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            name="fuelType"
+                            defaultValue={search.fuelType ?? ""}
+                            className="filter-input"
+                          >
+                            <option value="">Any fuel type</option>
+                            {vehicleOptions.fuelTypes.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            name="exteriorColor"
+                            defaultValue={search.exteriorColor ?? ""}
+                            className="filter-input"
+                          >
+                            <option value="">Any exterior color</option>
+                            {vehicleOptions.exteriorColors.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            name="titleStatus"
+                            defaultValue={search.titleStatus ?? ""}
+                            className="filter-input"
+                          >
+                            <option value="">Any title status</option>
+                            {vehicleOptions.titleStatuses.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                        </FilterSection>
+                      )}
+
+                      <div className="mt-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                        <button
+                          type="submit"
+                          className="inline-flex h-12 w-full items-center justify-center rounded-full bg-primary px-3 text-[13px] font-semibold text-primary-foreground shadow-sm hover:opacity-90"
+                        >
+                          Show {result.total} {result.total === 1 ? "listing" : "listings"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => requestSaveSearch()}
+                          className="inline-flex h-12 items-center justify-center rounded-full border border-primary px-5 text-[13px] font-semibold text-primary hover:bg-secondary"
+                        >
+                          {search.savedSearchId ? "Update saved search" : "Save this search"}
+                        </button>
+                      </div>
+                    </form>
+                  </SheetContent>
                 </Sheet>
               </div>
             )}

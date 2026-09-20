@@ -176,7 +176,7 @@ export const getMarketSettings = createServerFn({ method: "GET" }).handler(
 
 /** Public, identity-free market summary for a product's variations. */
 export const getProductMarket = createServerFn({ method: "GET" })
-  .inputValidator((input: { productId: string }) => ({
+  .validator((input: { productId: string }) => ({
     productId: String(input.productId).slice(0, 40),
   }))
   .handler(async ({ data }): Promise<VariantMarket[]> => {
@@ -206,7 +206,7 @@ export const getProductMarket = createServerFn({ method: "GET" })
 /** Server-side quote preview, computed from the database fee schedule. */
 export const quoteTotals = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { merchandiseCents: number }) => {
+  .validator((input: { merchandiseCents: number }) => {
     const cents = Math.round(Number(input.merchandiseCents));
     if (!Number.isFinite(cents) || cents < 100 || cents > 5_000_000) {
       throw new Error("Amount out of range.");
@@ -225,7 +225,7 @@ export const quoteTotals = createServerFn({ method: "GET" })
 
 export const placeAsk = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
+  .validator(
     (input: {
       variantId: string;
       priceCents: number;
@@ -308,7 +308,7 @@ export const placeAsk = createServerFn({ method: "POST" })
 
 export const placeBid = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { variantId: string; priceCents: number }) => {
+  .validator((input: { variantId: string; priceCents: number }) => {
     const priceCents = Math.round(Number(input.priceCents));
     if (!Number.isFinite(priceCents) || priceCents < 100 || priceCents > 5_000_000) {
       throw new Error("Enter an offer between $1.00 and $50,000.");
@@ -326,7 +326,7 @@ export const placeBid = createServerFn({ method: "POST" })
 
 export const cancelListing = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { kind: "ask" | "bid"; id: string }) => {
+  .validator((input: { kind: "ask" | "bid"; id: string }) => {
     if (input.kind !== "ask" && input.kind !== "bid") throw new Error("Unknown listing type.");
     return { kind: input.kind, id: String(input.id) };
   })
@@ -353,7 +353,7 @@ async function releaseExpired() {
 
 export const buyNow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { variantId: string }) => ({ variantId: String(input.variantId) }))
+  .validator((input: { variantId: string }) => ({ variantId: String(input.variantId) }))
   .handler(async ({ data, context }) => {
     await releaseExpired();
     const { data: orderId, error } = await context.supabase.rpc("buy_now", {
@@ -366,7 +366,7 @@ export const buyNow = createServerFn({ method: "POST" })
 /** Requests the exact seller item the buyer opened, never a different lowest Ask. */
 export const requestExactListing = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { askId: string }) => ({ askId: String(input.askId) }))
+  .validator((input: { askId: string }) => ({ askId: String(input.askId) }))
   .handler(async ({ data, context }) => {
     await releaseExpired();
     const client = context.supabase as any;
@@ -379,7 +379,7 @@ export const requestExactListing = createServerFn({ method: "POST" })
 
 export const makeListingOffer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { askId: string; amountCents: number }) => {
+  .validator((input: { askId: string; amountCents: number }) => {
     const amountCents = Math.round(Number(input.amountCents));
     if (!Number.isFinite(amountCents) || amountCents < 100 || amountCents > 5_000_000) {
       throw new Error("Enter an offer between $1 and $50,000.");
@@ -400,7 +400,7 @@ export const makeListingOffer = createServerFn({ method: "POST" })
 
 export const respondToListingOffer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
+  .validator(
     (input: {
       offerId: string;
       action: "accept" | "accept_counter" | "counter" | "decline" | "withdraw";
@@ -454,7 +454,7 @@ export const respondToListingOffer = createServerFn({ method: "POST" })
 
 export const retryListingOfferAuthorizationRelease = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { offerId: string }) => ({ offerId: String(input.offerId) }))
+  .validator((input: { offerId: string }) => ({ offerId: String(input.offerId) }))
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
@@ -476,7 +476,7 @@ export const retryListingOfferAuthorizationRelease = createServerFn({ method: "P
 
 export const getMyListingOffers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { role: "buyer" | "seller" }) => ({
+  .validator((input: { role: "buyer" | "seller" }) => ({
     role: input.role === "seller" ? ("seller" as const) : ("buyer" as const),
   }))
   .handler(async ({ data, context }): Promise<ListingOffer[]> => {
@@ -561,7 +561,7 @@ export const getMyListingOffers = createServerFn({ method: "GET" })
 
 export const sellNow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { variantId: string }) => ({ variantId: String(input.variantId) }))
+  .validator((input: { variantId: string }) => ({ variantId: String(input.variantId) }))
   .handler(async ({ data, context }) => {
     await releaseExpired();
     const { data: orderId, error } = await context.supabase.rpc("sell_now", {
@@ -616,26 +616,32 @@ export const getMyListings = createServerFn({ method: "GET" })
             .in("listing_id", askIds)
             .order("created_at", { ascending: false }),
         ])
-      : [{ data: [], error: null }, { data: [], error: null }, { data: [], error: null }, { data: [], error: null }];
+      : [
+          { data: [], error: null },
+          { data: [], error: null },
+          { data: [], error: null },
+          { data: [], error: null },
+        ];
     const [metricsResult, conversationResult, inquiryResult, upgradeResult] = optionalResults;
     for (const result of [metricsResult, conversationResult, inquiryResult, upgradeResult]) {
-      if (result.error) console.warn("Optional seller listing enrichment unavailable", result.error.message);
+      if (result.error)
+        console.warn("Optional seller listing enrichment unavailable", result.error.message);
     }
     const metricsByListing = new Map<string, any>(
-      (metricsResult.error ? [] : metricsResult.data ?? []).map((row: any) => [
+      (metricsResult.error ? [] : (metricsResult.data ?? [])).map((row: any) => [
         row.listing_id as string,
         row,
       ]),
     );
     const leadsByListing = new Map<string, number>();
     for (const row of [
-      ...(conversationResult.error ? [] : conversationResult.data ?? []),
-      ...(inquiryResult.error ? [] : inquiryResult.data ?? []),
+      ...(conversationResult.error ? [] : (conversationResult.data ?? [])),
+      ...(inquiryResult.error ? [] : (inquiryResult.data ?? [])),
     ] as any[]) {
       leadsByListing.set(row.listing_id, (leadsByListing.get(row.listing_id) ?? 0) + 1);
     }
     const upgradesByListing = new Map<string, string>();
-    for (const row of (upgradeResult.error ? [] : upgradeResult.data ?? []) as any[]) {
+    for (const row of (upgradeResult.error ? [] : (upgradeResult.data ?? [])) as any[]) {
       if (!upgradesByListing.has(row.listing_id)) upgradesByListing.set(row.listing_id, row.status);
     }
 
@@ -790,7 +796,7 @@ export const getMyOrders = createServerFn({ method: "GET" })
 
 export const getOrder = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { orderId: string }) => ({ orderId: String(input.orderId) }))
+  .validator((input: { orderId: string }) => ({ orderId: String(input.orderId) }))
   .handler(async ({ data, context }): Promise<OrderDetail | null> => {
     const { supabase, userId } = context;
     const { data: row, error } = await supabase
@@ -885,7 +891,7 @@ export type SaleRow = { priceCents: number; currency: string; origin: string; so
 export type MarketDepth = { asks: DepthRow[]; bids: DepthRow[]; sales: SaleRow[] };
 
 export const getVariantDepth = createServerFn({ method: "GET" })
-  .inputValidator((input: { variantId: string }) => ({
+  .validator((input: { variantId: string }) => ({
     variantId: String(input.variantId).slice(0, 40),
   }))
   .handler(async ({ data }): Promise<MarketDepth> => {

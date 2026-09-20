@@ -24,9 +24,7 @@ function AuthenticatedGate() {
     if (loading || isSignedIn || redirecting) return;
 
     setRedirecting(true);
-    const destination = sellerRedirects.includes(
-      pathname as (typeof sellerRedirects)[number],
-    )
+    const destination = sellerRedirects.includes(pathname as (typeof sellerRedirects)[number])
       ? (pathname as (typeof sellerRedirects)[number])
       : undefined;
 

@@ -201,7 +201,7 @@ export const getSellerSetup = createServerFn({ method: "GET" })
 
 export const submitMissingProductListing = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
+  .validator(
     (input: {
       name: string;
       brandText?: string | null;
@@ -329,7 +329,7 @@ export const getMyMissingListingRequests = createServerFn({ method: "GET" })
 
 export const saveSellerSetup = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
+  .validator(
     (input: {
       slug: string;
       bio: string;
@@ -461,7 +461,9 @@ export const getSellerDashboardSummary = createServerFn({ method: "GET" })
     const { data: reviewerProfiles } = reviewerIds.length
       ? await client.from("profiles").select("id,display_name").in("id", reviewerIds)
       : { data: [] as any[] };
-    const reviewerNameById = new Map((reviewerProfiles ?? []).map((p: any) => [p.id, p.display_name]));
+    const reviewerNameById = new Map(
+      (reviewerProfiles ?? []).map((p: any) => [p.id, p.display_name]),
+    );
     const reviewRows = (reviews ?? []).map((row: any) => ({
       id: row.id,
       rating: Number(row.rating),
@@ -491,7 +493,7 @@ export const getSellerDashboardSummary = createServerFn({ method: "GET" })
 
 export const submitSellerReview = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { sellerId: string; rating: number; comment?: string | null }) => {
+  .validator((input: { sellerId: string; rating: number; comment?: string | null }) => {
     const rating = Math.round(Number(input.rating));
     if (!Number.isFinite(rating) || rating < 1 || rating > 5)
       throw new Error("Rate between 1 and 5.");
@@ -512,7 +514,7 @@ export const submitSellerReview = createServerFn({ method: "POST" })
 
 export const deleteSellerReview = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { sellerId: string }) => ({ sellerId: String(input.sellerId) }))
+  .validator((input: { sellerId: string }) => ({ sellerId: String(input.sellerId) }))
   .handler(async ({ data, context }) => {
     const client = context.supabase as any;
     const { error } = await client.rpc("delete_seller_review", {
@@ -524,7 +526,7 @@ export const deleteSellerReview = createServerFn({ method: "POST" })
 
 export const getMySellerReview = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { sellerId: string }) => ({ sellerId: String(input.sellerId) }))
+  .validator((input: { sellerId: string }) => ({ sellerId: String(input.sellerId) }))
   .handler(async ({ data, context }): Promise<SellerReview | null> => {
     const client = context.supabase as any;
     const { data: row, error } = await client
@@ -545,7 +547,7 @@ export const getMySellerReview = createServerFn({ method: "GET" })
 
 export const flagSellerReview = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { reviewId: string; reason?: string | null }) => {
+  .validator((input: { reviewId: string; reason?: string | null }) => {
     const reason = String(input.reason ?? "").trim();
     if (reason.length > 500) throw new Error("Keep your flag reason under 500 characters.");
     return { reviewId: String(input.reviewId), reason: reason || null };
@@ -645,7 +647,7 @@ export const getFlaggedSellerReviews = createServerFn({ method: "GET" })
 
 export const adminResolveReviewFlag = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { reviewId: string; action: "dismiss" | "remove" }) => {
+  .validator((input: { reviewId: string; action: "dismiss" | "remove" }) => {
     if (input.action !== "dismiss" && input.action !== "remove")
       throw new Error("Action must be dismiss or remove.");
     return { reviewId: String(input.reviewId), action: input.action };
@@ -837,7 +839,7 @@ async function shapePublicListings(rows: any[]): Promise<PublicListing[]> {
 }
 
 export const getActiveListingsForVariant = createServerFn({ method: "GET" })
-  .inputValidator((input: { variantId: string }) => ({ variantId: String(input.variantId) }))
+  .validator((input: { variantId: string }) => ({ variantId: String(input.variantId) }))
   .handler(async ({ data }): Promise<PublicListing[]> => {
     const client = publicServerClient() as any;
     const { data: rows, error } = await client
@@ -851,7 +853,7 @@ export const getActiveListingsForVariant = createServerFn({ method: "GET" })
   });
 
 export const getPublicSeller = createServerFn({ method: "GET" })
-  .inputValidator((input: { slug: string }) => ({ slug: cleanSlug(input.slug) }))
+  .validator((input: { slug: string }) => ({ slug: cleanSlug(input.slug) }))
   .handler(async ({ data }): Promise<PublicSeller | null> => {
     const client = publicServerClient() as any;
     const { data: seller, error } = await client
@@ -966,7 +968,7 @@ export type ListingEditor = {
 
 export const getListingEditor = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { listingId: string }) => ({ listingId: String(input.listingId) }))
+  .validator((input: { listingId: string }) => ({ listingId: String(input.listingId) }))
   .handler(async ({ data, context }): Promise<ListingEditor | null> => {
     const client = context.supabase as any;
     const { data: row, error } = await client
@@ -1010,7 +1012,7 @@ function optionalPositive(value: unknown) {
 
 export const updateSellerListing = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
+  .validator(
     (input: {
       listingId: string;
       priceCents: number;
@@ -1068,7 +1070,7 @@ export const updateSellerListing = createServerFn({ method: "POST" })
 
 export const relistSellerListing = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { listingId: string }) => ({ listingId: String(input.listingId) }))
+  .validator((input: { listingId: string }) => ({ listingId: String(input.listingId) }))
   .handler(async ({ data, context }) => {
     const client = context.supabase as any;
     const { error } = await client.rpc("relist_ask", { _ask_id: data.listingId });
@@ -1114,7 +1116,7 @@ async function shippoRequest<T>(path: string, body: unknown): Promise<T> {
 
 export const getShippingRates = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
+  .validator(
     (input: {
       orderId: string;
       lengthIn: number;
@@ -1221,7 +1223,7 @@ export const getShippingRates = createServerFn({ method: "POST" })
 
 export const purchaseShippingLabel = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { quoteId: string; rateId: string }) => ({
+  .validator((input: { quoteId: string; rateId: string }) => ({
     quoteId: String(input.quoteId),
     rateId: String(input.rateId),
   }))

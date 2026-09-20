@@ -74,7 +74,9 @@ export function ServiceFields({
           rows={4}
           value={form.offerings}
           onChange={(event) => set("offerings", event.target.value)}
-          placeholder={"Drywall patching and texture matching\nTrim, doors, and hardware installation"}
+          placeholder={
+            "Drywall patching and texture matching\nTrim, doors, and hardware installation"
+          }
           className={textareaClass}
         />
       </label>

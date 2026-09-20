@@ -113,8 +113,8 @@ function SellerSetupPage() {
             Set up your shop
           </h1>
           <p className="mt-1 max-w-[620px] text-[12.5px] leading-relaxed text-muted-foreground">
-            Your public storefront lives here. Add your profile and accept the seller agreement
-            to start listing.
+            Your public storefront lives here. Add your profile and accept the seller agreement to
+            start listing.
           </p>
         </div>
       </div>
@@ -211,8 +211,8 @@ function SellerSetupPage() {
               className="mt-0.5"
             />
             <span>
-              I agree to list only items I possess, describe condition accurately, arrange pickup
-              or shipping directly with the buyer, and grant Gem State Classifieds permission to
+              I agree to list only items I possess, describe condition accurately, arrange pickup or
+              shipping directly with the buyer, and grant Gem State Classifieds permission to
               display the listing photos I submit.
             </span>
           </label>

@@ -88,8 +88,8 @@ function OnboardingPage() {
       </p>
       <h1 className="mt-3 text-[26px] font-semibold tracking-tight">Welcome to {brand.name}</h1>
       <p className="mt-2 text-[13.5px] leading-relaxed text-muted-foreground">
-        Three quick answers so your account, navigation and marketplace pages match what you actually
-        want to do. You can change any of this later from your account.
+        Three quick answers so your account, navigation and marketplace pages match what you
+        actually want to do. You can change any of this later from your account.
       </p>
 
       {isLoading && !hydrated ? (
@@ -132,7 +132,7 @@ function OnboardingPage() {
                 >
                   <input
                     type="radio"
-                name="market"
+                    name="market"
                     value={market.code}
                     checked={resort === market.code}
                     onChange={() => setResort(market.code)}
@@ -143,7 +143,8 @@ function OnboardingPage() {
               ))}
             </div>
             <p className="mt-2 text-[12px] text-muted-foreground">
-              Used to default your marketplace experience. Idaho listings remain browsable statewide.
+              Used to default your marketplace experience. Idaho listings remain browsable
+              statewide.
             </p>
           </fieldset>
 

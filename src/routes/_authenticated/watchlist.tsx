@@ -13,8 +13,7 @@ export const Route = createFileRoute("/_authenticated/watchlist")({
       { property: "og:title", content: "Your saved listings · Gem State Classifieds" },
       {
         property: "og:description",
-        content:
-          "Save exact listings and return to them from your private account.",
+        content: "Save exact listings and return to them from your private account.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -31,5 +30,9 @@ function WatchlistPage() {
     void navigate({ to: "/account", search: { section: "saved" }, replace: true });
   }, [navigate]);
 
-  return <div className="mx-auto max-w-[980px] px-4 py-16 text-[13px] text-muted-foreground">Opening Saved listings…</div>;
+  return (
+    <div className="mx-auto max-w-[980px] px-4 py-16 text-[13px] text-muted-foreground">
+      Opening Saved listings…
+    </div>
+  );
 }

@@ -2,7 +2,6 @@ import { Link } from "@tanstack/react-router";
 
 import { WatchHeartButton } from "@/components/community/WatchHeartButton";
 
-
 import { estimateBuyerTotalCents, formatUsd } from "@/config/fees";
 import type {
   CatalogImage,

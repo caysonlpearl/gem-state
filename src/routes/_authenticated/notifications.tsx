@@ -31,5 +31,9 @@ function NotificationsPage() {
     void navigate({ to: "/account", search: { section: "notifications" }, replace: true });
   }, [navigate]);
 
-  return <div className="mx-auto max-w-[760px] px-4 py-16 text-[13px] text-muted-foreground">Opening Notifications…</div>;
+  return (
+    <div className="mx-auto max-w-[760px] px-4 py-16 text-[13px] text-muted-foreground">
+      Opening Notifications…
+    </div>
+  );
 }

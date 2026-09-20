@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- directory queries span migration-backed tables not in generated types */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 

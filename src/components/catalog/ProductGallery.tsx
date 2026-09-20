@@ -11,13 +11,62 @@ type ProductGalleryProps = {
 
 const ownedSpinFallbacks: Record<string, CatalogImage[]> = {
   "The Haunted Mansion Hatbox Ghost Popcorn Bucket": [
-    { id: "hatbox-owned-000", src: "/images/products/launch-10/hatbox-ghost-spin/angle-000.jpg", alt: "Front view of The Haunted Mansion Hatbox Ghost popcorn bucket", isExample: false, viewRole: "spin", angleDegrees: 0 },
-    { id: "hatbox-owned-045", src: "/images/products/launch-10/hatbox-ghost-spin/angle-045.jpg", alt: "Front-left view of The Haunted Mansion Hatbox Ghost popcorn bucket", isExample: false, viewRole: "spin", angleDegrees: 45 },
-    { id: "hatbox-owned-090", src: "/images/products/launch-10/hatbox-ghost-spin/angle-090.jpg", alt: "Left-side view of The Haunted Mansion Hatbox Ghost popcorn bucket", isExample: false, viewRole: "spin", angleDegrees: 90 },
-    { id: "hatbox-owned-135", src: "/images/products/launch-10/hatbox-ghost-spin/angle-135.jpg", alt: "Back-left view of The Haunted Mansion Hatbox Ghost popcorn bucket", isExample: false, viewRole: "spin", angleDegrees: 135 },
-    { id: "hatbox-owned-180", src: "/images/products/launch-10/hatbox-ghost-spin/angle-180.jpg", alt: "Back view of The Haunted Mansion Hatbox Ghost popcorn bucket", isExample: false, viewRole: "spin", angleDegrees: 180 },
-    { id: "hatbox-owned-225", src: "/images/products/launch-10/hatbox-ghost-spin/angle-225.jpg", alt: "Back-right view of The Haunted Mansion Hatbox Ghost popcorn bucket", isExample: false, viewRole: "spin", angleDegrees: 225 },
-    { id: "hatbox-owned-315", src: "/images/products/launch-10/hatbox-ghost-spin/angle-315.jpg", alt: "Front-right view of The Haunted Mansion Hatbox Ghost popcorn bucket", isExample: false, viewRole: "spin", angleDegrees: 315 },
+    {
+      id: "hatbox-owned-000",
+      src: "/images/products/launch-10/hatbox-ghost-spin/angle-000.jpg",
+      alt: "Front view of The Haunted Mansion Hatbox Ghost popcorn bucket",
+      isExample: false,
+      viewRole: "spin",
+      angleDegrees: 0,
+    },
+    {
+      id: "hatbox-owned-045",
+      src: "/images/products/launch-10/hatbox-ghost-spin/angle-045.jpg",
+      alt: "Front-left view of The Haunted Mansion Hatbox Ghost popcorn bucket",
+      isExample: false,
+      viewRole: "spin",
+      angleDegrees: 45,
+    },
+    {
+      id: "hatbox-owned-090",
+      src: "/images/products/launch-10/hatbox-ghost-spin/angle-090.jpg",
+      alt: "Left-side view of The Haunted Mansion Hatbox Ghost popcorn bucket",
+      isExample: false,
+      viewRole: "spin",
+      angleDegrees: 90,
+    },
+    {
+      id: "hatbox-owned-135",
+      src: "/images/products/launch-10/hatbox-ghost-spin/angle-135.jpg",
+      alt: "Back-left view of The Haunted Mansion Hatbox Ghost popcorn bucket",
+      isExample: false,
+      viewRole: "spin",
+      angleDegrees: 135,
+    },
+    {
+      id: "hatbox-owned-180",
+      src: "/images/products/launch-10/hatbox-ghost-spin/angle-180.jpg",
+      alt: "Back view of The Haunted Mansion Hatbox Ghost popcorn bucket",
+      isExample: false,
+      viewRole: "spin",
+      angleDegrees: 180,
+    },
+    {
+      id: "hatbox-owned-225",
+      src: "/images/products/launch-10/hatbox-ghost-spin/angle-225.jpg",
+      alt: "Back-right view of The Haunted Mansion Hatbox Ghost popcorn bucket",
+      isExample: false,
+      viewRole: "spin",
+      angleDegrees: 225,
+    },
+    {
+      id: "hatbox-owned-315",
+      src: "/images/products/launch-10/hatbox-ghost-spin/angle-315.jpg",
+      alt: "Front-right view of The Haunted Mansion Hatbox Ghost popcorn bucket",
+      isExample: false,
+      viewRole: "spin",
+      angleDegrees: 315,
+    },
   ],
 };
 
@@ -26,21 +75,18 @@ function wrapFrame(frame: number, total: number) {
 }
 
 export function ProductGallery({ images, model, productName }: ProductGalleryProps) {
-  const spinFrames = useMemo(
-    () => {
-      const databaseFrames = images
-        .filter(
-          (image): image is CatalogImage & { angleDegrees: number } =>
-            image.viewRole === "spin" && image.angleDegrees !== null,
-        )
-        .sort((a, b) => a.angleDegrees - b.angleDegrees);
+  const spinFrames = useMemo(() => {
+    const databaseFrames = images
+      .filter(
+        (image): image is CatalogImage & { angleDegrees: number } =>
+          image.viewRole === "spin" && image.angleDegrees !== null,
+      )
+      .sort((a, b) => a.angleDegrees - b.angleDegrees);
 
-      return databaseFrames.length >= 2
-        ? databaseFrames
-        : (ownedSpinFallbacks[productName] ?? databaseFrames);
-    },
-    [images, productName],
-  );
+    return databaseFrames.length >= 2
+      ? databaseFrames
+      : (ownedSpinFallbacks[productName] ?? databaseFrames);
+  }, [images, productName]);
   const galleryImages = useMemo(
     () => images.filter((image) => image.viewRole === "gallery"),
     [images],
@@ -200,9 +246,7 @@ export function ProductGallery({ images, model, productName }: ProductGalleryPro
               draggable={false}
               className={[
                 "h-full w-full",
-                hasSpin
-                  ? "pointer-events-none object-contain"
-                  : "object-contain p-4 sm:p-6",
+                hasSpin ? "pointer-events-none object-contain" : "object-contain p-4 sm:p-6",
               ].join(" ")}
             />
 

@@ -25,7 +25,8 @@ export const Route = createFileRoute("/_authenticated/account")({
       typeof search["conversation"] === "string" ? search["conversation"] : undefined;
     const conversation = rawConversation ? rawConversation.slice(0, 80) : undefined;
     const rawCheckout = typeof search["checkout"] === "string" ? search["checkout"] : undefined;
-    const checkout = rawCheckout === "success" || rawCheckout === "cancelled" ? rawCheckout : undefined;
+    const checkout =
+      rawCheckout === "success" || rawCheckout === "cancelled" ? rawCheckout : undefined;
     const rawPurchase = typeof search["purchase"] === "string" ? search["purchase"] : undefined;
     const purchase = rawPurchase ? rawPurchase.slice(0, 80) : undefined;
     return {

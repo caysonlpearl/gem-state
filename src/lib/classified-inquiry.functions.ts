@@ -23,7 +23,7 @@ function cleanMessage(value: unknown) {
 
 export const sendClassifiedListingInquiry = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { listingId: string; message: string }) => ({
+  .validator((input: { listingId: string; message: string }) => ({
     listingId: String(input.listingId),
     message: cleanMessage(input.message),
   }))
@@ -33,7 +33,8 @@ export const sendClassifiedListingInquiry = createServerFn({ method: "POST" })
       _listing_id: data.listingId,
       _message: data.message,
     });
-    if (error || !inquiryId) throw new Error(error?.message ?? "We could not send your message. Please try again.");
+    if (error || !inquiryId)
+      throw new Error(error?.message ?? "We could not send your message. Please try again.");
 
     const { emailListingInquiry } = await import("./email-notifications.server");
     await emailListingInquiry(inquiryId);

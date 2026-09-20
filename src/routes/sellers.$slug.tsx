@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { queryOptions, useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import {
+  queryOptions,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { CheckCircle, Flag, Star } from "@phosphor-icons/react";
 import { toast } from "sonner";
@@ -219,7 +225,10 @@ function ReviewForm({ sellerId, sellerSlug }: { sellerId: string; sellerSlug: st
     return (
       <section className="border border-border bg-card px-5 py-4">
         <h3 className="text-[13px] font-semibold tracking-tight">Your review</h3>
-        <p className="mt-2 flex items-center gap-1 text-primary" aria-label={`${myReview.data.rating} out of 5 stars`}>
+        <p
+          className="mt-2 flex items-center gap-1 text-primary"
+          aria-label={`${myReview.data.rating} out of 5 stars`}
+        >
           {Array.from({ length: 5 }, (_, i) => (
             <Star key={i} size={16} weight={i < myReview.data!.rating ? "fill" : "regular"} />
           ))}

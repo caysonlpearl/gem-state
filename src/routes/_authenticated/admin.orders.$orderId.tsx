@@ -44,8 +44,7 @@ export const Route = createFileRoute("/_authenticated/admin/orders/$orderId")({
       { property: "og:title", content: "Order operations — GemList" },
       {
         property: "og:description",
-        content:
-          "Operator console for one GemList marketplace order and its payment evidence.",
+        content: "Operator console for one GemList marketplace order and its payment evidence.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- community query boundary accepts the generated client's dynamic table shape */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { publicServerClient } from "./supabase-public.server";
@@ -64,7 +65,9 @@ export type WatchedVariant = {
   sightingCount: number;
 };
 
-function variantLabel(v: { size: string | null; color: string | null; edition: string | null } | null) {
+function variantLabel(
+  v: { size: string | null; color: string | null; edition: string | null } | null,
+) {
   if (!v) return "One variation";
   const parts = [v.size, v.color, v.edition].filter(Boolean) as string[];
   return parts.length > 0 ? parts.join(" · ") : "One variation";
@@ -74,7 +77,9 @@ function variantLabel(v: { size: string | null; color: string | null; edition: s
 
 /** Public, identity-free sighting feed for one variation. */
 export const getVariantSightings = createServerFn({ method: "GET" })
-  .inputValidator((input: { variantId: string }) => ({ variantId: String(input.variantId).slice(0, 40) }))
+  .validator((input: { variantId: string }) => ({
+    variantId: String(input.variantId).slice(0, 40),
+  }))
   .handler(async ({ data }): Promise<Sighting[]> => {
     const client = publicServerClient();
     const { data: rows, error } = await client
@@ -110,7 +115,7 @@ export const getVariantSightings = createServerFn({ method: "GET" })
 
 export const reportSighting = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
+  .validator(
     (input: {
       variantId: string;
       locationId: string;
@@ -154,7 +159,7 @@ export const reportSighting = createServerFn({ method: "POST" })
 
 export const respondToSighting = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { sightingId: string; kind: "confirm" | "flag" }) => {
+  .validator((input: { sightingId: string; kind: "confirm" | "flag" }) => {
     if (input.kind !== "confirm" && input.kind !== "flag") throw new Error("Unsupported response.");
     return { sightingId: String(input.sightingId).slice(0, 40), kind: input.kind };
   })
@@ -171,7 +176,9 @@ export const respondToSighting = createServerFn({ method: "POST" })
 
 /** Public daily aggregate history. Empty until the first capture runs. */
 export const getPriceHistory = createServerFn({ method: "GET" })
-  .inputValidator((input: { variantId: string }) => ({ variantId: String(input.variantId).slice(0, 40) }))
+  .validator((input: { variantId: string }) => ({
+    variantId: String(input.variantId).slice(0, 40),
+  }))
   .handler(async ({ data }): Promise<PricePoint[]> => {
     const client = publicServerClient();
     const { data: rows, error } = await client
@@ -201,7 +208,7 @@ export const getPriceHistory = createServerFn({ method: "GET" })
 
 /** Public, identity-free watcher count for one variation. */
 export const getVariantWatcherCount = createServerFn({ method: "GET" })
-  .inputValidator((input: { variantId: string }) => ({
+  .validator((input: { variantId: string }) => ({
     variantId: String(input.variantId).slice(0, 40),
   }))
   .handler(async ({ data }): Promise<{ watcherCount: number }> => {
@@ -220,11 +227,11 @@ export const getVariantWatcherCount = createServerFn({ method: "GET" })
 
 /* ------------------------------------------------------------------ watchlist */
 
-
-
 export const getWatchState = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { variantId: string }) => ({ variantId: String(input.variantId).slice(0, 40) }))
+  .validator((input: { variantId: string }) => ({
+    variantId: String(input.variantId).slice(0, 40),
+  }))
   .handler(async ({ data, context }) => {
     const { data: row, error } = await context.supabase
       .from("watchlist")
@@ -238,7 +245,7 @@ export const getWatchState = createServerFn({ method: "GET" })
 
 export const setWatchState = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { variantId: string; watching: boolean }) => ({
+  .validator((input: { variantId: string; watching: boolean }) => ({
     variantId: String(input.variantId).slice(0, 40),
     watching: Boolean(input.watching),
   }))
@@ -278,27 +285,28 @@ export const getMyWatchlist = createServerFn({ method: "GET" })
     if (variantIds.length === 0) return [];
 
     const client = publicServerClient();
-    const [{ data: markets }, { data: sightings }, { data: classifiedListings }] = await Promise.all([
-      client
-        .from("variant_market_summary")
-        .select("variant_id, lowest_ask_cents, highest_bid_cents, active_ask_count, active_bid_count")
-        .in("variant_id", variantIds),
-      client.from("variant_sightings_public").select("variant_id").in("variant_id", variantIds),
-      client
-        .from("asks")
-        .select("id,variant_id,products!inner(status)")
-        .in("variant_id", variantIds)
-        .eq("status", "active")
-        .eq("is_demo", false)
-        .not("approved_at", "is", null)
-        .gt("expires_at", new Date().toISOString())
-        .eq("products.status", "published")
-        .limit(100),
-    ]);
+    const [{ data: markets }, { data: sightings }, { data: classifiedListings }] =
+      await Promise.all([
+        client
+          .from("variant_market_summary")
+          .select(
+            "variant_id, lowest_ask_cents, highest_bid_cents, active_ask_count, active_bid_count",
+          )
+          .in("variant_id", variantIds),
+        client.from("variant_sightings_public").select("variant_id").in("variant_id", variantIds),
+        client
+          .from("asks")
+          .select("id,variant_id,products!inner(status)")
+          .in("variant_id", variantIds)
+          .eq("status", "active")
+          .eq("is_demo", false)
+          .not("approved_at", "is", null)
+          .gt("expires_at", new Date().toISOString())
+          .eq("products.status", "published")
+          .limit(100),
+      ]);
 
-    const marketByVariant = new Map(
-      (markets ?? []).map((m) => [m.variant_id as string, m]),
-    );
+    const marketByVariant = new Map((markets ?? []).map((m) => [m.variant_id as string, m]));
     const sightingCounts = new Map<string, number>();
     for (const s of sightings ?? []) {
       const key = s.variant_id as string;
@@ -345,7 +353,7 @@ export type MySuggestion = {
 
 export const submitProductSuggestion = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
+  .validator(
     (input: {
       name: string;
       brandText: string | null;
@@ -428,7 +436,7 @@ async function firstVariantId(
 
 export const getProductWatchState = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { productId: string }) => ({
+  .validator((input: { productId: string }) => ({
     productId: String(input.productId).slice(0, 40),
   }))
   .handler(async ({ data, context }) => {
@@ -446,7 +454,7 @@ export const getProductWatchState = createServerFn({ method: "GET" })
 
 export const setProductWatchState = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { productId: string; watching: boolean }) => ({
+  .validator((input: { productId: string; watching: boolean }) => ({
     productId: String(input.productId).slice(0, 40),
     watching: Boolean(input.watching),
   }))

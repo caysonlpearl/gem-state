@@ -2,7 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 
 import { formatUsd } from "@/config/fees";
-import { ListingForm, ListingFormBackLink } from "@/components/classifieds/listing-form/ListingForm";
+import {
+  ListingForm,
+  ListingFormBackLink,
+} from "@/components/classifieds/listing-form/ListingForm";
 import { getClassifiedListingEditor } from "@/lib/classifieds.functions";
 
 export const Route = createFileRoute("/_authenticated/listings/$listingId/edit")({

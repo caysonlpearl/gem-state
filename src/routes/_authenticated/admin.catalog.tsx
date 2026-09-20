@@ -529,9 +529,9 @@ function AdminCatalogPage() {
                       />
                     </div>
                     <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
-                      Create the catalog page above and select this request. GemList will then
-                      place the exact item into the normal listing-approval queue; it does not
-                      publish automatically.
+                      Create the catalog page above and select this request. GemList will then place
+                      the exact item into the normal listing-approval queue; it does not publish
+                      automatically.
                     </p>
                   </div>
                 ) : null}

@@ -1055,7 +1055,8 @@ export const mockClassifiedListings: MockClassifiedListing[] = [
     description:
       "Job Title: Front Desk Receptionist\n\nJob Summary: Meridian Family Dental is hiring a front desk receptionist to greet patients, manage scheduling, and handle insurance verification for our growing practice.",
     postalCode: "83642",
-    sellerNote: "No dental experience required, front office or customer service experience helpful.",
+    sellerNote:
+      "No dental experience required, front office or customer service experience helpful.",
     seller: sellers.meridianDental,
     job: {
       employerName: "Meridian Family Dental",
@@ -1291,7 +1292,8 @@ export const mockClassifiedListings: MockClassifiedListing[] = [
     description:
       "Need a hand getting the technology at home to work the way it should? Gem State Tech Help provides friendly in-home setup for Wi-Fi, printers, computers, smart TVs, and small-office basics, with patient explanations and no confusing jargon.",
     postalCode: "83702",
-    sellerNote: "Tell us what is not working and whether you prefer an in-home or remote appointment.",
+    sellerNote:
+      "Tell us what is not working and whether you prefer an in-home or remote appointment.",
     seller: sellers.gemStateTech,
     service: {
       subcategory: "IT Services",

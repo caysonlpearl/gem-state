@@ -107,9 +107,9 @@ export function EmailShell({
           ) : null}
           {note ? <Text style={text}>{note}</Text> : null}
           <Text style={footer}>
-            Gem State Classifieds is an independent marketplace. Listings are created by
-            individual sellers, who are responsible for their descriptions, photos, pricing, and
-            legal right to sell each item.
+            Gem State Classifieds is an independent marketplace. Listings are created by individual
+            sellers, who are responsible for their descriptions, photos, pricing, and legal right to
+            sell each item.
           </Text>
         </Container>
       </Body>

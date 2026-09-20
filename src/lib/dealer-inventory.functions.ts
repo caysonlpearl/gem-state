@@ -107,7 +107,7 @@ export const getDealerInventorySources = createServerFn({ method: "GET" })
 
 export const createDealerInventorySource = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => sourceInput.parse(input))
+  .validator((input: unknown) => sourceInput.parse(input))
   .handler(async ({ data, context }) => {
     await requireAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -133,7 +133,7 @@ export const createDealerInventorySource = createServerFn({ method: "POST" })
 
 export const getDealerInventorySyncRuns = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ sourceId: z.string().uuid() }).parse(input))
+  .validator((input: unknown) => z.object({ sourceId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }): Promise<DealerInventorySyncRunSummary[]> => {
     await requireAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -150,7 +150,7 @@ export const getDealerInventorySyncRuns = createServerFn({ method: "GET" })
 
 export const setDealerInventorySourceStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z.object({ sourceId: z.string().uuid(), status: z.enum(["active", "paused"]) }).parse(input),
   )
   .handler(async ({ data, context }) => {
@@ -166,7 +166,7 @@ export const setDealerInventorySourceStatus = createServerFn({ method: "POST" })
 
 export const previewDealerInventoryFeed = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => feedInput.parse(input))
+  .validator((input: unknown) => feedInput.parse(input))
   .handler(async ({ data, context }) => {
     await requireAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -242,7 +242,7 @@ export const previewDealerInventoryFeed = createServerFn({ method: "POST" })
 
 export const applyDealerInventoryFeed = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => feedInput.extend({ dryRun: z.literal(false) }).parse(input))
+  .validator((input: unknown) => feedInput.extend({ dryRun: z.literal(false) }).parse(input))
   .handler(async ({ data, context }) => {
     await requireAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

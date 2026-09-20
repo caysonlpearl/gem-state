@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- template payloads are registry-driven JSON */
 import * as React from "react";
 import type { TemplateEntry } from "./registry";
 import { EmailShell } from "./shell";

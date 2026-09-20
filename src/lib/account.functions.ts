@@ -92,7 +92,7 @@ export const getMyAccount = createServerFn({ method: "GET" })
 /** Authenticated write, also RLS-scoped to the caller's own row. */
 export const updateMyDisplayName = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { displayName: string }) => {
+  .validator((input: { displayName: string }) => {
     const displayName = input.displayName.trim();
     if (displayName.length < 2 || displayName.length > 40) {
       throw new Error("Display name must be between 2 and 40 characters.");
@@ -115,7 +115,7 @@ export const updateMyDisplayName = createServerFn({ method: "POST" })
  */
 export const saveMyProfile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
+  .validator(
     (input: {
       displayName: string;
       homeResortCode: string;
@@ -160,7 +160,7 @@ export const saveMyProfile = createServerFn({ method: "POST" })
  */
 export const updateMyAvatar = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { path: string | null }) => {
+  .validator((input: { path: string | null }) => {
     if (input.path === null) return { path: null };
     const path = String(input.path).trim();
     if (!/^[-a-f0-9]{36}\/avatar-[a-f0-9-]+\.(?:jpg|jpeg|png|webp)$/i.test(path)) {

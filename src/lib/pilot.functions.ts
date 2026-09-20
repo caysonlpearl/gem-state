@@ -77,7 +77,7 @@ export type AdminQueues = {
 /** Everything the pilot console and the member order page need for one order. */
 export const getOrderOperations = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { orderId: string }) => ({ orderId: String(input.orderId) }))
+  .validator((input: { orderId: string }) => ({ orderId: String(input.orderId) }))
   .handler(async ({ data, context }): Promise<OrderOperations | null> => {
     const { supabase, userId } = context;
     const { orderId } = data;
@@ -220,7 +220,7 @@ export const getOrderOperations = createServerFn({ method: "GET" })
 /** Short-lived signed URL for one private evidence file. Access is logged. */
 export const getEvidenceUrl = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { evidenceId: string }) => ({ evidenceId: String(input.evidenceId) }))
+  .validator((input: { evidenceId: string }) => ({ evidenceId: String(input.evidenceId) }))
   .handler(async ({ data, context }): Promise<{ url: string }> => {
     const { data: path, error } = await context.supabase.rpc("order_evidence_file", {
       _evidence_id: data.evidenceId,
@@ -236,7 +236,7 @@ export const getEvidenceUrl = createServerFn({ method: "POST" })
 
 export const recordPurchaseEvidence = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
+  .validator(
     (input: {
       orderId: string;
       receiptPath: string;
@@ -271,7 +271,7 @@ export const recordPurchaseEvidence = createServerFn({ method: "POST" })
 
 export const approveRevisedMax = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { orderId: string; newMaxCents: number }) => {
+  .validator((input: { orderId: string; newMaxCents: number }) => {
     const cents = Math.round(Number(input.newMaxCents));
     if (!Number.isFinite(cents) || cents < 100 || cents > 5_000_000) {
       throw new Error("Enter a revised maximum between $1.00 and $50,000.");
@@ -289,7 +289,7 @@ export const approveRevisedMax = createServerFn({ method: "POST" })
 
 export const setOrderAddress = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
+  .validator(
     (input: {
       orderId: string;
       recipientName: string;
@@ -339,7 +339,7 @@ export const setOrderAddress = createServerFn({ method: "POST" })
 
 export const recordShipment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { orderId: string; carrier: string; trackingNumber: string }) => {
+  .validator((input: { orderId: string; carrier: string; trackingNumber: string }) => {
     const carrier = String(input.carrier ?? "").trim();
     const trackingNumber = String(input.trackingNumber ?? "").trim();
     if (carrier.length < 2 || carrier.length > 60) throw new Error("Enter the carrier.");
@@ -362,7 +362,7 @@ export const recordShipment = createServerFn({ method: "POST" })
 
 export const confirmDelivery = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { orderId: string; proofPath?: string | null }) => ({
+  .validator((input: { orderId: string; proofPath?: string | null }) => ({
     orderId: String(input.orderId),
     proofPath: input.proofPath ? String(input.proofPath) : null,
   }))
@@ -379,7 +379,7 @@ export const confirmDelivery = createServerFn({ method: "POST" })
 
 export const openDispute = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { orderId: string; reason: string }) => {
+  .validator((input: { orderId: string; reason: string }) => {
     const reason = String(input.reason ?? "").trim();
     if (reason.length < 10 || reason.length > 2000) {
       throw new Error("Describe the problem in at least 10 characters.");
@@ -400,7 +400,7 @@ export const openDispute = createServerFn({ method: "POST" })
 /** Computed from eligible real orders only — never hand entered. */
 export const getMemberPerformance = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { userId?: string }) => ({
+  .validator((input: { userId?: string }) => ({
     userId: input.userId ? String(input.userId) : null,
   }))
   .handler(async ({ data, context }): Promise<MemberPerformance> => {
@@ -530,7 +530,7 @@ export const getAdminQueues = createServerFn({ method: "GET" })
 
 export const adminRecordPayment = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
+  .validator(
     (input: {
       orderId: string;
       kind: string;
@@ -589,7 +589,7 @@ export const adminRecordPayment = createServerFn({ method: "POST" })
 
 export const adminAdvanceOrder = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { orderId: string; toStatus: string; note?: string | null }) => {
+  .validator((input: { orderId: string; toStatus: string; note?: string | null }) => {
     const note = String(input.note ?? "").trim();
     return { orderId: String(input.orderId), toStatus: String(input.toStatus), note: note || null };
   })
@@ -605,7 +605,7 @@ export const adminAdvanceOrder = createServerFn({ method: "POST" })
 
 export const adminConfirmEvidence = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { evidenceId: string; note?: string | null }) => ({
+  .validator((input: { evidenceId: string; note?: string | null }) => ({
     evidenceId: String(input.evidenceId),
     note: String(input.note ?? "").trim() || null,
   }))
@@ -620,7 +620,7 @@ export const adminConfirmEvidence = createServerFn({ method: "POST" })
 
 export const getVerifiedSaleEligibility = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { orderId: string }) => ({ orderId: String(input.orderId) }))
+  .validator((input: { orderId: string }) => ({ orderId: String(input.orderId) }))
   .handler(async ({ data, context }): Promise<{ eligible: boolean; reasons: string[] }> => {
     const { data: raw, error } = await context.supabase.rpc("verified_sale_eligibility", {
       _order_id: data.orderId,
@@ -632,7 +632,7 @@ export const getVerifiedSaleEligibility = createServerFn({ method: "GET" })
 
 export const adminConfirmVerifiedSale = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { orderId: string; note?: string | null }) => ({
+  .validator((input: { orderId: string; note?: string | null }) => ({
     orderId: String(input.orderId),
     note: String(input.note ?? "").trim() || null,
   }))
@@ -647,7 +647,7 @@ export const adminConfirmVerifiedSale = createServerFn({ method: "POST" })
 
 export const adminRecordPayout = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
+  .validator(
     (input: {
       orderId: string;
       provider: string;
@@ -698,7 +698,7 @@ export const adminRecordPayout = createServerFn({ method: "POST" })
 /** Sends an eligible completed-order payout to the seller's Stripe Connect account. */
 export const adminSendStripePayout = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { orderId: string }) => ({ orderId: String(input.orderId) }))
+  .validator((input: { orderId: string }) => ({ orderId: String(input.orderId) }))
   .handler(async ({ data, context }) => {
     const client = context.supabase as any;
     const { data: adminRole } = await client
@@ -792,7 +792,7 @@ export const adminSendStripePayout = createServerFn({ method: "POST" })
 
 export const adminResolveDispute = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
+  .validator(
     (input: {
       disputeId: string;
       status: string;
@@ -1016,7 +1016,7 @@ export const adminResolveDispute = createServerFn({ method: "POST" })
 
 export const reviewShopperApplication = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { applicationId: string; approve: boolean; note?: string | null }) => {
+  .validator((input: { applicationId: string; approve: boolean; note?: string | null }) => {
     const note = String(input.note ?? "").trim();
     return {
       applicationId: String(input.applicationId),
@@ -1037,7 +1037,7 @@ export const reviewShopperApplication = createServerFn({ method: "POST" })
 /** Signed URL to a shopper applicant's private identity document, opened only through this audited channel. */
 export const getShopperApplicationDocumentUrl = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { applicationId: string }) => ({
+  .validator((input: { applicationId: string }) => ({
     applicationId: String(input.applicationId),
   }))
   .handler(async ({ data, context }): Promise<{ url: string }> => {
@@ -1107,7 +1107,7 @@ const FUNNEL_EVENTS = [
 
 export const getValidationSummary = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { windowDays?: number }) => ({
+  .validator((input: { windowDays?: number }) => ({
     windowDays: Math.min(Math.max(Number(input?.windowDays ?? 30), 1), 180),
   }))
   .handler(async ({ data, context }): Promise<ValidationSummary> => {

@@ -102,7 +102,7 @@ function fuelTypeFor(value: string | undefined): VehicleDecodeFields["fuelType"]
 
 export const decodeVehicleVin = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { vin: string }) => {
+  .validator((input: { vin: string }) => {
     const vin = String(input.vin ?? "")
       .replace(/[\s-]/g, "")
       .toUpperCase();

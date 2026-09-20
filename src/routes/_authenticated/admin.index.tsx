@@ -253,11 +253,7 @@ function AdminPage() {
         )}
       </div>
 
-      <Queue
-        title="Orders"
-        count={data.orders.length}
-        emptyLabel="No marketplace orders yet."
-      >
+      <Queue title="Orders" count={data.orders.length} emptyLabel="No marketplace orders yet.">
         {data.orders.map((o) => (
           <li
             key={o.id}

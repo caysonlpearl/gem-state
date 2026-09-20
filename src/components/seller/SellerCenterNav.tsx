@@ -4,7 +4,11 @@ import { Plus, Storefront, UserCircle, Star } from "@phosphor-icons/react";
 const itemClass =
   "inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap border border-border bg-card px-3 text-[12px] font-medium transition-colors hover:border-foreground hover:bg-secondary";
 
-export function SellerCenterNav({ storefrontSlug }: { storefrontSlug?: string | null | undefined }) {
+export function SellerCenterNav({
+  storefrontSlug,
+}: {
+  storefrontSlug?: string | null | undefined;
+}) {
   return (
     <nav aria-label="Seller center" className="mt-6 overflow-x-auto">
       <div className="flex min-w-max gap-2 pb-1">

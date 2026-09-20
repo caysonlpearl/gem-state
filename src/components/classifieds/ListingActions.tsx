@@ -63,7 +63,9 @@ export function ListingActions({
   const inquiryMutation = useMutation({
     mutationFn: () => start({ data: { listingId: listing.id, body: message } }),
     onSuccess: () => {
-      toast.success(isJobApply ? "Application sent to the employer." : "Message sent to the seller.");
+      toast.success(
+        isJobApply ? "Application sent to the employer." : "Message sent to the seller.",
+      );
       setMessage(isJobApply ? DEFAULT_APPLY_MESSAGE : DEFAULT_MESSAGE);
       setContactOpen(false);
     },
@@ -215,8 +217,8 @@ export function ListingActions({
             }
           />
           <p className="text-[11px] leading-relaxed text-muted-foreground">
-            Your message will appear in Gem State Messages. The seller will only see contact
-            details you have explicitly enabled in your profile preferences.
+            Your message will appear in Gem State Messages. The seller will only see contact details
+            you have explicitly enabled in your profile preferences.
           </p>
           <button
             type="submit"

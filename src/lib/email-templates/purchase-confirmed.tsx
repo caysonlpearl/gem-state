@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- template payloads are registry-driven JSON */
 import * as React from "react";
 import type { TemplateEntry } from "./registry";
 import { EmailShell, money } from "./shell";
@@ -29,7 +30,9 @@ const Email = ({ itemName, orderNumber, totalCents, currency, orderPath }: Props
 export const template = {
   component: Email,
   subject: (d: Record<string, any>) =>
-    d["orderNumber"] ? `Order ${d["orderNumber"]} confirmed` : "Your Gem State Classifieds order is confirmed",
+    d["orderNumber"]
+      ? `Order ${d["orderNumber"]} confirmed`
+      : "Your Gem State Classifieds order is confirmed",
   displayName: "Purchase confirmed (buyer)",
   previewData: {
     itemName: "2019 Toyota Tacoma TRD Off-Road 4x4",
