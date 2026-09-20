@@ -54,6 +54,7 @@ const adminClassifiedsSource = await read("src/routes/_authenticated/admin.class
 const listingReportsMigrationSource = await read(
   "supabase/migrations/20260920110000_add_classified_listing_reports.sql",
 );
+const vehicleFunctionsSource = await read("src/lib/vehicle.functions.ts");
 const marketFunctionsSource = await read("src/lib/market.functions.ts");
 const stripeMarketplaceSource = await read("src/lib/stripe-marketplace.functions.ts");
 const stripeServerSource = await read("src/lib/stripe-marketplace.server.ts");
@@ -311,6 +312,17 @@ test("flag this listing submits an authenticated report and exposes it to admins
   assert.match(listingReportsMigrationSource, /Members create listing reports/);
   assert.match(listingReportsMigrationSource, /Admins read listing reports/);
   assert.match(listingReportsMigrationSource, /classified_listing_reports_one_per_member/);
+});
+
+test("vehicle forms can decode VINs through the server-side NHTSA adapter", () => {
+  assert.match(vehicleFunctionsSource, /vpic\.nhtsa\.dot\.gov\/api\/vehicles\/DecodeVin/);
+  assert.match(vehicleFunctionsSource, /requireSupabaseAuth/);
+  assert.match(vehicleFunctionsSource, /VIN_PATTERN/);
+  assert.match(vehicleFunctionsSource, /bodyStyleFor/);
+  assert.match(vehicleFunctionsSource, /fuelTypeFor/);
+  assert.match(vehicleFieldsSource, /decodeVehicleVin/);
+  assert.match(vehicleFieldsSource, /Decode VIN/);
+  assert.match(vehicleFieldsSource, /NHTSA vehicle database/);
 });
 
 test("direct-contact MVP copy is consistent across buyer and seller surfaces", () => {

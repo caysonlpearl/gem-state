@@ -1,4 +1,9 @@
+import { useMutation } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
+
 import { vehicleModelsByMake, vehicleOptions } from "@/config/classifieds";
+import { decodeVehicleVin } from "@/lib/vehicle.functions";
 import { fieldClass } from "./shared";
 import type { ListingFormState } from "./types";
 
@@ -10,6 +15,24 @@ export function VehicleFields({
   set: (key: keyof ListingFormState, value: string) => void;
 }) {
   const availableModels = vehicleModelsByMake[form.make] ?? [];
+  const decode = useServerFn(decodeVehicleVin);
+  const decodeMutation = useMutation({
+    mutationFn: () => decode({ data: { vin: form.vin } }),
+    onSuccess: (result) => {
+      const fields = result.fields;
+      if (fields.make) set("make", fields.make);
+      if (fields.model) set("model", fields.model);
+      if (fields.year) set("year", fields.year);
+      if (fields.trim) set("trim", fields.trim);
+      if (fields.bodyStyle) set("bodyStyle", fields.bodyStyle);
+      if (fields.transmission) set("transmission", fields.transmission);
+      if (fields.drivetrain) set("drivetrain", fields.drivetrain);
+      if (fields.fuelType) set("fuelType", fields.fuelType);
+      toast.success("Vehicle details filled from the VIN.");
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Could not decode that VIN."),
+  });
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -172,15 +195,32 @@ export function VehicleFields({
           ))}
         </select>
       </label>
-      <label className="text-[12px] font-medium">
-        VIN <span className="font-normal text-muted-foreground">(optional)</span>
-        <input
-          value={form.vin}
-          onChange={(event) => set("vin", event.target.value.toUpperCase())}
-          maxLength={17}
-          placeholder="17-character VIN"
-          className={`${fieldClass} uppercase`}
-        />
+      <label className="text-[12px] font-medium sm:col-span-2 lg:col-span-3">
+        <span className="flex flex-wrap items-center justify-between gap-2">
+          <span>
+            VIN <span className="font-normal text-muted-foreground">(optional)</span>
+          </span>
+          <button
+            type="button"
+            onClick={() => decodeMutation.mutate()}
+            disabled={decodeMutation.isPending || form.vin.trim().length < 17}
+            className="font-semibold text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {decodeMutation.isPending ? "Decoding…" : "Decode VIN"}
+          </button>
+        </span>
+        <div className="mt-1 flex flex-wrap gap-2 sm:flex-nowrap">
+          <input
+            value={form.vin}
+            onChange={(event) => set("vin", event.target.value.toUpperCase())}
+            maxLength={17}
+            placeholder="17-character VIN"
+            className={`${fieldClass} min-w-0 flex-1 uppercase`}
+          />
+        </div>
+        <span className="mt-1 block text-[11px] font-normal text-muted-foreground">
+          Uses the free NHTSA vehicle database. Details remain editable before you publish.
+        </span>
       </label>
     </div>
   );
