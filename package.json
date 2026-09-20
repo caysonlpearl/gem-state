@@ -15,7 +15,7 @@
     "models:generate": "node scripts/3d/model-workflow.mjs generate",
     "models:list": "node scripts/3d/model-workflow.mjs list",
     "models:setup": "bash scripts/3d/setup.sh",
-    "preview": "vite preview",
+    "preview": "npm run build && npx wrangler dev --config .output/server/wrangler.json --local",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
