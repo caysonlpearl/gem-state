@@ -6,8 +6,11 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   calculateInventoryDiff,
   defaultInventoryMapping,
+  parseAndNormalizeInventoryJson,
   parseAndNormalizeInventoryCsv,
+  parseAndNormalizeInventoryXml,
   recordsForDatabase,
+  type InventoryFileFormat,
   type InventoryMapping,
 } from "@/lib/dealer-inventory";
 
@@ -63,23 +66,34 @@ export type DealerInventorySyncRunSummary = {
 
 const feedInput = z.object({
   sourceId: z.string().uuid(),
-  csv: z.string().min(1).max(5_000_000),
+  payload: z.string().min(1).max(5_000_000),
   filename: z.string().trim().max(255).optional(),
   dryRun: z.boolean().default(true),
 });
 
-async function requireStaff(context: { supabase: unknown; userId: string }) {
-  const { data, error } = await (context.supabase as any).rpc("is_staff", {
+function parseInventoryFeed(
+  format: InventoryFileFormat,
+  payload: string,
+  mapping: InventoryMapping,
+) {
+  if (format === "json") return parseAndNormalizeInventoryJson(payload, mapping);
+  if (format === "xml") return parseAndNormalizeInventoryXml(payload, mapping);
+  return parseAndNormalizeInventoryCsv(payload, mapping);
+}
+
+async function requireAdmin(context: { supabase: unknown; userId: string }) {
+  const { data, error } = await (context.supabase as any).rpc("has_role", {
     _user_id: context.userId,
+    _role: "admin",
   });
   if (error) throw new Error(error.message);
-  if (!data) throw new Error("Staff access required.");
+  if (!data) throw new Error("Administrator access required.");
 }
 
 export const getDealerInventorySources = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<DealerInventorySourceSummary[]> => {
-    await requireStaff(context);
+    await requireAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data, error } = await (supabaseAdmin as any)
       .from("dealer_inventory_sources")
@@ -95,7 +109,7 @@ export const createDealerInventorySource = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => sourceInput.parse(input))
   .handler(async ({ data, context }) => {
-    await requireStaff(context);
+    await requireAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: source, error } = await (supabaseAdmin as any)
       .from("dealer_inventory_sources")
@@ -121,7 +135,7 @@ export const getDealerInventorySyncRuns = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ sourceId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }): Promise<DealerInventorySyncRunSummary[]> => {
-    await requireStaff(context);
+    await requireAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: runs, error } = await (supabaseAdmin as any)
       .from("dealer_inventory_sync_runs")
@@ -140,7 +154,7 @@ export const setDealerInventorySourceStatus = createServerFn({ method: "POST" })
     z.object({ sourceId: z.string().uuid(), status: z.enum(["active", "paused"]) }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    await requireStaff(context);
+    await requireAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await (supabaseAdmin as any)
       .from("dealer_inventory_sources")
@@ -154,17 +168,17 @@ export const previewDealerInventoryFeed = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => feedInput.parse(input))
   .handler(async ({ data, context }) => {
-    await requireStaff(context);
+    await requireAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: source, error } = await (supabaseAdmin as any)
       .from("dealer_inventory_sources")
-      .select("id,mapping_profile,minimum_row_count")
+      .select("id,file_format,mapping_profile,minimum_row_count")
       .eq("id", data.sourceId)
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!source) throw new Error("Inventory source not found.");
 
-    const result = parseAndNormalizeInventoryCsv(data.csv, {
+    const result = parseInventoryFeed(source.file_format as InventoryFileFormat, data.payload, {
       ...defaultInventoryMapping,
       ...(source.mapping_profile ?? {}),
     } as InventoryMapping);
@@ -184,7 +198,7 @@ export const previewDealerInventoryFeed = createServerFn({ method: "POST" })
         status: rejected ? "rejected" : "completed",
         source_filename: data.filename ?? null,
         source_checksum: result.records.map((record) => record.contentHash).join(":"),
-        raw_payload: data.csv,
+        raw_payload: data.payload,
         started_at: new Date().toISOString(),
         finished_at: new Date().toISOString(),
         received_row_count: result.rows.length,
@@ -230,18 +244,18 @@ export const applyDealerInventoryFeed = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => feedInput.extend({ dryRun: z.literal(false) }).parse(input))
   .handler(async ({ data, context }) => {
-    await requireStaff(context);
+    await requireAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
     const { data: source, error: sourceError } = await admin
       .from("dealer_inventory_sources")
-      .select("id,mapping_profile,minimum_row_count")
+      .select("id,file_format,mapping_profile,minimum_row_count")
       .eq("id", data.sourceId)
       .maybeSingle();
     if (sourceError) throw new Error(sourceError.message);
     if (!source) throw new Error("Inventory source not found.");
 
-    const result = parseAndNormalizeInventoryCsv(data.csv, {
+    const result = parseInventoryFeed(source.file_format as InventoryFileFormat, data.payload, {
       ...defaultInventoryMapping,
       ...(source.mapping_profile ?? {}),
     } as InventoryMapping);
@@ -260,7 +274,7 @@ export const applyDealerInventoryFeed = createServerFn({ method: "POST" })
         status: "running",
         source_filename: data.filename ?? null,
         source_checksum: checksum,
-        raw_payload: data.csv,
+        raw_payload: data.payload,
         received_row_count: result.rows.length,
         valid_row_count: result.records.length,
         invalid_row_count: result.errors.length,

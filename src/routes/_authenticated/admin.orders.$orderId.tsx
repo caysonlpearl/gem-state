@@ -245,7 +245,7 @@ function AdminOrderPage() {
       <p className="mx-auto max-w-[900px] px-4 py-10 text-[13px] text-muted-foreground">Loading…</p>
     );
   }
-  if (!access.data?.isAdmin && !access.data?.isModerator) {
+  if (!access.data?.isAdmin) {
     return (
       <div className="mx-auto max-w-[760px] px-4 py-16 sm:px-6">
         <h1 className="text-[20px] font-semibold tracking-tight">Operator access required</h1>

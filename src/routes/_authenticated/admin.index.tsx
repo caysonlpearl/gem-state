@@ -184,12 +184,12 @@ function AdminPage() {
       </p>
     );
   }
-  if (!data || (!data.isAdmin && !data.isModerator)) {
+  if (!data || !data.isAdmin) {
     return (
       <div className="mx-auto max-w-[760px] px-4 py-16 sm:px-6">
         <h1 className="text-[20px] font-semibold tracking-tight">Operator access required</h1>
         <p className="mt-2 text-[13px] text-muted-foreground">
-          This console is limited to Gem State moderators and administrators.
+          This console is limited to the Gem State administrator account.
         </p>
       </div>
     );

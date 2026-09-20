@@ -3,7 +3,9 @@ import assert from "node:assert/strict";
 
 import {
   calculateInventoryDiff,
+  parseAndNormalizeInventoryJson,
   parseAndNormalizeInventoryCsv,
+  parseAndNormalizeInventoryXml,
 } from "../src/lib/dealer-inventory.ts";
 import {
   dealerInventoryFeedV1,
@@ -11,6 +13,10 @@ import {
   dealerInventoryEmptyFeed,
   dealerInventoryFeedWithErrors,
 } from "../scripts/dealer-inventory-fixture.mjs";
+import {
+  dealerInventoryFeedJsonV1 as sampleJson,
+  dealerInventoryFeedXmlV1 as sampleXml,
+} from "../src/config/dealer-inventory-sample.ts";
 
 test("parses and normalizes a dealership CSV feed", () => {
   const result = parseAndNormalizeInventoryCsv(dealerInventoryFeedV1);
@@ -20,6 +26,18 @@ test("parses and normalizes a dealership CSV feed", () => {
   assert.equal(result.records[0].vin, "1HGCM82633A004352");
   assert.equal(result.records[0].media.length, 2);
   assert.equal(result.records[3].inventoryStatus, "sold");
+});
+
+test("parses JSON and XML feeds through the same normalized model", () => {
+  const json = parseAndNormalizeInventoryJson(sampleJson);
+  const xml = parseAndNormalizeInventoryXml(sampleXml);
+
+  assert.equal(json.errors.length, 0);
+  assert.equal(xml.errors.length, 0);
+  assert.equal(json.records[0].sourceRecordKey, "GS-1001");
+  assert.equal(xml.records[0].sourceRecordKey, "GS-1001");
+  assert.equal(json.records[0].media.length, 2);
+  assert.equal(xml.records[0].media.length, 2);
 });
 
 test("normalizes updates without changing the source record identity", () => {

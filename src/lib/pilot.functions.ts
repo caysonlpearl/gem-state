@@ -420,14 +420,15 @@ export const getAdminQueues = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<AdminQueues> => {
     const { supabase, userId } = context;
-    const [{ data: isAdmin }, { data: isModerator }] = await Promise.all([
-      supabase.rpc("has_role", { _user_id: userId, _role: "admin" }),
-      supabase.rpc("has_role", { _user_id: userId, _role: "moderator" }),
-    ]);
+    const { data: isAdmin, error: roleError } = await supabase.rpc("has_role", {
+      _user_id: userId,
+      _role: "admin",
+    });
+    if (roleError) throw new Error(roleError.message);
 
     const empty: AdminQueues = {
       isAdmin: isAdmin === true,
-      isModerator: isModerator === true,
+      isModerator: false,
       orders: [],
       evidenceToReview: [],
       disputes: [],
@@ -435,7 +436,7 @@ export const getAdminQueues = createServerFn({ method: "GET" })
       flaggedSightings: [],
       shopperApplications: [],
     };
-    if (!empty.isAdmin && !empty.isModerator) return empty;
+    if (!empty.isAdmin) return empty;
 
     const [orders, evidence, disputes, suggestions, sightings, applications] = await Promise.all([
       supabase
