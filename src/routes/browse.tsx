@@ -9,6 +9,7 @@ import {
   FunnelSimple,
   MapPin,
   MagnifyingGlass,
+  Megaphone,
   X,
 } from "@phosphor-icons/react";
 
@@ -4763,11 +4764,12 @@ function ClassifiedsLandingHero({
   return (
     <section
       aria-label="GemList all classifieds"
-      className="relative isolate overflow-hidden rounded-[32px] bg-secondary px-5 py-10 shadow-xl sm:px-10 sm:py-14"
+      className="relative isolate min-h-[430px] overflow-hidden rounded-[32px] bg-secondary px-5 py-14 shadow-xl sm:min-h-[500px] sm:px-10 sm:py-20"
     >
       <span className="absolute -right-20 -top-24 h-72 w-72 rounded-full bg-brand-warm/15" />
       <span className="absolute -bottom-36 left-1/3 h-80 w-80 rounded-full bg-primary/5" />
       <div className="relative mx-auto max-w-[920px] text-center">
+        <SponsoredHeroBadge />
         <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">
           GemList Classifieds
         </p>
@@ -4971,6 +4973,29 @@ function HomepagePreviewCard({ card, eyebrow }: { card: HomepagePreviewCard; eye
   );
 }
 
+function SponsoredHeroBadge() {
+  return (
+    <Link
+      to="/advertise"
+      aria-label="Sponsored by GemList — learn about advertising with us"
+      className="mx-auto inline-flex items-center gap-2.5 rounded-full border border-accent/70 bg-primary/90 px-3.5 py-2 text-left text-primary-foreground shadow-lg backdrop-blur-md transition-transform hover:-translate-y-0.5"
+    >
+      <span className="grid size-7 shrink-0 place-items-center rounded-full bg-accent text-accent-foreground">
+        <Megaphone size={15} weight="fill" aria-hidden="true" />
+      </span>
+      <span>
+        <span className="block text-[9px] font-bold uppercase tracking-[0.12em] text-accent">
+          Sponsored by GemList
+        </span>
+        <span className="block text-[10.5px] font-semibold leading-tight text-primary-foreground/90">
+          Your business could be here
+        </span>
+      </span>
+      <ArrowRight size={15} weight="bold" className="ml-1 text-accent" aria-hidden="true" />
+    </Link>
+  );
+}
+
 function HomesLandingHero({
   activeTab,
   location,
@@ -5002,6 +5027,7 @@ function HomesLandingHero({
       <div className="absolute inset-0 bg-gradient-to-t from-primary/55 via-transparent to-primary/15" />
       <div className="relative flex min-h-[610px] items-center justify-center px-4 py-12 sm:min-h-[680px] sm:px-8">
         <div className="w-full max-w-[650px] rounded-[28px] border border-white/20 bg-primary/80 p-5 text-primary-foreground shadow-2xl backdrop-blur-md sm:p-8">
+          <SponsoredHeroBadge />
           <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">
             GemList Homes
           </p>
@@ -5171,6 +5197,7 @@ function ServicesLandingHero({
       <div className="absolute inset-0 bg-gradient-to-t from-primary/60 via-transparent to-primary/10" />
       <div className="relative flex min-h-[610px] items-center justify-center px-4 py-12 sm:min-h-[680px] sm:px-8">
         <div className="w-full max-w-[720px] rounded-[28px] border border-white/20 bg-primary/80 p-5 text-primary-foreground shadow-2xl backdrop-blur-md sm:p-8">
+          <SponsoredHeroBadge />
           <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">
             GemList Services
           </p>
@@ -5824,6 +5851,7 @@ function JobsLandingHero({
       <div className="absolute inset-0 bg-gradient-to-t from-primary/60 via-transparent to-primary/10" />
       <div className="relative flex min-h-[590px] items-center justify-center px-4 py-12 sm:min-h-[670px] sm:px-8">
         <div className="w-full max-w-[720px] rounded-[28px] border border-white/20 bg-primary/80 p-5 text-primary-foreground shadow-2xl backdrop-blur-md sm:p-8">
+          <SponsoredHeroBadge />
           <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">
             GemList Jobs
           </p>
@@ -7617,7 +7645,7 @@ function VehicleBrowseHero({
   }
 
   return (
-    <section className="floating-card relative overflow-visible bg-surface px-5 py-6 sm:px-8 sm:py-8">
+    <section className="floating-card relative min-h-[430px] overflow-visible bg-surface px-5 py-10 sm:min-h-[500px] sm:px-8 sm:py-12">
       <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]">
         <div className="absolute -right-24 -top-32 h-72 w-72 rounded-full bg-brand-warm/35" />
         <div className="absolute -bottom-36 left-1/3 h-64 w-64 rounded-full bg-primary/5" />
@@ -7635,6 +7663,9 @@ function VehicleBrowseHero({
             <p className="mt-2 max-w-[52ch] text-[13.5px] leading-relaxed text-muted-foreground">
               Shop cars, trucks, powersports, trailers, and more from local sellers.
             </p>
+            <div className="mt-4">
+              <SponsoredHeroBadge />
+            </div>
           </div>
 
           <div className="grid w-full max-w-[360px] grid-cols-2 rounded-2xl bg-card p-1.5 shadow-sm ring-1 ring-border/70">

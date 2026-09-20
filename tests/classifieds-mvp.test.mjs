@@ -615,6 +615,20 @@ test("main homepage presents category-curated listing rows", () => {
   assert.match(homeSource, /no-scrollbar mt-5 flex gap-4/);
 });
 
+test("browse heroes surface the GemList sponsorship opportunity", () => {
+  assert.match(browseSource, /function SponsoredHeroBadge\(\)/);
+  assert.match(browseSource, /Sponsored by GemList/);
+  assert.match(browseSource, /Your business could be here/);
+  assert.match(browseSource, /to="\/advertise"/);
+  assert.match(browseSource, /min-h-\[430px\]/);
+  assert.match(browseSource, /min-h-\[500px\]/);
+  assert.match(browseSource, /GemList Classifieds/);
+  assert.match(browseSource, /GemList Homes/);
+  assert.match(browseSource, /GemList Services/);
+  assert.match(browseSource, /GemList Jobs/);
+  assert.match(browseSource, /Gem State motors/);
+});
+
 test("shared category icons and no-photo cards have deterministic presentation", () => {
   for (const slug of [
     "cars-trucks",
