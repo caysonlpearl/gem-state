@@ -580,11 +580,11 @@ test("header categories show four primary destinations and a Classifieds control
   assert.doesNotMatch(headerSource, /Scroll categories left/);
   assert.doesNotMatch(headerSource, /Scroll categories right/);
   assert.doesNotMatch(headerSource, /scrollBy\(/);
-  assert.match(
-    headerSource,
-    /navigationCategories = classifiedCategories\.filter\(\(c\) => c\.slug !== "general"\)/,
-  );
-  assert.match(headerSource, /navigationCategories\.map/);
+  assert.match(headerSource, /mobilePrimaryCategories = \[/);
+  assert.match(headerSource, /aria-label="Main categories"/);
+  assert.match(headerSource, /Find your next local gem\./);
+  assert.match(headerSource, /category\.description/);
+  assert.match(headerSource, /size=\{42\}/);
   assert.match(headerSource, /size=\{64\}/);
 });
 
