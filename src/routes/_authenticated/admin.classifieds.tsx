@@ -5,7 +5,11 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 
 import { formatUsd } from "@/config/fees";
-import { getAdminClassifiedQueue, type AdminClassifiedRow } from "@/lib/classifieds.functions";
+import {
+  getAdminClassifiedQueue,
+  getAdminClassifiedReports,
+  type AdminClassifiedRow,
+} from "@/lib/classifieds.functions";
 import { adminReviewAsk } from "@/lib/admin-catalog.functions";
 import { RelativeTime } from "@/components/ui/relative-time";
 
@@ -136,9 +140,14 @@ function ClassifiedModerationRow({ listing }: { listing: AdminClassifiedRow }) {
 
 function ClassifiedModerationPage() {
   const fetchQueue = useServerFn(getAdminClassifiedQueue);
+  const fetchReports = useServerFn(getAdminClassifiedReports);
   const { data, isLoading, isError } = useQuery({
     queryKey: ["admin-classified-queue"],
     queryFn: () => fetchQueue(),
+  });
+  const reports = useQuery({
+    queryKey: ["admin-classified-reports"],
+    queryFn: () => fetchReports(),
   });
 
   if (isLoading) {
@@ -197,6 +206,35 @@ function ClassifiedModerationPage() {
           </ul>
         )}
       </section>
+      {reports.data?.isAdmin && (
+        <section className="rounded-lg border border-border bg-card">
+          <div className="border-b border-border px-4 py-3">
+            <h2 className="text-[13px] font-semibold">
+              Open listing reports{" "}
+              <span className="numeric text-muted-foreground">{reports.data.reports.length}</span>
+            </h2>
+          </div>
+          {reports.data.reports.length === 0 ? (
+            <p className="px-4 py-8 text-[12.5px] text-muted-foreground">
+              No open listing reports.
+            </p>
+          ) : (
+            <ul>
+              {reports.data.reports.map((report) => (
+                <li key={report.id} className="border-b border-border p-4 last:border-b-0">
+                  <p className="text-[12.5px] font-semibold">{report.reason}</p>
+                  <p className="mt-1 text-[11.5px] text-muted-foreground">
+                    Listing {report.listingId} · {new Date(report.createdAt).toLocaleString()}
+                  </p>
+                  {report.details && (
+                    <p className="mt-2 text-[12px] leading-relaxed">{report.details}</p>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
     </main>
   );
 }

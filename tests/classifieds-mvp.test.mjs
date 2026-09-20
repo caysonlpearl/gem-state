@@ -49,6 +49,11 @@ const savedSearchWorkerSource = await read("src/lib/saved-search-worker.server.t
 const glossarySource = await read("src/routes/glossary.tsx");
 const policiesSource = await read("src/routes/policies.tsx");
 const classifiedsFunctionsSource = await read("src/lib/classifieds.functions.ts");
+const listingDetailSource = await read("src/routes/listings.$listingId.tsx");
+const adminClassifiedsSource = await read("src/routes/_authenticated/admin.classifieds.tsx");
+const listingReportsMigrationSource = await read(
+  "supabase/migrations/20260920110000_add_classified_listing_reports.sql",
+);
 const marketFunctionsSource = await read("src/lib/market.functions.ts");
 const stripeMarketplaceSource = await read("src/lib/stripe-marketplace.functions.ts");
 const stripeServerSource = await read("src/lib/stripe-marketplace.server.ts");
@@ -294,6 +299,18 @@ test("classified listing media stays private until approval", () => {
   assert.match(classifiedMediaSecurityMigrationSource, /p\.status = 'published'/);
   assert.match(classifiedsFunctionsSource, /createSignedUrls\(unique, 60 \* 60\)/);
   assert.doesNotMatch(classifiedsFunctionsSource, /object\/public\/listing-media/);
+});
+
+test("flag this listing submits an authenticated report and exposes it to admins", () => {
+  assert.match(listingDetailSource, /FlagListingDialog/);
+  assert.match(listingDetailSource, /reportClassifiedListing/);
+  assert.match(listingDetailSource, /Submit report/);
+  assert.match(classifiedsFunctionsSource, /classified_listing_reports/);
+  assert.match(classifiedsFunctionsSource, /getAdminClassifiedReports/);
+  assert.match(adminClassifiedsSource, /Open listing reports/);
+  assert.match(listingReportsMigrationSource, /Members create listing reports/);
+  assert.match(listingReportsMigrationSource, /Admins read listing reports/);
+  assert.match(listingReportsMigrationSource, /classified_listing_reports_one_per_member/);
 });
 
 test("direct-contact MVP copy is consistent across buyer and seller surfaces", () => {

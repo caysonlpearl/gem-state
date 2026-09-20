@@ -1,6 +1,7 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { queryOptions, useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -54,6 +55,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
+import { useAuth } from "@/hooks/useAuth";
+import { reportClassifiedListing } from "@/lib/classifieds.functions";
 
 const listingQuery = (id: string) =>
   queryOptions({
@@ -78,7 +81,7 @@ export const Route = createFileRoute("/listings/$listingId")({
       title: listing.title,
       priceLabel: listing.job
         ? formatJobPay(listing.job)
-        : listing.service?.pricing ?? formatUsd(listing.priceCents),
+        : (listing.service?.pricing ?? formatUsd(listing.priceCents)),
       city: listing.city,
       state: listing.state,
     };
@@ -479,7 +482,9 @@ function PageStatsCard({ listing }: { listing: ClassifiedDetail }) {
     Math.max(0, Math.round((to - new Date(from).getTime()) / (1000 * 60 * 60 * 24)));
   const now = Date.now();
   const daysOnline = daysBetween(listing.createdAt, now);
-  const daysLeft = listing.expiresAt ? daysBetween(listing.createdAt, new Date(listing.expiresAt).getTime()) - daysOnline : null;
+  const daysLeft = listing.expiresAt
+    ? daysBetween(listing.createdAt, new Date(listing.expiresAt).getTime()) - daysOnline
+    : null;
   return (
     <section className="soft-card px-5 py-5">
       <h2 className="text-[14px] font-bold">Page stats</h2>
@@ -541,12 +546,7 @@ function TrustSafetyCard({ listing }: { listing: ClassifiedDetail }) {
         GemList reviews listings for marketplace policy. Always inspect the item, confirm the
         details, and agree on the final price before exchanging money.
       </p>
-      <Link
-        to="/contact"
-        className="mt-4 flex h-10 items-center justify-center gap-1.5 rounded-full border border-primary/40 text-[12px] font-semibold text-primary hover:bg-primary/5"
-      >
-        <Flag size={14} /> Flag this listing
-      </Link>
+      <FlagListingDialog listingId={listing.id} />
       {listing.seller?.payoutVerified && (
         <p className="mt-3 flex items-center gap-1.5 text-[11px] text-muted-foreground">
           <CheckCircle size={13} weight="fill" className="text-primary" /> Seller account
@@ -559,6 +559,122 @@ function TrustSafetyCard({ listing }: { listing: ClassifiedDetail }) {
         </p>
       )}
     </section>
+  );
+}
+
+const listingReportReasons = [
+  "Scam or fraud",
+  "Prohibited item",
+  "Misleading information",
+  "Unsafe or threatening",
+  "Other",
+] as const;
+
+function FlagListingDialog({ listingId }: { listingId: string }) {
+  const { isSignedIn } = useAuth();
+  const report = useServerFn(reportClassifiedListing);
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  const [details, setDetails] = useState("");
+  const reportMutation = useMutation({
+    mutationFn: () => report({ data: { listingId, reason, details } }),
+    onSuccess: (result) => {
+      toast.success(
+        result.alreadyReported
+          ? "You already reported this listing."
+          : "Thanks — your report was sent to Gem State moderation.",
+      );
+      setOpen(false);
+      setReason("");
+      setDetails("");
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Could not submit the report."),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <button
+          type="button"
+          className="mt-4 flex h-10 w-full items-center justify-center gap-1.5 rounded-full border border-primary/40 text-[12px] font-semibold text-primary hover:bg-primary/5"
+        >
+          <Flag size={14} /> Flag this listing
+        </button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Flag this listing</DialogTitle>
+          <DialogDescription>
+            Tell us what looks wrong. Reports help Gem State review unsafe, misleading, or
+            prohibited listings.
+          </DialogDescription>
+        </DialogHeader>
+        {isSignedIn ? (
+          <form
+            className="space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              reportMutation.mutate();
+            }}
+          >
+            <label className="block text-[12px] font-medium">
+              Reason
+              <select
+                required
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+                className="mt-1 h-10 w-full rounded-xl border border-input bg-background px-3 text-[12px]"
+              >
+                <option value="">Choose a reason</option>
+                {listingReportReasons.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block text-[12px] font-medium">
+              Details <span className="font-normal text-muted-foreground">(optional)</span>
+              <textarea
+                value={details}
+                onChange={(event) => setDetails(event.target.value.slice(0, 500))}
+                rows={4}
+                maxLength={500}
+                className="mt-1 w-full resize-y rounded-xl border border-input bg-background px-3 py-2.5 text-[12px] leading-relaxed"
+                placeholder="What should our moderation team know?"
+              />
+            </label>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="h-10 rounded-xl border border-input px-4 text-[12px] font-semibold hover:bg-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={reportMutation.isPending}
+                className="h-10 rounded-xl bg-primary px-4 text-[12px] font-semibold text-primary-foreground disabled:opacity-60"
+              >
+                {reportMutation.isPending ? "Sending…" : "Submit report"}
+              </button>
+            </div>
+          </form>
+        ) : (
+          <div className="rounded-xl border border-border bg-secondary/40 p-4 text-[12px] leading-relaxed text-muted-foreground">
+            Sign in to report a listing. This helps us prevent duplicate or anonymous abuse reports.
+            <Link
+              to={brand.urls.auth}
+              className="mt-3 inline-flex h-9 items-center rounded-xl bg-primary px-3 font-semibold text-primary-foreground"
+            >
+              Sign in
+            </Link>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -795,11 +911,7 @@ function ListingDetail() {
           </section>
 
           <section className="soft-card overflow-hidden">
-            <div
-              className={listingTabListClass}
-              role="tablist"
-              aria-label="Listing information"
-            >
+            <div className={listingTabListClass} role="tablist" aria-label="Listing information">
               {(["description", "specifications", "location"] as const).map((tab) => (
                 <button
                   key={tab}
@@ -1108,11 +1220,7 @@ function HomeRentalInformation({
 
   return (
     <section className="soft-card overflow-hidden">
-      <div
-        className={listingTabListClass}
-        role="tablist"
-        aria-label="Home information"
-      >
+      <div className={listingTabListClass} role="tablist" aria-label="Home information">
         {(["description", "amenities"] as const).map((tab) => (
           <button
             key={tab}
@@ -1222,7 +1330,7 @@ function HomeRentalInformation({
   );
 }
 
-function HomeSafetyPanel({ isRental }: { isRental: boolean }) {
+function HomeSafetyPanel({ isRental, listingId }: { isRental: boolean; listingId: string }) {
   return (
     <section className="rounded-2xl border border-brand-warm/50 bg-brand-warm/10 px-5 py-5 sm:px-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1236,12 +1344,7 @@ function HomeSafetyPanel({ isRental }: { isRental: boolean }) {
           ? "Never send a deposit before touring the home and verifying the owner or property manager. Review the lease, fees, utilities, and application process before paying."
           : "Never send money before touring the home and verifying ownership. Review disclosures, fees, inspection details, and the offer terms before making a payment."}
       </p>
-      <Link
-        to="/contact"
-        className="mt-4 inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-primary/40 px-4 text-[12px] font-semibold text-primary hover:bg-primary/5"
-      >
-        <Flag size={14} /> Flag this listing
-      </Link>
+      <FlagListingDialog listingId={listingId} />
     </section>
   );
 }
@@ -1360,7 +1463,7 @@ function HomeListingDetail({
           </section>
           <HomeLocationPanel listing={listing} locationQuery={locationQuery} />
           <HomeRentalInformation listing={listing} description={description} />
-          <HomeSafetyPanel isRental={details.isRental} />
+          <HomeSafetyPanel isRental={details.isRental} listingId={listing.id} />
         </div>
 
         <aside className="min-w-0 space-y-5 lg:sticky lg:top-24">
@@ -1563,11 +1666,7 @@ function JobListingDetail({
           <Gallery listing={listing} />
 
           <section className="soft-card overflow-hidden">
-            <div
-              className={listingTabListClass}
-              role="tablist"
-              aria-label="Job information"
-            >
+            <div className={listingTabListClass} role="tablist" aria-label="Job information">
               {(["description", "specifications", "map"] as const).map((tab) => (
                 <button
                   key={tab}
@@ -1744,7 +1843,9 @@ function StarRating({ rating }: { rating: number }) {
           key={position}
           size={14}
           weight={position <= Math.round(rating) ? "fill" : "regular"}
-          className={position <= Math.round(rating) ? "text-brand-warm" : "text-muted-foreground/40"}
+          className={
+            position <= Math.round(rating) ? "text-brand-warm" : "text-muted-foreground/40"
+          }
         />
       ))}
     </span>
@@ -1900,7 +2001,9 @@ function ServiceListingDetail({
                       ].map(([label, value]) => (
                         <div key={label} className="flex items-center justify-between gap-4 py-3">
                           <dt>{label}</dt>
-                          <dd className="text-right font-semibold text-muted-foreground">{value}</dd>
+                          <dd className="text-right font-semibold text-muted-foreground">
+                            {value}
+                          </dd>
                         </div>
                       ))}
                     </dl>
@@ -1986,7 +2089,6 @@ function ServiceListingDetail({
               )}
             </div>
           </section>
-
         </div>
 
         <aside className="min-w-0 space-y-5 lg:sticky lg:top-24">
@@ -2129,11 +2231,7 @@ function GeneralListingDetail({
           <Gallery listing={listing} />
 
           <section className="soft-card overflow-hidden">
-            <div
-              className={listingTabListClass}
-              role="tablist"
-              aria-label="Listing information"
-            >
+            <div className={listingTabListClass} role="tablist" aria-label="Listing information">
               {(["description", "location"] as const).map((tab) => (
                 <button
                   key={tab}

@@ -107,6 +107,91 @@ export type ClassifiedCategoryOption = {
   name: string;
 };
 
+export type ClassifiedListingReportInput = {
+  listingId: string;
+  reason: string;
+  details?: string | null;
+};
+
+/** Members can report a public listing once; moderation staff review the queue. */
+export const reportClassifiedListing = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: ClassifiedListingReportInput) => {
+    const listingId = String(input.listingId ?? "").trim();
+    const reason = String(input.reason ?? "").trim();
+    const details = input.details == null ? null : String(input.details).trim();
+    if (
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(listingId)
+    ) {
+      throw new Error("Listing not found.");
+    }
+    if (reason.length < 2 || reason.length > 80) throw new Error("Choose a report reason.");
+    if (details && details.length > 500) throw new Error("Keep the details under 500 characters.");
+    return { listingId, reason, details: details || null };
+  })
+  .handler(async ({ data, context }) => {
+    const client = context.supabase as any;
+    const { data: listing, error: listingError } = await client
+      .from("asks")
+      .select("id")
+      .eq("id", data.listingId)
+      .eq("status", "active")
+      .eq("is_demo", false)
+      .not("approved_at", "is", null)
+      .gt("expires_at", new Date().toISOString())
+      .maybeSingle();
+    if (listingError) throw new Error(listingError.message);
+    if (!listing) throw new Error("That listing is no longer available.");
+
+    const { error } = await client.from("classified_listing_reports").insert({
+      listing_id: data.listingId,
+      reporter_id: context.userId,
+      reason: data.reason,
+      details: data.details,
+    });
+    if (error?.code === "23505") return { alreadyReported: true as const };
+    if (error) throw new Error(error.message);
+    return { alreadyReported: false as const };
+  });
+
+export type AdminClassifiedReport = {
+  id: string;
+  listingId: string;
+  reason: string;
+  details: string | null;
+  status: string;
+  createdAt: string;
+};
+
+export const getAdminClassifiedReports = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ isAdmin: boolean; reports: AdminClassifiedReport[] }> => {
+    const { data: isAdmin, error: roleError } = await context.supabase.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "admin",
+    });
+    if (roleError) throw new Error(roleError.message);
+    if (!isAdmin) return { isAdmin: false, reports: [] };
+    const client = context.supabase as any;
+    const { data, error } = await client
+      .from("classified_listing_reports")
+      .select("id,listing_id,reason,details,status,created_at")
+      .eq("status", "open")
+      .order("created_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return {
+      isAdmin: true,
+      reports: (data ?? []).map((row: any) => ({
+        id: row.id,
+        listingId: row.listing_id,
+        reason: row.reason,
+        details: row.details ?? null,
+        status: row.status,
+        createdAt: row.created_at,
+      })),
+    };
+  });
+
 export const getClassifiedCategoryOptions = createServerFn({ method: "GET" }).handler(
   async (): Promise<ClassifiedCategoryOption[]> => {
     const client = publicServerClient();
@@ -718,7 +803,9 @@ function mockDetail(listing: (typeof mockClassifiedListings)[number]): Classifie
         .filter((other) => other.id !== listing.id && other.home?.community?.slug === communitySlug)
         .map(mockCard)
     : undefined;
-  const communityFloorplans = communitySlug ? homeCommunities[communitySlug]?.floorplans : undefined;
+  const communityFloorplans = communitySlug
+    ? homeCommunities[communitySlug]?.floorplans
+    : undefined;
   const employerName = listing.job?.employerName;
   const employerListings = employerName
     ? mockClassifiedListings
@@ -858,9 +945,7 @@ export const browseClassifieds = createServerFn({ method: "GET" })
   }))
   .handler(async ({ data }): Promise<ClassifiedBrowseResult> => runBrowseClassifieds(data));
 
-async function runBrowseClassifieds(
-  data: ClassifiedBrowseInput,
-): Promise<ClassifiedBrowseResult> {
+async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<ClassifiedBrowseResult> {
   {
     const client = publicServerClient();
     const page = data.page ?? 1;
@@ -937,10 +1022,7 @@ async function runBrowseClassifieds(
       if (firstCondition && otherConditions.length === 0)
         query = query.eq("item_condition", firstCondition as never);
       if (firstCondition && otherConditions.length > 0)
-        query = query.in("item_condition", [
-          firstCondition,
-          ...otherConditions,
-        ] as never);
+        query = query.in("item_condition", [firstCondition, ...otherConditions] as never);
     }
     if (data.fulfillment) {
       const fulfillment = filterValues(data.fulfillment);
@@ -1031,7 +1113,11 @@ async function runBrowseClassifieds(
     const combinedListings = [...mockListings, ...listings].slice(0, PAGE_SIZE);
     if (listings.length > 0) {
       void import("@/integrations/supabase/client.server")
-        .then(({ supabaseAdmin }) => (supabaseAdmin as any).rpc("record_classified_listing_impressions", { _listing_ids: listings.map((listing) => listing.id) }))
+        .then(({ supabaseAdmin }) =>
+          (supabaseAdmin as any).rpc("record_classified_listing_impressions", {
+            _listing_ids: listings.map((listing) => listing.id),
+          }),
+        )
         .catch(() => undefined);
     }
     return {
@@ -1066,7 +1152,9 @@ export const getClassifiedListing = createServerFn({ method: "GET" })
 
     const record = row as unknown as Record<string, unknown>;
     void import("@/integrations/supabase/client.server")
-      .then(({ supabaseAdmin }) => (supabaseAdmin as any).rpc("record_classified_listing_view", { _listing_id: data.id }))
+      .then(({ supabaseAdmin }) =>
+        (supabaseAdmin as any).rpc("record_classified_listing_view", { _listing_id: data.id }),
+      )
       .catch(() => undefined);
     const paths = sortedMedia(record);
     const urlByPath = await signListingMedia(paths);
@@ -1083,30 +1171,39 @@ export const getClassifiedListing = createServerFn({ method: "GET" })
             .maybeSingle(),
           (async () => {
             const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-            const [{ data: sellerProfile }, { data: sellerAuth }, { data: contactPreferences }] = await Promise.all([
-              supabaseAdmin
-                .from("seller_profiles")
-                .select("ship_from_phone")
-                .eq("user_id", sellerId)
-                .maybeSingle(),
-              supabaseAdmin.auth.admin.getUserById(sellerId),
-              supabaseAdmin
-                .from("account_contact_preferences")
-                .select("allow_email,allow_phone,allow_text,show_contact_buttons,allow_internal_messages")
-                .eq("user_id", sellerId)
-                .maybeSingle(),
-            ]);
+            const [{ data: sellerProfile }, { data: sellerAuth }, { data: contactPreferences }] =
+              await Promise.all([
+                supabaseAdmin
+                  .from("seller_profiles")
+                  .select("ship_from_phone")
+                  .eq("user_id", sellerId)
+                  .maybeSingle(),
+                supabaseAdmin.auth.admin.getUserById(sellerId),
+                supabaseAdmin
+                  .from("account_contact_preferences")
+                  .select(
+                    "allow_email,allow_phone,allow_text,show_contact_buttons,allow_internal_messages",
+                  )
+                  .eq("user_id", sellerId)
+                  .maybeSingle(),
+              ]);
             const showButtons = contactPreferences?.show_contact_buttons !== false;
             const phone = sellerProfile?.ship_from_phone ?? null;
             return {
               phone: showButtons && contactPreferences?.allow_phone === true ? phone : null,
               textPhone: showButtons && contactPreferences?.allow_text === true ? phone : null,
-              email: showButtons && contactPreferences?.allow_email !== false ? sellerAuth?.user?.email ?? null : null,
+              email:
+                showButtons && contactPreferences?.allow_email !== false
+                  ? (sellerAuth?.user?.email ?? null)
+                  : null,
               allowInternalMessages: contactPreferences?.allow_internal_messages !== false,
             };
           })(),
         ])
-      : [{ data: null }, { phone: null, textPhone: null, email: null, allowInternalMessages: true }];
+      : [
+          { data: null },
+          { phone: null, textPhone: null, email: null, allowInternalMessages: true },
+        ];
 
     return {
       ...card,
