@@ -87,7 +87,8 @@ export function SiteHeader() {
     };
     const onPointer = (e: MouseEvent) => {
       const target = e.target as Node;
-      if (accountMenuRef.current?.contains(target) || accountButtonRef.current?.contains(target)) return;
+      if (accountMenuRef.current?.contains(target) || accountButtonRef.current?.contains(target))
+        return;
       setAccountMenuOpen(false);
     };
     window.addEventListener("keydown", onKey);
@@ -105,7 +106,7 @@ export function SiteHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur">
+    <header className="sticky top-0 z-40 overflow-x-hidden border-b border-border bg-card/95 backdrop-blur">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-2 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-1.5 focus:text-[12.5px] focus:font-medium focus:text-primary-foreground"
@@ -114,8 +115,8 @@ export function SiteHeader() {
       </a>
 
       {/* Level 1 */}
-      <div className="mx-auto grid h-[72px] max-w-[1440px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 sm:h-[88px] sm:gap-8 sm:px-8">
-        <Link to="/" className="flex shrink-0 items-center pr-1 sm:pr-2" {...pinned}>
+      <div className="mx-auto grid min-w-0 h-[72px] max-w-[1440px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 sm:h-[88px] sm:gap-8 sm:px-8">
+        <Link to="/" className="flex min-w-0 shrink-0 items-center pr-1 sm:pr-2" {...pinned}>
           <BrandMark className="hidden sm:inline-flex" />
           <BrandMark compact className="sm:hidden" />
         </Link>
@@ -150,7 +151,10 @@ export function SiteHeader() {
           </label>
         </form>
 
-        <nav aria-label="Account and utilities" className="flex shrink-0 items-center gap-1.5">
+        <nav
+          aria-label="Account and utilities"
+          className="flex min-w-0 shrink-0 items-center justify-end gap-1.5"
+        >
           <button
             type="button"
             onClick={() => void navigate({ to: "/browse" })}
@@ -306,7 +310,7 @@ export function SiteHeader() {
           without forcing the desktop artwork row into a narrow viewport. */}
       {menuOpen && (
         <div id="marketplace-menu" className="border-t border-border bg-surface lg:hidden">
-          <div className="mx-auto max-w-[1360px] px-3 py-4 sm:px-8">
+          <div className="mx-auto min-w-0 max-w-[1360px] overflow-x-hidden px-3 py-4 sm:px-8">
             <div className="mb-3 flex items-center justify-between">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
@@ -335,7 +339,7 @@ export function SiteHeader() {
                         : { category: category.slug }
                     }
                     onClick={() => setMenuOpen(false)}
-                    className="group flex min-h-[72px] items-center gap-3 rounded-2xl border border-border bg-card px-3 py-2.5 transition-colors hover:border-primary/40 hover:bg-secondary"
+                    className="group flex min-w-0 min-h-[72px] items-center gap-3 rounded-2xl border border-border bg-card px-3 py-2.5 transition-colors hover:border-primary/40 hover:bg-secondary"
                     {...pinned}
                   >
                     <CategoryArtwork slug={category.slug} size={42} className="shrink-0" />

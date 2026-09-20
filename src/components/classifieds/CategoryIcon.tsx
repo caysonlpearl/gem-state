@@ -255,7 +255,11 @@ export function CategoryArtwork({
       width={size}
       height={size}
       loading="eager"
-      className={`category-art h-auto w-auto object-contain ${className ?? ""}`}
+      // Keep the requested artwork size authoritative. The previous `w-auto`
+      // / `h-auto` rules allowed the source image's intrinsic dimensions to
+      // escape into compact cards and the mobile header menu.
+      style={{ width: size, height: size }}
+      className={`category-art max-w-full object-contain ${className ?? ""}`}
     />
   );
 }
