@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
 const configSource = await read("src/config/classifieds.ts");
+const petsConfigSource = await read("src/config/pets.ts");
 const browseSource = await read("src/routes/browse.tsx");
 const createSource = await read("src/routes/_authenticated/create-listing.tsx");
 const listingFormSource = await read("src/components/classifieds/listing-form/ListingForm.tsx");
@@ -12,6 +13,7 @@ const vehicleFieldsSource = await read("src/components/classifieds/listing-form/
 const homeFieldsSource = await read("src/components/classifieds/listing-form/HomeFields.tsx");
 const jobFieldsSource = await read("src/components/classifieds/listing-form/JobFields.tsx");
 const serviceFieldsSource = await read("src/components/classifieds/listing-form/ServiceFields.tsx");
+const petFieldsSource = await read("src/components/classifieds/listing-form/PetFields.tsx");
 const listingFormPayloadSource = await read("src/components/classifieds/listing-form/payload.ts");
 const editSource = await read("src/routes/_authenticated/listings.$listingId.edit.tsx");
 const homeJobServiceMigrationSource = await read(
@@ -69,6 +71,9 @@ const mediaCountMigrationSource = await read(
 );
 const classifiedSchemaSource = await read(
   "supabase/migrations/20260913173736_32625455-cc9d-4572-a1dc-713b70e33dce.sql",
+);
+const petMigrationSource = await read(
+  "supabase/migrations/20260920150000_add_classified_pet_details.sql",
 );
 const inquiryMigrationSource = await read(
   "supabase/migrations/20260915160000_add_classified_listing_inquiries.sql",
@@ -160,6 +165,44 @@ test("browse and create flows expose the same vehicle fields", () => {
   assert.match(vehicleFieldsSource, /vehicle-make-options/);
   assert.match(vehicleFieldsSource, /vehicle-model-options/);
   assert.match(vehicleFieldsSource, /vehicleModelsByMake/);
+});
+
+test("pets have KSL-style taxonomy, structured listing fields, and searchable filters", () => {
+  for (const category of [
+    "birds",
+    "cats",
+    "dogs",
+    "dogs-studs-breeding",
+    "ferrets",
+    "fish",
+    "guinea-pigs",
+    "hamsters",
+    "hedgehogs",
+    "lost-found",
+    "other-pets",
+    "pet-equipment-supplies",
+    "rabbits",
+    "reptiles",
+    "stock-dogs",
+    "wanted-iso",
+  ]) {
+    assert.match(petsConfigSource, new RegExp(category));
+  }
+  for (const field of ["petSubcategory", "petSpecies", "petBreed", "petPlacementType"]) {
+    assert.match(browseSource, new RegExp(field));
+    assert.match(petFieldsSource, new RegExp(field));
+    assert.match(classifiedsFunctionsSource, new RegExp(field));
+  }
+  assert.match(configSource, /slug: "pets"/);
+  assert.match(listingFormSource, /PetFields/);
+  assert.match(listingFormPayloadSource, /buildPet/);
+  assert.match(contractsSource, /pet: z/);
+  assert.match(classifiedsFunctionsSource, /function petOf/);
+  assert.match(classifiedsFunctionsSource, /_pet: petForRpc/);
+  assert.match(petMigrationSource, /pet_subcategory/);
+  assert.match(petMigrationSource, /pet_placement_type/);
+  assert.match(petMigrationSource, /create_classified_listing/);
+  assert.match(petMigrationSource, /VALUES \('pets', 'Pets'/);
 });
 
 test("listing creation and edit share one form, extended with home/job/service fields", () => {

@@ -41,6 +41,7 @@ import {
   formatJobPay,
   formatMileage,
   fulfillmentLabels,
+  petPlacementLabels,
   postedAge,
   vehicleHeadline,
 } from "@/lib/classifieds-display";
@@ -2262,6 +2263,7 @@ function GeneralListingDetail({
                         {condition}
                       </span>
                     </div>
+                    {listing.pet ? <PetDetails pet={listing.pet} /> : null}
                     <p className="mt-6 whitespace-pre-line text-[14px] leading-7 text-muted-foreground">
                       {description || "The seller has not added a description yet."}
                     </p>
@@ -2332,5 +2334,60 @@ function GeneralListingDetail({
         </div>
       </div>
     </main>
+  );
+}
+
+function PetDetails({ pet }: { pet: NonNullable<ClassifiedDetail["pet"]> }) {
+  const details = [
+    ["Listing type", petPlacementLabels[pet.placementType] ?? pet.placementType],
+    ["Animal", pet.species],
+    ["Breed", pet.breed],
+    ["Name", pet.name],
+    ["Age", pet.age],
+    ["Sex", pet.sex],
+    ["Offered by", pet.offeredBy],
+    ["Living arrangement", pet.indoorOutdoor],
+    ["Hypoallergenic", pet.hypoallergenic],
+    ["Vaccinated", pet.vaccinated],
+    ["Spayed / neutered", pet.spayedNeutered],
+    ["Microchipped", pet.microchipped],
+    ["Records available", pet.recordsAvailable],
+    ["Good with kids", pet.goodWithKids],
+    ["Good with dogs", pet.goodWithDogs],
+    ["Good with cats", pet.goodWithCats],
+  ].filter(([, value]) => Boolean(value));
+
+  return (
+    <section className="mt-7 rounded-2xl border border-border/70 bg-secondary/35 p-4 sm:p-5">
+      <h3 className="text-[16px] font-bold">Pet details</h3>
+      <dl className="mt-4 grid gap-x-6 gap-y-3 sm:grid-cols-2">
+        {details.map(([label, value]) => (
+          <div key={label} className="flex items-baseline justify-between gap-3 text-[12.5px]">
+            <dt className="text-muted-foreground">{label}</dt>
+            <dd className="text-right font-semibold text-foreground">{value}</dd>
+          </div>
+        ))}
+      </dl>
+      {pet.specialNeeds || pet.breedingTerms ? (
+        <div className="mt-4 border-t border-border/70 pt-4 text-[12.5px] leading-6">
+          {pet.specialNeeds ? (
+            <p>
+              <span className="font-semibold">Special needs: </span>
+              {pet.specialNeeds}
+            </p>
+          ) : null}
+          {pet.breedingTerms ? (
+            <p className={pet.specialNeeds ? "mt-2" : ""}>
+              <span className="font-semibold">Breeding terms: </span>
+              {pet.breedingTerms}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+      <p className="mt-4 border-t border-border/70 pt-4 text-[12px] leading-5 text-muted-foreground">
+        Meet in person, verify records, and avoid deposits, wire transfers, or gift cards before you
+        have confirmed the pet and seller.
+      </p>
+    </section>
   );
 }

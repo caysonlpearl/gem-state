@@ -43,6 +43,28 @@ export type ClassifiedVehicle = {
   vin: string | null;
 };
 
+export type ClassifiedPet = {
+  subcategory: string;
+  species: string;
+  breed: string | null;
+  name: string | null;
+  age: string | null;
+  sex: string | null;
+  placementType: string;
+  offeredBy: string;
+  hypoallergenic: string | null;
+  vaccinated: string | null;
+  spayedNeutered: string | null;
+  microchipped: string | null;
+  recordsAvailable: string | null;
+  goodWithKids: string | null;
+  goodWithDogs: string | null;
+  goodWithCats: string | null;
+  indoorOutdoor: string | null;
+  specialNeeds: string | null;
+  breedingTerms: string | null;
+};
+
 export type ClassifiedCard = {
   id: string;
   title: string;
@@ -61,6 +83,7 @@ export type ClassifiedCard = {
   isFeatured: boolean;
   imageUrl: string | null;
   vehicle: ClassifiedVehicle | null;
+  pet?: ClassifiedPet | null;
   home?: ClassifiedHomeDetails | null;
   job?: ClassifiedJobDetails | null;
   service?: ClassifiedServiceDetails | null;
@@ -221,6 +244,7 @@ export type AdminClassifiedRow = {
   sellerHandle: string;
   sellerNote: string | null;
   vehicle: ClassifiedVehicle | null;
+  pet?: ClassifiedPet | null;
   listingImageUrls: string[];
   evidenceImageUrls: string[];
   createdAt: string;
@@ -290,6 +314,7 @@ export const getAdminClassifiedQueue = createServerFn({ method: "GET" })
           sellerHandle: row.seller_handle,
           sellerNote: row.seller_note,
           vehicle: vehicleOf(details),
+          pet: null,
           listingImageUrls: await signedAdminUrls("listing-media", row.listing_media_paths),
           evidenceImageUrls: await signedAdminUrls("ask-evidence", row.evidence_paths),
           createdAt: row.created_at,
@@ -299,7 +324,7 @@ export const getAdminClassifiedQueue = createServerFn({ method: "GET" })
 
     return {
       isAdmin: true,
-      listings: listings.filter((listing): listing is AdminClassifiedRow => listing !== null),
+      listings: listings.filter(Boolean) as AdminClassifiedRow[],
     };
   });
 
@@ -365,6 +390,7 @@ export const createClassifiedListing = createServerFn({ method: "POST" })
       _home: homeForRpc(data.home),
       _job: jobForRpc(data.job),
       _service: serviceForRpc(data.service),
+      _pet: petForRpc(data.pet),
     });
     if (error) throw new Error(error.message);
     return { listingId: listingId as string };
@@ -384,6 +410,7 @@ export type ClassifiedListingEditor = {
   postalCode: string;
   fulfillmentMode: string;
   vehicle: ClassifiedVehicle | null;
+  pet: ClassifiedPet | null;
   home: ClassifiedHomeDetails | null;
   job: ClassifiedJobDetails | null;
   service: ClassifiedServiceDetails | null;
@@ -400,7 +427,8 @@ const EDITOR_DETAILS_SELECT =
   "state,region,city,postal_code,fulfillment_mode,vehicle_make,vehicle_model,vehicle_year,vehicle_trim,vehicle_mileage,vehicle_body_style,vehicle_transmission,vehicle_drivetrain,vehicle_fuel_type,vehicle_exterior_color,vehicle_title_status,vin," +
   "home_mode,home_property_type,home_bedrooms,home_bathrooms,home_square_feet,home_year_built,home_acreage,home_heating,home_cooling,home_garage_parking,home_yard,home_appliances_included,home_floor_coverings,home_basement_type,home_exterior_material,home_special_features,home_hoa_fees,home_school_district,home_lease_length,home_available,home_pets_policy,home_smoking_policy,home_open_house," +
   "job_employer_name,job_employer_address,job_pay_type,job_pay_min,job_pay_max,job_employment_type,job_experience_required,job_education_level,job_responsibilities,job_qualifications," +
-  "service_subcategory,service_area,service_availability,service_business_address,service_license_number,service_license_lookup_url,service_offerings";
+  "service_subcategory,service_area,service_availability,service_business_address,service_license_number,service_license_lookup_url,service_offerings," +
+  "pet_subcategory,pet_species,pet_breed,pet_name,pet_age,pet_sex,pet_placement_type,pet_offered_by,pet_hypoallergenic,pet_vaccinated,pet_spayed_neutered,pet_microchipped,pet_records_available,pet_good_with_kids,pet_good_with_dogs,pet_good_with_cats,pet_indoor_outdoor,pet_special_needs,pet_breeding_terms";
 
 export const getClassifiedListingEditor = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -443,6 +471,7 @@ export const getClassifiedListingEditor = createServerFn({ method: "GET" })
       home: homeOf(details),
       job: jobOf(details, description),
       service: serviceOf(details, description, Number(record.price_cents)),
+      pet: petOf(details),
       parcelLengthIn: record.parcel_length_in == null ? "" : String(record.parcel_length_in),
       parcelWidthIn: record.parcel_width_in == null ? "" : String(record.parcel_width_in),
       parcelHeightIn: record.parcel_height_in == null ? "" : String(record.parcel_height_in),
@@ -474,6 +503,7 @@ export type UpdateClassifiedListingInput = {
   home?: ClassifiedListingInput["home"];
   job?: ClassifiedListingInput["job"];
   service?: ClassifiedListingInput["service"];
+  pet?: ClassifiedListingInput["pet"];
   publicMediaPaths?: string[];
 };
 
@@ -522,6 +552,7 @@ export const updateClassifiedListing = createServerFn({ method: "POST" })
       _home: homeForRpc(data.home),
       _job: jobForRpc(data.job),
       _service: serviceForRpc(data.service),
+      _pet: petForRpc(data.pet),
     });
     if (error) throw new Error(error.message);
     if (data.publicMediaPaths && data.publicMediaPaths.length > 0) {
@@ -549,7 +580,8 @@ const LISTING_SELECT =
   "classified_listing_details!inner(region, city, state, postal_code, fulfillment_mode, vehicle_make, vehicle_model, vehicle_year, vehicle_trim, vehicle_mileage, vehicle_body_style, vehicle_transmission, vehicle_drivetrain, vehicle_fuel_type, vehicle_exterior_color, vehicle_title_status, vin, " +
   "home_mode, home_property_type, home_bedrooms, home_bathrooms, home_square_feet, home_year_built, home_acreage, home_heating, home_cooling, home_garage_parking, home_yard, home_appliances_included, home_floor_coverings, home_basement_type, home_exterior_material, home_special_features, home_hoa_fees, home_school_district, home_lease_length, home_available, home_pets_policy, home_smoking_policy, home_open_house, " +
   "job_employer_name, job_employer_address, job_pay_type, job_pay_min, job_pay_max, job_employment_type, job_experience_required, job_education_level, job_responsibilities, job_qualifications, " +
-  "service_subcategory, service_area, service_availability, service_business_address, service_license_number, service_license_lookup_url, service_offerings), " +
+  "service_subcategory, service_area, service_availability, service_business_address, service_license_number, service_license_lookup_url, service_offerings, " +
+  "pet_subcategory, pet_species, pet_breed, pet_name, pet_age, pet_sex, pet_placement_type, pet_offered_by, pet_hypoallergenic, pet_vaccinated, pet_spayed_neutered, pet_microchipped, pet_records_available, pet_good_with_kids, pet_good_with_dogs, pet_good_with_cats, pet_indoor_outdoor, pet_special_needs, pet_breeding_terms), " +
   "listing_media(storage_path, position)";
 
 /** PostgREST `or=` treats these as structural characters; escape them. */
@@ -613,6 +645,10 @@ function jobForRpc(job: ClassifiedListingInput["job"] | undefined) {
 }
 function serviceForRpc(service: ClassifiedListingInput["service"] | undefined) {
   return service ?? {};
+}
+
+function petForRpc(pet: ClassifiedListingInput["pet"] | undefined) {
+  return pet ?? {};
 }
 
 function homeOf(details: Record<string, unknown>): ClassifiedHomeDetails | null {
@@ -687,6 +723,35 @@ function serviceOf(
     businessAddress: (details["service_business_address"] as string | null) ?? null,
     licenseNumber: (details["service_license_number"] as string | null) ?? null,
     licenseLookupUrl: (details["service_license_lookup_url"] as string | null) ?? null,
+  };
+}
+
+function petOf(details: Record<string, unknown>): ClassifiedPet | null {
+  const subcategory = (details["pet_subcategory"] as string | null) ?? null;
+  const species = (details["pet_species"] as string | null) ?? null;
+  const placementType = (details["pet_placement_type"] as string | null) ?? null;
+  const offeredBy = (details["pet_offered_by"] as string | null) ?? null;
+  if (!subcategory || !species || !placementType || !offeredBy) return null;
+  return {
+    subcategory,
+    species,
+    breed: (details["pet_breed"] as string | null) ?? null,
+    name: (details["pet_name"] as string | null) ?? null,
+    age: (details["pet_age"] as string | null) ?? null,
+    sex: (details["pet_sex"] as string | null) ?? null,
+    placementType,
+    offeredBy,
+    hypoallergenic: (details["pet_hypoallergenic"] as string | null) ?? null,
+    vaccinated: (details["pet_vaccinated"] as string | null) ?? null,
+    spayedNeutered: (details["pet_spayed_neutered"] as string | null) ?? null,
+    microchipped: (details["pet_microchipped"] as string | null) ?? null,
+    recordsAvailable: (details["pet_records_available"] as string | null) ?? null,
+    goodWithKids: (details["pet_good_with_kids"] as string | null) ?? null,
+    goodWithDogs: (details["pet_good_with_dogs"] as string | null) ?? null,
+    goodWithCats: (details["pet_good_with_cats"] as string | null) ?? null,
+    indoorOutdoor: (details["pet_indoor_outdoor"] as string | null) ?? null,
+    specialNeeds: (details["pet_special_needs"] as string | null) ?? null,
+    breedingTerms: (details["pet_breeding_terms"] as string | null) ?? null,
   };
 }
 
@@ -768,6 +833,7 @@ function toCard(row: Record<string, unknown>, urlByPath: Map<string, string>): C
       new Date(row["featured_until"] as string).getTime() > Date.now(),
     imageUrl: (firstPath ? (urlByPath.get(firstPath) ?? null) : null) as string | null,
     vehicle: vehicleOf(details),
+    pet: petOf(details),
     home: homeOf(details),
     job: jobOf(details, description),
     service: serviceOf(details, description, priceCents),
@@ -793,6 +859,7 @@ function mockCard(listing: (typeof mockClassifiedListings)[number]): ClassifiedC
     isFeatured: false,
     imageUrl: listing.images[0]?.url ?? null,
     vehicle: null,
+    pet: null,
     home: listing.home ?? null,
     job: listing.job ?? null,
     service: listing.service ?? null,
@@ -892,6 +959,12 @@ export type ClassifiedBrowseInput = {
   fuelType?: string | undefined;
   exteriorColor?: string | undefined;
   titleStatus?: string | undefined;
+  petSubcategory?: string | undefined;
+  petSpecies?: string | undefined;
+  petBreed?: string | undefined;
+  petPlacementType?: string | undefined;
+  petOfferedBy?: string | undefined;
+  petSex?: string | undefined;
   sort?: "newest" | "price_low" | "price_high" | "mileage_low" | undefined;
   page?: number | undefined;
 };
@@ -941,6 +1014,12 @@ export const browseClassifieds = createServerFn({ method: "GET" })
     fuelType: text(input?.fuelType, 30),
     exteriorColor: text(input?.exteriorColor, 30),
     titleStatus: text(input?.titleStatus, 30),
+    petSubcategory: text(input?.petSubcategory, 80),
+    petSpecies: text(input?.petSpecies, 40),
+    petBreed: text(input?.petBreed, 100),
+    petPlacementType: text(input?.petPlacementType, 30),
+    petOfferedBy: text(input?.petOfferedBy, 30),
+    petSex: text(input?.petSex, 30),
     sort: (["newest", "price_low", "price_high", "mileage_low"] as const).includes(
       input?.sort as never,
     )
@@ -1083,6 +1162,17 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
           column.replace("classified_listing_details.", ""),
           values,
         );
+    }
+    for (const [value, column] of [
+      [data.petSubcategory, "pet_subcategory"],
+      [data.petSpecies, "pet_species"],
+      [data.petBreed, "pet_breed"],
+      [data.petPlacementType, "pet_placement_type"],
+      [data.petOfferedBy, "pet_offered_by"],
+      [data.petSex, "pet_sex"],
+    ] as const) {
+      const values = filterValues(value);
+      if (values.length > 0) query = applyReferencedFilter(query, column, values);
     }
 
     // Featured listings always appear before standard results. Within each

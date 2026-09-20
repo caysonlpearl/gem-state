@@ -9,6 +9,7 @@ import {
   formatJobPay,
   formatMileage,
   fulfillmentLabels,
+  petPlacementLabels,
   postedAge,
 } from "@/lib/classifieds-display";
 import type { ClassifiedCard } from "@/lib/classifieds.functions";
@@ -73,6 +74,15 @@ function Facts({ listing }: { listing: ClassifiedCard }) {
       </p>
     );
   }
+  if (listing.pet) {
+    return (
+      <p className="mt-1 truncate text-[11.5px] text-muted-foreground">
+        {[listing.pet.species, listing.pet.breed, petPlacementLabels[listing.pet.placementType]]
+          .filter(Boolean)
+          .join(" · ")}
+      </p>
+    );
+  }
   const mileage = listing.vehicle ? formatMileage(listing.vehicle.mileage) : null;
   const bits = [
     mileage,
@@ -132,7 +142,9 @@ export function ListingCard({ listing }: { listing: ClassifiedCard }) {
               ? "Apply now"
               : listing.service
                 ? "Get a quote"
-                : fulfillmentLabels[listing.fulfillmentMode]}
+                : listing.pet
+                  ? (petPlacementLabels[listing.pet.placementType] ?? "Pet listing")
+                  : fulfillmentLabels[listing.fulfillmentMode]}
           </span>
           <span className="shrink-0">{postedAge(listing.createdAt)}</span>
         </div>

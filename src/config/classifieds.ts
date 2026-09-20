@@ -78,6 +78,7 @@ export const classifiedCategories = [
   { slug: "other-real-estate", name: "Homes", group: "classifieds" },
   { slug: "services", name: "Services", group: "classifieds" },
   { slug: "jobs", name: "Jobs", group: "classifieds" },
+  { slug: "pets", name: "Pets", group: "classifieds" },
 ] as const;
 
 export const vehicleModelsByMake: Record<string, readonly string[]> = {

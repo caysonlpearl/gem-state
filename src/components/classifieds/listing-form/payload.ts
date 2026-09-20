@@ -1,4 +1,5 @@
 import { isMotorsCategory } from "@/lib/classifieds-display";
+import { isPetSubcategory } from "@/config/pets";
 import type { ClassifiedListingInput } from "@/lib/classified-listing-contracts";
 import type { ClassifiedListingEditor } from "@/lib/classifieds.functions";
 import { linesToList, listToLines } from "./shared";
@@ -13,8 +14,11 @@ export function isJobCategory(category: string) {
 export function isServiceCategory(category: string) {
   return category === "services";
 }
+export function isPetCategory(category: string) {
+  return isPetSubcategory(category);
+}
 
-export type ListingKind = "item" | "vehicle" | "home" | "job" | "service";
+export type ListingKind = "item" | "vehicle" | "home" | "job" | "service" | "pet";
 
 /** Which top-level listing-type tab a category belongs to. Drives the tab bar
  * at the top of the form so choosing "Home"/"Job"/"Service" is an explicit,
@@ -23,6 +27,7 @@ export function kindForCategory(category: string): ListingKind {
   if (isHomeCategory(category)) return "home";
   if (isJobCategory(category)) return "job";
   if (isServiceCategory(category)) return "service";
+  if (isPetCategory(category)) return "pet";
   if (isMotorsCategory(category)) return "vehicle";
   return "item";
 }
@@ -126,6 +131,33 @@ export function buildService(
   };
 }
 
+export function buildPet(form: ListingFormState): ClassifiedListingInput["pet"] | undefined {
+  if (!isPetCategory(form.category)) return undefined;
+  return {
+    subcategory: form.petSubcategory,
+    species: form.petSpecies,
+    breed: form.petBreed || undefined,
+    name: form.petName || undefined,
+    age: form.petAge || undefined,
+    sex: form.petSex as NonNullable<ClassifiedListingInput["pet"]>["sex"],
+    placementType: form.petPlacementType as NonNullable<
+      ClassifiedListingInput["pet"]
+    >["placementType"],
+    offeredBy: form.petOfferedBy as NonNullable<ClassifiedListingInput["pet"]>["offeredBy"],
+    hypoallergenic: form.petHypoallergenic,
+    vaccinated: form.petVaccinated,
+    spayedNeutered: form.petSpayedNeutered,
+    microchipped: form.petMicrochipped,
+    recordsAvailable: form.petRecordsAvailable,
+    goodWithKids: form.petGoodWithKids,
+    goodWithDogs: form.petGoodWithDogs,
+    goodWithCats: form.petGoodWithCats,
+    indoorOutdoor: form.petIndoorOutdoor,
+    specialNeeds: form.petSpecialNeeds || undefined,
+    breedingTerms: form.petBreedingTerms || undefined,
+  };
+}
+
 export function fromEditor(listing: ClassifiedListingEditor): ListingFormState {
   return {
     ...initialListingForm,
@@ -200,5 +232,25 @@ export function fromEditor(listing: ClassifiedListingEditor): ListingFormState {
     licenseNumber: listing.service?.licenseNumber ?? "",
     licenseLookupUrl: listing.service?.licenseLookupUrl ?? "",
     offerings: listToLines(listing.service?.offerings),
+
+    petSubcategory: listing.pet?.subcategory ?? "dogs",
+    petSpecies: listing.pet?.species ?? "Dog",
+    petBreed: listing.pet?.breed ?? "",
+    petName: listing.pet?.name ?? "",
+    petAge: listing.pet?.age ?? "",
+    petSex: listing.pet?.sex ?? "Unknown / not disclosed",
+    petPlacementType: listing.pet?.placementType ?? "sale",
+    petOfferedBy: listing.pet?.offeredBy ?? "Owner",
+    petHypoallergenic: listing.pet?.hypoallergenic ?? "Unknown",
+    petVaccinated: listing.pet?.vaccinated ?? "Unknown",
+    petSpayedNeutered: listing.pet?.spayedNeutered ?? "Unknown",
+    petMicrochipped: listing.pet?.microchipped ?? "Unknown",
+    petRecordsAvailable: listing.pet?.recordsAvailable ?? "Unknown",
+    petGoodWithKids: listing.pet?.goodWithKids ?? "Unknown",
+    petGoodWithDogs: listing.pet?.goodWithDogs ?? "Unknown",
+    petGoodWithCats: listing.pet?.goodWithCats ?? "Unknown",
+    petIndoorOutdoor: listing.pet?.indoorOutdoor ?? "Unknown",
+    petSpecialNeeds: listing.pet?.specialNeeds ?? "",
+    petBreedingTerms: listing.pet?.breedingTerms ?? "",
   };
 }

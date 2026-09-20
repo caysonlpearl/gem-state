@@ -16,6 +16,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as BrowseRouteImport } from './routes/browse'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as GlossaryRouteImport } from './routes/glossary'
+import { Route as PetsRouteImport } from './routes/pets'
 import { Route as PoliciesRouteImport } from './routes/policies'
 import { Route as SafetyRouteImport } from './routes/safety'
 import { Route as SellRouteImport } from './routes/sell'
@@ -85,6 +86,11 @@ const ContactRoute = ContactRouteImport.update({
 const GlossaryRoute = GlossaryRouteImport.update({
   id: '/glossary',
   path: '/glossary',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PetsRoute = PetsRouteImport.update({
+  id: '/pets',
+  path: '/pets',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PoliciesRoute = PoliciesRouteImport.update({
@@ -293,6 +299,7 @@ export interface FileRoutesByFullPath {
   '/browse': typeof BrowseRoute
   '/contact': typeof ContactRoute
   '/glossary': typeof GlossaryRoute
+  '/pets': typeof PetsRoute
   '/policies': typeof PoliciesRoute
   '/safety': typeof SafetyRoute
   '/sell': typeof SellRoute
@@ -337,6 +344,7 @@ export interface FileRoutesByTo {
   '/browse': typeof BrowseRoute
   '/contact': typeof ContactRoute
   '/glossary': typeof GlossaryRoute
+  '/pets': typeof PetsRoute
   '/policies': typeof PoliciesRoute
   '/safety': typeof SafetyRoute
   '/sell': typeof SellRoute
@@ -382,6 +390,7 @@ export interface FileRoutesById {
   '/browse': typeof BrowseRoute
   '/contact': typeof ContactRoute
   '/glossary': typeof GlossaryRoute
+  '/pets': typeof PetsRoute
   '/policies': typeof PoliciesRoute
   '/safety': typeof SafetyRoute
   '/sell': typeof SellRoute
@@ -428,6 +437,7 @@ export interface FileRouteTypes {
     | '/browse'
     | '/contact'
     | '/glossary'
+    | '/pets'
     | '/policies'
     | '/safety'
     | '/sell'
@@ -472,6 +482,7 @@ export interface FileRouteTypes {
     | '/browse'
     | '/contact'
     | '/glossary'
+    | '/pets'
     | '/policies'
     | '/safety'
     | '/sell'
@@ -516,6 +527,7 @@ export interface FileRouteTypes {
     | '/browse'
     | '/contact'
     | '/glossary'
+    | '/pets'
     | '/policies'
     | '/safety'
     | '/sell'
@@ -562,6 +574,7 @@ export interface RootRouteChildren {
   BrowseRoute: typeof BrowseRoute
   ContactRoute: typeof ContactRoute
   GlossaryRoute: typeof GlossaryRoute
+  PetsRoute: typeof PetsRoute
   PoliciesRoute: typeof PoliciesRoute
   SafetyRoute: typeof SafetyRoute
   SellRoute: typeof SellRoute
@@ -625,6 +638,13 @@ declare module '@tanstack/react-router' {
       path: '/glossary'
       fullPath: '/glossary'
       preLoaderRoute: typeof GlossaryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pets': {
+      id: '/pets'
+      path: '/pets'
+      fullPath: '/pets'
+      preLoaderRoute: typeof PetsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/policies': {
@@ -959,6 +979,7 @@ const rootRouteChildren: RootRouteChildren = {
   BrowseRoute: BrowseRoute,
   ContactRoute: ContactRoute,
   GlossaryRoute: GlossaryRoute,
+  PetsRoute: PetsRoute,
   PoliciesRoute: PoliciesRoute,
   SafetyRoute: SafetyRoute,
   SellRoute: SellRoute,

@@ -74,6 +74,27 @@ export type ListingFormState = {
   licenseNumber: string;
   licenseLookupUrl: string;
   offerings: string;
+
+  // Pets
+  petSubcategory: string;
+  petSpecies: string;
+  petBreed: string;
+  petName: string;
+  petAge: string;
+  petSex: string;
+  petPlacementType: string;
+  petOfferedBy: string;
+  petHypoallergenic: string;
+  petVaccinated: string;
+  petSpayedNeutered: string;
+  petMicrochipped: string;
+  petRecordsAvailable: string;
+  petGoodWithKids: string;
+  petGoodWithDogs: string;
+  petGoodWithCats: string;
+  petIndoorOutdoor: string;
+  petSpecialNeeds: string;
+  petBreedingTerms: string;
 };
 
 export const initialListingForm: ListingFormState = {
@@ -148,4 +169,24 @@ export const initialListingForm: ListingFormState = {
   licenseNumber: "",
   licenseLookupUrl: "",
   offerings: "",
+
+  petSubcategory: "dogs",
+  petSpecies: "Dog",
+  petBreed: "",
+  petName: "",
+  petAge: "",
+  petSex: "Unknown / not disclosed",
+  petPlacementType: "sale",
+  petOfferedBy: "Owner",
+  petHypoallergenic: "Unknown",
+  petVaccinated: "Unknown",
+  petSpayedNeutered: "Unknown",
+  petMicrochipped: "Unknown",
+  petRecordsAvailable: "Unknown",
+  petGoodWithKids: "Unknown",
+  petGoodWithDogs: "Unknown",
+  petGoodWithCats: "Unknown",
+  petIndoorOutdoor: "Unknown",
+  petSpecialNeeds: "",
+  petBreedingTerms: "",
 };

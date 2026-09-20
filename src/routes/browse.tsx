@@ -21,6 +21,13 @@ import {
   vehicleModelsByMake,
   vehicleOptions,
 } from "@/config/classifieds";
+import {
+  petOfferedBy,
+  petPlacementTypes,
+  petSexes,
+  petSpecies,
+  petSubcategories,
+} from "@/config/pets";
 import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { AllCategoriesPopover } from "@/components/classifieds/AllCategoriesPopover";
 import { ListingCard, ListingRow } from "@/components/classifieds/ListingCard";
@@ -47,6 +54,7 @@ type View = "grid" | "list";
 type HomeTab = "build" | "buy" | "rent";
 type JobMode = "landing" | "results";
 type ServiceMode = "landing" | "results";
+type PetMode = "landing" | "results";
 
 type Search = {
   allCategories?: boolean | undefined;
@@ -83,6 +91,13 @@ type Search = {
   jobMode?: JobMode | undefined;
   serviceMode?: ServiceMode | undefined;
   vehicleMode?: "landing" | "results" | undefined;
+  petMode?: PetMode | undefined;
+  petSubcategory?: string | undefined;
+  petSpecies?: string | undefined;
+  petBreed?: string | undefined;
+  petPlacementType?: string | undefined;
+  petOfferedBy?: string | undefined;
+  petSex?: string | undefined;
   serviceSubcategory?: string | undefined;
   serviceExpandSearch?: string | undefined;
   servicePhotos?: string | undefined;
@@ -177,6 +192,12 @@ const savedSearchFilterKeys: readonly (keyof Search)[] = [
   "homeAmenities",
   "communityAmenities",
   "leaseLength",
+  "petSubcategory",
+  "petSpecies",
+  "petBreed",
+  "petPlacementType",
+  "petOfferedBy",
+  "petSex",
 ];
 
 type VehicleHeroFilter =
@@ -1369,6 +1390,12 @@ function inputFromSearch(search: Search): ClassifiedBrowseInput {
     fuelType: search.fuelType,
     exteriorColor: search.exteriorColor,
     titleStatus: search.titleStatus,
+    petSubcategory: search.petSubcategory,
+    petSpecies: search.petSpecies,
+    petBreed: search.petBreed,
+    petPlacementType: search.petPlacementType,
+    petOfferedBy: search.petOfferedBy,
+    petSex: search.petSex,
     sort: search.sort ?? "newest",
     page: search.page ?? 1,
   };
@@ -1384,6 +1411,7 @@ export const Route = createFileRoute("/browse")({
     const jobMode = stringParam(search, "jobMode", 10);
     const serviceMode = stringParam(search, "serviceMode", 10);
     const vehicleMode = stringParam(search, "vehicleMode", 10);
+    const petMode = stringParam(search, "petMode", 10);
     const savedSearchId = stringParam(search, "savedSearchId", 64);
     const page = Number(search["page"]);
     return {
@@ -1425,6 +1453,7 @@ export const Route = createFileRoute("/browse")({
         serviceMode === "results" ? "results" : serviceMode === "landing" ? "landing" : undefined,
       vehicleMode:
         vehicleMode === "results" ? "results" : vehicleMode === "landing" ? "landing" : undefined,
+      petMode: petMode === "results" ? "results" : petMode === "landing" ? "landing" : undefined,
       sellerType: stringParam(search, "sellerType", 30),
       mileageBands: stringParam(search, "mileageBands", 300),
       serviceSubcategory: stringParam(search, "serviceSubcategory", 80),
@@ -1460,6 +1489,12 @@ export const Route = createFileRoute("/browse")({
       homeAmenities: stringParam(search, "homeAmenities", 600),
       communityAmenities: stringParam(search, "communityAmenities", 800),
       leaseLength: stringParam(search, "leaseLength", 30),
+      petSubcategory: stringParam(search, "petSubcategory", 80),
+      petSpecies: stringParam(search, "petSpecies", 40),
+      petBreed: stringParam(search, "petBreed", 100),
+      petPlacementType: stringParam(search, "petPlacementType", 30),
+      petOfferedBy: stringParam(search, "petOfferedBy", 30),
+      petSex: stringParam(search, "petSex", 30),
     };
   },
   head: () => ({
@@ -1560,15 +1595,18 @@ function Browse() {
   const homes = search.category === "other-real-estate";
   const jobs = search.category === "jobs";
   const services = search.category === "services";
+  const pets = search.category === "pets";
   const vehicleLanding = motors && search.vehicleMode !== "results";
-  const showGenericBrowse = !allCategoriesLanding && (!motors || vehicleLanding);
+  const petLanding = pets && search.petMode !== "results";
+  const showGenericBrowse =
+    !allCategoriesLanding && (!motors || vehicleLanding) && (!pets || !petLanding);
   const homeTab: HomeTab = search.homeTab ?? "buy";
   const homeLanding = homes && search.homeMode !== "results";
   const jobLanding = jobs && search.jobMode !== "results";
   const serviceLanding = services && search.serviceMode !== "results";
   const page = search.page ?? 1;
   const pageCount = Math.max(1, Math.ceil(result.total / result.pageSize));
-  const activeFilterCount = countActiveFilters(search, motors);
+  const activeFilterCount = countActiveFilters(search, motors, pets);
   const heading =
     selectedCategory?.name ?? (search.group === "motors" ? "Cars & motors" : "All classifieds");
 
@@ -1585,6 +1623,7 @@ function Browse() {
     };
     const category = value("category");
     const nextMotors = value("group") === "motors" || isMotorsCategory(category);
+    const nextPets = category === "pets";
 
     void navigate({
       to: "/browse",
@@ -1609,6 +1648,13 @@ function Browse() {
         fuelType: nextMotors ? value("fuelType") : undefined,
         exteriorColor: nextMotors ? value("exteriorColor") : undefined,
         titleStatus: nextMotors ? value("titleStatus") : undefined,
+        petMode: nextPets ? "results" : undefined,
+        petSubcategory: nextPets ? value("petSubcategory") : undefined,
+        petSpecies: nextPets ? value("petSpecies") : undefined,
+        petBreed: nextPets ? value("petBreed") : undefined,
+        petPlacementType: nextPets ? value("petPlacementType") : undefined,
+        petOfferedBy: nextPets ? value("petOfferedBy") : undefined,
+        petSex: nextPets ? value("petSex") : undefined,
       }),
     });
     setFiltersOpen(false);
@@ -1675,6 +1721,28 @@ function Browse() {
           onSell={() => void navigate({ to: "/create-listing" })}
         />
       )}
+
+      {pets && petLanding && (
+        <PetsLandingHero
+          term={term}
+          onTermChange={setTerm}
+          onSearch={() =>
+            void navigate({
+              to: "/browse",
+              search: scoped({ petMode: "results", q: term.trim() || undefined }),
+            })
+          }
+          onCategory={(subcategory) =>
+            void navigate({
+              to: "/browse",
+              search: scoped({ petMode: "results", petSubcategory: subcategory }),
+            })
+          }
+          onPost={() => void navigate({ to: "/create-listing" })}
+        />
+      )}
+
+      {pets && petLanding && <HomepageShowcaseRows eyebrow="GemList Pets" rows={petShowcaseRows} />}
 
       {motors && vehicleLanding && (
         <HomepageShowcaseRows eyebrow="GemList Motors" rows={vehicleShowcaseRows} />
@@ -1893,7 +1961,7 @@ function Browse() {
         </div>
       </div>
 
-      {!allCategoriesLanding && !motors && !homes && !jobs && !services && (
+      {!allCategoriesLanding && !motors && !homes && !jobs && !services && !pets && (
         <form
           className="floating-card mt-8 p-2 sm:p-3"
           onSubmit={(event) => {
@@ -1918,7 +1986,7 @@ function Browse() {
         </form>
       )}
 
-      {!allCategoriesLanding && !motors && !homes && !jobs && !services && (
+      {!allCategoriesLanding && !motors && !homes && !jobs && !services && !pets && (
         <div className="no-scrollbar mt-5 flex gap-2 overflow-x-auto pb-1">
           <BrowsePill
             active={!search.group && !search.category}
@@ -2078,6 +2146,78 @@ function Browse() {
                       </select>
                     </FilterSection>
 
+                    {pets && (
+                      <FilterSection title="Pet details">
+                        <select
+                          name="petSubcategory"
+                          defaultValue={search.petSubcategory ?? ""}
+                          className="filter-input"
+                        >
+                          <option value="">All pet categories</option>
+                          {petSubcategories.map(([value, label]) => (
+                            <option key={value} value={value}>
+                              {label}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          name="petSpecies"
+                          defaultValue={search.petSpecies ?? ""}
+                          className="filter-input"
+                        >
+                          <option value="">Any animal</option>
+                          {petSpecies.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          name="petBreed"
+                          defaultValue={search.petBreed ?? ""}
+                          placeholder="Breed"
+                          className="filter-input"
+                          maxLength={100}
+                        />
+                        <select
+                          name="petPlacementType"
+                          defaultValue={search.petPlacementType ?? ""}
+                          className="filter-input"
+                        >
+                          <option value="">Any listing type</option>
+                          {petPlacementTypes.map(([value, label]) => (
+                            <option key={value} value={value}>
+                              {label}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          name="petOfferedBy"
+                          defaultValue={search.petOfferedBy ?? ""}
+                          className="filter-input"
+                        >
+                          <option value="">Any offered by</option>
+                          {petOfferedBy.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          name="petSex"
+                          defaultValue={search.petSex ?? ""}
+                          className="filter-input"
+                        >
+                          <option value="">Any sex</option>
+                          {petSexes.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
+                        </select>
+                      </FilterSection>
+                    )}
+
                     {motors && (
                       <FilterSection title="Vehicle details">
                         <input
@@ -2236,7 +2376,7 @@ function Browse() {
               </p>
               {activeFilterCount > 0 && (
                 <div className="flex flex-wrap gap-1.5">
-                  {activeFilterLabels(search, motors).map((label) => (
+                  {activeFilterLabels(search, motors, pets).map((label) => (
                     <span
                       key={label}
                       className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-1 text-[10.5px] text-muted-foreground"
@@ -2259,9 +2399,11 @@ function Browse() {
               <div className="soft-card mt-5 px-5 py-12 text-center">
                 <p className="text-[14px] font-medium">No listings match these filters.</p>
                 <p className="mx-auto mt-1.5 max-w-md text-[13px] leading-relaxed text-muted-foreground">
-                  {homes
-                    ? "Try widening the price, location, property type, or bedroom filters."
-                    : "Try widening the year, price, mileage, location, or vehicle filters."}
+                  {pets
+                    ? "Try widening the animal, breed, placement type, location, or price filters."
+                    : homes
+                      ? "Try widening the price, location, property type, or bedroom filters."
+                      : "Try widening the year, price, mileage, location, or vehicle filters."}
                 </p>
                 <Link
                   to="/browse"
@@ -2321,6 +2463,96 @@ function Browse() {
   );
 }
 
+function PetsLandingHero({
+  term,
+  onTermChange,
+  onSearch,
+  onCategory,
+  onPost,
+}: {
+  term: string;
+  onTermChange: (value: string) => void;
+  onSearch: () => void;
+  onCategory: (subcategory: string) => void;
+  onPost: () => void;
+}) {
+  const quickCategories = [
+    { slug: "dogs", label: "Dogs" },
+    { slug: "cats", label: "Cats" },
+    { slug: "birds", label: "Birds" },
+    { slug: "fish", label: "Fish" },
+    { slug: "rabbits", label: "Rabbits" },
+    { slug: "reptiles", label: "Reptiles" },
+    { slug: "other-pets", label: "Other pets" },
+  ];
+
+  return (
+    <section className="relative overflow-hidden rounded-[28px] border border-border/70 bg-gradient-to-br from-secondary via-card to-accent/20 px-5 py-9 shadow-sm sm:px-10 sm:py-12">
+      <span className="absolute -right-16 -top-20 h-56 w-56 rounded-full bg-brand-warm/20" />
+      <span className="absolute -bottom-24 left-1/3 h-64 w-64 rounded-full bg-primary/5" />
+      <div className="relative mx-auto max-w-3xl text-center">
+        <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-primary">
+          GemList Pets
+        </p>
+        <h1 className="mt-3 text-[34px] font-bold tracking-tight sm:text-[48px]">
+          Find the right pet for your home.
+        </h1>
+        <p className="mx-auto mt-3 max-w-2xl text-[14px] leading-7 text-muted-foreground sm:text-[16px]">
+          Browse local pets, supplies, and rehoming listings with filters for the animal, breed,
+          placement type, and seller.
+        </p>
+        <form
+          className="mx-auto mt-7 flex max-w-2xl flex-col gap-2 rounded-2xl border border-border/70 bg-card p-2 shadow-md sm:flex-row"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onSearch();
+          }}
+        >
+          <label className="relative min-w-0 flex-1">
+            <MagnifyingGlass
+              size={18}
+              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-primary"
+            />
+            <input
+              type="search"
+              value={term}
+              onChange={(event) => onTermChange(event.target.value)}
+              placeholder="Search dogs, cats, birds, breeders, and more"
+              aria-label="Search pets"
+              className="h-12 w-full rounded-xl bg-transparent pl-11 pr-3 text-[14px] outline-none placeholder:text-muted-foreground"
+            />
+          </label>
+          <button
+            type="submit"
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-6 text-[13px] font-semibold text-primary-foreground hover:opacity-90"
+          >
+            <MagnifyingGlass size={16} /> Search pets
+          </button>
+        </form>
+        <div className="mt-5 flex flex-wrap justify-center gap-2">
+          {quickCategories.map((category) => (
+            <button
+              key={category.slug}
+              type="button"
+              onClick={() => onCategory(category.slug)}
+              className="rounded-full border border-border bg-card/80 px-3.5 py-2 text-[12px] font-semibold text-foreground transition hover:border-primary hover:text-primary"
+            >
+              {category.label}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={onPost}
+          className="mt-6 inline-flex h-10 items-center gap-2 rounded-full border border-primary px-5 text-[12px] font-semibold text-primary hover:bg-primary/10"
+        >
+          Post a pet listing <ArrowRight size={15} />
+        </button>
+      </div>
+    </section>
+  );
+}
+
 const generalCategoryHighlights = [
   { slug: "furniture", name: "Furniture", description: "Home pieces and decor" },
   { slug: "electronics", name: "Electronics", description: "Devices, audio, and gear" },
@@ -2333,6 +2565,44 @@ const generalCategoryHighlights = [
   { slug: "farm-garden", name: "Farm & Garden", description: "Yard, farm, and garden" },
   { slug: "general", name: "General", description: "Everyday local finds" },
 ] as const;
+
+const petShowcaseRows: HomepagePreviewRow[] = [
+  {
+    title: "Pets and companions near you",
+    action: "Browse all pets",
+    href: "/browse?category=pets&petMode=results",
+    cards: [
+      previewCard(
+        "Friendly Labrador puppies",
+        "Boise, ID",
+        "$650",
+        "Dogs · adoption",
+        "https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "Young tabby cats",
+        "Meridian, ID",
+        "$125",
+        "Cats · rehoming",
+        "https://images.unsplash.com/photo-1519052537078-e6302a4968d4?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "Hand-fed cockatiels",
+        "Nampa, ID",
+        "$225",
+        "Birds · owner",
+        "https://images.unsplash.com/photo-1552728089-57cc54a126e7?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "Freshwater aquarium setup",
+        "Eagle, ID",
+        "$90",
+        "Fish · supplies",
+        "https://images.unsplash.com/photo-1520990269335-9271441d0f4c?auto=format&fit=crop&w=900&q=80",
+      ),
+    ],
+  },
+];
 
 type HomepagePreviewCard = {
   title: string;
@@ -8154,7 +8424,7 @@ function InlineApplyButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-function countActiveFilters(search: Search, motors: boolean) {
+function countActiveFilters(search: Search, motors: boolean, pets: boolean) {
   const keys: (keyof Search)[] = [
     "category",
     "group",
@@ -8183,10 +8453,19 @@ function countActiveFilters(search: Search, motors: boolean) {
       "titleStatus",
       "sellerType",
     );
+  if (pets)
+    keys.push(
+      "petSubcategory",
+      "petSpecies",
+      "petBreed",
+      "petPlacementType",
+      "petOfferedBy",
+      "petSex",
+    );
   return keys.filter((key) => search[key] !== undefined && search[key] !== "").length;
 }
 
-function activeFilterLabels(search: Search, motors: boolean) {
+function activeFilterLabels(search: Search, motors: boolean, pets: boolean) {
   const labels: string[] = [];
   if (search.category)
     labels.push(
@@ -8207,6 +8486,22 @@ function activeFilterLabels(search: Search, motors: boolean) {
       labels.push(`${search.yearMin ?? "Any"}–${search.yearMax ?? "Any"}`);
     if (search.drivetrain) labels.push(search.drivetrain);
     if (search.mileageMax != null) labels.push(`≤ ${search.mileageMax.toLocaleString()} mi`);
+  }
+  if (pets) {
+    if (search.petSubcategory)
+      labels.push(
+        petSubcategories.find(([slug]) => slug === search.petSubcategory)?.[1] ??
+          search.petSubcategory,
+      );
+    if (search.petSpecies) labels.push(search.petSpecies);
+    if (search.petBreed) labels.push(search.petBreed);
+    if (search.petPlacementType)
+      labels.push(
+        petPlacementTypes.find(([value]) => value === search.petPlacementType)?.[1] ??
+          search.petPlacementType,
+      );
+    if (search.petOfferedBy) labels.push(search.petOfferedBy);
+    if (search.petSex) labels.push(search.petSex);
   }
   return labels;
 }

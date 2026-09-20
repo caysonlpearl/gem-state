@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { classifiedCategories, vehicleOptions } from "@/config/classifieds";
+import { petOfferedBy, petPlacementTypes, petSexes } from "@/config/pets";
 
 type NonEmpty = [string, ...string[]];
 const categorySlugs = classifiedCategories.map((category) => category.slug) as NonEmpty;
@@ -9,6 +10,9 @@ const transmissions = [...vehicleOptions.transmissions] as NonEmpty;
 const drivetrains = [...vehicleOptions.drivetrains] as NonEmpty;
 const fuelTypes = [...vehicleOptions.fuelTypes] as NonEmpty;
 const titleStatuses = [...vehicleOptions.titleStatuses] as NonEmpty;
+const petPlacements = petPlacementTypes.map(([value]) => value) as NonEmpty;
+const petOfferedByValues = [...petOfferedBy] as NonEmpty;
+const petSexValues = [...petSexes] as NonEmpty;
 
 const emptyToUndefined = (value: unknown) =>
   typeof value === "string" && value.trim() === "" ? undefined : value;
@@ -94,13 +98,7 @@ export const classifiedListingSchema = z
         payType: z.enum(["Hourly", "Salary", "Commission", "Contract"]),
         payMin: z.number().min(0).max(10_000_000),
         payMax: z.number().min(0).max(10_000_000),
-        employmentType: z.enum([
-          "Full-time",
-          "Part-time",
-          "Seasonal",
-          "Contract",
-          "Temporary",
-        ]),
+        employmentType: z.enum(["Full-time", "Part-time", "Seasonal", "Contract", "Temporary"]),
         experienceRequired: z.string().trim().max(80).optional(),
         educationLevel: z.string().trim().max(80).optional(),
         responsibilities: z.array(z.string().trim().min(1).max(300)).max(20).optional(),
@@ -116,6 +114,29 @@ export const classifiedListingSchema = z
         licenseNumber: z.string().trim().max(60).optional(),
         licenseLookupUrl: z.string().trim().url().max(300).optional(),
         offerings: z.array(z.string().trim().min(1).max(200)).max(20).optional(),
+      })
+      .optional(),
+    pet: z
+      .object({
+        subcategory: z.string().trim().min(1).max(80),
+        species: z.string().trim().min(1).max(40),
+        breed: z.string().trim().max(100).optional(),
+        name: z.string().trim().max(80).optional(),
+        age: z.string().trim().max(60).optional(),
+        sex: z.enum(petSexValues),
+        placementType: z.enum(petPlacements),
+        offeredBy: z.enum(petOfferedByValues),
+        hypoallergenic: z.string().trim().max(20),
+        vaccinated: z.string().trim().max(20),
+        spayedNeutered: z.string().trim().max(20),
+        microchipped: z.string().trim().max(20),
+        recordsAvailable: z.string().trim().max(20),
+        goodWithKids: z.string().trim().max(20),
+        goodWithDogs: z.string().trim().max(20),
+        goodWithCats: z.string().trim().max(20),
+        indoorOutdoor: z.string().trim().max(30),
+        specialNeeds: z.string().trim().max(1000).optional(),
+        breedingTerms: z.string().trim().max(1000).optional(),
       })
       .optional(),
   })
@@ -149,6 +170,13 @@ export const classifiedListingSchema = z
         code: "custom",
         path: ["service"],
         message: "Service details are required for service listings.",
+      });
+    }
+    if (listing.category === "pets" && !listing.pet) {
+      context.addIssue({
+        code: "custom",
+        path: ["pet"],
+        message: "Pet details are required for pet listings.",
       });
     }
   });

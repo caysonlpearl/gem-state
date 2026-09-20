@@ -13,6 +13,16 @@ export const fulfillmentLabels: Record<string, string> = {
   both: "Pickup or shipping",
 };
 
+export const petPlacementLabels: Record<string, string> = {
+  sale: "For sale",
+  adoption: "Adoption",
+  rehoming: "Rehoming",
+  free: "Free to a good home",
+  stud_breeding: "Stud / breeding",
+  lost_found: "Lost or found",
+  wanted: "Wanted / ISO",
+};
+
 export function isMotorsCategory(slug: string | null | undefined) {
   return classifiedCategories.some(
     (category) => category.slug === slug && category.group === "motors",
@@ -50,13 +60,9 @@ export function formatJobPay(job: { payType: string; payMin: number; payMax: num
   if (payType === "Salary") {
     const fmt = (value: number) =>
       value >= 1000 ? `${Math.round(value / 1000)}k` : `$${value.toLocaleString()}`;
-    return payMin === payMax
-      ? `$${fmt(payMin)}/yr`
-      : `$${fmt(payMin)}–$${fmt(payMax)}/yr`;
+    return payMin === payMax ? `$${fmt(payMin)}/yr` : `$${fmt(payMin)}–$${fmt(payMax)}/yr`;
   }
   if (payType === "Commission") return "Commission";
   const suffix = payType === "Contract" ? "/hr contract" : "/hr";
-  return payMin === payMax
-    ? `$${payMin}${suffix}`
-    : `$${payMin}–$${payMax}${suffix}`;
+  return payMin === payMax ? `$${payMin}${suffix}` : `$${payMin}–$${payMax}${suffix}`;
 }

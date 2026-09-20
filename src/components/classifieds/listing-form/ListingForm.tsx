@@ -18,16 +18,19 @@ import { type ClassifiedListingInput } from "@/lib/classified-listing-contracts"
 import { HomeFields } from "./HomeFields";
 import { JobFields } from "./JobFields";
 import { ServiceFields } from "./ServiceFields";
+import { PetFields } from "./PetFields";
 import { VehicleFields } from "./VehicleFields";
 import {
   buildHome,
   buildJob,
   buildService,
+  buildPet,
   buildVehicle,
   fromEditor,
   isHomeCategory,
   isJobCategory,
   isServiceCategory,
+  isPetCategory,
   kindForCategory,
   priceCentsFor,
   type ListingKind,
@@ -52,6 +55,7 @@ const kindTabs: { key: ListingKind; label: string }[] = [
   { key: "home", label: "Home" },
   { key: "job", label: "Job" },
   { key: "service", label: "Service" },
+  { key: "pet", label: "Pet" },
 ];
 const motorsCategorySlugs: Set<string> = new Set(
   classifiedCategories.filter((category) => category.group === "motors").map((c) => c.slug),
@@ -61,7 +65,7 @@ const itemCategorySlugs: Set<string> = new Set(
     .filter(
       (category) =>
         category.group === "classifieds" &&
-        !["other-real-estate", "jobs", "services"].includes(category.slug),
+        !["other-real-estate", "jobs", "services", "pets"].includes(category.slug),
     )
     .map((c) => c.slug),
 );
@@ -127,6 +131,7 @@ export function ListingForm(props: ListingFormProps) {
     if (next === "home") set("category", "other-real-estate");
     else if (next === "job") set("category", "jobs");
     else if (next === "service") set("category", "services");
+    else if (next === "pet") set("category", "pets");
     else if (next === "vehicle" && !motorsCategorySlugs.has(form.category)) set("category", "");
     else if (next === "item" && !itemCategorySlugs.has(form.category)) set("category", "");
   }
@@ -135,6 +140,7 @@ export function ListingForm(props: ListingFormProps) {
   const isHome = isHomeCategory(form.category);
   const isJob = isJobCategory(form.category);
   const isService = isServiceCategory(form.category);
+  const isPet = isPetCategory(form.category);
   const hidesCondition = isHome || isJob || isService;
   const hidesFulfillment = isHome || isJob || isService;
   const hidesPrice = isJob;
@@ -145,7 +151,9 @@ export function ListingForm(props: ListingFormProps) {
       : "Sale price (USD)"
     : isService
       ? "Starting price or quote (USD)"
-      : "Price (USD)";
+      : isPet
+        ? "Price or adoption fee (USD)"
+        : "Price (USD)";
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -157,8 +165,8 @@ export function ListingForm(props: ListingFormProps) {
           throw new Error("Confirm that you can publish these photos.");
       }
 
-      let evidencePaths: string[] = [];
-      let publicMediaPaths: string[] = [];
+      const evidencePaths: string[] = [];
+      const publicMediaPaths: string[] = [];
       if (files.length > 0) {
         const { data: session } = await supabase.auth.getSession();
         const uid = session.session?.user.id;
@@ -192,6 +200,7 @@ export function ListingForm(props: ListingFormProps) {
       const home = buildHome(form);
       const job = buildJob(form);
       const service = buildService(form);
+      const pet = buildPet(form);
       const priceCents = priceCentsFor(form);
       const condition = (
         hidesCondition ? "used_good" : form.condition
@@ -224,6 +233,7 @@ export function ListingForm(props: ListingFormProps) {
             home,
             job,
             service,
+            pet,
           },
         });
       }
@@ -250,6 +260,7 @@ export function ListingForm(props: ListingFormProps) {
           home,
           job,
           service,
+          pet,
           publicMediaPaths,
         },
       });
@@ -354,6 +365,11 @@ export function ListingForm(props: ListingFormProps) {
               </select>
             </label>
           )}
+          {kind === "pet" && (
+            <div className="flex items-center rounded-md border border-primary/20 bg-primary/5 px-3 text-[12px] font-medium text-primary">
+              Pets
+            </div>
+          )}
           {!hidesPrice && (
             <label className="text-[12px] font-medium">
               {priceLabel}
@@ -411,7 +427,7 @@ export function ListingForm(props: ListingFormProps) {
         </div>
       </section>
 
-      {(isVehicle || isHome || isJob || isService) && (
+      {(isVehicle || isHome || isJob || isService || isPet) && (
         <section className="border border-border bg-card p-5 sm:p-6">
           <SectionHeading
             number="2"
@@ -422,7 +438,9 @@ export function ListingForm(props: ListingFormProps) {
                   ? "Property details"
                   : isJob
                     ? "Job details"
-                    : "Service details"
+                    : isService
+                      ? "Service details"
+                      : "Pet details"
             }
           />
           <div className="mt-4">
@@ -430,12 +448,16 @@ export function ListingForm(props: ListingFormProps) {
             {isHome && <HomeFields form={form} set={set} />}
             {isJob && <JobFields form={form} set={set} />}
             {isService && <ServiceFields form={form} set={set} />}
+            {isPet && <PetFields form={form} set={set} />}
           </div>
         </section>
       )}
 
       <section className="border border-border bg-card p-5 sm:p-6">
-        <SectionHeading number={isVehicle || isHome || isJob || isService ? "3" : "2"} title="Location" />
+        <SectionHeading
+          number={isVehicle || isHome || isJob || isService || isPet ? "3" : "2"}
+          title="Location"
+        />
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <label className="text-[12px] font-medium">
             State
