@@ -5262,7 +5262,11 @@ function HomepageShowcaseRows({
           <ul className="no-scrollbar grid grid-flow-col auto-cols-[minmax(215px,1fr)] gap-4 overflow-x-auto pb-2 sm:auto-cols-[minmax(240px,1fr)] lg:grid-flow-row lg:grid-cols-6 lg:overflow-visible">
             {row.cards.map((card) => (
               <li key={`${row.title}-${card.title}`}>
-                <HomepagePreviewCard card={card} eyebrow={eyebrow} />
+                <HomepagePreviewCard
+                  card={card}
+                  eyebrow={eyebrow}
+                  href={getHomepagePreviewCardHref(row.href, card)}
+                />
               </li>
             ))}
           </ul>
@@ -5272,29 +5276,50 @@ function HomepageShowcaseRows({
   );
 }
 
-function HomepagePreviewCard({ card, eyebrow }: { card: HomepagePreviewCard; eyebrow: string }) {
+function getHomepagePreviewCardHref(rowHref: string, card: HomepagePreviewCard) {
+  const [pathname, rawSearch = ""] = rowHref.split("?", 2);
+  const params = new URLSearchParams(rawSearch);
+  params.set("q", card.title);
+  return `${pathname}?${params.toString()}`;
+}
+
+function HomepagePreviewCard({
+  card,
+  eyebrow,
+  href,
+}: {
+  card: HomepagePreviewCard;
+  eyebrow: string;
+  href: string;
+}) {
   return (
-    <article className="group relative overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm transition-shadow hover:shadow-lg">
-      <div className="relative aspect-[4/3] overflow-hidden bg-secondary">
-        <img
-          src={card.image}
-          alt=""
-          loading="lazy"
-          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
-        />
-        <span className="absolute left-3 top-3 rounded-md bg-primary/85 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.12em] text-primary-foreground">
-          {card.badge ?? eyebrow.replace("GemList ", "")}
-        </span>
-      </div>
-      <div className="p-3.5">
-        <p className="numeric text-[16px] font-bold text-primary">{card.price}</p>
-        <h3 className="mt-1 line-clamp-2 min-h-[34px] text-[13px] font-bold leading-tight">
-          {card.title}
-        </h3>
-        <p className="mt-1 truncate text-[11.5px] text-muted-foreground">{card.location}</p>
-        <p className="mt-2 truncate text-[11px] text-muted-foreground">{card.detail}</p>
-      </div>
-    </article>
+    <a
+      href={href}
+      aria-label={`View listings for ${card.title}`}
+      className="group block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+    >
+      <article className="relative overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm transition-shadow group-hover:shadow-lg">
+        <div className="relative aspect-[4/3] overflow-hidden bg-secondary">
+          <img
+            src={card.image}
+            alt=""
+            loading="lazy"
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+          />
+          <span className="absolute left-3 top-3 rounded-md bg-primary/85 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.12em] text-primary-foreground">
+            {card.badge ?? eyebrow.replace("GemList ", "")}
+          </span>
+        </div>
+        <div className="p-3.5">
+          <p className="numeric text-[16px] font-bold text-primary">{card.price}</p>
+          <h3 className="mt-1 line-clamp-2 min-h-[34px] text-[13px] font-bold leading-tight">
+            {card.title}
+          </h3>
+          <p className="mt-1 truncate text-[11.5px] text-muted-foreground">{card.location}</p>
+          <p className="mt-2 truncate text-[11px] text-muted-foreground">{card.detail}</p>
+        </div>
+      </article>
+    </a>
   );
 }
 
