@@ -304,7 +304,7 @@ export function AccountCenter({
               {item.label}
             </option>
           ))}
-          {sellerVisible && <option value="billing">Seller billing</option>}
+          {sellerVisible && <option value="billing">Billing</option>}
         </select>
       </div>
 
@@ -435,7 +435,7 @@ function AccountSidebar({
               className={`flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-[12.5px] font-medium transition-colors ${section === "billing" ? "bg-primary text-primary-foreground shadow-sm" : "text-foreground hover:bg-secondary"}`}
             >
               <CreditCard size={18} aria-hidden="true" />
-              <span className="flex-1">Seller billing</span>
+              <span className="flex-1">Billing</span>
             </button>
           )}
         </nav>
@@ -618,7 +618,21 @@ function OverviewSection({
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(300px,0.9fr)]">
         <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-          <SectionTitle title={sellerSetup?.exists ? "Seller snapshot" : "Your next best steps"} />
+          <SectionTitle
+            title={sellerSetup?.exists ? "Seller snapshot" : "Your next best steps"}
+            action={
+              sellerSetup?.exists ? (
+                <button
+                  type="button"
+                  onClick={() => onSelect("billing")}
+                  className="text-[11.5px] font-semibold text-primary hover:underline"
+                >
+                  Billing
+                  <ArrowRight size={13} className="ml-1 inline" />
+                </button>
+              ) : undefined
+            }
+          />
           {sellerSetup?.exists ? (
             <div className="grid gap-3 sm:grid-cols-3">
               <MiniMetric label="Active listings" value={activeListings} />
@@ -694,6 +708,13 @@ function OverviewSection({
             label="Open messages"
             onClick={() => onSelect("messages")}
           />
+          {sellerSetup?.exists && (
+            <QuickAction
+              icon={CreditCard}
+              label="Manage billing"
+              onClick={() => onSelect("billing")}
+            />
+          )}
         </div>
       </section>
     </div>
@@ -2785,10 +2806,35 @@ function BillingSection({
     if (!listingId && eligibleListings[0]) setListingId(eligibleListings[0].id);
     if (!upgradeCode && options[0]) setUpgradeCode(options[0].code);
   }, [eligibleListings, listingId, options, upgradeCode]);
+  if (!sellerSetup?.exists) {
+    return (
+      <div className="space-y-6">
+        <SectionHeader
+          eyebrow="Billing"
+          title="Seller billing"
+          body="Billing is available after you create your Gem State seller profile. Buyer payment methods are not needed for this marketplace phase."
+        />
+        <section className="rounded-2xl border border-primary/25 bg-primary/5 p-5 shadow-sm">
+          <p className="text-[14px] font-semibold">Start selling before purchasing upgrades</p>
+          <p className="mt-1 max-w-[60ch] text-[12.5px] leading-relaxed text-muted-foreground">
+            Your base listings are free. Once your seller profile is ready, this area will show
+            listing promotion options and receipts.
+          </p>
+          <Link
+            to="/seller-setup"
+            className="mt-4 inline-flex h-9 items-center gap-1.5 rounded-xl bg-primary px-3 text-[12px] font-semibold text-primary-foreground"
+          >
+            Set up seller profile
+            <ArrowRight size={14} />
+          </Link>
+        </section>
+      </div>
+    );
+  }
   return (
     <div className="space-y-6">
       <SectionHeader
-        eyebrow="Seller billing"
+        eyebrow="Billing"
         title="Listing upgrades"
         body="Basic listings remain free. Choose an upgrade only when you want extra visibility or time, then pay securely through Stripe."
       />

@@ -359,7 +359,9 @@ test("account center exposes the unified sections and preserves legacy entry poi
   assert.match(accountCenterSource, /Saved listings/);
   assert.match(accountCenterSource, /Saved searches/);
   assert.match(accountCenterSource, /Messages/);
-  assert.match(accountCenterSource, /Seller billing/);
+  assert.match(accountCenterSource, /Billing/);
+  assert.match(accountCenterSource, /Manage billing/);
+  assert.match(accountCenterSource, /Set up seller profile/);
 });
 
 test("account profile supports an authenticated public profile picture", () => {
