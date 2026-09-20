@@ -1202,7 +1202,9 @@ export const getClassifiedsHome = createServerFn({ method: "GET" }).handler(
       totalActive: (categoryRows ?? []).length,
       categoryCounts,
       motors: motors.listings.slice(0, 8),
-      recent: recent.listings.slice(0, 12),
+      // Keep enough of the first page available for the homepage to build
+      // several useful, non-identical curated rows without another round trip.
+      recent: recent.listings.slice(0, 24),
     };
   },
 );

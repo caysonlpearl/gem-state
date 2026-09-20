@@ -526,13 +526,27 @@ test("main homepage presents category-curated listing rows", () => {
   assert.match(homeSource, /function HomepageListingRow/);
   for (const title of [
     "Fresh local finds",
-    "Homes & rentals worth a look",
+    "New vehicle arrivals",
+    "Trucks, SUVs & pickups",
+    "Affordable vehicles",
+    "Homes for sale",
+    "New builds to explore",
+    "Rentals worth a look",
     "Jobs hiring now",
+    "Flexible and part-time work",
     "Services for your next project",
+    "Home services and repairs",
     "Everyday finds from local sellers",
+    "Toys and collectibles",
+    "Value finds under $100",
+    "More from local sellers",
   ]) {
-    assert.match(homeSource, new RegExp(title.replace(/[&]/g, "\\&")));
+    assert.match(homeSource, new RegExp(title.replaceAll("$", "\\$")));
   }
+  assert.match(homeSource, /function HomepageInfoBand/);
+  assert.match(homeSource, /How GemList works/);
+  assert.match(homeSource, /For sellers and businesses/);
+  assert.match(homeSource, /A marketplace with a local feel/);
   assert.match(homeSource, /home\.recent\.filter\(\(listing\) => listing\.home\)/);
   assert.match(homeSource, /home\.recent\.filter\(\(listing\) => listing\.job\)/);
   assert.match(homeSource, /home\.recent\.filter\(\(listing\) => listing\.service\)/);
@@ -580,11 +594,11 @@ test("header categories show four primary destinations and a Classifieds control
   assert.doesNotMatch(headerSource, /Scroll categories left/);
   assert.doesNotMatch(headerSource, /Scroll categories right/);
   assert.doesNotMatch(headerSource, /scrollBy\(/);
-  assert.match(
-    headerSource,
-    /navigationCategories = classifiedCategories\.filter\(\(c\) => c\.slug !== "general"\)/,
-  );
-  assert.match(headerSource, /navigationCategories\.map/);
+  assert.match(headerSource, /mobilePrimaryCategories = \[/);
+  assert.match(headerSource, /aria-label="Main categories"/);
+  assert.match(headerSource, /Find your next local gem\./);
+  assert.match(headerSource, /category\.description/);
+  assert.match(headerSource, /size=\{42\}/);
   assert.match(headerSource, /size=\{64\}/);
 });
 
@@ -754,6 +768,20 @@ test("vehicle browse uses a branded buy and eight-filter discovery hero", () => 
   assert.match(browseSource, /vehicleShowcaseRows/);
   assert.match(browseSource, /Popular cars & trucks/);
   assert.match(browseSource, /Just reduced/);
+  for (const row of [
+    "Fuel-efficient commuters",
+    "Family SUVs & crossovers",
+    "Work trucks & vans",
+    "RVs, campers & trailers",
+    "Motorcycles & powersports",
+    "Cars under $20,000",
+    "Late-model local vehicles",
+    "Classic & enthusiast vehicles",
+    "Three-row family vehicles",
+    "AWD & winter-ready rides",
+  ]) {
+    assert.match(browseSource, new RegExp(row.replaceAll("$", "\\$")));
+  }
   assert.match(browseSource, /GemList Motors/);
 });
 
@@ -820,11 +848,24 @@ test("homes browse has a large landing hero and tab-specific filter views", () =
   }
   assert.match(browseSource, /h-\[88px\]/g);
   assert.match(browseSource, /Hide all filters/);
-  assert.match(browseSource, /homeTab: row\.title\.includes/);
+  assert.match(browseSource, /homeTab: activeTab/);
   assert.match(browseSource, /homePreviewRowsByTab/);
   assert.match(browseSource, /Price drops to watch/);
   assert.match(browseSource, /Quick move-in homes/);
   assert.match(browseSource, /Pet-friendly rentals/);
+  for (const row of [
+    "Starter homes",
+    "Condos & townhomes",
+    "Homes with space to grow",
+    "New build communities",
+    "Custom build opportunities",
+    "Townhome builds",
+    "Apartments under $1,800",
+    "Rentals with room to spread out",
+    "Short-term & flexible stays",
+  ]) {
+    assert.match(browseSource, new RegExp(row.replaceAll("$", "\\$")));
+  }
   assert.match(browseSource, /HomeShowcaseRows activeTab=\{homeTab\}/);
 });
 
@@ -865,6 +906,20 @@ test("jobs browse has a landing hero and expanded local job filters", () => {
   assert.match(browseSource, /jobsShowcaseRows/);
   assert.match(browseSource, /Part-time & flexible/);
   assert.match(browseSource, /Skilled trades & hands-on work/);
+  for (const row of [
+    "Healthcare & caregiving",
+    "Hospitality & food service",
+    "Office & administrative",
+    "Sales & customer experience",
+    "Education & childcare",
+    "Remote-friendly roles",
+    "Seasonal & event work",
+    "Finance & accounting",
+    "Transportation & delivery",
+    "Engineering & technical",
+  ]) {
+    assert.match(browseSource, new RegExp(row));
+  }
 });
 
 test("jobs browse results use real listing data, not static placeholder cards", () => {
@@ -895,6 +950,20 @@ test("services browse has a category-led landing page", () => {
   assert.match(browseSource, /servicesShowcaseRows/);
   assert.match(browseSource, /Recently added pros/);
   assert.match(browseSource, /Projects to plan this season/);
+  for (const row of [
+    "Plumbing & water",
+    "Electrical & lighting",
+    "Lawn & landscaping",
+    "Cleaning & move-out",
+    "Automotive & mobile repair",
+    "Home improvement pros",
+    "Technology & business help",
+    "Moving & hauling",
+    "Pet care & family help",
+    "Roofing & exterior work",
+  ]) {
+    assert.match(browseSource, new RegExp(row));
+  }
 });
 
 test("listing detail keeps a responsive photo gallery and floating action card", () => {
@@ -1014,4 +1083,13 @@ test("all categories routes to its own general classifieds landing page", () => 
   assert.match(browseSource, /Holiday & seasonal finds/);
   assert.match(browseSource, /Clothing & accessories/);
   assert.match(browseSource, /Recently discounted/);
+  for (const row of [
+    "Furniture & home refresh",
+    "Electronics & gaming",
+    "Outdoor & recreation",
+    "Tools & shop equipment",
+    "Farm & garden finds",
+  ]) {
+    assert.match(browseSource, new RegExp(row));
+  }
 });

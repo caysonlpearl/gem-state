@@ -165,6 +165,56 @@ function Home() {
   const generalListings = home.recent
     .filter((listing) => !listing.vehicle && !listing.home && !listing.job && !listing.service)
     .slice(0, 6);
+  const withFallback = (matches: typeof home.recent, fallback: typeof home.recent) =>
+    (matches.length >= 2 ? matches : fallback).slice(0, 6);
+  const vehicleListings = home.motors.slice(0, 6);
+  const truckListings = withFallback(
+    home.motors.filter((listing) => /truck|suv|pickup|jeep/i.test(listing.title)),
+    vehicleListings,
+  );
+  const valueVehicleListings = [...home.motors]
+    .sort((a, b) => a.priceCents - b.priceCents)
+    .slice(0, 6);
+  const buyHomes = withFallback(
+    homeListings.filter((listing) => listing.home?.mode === "buy"),
+    homeListings,
+  );
+  const buildHomes = withFallback(
+    homeListings.filter((listing) => listing.home?.mode === "build"),
+    homeListings,
+  );
+  const rentalHomes = withFallback(
+    homeListings.filter((listing) => listing.home?.mode === "rent"),
+    homeListings,
+  );
+  const flexibleJobs = withFallback(
+    jobListings.filter((listing) =>
+      /part-time|contract|temporary/i.test(listing.job?.employmentType ?? ""),
+    ),
+    jobListings,
+  );
+  const homeServices = withFallback(
+    serviceListings.filter((listing) =>
+      /home|handyman|lawn|landscape|repair|clean/i.test(
+        `${listing.title} ${listing.service?.subcategory ?? ""}`,
+      ),
+    ),
+    serviceListings,
+  );
+  const toyAndCollectibleListings = withFallback(
+    generalListings.filter((listing) =>
+      /toy|plush|doll|collectible|ninja|mario/i.test(
+        `${listing.title} ${listing.categoryName ?? ""}`,
+      ),
+    ),
+    generalListings,
+  );
+  const valueFinds = withFallback(
+    generalListings.filter((listing) => listing.priceCents <= 10_000),
+    generalListings,
+  );
+  const localSellerPicks =
+    home.recent.slice(6, 12).length > 1 ? home.recent.slice(6, 12) : freshListings;
 
   return (
     <main className="mx-auto max-w-[1360px] px-4 pb-16 sm:px-6">
@@ -332,11 +382,68 @@ function Home() {
       />
 
       <HomepageListingRow
+        eyebrow="Gem State motors"
+        title="New vehicle arrivals"
+        listings={vehicleListings}
+        search={{ group: "motors" }}
+        action="Browse all vehicles"
+      />
+
+      <HomepageListingRow
+        eyebrow="Gem State motors"
+        title="Trucks, SUVs & pickups"
+        listings={truckListings}
+        search={{ group: "motors" }}
+        action="Shop trucks & SUVs"
+      />
+
+      <HomepageListingRow
+        eyebrow="Gem State motors"
+        title="Affordable vehicles"
+        listings={valueVehicleListings}
+        search={{ group: "motors" }}
+        action="Find a vehicle"
+      />
+
+      <HomepageInfoBand
+        eyebrow="How GemList works"
+        title="Buy locally, ask directly, and keep the transaction simple."
+        body="Every listing connects you with the person or business behind it. Ask questions, compare options, and arrange the details directly with the seller."
+        action="See how buying and selling works"
+        to="/glossary"
+      />
+
+      <HomepageListingRow
         eyebrow="Gem State homes"
-        title="Homes & rentals worth a look"
-        listings={homeListings}
+        title="Homes for sale"
+        listings={buyHomes}
         search={{ category: "other-real-estate" }}
-        action="Browse homes"
+        action="Browse homes for sale"
+      />
+
+      <HomepageListingRow
+        eyebrow="Gem State homes"
+        title="New builds to explore"
+        listings={buildHomes}
+        search={{ category: "other-real-estate" }}
+        action="Find new construction"
+      />
+
+      <HomepageListingRow
+        eyebrow="Gem State homes"
+        title="Rentals worth a look"
+        listings={rentalHomes}
+        search={{ category: "other-real-estate" }}
+        action="Browse rentals"
+      />
+
+      <HomepageInfoBand
+        eyebrow="For sellers and businesses"
+        title="Put your next opportunity in front of local buyers."
+        body="Post an item, promote a service, or share an open role. GemList gives Idaho sellers one simple place to be discovered."
+        action="Post a listing"
+        to="/sell"
+        tone="accent"
       />
 
       <HomepageListingRow
@@ -348,6 +455,14 @@ function Home() {
       />
 
       <HomepageListingRow
+        eyebrow="Gem State jobs"
+        title="Flexible and part-time work"
+        listings={flexibleJobs}
+        search={{ category: "jobs" }}
+        action="Find flexible work"
+      />
+
+      <HomepageListingRow
         eyebrow="Gem State services"
         title="Services for your next project"
         listings={serviceListings}
@@ -356,11 +471,51 @@ function Home() {
       />
 
       <HomepageListingRow
+        eyebrow="Gem State services"
+        title="Home services and repairs"
+        listings={homeServices}
+        search={{ category: "services" }}
+        action="Find home help"
+      />
+
+      <HomepageInfoBand
+        eyebrow="A marketplace with a local feel"
+        title="Discover people, products, jobs, and services close to home."
+        body="Save what catches your eye, create alerts for what you need, and come back anytime to keep browsing your local marketplace."
+        action="Browse all categories"
+        to="/browse"
+      />
+
+      <HomepageListingRow
         eyebrow="Gem State classifieds"
         title="Everyday finds from local sellers"
         listings={generalListings}
         search={{ allCategories: true }}
         action="Browse all classifieds"
+      />
+
+      <HomepageListingRow
+        eyebrow="Gem State classifieds"
+        title="Toys and collectibles"
+        listings={toyAndCollectibleListings}
+        search={{ category: "general" }}
+        action="Browse collectibles"
+      />
+
+      <HomepageListingRow
+        eyebrow="Gem State classifieds"
+        title="Value finds under $100"
+        listings={valueFinds}
+        search={{ allCategories: true }}
+        action="Shop everyday finds"
+      />
+
+      <HomepageListingRow
+        eyebrow="Gem State picks"
+        title="More from local sellers"
+        listings={localSellerPicks}
+        search={{ allCategories: true }}
+        action="See more local listings"
       />
 
       <section className="soft-card mt-16 px-6 py-8 sm:px-8">
@@ -396,11 +551,19 @@ function HomepageListingRow({
   if (listings.length === 0) return null;
 
   return (
-    <section className="mt-16" aria-labelledby={`${title.toLowerCase().replaceAll(" ", "-")}-heading`}>
+    <section
+      className="mt-16"
+      aria-labelledby={`${title.toLowerCase().replaceAll(" ", "-")}-heading`}
+    >
       <div className="flex items-end justify-between gap-4 border-b border-border pb-3">
         <div>
           <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">{eyebrow}</p>
-          <h2 id={`${title.toLowerCase().replaceAll(" ", "-")}-heading`} className="mt-1 text-[26px] font-bold tracking-tight">{title}</h2>
+          <h2
+            id={`${title.toLowerCase().replaceAll(" ", "-")}-heading`}
+            className="mt-1 text-[26px] font-bold tracking-tight"
+          >
+            {title}
+          </h2>
         </div>
         <Link to="/browse" search={search} className={seeAll}>
           {action} <ArrowRight size={12} />
@@ -412,6 +575,45 @@ function HomepageListingRow({
             <ListingCard listing={listing} />
           </div>
         ))}
+      </div>
+    </section>
+  );
+}
+
+function HomepageInfoBand({
+  eyebrow,
+  title,
+  body,
+  action,
+  to,
+  tone = "default",
+}: {
+  eyebrow: string;
+  title: string;
+  body: string;
+  action: string;
+  to: "/glossary" | "/sell" | "/browse";
+  tone?: "default" | "accent";
+}) {
+  return (
+    <section
+      className={`mt-16 overflow-hidden rounded-[24px] border px-6 py-8 sm:px-8 ${
+        tone === "accent" ? "border-accent/40 bg-accent/15" : "border-border bg-secondary/70"
+      }`}
+    >
+      <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">{eyebrow}</p>
+      <div className="mt-2 flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
+        <div>
+          <h2 className="max-w-[30ch] text-[22px] font-bold tracking-tight sm:text-[26px]">
+            {title}
+          </h2>
+          <p className="mt-2 max-w-[68ch] text-[13px] leading-relaxed text-muted-foreground">
+            {body}
+          </p>
+        </div>
+        <Link to={to} className={`${seeAll} sm:mb-1`}>
+          {action} <ArrowRight size={12} />
+        </Link>
       </div>
     </section>
   );

@@ -13,7 +13,6 @@ import {
 import { NotificationBell } from "@/components/layout/NotificationBell";
 import { BrandMark } from "@/components/layout/BrandMark";
 import { brand } from "@/config/brand";
-import { classifiedCategories } from "@/config/classifieds";
 import { useAuth } from "@/hooks/useAuth";
 import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 
@@ -35,13 +34,19 @@ const utilityLinkClass =
   "hidden h-9 items-center px-2.5 text-[12.5px] text-muted-foreground transition-colors hover:text-primary md:inline-flex";
 const pinned = { activeProps: { className: "" }, inactiveProps: { className: "" } } as const;
 
-const navigationCategories = classifiedCategories.filter((c) => c.slug !== "general");
-
 const featuredHeaderCategories = [
   { slug: "cars-trucks", name: "Cars" },
   { slug: "other-real-estate", name: "Homes" },
   { slug: "jobs", name: "Jobs" },
   { slug: "services", name: "Services" },
+] as const;
+
+const mobilePrimaryCategories = [
+  { slug: "general", name: "Classifieds", description: "Everyday local finds" },
+  { slug: "cars-trucks", name: "Cars", description: "Cars, trucks & motors" },
+  { slug: "other-real-estate", name: "Homes", description: "Homes, rentals & builds" },
+  { slug: "jobs", name: "Jobs", description: "Local work & hiring" },
+  { slug: "services", name: "Services", description: "Help for your next project" },
 ] as const;
 
 export function SiteHeader() {
@@ -109,7 +114,7 @@ export function SiteHeader() {
       </a>
 
       {/* Level 1 */}
-      <div className="mx-auto grid h-[88px] max-w-[1440px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-3 sm:gap-8 sm:px-8">
+      <div className="mx-auto grid h-[72px] max-w-[1440px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 sm:h-[88px] sm:gap-8 sm:px-8">
         <Link to="/" className="flex shrink-0 items-center pr-1 sm:pr-2" {...pinned}>
           <BrandMark className="hidden sm:inline-flex" />
           <BrandMark compact className="sm:hidden" />
@@ -150,7 +155,7 @@ export function SiteHeader() {
             type="button"
             onClick={() => void navigate({ to: "/browse" })}
             aria-label="Search classifieds"
-            className="grid h-11 w-11 place-items-center rounded-full border border-input text-foreground transition-colors hover:bg-secondary md:hidden"
+            className="grid h-10 w-10 place-items-center rounded-full border border-input text-foreground transition-colors hover:bg-secondary sm:h-11 sm:w-11 md:hidden"
           >
             <MagnifyingGlass size={18} aria-hidden="true" />
           </button>
@@ -184,7 +189,7 @@ export function SiteHeader() {
               }}
               aria-expanded={isSignedIn ? accountMenuOpen : undefined}
               aria-haspopup={isSignedIn ? "menu" : undefined}
-              className="inline-flex h-11 min-h-11 items-center gap-1.5 rounded-full border border-foreground px-4 text-[12.5px] font-medium transition-colors hover:bg-foreground hover:text-background md:min-h-11"
+              className="inline-flex h-10 min-h-10 items-center gap-1.5 rounded-full border border-foreground px-3 text-[12px] font-medium transition-colors hover:bg-foreground hover:text-background sm:h-11 sm:min-h-11 sm:px-4 sm:text-[12.5px]"
             >
               <UserCircle size={16} aria-hidden="true" />
               {isSignedIn ? "Account" : "Sign in"}
@@ -256,7 +261,7 @@ export function SiteHeader() {
             onClick={() => setMenuOpen((v) => !v)}
             aria-expanded={menuOpen}
             aria-controls="marketplace-menu"
-            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-input text-foreground transition-colors hover:bg-secondary lg:hidden"
+            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-input text-foreground transition-colors hover:bg-secondary sm:h-11 sm:w-11 lg:hidden"
           >
             {menuOpen ? <X size={17} aria-hidden="true" /> : <List size={17} aria-hidden="true" />}
             <span className="sr-only">{menuOpen ? "Close menu" : "Open menu"}</span>
@@ -297,50 +302,94 @@ export function SiteHeader() {
         </div>
       </nav>
 
-      {/* Condensed mobile menu. Search stays in level 1 and remains prominent. */}
+      {/* Mobile browse menu. The five primary destinations keep the header useful
+          without forcing the desktop artwork row into a narrow viewport. */}
       {menuOpen && (
         <div id="marketplace-menu" className="border-t border-border bg-surface lg:hidden">
-          <ul className="mx-auto grid max-w-[1360px] grid-cols-2 gap-1 px-3 py-3">
-            {[
-              { label: "Post a listing", to: "/create-listing" as const, search: {} },
-              { label: "Newest", to: "/browse" as const, search: { sort: "newest" } },
-              ...navigationCategories.map((c) => ({
-                label: c.name,
-                to: "/browse" as const,
-                search: { category: c.slug },
-              })),
-              ...(isSignedIn
-                ? [
-                    { label: "Notifications", to: "/notifications" as const, search: {} },
-                  ]
-                : []),
-              { label: "How it works", to: "/glossary" as const, search: {} },
-              { label: "Policies", to: "/policies" as const, search: {} },
-            ].map((item) => (
-              <li key={`${item.label}-${item.to}`}>
-                <Link
-                  to={item.to}
-                  search={item.search}
-                  onClick={() => setMenuOpen(false)}
-                  className="flex min-h-11 items-center rounded-md border border-border bg-card px-3 text-[13px]"
-                  {...pinned}
-                >
-                  {item.label}
-                </Link>
-              </li>
-            ))}
-            <li className="col-span-2">
+          <div className="mx-auto max-w-[1360px] px-3 py-4 sm:px-8">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                  Browse marketplace
+                </p>
+                <p className="mt-1 text-[13px] text-foreground">Find your next local gem.</p>
+              </div>
               <Link
-                to="/browse"
-                search={{ allCategories: true }}
+                to="/create-listing"
                 onClick={() => setMenuOpen(false)}
-                className="flex min-h-11 w-full items-center rounded-2xl border border-border bg-card px-3 py-2 text-[13px] font-semibold"
+                className="inline-flex min-h-10 items-center rounded-full bg-accent px-3 text-[12px] font-semibold text-accent-foreground"
                 {...pinned}
               >
-                Classifieds
+                Post a listing
               </Link>
-            </li>
-          </ul>
+            </div>
+
+            <ul className="grid grid-cols-2 gap-2" aria-label="Main categories">
+              {mobilePrimaryCategories.map((category) => (
+                <li key={category.slug} className={category.slug === "general" ? "col-span-2" : ""}>
+                  <Link
+                    to="/browse"
+                    search={
+                      category.slug === "general"
+                        ? { allCategories: true }
+                        : { category: category.slug }
+                    }
+                    onClick={() => setMenuOpen(false)}
+                    className="group flex min-h-[72px] items-center gap-3 rounded-2xl border border-border bg-card px-3 py-2.5 transition-colors hover:border-primary/40 hover:bg-secondary"
+                    {...pinned}
+                  >
+                    <CategoryArtwork slug={category.slug} size={42} className="shrink-0" />
+                    <span className="min-w-0">
+                      <span className="block text-[13px] font-semibold text-foreground">
+                        {category.name}
+                      </span>
+                      <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">
+                        {category.description}
+                      </span>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+
+            <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border pt-3">
+              <Link
+                to="/browse"
+                search={{ sort: "newest" }}
+                onClick={() => setMenuOpen(false)}
+                className="flex min-h-10 items-center rounded-xl border border-border bg-card px-3 text-[12px] font-medium"
+                {...pinned}
+              >
+                Newest listings
+              </Link>
+              <Link
+                to="/glossary"
+                onClick={() => setMenuOpen(false)}
+                className="flex min-h-10 items-center rounded-xl border border-border bg-card px-3 text-[12px] font-medium"
+                {...pinned}
+              >
+                How it works
+              </Link>
+              {isSignedIn && (
+                <Link
+                  to="/notifications"
+                  onClick={() => setMenuOpen(false)}
+                  className="flex min-h-10 items-center rounded-xl border border-border bg-card px-3 text-[12px] font-medium"
+                  {...pinned}
+                >
+                  Notifications
+                </Link>
+              )}
+              <Link
+                to="/policies"
+                onClick={() => setMenuOpen(false)}
+                className="flex min-h-10 items-center rounded-xl border border-border bg-card px-3 text-[12px] font-medium"
+                {...pinned}
+              >
+                Policies
+              </Link>
+            </div>
+          </div>
         </div>
       )}
     </header>
