@@ -13,6 +13,14 @@ import {
 } from "@/lib/classifieds-display";
 import type { ClassifiedCard } from "@/lib/classifieds.functions";
 
+function FeaturedBadge() {
+  return (
+    <span className="inline-flex rounded-full bg-accent px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-accent-foreground shadow-sm">
+      Featured
+    </span>
+  );
+}
+
 function Photo({ listing, tall }: { listing: ClassifiedCard; tall?: boolean }) {
   const ratio = tall ? "aspect-[4/3]" : "aspect-[4/3]";
   if (!listing.imageUrl) {
@@ -22,6 +30,11 @@ function Photo({ listing, tall }: { listing: ClassifiedCard; tall?: boolean }) {
       >
         <span className="absolute -right-6 -top-8 h-28 w-28 rounded-full bg-primary/5" />
         <span className="absolute -bottom-10 -left-5 h-28 w-28 rounded-full bg-brand-warm/10" />
+        {listing.isFeatured ? (
+          <span className="absolute left-2 top-2 z-10">
+            <FeaturedBadge />
+          </span>
+        ) : null}
         <span className="relative grid h-14 w-14 place-items-center rounded-2xl bg-card/75 text-primary shadow-sm backdrop-blur">
           <CategoryArtwork slug={listing.categorySlug ?? "general"} size={84} />
         </span>
@@ -29,13 +42,18 @@ function Photo({ listing, tall }: { listing: ClassifiedCard; tall?: boolean }) {
     );
   }
   return (
-    <div className={`${ratio} overflow-hidden bg-secondary`}>
+    <div className={`relative ${ratio} overflow-hidden bg-secondary`}>
       <img
         src={listing.imageUrl}
         alt={listing.title}
         loading="lazy"
         className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
       />
+      {listing.isFeatured ? (
+        <span className="absolute left-2 top-2 z-10">
+          <FeaturedBadge />
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -71,7 +89,7 @@ function Price({ listing }: { listing: ClassifiedCard }) {
     <>
       {listing.job
         ? formatJobPay(listing.job)
-        : listing.service?.pricing ?? formatUsd(listing.priceCents)}
+        : (listing.service?.pricing ?? formatUsd(listing.priceCents))}
     </>
   );
 }
@@ -135,6 +153,11 @@ export function ListingRow({ listing }: { listing: ClassifiedCard }) {
         <div className="min-w-0 py-3 pr-3">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3">
             <h3 className="min-w-0 flex-1 truncate text-[14px] font-semibold group-hover:text-primary">
+              {listing.isFeatured ? (
+                <span className="mr-2 inline-flex align-middle">
+                  <FeaturedBadge />
+                </span>
+              ) : null}
               {listing.title}
             </h3>
             <p className="numeric text-[17px] font-bold leading-none">

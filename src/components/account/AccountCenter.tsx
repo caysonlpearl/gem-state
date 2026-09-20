@@ -2838,17 +2838,17 @@ function BillingSection({
     <div className="space-y-6">
       <SectionHeader
         eyebrow="Billing"
-        title="Listing upgrades"
-        body="Basic listings remain free. Choose an upgrade only when you want extra visibility or time, then pay securely through Stripe."
+        title="Boost or feature a listing"
+        body="Every listing is free to post. Boosted and Featured are the only paid options, and both are completely optional."
       />
       <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
         <div className="flex items-start gap-3">
           <CreditCard size={22} className="mt-0.5 text-primary" />
           <div>
-            <h3 className="text-[15px] font-bold">Promote a listing</h3>
+            <h3 className="text-[15px] font-bold">Choose extra visibility</h3>
             <p className="mt-1 max-w-[68ch] text-[12.5px] leading-relaxed text-muted-foreground">
-              Gem State calculates the price from the active catalog and applies the upgrade only
-              after Stripe confirms payment. Card details never touch Gem State.
+              Boost moves a listing back to the top of relevant results. Featured pins it above
+              standard results for one full day. Card details never touch Gem State.
             </p>
           </div>
         </div>
@@ -2909,7 +2909,7 @@ function BillingSection({
             </button>
           </div>
         )}
-        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
           {options.map((item) => (
             <div key={item.code} className="rounded-xl border border-border p-3">
               <div className="flex items-center justify-between gap-2">

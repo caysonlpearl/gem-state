@@ -42,7 +42,8 @@ function SellLandingPage() {
             <p className="mt-5 max-w-[650px] text-[14px] leading-relaxed text-muted-foreground">
               Build a seller profile and list the exact item you own. Buyers across Idaho see your
               photos, price, condition, location and pickup or shipping details in one place, then
-              contact you directly.
+              contact you directly. Posting is free in every section; Boosted and Featured placement
+              are optional.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
               {isSignedIn ? (

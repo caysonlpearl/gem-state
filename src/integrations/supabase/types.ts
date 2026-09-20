@@ -321,6 +321,7 @@ export type Database = {
           price_cents: number
           product_id: string
           promoted_at: string | null
+          ranking_at: string
           public_media_count: number
           review_note: string | null
           seller_id: string
@@ -352,6 +353,7 @@ export type Database = {
           price_cents: number
           product_id: string
           promoted_at?: string | null
+          ranking_at?: string
           public_media_count?: number
           review_note?: string | null
           seller_id: string
@@ -383,6 +385,7 @@ export type Database = {
           price_cents?: number
           product_id?: string
           promoted_at?: string | null
+          ranking_at?: string
           public_media_count?: number
           review_note?: string | null
           seller_id?: string

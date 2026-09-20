@@ -58,6 +58,7 @@ export type ClassifiedCard = {
   condition: string;
   fulfillmentMode: string;
   createdAt: string;
+  isFeatured: boolean;
   imageUrl: string | null;
   vehicle: ClassifiedVehicle | null;
   home?: ClassifiedHomeDetails | null;
@@ -543,7 +544,7 @@ const conditionValues = [
 ] as const;
 
 const LISTING_SELECT =
-  "id, product_id, variant_id, seller_id, price_cents, currency, item_condition, seller_note, created_at, expires_at, " +
+  "id, product_id, variant_id, seller_id, price_cents, currency, item_condition, seller_note, created_at, expires_at, featured_until, promoted_at, ranking_at, " +
   "products!inner(id, slug, name, description, status, category_id, categories(slug, name)), " +
   "classified_listing_details!inner(region, city, state, postal_code, fulfillment_mode, vehicle_make, vehicle_model, vehicle_year, vehicle_trim, vehicle_mileage, vehicle_body_style, vehicle_transmission, vehicle_drivetrain, vehicle_fuel_type, vehicle_exterior_color, vehicle_title_status, vin, " +
   "home_mode, home_property_type, home_bedrooms, home_bathrooms, home_square_feet, home_year_built, home_acreage, home_heating, home_cooling, home_garage_parking, home_yard, home_appliances_included, home_floor_coverings, home_basement_type, home_exterior_material, home_special_features, home_hoa_fees, home_school_district, home_lease_length, home_available, home_pets_policy, home_smoking_policy, home_open_house, " +
@@ -762,6 +763,9 @@ function toCard(row: Record<string, unknown>, urlByPath: Map<string, string>): C
     condition: row["item_condition"] as string,
     fulfillmentMode: details["fulfillment_mode"] as string,
     createdAt: row["created_at"] as string,
+    isFeatured:
+      typeof row["featured_until"] === "string" &&
+      new Date(row["featured_until"] as string).getTime() > Date.now(),
     imageUrl: (firstPath ? (urlByPath.get(firstPath) ?? null) : null) as string | null,
     vehicle: vehicleOf(details),
     home: homeOf(details),
@@ -786,6 +790,7 @@ function mockCard(listing: (typeof mockClassifiedListings)[number]): ClassifiedC
     condition: listing.condition,
     fulfillmentMode: listing.fulfillmentMode,
     createdAt: listing.createdAt,
+    isFeatured: false,
     imageUrl: listing.images[0]?.url ?? null,
     vehicle: null,
     home: listing.home ?? null,
@@ -950,6 +955,22 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     const client = publicServerClient();
     const page = data.page ?? 1;
     const empty = { listings: [], total: 0, page, pageSize: PAGE_SIZE };
+    const nowIso = new Date().toISOString();
+
+    // Expired placements are cleared before ranking so an old purchase can
+    // never remain above ordinary results. This does not touch the immutable
+    // purchase/receipt history shown in Seller Billing.
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { error } = await (supabaseAdmin as any)
+        .from("asks")
+        .update({ featured_until: null })
+        .not("featured_until", "is", null)
+        .lte("featured_until", nowIso);
+      if (error) console.error("Could not clear expired featured placements", error.message);
+    } catch (error) {
+      console.error("Could not clear expired featured placements", error);
+    }
 
     let categoryIds: string[] | null = null;
     let mockOnlyCategory = false;
@@ -983,7 +1004,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
       .eq("status", "active")
       .eq("is_demo", false)
       .not("approved_at", "is", null)
-      .gt("expires_at", new Date().toISOString())
+      .gt("expires_at", nowIso)
       .eq("products.status", "published");
 
     if (categoryIds) query = query.in("products.category_id", categoryIds);
@@ -1064,6 +1085,9 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
         );
     }
 
+    // Featured listings always appear before standard results. Within each
+    // group, the selected browse sort still applies.
+    query = query.order("featured_until", { ascending: false, nullsFirst: false });
     switch (data.sort) {
       case "price_low":
         query = query.order("price_cents", { ascending: true });
@@ -1080,7 +1104,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
         query = query.order("created_at", { ascending: false });
         break;
       default:
-        query = query.order("created_at", { ascending: false });
+        query = query.order("ranking_at", { ascending: false });
     }
     // Deterministic tiebreaker so paging never repeats or skips a listing.
     query = query.order("id", { ascending: true });
@@ -1110,7 +1134,12 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
       page === 1
         ? mockClassifiedListings.filter((listing) => mockMatches(listing, data)).map(mockCard)
         : [];
-    const combinedListings = [...mockListings, ...listings].slice(0, PAGE_SIZE);
+    const featuredListings = listings.filter((listing) => listing.isFeatured);
+    const standardListings = listings.filter((listing) => !listing.isFeatured);
+    const combinedListings = [...featuredListings, ...mockListings, ...standardListings].slice(
+      0,
+      PAGE_SIZE,
+    );
     if (listings.length > 0) {
       void import("@/integrations/supabase/client.server")
         .then(({ supabaseAdmin }) =>

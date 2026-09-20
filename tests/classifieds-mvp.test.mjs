@@ -39,6 +39,9 @@ const listingUpgradeFunctionsSource = await read("src/lib/listing-upgrade.functi
 const listingUpgradeMigrationSource = await read(
   "supabase/migrations/20260918113000_add_seller_listing_upgrades.sql",
 );
+const simplifiedUpgradeMigrationSource = await read(
+  "supabase/migrations/20260920120000_simplify_listing_upgrades.sql",
+);
 const accountCenterMigrationSource = await read(
   "supabase/migrations/20260918110000_add_account_center_tools.sql",
 );
@@ -475,6 +478,20 @@ test("seller billing is catalog-backed and settles upgrades through Stripe webho
   assert.match(stripeServerSource, /status: "failed"/);
   assert.match(accountCenterSource, /Upgrade your listing now/);
   assert.match(accountCenterSource, /queryKey: \["my-listings"\][\s\S]*?enabled: true/);
+  assert.match(simplifiedUpgradeMigrationSource, /amount_cents = 1200/);
+  assert.match(simplifiedUpgradeMigrationSource, /amount_cents = 1000/);
+  assert.match(simplifiedUpgradeMigrationSource, /duration_days = 1/);
+  assert.match(simplifiedUpgradeMigrationSource, /where code not in \('bump', 'featured'\)/);
+  assert.match(classifiedsFunctionsSource, /order\("featured_until"/);
+  assert.match(classifiedsFunctionsSource, /order\("ranking_at"/);
+  assert.match(stripeServerSource, /listingUpdate\["ranking_at"\] = paidAt/);
+  assert.match(listingCardSource, />\s*Featured\s*</);
+  assert.match(createSource, /Every listing is free/);
+  assert.match(
+    accountCenterSource,
+    /Boosted and Featured are the only paid options, and both are completely optional/,
+  );
+  assert.doesNotMatch(accountCenterSource, /extra visibility or time/);
 });
 
 test("marketplace notification delivery is Resend-only", () => {

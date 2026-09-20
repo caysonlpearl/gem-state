@@ -4,7 +4,10 @@ import { useServerFn } from "@tanstack/react-start";
 import { ArrowRight } from "@phosphor-icons/react";
 
 import { SellerCenterNav } from "@/components/seller/SellerCenterNav";
-import { ListingForm, ListingFormBackLink } from "@/components/classifieds/listing-form/ListingForm";
+import {
+  ListingForm,
+  ListingFormBackLink,
+} from "@/components/classifieds/listing-form/ListingForm";
 import { getClassifiedListingEditor } from "@/lib/classifieds.functions";
 import { getSellerSetup } from "@/lib/seller.functions";
 
@@ -66,14 +69,17 @@ function CreateListingPage() {
             Create a listing
           </h1>
           <p className="mt-1 max-w-[680px] text-[12.5px] leading-relaxed text-muted-foreground">
-            List one exact item, vehicle, home, job, or service with your own photos, price,
-            location, and details. Listings go through review before they appear to buyers.
+            Every listing is free. List one exact item, vehicle, home, job, or service with your own
+            photos, price, location, and details. Optional Boosted and Featured placement is
+            available after approval.
           </p>
         </div>
       </div>
       <SellerCenterNav storefrontSlug={setup.data?.slug} />
       {duplicateFrom && duplicateSource.isLoading ? (
-        <p className="mt-6 text-[12.5px] text-muted-foreground">Loading the listing to duplicate…</p>
+        <p className="mt-6 text-[12.5px] text-muted-foreground">
+          Loading the listing to duplicate…
+        </p>
       ) : (
         <ListingForm mode="create" duplicateFrom={duplicateSource.data ?? undefined} />
       )}

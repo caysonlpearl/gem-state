@@ -498,16 +498,41 @@ export async function finalizeListingUpgradeCheckout(session: Stripe.Checkout.Se
   const paidAt = new Date().toISOString();
   const listingUpdate: Record<string, unknown> = {};
   if (upgrade.code === "featured") {
-    listingUpdate["featured_until"] = new Date(Date.now() + Number(upgrade.duration_days || 7) * 864e5).toISOString();
+    const { data: listing } = await admin
+      .from("asks")
+      .select("featured_until")
+      .eq("id", purchase.listing_id)
+      .maybeSingle();
+    const base = Math.max(
+      Date.now(),
+      listing?.featured_until ? new Date(listing.featured_until).getTime() : Date.now(),
+    );
+    listingUpdate["featured_until"] = new Date(
+      base + Number(upgrade.duration_days || 1) * 864e5,
+    ).toISOString();
   } else if (upgrade.code === "bump") {
     listingUpdate["promoted_at"] = paidAt;
+    listingUpdate["ranking_at"] = paidAt;
   } else if (upgrade.code === "extend") {
-    const { data: listing } = await admin.from("asks").select("expires_at").eq("id", purchase.listing_id).maybeSingle();
-    const base = Math.max(Date.now(), listing?.expires_at ? new Date(listing.expires_at).getTime() : Date.now());
-    listingUpdate["expires_at"] = new Date(base + Number(upgrade.duration_days || 30) * 864e5).toISOString();
+    const { data: listing } = await admin
+      .from("asks")
+      .select("expires_at")
+      .eq("id", purchase.listing_id)
+      .maybeSingle();
+    const base = Math.max(
+      Date.now(),
+      listing?.expires_at ? new Date(listing.expires_at).getTime() : Date.now(),
+    );
+    listingUpdate["expires_at"] = new Date(
+      base + Number(upgrade.duration_days || 30) * 864e5,
+    ).toISOString();
   }
   if (Object.keys(listingUpdate).length) {
-    const { error: listingError } = await admin.from("asks").update(listingUpdate).eq("id", purchase.listing_id).eq("seller_id", purchase.user_id);
+    const { error: listingError } = await admin
+      .from("asks")
+      .update(listingUpdate)
+      .eq("id", purchase.listing_id)
+      .eq("seller_id", purchase.user_id);
     if (listingError) throw new Error(listingError.message);
   }
   const saved = await admin
@@ -515,7 +540,10 @@ export async function finalizeListingUpgradeCheckout(session: Stripe.Checkout.Se
     .update({
       status: "paid",
       stripe_checkout_session_id: session.id,
-      stripe_payment_intent_id: typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id ?? null,
+      stripe_payment_intent_id:
+        typeof session.payment_intent === "string"
+          ? session.payment_intent
+          : (session.payment_intent?.id ?? null),
       paid_at: paidAt,
     })
     .eq("id", purchase.id)
@@ -600,21 +628,30 @@ export async function handleStripeWebhook(request: Request, runtimeEnv?: unknown
     switch (event.type) {
       case "checkout.session.completed":
       case "checkout.session.async_payment_succeeded":
-        if ((event.data.object as Stripe.Checkout.Session).metadata?.["gemstate_purpose"] === "listing_upgrade") {
+        if (
+          (event.data.object as Stripe.Checkout.Session).metadata?.["gemstate_purpose"] ===
+          "listing_upgrade"
+        ) {
           await finalizeListingUpgradeCheckout(event.data.object as Stripe.Checkout.Session);
         } else {
           await finalizeCheckoutSession(stripe, event.data.object as Stripe.Checkout.Session);
         }
         break;
       case "checkout.session.expired":
-        if ((event.data.object as Stripe.Checkout.Session).metadata?.["gemstate_purpose"] === "listing_upgrade") {
+        if (
+          (event.data.object as Stripe.Checkout.Session).metadata?.["gemstate_purpose"] ===
+          "listing_upgrade"
+        ) {
           await expireListingUpgradeCheckout(event.data.object as Stripe.Checkout.Session);
         } else {
           await expireCheckoutSession(event.data.object as Stripe.Checkout.Session);
         }
         break;
       case "checkout.session.async_payment_failed":
-        if ((event.data.object as Stripe.Checkout.Session).metadata?.["gemstate_purpose"] === "listing_upgrade") {
+        if (
+          (event.data.object as Stripe.Checkout.Session).metadata?.["gemstate_purpose"] ===
+          "listing_upgrade"
+        ) {
           await expireListingUpgradeCheckout(event.data.object as Stripe.Checkout.Session);
         }
         break;
