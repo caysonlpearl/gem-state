@@ -297,10 +297,9 @@ export const reportConversation = createServerFn({ method: "POST" })
   })
   .handler(async ({ data, context }) => {
     const client = context.supabase as any;
-    const { error } = await client.from("conversation_reports").insert({
-      conversation_id: data.conversationId,
-      reporter_id: context.userId,
-      reason: data.reason,
+    const { error } = await client.rpc("report_conversation", {
+      _conversation_id: data.conversationId,
+      _reason: data.reason,
     });
     if (error) throw new Error(error.message);
     return { ok: true as const };
