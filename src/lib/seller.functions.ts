@@ -441,7 +441,7 @@ export const getSellerDashboardSummary = createServerFn({ method: "GET" })
       client.from("order_payouts").select("amount_cents,status").eq("payee_id", context.userId),
       client
         .from("seller_reviews")
-        .select("id,rating,comment,created_at")
+        .select("id,rating,comment,created_at,profiles!reviewer_id(display_name)")
         .eq("seller_id", context.userId)
         .order("created_at", { ascending: false })
         .limit(20),
@@ -459,6 +459,7 @@ export const getSellerDashboardSummary = createServerFn({ method: "GET" })
       rating: Number(row.rating),
       comment: row.comment,
       createdAt: row.created_at,
+      reviewerName: row.profiles?.display_name ?? undefined,
     }));
     const ratingAverage = reviewRows.length
       ? reviewRows.reduce((sum: number, row: SellerReview) => sum + row.rating, 0) /
@@ -532,6 +533,98 @@ export const getMySellerReview = createServerFn({ method: "GET" })
       comment: row.comment,
       createdAt: row.created_at,
     };
+  });
+
+export const flagSellerReview = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { reviewId: string; reason?: string | null }) => {
+    const reason = String(input.reason ?? "").trim();
+    if (reason.length > 500) throw new Error("Keep your flag reason under 500 characters.");
+    return { reviewId: String(input.reviewId), reason: reason || null };
+  })
+  .handler(async ({ data, context }) => {
+    const client = context.supabase as any;
+    const { error } = await client.rpc("flag_seller_review", {
+      _review_id: data.reviewId,
+      ...(data.reason ? { _reason: data.reason } : {}),
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+async function requireAdmin(context: { supabase: unknown; userId: string }) {
+  const { data, error } = await (context.supabase as any).rpc("has_role", {
+    _user_id: context.userId,
+    _role: "admin",
+  });
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Administrator access required.");
+}
+
+export type FlaggedSellerReview = {
+  reviewId: string;
+  sellerId: string;
+  sellerName: string;
+  reviewerId: string;
+  reviewerName: string;
+  rating: number;
+  comment: string | null;
+  reviewCreatedAt: string;
+  flags: { id: string; reason: string | null; flaggerName: string; createdAt: string }[];
+};
+
+export const getFlaggedSellerReviews = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<FlaggedSellerReview[]> => {
+    await requireAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = supabaseAdmin as any;
+    const { data: reviews, error } = await admin
+      .from("seller_reviews")
+      .select(
+        "id,seller_id,reviewer_id,rating,comment,created_at," +
+          "seller:profiles!seller_id(display_name)," +
+          "reviewer:profiles!reviewer_id(display_name)," +
+          "seller_review_flags(id,reason,created_at,flagger:profiles!flagger_id(display_name))",
+      )
+      .eq("status", "flagged")
+      .order("created_at", { referencedTable: "seller_review_flags", ascending: false });
+    if (error) throw new Error(error.message);
+    return (reviews ?? []).map((review: any) => ({
+      reviewId: review.id,
+      sellerId: review.seller_id,
+      sellerName: review.seller?.display_name ?? "Unknown seller",
+      reviewerId: review.reviewer_id,
+      reviewerName: review.reviewer?.display_name ?? "Unknown member",
+      rating: Number(review.rating),
+      comment: review.comment,
+      reviewCreatedAt: review.created_at,
+      flags: (review.seller_review_flags ?? [])
+        .filter((flag: any) => !flag.resolved_at)
+        .map((flag: any) => ({
+          id: flag.id,
+          reason: flag.reason,
+          flaggerName: flag.flagger?.display_name ?? "Unknown member",
+          createdAt: flag.created_at,
+        })),
+    }));
+  });
+
+export const adminResolveReviewFlag = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { reviewId: string; action: "dismiss" | "remove" }) => {
+    if (input.action !== "dismiss" && input.action !== "remove")
+      throw new Error("Action must be dismiss or remove.");
+    return { reviewId: String(input.reviewId), action: input.action };
+  })
+  .handler(async ({ data, context }) => {
+    const client = context.supabase as any;
+    const { error } = await client.rpc("admin_resolve_review_flag", {
+      _review_id: data.reviewId,
+      _action: data.action,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
   });
 
 export const startStripeSellerOnboarding = createServerFn({ method: "POST" })

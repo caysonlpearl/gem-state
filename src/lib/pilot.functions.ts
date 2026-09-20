@@ -642,13 +642,6 @@ export const adminConfirmVerifiedSale = createServerFn({ method: "POST" })
       ...(data.note ? { _note: data.note } : {}),
     });
     if (error) throw new Error(error.message);
-    try {
-      const { processReviewEmails } = await import("./review-email-worker.server");
-      await processReviewEmails(data.orderId);
-    } catch {
-      // The durable queue remains available for the scheduled retry worker.
-      console.error("Review email queued for retry");
-    }
     return { ok: true as const };
   });
 
