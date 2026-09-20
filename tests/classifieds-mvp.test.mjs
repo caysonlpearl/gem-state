@@ -75,6 +75,9 @@ const classifiedSchemaSource = await read(
 const petMigrationSource = await read(
   "supabase/migrations/20260920150000_add_classified_pet_details.sql",
 );
+const freePetMigrationSource = await read(
+  "supabase/migrations/20260920170000_allow_free_pet_listings.sql",
+);
 const inquiryMigrationSource = await read(
   "supabase/migrations/20260915160000_add_classified_listing_inquiries.sql",
 );
@@ -203,6 +206,30 @@ test("pets have KSL-style taxonomy, structured listing fields, and searchable fi
   assert.match(petMigrationSource, /pet_placement_type/);
   assert.match(petMigrationSource, /create_classified_listing/);
   assert.match(petMigrationSource, /VALUES \('pets', 'Pets'/);
+});
+
+test("free pet, wanted, and lost/found listings are allowed without weakening other categories", () => {
+  assert.match(listingFormSource, /required=\{!isPet\}/);
+  assert.match(
+    listingFormPayloadSource,
+    /isPetCategory\(form\.category\) && !form\.price\.trim\(\)/,
+  );
+  assert.match(contractsSource, /priceCents: z\.number\(\)\.int\(\)\.min\(0\)/);
+  assert.match(contractsSource, /listing\.priceCents === 0 && listing\.category !== "pets"/);
+  assert.match(classifiedsFunctionsSource, /create_free_pet_listing/);
+  assert.match(classifiedsFunctionsSource, /update_free_pet_listing/);
+  assert.match(
+    freePetMigrationSource,
+    /asks_price_cents_check CHECK \(price_cents BETWEEN 0 AND 1000000000\)/,
+  );
+  assert.match(freePetMigrationSource, /Only free pet listings may use this function/);
+});
+
+test("admin moderation includes structured pet details", () => {
+  assert.match(classifiedsFunctionsSource, /pet_subcategory,pet_species,pet_breed/);
+  assert.match(classifiedsFunctionsSource, /pet: petOf\(details\)/);
+  assert.match(adminClassifiedsSource, /function petSummary/);
+  assert.match(adminClassifiedsSource, /Pet details/);
 });
 
 test("listing creation and edit share one form, extended with home/job/service fields", () => {

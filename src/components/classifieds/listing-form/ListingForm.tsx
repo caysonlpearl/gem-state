@@ -372,13 +372,18 @@ export function ListingForm(props: ListingFormProps) {
           )}
           {!hidesPrice && (
             <label className="text-[12px] font-medium">
-              {priceLabel}
+              {priceLabel}{" "}
+              {isPet && (
+                <span className="font-normal text-muted-foreground">
+                  (optional for free, wanted, or lost/found listings)
+                </span>
+              )}
               <input
-                required
+                required={!isPet}
                 inputMode="decimal"
                 value={form.price}
                 onChange={(event) => set("price", event.target.value)}
-                placeholder="0.00"
+                placeholder={isPet ? "0.00 or leave blank for free" : "0.00"}
                 className={`${fieldClass} numeric`}
               />
             </label>

@@ -40,6 +40,21 @@ function vehicleSummary(vehicle: AdminClassifiedRow["vehicle"]) {
   return [vehicle.year, vehicle.make, vehicle.model, vehicle.trim].filter(Boolean).join(" ");
 }
 
+function petSummary(pet: AdminClassifiedRow["pet"]) {
+  if (!pet) return null;
+  return [
+    [pet.species, pet.breed].filter(Boolean).join(" · "),
+    pet.name ? `Name: ${pet.name}` : null,
+    pet.age ? `Age: ${pet.age}` : null,
+    pet.sex ? `Sex: ${pet.sex}` : null,
+    pet.placementType ? `Intent: ${pet.placementType.replaceAll("_", " ")}` : null,
+    pet.offeredBy ? `Offered by: ${pet.offeredBy}` : null,
+    pet.indoorOutdoor ? `Living arrangement: ${pet.indoorOutdoor}` : null,
+    pet.specialNeeds ? `Care notes: ${pet.specialNeeds}` : null,
+    pet.breedingTerms ? `Breeding terms: ${pet.breedingTerms}` : null,
+  ].filter(Boolean);
+}
+
 function ClassifiedModerationRow({ listing }: { listing: AdminClassifiedRow }) {
   const queryClient = useQueryClient();
   const review = useServerFn(adminReviewAsk);
@@ -57,6 +72,7 @@ function ClassifiedModerationRow({ listing }: { listing: AdminClassifiedRow }) {
       ),
   });
   const vehicle = vehicleSummary(listing.vehicle);
+  const pet = petSummary(listing.pet);
 
   return (
     <li className="border-b border-border p-4 last:border-b-0">
@@ -101,6 +117,12 @@ function ClassifiedModerationRow({ listing }: { listing: AdminClassifiedRow }) {
               {listing.vehicle?.drivetrain ? ` · ${listing.vehicle.drivetrain}` : ""}
               {listing.vehicle?.titleStatus ? ` · ${listing.vehicle.titleStatus} title` : ""}
             </p>
+          ) : null}
+          {pet ? (
+            <div className="mt-2 rounded-md border border-primary/15 bg-primary/5 px-3 py-2 text-[12px] leading-relaxed">
+              <p className="font-semibold text-primary">Pet details</p>
+              <p className="mt-1">{pet.join(" · ")}</p>
+            </div>
           ) : null}
           {listing.sellerNote ? (
             <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">

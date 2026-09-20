@@ -254,6 +254,7 @@ export type AdminClassifiedRow = {
 export const getAdminClassifiedQueue = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
+    const client = context.supabase as any;
     const { data: isAdmin, error: roleError } = await context.supabase.rpc("has_role", {
       _user_id: context.userId,
       _role: "admin",
@@ -279,10 +280,10 @@ export const getAdminClassifiedQueue = createServerFn({ method: "GET" })
     if (rows.length === 0) return { isAdmin: true, listings: [] as AdminClassifiedRow[] };
 
     const listingIds = rows.map((row) => row.ask_id);
-    const { data: detailRows, error: detailsError } = await context.supabase
+    const { data: detailRows, error: detailsError } = await client
       .from("classified_listing_details")
       .select(
-        "listing_id,region,city,state,fulfillment_mode,vehicle_make,vehicle_model,vehicle_year,vehicle_trim,vehicle_mileage,vehicle_body_style,vehicle_transmission,vehicle_drivetrain,vehicle_fuel_type,vehicle_exterior_color,vehicle_title_status,vin,asks!inner(products!inner(categories(name)))",
+        "listing_id,region,city,state,fulfillment_mode,vehicle_make,vehicle_model,vehicle_year,vehicle_trim,vehicle_mileage,vehicle_body_style,vehicle_transmission,vehicle_drivetrain,vehicle_fuel_type,vehicle_exterior_color,vehicle_title_status,vin,pet_subcategory,pet_species,pet_breed,pet_name,pet_age,pet_sex,pet_placement_type,pet_offered_by,pet_hypoallergenic,pet_vaccinated,pet_spayed_neutered,pet_microchipped,pet_records_available,pet_good_with_kids,pet_good_with_dogs,pet_good_with_cats,pet_indoor_outdoor,pet_special_needs,pet_breeding_terms,asks!inner(products!inner(categories(name)))",
       )
       .in("listing_id", listingIds);
     if (detailsError) throw new Error(detailsError.message);
@@ -314,7 +315,7 @@ export const getAdminClassifiedQueue = createServerFn({ method: "GET" })
           sellerHandle: row.seller_handle,
           sellerNote: row.seller_note,
           vehicle: vehicleOf(details),
-          pet: null,
+          pet: petOf(details),
           listingImageUrls: await signedAdminUrls("listing-media", row.listing_media_paths),
           evidenceImageUrls: await signedAdminUrls("ask-evidence", row.evidence_paths),
           createdAt: row.created_at,
@@ -368,7 +369,11 @@ export const createClassifiedListing = createServerFn({ method: "POST" })
     if (categoryError) throw new Error(categoryError.message);
     if (!category?.id) throw new Error("Choose a valid classified category.");
 
-    const { data: listingId, error } = await client.rpc("create_classified_listing", {
+    const rpcName =
+      data.category === "pets" && data.priceCents === 0
+        ? "create_free_pet_listing"
+        : "create_classified_listing";
+    const { data: listingId, error } = await client.rpc(rpcName, {
       _title: data.title,
       _description: data.description,
       _category_id: category.id,
@@ -531,7 +536,11 @@ export const updateClassifiedListing = createServerFn({ method: "POST" })
     if (categoryError) throw new Error(categoryError.message);
     if (!category?.id) throw new Error("Choose a valid classified category.");
 
-    const { error } = await client.rpc("update_classified_listing", {
+    const rpcName =
+      data.category === "pets" && data.priceCents === 0
+        ? "update_free_pet_listing"
+        : "update_classified_listing";
+    const { error } = await client.rpc(rpcName, {
       _listing_id: data.listingId,
       _title: data.title,
       _description: data.description,

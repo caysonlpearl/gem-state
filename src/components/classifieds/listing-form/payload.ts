@@ -42,6 +42,7 @@ export function priceCentsFor(form: ListingFormState): number {
   if (isJobCategory(form.category)) {
     return Math.max(100, Math.round((Number(form.payMin) || 0) * 100));
   }
+  if (isPetCategory(form.category) && !form.price.trim()) return 0;
   return dollarsToCents(form.price);
 }
 

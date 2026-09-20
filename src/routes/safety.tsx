@@ -315,10 +315,12 @@ function SafetyPage() {
             </h2>
           </div>
           <div className="mt-7 grid gap-5 lg:grid-cols-2">
-            {[
-              ["Buying", "Before you send money or meet", buyerChecklist],
-              ["Selling", "Before you release an item", sellerChecklist],
-            ].map(([label, subtitle, items]) => (
+            {(
+              [
+                ["Buying", "Before you send money or meet", buyerChecklist],
+                ["Selling", "Before you release an item", sellerChecklist],
+              ] as const
+            ).map(([label, subtitle, items]) => (
               <div key={label} className="rounded-2xl border border-border bg-card p-6 sm:p-8">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">
                   {label}
