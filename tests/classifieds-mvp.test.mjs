@@ -588,8 +588,10 @@ test("admin moderation reviews classified listings instead of publishing them di
 });
 
 test("step four protects authenticated, seller-owned, and admin-only surfaces", () => {
-  assert.match(authenticatedRouteSource, /supabase\.auth\.getUser\(\)/);
-  assert.match(authenticatedRouteSource, /throw redirect\(\{ to: "\/auth"/);
+  assert.match(authenticatedRouteSource, /ssr: false/);
+  assert.match(authenticatedRouteSource, /useAuth\(\)/);
+  assert.match(authenticatedRouteSource, /navigate\(\{ to: "\/auth"/);
+  assert.match(authenticatedRouteSource, /aria-label="Checking your account session"/);
   assert.match(authenticatedRouteSource, /sellerRedirects = \[/);
   assert.match(authMiddlewareSource, /getClaims/);
   assert.match(authMiddlewareSource, /userId: data\.claims\.sub/);
