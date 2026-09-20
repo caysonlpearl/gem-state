@@ -2727,7 +2727,7 @@ function ReviewsSection({
       <SectionHeader
         eyebrow="Trust profile"
         title="Reviews & reputation"
-        body="See the reputation you have earned on Gem State. Anyone can leave you a review from your public profile — share your link so members you have dealt with can rate you."
+        body="See the reputation you have earned on Gem State. Anyone can leave you a review from your public profile — share your link with people who know your work."
         action={
           sellerSetup?.slug ? (
             <Link
@@ -2776,7 +2776,7 @@ function ReviewsSection({
       <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
         <SectionTitle title="Reviews received" />
         <p className="mt-1 text-[11.5px] text-muted-foreground">
-          Anyone can leave you a review from your public profile — no transaction required.
+          Reviews from your community help members understand your reputation.
         </p>
         {reviews.length ? (
           <div className="mt-4 space-y-3">
