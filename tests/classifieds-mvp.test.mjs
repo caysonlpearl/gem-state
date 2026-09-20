@@ -48,6 +48,7 @@ const profileAvatarMigrationSource = await read(
 const savedSearchWorkerSource = await read("src/lib/saved-search-worker.server.ts");
 const glossarySource = await read("src/routes/glossary.tsx");
 const policiesSource = await read("src/routes/policies.tsx");
+const authSource = await read("src/routes/auth.tsx");
 const classifiedsFunctionsSource = await read("src/lib/classifieds.functions.ts");
 const listingDetailSource = await read("src/routes/listings.$listingId.tsx");
 const adminClassifiedsSource = await read("src/routes/_authenticated/admin.classifieds.tsx");
@@ -83,6 +84,9 @@ const classifiedMediaSecurityMigrationSource = await read(
 );
 const mvpCopyMigrationSource = await read(
   "supabase/migrations/20260915170000_refresh_classified_mvp_copy.sql",
+);
+const seedCopyMigrationSource = await read(
+  "supabase/migrations/20260919240000_clean_classified_seed_copy.sql",
 );
 const seedRunnerSource = await read("scripts/seed-classifieds.mjs");
 const advertiseSource = await read("src/routes/advertise.tsx");
@@ -328,12 +332,12 @@ test("vehicle forms can decode VINs through the server-side NHTSA adapter", () =
   assert.match(vehicleFieldsSource, /NHTSA vehicle database/);
 });
 
-test("direct-contact MVP copy is consistent across buyer and seller surfaces", () => {
+test("direct-contact marketplace copy is consistent across buyer and seller surfaces", () => {
   assert.match(homeSource, /Buyers contact\s+you directly/);
   assert.match(glossarySource, /Contact seller sends your message/);
   assert.match(
     policiesSource,
-    /does not process payment, hold funds or provide escrow in this MVP/,
+    /does not process payment, hold funds or provide escrow through the\s+marketplace/,
   );
   assert.match(accountSource, /Save listings, contact sellers and arrange pickup/);
   assert.match(sellSource, /Buyers can message you about the exact listing/);
@@ -352,6 +356,22 @@ test("direct-contact MVP copy is consistent across buyer and seller surfaces", (
     /MVP seed record; replace demo media and copy before launch/,
   );
   assert.match(mvpCopyMigrationSource, /UPDATE storage\.buckets/);
+  assert.match(seedCopyMigrationSource, /UPDATE public\.products/);
+  assert.match(
+    seedCopyMigrationSource,
+    /Confirm item details and availability directly with the seller/,
+  );
+  assert.doesNotMatch(glossarySource, /\bMVP\b/);
+  assert.doesNotMatch(policiesSource, /\bMVP\b/);
+});
+
+test("Google sign-in has a recognizable provider mark", () => {
+  assert.match(authSource, /Continue with Google/);
+  assert.match(authSource, /viewBox="0 0 24 24"/);
+  assert.match(authSource, /fill="#4285F4"/);
+  assert.match(authSource, /fill="#34A853"/);
+  assert.match(authSource, /fill="#FBBC05"/);
+  assert.match(authSource, /fill="#EA4335"/);
 });
 
 test("account center exposes the unified sections and preserves legacy entry points", () => {
@@ -541,7 +561,7 @@ test("step five seed fixtures cover realistic Idaho vehicle browse cases", () =>
     assert.ok(listing.vehicle.year >= 2010);
     assert.ok(listing.vehicle.drivetrain);
     assert.ok(listing.vehicle.title_status);
-    assert.match(listing.description, /Staged Idaho listing for marketplace testing/);
+    assert.match(listing.description, /Buyers should confirm availability/);
   }
 });
 

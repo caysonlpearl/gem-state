@@ -160,98 +160,41 @@ function AuthPage() {
     }
   }
 
-
   return (
     <div className="mx-auto max-w-[460px] px-4 py-16 sm:px-6">
       <div className="soft-card p-6 sm:p-8">
-      <h1 className="text-[26px] font-bold tracking-tight">
-        {mode === "signin"
-          ? `Sign in to ${brand.name}`
-          : mode === "signup"
-            ? `Create your ${brand.name} account`
-            : mode === "forgot"
-              ? "Reset your password"
-              : "Choose a new password"}
-      </h1>
-      <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
-        {mode === "forgot"
-          ? "Enter your email and we’ll send you a secure password reset link."
-          : mode === "reset"
-            ? "Choose a new password for your Gem State account."
-            : "An account is needed to save listings, contact sellers and post on the marketplace."}
-      </p>
+        <h1 className="text-[26px] font-bold tracking-tight">
+          {mode === "signin"
+            ? `Sign in to ${brand.name}`
+            : mode === "signup"
+              ? `Create your ${brand.name} account`
+              : mode === "forgot"
+                ? "Reset your password"
+                : "Choose a new password"}
+        </h1>
+        <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
+          {mode === "forgot"
+            ? "Enter your email and we’ll send you a secure password reset link."
+            : mode === "reset"
+              ? "Choose a new password for your Gem State account."
+              : "An account is needed to save listings, contact sellers and post on the marketplace."}
+        </p>
 
-      {pendingConfirm ? (
+        {pendingConfirm ? (
           <div className="mt-6 rounded-2xl bg-secondary p-5">
-          <p className="text-[13.5px] font-medium">Check your email</p>
-          <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
-            We sent a confirmation link to {email}. You are not signed in until you open it.
-          </p>
-        </div>
-      ) : mode === "forgot" ? (
-        <form onSubmit={handleForgotPassword} className="mt-6 space-y-3">
-          <div>
-            <label htmlFor="forgot-email" className="text-[12px] font-medium">Email</label>
-            <input id="forgot-email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" className="soft-control mt-1 h-11 w-full px-4 text-sm outline-none" />
+            <p className="text-[13.5px] font-medium">Check your email</p>
+            <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">
+              We sent a confirmation link to {email}. You are not signed in until you open it.
+            </p>
           </div>
-          <button type="submit" disabled={busy} className="inline-flex h-12 w-full items-center justify-center rounded-full bg-primary text-[13.5px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60">{busy ? "Sending…" : "Send reset email"}</button>
-          <button type="button" onClick={() => setMode("signin")} className="w-full text-[13px] text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Back to sign in</button>
-        </form>
-      ) : mode === "reset" ? (
-        <form onSubmit={handleResetPassword} className="mt-6 space-y-3">
-          <div>
-            <label htmlFor="new-password" className="text-[12px] font-medium">New password</label>
-            <input id="new-password" type="password" required minLength={8} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} autoComplete="new-password" className="soft-control mt-1 h-11 w-full px-4 text-sm outline-none" />
-          </div>
-          <div>
-            <label htmlFor="confirm-password" className="text-[12px] font-medium">Confirm new password</label>
-            <input id="confirm-password" type="password" required minLength={8} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} autoComplete="new-password" className="soft-control mt-1 h-11 w-full px-4 text-sm outline-none" />
-          </div>
-          <button type="submit" disabled={busy} className="inline-flex h-12 w-full items-center justify-center rounded-full bg-primary text-[13.5px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60">{busy ? "Updating…" : "Update password"}</button>
-        </form>
-      ) : (
-        <>
-          <div className="mt-6 space-y-2.5">
-            <button
-              type="button"
-              onClick={handleOAuth}
-              disabled={busy}
-              className="inline-flex h-12 w-full items-center justify-center rounded-full border border-input bg-card text-[13.5px] font-medium transition-colors hover:bg-secondary disabled:opacity-60"
-            >
-              Continue with Google
-            </button>
-          </div>
-
-
-          <div className="my-5 flex items-center gap-3">
-            <span className="h-px flex-1 bg-border" />
-            <span className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
-              or
-            </span>
-            <span className="h-px flex-1 bg-border" />
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-3">
-            {mode === "signup" && (
-              <div>
-                <label htmlFor="displayName" className="text-[12px] font-medium">
-                  Display name
-                </label>
-                <input
-                  id="displayName"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  autoComplete="nickname"
-                  className="soft-control mt-1 h-11 w-full px-4 text-sm outline-none"
-                />
-              </div>
-            )}
+        ) : mode === "forgot" ? (
+          <form onSubmit={handleForgotPassword} className="mt-6 space-y-3">
             <div>
-              <label htmlFor="email" className="text-[12px] font-medium">
+              <label htmlFor="forgot-email" className="text-[12px] font-medium">
                 Email
               </label>
               <input
-                id="email"
+                id="forgot-email"
                 type="email"
                 required
                 value={email}
@@ -260,18 +203,50 @@ function AuthPage() {
                 className="soft-control mt-1 h-11 w-full px-4 text-sm outline-none"
               />
             </div>
+            <button
+              type="submit"
+              disabled={busy}
+              className="inline-flex h-12 w-full items-center justify-center rounded-full bg-primary text-[13.5px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+            >
+              {busy ? "Sending…" : "Send reset email"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode("signin")}
+              className="w-full text-[13px] text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            >
+              Back to sign in
+            </button>
+          </form>
+        ) : mode === "reset" ? (
+          <form onSubmit={handleResetPassword} className="mt-6 space-y-3">
             <div>
-              <label htmlFor="password" className="text-[12px] font-medium">
-                Password
+              <label htmlFor="new-password" className="text-[12px] font-medium">
+                New password
               </label>
               <input
-                id="password"
+                id="new-password"
                 type="password"
                 required
                 minLength={8}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                autoComplete="new-password"
+                className="soft-control mt-1 h-11 w-full px-4 text-sm outline-none"
+              />
+            </div>
+            <div>
+              <label htmlFor="confirm-password" className="text-[12px] font-medium">
+                Confirm new password
+              </label>
+              <input
+                id="confirm-password"
+                type="password"
+                required
+                minLength={8}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                autoComplete="new-password"
                 className="soft-control mt-1 h-11 w-full px-4 text-sm outline-none"
               />
             </div>
@@ -280,20 +255,121 @@ function AuthPage() {
               disabled={busy}
               className="inline-flex h-12 w-full items-center justify-center rounded-full bg-primary text-[13.5px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
             >
-              {mode === "signin" ? "Sign in" : "Create account"}
+              {busy ? "Updating…" : "Update password"}
             </button>
           </form>
+        ) : (
+          <>
+            <div className="mt-6 space-y-2.5">
+              <button
+                type="button"
+                onClick={handleOAuth}
+                disabled={busy}
+                className="inline-flex h-12 w-full items-center justify-center gap-2.5 rounded-full border border-input bg-card text-[13.5px] font-medium transition-colors hover:bg-secondary disabled:opacity-60"
+              >
+                <svg aria-hidden="true" className="h-5 w-5 shrink-0" viewBox="0 0 24 24" role="img">
+                  <path
+                    fill="#4285F4"
+                    d="M21.35 12.27c0-.73-.06-1.45-.19-2.13H12v4.03h5.24a4.48 4.48 0 0 1-1.94 2.94v2.45h3.14c1.84-1.69 2.91-4.18 2.91-7.29Z"
+                  />
+                  <path
+                    fill="#34A853"
+                    d="M12 21.6c2.63 0 4.84-.87 6.45-2.36l-3.14-2.45c-.87.58-1.98.92-3.31.92-2.54 0-4.7-1.72-5.47-4.03H3.29v2.53A9.74 9.74 0 0 0 12 21.6Z"
+                  />
+                  <path
+                    fill="#FBBC05"
+                    d="M6.53 13.68A5.85 5.85 0 0 1 6.22 12c0-.58.1-1.15.31-1.68V7.79H3.29A9.6 9.6 0 0 0 2.25 12c0 1.52.36 2.96 1.04 4.21l3.24-2.53Z"
+                  />
+                  <path
+                    fill="#EA4335"
+                    d="M12 6.29c1.43 0 2.71.49 3.72 1.45l2.79-2.79C16.84 3.39 14.63 2.4 12 2.4a9.74 9.74 0 0 0-8.71 5.39l3.24 2.53C7.3 8.01 9.46 6.29 12 6.29Z"
+                  />
+                </svg>
+                Continue with Google
+              </button>
+            </div>
 
-          <button
-            type="button"
-            onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-            className="mt-4 text-[13px] text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-          >
-            {mode === "signin" ? "Need an account? Create one" : "Already have an account? Sign in"}
-          </button>
-          {mode === "signin" && <button type="button" onClick={() => setMode("forgot")} className="mt-3 w-full text-[12.5px] text-muted-foreground underline-offset-4 hover:text-foreground hover:underline">Forgot password?</button>}
-        </>
-      )}
+            <div className="my-5 flex items-center gap-3">
+              <span className="h-px flex-1 bg-border" />
+              <span className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+                or
+              </span>
+              <span className="h-px flex-1 bg-border" />
+            </div>
+
+            <form onSubmit={handleSubmit} className="space-y-3">
+              {mode === "signup" && (
+                <div>
+                  <label htmlFor="displayName" className="text-[12px] font-medium">
+                    Display name
+                  </label>
+                  <input
+                    id="displayName"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    autoComplete="nickname"
+                    className="soft-control mt-1 h-11 w-full px-4 text-sm outline-none"
+                  />
+                </div>
+              )}
+              <div>
+                <label htmlFor="email" className="text-[12px] font-medium">
+                  Email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  autoComplete="email"
+                  className="soft-control mt-1 h-11 w-full px-4 text-sm outline-none"
+                />
+              </div>
+              <div>
+                <label htmlFor="password" className="text-[12px] font-medium">
+                  Password
+                </label>
+                <input
+                  id="password"
+                  type="password"
+                  required
+                  minLength={8}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                  className="soft-control mt-1 h-11 w-full px-4 text-sm outline-none"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={busy}
+                className="inline-flex h-12 w-full items-center justify-center rounded-full bg-primary text-[13.5px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+              >
+                {mode === "signin" ? "Sign in" : "Create account"}
+              </button>
+            </form>
+
+            <button
+              type="button"
+              onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
+              className="mt-4 text-[13px] text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            >
+              {mode === "signin"
+                ? "Need an account? Create one"
+                : "Already have an account? Sign in"}
+            </button>
+            {mode === "signin" && (
+              <button
+                type="button"
+                onClick={() => setMode("forgot")}
+                className="mt-3 w-full text-[12.5px] text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+              >
+                Forgot password?
+              </button>
+            )}
+          </>
+        )}
       </div>
     </div>
   );

@@ -7,7 +7,7 @@ const required = ["SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_SEED_AC
 
 if (!apply) {
   console.log(
-    `Dry run: ${classifiedSeedListings.length} staged Idaho vehicle listings are ready.`,
+    `Dry run: ${classifiedSeedListings.length} Idaho vehicle listings are ready to import.`,
   );
   for (const listing of classifiedSeedListings) {
     console.log(
@@ -80,7 +80,7 @@ for (const listing of classifiedSeedListings) {
     _category_id: categoryId,
     _price_cents: listing.priceCents,
     _item_condition: listing.condition,
-    _seller_note: "Staged listing for marketplace testing. Confirm item details and availability directly with the seller.",
+    _seller_note: "Confirm item details and availability directly with the seller.",
     _region: listing.region,
     _city: listing.city,
     _state: listing.state,
