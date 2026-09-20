@@ -441,7 +441,7 @@ export const getSellerDashboardSummary = createServerFn({ method: "GET" })
       client.from("order_payouts").select("amount_cents,status").eq("payee_id", context.userId),
       client
         .from("seller_reviews")
-        .select("id,rating,comment,created_at")
+        .select("id,rating,comment,created_at,reviewer_id")
         .eq("seller_id", context.userId)
         .order("created_at", { ascending: false })
         .limit(20),
@@ -454,11 +454,20 @@ export const getSellerDashboardSummary = createServerFn({ method: "GET" })
     if (payoutError) throw new Error(payoutError.message);
     if (reviewError) throw new Error(reviewError.message);
     const rows = payouts ?? [];
+    // seller_reviews.reviewer_id references auth.users, not profiles, so there is
+    // no foreign key for PostgREST to embed "profiles!reviewer_id(...)" through --
+    // look profiles up separately by id instead.
+    const reviewerIds = [...new Set((reviews ?? []).map((row: any) => row.reviewer_id))];
+    const { data: reviewerProfiles } = reviewerIds.length
+      ? await client.from("profiles").select("id,display_name").in("id", reviewerIds)
+      : { data: [] as any[] };
+    const reviewerNameById = new Map((reviewerProfiles ?? []).map((p: any) => [p.id, p.display_name]));
     const reviewRows = (reviews ?? []).map((row: any) => ({
       id: row.id,
       rating: Number(row.rating),
       comment: row.comment,
       createdAt: row.created_at,
+      reviewerName: reviewerNameById.get(row.reviewer_id) ?? undefined,
     }));
     const ratingAverage = reviewRows.length
       ? reviewRows.reduce((sum: number, row: SellerReview) => sum + row.rating, 0) /
@@ -532,6 +541,123 @@ export const getMySellerReview = createServerFn({ method: "GET" })
       comment: row.comment,
       createdAt: row.created_at,
     };
+  });
+
+export const flagSellerReview = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { reviewId: string; reason?: string | null }) => {
+    const reason = String(input.reason ?? "").trim();
+    if (reason.length > 500) throw new Error("Keep your flag reason under 500 characters.");
+    return { reviewId: String(input.reviewId), reason: reason || null };
+  })
+  .handler(async ({ data, context }) => {
+    const client = context.supabase as any;
+    const { error } = await client.rpc("flag_seller_review", {
+      _review_id: data.reviewId,
+      ...(data.reason ? { _reason: data.reason } : {}),
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+async function requireAdmin(context: { supabase: unknown; userId: string }) {
+  const { data, error } = await (context.supabase as any).rpc("has_role", {
+    _user_id: context.userId,
+    _role: "admin",
+  });
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Administrator access required.");
+}
+
+export type FlaggedSellerReview = {
+  reviewId: string;
+  sellerId: string;
+  sellerName: string;
+  reviewerId: string;
+  reviewerName: string;
+  rating: number;
+  comment: string | null;
+  reviewCreatedAt: string;
+  flags: { id: string; reason: string | null; flaggerName: string; createdAt: string }[];
+};
+
+export const getFlaggedSellerReviews = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<FlaggedSellerReview[]> => {
+    await requireAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = supabaseAdmin as any;
+    // seller_reviews/seller_review_flags reference auth.users, not profiles, so
+    // PostgREST has no foreign key to embed "profiles!x_id(...)" through --
+    // look profiles up separately by id instead of relying on embed shorthand.
+    const [{ data: reviews, error }, { data: flags, error: flagsError }] = await Promise.all([
+      admin
+        .from("seller_reviews")
+        .select("id,seller_id,reviewer_id,rating,comment,created_at")
+        .eq("status", "flagged")
+        .order("created_at", { ascending: false }),
+      admin
+        .from("seller_review_flags")
+        .select("id,review_id,flagger_id,reason,created_at,resolved_at")
+        .is("resolved_at", null)
+        .order("created_at", { ascending: false }),
+    ]);
+    if (error) throw new Error(error.message);
+    if (flagsError) throw new Error(flagsError.message);
+
+    const userIds = new Set<string>();
+    for (const review of reviews ?? []) {
+      userIds.add(review.seller_id);
+      userIds.add(review.reviewer_id);
+    }
+    for (const flag of flags ?? []) userIds.add(flag.flagger_id);
+    const { data: profiles, error: profilesError } = await admin
+      .from("profiles")
+      .select("id,display_name")
+      .in("id", Array.from(userIds));
+    if (profilesError) throw new Error(profilesError.message);
+    const nameById = new Map((profiles ?? []).map((p: any) => [p.id, p.display_name]));
+
+    const flagsByReview = new Map<string, typeof flags>();
+    for (const flag of flags ?? []) {
+      const list = flagsByReview.get(flag.review_id) ?? [];
+      list.push(flag);
+      flagsByReview.set(flag.review_id, list as any);
+    }
+
+    return (reviews ?? []).map((review: any) => ({
+      reviewId: review.id,
+      sellerId: review.seller_id,
+      sellerName: nameById.get(review.seller_id) ?? "Unknown seller",
+      reviewerId: review.reviewer_id,
+      reviewerName: nameById.get(review.reviewer_id) ?? "Unknown member",
+      rating: Number(review.rating),
+      comment: review.comment,
+      reviewCreatedAt: review.created_at,
+      flags: (flagsByReview.get(review.id) ?? []).map((flag: any) => ({
+        id: flag.id,
+        reason: flag.reason,
+        flaggerName: nameById.get(flag.flagger_id) ?? "Unknown member",
+        createdAt: flag.created_at,
+      })),
+    }));
+  });
+
+export const adminResolveReviewFlag = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { reviewId: string; action: "dismiss" | "remove" }) => {
+    if (input.action !== "dismiss" && input.action !== "remove")
+      throw new Error("Action must be dismiss or remove.");
+    return { reviewId: String(input.reviewId), action: input.action };
+  })
+  .handler(async ({ data, context }) => {
+    const client = context.supabase as any;
+    const { error } = await client.rpc("admin_resolve_review_flag", {
+      _review_id: data.reviewId,
+      _action: data.action,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
   });
 
 export const startStripeSellerOnboarding = createServerFn({ method: "POST" })
@@ -750,7 +876,7 @@ export const getPublicSeller = createServerFn({ method: "GET" })
         .order("created_at", { ascending: false }),
       client
         .from("seller_reviews")
-        .select("id,rating,comment,created_at,reviewer_id,profiles!reviewer_id(display_name,avatar_url)")
+        .select("id,rating,comment,created_at,reviewer_id")
         .eq("seller_id", seller.user_id)
         .order("created_at", { ascending: false })
         .limit(20),
@@ -760,6 +886,14 @@ export const getPublicSeller = createServerFn({ method: "GET" })
     const ratingAverage = reviewCount
       ? allRatings!.reduce((sum: number, row: any) => sum + Number(row.rating), 0) / reviewCount
       : null;
+    // seller_reviews.reviewer_id references auth.users, not profiles, so there is
+    // no foreign key for PostgREST to embed "profiles!reviewer_id(...)" through --
+    // look profiles up separately by id instead.
+    const reviewerIds = [...new Set((reviewRows ?? []).map((row: any) => row.reviewer_id))];
+    const { data: reviewerProfiles } = reviewerIds.length
+      ? await client.from("profiles").select("id,display_name,avatar_url").in("id", reviewerIds)
+      : { data: [] as any[] };
+    const reviewerById = new Map<string, any>((reviewerProfiles ?? []).map((p: any) => [p.id, p]));
     const listings: PublicListing[] = await Promise.all(
       (askRows ?? []).map(async (row: any) => ({
         id: row.id,
@@ -807,8 +941,8 @@ export const getPublicSeller = createServerFn({ method: "GET" })
         rating: Number(row.rating),
         comment: row.comment,
         createdAt: row.created_at,
-        reviewerName: row.profiles?.display_name ?? "Gem State member",
-        reviewerAvatarUrl: row.profiles?.avatar_url ?? null,
+        reviewerName: reviewerById.get(row.reviewer_id)?.display_name ?? "Gem State member",
+        reviewerAvatarUrl: reviewerById.get(row.reviewer_id)?.avatar_url ?? null,
       })),
     };
   });

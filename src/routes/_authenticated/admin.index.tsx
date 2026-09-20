@@ -243,6 +243,12 @@ function AdminPage() {
             >
               Dealer inventory feeds
             </Link>
+            <Link
+              to="/admin/review-flags"
+              className="inline-flex h-9 items-center rounded-md border border-input px-3 text-[12.5px] font-medium hover:bg-secondary"
+            >
+              Flagged reviews
+            </Link>
           </div>
         )}
       </div>

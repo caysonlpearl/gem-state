@@ -695,7 +695,7 @@ function SellingPage() {
           <div>
             <h2 className="text-[14px] font-semibold">Your seller reviews</h2>
             <p className="mt-0.5 text-[11px] text-muted-foreground">
-              Reviews from completed Gem State orders.
+              Reviews from Gem State buyers and other members.
             </p>
           </div>
           <p className="numeric text-[12px] font-semibold">
@@ -721,18 +721,17 @@ function SellingPage() {
                   ))}
                 </p>
                 <p className="mt-2 text-[12.5px] leading-relaxed">
-                  {review.comment || "Verified transaction rating"}
+                  {review.comment || "No written comment."}
                 </p>
                 <p className="mt-3 text-[10.5px] text-muted-foreground">
-                  Verified buyer · {new Date(review.createdAt).toLocaleDateString()}
+                  {review.reviewerName ?? "Gem State member"} ·{" "}
+                  {new Date(review.createdAt).toLocaleDateString()}
                 </p>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="py-7 text-[12.5px] text-muted-foreground">
-            No completed-order reviews yet.
-          </p>
+          <p className="py-7 text-[12.5px] text-muted-foreground">No reviews yet.</p>
         )}
       </section>
     </main>

@@ -40,9 +40,9 @@ import { Route as AuthenticatedAdminClassifiedsRouteImport } from './routes/_aut
 import { Route as AuthenticatedAdminDealerInventoryRouteImport } from './routes/_authenticated/admin.dealer-inventory'
 import { Route as AuthenticatedAdminMembersRouteImport } from './routes/_authenticated/admin.members'
 import { Route as AuthenticatedAdminProductsRouteImport } from './routes/_authenticated/admin.products'
+import { Route as AuthenticatedAdminReviewFlagsRouteImport } from './routes/_authenticated/admin.review-flags'
 import { Route as AuthenticatedAdminValidationRouteImport } from './routes/_authenticated/admin.validation'
 import { Route as AuthenticatedOrdersOrderIdRouteImport } from './routes/_authenticated/orders.$orderId'
-import { Route as ApiInternalReviewEmailsRouteImport } from './routes/api/internal/review-emails'
 import { Route as ApiInternalSavedSearchesRouteImport } from './routes/api/internal/saved-searches'
 import { Route as AuthenticatedAdminOrdersOrderIdRouteImport } from './routes/_authenticated/admin.orders.$orderId'
 import { Route as AuthenticatedListingsListingIdEditRouteImport } from './routes/_authenticated/listings.$listingId.edit'
@@ -215,6 +215,12 @@ const AuthenticatedAdminProductsRoute =
     path: '/products',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminReviewFlagsRoute =
+  AuthenticatedAdminReviewFlagsRouteImport.update({
+    id: '/review-flags',
+    path: '/review-flags',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminValidationRoute =
   AuthenticatedAdminValidationRouteImport.update({
     id: '/validation',
@@ -227,11 +233,6 @@ const AuthenticatedOrdersOrderIdRoute =
     path: '/orders/$orderId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
-const ApiInternalReviewEmailsRoute = ApiInternalReviewEmailsRouteImport.update({
-  id: '/api/internal/review-emails',
-  path: '/api/internal/review-emails',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ApiInternalSavedSearchesRoute =
   ApiInternalSavedSearchesRouteImport.update({
     id: '/api/internal/saved-searches',
@@ -303,9 +304,9 @@ export interface FileRoutesByFullPath {
   '/admin/dealer-inventory': typeof AuthenticatedAdminDealerInventoryRoute
   '/admin/members': typeof AuthenticatedAdminMembersRoute
   '/admin/products': typeof AuthenticatedAdminProductsRoute
+  '/admin/review-flags': typeof AuthenticatedAdminReviewFlagsRoute
   '/admin/validation': typeof AuthenticatedAdminValidationRoute
   '/orders/$orderId': typeof AuthenticatedOrdersOrderIdRoute
-  '/api/internal/review-emails': typeof ApiInternalReviewEmailsRoute
   '/api/internal/saved-searches': typeof ApiInternalSavedSearchesRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/admin/orders/$orderId': typeof AuthenticatedAdminOrdersOrderIdRoute
@@ -344,9 +345,9 @@ export interface FileRoutesByTo {
   '/admin/dealer-inventory': typeof AuthenticatedAdminDealerInventoryRoute
   '/admin/members': typeof AuthenticatedAdminMembersRoute
   '/admin/products': typeof AuthenticatedAdminProductsRoute
+  '/admin/review-flags': typeof AuthenticatedAdminReviewFlagsRoute
   '/admin/validation': typeof AuthenticatedAdminValidationRoute
   '/orders/$orderId': typeof AuthenticatedOrdersOrderIdRoute
-  '/api/internal/review-emails': typeof ApiInternalReviewEmailsRoute
   '/api/internal/saved-searches': typeof ApiInternalSavedSearchesRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/admin/orders/$orderId': typeof AuthenticatedAdminOrdersOrderIdRoute
@@ -388,9 +389,9 @@ export interface FileRoutesById {
   '/_authenticated/admin/dealer-inventory': typeof AuthenticatedAdminDealerInventoryRoute
   '/_authenticated/admin/members': typeof AuthenticatedAdminMembersRoute
   '/_authenticated/admin/products': typeof AuthenticatedAdminProductsRoute
+  '/_authenticated/admin/review-flags': typeof AuthenticatedAdminReviewFlagsRoute
   '/_authenticated/admin/validation': typeof AuthenticatedAdminValidationRoute
   '/_authenticated/orders/$orderId': typeof AuthenticatedOrdersOrderIdRoute
-  '/api/internal/review-emails': typeof ApiInternalReviewEmailsRoute
   '/api/internal/saved-searches': typeof ApiInternalSavedSearchesRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/admin/orders/$orderId': typeof AuthenticatedAdminOrdersOrderIdRoute
@@ -432,9 +433,9 @@ export interface FileRouteTypes {
     | '/admin/dealer-inventory'
     | '/admin/members'
     | '/admin/products'
+    | '/admin/review-flags'
     | '/admin/validation'
     | '/orders/$orderId'
-    | '/api/internal/review-emails'
     | '/api/internal/saved-searches'
     | '/admin/'
     | '/admin/orders/$orderId'
@@ -473,9 +474,9 @@ export interface FileRouteTypes {
     | '/admin/dealer-inventory'
     | '/admin/members'
     | '/admin/products'
+    | '/admin/review-flags'
     | '/admin/validation'
     | '/orders/$orderId'
-    | '/api/internal/review-emails'
     | '/api/internal/saved-searches'
     | '/admin'
     | '/admin/orders/$orderId'
@@ -516,9 +517,9 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/dealer-inventory'
     | '/_authenticated/admin/members'
     | '/_authenticated/admin/products'
+    | '/_authenticated/admin/review-flags'
     | '/_authenticated/admin/validation'
     | '/_authenticated/orders/$orderId'
-    | '/api/internal/review-emails'
     | '/api/internal/saved-searches'
     | '/_authenticated/admin/'
     | '/_authenticated/admin/orders/$orderId'
@@ -542,7 +543,6 @@ export interface RootRouteChildren {
   ProductsSlugRoute: typeof ProductsSlugRoute
   SellersSlugRoute: typeof SellersSlugRoute
   ShoppersSlugRoute: typeof ShoppersSlugRoute
-  ApiInternalReviewEmailsRoute: typeof ApiInternalReviewEmailsRoute
   ApiInternalSavedSearchesRoute: typeof ApiInternalSavedSearchesRoute
   ApiPublicCatalogMediaSplatRoute: typeof ApiPublicCatalogMediaSplatRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
@@ -769,6 +769,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminProductsRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/review-flags': {
+      id: '/_authenticated/admin/review-flags'
+      path: '/review-flags'
+      fullPath: '/admin/review-flags'
+      preLoaderRoute: typeof AuthenticatedAdminReviewFlagsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/validation': {
       id: '/_authenticated/admin/validation'
       path: '/validation'
@@ -782,13 +789,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/orders/$orderId'
       preLoaderRoute: typeof AuthenticatedOrdersOrderIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/api/internal/review-emails': {
-      id: '/api/internal/review-emails'
-      path: '/api/internal/review-emails'
-      fullPath: '/api/internal/review-emails'
-      preLoaderRoute: typeof ApiInternalReviewEmailsRouteImport
-      parentRoute: typeof rootRouteImport
     }
     '/api/internal/saved-searches': {
       id: '/api/internal/saved-searches'
@@ -848,6 +848,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminDealerInventoryRoute: typeof AuthenticatedAdminDealerInventoryRoute
   AuthenticatedAdminMembersRoute: typeof AuthenticatedAdminMembersRoute
   AuthenticatedAdminProductsRoute: typeof AuthenticatedAdminProductsRoute
+  AuthenticatedAdminReviewFlagsRoute: typeof AuthenticatedAdminReviewFlagsRoute
   AuthenticatedAdminValidationRoute: typeof AuthenticatedAdminValidationRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedAdminOrdersOrderIdRoute: typeof AuthenticatedAdminOrdersOrderIdRoute
@@ -860,6 +861,7 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
     AuthenticatedAdminDealerInventoryRoute,
   AuthenticatedAdminMembersRoute: AuthenticatedAdminMembersRoute,
   AuthenticatedAdminProductsRoute: AuthenticatedAdminProductsRoute,
+  AuthenticatedAdminReviewFlagsRoute: AuthenticatedAdminReviewFlagsRoute,
   AuthenticatedAdminValidationRoute: AuthenticatedAdminValidationRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   AuthenticatedAdminOrdersOrderIdRoute: AuthenticatedAdminOrdersOrderIdRoute,
@@ -922,7 +924,6 @@ const rootRouteChildren: RootRouteChildren = {
   ProductsSlugRoute: ProductsSlugRoute,
   SellersSlugRoute: SellersSlugRoute,
   ShoppersSlugRoute: ShoppersSlugRoute,
-  ApiInternalReviewEmailsRoute: ApiInternalReviewEmailsRoute,
   ApiInternalSavedSearchesRoute: ApiInternalSavedSearchesRoute,
   ApiPublicCatalogMediaSplatRoute: ApiPublicCatalogMediaSplatRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,

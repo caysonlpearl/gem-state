@@ -10,7 +10,6 @@ import { template as offerUpdate } from "./offer-update";
 import { template as listingReviewed } from "./listing-reviewed";
 import { template as sourcingUpdate } from "./sourcing-update";
 import { template as disputeUpdate } from "./dispute-update";
-import { template as sellerReviewRequest } from "./seller-review-request";
 import { template as listingInquiryReceived } from "./listing-inquiry-received";
 import { template as marketplaceMessage } from "./marketplace-message";
 import { template as savedSearchMatch } from "./saved-search-match";
@@ -29,7 +28,6 @@ export interface TemplateEntry {
  * Import and register new templates here after creating them in this directory.
  */
 export const TEMPLATES: Record<string, TemplateEntry> = {
-  "seller-review-request": sellerReviewRequest,
   "purchase-confirmed": purchaseConfirmed,
   "item-sold": itemSold,
   "shopping-job": shoppingJob,

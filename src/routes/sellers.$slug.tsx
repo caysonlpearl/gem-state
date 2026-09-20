@@ -2,10 +2,15 @@ import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { queryOptions, useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { CheckCircle, Star } from "@phosphor-icons/react";
+import { CheckCircle, Flag, Star } from "@phosphor-icons/react";
 import { toast } from "sonner";
 
-import { getMySellerReview, getPublicSeller, submitSellerReview } from "@/lib/seller.functions";
+import {
+  flagSellerReview,
+  getMySellerReview,
+  getPublicSeller,
+  submitSellerReview,
+} from "@/lib/seller.functions";
 import { SellerListingGrid } from "@/components/market/SellerListingGrid";
 import { useAuth } from "@/hooks/useAuth";
 
@@ -154,10 +159,13 @@ function SellerPage() {
                 <p className="mt-2 text-[12.5px] leading-relaxed">
                   {review.comment || "No written comment."}
                 </p>
-                <p className="mt-3 text-[10.5px] text-muted-foreground">
-                  {review.reviewerName ?? "Gem State member"} ·{" "}
-                  {new Date(review.createdAt).toLocaleDateString()}
-                </p>
+                <div className="mt-3 flex items-center justify-between gap-2">
+                  <p className="text-[10.5px] text-muted-foreground">
+                    {review.reviewerName ?? "Gem State member"} ·{" "}
+                    {new Date(review.createdAt).toLocaleDateString()}
+                  </p>
+                  {user ? <ReviewFlagButton reviewId={review.id} /> : null}
+                </div>
               </li>
             ))}
           </ul>
@@ -294,6 +302,65 @@ function ReviewForm({ sellerId, sellerSlug }: { sellerId: string; sellerSlug: st
         </div>
       </form>
     </section>
+  );
+}
+
+function ReviewFlagButton({ reviewId }: { reviewId: string }) {
+  const flag = useServerFn(flagSellerReview);
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  const [flagged, setFlagged] = useState(false);
+
+  const mutation = useMutation({
+    mutationFn: () => flag({ data: { reviewId, reason: reason.trim() || null } }),
+    onSuccess: () => {
+      setFlagged(true);
+      setOpen(false);
+      toast.success("Thanks — this review has been sent to Gem State for review.");
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not flag this review."),
+  });
+
+  if (flagged) {
+    return <span className="shrink-0 text-[10.5px] text-muted-foreground">Flagged</span>;
+  }
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="inline-flex shrink-0 items-center gap-1 text-[10.5px] text-muted-foreground hover:text-destructive"
+      >
+        <Flag size={12} /> Flag
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex shrink-0 items-center gap-1.5">
+      <input
+        value={reason}
+        onChange={(e) => setReason(e.target.value.slice(0, 500))}
+        placeholder="Reason (optional)"
+        className="h-7 w-[140px] rounded border border-input bg-background px-1.5 text-[10.5px]"
+      />
+      <button
+        type="button"
+        onClick={() => mutation.mutate()}
+        disabled={mutation.isPending}
+        className="text-[10.5px] font-semibold text-destructive hover:underline disabled:opacity-50"
+      >
+        Send
+      </button>
+      <button
+        type="button"
+        onClick={() => setOpen(false)}
+        className="text-[10.5px] text-muted-foreground hover:underline"
+      >
+        Cancel
+      </button>
+    </div>
   );
 }
 
