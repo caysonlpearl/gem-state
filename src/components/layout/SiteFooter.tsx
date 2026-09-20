@@ -114,6 +114,11 @@ export function SiteFooter() {
                   Contact us
                 </Link>
               </li>
+              <li>
+                <Link to="/advertise" className={linkClass} {...pinned}>
+                  Advertise with us
+                </Link>
+              </li>
               {policyTopics.map((topic) => (
                 <li key={topic.slug}>
                   <Link to="/policies" hash={topic.slug} className={linkClass} {...pinned}>

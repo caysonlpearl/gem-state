@@ -85,6 +85,8 @@ const mvpCopyMigrationSource = await read(
   "supabase/migrations/20260915170000_refresh_classified_mvp_copy.sql",
 );
 const seedRunnerSource = await read("scripts/seed-classifieds.mjs");
+const advertiseSource = await read("src/routes/advertise.tsx");
+const footerSource = await read("src/components/layout/SiteFooter.tsx");
 const seedMigrationSource = await read(
   "supabase/migrations/20260914110000_add_classified_seed_listing_function.sql",
 );
@@ -1152,4 +1154,15 @@ test("all categories routes to its own general classifieds landing page", () => 
   ]) {
     assert.match(browseSource, new RegExp(row));
   }
+});
+
+test("advertising page explains local partner opportunities and links to contact", () => {
+  assert.match(advertiseSource, /createFileRoute\("\/advertise"\)/);
+  assert.match(advertiseSource, /Start a conversation/);
+  assert.match(advertiseSource, /Featured placements/);
+  assert.match(advertiseSource, /sample CSV, XML, or JSON feed/);
+  assert.match(advertiseSource, /Do you have a fixed advertising rate card/);
+  assert.match(advertiseSource, /to="\/contact"/);
+  assert.match(footerSource, /to="\/advertise"/);
+  assert.match(footerSource, /Advertise with us/);
 });
