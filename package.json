@@ -12,10 +12,11 @@
     "test:inventory:smoke": "node --experimental-strip-types scripts/dealer-inventory-smoke.mjs",
     "test:payments": "node --experimental-strip-types --test tests/*.test.mjs",
     "build:dev": "vite build --mode development",
+    "build:preview": "NITRO_PRESET=node-server vite build",
     "models:generate": "node scripts/3d/model-workflow.mjs generate",
     "models:list": "node scripts/3d/model-workflow.mjs list",
     "models:setup": "bash scripts/3d/setup.sh",
-    "preview": "npm run build && npx wrangler dev --config .output/server/wrangler.json --local",
+    "preview": "npm run build:preview && node .output/server/index.mjs",
     "lint": "eslint .",
     "format": "prettier --write ."
   },
