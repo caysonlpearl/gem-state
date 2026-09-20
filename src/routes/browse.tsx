@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
+  BookmarkSimple,
   CaretDown,
   Check,
   FunnelSimple,
@@ -39,6 +40,7 @@ import {
 } from "@/lib/classifieds.functions";
 import { trackEvent } from "@/lib/analytics";
 import { createSavedSearch, updateSavedSearch } from "@/lib/account-center.functions";
+import { SavedSearchNameDialog } from "@/components/classifieds/SavedSearchNameDialog";
 import { toast } from "sonner";
 import {
   Sheet,
@@ -159,6 +161,11 @@ const savedSearchFilterKeys: readonly (keyof Search)[] = [
   "titleStatus",
   "sellerType",
   "homeTab",
+  "homeMode",
+  "jobMode",
+  "serviceMode",
+  "vehicleMode",
+  "petMode",
   "serviceSubcategory",
   "serviceExpandSearch",
   "servicePhotos",
@@ -1543,6 +1550,10 @@ function Browse() {
   const { data: result } = useSuspenseQuery(classifiedQuery(inputFromSearch(search)));
   const [term, setTerm] = useState(search.q ?? "");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [saveSearchDialogOpen, setSaveSearchDialogOpen] = useState(false);
+  const [saveSearchName, setSaveSearchName] = useState("");
+  const [saveSearchPending, setSaveSearchPending] = useState(false);
+  const [pendingSaveSearch, setPendingSaveSearch] = useState<Record<string, unknown> | null>(null);
   const saveSearch = useServerFn(createSavedSearch);
   const updateSearch = useServerFn(updateSavedSearch);
 
@@ -1660,28 +1671,47 @@ function Browse() {
     setFiltersOpen(false);
   }
 
-  async function saveCurrentSearch() {
-    const searchToSave = Object.fromEntries(
+  function currentSearchFilters(source: Search = search) {
+    return Object.fromEntries(
       savedSearchFilterKeys.flatMap((key) => {
-        const value = search[key];
+        const value = source[key];
         return value !== undefined && value !== "" ? [[key, value]] : [];
       }),
     );
+  }
 
+  function requestSaveSearch(patch: Partial<Search> = {}) {
+    const nextSearch = scoped(patch);
+    const searchToSave = currentSearchFilters(nextSearch);
+    if (search.savedSearchId) {
+      void saveCurrentSearch(searchToSave);
+      return;
+    }
+    const suggestedName =
+      [selectedCategory?.name, nextSearch.q].filter(Boolean).join(" · ") || "My marketplace search";
+    setPendingSaveSearch(searchToSave);
+    setSaveSearchName(suggestedName);
+    setSaveSearchDialogOpen(true);
+  }
+
+  async function saveCurrentSearch(searchToSave = pendingSaveSearch ?? currentSearchFilters()) {
     try {
       if (search.savedSearchId) {
         await updateSearch({ data: { id: search.savedSearchId, search: searchToSave } });
         toast.success("Saved search updated.");
       } else {
-        const suggestedName =
-          [selectedCategory?.name, search.q].filter(Boolean).join(" · ") || "My marketplace search";
-        const name = window.prompt("Name this saved search", suggestedName)?.trim();
+        const name = saveSearchName.trim();
         if (!name) return;
+        setSaveSearchPending(true);
         await saveSearch({ data: { name, search: searchToSave } });
+        setSaveSearchDialogOpen(false);
+        setPendingSaveSearch(null);
         toast.success("Saved search created.");
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Sign in to save this search.");
+    } finally {
+      setSaveSearchPending(false);
     }
   }
 
@@ -1755,6 +1785,7 @@ function Browse() {
           onApply={(patch) =>
             void navigate({ to: "/browse", search: scoped({ vehicleMode: "results", ...patch }) })
           }
+          onSave={(patch) => requestSaveSearch(patch)}
           onSell={() => void navigate({ to: "/create-listing" })}
         />
       )}
@@ -1813,7 +1844,7 @@ function Browse() {
               }),
             })
           }
-          onSave={() => void saveCurrentSearch()}
+          onSave={(patch) => requestSaveSearch(patch)}
         />
       )}
 
@@ -1853,7 +1884,7 @@ function Browse() {
               search: scoped({ category: "jobs", jobMode: "results", ...patch }),
             })
           }
-          onSave={() => void saveCurrentSearch()}
+          onSave={(patch) => requestSaveSearch(patch)}
           onPost={() => void navigate({ to: "/create-listing" })}
         />
       )}
@@ -1890,7 +1921,7 @@ function Browse() {
               search: scoped({ category: "services", serviceMode: "results", ...patch }),
             })
           }
-          onSave={() => void saveCurrentSearch()}
+          onSave={(patch) => requestSaveSearch(patch)}
           onPost={() => void navigate({ to: "/create-listing" })}
         />
       )}
@@ -2022,7 +2053,16 @@ function Browse() {
               {result.total === 1 ? "listing" : "listings"}
             </p>
             {!motors && !homes && (
-              <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => requestSaveSearch()}
+                  className="inline-flex h-11 items-center gap-2 rounded-full border border-primary bg-card px-5 text-[13px] font-semibold text-primary shadow-sm transition-shadow hover:bg-secondary hover:shadow-md"
+                >
+                  <BookmarkSimple size={17} />
+                  {search.savedSearchId ? "Update saved search" : "Save this search"}
+                </button>
+                <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
                 <SheetTrigger asChild>
                   <button
                     type="button"
@@ -2355,7 +2395,7 @@ function Browse() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => void saveCurrentSearch()}
+                        onClick={() => requestSaveSearch()}
                         className="inline-flex h-12 items-center justify-center rounded-full border border-primary px-5 text-[13px] font-semibold text-primary hover:bg-secondary"
                       >
                         {search.savedSearchId ? "Update saved search" : "Save this search"}
@@ -2363,7 +2403,8 @@ function Browse() {
                     </div>
                   </form>
                 </SheetContent>
-              </Sheet>
+                </Sheet>
+              </div>
             )}
           </div>
 
@@ -2459,6 +2500,18 @@ function Browse() {
           </section>
         </div>
       )}
+      <SavedSearchNameDialog
+        open={saveSearchDialogOpen}
+        name={saveSearchName}
+        mode="create"
+        pending={saveSearchPending}
+        onOpenChange={(open) => {
+          setSaveSearchDialogOpen(open);
+          if (!open) setPendingSaveSearch(null);
+        }}
+        onNameChange={setSaveSearchName}
+        onSubmit={() => void saveCurrentSearch()}
+      />
     </main>
   );
 }
@@ -5707,7 +5760,7 @@ function ServicesFilterPage({
   search: Search;
   listings: ClassifiedBrowseResult["listings"];
   onApply: (patch: Partial<Search>) => void;
-  onSave: () => void;
+  onSave: (patch?: Partial<Search>) => void;
   onPost: () => void;
 }) {
   const [showAll, setShowAll] = useState(true);
@@ -5735,12 +5788,12 @@ function ServicesFilterPage({
     setTimeOnSite(search.serviceTimeOnSite ?? "");
   }, [search]);
 
-  function apply() {
+  function currentPatch(): Partial<Search> {
     const numberValue = (value: string) => {
       const parsed = Number(value);
       return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
     };
-    onApply({
+    return {
       q: term.trim() || undefined,
       serviceSubcategory: subcategory || undefined,
       priceMin: numberValue(priceMin),
@@ -5751,7 +5804,11 @@ function ServicesFilterPage({
       serviceSellerType: sellerType || undefined,
       serviceCondition: condition || undefined,
       serviceTimeOnSite: timeOnSite || undefined,
-    });
+    };
+  }
+
+  function apply() {
+    onApply(currentPatch());
   }
 
   // priceMin/priceMax already filter server-side via inputFromSearch; only
@@ -5828,7 +5885,7 @@ function ServicesFilterPage({
             </button>
             <button
               type="button"
-              onClick={onSave}
+              onClick={() => onSave(currentPatch())}
               className="h-12 rounded-xl border border-primary px-4 text-[12px] font-bold text-primary hover:bg-secondary"
             >
               Save search
@@ -6232,7 +6289,7 @@ function JobsFilterPage({
   search: Search;
   listings: ClassifiedBrowseResult["listings"];
   onApply: (patch: Partial<Search>) => void;
-  onSave: () => void;
+  onSave: (patch?: Partial<Search>) => void;
   onPost: () => void;
 }) {
   const [showAll, setShowAll] = useState(true);
@@ -6264,12 +6321,12 @@ function JobsFilterPage({
     setTimeOnSite(search.jobTimeOnSite ?? "");
   }, [search]);
 
-  function apply() {
+  function currentPatch(): Partial<Search> {
     const numberValue = (value: string) => {
       const parsed = Number(value);
       return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
     };
-    onApply({
+    return {
       q: term.trim() || undefined,
       jobCategory: category || undefined,
       jobType: jobType || undefined,
@@ -6282,7 +6339,11 @@ function JobsFilterPage({
       jobPhotos: photos ? "true" : undefined,
       jobVideo: video ? "true" : undefined,
       jobTimeOnSite: timeOnSite || undefined,
-    });
+    };
+  }
+
+  function apply() {
+    onApply(currentPatch());
   }
 
   const filteredListings = listings
@@ -6372,7 +6433,7 @@ function JobsFilterPage({
             </button>
             <button
               type="button"
-              onClick={onSave}
+              onClick={() => onSave(currentPatch())}
               className="h-12 rounded-xl border border-primary px-4 text-[12px] font-bold text-primary hover:bg-secondary"
             >
               Save search
@@ -6696,7 +6757,7 @@ function HomesFilterPage({
   resultCount: number;
   onTabChange: (tab: HomeTab) => void;
   onApply: (patch: Partial<Search>) => void;
-  onSave: () => void;
+  onSave: (patch?: Partial<Search>) => void;
 }) {
   const [showAll, setShowAll] = useState(false);
   const [location, setLocation] = useState(search.homeLocation ?? search.q ?? "");
@@ -6809,8 +6870,8 @@ function HomesFilterPage({
             },
           ];
 
-  function apply() {
-    onApply({
+  function currentPatch(): Partial<Search> {
+    return {
       q: location.trim() || undefined,
       homeLocation: location.trim() || undefined,
       propertyType: propertyType || undefined,
@@ -6818,7 +6879,11 @@ function HomesFilterPage({
       bedrooms: bedrooms || undefined,
       bathrooms: bathrooms || undefined,
       ...Object.fromEntries(extraFields.map(({ key }) => [key, extra[key] || undefined])),
-    });
+    };
+  }
+
+  function apply() {
+    onApply(currentPatch());
   }
 
   return (
@@ -6894,7 +6959,7 @@ function HomesFilterPage({
           </button>
           <button
             type="button"
-            onClick={onSave}
+            onClick={() => onSave(currentPatch())}
             className="h-11 rounded-xl border border-primary px-4 text-[12px] font-bold text-primary hover:bg-secondary"
           >
             Save search
@@ -7187,11 +7252,13 @@ function VehicleResultsPage({
   search,
   result,
   onApply,
+  onSave,
   onSell,
 }: {
   search: Search;
   result: ClassifiedBrowseResult;
   onApply: (patch: Partial<Search>) => void;
+  onSave: (patch?: Partial<Search>) => void;
   onSell: () => void;
 }) {
   const [showAll, setShowAll] = useState(true);
@@ -7252,12 +7319,12 @@ function VehicleResultsPage({
     );
   }, [make]);
 
-  function apply() {
+  function currentPatch(): Partial<Search> {
     const numberValue = (value: string) => {
       const parsed = Number(value);
       return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
     };
-    onApply({
+    return {
       q: term.trim() || undefined,
       make: make || undefined,
       model: model || undefined,
@@ -7278,7 +7345,11 @@ function VehicleResultsPage({
       region: region || undefined,
       state: state || undefined,
       city: city.trim() || undefined,
-    });
+    };
+  }
+
+  function apply() {
+    onApply(currentPatch());
   }
 
   return (
@@ -7333,15 +7404,25 @@ function VehicleResultsPage({
           </button>
         </form>
         <div className="mt-5 flex justify-end border-t border-border pt-4">
-          <button
-            type="button"
-            onClick={() => setShowAll((current) => !current)}
-            className="inline-flex items-center gap-2 rounded-full border border-primary px-4 py-2.5 text-[12px] font-bold text-primary hover:bg-secondary"
-          >
-            <FunnelSimple size={15} aria-hidden="true" />
-            {showAll ? "Hide all filters" : "Show all filters"}
-            <CaretDown size={14} className={showAll ? "rotate-180" : ""} aria-hidden="true" />
-          </button>
+          <div className="flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => onSave(currentPatch())}
+              className="inline-flex items-center gap-2 rounded-full border border-primary px-4 py-2.5 text-[12px] font-bold text-primary hover:bg-secondary"
+            >
+              <BookmarkSimple size={15} aria-hidden="true" />
+              Save this search
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAll((current) => !current)}
+              className="inline-flex items-center gap-2 rounded-full border border-primary px-4 py-2.5 text-[12px] font-bold text-primary hover:bg-secondary"
+            >
+              <FunnelSimple size={15} aria-hidden="true" />
+              {showAll ? "Hide all filters" : "Show all filters"}
+              <CaretDown size={14} className={showAll ? "rotate-180" : ""} aria-hidden="true" />
+            </button>
+          </div>
         </div>
       </section>
 

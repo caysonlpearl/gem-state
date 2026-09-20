@@ -526,6 +526,16 @@ test("saved searches reopen their full filters and update in place", () => {
   assert.match(accountCenterSource, /params\.set\("savedSearchId", item\.id\)/);
 });
 
+test("saved search naming works without browser prompts and preserves result modes", () => {
+  assert.match(browseSource, /SavedSearchNameDialog/);
+  assert.match(accountCenterSource, /SavedSearchNameDialog/);
+  assert.doesNotMatch(browseSource, /window\.prompt/);
+  assert.doesNotMatch(accountCenterSource, /window\.prompt/);
+  for (const mode of ["homeMode", "jobMode", "serviceMode", "vehicleMode", "petMode"]) {
+    assert.match(browseSource, new RegExp(`\\"${mode}\\"`));
+  }
+});
+
 test("saved-search alerts honor category-specific filters", () => {
   assert.match(savedSearchWorkerSource, /vehicle_make/);
   assert.match(savedSearchWorkerSource, /home_mode/);

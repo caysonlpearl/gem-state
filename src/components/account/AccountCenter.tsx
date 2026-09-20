@@ -30,6 +30,7 @@ import {
 
 import { brand } from "@/config/brand";
 import { formatUsd } from "@/config/fees";
+import { SavedSearchNameDialog } from "@/components/classifieds/SavedSearchNameDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { trackEvent } from "@/lib/analytics";
 import {
@@ -1603,6 +1604,8 @@ function SavedSearchesSection({ searches }: { searches: SavedSearch[] }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState("");
   const [sort, setSort] = useState<"newest" | "oldest">("newest");
+  const [renameSearchId, setRenameSearchId] = useState<string | null>(null);
+  const [renameSearchName, setRenameSearchName] = useState("");
   const createMutation = useMutation({
     mutationFn: () => create({ data: { name, search: { q: searchQuery || undefined } } }),
     onSuccess: async () => {
@@ -1649,15 +1652,21 @@ function SavedSearchesSection({ searches }: { searches: SavedSearch[] }) {
         : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
   function editSearch(item: SavedSearch) {
-    const nextName = window.prompt("Saved search name", item.name)?.trim();
-    if (!nextName || nextName === item.name) return;
-    const currentQuery = typeof item.search["q"] === "string" ? item.search["q"] : "";
-    const nextQuery = window.prompt("Search phrase", currentQuery);
-    updateMutation.mutate({
-      id: item.id,
-      name: nextName,
-      search: { ...item.search, q: nextQuery?.trim() || undefined },
-    });
+    setRenameSearchId(item.id);
+    setRenameSearchName(item.name);
+  }
+  async function renameSearch() {
+    if (!renameSearchId || !renameSearchName.trim()) return;
+    try {
+      await updateMutation.mutateAsync({
+        id: renameSearchId,
+        name: renameSearchName.trim(),
+      });
+      setRenameSearchId(null);
+      setRenameSearchName("");
+    } catch {
+      // The mutation displays its own error toast.
+    }
   }
   return (
     <div className="space-y-6">
@@ -1830,6 +1839,20 @@ function SavedSearchesSection({ searches }: { searches: SavedSearch[] }) {
           })}
         </div>
       )}
+      <SavedSearchNameDialog
+        open={renameSearchId !== null}
+        name={renameSearchName}
+        mode="rename"
+        pending={updateMutation.isPending}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRenameSearchId(null);
+            setRenameSearchName("");
+          }
+        }}
+        onNameChange={setRenameSearchName}
+        onSubmit={() => void renameSearch()}
+      />
     </div>
   );
 }
