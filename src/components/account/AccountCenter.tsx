@@ -273,8 +273,7 @@ export function AccountCenter({
     await navigate({ to: "/", replace: true });
   }
 
-  if (account.isLoading) return <AccountLoading />;
-  if (account.isError || !account.data) {
+  if (account.isError) {
     return (
       <AccountError message={account.error instanceof Error ? account.error.message : undefined} />
     );
@@ -283,7 +282,7 @@ export function AccountCenter({
   const data = account.data;
   const unreadMessages = conversations.data?.filter((item) => item.unread).length ?? 0;
   const unreadNotifications = notifications.data?.unread ?? 0;
-  const sellerVisible = Boolean(sellerSetup.data?.exists || data.primaryIntent === "selling");
+  const sellerVisible = Boolean(sellerSetup.data?.exists || data?.primaryIntent === "selling");
 
   return (
     <main id="main-content" className="mx-auto max-w-[1320px] px-4 py-8 sm:px-6 lg:px-8">
@@ -319,7 +318,11 @@ export function AccountCenter({
           sellerVisible={sellerVisible}
         />
         <div className="min-w-0">
-          {section === "overview" && (
+          {account.isLoading ? (
+            <AccountSectionSkeleton section={section} />
+          ) : !data ? (
+            <AccountError message="Could not load your account." />
+          ) : section === "overview" ? (
             <OverviewSection
               account={data}
               watchlistCount={watchlist.data?.length ?? 0}
@@ -332,39 +335,36 @@ export function AccountCenter({
               notifications={notifications.data?.items ?? []}
               onSelect={go}
             />
-          )}
-          {section === "profile" && (
+          ) : section === "profile" ? (
             <ProfileSection
               account={data}
               contactPreferences={contactPreferences.data}
               sellerSetup={sellerSetup.data}
               sellerSummary={sellerSummary.data}
             />
-          )}
-          {section === "settings" && (
+          ) : section === "settings" ? (
             <SettingsSection
               account={data}
               contactPreferences={contactPreferences.data}
               notificationPreferences={notificationPreferences.data}
             />
-          )}
-          {section === "saved" && <SavedListingsSection items={watchlist.data ?? []} />}
-          {section === "searches" && <SavedSearchesSection searches={savedSearches.data ?? []} />}
-          {section === "messages" && (
+          ) : section === "saved" ? (
+            <SavedListingsSection items={watchlist.data ?? []} />
+          ) : section === "searches" ? (
+            <SavedSearchesSection searches={savedSearches.data ?? []} />
+          ) : section === "messages" ? (
             <MessagesSection
               conversations={conversations.data ?? []}
               conversationId={conversationId}
               onOpen={(id) => go("messages", { conversation: id })}
             />
-          )}
-          {section === "notifications" && <NotificationsSection data={notifications.data} />}
-          {section === "listings" && (
+          ) : section === "notifications" ? (
+            <NotificationsSection data={notifications.data} />
+          ) : section === "listings" ? (
             <ListingsSection listings={listings.data?.asks ?? []} sellerSetup={sellerSetup.data} />
-          )}
-          {section === "reviews" && (
+          ) : section === "reviews" ? (
             <ReviewsSection summary={sellerSummary.data} sellerSetup={sellerSetup.data} />
-          )}
-          {section === "billing" && (
+          ) : (
             <BillingSection
               sellerSetup={sellerSetup.data}
               listings={listings.data?.asks ?? []}
@@ -455,11 +455,105 @@ function AccountSidebar({
   );
 }
 
-function AccountLoading() {
+const accountSectionTitles: Record<AccountSection, { title: string; body: string }> = {
+  overview: {
+    title: "Account overview",
+    body: "Your saved activity, conversations, and selling tools are loading.",
+  },
+  profile: {
+    title: "Public profile",
+    body: "Your profile details and trust signals are loading.",
+  },
+  settings: {
+    title: "Account & security",
+    body: "Your account details and preferences are loading.",
+  },
+  listings: {
+    title: "Listings",
+    body: "Your seller workspace and listing performance are loading.",
+  },
+  saved: {
+    title: "Saved listings",
+    body: "Your saved marketplace listings are loading.",
+  },
+  searches: {
+    title: "Saved searches",
+    body: "Your saved filters and alert settings are loading.",
+  },
+  messages: {
+    title: "Messages",
+    body: "Your marketplace conversations are loading.",
+  },
+  notifications: {
+    title: "Notifications",
+    body: "Your marketplace updates are loading.",
+  },
+  reviews: {
+    title: "Reviews & reputation",
+    body: "Your ratings and review activity are loading.",
+  },
+  billing: {
+    title: "Seller billing",
+    body: "Your listing upgrade options and billing history are loading.",
+  },
+};
+
+function SkeletonBlock({ className }: { className: string }) {
+  return <div aria-hidden="true" className={`animate-pulse rounded-xl bg-secondary ${className}`} />;
+}
+
+function AccountSectionSkeleton({ section }: { section: AccountSection }) {
+  const copy = accountSectionTitles[section];
+
   return (
-    <main className="mx-auto max-w-[980px] px-4 py-16 text-[13px] text-muted-foreground">
-      Loading your account center…
-    </main>
+    <div aria-busy="true" aria-label={`Loading ${copy.title}`}>
+      <SectionHeader eyebrow="Member center" title={copy.title} body={copy.body} />
+      {section === "messages" ? (
+        <div className="mt-6 grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
+          <div className="rounded-2xl border border-border bg-card p-4">
+            <SkeletonBlock className="h-10 w-full" />
+            <div className="mt-4 space-y-3">
+              <SkeletonBlock className="h-16 w-full" />
+              <SkeletonBlock className="h-16 w-full" />
+              <SkeletonBlock className="h-16 w-full" />
+            </div>
+          </div>
+          <div className="rounded-2xl border border-border bg-card p-5">
+            <SkeletonBlock className="h-8 w-2/5" />
+            <SkeletonBlock className="mt-5 h-40 w-full" />
+            <SkeletonBlock className="mt-4 h-12 w-full" />
+          </div>
+        </div>
+      ) : section === "overview" ? (
+        <div className="mt-6 space-y-5">
+          <div className="rounded-2xl border border-border bg-card p-5">
+            <div className="flex items-center gap-4">
+              <SkeletonBlock className="size-16 shrink-0 rounded-full" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <SkeletonBlock className="h-5 w-1/3" />
+                <SkeletonBlock className="h-4 w-1/2" />
+              </div>
+            </div>
+            <SkeletonBlock className="mt-5 h-3 w-full" />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <SkeletonBlock className="h-24 w-full" />
+            <SkeletonBlock className="h-24 w-full" />
+            <SkeletonBlock className="h-24 w-full" />
+          </div>
+          <SkeletonBlock className="h-44 w-full" />
+        </div>
+      ) : (
+        <div className="mt-6 space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <SkeletonBlock className="h-28 w-full" />
+            <SkeletonBlock className="h-28 w-full" />
+          </div>
+          <SkeletonBlock className="h-44 w-full" />
+          <SkeletonBlock className="h-32 w-full" />
+        </div>
+      )}
+    </div>
   );
 }
 
