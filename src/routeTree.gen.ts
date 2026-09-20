@@ -17,6 +17,7 @@ import { Route as BrowseRouteImport } from './routes/browse'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as GlossaryRouteImport } from './routes/glossary'
 import { Route as PoliciesRouteImport } from './routes/policies'
+import { Route as SafetyRouteImport } from './routes/safety'
 import { Route as SellRouteImport } from './routes/sell'
 import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
@@ -89,6 +90,11 @@ const GlossaryRoute = GlossaryRouteImport.update({
 const PoliciesRoute = PoliciesRouteImport.update({
   id: '/policies',
   path: '/policies',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SafetyRoute = SafetyRouteImport.update({
+  id: '/safety',
+  path: '/safety',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SellRoute = SellRouteImport.update({
@@ -288,6 +294,7 @@ export interface FileRoutesByFullPath {
   '/contact': typeof ContactRoute
   '/glossary': typeof GlossaryRoute
   '/policies': typeof PoliciesRoute
+  '/safety': typeof SafetyRoute
   '/sell': typeof SellRoute
   '/account': typeof AuthenticatedAccountRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
@@ -331,6 +338,7 @@ export interface FileRoutesByTo {
   '/contact': typeof ContactRoute
   '/glossary': typeof GlossaryRoute
   '/policies': typeof PoliciesRoute
+  '/safety': typeof SafetyRoute
   '/sell': typeof SellRoute
   '/account': typeof AuthenticatedAccountRoute
   '/buying': typeof AuthenticatedBuyingRoute
@@ -375,6 +383,7 @@ export interface FileRoutesById {
   '/contact': typeof ContactRoute
   '/glossary': typeof GlossaryRoute
   '/policies': typeof PoliciesRoute
+  '/safety': typeof SafetyRoute
   '/sell': typeof SellRoute
   '/_authenticated/account': typeof AuthenticatedAccountRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
@@ -420,6 +429,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/glossary'
     | '/policies'
+    | '/safety'
     | '/sell'
     | '/account'
     | '/admin'
@@ -463,6 +473,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/glossary'
     | '/policies'
+    | '/safety'
     | '/sell'
     | '/account'
     | '/buying'
@@ -506,6 +517,7 @@ export interface FileRouteTypes {
     | '/contact'
     | '/glossary'
     | '/policies'
+    | '/safety'
     | '/sell'
     | '/_authenticated/account'
     | '/_authenticated/admin'
@@ -551,6 +563,7 @@ export interface RootRouteChildren {
   ContactRoute: typeof ContactRoute
   GlossaryRoute: typeof GlossaryRoute
   PoliciesRoute: typeof PoliciesRoute
+  SafetyRoute: typeof SafetyRoute
   SellRoute: typeof SellRoute
   ListingsListingIdRoute: typeof ListingsListingIdRoute
   ProductsSlugRoute: typeof ProductsSlugRoute
@@ -619,6 +632,13 @@ declare module '@tanstack/react-router' {
       path: '/policies'
       fullPath: '/policies'
       preLoaderRoute: typeof PoliciesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/safety': {
+      id: '/safety'
+      path: '/safety'
+      fullPath: '/safety'
+      preLoaderRoute: typeof SafetyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sell': {
@@ -940,6 +960,7 @@ const rootRouteChildren: RootRouteChildren = {
   ContactRoute: ContactRoute,
   GlossaryRoute: GlossaryRoute,
   PoliciesRoute: PoliciesRoute,
+  SafetyRoute: SafetyRoute,
   SellRoute: SellRoute,
   ListingsListingIdRoute: ListingsListingIdRoute,
   ProductsSlugRoute: ProductsSlugRoute,

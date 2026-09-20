@@ -86,6 +86,7 @@ const mvpCopyMigrationSource = await read(
 );
 const seedRunnerSource = await read("scripts/seed-classifieds.mjs");
 const advertiseSource = await read("src/routes/advertise.tsx");
+const safetySource = await read("src/routes/safety.tsx");
 const footerSource = await read("src/components/layout/SiteFooter.tsx");
 const seedMigrationSource = await read(
   "supabase/migrations/20260914110000_add_classified_seed_listing_function.sql",
@@ -1181,4 +1182,18 @@ test("advertising page explains local partner opportunities and links to contact
   assert.match(advertiseSource, /to="\/contact"/);
   assert.match(footerSource, /to="\/advertise"/);
   assert.match(footerSource, /Advertise with us/);
+});
+
+test("safety center explains scams, protections, and GemList limits", () => {
+  assert.match(safetySource, /createFileRoute\("\/safety"\)/);
+  assert.match(safetySource, /Common marketplace scams and what to do instead/);
+  assert.match(safetySource, /Overpayment or refund tricks/);
+  assert.match(safetySource, /What we do not do/);
+  assert.match(safetySource, /does not inspect, authenticate, or guarantee/);
+  assert.match(safetySource, /do not provide escrow or hold funds/);
+  assert.match(safetySource, /Stop, save, report/);
+  assert.match(safetySource, /Flag This Listing/);
+  assert.match(safetySource, /to="\/contact"/);
+  assert.match(footerSource, /to="\/safety"/);
+  assert.match(footerSource, /Safety center/);
 });
