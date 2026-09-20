@@ -13,7 +13,13 @@ import {
 } from "@phosphor-icons/react";
 
 import { brand } from "@/config/brand";
-import { classifiedCategories, idahoRegions, usStates, vehicleOptions } from "@/config/classifieds";
+import {
+  classifiedCategories,
+  idahoRegions,
+  usStates,
+  vehicleModelsByMake,
+  vehicleOptions,
+} from "@/config/classifieds";
 import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { AllCategoriesPopover } from "@/components/classifieds/AllCategoriesPopover";
 import { ListingCard, ListingRow } from "@/components/classifieds/ListingCard";
@@ -323,38 +329,6 @@ const mileageBandOptions = [
   "Under 100,000 miles",
   "Under 150,000 miles",
 ] as const;
-const vehicleModelsByMake: Record<string, readonly string[]> = {
-  Acura: ["Integra", "TLX", "MDX", "RDX"],
-  Audi: ["A3", "A4", "Q5", "Q7"],
-  BMW: ["3 Series", "5 Series", "X3", "X5"],
-  Buick: ["Encore", "Enclave", "Envision"],
-  Cadillac: ["CT4", "CT5", "XT4", "XT5", "Escalade"],
-  Chevrolet: ["Equinox", "Malibu", "Silverado 1500", "Tahoe", "Traverse"],
-  Chrysler: ["300", "Pacifica", "Voyager"],
-  Dodge: ["Challenger", "Charger", "Durango", "Hornet"],
-  Ford: ["Bronco", "Edge", "Escape", "Explorer", "F-150", "Maverick", "Mustang"],
-  Genesis: ["G70", "G80", "GV70", "GV80"],
-  GMC: ["Canyon", "Sierra 1500", "Terrain", "Acadia", "Yukon"],
-  Honda: ["Accord", "Civic", "CR-V", "Pilot", "Ridgeline"],
-  Hyundai: ["Elantra", "Santa Fe", "Sonata", "Tucson", "Palisade"],
-  Infiniti: ["Q50", "QX50", "QX60"],
-  Jeep: ["Cherokee", "Compass", "Grand Cherokee", "Gladiator", "Wrangler"],
-  Kia: ["Forte", "K5", "Sorento", "Sportage", "Telluride"],
-  "Land Rover": ["Defender", "Discovery", "Range Rover"],
-  Lexus: ["ES", "IS", "NX", "RX", "GX"],
-  Lincoln: ["Aviator", "Corsair", "Nautilus", "Navigator"],
-  Mazda: ["Mazda3", "CX-5", "CX-30", "CX-50", "CX-90"],
-  "Mercedes-Benz": ["C-Class", "E-Class", "GLC", "GLE", "Sprinter"],
-  Mitsubishi: ["Eclipse Cross", "Outlander", "Outlander Sport"],
-  Nissan: ["Altima", "Frontier", "Kicks", "Rogue", "Titan"],
-  Porsche: ["911", "Cayenne", "Macan", "Taycan"],
-  Ram: ["1500", "2500", "3500", "ProMaster"],
-  Subaru: ["Ascent", "Crosstrek", "Forester", "Outback", "Impreza"],
-  Tesla: ["Model 3", "Model S", "Model X", "Model Y"],
-  Toyota: ["4Runner", "Camry", "Corolla", "RAV4", "Tacoma", "Tundra"],
-  Volkswagen: ["Atlas", "Golf", "Jetta", "Tiguan"],
-  Volvo: ["S60", "XC40", "XC60", "XC90"],
-};
 const splitVehicleFilter = (value: string | undefined) => value?.split("||").filter(Boolean) ?? [];
 const modelsForMakes = (makes: readonly string[]) =>
   [...new Set(makes.flatMap((make) => vehicleModelsByMake[make] ?? []))].sort();

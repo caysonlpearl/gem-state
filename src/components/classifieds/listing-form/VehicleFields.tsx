@@ -1,4 +1,4 @@
-import { vehicleOptions } from "@/config/classifieds";
+import { vehicleModelsByMake, vehicleOptions } from "@/config/classifieds";
 import { fieldClass } from "./shared";
 import type { ListingFormState } from "./types";
 
@@ -9,6 +9,8 @@ export function VehicleFields({
   form: ListingFormState;
   set: (key: keyof ListingFormState, value: string) => void;
 }) {
+  const availableModels = vehicleModelsByMake[form.make] ?? [];
+
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       <label className="text-[12px] font-medium">
@@ -18,6 +20,7 @@ export function VehicleFields({
           value={form.make}
           onChange={(event) => set("make", event.target.value)}
           placeholder="Toyota"
+          list="vehicle-make-options"
           className={fieldClass}
         />
       </label>
@@ -28,9 +31,20 @@ export function VehicleFields({
           value={form.model}
           onChange={(event) => set("model", event.target.value)}
           placeholder="Tacoma"
+          list="vehicle-model-options"
           className={fieldClass}
         />
       </label>
+      <datalist id="vehicle-make-options">
+        {vehicleOptions.makes.map((make) => (
+          <option key={make} value={make} />
+        ))}
+      </datalist>
+      <datalist id="vehicle-model-options">
+        {availableModels.map((model) => (
+          <option key={model} value={model} />
+        ))}
+      </datalist>
       <label className="text-[12px] font-medium">
         Year
         <input

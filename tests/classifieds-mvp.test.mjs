@@ -109,6 +109,10 @@ test("classified taxonomy includes Idaho categories and automotive inventory", (
   assert.match(configSource, /furniture/);
   assert.match(configSource, /idahoRegions/);
   assert.match(configSource, /drivetrains: \[[\s\S]*4WD/);
+  assert.match(configSource, /vehicleModelsByMake/);
+  for (const make of ["Abarth", "Alfa Romeo", "Freightliner", "Polestar", "Rivian", "Winnebago", "Big Tex"]) {
+    assert.match(configSource, new RegExp(make.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")));
+  }
 });
 
 test("browse and create flows expose the same vehicle fields", () => {
@@ -129,6 +133,9 @@ test("browse and create flows expose the same vehicle fields", () => {
   }
   assert.match(contractsSource, /state:/);
   assert.match(contractsSource, /region:/);
+  assert.match(vehicleFieldsSource, /vehicle-make-options/);
+  assert.match(vehicleFieldsSource, /vehicle-model-options/);
+  assert.match(vehicleFieldsSource, /vehicleModelsByMake/);
 });
 
 test("listing creation and edit share one form, extended with home/job/service fields", () => {
