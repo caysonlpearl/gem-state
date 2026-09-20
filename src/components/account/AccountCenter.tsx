@@ -7,6 +7,7 @@ import {
   ArrowRight,
   Bell,
   BookmarkSimple,
+  Camera,
   CheckCircle,
   ChatCircle,
   Eye,
@@ -34,6 +35,7 @@ import { trackEvent } from "@/lib/analytics";
 import {
   getMyAccount,
   saveMyProfile,
+  updateMyAvatar,
   MEMBER_INTENTS,
   type MemberIntent,
   type MyAccount,
@@ -151,7 +153,12 @@ const navItems: { section: AccountSection; label: string; icon: typeof UserCircl
   { section: "reviews", label: "Reviews & reputation", icon: Star },
 ];
 
-export function AccountCenter({ section, conversationId, checkout, purchaseId }: AccountCenterProps) {
+export function AccountCenter({
+  section,
+  conversationId,
+  checkout,
+  purchaseId,
+}: AccountCenterProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const fetchAccount = useServerFn(getMyAccount);
@@ -174,13 +181,18 @@ export function AccountCenter({ section, conversationId, checkout, purchaseId }:
 
   useEffect(() => {
     if (section !== "billing" || !purchaseId || !checkout) return;
-    void reconcileCheckout({ data: { purchaseId, cancelled: checkout === "cancelled" } }).then((result) => {
-      queryClient.invalidateQueries({ queryKey: ["seller-billing-history"] });
-      if (result === "paid") toast.success("Listing upgrade applied.");
-      if (result === "canceled") toast.message("Stripe checkout canceled; no upgrade was applied.");
-    }).catch((error) => {
-      toast.error(error instanceof Error ? error.message : "Could not reconcile Stripe checkout.");
-    });
+    void reconcileCheckout({ data: { purchaseId, cancelled: checkout === "cancelled" } })
+      .then((result) => {
+        queryClient.invalidateQueries({ queryKey: ["seller-billing-history"] });
+        if (result === "paid") toast.success("Listing upgrade applied.");
+        if (result === "canceled")
+          toast.message("Stripe checkout canceled; no upgrade was applied.");
+      })
+      .catch((error) => {
+        toast.error(
+          error instanceof Error ? error.message : "Could not reconcile Stripe checkout.",
+        );
+      });
   }, [checkout, purchaseId, queryClient, reconcileCheckout, section]);
 
   const account = useQuery({ queryKey: ["my-account"], queryFn: () => fetchAccount() });
@@ -725,6 +737,7 @@ function ProfileSection({
 }) {
   const queryClient = useQueryClient();
   const save = useServerFn(saveMyProfile);
+  const saveAvatar = useServerFn(updateMyAvatar);
   const updatePreferences = useServerFn(updateMyContactPreferences);
   const [displayName, setDisplayName] = useState(account.displayName ?? "");
   const [market, setMarket] = useState(account.homeResortCode ?? "");
@@ -736,6 +749,7 @@ function ProfileSection({
   const [allowInternalMessages, setAllowInternalMessages] = useState(
     contactPreferences?.allowInternalMessages ?? true,
   );
+  const [avatarBusy, setAvatarBusy] = useState(false);
   useEffect(() => {
     if (!contactPreferences) return;
     setAllowPhone(contactPreferences.allowPhone);
@@ -778,6 +792,45 @@ function ProfileSection({
     },
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "Could not save contact preferences."),
+  });
+  async function uploadAvatar(file: File) {
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      toast.error("Use a JPG, PNG, or WebP image.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Profile images must be 5 MB or smaller.");
+      return;
+    }
+    const extension = file.type === "image/jpeg" ? "jpg" : file.type.split("/")[1];
+    const path = `${account.userId}/avatar-${crypto.randomUUID()}.${extension}`;
+    setAvatarBusy(true);
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from("profile-avatars")
+        .upload(path, file, { contentType: file.type, cacheControl: "3600", upsert: false });
+      if (uploadError) throw new Error(uploadError.message);
+      await saveAvatar({ data: { path } });
+      await queryClient.invalidateQueries({ queryKey: ["my-account"] });
+      toast.success("Profile picture updated.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not update your profile picture.",
+      );
+    } finally {
+      setAvatarBusy(false);
+    }
+  }
+  const removeAvatar = useMutation({
+    mutationFn: () => saveAvatar({ data: { path: null } }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["my-account"] });
+      toast.success("Profile picture removed.");
+    },
+    onError: (error) =>
+      toast.error(
+        error instanceof Error ? error.message : "Could not remove your profile picture.",
+      ),
   });
   return (
     <div className="space-y-8">
@@ -841,6 +894,60 @@ function ProfileSection({
             <ArrowRight size={14} />
           </Link>
         )}
+      </section>
+      <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+        <SectionTitle title="Profile picture" />
+        <div className="mt-4 flex flex-wrap items-center gap-4">
+          <div className="grid size-20 shrink-0 place-items-center overflow-hidden rounded-full bg-primary text-xl font-bold text-primary-foreground">
+            {account.avatarUrl ? (
+              <img
+                src={account.avatarUrl}
+                alt={`${displayName || "Your"} profile`}
+                className="size-full object-cover"
+              />
+            ) : (
+              (displayName || "GS").slice(0, 2).toUpperCase()
+            )}
+          </div>
+          <div className="min-w-[220px] flex-1">
+            <p className="text-[13px] font-semibold">Add a photo people recognize</p>
+            <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
+              This appears on your public seller profile, listings, reviews, and messages. Use a
+              JPG, PNG, or WebP up to 5 MB.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <label
+                htmlFor="profile-photo-upload"
+                className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl bg-primary px-3 text-[12px] font-semibold text-primary-foreground hover:opacity-90 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60"
+              >
+                <Camera size={15} />
+                {avatarBusy ? "Uploading…" : account.avatarUrl ? "Change photo" : "Add photo"}
+              </label>
+              <input
+                id="profile-photo-upload"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="sr-only"
+                disabled={avatarBusy}
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = "";
+                  if (file) void uploadAvatar(file);
+                }}
+              />
+              {account.avatarUrl && (
+                <button
+                  type="button"
+                  onClick={() => removeAvatar.mutate()}
+                  disabled={removeAvatar.isPending || avatarBusy}
+                  className="h-9 rounded-xl border border-input px-3 text-[12px] font-semibold hover:bg-secondary disabled:opacity-60"
+                >
+                  {removeAvatar.isPending ? "Removing…" : "Remove"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       </section>
       {sellerSetup?.exists ? (
         <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
@@ -2246,9 +2353,7 @@ function ListingsSection({
   };
   const visible = listings
     .filter(
-      (item) =>
-        item.productName.toLowerCase().includes(query.toLowerCase()) &&
-        matchesFilter(item),
+      (item) => item.productName.toLowerCase().includes(query.toLowerCase()) && matchesFilter(item),
     )
     .sort((a, b) =>
       sort === "views"

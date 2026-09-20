@@ -11,12 +11,8 @@ const listingFormSource = await read("src/components/classifieds/listing-form/Li
 const vehicleFieldsSource = await read("src/components/classifieds/listing-form/VehicleFields.tsx");
 const homeFieldsSource = await read("src/components/classifieds/listing-form/HomeFields.tsx");
 const jobFieldsSource = await read("src/components/classifieds/listing-form/JobFields.tsx");
-const serviceFieldsSource = await read(
-  "src/components/classifieds/listing-form/ServiceFields.tsx",
-);
-const listingFormPayloadSource = await read(
-  "src/components/classifieds/listing-form/payload.ts",
-);
+const serviceFieldsSource = await read("src/components/classifieds/listing-form/ServiceFields.tsx");
+const listingFormPayloadSource = await read("src/components/classifieds/listing-form/payload.ts");
 const editSource = await read("src/routes/_authenticated/listings.$listingId.edit.tsx");
 const homeJobServiceMigrationSource = await read(
   "supabase/migrations/20260918100000_add_classified_home_job_service_details.sql",
@@ -36,6 +32,7 @@ const sellerSetupSource = await read("src/routes/_authenticated/seller-setup.tsx
 const sellingSource = await read("src/routes/_authenticated/selling.tsx");
 const accountSource = await read("src/routes/_authenticated/account.tsx");
 const accountCenterSource = await read("src/components/account/AccountCenter.tsx");
+const accountFunctionsSource = await read("src/lib/account.functions.ts");
 const accountCenterFunctionsSource = await read("src/lib/account-center.functions.ts");
 const conversationFunctionsSource = await read("src/lib/conversation.functions.ts");
 const listingUpgradeFunctionsSource = await read("src/lib/listing-upgrade.functions.ts");
@@ -44,6 +41,9 @@ const listingUpgradeMigrationSource = await read(
 );
 const accountCenterMigrationSource = await read(
   "supabase/migrations/20260918110000_add_account_center_tools.sql",
+);
+const profileAvatarMigrationSource = await read(
+  "supabase/migrations/20260920100000_add_profile_avatar_storage.sql",
 );
 const savedSearchWorkerSource = await read("src/lib/saved-search-worker.server.ts");
 const glossarySource = await read("src/routes/glossary.tsx");
@@ -110,7 +110,15 @@ test("classified taxonomy includes Idaho categories and automotive inventory", (
   assert.match(configSource, /idahoRegions/);
   assert.match(configSource, /drivetrains: \[[\s\S]*4WD/);
   assert.match(configSource, /vehicleModelsByMake/);
-  for (const make of ["Abarth", "Alfa Romeo", "Freightliner", "Polestar", "Rivian", "Winnebago", "Big Tex"]) {
+  for (const make of [
+    "Abarth",
+    "Alfa Romeo",
+    "Freightliner",
+    "Polestar",
+    "Rivian",
+    "Winnebago",
+    "Big Tex",
+  ]) {
     assert.match(configSource, new RegExp(make.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")));
   }
 });
@@ -337,6 +345,17 @@ test("account center exposes the unified sections and preserves legacy entry poi
   assert.match(accountCenterSource, /Seller billing/);
 });
 
+test("account profile supports an authenticated public profile picture", () => {
+  assert.match(accountCenterSource, /profile-photo-upload/);
+  assert.match(accountCenterSource, /profile-avatars/);
+  assert.match(accountCenterSource, /updateMyAvatar/);
+  assert.match(accountFunctionsSource, /updateMyAvatar/);
+  assert.match(accountFunctionsSource, /avatar_url/);
+  assert.match(profileAvatarMigrationSource, /profile-avatars/);
+  assert.match(profileAvatarMigrationSource, /Members upload their profile avatar/);
+  assert.match(profileAvatarMigrationSource, /file_size_limit/);
+});
+
 test("account center writes are authenticated and conversations are participant-scoped", () => {
   assert.match(accountCenterFunctionsSource, /requireSupabaseAuth/);
   assert.match(conversationFunctionsSource, /requireSupabaseAuth/);
@@ -361,7 +380,10 @@ test("messaging supports protected attachments, moderation controls, and send re
 
 test("saved searches reopen their full filters and update in place", () => {
   assert.match(browseSource, /savedSearchId/);
-  assert.match(browseSource, /updateSearch\(\{ data: \{ id: search\.savedSearchId, search: searchToSave \} \}\)/);
+  assert.match(
+    browseSource,
+    /updateSearch\(\{ data: \{ id: search\.savedSearchId, search: searchToSave \} \}\)/,
+  );
   assert.match(browseSource, /Update saved search/);
   assert.match(accountCenterSource, /Edit filters/);
   assert.match(accountCenterSource, /params\.set\("savedSearchId", item\.id\)/);

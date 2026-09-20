@@ -47,7 +47,9 @@ export const getMyAccount = createServerFn({ method: "GET" })
     ] = await Promise.all([
       supabase
         .from("profiles")
-        .select("display_name, avatar_url, home_resort_code, primary_intent, onboarded_at, created_at")
+        .select(
+          "display_name, avatar_url, home_resort_code, primary_intent, onboarded_at, created_at",
+        )
         .eq("id", userId)
         .maybeSingle(),
       supabase.from("user_roles").select("role").eq("user_id", userId),
@@ -150,4 +152,35 @@ export const saveMyProfile = createServerFn({ method: "POST" })
       .eq("id", context.userId);
     if (error) throw new Error(error.message);
     return { ok: true as const };
+  });
+
+/**
+ * Stores only a path uploaded to the profile-avatars bucket. The server builds
+ * the public URL and verifies the path belongs to the authenticated member.
+ */
+export const updateMyAvatar = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { path: string | null }) => {
+    if (input.path === null) return { path: null };
+    const path = String(input.path).trim();
+    if (!/^[-a-f0-9]{36}\/avatar-[a-f0-9-]+\.(?:jpg|jpeg|png|webp)$/i.test(path)) {
+      throw new Error("Choose a valid profile image.");
+    }
+    return { path };
+  })
+  .handler(async ({ data, context }) => {
+    let avatarUrl: string | null = null;
+    if (data.path) {
+      if (!data.path.startsWith(`${context.userId}/`)) {
+        throw new Error("That profile image does not belong to this account.");
+      }
+      avatarUrl = context.supabase.storage.from("profile-avatars").getPublicUrl(data.path)
+        .data.publicUrl;
+    }
+    const { error } = await context.supabase
+      .from("profiles")
+      .update({ avatar_url: avatarUrl })
+      .eq("id", context.userId);
+    if (error) throw new Error(error.message);
+    return { ok: true as const, avatarUrl };
   });
