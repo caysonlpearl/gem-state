@@ -776,6 +776,9 @@ test("vehicle browse uses a branded buy and eight-filter discovery hero", () => 
     "Motorcycles & powersports",
     "Cars under $20,000",
     "Late-model local vehicles",
+    "Classic & enthusiast vehicles",
+    "Three-row family vehicles",
+    "AWD & winter-ready rides",
   ]) {
     assert.match(browseSource, new RegExp(row.replaceAll("$", "\\$")));
   }
@@ -911,6 +914,9 @@ test("jobs browse has a landing hero and expanded local job filters", () => {
     "Education & childcare",
     "Remote-friendly roles",
     "Seasonal & event work",
+    "Finance & accounting",
+    "Transportation & delivery",
+    "Engineering & technical",
   ]) {
     assert.match(browseSource, new RegExp(row));
   }
@@ -952,6 +958,9 @@ test("services browse has a category-led landing page", () => {
     "Automotive & mobile repair",
     "Home improvement pros",
     "Technology & business help",
+    "Moving & hauling",
+    "Pet care & family help",
+    "Roofing & exterior work",
   ]) {
     assert.match(browseSource, new RegExp(row));
   }
