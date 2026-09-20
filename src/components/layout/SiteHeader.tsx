@@ -118,7 +118,7 @@ export function SiteHeader() {
       <div className="mx-auto grid min-w-0 h-[72px] max-w-[1440px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 sm:h-[88px] sm:gap-8 sm:px-8">
         <Link to="/" className="flex min-w-0 shrink-0 items-center pr-1 sm:pr-2" {...pinned}>
           <BrandMark className="hidden sm:inline-flex" />
-          <BrandMark compact className="sm:hidden" />
+          <BrandMark compact mobile className="sm:hidden" />
         </Link>
 
         <form
