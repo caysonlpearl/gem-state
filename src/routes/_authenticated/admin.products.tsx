@@ -37,16 +37,16 @@ async function uploadCatalogPhoto(productId: string, file: File) {
 export const Route = createFileRoute("/_authenticated/admin/products")({
   head: () => ({
     meta: [
-      { title: "ParkVault catalog page editor" },
+      { title: "GemList catalog page editor" },
       {
         name: "description",
         content:
-          "Administrator-only editor for every detail of an existing ParkVault catalog page: naming, category, resorts, release facts, variations and photo alt text.",
+          "Administrator-only editor for every detail of an existing GemList catalog page: naming, category, release facts, variations and photo alt text.",
       },
-      { property: "og:title", content: "ParkVault catalog page editor" },
+      { property: "og:title", content: "GemList catalog page editor" },
       {
         property: "og:description",
-        content: "Administrator-only editor for existing ParkVault catalog page details.",
+        content: "Administrator-only editor for existing GemList catalog page details.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -351,7 +351,7 @@ function AdminProductsPage() {
       <div className="mx-auto max-w-[760px] px-4 py-16 sm:px-6">
         <h1 className="text-[20px] font-semibold tracking-tight">Administrator access required</h1>
         <p className="mt-2 text-[13px] text-muted-foreground">
-          This console edits canonical catalog pages, so it is limited to ParkVault administrators.
+          This console edits canonical catalog pages, so it is limited to GemList administrators.
         </p>
         <Link to="/browse" className="mt-4 inline-block text-[13px] underline underline-offset-2">
           Back to the catalog
@@ -377,7 +377,7 @@ function AdminProductsPage() {
             Add a page or review listings
           </Link>
           <Link to="/admin" className="underline underline-offset-2">
-            Pilot console
+            Operations console
           </Link>
         </div>
       </header>
@@ -424,7 +424,7 @@ function AdminProductsPage() {
                       /{r.slug} · {r.status} · {r.variantCount} variation
                       {r.variantCount === 1 ? "" : "s"} · {r.imageCount} photo
                       {r.imageCount === 1 ? "" : "s"}
-                      {r.isDemo ? " · demo" : ""}
+                      {r.isDemo ? " · sample" : ""}
                     </p>
                   </div>
                   <button
@@ -813,7 +813,7 @@ function AdminProductsPage() {
 
           <Panel
             title="Photos"
-            note="Upload owned photography, replace a file, edit alt text and ordering, or remove a photo. Only upload photography ParkVault owns the rights to."
+            note="Upload owned photography, replace a file, edit alt text and ordering, or remove a photo. Only upload photography GemList owns the rights to."
           >
             <div className="rounded-md border border-border p-3">
               <p className="text-[12.5px] font-semibold">Add a photo</p>

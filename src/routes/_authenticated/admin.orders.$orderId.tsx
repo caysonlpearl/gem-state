@@ -35,17 +35,17 @@ import {
 export const Route = createFileRoute("/_authenticated/admin/orders/$orderId")({
   head: () => ({
     meta: [
-      { title: "Pilot order console — ParkVault" },
+      { title: "Order operations — GemList" },
       {
         name: "description",
         content:
-          "Operator console for one ParkVault pilot order: external payment evidence, purchase receipts, shipping, verified sale confirmation, payouts and disputes.",
+          "Operator console for one GemList marketplace order: payment evidence, purchase receipts, shipping, verified sale confirmation, payouts and disputes.",
       },
-      { property: "og:title", content: "Pilot order console — ParkVault" },
+      { property: "og:title", content: "Order operations — GemList" },
       {
         property: "og:description",
         content:
-          "Operator console for one ParkVault pilot order and its external payment evidence.",
+          "Operator console for one GemList marketplace order and its payment evidence.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -268,7 +268,7 @@ function AdminOrderPage() {
   return (
     <div className="mx-auto max-w-[900px] space-y-6 px-4 py-10 sm:px-6">
       <Link to="/admin" className="text-[12.5px] text-muted-foreground hover:text-foreground">
-        Back to pilot operations
+        Back to operations
       </Link>
 
       <div>
@@ -708,7 +708,7 @@ function AdminOrderPage() {
                   {refundConfirmationOpen && (
                     <div className="flex flex-wrap items-center gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-3">
                       <p className="min-w-0 flex-1 text-[12px] font-medium">
-                        Confirm the full Stripe refund. This cannot be undone from ParkVault.
+                        Confirm the full Stripe refund. This cannot be undone from GemList.
                       </p>
                       <button
                         type="button"

@@ -10,16 +10,16 @@ import { getMemberDirectory } from "@/lib/admin-directory.functions";
 export const Route = createFileRoute("/_authenticated/admin/members")({
   head: () => ({
     meta: [
-      { title: "Seller and shopper directory · ParkVault operations" },
+      { title: "Seller and shopper directory · GemList operations" },
       {
         name: "description",
         content:
-          "Admin-only directory of every ParkVault seller and approved in-park shopper with real listing, sale and assignment counts.",
+          "Admin-only directory of GemList sellers and approved marketplace partners with real listing, sale and assignment counts.",
       },
-      { property: "og:title", content: "Seller and shopper directory · ParkVault operations" },
+      { property: "og:title", content: "Seller and shopper directory · GemList operations" },
       {
         property: "og:description",
-        content: "Admin-only directory of ParkVault sellers and approved in-park shoppers.",
+        content: "Admin-only directory of GemList sellers and approved marketplace partners.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

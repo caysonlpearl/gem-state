@@ -4,7 +4,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 export const Route = createFileRoute("/_authenticated/notifications")({
   head: () => ({
     meta: [
-      { title: "Your ParkVault notifications" },
+      { title: "Your GemList notifications" },
       {
         name: "description",
         content:

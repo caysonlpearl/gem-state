@@ -198,11 +198,11 @@ function AdminPage() {
   return (
     <div className="mx-auto max-w-[1000px] space-y-6 px-4 py-10 sm:px-6">
       <div>
-        <h1 className="text-[22px] font-semibold tracking-tight">Pilot operations</h1>
+        <h1 className="text-[22px] font-semibold tracking-tight">GemList operations</h1>
         <p className="mt-1 text-[13px] text-muted-foreground">
-          Live checkout is disabled. Every payment, capture, payout and verified sale here is
-          evidence recorded from an external provider — ParkVault never authorizes, captures or
-          holds funds. Every decision writes an append-only audit entry.
+          Manage classified moderation, seller activity, listing performance, and marketplace
+          controls from one administrator workspace. Every decision writes an append-only audit
+          entry.
         </p>
         {data.isAdmin && (
           <div className="mt-3 flex flex-wrap gap-2">
@@ -254,9 +254,9 @@ function AdminPage() {
       </div>
 
       <Queue
-        title="Pilot orders"
+        title="Orders"
         count={data.orders.length}
-        emptyLabel="No real orders yet. Demonstration catalog activity is excluded."
+        emptyLabel="No marketplace orders yet."
       >
         {data.orders.map((o) => (
           <li

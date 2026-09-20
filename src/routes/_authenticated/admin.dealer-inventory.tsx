@@ -329,11 +329,11 @@ function DealerInventoryPage() {
             <div>
               <h2 className="text-[14px] font-semibold">Inventory feed</h2>
               <p className="mt-1 text-[12px] text-muted-foreground">
-                Use the sample dealership feed to test create, update, sold, and photo behavior.
+                Use the example dealership feed to verify create, update, sold, and photo behavior.
               </p>
             </div>
             <Button type="button" variant="secondary" size="sm" onClick={() => setCsv(sampleFeed)}>
-              Load {selectedFormat.toUpperCase()} sample
+              Load {selectedFormat.toUpperCase()} example
             </Button>
           </div>
           <label className="block text-[12px] font-medium">
