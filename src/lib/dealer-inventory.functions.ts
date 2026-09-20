@@ -81,18 +81,19 @@ function parseInventoryFeed(
   return parseAndNormalizeInventoryCsv(payload, mapping);
 }
 
-async function requireStaff(context: { supabase: unknown; userId: string }) {
-  const { data, error } = await (context.supabase as any).rpc("is_staff", {
+async function requireAdmin(context: { supabase: unknown; userId: string }) {
+  const { data, error } = await (context.supabase as any).rpc("has_role", {
     _user_id: context.userId,
+    _role: "admin",
   });
   if (error) throw new Error(error.message);
-  if (!data) throw new Error("Staff access required.");
+  if (!data) throw new Error("Administrator access required.");
 }
 
 export const getDealerInventorySources = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<DealerInventorySourceSummary[]> => {
-    await requireStaff(context);
+    await requireAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data, error } = await (supabaseAdmin as any)
       .from("dealer_inventory_sources")
@@ -108,7 +109,7 @@ export const createDealerInventorySource = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => sourceInput.parse(input))
   .handler(async ({ data, context }) => {
-    await requireStaff(context);
+    await requireAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: source, error } = await (supabaseAdmin as any)
       .from("dealer_inventory_sources")
@@ -134,7 +135,7 @@ export const getDealerInventorySyncRuns = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => z.object({ sourceId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }): Promise<DealerInventorySyncRunSummary[]> => {
-    await requireStaff(context);
+    await requireAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: runs, error } = await (supabaseAdmin as any)
       .from("dealer_inventory_sync_runs")
@@ -153,7 +154,7 @@ export const setDealerInventorySourceStatus = createServerFn({ method: "POST" })
     z.object({ sourceId: z.string().uuid(), status: z.enum(["active", "paused"]) }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    await requireStaff(context);
+    await requireAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await (supabaseAdmin as any)
       .from("dealer_inventory_sources")
@@ -167,7 +168,7 @@ export const previewDealerInventoryFeed = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => feedInput.parse(input))
   .handler(async ({ data, context }) => {
-    await requireStaff(context);
+    await requireAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: source, error } = await (supabaseAdmin as any)
       .from("dealer_inventory_sources")
@@ -243,7 +244,7 @@ export const applyDealerInventoryFeed = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: unknown) => feedInput.extend({ dryRun: z.literal(false) }).parse(input))
   .handler(async ({ data, context }) => {
-    await requireStaff(context);
+    await requireAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
     const { data: source, error: sourceError } = await admin

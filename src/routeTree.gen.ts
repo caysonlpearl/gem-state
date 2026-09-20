@@ -18,6 +18,7 @@ import { Route as GlossaryRouteImport } from './routes/glossary'
 import { Route as PoliciesRouteImport } from './routes/policies'
 import { Route as SellRouteImport } from './routes/sell'
 import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
+import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedBuyingRouteImport } from './routes/_authenticated/buying'
 import { Route as AuthenticatedCreateListingRouteImport } from './routes/_authenticated/create-listing'
 import { Route as AuthenticatedCreateMissingListingRouteImport } from './routes/_authenticated/create-missing-listing'
@@ -92,6 +93,11 @@ const SellRoute = SellRouteImport.update({
 const AuthenticatedAccountRoute = AuthenticatedAccountRouteImport.update({
   id: '/account',
   path: '/account',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedBuyingRoute = AuthenticatedBuyingRouteImport.update({
@@ -175,45 +181,45 @@ const ShoppersSlugRoute = ShoppersSlugRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAdminIndexRoute = AuthenticatedAdminIndexRouteImport.update({
-  id: '/admin/',
-  path: '/admin/',
-  getParentRoute: () => AuthenticatedRouteRoute,
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthenticatedAdminRoute,
 } as any)
 const AuthenticatedAdminCatalogRoute =
   AuthenticatedAdminCatalogRouteImport.update({
-    id: '/admin/catalog',
-    path: '/admin/catalog',
-    getParentRoute: () => AuthenticatedRouteRoute,
+    id: '/catalog',
+    path: '/catalog',
+    getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 const AuthenticatedAdminClassifiedsRoute =
   AuthenticatedAdminClassifiedsRouteImport.update({
-    id: '/admin/classifieds',
-    path: '/admin/classifieds',
-    getParentRoute: () => AuthenticatedRouteRoute,
+    id: '/classifieds',
+    path: '/classifieds',
+    getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 const AuthenticatedAdminDealerInventoryRoute =
   AuthenticatedAdminDealerInventoryRouteImport.update({
-    id: '/admin/dealer-inventory',
-    path: '/admin/dealer-inventory',
-    getParentRoute: () => AuthenticatedRouteRoute,
+    id: '/dealer-inventory',
+    path: '/dealer-inventory',
+    getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 const AuthenticatedAdminMembersRoute =
   AuthenticatedAdminMembersRouteImport.update({
-    id: '/admin/members',
-    path: '/admin/members',
-    getParentRoute: () => AuthenticatedRouteRoute,
+    id: '/members',
+    path: '/members',
+    getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 const AuthenticatedAdminProductsRoute =
   AuthenticatedAdminProductsRouteImport.update({
-    id: '/admin/products',
-    path: '/admin/products',
-    getParentRoute: () => AuthenticatedRouteRoute,
+    id: '/products',
+    path: '/products',
+    getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 const AuthenticatedAdminValidationRoute =
   AuthenticatedAdminValidationRouteImport.update({
-    id: '/admin/validation',
-    path: '/admin/validation',
-    getParentRoute: () => AuthenticatedRouteRoute,
+    id: '/validation',
+    path: '/validation',
+    getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 const AuthenticatedOrdersOrderIdRoute =
   AuthenticatedOrdersOrderIdRouteImport.update({
@@ -234,9 +240,9 @@ const ApiInternalSavedSearchesRoute =
   } as any)
 const AuthenticatedAdminOrdersOrderIdRoute =
   AuthenticatedAdminOrdersOrderIdRouteImport.update({
-    id: '/admin/orders/$orderId',
-    path: '/admin/orders/$orderId',
-    getParentRoute: () => AuthenticatedRouteRoute,
+    id: '/orders/$orderId',
+    path: '/orders/$orderId',
+    getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 const AuthenticatedListingsListingIdEditRoute =
   AuthenticatedListingsListingIdEditRouteImport.update({
@@ -276,6 +282,7 @@ export interface FileRoutesByFullPath {
   '/policies': typeof PoliciesRoute
   '/sell': typeof SellRoute
   '/account': typeof AuthenticatedAccountRoute
+  '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/buying': typeof AuthenticatedBuyingRoute
   '/create-listing': typeof AuthenticatedCreateListingRoute
   '/create-missing-listing': typeof AuthenticatedCreateMissingListingRoute
@@ -360,6 +367,7 @@ export interface FileRoutesById {
   '/policies': typeof PoliciesRoute
   '/sell': typeof SellRoute
   '/_authenticated/account': typeof AuthenticatedAccountRoute
+  '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/_authenticated/buying': typeof AuthenticatedBuyingRoute
   '/_authenticated/create-listing': typeof AuthenticatedCreateListingRoute
   '/_authenticated/create-missing-listing': typeof AuthenticatedCreateMissingListingRoute
@@ -403,6 +411,7 @@ export interface FileRouteTypes {
     | '/policies'
     | '/sell'
     | '/account'
+    | '/admin'
     | '/buying'
     | '/create-listing'
     | '/create-missing-listing'
@@ -486,6 +495,7 @@ export interface FileRouteTypes {
     | '/policies'
     | '/sell'
     | '/_authenticated/account'
+    | '/_authenticated/admin'
     | '/_authenticated/buying'
     | '/_authenticated/create-listing'
     | '/_authenticated/create-missing-listing'
@@ -605,6 +615,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAccountRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/buying': {
       id: '/_authenticated/buying'
       path: '/buying'
@@ -712,52 +729,52 @@ declare module '@tanstack/react-router' {
     }
     '/_authenticated/admin/': {
       id: '/_authenticated/admin/'
-      path: '/admin'
+      path: '/'
       fullPath: '/admin/'
       preLoaderRoute: typeof AuthenticatedAdminIndexRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/catalog': {
       id: '/_authenticated/admin/catalog'
-      path: '/admin/catalog'
+      path: '/catalog'
       fullPath: '/admin/catalog'
       preLoaderRoute: typeof AuthenticatedAdminCatalogRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/classifieds': {
       id: '/_authenticated/admin/classifieds'
-      path: '/admin/classifieds'
+      path: '/classifieds'
       fullPath: '/admin/classifieds'
       preLoaderRoute: typeof AuthenticatedAdminClassifiedsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/dealer-inventory': {
       id: '/_authenticated/admin/dealer-inventory'
-      path: '/admin/dealer-inventory'
+      path: '/dealer-inventory'
       fullPath: '/admin/dealer-inventory'
       preLoaderRoute: typeof AuthenticatedAdminDealerInventoryRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/members': {
       id: '/_authenticated/admin/members'
-      path: '/admin/members'
+      path: '/members'
       fullPath: '/admin/members'
       preLoaderRoute: typeof AuthenticatedAdminMembersRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/products': {
       id: '/_authenticated/admin/products'
-      path: '/admin/products'
+      path: '/products'
       fullPath: '/admin/products'
       preLoaderRoute: typeof AuthenticatedAdminProductsRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/validation': {
       id: '/_authenticated/admin/validation'
-      path: '/admin/validation'
+      path: '/validation'
       fullPath: '/admin/validation'
       preLoaderRoute: typeof AuthenticatedAdminValidationRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/orders/$orderId': {
       id: '/_authenticated/orders/$orderId'
@@ -782,10 +799,10 @@ declare module '@tanstack/react-router' {
     }
     '/_authenticated/admin/orders/$orderId': {
       id: '/_authenticated/admin/orders/$orderId'
-      path: '/admin/orders/$orderId'
+      path: '/orders/$orderId'
       fullPath: '/admin/orders/$orderId'
       preLoaderRoute: typeof AuthenticatedAdminOrdersOrderIdRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
+      parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/listings/$listingId/edit': {
       id: '/_authenticated/listings/$listingId/edit'
@@ -825,8 +842,35 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedAdminRouteChildren {
+  AuthenticatedAdminCatalogRoute: typeof AuthenticatedAdminCatalogRoute
+  AuthenticatedAdminClassifiedsRoute: typeof AuthenticatedAdminClassifiedsRoute
+  AuthenticatedAdminDealerInventoryRoute: typeof AuthenticatedAdminDealerInventoryRoute
+  AuthenticatedAdminMembersRoute: typeof AuthenticatedAdminMembersRoute
+  AuthenticatedAdminProductsRoute: typeof AuthenticatedAdminProductsRoute
+  AuthenticatedAdminValidationRoute: typeof AuthenticatedAdminValidationRoute
+  AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
+  AuthenticatedAdminOrdersOrderIdRoute: typeof AuthenticatedAdminOrdersOrderIdRoute
+}
+
+const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
+  AuthenticatedAdminCatalogRoute: AuthenticatedAdminCatalogRoute,
+  AuthenticatedAdminClassifiedsRoute: AuthenticatedAdminClassifiedsRoute,
+  AuthenticatedAdminDealerInventoryRoute:
+    AuthenticatedAdminDealerInventoryRoute,
+  AuthenticatedAdminMembersRoute: AuthenticatedAdminMembersRoute,
+  AuthenticatedAdminProductsRoute: AuthenticatedAdminProductsRoute,
+  AuthenticatedAdminValidationRoute: AuthenticatedAdminValidationRoute,
+  AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
+  AuthenticatedAdminOrdersOrderIdRoute: AuthenticatedAdminOrdersOrderIdRoute,
+}
+
+const AuthenticatedAdminRouteWithChildren =
+  AuthenticatedAdminRoute._addFileChildren(AuthenticatedAdminRouteChildren)
+
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAccountRoute: typeof AuthenticatedAccountRoute
+  AuthenticatedAdminRoute: typeof AuthenticatedAdminRouteWithChildren
   AuthenticatedBuyingRoute: typeof AuthenticatedBuyingRoute
   AuthenticatedCreateListingRoute: typeof AuthenticatedCreateListingRoute
   AuthenticatedCreateMissingListingRoute: typeof AuthenticatedCreateMissingListingRoute
@@ -838,20 +882,13 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedShopperPayoutsRoute: typeof AuthenticatedShopperPayoutsRoute
   AuthenticatedSuggestRoute: typeof AuthenticatedSuggestRoute
   AuthenticatedWatchlistRoute: typeof AuthenticatedWatchlistRoute
-  AuthenticatedAdminCatalogRoute: typeof AuthenticatedAdminCatalogRoute
-  AuthenticatedAdminClassifiedsRoute: typeof AuthenticatedAdminClassifiedsRoute
-  AuthenticatedAdminDealerInventoryRoute: typeof AuthenticatedAdminDealerInventoryRoute
-  AuthenticatedAdminMembersRoute: typeof AuthenticatedAdminMembersRoute
-  AuthenticatedAdminProductsRoute: typeof AuthenticatedAdminProductsRoute
-  AuthenticatedAdminValidationRoute: typeof AuthenticatedAdminValidationRoute
   AuthenticatedOrdersOrderIdRoute: typeof AuthenticatedOrdersOrderIdRoute
-  AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
-  AuthenticatedAdminOrdersOrderIdRoute: typeof AuthenticatedAdminOrdersOrderIdRoute
   AuthenticatedListingsListingIdEditRoute: typeof AuthenticatedListingsListingIdEditRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAccountRoute: AuthenticatedAccountRoute,
+  AuthenticatedAdminRoute: AuthenticatedAdminRouteWithChildren,
   AuthenticatedBuyingRoute: AuthenticatedBuyingRoute,
   AuthenticatedCreateListingRoute: AuthenticatedCreateListingRoute,
   AuthenticatedCreateMissingListingRoute:
@@ -864,16 +901,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedShopperPayoutsRoute: AuthenticatedShopperPayoutsRoute,
   AuthenticatedSuggestRoute: AuthenticatedSuggestRoute,
   AuthenticatedWatchlistRoute: AuthenticatedWatchlistRoute,
-  AuthenticatedAdminCatalogRoute: AuthenticatedAdminCatalogRoute,
-  AuthenticatedAdminClassifiedsRoute: AuthenticatedAdminClassifiedsRoute,
-  AuthenticatedAdminDealerInventoryRoute:
-    AuthenticatedAdminDealerInventoryRoute,
-  AuthenticatedAdminMembersRoute: AuthenticatedAdminMembersRoute,
-  AuthenticatedAdminProductsRoute: AuthenticatedAdminProductsRoute,
-  AuthenticatedAdminValidationRoute: AuthenticatedAdminValidationRoute,
   AuthenticatedOrdersOrderIdRoute: AuthenticatedOrdersOrderIdRoute,
-  AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
-  AuthenticatedAdminOrdersOrderIdRoute: AuthenticatedAdminOrdersOrderIdRoute,
   AuthenticatedListingsListingIdEditRoute:
     AuthenticatedListingsListingIdEditRoute,
 }
