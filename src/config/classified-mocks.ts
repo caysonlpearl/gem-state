@@ -523,7 +523,7 @@ const baseMockClassifiedListings: MockClassifiedListing[] = [
     },
     images: [
       {
-        url: image("photo-1552728089-57cc54a126e7", "Cockatiel"),
+        url: image("photo-1444464666168-49d633b86797", "Cockatiel"),
         alt: "Cockatiel",
       },
     ],
@@ -572,7 +572,7 @@ const baseMockClassifiedListings: MockClassifiedListing[] = [
     },
     images: [
       {
-        url: image("photo-1520990269335-9271441d0f4c", "Freshwater aquarium"),
+        url: image("photo-1524704654690-b56c05c78a00", "Freshwater aquarium"),
         alt: "Freshwater aquarium",
       },
     ],

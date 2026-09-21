@@ -2898,14 +2898,14 @@ const petShowcaseRows: HomepagePreviewRow[] = [
         "Nampa, ID",
         "$225",
         "Birds · owner",
-        "https://images.unsplash.com/photo-1552728089-57cc54a126e7?auto=format&fit=crop&w=900&q=80",
+        "https://images.unsplash.com/photo-1444464666168-49d633b86797?auto=format&fit=crop&w=900&q=80",
       ),
       previewCard(
         "Freshwater aquarium setup",
         "Eagle, ID",
         "$90",
         "Fish · supplies",
-        "https://images.unsplash.com/photo-1520990269335-9271441d0f4c?auto=format&fit=crop&w=900&q=80",
+        "https://images.unsplash.com/photo-1524704654690-b56c05c78a00?auto=format&fit=crop&w=900&q=80",
       ),
       previewCard(
         "Golden retriever family dog",

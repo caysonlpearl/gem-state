@@ -175,7 +175,10 @@ function Home() {
   // prettier-ignore
   const serviceListings = home.recent.filter((listing) => listing.service).slice(0, HOMEPAGE_ROW_SIZE);
   const generalListings = home.recent
-    .filter((listing) => !listing.vehicle && !listing.home && !listing.job && !listing.service)
+    .filter(
+      (listing) =>
+        !listing.vehicle && !listing.pet && !listing.home && !listing.job && !listing.service,
+    )
     .slice(0, HOMEPAGE_ROW_SIZE);
   const withFallback = (matches: typeof home.recent, fallback: typeof home.recent) =>
     (matches.length >= HOMEPAGE_ROW_SIZE ? matches : fallback).slice(0, HOMEPAGE_ROW_SIZE);
