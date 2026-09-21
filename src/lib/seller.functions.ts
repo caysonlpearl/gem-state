@@ -368,9 +368,14 @@ export const saveSellerSetup = createServerFn({ method: "POST" })
         throw new Error("Choose a valid default shipping method.");
       }
       const defaultShippingMethod = rawShippingMethod || null;
+      // The seller setup form historically serialized a blank select as 0.
+      // Treat both blank and zero as "not configured" for direct-contact
+      // classifieds; shipping defaults are only required by the future
+      // checkout marketplace.
       const rawHandlingDays = String(input.defaultHandlingDays ?? "").trim();
+      const hasHandlingDays = rawHandlingDays !== "" && rawHandlingDays !== "0";
       let defaultHandlingDays: number | null = null;
-      if (rawHandlingDays) {
+      if (hasHandlingDays) {
         const parsed = Math.round(Number(rawHandlingDays));
         if (!Number.isFinite(parsed) || parsed < 1 || parsed > 5) {
           throw new Error("Choose a handling time between 1 and 5 business days.");
