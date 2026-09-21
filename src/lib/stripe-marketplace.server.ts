@@ -25,11 +25,20 @@ function isStripeWebhookSecret(value: string) {
  * deployment.
  */
 function normalizedStripeSecrets(runtimeEnv?: unknown) {
-  const apiSecret = runtimeSecret(runtimeEnv, "STRIPE_SECRET_KEY").trim();
-  const webhookSecret = runtimeSecret(runtimeEnv, "STRIPE_WEBHOOK_SECRET").trim();
-  if (isStripeWebhookSecret(apiSecret) && isStripeApiSecret(webhookSecret)) {
-    return { apiSecret: webhookSecret, webhookSecret: apiSecret };
-  }
+  // Deployments occasionally have the values pasted into the wrong named
+  // slot. Read all marketplace Stripe slots and choose by the value's
+  // prefix, while still preferring the documented names when they are valid.
+  const values = [
+    ...runtimeSecretCandidates(runtimeEnv, "STRIPE_SECRET_KEY"),
+    ...runtimeSecretCandidates(runtimeEnv, "STRIPE_WEBHOOK_SECRET"),
+    ...runtimeSecretCandidates(runtimeEnv, "STRIPE_CONNECT_WEBHOOK_SECRET"),
+  ];
+  const apiSecret =
+    values.find((value) => isStripeApiSecret(value.trim()))?.trim() ??
+    runtimeSecret(runtimeEnv, "STRIPE_SECRET_KEY").trim();
+  const webhookSecret =
+    values.find((value) => isStripeWebhookSecret(value.trim()))?.trim() ??
+    runtimeSecret(runtimeEnv, "STRIPE_WEBHOOK_SECRET").trim();
   return { apiSecret, webhookSecret };
 }
 
