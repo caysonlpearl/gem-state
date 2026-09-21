@@ -6,8 +6,8 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
   expireListingUpgradeCheckout,
   finalizeListingUpgradeCheckout,
+  gemStateOrigin,
   getStripe,
-  parkVaultOrigin,
 } from "./stripe-marketplace.server";
 
 export type ListingUpgradeOption = {
@@ -185,7 +185,7 @@ export const createListingUpgradeCheckout = createServerFn({ method: "POST" })
     if (purchaseError) throw new Error(purchaseError.message);
 
     const request = getRequest();
-    const origin = parkVaultOrigin(request?.url);
+    const origin = gemStateOrigin(request?.url);
     const metadata = {
       gemstate_purpose: "listing_upgrade",
       gemstate_purchase_id: purchase.id,

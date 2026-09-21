@@ -10,9 +10,11 @@ let stripeInstanceSecret = "";
 
 export function getStripe(secretOverride?: string) {
   const secret = secretOverride ?? serverEnv("STRIPE_SECRET_KEY");
-  if (!secret) throw new Error("ParkVault Checkout is not configured yet.");
+  if (!secret) throw new Error("Gem State checkout is not configured yet.");
   if (!stripeInstance || stripeInstanceSecret !== secret) {
-    stripeInstance = new Stripe(secret, { appInfo: { name: "ParkVault", version: "1.0.0" } });
+    stripeInstance = new Stripe(secret, {
+      appInfo: { name: "Gem State Classifieds", version: "1.0.0" },
+    });
     stripeInstanceSecret = secret;
   }
   return stripeInstance;
@@ -59,6 +61,20 @@ export function parkVaultOrigin(requestUrl?: string) {
   const origin = configured || requestOrigin;
   if (!origin.startsWith("https://"))
     throw new Error("ParkVault Checkout requires the live HTTPS URL.");
+  return origin.replace(/\/$/, "");
+}
+
+/**
+ * Origin used by the active Gem State marketplace checkout flows.
+ * Keep the legacy variable as a fallback so existing non-marketplace flows
+ * remain compatible until their configuration is migrated separately.
+ */
+export function gemStateOrigin(requestUrl?: string) {
+  const configured = serverEnv("GEM_STATE_SITE_URL") || serverEnv("PARKVAULT_SITE_URL");
+  const requestOrigin = requestUrl ? new URL(requestUrl).origin : "";
+  const origin = configured || requestOrigin;
+  if (!origin.startsWith("https://"))
+    throw new Error("Gem State checkout requires the live HTTPS URL.");
   return origin.replace(/\/$/, "");
 }
 
