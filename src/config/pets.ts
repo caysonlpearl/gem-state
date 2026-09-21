@@ -8,11 +8,15 @@ export const petSubcategories = [
   ["guinea-pigs", "Guinea Pigs"],
   ["hamsters", "Hamsters"],
   ["hedgehogs", "Hedgehogs"],
+  ["horses", "Horses"],
   ["lost-found", "Lost and Found Pets"],
+  ["livestock", "Livestock"],
   ["other-pets", "Other Pets"],
   ["pet-equipment-supplies", "Pet Equipment and Supplies"],
+  ["poultry", "Poultry"],
   ["rabbits", "Rabbits"],
   ["reptiles", "Reptiles"],
+  ["small-animals", "Small Animals"],
   ["stock-dogs", "Stock Dogs"],
   ["wanted-iso", "Wanted/ISO — Pets"],
 ] as const;
@@ -26,9 +30,13 @@ export const petSpecies = [
   "Guinea Pig",
   "Hamster",
   "Hedgehog",
+  "Horse",
+  "Livestock",
+  "Poultry",
   "Rabbit",
   "Reptile",
   "Amphibian",
+  "Small animal",
   "Other",
 ] as const;
 
@@ -273,6 +281,45 @@ export const petBreedsBySpecies: Record<string, readonly string[]> = {
     "Unknown",
   ],
   Amphibian: ["Newt", "Frog", "Axolotl", "Other", "Unknown"],
+  Horse: [
+    "Appaloosa",
+    "Arabian",
+    "Clydesdale",
+    "Friesian",
+    "Haflinger",
+    "Morgan",
+    "Mustang",
+    "Paint",
+    "Palomino",
+    "Quarter Horse",
+    "Tennessee Walker",
+    "Thoroughbred",
+    "Other",
+    "Unknown",
+  ],
+  Livestock: [
+    "Alpaca",
+    "Beef cattle",
+    "Dairy cattle",
+    "Goat",
+    "Llama",
+    "Pig",
+    "Sheep",
+    "Other",
+    "Unknown",
+  ],
+  Poultry: [
+    "Chicken",
+    "Duck",
+    "Goose",
+    "Guinea fowl",
+    "Peacock",
+    "Pheasant",
+    "Quail",
+    "Turkey",
+    "Other",
+    "Unknown",
+  ],
   Other: ["Other", "Unknown"],
 };
 
@@ -313,5 +360,33 @@ export function petSpeciesForSubcategory(subcategory: string) {
   if (["rabbits"].includes(subcategory)) return ["Rabbit"] as const;
   if (["reptiles"].includes(subcategory)) return ["Reptile", "Amphibian"] as const;
   if (["birds"].includes(subcategory)) return ["Bird"] as const;
+  if (["horses"].includes(subcategory)) return ["Horse"] as const;
+  if (["livestock"].includes(subcategory)) return ["Livestock"] as const;
+  if (["poultry"].includes(subcategory)) return ["Poultry"] as const;
+  if (["small-animals"].includes(subcategory)) return ["Small animal"] as const;
   return petSpecies;
+}
+
+export function petSubcategoryForSelection(species: string, placementType = "sale") {
+  if (placementType === "wanted") return "wanted-iso";
+  if (placementType === "lost_found") return "lost-found";
+  if (placementType === "stud_breeding" && species === "Dog") return "dogs-studs-breeding";
+  const subcategoryBySpecies: Record<string, string> = {
+    Dog: "dogs",
+    Cat: "cats",
+    Bird: "birds",
+    Fish: "fish",
+    Ferret: "ferrets",
+    "Guinea Pig": "guinea-pigs",
+    Hamster: "hamsters",
+    Hedgehog: "hedgehogs",
+    Horse: "horses",
+    Livestock: "livestock",
+    Poultry: "poultry",
+    Rabbit: "rabbits",
+    Reptile: "reptiles",
+    Amphibian: "reptiles",
+    "Small animal": "small-animals",
+  };
+  return subcategoryBySpecies[species] ?? "other-pets";
 }

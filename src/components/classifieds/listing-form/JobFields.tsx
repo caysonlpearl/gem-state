@@ -4,6 +4,41 @@ import type { ListingFormState } from "./types";
 const payTypes = ["Hourly", "Salary", "Commission", "Contract"] as const;
 const employmentTypes = ["Full-time", "Part-time", "Seasonal", "Contract", "Temporary"] as const;
 
+const compensationCopy = {
+  Hourly: {
+    minimum: "Minimum hourly pay ($/hr)",
+    maximum: "Maximum hourly pay ($/hr)",
+    minimumPlaceholder: "16",
+    maximumPlaceholder: "21",
+    hint: "Enter the hourly range for this role.",
+    max: undefined,
+  },
+  Salary: {
+    minimum: "Minimum annual salary ($/yr)",
+    maximum: "Maximum annual salary ($/yr)",
+    minimumPlaceholder: "38000",
+    maximumPlaceholder: "44000",
+    hint: "Enter the annual salary range for this role.",
+    max: undefined,
+  },
+  Commission: {
+    minimum: "Minimum commission (%)",
+    maximum: "Maximum commission (%)",
+    minimumPlaceholder: "5",
+    maximumPlaceholder: "10",
+    hint: "Enter the commission percentage range.",
+    max: "100",
+  },
+  Contract: {
+    minimum: "Minimum contract amount ($)",
+    maximum: "Maximum contract amount ($)",
+    minimumPlaceholder: "1500",
+    maximumPlaceholder: "3000",
+    hint: "Enter the expected total contract amount range.",
+    max: undefined,
+  },
+} as const;
+
 export function JobFields({
   form,
   set,
@@ -11,6 +46,9 @@ export function JobFields({
   form: ListingFormState;
   set: (key: keyof ListingFormState, value: string) => void;
 }) {
+  const payCopy =
+    compensationCopy[form.payType as keyof typeof compensationCopy] ?? compensationCopy.Hourly;
+
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       <label className="text-[12px] font-medium">
@@ -63,27 +101,32 @@ export function JobFields({
         </select>
       </label>
       <label className="text-[12px] font-medium">
-        Pay minimum ({form.payType === "Salary" ? "$/yr" : "$/hr"})
+        {payCopy.minimum}
         <input
           required
           inputMode="decimal"
+          min="0"
+          max={payCopy.max}
           value={form.payMin}
           onChange={(event) => set("payMin", event.target.value)}
-          placeholder={form.payType === "Salary" ? "38000" : "16"}
+          placeholder={payCopy.minimumPlaceholder}
           className={`${fieldClass} numeric`}
         />
       </label>
       <label className="text-[12px] font-medium">
-        Pay maximum ({form.payType === "Salary" ? "$/yr" : "$/hr"})
+        {payCopy.maximum}
         <input
           required
           inputMode="decimal"
+          min="0"
+          max={payCopy.max}
           value={form.payMax}
           onChange={(event) => set("payMax", event.target.value)}
-          placeholder={form.payType === "Salary" ? "44000" : "21"}
+          placeholder={payCopy.maximumPlaceholder}
           className={`${fieldClass} numeric`}
         />
       </label>
+      <p className="text-[11px] text-muted-foreground sm:col-span-2">{payCopy.hint}</p>
       <label className="text-[12px] font-medium">
         Experience required <span className="font-normal text-muted-foreground">(optional)</span>
         <input

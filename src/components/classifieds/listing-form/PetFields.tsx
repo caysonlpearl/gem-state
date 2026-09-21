@@ -5,8 +5,7 @@ import {
   petPlacementTypes,
   petSexes,
   petSpecies,
-  petSpeciesForSubcategory,
-  petSubcategories,
+  petSubcategoryForSelection,
   petYesNoUnknown,
 } from "@/config/pets";
 import { fieldClass, textareaClass } from "./shared";
@@ -19,42 +18,28 @@ export function PetFields({
   form: ListingFormState;
   set: (key: keyof ListingFormState, value: string) => void;
 }) {
-  const allowedSpecies = petSpeciesForSubcategory(form.petSubcategory);
   const breeds = petBreedsBySpecies[form.petSpecies] ?? petBreedsBySpecies["Other"]!;
   const isBreeding = form.petPlacementType === "stud_breeding";
   const isRecovery = form.petPlacementType === "lost_found";
   const isWanted = form.petPlacementType === "wanted";
 
+  function syncPetClassification(species: string, placementType = form.petPlacementType) {
+    set("petSubcategory", petSubcategoryForSelection(species, placementType));
+  }
+
   return (
     <div className="space-y-5">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <label className="text-[12px] font-medium sm:col-span-2">
-          Pet category
-          <select
-            required
-            value={form.petSubcategory}
-            onChange={(event) => {
-              const subcategory = event.target.value;
-              set("petSubcategory", subcategory);
-              const nextSpecies = petSpeciesForSubcategory(subcategory)[0];
-              if (nextSpecies) set("petSpecies", nextSpecies);
-              set("petBreed", "");
-            }}
-            className={fieldClass}
-          >
-            {petSubcategories.map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-        </label>
         <label className="text-[12px] font-medium">
           Listing intent
           <select
             required
             value={form.petPlacementType}
-            onChange={(event) => set("petPlacementType", event.target.value)}
+            onChange={(event) => {
+              const placementType = event.target.value;
+              set("petPlacementType", placementType);
+              syncPetClassification(form.petSpecies, placementType);
+            }}
             className={fieldClass}
           >
             {petPlacementTypes.map(([value, label]) => (
@@ -70,35 +55,38 @@ export function PetFields({
             required
             value={form.petSpecies}
             onChange={(event) => {
-              set("petSpecies", event.target.value);
+              const species = event.target.value;
+              set("petSpecies", species);
+              syncPetClassification(species);
               set("petBreed", "");
             }}
             className={fieldClass}
           >
-            {petSpecies
-              .filter((species) => allowedSpecies.includes(species as never))
-              .map((species) => (
-                <option key={species} value={species}>
-                  {species}
-                </option>
-              ))}
+            {petSpecies.map((species) => (
+              <option key={species} value={species}>
+                {species}
+              </option>
+            ))}
           </select>
         </label>
         <label className="text-[12px] font-medium">
           Breed / variety
-          <input
+          <select
             required={!isRecovery && !isWanted}
             value={form.petBreed}
             onChange={(event) => set("petBreed", event.target.value)}
-            list="pet-breed-options"
-            placeholder="Choose or type a breed"
             className={fieldClass}
-          />
-          <datalist id="pet-breed-options">
+          >
+            <option value="">Choose a breed or variety</option>
+            {form.petBreed && !breeds.includes(form.petBreed) && (
+              <option value={form.petBreed}>{form.petBreed} (custom)</option>
+            )}
             {breeds.map((breed) => (
-              <option key={breed} value={breed} />
+              <option key={breed} value={breed}>
+                {breed}
+              </option>
             ))}
-          </datalist>
+          </select>
         </label>
         <label className="text-[12px] font-medium">
           Pet name <span className="font-normal text-muted-foreground">(optional)</span>

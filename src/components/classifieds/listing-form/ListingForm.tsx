@@ -70,6 +70,59 @@ const itemCategorySlugs: Set<string> = new Set(
     .map((c) => c.slug),
 );
 
+const listingTypeCopy: Record<
+  ListingKind,
+  {
+    basicsTitle: string;
+    titlePlaceholder: string;
+    descriptionLabel: string;
+    descriptionPlaceholder: string;
+  }
+> = {
+  item: {
+    basicsTitle: "Item details",
+    titlePlaceholder: "Example: Solid oak dining table",
+    descriptionLabel: "Item description",
+    descriptionPlaceholder:
+      "Describe the item honestly, including condition, dimensions, and anything a buyer should know.",
+  },
+  vehicle: {
+    basicsTitle: "Vehicle basics",
+    titlePlaceholder: "Example: 2019 Toyota Tacoma TRD Off-Road",
+    descriptionLabel: "Vehicle description",
+    descriptionPlaceholder:
+      "Describe the vehicle's condition, history, features, and anything a buyer should know.",
+  },
+  home: {
+    basicsTitle: "Property basics",
+    titlePlaceholder: "Example: 3-bedroom home with a fenced yard",
+    descriptionLabel: "Property description",
+    descriptionPlaceholder:
+      "Describe the property, location, features, and anything a buyer or renter should know.",
+  },
+  job: {
+    basicsTitle: "Job basics",
+    titlePlaceholder: "Example: Front Desk Associate",
+    descriptionLabel: "Job description",
+    descriptionPlaceholder:
+      "Describe the role, day-to-day work, schedule, and what makes this opportunity a good fit.",
+  },
+  service: {
+    basicsTitle: "Service basics",
+    titlePlaceholder: "Example: Boise Home Works | Handyman services",
+    descriptionLabel: "Service description",
+    descriptionPlaceholder:
+      "Describe the service, what is included, where you work, and what customers should expect.",
+  },
+  pet: {
+    basicsTitle: "Pet basics",
+    titlePlaceholder: "Example: Golden Retriever puppies",
+    descriptionLabel: "Pet description",
+    descriptionPlaceholder:
+      "Describe the animal honestly, including temperament, care needs, and anything a new home should know.",
+  },
+};
+
 function optionalNumber(value: string) {
   return value.trim() ? Number(value) : null;
 }
@@ -136,11 +189,16 @@ export function ListingForm(props: ListingFormProps) {
     else if (next === "item" && !itemCategorySlugs.has(form.category)) set("category", "");
   }
 
-  const isVehicle = isMotorsCategory(form.category);
-  const isHome = isHomeCategory(form.category);
-  const isJob = isJobCategory(form.category);
-  const isService = isServiceCategory(form.category);
-  const isPet = isPetCategory(form.category);
+  // Keep the selected tab authoritative while a user is choosing its category.
+  // This lets the form become category-specific immediately instead of briefly
+  // showing the generic item form after switching to Vehicle or Pet.
+  const isVehicle = kind === "vehicle" || isMotorsCategory(form.category);
+  const isHome = kind === "home" || isHomeCategory(form.category);
+  const isJob = kind === "job" || isJobCategory(form.category);
+  const isService = kind === "service" || isServiceCategory(form.category);
+  const isPet = kind === "pet" || isPetCategory(form.category);
+  const hasSpecialDetails = isVehicle || isHome || isJob || isService || isPet;
+  const formCopy = listingTypeCopy[kind];
   const hidesCondition = isHome || isJob || isService;
   const hidesFulfillment = isHome || isJob || isService;
   const hidesPrice = isJob;
@@ -327,7 +385,7 @@ export function ListingForm(props: ListingFormProps) {
       </section>
 
       <section className="border border-border bg-card p-5 sm:p-6">
-        <SectionHeading number="1" title="Item basics" />
+        <SectionHeading number="1" title={formCopy.basicsTitle} />
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <label className="sm:col-span-2 text-[12px] font-medium">
             Title
@@ -337,7 +395,7 @@ export function ListingForm(props: ListingFormProps) {
               maxLength={120}
               value={form.title}
               onChange={(event) => set("title", event.target.value)}
-              placeholder="Example: 2019 Toyota Tacoma TRD Off-Road"
+              placeholder={formCopy.titlePlaceholder}
               className={fieldClass}
             />
           </label>
@@ -364,11 +422,6 @@ export function ListingForm(props: ListingFormProps) {
                   ))}
               </select>
             </label>
-          )}
-          {kind === "pet" && (
-            <div className="flex items-center rounded-md border border-primary/20 bg-primary/5 px-3 text-[12px] font-medium text-primary">
-              Pets
-            </div>
           )}
           {!hidesPrice && (
             <label className="text-[12px] font-medium">
@@ -406,7 +459,7 @@ export function ListingForm(props: ListingFormProps) {
             </label>
           )}
           <label className="text-[12px] font-medium sm:col-span-2">
-            Description
+            {formCopy.descriptionLabel}
             <textarea
               required
               minLength={20}
@@ -414,25 +467,26 @@ export function ListingForm(props: ListingFormProps) {
               rows={6}
               value={form.description}
               onChange={(event) => set("description", event.target.value)}
-              placeholder="Describe the listing honestly, including anything a buyer should know."
+              placeholder={formCopy.descriptionPlaceholder}
               className={textareaClass}
             />
           </label>
           <label className="text-[12px] font-medium sm:col-span-2">
-            Seller note <span className="font-normal text-muted-foreground">(optional)</span>
+            Additional listing notes{" "}
+            <span className="font-normal text-muted-foreground">(optional)</span>
             <textarea
               maxLength={500}
               rows={3}
               value={form.sellerNote}
               onChange={(event) => set("sellerNote", event.target.value)}
-              placeholder="Pickup instructions or other private-to-buyer notes"
+              placeholder="Pickup instructions, scheduling details, or other notes for interested members"
               className={textareaClass}
             />
           </label>
         </div>
       </section>
 
-      {(isVehicle || isHome || isJob || isService || isPet) && (
+      {hasSpecialDetails && (
         <section className="border border-border bg-card p-5 sm:p-6">
           <SectionHeading
             number="2"
@@ -459,10 +513,7 @@ export function ListingForm(props: ListingFormProps) {
       )}
 
       <section className="border border-border bg-card p-5 sm:p-6">
-        <SectionHeading
-          number={isVehicle || isHome || isJob || isService || isPet ? "3" : "2"}
-          title="Location"
-        />
+        <SectionHeading number={hasSpecialDetails ? "3" : "2"} title="Location" />
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <label className="text-[12px] font-medium">
             State
@@ -540,10 +591,7 @@ export function ListingForm(props: ListingFormProps) {
       </section>
 
       <section className="border border-border bg-card p-5 sm:p-6">
-        <SectionHeading
-          number={String((isVehicle || isHome || isJob || isService ? 3 : 2) + 1)}
-          title="Photos"
-        />
+        <SectionHeading number={String((hasSpecialDetails ? 3 : 2) + 1)} title="Photos" />
         {props.mode === "edit" && props.initial.imageUrls.length > 0 && (
           <div className="mt-3 flex gap-2 overflow-x-auto">
             {props.initial.imageUrls.map((url) => (

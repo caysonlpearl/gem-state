@@ -299,6 +299,51 @@ test("classified MVP contacts the seller while future checkout stays available",
   assert.match(stripeMarketplaceSource, /reconcileMyListingOfferCheckouts/);
 });
 
+test("post-a-listing uses category-specific basics, compensation, taxonomy, and pet controls", async () => {
+  for (const copy of [
+    "Item details",
+    "Vehicle basics",
+    "Property basics",
+    "Job basics",
+    "Service basics",
+    "Pet basics",
+    "Solid oak dining table",
+    "3-bedroom home with a fenced yard",
+    "Front Desk Associate",
+    "Boise Home Works",
+    "Golden Retriever puppies",
+  ]) {
+    assert.match(listingFormSource, new RegExp(copy.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")));
+  }
+  for (const category of [
+    "apparel-accessories",
+    "baby-kids",
+    "books-media",
+    "collectibles",
+    "crafts-hobbies",
+    "health-beauty",
+    "home-garden",
+    "jewelry-watches",
+    "musical-instruments",
+    "office-business",
+    "tickets-events",
+  ]) {
+    assert.match(configSource, new RegExp(category));
+  }
+  assert.match(jobFieldsSource, /Minimum commission \(%\)/);
+  assert.match(jobFieldsSource, /Minimum contract amount \(\$\)/);
+  assert.doesNotMatch(petFieldsSource, /Pet category/);
+  assert.match(petFieldsSource, /petSubcategoryForSelection/);
+  assert.match(petFieldsSource, /<select[\s\S]*Breed \/ variety/);
+  assert.match(petsConfigSource, /Horse/);
+  assert.match(petsConfigSource, /Livestock/);
+  assert.match(petsConfigSource, /Poultry/);
+  assert.match(
+    await read("supabase/migrations/20260921130000_expand_classified_item_categories.sql"),
+    /apparel-accessories/,
+  );
+});
+
 test("buyer inquiries are stored against the exact listing and shown to its seller", () => {
   assert.match(inquirySource, /create_listing_inquiry/);
   assert.match(inquirySource, /_listing_id: data\.listingId/);

@@ -1870,7 +1870,7 @@ function Browse() {
       {homeLanding && (
         <LandingListingsShowcase
           eyebrow="GemList Homes"
-          title={`${homeTab[0].toUpperCase()}${homeTab.slice(1)} listings`}
+          title={`${homeTab.charAt(0).toUpperCase()}${homeTab.slice(1)} listings`}
           action="Browse all homes"
           browseSearch={{
             category: "other-real-estate",
