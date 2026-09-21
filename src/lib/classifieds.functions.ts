@@ -593,6 +593,25 @@ const LISTING_SELECT =
   "pet_subcategory, pet_species, pet_breed, pet_name, pet_age, pet_sex, pet_placement_type, pet_offered_by, pet_hypoallergenic, pet_vaccinated, pet_spayed_neutered, pet_microchipped, pet_records_available, pet_good_with_kids, pet_good_with_dogs, pet_good_with_cats, pet_indoor_outdoor, pet_special_needs, pet_breeding_terms), " +
   "listing_media(storage_path, position)";
 
+// These exact records were created for release verification. Keep a public
+// read shield until the hosted database has applied the matching cleanup
+// migration; normal seller listings are unaffected.
+const RELEASE_QA_LISTING_NAMES = new Set([
+  "mvp test cordless drill",
+  "qa messaging test",
+  "resend delivery qa",
+  "qa pet listing - do not contact",
+]);
+
+function isReleaseQaListing(row: Record<string, unknown>) {
+  const product = row["products"] as { name?: unknown } | null;
+  return RELEASE_QA_LISTING_NAMES.has(
+    String(product?.name ?? "")
+      .trim()
+      .toLowerCase(),
+  );
+}
+
 /** PostgREST `or=` treats these as structural characters; escape them. */
 function escapeFilterValue(value: string) {
   return value.replace(/[\\,.()]/g, "\\$&");
@@ -1221,12 +1240,15 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
       return empty;
     }
 
+    const visibleRows = (rows ?? []).filter(
+      (row) => !isReleaseQaListing(row as unknown as Record<string, unknown>),
+    );
     const urlByPath = await signListingMedia(
-      (rows ?? []).flatMap((row) =>
+      visibleRows.flatMap((row) =>
         sortedMedia(row as unknown as Record<string, unknown>).slice(0, 1),
       ),
     );
-    const listings = (rows ?? []).map((row) =>
+    const listings = visibleRows.map((row) =>
       toCard(row as unknown as Record<string, unknown>, urlByPath),
     );
     const mockListings =
@@ -1276,7 +1298,7 @@ export const getClassifiedListing = createServerFn({ method: "GET" })
       .maybeSingle();
 
     if (error) console.error("getClassifiedListing failed", error.message);
-    if (!row) return null;
+    if (!row || isReleaseQaListing(row as unknown as Record<string, unknown>)) return null;
 
     const record = row as unknown as Record<string, unknown>;
     void import("@/integrations/supabase/client.server")
