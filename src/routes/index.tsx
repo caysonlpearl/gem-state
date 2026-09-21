@@ -45,6 +45,15 @@ const seeAll =
 
 const HOMEPAGE_ROW_SIZE = 4;
 
+const homepageCategoryHighlights = [
+  { slug: "furniture", name: "Furniture" },
+  { slug: "electronics", name: "Electronics" },
+  { slug: "tools-equipment", name: "Tools & Equipment" },
+  { slug: "outdoor-sporting", name: "Outdoor & Sporting" },
+  { slug: "farm-garden", name: "Farm & Garden" },
+  { slug: "general", name: "General" },
+] as const;
+
 type HomepageBrowseSearch = {
   allCategories?: boolean;
   category?: string;
@@ -159,7 +168,6 @@ function Home() {
   }, []);
 
   const motorCategories = classifiedCategories.filter((c) => c.group === "motors");
-  const generalCategories = classifiedCategories.filter((c) => c.group === "classifieds");
   const freshListings = home.recent.slice(0, HOMEPAGE_ROW_SIZE);
   const homeListings = home.recent.filter((listing) => listing.home);
   const jobListings = home.recent.filter((listing) => listing.job);
@@ -360,7 +368,7 @@ function Home() {
       <section className="mt-16">
         <h2 className="text-[26px] font-bold tracking-tight">Browse other classifieds</h2>
         <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-          {generalCategories.map((option) => (
+          {homepageCategoryHighlights.map((option) => (
             <Link
               key={option.slug}
               to="/browse"
@@ -371,9 +379,6 @@ function Home() {
                 <CategoryArtwork slug={option.slug} size={54} className="category-art--nav" />
               </span>
               <span className="block text-[13px] font-semibold">{option.name}</span>
-              <span className="mt-1 block text-[11.5px] text-muted-foreground">
-                {home.categoryCounts[option.slug] ?? 0} listings
-              </span>
             </Link>
           ))}
         </div>

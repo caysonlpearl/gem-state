@@ -109,6 +109,14 @@ const categoryArtwork = {
     src: "/category-icons/furniture.png",
     alt: "Dimensional teal lounge chair illustration",
   },
+  "apparel-accessories": {
+    src: "/category-icons/apparel-accessories.png",
+    alt: "Dimensional jean jacket illustration",
+  },
+  "baby-kids": {
+    src: "/category-icons/baby-kids.png",
+    alt: "Dimensional toy illustration",
+  },
   electronics: {
     src: "/category-icons/electronics.png",
     alt: "Dimensional smartphone illustration",
@@ -136,6 +144,18 @@ const categoryArtwork = {
   appliances: {
     src: "/category-icons/appliances.png",
     alt: "Dimensional countertop oven illustration",
+  },
+  collectibles: {
+    src: "/category-icons/collectibles.png",
+    alt: "Dimensional coin in a glass case illustration",
+  },
+  "crafts-hobbies": {
+    src: "/category-icons/crafts-hobbies.png",
+    alt: "Dimensional yarn ball illustration",
+  },
+  "health-beauty": {
+    src: "/category-icons/health-beauty.png",
+    alt: "Dimensional beauty tub with a green leaf illustration",
   },
   baby: {
     src: "/category-icons/baby.png",
@@ -181,6 +201,10 @@ const categoryArtwork = {
     src: "/category-icons/industrial.png",
     alt: "Dimensional yellow forklift illustration",
   },
+  "jewelry-watches": {
+    src: "/category-icons/jewelry-watches.png",
+    alt: "Dimensional necklace on a display illustration",
+  },
   jobs: {
     src: "/category-icons/jobs.png",
     alt: "Dimensional navy briefcase illustration",
@@ -197,6 +221,10 @@ const categoryArtwork = {
     src: "/category-icons/other-real-estate.png",
     alt: "Dimensional house and for-sale sign illustration",
   },
+  "office-business": {
+    src: "/category-icons/office-business.png",
+    alt: "Dimensional office organizer with plant and supplies illustration",
+  },
   pets: {
     src: "/category-icons/pets.png",
     alt: "Dimensional golden retriever puppy illustration",
@@ -204,6 +232,10 @@ const categoryArtwork = {
   services: {
     src: "/category-icons/services.png",
     alt: "Dimensional navy and amber adjustable wrench illustration",
+  },
+  "tickets-events": {
+    src: "/category-icons/tickets-events.png",
+    alt: "Dimensional event ticket illustration",
   },
   tickets: {
     src: "/category-icons/tickets.png",
