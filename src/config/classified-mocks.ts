@@ -144,6 +144,28 @@ export type ClassifiedServiceDetails = {
   reviews?: ClassifiedServiceReview[];
 };
 
+export type ClassifiedPetDetails = {
+  subcategory: string;
+  species: string;
+  breed: string | null;
+  name: string | null;
+  age: string | null;
+  sex: string | null;
+  placementType: string;
+  offeredBy: string;
+  hypoallergenic: string | null;
+  vaccinated: string | null;
+  spayedNeutered: string | null;
+  microchipped: string | null;
+  recordsAvailable: string | null;
+  goodWithKids: string | null;
+  goodWithDogs: string | null;
+  goodWithCats: string | null;
+  indoorOutdoor: string | null;
+  specialNeeds: string | null;
+  breedingTerms: string | null;
+};
+
 export type MockClassifiedListing = {
   id: string;
   listingNumber: string;
@@ -163,6 +185,7 @@ export type MockClassifiedListing = {
   description: string;
   postalCode: string;
   sellerNote: string;
+  pet?: ClassifiedPetDetails;
   home?: ClassifiedHomeDetails;
   job?: ClassifiedJobDetails;
   service?: ClassifiedServiceDetails;
@@ -327,6 +350,202 @@ const sellers = {
 } as const;
 
 export const mockClassifiedListings: MockClassifiedListing[] = [
+  {
+    id: "mock-pet-labrador-puppies",
+    listingNumber: "80787101",
+    title: "Friendly Labrador puppies",
+    productId: "mock-product-labrador-puppies",
+    productSlug: "friendly-labrador-puppies",
+    priceCents: 650_00,
+    city: "Boise",
+    state: "ID",
+    region: "Treasure Valley",
+    categorySlug: "pets",
+    categoryName: "Pets",
+    condition: "new",
+    fulfillmentMode: "local_pickup",
+    createdAt: "2026-09-18T17:30:00.000Z",
+    expiresAt: "2026-10-19T17:30:00.000Z",
+    description:
+      "Friendly Labrador puppies raised around children and household sounds. Vet records and a starter supply kit are included with each placement.",
+    postalCode: "83702",
+    sellerNote: "Meet by appointment in Boise during daylight hours.",
+    seller: sellers.stacie,
+    pet: {
+      subcategory: "dogs",
+      species: "Dogs",
+      breed: "Labrador Retriever",
+      name: null,
+      age: "Puppy",
+      sex: "Unknown / not disclosed",
+      placementType: "For sale",
+      offeredBy: "Owner",
+      hypoallergenic: "No",
+      vaccinated: "Yes",
+      spayedNeutered: "No",
+      microchipped: "No",
+      recordsAvailable: "Yes",
+      goodWithKids: "Yes",
+      goodWithDogs: "Yes",
+      goodWithCats: "Unknown",
+      indoorOutdoor: "Indoor / outdoor",
+      specialNeeds: "No",
+      breedingTerms: null,
+    },
+    images: [
+      {
+        url: image("photo-1552053831-71594a27632d", "Labrador puppy"),
+        alt: "Labrador puppy",
+      },
+    ],
+  },
+  {
+    id: "mock-pet-tabby-cats",
+    listingNumber: "80787102",
+    title: "Young tabby cats",
+    productId: "mock-product-tabby-cats",
+    productSlug: "young-tabby-cats",
+    priceCents: 125_00,
+    city: "Meridian",
+    state: "ID",
+    region: "Treasure Valley",
+    categorySlug: "pets",
+    categoryName: "Pets",
+    condition: "used_good",
+    fulfillmentMode: "local_pickup",
+    createdAt: "2026-09-17T15:10:00.000Z",
+    expiresAt: "2026-10-18T15:10:00.000Z",
+    description:
+      "Two friendly young tabby cats looking for calm indoor homes. They are social, litter trained, and can be placed together or separately.",
+    postalCode: "83642",
+    sellerNote: "Please bring a carrier for pickup in Meridian.",
+    seller: sellers.jenna,
+    pet: {
+      subcategory: "cats",
+      species: "Cats",
+      breed: "Domestic Shorthair",
+      name: null,
+      age: "Young",
+      sex: "Unknown / not disclosed",
+      placementType: "Adoption",
+      offeredBy: "Owner",
+      hypoallergenic: "No",
+      vaccinated: "Yes",
+      spayedNeutered: "Yes",
+      microchipped: "No",
+      recordsAvailable: "Yes",
+      goodWithKids: "Yes",
+      goodWithDogs: "Unknown",
+      goodWithCats: "Yes",
+      indoorOutdoor: "Indoor",
+      specialNeeds: "No",
+      breedingTerms: null,
+    },
+    images: [
+      {
+        url: image("photo-1519052537078-e6302a4968d4", "Young tabby cat"),
+        alt: "Young tabby cat",
+      },
+    ],
+  },
+  {
+    id: "mock-pet-cockatiels",
+    listingNumber: "80787103",
+    title: "Hand-fed cockatiels",
+    productId: "mock-product-cockatiels",
+    productSlug: "hand-fed-cockatiels",
+    priceCents: 225_00,
+    city: "Nampa",
+    state: "ID",
+    region: "Treasure Valley",
+    categorySlug: "pets",
+    categoryName: "Pets",
+    condition: "new",
+    fulfillmentMode: "local_pickup",
+    createdAt: "2026-09-16T18:45:00.000Z",
+    expiresAt: "2026-10-17T18:45:00.000Z",
+    description:
+      "Hand-fed cockatiels with friendly temperaments. Includes care notes and a small bag of their current food to help with the transition.",
+    postalCode: "83651",
+    sellerNote: "Nampa pickup by appointment; no shipping.",
+    seller: sellers.marcus,
+    pet: {
+      subcategory: "birds",
+      species: "Birds",
+      breed: "Cockatiel",
+      name: null,
+      age: "Young",
+      sex: "Unknown / not disclosed",
+      placementType: "For sale",
+      offeredBy: "Breeder",
+      hypoallergenic: "Unknown",
+      vaccinated: "Unknown",
+      spayedNeutered: "Unknown",
+      microchipped: "No",
+      recordsAvailable: "Yes",
+      goodWithKids: "Yes",
+      goodWithDogs: "Unknown",
+      goodWithCats: "Unknown",
+      indoorOutdoor: "Indoor",
+      specialNeeds: "No",
+      breedingTerms: null,
+    },
+    images: [
+      {
+        url: image("photo-1552728089-57cc54a126e7", "Cockatiel"),
+        alt: "Cockatiel",
+      },
+    ],
+  },
+  {
+    id: "mock-pet-aquarium-setup",
+    listingNumber: "80787104",
+    title: "Freshwater aquarium setup",
+    productId: "mock-product-aquarium-setup",
+    productSlug: "freshwater-aquarium-setup",
+    priceCents: 90_00,
+    city: "Eagle",
+    state: "ID",
+    region: "Treasure Valley",
+    categorySlug: "pets",
+    categoryName: "Pets",
+    condition: "used_good",
+    fulfillmentMode: "local_pickup",
+    createdAt: "2026-09-15T12:20:00.000Z",
+    expiresAt: "2026-10-16T12:20:00.000Z",
+    description:
+      "Freshwater aquarium setup with tank, filter, heater, and starter accessories. A practical option for a first-time fish keeper.",
+    postalCode: "83616",
+    sellerNote: "Eagle pickup; buyer should bring help for the tank.",
+    seller: sellers.marcus,
+    pet: {
+      subcategory: "fish",
+      species: "Fish",
+      breed: null,
+      name: null,
+      age: null,
+      sex: null,
+      placementType: "Supplies",
+      offeredBy: "Owner",
+      hypoallergenic: "Unknown",
+      vaccinated: "Unknown",
+      spayedNeutered: "Unknown",
+      microchipped: "No",
+      recordsAvailable: "No",
+      goodWithKids: "Yes",
+      goodWithDogs: "Unknown",
+      goodWithCats: "Unknown",
+      indoorOutdoor: "Indoor",
+      specialNeeds: "No",
+      breedingTerms: null,
+    },
+    images: [
+      {
+        url: image("photo-1520990269335-9271441d0f4c", "Freshwater aquarium"),
+        alt: "Freshwater aquarium",
+      },
+    ],
+  },
   {
     id: "mock-general-squishmallows",
     listingNumber: "80786961",

@@ -10,6 +10,7 @@ import {
   type ClassifiedFloorplan,
   type ClassifiedHomeDetails,
   type ClassifiedJobDetails,
+  type ClassifiedPetDetails,
   type ClassifiedServiceDetails,
 } from "@/config/classified-mocks";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -43,27 +44,7 @@ export type ClassifiedVehicle = {
   vin: string | null;
 };
 
-export type ClassifiedPet = {
-  subcategory: string;
-  species: string;
-  breed: string | null;
-  name: string | null;
-  age: string | null;
-  sex: string | null;
-  placementType: string;
-  offeredBy: string;
-  hypoallergenic: string | null;
-  vaccinated: string | null;
-  spayedNeutered: string | null;
-  microchipped: string | null;
-  recordsAvailable: string | null;
-  goodWithKids: string | null;
-  goodWithDogs: string | null;
-  goodWithCats: string | null;
-  indoorOutdoor: string | null;
-  specialNeeds: string | null;
-  breedingTerms: string | null;
-};
+export type ClassifiedPet = ClassifiedPetDetails;
 
 export type ClassifiedCard = {
   id: string;
@@ -887,7 +868,7 @@ function mockCard(listing: (typeof mockClassifiedListings)[number]): ClassifiedC
     isFeatured: false,
     imageUrl: listing.images[0]?.url ?? null,
     vehicle: null,
-    pet: null,
+    pet: listing.pet ?? null,
     home: listing.home ?? null,
     job: listing.job ?? null,
     service: listing.service ?? null,
@@ -959,6 +940,12 @@ function mockMatches(
     return false;
   if (data.priceMin != null && listing.priceCents < data.priceMin * 100) return false;
   if (data.priceMax != null && listing.priceCents > data.priceMax * 100) return false;
+  if (data.petSubcategory && listing.pet?.subcategory !== data.petSubcategory) return false;
+  if (data.petSpecies && listing.pet?.species !== data.petSpecies) return false;
+  if (data.petBreed && listing.pet?.breed !== data.petBreed) return false;
+  if (data.petPlacementType && listing.pet?.placementType !== data.petPlacementType) return false;
+  if (data.petOfferedBy && listing.pet?.offeredBy !== data.petOfferedBy) return false;
+  if (data.petSex && listing.pet?.sex !== data.petSex) return false;
   return true;
 }
 
