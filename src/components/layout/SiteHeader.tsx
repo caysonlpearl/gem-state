@@ -28,7 +28,7 @@ import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
  * redirect after the SSR pass.
  */
 const navLinkClass =
-  "inline-flex h-[104px] w-auto min-w-[164px] shrink-0 flex-row items-center justify-start gap-3 rounded-2xl px-4 text-left text-[12px] font-semibold leading-tight tracking-[-0.01em] text-foreground transition-[background-color,color,box-shadow] hover:bg-secondary hover:text-primary hover:shadow-md";
+  "inline-flex h-[112px] w-auto min-w-[164px] shrink-0 flex-row items-center justify-start gap-3 rounded-2xl px-4 text-left text-[12px] font-semibold leading-tight tracking-[-0.01em] text-foreground transition-[background-color,color,box-shadow] hover:bg-secondary hover:text-primary hover:shadow-md";
 
 const utilityLinkClass =
   "hidden h-9 items-center px-2.5 text-[12.5px] text-muted-foreground transition-colors hover:text-primary md:inline-flex";
@@ -288,7 +288,11 @@ export function SiteHeader() {
                 className={`${navLinkClass} w-[190px]`}
                 {...pinned}
               >
-                <CategoryArtwork slug="general" size={76} className="category-art--nav" />
+                <CategoryArtwork
+                  slug="general"
+                  size={88}
+                  className="category-art--nav category-art--header"
+                />
                 <span>Classifieds</span>
               </Link>
             </li>
@@ -300,7 +304,11 @@ export function SiteHeader() {
                   className={navLinkClass}
                   {...pinned}
                 >
-                  <CategoryArtwork slug={c.slug} size={76} className="category-art--nav" />
+                  <CategoryArtwork
+                    slug={c.slug}
+                    size={88}
+                    className="category-art--nav category-art--header"
+                  />
                   <span>{c.name}</span>
                 </Link>
               </li>

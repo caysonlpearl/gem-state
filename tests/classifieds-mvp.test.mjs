@@ -807,7 +807,7 @@ test("header categories show four primary destinations and a Classifieds control
   assert.match(headerSource, /Find your next local gem\./);
   assert.match(headerSource, /category\.description/);
   assert.match(headerSource, /size=\{42\}/);
-  assert.match(headerSource, /size=\{64\}/);
+  assert.match(headerSource, /size=\{88\}/);
 });
 
 test("all categories opens a labeled icon menu with KSL-style sections", () => {
@@ -824,7 +824,7 @@ test("all categories opens a labeled icon menu with KSL-style sections", () => {
   );
   assert.match(allCategoriesSource, /w-\[min\(1280px,calc\(100vw-2rem\)\)\]/);
   assert.match(allCategoriesSource, /xl:grid-cols-6/);
-  assert.match(headerSource, /w-auto min-w-\[158px\]/);
+  assert.match(headerSource, /w-auto min-w-\[164px\]/);
   assert.match(allCategoriesSource, /sm:gap-2/);
   assert.match(allCategoriesSource, /hover:bg-secondary/);
   for (const label of [
@@ -1074,7 +1074,7 @@ test("homes browse has a large landing hero and tab-specific filter views", () =
   ]) {
     assert.match(browseSource, new RegExp(row.replaceAll("$", "\\$")));
   }
-  assert.match(browseSource, /HomeShowcaseRows activeTab=\{homeTab\}/);
+  assert.match(browseSource, /LandingListingsShowcase/);
 });
 
 test("jobs browse has a landing hero and expanded local job filters", () => {

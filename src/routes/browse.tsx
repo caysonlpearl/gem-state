@@ -1736,7 +1736,6 @@ function Browse() {
             }
           />
           <GeneralClassifiedShowcase listings={result.listings} />
-          <HomepageShowcaseRows eyebrow="GemList Classifieds" rows={classifiedShowcaseRows} />
         </>
       )}
 
@@ -1778,10 +1777,24 @@ function Browse() {
         />
       )}
 
-      {pets && petLanding && <HomepageShowcaseRows eyebrow="GemList Pets" rows={petShowcaseRows} />}
+      {pets && petLanding && (
+        <LandingListingsShowcase
+          eyebrow="GemList Pets"
+          title="Latest pet listings"
+          action="Browse all pets"
+          browseSearch={{ category: "pets", petMode: "results" }}
+          listings={result.listings}
+        />
+      )}
 
       {motors && vehicleLanding && (
-        <HomepageShowcaseRows eyebrow="GemList Motors" rows={vehicleShowcaseRows} />
+        <LandingListingsShowcase
+          eyebrow="GemList Motors"
+          title="Latest vehicles"
+          action="Browse all vehicles"
+          browseSearch={{ group: "motors", vehicleMode: "results" }}
+          listings={result.listings}
+        />
       )}
 
       {motors && !vehicleLanding && (
@@ -1854,7 +1867,19 @@ function Browse() {
         />
       )}
 
-      {homeLanding && <HomeShowcaseRows activeTab={homeTab} />}
+      {homeLanding && (
+        <LandingListingsShowcase
+          eyebrow="GemList Homes"
+          title={`${homeTab[0].toUpperCase()}${homeTab.slice(1)} listings`}
+          action="Browse all homes"
+          browseSearch={{
+            category: "other-real-estate",
+            homeMode: "results",
+            homeTab,
+          }}
+          listings={result.listings}
+        />
+      )}
 
       {jobs && jobLanding && (
         <JobsLandingHero
@@ -1877,7 +1902,13 @@ function Browse() {
       )}
 
       {jobs && jobLanding && (
-        <HomepageShowcaseRows eyebrow="GemList Jobs" rows={jobsShowcaseRows} />
+        <LandingListingsShowcase
+          eyebrow="GemList Jobs"
+          title="Latest local jobs"
+          action="Browse all jobs"
+          browseSearch={{ category: "jobs", jobMode: "results" }}
+          listings={result.listings}
+        />
       )}
 
       {jobs && !jobLanding && (
@@ -1914,7 +1945,13 @@ function Browse() {
       )}
 
       {services && serviceLanding && (
-        <HomepageShowcaseRows eyebrow="GemList Services" rows={servicesShowcaseRows} />
+        <LandingListingsShowcase
+          eyebrow="GemList Services"
+          title="Latest local services"
+          action="Browse all services"
+          browseSearch={{ category: "services", serviceMode: "results" }}
+          listings={result.listings}
+        />
       )}
 
       {services && !serviceLanding && (
@@ -5236,6 +5273,74 @@ function GeneralClassifiedShowcase({ listings }: { listings: ClassifiedBrowseRes
         </section>
       ))}
     </div>
+  );
+}
+
+function LandingListingsShowcase({
+  eyebrow,
+  title,
+  action,
+  browseSearch,
+  listings,
+}: {
+  eyebrow: string;
+  title: string;
+  action: string;
+  browseSearch: Search;
+  listings: ClassifiedBrowseResult["listings"];
+}) {
+  const visibleListings = listings.slice(0, 8);
+
+  return (
+    <section
+      className="mt-10 sm:mt-14"
+      aria-labelledby={`${eyebrow}-${title}`.replaceAll(" ", "-").toLowerCase()}
+    >
+      <div className="mb-4 flex items-end justify-between gap-3 border-b border-border pb-3">
+        <div>
+          <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">{eyebrow}</p>
+          <h2
+            id={`${eyebrow}-${title}`.replaceAll(" ", "-").toLowerCase()}
+            className="mt-1 text-[22px] font-bold tracking-tight sm:text-[27px]"
+          >
+            {title}
+          </h2>
+        </div>
+        <Link
+          to="/browse"
+          search={browseSearch}
+          className="inline-flex shrink-0 items-center gap-1 text-[12px] font-bold text-primary hover:underline"
+        >
+          {action}
+          <ArrowRight size={14} aria-hidden="true" />
+        </Link>
+      </div>
+
+      {visibleListings.length > 0 ? (
+        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {visibleListings.map((listing) => (
+            <li key={listing.id} className="min-w-0">
+              <ListingCard listing={listing} />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <div className="rounded-2xl border border-border/70 bg-card px-5 py-10 text-center shadow-sm">
+          <p className="text-[14px] font-semibold">New listings are on the way.</p>
+          <p className="mx-auto mt-2 max-w-[46ch] text-[13px] leading-relaxed text-muted-foreground">
+            Browse the full category to see everything currently available in your area.
+          </p>
+          <Link
+            to="/browse"
+            search={browseSearch}
+            className="mt-5 inline-flex h-10 items-center rounded-full bg-primary px-4 text-[12px] font-semibold text-primary-foreground"
+          >
+            {action}
+            <ArrowRight size={14} className="ml-1" aria-hidden="true" />
+          </Link>
+        </div>
+      )}
+    </section>
   );
 }
 

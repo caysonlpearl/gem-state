@@ -213,6 +213,11 @@
     max-width: 100%;
   }
 
+  .category-art--header {
+    max-height: none;
+    max-width: none;
+  }
+
   .group:hover .category-art,
   .group:focus-visible .category-art {
     transform: translateY(-4px) rotate(-2deg) scale(1.04);
