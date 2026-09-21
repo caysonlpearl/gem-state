@@ -100,6 +100,7 @@ export function buildHome(form: ListingFormState): ClassifiedListingInput["home"
 export function buildJob(form: ListingFormState): ClassifiedListingInput["job"] | undefined {
   if (!isJobCategory(form.category)) return undefined;
   return {
+    category: form.jobCategory,
     employerName: form.employerName,
     employerAddress: form.employerAddress || undefined,
     payType: form.payType as NonNullable<ClassifiedListingInput["job"]>["payType"],
@@ -215,6 +216,7 @@ export function fromEditor(listing: ClassifiedListingEditor): ListingFormState {
     smokingPolicy: listing.home?.smoking ?? "",
     openHouse: listing.home?.openHouse ?? "",
 
+    jobCategory: listing.job?.category ?? "Other",
     employerName: listing.job?.employerName ?? "",
     employerAddress: listing.job?.employerAddress ?? "",
     payType: listing.job?.payType ?? "Hourly",

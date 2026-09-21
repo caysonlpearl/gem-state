@@ -990,7 +990,7 @@ test("browse filters remain complete inside the spacious drawer", () => {
   assert.match(browseSource, /setFiltersOpen\(false\)/);
 });
 
-test("vehicle browse uses a branded buy and eight-filter discovery hero", () => {
+test("vehicle browse uses a branded buy and category-accurate discovery filters", () => {
   assert.match(browseSource, /function VehicleBrowseHero/);
   assert.match(browseSource, /Find your next gem on wheels/);
   assert.match(browseSource, /setShowAllFilters/);
@@ -1012,15 +1012,7 @@ test("vehicle browse uses a branded buy and eight-filter discovery hero", () => 
   assert.match(browseSource, /selected\.includes\(optionValue\)/);
   assert.match(browseSource, /label: "Broken\/needs repairs"/);
   assert.doesNotMatch(browseSource, /vehicleConditionOptions[\s\S]*New, no tags/);
-  for (const label of [
-    "Make / model",
-    "Year",
-    "Price",
-    "Mileage",
-    "Body type",
-    "Seller type",
-    "Title type",
-  ]) {
+  for (const label of ["Make / model", "Year", "Price", "Mileage", "Body type", "Title type"]) {
     assert.match(browseSource, new RegExp(`"${label.replace(/[/.]/g, "\\$&")}"`));
   }
   assert.match(browseSource, /Buy/);
@@ -1056,14 +1048,13 @@ test("homes browse has a large landing hero and tab-specific filter views", () =
   assert.match(browseSource, /homeTabs/);
   for (const label of [
     "Square feet",
-    "Home builder",
-    "Construction type",
     "Acres",
-    "Seller type",
-    "Cats",
-    "Dogs",
-    "Home amenities",
-    "Community amenities",
+    "Heating",
+    "Cooling",
+    "Garage \/ parking",
+    "School district",
+    "Pet policy",
+    "Smoking policy",
     "Lease length",
   ]) {
     assert.match(browseSource, new RegExp(label));
@@ -1080,13 +1071,10 @@ test("homes browse has a large landing hero and tab-specific filter views", () =
     'label="Bedrooms" value={bedrooms} options={homeBedroomOptions} multi={false}',
     'label={activeTab === "rent" ? "Bathrooms" : "Bathrooms"} value={bathrooms} options={homeBathroomOptions} multi={false}',
     'label: "Square feet", options: homeSquareFeetOptions, multi: false',
-    'label: "Construction type", options: ["Any construction", "New construction", "Existing home"], multi: true',
     'label: "Acres", options: homeAcresOptions, multi: false',
-    'label: "Seller type", options: ["Any seller", "Owner", "Agent", "Builder"], multi: true',
-    'label: "Cats", options: ["Any cat policy", "Cats allowed", "Cats not allowed"], multi: false',
-    'label: "Dogs", options: ["Any dog policy", "Dogs allowed", "Dogs not allowed"], multi: false',
-    'label: "Home amenities", options: homeAmenitiesOptions, multi: true',
-    'label: "Community amenities", options: communityAmenitiesOptions, multi: true',
+    'label: "Heating", options: ["Any heating", "Forced air", "Gas", "Electric", "Heat pump", "Radiant"], multi: true',
+    'label: "Cooling", options: ["Any cooling", "Central air", "Window unit", "Evaporative", "Heat pump"], multi: true',
+    'label: "School district", options: ["Any district", "West Ada", "Boise", "Nampa", "Vallivue", "Twin Falls"], multi: true',
     'label: "Lease length", options: leaseLengthOptions, multi: false',
   ]) {
     assert.ok(
@@ -1095,14 +1083,15 @@ test("homes browse has a large landing hero and tab-specific filter views", () =
     );
   }
   for (const option of [
-    "<250",
     "10000+",
-    "< .10",
     "2.5+",
-    "Air Conditioning",
-    "WiFi in Common Areas",
+    "Built 2025 or newer",
+    "Forced air",
+    "Central air",
+    "Attached garage",
+    "Pets allowed",
+    "No smoking",
     "Month-to-month",
-    "24 Months or Less",
   ]) {
     assert.ok(browseSource.includes(option), `missing homes filter option: ${option}`);
   }
@@ -1134,7 +1123,7 @@ test("jobs browse has a landing hero and expanded local job filters", () => {
   assert.match(browseSource, /function JobsFilterPage/);
   assert.match(browseSource, /function JobChecklist/);
   assert.match(browseSource, /selected\.includes\(option\)/);
-  assert.match(browseSource, /next\.join\("\|"\)/);
+  assert.match(browseSource, /next\.join\("\|\|"\)/);
   assert.match(
     browseSource,
     /Find <span className="text-accent">local<\/span> work that fits your life/,
@@ -1157,7 +1146,7 @@ test("jobs browse has a landing hero and expanded local job filters", () => {
     "Job pay range",
     "Education level",
     "Years of experience",
-    "Photos / video",
+    "Photos",
     "Time on site",
   ]) {
     assert.match(browseSource, new RegExp(label));
@@ -1204,7 +1193,8 @@ test("services browse has a category-led landing page", () => {
   assert.match(browseSource, /What service are you looking for\?/);
   assert.match(browseSource, /Expand Your Search/);
   assert.match(browseSource, /Only show listings with photos/);
-  assert.match(browseSource, /Seller Type/);
+  assert.match(browseSource, /Service details/);
+  assert.match(browseSource, /Only show licensed providers/);
   assert.match(browseSource, /Time On Site/);
   assert.match(browseSource, /serviceMode: "results"/);
   assert.match(browseSource, /servicesShowcaseRows/);
@@ -1224,6 +1214,32 @@ test("services browse has a category-led landing page", () => {
   ]) {
     assert.match(browseSource, new RegExp(row));
   }
+});
+
+test("expanded category filters use normalized listing fields and server-side matching", () => {
+  for (const field of [
+    "home_acres",
+    "job_category",
+    "home_square_feet",
+    "job_pay_min",
+    "job_pay_max",
+    "service_area",
+    "service_license_number",
+    "pet_good_with_kids",
+  ]) {
+    assert.match(classifiedsFunctionsSource, new RegExp(field));
+  }
+  for (const mapping of [
+    "homeAcresMin: thresholdValue(search.homeAcres)",
+    "jobCategory: search.jobCategory",
+    'serviceLicenseRequired: search.serviceLicenseRequired === "true"',
+    "petGoodWithKids: search.petGoodWithKids",
+  ]) {
+    assert.match(browseSource, new RegExp(mapping.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  }
+  assert.doesNotMatch(browseSource, /label: "Home builder"/);
+  assert.doesNotMatch(browseSource, /label: "Construction type"/);
+  assert.doesNotMatch(browseSource, /label: "Seller type"/);
 });
 
 test("listing detail keeps a responsive photo gallery and floating action card", () => {

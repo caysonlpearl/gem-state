@@ -3,6 +3,20 @@ import type { ListingFormState } from "./types";
 
 const payTypes = ["Hourly", "Salary", "Commission", "Contract"] as const;
 const employmentTypes = ["Full-time", "Part-time", "Seasonal", "Contract", "Temporary"] as const;
+const jobCategories = [
+  "Accounting & Finance",
+  "Administrative",
+  "Architecture & Engineering",
+  "Automotive",
+  "Construction",
+  "Education",
+  "Healthcare",
+  "Hospitality",
+  "Human Resources",
+  "Information Technology",
+  "Retail",
+  "Other",
+] as const;
 
 const compensationCopy = {
   Hourly: {
@@ -51,6 +65,21 @@ export function JobFields({
 
   return (
     <div className="grid gap-4 sm:grid-cols-2">
+      <label className="text-[12px] font-medium">
+        Job category
+        <select
+          required
+          value={form.jobCategory}
+          onChange={(event) => set("jobCategory", event.target.value)}
+          className={fieldClass}
+        >
+          {jobCategories.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      </label>
       <label className="text-[12px] font-medium">
         Employer name
         <input

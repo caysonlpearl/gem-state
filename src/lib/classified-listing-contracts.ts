@@ -93,6 +93,7 @@ export const classifiedListingSchema = z
       .optional(),
     job: z
       .object({
+        category: z.string().trim().min(1).max(80),
         employerName: z.string().trim().min(1).max(120),
         employerAddress: z.string().trim().max(200).optional(),
         payType: z.enum(["Hourly", "Salary", "Commission", "Contract"]),

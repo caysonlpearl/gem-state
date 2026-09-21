@@ -55,6 +55,7 @@ export type ListingFormState = {
   openHouse: string;
 
   // Job
+  jobCategory: string;
   employerName: string;
   employerAddress: string;
   payType: string;
@@ -151,6 +152,7 @@ export const initialListingForm: ListingFormState = {
   smokingPolicy: "",
   openHouse: "",
 
+  jobCategory: "Other",
   employerName: "",
   employerAddress: "",
   payType: "Hourly",

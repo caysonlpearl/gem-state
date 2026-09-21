@@ -90,6 +90,15 @@ type Search = {
   page?: number | undefined;
   homeMode?: "landing" | "results" | undefined;
   homeTab?: HomeTab | undefined;
+  homeYearBuilt?: number | undefined;
+  homeHeating?: string | undefined;
+  homeCooling?: string | undefined;
+  homeGarageParking?: string | undefined;
+  homeYard?: string | undefined;
+  homeSchoolDistrict?: string | undefined;
+  homeAvailable?: string | undefined;
+  homePetsPolicy?: string | undefined;
+  homeSmokingPolicy?: string | undefined;
   jobMode?: JobMode | undefined;
   serviceMode?: ServiceMode | undefined;
   vehicleMode?: "landing" | "results" | undefined;
@@ -100,6 +109,16 @@ type Search = {
   petPlacementType?: string | undefined;
   petOfferedBy?: string | undefined;
   petSex?: string | undefined;
+  petAge?: string | undefined;
+  petHypoallergenic?: string | undefined;
+  petVaccinated?: string | undefined;
+  petSpayedNeutered?: string | undefined;
+  petMicrochipped?: string | undefined;
+  petRecordsAvailable?: string | undefined;
+  petGoodWithKids?: string | undefined;
+  petGoodWithDogs?: string | undefined;
+  petGoodWithCats?: string | undefined;
+  petIndoorOutdoor?: string | undefined;
   serviceSubcategory?: string | undefined;
   serviceExpandSearch?: string | undefined;
   servicePhotos?: string | undefined;
@@ -107,7 +126,12 @@ type Search = {
   serviceSellerType?: string | undefined;
   serviceCondition?: string | undefined;
   serviceTimeOnSite?: string | undefined;
+  serviceArea?: string | undefined;
+  serviceAvailability?: string | undefined;
+  serviceLicenseRequired?: string | undefined;
   jobCategory?: string | undefined;
+  jobEmployer?: string | undefined;
+  jobEmploymentType?: string | undefined;
   jobType?: string | undefined;
   jobPayType?: string | undefined;
   jobPayMin?: number | undefined;
@@ -162,6 +186,15 @@ const savedSearchFilterKeys: readonly (keyof Search)[] = [
   "sellerType",
   "homeTab",
   "homeMode",
+  "homeYearBuilt",
+  "homeHeating",
+  "homeCooling",
+  "homeGarageParking",
+  "homeYard",
+  "homeSchoolDistrict",
+  "homeAvailable",
+  "homePetsPolicy",
+  "homeSmokingPolicy",
   "jobMode",
   "serviceMode",
   "vehicleMode",
@@ -173,7 +206,12 @@ const savedSearchFilterKeys: readonly (keyof Search)[] = [
   "serviceSellerType",
   "serviceCondition",
   "serviceTimeOnSite",
+  "serviceArea",
+  "serviceAvailability",
+  "serviceLicenseRequired",
   "jobCategory",
+  "jobEmployer",
+  "jobEmploymentType",
   "jobType",
   "jobPayType",
   "jobPayMin",
@@ -205,6 +243,16 @@ const savedSearchFilterKeys: readonly (keyof Search)[] = [
   "petPlacementType",
   "petOfferedBy",
   "petSex",
+  "petAge",
+  "petHypoallergenic",
+  "petVaccinated",
+  "petSpayedNeutered",
+  "petMicrochipped",
+  "petRecordsAvailable",
+  "petGoodWithKids",
+  "petGoodWithDogs",
+  "petGoodWithCats",
+  "petIndoorOutdoor",
 ];
 
 type VehicleHeroFilter =
@@ -213,7 +261,6 @@ type VehicleHeroFilter =
   | "price"
   | "mileage"
   | "bodyStyle"
-  | "sellerType"
   | "titleStatus"
   | "location"
   | "condition"
@@ -240,11 +287,13 @@ const homeTabs: { value: HomeTab; label: string; eyebrow: string }[] = [
 
 const homePropertyTypes = [
   "Any property type",
-  "Single family",
+  "Single-family home",
   "Townhome",
   "Condo",
+  "Apartment",
+  "Duplex",
+  "Manufactured home",
   "Land",
-  "Multi-family",
 ];
 const homeBedroomOptions = [
   "Any bedrooms",
@@ -263,7 +312,6 @@ const homeBathroomOptions = [
 ];
 const homeSquareFeetOptions = [
   "Any",
-  "<250",
   "250+",
   "500+",
   "1000+",
@@ -276,7 +324,6 @@ const homeSquareFeetOptions = [
 ];
 const homeAcresOptions = [
   "Any",
-  "< .10",
   ".10+",
   ".20+",
   ".25+",
@@ -287,6 +334,14 @@ const homeAcresOptions = [
   "1.5+",
   "2+",
   "2.5+",
+];
+const homeYearBuiltOptions = [
+  "Any year",
+  "Built 2025 or newer",
+  "Built 2020 or newer",
+  "Built 2010 or newer",
+  "Built 2000 or newer",
+  "Built 1990 or newer",
 ];
 const homeAmenitiesOptions = [
   "Any",
@@ -367,7 +422,6 @@ const vehicleConditionOptions = [
   { value: "used_good", label: "Used good" },
   { value: "broken_needs_repairs", label: "Broken/needs repairs" },
 ] as const;
-const vehicleSellerTypeOptions = ["Private", "Dealer"] as const;
 const jobCategoryOptions = [
   "Any category",
   "Accounting & Finance",
@@ -386,13 +440,11 @@ const jobTypeOptions = [
   "Any job type",
   "Contract",
   "Full-time",
-  "Internships",
   "Part-time",
   "Seasonal",
   "Temporary",
-  "Weekend only",
 ] as const;
-const jobPayTypeOptions = ["All pay types", "Hourly", "Salary"] as const;
+const jobPayTypeOptions = ["All pay types", "Hourly", "Salary", "Commission", "Contract"] as const;
 const jobExperienceOptions = [
   "Any experience",
   "1–2 years",
@@ -1372,6 +1424,29 @@ function numberParam(search: Record<string, unknown>, key: string) {
   return Number.isFinite(value) && value >= 0 ? value : undefined;
 }
 
+function thresholdValue(value: string | undefined) {
+  const match = value?.match(/[0-9]+(?:\.[0-9]+)?/);
+  const parsed = match ? Number(match[0]) : undefined;
+  return parsed != null && Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function postedWindow(value: string | undefined): ClassifiedBrowseInput["postedWithin"] {
+  if (!value) return undefined;
+  if (value === "Last hour") return "hour";
+  if (value === "Last 24 hours") return "day";
+  if (value === "Last 7 days") return "week";
+  if (value === "Last 30 days") return "month";
+  return undefined;
+}
+
+function normalizedCondition(value: string | undefined) {
+  if (!value) return undefined;
+  if (value === "New") return "new_with_tags||new_without_tags";
+  if (value === "Used") return "used_excellent||used_good";
+  if (value === "Like new") return "used_excellent";
+  return value;
+}
+
 function inputFromSearch(search: Search): ClassifiedBrowseInput {
   return {
     q: search.q,
@@ -1382,7 +1457,7 @@ function inputFromSearch(search: Search): ClassifiedBrowseInput {
     region: search.region,
     city: search.city,
     postalCode: search.postalCode,
-    condition: search.condition,
+    condition: search.condition ?? normalizedCondition(search.serviceCondition),
     fulfillment: search.fulfillment,
     priceMin: search.priceMin,
     priceMax: search.priceMax,
@@ -1397,12 +1472,53 @@ function inputFromSearch(search: Search): ClassifiedBrowseInput {
     fuelType: search.fuelType,
     exteriorColor: search.exteriorColor,
     titleStatus: search.titleStatus,
+    homePropertyType: search.propertyType,
+    homeBedroomsMin: thresholdValue(search.bedrooms),
+    homeBathroomsMin: thresholdValue(search.bathrooms),
+    homeSquareFeetMin: thresholdValue(search.homeSquareFeet),
+    homeYearBuiltMin: search.homeYearBuilt,
+    homeAcresMin: thresholdValue(search.homeAcres),
+    homeHeating: search.homeHeating,
+    homeCooling: search.homeCooling,
+    homeGarageParking: search.homeGarageParking,
+    homeYard: search.homeYard,
+    homeSchoolDistrict: search.homeSchoolDistrict,
+    homeLeaseLength: search.leaseLength,
+    homeAvailable: search.homeAvailable,
+    homePetsPolicy: search.homePetsPolicy,
+    homeSmokingPolicy: search.homeSmokingPolicy,
+    jobCategory: search.jobCategory,
+    jobEmployer: search.jobEmployer,
+    jobEmploymentType: search.jobType,
+    jobPayType: search.jobPayType,
+    jobPayMin: search.jobPayMin,
+    jobPayMax: search.jobPayMax,
+    jobExperience: search.jobExperience,
+    jobEducation: search.jobEducation,
+    serviceSubcategory: search.serviceSubcategory,
+    serviceArea: search.serviceArea,
+    serviceAvailability: search.serviceAvailability,
+    serviceLicenseRequired: search.serviceLicenseRequired === "true" ? true : undefined,
+    postedWithin: postedWindow(
+      search.jobPosted ?? search.jobTimeOnSite ?? search.serviceTimeOnSite,
+    ),
+    hasPhotos: search.jobPhotos === "true" || search.servicePhotos === "true",
     petSubcategory: search.petSubcategory,
     petSpecies: search.petSpecies,
     petBreed: search.petBreed,
     petPlacementType: search.petPlacementType,
     petOfferedBy: search.petOfferedBy,
     petSex: search.petSex,
+    petAge: search.petAge,
+    petHypoallergenic: search.petHypoallergenic,
+    petVaccinated: search.petVaccinated,
+    petSpayedNeutered: search.petSpayedNeutered,
+    petMicrochipped: search.petMicrochipped,
+    petRecordsAvailable: search.petRecordsAvailable,
+    petGoodWithKids: search.petGoodWithKids,
+    petGoodWithDogs: search.petGoodWithDogs,
+    petGoodWithCats: search.petGoodWithCats,
+    petIndoorOutdoor: search.petIndoorOutdoor,
     sort: search.sort ?? "newest",
     page: search.page ?? 1,
   };
@@ -1470,7 +1586,12 @@ export const Route = createFileRoute("/browse")({
       serviceSellerType: stringParam(search, "serviceSellerType", 30),
       serviceCondition: stringParam(search, "serviceCondition", 30),
       serviceTimeOnSite: stringParam(search, "serviceTimeOnSite", 30),
+      serviceArea: stringParam(search, "serviceArea", 200),
+      serviceAvailability: stringParam(search, "serviceAvailability", 120),
+      serviceLicenseRequired: stringParam(search, "serviceLicenseRequired", 10),
       jobCategory: stringParam(search, "jobCategory", 60),
+      jobEmployer: stringParam(search, "jobEmployer", 120),
+      jobEmploymentType: stringParam(search, "jobEmploymentType", 40),
       jobType: stringParam(search, "jobType", 30),
       jobPayType: stringParam(search, "jobPayType", 30),
       jobPayMin: numberParam(search, "jobPayMin"),
@@ -1496,12 +1617,31 @@ export const Route = createFileRoute("/browse")({
       homeAmenities: stringParam(search, "homeAmenities", 600),
       communityAmenities: stringParam(search, "communityAmenities", 800),
       leaseLength: stringParam(search, "leaseLength", 30),
+      homeYearBuilt: numberParam(search, "homeYearBuilt"),
+      homeHeating: stringParam(search, "homeHeating", 80),
+      homeCooling: stringParam(search, "homeCooling", 80),
+      homeGarageParking: stringParam(search, "homeGarageParking", 120),
+      homeYard: stringParam(search, "homeYard", 120),
+      homeSchoolDistrict: stringParam(search, "homeSchoolDistrict", 120),
+      homeAvailable: stringParam(search, "homeAvailable", 60),
+      homePetsPolicy: stringParam(search, "homePetsPolicy", 120),
+      homeSmokingPolicy: stringParam(search, "homeSmokingPolicy", 60),
       petSubcategory: stringParam(search, "petSubcategory", 80),
       petSpecies: stringParam(search, "petSpecies", 40),
       petBreed: stringParam(search, "petBreed", 100),
       petPlacementType: stringParam(search, "petPlacementType", 30),
       petOfferedBy: stringParam(search, "petOfferedBy", 30),
       petSex: stringParam(search, "petSex", 30),
+      petAge: stringParam(search, "petAge", 60),
+      petHypoallergenic: stringParam(search, "petHypoallergenic", 20),
+      petVaccinated: stringParam(search, "petVaccinated", 20),
+      petSpayedNeutered: stringParam(search, "petSpayedNeutered", 20),
+      petMicrochipped: stringParam(search, "petMicrochipped", 20),
+      petRecordsAvailable: stringParam(search, "petRecordsAvailable", 20),
+      petGoodWithKids: stringParam(search, "petGoodWithKids", 20),
+      petGoodWithDogs: stringParam(search, "petGoodWithDogs", 20),
+      petGoodWithCats: stringParam(search, "petGoodWithCats", 20),
+      petIndoorOutdoor: stringParam(search, "petIndoorOutdoor", 30),
     };
   },
   head: () => ({
@@ -1663,6 +1803,16 @@ function Browse() {
       petPlacementType: nextPets ? value("petPlacementType") : undefined,
       petOfferedBy: nextPets ? value("petOfferedBy") : undefined,
       petSex: nextPets ? value("petSex") : undefined,
+      petAge: nextPets ? value("petAge") : undefined,
+      petHypoallergenic: nextPets ? value("petHypoallergenic") : undefined,
+      petVaccinated: nextPets ? value("petVaccinated") : undefined,
+      petSpayedNeutered: nextPets ? value("petSpayedNeutered") : undefined,
+      petMicrochipped: nextPets ? value("petMicrochipped") : undefined,
+      petRecordsAvailable: nextPets ? value("petRecordsAvailable") : undefined,
+      petGoodWithKids: nextPets ? value("petGoodWithKids") : undefined,
+      petGoodWithDogs: nextPets ? value("petGoodWithDogs") : undefined,
+      petGoodWithCats: nextPets ? value("petGoodWithCats") : undefined,
+      petIndoorOutdoor: nextPets ? value("petIndoorOutdoor") : undefined,
     };
   }
 
@@ -2299,6 +2449,46 @@ function Browse() {
                                 {option}
                               </option>
                             ))}
+                          </select>
+                          <input
+                            name="petAge"
+                            defaultValue={search.petAge ?? ""}
+                            placeholder="Age or age range"
+                            className="filter-input"
+                            maxLength={60}
+                          />
+                          {[
+                            ["petHypoallergenic", "Hypoallergenic"],
+                            ["petVaccinated", "Vaccinated"],
+                            ["petSpayedNeutered", "Spayed / neutered"],
+                            ["petMicrochipped", "Microchipped"],
+                            ["petRecordsAvailable", "Records available"],
+                            ["petGoodWithKids", "Good with children"],
+                            ["petGoodWithDogs", "Good with dogs"],
+                            ["petGoodWithCats", "Good with cats"],
+                          ].map(([name, label]) => (
+                            <select
+                              key={name}
+                              name={name}
+                              defaultValue={search[name as keyof Search] as string | undefined}
+                              className="filter-input"
+                            >
+                              <option value="">Any {label.toLowerCase()}</option>
+                              <option value="Yes">Yes</option>
+                              <option value="No">No</option>
+                              <option value="Unknown">Unknown</option>
+                            </select>
+                          ))}
+                          <select
+                            name="petIndoorOutdoor"
+                            defaultValue={search.petIndoorOutdoor ?? ""}
+                            className="filter-input"
+                          >
+                            <option value="">Any indoor / outdoor</option>
+                            <option value="Indoor">Indoor</option>
+                            <option value="Outdoor">Outdoor</option>
+                            <option value="Indoor / outdoor">Indoor / outdoor</option>
+                            <option value="Unknown">Unknown</option>
                           </select>
                         </FilterSection>
                       )}
@@ -5910,8 +6100,9 @@ function ServicesFilterPage({
   const [priceMax, setPriceMax] = useState(search.priceMax == null ? "" : String(search.priceMax));
   const [expandSearch, setExpandSearch] = useState(search.serviceExpandSearch === "true");
   const [photos, setPhotos] = useState(search.servicePhotos === "true");
-  const [video, setVideo] = useState(search.serviceVideo === "true");
-  const [sellerType, setSellerType] = useState(search.serviceSellerType ?? "");
+  const [area, setArea] = useState(search.serviceArea ?? "");
+  const [availability, setAvailability] = useState(search.serviceAvailability ?? "");
+  const [licenseRequired, setLicenseRequired] = useState(search.serviceLicenseRequired === "true");
   const [condition, setCondition] = useState(search.serviceCondition ?? "");
   const [timeOnSite, setTimeOnSite] = useState(search.serviceTimeOnSite ?? "");
 
@@ -5922,8 +6113,9 @@ function ServicesFilterPage({
     setPriceMax(search.priceMax == null ? "" : String(search.priceMax));
     setExpandSearch(search.serviceExpandSearch === "true");
     setPhotos(search.servicePhotos === "true");
-    setVideo(search.serviceVideo === "true");
-    setSellerType(search.serviceSellerType ?? "");
+    setArea(search.serviceArea ?? "");
+    setAvailability(search.serviceAvailability ?? "");
+    setLicenseRequired(search.serviceLicenseRequired === "true");
     setCondition(search.serviceCondition ?? "");
     setTimeOnSite(search.serviceTimeOnSite ?? "");
   }, [search]);
@@ -5940,8 +6132,9 @@ function ServicesFilterPage({
       priceMax: numberValue(priceMax),
       serviceExpandSearch: expandSearch ? "true" : undefined,
       servicePhotos: photos ? "true" : undefined,
-      serviceVideo: video ? "true" : undefined,
-      serviceSellerType: sellerType || undefined,
+      serviceArea: area.trim() || undefined,
+      serviceAvailability: availability.trim() || undefined,
+      serviceLicenseRequired: licenseRequired ? "true" : undefined,
       serviceCondition: condition || undefined,
       serviceTimeOnSite: timeOnSite || undefined,
     };
@@ -5951,12 +6144,7 @@ function ServicesFilterPage({
     onApply(currentPatch());
   }
 
-  // priceMin/priceMax already filter server-side via inputFromSearch; only
-  // subcategory needs a client-side pass since it has no matching field on
-  // ClassifiedBrowseInput.
-  const filteredListings = listings.filter(
-    (listing) => !subcategory || listing.service?.subcategory === subcategory,
-  );
+  const filteredListings = listings;
   const sortedListings = [...filteredListings].sort((a, b) => {
     if (search.sort === "price_high") return b.priceCents - a.priceCents;
     if (search.sort === "price_low") return a.priceCents - b.priceCents;
@@ -6077,31 +6265,31 @@ function ServicesFilterPage({
                 onChange={setExpandSearch}
               />
             </ServiceFilterGroup>
-            <ServiceFilterGroup title="Photos/Video">
+            <ServiceFilterGroup title="Photos">
               <ServiceToggle
                 label="Only show listings with photos"
                 checked={photos}
                 onChange={setPhotos}
               />
-              <ServiceToggle
-                label="Only show listings with a video"
-                checked={video}
-                onChange={setVideo}
-              />
             </ServiceFilterGroup>
-            <ServiceFilterGroup title="Seller Type">
-              <div className="space-y-2">
-                {["Private", "Business"].map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    onClick={() => setSellerType(sellerType === option ? "" : option)}
-                    className={`h-10 w-full rounded-lg border px-3 text-[12px] font-bold ${sellerType === option ? "border-primary bg-primary text-primary-foreground" : "border-primary text-primary hover:bg-secondary"}`}
-                  >
-                    {option}
-                  </button>
-                ))}
-              </div>
+            <ServiceFilterGroup title="Service details">
+              <input
+                value={area}
+                onChange={(event) => setArea(event.target.value)}
+                placeholder="Service area"
+                className="filter-input"
+              />
+              <input
+                value={availability}
+                onChange={(event) => setAvailability(event.target.value)}
+                placeholder="Availability or schedule"
+                className="filter-input"
+              />
+              <ServiceToggle
+                label="Only show licensed providers"
+                checked={licenseRequired}
+                onChange={setLicenseRequired}
+              />
             </ServiceFilterGroup>
             <ServiceFilterGroup title="Condition" initiallyOpen={false}>
               <ServiceOptionSelect
@@ -6173,6 +6361,9 @@ function ServicesFilterPage({
                   onApply({
                     q: undefined,
                     serviceSubcategory: undefined,
+                    serviceArea: undefined,
+                    serviceAvailability: undefined,
+                    serviceLicenseRequired: undefined,
                     priceMin: undefined,
                     priceMax: undefined,
                   })
@@ -6435,6 +6626,7 @@ function JobsFilterPage({
   const [showAll, setShowAll] = useState(true);
   const [term, setTerm] = useState(search.q ?? "");
   const [category, setCategory] = useState(search.jobCategory ?? "");
+  const [employer, setEmployer] = useState(search.jobEmployer ?? "");
   const [jobType, setJobType] = useState(search.jobType ?? "");
   const [payType, setPayType] = useState(search.jobPayType ?? "");
   const [payMin, setPayMin] = useState(search.jobPayMin == null ? "" : String(search.jobPayMin));
@@ -6443,12 +6635,12 @@ function JobsFilterPage({
   const [posted, setPosted] = useState(search.jobPosted ?? "");
   const [education, setEducation] = useState(search.jobEducation ?? "");
   const [photos, setPhotos] = useState(search.jobPhotos === "true");
-  const [video, setVideo] = useState(search.jobVideo === "true");
   const [timeOnSite, setTimeOnSite] = useState(search.jobTimeOnSite ?? "");
 
   useEffect(() => {
     setTerm(search.q ?? "");
     setCategory(search.jobCategory ?? "");
+    setEmployer(search.jobEmployer ?? "");
     setJobType(search.jobType ?? "");
     setPayType(search.jobPayType ?? "");
     setPayMin(search.jobPayMin == null ? "" : String(search.jobPayMin));
@@ -6457,7 +6649,6 @@ function JobsFilterPage({
     setPosted(search.jobPosted ?? "");
     setEducation(search.jobEducation ?? "");
     setPhotos(search.jobPhotos === "true");
-    setVideo(search.jobVideo === "true");
     setTimeOnSite(search.jobTimeOnSite ?? "");
   }, [search]);
 
@@ -6469,6 +6660,7 @@ function JobsFilterPage({
     return {
       q: term.trim() || undefined,
       jobCategory: category || undefined,
+      jobEmployer: employer.trim() || undefined,
       jobType: jobType || undefined,
       jobPayType: payType || undefined,
       jobPayMin: numberValue(payMin),
@@ -6477,7 +6669,6 @@ function JobsFilterPage({
       jobPosted: posted || undefined,
       jobEducation: education || undefined,
       jobPhotos: photos ? "true" : undefined,
-      jobVideo: video ? "true" : undefined,
       jobTimeOnSite: timeOnSite || undefined,
     };
   }
@@ -6486,13 +6677,7 @@ function JobsFilterPage({
     onApply(currentPatch());
   }
 
-  const filteredListings = listings
-    .filter((listing) => !search.jobType || listing.job?.employmentType === search.jobType)
-    .filter((listing) => !search.jobPayType || listing.job?.payType === search.jobPayType)
-    .filter((listing) => search.jobPayMin == null || (listing.job?.payMax ?? 0) >= search.jobPayMin)
-    .filter(
-      (listing) => search.jobPayMax == null || (listing.job?.payMin ?? 0) <= search.jobPayMax,
-    );
+  const filteredListings = listings;
   const sortedListings = [...filteredListings].sort((a, b) => {
     if (search.sort === "price_high") return b.priceCents - a.priceCents;
     if (search.sort === "price_low") return a.priceCents - b.priceCents;
@@ -6593,6 +6778,14 @@ function JobsFilterPage({
                 onChange={setCategory}
               />
             </JobFilterGroup>
+            <JobFilterGroup title="Employer">
+              <input
+                value={employer}
+                onChange={(event) => setEmployer(event.target.value)}
+                placeholder="Company or employer"
+                className="filter-input"
+              />
+            </JobFilterGroup>
             <JobFilterGroup title="Job type">
               <JobChecklist
                 label="Job type"
@@ -6650,16 +6843,11 @@ function JobsFilterPage({
                 />
               </div>
             </JobFilterGroup>
-            <JobFilterGroup title="Photos / video">
+            <JobFilterGroup title="Photos">
               <JobToggle
                 label="Only show listings with photos"
                 checked={photos}
                 onChange={setPhotos}
-              />
-              <JobToggle
-                label="Only show listings with a video"
-                checked={video}
-                onChange={setVideo}
               />
             </JobFilterGroup>
             <JobFilterGroup title="Time on site">
@@ -6798,7 +6986,7 @@ function JobChecklist({
     const next = selected.includes(option)
       ? selected.filter((item) => item !== option)
       : [...selected, option];
-    onChange(next.join("|"));
+    onChange(next.join("||"));
   }
 
   return (
@@ -6907,14 +7095,14 @@ function HomesFilterPage({
   const [bathrooms, setBathrooms] = useState(search.bathrooms ?? "");
   const [extra, setExtra] = useState<Record<string, string>>({
     homeSquareFeet: search.homeSquareFeet ?? "",
-    homeBuilder: search.homeBuilder ?? "",
-    constructionType: search.constructionType ?? "",
     homeAcres: search.homeAcres ?? "",
-    homeSellerType: search.homeSellerType ?? "",
-    petsCats: search.petsCats ?? "",
-    petsDogs: search.petsDogs ?? "",
-    homeAmenities: search.homeAmenities ?? "",
-    communityAmenities: search.communityAmenities ?? "",
+    homeYearBuilt: search.homeYearBuilt == null ? "" : String(search.homeYearBuilt),
+    homeHeating: search.homeHeating ?? "",
+    homeCooling: search.homeCooling ?? "",
+    homeGarageParking: search.homeGarageParking ?? "",
+    homeSchoolDistrict: search.homeSchoolDistrict ?? "",
+    homePetsPolicy: search.homePetsPolicy ?? "",
+    homeSmokingPolicy: search.homeSmokingPolicy ?? "",
     leaseLength: search.leaseLength ?? "",
   });
 
@@ -6924,6 +7112,18 @@ function HomesFilterPage({
     setHomePrice(search.homePrice ?? "");
     setBedrooms(search.bedrooms ?? "");
     setBathrooms(search.bathrooms ?? "");
+    setExtra({
+      homeSquareFeet: search.homeSquareFeet ?? "",
+      homeAcres: search.homeAcres ?? "",
+      homeYearBuilt: search.homeYearBuilt == null ? "" : String(search.homeYearBuilt),
+      homeHeating: search.homeHeating ?? "",
+      homeCooling: search.homeCooling ?? "",
+      homeGarageParking: search.homeGarageParking ?? "",
+      homeSchoolDistrict: search.homeSchoolDistrict ?? "",
+      homePetsPolicy: search.homePetsPolicy ?? "",
+      homeSmokingPolicy: search.homeSmokingPolicy ?? "",
+      leaseLength: search.leaseLength ?? "",
+    });
   }, [
     search.homeLocation,
     search.q,
@@ -6931,6 +7131,16 @@ function HomesFilterPage({
     search.propertyType,
     search.bedrooms,
     search.bathrooms,
+    search.homeYearBuilt,
+    search.homeHeating,
+    search.homeCooling,
+    search.homeGarageParking,
+    search.homeSchoolDistrict,
+    search.homePetsPolicy,
+    search.homeSmokingPolicy,
+    search.homeAcres,
+    search.homeSquareFeet,
+    search.leaseLength,
   ]);
 
   const extraFields =
@@ -6943,9 +7153,27 @@ function HomesFilterPage({
             multi: false,
           },
           {
-            key: "homeBuilder",
-            label: "Home builder",
-            options: ["Any builder", "Local builders", "National builders"],
+            key: "homeYearBuilt",
+            label: "Year built",
+            options: homeYearBuiltOptions,
+            multi: false,
+          },
+          {
+            key: "homeHeating",
+            label: "Heating",
+            options: ["Any heating", "Forced air", "Gas", "Electric", "Heat pump", "Radiant"],
+            multi: true,
+          },
+          {
+            key: "homeCooling",
+            label: "Cooling",
+            options: ["Any cooling", "Central air", "Window unit", "Evaporative", "Heat pump"],
+            multi: true,
+          },
+          {
+            key: "homeGarageParking",
+            label: "Garage / parking",
+            options: ["Any parking", "Attached garage", "Detached garage", "Carport", "No garage"],
             multi: true,
           },
         ]
@@ -6958,43 +7186,55 @@ function HomesFilterPage({
               multi: false,
             },
             {
-              key: "constructionType",
-              label: "Construction type",
-              options: ["Any construction", "New construction", "Existing home"],
-              multi: true,
+              key: "homeYearBuilt",
+              label: "Year built",
+              options: homeYearBuiltOptions,
+              multi: false,
             },
             { key: "homeAcres", label: "Acres", options: homeAcresOptions, multi: false },
             {
-              key: "homeSellerType",
-              label: "Seller type",
-              options: ["Any seller", "Owner", "Agent", "Builder"],
+              key: "homeHeating",
+              label: "Heating",
+              options: ["Any heating", "Forced air", "Gas", "Electric", "Heat pump", "Radiant"],
+              multi: true,
+            },
+            {
+              key: "homeCooling",
+              label: "Cooling",
+              options: ["Any cooling", "Central air", "Window unit", "Evaporative", "Heat pump"],
+              multi: true,
+            },
+            {
+              key: "homeGarageParking",
+              label: "Garage / parking",
+              options: [
+                "Any parking",
+                "Attached garage",
+                "Detached garage",
+                "Carport",
+                "No garage",
+              ],
+              multi: true,
+            },
+            {
+              key: "homeSchoolDistrict",
+              label: "School district",
+              options: ["Any district", "West Ada", "Boise", "Nampa", "Vallivue", "Twin Falls"],
               multi: true,
             },
           ]
         : [
             {
-              key: "petsCats",
-              label: "Cats",
-              options: ["Any cat policy", "Cats allowed", "Cats not allowed"],
+              key: "homePetsPolicy",
+              label: "Pet policy",
+              options: ["Any pet policy", "Cats", "Dogs", "Pets allowed", "No pets"],
               multi: false,
             },
             {
-              key: "petsDogs",
-              label: "Dogs",
-              options: ["Any dog policy", "Dogs allowed", "Dogs not allowed"],
+              key: "homeSmokingPolicy",
+              label: "Smoking policy",
+              options: ["Any smoking policy", "No smoking", "Smoking allowed"],
               multi: false,
-            },
-            {
-              key: "homeAmenities",
-              label: "Home amenities",
-              options: homeAmenitiesOptions,
-              multi: true,
-            },
-            {
-              key: "communityAmenities",
-              label: "Community amenities",
-              options: communityAmenitiesOptions,
-              multi: true,
             },
             {
               key: "leaseLength",
@@ -7008,14 +7248,33 @@ function HomesFilterPage({
               options: homeSquareFeetOptions,
               multi: false,
             },
+            {
+              key: "homeHeating",
+              label: "Heating",
+              options: ["Any heating", "Forced air", "Gas", "Electric", "Heat pump", "Radiant"],
+              multi: true,
+            },
+            {
+              key: "homeCooling",
+              label: "Cooling",
+              options: ["Any cooling", "Central air", "Window unit", "Evaporative", "Heat pump"],
+              multi: true,
+            },
           ];
 
   function currentPatch(): Partial<Search> {
+    const [minPrice, maxPrice] = homePrice.split("||");
+    const parsedPrice = (value: string | undefined) => {
+      const parsed = Number(value);
+      return value && Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
+    };
     return {
       q: location.trim() || undefined,
       homeLocation: location.trim() || undefined,
       propertyType: propertyType || undefined,
       homePrice: homePrice || undefined,
+      priceMin: parsedPrice(minPrice),
+      priceMax: parsedPrice(maxPrice),
       bedrooms: bedrooms || undefined,
       bathrooms: bathrooms || undefined,
       ...Object.fromEntries(extraFields.map(({ key }) => [key, extra[key] || undefined])),
@@ -7309,7 +7568,7 @@ function HomeMultiSelectControl({
 }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const selected = value ? value.split("||").filter(Boolean) : [];
+  const selected = value ? value.split(/\|{1,2}/).filter(Boolean) : [];
   const visibleSelected = multi ? selected : selected.slice(0, 1);
   const summary =
     visibleSelected.length === 0
@@ -7413,7 +7672,6 @@ function VehicleResultsPage({
     splitVehicleFilter(search.mileageBands)[0] ?? "",
   );
   const [bodyStyle, setBodyStyle] = useState(search.bodyStyle ?? "");
-  const [sellerType, setSellerType] = useState(search.sellerType ?? "");
   const [condition, setCondition] = useState(search.condition ?? "");
   const [fulfillment, setFulfillment] = useState(search.fulfillment ?? "");
   const [drivetrain, setDrivetrain] = useState(search.drivetrain ?? "");
@@ -7437,7 +7695,6 @@ function VehicleResultsPage({
     setPriceMax(search.priceMax == null ? "" : String(search.priceMax));
     setMileageBands(splitVehicleFilter(search.mileageBands)[0] ?? "");
     setBodyStyle(search.bodyStyle ?? "");
-    setSellerType(search.sellerType ?? "");
     setCondition(search.condition ?? "");
     setFulfillment(search.fulfillment ?? "");
     setDrivetrain(search.drivetrain ?? "");
@@ -7474,7 +7731,6 @@ function VehicleResultsPage({
       priceMax: numberValue(priceMax),
       mileageBands: mileageBands || undefined,
       bodyStyle: bodyStyle || undefined,
-      sellerType: sellerType || undefined,
       condition: condition || undefined,
       fulfillment: fulfillment || undefined,
       drivetrain: drivetrain || undefined,
@@ -7636,14 +7892,6 @@ function VehicleResultsPage({
                 value={bodyStyle}
                 options={vehicleOptions.bodyStyles}
                 onChange={setBodyStyle}
-              />
-            </VehicleFilterGroup>
-            <VehicleFilterGroup title="Seller type">
-              <VehicleCheckboxList
-                label="Seller type"
-                value={sellerType}
-                options={vehicleSellerTypeOptions}
-                onChange={setSellerType}
               />
             </VehicleFilterGroup>
             <VehicleFilterGroup title="Condition">
@@ -8002,7 +8250,6 @@ function VehicleBrowseHero({
       ),
     },
     { key: "bodyStyle", label: selectedSummary(search.bodyStyle, "Body type") },
-    { key: "sellerType", label: selectedSummary(search.sellerType, "Seller type") },
     { key: "titleStatus", label: selectedSummary(search.titleStatus, "Title type") },
   ];
   const additionalFilters: { key: VehicleHeroFilter; label: string }[] = [
@@ -8124,15 +8371,6 @@ function VehicleBrowseHero({
               { value: "both", label: "Pickup or shipping" },
             ]}
             onApply={(value) => applyInlineFilter({ fulfillment: value })}
-          />
-        );
-      case "sellerType":
-        return (
-          <InlineMultiFilter
-            label="Seller type"
-            value={search.sellerType}
-            options={vehicleSellerTypeOptions}
-            onApply={(value) => applyInlineFilter({ sellerType: value })}
           />
         );
     }
@@ -8672,7 +8910,6 @@ function countActiveFilters(search: Search, motors: boolean, pets: boolean) {
       "fuelType",
       "exteriorColor",
       "titleStatus",
-      "sellerType",
     );
   if (pets)
     keys.push(
@@ -8682,6 +8919,16 @@ function countActiveFilters(search: Search, motors: boolean, pets: boolean) {
       "petPlacementType",
       "petOfferedBy",
       "petSex",
+      "petAge",
+      "petHypoallergenic",
+      "petVaccinated",
+      "petSpayedNeutered",
+      "petMicrochipped",
+      "petRecordsAvailable",
+      "petGoodWithKids",
+      "petGoodWithDogs",
+      "petGoodWithCats",
+      "petIndoorOutdoor",
     );
   return keys.filter((key) => search[key] !== undefined && search[key] !== "").length;
 }
@@ -8723,6 +8970,14 @@ function activeFilterLabels(search: Search, motors: boolean, pets: boolean) {
       );
     if (search.petOfferedBy) labels.push(search.petOfferedBy);
     if (search.petSex) labels.push(search.petSex);
+    if (search.petAge) labels.push(search.petAge);
+    if (search.petHypoallergenic === "Yes") labels.push("Hypoallergenic");
+    if (search.petVaccinated === "Yes") labels.push("Vaccinated");
+    if (search.petSpayedNeutered === "Yes") labels.push("Spayed / neutered");
+    if (search.petMicrochipped === "Yes") labels.push("Microchipped");
+    if (search.petGoodWithKids === "Yes") labels.push("Good with children");
+    if (search.petGoodWithDogs === "Yes") labels.push("Good with dogs");
+    if (search.petGoodWithCats === "Yes") labels.push("Good with cats");
   }
   return labels;
 }

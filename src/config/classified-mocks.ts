@@ -20,6 +20,7 @@ export type ClassifiedHomeDetails = {
   bathrooms: number | null;
   squareFeet: number | null;
   yearBuilt?: number | null;
+  acres?: number | null;
   available?: string | null;
   pets?: string | null;
   smoking?: string | null;
@@ -110,6 +111,7 @@ export const homeCommunities: Record<string, ClassifiedHomeCommunity> = {
 };
 
 export type ClassifiedJobDetails = {
+  category?: string | null;
   employerName: string;
   employerAddress?: string | null;
   payType: "Hourly" | "Salary" | "Commission" | "Contract";
@@ -1226,6 +1228,7 @@ const baseMockClassifiedListings: MockClassifiedListing[] = [
     sellerNote: "Weekend availability required. Message Craig with your availability.",
     seller: sellers.craig,
     job: {
+      category: "Hospitality",
       employerName: "Twilite Lounge",
       employerAddress: "Boise, ID 83702",
       payType: "Hourly",
@@ -1278,6 +1281,7 @@ const baseMockClassifiedListings: MockClassifiedListing[] = [
       "No dental experience required, front office or customer service experience helpful.",
     seller: sellers.meridianDental,
     job: {
+      category: "Healthcare",
       employerName: "Meridian Family Dental",
       employerAddress: "Meridian, ID 83642",
       payType: "Hourly",
@@ -1329,6 +1333,7 @@ const baseMockClassifiedListings: MockClassifiedListing[] = [
     sellerNote: "Steel-toed boots required on day one. Forklift certification provided on the job.",
     seller: sellers.gemStateLogistics,
     job: {
+      category: "Retail",
       employerName: "Gem State Logistics",
       employerAddress: "Nampa, ID 83651",
       payType: "Salary",

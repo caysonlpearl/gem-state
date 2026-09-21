@@ -568,8 +568,8 @@ const LISTING_SELECT =
   "id, product_id, variant_id, seller_id, price_cents, currency, item_condition, seller_note, created_at, expires_at, featured_until, promoted_at, ranking_at, " +
   "products!inner(id, slug, name, description, status, category_id, categories(slug, name)), " +
   "classified_listing_details!inner(region, city, state, postal_code, fulfillment_mode, vehicle_make, vehicle_model, vehicle_year, vehicle_trim, vehicle_mileage, vehicle_body_style, vehicle_transmission, vehicle_drivetrain, vehicle_fuel_type, vehicle_exterior_color, vehicle_title_status, vin, " +
-  "home_mode, home_property_type, home_bedrooms, home_bathrooms, home_square_feet, home_year_built, home_acreage, home_heating, home_cooling, home_garage_parking, home_yard, home_appliances_included, home_floor_coverings, home_basement_type, home_exterior_material, home_special_features, home_hoa_fees, home_school_district, home_lease_length, home_available, home_pets_policy, home_smoking_policy, home_open_house, " +
-  "job_employer_name, job_employer_address, job_pay_type, job_pay_min, job_pay_max, job_employment_type, job_experience_required, job_education_level, job_responsibilities, job_qualifications, " +
+  "home_mode, home_property_type, home_bedrooms, home_bathrooms, home_square_feet, home_year_built, home_acreage, home_acres, home_heating, home_cooling, home_garage_parking, home_yard, home_appliances_included, home_floor_coverings, home_basement_type, home_exterior_material, home_special_features, home_hoa_fees, home_school_district, home_lease_length, home_available, home_pets_policy, home_smoking_policy, home_open_house, " +
+  "job_category, job_employer_name, job_employer_address, job_pay_type, job_pay_min, job_pay_max, job_employment_type, job_experience_required, job_education_level, job_responsibilities, job_qualifications, " +
   "service_subcategory, service_area, service_availability, service_business_address, service_license_number, service_license_lookup_url, service_offerings, " +
   "pet_subcategory, pet_species, pet_breed, pet_name, pet_age, pet_sex, pet_placement_type, pet_offered_by, pet_hypoallergenic, pet_vaccinated, pet_spayed_neutered, pet_microchipped, pet_records_available, pet_good_with_kids, pet_good_with_dogs, pet_good_with_cats, pet_indoor_outdoor, pet_special_needs, pet_breeding_terms), " +
   "listing_media(storage_path, position)";
@@ -603,6 +603,25 @@ function applyReferencedFilter(query: any, field: string, values: string[]) {
   return query.or(values.map((value) => `${field}.eq.${escapeFilterValue(value)}`).join(","), {
     referencedTable: "classified_listing_details",
   });
+}
+
+function applyReferencedContains(query: any, field: string, value: string) {
+  return query.ilike(`classified_listing_details.${field}`, `%${escapeLikeValue(value)}%`);
+}
+
+function applyReferencedContainsAny(query: any, field: string, value: string) {
+  const values = filterValues(value);
+  if (values.length <= 1) return applyReferencedContains(query, field, values[0] ?? value);
+  return query.or(
+    values.map((item) => `${field}.ilike.*${escapeFilterValue(escapeLikeValue(item))}*`).join(","),
+    { referencedTable: "classified_listing_details" },
+  );
+}
+
+function postedSince(value: ClassifiedBrowseInput["postedWithin"]) {
+  if (!value) return undefined;
+  const hours = value === "hour" ? 1 : value === "day" ? 24 : value === "week" ? 24 * 7 : 24 * 30;
+  return new Date(Date.now() - hours * 60 * 60 * 1000).toISOString();
 }
 
 function vehicleOf(details: Record<string, unknown>): ClassifiedVehicle | null {
@@ -673,6 +692,7 @@ function homeOf(details: Record<string, unknown>): ClassifiedHomeDetails | null 
     bathrooms: bathrooms == null ? null : Number(bathrooms),
     squareFeet: (details["home_square_feet"] as number | null) ?? null,
     yearBuilt: (details["home_year_built"] as number | null) ?? null,
+    acres: (details["home_acres"] as number | null) ?? null,
     acreage: (details["home_acreage"] as string | null) ?? null,
     heating: (details["home_heating"] as string | null) ?? null,
     cooling: (details["home_cooling"] as string | null) ?? null,
@@ -700,6 +720,7 @@ function jobOf(details: Record<string, unknown>, description: string): Classifie
   if (!employerName || !payType || !employmentType) return null;
   const qualifications = details["job_qualifications"] as string[] | null;
   return {
+    category: (details["job_category"] as string | null) ?? null,
     employerName,
     employerAddress: (details["job_employer_address"] as string | null) ?? null,
     payType: payType as ClassifiedJobDetails["payType"],
@@ -940,12 +961,95 @@ function mockMatches(
     return false;
   if (data.priceMin != null && listing.priceCents < data.priceMin * 100) return false;
   if (data.priceMax != null && listing.priceCents > data.priceMax * 100) return false;
+  if (
+    data.homePropertyType &&
+    !filterValues(data.homePropertyType).includes(listing.home?.propertyType ?? "")
+  )
+    return false;
+  if (data.homeBedroomsMin != null && (listing.home?.bedrooms ?? -1) < data.homeBedroomsMin)
+    return false;
+  if (data.homeBathroomsMin != null && (listing.home?.bathrooms ?? -1) < data.homeBathroomsMin)
+    return false;
+  if (data.homeSquareFeetMin != null && (listing.home?.squareFeet ?? -1) < data.homeSquareFeetMin)
+    return false;
+  if (data.homeYearBuiltMin != null && (listing.home?.yearBuilt ?? -1) < data.homeYearBuiltMin)
+    return false;
+  const matchesAnyText = (actual: string | null | undefined, value: string | undefined) =>
+    !value ||
+    filterValues(value).some((item) => actual?.toLowerCase().includes(item.toLowerCase()));
+  if (!matchesAnyText(listing.home?.heating, data.homeHeating)) return false;
+  if (!matchesAnyText(listing.home?.cooling, data.homeCooling)) return false;
+  if (!matchesAnyText(listing.home?.garageParking, data.homeGarageParking)) return false;
+  if (!matchesAnyText(listing.home?.yard, data.homeYard)) return false;
+  if (!matchesAnyText(listing.home?.schoolDistrict, data.homeSchoolDistrict)) return false;
+  if (!matchesAnyText(listing.home?.leaseLength, data.homeLeaseLength)) return false;
+  if (!matchesAnyText(listing.home?.available, data.homeAvailable)) return false;
+  if (!matchesAnyText(listing.home?.pets, data.homePetsPolicy)) return false;
+  if (!matchesAnyText(listing.home?.smoking, data.homeSmokingPolicy)) return false;
+  if (data.homeAcresMin != null) {
+    const acres = Number(listing.home?.acreage?.match(/[0-9]+(?:\.[0-9]+)?/)?.[0] ?? NaN);
+    if (!Number.isFinite(acres) || acres < data.homeAcresMin) return false;
+  }
+  if (data.jobCategory && !filterValues(data.jobCategory).includes(listing.job?.category ?? ""))
+    return false;
+  if (
+    data.jobEmployer &&
+    !listing.job?.employerName.toLowerCase().includes(data.jobEmployer.toLowerCase())
+  )
+    return false;
+  if (data.jobPayType && !filterValues(data.jobPayType).includes(listing.job?.payType ?? ""))
+    return false;
+  if (
+    data.jobEmploymentType &&
+    !filterValues(data.jobEmploymentType).includes(listing.job?.employmentType ?? "")
+  )
+    return false;
+  if (data.jobPayMin != null && (listing.job?.payMax ?? 0) < data.jobPayMin) return false;
+  if (data.jobPayMax != null && (listing.job?.payMin ?? 0) > data.jobPayMax) return false;
+  if (
+    data.jobExperience &&
+    !listing.job?.experienceRequired?.toLowerCase().includes(data.jobExperience.toLowerCase())
+  )
+    return false;
+  if (
+    data.jobEducation &&
+    !listing.job?.educationLevel?.toLowerCase().includes(data.jobEducation.toLowerCase())
+  )
+    return false;
+  if (
+    data.serviceSubcategory &&
+    !listing.service?.subcategory.toLowerCase().includes(data.serviceSubcategory.toLowerCase())
+  )
+    return false;
+  if (!matchesAnyText(listing.service?.serviceArea, data.serviceArea)) return false;
+  if (!matchesAnyText(listing.service?.availability, data.serviceAvailability)) return false;
+  if (data.serviceLicenseRequired && !listing.service?.licenseNumber) return false;
+  if (data.hasPhotos && listing.images.length === 0) return false;
+  if (data.postedWithin) {
+    const createdAfter = postedSince(data.postedWithin);
+    if (createdAfter && listing.createdAt < createdAfter) return false;
+  }
   if (data.petSubcategory && listing.pet?.subcategory !== data.petSubcategory) return false;
   if (data.petSpecies && listing.pet?.species !== data.petSpecies) return false;
   if (data.petBreed && listing.pet?.breed !== data.petBreed) return false;
   if (data.petPlacementType && listing.pet?.placementType !== data.petPlacementType) return false;
   if (data.petOfferedBy && listing.pet?.offeredBy !== data.petOfferedBy) return false;
   if (data.petSex && listing.pet?.sex !== data.petSex) return false;
+  if (data.petAge && !listing.pet?.age?.toLowerCase().includes(data.petAge.toLowerCase()))
+    return false;
+  for (const [value, actual] of [
+    [data.petHypoallergenic, listing.pet?.hypoallergenic],
+    [data.petVaccinated, listing.pet?.vaccinated],
+    [data.petSpayedNeutered, listing.pet?.spayedNeutered],
+    [data.petMicrochipped, listing.pet?.microchipped],
+    [data.petRecordsAvailable, listing.pet?.recordsAvailable],
+    [data.petGoodWithKids, listing.pet?.goodWithKids],
+    [data.petGoodWithDogs, listing.pet?.goodWithDogs],
+    [data.petGoodWithCats, listing.pet?.goodWithCats],
+    [data.petIndoorOutdoor, listing.pet?.indoorOutdoor],
+  ] as const) {
+    if (value && actual !== value) return false;
+  }
   return true;
 }
 
@@ -955,6 +1059,35 @@ export type ClassifiedBrowseInput = {
   q?: string | undefined;
   category?: string | undefined;
   homeTab?: "buy" | "rent" | "build" | undefined;
+  homePropertyType?: string | undefined;
+  homeBedroomsMin?: number | undefined;
+  homeBathroomsMin?: number | undefined;
+  homeSquareFeetMin?: number | undefined;
+  homeYearBuiltMin?: number | undefined;
+  homeAcresMin?: number | undefined;
+  homeHeating?: string | undefined;
+  homeCooling?: string | undefined;
+  homeGarageParking?: string | undefined;
+  homeYard?: string | undefined;
+  homeSchoolDistrict?: string | undefined;
+  homeLeaseLength?: string | undefined;
+  homeAvailable?: string | undefined;
+  homePetsPolicy?: string | undefined;
+  homeSmokingPolicy?: string | undefined;
+  jobCategory?: string | undefined;
+  jobEmployer?: string | undefined;
+  jobPayType?: string | undefined;
+  jobEmploymentType?: string | undefined;
+  jobPayMin?: number | undefined;
+  jobPayMax?: number | undefined;
+  jobExperience?: string | undefined;
+  jobEducation?: string | undefined;
+  serviceSubcategory?: string | undefined;
+  serviceArea?: string | undefined;
+  serviceAvailability?: string | undefined;
+  serviceLicenseRequired?: boolean | undefined;
+  postedWithin?: "hour" | "day" | "week" | "month" | undefined;
+  hasPhotos?: boolean | undefined;
   group?: string | undefined;
   region?: string | undefined;
   state?: string | undefined;
@@ -982,6 +1115,16 @@ export type ClassifiedBrowseInput = {
   petPlacementType?: string | undefined;
   petOfferedBy?: string | undefined;
   petSex?: string | undefined;
+  petAge?: string | undefined;
+  petHypoallergenic?: string | undefined;
+  petVaccinated?: string | undefined;
+  petSpayedNeutered?: string | undefined;
+  petMicrochipped?: string | undefined;
+  petRecordsAvailable?: string | undefined;
+  petGoodWithKids?: string | undefined;
+  petGoodWithDogs?: string | undefined;
+  petGoodWithCats?: string | undefined;
+  petIndoorOutdoor?: string | undefined;
   sort?: "newest" | "price_low" | "price_high" | "mileage_low" | undefined;
   page?: number | undefined;
 };
@@ -991,7 +1134,7 @@ const text = (value: unknown, max = 80) =>
 const escapeLikeValue = (value: string) => value.replace(/[\\%_]/g, "\\$&");
 const filterValues = (value: string | undefined) =>
   value
-    ?.split("||")
+    ?.split(/\|{1,2}/)
     .map((item) => item.trim())
     .filter(Boolean) ?? [];
 const num = (value: unknown) => {
@@ -1007,6 +1150,37 @@ export const browseClassifieds = createServerFn({ method: "GET" })
       input?.homeTab === "buy" || input?.homeTab === "rent" || input?.homeTab === "build"
         ? input.homeTab
         : undefined,
+    homePropertyType: text(input?.homePropertyType, 120),
+    homeBedroomsMin: num(input?.homeBedroomsMin),
+    homeBathroomsMin: num(input?.homeBathroomsMin),
+    homeSquareFeetMin: num(input?.homeSquareFeetMin),
+    homeYearBuiltMin: num(input?.homeYearBuiltMin),
+    homeAcresMin: num(input?.homeAcresMin),
+    homeHeating: text(input?.homeHeating, 80),
+    homeCooling: text(input?.homeCooling, 80),
+    homeGarageParking: text(input?.homeGarageParking, 120),
+    homeYard: text(input?.homeYard, 120),
+    homeSchoolDistrict: text(input?.homeSchoolDistrict, 120),
+    homeLeaseLength: text(input?.homeLeaseLength, 60),
+    homeAvailable: text(input?.homeAvailable, 60),
+    homePetsPolicy: text(input?.homePetsPolicy, 120),
+    homeSmokingPolicy: text(input?.homeSmokingPolicy, 60),
+    jobCategory: text(input?.jobCategory, 80),
+    jobEmployer: text(input?.jobEmployer, 120),
+    jobPayType: text(input?.jobPayType, 80),
+    jobEmploymentType: text(input?.jobEmploymentType, 120),
+    jobPayMin: num(input?.jobPayMin),
+    jobPayMax: num(input?.jobPayMax),
+    jobExperience: text(input?.jobExperience, 80),
+    jobEducation: text(input?.jobEducation, 80),
+    serviceSubcategory: text(input?.serviceSubcategory, 100),
+    serviceArea: text(input?.serviceArea, 200),
+    serviceAvailability: text(input?.serviceAvailability, 120),
+    serviceLicenseRequired: input?.serviceLicenseRequired === true ? true : undefined,
+    postedWithin: ["hour", "day", "week", "month"].includes(input?.postedWithin as never)
+      ? input.postedWithin
+      : undefined,
+    hasPhotos: input?.hasPhotos === true ? true : undefined,
     group: text(input?.group, 20),
     region: text(input?.region),
     state: text(input?.state, 2)?.toUpperCase(),
@@ -1037,6 +1211,16 @@ export const browseClassifieds = createServerFn({ method: "GET" })
     petPlacementType: text(input?.petPlacementType, 30),
     petOfferedBy: text(input?.petOfferedBy, 30),
     petSex: text(input?.petSex, 30),
+    petAge: text(input?.petAge, 60),
+    petHypoallergenic: text(input?.petHypoallergenic, 20),
+    petVaccinated: text(input?.petVaccinated, 20),
+    petSpayedNeutered: text(input?.petSpayedNeutered, 20),
+    petMicrochipped: text(input?.petMicrochipped, 20),
+    petRecordsAvailable: text(input?.petRecordsAvailable, 20),
+    petGoodWithKids: text(input?.petGoodWithKids, 20),
+    petGoodWithDogs: text(input?.petGoodWithDogs, 20),
+    petGoodWithCats: text(input?.petGoodWithCats, 20),
+    petIndoorOutdoor: text(input?.petIndoorOutdoor, 30),
     sort: (["newest", "price_low", "price_high", "mileage_low"] as const).includes(
       input?.sort as never,
     )
@@ -1150,6 +1334,63 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     }
     if (data.priceMin != null) query = query.gte("price_cents", Math.round(data.priceMin * 100));
     if (data.priceMax != null) query = query.lte("price_cents", Math.round(data.priceMax * 100));
+    if (data.homeTab && data.category === "other-real-estate")
+      query = applyReferencedFilter(query, "home_mode", [data.homeTab]);
+    for (const [value, column] of [[data.homePropertyType, "home_property_type"]] as const) {
+      const values = filterValues(value);
+      if (values.length > 0) query = applyReferencedFilter(query, column, values);
+    }
+    if (data.homeBedroomsMin != null)
+      query = query.gte("classified_listing_details.home_bedrooms", data.homeBedroomsMin);
+    if (data.homeBathroomsMin != null)
+      query = query.gte("classified_listing_details.home_bathrooms", data.homeBathroomsMin);
+    if (data.homeSquareFeetMin != null)
+      query = query.gte("classified_listing_details.home_square_feet", data.homeSquareFeetMin);
+    if (data.homeYearBuiltMin != null)
+      query = query.gte("classified_listing_details.home_year_built", data.homeYearBuiltMin);
+    if (data.homeAcresMin != null)
+      query = query.gte("classified_listing_details.home_acres", data.homeAcresMin);
+    for (const [value, column] of [
+      [data.homeHeating, "home_heating"],
+      [data.homeCooling, "home_cooling"],
+      [data.homeGarageParking, "home_garage_parking"],
+      [data.homeYard, "home_yard"],
+      [data.homeSchoolDistrict, "home_school_district"],
+      [data.homeLeaseLength, "home_lease_length"],
+      [data.homeAvailable, "home_available"],
+      [data.homePetsPolicy, "home_pets_policy"],
+      [data.homeSmokingPolicy, "home_smoking_policy"],
+    ] as const) {
+      if (value) query = applyReferencedContainsAny(query, column, value);
+    }
+    for (const [value, column] of [
+      [data.jobCategory, "job_category"],
+      [data.jobPayType, "job_pay_type"],
+      [data.jobEmploymentType, "job_employment_type"],
+    ] as const) {
+      const values = filterValues(value);
+      if (values.length > 0) query = applyReferencedFilter(query, column, values);
+    }
+    if (data.jobEmployer)
+      query = applyReferencedContains(query, "job_employer_name", data.jobEmployer);
+    if (data.jobExperience)
+      query = applyReferencedContains(query, "job_experience_required", data.jobExperience);
+    if (data.jobEducation)
+      query = applyReferencedContains(query, "job_education_level", data.jobEducation);
+    if (data.jobPayMin != null)
+      query = query.gte("classified_listing_details.job_pay_max", data.jobPayMin);
+    if (data.jobPayMax != null)
+      query = query.lte("classified_listing_details.job_pay_min", data.jobPayMax);
+    if (data.serviceSubcategory)
+      query = applyReferencedContains(query, "service_subcategory", data.serviceSubcategory);
+    if (data.serviceArea) query = applyReferencedContains(query, "service_area", data.serviceArea);
+    if (data.serviceAvailability)
+      query = applyReferencedContains(query, "service_availability", data.serviceAvailability);
+    if (data.serviceLicenseRequired)
+      query = query.not("classified_listing_details.service_license_number", "is", null);
+    if (data.hasPhotos) query = query.gt("public_media_count", 0);
+    const createdAfter = postedSince(data.postedWithin);
+    if (createdAfter) query = query.gte("created_at", createdAfter);
     if (data.make) {
       const makes = filterValues(data.make);
       if (makes.length > 0) query = applyReferencedFilter(query, "vehicle_make", makes);
@@ -1187,10 +1428,20 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
       [data.petPlacementType, "pet_placement_type"],
       [data.petOfferedBy, "pet_offered_by"],
       [data.petSex, "pet_sex"],
+      [data.petHypoallergenic, "pet_hypoallergenic"],
+      [data.petVaccinated, "pet_vaccinated"],
+      [data.petSpayedNeutered, "pet_spayed_neutered"],
+      [data.petMicrochipped, "pet_microchipped"],
+      [data.petRecordsAvailable, "pet_records_available"],
+      [data.petGoodWithKids, "pet_good_with_kids"],
+      [data.petGoodWithDogs, "pet_good_with_dogs"],
+      [data.petGoodWithCats, "pet_good_with_cats"],
+      [data.petIndoorOutdoor, "pet_indoor_outdoor"],
     ] as const) {
       const values = filterValues(value);
       if (values.length > 0) query = applyReferencedFilter(query, column, values);
     }
+    if (data.petAge) query = applyReferencedContains(query, "pet_age", data.petAge);
 
     // Featured listings always appear before standard results. Within each
     // group, the selected browse sort still applies.
