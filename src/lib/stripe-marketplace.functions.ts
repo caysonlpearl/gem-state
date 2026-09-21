@@ -36,10 +36,10 @@ type ParcelDimensions = {
   weight: number;
 };
 
-const parkVaultCheckoutBranding: Stripe.Checkout.SessionCreateParams.BrandingSettings = {
-  display_name: "ParkVault",
-  background_color: "#14544a",
-  button_color: "#c8601f",
+const gemStateCheckoutBranding: Stripe.Checkout.SessionCreateParams.BrandingSettings = {
+  display_name: "Gem State Classifieds",
+  background_color: "#f3eae0",
+  button_color: "#14544b",
   border_style: "rounded",
 };
 
@@ -370,7 +370,7 @@ async function createCheckout(params: {
       // Itemized credit notes keep receipt reductions and Stripe tax reports aligned.
       // User-approved post-payment invoice fee applies only to Park Shopper orders.
       ...(params.purpose === "sourcing" ? { invoice_creation: { enabled: true } } : {}),
-      branding_settings: parkVaultCheckoutBranding,
+      branding_settings: gemStateCheckoutBranding,
       customer: customer.id,
       customer_update: { address: "never", name: "never", shipping: "never" },
       line_items: [
@@ -1173,7 +1173,7 @@ export const startSourcingTipCheckout = createServerFn({ method: "POST" })
     };
     const tipParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
-      branding_settings: parkVaultCheckoutBranding,
+      branding_settings: gemStateCheckoutBranding,
       ...(customerEmail(context) ? { customer_email: customerEmail(context) as string } : {}),
       line_items: [
         {
@@ -1312,7 +1312,7 @@ export const startSourcingBalanceCheckout = createServerFn({ method: "POST" })
     );
     const proposedParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
-      branding_settings: parkVaultCheckoutBranding,
+      branding_settings: gemStateCheckoutBranding,
       customer: taxCustomer.id,
       line_items: [
         {

@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- upgrade tables are added by the linked migration */
 import { getRequest } from "@tanstack/react-start/server";
 import { createServerFn } from "@tanstack/react-start";
+import type Stripe from "stripe";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import {
@@ -30,6 +31,13 @@ export type ListingUpgradePurchase = {
   receiptUrl: string | null;
   paidAt: string | null;
   createdAt: string;
+};
+
+const gemStateCheckoutBranding: Stripe.Checkout.SessionCreateParams.BrandingSettings = {
+  display_name: "Gem State Classifieds",
+  background_color: "#f3eae0",
+  button_color: "#14544b",
+  border_style: "rounded",
 };
 
 function option(row: any): ListingUpgradeOption {
@@ -196,6 +204,7 @@ export const createListingUpgradeCheckout = createServerFn({ method: "POST" })
       const session = await getStripe().checkout.sessions.create(
         {
           mode: "payment",
+          branding_settings: gemStateCheckoutBranding,
           line_items: [
             {
               quantity: 1,

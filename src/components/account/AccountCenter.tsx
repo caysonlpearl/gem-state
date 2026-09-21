@@ -1308,7 +1308,7 @@ function SettingsSection({
           <SettingLine label="Account ID" value={account.userId.slice(0, 8) + "…"} />
         </SettingsBlock>
         <SettingsBlock icon={LockKey} title="Security">
-          <SettingLine label="Password" value="Managed by Supabase Auth">
+          <SettingLine label="Password" value="Protected">
             <button
               type="button"
               onClick={() => void requestPasswordReset()}
@@ -1320,13 +1320,7 @@ function SettingsSection({
           <SettingLine
             label="Google sign-in"
             value={account.googleConnected ? "Connected" : "Not connected"}
-          >
-            <span className="text-[11px] text-muted-foreground">
-              {account.googleConnected
-                ? "Connected through Supabase"
-                : "Use Google on the sign-in screen"}
-            </span>
-          </SettingLine>
+          />
           <SettingLine
             label="Phone verification"
             value={account.phoneVerified ? "Verified" : "Not verified"}

@@ -475,6 +475,8 @@ test("account center exposes the unified sections and preserves legacy entry poi
 test("account profile editing and listing upgrades use clear current-state controls", () => {
   assert.match(accountCenterSource, /Edit the fields below/);
   assert.match(accountCenterSource, /h-11 w-full rounded-xl border border-input/);
+  assert.doesNotMatch(accountCenterSource, /Connected through Supabase/);
+  assert.doesNotMatch(accountCenterSource, /Managed by Supabase Auth/);
   assert.match(accountCenterSource, /Upgrade your listing now/);
   assert.match(accountCenterSource, /Secure checkout is handled by Stripe/);
   assert.match(accountCenterSource, /do not need to connect a Stripe seller account/);
@@ -548,6 +550,11 @@ test("seller billing is catalog-backed and settles upgrades through Stripe webho
   assert.match(listingUpgradeFunctionsSource, /getListingUpgradeOptions/);
   assert.match(listingUpgradeFunctionsSource, /createListingUpgradeCheckout/);
   assert.match(listingUpgradeFunctionsSource, /idempotencyKey/);
+  assert.match(listingUpgradeFunctionsSource, /display_name: "Gem State Classifieds"/);
+  assert.match(listingUpgradeFunctionsSource, /background_color: "#f3eae0"/);
+  assert.match(listingUpgradeFunctionsSource, /button_color: "#14544b"/);
+  assert.match(stripeMarketplaceSource, /display_name: "Gem State Classifieds"/);
+  assert.doesNotMatch(stripeMarketplaceSource, /display_name: "ParkVault"/);
   assert.match(listingUpgradeMigrationSource, /listing_upgrade_catalog/);
   assert.match(listingUpgradeMigrationSource, /listing_upgrade_purchases/);
   assert.match(stripeServerSource, /gemstate_purpose/);
