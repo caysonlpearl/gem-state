@@ -349,7 +349,7 @@ const sellers = {
   },
 } as const;
 
-export const mockClassifiedListings: MockClassifiedListing[] = [
+const baseMockClassifiedListings: MockClassifiedListing[] = [
   {
     id: "mock-pet-labrador-puppies",
     listingNumber: "80787101",
@@ -1556,3 +1556,258 @@ export const mockClassifiedListings: MockClassifiedListing[] = [
     ],
   },
 ];
+
+// Curated homepage rows are presented as complete four-card rows. These
+// additional fixtures keep the demo catalog representative for each
+// marketplace vertical without changing the real listing workflow.
+const cloneMockListing = (
+  sourceId: string,
+  overrides: Partial<MockClassifiedListing>,
+): MockClassifiedListing => {
+  const source = baseMockClassifiedListings.find((listing) => listing.id === sourceId);
+  if (!source) throw new Error(`Missing mock listing source: ${sourceId}`);
+  return { ...source, ...overrides };
+};
+
+export const mockClassifiedListings: MockClassifiedListing[] = [
+  ...baseMockClassifiedListings,
+  cloneMockListing("mock-general-princess-doll", {
+    id: "mock-general-vintage-board-game",
+    listingNumber: "80786718",
+    title: "Vintage Family Board Game Collection",
+    productId: "mock-product-vintage-board-game",
+    productSlug: "vintage-family-board-game-collection",
+    priceCents: 3_500,
+    city: "Meridian",
+    state: "ID",
+    region: "Treasure Valley",
+    createdAt: "2026-09-09T18:20:00.000Z",
+    expiresAt: "2026-10-10T18:20:00.000Z",
+    description:
+      "A clean collection of classic family board games with complete pieces and original boxes. Great for game nights, a cabin, or a family room shelf.",
+    postalCode: "83642",
+    sellerNote: "Bundle pricing is available when you take more than one game.",
+    images: [
+      {
+        url: image("photo-1610890716171-6b1bb98ffd09", "Vintage family board games"),
+        alt: "Vintage family board games",
+      },
+    ],
+  }),
+  cloneMockListing("mock-general-fisher-price-doll", {
+    id: "mock-general-camping-kitchen",
+    listingNumber: "80786684",
+    title: "Compact Camp Kitchen and Cooler Set",
+    productId: "mock-product-camping-kitchen",
+    productSlug: "compact-camp-kitchen-and-cooler-set",
+    priceCents: 4_500,
+    city: "Eagle",
+    state: "ID",
+    region: "Treasure Valley",
+    createdAt: "2026-09-08T16:40:00.000Z",
+    expiresAt: "2026-10-09T16:40:00.000Z",
+    description:
+      "Portable camp kitchen with folding prep table, two-burner stove, nesting cookware, and a clean 45-quart cooler. Ready for the next weekend outside.",
+    postalCode: "83616",
+    sellerNote: "Local pickup in Eagle; happy to demonstrate the folding setup.",
+    images: [
+      {
+        url: image("photo-1475483768296-6163e08872a1", "Camping kitchen and cooler"),
+        alt: "Camping kitchen and cooler",
+      },
+    ],
+  }),
+  cloneMockListing("mock-home-sale-sage-creek", {
+    id: "mock-home-sale-foothill-grove",
+    listingNumber: "40629984",
+    title: "Foothill Grove Ranch Home with Covered Patio",
+    productId: "mock-product-foothill-grove",
+    productSlug: "foothill-grove-ranch-home-covered-patio",
+    priceCents: 389_900_00,
+    city: "Nampa",
+    state: "ID",
+    region: "Treasure Valley",
+    createdAt: "2026-09-09T17:00:00.000Z",
+    expiresAt: "2026-10-10T17:00:00.000Z",
+    description:
+      "One-level 3 bedroom, 2 bathroom ranch home with 1,620 square feet, a covered patio, updated flooring, and a fenced backyard close to parks and schools.",
+    postalCode: "83651",
+    sellerNote: "Private showings are available most afternoons with advance notice.",
+    home: {
+      ...sourceHome("mock-home-sale-sage-creek"),
+      available: "For sale",
+      sellerType: "By owner",
+      bedrooms: 3,
+      bathrooms: 2,
+      squareFeet: 1620,
+      yearBuilt: 2018,
+      community: null,
+      amenities: ["Covered patio", "Fenced backyard", "Updated flooring", "Two-car garage"],
+    },
+    images: [
+      {
+        url: image("photo-1600585154526-990dced4db0d", "Nampa ranch home exterior"),
+        alt: "Nampa ranch home exterior",
+      },
+    ],
+  }),
+  cloneMockListing("mock-home-build-north-bench-highlands", {
+    id: "mock-home-build-spring-valley",
+    listingNumber: "40629976",
+    title: "Spring Valley | Modern Farmhouse Plan",
+    productId: "mock-product-spring-valley",
+    productSlug: "spring-valley-modern-farmhouse-plan",
+    priceCents: 479_900_00,
+    city: "Meridian",
+    state: "ID",
+    region: "Treasure Valley",
+    createdAt: "2026-09-08T15:30:00.000Z",
+    expiresAt: "2026-10-09T15:30:00.000Z",
+    description:
+      "A flexible new-construction plan with 4 bedrooms, 2.5 bathrooms, an open kitchen, a dedicated office, and a covered outdoor living area. Choose finishes while the build is in design.",
+    postalCode: "83642",
+    sellerNote: "Builder consultations are available by appointment.",
+    home: {
+      ...sourceHome("mock-home-build-north-bench-highlands"),
+      available: "Build to order",
+      sellerType: "Builder",
+      bedrooms: 4,
+      bathrooms: 2.5,
+      squareFeet: 2380,
+      community: null,
+      amenities: ["Dedicated office", "Open kitchen", "Covered outdoor living", "Three-car garage"],
+    },
+    images: [
+      {
+        url: image("photo-1600566753190-17f0baa2a6c3", "Modern farmhouse plan"),
+        alt: "Modern farmhouse plan",
+      },
+    ],
+  }),
+  cloneMockListing("mock-home-rental-warm-springs", {
+    id: "mock-home-rental-riverbend",
+    listingNumber: "40629961",
+    title: "Riverbend Cottage with Fenced Yard",
+    productId: "mock-product-riverbend-cottage",
+    productSlug: "riverbend-cottage-fenced-yard",
+    priceCents: 249_000,
+    city: "Eagle",
+    state: "ID",
+    region: "Treasure Valley",
+    createdAt: "2026-09-07T19:15:00.000Z",
+    expiresAt: "2026-10-08T19:15:00.000Z",
+    description:
+      "Bright 2 bedroom, 1.5 bathroom cottage with a fenced yard, carport, storage shed, and easy access to the greenbelt. Available for a 12-month lease.",
+    postalCode: "83616",
+    sellerNote: "Pets considered with approval and deposit.",
+    home: {
+      ...sourceHome("mock-home-rental-warm-springs"),
+      available: "Available October 1",
+      sellerType: "Property manager",
+      bedrooms: 2,
+      bathrooms: 1.5,
+      squareFeet: 1180,
+      amenities: ["Fenced yard", "Carport", "Storage shed", "Near the greenbelt"],
+    },
+    images: [
+      {
+        url: image("photo-1605276374104-dee2a0ed3cd6", "Eagle rental cottage"),
+        alt: "Eagle rental cottage",
+      },
+    ],
+  }),
+  cloneMockListing("mock-job-gem-state-logistics-warehouse", {
+    id: "mock-job-nampa-delivery-driver",
+    listingNumber: "82085264",
+    title: "Local Delivery Driver",
+    productId: "mock-product-nampa-delivery-driver",
+    productSlug: "local-delivery-driver-treasure-valley",
+    priceCents: 22_00,
+    city: "Nampa",
+    state: "ID",
+    region: "Treasure Valley",
+    createdAt: "2026-09-13T00:00:00.000Z",
+    expiresAt: "2026-10-13T00:00:00.000Z",
+    description:
+      "Local delivery driver needed for scheduled routes between Boise, Meridian, and Nampa. Company vehicle provided and training included.",
+    postalCode: "83651",
+    sellerNote: "Clean driving record required; weekday and Saturday shifts available.",
+    job: {
+      ...sourceJob("mock-job-gem-state-logistics-warehouse"),
+      employerName: "Treasure Valley Supply Co.",
+      employerAddress: "Nampa, ID 83651",
+      payType: "Hourly",
+      payMin: 20,
+      payMax: 22,
+      employmentType: "Part-time",
+      jobSummary: "Deliver scheduled orders across the Treasure Valley using a company vehicle.",
+      responsibilities: [
+        "Complete scheduled local deliveries",
+        "Load and secure orders safely",
+        "Collect delivery signatures",
+        "Keep route notes up to date",
+      ],
+    },
+    images: [
+      {
+        url: image("photo-1601584115197-04ecc0da31d8", "Local delivery van"),
+        alt: "Local delivery van",
+      },
+    ],
+  }),
+  cloneMockListing("mock-service-gem-state-tech", {
+    id: "mock-service-treasure-valley-moving",
+    listingNumber: "83010371",
+    title: "Treasure Valley Moving Help",
+    productId: "mock-product-treasure-valley-moving",
+    productSlug: "treasure-valley-moving-help",
+    priceCents: 75_00,
+    city: "Meridian",
+    state: "ID",
+    region: "Treasure Valley",
+    createdAt: "2026-09-14T18:00:00.000Z",
+    expiresAt: "2026-10-14T18:00:00.000Z",
+    description:
+      "Reliable two-person moving help for apartments, homes, and small offices. We bring pads, straps, and a careful plan for stairs and tight hallways.",
+    postalCode: "83642",
+    sellerNote: "Share the move date, origin, destination, and largest items for a quote.",
+    service: {
+      ...sourceService("mock-service-gem-state-tech"),
+      subcategory: "Moving & Hauling",
+      pricing: "From $75 / hour",
+      serviceArea: "Boise, Meridian, Eagle, Nampa, and nearby Treasure Valley communities",
+      availability: "Weekday and weekend bookings",
+      serviceSummary: "Careful local moving help for homes, apartments, and small offices.",
+      offerings: [
+        "Apartment and home moves",
+        "Small office moves",
+        "Furniture loading and unloading",
+        "Packing and protective wrapping",
+      ],
+    },
+    images: [
+      {
+        url: image("photo-1600518464441-9154a4dea21b", "Moving boxes and furniture"),
+        alt: "Moving boxes and furniture",
+      },
+    ],
+  }),
+];
+
+function sourceHome(id: string): ClassifiedHomeDetails {
+  const source = baseMockClassifiedListings.find((listing) => listing.id === id)?.home;
+  if (!source) throw new Error(`Missing mock home source: ${id}`);
+  return source;
+}
+
+function sourceJob(id: string): ClassifiedJobDetails {
+  const source = baseMockClassifiedListings.find((listing) => listing.id === id)?.job;
+  if (!source) throw new Error(`Missing mock job source: ${id}`);
+  return source;
+}
+
+function sourceService(id: string): ClassifiedServiceDetails {
+  const source = baseMockClassifiedListings.find((listing) => listing.id === id)?.service;
+  if (!source) throw new Error(`Missing mock service source: ${id}`);
+  return source;
+}

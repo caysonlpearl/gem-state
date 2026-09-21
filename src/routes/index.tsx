@@ -43,6 +43,8 @@ export const Route = createFileRoute("/")({
 const seeAll =
   "inline-flex shrink-0 items-center gap-1 text-[12.5px] font-semibold text-primary hover:underline";
 
+const HOMEPAGE_ROW_SIZE = 4;
+
 type HomepageBrowseSearch = {
   allCategories?: boolean;
   category?: string;
@@ -158,23 +160,25 @@ function Home() {
 
   const motorCategories = classifiedCategories.filter((c) => c.group === "motors");
   const generalCategories = classifiedCategories.filter((c) => c.group === "classifieds");
-  const freshListings = home.recent.slice(0, 6);
-  const homeListings = home.recent.filter((listing) => listing.home).slice(0, 6);
-  const jobListings = home.recent.filter((listing) => listing.job).slice(0, 6);
-  const serviceListings = home.recent.filter((listing) => listing.service).slice(0, 6);
+  const freshListings = home.recent.slice(0, HOMEPAGE_ROW_SIZE);
+  const homeListings = home.recent.filter((listing) => listing.home);
+  const jobListings = home.recent.filter((listing) => listing.job);
+  // Keep the source shape easy to audit alongside the other category filters.
+  // prettier-ignore
+  const serviceListings = home.recent.filter((listing) => listing.service).slice(0, HOMEPAGE_ROW_SIZE);
   const generalListings = home.recent
     .filter((listing) => !listing.vehicle && !listing.home && !listing.job && !listing.service)
-    .slice(0, 6);
+    .slice(0, HOMEPAGE_ROW_SIZE);
   const withFallback = (matches: typeof home.recent, fallback: typeof home.recent) =>
-    (matches.length >= 2 ? matches : fallback).slice(0, 6);
-  const vehicleListings = home.motors.slice(0, 6);
+    (matches.length >= HOMEPAGE_ROW_SIZE ? matches : fallback).slice(0, HOMEPAGE_ROW_SIZE);
+  const vehicleListings = home.motors.slice(0, HOMEPAGE_ROW_SIZE);
   const truckListings = withFallback(
     home.motors.filter((listing) => /truck|suv|pickup|jeep/i.test(listing.title)),
     vehicleListings,
   );
   const valueVehicleListings = [...home.motors]
     .sort((a, b) => a.priceCents - b.priceCents)
-    .slice(0, 6);
+    .slice(0, HOMEPAGE_ROW_SIZE);
   const buyHomes = withFallback(
     homeListings.filter((listing) => listing.home?.mode === "buy"),
     homeListings,
@@ -214,7 +218,9 @@ function Home() {
     generalListings,
   );
   const localSellerPicks =
-    home.recent.slice(6, 12).length > 1 ? home.recent.slice(6, 12) : freshListings;
+    home.recent.slice(6, 6 + HOMEPAGE_ROW_SIZE).length > 1
+      ? home.recent.slice(6, 6 + HOMEPAGE_ROW_SIZE)
+      : freshListings;
 
   return (
     <main className="mx-auto max-w-[1360px] px-4 pb-16 sm:px-6">
@@ -336,7 +342,7 @@ function Home() {
         </div>
         {home.motors.length > 0 ? (
           <div className="no-scrollbar mt-5 flex gap-4 overflow-x-auto pb-2 lg:grid lg:grid-cols-4 lg:overflow-visible">
-            {home.motors.map((listing) => (
+            {home.motors.slice(0, HOMEPAGE_ROW_SIZE).map((listing) => (
               <div key={listing.id} className="min-w-[235px] lg:min-w-0">
                 <ListingCard listing={listing} />
               </div>
@@ -570,7 +576,7 @@ function HomepageListingRow({
         </Link>
       </div>
       <div className="no-scrollbar mt-5 flex gap-4 overflow-x-auto pb-2 lg:grid lg:grid-cols-4 lg:overflow-visible">
-        {listings.map((listing) => (
+        {listings.slice(0, HOMEPAGE_ROW_SIZE).map((listing) => (
           <div key={listing.id} className="min-w-[235px] lg:min-w-0">
             <ListingCard listing={listing} />
           </div>

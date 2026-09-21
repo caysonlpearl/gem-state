@@ -5191,11 +5191,11 @@ function GeneralClassifiedShowcase({ listings }: { listings: ClassifiedBrowseRes
   const listingRows = [
     {
       title: "Top listings",
-      listings: generalListings.slice(0, Math.ceil(generalListings.length / 2)),
+      listings: generalListings.slice(0, 4),
     },
     {
       title: "Newest listings",
-      listings: generalListings.slice(Math.ceil(generalListings.length / 2)),
+      listings: generalListings.slice(4, 8),
     },
   ].filter((row) => row.listings.length > 0);
 
@@ -5260,12 +5260,9 @@ function GeneralClassifiedShowcase({ listings }: { listings: ClassifiedBrowseRes
               See all <ArrowRight size={14} aria-hidden="true" />
             </Link>
           </div>
-          <ul className="no-scrollbar flex gap-4 overflow-x-auto pb-2">
+          <ul className="no-scrollbar grid grid-cols-1 gap-4 overflow-x-auto pb-2 sm:grid-cols-2 lg:grid-cols-4">
             {row.listings.map((listing) => (
-              <li
-                key={row.title + "-" + listing.id}
-                className="min-w-[220px] flex-1 sm:min-w-[245px]"
-              >
+              <li key={row.title + "-" + listing.id} className="min-w-0">
                 <ListingCard listing={listing} />
               </li>
             ))}
@@ -5289,7 +5286,9 @@ function LandingListingsShowcase({
   browseSearch: Search;
   listings: ClassifiedBrowseResult["listings"];
 }) {
-  const visibleListings = listings.slice(0, 8);
+  // This showcase is a single curated row. Keep it to the desktop row width
+  // so a short second row can never appear beneath it.
+  const visibleListings = listings.slice(0, 4);
 
   return (
     <section

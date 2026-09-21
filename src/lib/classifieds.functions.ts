@@ -950,6 +950,8 @@ function mockMatches(
 }
 
 export type ClassifiedBrowseInput = {
+  /** Internal homepage read: keep the full mock catalog available for curation. */
+  includeAllMocks?: boolean | undefined;
   q?: string | undefined;
   category?: string | undefined;
   homeTab?: "buy" | "rent" | "build" | undefined;
@@ -1244,9 +1246,12 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
         : [];
     const featuredListings = listings.filter((listing) => listing.isFeatured);
     const standardListings = listings.filter((listing) => !listing.isFeatured);
+    const resultLimit = data.includeAllMocks
+      ? Math.max(PAGE_SIZE, mockClassifiedListings.length)
+      : PAGE_SIZE;
     const combinedListings = [...featuredListings, ...mockListings, ...standardListings].slice(
       0,
-      PAGE_SIZE,
+      resultLimit,
     );
     if (listings.length > 0) {
       void import("@/integrations/supabase/client.server")
@@ -1422,7 +1427,7 @@ export const getClassifiedsHome = createServerFn({ method: "GET" }).handler(
         .eq("products.status", "published")
         .limit(1000),
       runBrowseClassifieds({ group: "motors", sort: "newest", page: 1 }),
-      runBrowseClassifieds({ sort: "newest", page: 1 }),
+      runBrowseClassifieds({ sort: "newest", page: 1, includeAllMocks: true }),
     ]);
 
     const categoryCounts: Record<string, number> = {};
@@ -1438,7 +1443,7 @@ export const getClassifiedsHome = createServerFn({ method: "GET" }).handler(
       motors: motors.listings.slice(0, 8),
       // Keep enough of the first page available for the homepage to build
       // several useful, non-identical curated rows without another round trip.
-      recent: recent.listings.slice(0, 24),
+      recent: recent.listings.slice(0, Math.max(24, mockClassifiedListings.length)),
     };
   },
 );
