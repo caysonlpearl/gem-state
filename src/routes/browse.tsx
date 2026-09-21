@@ -1886,6 +1886,7 @@ function Browse() {
             }
           />
           <GeneralClassifiedShowcase listings={result.listings} />
+          <HomepageShowcaseRows eyebrow="GemList Classifieds" rows={classifiedShowcaseRows} />
         </>
       )}
 
@@ -1928,23 +1929,29 @@ function Browse() {
       )}
 
       {pets && petLanding && (
-        <LandingListingsShowcase
-          eyebrow="GemList Pets"
-          title="Latest pet listings"
-          action="Browse all pets"
-          browseSearch={{ category: "pets", petMode: "results" }}
-          listings={result.listings}
-        />
+        <>
+          <LandingListingsShowcase
+            eyebrow="GemList Pets"
+            title="Latest pet listings"
+            action="Browse all pets"
+            browseSearch={{ category: "pets", petMode: "results" }}
+            listings={result.listings}
+          />
+          <HomepageShowcaseRows eyebrow="GemList Pets" rows={petShowcaseRows} />
+        </>
       )}
 
       {motors && vehicleLanding && (
-        <LandingListingsShowcase
-          eyebrow="GemList Motors"
-          title="Latest vehicles"
-          action="Browse all vehicles"
-          browseSearch={{ group: "motors", vehicleMode: "results" }}
-          listings={result.listings}
-        />
+        <>
+          <LandingListingsShowcase
+            eyebrow="GemList Motors"
+            title="Latest vehicles"
+            action="Browse all vehicles"
+            browseSearch={{ group: "motors", vehicleMode: "results" }}
+            listings={result.listings}
+          />
+          <HomepageShowcaseRows eyebrow="GemList Motors" rows={vehicleShowcaseRows} />
+        </>
       )}
 
       {motors && !vehicleLanding && (
@@ -2018,17 +2025,20 @@ function Browse() {
       )}
 
       {homeLanding && (
-        <LandingListingsShowcase
-          eyebrow="GemList Homes"
-          title={`${homeTab.charAt(0).toUpperCase()}${homeTab.slice(1)} listings`}
-          action="Browse all homes"
-          browseSearch={{
-            category: "other-real-estate",
-            homeMode: "results",
-            homeTab,
-          }}
-          listings={result.listings}
-        />
+        <>
+          <LandingListingsShowcase
+            eyebrow="GemList Homes"
+            title={`${homeTab.charAt(0).toUpperCase()}${homeTab.slice(1)} listings`}
+            action="Browse all homes"
+            browseSearch={{
+              category: "other-real-estate",
+              homeMode: "results",
+              homeTab,
+            }}
+            listings={result.listings}
+          />
+          <HomeShowcaseRows activeTab={homeTab} />
+        </>
       )}
 
       {jobs && jobLanding && (
@@ -2052,13 +2062,16 @@ function Browse() {
       )}
 
       {jobs && jobLanding && (
-        <LandingListingsShowcase
-          eyebrow="GemList Jobs"
-          title="Latest local jobs"
-          action="Browse all jobs"
-          browseSearch={{ category: "jobs", jobMode: "results" }}
-          listings={result.listings}
-        />
+        <>
+          <LandingListingsShowcase
+            eyebrow="GemList Jobs"
+            title="Latest local jobs"
+            action="Browse all jobs"
+            browseSearch={{ category: "jobs", jobMode: "results" }}
+            listings={result.listings}
+          />
+          <HomepageShowcaseRows eyebrow="GemList Jobs" rows={jobsShowcaseRows} />
+        </>
       )}
 
       {jobs && !jobLanding && (
@@ -2095,13 +2108,16 @@ function Browse() {
       )}
 
       {services && serviceLanding && (
-        <LandingListingsShowcase
-          eyebrow="GemList Services"
-          title="Latest local services"
-          action="Browse all services"
-          browseSearch={{ category: "services", serviceMode: "results" }}
-          listings={result.listings}
-        />
+        <>
+          <LandingListingsShowcase
+            eyebrow="GemList Services"
+            title="Latest local services"
+            action="Browse all services"
+            browseSearch={{ category: "services", serviceMode: "results" }}
+            listings={result.listings}
+          />
+          <HomepageShowcaseRows eyebrow="GemList Services" rows={servicesShowcaseRows} />
+        </>
       )}
 
       {services && !serviceLanding && (
@@ -2890,6 +2906,20 @@ const petShowcaseRows: HomepagePreviewRow[] = [
         "$90",
         "Fish · supplies",
         "https://images.unsplash.com/photo-1520990269335-9271441d0f4c?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "Golden retriever family dog",
+        "Caldwell, ID",
+        "$450",
+        "Dogs · young adult",
+        "https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "Rabbit habitat with supplies",
+        "Twin Falls, ID",
+        "$75",
+        "Small animals · setup",
+        "https://images.unsplash.com/photo-1585110396000-c9ffd4e4b308?auto=format&fit=crop&w=900&q=80",
       ),
     ],
   },
