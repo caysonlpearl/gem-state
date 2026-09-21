@@ -1621,9 +1621,8 @@ function Browse() {
   const heading =
     selectedCategory?.name ?? (search.group === "motors" ? "Cars & motors" : "All classifieds");
 
-  function applyFilters(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const values = new FormData(event.currentTarget);
+  function searchPatchFromForm(form: HTMLFormElement): Partial<Search> {
+    const values = new FormData(form);
     const value = (key: string) => {
       const raw = values.get(key);
       return typeof raw === "string" && raw.trim() ? raw.trim() : undefined;
@@ -1636,37 +1635,44 @@ function Browse() {
     const nextMotors = value("group") === "motors" || isMotorsCategory(category);
     const nextPets = category === "pets";
 
+    return {
+      category,
+      group: category ? undefined : value("group") === "motors" ? "motors" : undefined,
+      state: value("state")?.toUpperCase(),
+      region: value("region"),
+      city: value("city"),
+      condition: value("condition"),
+      fulfillment: value("fulfillment"),
+      priceMin: numeric("priceMin"),
+      priceMax: numeric("priceMax"),
+      make: nextMotors ? value("make") : undefined,
+      model: nextMotors ? value("model") : undefined,
+      yearMin: nextMotors ? numeric("yearMin") : undefined,
+      yearMax: nextMotors ? numeric("yearMax") : undefined,
+      mileageMax: nextMotors ? numeric("mileageMax") : undefined,
+      bodyStyle: nextMotors ? value("bodyStyle") : undefined,
+      transmission: nextMotors ? value("transmission") : undefined,
+      drivetrain: nextMotors ? value("drivetrain") : undefined,
+      fuelType: nextMotors ? value("fuelType") : undefined,
+      exteriorColor: nextMotors ? value("exteriorColor") : undefined,
+      titleStatus: nextMotors ? value("titleStatus") : undefined,
+      petMode: nextPets ? "results" : undefined,
+      petSubcategory: nextPets ? value("petSubcategory") : undefined,
+      petSpecies: nextPets ? value("petSpecies") : undefined,
+      petBreed: nextPets ? value("petBreed") : undefined,
+      petPlacementType: nextPets ? value("petPlacementType") : undefined,
+      petOfferedBy: nextPets ? value("petOfferedBy") : undefined,
+      petSex: nextPets ? value("petSex") : undefined,
+    };
+  }
+
+  function applyFilters(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const patch = searchPatchFromForm(event.currentTarget);
+
     void navigate({
       to: "/browse",
-      search: scoped({
-        category,
-        group: category ? undefined : value("group") === "motors" ? "motors" : undefined,
-        state: value("state")?.toUpperCase(),
-        region: value("region"),
-        city: value("city"),
-        condition: value("condition"),
-        fulfillment: value("fulfillment"),
-        priceMin: numeric("priceMin"),
-        priceMax: numeric("priceMax"),
-        make: nextMotors ? value("make") : undefined,
-        model: nextMotors ? value("model") : undefined,
-        yearMin: nextMotors ? numeric("yearMin") : undefined,
-        yearMax: nextMotors ? numeric("yearMax") : undefined,
-        mileageMax: nextMotors ? numeric("mileageMax") : undefined,
-        bodyStyle: nextMotors ? value("bodyStyle") : undefined,
-        transmission: nextMotors ? value("transmission") : undefined,
-        drivetrain: nextMotors ? value("drivetrain") : undefined,
-        fuelType: nextMotors ? value("fuelType") : undefined,
-        exteriorColor: nextMotors ? value("exteriorColor") : undefined,
-        titleStatus: nextMotors ? value("titleStatus") : undefined,
-        petMode: nextPets ? "results" : undefined,
-        petSubcategory: nextPets ? value("petSubcategory") : undefined,
-        petSpecies: nextPets ? value("petSpecies") : undefined,
-        petBreed: nextPets ? value("petBreed") : undefined,
-        petPlacementType: nextPets ? value("petPlacementType") : undefined,
-        petOfferedBy: nextPets ? value("petOfferedBy") : undefined,
-        petSex: nextPets ? value("petSex") : undefined,
-      }),
+      search: scoped(patch),
     });
     setFiltersOpen(false);
   }
@@ -2397,7 +2403,10 @@ function Browse() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => requestSaveSearch()}
+                          onClick={(event) => {
+                            const form = event.currentTarget.form;
+                            if (form) requestSaveSearch(searchPatchFromForm(form));
+                          }}
                           className="inline-flex h-12 items-center justify-center rounded-full border border-primary px-5 text-[13px] font-semibold text-primary hover:bg-secondary"
                         >
                           {search.savedSearchId ? "Update saved search" : "Save this search"}
