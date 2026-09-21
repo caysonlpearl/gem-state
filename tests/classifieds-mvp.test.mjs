@@ -127,6 +127,8 @@ const detailSource = await read("src/routes/listings.$listingId.tsx");
 const mockListingsSource = await read("src/config/classified-mocks.ts");
 const stylesSource = await read("src/styles.css");
 const { classifiedSeedListings } = await import("../scripts/classified-seed-data.mjs");
+const { mockClassifiedListings, mockVehicleListings } =
+  await import("../src/config/classified-mocks.ts");
 
 test("classified taxonomy includes Idaho categories and automotive inventory", () => {
   assert.match(configSource, /cars-trucks/);
@@ -1286,6 +1288,20 @@ test("job and service mock listings exist with realistic detail fixtures", () =>
   // fetched at runtime rather than hardcoded in browse.tsx.
   assert.match(classifiedsFunctionsSource, /service\?: ClassifiedServiceDetails/);
   assert.match(listingCardSource, /listing\.service\?\.pricing/);
+});
+
+test("preview catalog keeps complete home and vehicle rows available", () => {
+  assert.equal(mockVehicleListings.length, 8);
+  assert.equal(mockClassifiedListings.filter((listing) => listing.home?.mode === "buy").length, 4);
+  assert.equal(
+    mockClassifiedListings.filter((listing) => listing.home?.mode === "build").length,
+    4,
+  );
+  assert.equal(mockClassifiedListings.filter((listing) => listing.home?.mode === "rent").length, 4);
+  assert.equal(mockClassifiedListings.filter((listing) => listing.job).length, 4);
+  assert.equal(mockClassifiedListings.filter((listing) => listing.service).length, 4);
+  assert.match(classifiedsFunctionsSource, /showing preview fixtures/);
+  assert.match(classifiedsFunctionsSource, /mockVehicleListings/);
 });
 
 test("services browse results use real listing data, not static placeholder cards", () => {

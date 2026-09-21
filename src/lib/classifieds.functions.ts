@@ -6,6 +6,7 @@ import { classifiedCategories } from "@/config/classifieds";
 import { formatUsd } from "@/config/fees";
 import {
   mockClassifiedListings,
+  mockVehicleListings,
   homeCommunities,
   type ClassifiedFloorplan,
   type ClassifiedHomeDetails,
@@ -888,7 +889,11 @@ function mockCard(listing: (typeof mockClassifiedListings)[number]): ClassifiedC
     createdAt: listing.createdAt,
     isFeatured: false,
     imageUrl: listing.images[0]?.url ?? null,
-    vehicle: null,
+    vehicle: listing.vehicle
+      ? {
+          ...listing.vehicle,
+        }
+      : null,
     pet: listing.pet ?? null,
     home: listing.home ?? null,
     job: listing.job ?? null,
@@ -933,7 +938,8 @@ function mockMatches(
   listing: (typeof mockClassifiedListings)[number],
   data: ClassifiedBrowseInput,
 ) {
-  if (data.group === "motors") return false;
+  if (data.group === "motors" && !listing.vehicle) return false;
+  if (data.group === "classifieds" && listing.vehicle) return false;
   if (data.category && data.category !== listing.categorySlug) return false;
   if (data.category === "other-real-estate" && data.homeTab && listing.home?.mode !== data.homeTab)
     return false;
@@ -961,6 +967,36 @@ function mockMatches(
     return false;
   if (data.priceMin != null && listing.priceCents < data.priceMin * 100) return false;
   if (data.priceMax != null && listing.priceCents > data.priceMax * 100) return false;
+  if (data.make && !filterValues(data.make).includes(listing.vehicle?.make ?? "")) return false;
+  if (data.model && !filterValues(data.model).includes(listing.vehicle?.model ?? "")) return false;
+  if (data.yearMin != null && (listing.vehicle?.year ?? -1) < data.yearMin) return false;
+  if (data.yearMax != null && (listing.vehicle?.year ?? -1) > data.yearMax) return false;
+  if (
+    data.mileageMax != null &&
+    (listing.vehicle?.mileage ?? Number.POSITIVE_INFINITY) > data.mileageMax
+  )
+    return false;
+  if (data.bodyStyle && !filterValues(data.bodyStyle).includes(listing.vehicle?.bodyStyle ?? ""))
+    return false;
+  if (
+    data.transmission &&
+    !filterValues(data.transmission).includes(listing.vehicle?.transmission ?? "")
+  )
+    return false;
+  if (data.drivetrain && !filterValues(data.drivetrain).includes(listing.vehicle?.drivetrain ?? ""))
+    return false;
+  if (data.fuelType && !filterValues(data.fuelType).includes(listing.vehicle?.fuelType ?? ""))
+    return false;
+  if (
+    data.exteriorColor &&
+    !filterValues(data.exteriorColor).includes(listing.vehicle?.exteriorColor ?? "")
+  )
+    return false;
+  if (
+    data.titleStatus &&
+    !filterValues(data.titleStatus).includes(listing.vehicle?.titleStatus ?? "")
+  )
+    return false;
   if (
     data.homePropertyType &&
     !filterValues(data.homePropertyType).includes(listing.home?.propertyType ?? "")
@@ -1261,7 +1297,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
         .eq("slug", data.category)
         .maybeSingle();
       if (!category) {
-        mockOnlyCategory = mockClassifiedListings.some(
+        mockOnlyCategory = [...mockClassifiedListings, ...mockVehicleListings].some(
           (listing) => listing.categorySlug === data.category,
         );
         if (!mockOnlyCategory) return empty;
@@ -1275,7 +1311,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
       if (slugs.length === 0) return empty;
       const { data: rows } = await client.from("categories").select("id").in("slug", slugs);
       categoryIds = (rows ?? []).map((row) => row.id);
-      if (categoryIds.length === 0) return empty;
+      if (categoryIds.length === 0) mockOnlyCategory = true;
     }
 
     let query = client
@@ -1475,10 +1511,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     } = mockOnlyCategory
       ? { data: [], count: 0, error: null }
       : await query.range(from, from + PAGE_SIZE - 1);
-    if (error) {
-      console.error("browseClassifieds failed", error.message);
-      return empty;
-    }
+    if (error) console.error("browseClassifieds failed; showing preview fixtures", error.message);
 
     const visibleRows = (rows ?? []).filter(
       (row) => !isReleaseQaListing(row as unknown as Record<string, unknown>),
@@ -1491,15 +1524,16 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     const listings = visibleRows.map((row) =>
       toCard(row as unknown as Record<string, unknown>, urlByPath),
     );
+    const motorCategory = data.category
+      ? classifiedCategories.find((category) => category.slug === data.category)?.group === "motors"
+      : false;
+    const mockSource =
+      data.group === "motors" || motorCategory ? mockVehicleListings : mockClassifiedListings;
     const mockListings =
-      page === 1
-        ? mockClassifiedListings.filter((listing) => mockMatches(listing, data)).map(mockCard)
-        : [];
+      page === 1 ? mockSource.filter((listing) => mockMatches(listing, data)).map(mockCard) : [];
     const featuredListings = listings.filter((listing) => listing.isFeatured);
     const standardListings = listings.filter((listing) => !listing.isFeatured);
-    const resultLimit = data.includeAllMocks
-      ? Math.max(PAGE_SIZE, mockClassifiedListings.length)
-      : PAGE_SIZE;
+    const resultLimit = data.includeAllMocks ? Math.max(PAGE_SIZE, mockSource.length) : PAGE_SIZE;
     const combinedListings = [...featuredListings, ...mockListings, ...standardListings].slice(
       0,
       resultLimit,
@@ -1525,7 +1559,9 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
 export const getClassifiedListing = createServerFn({ method: "GET" })
   .validator((input: { id: string }) => ({ id: String(input.id).slice(0, 64) }))
   .handler(async ({ data }): Promise<ClassifiedDetail | null> => {
-    const mockListing = mockClassifiedListings.find((listing) => listing.id === data.id);
+    const mockListing = [...mockClassifiedListings, ...mockVehicleListings].find(
+      (listing) => listing.id === data.id,
+    );
     if (mockListing) return mockDetail(mockListing);
 
     const client = publicServerClient();
