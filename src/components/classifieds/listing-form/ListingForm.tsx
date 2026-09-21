@@ -19,7 +19,7 @@ import { HomeFields } from "./HomeFields";
 import { JobFields } from "./JobFields";
 import { ServiceFields } from "./ServiceFields";
 import { PetFields } from "./PetFields";
-import { VehicleFields } from "./VehicleFields";
+import { VehicleFields, VehicleVinLookup } from "./VehicleFields";
 import {
   buildHome,
   buildJob,
@@ -383,6 +383,8 @@ export function ListingForm(props: ListingFormProps) {
           Choose what you're listing first -- the fields below change to match.
         </p>
       </section>
+
+      {isVehicle && <VehicleVinLookup form={form} set={set} />}
 
       <section className="border border-border bg-card p-5 sm:p-6">
         <SectionHeading number="1" title={formCopy.basicsTitle} />

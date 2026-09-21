@@ -445,9 +445,12 @@ test("vehicle forms can decode VINs through the server-side NHTSA adapter", () =
   assert.match(vehicleFunctionsSource, /VIN_PATTERN/);
   assert.match(vehicleFunctionsSource, /bodyStyleFor/);
   assert.match(vehicleFunctionsSource, /fuelTypeFor/);
+  assert.match(vehicleFunctionsSource, /exteriorColorFor/);
   assert.match(vehicleFieldsSource, /decodeVehicleVin/);
-  assert.match(vehicleFieldsSource, /Decode VIN/);
-  assert.match(vehicleFieldsSource, /NHTSA vehicle database/);
+  assert.match(vehicleFieldsSource, /Start with the VIN/);
+  assert.match(vehicleFieldsSource, /Auto-fill details/);
+  assert.match(vehicleFieldsSource, /enter the vehicle details manually below/);
+  assert.match(vehicleFieldsSource, /NHTSA\s+vehicle\s+database/);
 });
 
 test("direct-contact marketplace copy is consistent across buyer and seller surfaces", () => {

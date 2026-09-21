@@ -12,6 +12,7 @@ type NhtsaResult = {
 type NhtsaResponse = {
   Results?: NhtsaResult[];
   Message?: string;
+  ErrorCode?: string;
 };
 
 export type VehicleDecodeFields = {
@@ -32,6 +33,7 @@ export type VehicleDecodeFields = {
   transmission?: "Automatic" | "Manual" | "CVT" | undefined;
   drivetrain?: "FWD" | "RWD" | "AWD" | "4WD" | undefined;
   fuelType?: "Gasoline" | "Diesel" | "Hybrid" | "Plug-in hybrid" | "Electric" | "Other" | undefined;
+  exteriorColor?: string | undefined;
 };
 
 export type VehicleDecodeResult = {
@@ -100,6 +102,27 @@ function fuelTypeFor(value: string | undefined): VehicleDecodeFields["fuelType"]
   return "Other";
 }
 
+function exteriorColorFor(value: string | undefined): string | undefined {
+  if (!value) return undefined;
+  const normalized = value.toLowerCase();
+  const colors = [
+    ["black", "Black"],
+    ["white", "White"],
+    ["gray", "Gray"],
+    ["grey", "Gray"],
+    ["silver", "Silver"],
+    ["red", "Red"],
+    ["blue", "Blue"],
+    ["green", "Green"],
+    ["brown", "Brown"],
+    ["gold", "Gold"],
+    ["orange", "Orange"],
+    ["yellow", "Yellow"],
+    ["purple", "Purple"],
+  ] as const;
+  return colors.find(([needle]) => normalized.includes(needle))?.[1] ?? "Other";
+}
+
 export const decodeVehicleVin = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input: { vin: string }) => {
@@ -123,7 +146,11 @@ export const decodeVehicleVin = createServerFn({ method: "GET" })
     const model = valueFor(results, "Model");
     const year = valueFor(results, "Model Year");
     if (!make || !model || !year) {
-      throw new Error(payload.Message || "NHTSA could not identify that VIN.");
+      throw new Error(
+        payload.ErrorCode && payload.ErrorCode !== "0"
+          ? "NHTSA could not validate that VIN. Check the characters and try again."
+          : "NHTSA could not find enough details for that VIN. You can enter the vehicle manually.",
+      );
     }
     return {
       vin: data.vin,
@@ -137,6 +164,7 @@ export const decodeVehicleVin = createServerFn({ method: "GET" })
         transmission: transmissionFor(valueFor(results, "Transmission Style")),
         drivetrain: drivetrainFor(valueFor(results, "Drive Type")),
         fuelType: fuelTypeFor(valueFor(results, "Fuel Type - Primary")),
+        exteriorColor: exteriorColorFor(valueFor(results, "Color", "Exterior Color")),
       },
     };
   });

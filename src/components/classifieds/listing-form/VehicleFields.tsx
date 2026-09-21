@@ -7,6 +7,88 @@ import { decodeVehicleVin } from "@/lib/vehicle.functions";
 import { fieldClass } from "./shared";
 import type { ListingFormState } from "./types";
 
+export function VehicleVinLookup({
+  form,
+  set,
+}: {
+  form: ListingFormState;
+  set: (key: keyof ListingFormState, value: string) => void;
+}) {
+  const decode = useServerFn(decodeVehicleVin);
+  const decodeMutation = useMutation({
+    mutationFn: () => decode({ data: { vin: form.vin } }),
+    onSuccess: (result) => {
+      const fields = result.fields;
+      if (fields.make) {
+        const catalogMake = vehicleOptions.makes.find(
+          (make) => make.toLowerCase() === fields.make?.toLowerCase(),
+        );
+        set("make", catalogMake ?? fields.make);
+      }
+      if (fields.model) set("model", fields.model);
+      if (fields.year) set("year", fields.year);
+      if (fields.trim) set("trim", fields.trim);
+      if (fields.bodyStyle) set("bodyStyle", fields.bodyStyle);
+      if (fields.transmission) set("transmission", fields.transmission);
+      if (fields.drivetrain) set("drivetrain", fields.drivetrain);
+      if (fields.fuelType) set("fuelType", fields.fuelType);
+      if (fields.exteriorColor) set("exteriorColor", fields.exteriorColor);
+      toast.success("Vehicle details filled from the VIN. Review and edit them before continuing.");
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Could not decode that VIN."),
+  });
+
+  return (
+    <section className="border border-primary/30 bg-primary/5 p-5 sm:p-6">
+      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-primary">
+        Start with the VIN
+      </p>
+      <h2 className="mt-2 text-lg font-semibold">Let GemList fill in the vehicle details</h2>
+      <p className="mt-1 max-w-2xl text-[13px] leading-5 text-muted-foreground">
+        Enter the 17-character VIN and we’ll look up the year, make, model, trim, body style,
+        drivetrain, transmission, fuel type, and any other details available from the NHTSA vehicle
+        database. Everything stays editable before you publish.
+      </p>
+      <label className="mt-4 block max-w-3xl text-[12px] font-medium">
+        VIN
+        <div className="mt-1.5 flex flex-col gap-2 sm:flex-row">
+          <input
+            value={form.vin}
+            onChange={(event) => set("vin", event.target.value.replace(/[\s-]/g, "").toUpperCase())}
+            onKeyDown={(event) => {
+              if (
+                event.key === "Enter" &&
+                form.vin.trim().length === 17 &&
+                !decodeMutation.isPending
+              ) {
+                event.preventDefault();
+                decodeMutation.mutate();
+              }
+            }}
+            maxLength={17}
+            placeholder="Enter 17-character VIN"
+            autoComplete="off"
+            className={`${fieldClass} mt-0 min-w-0 flex-1 uppercase`}
+          />
+          <button
+            type="button"
+            onClick={() => decodeMutation.mutate()}
+            disabled={decodeMutation.isPending || form.vin.trim().length !== 17}
+            className="h-11 shrink-0 rounded-md bg-primary px-5 text-[13px] font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {decodeMutation.isPending ? "Looking up VIN…" : "Auto-fill details"}
+          </button>
+        </div>
+        <span className="mt-2 block text-[11px] font-normal text-muted-foreground">
+          VINs use 17 characters and do not contain I, O, or Q. Don’t have the VIN? That’s okay —
+          you can enter the vehicle details manually below.
+        </span>
+      </label>
+    </section>
+  );
+}
+
 export function VehicleFields({
   form,
   set,
@@ -15,24 +97,6 @@ export function VehicleFields({
   set: (key: keyof ListingFormState, value: string) => void;
 }) {
   const availableModels = vehicleModelsByMake[form.make] ?? [];
-  const decode = useServerFn(decodeVehicleVin);
-  const decodeMutation = useMutation({
-    mutationFn: () => decode({ data: { vin: form.vin } }),
-    onSuccess: (result) => {
-      const fields = result.fields;
-      if (fields.make) set("make", fields.make);
-      if (fields.model) set("model", fields.model);
-      if (fields.year) set("year", fields.year);
-      if (fields.trim) set("trim", fields.trim);
-      if (fields.bodyStyle) set("bodyStyle", fields.bodyStyle);
-      if (fields.transmission) set("transmission", fields.transmission);
-      if (fields.drivetrain) set("drivetrain", fields.drivetrain);
-      if (fields.fuelType) set("fuelType", fields.fuelType);
-      toast.success("Vehicle details filled from the VIN.");
-    },
-    onError: (error) =>
-      toast.error(error instanceof Error ? error.message : "Could not decode that VIN."),
-  });
 
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -194,33 +258,6 @@ export function VehicleFields({
             </option>
           ))}
         </select>
-      </label>
-      <label className="text-[12px] font-medium sm:col-span-2 lg:col-span-3">
-        <span className="flex flex-wrap items-center justify-between gap-2">
-          <span>
-            VIN <span className="font-normal text-muted-foreground">(optional)</span>
-          </span>
-          <button
-            type="button"
-            onClick={() => decodeMutation.mutate()}
-            disabled={decodeMutation.isPending || form.vin.trim().length < 17}
-            className="font-semibold text-primary hover:underline disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {decodeMutation.isPending ? "Decoding…" : "Decode VIN"}
-          </button>
-        </span>
-        <div className="mt-1 flex flex-wrap gap-2 sm:flex-nowrap">
-          <input
-            value={form.vin}
-            onChange={(event) => set("vin", event.target.value.toUpperCase())}
-            maxLength={17}
-            placeholder="17-character VIN"
-            className={`${fieldClass} min-w-0 flex-1 uppercase`}
-          />
-        </div>
-        <span className="mt-1 block text-[11px] font-normal text-muted-foreground">
-          Uses the free NHTSA vehicle database. Details remain editable before you publish.
-        </span>
       </label>
     </div>
   );
