@@ -74,6 +74,57 @@ const listingTabClass = (selected: boolean) =>
       : "border-transparent text-muted-foreground hover:border-border/80 hover:bg-card/75 hover:text-foreground hover:shadow-sm"
   }`;
 
+async function copyListingUrl(url: string) {
+  try {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      await navigator.clipboard.writeText(url);
+      return true;
+    }
+  } catch {
+    // Fall through to the legacy clipboard path for embedded browsers and
+    // contexts where the Clipboard API is present but permission is denied.
+  }
+
+  if (typeof document === "undefined") return false;
+
+  const input = document.createElement("textarea");
+  input.value = url;
+  input.setAttribute("readonly", "true");
+  input.style.position = "fixed";
+  input.style.opacity = "0";
+  document.body.appendChild(input);
+  input.focus();
+  input.select();
+
+  try {
+    return document.execCommand("copy");
+  } catch {
+    return false;
+  } finally {
+    input.remove();
+  }
+}
+
+function ListingMapEmbed({
+  locationQuery,
+  title,
+  className = "h-[210px]",
+}: {
+  locationQuery: string;
+  title: string;
+  className?: string;
+}) {
+  return (
+    <iframe
+      title={title}
+      src={`https://www.google.com/maps?q=${locationQuery}&output=embed`}
+      className={`w-full border-0 ${className}`}
+      loading="lazy"
+      referrerPolicy="no-referrer-when-downgrade"
+    />
+  );
+}
+
 export const Route = createFileRoute("/listings/$listingId")({
   loader: async ({ context, params }) => {
     const listing = await context.queryClient.ensureQueryData(listingQuery(params.listingId));
@@ -729,13 +780,25 @@ function ListingDetail() {
   const description = listing.description?.trim() ?? "";
   const locationQuery = encodeURIComponent(`${listing.city}, ${listing.state}`);
   const handleShare = async () => {
+    const shareUrl = `${window.location.origin}/listings/${listing.id}`;
+
     try {
-      if (navigator.share) {
-        await navigator.share({ title, url: window.location.href });
-        return;
+      if (typeof navigator.share === "function") {
+        try {
+          await navigator.share({
+            title,
+            text: `Check out ${title} on ${brand.name}`,
+            url: shareUrl,
+          });
+          return;
+        } catch (error) {
+          if (error instanceof DOMException && error.name === "AbortError") return;
+          // Native sharing can be unavailable in an embedded browser even
+          // when the API exists. Continue to the copy fallback below.
+        }
       }
-      if (navigator.clipboard) {
-        await navigator.clipboard.writeText(window.location.href);
+
+      if (await copyListingUrl(shareUrl)) {
         toast.success("Listing link copied.");
         return;
       }
@@ -969,30 +1032,34 @@ function ListingDetail() {
               {activeTab === "location" && (
                 <div>
                   <h2 className="text-[18px] font-bold">Listing location</h2>
-                  <div className="mt-4 flex flex-col gap-4 rounded-2xl border border-border/70 bg-secondary/45 p-5 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-start gap-3">
-                      <MapTrifold
-                        size={24}
-                        weight="duotone"
-                        className="mt-0.5 shrink-0 text-primary"
-                      />
-                      <div>
-                        <p className="font-semibold">
-                          {listing.city}, {listing.state}
-                        </p>
-                        <p className="mt-1 text-[12px] text-muted-foreground">
-                          The seller's exact meeting location should be confirmed before pickup.
-                        </p>
+                  <div className="mt-4 overflow-hidden rounded-2xl border border-border/70 bg-secondary/45">
+                    <ListingMapEmbed locationQuery={locationQuery} title="Listing location map" />
+                    <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-start gap-3">
+                        <MapTrifold
+                          size={24}
+                          weight="duotone"
+                          className="mt-0.5 shrink-0 text-primary"
+                        />
+                        <div>
+                          <p className="font-semibold">
+                            {listing.city}, {listing.state}
+                          </p>
+                          <p className="mt-1 text-[12px] text-muted-foreground">
+                            Approximate public location. Confirm the exact meeting location before
+                            pickup.
+                          </p>
+                        </div>
                       </div>
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${locationQuery}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex h-10 shrink-0 items-center justify-center rounded-full bg-primary px-4 text-[12px] font-semibold text-primary-foreground hover:opacity-90"
+                      >
+                        Open map
+                      </a>
                     </div>
-                    <a
-                      href={`https://www.google.com/maps/search/?api=1&query=${locationQuery}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex h-10 shrink-0 items-center justify-center rounded-full bg-primary px-4 text-[12px] font-semibold text-primary-foreground hover:opacity-90"
-                    >
-                      Open map
-                    </a>
                   </div>
                 </div>
               )}
@@ -1167,19 +1234,14 @@ function HomeLocationPanel({
 }) {
   return (
     <section className="soft-card overflow-hidden">
-      <div className="relative h-[210px] overflow-hidden bg-[#e8edf2]">
-        <div className="absolute inset-0 opacity-60 [background-image:linear-gradient(35deg,transparent_46%,#fff_47%,#fff_49%,transparent_50%),linear-gradient(120deg,transparent_44%,#fff_45%,#fff_47%,transparent_48%),linear-gradient(#d8e0e7_1px,transparent_1px),linear-gradient(90deg,#d8e0e7_1px,transparent_1px)] [background-size:180px_140px,220px_180px,34px_34px,34px_34px]" />
-        <div className="absolute left-1/2 top-1/2 grid h-12 w-12 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-brand-warm text-white shadow-lg ring-8 ring-brand-warm/20">
-          <MapPin size={24} weight="fill" />
-        </div>
-      </div>
+      <ListingMapEmbed locationQuery={locationQuery} title="Home listing location map" />
       <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-[12px] font-semibold">
             {listing.city}, {listing.state}
           </p>
           <p className="mt-1 text-[11px] text-muted-foreground">
-            Confirm the exact address and tour details with the seller.
+            Approximate public location. Confirm the exact address and tour details with the seller.
           </p>
         </div>
         <a
@@ -2285,31 +2347,34 @@ function GeneralListingDetail({
               ) : (
                 <div>
                   <h2 className="text-[21px] font-bold">Map</h2>
-                  <div className="mt-5 flex flex-col gap-4 rounded-2xl border border-border/70 bg-secondary/45 p-5 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-start gap-3">
-                      <MapTrifold
-                        size={25}
-                        weight="duotone"
-                        className="mt-0.5 shrink-0 text-primary"
-                      />
-                      <div>
-                        <p className="font-semibold">
-                          {listing.city}, {listing.state}
-                        </p>
-                        <p className="mt-1 text-[12px] text-muted-foreground">
-                          Confirm the exact pickup or meeting location with the seller before you
-                          go.
-                        </p>
+                  <div className="mt-5 overflow-hidden rounded-2xl border border-border/70 bg-secondary/45">
+                    <ListingMapEmbed locationQuery={locationQuery} title="Listing location map" />
+                    <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-start gap-3">
+                        <MapTrifold
+                          size={25}
+                          weight="duotone"
+                          className="mt-0.5 shrink-0 text-primary"
+                        />
+                        <div>
+                          <p className="font-semibold">
+                            {listing.city}, {listing.state}
+                          </p>
+                          <p className="mt-1 text-[12px] text-muted-foreground">
+                            Approximate public location. Confirm the exact pickup or meeting
+                            location with the seller before you go.
+                          </p>
+                        </div>
                       </div>
+                      <a
+                        href={"https://www.google.com/maps/search/?api=1&query=" + locationQuery}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex h-10 shrink-0 items-center justify-center rounded-full bg-primary px-4 text-[12px] font-semibold text-primary-foreground hover:opacity-90"
+                      >
+                        Open map
+                      </a>
                     </div>
-                    <a
-                      href={"https://www.google.com/maps/search/?api=1&query=" + locationQuery}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex h-10 shrink-0 items-center justify-center rounded-full bg-primary px-4 text-[12px] font-semibold text-primary-foreground hover:opacity-90"
-                    >
-                      Open map
-                    </a>
                   </div>
                 </div>
               )}
