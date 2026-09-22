@@ -5359,7 +5359,7 @@ function ClassifiedsLandingHero({
     >
       <span className="absolute -right-20 -top-24 h-72 w-72 rounded-full bg-brand-warm/15" />
       <span className="absolute -bottom-36 left-1/3 h-80 w-80 rounded-full bg-primary/5" />
-      <div className="absolute left-5 top-5 z-20 sm:left-7 sm:top-7">
+      <div className="absolute right-5 top-5 z-20 sm:right-7 sm:top-7">
         <SponsoredHeroBadge />
       </div>
       <div className="relative mx-auto max-w-[920px] text-center">
@@ -5705,10 +5705,10 @@ function HomesLandingHero({
       }}
     >
       <div className="absolute inset-0 bg-gradient-to-t from-primary/55 via-transparent to-primary/15" />
-      <div className="absolute left-5 top-5 z-20 sm:left-7 sm:top-7">
+      <div className="absolute right-5 top-5 z-20 sm:right-7 sm:top-7">
         <SponsoredHeroBadge />
       </div>
-      <div className="relative flex min-h-[610px] items-center justify-center px-4 py-12 sm:min-h-[680px] sm:px-8">
+      <div className="relative flex min-h-[610px] items-center justify-center px-4 pb-12 pt-24 sm:min-h-[680px] sm:px-8 sm:pb-12 sm:pt-16">
         <div className="w-full max-w-[650px] rounded-[28px] border border-white/20 bg-primary/80 p-5 text-primary-foreground shadow-2xl backdrop-blur-md sm:p-8">
           <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">
             GemList Homes
@@ -5877,10 +5877,10 @@ function ServicesLandingHero({
       }}
     >
       <div className="absolute inset-0 bg-gradient-to-t from-primary/60 via-transparent to-primary/10" />
-      <div className="absolute left-5 top-5 z-20 sm:left-7 sm:top-7">
+      <div className="absolute right-5 top-5 z-20 sm:right-7 sm:top-7">
         <SponsoredHeroBadge />
       </div>
-      <div className="relative flex min-h-[610px] items-center justify-center px-4 py-12 sm:min-h-[680px] sm:px-8">
+      <div className="relative flex min-h-[610px] items-center justify-center px-4 pb-12 pt-24 sm:min-h-[680px] sm:px-8 sm:pb-12 sm:pt-16">
         <div className="w-full max-w-[720px] rounded-[28px] border border-white/20 bg-primary/80 p-5 text-primary-foreground shadow-2xl backdrop-blur-md sm:p-8">
           <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">
             GemList Services
@@ -6538,10 +6538,10 @@ function JobsLandingHero({
       }}
     >
       <div className="absolute inset-0 bg-gradient-to-t from-primary/60 via-transparent to-primary/10" />
-      <div className="absolute left-5 top-5 z-20 sm:left-7 sm:top-7">
+      <div className="absolute right-5 top-5 z-20 sm:right-7 sm:top-7">
         <SponsoredHeroBadge />
       </div>
-      <div className="relative flex min-h-[590px] items-center justify-center px-4 py-12 sm:min-h-[670px] sm:px-8">
+      <div className="relative flex min-h-[590px] items-center justify-center px-4 pb-12 pt-24 sm:min-h-[670px] sm:px-8 sm:pb-12 sm:pt-16">
         <div className="w-full max-w-[720px] rounded-[28px] border border-white/20 bg-primary/80 p-5 text-primary-foreground shadow-2xl backdrop-blur-md sm:p-8">
           <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">
             GemList Jobs

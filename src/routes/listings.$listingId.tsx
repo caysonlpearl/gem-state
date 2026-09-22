@@ -936,6 +936,9 @@ function ListingDetail() {
             <Eye size={15} /> Local listing
           </span>
         </div>
+        <p className="numeric mt-4 text-[30px] font-bold leading-none text-brand-warm sm:text-[34px]">
+          {formatUsd(listing.priceCents)}
+        </p>
       </header>
 
       <div className="mt-6 grid gap-7 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,370px)] lg:items-start">
@@ -2226,9 +2229,9 @@ function GeneralListingDetail({
         </span>
       </nav>
 
-      <div className="mt-5 grid gap-7 lg:grid-cols-[minmax(255px,330px)_minmax(0,1fr)] lg:items-start">
-        <aside className="order-2 min-w-0 space-y-5 lg:order-1 lg:sticky lg:top-24">
-          <header>
+      <header className="mt-5 border-b border-border/70 pb-5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
             <h1 className="text-[28px] font-bold leading-tight tracking-tight sm:text-[36px]">
               {title}
             </h1>
@@ -2243,47 +2246,51 @@ function GeneralListingDetail({
                 <Eye size={15} /> Local listing
               </span>
             </div>
-            <p className="numeric mt-4 text-[32px] font-bold leading-none text-primary">
-              {listing.service?.pricing ?? formatUsd(listing.priceCents)}
-            </p>
-            <div className="mt-5 flex items-center gap-2">
-              {listing.isMock ? (
-                <button
-                  type="button"
-                  aria-label="Save listing"
-                  onClick={() => toast.info("Saving is shown here in the mock listing preview.")}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <Heart size={18} />
-                </button>
-              ) : (
-                <WatchHeartButton
-                  productId={listing.productId}
-                  productSlug={listing.productSlug}
-                  productName={title}
-                  isDemo={false}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
-                />
-              )}
+          </div>
+          <div className="flex items-center gap-2">
+            {listing.isMock ? (
               <button
                 type="button"
-                aria-label="Share listing"
-                onClick={() => void handleShare()}
-                className="grid h-10 w-10 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground"
+                aria-label="Save listing"
+                onClick={() => toast.info("Saving is shown here in the mock listing preview.")}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <ShareNetwork size={18} />
+                <Heart size={18} />
               </button>
-              <button
-                type="button"
-                aria-label="Print listing"
-                onClick={() => window.print()}
-                className="grid h-10 w-10 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground"
-              >
-                <Printer size={18} />
-              </button>
-            </div>
-          </header>
+            ) : (
+              <WatchHeartButton
+                productId={listing.productId}
+                productSlug={listing.productSlug}
+                productName={title}
+                isDemo={false}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+              />
+            )}
+            <button
+              type="button"
+              aria-label="Share listing"
+              onClick={() => void handleShare()}
+              className="grid h-10 w-10 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground"
+            >
+              <ShareNetwork size={18} />
+            </button>
+            <button
+              type="button"
+              aria-label="Print listing"
+              onClick={() => window.print()}
+              className="hidden h-10 w-10 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground sm:grid"
+            >
+              <Printer size={18} />
+            </button>
+          </div>
+        </div>
+        <p className="numeric mt-4 text-[30px] font-bold leading-none text-primary sm:text-[34px]">
+          {formatUsd(listing.priceCents)}
+        </p>
+      </header>
 
+      <div className="mt-5 grid gap-7 lg:grid-cols-[minmax(255px,330px)_minmax(0,1fr)] lg:items-start">
+        <aside className="order-2 min-w-0 space-y-5 lg:order-1 lg:sticky lg:top-24">
           <SellerCard listing={listing} />
           <ListingActions listing={listing} showPaymentCalculator={false} showPriceHeader={false} />
           <PageStatsCard listing={listing} />
