@@ -168,7 +168,7 @@ function Home() {
   }, []);
 
   const motorCategories = classifiedCategories.filter((c) => c.group === "motors");
-  const freshListings = home.recent.slice(0, HOMEPAGE_ROW_SIZE);
+  const freshListings = home.recent.filter((listing) => !listing.pet).slice(0, HOMEPAGE_ROW_SIZE);
   const homeListings = home.recent.filter((listing) => listing.home);
   const jobListings = home.recent.filter((listing) => listing.job);
   // Keep the source shape easy to audit alongside the other category filters.
