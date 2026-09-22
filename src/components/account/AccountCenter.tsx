@@ -72,6 +72,7 @@ import {
   markNotificationsRead,
   type MemberNotification,
 } from "@/lib/notifications.functions";
+import { getAdminAccess } from "@/lib/admin-access.functions";
 import { cancelListing, getMyListings, type MyListing } from "@/lib/market.functions";
 import {
   AlertDialog,
@@ -174,6 +175,7 @@ export function AccountCenter({
   const fetchSellerSummary = useServerFn(getSellerDashboardSummary);
   const fetchUpgradeOptions = useServerFn(getListingUpgradeOptions);
   const fetchBillingHistory = useServerFn(getSellerBillingHistory);
+  const fetchAdminAccess = useServerFn(getAdminAccess);
   const reconcileCheckout = useServerFn(reconcileListingUpgradeCheckout);
 
   useEffect(() => {
@@ -197,6 +199,12 @@ export function AccountCenter({
   }, [checkout, purchaseId, queryClient, reconcileCheckout, section]);
 
   const account = useQuery({ queryKey: ["my-account"], queryFn: () => fetchAccount() });
+  const adminAccess = useQuery({
+    queryKey: ["admin-access"],
+    queryFn: () => fetchAdminAccess(),
+    enabled: Boolean(account.data),
+    retry: false,
+  });
   const watchlist = useQuery({
     queryKey: ["my-watchlist"],
     queryFn: () => fetchWatchlist(),
@@ -283,10 +291,11 @@ export function AccountCenter({
   const unreadMessages = conversations.data?.filter((item) => item.unread).length ?? 0;
   const unreadNotifications = notifications.data?.unread ?? 0;
   const sellerVisible = Boolean(sellerSetup.data?.exists || data?.primaryIntent === "selling");
+  const adminVisible = adminAccess.data?.isAdmin === true;
 
   return (
     <main id="main-content" className="mx-auto max-w-[1320px] px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mb-6 flex items-center justify-between gap-4 lg:hidden">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4 lg:hidden">
         <div>
           <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
             Member center
@@ -306,6 +315,15 @@ export function AccountCenter({
           ))}
           {sellerVisible && <option value="billing">Billing</option>}
         </select>
+        {adminVisible && (
+          <Link
+            to="/admin"
+            className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-primary px-3 text-[12px] font-semibold text-primary-foreground shadow-sm"
+          >
+            <ShieldCheck size={16} weight="fill" aria-hidden="true" />
+            Admin panel
+          </Link>
+        )}
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[236px_minmax(0,1fr)]">
@@ -316,6 +334,7 @@ export function AccountCenter({
           unreadMessages={unreadMessages}
           unreadNotifications={unreadNotifications}
           sellerVisible={sellerVisible}
+          adminVisible={adminVisible}
         />
         <div className="min-w-0">
           {account.isLoading ? (
@@ -385,6 +404,7 @@ function AccountSidebar({
   unreadMessages,
   unreadNotifications,
   sellerVisible,
+  adminVisible,
 }: {
   section: AccountSection;
   onSelect: (section: AccountSection) => void;
@@ -392,6 +412,7 @@ function AccountSidebar({
   unreadMessages: number;
   unreadNotifications: number;
   sellerVisible: boolean;
+  adminVisible: boolean;
 }) {
   return (
     <aside className="hidden lg:block">
@@ -438,6 +459,15 @@ function AccountSidebar({
               <CreditCard size={18} aria-hidden="true" />
               <span className="flex-1">Billing</span>
             </button>
+          )}
+          {adminVisible && (
+            <Link
+              to="/admin"
+              className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-[12.5px] font-medium text-foreground transition-colors hover:bg-secondary"
+            >
+              <ShieldCheck size={18} weight="fill" aria-hidden="true" />
+              <span className="flex-1">Admin panel</span>
+            </Link>
           )}
         </nav>
         <div className="border-t border-border p-2">
