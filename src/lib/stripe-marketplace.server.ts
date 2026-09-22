@@ -526,7 +526,7 @@ async function releaseFailedOfferCapture(intent: Stripe.PaymentIntent) {
 export async function finalizeListingUpgradeCheckout(session: Stripe.Checkout.Session) {
   const purchaseId = session.metadata?.["gemstate_purchase_id"] ?? "";
   if (!purchaseId) return;
-  if (session.payment_status !== "paid" && session.status !== "complete") return;
+  if (session.payment_status !== "paid") return;
 
   const admin = supabaseAdmin as any;
   const { data: purchase, error: purchaseError } = await admin

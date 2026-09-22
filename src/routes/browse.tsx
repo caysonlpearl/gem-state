@@ -2473,16 +2473,18 @@ function Browse() {
                             className="filter-input"
                             maxLength={60}
                           />
-                          {[
-                            ["petHypoallergenic", "Hypoallergenic"],
-                            ["petVaccinated", "Vaccinated"],
-                            ["petSpayedNeutered", "Spayed / neutered"],
-                            ["petMicrochipped", "Microchipped"],
-                            ["petRecordsAvailable", "Records available"],
-                            ["petGoodWithKids", "Good with children"],
-                            ["petGoodWithDogs", "Good with dogs"],
-                            ["petGoodWithCats", "Good with cats"],
-                          ].map(([name, label]) => (
+                          {(
+                            [
+                              ["petHypoallergenic", "Hypoallergenic"],
+                              ["petVaccinated", "Vaccinated"],
+                              ["petSpayedNeutered", "Spayed / neutered"],
+                              ["petMicrochipped", "Microchipped"],
+                              ["petRecordsAvailable", "Records available"],
+                              ["petGoodWithKids", "Good with children"],
+                              ["petGoodWithDogs", "Good with dogs"],
+                              ["petGoodWithCats", "Good with cats"],
+                            ] as const
+                          ).map(([name, label]) => (
                             <select
                               key={name}
                               name={name}

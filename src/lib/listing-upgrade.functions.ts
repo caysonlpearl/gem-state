@@ -116,7 +116,7 @@ export const reconcileListingUpgradeCheckout = createServerFn({ method: "POST" }
       await expireListingUpgradeCheckout(session);
       return "canceled";
     }
-    if (session.payment_status === "paid" || session.status === "complete") {
+    if (session.payment_status === "paid") {
       await finalizeListingUpgradeCheckout(session);
       return "paid";
     }
