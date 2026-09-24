@@ -809,6 +809,7 @@ test("browse heroes surface the GemList sponsorship opportunity", () => {
   assert.match(browseSource, /function SponsoredHeroBadge\(\)/);
   assert.match(browseSource, /Sponsored by GemList/);
   assert.doesNotMatch(browseSource, /Your business could be here/);
+  assert.doesNotMatch(browseSource, /eyebrow\.replace\("GemList ", ""\)/);
   assert.match(browseSource, /to="\/advertise"/);
   assert.match(browseSource, /min-h-\[430px\]/);
   assert.match(browseSource, /min-h-\[500px\]/);

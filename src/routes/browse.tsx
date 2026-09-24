@@ -2933,7 +2933,6 @@ type HomepagePreviewCard = {
   price: string;
   detail: string;
   image: string;
-  badge?: string;
 };
 
 type HomepagePreviewRow = {
@@ -2949,7 +2948,7 @@ function previewCard(
   price: string,
   detail: string,
   image: string,
-  badge?: string,
+  _badge?: string,
 ): HomepagePreviewCard & { name: string; facts: string } {
   return {
     title,
@@ -2959,7 +2958,6 @@ function previewCard(
     detail,
     facts: detail,
     image,
-    ...(badge ? { badge } : {}),
   };
 }
 
@@ -5601,7 +5599,6 @@ function HomepageShowcaseRows({
               <li key={`${row.title}-${card.title}`}>
                 <HomepagePreviewCard
                   card={card}
-                  eyebrow={eyebrow}
                   href={getHomepagePreviewCardHref(row.href, card)}
                 />
               </li>
@@ -5620,15 +5617,7 @@ function getHomepagePreviewCardHref(rowHref: string, card: HomepagePreviewCard) 
   return `${pathname}?${params.toString()}`;
 }
 
-function HomepagePreviewCard({
-  card,
-  eyebrow,
-  href,
-}: {
-  card: HomepagePreviewCard;
-  eyebrow: string;
-  href: string;
-}) {
+function HomepagePreviewCard({ card, href }: { card: HomepagePreviewCard; href: string }) {
   return (
     <a
       href={href}
@@ -5643,9 +5632,6 @@ function HomepagePreviewCard({
             loading="lazy"
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
           />
-          <span className="absolute left-3 top-3 rounded-md bg-primary/85 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.12em] text-primary-foreground">
-            {card.badge ?? eyebrow.replace("GemList ", "")}
-          </span>
         </div>
         <div className="p-3.5">
           <p className="numeric text-[16px] font-bold text-primary">{card.price}</p>
