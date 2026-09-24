@@ -793,7 +793,10 @@ test("main homepage presents category-curated listing rows", () => {
     assert.match(homeSource, new RegExp(title.replaceAll("$", "\\$")));
   }
   assert.match(homeSource, /function HomepageInfoBand/);
-  assert.match(homeSource, /How GemList works/);
+  assert.match(homeSource, /Local marketplace/);
+  assert.doesNotMatch(homeSource, /to="\/glossary"/);
+  assert.doesNotMatch(headerSource, /How it works/);
+  assert.doesNotMatch(footerSource, /How listings and seller contact work|Glossary/);
   assert.match(homeSource, /For sellers and businesses/);
   assert.match(homeSource, /A marketplace with a local feel/);
   assert.match(homeSource, /home\.recent\.filter\(\(listing\) => listing\.home\)/);

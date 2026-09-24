@@ -420,11 +420,11 @@ function Home() {
       />
 
       <HomepageInfoBand
-        eyebrow="How GemList works"
-        title="Buy locally, ask directly, and keep the transaction simple."
-        body="Every listing connects you with the person or business behind it. Ask questions, compare options, and arrange the details directly with the seller."
-        action="See how buying and selling works"
-        to="/glossary"
+        eyebrow="Local marketplace"
+        title="Buy locally and connect directly with sellers."
+        body="Explore listings from people and businesses across Idaho, then message sellers directly to ask questions and arrange the details."
+        action="Browse local listings"
+        to="/browse"
       />
 
       <HomepageListingRow
@@ -606,7 +606,7 @@ function HomepageInfoBand({
   title: string;
   body: string;
   action: string;
-  to: "/glossary" | "/sell" | "/browse";
+  to: "/sell" | "/browse";
   tone?: "default" | "accent";
 }) {
   return (

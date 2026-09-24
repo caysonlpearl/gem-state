@@ -163,9 +163,6 @@ export function SiteHeader() {
           >
             <MagnifyingGlass size={18} aria-hidden="true" />
           </button>
-          <Link to="/glossary" className={utilityLinkClass} {...pinned}>
-            How it works
-          </Link>
           <Link
             to="/create-listing"
             className="hidden h-11 items-center gap-1.5 rounded-full bg-accent px-4 text-[12.5px] font-semibold text-accent-foreground transition-opacity hover:opacity-90 sm:inline-flex"
@@ -376,14 +373,6 @@ export function SiteHeader() {
                 {...pinned}
               >
                 Newest listings
-              </Link>
-              <Link
-                to="/glossary"
-                onClick={() => setMenuOpen(false)}
-                className="flex min-h-10 items-center rounded-xl border border-border bg-card px-3 text-[12px] font-medium"
-                {...pinned}
-              >
-                How it works
               </Link>
               {isSignedIn && (
                 <Link

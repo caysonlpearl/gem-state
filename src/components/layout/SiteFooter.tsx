@@ -74,11 +74,6 @@ export function SiteFooter() {
             <h2 className={headingClass}>Buying and selling</h2>
             <ul className="mt-2">
               <li>
-                <Link to="/glossary" className={linkClass} {...pinned}>
-                  How listings and seller contact work
-                </Link>
-              </li>
-              <li>
                 <Link to="/create-listing" className={linkClass} {...pinned}>
                   Post a listing
                 </Link>
@@ -104,11 +99,6 @@ export function SiteFooter() {
           <div>
             <h2 className={headingClass}>Help and policies</h2>
             <ul className="mt-2">
-              <li>
-                <Link to="/glossary" className={linkClass} {...pinned}>
-                  Glossary
-                </Link>
-              </li>
               <li>
                 <Link to="/contact" className={linkClass} {...pinned}>
                   Contact us
