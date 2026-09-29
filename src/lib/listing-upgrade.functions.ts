@@ -36,7 +36,7 @@ export type ListingUpgradePurchase = {
 const gemStateCheckoutBranding: Stripe.Checkout.SessionCreateParams.BrandingSettings = {
   display_name: "Gem State Classifieds",
   background_color: "#f3eae0",
-  button_color: "#14544b",
+  button_color: "#1f3557",
   border_style: "rounded",
 };
 
