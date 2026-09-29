@@ -112,11 +112,6 @@
 
   body {
     background-color: var(--color-background);
-    background-image: radial-gradient(
-      circle at 96% 0%,
-      color-mix(in srgb, var(--color-brand-blue) 7%, transparent) 0,
-      transparent 23rem
-    );
     color: var(--color-foreground);
     font-family: var(--font-sans);
     font-feature-settings: "cv11", "ss01";
@@ -192,7 +187,7 @@
 
 @layer components {
   .soft-card {
-    border: 1px solid color-mix(in srgb, var(--color-border) 86%, var(--color-brand-blue) 14%);
+    border: 1px solid color-mix(in srgb, var(--color-border) 72%, transparent);
     border-radius: var(--radius-xl);
     background: var(--color-card);
     box-shadow: 0 8px 24px rgb(34 32 27 / 6%);
