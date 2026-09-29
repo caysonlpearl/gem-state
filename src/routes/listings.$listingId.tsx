@@ -487,7 +487,7 @@ function VehicleHistoryCard({ vehicle }: { vehicle: ClassifiedDetail["vehicle"] 
   return (
     <section className="soft-card px-5 py-5">
       <div className="flex items-center gap-3 border-b border-border pb-4">
-        <span className="grid h-9 w-8 shrink-0 place-items-end overflow-hidden rounded-lg bg-brand-warm shadow-sm">
+        <span className="grid h-9 w-8 shrink-0 place-items-end overflow-hidden rounded-lg bg-[#f6b544] shadow-sm">
           <img
             src="https://images.carfax.com/image/1000257/Car-Fox_Looking-Left-cropped-med.png?width=416"
             alt="CARFAX Car Fox"
@@ -498,7 +498,7 @@ function VehicleHistoryCard({ vehicle }: { vehicle: ClassifiedDetail["vehicle"] 
           <p className="text-[23px] font-black leading-none tracking-[-0.04em] text-foreground">
             CARFAX
           </p>
-          <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.16em] text-brand-warm">
+          <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[#f6b544]">
             Vehicle history
           </p>
         </div>

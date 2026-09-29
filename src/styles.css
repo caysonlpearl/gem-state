@@ -5,14 +5,12 @@
 @custom-variant dark (&:is(.dark *));
 
 /*
- * Gem State Classifieds — warm, spacious local marketplace system.
+ * Gem State Classifieds — warm, spacious Idaho marketplace system.
  *
- * The Bluebird refresh keeps cream dominant and uses the logo's strong colors
- * sparingly:
- *   deep navy  → primary action, active state, focus ring
- *   sky blue  → occasional brand illustration and category accents
- *   golden yellow → small highlights, badges, and selected states
- *   warm cream → the main canvas and soft surfaces
+ * Every hue is derived from the Gem State logo palette:
+ *   deep teal   #14544B  → primary action, active state, focus ring
+ *   burnt amber #D2681F  → small brand highlights only
+ *   warm cream  #F3EAE0  → foreground type, logo tile
  * Neutrals are warm near-black. Soft radii, quiet elevation, and generous
  * spacing create a calm discovery experience while prices stay tabular.
  * Bid and Ask are distinguished by label and weight, never by hue.
@@ -55,7 +53,6 @@
   --color-product-well: var(--product-well);
   --color-product-ink: var(--product-ink);
   --color-brand-warm: var(--brand-warm);
-  --color-brand-blue: var(--brand-blue);
   --color-nav-accent: var(--nav-accent);
 }
 
@@ -77,18 +74,17 @@
   --popover: oklch(0.997 0.004 88);
   --popover-foreground: oklch(0.23 0.02 245);
 
-  /* Navy owns interaction. Blue and yellow stay reserved for brand accents. */
+  /* Deep teal owns interaction. Amber is reserved for tiny brand details. */
   --primary: oklch(0.31 0.055 245);
   --primary-foreground: oklch(0.985 0.008 88);
   --secondary: oklch(0.945 0.018 88);
   --secondary-foreground: oklch(0.23 0.02 245);
   --muted: oklch(0.955 0.012 88);
   --muted-foreground: oklch(0.49 0.025 245);
-  --accent: oklch(0.86 0.18 92);
+  --accent: oklch(0.78 0.14 68);
   --accent-foreground: oklch(0.23 0.02 245);
-  --brand-warm: oklch(0.86 0.18 92);
-  --brand-blue: oklch(0.65 0.18 230);
-  --nav-accent: oklch(0.86 0.18 92);
+  --brand-warm: oklch(0.72 0.15 54);
+  --nav-accent: oklch(0.72 0.15 54);
   --product-well: oklch(0.94 0.02 88);
   --product-ink: oklch(0.55 0.025 245);
   --destructive: oklch(0.62 0.16 27);
