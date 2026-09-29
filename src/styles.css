@@ -77,8 +77,8 @@
   --popover: oklch(0.997 0.004 88);
   --popover-foreground: oklch(0.23 0.02 245);
 
-  /* Navy owns interaction. Blue and yellow stay reserved for brand accents. */
-  --primary: oklch(0.31 0.055 245);
+  /* Bluebird blue owns interaction. Navy remains a supporting ink color. */
+  --primary: oklch(0.53 0.17 238);
   --primary-foreground: oklch(0.985 0.008 88);
   --secondary: oklch(0.945 0.018 88);
   --secondary-foreground: oklch(0.23 0.02 245);
