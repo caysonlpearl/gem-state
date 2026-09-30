@@ -165,6 +165,25 @@ function Home() {
   useEffect(() => {
     setHeadlineItems(pickHeadlineItems());
     void trackEvent("page_view", { route: "/" });
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const headlineRotation = window.setInterval(() => {
+      setHeadlineItems((current) => {
+        const currentIndex = headlineOptions.findIndex(
+          (option) => option.join("|") === current.join("|"),
+        );
+        const next = headlineOptions[(currentIndex + 1) % headlineOptions.length] ?? headlineOptions[0];
+        try {
+          window.localStorage.setItem(headlineStorageKey, next.join("|"));
+        } catch {
+          window.name = `${headlineWindowKey}${next.join("|")}`;
+        }
+        return next;
+      });
+    }, 6500);
+
+    return () => window.clearInterval(headlineRotation);
   }, []);
 
   const motorCategories = classifiedCategories.filter((c) => c.group === "motors");
@@ -253,7 +272,15 @@ function Home() {
             Bluebird classifieds
           </p>
           <h1 className="mt-3 max-w-[34ch] text-[34px] font-bold leading-[1.08] tracking-tight sm:text-[48px]">
-            Find <span className="text-brand-blue">{headlineItems[0]}</span> to {headlineItems[1]} to{" "}
+            Find{" "}
+            <span
+              key={headlineItems.join("|")}
+              className="classifieds-hero-rotating-item text-brand-blue"
+              aria-live="polite"
+            >
+              {headlineItems[0]}
+            </span>{" "}
+            to {headlineItems[1]} to{" "}
             {headlineItems[2]} to {headlineItems[3]}.
           </h1>
           <p className="mt-4 max-w-[56ch] text-[15px] leading-relaxed text-muted-foreground">
