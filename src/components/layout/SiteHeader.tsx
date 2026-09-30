@@ -28,7 +28,7 @@ import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
  * redirect after the SSR pass.
  */
 const navLinkClass =
-  "inline-flex h-[112px] w-auto min-w-[164px] shrink-0 flex-row items-center justify-start gap-3 rounded-2xl px-4 text-left text-[12px] font-semibold leading-tight tracking-[-0.01em] text-foreground transition-[background-color,color,box-shadow] hover:bg-secondary hover:text-primary hover:shadow-md";
+  "inline-flex h-[112px] w-auto min-w-[164px] shrink-0 flex-row items-center justify-start gap-3 rounded-2xl px-4 text-left text-[12px] font-semibold leading-tight tracking-[-0.01em] text-foreground transition-[background-color,color,box-shadow] hover:bg-brand-blue/10 hover:text-primary hover:shadow-md";
 
 const utilityLinkClass =
   "hidden h-9 items-center px-2.5 text-[12.5px] text-muted-foreground transition-colors hover:text-primary md:inline-flex";
@@ -106,7 +106,7 @@ export function SiteHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-40 overflow-visible border-b border-border bg-card/95 backdrop-blur">
+    <header className="sticky top-0 z-40 overflow-visible border-t-[3px] border-brand-blue/60 border-b border-border bg-card/95 backdrop-blur">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-2 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-1.5 focus:text-[12.5px] focus:font-medium focus:text-primary-foreground"
@@ -115,7 +115,7 @@ export function SiteHeader() {
       </a>
 
       {/* Level 1 */}
-      <div className="relative z-30 mx-auto grid min-w-0 h-[82px] max-w-[1440px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 sm:h-[88px] sm:gap-8 sm:px-8">
+      <div className="relative z-30 mx-auto grid min-w-0 h-[98px] max-w-[1440px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 sm:h-[108px] sm:gap-8 sm:px-8">
         <Link to="/" className="flex min-w-0 shrink-0 items-center pr-1 sm:pr-2" {...pinned}>
           <BrandMark className="hidden sm:inline-flex" />
           <BrandMark compact mobile className="sm:hidden" />
