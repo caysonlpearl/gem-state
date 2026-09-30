@@ -34,7 +34,7 @@ export type ListingUpgradePurchase = {
 };
 
 const gemStateCheckoutBranding: Stripe.Checkout.SessionCreateParams.BrandingSettings = {
-  display_name: "Gem State Classifieds",
+  display_name: "Bluebird Marketplace",
   background_color: "#f3eae0",
   button_color: "#1f3557",
   border_style: "rounded",

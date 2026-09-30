@@ -176,7 +176,7 @@ function AuthPage() {
           {mode === "forgot"
             ? "Enter your email and we’ll send you a secure password reset link."
             : mode === "reset"
-              ? "Choose a new password for your Gem State account."
+              ? "Choose a new password for your Bluebird account."
               : "An account is needed to save listings, contact sellers and post on the marketplace."}
         </p>
 

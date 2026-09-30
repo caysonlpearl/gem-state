@@ -4,7 +4,7 @@ import { brand, policyTopics } from "@/config/brand";
 import { classifiedCategories, idahoRegions } from "@/config/classifieds";
 
 /*
- * Dense multi-column footer for Gem State Classifieds. Columns are generated
+ * Dense multi-column footer for Bluebird Marketplace. Columns are generated
  * from the classifieds taxonomy and Idaho regions; nothing is padded out with
  * placeholder links, review scores, or trust marks.
  */

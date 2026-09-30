@@ -9,7 +9,7 @@ import { EmailChangeEmail } from "@/lib/email-templates/email-change";
 import { ReauthenticationEmail } from "@/lib/email-templates/reauthentication";
 
 // Configuration
-const SITE_NAME = "Gem State Classifieds";
+const SITE_NAME = "Bluebird Marketplace";
 const SENDER_DOMAIN = "notify.gemstateclassifieds.com";
 const ROOT_DOMAIN = "gemstateclassifieds.com";
 const FROM_DOMAIN = "gemstateclassifieds.com";

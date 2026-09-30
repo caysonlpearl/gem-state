@@ -270,7 +270,7 @@ export function SiteHeader() {
         </nav>
       </div>
 
-      {/* Level 2 — Gem State classifieds taxonomy. */}
+      {/* Level 2 — Bluebird classifieds taxonomy. */}
       <nav
         aria-label="Categories"
         className="relative z-10 hidden border-t border-border bg-background lg:block"

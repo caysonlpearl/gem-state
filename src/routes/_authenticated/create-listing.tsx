@@ -34,7 +34,7 @@ function CreateListingPage() {
   // Classifieds are direct-contact: buyer and seller arrange shipping and
   // payment themselves, so posting one only requires accepting the seller
   // agreement -- not the shipping-method/handling-days setup that only
-  // matters for Gem State's own checkout-marketplace listings.
+  // matters for Bluebird's own checkout-marketplace listings.
   const profileReady = Boolean(setup.data?.exists && setup.data?.termsAccepted);
 
   if (!setup.isLoading && !profileReady) {
@@ -63,7 +63,7 @@ function CreateListingPage() {
       <div className="mt-5 flex flex-wrap items-end justify-between gap-4">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-primary">
-            Gem State seller center
+            Bluebird seller center
           </p>
           <h1 className="mt-1 font-editorial text-[40px] font-normal tracking-[-0.04em]">
             Create a listing

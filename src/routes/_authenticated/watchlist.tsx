@@ -4,13 +4,13 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 export const Route = createFileRoute("/_authenticated/watchlist")({
   head: () => ({
     meta: [
-      { title: "Your saved listings · Gem State Classifieds" },
+      { title: "Your saved listings · Bluebird Marketplace" },
       {
         name: "description",
         content:
-          "The exact Gem State Classifieds listings you save, with current offer and listing details.",
+          "The exact Bluebird Marketplace listings you save, with current offer and listing details.",
       },
-      { property: "og:title", content: "Your saved listings · Gem State Classifieds" },
+      { property: "og:title", content: "Your saved listings · Bluebird Marketplace" },
       {
         property: "og:description",
         content: "Save exact listings and return to them from your private account.",

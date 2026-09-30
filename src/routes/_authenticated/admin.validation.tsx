@@ -9,16 +9,16 @@ import { getValidationSummary } from "@/lib/pilot.functions";
 export const Route = createFileRoute("/_authenticated/admin/validation")({
   head: () => ({
     meta: [
-      { title: "Validation summary — GemList operations" },
+      { title: "Validation summary — Bluebird Marketplace operations" },
       {
         name: "description",
         content:
-          "Administrator-only validation summary for GemList member activity and marketplace operations.",
+          "Administrator-only validation summary for Bluebird Marketplace member activity and marketplace operations.",
       },
-      { property: "og:title", content: "Validation summary — GemList operations" },
+      { property: "og:title", content: "Validation summary — Bluebird Marketplace operations" },
       {
         property: "og:description",
-        content: "Administrator-only funnel summary for GemList marketplace operations.",
+        content: "Administrator-only funnel summary for Bluebird Marketplace marketplace operations.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

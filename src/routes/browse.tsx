@@ -1886,7 +1886,7 @@ function Browse() {
             }
           />
           <GeneralClassifiedShowcase listings={result.listings} />
-          <HomepageShowcaseRows eyebrow="GemList Classifieds" rows={classifiedShowcaseRows} />
+          <HomepageShowcaseRows eyebrow="Bluebird Marketplace Classifieds" rows={classifiedShowcaseRows} />
         </>
       )}
 
@@ -1931,26 +1931,26 @@ function Browse() {
       {pets && petLanding && (
         <>
           <LandingListingsShowcase
-            eyebrow="GemList Pets"
+            eyebrow="Bluebird Marketplace Pets"
             title="Latest pet listings"
             action="Browse all pets"
             browseSearch={{ category: "pets", petMode: "results" }}
             listings={result.listings}
           />
-          <HomepageShowcaseRows eyebrow="GemList Pets" rows={petShowcaseRows} />
+          <HomepageShowcaseRows eyebrow="Bluebird Marketplace Pets" rows={petShowcaseRows} />
         </>
       )}
 
       {motors && vehicleLanding && (
         <>
           <LandingListingsShowcase
-            eyebrow="GemList Motors"
+            eyebrow="Bluebird Marketplace Motors"
             title="Latest vehicles"
             action="Browse all vehicles"
             browseSearch={{ group: "motors", vehicleMode: "results" }}
             listings={result.listings}
           />
-          <HomepageShowcaseRows eyebrow="GemList Motors" rows={vehicleShowcaseRows} />
+          <HomepageShowcaseRows eyebrow="Bluebird Marketplace Motors" rows={vehicleShowcaseRows} />
         </>
       )}
 
@@ -2027,7 +2027,7 @@ function Browse() {
       {homeLanding && (
         <>
           <LandingListingsShowcase
-            eyebrow="GemList Homes"
+            eyebrow="Bluebird Marketplace Homes"
             title={`${homeTab.charAt(0).toUpperCase()}${homeTab.slice(1)} listings`}
             action="Browse all homes"
             browseSearch={{
@@ -2064,13 +2064,13 @@ function Browse() {
       {jobs && jobLanding && (
         <>
           <LandingListingsShowcase
-            eyebrow="GemList Jobs"
+            eyebrow="Bluebird Marketplace Jobs"
             title="Latest local jobs"
             action="Browse all jobs"
             browseSearch={{ category: "jobs", jobMode: "results" }}
             listings={result.listings}
           />
-          <HomepageShowcaseRows eyebrow="GemList Jobs" rows={jobsShowcaseRows} />
+          <HomepageShowcaseRows eyebrow="Bluebird Marketplace Jobs" rows={jobsShowcaseRows} />
         </>
       )}
 
@@ -2110,13 +2110,13 @@ function Browse() {
       {services && serviceLanding && (
         <>
           <LandingListingsShowcase
-            eyebrow="GemList Services"
+            eyebrow="Bluebird Marketplace Services"
             title="Latest local services"
             action="Browse all services"
             browseSearch={{ category: "services", serviceMode: "results" }}
             listings={result.listings}
           />
-          <HomepageShowcaseRows eyebrow="GemList Services" rows={servicesShowcaseRows} />
+          <HomepageShowcaseRows eyebrow="Bluebird Marketplace Services" rows={servicesShowcaseRows} />
         </>
       )}
 
@@ -2156,7 +2156,7 @@ function Browse() {
       >
         <div className={motors ? "hidden" : ""}>
           <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-primary">
-            Gem State classifieds
+            Bluebird classifieds
           </p>
           <h1 className="mt-2 text-[30px] font-bold tracking-tight">{heading}</h1>
           <p className="mt-2 max-w-[62ch] text-[14px] leading-relaxed text-muted-foreground">
@@ -2801,7 +2801,7 @@ function PetsLandingHero({
       <span className="absolute -bottom-24 left-1/3 h-64 w-64 rounded-full bg-primary/5" />
       <div className="relative mx-auto max-w-3xl text-center">
         <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-primary">
-          GemList Pets
+          Bluebird Marketplace Pets
         </p>
         <h1 className="mt-3 text-[34px] font-bold tracking-tight sm:text-[48px]">
           Find the right pet for your home.
@@ -4718,7 +4718,7 @@ const servicesShowcaseRows: HomepagePreviewRow[] = [
         "New",
       ),
       previewCard(
-        "Gem State Tech Help | Home Wi-Fi & Computer Setup",
+        "Bluebird Tech Help | Home Wi-Fi & Computer Setup",
         "Boise, ID",
         "From $85 / visit",
         "2 days · IT services",
@@ -4771,7 +4771,7 @@ const servicesShowcaseRows: HomepagePreviewRow[] = [
         "https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=900&q=80",
       ),
       previewCard(
-        "Gem State Tech Help",
+        "Bluebird Tech Help",
         "Boise, ID",
         "From $85 / visit",
         "Wi-Fi · Computer setup",
@@ -4906,7 +4906,7 @@ const servicesShowcaseRows: HomepagePreviewRow[] = [
     "/browse?category=services&serviceMode=results&serviceSubcategory=Electricians",
     [
       previewCard(
-        "Gem State Electric",
+        "Bluebird Electric",
         "Boise, ID",
         "From $110 service call",
         "Residential · Licensed",
@@ -5053,7 +5053,7 @@ const servicesShowcaseRows: HomepagePreviewRow[] = [
     "/browse?category=services&serviceMode=results&serviceSubcategory=Automotive",
     [
       previewCard(
-        "Gem State Mobile Mechanic",
+        "Bluebird Mobile Mechanic",
         "Boise, ID",
         "From $95 diagnostic",
         "Mobile repair · Brakes",
@@ -5151,7 +5151,7 @@ const servicesShowcaseRows: HomepagePreviewRow[] = [
     "/browse?category=services&serviceMode=results",
     [
       previewCard(
-        "Gem State Tech Help",
+        "Bluebird Tech Help",
         "Boise, ID",
         "From $85 / visit",
         "Wi-Fi · Computer setup",
@@ -5298,7 +5298,7 @@ const servicesShowcaseRows: HomepagePreviewRow[] = [
     "/browse?category=services&serviceMode=results",
     [
       previewCard(
-        "Gem State Roofing",
+        "Bluebird Roofing",
         "Boise, ID",
         "Free inspection",
         "Roof repair · Replacement",
@@ -5354,7 +5354,7 @@ function ClassifiedsLandingHero({
 }) {
   return (
     <section
-      aria-label="GemList all classifieds"
+      aria-label="Bluebird Marketplace all classifieds"
       className="relative isolate min-h-[430px] overflow-hidden rounded-[32px] bg-secondary px-5 py-14 shadow-xl sm:min-h-[500px] sm:px-10 sm:py-20"
     >
       <span className="absolute -right-20 -top-24 h-72 w-72 rounded-full bg-brand-warm/15" />
@@ -5364,7 +5364,7 @@ function ClassifiedsLandingHero({
       </div>
       <div className="relative mx-auto max-w-[920px] text-center">
         <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">
-          GemList Classifieds
+          Bluebird Marketplace Classifieds
         </p>
         <h1 className="mx-auto mt-3 max-w-[22ch] text-[36px] font-bold leading-[1.05] tracking-tight sm:text-[56px]">
           Discover <span className="text-primary">local gems.</span>
@@ -5425,7 +5425,7 @@ function GeneralClassifiedShowcase({ listings }: { listings: ClassifiedBrowseRes
         <div className="mb-4 flex items-end justify-between gap-3 border-b border-border pb-3">
           <div>
             <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
-              GemList Classifieds
+              Bluebird Marketplace Classifieds
             </p>
             <h2
               id="top-general-categories"
@@ -5463,7 +5463,7 @@ function GeneralClassifiedShowcase({ listings }: { listings: ClassifiedBrowseRes
           <div className="mb-4 flex items-end justify-between gap-3 border-b border-border pb-3">
             <div>
               <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
-                GemList Classifieds
+                Bluebird Marketplace Classifieds
               </p>
               <h2
                 id={row.title.replaceAll(" ", "-")}
@@ -5650,14 +5650,14 @@ function SponsoredHeroBadge() {
   return (
     <Link
       to="/advertise"
-      aria-label="Sponsored by GemList — learn about advertising with us"
+      aria-label="Sponsored by Bluebird Marketplace — learn about advertising with us"
       className="inline-flex items-center gap-2.5 rounded-full border border-accent/70 bg-primary/90 px-3.5 py-2 text-left text-primary-foreground shadow-lg backdrop-blur-md transition-transform hover:-translate-y-0.5"
     >
       <span className="grid size-7 shrink-0 place-items-center rounded-full bg-accent text-accent-foreground">
         <Megaphone size={15} weight="fill" aria-hidden="true" />
       </span>
       <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-accent">
-        Sponsored by GemList
+        Sponsored by Bluebird Marketplace
       </span>
       <ArrowRight size={15} weight="bold" className="ml-1 text-accent" aria-hidden="true" />
     </Link>
@@ -5685,7 +5685,7 @@ function HomesLandingHero({
 
   return (
     <section
-      aria-label="GemList Homes"
+      aria-label="Bluebird Marketplace Homes"
       className="relative isolate min-h-[610px] overflow-hidden rounded-[32px] bg-primary bg-cover bg-center shadow-xl sm:min-h-[680px]"
       style={{
         backgroundImage:
@@ -5699,7 +5699,7 @@ function HomesLandingHero({
       <div className="relative flex min-h-[610px] items-center justify-center px-4 pb-12 pt-24 sm:min-h-[680px] sm:px-8 sm:pb-12 sm:pt-16">
         <div className="w-full max-w-[650px] rounded-[28px] border border-white/20 bg-primary/80 p-5 text-primary-foreground shadow-2xl backdrop-blur-md sm:p-8">
           <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">
-            GemList Homes
+            Bluebird Marketplace Homes
           </p>
           <h1 className="mt-3 text-center font-display text-[34px] font-bold leading-[1.05] tracking-tight sm:text-[52px]">
             Build. Buy. Rent.
@@ -5784,7 +5784,7 @@ function HomeShowcaseRows({ activeTab }: { activeTab: HomeTab }) {
           <div className="mb-4 flex items-end justify-between gap-3 border-b border-border pb-3">
             <div>
               <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
-                GemList Homes
+                Bluebird Marketplace Homes
               </p>
               <h2
                 id={row.title.replaceAll(" ", "-").toLowerCase()}
@@ -5830,7 +5830,7 @@ function HomePreviewCard({ card }: { card: (typeof homePreviewRows)[number]["car
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
         />
         <span className="absolute left-3 top-3 rounded-full bg-primary/85 px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.12em] text-primary-foreground backdrop-blur">
-          GemList Homes
+          Bluebird Marketplace Homes
         </span>
       </div>
       <div className="p-3.5">
@@ -5857,7 +5857,7 @@ function ServicesLandingHero({
 
   return (
     <section
-      aria-label="GemList Services"
+      aria-label="Bluebird Marketplace Services"
       className="relative isolate min-h-[610px] overflow-hidden rounded-[32px] bg-primary bg-cover bg-center shadow-xl sm:min-h-[680px]"
       style={{
         backgroundImage:
@@ -5871,7 +5871,7 @@ function ServicesLandingHero({
       <div className="relative flex min-h-[610px] items-center justify-center px-4 pb-12 pt-24 sm:min-h-[680px] sm:px-8 sm:pb-12 sm:pt-16">
         <div className="w-full max-w-[720px] rounded-[28px] border border-white/20 bg-primary/80 p-5 text-primary-foreground shadow-2xl backdrop-blur-md sm:p-8">
           <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">
-            GemList Services
+            Bluebird Marketplace Services
           </p>
           <h1 className="mt-3 text-center font-display text-[34px] font-bold leading-[1.05] tracking-tight sm:text-[54px]">
             Find qualified <span className="text-accent">local pros.</span>
@@ -6034,7 +6034,7 @@ function ServicesCategoryShowcase({
         <section key={row.title} aria-labelledby={row.title.replaceAll(" ", "-").toLowerCase()}>
           <div className="mb-4 border-b border-border pb-3">
             <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
-              GemList Services
+              Bluebird Marketplace Services
             </p>
             <h2
               id={row.title.replaceAll(" ", "-").toLowerCase()}
@@ -6071,7 +6071,7 @@ function ServicesCategoryShowcase({
       <section aria-labelledby="browse-all-service-categories">
         <div className="mb-4 border-b border-border pb-3">
           <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
-            GemList Services
+            Bluebird Marketplace Services
           </p>
           <h2
             id="browse-all-service-categories"
@@ -6518,7 +6518,7 @@ function JobsLandingHero({
 
   return (
     <section
-      aria-label="GemList Jobs"
+      aria-label="Bluebird Marketplace Jobs"
       className="relative isolate min-h-[590px] overflow-hidden rounded-[32px] bg-primary bg-cover bg-center shadow-xl sm:min-h-[670px]"
       style={{
         backgroundImage:
@@ -6532,7 +6532,7 @@ function JobsLandingHero({
       <div className="relative flex min-h-[590px] items-center justify-center px-4 pb-12 pt-24 sm:min-h-[670px] sm:px-8 sm:pb-12 sm:pt-16">
         <div className="w-full max-w-[720px] rounded-[28px] border border-white/20 bg-primary/80 p-5 text-primary-foreground shadow-2xl backdrop-blur-md sm:p-8">
           <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">
-            GemList Jobs
+            Bluebird Marketplace Jobs
           </p>
           <h1 className="mt-3 text-center font-display text-[34px] font-bold leading-[1.05] tracking-tight sm:text-[54px]">
             Find <span className="text-accent">local</span> work that fits your life.
@@ -7308,7 +7308,7 @@ function HomesFilterPage({
       <div className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
-            GemList Homes
+            Bluebird Marketplace Homes
           </p>
           <h1 className="mt-2 text-[28px] font-bold tracking-tight sm:text-[36px]">
             Find a gem to call home.
@@ -7772,7 +7772,7 @@ function VehicleResultsPage({
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
           <div>
             <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
-              Gem State motors
+              Bluebird motors
             </p>
             <h1 className="mt-1 text-[28px] font-bold tracking-tight">Cars & Trucks</h1>
           </div>
@@ -8408,7 +8408,7 @@ function VehicleBrowseHero({
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
-              Gem State motors
+              Bluebird motors
             </p>
             <h1 className="mt-2 max-w-[22ch] text-[30px] font-bold leading-tight tracking-tight sm:text-[38px]">
               Find your next gem on wheels.

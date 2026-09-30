@@ -34,7 +34,7 @@ function createSupabaseFetch(supabaseKey: string): typeof fetch {
 
 function createSupabaseAdminClient() {
   // Lovable reserves SUPABASE_* names for its managed backend. Prefer the
-  // Gem State names in hosted environments, with legacy names retained for
+  // Bluebird names in hosted environments, with legacy names retained for
   // local development and any existing deployments.
   const SUPABASE_URL = process.env["GEM_STATE_SUPABASE_URL"] || process.env["SUPABASE_URL"];
   const SUPABASE_SERVICE_ROLE_KEY =

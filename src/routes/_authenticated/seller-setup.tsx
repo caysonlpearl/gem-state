@@ -212,7 +212,7 @@ function SellerSetupPage() {
             />
             <span>
               I agree to list only items I possess, describe condition accurately, arrange pickup or
-              shipping directly with the buyer, and grant Gem State Classifieds permission to
+              shipping directly with the buyer, and grant Bluebird Marketplace permission to
               display the listing photos I submit.
             </span>
           </label>

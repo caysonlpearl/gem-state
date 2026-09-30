@@ -13,7 +13,7 @@ interface Props {
 
 const Email = ({ itemName, orderNumber, totalCents, currency, orderPath }: Props) => (
   <EmailShell
-    preview={`Your Gem State Classifieds order ${orderNumber ?? ""} is confirmed`}
+    preview={`Your Bluebird Marketplace order ${orderNumber ?? ""} is confirmed`}
     heading="Your order is confirmed"
     intro={`Thanks for your purchase${itemName ? ` of ${itemName}` : ""}. Your payment went through and the seller has been notified to ship it.`}
     facts={[
@@ -32,7 +32,7 @@ export const template = {
   subject: (d: Record<string, any>) =>
     d["orderNumber"]
       ? `Order ${d["orderNumber"]} confirmed`
-      : "Your Gem State Classifieds order is confirmed",
+      : "Your Bluebird Marketplace order is confirmed",
   displayName: "Purchase confirmed (buyer)",
   previewData: {
     itemName: "2019 Toyota Tacoma TRD Off-Road 4x4",

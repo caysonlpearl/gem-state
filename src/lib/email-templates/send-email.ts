@@ -49,7 +49,7 @@ export async function sendTemplateEmail(
   if (!resendApiKey) {
     throw new Error("RESEND_API_KEY is not configured");
   }
-  const from = process.env["RESEND_FROM_EMAIL"] || "Gem State Classifieds <onboarding@resend.dev>";
+  const from = process.env["RESEND_FROM_EMAIL"] || "Bluebird Marketplace <onboarding@resend.dev>";
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {

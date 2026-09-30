@@ -80,7 +80,7 @@ export function AllCategoriesPopover({
         <div className="border-b border-border px-2 pb-4 sm:px-3">
           <p className="text-[18px] font-semibold tracking-tight">All categories</p>
           <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
-            Browse every corner of Gem State classifieds.
+            Browse every corner of Bluebird classifieds.
           </p>
         </div>
         <div className="mt-3 grid max-h-[min(720px,70vh)] gap-1 overflow-y-auto pr-1 sm:grid-cols-2 sm:gap-2 lg:grid-cols-4 xl:grid-cols-6 xl:max-h-none xl:overflow-visible xl:gap-3">

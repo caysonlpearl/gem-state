@@ -19,8 +19,8 @@ const Email = ({ stage = "opened", itemName, orderNumber, outcome, orderPath }: 
     heading={stage === "resolved" ? "Dispute resolved" : "Dispute opened"}
     intro={
       stage === "resolved"
-        ? "A Gem State Classifieds operator reviewed this order and recorded a decision. The details are on the order page."
-        : "A dispute was opened on this order. A Gem State Classifieds operator will review it and follow up on the order page."
+        ? "A Bluebird Marketplace operator reviewed this order and recorded a decision. The details are on the order page."
+        : "A dispute was opened on this order. A Bluebird Marketplace operator will review it and follow up on the order page."
     }
     facts={[
       { label: "Item", value: itemName ?? "" },
@@ -36,7 +36,7 @@ export const template = {
   component: Email,
   subject: (d: Record<string, any>) =>
     d["stage"] === "resolved"
-      ? "Your Gem State Classifieds dispute was resolved"
+      ? "Your Bluebird Marketplace dispute was resolved"
       : "A dispute was opened on your order",
   displayName: "Dispute update (buyer / seller)",
   previewData: {

@@ -37,7 +37,7 @@ type ParcelDimensions = {
 };
 
 const gemStateCheckoutBranding: Stripe.Checkout.SessionCreateParams.BrandingSettings = {
-  display_name: "Gem State Classifieds",
+  display_name: "Bluebird Marketplace",
   background_color: "#f3eae0",
   button_color: "#1f3557",
   border_style: "rounded",
@@ -149,7 +149,7 @@ function sandboxShippingRate(): CheckoutShippingRate | null {
   if (!stripeSecret.startsWith("sk_test_")) return null;
   return {
     id: "gemstate_flat_ground",
-    carrier: "Gem State Classifieds",
+    carrier: "Bluebird Marketplace",
     service: "Tracked ground delivery",
     amountCents: 995,
     currency: "USD",

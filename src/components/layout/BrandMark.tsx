@@ -12,7 +12,7 @@ export function BrandMark({
     <span className={cn("inline-flex items-center gap-2.5", className)}>
       <img
         src="/images/brand/bluebird-marketplace-logo.png"
-        alt="Bluebird — Idaho's local marketplace"
+        alt="Bluebird Marketplace — Idaho's local marketplace"
         className={
           mobile
             ? "h-[56px] w-[190px] max-w-full shrink-0 object-contain"

@@ -44,7 +44,7 @@ export function VehicleVinLookup({
       <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-primary">
         Start with the VIN
       </p>
-      <h2 className="mt-2 text-lg font-semibold">Let GemList fill in the vehicle details</h2>
+      <h2 className="mt-2 text-lg font-semibold">Let Bluebird Marketplace fill in the vehicle details</h2>
       <p className="mt-1 max-w-2xl text-[13px] leading-5 text-muted-foreground">
         Enter the 17-character VIN and we’ll look up the year, make, model, trim, body style,
         drivetrain, transmission, fuel type, and any other details available from the NHTSA vehicle

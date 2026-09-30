@@ -240,7 +240,7 @@ function Home() {
         <span className="absolute -bottom-28 left-1/3 h-72 w-72 rounded-full bg-primary/5" />
         <div className="relative">
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
-            Gem State classifieds
+            Bluebird classifieds
           </p>
           <h1 className="mt-3 max-w-[34ch] text-[34px] font-bold leading-[1.08] tracking-tight sm:text-[48px]">
             Find {headlineItems[0]} to {headlineItems[1]} to {headlineItems[2]} to{" "}
@@ -388,7 +388,7 @@ function Home() {
       </section>
 
       <HomepageListingRow
-        eyebrow="Gem State picks"
+        eyebrow="Bluebird picks"
         title="Fresh local finds"
         listings={freshListings}
         search={{ allCategories: true }}
@@ -396,7 +396,7 @@ function Home() {
       />
 
       <HomepageListingRow
-        eyebrow="Gem State motors"
+        eyebrow="Bluebird motors"
         title="New vehicle arrivals"
         listings={vehicleListings}
         search={{ group: "motors" }}
@@ -404,7 +404,7 @@ function Home() {
       />
 
       <HomepageListingRow
-        eyebrow="Gem State motors"
+        eyebrow="Bluebird motors"
         title="Trucks, SUVs & pickups"
         listings={truckListings}
         search={{ group: "motors" }}
@@ -412,7 +412,7 @@ function Home() {
       />
 
       <HomepageListingRow
-        eyebrow="Gem State motors"
+        eyebrow="Bluebird motors"
         title="Affordable vehicles"
         listings={valueVehicleListings}
         search={{ group: "motors" }}
@@ -428,7 +428,7 @@ function Home() {
       />
 
       <HomepageListingRow
-        eyebrow="Gem State homes"
+        eyebrow="Bluebird homes"
         title="Homes for sale"
         listings={buyHomes}
         search={{ category: "other-real-estate" }}
@@ -436,7 +436,7 @@ function Home() {
       />
 
       <HomepageListingRow
-        eyebrow="Gem State homes"
+        eyebrow="Bluebird homes"
         title="New builds to explore"
         listings={buildHomes}
         search={{ category: "other-real-estate" }}
@@ -444,7 +444,7 @@ function Home() {
       />
 
       <HomepageListingRow
-        eyebrow="Gem State homes"
+        eyebrow="Bluebird homes"
         title="Rentals worth a look"
         listings={rentalHomes}
         search={{ category: "other-real-estate" }}
@@ -454,14 +454,14 @@ function Home() {
       <HomepageInfoBand
         eyebrow="For sellers and businesses"
         title="Put your next opportunity in front of local buyers."
-        body="Post an item, promote a service, or share an open role. GemList gives Idaho sellers one simple place to be discovered."
+        body="Post an item, promote a service, or share an open role. Bluebird Marketplace gives Idaho sellers one simple place to be discovered."
         action="Post a listing"
         to="/sell"
         tone="accent"
       />
 
       <HomepageListingRow
-        eyebrow="Gem State jobs"
+        eyebrow="Bluebird jobs"
         title="Jobs hiring now"
         listings={jobListings}
         search={{ category: "jobs" }}
@@ -469,7 +469,7 @@ function Home() {
       />
 
       <HomepageListingRow
-        eyebrow="Gem State jobs"
+        eyebrow="Bluebird jobs"
         title="Flexible and part-time work"
         listings={flexibleJobs}
         search={{ category: "jobs" }}
@@ -477,7 +477,7 @@ function Home() {
       />
 
       <HomepageListingRow
-        eyebrow="Gem State services"
+        eyebrow="Bluebird services"
         title="Services for your next project"
         listings={serviceListings}
         search={{ category: "services" }}
@@ -485,7 +485,7 @@ function Home() {
       />
 
       <HomepageListingRow
-        eyebrow="Gem State services"
+        eyebrow="Bluebird services"
         title="Home services and repairs"
         listings={homeServices}
         search={{ category: "services" }}
@@ -501,7 +501,7 @@ function Home() {
       />
 
       <HomepageListingRow
-        eyebrow="Gem State classifieds"
+        eyebrow="Bluebird classifieds"
         title="Everyday finds from local sellers"
         listings={generalListings}
         search={{ allCategories: true }}
@@ -509,7 +509,7 @@ function Home() {
       />
 
       <HomepageListingRow
-        eyebrow="Gem State classifieds"
+        eyebrow="Bluebird classifieds"
         title="Toys and collectibles"
         listings={toyAndCollectibleListings}
         search={{ category: "general" }}
@@ -517,7 +517,7 @@ function Home() {
       />
 
       <HomepageListingRow
-        eyebrow="Gem State classifieds"
+        eyebrow="Bluebird classifieds"
         title="Value finds under $100"
         listings={valueFinds}
         search={{ allCategories: true }}
@@ -525,7 +525,7 @@ function Home() {
       />
 
       <HomepageListingRow
-        eyebrow="Gem State picks"
+        eyebrow="Bluebird picks"
         title="More from local sellers"
         listings={localSellerPicks}
         search={{ allCategories: true }}

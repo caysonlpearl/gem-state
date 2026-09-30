@@ -14,7 +14,7 @@ import {
 export const Route = createFileRoute("/_authenticated/admin/review-flags")({
   head: () => ({
     meta: [
-      { title: "Flagged reviews · Gem State Classifieds" },
+      { title: "Flagged reviews · Bluebird Marketplace" },
       { name: "description", content: "Review seller reviews flagged by members before removal." },
       { name: "robots", content: "noindex" },
     ],
@@ -110,7 +110,7 @@ function ReviewFlagsPage() {
     <main className="mx-auto max-w-[900px] space-y-6 px-4 py-10 sm:px-6">
       <div>
         <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-primary">
-          Gem State operations
+          Bluebird operations
         </p>
         <h1 className="mt-1 text-[22px] font-semibold tracking-tight">Flagged reviews</h1>
         <p className="mt-1 max-w-[680px] text-[13px] leading-relaxed text-muted-foreground">

@@ -1,5 +1,5 @@
 /**
- * Public (browser-safe) Supabase connection values for the Gem State
+ * Public (browser-safe) Supabase connection values for the Bluebird
  * Classifieds backend, project ref `udxxfuticbxwiehoepeg`.
  *
  * These are publishable values — the same URL and anon key the browser sends

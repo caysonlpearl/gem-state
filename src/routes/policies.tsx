@@ -18,13 +18,13 @@ export const Route = createFileRoute("/policies")({
       {
         name: "description",
         content:
-          "Gem State Classifieds policies: marketplace disclosures, privacy, buyer and seller terms, cancellation rules, prohibited items, identity verification and contact information.",
+          "Bluebird Marketplace policies: marketplace disclosures, privacy, buyer and seller terms, cancellation rules, prohibited items, identity verification and contact information.",
       },
       { property: "og:title", content: `Policies and disclosures — ${brand.name}` },
       {
         property: "og:description",
         content:
-          "Read Gem State Classifieds' marketplace disclosure, privacy explanation, buyer and seller terms, cancellation rules and contact information.",
+          "Read Bluebird Marketplace' marketplace disclosure, privacy explanation, buyer and seller terms, cancellation rules and contact information.",
       },
       { property: "og:type", content: "article" },
       { name: "twitter:card", content: "summary" },
@@ -59,7 +59,7 @@ function policyBodies(): Record<string, React.ReactNode> {
           anything else you typed into a form.
         </p>
         <p>
-          Listing photos and account data are protected by account and staff permissions. Gem State
+          Listing photos and account data are protected by account and staff permissions. Bluebird
           does not collect payment-card or bank details through the direct-contact listing flow.
         </p>
       </>
@@ -90,7 +90,7 @@ function policyBodies(): Record<string, React.ReactNode> {
           available.
         </p>
         <p>
-          Do not request a buyer's government ID, bank credentials or card details through Gem State
+          Do not request a buyer's government ID, bank credentials or card details through Bluebird
           messages. Future payment features, if enabled, will use their own hosted flow.
         </p>
       </>

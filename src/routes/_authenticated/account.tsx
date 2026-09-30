@@ -38,10 +38,10 @@ export const Route = createFileRoute("/_authenticated/account")({
   },
   head: () => ({
     meta: [
-      { title: "Account center · Gem State Classifieds" },
+      { title: "Account center · Bluebird Marketplace" },
       {
         name: "description",
-        content: "Manage your Gem State profile, saved listings, messages, and seller tools.",
+        content: "Manage your Bluebird profile, saved listings, messages, and seller tools.",
       },
       { name: "robots", content: "noindex,nofollow" },
     ],

@@ -18,7 +18,7 @@ import { trackEvent } from "@/lib/analytics";
 
 const title = `${brand.name} Safety Center`;
 const description =
-  "Learn how to spot common marketplace scams, stay safer when buying or selling, and report a problem on Gem State Classifieds.";
+  "Learn how to spot common marketplace scams, stay safer when buying or selling, and report a problem on Bluebird Marketplace.";
 
 export const Route = createFileRoute("/safety")({
   head: () => ({
@@ -56,7 +56,7 @@ const scamSignals = [
     signal:
       "A message asks you to click a delivery link, share a login code, or continue through an unfamiliar site.",
     action:
-      "Do not share passwords, one-time codes, card details, or bank credentials. Open GemList directly instead of using an unexpected link.",
+      "Do not share passwords, one-time codes, card details, or bank credentials. Open Bluebird Marketplace directly instead of using an unexpected link.",
     icon: LockKey,
   },
   {
@@ -64,7 +64,7 @@ const scamSignals = [
     signal:
       "A buyer claims a courier will collect the item and asks you to pay an insurance, release, or verification fee.",
     action:
-      "Stop and verify independently. GemList does not require a seller to pay a fee to release a buyer's payment.",
+      "Stop and verify independently. Bluebird Marketplace does not require a seller to pay a fee to release a buyer's payment.",
     icon: ChatCircleText,
   },
   {
@@ -88,7 +88,7 @@ const scamSignals = [
 const protections = [
   {
     title: "Account-controlled contact",
-    body: "Marketplace messages are connected to the listing and protected by account access. Keep important conversation details inside GemList.",
+    body: "Marketplace messages are connected to the listing and protected by account access. Keep important conversation details inside Bluebird Marketplace.",
     icon: ChatCircleText,
   },
   {
@@ -138,7 +138,7 @@ function SafetyPage() {
           <div className="max-w-[760px]">
             <div className="inline-flex items-center gap-2 rounded-full border border-accent/60 bg-white/10 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.12em] text-accent">
               <ShieldCheck size={16} weight="fill" aria-hidden="true" />
-              GemList Safety Center
+              Bluebird Marketplace Safety Center
             </div>
             <h1 className="mt-5 text-4xl font-semibold leading-[1.05] tracking-[-0.04em] sm:text-6xl">
               Stay one step ahead of the scam.
@@ -224,7 +224,7 @@ function SafetyPage() {
 
         <section className="mt-20" aria-labelledby="protections-heading">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
-            What GemList does
+            What Bluebird Marketplace does
           </p>
           <h2
             id="protections-heading"
@@ -246,7 +246,7 @@ function SafetyPage() {
           </div>
         </section>
 
-        <section className="mt-20 grid gap-5 lg:grid-cols-2" aria-label="GemList safety boundaries">
+        <section className="mt-20 grid gap-5 lg:grid-cols-2" aria-label="Bluebird Marketplace safety boundaries">
           <div className="rounded-2xl border border-primary/20 bg-primary p-6 text-primary-foreground sm:p-8">
             <div className="flex items-center gap-3">
               <CheckCircle size={24} weight="fill" className="text-accent" aria-hidden="true" />
@@ -257,7 +257,7 @@ function SafetyPage() {
                 "Reviewing a listing report or suspicious message.",
                 "Pointing you to the relevant marketplace policy.",
                 "Protecting account and listing surfaces with access controls.",
-                "Connecting you with support when something on GemList looks wrong.",
+                "Connecting you with support when something on Bluebird Marketplace looks wrong.",
               ].map((item) => (
                 <li key={item} className="flex gap-3">
                   <CheckCircle
@@ -371,7 +371,7 @@ function SafetyPage() {
                   to="/contact"
                   className="inline-flex h-10 items-center gap-2 rounded-md bg-primary px-4 text-[13px] font-semibold text-primary-foreground hover:bg-primary/90"
                 >
-                  Contact GemList
+                  Contact Bluebird Marketplace
                   <ArrowRight size={15} weight="bold" aria-hidden="true" />
                 </Link>
                 <Link
@@ -420,16 +420,16 @@ function SafetyPage() {
                 "For local transactions, inspect the item and confirm the details before paying whenever possible. Never pay an unexplained fee to unlock or release a payment.",
               ],
               [
-                "What if a seller wants to move the conversation off GemList?",
-                "Use your judgment and keep the conversation on GemList while you evaluate the listing. Do not follow unexpected links or share credentials, codes, or financial information.",
+                "What if a seller wants to move the conversation off Bluebird Marketplace?",
+                "Use your judgment and keep the conversation on Bluebird Marketplace while you evaluate the listing. Do not follow unexpected links or share credentials, codes, or financial information.",
               ],
               [
-                "Does GemList verify every seller or item?",
-                "No. GemList provides a marketplace and moderation surfaces, but does not inspect, authenticate, or guarantee sellers or items. You are responsible for evaluating the transaction.",
+                "Does Bluebird Marketplace verify every seller or item?",
+                "No. Bluebird Marketplace provides a marketplace and moderation surfaces, but does not inspect, authenticate, or guarantee sellers or items. You are responsible for evaluating the transaction.",
               ],
               [
                 "Where do I report a suspicious listing?",
-                "Use Flag This Listing on the listing page. You can also contact GemList with the listing URL and a description of what looks wrong.",
+                "Use Flag This Listing on the listing page. You can also contact Bluebird Marketplace with the listing URL and a description of what looks wrong.",
               ],
             ].map(([question, answer]) => (
               <details key={question} className="group px-5 py-4 sm:px-6">

@@ -27,7 +27,7 @@ const intents: { value: MemberIntent; label: string; body: string }[] = [
   {
     value: "shopping_in_park",
     label: "Buying and selling locally",
-    body: "Use Gem State Classifieds for local pickup, shipping and both.",
+    body: "Use Bluebird Marketplace for local pickup, shipping and both.",
   },
   {
     value: "browsing",

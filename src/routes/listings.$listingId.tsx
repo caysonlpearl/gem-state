@@ -427,7 +427,7 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
             </span>
           </div>
           <div className="bg-primary px-3 py-1.5 text-center text-[11px] font-semibold text-primary-foreground">
-            Gem State Reviews
+            Bluebird Reviews
           </div>
         </div>
       )}
@@ -457,7 +457,7 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
         </div>
         {seller.contactTextPhone || seller.contactPhone || seller.contactEmail ? (
           <p className="mt-2 text-[10.5px] leading-relaxed text-muted-foreground">
-            Enabled contact options go directly to the seller. Use Gem State messaging below if you
+            Enabled contact options go directly to the seller. Use Bluebird messaging below if you
             prefer to keep the conversation in the marketplace.
           </p>
         ) : (
@@ -591,11 +591,11 @@ function TrustSafetyCard({ listing }: { listing: ClassifiedDetail }) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-[14px] font-bold">Safe. Simple. Trusted.</h2>
         <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary">
-          <ShieldCheck size={13} weight="fill" /> GemList Safety
+          <ShieldCheck size={13} weight="fill" /> Bluebird Marketplace Safety
         </span>
       </div>
       <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">
-        GemList reviews listings for marketplace policy. Always inspect the item, confirm the
+        Bluebird Marketplace reviews listings for marketplace policy. Always inspect the item, confirm the
         details, and agree on the final price before exchanging money.
       </p>
       <FlagListingDialog listingId={listing.id} />
@@ -634,7 +634,7 @@ function FlagListingDialog({ listingId }: { listingId: string }) {
       toast.success(
         result.alreadyReported
           ? "You already reported this listing."
-          : "Thanks — your report was sent to Gem State moderation.",
+          : "Thanks — your report was sent to Bluebird moderation.",
       );
       setOpen(false);
       setReason("");
@@ -658,7 +658,7 @@ function FlagListingDialog({ listingId }: { listingId: string }) {
         <DialogHeader>
           <DialogTitle>Flag this listing</DialogTitle>
           <DialogDescription>
-            Tell us what looks wrong. Reports help Gem State review unsafe, misleading, or
+            Tell us what looks wrong. Reports help Bluebird review unsafe, misleading, or
             prohibited listings.
           </DialogDescription>
         </DialogHeader>
@@ -1097,7 +1097,7 @@ function ListingDetail() {
               </li>
               <li className="flex items-start gap-2">
                 <Flag size={16} className="mt-0.5 shrink-0 text-primary" /> Report anything
-                misleading or unsafe through Gem State.
+                misleading or unsafe through Bluebird.
               </li>
             </ul>
           </section>
@@ -1402,7 +1402,7 @@ function HomeSafetyPanel({ isRental, listingId }: { isRental: boolean; listingId
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-[18px] font-bold">Important safety tip</h2>
         <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary">
-          <ShieldCheck size={13} weight="fill" /> GemList Safety
+          <ShieldCheck size={13} weight="fill" /> Bluebird Marketplace Safety
         </span>
       </div>
       <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">

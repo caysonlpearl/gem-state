@@ -19,7 +19,7 @@ import { trackEvent } from "@/lib/analytics";
 
 const title = `Advertise with ${brand.name}`;
 const description =
-  "Reach local Idaho buyers, sellers, homeowners, job seekers, and service customers with Gem State Classifieds.";
+  "Reach local Idaho buyers, sellers, homeowners, job seekers, and service customers with Bluebird Marketplace.";
 
 export const Route = createFileRoute("/advertise")({
   head: () => ({
@@ -54,7 +54,7 @@ const opportunities = [
   {
     eyebrow: "For dealerships",
     title: "Inventory that stays current",
-    body: "Start with a sample CSV, XML, or JSON feed. GemList can map the source fields, preview changes, and reconcile new, changed, sold, and removed vehicles before a live connection.",
+    body: "Start with a sample CSV, XML, or JSON feed. Bluebird Marketplace can map the source fields, preview changes, and reconcile new, changed, sold, and removed vehicles before a live connection.",
     icon: Car,
     tag: "Feed pilots welcome",
   },
@@ -94,7 +94,7 @@ function AdvertisePage() {
         <div className="relative mx-auto grid max-w-[1240px] gap-10 px-4 py-16 sm:px-8 sm:py-20 lg:grid-cols-[1.05fr_0.95fr] lg:items-center lg:gap-16 lg:py-24">
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-accent">
-              GemList for business
+              Bluebird Marketplace for business
             </p>
             <h1 className="mt-4 max-w-[700px] text-4xl font-semibold leading-[1.05] tracking-[-0.04em] sm:text-5xl lg:text-6xl">
               Put your business in front of local buyers.
@@ -265,7 +265,7 @@ function AdvertisePage() {
         >
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-primary">
-              Why GemList
+              Why Bluebird Marketplace
             </p>
             <h2
               id="benefits-heading"
@@ -274,7 +274,7 @@ function AdvertisePage() {
               Useful attention beats empty impressions.
             </h2>
             <p className="mt-4 max-w-[470px] text-[14px] leading-relaxed text-muted-foreground">
-              GemList is designed around the next local action: compare an option, ask a question,
+              Bluebird Marketplace is designed around the next local action: compare an option, ask a question,
               schedule a conversation, apply, or find the right help.
             </p>
           </div>
@@ -358,7 +358,7 @@ function AdvertisePage() {
               ],
               [
                 "Can I promote a job or service instead of a product?",
-                "Yes. GemList includes jobs, services, homes, cars, and classifieds, so the starting point can be built around the kind of local action you want.",
+                "Yes. Bluebird Marketplace includes jobs, services, homes, cars, and classifieds, so the starting point can be built around the kind of local action you want.",
               ],
             ].map(([question, answer]) => (
               <details key={question} className="group px-5 py-4 sm:px-6">
@@ -390,14 +390,14 @@ function AdvertisePage() {
             Tell us what you want local customers to do next.
           </h2>
           <p className="mx-auto mt-4 max-w-[600px] text-[14px] leading-relaxed text-primary-foreground/70">
-            We will help you choose a focused starting point for GemList instead of sending you a
+            We will help you choose a focused starting point for Bluebird Marketplace instead of sending you a
             generic media kit.
           </p>
           <Link
             to="/contact"
             className="mt-7 inline-flex h-11 items-center gap-2 rounded-md bg-accent px-5 text-[13px] font-semibold text-accent-foreground transition-transform hover:-translate-y-0.5"
           >
-            Contact the GemList team
+            Contact the Bluebird Marketplace team
             <ArrowRight size={16} weight="bold" aria-hidden="true" />
           </Link>
         </section>

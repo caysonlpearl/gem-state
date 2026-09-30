@@ -13,7 +13,7 @@ interface Props {
 
 const Email = ({ itemName, orderNumber, payoutCents, currency, orderPath }: Props) => (
   <EmailShell
-    preview={`You sold ${itemName ?? "an item"} on Gem State Classifieds`}
+    preview={`You sold ${itemName ?? "an item"} on Bluebird Marketplace`}
     heading="Your item sold"
     intro={`${itemName ? `${itemName} sold` : "Your listing sold"} and the buyer has paid. Add tracking once it's on its way — the buyer's shipping address is on the order page.`}
     facts={[
@@ -30,7 +30,7 @@ const Email = ({ itemName, orderNumber, payoutCents, currency, orderPath }: Prop
 export const template = {
   component: Email,
   subject: (d: Record<string, any>) =>
-    d["itemName"] ? `Sold: ${d["itemName"]}` : "Your Gem State Classifieds item sold",
+    d["itemName"] ? `Sold: ${d["itemName"]}` : "Your Bluebird Marketplace item sold",
   displayName: "Item sold (seller)",
   previewData: {
     itemName: "2019 Toyota Tacoma TRD Off-Road 4x4",

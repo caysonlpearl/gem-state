@@ -28,13 +28,13 @@ export const Route = createFileRoute("/_authenticated/admin/")({
       {
         name: "description",
         content:
-          "Role-protected operator queues for Gem State Classifieds listings, orders, disputes, and seller activity.",
+          "Role-protected operator queues for Bluebird Marketplace listings, orders, disputes, and seller activity.",
       },
       { property: "og:title", content: `${brand.name} operations console` },
       {
         property: "og:description",
         content:
-          "Role-protected operator queues for Gem State Classifieds orders and trust review.",
+          "Role-protected operator queues for Bluebird Marketplace orders and trust review.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -189,7 +189,7 @@ function AdminPage() {
       <div className="mx-auto max-w-[760px] px-4 py-16 sm:px-6">
         <h1 className="text-[20px] font-semibold tracking-tight">Operator access required</h1>
         <p className="mt-2 text-[13px] text-muted-foreground">
-          This console is limited to the Gem State administrator account.
+          This console is limited to the Bluebird administrator account.
         </p>
       </div>
     );
@@ -198,7 +198,7 @@ function AdminPage() {
   return (
     <div className="mx-auto max-w-[1000px] space-y-6 px-4 py-10 sm:px-6">
       <div>
-        <h1 className="text-[22px] font-semibold tracking-tight">GemList operations</h1>
+        <h1 className="text-[22px] font-semibold tracking-tight">Bluebird Marketplace operations</h1>
         <p className="mt-1 text-[13px] text-muted-foreground">
           Manage classified moderation, seller activity, listing performance, and marketplace
           controls from one administrator workspace. Every decision writes an append-only audit

@@ -125,7 +125,7 @@ function SellingPage() {
     mutationFn: (listingId: string) => relist({ data: { listingId } }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["my-listings"] });
-      toast.success("Listing resubmitted for Gem State review.");
+      toast.success("Listing resubmitted for Bluebird review.");
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "Could not relist."),
   });
@@ -209,7 +209,7 @@ function SellingPage() {
               Seller center
             </p>
             <h1 className="mt-2 font-editorial text-[46px] font-normal leading-none tracking-[-0.04em]">
-              Become a Gem State seller
+              Become a Bluebird seller
             </h1>
             <p className="mt-4 max-w-[620px] text-[13px] leading-relaxed text-muted-foreground">
               Create your public seller profile, add your private return address, connect verified
@@ -390,7 +390,7 @@ function SellingPage() {
                     <p className="mt-0.5 text-[11.5px] text-muted-foreground">
                       {ask.variantLabel} ·{" "}
                       {ask.status === "active" && !ask.approvedAt
-                        ? "Awaiting Gem State review"
+                        ? "Awaiting Bluebird review"
                         : (listingStatusLabels[ask.status] ?? ask.status)}{" "}
                       · {ask.publicMediaCount ?? 0} photos
                     </p>
@@ -503,7 +503,7 @@ function SellingPage() {
               : listingTab === "pending"
                 ? heldRequests.length > 0
                   ? ""
-                  : "Nothing waiting on Gem State review."
+                  : "Nothing waiting on Bluebird review."
                 : listingTab === "sold"
                   ? "No sold listings yet."
                   : "No removed listings."}
@@ -607,7 +607,7 @@ function SellingPage() {
                     </p>
                     {offer.status === "pending" || offer.paymentStatus === "capture_pending" ? (
                       <dl className="numeric mt-2 grid grid-cols-2 gap-x-5 gap-y-0.5 text-[11px] text-muted-foreground">
-                        <dt>Gem State selling fee</dt>
+                        <dt>Bluebird selling fee</dt>
                         <dd className="text-right">−{formatUsd(offer.sellerFeeCents)}</dd>
                         <dt>You’ll receive</dt>
                         <dd className="text-right font-semibold text-foreground">
@@ -695,7 +695,7 @@ function SellingPage() {
           <div>
             <h2 className="text-[14px] font-semibold">Your seller reviews</h2>
             <p className="mt-0.5 text-[11px] text-muted-foreground">
-              Reviews from Gem State buyers and other members.
+              Reviews from Bluebird buyers and other members.
             </p>
           </div>
           <p className="numeric text-[12px] font-semibold">
@@ -724,7 +724,7 @@ function SellingPage() {
                   {review.comment || "No written comment."}
                 </p>
                 <p className="mt-3 text-[10.5px] text-muted-foreground">
-                  {review.reviewerName ?? "Gem State member"} ·{" "}
+                  {review.reviewerName ?? "Bluebird member"} ·{" "}
                   {new Date(review.createdAt).toLocaleDateString()}
                 </p>
               </li>

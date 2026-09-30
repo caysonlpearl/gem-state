@@ -16,7 +16,7 @@ import { RelativeTime } from "@/components/ui/relative-time";
 export const Route = createFileRoute("/_authenticated/admin/classifieds")({
   head: () => ({
     meta: [
-      { title: "Classified moderation · Gem State Classifieds" },
+      { title: "Classified moderation · Bluebird Marketplace" },
       {
         name: "description",
         content:
@@ -191,7 +191,7 @@ function ClassifiedModerationPage() {
       <div className="mx-auto max-w-[760px] px-4 py-16 sm:px-6">
         <h1 className="text-[20px] font-semibold tracking-tight">Administrator access required</h1>
         <p className="mt-2 text-[13px] text-muted-foreground">
-          Classified moderation is limited to Gem State administrators.
+          Classified moderation is limited to Bluebird administrators.
         </p>
       </div>
     );
@@ -201,7 +201,7 @@ function ClassifiedModerationPage() {
     <main className="mx-auto max-w-[1000px] space-y-6 px-4 py-10 sm:px-6">
       <div>
         <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-primary">
-          Gem State operations
+          Bluebird operations
         </p>
         <h1 className="mt-1 text-[22px] font-semibold tracking-tight">Classified moderation</h1>
         <p className="mt-1 max-w-[720px] text-[13px] leading-relaxed text-muted-foreground">

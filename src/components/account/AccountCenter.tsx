@@ -418,7 +418,7 @@ function AccountSidebar({
     <aside className="hidden lg:block">
       <div className="sticky top-[108px] overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
         <div className="border-b border-border bg-secondary/45 px-5 py-5">
-          <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">Gem State</p>
+          <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">Bluebird</p>
           <h1 className="mt-1 text-[24px] font-bold tracking-tight">My account</h1>
         </div>
         <nav aria-label="Account sections" className="p-2">
@@ -656,7 +656,7 @@ function OverviewSection({
   const pendingListings = listings.filter(
     (item) => !item.approvedAt || item.status === "pending_review",
   ).length;
-  const displayName = account.displayName || account.email?.split("@")[0] || "Gem State member";
+  const displayName = account.displayName || account.email?.split("@")[0] || "Bluebird member";
   return (
     <div className="space-y-8">
       <SectionHeader
@@ -1013,7 +1013,7 @@ function ProfileSection({
               icon={account.emailVerified ? CheckCircle : ShieldCheck}
             />
             <TrustBadge
-              label={account.phoneVerified ? "Phone verified" : "Gem State member"}
+              label={account.phoneVerified ? "Phone verified" : "Bluebird member"}
               icon={account.phoneVerified ? CheckCircle : ShieldCheck}
             />
             {sellerSummary?.ratingAverage != null && (
@@ -1193,7 +1193,7 @@ function ProfileSection({
         <SectionTitle title="Contact preferences" />
         <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
           These settings control which contact buttons appear on your listings and whether members
-          can start Gem State conversations with you.
+          can start Bluebird conversations with you.
         </p>
         <div className="mt-4 divide-y divide-border">
           <ToggleRow
@@ -1221,7 +1221,7 @@ function ProfileSection({
             onChange={setShowButtons}
           />
           <ToggleRow
-            label="Allow Gem State messages"
+            label="Allow Bluebird messages"
             body="Let members contact you through the marketplace inbox."
             checked={allowInternalMessages}
             onChange={setAllowInternalMessages}
@@ -1312,7 +1312,7 @@ function SettingsSection({
       <SectionHeader
         eyebrow="Account settings"
         title="Control your account"
-        body="Manage your sign-in, contact visibility, and the updates Gem State sends you."
+        body="Manage your sign-in, contact visibility, and the updates Bluebird sends you."
       />
       <div className="rounded-2xl border border-border bg-card shadow-sm">
         <SettingsBlock icon={UserCircle} title="Account details">
@@ -1370,7 +1370,7 @@ function SettingsSection({
         <SettingsBlock icon={ShieldCheck} title="Account deletion">
           <p className="text-[12px] leading-relaxed text-muted-foreground">
             To protect active listings, messages, and transaction records, account deletion requests
-            are reviewed by Gem State support.
+            are reviewed by Bluebird support.
           </p>
           <Link
             to="/contact"
@@ -1396,7 +1396,7 @@ function SettingsSection({
             },
             {
               key: "allowInternalMessages",
-              label: "Allow Gem State messages",
+              label: "Allow Bluebird messages",
               value: contact.allowInternalMessages,
             },
           ]}
@@ -1435,7 +1435,7 @@ function SettingsSection({
             },
             {
               key: "productUpdates",
-              label: "Gem State product updates",
+              label: "Bluebird product updates",
               value: notifications.productUpdates,
             },
             {
@@ -2095,7 +2095,7 @@ function MessagesSection({
       <SectionHeader
         eyebrow="Messages"
         title="Keep marketplace conversations together"
-        body="Message buyers and sellers inside Gem State. Your phone, text, and email buttons remain separate contact options on listings."
+        body="Message buyers and sellers inside Bluebird. Your phone, text, and email buttons remain separate contact options on listings."
       />
       <div className="grid gap-4 rounded-2xl border border-border bg-card p-3 shadow-sm lg:grid-cols-[300px_minmax(0,1fr)]">
         <div className="border-b border-border pb-3 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-3">
@@ -2323,7 +2323,7 @@ function MessagesSection({
           <DialogHeader>
             <DialogTitle>Report this conversation</DialogTitle>
             <DialogDescription>
-              Tell us what happened. Reports are reviewed by Gem State moderators.
+              Tell us what happened. Reports are reviewed by Bluebird moderators.
             </DialogDescription>
           </DialogHeader>
           <textarea
@@ -2449,7 +2449,7 @@ function NotificationsSection({
       {visible.length === 0 ? (
         <EmptyState
           title={items.length === 0 ? "No notifications yet" : "No matching notifications"}
-          body="Your account activity will appear here as you use Gem State."
+          body="Your account activity will appear here as you use Bluebird."
         />
       ) : (
         <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
@@ -2568,7 +2568,7 @@ function ListingsSection({
       />
       {!sellerSetup?.exists && (
         <div className="rounded-2xl border border-primary/25 bg-primary/5 p-5">
-          <p className="text-[14px] font-semibold">Become a Gem State seller</p>
+          <p className="text-[14px] font-semibold">Become a Bluebird seller</p>
           <p className="mt-1 max-w-[60ch] text-[12.5px] leading-relaxed text-muted-foreground">
             Set up your public seller profile before publishing. Direct-contact listings do not
             require buyer checkout or payout onboarding.
@@ -2833,7 +2833,7 @@ function ReviewsSection({
     const url = `${window.location.origin}/sellers/${sellerSetup.slug}?review=1`;
     try {
       if (navigator.share)
-        await navigator.share({ title: "Review my Gem State seller profile", url });
+        await navigator.share({ title: "Review my Bluebird seller profile", url });
       else {
         await navigator.clipboard.writeText(url);
         toast.success("Review link copied.");
@@ -2849,7 +2849,7 @@ function ReviewsSection({
       <SectionHeader
         eyebrow="Trust profile"
         title="Reviews & reputation"
-        body="See the reputation you have earned on Gem State. Anyone can leave you a review from your public profile — share your link with people who know your work."
+        body="See the reputation you have earned on Bluebird. Anyone can leave you a review from your public profile — share your link with people who know your work."
         action={
           sellerSetup?.slug ? (
             <Link
@@ -2960,7 +2960,7 @@ function BillingSection({
         <SectionHeader
           eyebrow="Billing"
           title="Seller billing"
-          body="Billing is available after you create your Gem State seller profile. Buyer payment methods are not needed for this marketplace phase."
+          body="Billing is available after you create your Bluebird seller profile. Buyer payment methods are not needed for this marketplace phase."
         />
         <section className="rounded-2xl border border-primary/25 bg-primary/5 p-5 shadow-sm">
           <p className="text-[14px] font-semibold">Start selling before purchasing upgrades</p>
@@ -2993,7 +2993,7 @@ function BillingSection({
             <h3 className="text-[15px] font-bold">Choose extra visibility</h3>
             <p className="mt-1 max-w-[68ch] text-[12.5px] leading-relaxed text-muted-foreground">
               Boost moves a listing back to the top of relevant results. Featured pins it above
-              standard results for one full day. Card details never touch Gem State.
+              standard results for one full day. Card details never touch Bluebird.
             </p>
           </div>
         </div>

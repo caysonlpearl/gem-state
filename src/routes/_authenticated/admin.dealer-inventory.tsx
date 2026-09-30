@@ -24,7 +24,7 @@ import {
 export const Route = createFileRoute("/_authenticated/admin/dealer-inventory")({
   head: () => ({
     meta: [
-      { title: "Dealer inventory feeds · Gem State Classifieds" },
+      { title: "Dealer inventory feeds · Bluebird Marketplace" },
       { name: "description", content: "Import and validate dealership inventory feeds." },
       { name: "robots", content: "noindex" },
     ],
@@ -183,7 +183,7 @@ function DealerInventoryPage() {
         <p className="mt-2 max-w-[780px] text-[13px] leading-relaxed text-muted-foreground">
           Provider-neutral CSV, JSON, and XML intake for the dealership integration foundation.
           Imported records stay in the inventory layer until a future moderation step links them to
-          public GemList listings.
+          public Bluebird Marketplace listings.
         </p>
       </header>
 

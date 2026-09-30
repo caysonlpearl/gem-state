@@ -4,9 +4,9 @@ import { useEffect } from "react";
 import { brand } from "@/config/brand";
 import { trackEvent } from "@/lib/analytics";
 
-const title = `How Gem State Classifieds works — listings, contact and selling`;
+const title = `How Bluebird Marketplace works — listings, contact and selling`;
 const description =
-  "Plain-language definitions of Gem State Classifieds: how listings, seller contact, buying, selling, pickup, shipping and reviews work across Idaho.";
+  "Plain-language definitions of Bluebird Marketplace: how listings, seller contact, buying, selling, pickup, shipping and reviews work across Idaho.";
 
 export const Route = createFileRoute("/glossary")({
   head: () => ({
@@ -54,7 +54,7 @@ const terms: { term: string; short: string; body: string }[] = [
   {
     term: "Moderation",
     short: "A marketplace safety review",
-    body: "Gem State Classifieds may review listing content and photos before publication and may remove listings that violate the published policies. Moderation is not an inspection or a warranty.",
+    body: "Bluebird Marketplace may review listing content and photos before publication and may remove listings that violate the published policies. Moderation is not an inspection or a warranty.",
   },
   {
     term: "Buyer inquiry",
@@ -64,12 +64,12 @@ const terms: { term: string; short: string; body: string }[] = [
   {
     term: "Seller payout",
     short: "Not currently available",
-    body: "Gem State Classifieds does not process buyer payments or seller payouts through the marketplace. If hosted payment and payout features are added, this page will explain how they work.",
+    body: "Bluebird Marketplace does not process buyer payments or seller payouts through the marketplace. If hosted payment and payout features are added, this page will explain how they work.",
   },
   {
     term: "Report a problem",
-    short: "Tell Gem State about a listing issue",
-    body: "Use Contact us or report the listing when content appears unsafe, prohibited, fraudulent or otherwise violates the published policies. Gem State does not process payment or hold funds through the marketplace.",
+    short: "Tell Bluebird about a listing issue",
+    body: "Use Contact us or report the listing when content appears unsafe, prohibited, fraudulent or otherwise violates the published policies. Bluebird does not process payment or hold funds through the marketplace.",
   },
 ];
 
@@ -110,7 +110,7 @@ function GlossaryPage() {
         <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
           {brand.name} does not process payment or hold funds through the marketplace. Confirm the
           item, price, ownership, meeting or shipping details, and payment method directly with the
-          seller. Gem State does not authenticate or grade items.
+          seller. Bluebird does not authenticate or grade items.
         </p>
         <div className="mt-4 flex flex-wrap gap-2">
           <Link

@@ -201,7 +201,7 @@ export function PetFields({
           />
         </label>
         <p className="text-[11px] leading-relaxed text-muted-foreground sm:col-span-2">
-          GemList does not verify health, ownership, breed, or seller claims. Keep records private
+          Bluebird Marketplace does not verify health, ownership, breed, or seller claims. Keep records private
           until you have independently verified the animal and seller.
         </p>
       </div>

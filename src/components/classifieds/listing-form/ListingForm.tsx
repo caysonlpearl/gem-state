@@ -329,9 +329,9 @@ export function ListingForm(props: ListingFormProps) {
           queryKey: ["classified-listing-editor", props.listingId],
         });
         await queryClient.invalidateQueries({ queryKey: ["classified-browse"] });
-        toast.success("Listing updated and submitted for Gem State review.");
+        toast.success("Listing updated and submitted for Bluebird review.");
       } else {
-        toast.success("Listing submitted for Gem State review.");
+        toast.success("Listing submitted for Bluebird review.");
       }
       await navigate({ to: "/selling" });
     },

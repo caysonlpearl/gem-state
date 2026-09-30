@@ -4,17 +4,17 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 export const Route = createFileRoute("/_authenticated/notifications")({
   head: () => ({
     meta: [
-      { title: "Your GemList notifications" },
+      { title: "Your Bluebird Marketplace notifications" },
       {
         name: "description",
         content:
-          "Private in-app updates about your Gem State Classifieds orders, offers, shipments and reviews.",
+          "Private in-app updates about your Bluebird Marketplace orders, offers, shipments and reviews.",
       },
-      { property: "og:title", content: "Your Gem State Classifieds notifications" },
+      { property: "og:title", content: "Your Bluebird Marketplace notifications" },
       {
         property: "og:description",
         content:
-          "Private in-app updates about your Gem State Classifieds orders, offers and shipments.",
+          "Private in-app updates about your Bluebird Marketplace orders, offers and shipments.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },

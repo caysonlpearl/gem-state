@@ -37,14 +37,14 @@ export const Route = createFileRoute("/sellers/$slug")({
     meta: [
       {
         title: loaderData?.seller
-          ? `${loaderData.seller.displayName} — Seller on Gem State Classifieds`
-          : `Seller profile — Gem State Classifieds`,
+          ? `${loaderData.seller.displayName} — Seller on Bluebird Marketplace`
+          : `Seller profile — Bluebird Marketplace`,
       },
       {
         name: "description",
         content: loaderData?.seller
-          ? `${loaderData.seller.displayName}'s active listings on Gem State Classifieds.`
-          : "Seller profile on Gem State Classifieds.",
+          ? `${loaderData.seller.displayName}'s active listings on Bluebird Marketplace.`
+          : "Seller profile on Bluebird Marketplace.",
       },
       { name: "robots", content: "noindex" },
     ],
@@ -167,7 +167,7 @@ function SellerPage() {
                 </p>
                 <div className="mt-3 flex items-center justify-between gap-2">
                   <p className="text-[10.5px] text-muted-foreground">
-                    {review.reviewerName ?? "Gem State member"} ·{" "}
+                    {review.reviewerName ?? "Bluebird member"} ·{" "}
                     {new Date(review.createdAt).toLocaleDateString()}
                   </p>
                   {user ? <ReviewFlagButton reviewId={review.id} /> : null}
@@ -325,7 +325,7 @@ function ReviewFlagButton({ reviewId }: { reviewId: string }) {
     onSuccess: () => {
       setFlagged(true);
       setOpen(false);
-      toast.success("Thanks — this review has been sent to Gem State for review.");
+      toast.success("Thanks — this review has been sent to Bluebird for review.");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not flag this review."),
   });

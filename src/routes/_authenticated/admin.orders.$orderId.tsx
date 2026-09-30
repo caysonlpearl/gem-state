@@ -35,16 +35,16 @@ import {
 export const Route = createFileRoute("/_authenticated/admin/orders/$orderId")({
   head: () => ({
     meta: [
-      { title: "Order operations — GemList" },
+      { title: "Order operations — Bluebird Marketplace" },
       {
         name: "description",
         content:
-          "Operator console for one GemList marketplace order: payment evidence, purchase receipts, shipping, verified sale confirmation, payouts and disputes.",
+          "Operator console for one Bluebird Marketplace marketplace order: payment evidence, purchase receipts, shipping, verified sale confirmation, payouts and disputes.",
       },
-      { property: "og:title", content: "Order operations — GemList" },
+      { property: "og:title", content: "Order operations — Bluebird Marketplace" },
       {
         property: "og:description",
-        content: "Operator console for one GemList marketplace order and its payment evidence.",
+        content: "Operator console for one Bluebird Marketplace marketplace order and its payment evidence.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -707,7 +707,7 @@ function AdminOrderPage() {
                   {refundConfirmationOpen && (
                     <div className="flex flex-wrap items-center gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-3">
                       <p className="min-w-0 flex-1 text-[12px] font-medium">
-                        Confirm the full Stripe refund. This cannot be undone from GemList.
+                        Confirm the full Stripe refund. This cannot be undone from Bluebird Marketplace.
                       </p>
                       <button
                         type="button"

@@ -81,7 +81,7 @@ export function EmailShell({
       <Body style={main}>
         <Container style={container}>
           <Link href={SITE_URL} style={wordmark}>
-            Gem State Classifieds
+            Bluebird Marketplace
           </Link>
           <Hr style={rule} />
           <Heading style={h1}>{heading}</Heading>
@@ -107,7 +107,7 @@ export function EmailShell({
           ) : null}
           {note ? <Text style={text}>{note}</Text> : null}
           <Text style={footer}>
-            Gem State Classifieds is an independent marketplace. Listings are created by individual
+            Bluebird Marketplace is an independent marketplace. Listings are created by individual
             sellers, who are responsible for their descriptions, photos, pricing, and legal right to
             sell each item.
           </Text>

@@ -600,10 +600,10 @@ test("seller billing is catalog-backed and settles upgrades through Stripe webho
   assert.match(listingUpgradeFunctionsSource, /getListingUpgradeOptions/);
   assert.match(listingUpgradeFunctionsSource, /createListingUpgradeCheckout/);
   assert.match(listingUpgradeFunctionsSource, /idempotencyKey/);
-  assert.match(listingUpgradeFunctionsSource, /display_name: "Gem State Classifieds"/);
+  assert.match(listingUpgradeFunctionsSource, /display_name: "Bluebird Marketplace"/);
   assert.match(listingUpgradeFunctionsSource, /background_color: "#f3eae0"/);
-  assert.match(listingUpgradeFunctionsSource, /button_color: "#14544b"/);
-  assert.match(stripeMarketplaceSource, /display_name: "Gem State Classifieds"/);
+  assert.match(listingUpgradeFunctionsSource, /button_color: "#1f3557"/);
+  assert.match(stripeMarketplaceSource, /display_name: "Bluebird Marketplace"/);
   assert.doesNotMatch(stripeMarketplaceSource, /display_name: "ParkVault"/);
   assert.match(listingUpgradeMigrationSource, /listing_upgrade_catalog/);
   assert.match(listingUpgradeMigrationSource, /listing_upgrade_purchases/);
@@ -664,9 +664,9 @@ test("step four protects authenticated, seller-owned, and admin-only surfaces", 
   assert.match(classifiedSchemaSource, /created_by = auth\.uid\(\)/);
 });
 
-test("step five keeps classified checkout delivery labels on the Gem State brand", () => {
+test("step five keeps classified checkout delivery labels on the Bluebird brand", () => {
   assert.match(stripeMarketplaceSource, /id: "gemstate_flat_ground"/);
-  assert.match(stripeMarketplaceSource, /carrier: "Gem State Classifieds"/);
+  assert.match(stripeMarketplaceSource, /carrier: "Bluebird Marketplace"/);
   assert.doesNotMatch(
     stripeMarketplaceSource,
     /id: "parkvault_flat_ground"[\s\S]*carrier: "ParkVault"/,
@@ -695,9 +695,9 @@ test("classified approval publishes the linked product", () => {
   assert.match(approvalRepairSource, /AFTER UPDATE OF status, approved_at ON public\.asks/);
 });
 
-test("public seller landing page is Gem State-specific", () => {
+test("public seller landing page is Bluebird-specific", () => {
   assert.doesNotMatch(sellSource, /ParkVault|Disney|park merchandise|catalog product/i);
-  assert.match(sellSource, /Gem State seller/);
+  assert.match(sellSource, /Bluebird seller/);
   assert.match(sellSource, /exact-item photos/);
 });
 
@@ -736,18 +736,17 @@ test("step five preserves vehicle filters and keeps seeded records safe to revie
   assert.match(seedMigrationSource, /classified_listing_details/);
 });
 
-test("step six keeps customer email surfaces on the Gem State brand", () => {
-  assert.match(emailShellSource, /Gem State Classifieds is an independent marketplace/);
+test("step six keeps customer email surfaces on the Bluebird brand", () => {
+  assert.match(emailShellSource, /Bluebird Marketplace is an independent marketplace/);
   assert.match(emailShellSource, /https:\/\/gemstateclassifieds\.com/);
-  assert.match(authEmailSource, /const SITE_NAME = "Gem State Classifieds"/);
+  assert.match(authEmailSource, /const SITE_NAME = "Bluebird Marketplace"/);
   assert.match(authEmailSource, /notify\.gemstateclassifieds\.com/);
   assert.doesNotMatch(emailShellSource, /ParkVault|Disney/);
   assert.doesNotMatch(authEmailSource, /ParkVault|getparkvault/);
 });
 
-test("approved Idaho gem logo is used across the responsive brand mark", () => {
-  assert.match(brandMarkSource, /gem-state-classifieds-logo\.png/);
-  assert.match(brandMarkSource, /gem-state-classifieds-mark\.png/);
+test("approved Bluebird logo is used across the responsive brand mark", () => {
+  assert.match(brandMarkSource, /bluebird-marketplace-logo\.png/);
   assert.doesNotMatch(brandMarkSource, /Diamond/);
 });
 
@@ -805,19 +804,19 @@ test("main homepage presents category-curated listing rows", () => {
   assert.match(homeSource, /no-scrollbar mt-5 flex gap-4/);
 });
 
-test("browse heroes surface the GemList sponsorship opportunity", () => {
+test("browse heroes surface the Bluebird sponsorship opportunity", () => {
   assert.match(browseSource, /function SponsoredHeroBadge\(\)/);
-  assert.match(browseSource, /Sponsored by GemList/);
+  assert.match(browseSource, /Sponsored by Bluebird Marketplace/);
   assert.doesNotMatch(browseSource, /Your business could be here/);
   assert.doesNotMatch(browseSource, /eyebrow\.replace\("GemList ", ""\)/);
   assert.match(browseSource, /to="\/advertise"/);
   assert.match(browseSource, /min-h-\[430px\]/);
   assert.match(browseSource, /min-h-\[500px\]/);
-  assert.match(browseSource, /GemList Classifieds/);
-  assert.match(browseSource, /GemList Homes/);
-  assert.match(browseSource, /GemList Services/);
-  assert.match(browseSource, /GemList Jobs/);
-  assert.match(browseSource, /Gem State motors/);
+  assert.match(browseSource, /Bluebird Marketplace Classifieds/);
+  assert.match(browseSource, /Bluebird Marketplace Homes/);
+  assert.match(browseSource, /Bluebird Marketplace Services/);
+  assert.match(browseSource, /Bluebird Marketplace Jobs/);
+  assert.match(browseSource, /Bluebird motors/);
   assert.match(browseSource, /min-h-\[590px\]/);
   assert.match(browseSource, /absolute right-5 top-5 z-20 sm:right-7 sm:top-7/);
 });
@@ -1043,7 +1042,7 @@ test("vehicle browse uses a branded buy and category-accurate discovery filters"
   ]) {
     assert.match(browseSource, new RegExp(row.replaceAll("$", "\\$")));
   }
-  assert.match(browseSource, /GemList Motors/);
+  assert.match(browseSource, /Bluebird Marketplace Motors/);
 });
 
 test("homes browse has a large landing hero and tab-specific filter views", () => {
@@ -1260,7 +1259,7 @@ test("listing detail keeps a responsive photo gallery and floating action card",
   assert.match(detailSource, /listingTabListClass/);
   assert.match(detailSource, /ring-1 ring-primary\/15/);
   assert.match(detailSource, /hover:border-border\/80/);
-  assert.match(detailSource, /Gem State Reviews/);
+  assert.match(detailSource, /Bluebird Reviews/);
   assert.match(detailSource, /Array\.from\(\{ length: 5 \}/);
 });
 

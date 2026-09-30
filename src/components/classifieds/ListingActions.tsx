@@ -173,7 +173,7 @@ export function ListingActions({
             </button>
           ) : isSignedIn ? (
             <div className="rounded-2xl border border-border bg-secondary/45 px-3 py-3 text-[12px] leading-relaxed text-muted-foreground">
-              This seller has disabled Gem State messages. Use an enabled contact option on the
+              This seller has disabled Bluebird messages. Use an enabled contact option on the
               listing, or choose another seller.
             </div>
           ) : (
@@ -217,7 +217,7 @@ export function ListingActions({
             }
           />
           <p className="text-[11px] leading-relaxed text-muted-foreground">
-            Your message will appear in Gem State Messages. The seller will only see contact details
+            Your message will appear in Bluebird Messages. The seller will only see contact details
             you have explicitly enabled in your profile preferences.
           </p>
           <button
@@ -231,7 +231,7 @@ export function ListingActions({
       ) : null}
 
       <p className="border-t border-border px-5 py-3 text-[11px] leading-relaxed text-muted-foreground">
-        Gem State does not process payment for this listing. Confirm the item, price, and meeting or
+        Bluebird does not process payment for this listing. Confirm the item, price, and meeting or
         shipping details with the seller before exchanging money.
       </p>
     </div>

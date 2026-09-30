@@ -315,7 +315,7 @@ const sellers = {
   },
   gemStateLogistics: {
     slug: "mock-gem-state-logistics",
-    displayName: "Gem State Logistics",
+    displayName: "Bluebird Logistics",
     bio: "A Nampa-based warehousing and distribution company serving the Treasure Valley.",
     avatarUrl: null,
     payoutVerified: true,
@@ -354,7 +354,7 @@ const sellers = {
   },
   gemStateTech: {
     slug: "mock-gem-state-tech",
-    displayName: "Gem State Tech Help",
+    displayName: "Bluebird Tech Help",
     bio: "Friendly in-home technology help for families, remote workers, and small offices.",
     avatarUrl: null,
     payoutVerified: false,
@@ -367,7 +367,7 @@ const sellers = {
   },
   gemStateMotors: {
     slug: "mock-gem-state-motors",
-    displayName: "Gem State Motors",
+    displayName: "Bluebird Motors",
     bio: "A local seller offering a rotating selection of well-kept vehicles across Idaho.",
     avatarUrl: null,
     payoutVerified: true,
@@ -1357,13 +1357,13 @@ const baseMockClassifiedListings: MockClassifiedListing[] = [
     createdAt: "2026-09-14T00:00:00.000Z",
     expiresAt: "2026-10-14T00:00:00.000Z",
     description:
-      "Job Title: Warehouse Associate\n\nJob Summary: Gem State Logistics is hiring a warehouse associate to pick, pack, and stage outbound shipments at our Nampa distribution center.",
+      "Job Title: Warehouse Associate\n\nJob Summary: Bluebird Logistics is hiring a warehouse associate to pick, pack, and stage outbound shipments at our Nampa distribution center.",
     postalCode: "83651",
     sellerNote: "Steel-toed boots required on day one. Forklift certification provided on the job.",
     seller: sellers.gemStateLogistics,
     job: {
       category: "Retail",
-      employerName: "Gem State Logistics",
+      employerName: "Bluebird Logistics",
       employerAddress: "Nampa, ID 83651",
       payType: "Salary",
       payMin: 38_000,
@@ -1372,7 +1372,7 @@ const baseMockClassifiedListings: MockClassifiedListing[] = [
       experienceRequired: "None",
       educationLevel: "None",
       jobSummary:
-        "Gem State Logistics is hiring a warehouse associate to pick, pack, and stage outbound shipments at our Nampa distribution center.",
+        "Bluebird Logistics is hiring a warehouse associate to pick, pack, and stage outbound shipments at our Nampa distribution center.",
       responsibilities: [
         "Pick and pack orders accurately against pick tickets",
         "Stage and load outbound shipments",
@@ -1529,7 +1529,7 @@ const baseMockClassifiedListings: MockClassifiedListing[] = [
   {
     id: "mock-service-gem-state-tech",
     listingNumber: "83010394",
-    title: "Gem State Tech Help | Home Wi-Fi & Computer Setup",
+    title: "Bluebird Tech Help | Home Wi-Fi & Computer Setup",
     productId: "mock-product-gem-state-tech",
     productSlug: "gem-state-tech-help-home-wifi-computer-setup",
     priceCents: 8_500,
@@ -1543,7 +1543,7 @@ const baseMockClassifiedListings: MockClassifiedListing[] = [
     createdAt: "2026-09-15T19:20:00.000Z",
     expiresAt: "2026-10-15T19:20:00.000Z",
     description:
-      "Need a hand getting the technology at home to work the way it should? Gem State Tech Help provides friendly in-home setup for Wi-Fi, printers, computers, smart TVs, and small-office basics, with patient explanations and no confusing jargon.",
+      "Need a hand getting the technology at home to work the way it should? Bluebird Tech Help provides friendly in-home setup for Wi-Fi, printers, computers, smart TVs, and small-office basics, with patient explanations and no confusing jargon.",
     postalCode: "83702",
     sellerNote:
       "Tell us what is not working and whether you prefer an in-home or remote appointment.",

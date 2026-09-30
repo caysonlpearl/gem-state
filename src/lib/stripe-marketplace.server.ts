@@ -44,10 +44,10 @@ function normalizedStripeSecrets(runtimeEnv?: unknown) {
 
 export function getStripe(secretOverride?: string) {
   const secret = secretOverride ?? normalizedStripeSecrets().apiSecret;
-  if (!secret) throw new Error("Gem State checkout is not configured yet.");
+  if (!secret) throw new Error("Bluebird checkout is not configured yet.");
   if (!stripeInstance || stripeInstanceSecret !== secret) {
     stripeInstance = new Stripe(secret, {
-      appInfo: { name: "Gem State Classifieds", version: "1.0.0" },
+      appInfo: { name: "Bluebird Marketplace", version: "1.0.0" },
     });
     stripeInstanceSecret = secret;
   }
@@ -99,7 +99,7 @@ export function parkVaultOrigin(requestUrl?: string) {
 }
 
 /**
- * Origin used by the active Gem State marketplace checkout flows.
+ * Origin used by the active Bluebird marketplace checkout flows.
  * Keep the legacy variable as a fallback so existing non-marketplace flows
  * remain compatible until their configuration is migrated separately.
  */
@@ -108,7 +108,7 @@ export function gemStateOrigin(requestUrl?: string) {
   const requestOrigin = requestUrl ? new URL(requestUrl).origin : "";
   const origin = configured || requestOrigin;
   if (!origin.startsWith("https://"))
-    throw new Error("Gem State checkout requires the live HTTPS URL.");
+    throw new Error("Bluebird checkout requires the live HTTPS URL.");
   return origin.replace(/\/$/, "");
 }
 

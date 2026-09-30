@@ -37,16 +37,16 @@ async function uploadCatalogPhoto(productId: string, file: File) {
 export const Route = createFileRoute("/_authenticated/admin/products")({
   head: () => ({
     meta: [
-      { title: "GemList catalog page editor" },
+      { title: "Bluebird Marketplace catalog page editor" },
       {
         name: "description",
         content:
-          "Administrator-only editor for every detail of an existing GemList catalog page: naming, category, release facts, variations and photo alt text.",
+          "Administrator-only editor for every detail of an existing Bluebird Marketplace catalog page: naming, category, release facts, variations and photo alt text.",
       },
-      { property: "og:title", content: "GemList catalog page editor" },
+      { property: "og:title", content: "Bluebird Marketplace catalog page editor" },
       {
         property: "og:description",
-        content: "Administrator-only editor for existing GemList catalog page details.",
+        content: "Administrator-only editor for existing Bluebird Marketplace catalog page details.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -351,7 +351,7 @@ function AdminProductsPage() {
       <div className="mx-auto max-w-[760px] px-4 py-16 sm:px-6">
         <h1 className="text-[20px] font-semibold tracking-tight">Administrator access required</h1>
         <p className="mt-2 text-[13px] text-muted-foreground">
-          This console edits canonical catalog pages, so it is limited to GemList administrators.
+          This console edits canonical catalog pages, so it is limited to Bluebird Marketplace administrators.
         </p>
         <Link to="/browse" className="mt-4 inline-block text-[13px] underline underline-offset-2">
           Back to the catalog
@@ -813,7 +813,7 @@ function AdminProductsPage() {
 
           <Panel
             title="Photos"
-            note="Upload owned photography, replace a file, edit alt text and ordering, or remove a photo. Only upload photography GemList owns the rights to."
+            note="Upload owned photography, replace a file, edit alt text and ordering, or remove a photo. Only upload photography Bluebird Marketplace owns the rights to."
           >
             <div className="rounded-md border border-border p-3">
               <p className="text-[12.5px] font-semibold">Add a photo</p>

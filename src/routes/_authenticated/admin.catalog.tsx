@@ -16,16 +16,16 @@ import {
 export const Route = createFileRoute("/_authenticated/admin/catalog")({
   head: () => ({
     meta: [
-      { title: "GemList catalog operations" },
+      { title: "Bluebird Marketplace catalog operations" },
       {
         name: "description",
         content:
-          "Administrator-only console for managing GemList catalog pages, reviewing member requests and approving listings.",
+          "Administrator-only console for managing Bluebird Marketplace catalog pages, reviewing member requests and approving listings.",
       },
-      { property: "og:title", content: "GemList catalog operations" },
+      { property: "og:title", content: "Bluebird Marketplace catalog operations" },
       {
         property: "og:description",
-        content: "Administrator-only catalog creation and trust review for GemList.",
+        content: "Administrator-only catalog creation and trust review for Bluebird Marketplace.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -228,7 +228,7 @@ function AdminCatalogPage() {
       <div className="mx-auto max-w-[760px] px-4 py-16 sm:px-6">
         <h1 className="text-[20px] font-semibold tracking-tight">Administrator access required</h1>
         <p className="mt-2 text-[13px] text-muted-foreground">
-          Catalog creation and listing approval are limited to GemList administrators.
+          Catalog creation and listing approval are limited to Bluebird Marketplace administrators.
         </p>
       </div>
     );
@@ -240,7 +240,7 @@ function AdminCatalogPage() {
         <h1 className="text-[22px] font-semibold tracking-tight">Catalog operations</h1>
         <p className="mt-1 text-[13px] text-muted-foreground">
           Add canonical catalog pages, work through member page requests and review used-condition
-          listings. Pages stay in draft until owned photography exists — GemList never publishes
+          listings. Pages stay in draft until owned photography exists — Bluebird Marketplace never publishes
           scraped imagery, and no market activity is ever created here.
         </p>
         <Link to="/admin" className={`${buttonClass} mt-3`}>
@@ -529,7 +529,7 @@ function AdminCatalogPage() {
                       />
                     </div>
                     <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
-                      Create the catalog page above and select this request. GemList will then place
+                      Create the catalog page above and select this request. Bluebird Marketplace will then place
                       the exact item into the normal listing-approval queue; it does not publish
                       automatically.
                     </p>
