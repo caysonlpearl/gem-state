@@ -406,8 +406,8 @@ export function isPetSelectionCompatible(
   const canonicalSpecies = normalizePetSpecies(species);
   const canonicalSubcategory = normalizePetSubcategory(subcategory);
   if (!canonicalSpecies || !canonicalSubcategory) return true;
-  return petSpeciesForSubcategory(canonicalSubcategory).includes(
-    canonicalSpecies as (typeof petSpecies)[number],
+  return (petSpeciesForSubcategory(canonicalSubcategory) as readonly string[]).includes(
+    canonicalSpecies,
   );
 }
 

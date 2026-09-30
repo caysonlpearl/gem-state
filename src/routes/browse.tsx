@@ -71,7 +71,7 @@ type JobMode = "landing" | "results";
 type ServiceMode = "landing" | "results";
 type PetMode = "landing" | "results";
 
-const itemCategorySlugs = new Set(
+const itemCategorySlugs = new Set<string>(
   classifiedCategories
     .filter(
       (category) =>
