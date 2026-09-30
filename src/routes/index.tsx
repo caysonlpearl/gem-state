@@ -235,23 +235,38 @@ function Home() {
 
   return (
     <main className="mx-auto max-w-[1360px] px-4 pb-16 sm:px-6">
-      <section className="relative mt-8 overflow-hidden rounded-[28px] bg-secondary px-5 py-9 sm:px-10 sm:py-12">
-        <span className="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-brand-warm/10" />
-        <span className="absolute -bottom-28 left-1/3 h-72 w-72 rounded-full bg-primary/5" />
-        <div className="relative">
+      <section className="classifieds-hero-shell relative mt-8 overflow-hidden rounded-[28px] border border-brand-blue/20 bg-secondary px-5 py-9 shadow-lg sm:px-10 sm:py-12">
+        <span
+          className="classifieds-hero-orb classifieds-hero-orb--blue absolute -right-20 -top-24 h-64 w-64 rounded-full bg-brand-blue/12"
+          aria-hidden="true"
+        />
+        <span
+          className="classifieds-hero-orb classifieds-hero-orb--warm absolute -bottom-28 left-1/3 h-72 w-72 rounded-full bg-brand-warm/18"
+          aria-hidden="true"
+        />
+        <span
+          className="classifieds-hero-sheen pointer-events-none absolute inset-y-0 -left-1/3 z-0 w-1/3 skew-x-[-18deg] bg-white/20"
+          aria-hidden="true"
+        />
+        <div className="relative z-10">
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
             Bluebird classifieds
           </p>
           <h1 className="mt-3 max-w-[34ch] text-[34px] font-bold leading-[1.08] tracking-tight sm:text-[48px]">
-            Find {headlineItems[0]} to {headlineItems[1]} to {headlineItems[2]} to{" "}
-            {headlineItems[3]}.
+            Find <span className="text-brand-blue">{headlineItems[0]}</span> to {headlineItems[1]} to{" "}
+            {headlineItems[2]} to {headlineItems[3]}.
           </h1>
           <p className="mt-4 max-w-[56ch] text-[15px] leading-relaxed text-muted-foreground">
             And so much more across Idaho and surrounding states.
           </p>
+          <div className="mt-4 flex items-center gap-1.5" aria-hidden="true">
+            <span className="h-1.5 w-9 rounded-full bg-brand-blue" />
+            <span className="h-1.5 w-5 rounded-full bg-brand-warm" />
+            <span className="h-1.5 w-2.5 rounded-full bg-brand-blue/60" />
+          </div>
 
           <form
-            className="floating-card mt-8 grid gap-2 p-2 sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:p-3"
+            className="floating-card mt-7 grid gap-2 border border-brand-blue/15 ring-1 ring-brand-warm/10 p-2 sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:p-3"
             onSubmit={(event) => {
               event.preventDefault();
               const locationSearch = parseLocationSearch(location);
