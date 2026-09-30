@@ -159,7 +159,7 @@ BEGIN
   IF NOT FOUND THEN RAISE EXCEPTION 'Listing report not found'; END IF;
 
   INSERT INTO public.classified_listing_report_events (report_id, actor_id, action, note)
-  VALUES (_report_id, uid, _action, clean_note);
+  VALUES (_report_id, uid, CASE WHEN _action = 'assign' THEN 'assigned' ELSE _action END, clean_note);
 END;
 $function$;
 
