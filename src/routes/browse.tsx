@@ -28,11 +28,18 @@ import {
   petSexes,
   petSpecies,
   petSubcategories,
+  isPetSelectionCompatible,
+  normalizePetSpecies,
+  normalizePetSubcategory,
 } from "@/config/pets";
 import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { AllCategoriesPopover } from "@/components/classifieds/AllCategoriesPopover";
 import { ListingCard, ListingRow } from "@/components/classifieds/ListingCard";
-import { conditionLabels, isMotorsCategory } from "@/lib/classifieds-display";
+import {
+  conditionLabels,
+  formatSavedSearchFilter,
+  isMotorsCategory,
+} from "@/lib/classifieds-display";
 import {
   browseClassifieds,
   type ClassifiedBrowseInput,
@@ -165,6 +172,7 @@ type Search = {
 };
 
 const savedSearchFilterKeys: readonly (keyof Search)[] = [
+  "allCategories",
   "q",
   "category",
   "group",
@@ -399,16 +407,16 @@ const communityAmenitiesOptions = [
 const leaseLengthOptions = [
   "Any",
   "Month-to-month",
-  "1 Month or Less",
-  "2 Months or Less",
-  "3 Months or Less",
-  "4 Months or Less",
-  "5 Months or Less",
-  "6 Months or Less",
-  "9 Months or Less",
-  "12 Months or Less",
-  "18 Months or Less",
-  "24 Months or Less",
+  "1 month",
+  "2 months",
+  "3 months",
+  "4 months",
+  "5 months",
+  "6 months",
+  "9 months",
+  "12 months",
+  "18 months",
+  "24 months",
 ];
 
 const mileageBandOptions = [
@@ -1630,8 +1638,8 @@ export const Route = createFileRoute("/browse")({
       homeAvailable: stringParam(search, "homeAvailable", 60),
       homePetsPolicy: stringParam(search, "homePetsPolicy", 120),
       homeSmokingPolicy: stringParam(search, "homeSmokingPolicy", 60),
-      petSubcategory: stringParam(search, "petSubcategory", 80),
-      petSpecies: stringParam(search, "petSpecies", 40),
+      petSubcategory: normalizePetSubcategory(stringParam(search, "petSubcategory", 80)),
+      petSpecies: normalizePetSpecies(stringParam(search, "petSpecies", 40)),
       petBreed: stringParam(search, "petBreed", 100),
       petPlacementType: stringParam(search, "petPlacementType", 30),
       petOfferedBy: stringParam(search, "petOfferedBy", 30),
@@ -1698,6 +1706,9 @@ function Browse() {
   const [saveSearchName, setSaveSearchName] = useState("");
   const [saveSearchPending, setSaveSearchPending] = useState(false);
   const [pendingSaveSearch, setPendingSaveSearch] = useState<Record<string, unknown> | null>(null);
+  const [pendingFilterResultCount, setPendingFilterResultCount] = useState<number | null>(null);
+  const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previewRequest = useRef(0);
   const saveSearch = useServerFn(createSavedSearch);
   const updateSearch = useServerFn(updateSavedSearch);
 
@@ -1740,7 +1751,7 @@ function Browse() {
     return Object.fromEntries(
       preservedKeys.flatMap((key) => {
         const value = search[key];
-        return value !== undefined && value !== "" ? [[key, value]] : [];
+        return value !== undefined && value !== "" && value !== false ? [[key, value]] : [];
       }),
     ) as Search;
   };
@@ -1798,6 +1809,13 @@ function Browse() {
     const category = value("category");
     const nextMotors = value("group") === "motors" || isMotorsCategory(category);
     const nextPets = category === "pets";
+    const nextPetSpecies = nextPets ? normalizePetSpecies(value("petSpecies")) : undefined;
+    const nextPetSubcategory = nextPets
+      ? normalizePetSubcategory(value("petSubcategory"))
+      : undefined;
+    const compatiblePetSubcategory = isPetSelectionCompatible(nextPetSpecies, nextPetSubcategory)
+      ? nextPetSubcategory
+      : undefined;
 
     return {
       category,
@@ -1821,9 +1839,9 @@ function Browse() {
       exteriorColor: nextMotors ? value("exteriorColor") : undefined,
       titleStatus: nextMotors ? value("titleStatus") : undefined,
       petMode: nextPets ? "results" : undefined,
-      petSubcategory: nextPets ? value("petSubcategory") : undefined,
-      petSpecies: nextPets ? value("petSpecies") : undefined,
-      petBreed: nextPets ? value("petBreed") : undefined,
+      petSubcategory: compatiblePetSubcategory,
+      petSpecies: nextPetSpecies,
+      petBreed: nextPets && compatiblePetSubcategory ? value("petBreed") : undefined,
       petPlacementType: nextPets ? value("petPlacementType") : undefined,
       petOfferedBy: nextPets ? value("petOfferedBy") : undefined,
       petSex: nextPets ? value("petSex") : undefined,
@@ -1838,6 +1856,17 @@ function Browse() {
       petGoodWithCats: nextPets ? value("petGoodWithCats") : undefined,
       petIndoorOutdoor: nextPets ? value("petIndoorOutdoor") : undefined,
     };
+  }
+
+  function previewFilterResults(form: HTMLFormElement) {
+    if (previewTimer.current) clearTimeout(previewTimer.current);
+    previewTimer.current = setTimeout(() => {
+      const requestId = ++previewRequest.current;
+      const previewSearch = scoped(searchPatchFromForm(form));
+      void browseClassifieds({ data: inputFromSearch(previewSearch) }).then((preview) => {
+        if (requestId === previewRequest.current) setPendingFilterResultCount(preview.total);
+      });
+    }, 250);
   }
 
   function applyFilters(event: React.FormEvent<HTMLFormElement>) {
@@ -1859,6 +1888,7 @@ function Browse() {
       to: "/browse",
       search: scoped(patch),
     });
+    setPendingFilterResultCount(null);
     setFiltersOpen(false);
   }
 
@@ -2044,7 +2074,23 @@ function Browse() {
           onTabChange={(tab) =>
             void navigate({
               to: "/browse",
-              search: scoped({ category: "other-real-estate", homeTab: tab, homeMode: "results" }),
+              search: scoped({
+                category: "other-real-estate",
+                homeTab: tab,
+                homeMode: "results",
+                homeSquareFeet: undefined,
+                homeAcres: undefined,
+                homeYearBuilt: undefined,
+                homeHeating: undefined,
+                homeCooling: undefined,
+                homeGarageParking: undefined,
+                homeYard: undefined,
+                homeSchoolDistrict: undefined,
+                homeAvailable: undefined,
+                homePetsPolicy: undefined,
+                homeSmokingPolicy: undefined,
+                leaseLength: undefined,
+              }),
             })
           }
           onApply={(patch) =>
@@ -2083,16 +2129,16 @@ function Browse() {
         <JobsLandingHero
           search={search}
           resultCount={result.total}
-          onSearch={(term) =>
+          onSearch={(patch) =>
             void navigate({
               to: "/browse",
-              search: scoped({ category: "jobs", jobMode: "results", q: term.trim() || undefined }),
+              search: scoped({ category: "jobs", jobMode: "results", ...patch }),
             })
           }
-          onMoreFilters={() =>
+          onMoreFilters={(patch) =>
             void navigate({
               to: "/browse",
-              search: scoped({ category: "jobs", jobMode: "results" }),
+              search: scoped({ category: "jobs", jobMode: "results", ...patch }),
             })
           }
           onPost={() => void navigate({ to: "/create-listing" })}
@@ -2336,7 +2382,11 @@ function Browse() {
                         Narrow down local items, or add every vehicle detail that matters.
                       </SheetDescription>
                     </SheetHeader>
-                    <form onSubmit={applyFilters} className="space-y-6 px-6 py-6">
+                    <form
+                      onSubmit={applyFilters}
+                      onInput={(event) => previewFilterResults(event.currentTarget)}
+                      className="space-y-6 px-6 py-6"
+                    >
                       <input type="hidden" name="group" value={search.group ?? ""} />
                       <FilterSection title="Category">
                         <select
@@ -2444,6 +2494,21 @@ function Browse() {
                             name="petSubcategory"
                             defaultValue={search.petSubcategory ?? ""}
                             className="filter-input"
+                            onChange={(event) => {
+                              const form = event.currentTarget.form;
+                              const species = form?.elements.namedItem(
+                                "petSpecies",
+                              ) as HTMLSelectElement | null;
+                              const breed = form?.elements.namedItem(
+                                "petBreed",
+                              ) as HTMLInputElement | null;
+                              if (
+                                species &&
+                                !isPetSelectionCompatible(species.value, event.currentTarget.value)
+                              )
+                                species.value = "";
+                              if (breed) breed.value = "";
+                            }}
                           >
                             <option value="">All pet categories</option>
                             {petSubcategories.map(([value, label]) => (
@@ -2456,6 +2521,22 @@ function Browse() {
                             name="petSpecies"
                             defaultValue={search.petSpecies ?? ""}
                             className="filter-input"
+                            onChange={(event) => {
+                              const species = normalizePetSpecies(event.currentTarget.value);
+                              const form = event.currentTarget.form;
+                              const subcategory = form?.elements.namedItem(
+                                "petSubcategory",
+                              ) as HTMLSelectElement | null;
+                              const breed = form?.elements.namedItem(
+                                "petBreed",
+                              ) as HTMLInputElement | null;
+                              if (
+                                subcategory &&
+                                !isPetSelectionCompatible(species, subcategory.value)
+                              )
+                                subcategory.value = "";
+                              if (breed) breed.value = "";
+                            }}
                           >
                             <option value="">Any animal</option>
                             {petSpecies.map((option) => (
@@ -2685,7 +2766,16 @@ function Browse() {
                           type="submit"
                           className="inline-flex h-12 w-full items-center justify-center rounded-full bg-primary px-3 text-[13px] font-semibold text-primary-foreground shadow-sm hover:opacity-90"
                         >
-                          Show {result.total} {result.total === 1 ? "listing" : "listings"}
+                          {pendingFilterResultCount == null ? (
+                            <>
+                              Show {result.total} {result.total === 1 ? "listing" : "listings"}
+                            </>
+                          ) : (
+                            <>
+                              Show {pendingFilterResultCount}{" "}
+                              {pendingFilterResultCount === 1 ? "listing" : "listings"}
+                            </>
+                          )}
                         </button>
                         <button
                           type="button"
@@ -6579,14 +6669,22 @@ function JobsLandingHero({
 }: {
   search: Search;
   resultCount: number;
-  onSearch: (term: string) => void;
-  onMoreFilters: () => void;
+  onSearch: (patch: Partial<Search>) => void;
+  onMoreFilters: (patch: Partial<Search>) => void;
   onPost: () => void;
 }) {
   const [mode, setMode] = useState<"search" | "post">("search");
   const [draft, setDraft] = useState(search.q ?? "");
+  const [category, setCategory] = useState(search.jobCategory ?? "");
+  const [jobType, setJobType] = useState(search.jobType ?? search.jobEmploymentType ?? "");
+  const [payType, setPayType] = useState(search.jobPayType ?? "");
 
-  useEffect(() => setDraft(search.q ?? ""), [search.q]);
+  useEffect(() => {
+    setDraft(search.q ?? "");
+    setCategory(search.jobCategory ?? "");
+    setJobType(search.jobType ?? search.jobEmploymentType ?? "");
+    setPayType(search.jobPayType ?? "");
+  }, [search.q, search.jobCategory, search.jobType, search.jobEmploymentType, search.jobPayType]);
 
   return (
     <section
@@ -6639,7 +6737,12 @@ function JobsLandingHero({
                 className="mt-3 flex flex-col gap-2 rounded-2xl bg-card p-2 text-foreground"
                 onSubmit={(event) => {
                   event.preventDefault();
-                  onSearch(draft);
+                  onSearch({
+                    q: draft.trim() || undefined,
+                    jobCategory: category || undefined,
+                    jobType: jobType && !jobType.startsWith("Any ") ? jobType : undefined,
+                    jobPayType: payType && !payType.startsWith("Any ") ? payType : undefined,
+                  });
                 }}
               >
                 <label className="flex min-w-0 items-center gap-2 px-3">
@@ -6662,9 +6765,24 @@ function JobsLandingHero({
                 </label>
               </form>
               <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                <JobSelect label="Category" options={jobCategoryOptions} />
-                <JobSelect label="Job type" options={jobTypeOptions} />
-                <JobSelect label="Job pay range" options={jobPayTypeOptions} />
+                <JobSelect
+                  label="Category"
+                  options={jobCategoryOptions}
+                  value={category}
+                  onChange={setCategory}
+                />
+                <JobSelect
+                  label="Job type"
+                  options={jobTypeOptions}
+                  value={jobType}
+                  onChange={setJobType}
+                />
+                <JobSelect
+                  label="Job pay range"
+                  options={jobPayTypeOptions}
+                  value={payType}
+                  onChange={setPayType}
+                />
               </div>
               <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-[12px]">
                 <span className="text-white/70">
@@ -6672,7 +6790,13 @@ function JobsLandingHero({
                 </span>
                 <button
                   type="button"
-                  onClick={onMoreFilters}
+                  onClick={() =>
+                    onMoreFilters({
+                      jobCategory: category || undefined,
+                      jobType: jobType && !jobType.startsWith("Any ") ? jobType : undefined,
+                      jobPayType: payType && !payType.startsWith("Any ") ? payType : undefined,
+                    })
+                  }
                   className="inline-flex items-center gap-1.5 rounded-full border border-accent/70 px-4 py-2 font-bold text-accent transition-colors hover:bg-accent hover:text-accent-foreground"
                 >
                   More filters <ArrowRight size={14} aria-hidden="true" />
@@ -7371,6 +7495,18 @@ function HomesFilterPage({
       priceMax: parsedPrice(maxPrice),
       bedrooms: bedrooms || undefined,
       bathrooms: bathrooms || undefined,
+      homeSquareFeet: undefined,
+      homeAcres: undefined,
+      homeYearBuilt: undefined,
+      homeHeating: undefined,
+      homeCooling: undefined,
+      homeGarageParking: undefined,
+      homeYard: undefined,
+      homeSchoolDistrict: undefined,
+      homeAvailable: undefined,
+      homePetsPolicy: undefined,
+      homeSmokingPolicy: undefined,
+      leaseLength: undefined,
       ...Object.fromEntries(extraFields.map(({ key }) => [key, extra[key] || undefined])),
     };
   }
@@ -9057,6 +9193,8 @@ function activeFilterLabels(search: Search, motors: boolean, pets: boolean) {
   if (search.state) labels.push(search.state);
   if (search.city) labels.push(search.city);
   if (search.postalCode) labels.push(search.postalCode);
+  if (search.condition) labels.push(formatSavedSearchFilter("condition", search.condition));
+  if (search.fulfillment) labels.push(formatSavedSearchFilter("fulfillment", search.fulfillment));
   if (search.priceMin != null || search.priceMax != null)
     labels.push(`$${search.priceMin ?? 0}–${search.priceMax ?? "up"}`);
   if (motors) {
@@ -9073,7 +9211,7 @@ function activeFilterLabels(search: Search, motors: boolean, pets: boolean) {
         petSubcategories.find(([slug]) => slug === search.petSubcategory)?.[1] ??
           search.petSubcategory,
       );
-    if (search.petSpecies) labels.push(search.petSpecies);
+    if (search.petSpecies) labels.push(formatSavedSearchFilter("petSpecies", search.petSpecies));
     if (search.petBreed) labels.push(search.petBreed);
     if (search.petPlacementType)
       labels.push(

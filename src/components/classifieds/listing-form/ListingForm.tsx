@@ -402,28 +402,37 @@ export function ListingForm(props: ListingFormProps) {
             />
           </label>
           {(kind === "item" || kind === "vehicle") && (
-            <label className="text-[12px] font-medium">
-              Category
-              <select
-                required
-                value={form.category}
-                onChange={(event) => set("category", event.target.value)}
-                className={fieldClass}
-              >
-                <option value="">Choose a category</option>
-                {(categories.data ?? [])
-                  .filter((category) =>
-                    kind === "vehicle"
-                      ? motorsCategorySlugs.has(category.slug)
-                      : itemCategorySlugs.has(category.slug),
-                  )
-                  .map((category) => (
-                    <option key={category.id} value={category.slug}>
-                      {category.name}
-                    </option>
-                  ))}
-              </select>
-            </label>
+            <div className="sm:col-span-2 grid gap-2 sm:grid-cols-2">
+              <label className="text-[12px] font-medium">
+                Category
+                <select
+                  required
+                  value={form.category}
+                  onChange={(event) => set("category", event.target.value)}
+                  className={fieldClass}
+                >
+                  <option value="">Choose a category</option>
+                  {(categories.data ?? [])
+                    .filter((category) =>
+                      kind === "vehicle"
+                        ? motorsCategorySlugs.has(category.slug)
+                        : itemCategorySlugs.has(category.slug),
+                    )
+                    .map((category) => (
+                      <option key={category.id} value={category.slug}>
+                        {category.name}
+                      </option>
+                    ))}
+                </select>
+              </label>
+              {kind === "item" && form.category && (
+                <p className="self-end rounded-xl border border-accent/40 bg-accent/10 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
+                  This category currently uses the basic item template. Include the
+                  category-specific details buyers need in the description; structured fields for
+                  this category are not available yet.
+                </p>
+              )}
+            </div>
           )}
           {!hidesPrice && (
             <label className="text-[12px] font-medium">

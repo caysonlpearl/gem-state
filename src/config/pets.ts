@@ -349,6 +349,68 @@ export function isPetSubcategory(category: string) {
   return category === "pets";
 }
 
+const petSpeciesAliases: Record<string, string> = {
+  dog: "Dog",
+  dogs: "Dog",
+  cat: "Cat",
+  cats: "Cat",
+  bird: "Bird",
+  birds: "Bird",
+  fish: "Fish",
+  ferret: "Ferret",
+  ferrets: "Ferret",
+  "guinea pig": "Guinea Pig",
+  "guinea pigs": "Guinea Pig",
+  hamster: "Hamster",
+  hamsters: "Hamster",
+  hedgehog: "Hedgehog",
+  hedgehogs: "Hedgehog",
+  horse: "Horse",
+  horses: "Horse",
+  livestock: "Livestock",
+  poultry: "Poultry",
+  rabbit: "Rabbit",
+  rabbits: "Rabbit",
+  reptile: "Reptile",
+  reptiles: "Reptile",
+  amphibian: "Amphibian",
+  amphibians: "Amphibian",
+  "small animal": "Small animal",
+  "small animals": "Small animal",
+  other: "Other",
+  others: "Other",
+};
+
+/** Keep legacy and human-entered pet species values on one canonical vocabulary. */
+export function normalizePetSpecies(value: string | null | undefined) {
+  const trimmed = value?.trim();
+  if (!trimmed) return undefined;
+  return petSpeciesAliases[trimmed.toLowerCase()] ?? trimmed;
+}
+
+/** Normalize pet subcategory values before they reach URLs, filters, or storage. */
+export function normalizePetSubcategory(value: string | null | undefined) {
+  const trimmed = value?.trim().toLowerCase();
+  if (!trimmed) return undefined;
+  const known = petSubcategories.find(([slug]) => slug === trimmed);
+  if (known) return known[0];
+  if (trimmed === "dog" || trimmed === "dogs") return "dogs";
+  if (trimmed === "cat" || trimmed === "cats") return "cats";
+  return trimmed;
+}
+
+export function isPetSelectionCompatible(
+  species: string | null | undefined,
+  subcategory: string | null | undefined,
+) {
+  const canonicalSpecies = normalizePetSpecies(species);
+  const canonicalSubcategory = normalizePetSubcategory(subcategory);
+  if (!canonicalSpecies || !canonicalSubcategory) return true;
+  return petSpeciesForSubcategory(canonicalSubcategory).includes(
+    canonicalSpecies as (typeof petSpecies)[number],
+  );
+}
+
 export function petSpeciesForSubcategory(subcategory: string) {
   if (["cats"].includes(subcategory)) return ["Cat"] as const;
   if (["dogs", "dogs-studs-breeding", "stock-dogs"].includes(subcategory)) return ["Dog"] as const;

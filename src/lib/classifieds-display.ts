@@ -23,6 +23,50 @@ export const petPlacementLabels: Record<string, string> = {
   wanted: "Wanted / ISO",
 };
 
+const savedSearchFilterLabels: Record<string, string> = {
+  q: "Keywords",
+  category: "Category",
+  group: "Collection",
+  priceMin: "Minimum price",
+  priceMax: "Maximum price",
+  jobType: "Job type",
+  jobEmploymentType: "Employment type",
+  jobPayType: "Pay type",
+  homeTab: "Home mode",
+  petSubcategory: "Pet category",
+  petSpecies: "Animal",
+  petPlacementType: "Placement",
+  fulfillment: "Fulfillment",
+  condition: "Condition",
+  serviceSubcategory: "Service type",
+};
+
+export function formatSavedSearchFilter(key: string, value: unknown) {
+  const label =
+    savedSearchFilterLabels[key] ??
+    key.replace(/[A-Z]/g, (letter) => ` ${letter}`).replace(/^./, (letter) => letter.toUpperCase());
+  const raw = Array.isArray(value) ? value.join(", ") : String(value ?? "");
+  const formatted =
+    key === "condition"
+      ? raw
+          .split(",")
+          .map((item) => conditionLabels[item.trim()] ?? item.trim())
+          .join(", ")
+      : key === "fulfillment"
+        ? raw
+            .split(",")
+            .map((item) => fulfillmentLabels[item.trim()] ?? item.trim())
+            .join(", ")
+        : key === "petPlacementType"
+          ? (petPlacementLabels[raw] ?? raw)
+          : raw === "both"
+            ? "Pickup or shipping"
+            : raw === "message"
+              ? "Message seller"
+              : raw;
+  return `${label}: ${formatted}`;
+}
+
 export function isMotorsCategory(slug: string | null | undefined) {
   return classifiedCategories.some(
     (category) => category.slug === slug && category.group === "motors",

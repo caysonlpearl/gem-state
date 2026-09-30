@@ -33,6 +33,7 @@ import { formatUsd } from "@/config/fees";
 import { SavedSearchNameDialog } from "@/components/classifieds/SavedSearchNameDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { trackEvent } from "@/lib/analytics";
+import { formatSavedSearchFilter } from "@/lib/classifieds-display";
 import {
   getMyAccount,
   saveMyProfile,
@@ -1900,10 +1901,7 @@ function SavedSearchesSection({ searches }: { searches: SavedSearch[] }) {
                           key={key}
                           className="rounded-full bg-secondary px-2 py-1 text-[10px] text-muted-foreground"
                         >
-                          {key
-                            .replace(/[A-Z]/g, (letter) => ` ${letter}`)
-                            .replace(/^./, (letter) => letter.toUpperCase())}
-                          : {Array.isArray(value) ? value.join(", ") : String(value)}
+                          {formatSavedSearchFilter(key, value)}
                         </span>
                       ))}
                       {filterEntries.length > 8 && (

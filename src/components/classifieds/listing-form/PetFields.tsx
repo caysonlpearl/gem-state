@@ -7,6 +7,7 @@ import {
   petSpecies,
   petSubcategoryForSelection,
   petYesNoUnknown,
+  normalizePetSpecies,
 } from "@/config/pets";
 import { fieldClass, textareaClass } from "./shared";
 import type { ListingFormState } from "./types";
@@ -18,7 +19,8 @@ export function PetFields({
   form: ListingFormState;
   set: (key: keyof ListingFormState, value: string) => void;
 }) {
-  const breeds = petBreedsBySpecies[form.petSpecies] ?? petBreedsBySpecies["Other"]!;
+  const species = normalizePetSpecies(form.petSpecies) ?? "Other";
+  const breeds = petBreedsBySpecies[species] ?? petBreedsBySpecies["Other"]!;
   const isBreeding = form.petPlacementType === "stud_breeding";
   const isRecovery = form.petPlacementType === "lost_found";
   const isWanted = form.petPlacementType === "wanted";
@@ -38,7 +40,7 @@ export function PetFields({
             onChange={(event) => {
               const placementType = event.target.value;
               set("petPlacementType", placementType);
-              syncPetClassification(form.petSpecies, placementType);
+              syncPetClassification(species, placementType);
             }}
             className={fieldClass}
           >
@@ -53,11 +55,11 @@ export function PetFields({
           Species
           <select
             required
-            value={form.petSpecies}
+            value={species}
             onChange={(event) => {
-              const species = event.target.value;
-              set("petSpecies", species);
-              syncPetClassification(species);
+              const nextSpecies = normalizePetSpecies(event.target.value) ?? "Other";
+              set("petSpecies", nextSpecies);
+              syncPetClassification(nextSpecies);
               set("petBreed", "");
             }}
             className={fieldClass}
@@ -201,8 +203,8 @@ export function PetFields({
           />
         </label>
         <p className="text-[11px] leading-relaxed text-muted-foreground sm:col-span-2">
-          Bluebird Marketplace does not verify health, ownership, breed, or seller claims. Keep records private
-          until you have independently verified the animal and seller.
+          Bluebird Marketplace does not verify health, ownership, breed, or seller claims. Keep
+          records private until you have independently verified the animal and seller.
         </p>
       </div>
     </div>

@@ -73,6 +73,8 @@ function matches(search: Record<string, unknown>, listing: ListingRow) {
   const minimum = priceCents(search["priceMin"] ?? search["minPrice"]);
   const maximum = priceCents(search["priceMax"] ?? search["maxPrice"]);
   const listingPrice = Number(listing.price_cents ?? 0);
+  const isService = listingCategory === "services";
+  if (isService && listingPrice <= 0 && (minimum !== null || maximum !== null)) return false;
   if (minimum !== null && listingPrice < minimum) return false;
   if (maximum !== null && listingPrice > maximum) return false;
 
@@ -94,11 +96,36 @@ function matches(search: Record<string, unknown>, listing: ListingRow) {
   if (!matchesNumber(details["home_bedrooms"], search["bedrooms"], "min")) return false;
   if (!matchesNumber(details["home_bathrooms"], search["bathrooms"], "min")) return false;
   if (!matchesNumber(details["home_square_feet"], search["homeSquareFeet"], "min")) return false;
-  if (!matchesAnyText(details["home_lease_length"], search["leaseLength"])) return false;
-  if (!matchesAnyText(details["home_pets_policy"], search["petsCats"] ?? search["petsDogs"]))
+  const leaseFilter = search["leaseLength"];
+  if (
+    leaseFilter &&
+    !String(leaseFilter)
+      .split(",")
+      .map((item) => item.match(/\d+/)?.[0] ?? item.trim())
+      .some((item) => text(details["home_lease_length"]).includes(text(item)))
+  )
     return false;
+  if (
+    !matchesAnyText(
+      details["home_pets_policy"],
+      search["homePetsPolicy"] ?? search["petsCats"] ?? search["petsDogs"],
+    )
+  )
+    return false;
+  if (!matchesAnyText(details["home_smoking_policy"], search["homeSmokingPolicy"])) return false;
+  if (!matchesAnyText(details["home_heating"], search["homeHeating"])) return false;
+  if (!matchesAnyText(details["home_cooling"], search["homeCooling"])) return false;
+  if (!matchesAnyText(details["home_garage_parking"], search["homeGarageParking"])) return false;
+  if (!matchesAnyText(details["home_school_district"], search["homeSchoolDistrict"])) return false;
 
-  if (!matchesAnyText(details["job_employment_type"], search["jobType"])) return false;
+  if (!matchesAnyText(details["job_category"], search["jobCategory"])) return false;
+  if (
+    !matchesAnyText(
+      details["job_employment_type"],
+      search["jobEmploymentType"] ?? search["jobType"],
+    )
+  )
+    return false;
   if (!matchesAnyText(details["job_pay_type"], search["jobPayType"])) return false;
   if (!matchesNumber(details["job_pay_max"], search["jobPayMin"], "min")) return false;
   if (!matchesNumber(details["job_pay_min"], search["jobPayMax"], "max")) return false;
@@ -107,6 +134,8 @@ function matches(search: Record<string, unknown>, listing: ListingRow) {
   if (!matchesAnyText(haystack, search["jobCategory"])) return false;
 
   if (!matchesAnyText(details["service_subcategory"], search["serviceSubcategory"])) return false;
+  if (!matchesAnyText(details["service_area"], search["serviceArea"])) return false;
+  if (!matchesAnyText(details["service_availability"], search["serviceAvailability"])) return false;
   return true;
 }
 

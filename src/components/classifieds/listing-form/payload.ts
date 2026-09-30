@@ -1,5 +1,5 @@
 import { isMotorsCategory } from "@/lib/classifieds-display";
-import { isPetSubcategory } from "@/config/pets";
+import { isPetSubcategory, normalizePetSpecies, normalizePetSubcategory } from "@/config/pets";
 import type { ClassifiedListingInput } from "@/lib/classified-listing-contracts";
 import type { ClassifiedListingEditor } from "@/lib/classifieds.functions";
 import { linesToList, listToLines } from "./shared";
@@ -136,8 +136,8 @@ export function buildService(
 export function buildPet(form: ListingFormState): ClassifiedListingInput["pet"] | undefined {
   if (!isPetCategory(form.category)) return undefined;
   return {
-    subcategory: form.petSubcategory,
-    species: form.petSpecies,
+    subcategory: normalizePetSubcategory(form.petSubcategory) ?? "dogs",
+    species: normalizePetSpecies(form.petSpecies) ?? "Dog",
     breed: form.petBreed || undefined,
     name: form.petName || undefined,
     age: form.petAge || undefined,
@@ -236,8 +236,8 @@ export function fromEditor(listing: ClassifiedListingEditor): ListingFormState {
     licenseLookupUrl: listing.service?.licenseLookupUrl ?? "",
     offerings: listToLines(listing.service?.offerings),
 
-    petSubcategory: listing.pet?.subcategory ?? "dogs",
-    petSpecies: listing.pet?.species ?? "Dog",
+    petSubcategory: normalizePetSubcategory(listing.pet?.subcategory) ?? "dogs",
+    petSpecies: normalizePetSpecies(listing.pet?.species) ?? "Dog",
     petBreed: listing.pet?.breed ?? "",
     petName: listing.pet?.name ?? "",
     petAge: listing.pet?.age ?? "",

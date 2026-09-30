@@ -3,6 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { publicServerClient } from "./supabase-public.server";
 import { classifiedCategories } from "@/config/classifieds";
+import { normalizePetSpecies, normalizePetSubcategory } from "@/config/pets";
 import { formatUsd } from "@/config/fees";
 import {
   mockClassifiedListings,
@@ -751,7 +752,7 @@ function serviceOf(
   if (!subcategory || !serviceArea) return null;
   return {
     subcategory,
-    pricing: formatUsd(priceCents),
+    pricing: priceCents > 0 ? formatUsd(priceCents) : "Call for quote",
     serviceArea,
     availability: (details["service_availability"] as string | null) ?? "",
     serviceSummary: description,
@@ -763,8 +764,8 @@ function serviceOf(
 }
 
 function petOf(details: Record<string, unknown>): ClassifiedPet | null {
-  const subcategory = (details["pet_subcategory"] as string | null) ?? null;
-  const species = (details["pet_species"] as string | null) ?? null;
+  const subcategory = normalizePetSubcategory(details["pet_subcategory"] as string | null) ?? null;
+  const species = normalizePetSpecies(details["pet_species"] as string | null) ?? null;
   const placementType = (details["pet_placement_type"] as string | null) ?? null;
   const offeredBy = (details["pet_offered_by"] as string | null) ?? null;
   if (!subcategory || !species || !placementType || !offeredBy) return null;
@@ -970,6 +971,12 @@ function mockMatches(
     )
   )
     return false;
+  if (
+    listing.categorySlug === "services" &&
+    listing.priceCents <= 0 &&
+    (data.priceMin != null || data.priceMax != null)
+  )
+    return false;
   if (data.priceMin != null && listing.priceCents < data.priceMin * 100) return false;
   if (data.priceMax != null && listing.priceCents > data.priceMax * 100) return false;
   if (data.make && !filterValues(data.make).includes(listing.vehicle?.make ?? "")) return false;
@@ -1023,7 +1030,18 @@ function mockMatches(
   if (!matchesAnyText(listing.home?.garageParking, data.homeGarageParking)) return false;
   if (!matchesAnyText(listing.home?.yard, data.homeYard)) return false;
   if (!matchesAnyText(listing.home?.schoolDistrict, data.homeSchoolDistrict)) return false;
-  if (!matchesAnyText(listing.home?.leaseLength, data.homeLeaseLength)) return false;
+  if (
+    data.homeLeaseLength &&
+    !filterValues(data.homeLeaseLength).some((item) => {
+      const wanted = item.toLowerCase();
+      if (wanted.includes("month") && /\d+/.test(wanted)) {
+        const months = wanted.match(/\d+/)?.[0];
+        return listing.home?.leaseLength?.toLowerCase().includes(months ?? "");
+      }
+      return listing.home?.leaseLength?.toLowerCase().includes(wanted);
+    })
+  )
+    return false;
   if (!matchesAnyText(listing.home?.available, data.homeAvailable)) return false;
   if (!matchesAnyText(listing.home?.pets, data.homePetsPolicy)) return false;
   if (!matchesAnyText(listing.home?.smoking, data.homeSmokingPolicy)) return false;
@@ -1070,8 +1088,17 @@ function mockMatches(
     const createdAfter = postedSince(data.postedWithin);
     if (createdAfter && listing.createdAt < createdAfter) return false;
   }
-  if (data.petSubcategory && listing.pet?.subcategory !== data.petSubcategory) return false;
-  if (data.petSpecies && listing.pet?.species !== data.petSpecies) return false;
+  if (
+    data.petSubcategory &&
+    normalizePetSubcategory(listing.pet?.subcategory) !==
+      normalizePetSubcategory(data.petSubcategory)
+  )
+    return false;
+  if (
+    data.petSpecies &&
+    normalizePetSpecies(listing.pet?.species) !== normalizePetSpecies(data.petSpecies)
+  )
+    return false;
   if (data.petBreed && listing.pet?.breed !== data.petBreed) return false;
   if (data.petPlacementType && listing.pet?.placementType !== data.petPlacementType) return false;
   if (data.petOfferedBy && listing.pet?.offeredBy !== data.petOfferedBy) return false;
@@ -1245,8 +1272,8 @@ export const browseClassifieds = createServerFn({ method: "GET" })
     fuelType: text(input?.fuelType, 30),
     exteriorColor: text(input?.exteriorColor, 30),
     titleStatus: text(input?.titleStatus, 30),
-    petSubcategory: text(input?.petSubcategory, 80),
-    petSpecies: text(input?.petSpecies, 40),
+    petSubcategory: normalizePetSubcategory(text(input?.petSubcategory, 80)),
+    petSpecies: normalizePetSpecies(text(input?.petSpecies, 40)),
     petBreed: text(input?.petBreed, 100),
     petPlacementType: text(input?.petPlacementType, 30),
     petOfferedBy: text(input?.petOfferedBy, 30),
@@ -1379,6 +1406,8 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
         : [...fulfillment, "both"];
       if (modes.length > 0) query = applyReferencedFilter(query, "fulfillment_mode", modes);
     }
+    if (data.category === "services" && (data.priceMin != null || data.priceMax != null))
+      query = query.gt("price_cents", 0);
     if (data.priceMin != null) query = query.gte("price_cents", Math.round(data.priceMin * 100));
     if (data.priceMax != null) query = query.lte("price_cents", Math.round(data.priceMax * 100));
     if (data.homeTab && data.category === "other-real-estate")
@@ -1403,7 +1432,13 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
       [data.homeGarageParking, "home_garage_parking"],
       [data.homeYard, "home_yard"],
       [data.homeSchoolDistrict, "home_school_district"],
-      [data.homeLeaseLength, "home_lease_length"],
+      [
+        data.homeLeaseLength
+          ?.split("||")
+          .map((item) => item.match(/\d+/)?.[0] ?? item)
+          .join("||"),
+        "home_lease_length",
+      ],
       [data.homeAvailable, "home_available"],
       [data.homePetsPolicy, "home_pets_policy"],
       [data.homeSmokingPolicy, "home_smoking_policy"],
