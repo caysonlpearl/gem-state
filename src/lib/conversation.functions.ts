@@ -11,6 +11,7 @@ export type ConversationSummary = {
   sellerId: string;
   memberRole: "buyer" | "seller";
   otherMemberId: string;
+  otherMemberName: string;
   lastMessageAt: string;
   lastReadAt: string | null;
   unread: boolean;
@@ -33,7 +34,11 @@ export type ConversationDetail = ConversationSummary & {
   messages: ConversationMessage[];
 };
 
-function summary(row: any, userId: string): ConversationSummary {
+function summary(
+  row: any,
+  userId: string,
+  otherMemberNames: Map<string, string> = new Map(),
+): ConversationSummary {
   const participant = (row.conversation_participants ?? []).find(
     (item: any) => item.user_id === userId,
   );
@@ -47,6 +52,7 @@ function summary(row: any, userId: string): ConversationSummary {
     sellerId: row.seller_id,
     memberRole: row.buyer_id === userId ? "buyer" : "seller",
     otherMemberId,
+    otherMemberName: otherMemberNames.get(otherMemberId) ?? "Bluebird member",
     lastMessageAt: row.last_message_at,
     lastReadAt: participant?.last_read_at ?? null,
     unread: Boolean(
@@ -70,7 +76,23 @@ export const getMyConversations = createServerFn({ method: "GET" })
       .order("last_message_at", { ascending: false })
       .limit(100);
     if (error) throw new Error(error.message);
-    return (data ?? []).map((row: any) => summary(row, context.userId));
+    const otherMemberIds = [
+      ...new Set(
+        (data ?? []).map((row: any) =>
+          row.buyer_id === context.userId ? row.seller_id : row.buyer_id,
+        ),
+      ),
+    ];
+    const { data: profiles } = otherMemberIds.length
+      ? await client.from("profiles").select("id,display_name").in("id", otherMemberIds)
+      : { data: [] as any[] };
+    const names = new Map<string, string>(
+      (profiles ?? []).map((profile: any) => [
+        profile.id,
+        String(profile.display_name ?? "").trim() || "Bluebird member",
+      ]),
+    );
+    return (data ?? []).map((row: any) => summary(row, context.userId, names));
   });
 
 export const getConversation = createServerFn({ method: "GET" })
@@ -96,6 +118,15 @@ export const getConversation = createServerFn({ method: "GET" })
       .order("created_at", { ascending: true })
       .limit(200);
     if (messageError) throw new Error(messageError.message);
+    const otherMemberId = row.buyer_id === context.userId ? row.seller_id : row.buyer_id;
+    const { data: otherProfile } = await client
+      .from("profiles")
+      .select("display_name")
+      .eq("id", otherMemberId)
+      .maybeSingle();
+    const otherMemberNames = new Map<string, string>([
+      [otherMemberId, String(otherProfile?.display_name ?? "").trim() || "Bluebird member"],
+    ]);
     const attachmentPaths = (messages ?? [])
       .map((message: any) => message.attachment_path)
       .filter((path: unknown): path is string => typeof path === "string" && path.length > 0);
@@ -111,7 +142,7 @@ export const getConversation = createServerFn({ method: "GET" })
       }
     }
     return {
-      ...summary(row, context.userId),
+      ...summary(row, context.userId, otherMemberNames),
       messages: (messages ?? []).map((message: any) => ({
         id: message.id,
         conversationId: message.conversation_id,
@@ -300,6 +331,116 @@ export const reportConversation = createServerFn({ method: "POST" })
     const { error } = await client.rpc("report_conversation", {
       _conversation_id: data.conversationId,
       _reason: data.reason,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
+  });
+
+export type AdminConversationReport = {
+  id: string;
+  conversationId: string;
+  listingId: string | null;
+  listingTitle: string;
+  reporterName: string;
+  buyerName: string;
+  sellerName: string;
+  reason: string;
+  status: string;
+  adminNote: string | null;
+  assignedTo: string | null;
+  createdAt: string;
+  resolvedAt: string | null;
+};
+
+async function requireAdmin(context: { supabase: unknown; userId: string }) {
+  const { data, error } = await (context.supabase as any).rpc("has_role", {
+    _user_id: context.userId,
+    _role: "admin",
+  });
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Administrator access required.");
+}
+
+export const getAdminConversationReports = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<AdminConversationReport[]> => {
+    await requireAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = supabaseAdmin as any;
+    const { data: reports, error } = await admin
+      .from("conversation_reports")
+      .select(
+        "id,conversation_id,reporter_id,reason,status,admin_note,assigned_to,created_at,resolved_at",
+      )
+      .order("created_at", { ascending: false })
+      .limit(100);
+    if (error) throw new Error(error.message);
+    const conversationIds = [...new Set((reports ?? []).map((row: any) => row.conversation_id))];
+    const { data: conversations, error: conversationError } = conversationIds.length
+      ? await admin
+          .from("conversations")
+          .select("id,listing_id,buyer_id,seller_id,asks(products(name))")
+          .in("id", conversationIds)
+      : { data: [], error: null };
+    if (conversationError) throw new Error(conversationError.message);
+    const conversationsById = new Map((conversations ?? []).map((row: any) => [row.id, row]));
+    const userIds = [
+      ...new Set(
+        (reports ?? []).flatMap((report: any) => {
+          const conversation = conversationsById.get(report.conversation_id);
+          return [report.reporter_id, conversation?.buyer_id, conversation?.seller_id].filter(
+            Boolean,
+          );
+        }),
+      ),
+    ];
+    const { data: profiles } = userIds.length
+      ? await admin.from("profiles").select("id,display_name").in("id", userIds)
+      : { data: [] as any[] };
+    const names = new Map<string, string>(
+      (profiles ?? []).map((profile: any) => [
+        profile.id,
+        String(profile.display_name ?? "").trim() || "Bluebird member",
+      ]),
+    );
+    return (reports ?? []).map((report: any) => {
+      const conversation = conversationsById.get(report.conversation_id);
+      return {
+        id: report.id,
+        conversationId: report.conversation_id,
+        listingId: conversation?.listing_id ?? null,
+        listingTitle: conversation?.asks?.products?.name ?? "Marketplace conversation",
+        reporterName: names.get(report.reporter_id) ?? "Bluebird member",
+        buyerName: names.get(conversation?.buyer_id) ?? "Bluebird member",
+        sellerName: names.get(conversation?.seller_id) ?? "Bluebird member",
+        reason: report.reason,
+        status: report.status,
+        adminNote: report.admin_note ?? null,
+        assignedTo: report.assigned_to ?? null,
+        createdAt: report.created_at,
+        resolvedAt: report.resolved_at ?? null,
+      };
+    });
+  });
+
+export const resolveAdminConversationReport = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator(
+    (input: { reportId: string; action: "reviewed" | "dismissed"; adminNote?: string | null }) => {
+      if (input.action !== "reviewed" && input.action !== "dismissed")
+        throw new Error("Choose a report resolution.");
+      const adminNote = input.adminNote == null ? null : String(input.adminNote).trim();
+      if (adminNote && adminNote.length > 1000)
+        throw new Error("Keep the note under 1,000 characters.");
+      return { reportId: String(input.reportId), action: input.action, adminNote };
+    },
+  )
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context);
+    const { error } = await (context.supabase as any).rpc("admin_resolve_conversation_report", {
+      _report_id: data.reportId,
+      _action: data.action,
+      _admin_note: data.adminNote,
     });
     if (error) throw new Error(error.message);
     return { ok: true as const };

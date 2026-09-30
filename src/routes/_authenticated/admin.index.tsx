@@ -249,6 +249,12 @@ function AdminPage() {
             >
               Flagged reviews
             </Link>
+            <Link
+              to="/admin/conversation-reports"
+              className="inline-flex h-9 items-center rounded-md border border-input px-3 text-[12.5px] font-medium hover:bg-secondary"
+            >
+              Conversation reports
+            </Link>
           </div>
         )}
       </div>

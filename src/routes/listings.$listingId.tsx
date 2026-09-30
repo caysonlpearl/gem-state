@@ -628,15 +628,11 @@ function FlagListingDialog({ listingId }: { listingId: string }) {
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [details, setDetails] = useState("");
+  const [submitted, setSubmitted] = useState<"new" | "duplicate" | null>(null);
   const reportMutation = useMutation({
     mutationFn: () => report({ data: { listingId, reason, details } }),
     onSuccess: (result) => {
-      toast.success(
-        result.alreadyReported
-          ? "You already reported this listing."
-          : "Thanks — your report was sent to Bluebird moderation.",
-      );
-      setOpen(false);
+      setSubmitted(result.alreadyReported ? "duplicate" : "new");
       setReason("");
       setDetails("");
     },
@@ -645,7 +641,13 @@ function FlagListingDialog({ listingId }: { listingId: string }) {
   });
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (!nextOpen) setSubmitted(null);
+      }}
+    >
       <DialogTrigger asChild>
         <button
           type="button"
@@ -662,7 +664,25 @@ function FlagListingDialog({ listingId }: { listingId: string }) {
             listings.
           </DialogDescription>
         </DialogHeader>
-        {isSignedIn ? (
+        {submitted ? (
+          <div className="space-y-4 rounded-xl border border-primary/20 bg-primary/5 p-4 text-[12px] leading-relaxed">
+            <p className="font-semibold text-primary">
+              {submitted === "duplicate" ? "This listing is already reported." : "Report received."}
+            </p>
+            <p className="text-muted-foreground">
+              {submitted === "duplicate"
+                ? "Your existing report is already in the Bluebird moderation queue. We will not create a duplicate report."
+                : "Your report is pending Bluebird moderation. We will review the listing and update the queue without changing your account state."}
+            </p>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="h-9 rounded-xl bg-primary px-3 text-[12px] font-semibold text-primary-foreground"
+            >
+              Done
+            </button>
+          </div>
+        ) : isSignedIn ? (
           <form
             className="space-y-4"
             onSubmit={(event) => {

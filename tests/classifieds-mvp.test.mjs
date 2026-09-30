@@ -37,6 +37,13 @@ const accountCenterSource = await read("src/components/account/AccountCenter.tsx
 const accountFunctionsSource = await read("src/lib/account.functions.ts");
 const accountCenterFunctionsSource = await read("src/lib/account-center.functions.ts");
 const conversationFunctionsSource = await read("src/lib/conversation.functions.ts");
+const notificationsFunctionsSource = await read("src/lib/notifications.functions.ts");
+const adminConversationReportsSource = await read(
+  "src/routes/_authenticated/admin.conversation-reports.tsx",
+);
+const conversationReportsMigrationSource = await read(
+  "supabase/migrations/20260930150000_add_phase2_conversation_report_workflow.sql",
+);
 const listingUpgradeFunctionsSource = await read("src/lib/listing-upgrade.functions.ts");
 const listingUpgradeMigrationSource = await read(
   "supabase/migrations/20260918113000_add_seller_listing_upgrades.sql",
@@ -565,6 +572,35 @@ test("messaging supports protected attachments, moderation controls, and send re
   assert.match(accountCenterSource, /Block this member\?/);
   assert.match(accountCenterSource, /Report this conversation/);
   assert.match(accountCenterSource, /Retry send/);
+});
+
+test("saved listings keep visible counts and bulk selection scoped to active filters", () => {
+  assert.match(accountCenterSource, /title=\{`\$\{filtered\.length\} saved/);
+  assert.match(accountCenterSource, /Showing \$\{filtered\.length\} of \$\{items\.length\}/);
+  assert.match(accountCenterSource, /visible selected/);
+  assert.match(accountCenterSource, /visibleIdKey/);
+});
+
+test("conversation reports carry context into an admin resolution queue", () => {
+  assert.match(conversationFunctionsSource, /otherMemberName/);
+  assert.match(accountCenterSource, /With \{item\.otherMemberName\}/);
+  assert.match(accountCenterSource, /refetchInterval: 15000/);
+  assert.match(conversationFunctionsSource, /getAdminConversationReports/);
+  assert.match(conversationFunctionsSource, /resolveAdminConversationReport/);
+  assert.match(adminConversationReportsSource, /Operator note/);
+  assert.match(adminConversationReportsSource, /Mark reviewed/);
+  assert.match(conversationReportsMigrationSource, /admin_resolve_conversation_report/);
+  assert.match(conversationReportsMigrationSource, /Admins read conversation reports/);
+});
+
+test("member trust surfaces use Bluebird notification copy and actionable destinations", () => {
+  assert.match(accountCenterSource, /notificationText\(item\.title\)/);
+  assert.match(accountCenterSource, /Open conversation/);
+  assert.match(accountCenterSource, /Open listing/);
+  assert.match(listingDetailSource, /Report received\./);
+  assert.match(listingDetailSource, /existing report is already in the Bluebird moderation queue/);
+  assert.match(actionsSource, /messageError/);
+  assert.match(actionsSource, /Minimum 10 characters\./);
 });
 
 test("saved searches reopen their full filters and update in place", () => {

@@ -175,6 +175,7 @@ export type AdminClassifiedReport = {
   details: string | null;
   status: string;
   createdAt: string;
+  resolvedAt: string | null;
 };
 
 export const getAdminClassifiedReports = createServerFn({ method: "GET" })
@@ -202,8 +203,36 @@ export const getAdminClassifiedReports = createServerFn({ method: "GET" })
         details: row.details ?? null,
         status: row.status,
         createdAt: row.created_at,
+        resolvedAt: row.resolved_at ?? null,
       })),
     };
+  });
+
+export const resolveAdminClassifiedReport = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: { reportId: string; action: "reviewed" | "dismissed" }) => {
+    if (input.action !== "reviewed" && input.action !== "dismissed")
+      throw new Error("Choose a report resolution.");
+    return { reportId: String(input.reportId), action: input.action };
+  })
+  .handler(async ({ data, context }) => {
+    const { data: isAdmin, error: roleError } = await context.supabase.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "admin",
+    });
+    if (roleError) throw new Error(roleError.message);
+    if (!isAdmin) throw new Error("Administrator access required.");
+    const { error } = await (context.supabase as any)
+      .from("classified_listing_reports")
+      .update({
+        status: data.action,
+        resolved_at: new Date().toISOString(),
+        resolved_by: context.userId,
+      })
+      .eq("id", data.reportId)
+      .eq("status", "open");
+    if (error) throw new Error(error.message);
+    return { ok: true as const };
   });
 
 export const getClassifiedCategoryOptions = createServerFn({ method: "GET" }).handler(

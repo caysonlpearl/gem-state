@@ -223,6 +223,7 @@ export function AccountCenter({
     queryFn: () => fetchConversations(),
     // The sidebar exposes the unread message count on every account view.
     enabled: true,
+    refetchInterval: 15000,
   });
   const savedSearches = useQuery({
     queryKey: ["saved-searches"],
@@ -1482,6 +1483,17 @@ function SavedListingsSection({ items }: { items: WatchedVariant[] }) {
           ? (b.lowestAskCents ?? 0) - (a.lowestAskCents ?? 0)
           : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
+  const visibleIdKey = filtered.map((item) => item.variantId).join("|");
+  // The key is derived from the visible set, so this memo remains stable while
+  // other account data refreshes in the background.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- visibleIdKey captures the derived filtered IDs.
+  const visibleIds = useMemo(() => new Set(filtered.map((item) => item.variantId)), [visibleIdKey]);
+  useEffect(() => {
+    setSelectedIds((current) => {
+      const next = current.filter((id) => visibleIds.has(id));
+      return next.length === current.length ? current : next;
+    });
+  }, [visibleIdKey, visibleIds]);
   const removeMutation = useMutation({
     mutationFn: (variantId: string) => setWatch({ data: { variantId, watching: false } }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["my-watchlist"] }),
@@ -1516,8 +1528,12 @@ function SavedListingsSection({ items }: { items: WatchedVariant[] }) {
     <div className="space-y-6">
       <SectionHeader
         eyebrow="Saved listings"
-        title={`${items.length} saved ${items.length === 1 ? "listing" : "listings"}`}
-        body="Keep exact items handy while you compare local options. Saving does not reserve an item."
+        title={`${filtered.length} saved ${filtered.length === 1 ? "listing" : "listings"}`}
+        body={
+          filtered.length === items.length
+            ? "Keep exact items handy while you compare local options. Saving does not reserve an item."
+            : `Showing ${filtered.length} of ${items.length} saved listings. Saving does not reserve an item.`
+        }
         action={
           <div className="flex flex-wrap gap-2">
             <Link
@@ -1534,7 +1550,9 @@ function SavedListingsSection({ items }: { items: WatchedVariant[] }) {
                 disabled={bulkRemove.isPending}
                 className="inline-flex h-10 items-center gap-2 rounded-xl bg-destructive px-3 text-[12px] font-semibold text-destructive-foreground disabled:opacity-60"
               >
-                {bulkRemove.isPending ? "Removing…" : `Remove ${selectedIds.length} selected`}
+                {bulkRemove.isPending
+                  ? "Removing…"
+                  : `Remove ${selectedIds.length} visible selected`}
               </button>
             )}
           </div>
@@ -2036,6 +2054,7 @@ function MessagesSection({
       setFailedSend(null);
       if (selected) setDetail(await fetchConversation({ data: { id: selected.id } }));
       await queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      await queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
     onError: (error) => {
       setFailedSend("message");
@@ -2073,6 +2092,7 @@ function MessagesSection({
       setFailedSend(null);
       if (selected) setDetail(await fetchConversation({ data: { id: selected.id } }));
       await queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      await queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
     onError: (error) => {
       setFailedSend("attachment");
@@ -2138,7 +2158,7 @@ function MessagesSection({
                 <p
                   className={`mt-1 text-[11px] ${item.id === selected?.id ? "text-primary-foreground/70" : "text-muted-foreground"}`}
                 >
-                  {new Date(item.lastMessageAt).toLocaleDateString()}
+                  With {item.otherMemberName} · {new Date(item.lastMessageAt).toLocaleDateString()}
                 </p>
               </button>
             ))}
@@ -2158,7 +2178,7 @@ function MessagesSection({
                 </p>
                 <p className="mt-1 text-[11.5px] text-muted-foreground">
                   {detail
-                    ? "Keep payment details and sensitive information out of messages."
+                    ? `With ${detail.otherMemberName} · Keep payment details and sensitive information out of messages.`
                     : "Your buyer and seller conversations will appear here."}
                 </p>
               </div>
@@ -2405,6 +2425,15 @@ function NotificationsSection({
   const items = data?.items ?? [];
   const visible = items.filter((item) => filter === "all" || item.kind === filter);
   const kinds = [...new Set(items.map((item) => item.kind).filter(Boolean))];
+  const kindLabels: Record<string, string> = {
+    message: "Messages",
+    saved_search_match: "Saved search matches",
+    listing_reviewed: "Listing review",
+    listing_upgrade: "Listing promotion",
+    review_request: "Review requests",
+  };
+  const notificationText = (value: string) =>
+    value.replaceAll("ParkVault", brand.name).replaceAll("Gem State", brand.name);
   return (
     <div className="space-y-6">
       <SectionHeader
@@ -2439,7 +2468,7 @@ function NotificationsSection({
           <option value="all">All activity</option>
           {kinds.map((kind) => (
             <option key={kind} value={kind}>
-              {kind.replaceAll("_", " ")}
+              {kindLabels[kind] ?? kind.replaceAll("_", " ")}
             </option>
           ))}
         </select>
@@ -2461,9 +2490,9 @@ function NotificationsSection({
                   className={`mt-1 size-2 shrink-0 rounded-full ${item.readAt ? "bg-border" : "bg-primary"}`}
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-semibold">{item.title}</p>
+                  <p className="text-[13px] font-semibold">{notificationText(item.title)}</p>
                   <p className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground">
-                    {item.body}
+                    {notificationText(item.body)}
                   </p>
                   <p className="mt-1 text-[11px] text-muted-foreground">
                     {new Date(item.createdAt).toLocaleString()}
@@ -2474,7 +2503,11 @@ function NotificationsSection({
                         href={item.destinationUrl}
                         className="inline-flex text-[11.5px] font-semibold text-primary hover:underline"
                       >
-                        Open related activity
+                        {item.entityType === "conversation"
+                          ? "Open conversation"
+                          : item.entityType === "listing"
+                            ? "Open listing"
+                            : "Open related activity"}
                         <ArrowRight size={13} className="ml-1" />
                       </a>
                     )}

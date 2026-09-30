@@ -48,6 +48,13 @@ export function ListingActions({
   const [downPayment, setDownPayment] = useState(
     isMortgage ? String(Math.round((listing.priceCents / 100) * 0.2)) : "0",
   );
+  const messageLength = message.trim().length;
+  const messageError =
+    messageLength === 0
+      ? "Write a message before sending."
+      : messageLength < 10
+        ? "Tell the seller a little more (at least 10 characters)."
+        : null;
 
   const principalCents = Math.max(
     0,
@@ -192,6 +199,10 @@ export function ListingActions({
           className="mt-4 space-y-3 border-t border-border px-4 py-4"
           onSubmit={(event) => {
             event.preventDefault();
+            if (messageError) {
+              toast.error(messageError);
+              return;
+            }
             inquiryMutation.mutate();
           }}
         >
@@ -209,6 +220,8 @@ export function ListingActions({
             maxLength={2000}
             rows={5}
             required
+            aria-invalid={Boolean(messageError)}
+            aria-describedby="seller-message-help seller-message-error"
             className="w-full resize-y rounded-2xl border border-input bg-background px-3 py-2.5 text-[13px] leading-relaxed outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
             placeholder={
               isJobApply
@@ -216,13 +229,25 @@ export function ListingActions({
                 : "Ask about availability, condition, pickup, or shipping…"
             }
           />
+          <div
+            id="seller-message-help"
+            className="flex justify-between text-[11px] text-muted-foreground"
+          >
+            <span>Minimum 10 characters.</span>
+            <span>{message.length}/2000</span>
+          </div>
+          {messageError && (
+            <p id="seller-message-error" role="alert" className="text-[11px] text-destructive">
+              {messageError}
+            </p>
+          )}
           <p className="text-[11px] leading-relaxed text-muted-foreground">
             Your message will appear in Bluebird Messages. The seller will only see contact details
             you have explicitly enabled in your profile preferences.
           </p>
           <button
             type="submit"
-            disabled={inquiryMutation.isPending}
+            disabled={inquiryMutation.isPending || Boolean(messageError)}
             className="inline-flex h-10 items-center rounded-full bg-primary px-4 text-[12.5px] font-semibold text-primary-foreground disabled:opacity-60"
           >
             {inquiryMutation.isPending ? "Sending…" : "Send message"}

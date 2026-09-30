@@ -8,6 +8,7 @@ import { formatUsd } from "@/config/fees";
 import {
   getAdminClassifiedQueue,
   getAdminClassifiedReports,
+  resolveAdminClassifiedReport,
   type AdminClassifiedRow,
 } from "@/lib/classifieds.functions";
 import { adminReviewAsk } from "@/lib/admin-catalog.functions";
@@ -176,6 +177,8 @@ function ClassifiedModerationRow({ listing }: { listing: AdminClassifiedRow }) {
 function ClassifiedModerationPage() {
   const fetchQueue = useServerFn(getAdminClassifiedQueue);
   const fetchReports = useServerFn(getAdminClassifiedReports);
+  const resolveReport = useServerFn(resolveAdminClassifiedReport);
+  const queryClient = useQueryClient();
   const { data, isLoading, isError } = useQuery({
     queryKey: ["admin-classified-queue"],
     queryFn: () => fetchQueue(),
@@ -183,6 +186,16 @@ function ClassifiedModerationPage() {
   const reports = useQuery({
     queryKey: ["admin-classified-reports"],
     queryFn: () => fetchReports(),
+  });
+  const resolveMutation = useMutation({
+    mutationFn: (input: { reportId: string; action: "reviewed" | "dismissed" }) =>
+      resolveReport({ data: input }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["admin-classified-reports"] });
+      toast.success("Listing report updated.");
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Could not update the listing report."),
   });
 
   if (isLoading) {
@@ -264,6 +277,28 @@ function ClassifiedModerationPage() {
                   {report.details && (
                     <p className="mt-2 text-[12px] leading-relaxed">{report.details}</p>
                   )}
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        resolveMutation.mutate({ reportId: report.id, action: "reviewed" })
+                      }
+                      disabled={resolveMutation.isPending}
+                      className="h-8 rounded-md bg-primary px-2.5 text-[11.5px] font-semibold text-primary-foreground disabled:opacity-50"
+                    >
+                      Mark reviewed
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        resolveMutation.mutate({ reportId: report.id, action: "dismissed" })
+                      }
+                      disabled={resolveMutation.isPending}
+                      className="h-8 rounded-md border border-input px-2.5 text-[11.5px] font-medium disabled:opacity-50"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
                 </li>
               ))}
             </ul>
