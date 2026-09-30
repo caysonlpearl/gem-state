@@ -370,6 +370,19 @@
     );
 }
 
+/* Reserve the tallest headline shape at each breakpoint so rotating copy
+ * never changes the hero's height and shifts the page below it. */
+.homepage-hero-headline {
+  min-height: 4.32em;
+  text-wrap: balance;
+}
+
+@media (min-width: 640px) {
+  .homepage-hero-headline {
+    min-height: 2.16em;
+  }
+}
+
 @keyframes category-art-bob {
   0%,
   100% {

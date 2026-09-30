@@ -259,7 +259,7 @@ function Home() {
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
             Bluebird classifieds
           </p>
-          <h1 className="mt-3 max-w-[34ch] text-[34px] font-bold leading-[1.08] tracking-tight sm:text-[48px]">
+          <h1 className="homepage-hero-headline mt-3 max-w-[34ch] text-[34px] font-bold leading-[1.08] tracking-tight sm:text-[48px]">
             Find{" "}
             <span
               key={headlineItems.join("|")}
