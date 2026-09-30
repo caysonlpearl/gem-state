@@ -193,8 +193,8 @@ export const classifiedItemFields: Record<string, ClassifiedItemField[]> = {
   ],
 };
 
-export function fieldsForClassifiedItem(category: string) {
-  return classifiedItemFields[category] ?? classifiedItemFields.general;
+export function fieldsForClassifiedItem(category: string): ClassifiedItemField[] {
+  return classifiedItemFields[category] ?? classifiedItemFields["general"] ?? [];
 }
 
 export function normalizeClassifiedItemDetails(

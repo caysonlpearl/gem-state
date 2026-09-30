@@ -1013,7 +1013,7 @@ function mockMatches(
   if (
     data.itemDetailKey &&
     data.itemDetailValue &&
-    !listing.itemDetails?.[data.itemDetailKey]
+    !(listing as { itemDetails?: Record<string, string> }).itemDetails?.[data.itemDetailKey]
       ?.toLowerCase()
       .includes(data.itemDetailValue.toLowerCase())
   )
