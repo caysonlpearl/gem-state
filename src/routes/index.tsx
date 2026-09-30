@@ -254,7 +254,7 @@ function Home() {
 
   return (
     <main className="mx-auto max-w-[1360px] px-4 pb-16 sm:px-6">
-      <section className="classifieds-hero-shell relative mt-8 overflow-hidden rounded-[28px] border border-brand-blue/20 bg-secondary px-5 py-9 shadow-lg sm:px-10 sm:py-12">
+      <section className="classifieds-hero-shell homepage-hero-shell relative mt-8 overflow-hidden rounded-[28px] border border-brand-blue/20 bg-secondary px-5 py-9 shadow-lg sm:px-10 sm:py-12">
         <span
           className="classifieds-hero-orb classifieds-hero-orb--blue absolute -right-20 -top-24 h-64 w-64 rounded-full bg-brand-blue/12"
           aria-hidden="true"

@@ -353,6 +353,23 @@
     );
 }
 
+/* The homepage keeps one blue orb in the top-right and balances it with a
+ * softer blue glow low on the opposite side instead of stacking both accents. */
+.homepage-hero-shell {
+  background-image:
+    radial-gradient(
+      circle at 7% 88%,
+      color-mix(in srgb, var(--color-brand-blue) 10%, transparent) 0 7rem,
+      transparent 7.1rem
+    ),
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-brand-blue) 4%, var(--color-secondary)),
+      var(--color-secondary) 54%,
+      color-mix(in srgb, var(--color-brand-warm) 5%, var(--color-secondary))
+    );
+}
+
 @keyframes category-art-bob {
   0%,
   100% {
