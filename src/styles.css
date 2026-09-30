@@ -265,7 +265,7 @@
     transform: translate3d(0, 0, 0) scale(1);
   }
   50% {
-    transform: translate3d(-18px, 14px, 0) scale(1.06);
+    transform: translate3d(-28px, 20px, 0) scale(1.08);
   }
 }
 
@@ -310,12 +310,12 @@
 
 @media (prefers-reduced-motion: no-preference) {
   .classifieds-hero-orb {
-    animation: classifieds-hero-drift 11s ease-in-out infinite;
+    animation: classifieds-hero-drift 8.5s ease-in-out infinite;
   }
 
   .classifieds-hero-orb--warm {
     animation-delay: -4s;
-    animation-duration: 13s;
+    animation-duration: 10.5s;
   }
 
   .classifieds-hero-sheen {
@@ -334,7 +334,7 @@
 
   .classifieds-hero-rotating-item {
     display: inline-block;
-    animation: classifieds-hero-headline-in 520ms cubic-bezier(0.22, 1, 0.36, 1);
+    animation: classifieds-hero-headline-in 900ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 }
 
