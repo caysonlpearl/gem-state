@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -2020,6 +2020,7 @@ function MessagesSection({
   const [reportReason, setReportReason] = useState("");
   const [reportSubmitted, setReportSubmitted] = useState(false);
   const [blockOpen, setBlockOpen] = useState(false);
+  const sendLockRef = useRef(false);
   const activeId = conversationId ?? conversations[0]?.id;
   const activeList = conversations.filter(
     (item) =>
@@ -2102,6 +2103,23 @@ function MessagesSection({
       toast.error(error instanceof Error ? error.message : "Could not send attachment.");
     },
   });
+  const submitMessage = () => {
+    if (
+      sendLockRef.current ||
+      sendMutation.isPending ||
+      sendAttachmentMutation.isPending ||
+      (!body.trim() && !attachment)
+    ) {
+      return;
+    }
+    sendLockRef.current = true;
+    const mutation = attachment ? sendAttachmentMutation : sendMutation;
+    mutation.mutate(undefined, {
+      onSettled: () => {
+        sendLockRef.current = false;
+      },
+    });
+  };
   const blockMutation = useMutation({
     mutationFn: (id: string) => block({ data: { conversationId: id } }),
     onSuccess: async () => {
@@ -2227,8 +2245,7 @@ function MessagesSection({
                 className="border-t border-border px-2 pt-3"
                 onSubmit={(event) => {
                   event.preventDefault();
-                  if (attachment) sendAttachmentMutation.mutate();
-                  else if (body.trim()) sendMutation.mutate();
+                  submitMessage();
                 }}
               >
                 <textarea
@@ -2317,8 +2334,7 @@ function MessagesSection({
                     <button
                       type="button"
                       onClick={() => {
-                        if (failedSend === "attachment") sendAttachmentMutation.mutate();
-                        else sendMutation.mutate();
+                        submitMessage();
                       }}
                       disabled={sendMutation.isPending || sendAttachmentMutation.isPending}
                       className="font-semibold underline underline-offset-2 disabled:opacity-50"
