@@ -730,6 +730,7 @@ export type Database = {
           home_square_feet: number | null
           home_yard: string | null
           home_year_built: number | null
+          item_details: Json
           job_application_external_contact: string | null
           job_application_method: string
           job_category: string | null
@@ -815,6 +816,7 @@ export type Database = {
           home_square_feet?: number | null
           home_yard?: string | null
           home_year_built?: number | null
+          item_details?: Json
           job_application_external_contact?: string | null
           job_application_method?: string
           job_category?: string | null
@@ -900,6 +902,7 @@ export type Database = {
           home_square_feet?: number | null
           home_yard?: string | null
           home_year_built?: number | null
+          item_details?: Json
           job_application_external_contact?: string | null
           job_application_method?: string
           job_category?: string | null
