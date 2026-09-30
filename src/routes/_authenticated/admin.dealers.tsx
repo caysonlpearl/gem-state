@@ -1,0 +1,16 @@
+import { useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+
+import { getAdminDealerDirectory } from "@/lib/dealer.functions";
+
+export const Route = createFileRoute("/_authenticated/admin/dealers")({ component: AdminDealersPage });
+
+function AdminDealersPage() {
+  const fetchDealers = useServerFn(getAdminDealerDirectory);
+  const query = useQuery({ queryKey: ["admin-dealer-directory"], queryFn: () => fetchDealers() });
+  const [search, setSearch] = useState("");
+  const filtered = (query.data ?? []).filter((dealer: any) => `${dealer.display_name} ${dealer.legal_name} ${dealer.slug} ${dealer.city ?? ""} ${dealer.state ?? ""}`.toLowerCase().includes(search.toLowerCase()));
+  return <main className="mx-auto max-w-[1100px] space-y-6 px-4 py-10 sm:px-6"><div><Link to="/admin" className="text-[12px] text-muted-foreground hover:text-foreground">Back to operations</Link><p className="mt-4 text-[10px] font-semibold uppercase tracking-[0.1em] text-primary">Bluebird operations</p><h1 className="mt-1 text-[22px] font-semibold tracking-tight">Dealership management</h1><p className="mt-1 text-[13px] text-muted-foreground">Search verified business identities, readiness, staff membership, and inventory source health.</p></div><input aria-label="Search dealerships" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search business, slug, or city" className="h-10 w-full max-w-[520px] border border-input bg-background px-3 text-sm" />{query.isLoading ? <p className="text-sm text-muted-foreground">Loading dealerships…</p> : query.error ? <p className="text-sm text-destructive">{query.error instanceof Error ? query.error.message : "Could not load dealerships."}</p> : <section className="overflow-x-auto rounded-lg border border-border bg-card"><table className="w-full min-w-[850px] text-left text-[12px]"><thead className="bg-secondary/50"><tr><th className="px-4 py-3">Dealership</th><th className="px-4 py-3">Readiness</th><th className="px-4 py-3">Inventory</th><th className="px-4 py-3">Staff</th><th className="px-4 py-3">Created</th></tr></thead><tbody>{filtered.map((dealer: any) => <tr key={dealer.id} className="border-t border-border"><td className="px-4 py-3"><p className="font-semibold">{dealer.display_name}</p><p className="text-[11px] text-muted-foreground">{dealer.legal_name} · /sellers/{dealer.slug}</p><p className="text-[11px] text-muted-foreground">{dealer.city || "Location pending"}{dealer.state ? `, ${dealer.state}` : ""} · {dealer.status}</p></td><td className="px-4 py-3">{dealer.agreements_accepted_at ? "Agreement accepted" : "Agreement missing"}</td><td className="px-4 py-3">{dealer.activeSourceCount}/{dealer.sourceCount} active sources</td><td className="px-4 py-3">{dealer.memberCount} active</td><td className="px-4 py-3">{new Date(dealer.created_at).toLocaleDateString()}</td></tr>)}{filtered.length === 0 ? <tr><td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">No dealerships match this search.</td></tr> : null}</tbody></table></section>}</main>;
+}

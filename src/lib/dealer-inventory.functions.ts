@@ -26,10 +26,12 @@ const sourceInput = z.object({
   minimumRowCount: z.number().int().positive().max(1_000_000).default(1),
   deactivationGraceRuns: z.number().int().positive().max(30).default(2),
   mappingProfile: z.record(z.string(), z.string()).default({}),
+  dealerId: z.string().uuid().optional().nullable(),
 });
 
 export type DealerInventorySourceSummary = {
   id: string;
+  dealer_id: string | null;
   name: string;
   provider_name: string | null;
   source_type: string;
@@ -49,6 +51,7 @@ export type DealerInventorySourceSummary = {
 export type DealerInventorySyncRunSummary = {
   id: string;
   source_id: string;
+  actor_user_id: string | null;
   mode: "dry_run" | "apply";
   status: "running" | "completed" | "failed" | "rejected";
   source_filename: string | null;
@@ -62,6 +65,17 @@ export type DealerInventorySyncRunSummary = {
   unchanged_count: number;
   stale_count: number;
   error_summary: Array<{ rowNumber?: number; field?: string; message?: string }>;
+};
+
+export type DealerInventoryRecordSummary = {
+  id: string;
+  source_record_key: string;
+  title: string;
+  vin: string | null;
+  stock_number: string | null;
+  inventory_status: string;
+  price_cents: number | null;
+  listing_id: string | null;
 };
 
 const feedInput = z.object({
@@ -98,7 +112,7 @@ export const getDealerInventorySources = createServerFn({ method: "GET" })
     const { data, error } = await (supabaseAdmin as any)
       .from("dealer_inventory_sources")
       .select(
-        "id,name,provider_name,source_type,file_format,feed_url,schedule,mapping_profile,minimum_row_count,deactivation_grace_runs,status,last_success_at,last_error_at,last_error,created_at",
+        "id,dealer_id,name,provider_name,source_type,file_format,feed_url,schedule,mapping_profile,minimum_row_count,deactivation_grace_runs,status,last_success_at,last_error_at,last_error,created_at",
       )
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
@@ -115,6 +129,7 @@ export const createDealerInventorySource = createServerFn({ method: "POST" })
       .from("dealer_inventory_sources")
       .insert({
         owner_user_id: context.userId,
+        dealer_id: data.dealerId || null,
         name: data.name,
         provider_name: data.providerName || null,
         source_type: data.sourceType,
@@ -140,7 +155,7 @@ export const getDealerInventorySyncRuns = createServerFn({ method: "GET" })
     const { data: runs, error } = await (supabaseAdmin as any)
       .from("dealer_inventory_sync_runs")
       .select(
-        "id,source_id,mode,status,source_filename,started_at,finished_at,received_row_count,valid_row_count,invalid_row_count,created_count,updated_count,unchanged_count,stale_count,error_summary",
+        "id,source_id,actor_user_id,mode,status,source_filename,started_at,finished_at,received_row_count,valid_row_count,invalid_row_count,created_count,updated_count,unchanged_count,stale_count,error_summary",
       )
       .eq("source_id", data.sourceId)
       .order("started_at", { ascending: false });
@@ -162,6 +177,41 @@ export const setDealerInventorySourceStatus = createServerFn({ method: "POST" })
       .eq("id", data.sourceId);
     if (error) throw new Error(error.message);
     return { sourceId: data.sourceId, status: data.status };
+  });
+
+export const getDealerInventoryRecords = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) => z.object({ sourceId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }): Promise<DealerInventoryRecordSummary[]> => {
+    await requireAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: records, error } = await (supabaseAdmin as any)
+      .from("dealer_inventory_records")
+      .select("id,source_record_key,title,vin,stock_number,inventory_status,price_cents,dealer_inventory_listing_links(listing_id)")
+      .eq("source_id", data.sourceId)
+      .order("updated_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (records ?? []).map((row: any) => ({ ...row, listing_id: row.dealer_inventory_listing_links?.[0]?.listing_id ?? null }));
+  });
+
+export const linkDealerInventoryRecord = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) => z.object({ recordId: z.string().uuid(), listingId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = supabaseAdmin as any;
+    const [{ data: record, error: recordError }, { data: listing, error: listingError }] = await Promise.all([
+      admin.from("dealer_inventory_records").select("id").eq("id", data.recordId).maybeSingle(),
+      admin.from("asks").select("id,status").eq("id", data.listingId).maybeSingle(),
+    ]);
+    if (recordError) throw new Error(recordError.message);
+    if (listingError) throw new Error(listingError.message);
+    if (!record) throw new Error("Inventory record not found.");
+    if (!listing) throw new Error("Listing not found.");
+    const { error } = await admin.from("dealer_inventory_listing_links").upsert({ record_id: data.recordId, listing_id: data.listingId, link_type: "manual" }, { onConflict: "record_id" });
+    if (error) throw new Error(error.message);
+    return { ok: true, listingStatus: listing.status };
   });
 
 export const previewDealerInventoryFeed = createServerFn({ method: "POST" })
@@ -194,6 +244,7 @@ export const previewDealerInventoryFeed = createServerFn({ method: "POST" })
       .from("dealer_inventory_sync_runs")
       .insert({
         source_id: data.sourceId,
+        actor_user_id: context.userId,
         mode: "dry_run",
         status: rejected ? "rejected" : "completed",
         source_filename: data.filename ?? null,
@@ -270,6 +321,7 @@ export const applyDealerInventoryFeed = createServerFn({ method: "POST" })
       .from("dealer_inventory_sync_runs")
       .insert({
         source_id: data.sourceId,
+        actor_user_id: context.userId,
         mode: "apply",
         status: "running",
         source_filename: data.filename ?? null,

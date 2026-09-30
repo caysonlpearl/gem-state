@@ -230,6 +230,12 @@ function AdminPage() {
             >
               Sellers &amp; shoppers
             </Link>
+            <Link
+              to="/admin/dealers"
+              className="inline-flex h-9 items-center rounded-md border border-input px-3 text-[12.5px] font-medium hover:bg-secondary"
+            >
+              Dealerships
+            </Link>
 
             <Link
               to="/admin/validation"

@@ -11,6 +11,7 @@ const sellerRedirects = [
   "/account",
   "/selling",
   "/seller-setup",
+  "/dealer-setup",
   "/create-listing",
   "/create-missing-listing",
   "/buying",
