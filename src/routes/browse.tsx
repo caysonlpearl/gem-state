@@ -1815,6 +1815,17 @@ function Browse() {
   const activeFilterCount = countActiveFilters(search, motors, pets);
   const heading =
     selectedCategory?.name ?? (search.group === "motors" ? "Cars & motors" : "All classifieds");
+  const noResultsHint = pets
+    ? "Try widening the animal, breed, placement type, location, or price filters."
+    : homes
+      ? "Try widening the price, location, property type, or bedroom filters."
+      : jobs
+        ? "Try widening the job type, pay range, experience, location, or search terms."
+        : services
+          ? "Try widening the service type, price, location, availability, or search terms."
+          : motors
+            ? "Try widening the year, price, mileage, location, or vehicle filters."
+            : "Try widening the category, price, condition, location, or search terms.";
 
   function searchPatchFromForm(form: HTMLFormElement): Partial<Search> {
     const values = new FormData(form);
@@ -2874,11 +2885,7 @@ function Browse() {
               <div className="soft-card mt-5 px-5 py-12 text-center">
                 <p className="text-[14px] font-medium">No listings match these filters.</p>
                 <p className="mx-auto mt-1.5 max-w-md text-[13px] leading-relaxed text-muted-foreground">
-                  {pets
-                    ? "Try widening the animal, breed, placement type, location, or price filters."
-                    : homes
-                      ? "Try widening the price, location, property type, or bedroom filters."
-                      : "Try widening the year, price, mileage, location, or vehicle filters."}
+                  {noResultsHint}
                 </p>
                 <Link
                   to="/browse"
