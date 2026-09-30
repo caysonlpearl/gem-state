@@ -2032,7 +2032,12 @@ export const mockVehicleListings: MockClassifiedListing[] = [
       titleStatus: "Clean",
       vin: null,
     },
-    images: [],
+    images: [
+      {
+        url: "/images/mock-vehicles/honda-civic.jpg",
+        alt: "Silver Honda Civic sedan in a Boise neighborhood",
+      },
+    ],
   },
   {
     id: "mock-vehicle-tucson",
@@ -2069,7 +2074,12 @@ export const mockVehicleListings: MockClassifiedListing[] = [
       titleStatus: "Clean",
       vin: null,
     },
-    images: [],
+    images: [
+      {
+        url: "/images/mock-vehicles/hyundai-tucson.jpg",
+        alt: "Black Hyundai Tucson near the Idaho mountains",
+      },
+    ],
   },
   {
     id: "mock-vehicle-silverado",
@@ -2106,7 +2116,12 @@ export const mockVehicleListings: MockClassifiedListing[] = [
       titleStatus: "Clean",
       vin: null,
     },
-    images: [],
+    images: [
+      {
+        url: "/images/mock-vehicles/chevrolet-silverado.jpg",
+        alt: "Red Chevrolet Silverado on an Idaho farm road",
+      },
+    ],
   },
   {
     id: "mock-vehicle-ram",
@@ -2143,7 +2158,12 @@ export const mockVehicleListings: MockClassifiedListing[] = [
       titleStatus: "Clean",
       vin: null,
     },
-    images: [],
+    images: [
+      {
+        url: "/images/mock-vehicles/ram-1500.jpg",
+        alt: "Black Ram 1500 pickup in the Idaho foothills",
+      },
+    ],
   },
 ];
 
