@@ -32,8 +32,15 @@ function NotificationsPage() {
   }, [navigate]);
 
   return (
-    <div className="mx-auto max-w-[760px] px-4 py-16 text-[13px] text-muted-foreground">
-      Opening Notifications…
-    </div>
+    <main className="mx-auto max-w-[760px] px-4 py-16">
+      <h1 className="text-xl font-semibold">Notifications</h1>
+      <p className="mt-2 text-sm text-muted-foreground">Opening your account notifications.</p>
+      <a
+        href="/account?section=notifications"
+        className="mt-5 inline-flex text-sm font-semibold text-primary hover:underline"
+      >
+        Open notifications
+      </a>
+    </main>
   );
 }

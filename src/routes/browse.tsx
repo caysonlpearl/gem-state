@@ -43,6 +43,11 @@ import { createSavedSearch, updateSavedSearch } from "@/lib/account-center.funct
 import { SavedSearchNameDialog } from "@/components/classifieds/SavedSearchNameDialog";
 import { toast } from "sonner";
 import {
+  comparableJobPay,
+  isInvertedRange,
+  optionalNonNegativeNumber,
+} from "@/lib/classifieds-query";
+import {
   Sheet,
   SheetContent,
   SheetDescription,
@@ -1420,8 +1425,7 @@ function stringParam(search: Record<string, unknown>, key: string, max = 80) {
 }
 
 function numberParam(search: Record<string, unknown>, key: string) {
-  const value = Number(search[key]);
-  return Number.isFinite(value) && value >= 0 ? value : undefined;
+  return optionalNonNegativeNumber(search[key]);
 }
 
 function thresholdValue(value: string | undefined) {
@@ -1489,7 +1493,7 @@ function inputFromSearch(search: Search): ClassifiedBrowseInput {
     homeSmokingPolicy: search.homeSmokingPolicy,
     jobCategory: search.jobCategory,
     jobEmployer: search.jobEmployer,
-    jobEmploymentType: search.jobType,
+    jobEmploymentType: search.jobEmploymentType ?? search.jobType,
     jobPayType: search.jobPayType,
     jobPayMin: search.jobPayMin,
     jobPayMax: search.jobPayMax,
@@ -1720,6 +1724,27 @@ function Browse() {
       ),
     ) as Search;
 
+  const clearSearch = (): Search => {
+    const preservedKeys: (keyof Search)[] = [
+      "allCategories",
+      "category",
+      "group",
+      "homeMode",
+      "homeTab",
+      "jobMode",
+      "serviceMode",
+      "vehicleMode",
+      "petMode",
+      "view",
+    ];
+    return Object.fromEntries(
+      preservedKeys.flatMap((key) => {
+        const value = search[key];
+        return value !== undefined && value !== "" ? [[key, value]] : [];
+      }),
+    ) as Search;
+  };
+
   const scopedWithoutVehicleFilters = (patch: Partial<Search>): Search =>
     scoped({
       make: undefined,
@@ -1768,8 +1793,7 @@ function Browse() {
       return typeof raw === "string" && raw.trim() ? raw.trim() : undefined;
     };
     const numeric = (key: string) => {
-      const parsed = Number(value(key));
-      return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
+      return optionalNonNegativeNumber(value(key));
     };
     const category = value("category");
     const nextMotors = value("group") === "motors" || isMotorsCategory(category);
@@ -1819,6 +1843,17 @@ function Browse() {
   function applyFilters(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const patch = searchPatchFromForm(event.currentTarget);
+
+    const ranges: [number | undefined, number | undefined, string][] = [
+      [patch.priceMin, patch.priceMax, "Price"],
+      [patch.yearMin, patch.yearMax, "Year"],
+      [patch.jobPayMin, patch.jobPayMax, "Pay"],
+    ];
+    const invalidRange = ranges.find(([min, max]) => isInvertedRange(min, max));
+    if (invalidRange) {
+      toast.error(`${invalidRange[2]} minimum cannot exceed maximum.`);
+      return;
+    }
 
     void navigate({
       to: "/browse",
@@ -1886,7 +1921,10 @@ function Browse() {
             }
           />
           <GeneralClassifiedShowcase listings={result.listings} />
-          <HomepageShowcaseRows eyebrow="Bluebird Marketplace Classifieds" rows={classifiedShowcaseRows} />
+          <HomepageShowcaseRows
+            eyebrow="Bluebird Marketplace Classifieds"
+            rows={classifiedShowcaseRows}
+          />
         </>
       )}
 
@@ -2116,7 +2154,10 @@ function Browse() {
             browseSearch={{ category: "services", serviceMode: "results" }}
             listings={result.listings}
           />
-          <HomepageShowcaseRows eyebrow="Bluebird Marketplace Services" rows={servicesShowcaseRows} />
+          <HomepageShowcaseRows
+            eyebrow="Bluebird Marketplace Services"
+            rows={servicesShowcaseRows}
+          />
         </>
       )}
 
@@ -2683,7 +2724,7 @@ function Browse() {
                   ))}
                   <Link
                     to="/browse"
-                    search={scoped({ category: undefined, group: search.group })}
+                    search={clearSearch()}
                     className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10.5px] font-medium text-primary hover:bg-accent"
                   >
                     <X size={11} /> Clear
@@ -2704,7 +2745,7 @@ function Browse() {
                 </p>
                 <Link
                   to="/browse"
-                  search={scoped({ category: undefined, group: search.group })}
+                  search={clearSearch()}
                   className="mt-4 inline-flex h-9 items-center rounded-md border border-input px-3 text-[12px] font-semibold hover:bg-secondary"
                 >
                   Clear filters
@@ -2733,7 +2774,9 @@ function Browse() {
                 <Link
                   to="/browse"
                   search={scoped({ page: page > 2 ? page - 1 : undefined })}
-                  disabled={page <= 1}
+                  onClick={(event) => {
+                    if (page <= 1) event.preventDefault();
+                  }}
                   className="inline-flex h-9 items-center rounded-md border border-input px-3 text-[13px] font-medium aria-disabled:pointer-events-none aria-disabled:opacity-40"
                   aria-disabled={page <= 1}
                 >
@@ -2745,7 +2788,9 @@ function Browse() {
                 <Link
                   to="/browse"
                   search={scoped({ page: page + 1 })}
-                  disabled={page >= pageCount}
+                  onClick={(event) => {
+                    if (page >= pageCount) event.preventDefault();
+                  }}
                   className="inline-flex h-9 items-center rounded-md border border-input px-3 text-[13px] font-medium aria-disabled:pointer-events-none aria-disabled:opacity-40"
                   aria-disabled={page >= pageCount}
                 >
@@ -6161,10 +6206,7 @@ function ServicesFilterPage({
   }, [search]);
 
   function currentPatch(): Partial<Search> {
-    const numberValue = (value: string) => {
-      const parsed = Number(value);
-      return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
-    };
+    const numberValue = (value: string) => optionalNonNegativeNumber(value);
     return {
       q: term.trim() || undefined,
       serviceSubcategory: subcategory || undefined,
@@ -6181,13 +6223,21 @@ function ServicesFilterPage({
   }
 
   function apply() {
-    onApply(currentPatch());
+    const patch = currentPatch();
+    if (isInvertedRange(patch.priceMin, patch.priceMax)) {
+      toast.error("Price minimum cannot exceed maximum.");
+      return;
+    }
+    onApply(patch);
   }
 
   const filteredListings = listings;
   const sortedListings = [...filteredListings].sort((a, b) => {
-    if (search.sort === "price_high") return b.priceCents - a.priceCents;
-    if (search.sort === "price_low") return a.priceCents - b.priceCents;
+    if (search.sort === "price_high" || search.sort === "price_low") {
+      const aValue = a.job ? comparableJobPay(a.job.payType, a.job.payMin) : a.priceCents;
+      const bValue = b.job ? comparableJobPay(b.job.payType, b.job.payMin) : b.priceCents;
+      return search.sort === "price_low" ? aValue - bValue : bValue - aValue;
+    }
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
 
@@ -6693,10 +6743,7 @@ function JobsFilterPage({
   }, [search]);
 
   function currentPatch(): Partial<Search> {
-    const numberValue = (value: string) => {
-      const parsed = Number(value);
-      return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
-    };
+    const numberValue = (value: string) => optionalNonNegativeNumber(value);
     return {
       q: term.trim() || undefined,
       jobCategory: category || undefined,
@@ -6714,13 +6761,21 @@ function JobsFilterPage({
   }
 
   function apply() {
-    onApply(currentPatch());
+    const patch = currentPatch();
+    if (isInvertedRange(patch.jobPayMin, patch.jobPayMax)) {
+      toast.error("Pay minimum cannot exceed maximum.");
+      return;
+    }
+    onApply(patch);
   }
 
   const filteredListings = listings;
   const sortedListings = [...filteredListings].sort((a, b) => {
-    if (search.sort === "price_high") return b.priceCents - a.priceCents;
-    if (search.sort === "price_low") return a.priceCents - b.priceCents;
+    if (search.sort === "price_high" || search.sort === "price_low") {
+      const aValue = a.job ? comparableJobPay(a.job.payType, a.job.payMin) : a.priceCents;
+      const bValue = b.job ? comparableJobPay(b.job.payType, b.job.payMin) : b.priceCents;
+      return search.sort === "price_low" ? aValue - bValue : bValue - aValue;
+    }
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
 
@@ -7305,8 +7360,7 @@ function HomesFilterPage({
   function currentPatch(): Partial<Search> {
     const [minPrice, maxPrice] = homePrice.split("||");
     const parsedPrice = (value: string | undefined) => {
-      const parsed = Number(value);
-      return value && Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
+      return optionalNonNegativeNumber(value);
     };
     return {
       q: location.trim() || undefined,
@@ -7322,7 +7376,12 @@ function HomesFilterPage({
   }
 
   function apply() {
-    onApply(currentPatch());
+    const patch = currentPatch();
+    if (isInvertedRange(patch.priceMin, patch.priceMax)) {
+      toast.error("Price minimum cannot exceed maximum.");
+      return;
+    }
+    onApply(patch);
   }
 
   return (
@@ -7757,10 +7816,7 @@ function VehicleResultsPage({
   }, [make]);
 
   function currentPatch(): Partial<Search> {
-    const numberValue = (value: string) => {
-      const parsed = Number(value);
-      return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
-    };
+    const numberValue = (value: string) => optionalNonNegativeNumber(value);
     return {
       q: term.trim() || undefined,
       make: make || undefined,
@@ -7785,7 +7841,15 @@ function VehicleResultsPage({
   }
 
   function apply() {
-    onApply(currentPatch());
+    const patch = currentPatch();
+    if (
+      isInvertedRange(patch.yearMin, patch.yearMax) ||
+      isInvertedRange(patch.priceMin, patch.priceMax)
+    ) {
+      toast.error("Minimum cannot exceed maximum.");
+      return;
+    }
+    onApply(patch);
   }
 
   return (
@@ -8733,8 +8797,7 @@ function InlineRangeFilter({
   }, [firstValue, secondValue]);
 
   const parse = (value: string) => {
-    const parsed = Number(value);
-    return value.trim() && Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
+    return optionalNonNegativeNumber(value);
   };
 
   return (
@@ -8773,7 +8836,17 @@ function InlineRangeFilter({
           />
         </label>
       </div>
-      <InlineApplyButton onClick={() => onApply(parse(first), parse(second))} />
+      <InlineApplyButton
+        onClick={() => {
+          const min = parse(first);
+          const max = parse(second);
+          if (isInvertedRange(min, max)) {
+            toast.error("Minimum cannot exceed maximum.");
+            return;
+          }
+          onApply(min, max);
+        }}
+      />
     </div>
   );
 }
@@ -8806,8 +8879,7 @@ function InlineNumberFilter({
       </label>
       <InlineApplyButton
         onClick={() => {
-          const parsed = Number(draft);
-          onApply(draft.trim() && Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined);
+          onApply(optionalNonNegativeNumber(draft));
         }}
       />
     </div>

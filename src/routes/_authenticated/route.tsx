@@ -8,10 +8,19 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 const sellerRedirects = [
+  "/account",
   "/selling",
   "/seller-setup",
   "/create-listing",
   "/create-missing-listing",
+  "/buying",
+  "/notifications",
+  "/onboarding",
+  "/shopper",
+  "/shopper-payouts",
+  "/suggest",
+  "/watchlist",
+  "/messages",
 ] as const;
 
 function AuthenticatedGate() {
@@ -31,7 +40,7 @@ function AuthenticatedGate() {
     void navigate({ to: "/auth", search: { redirect: destination }, replace: true });
   }, [isSignedIn, loading, navigate, pathname, redirecting]);
 
-  if (loading || !isSignedIn || redirecting) {
+  if (loading) {
     return (
       <main
         aria-busy="true"
@@ -39,9 +48,44 @@ function AuthenticatedGate() {
         className="flex min-h-[45vh] items-center justify-center px-4 py-16"
       >
         <div className="w-full max-w-[460px] space-y-3 rounded-2xl border border-border bg-card p-6 shadow-sm">
-          <div aria-hidden="true" className="h-5 w-40 animate-pulse rounded bg-secondary" />
-          <div aria-hidden="true" className="h-4 w-64 animate-pulse rounded bg-secondary" />
-          <div aria-hidden="true" className="h-10 w-full animate-pulse rounded-xl bg-secondary" />
+          <h1 className="text-lg font-semibold">Checking your account</h1>
+          <p className="text-sm text-muted-foreground">
+            We’re confirming your session before opening this page.
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  if (!isSignedIn) {
+    return (
+      <main className="flex min-h-[45vh] items-center justify-center px-4 py-16">
+        <div className="w-full max-w-[460px] space-y-4 rounded-2xl border border-border bg-card p-6 shadow-sm">
+          <h1 className="text-lg font-semibold">Sign in to continue</h1>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            This page is private to your account. Sign in and we’ll bring you back to the action you
+            were trying to take.
+          </p>
+          <a
+            href={`/auth?redirect=${encodeURIComponent(pathname)}`}
+            className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground hover:opacity-90"
+          >
+            Sign in
+          </a>
+          <a href="/browse" className="ml-3 text-sm font-medium text-primary hover:underline">
+            Browse listings
+          </a>
+        </div>
+      </main>
+    );
+  }
+
+  if (redirecting) {
+    return (
+      <main className="flex min-h-[45vh] items-center justify-center px-4 py-16" aria-busy="true">
+        <div className="w-full max-w-[460px] rounded-2xl border border-border bg-card p-6 shadow-sm">
+          <h1 className="text-lg font-semibold">Opening your account page</h1>
+          <p className="mt-2 text-sm text-muted-foreground">One moment.</p>
         </div>
       </main>
     );

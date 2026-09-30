@@ -16,6 +16,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as BrowseRouteImport } from './routes/browse'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as GlossaryRouteImport } from './routes/glossary'
+import { Route as MessagesRouteImport } from './routes/messages'
 import { Route as PetsRouteImport } from './routes/pets'
 import { Route as PoliciesRouteImport } from './routes/policies'
 import { Route as SafetyRouteImport } from './routes/safety'
@@ -86,6 +87,11 @@ const ContactRoute = ContactRouteImport.update({
 const GlossaryRoute = GlossaryRouteImport.update({
   id: '/glossary',
   path: '/glossary',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MessagesRoute = MessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PetsRoute = PetsRouteImport.update({
@@ -299,6 +305,7 @@ export interface FileRoutesByFullPath {
   '/browse': typeof BrowseRoute
   '/contact': typeof ContactRoute
   '/glossary': typeof GlossaryRoute
+  '/messages': typeof MessagesRoute
   '/pets': typeof PetsRoute
   '/policies': typeof PoliciesRoute
   '/safety': typeof SafetyRoute
@@ -344,6 +351,7 @@ export interface FileRoutesByTo {
   '/browse': typeof BrowseRoute
   '/contact': typeof ContactRoute
   '/glossary': typeof GlossaryRoute
+  '/messages': typeof MessagesRoute
   '/pets': typeof PetsRoute
   '/policies': typeof PoliciesRoute
   '/safety': typeof SafetyRoute
@@ -390,6 +398,7 @@ export interface FileRoutesById {
   '/browse': typeof BrowseRoute
   '/contact': typeof ContactRoute
   '/glossary': typeof GlossaryRoute
+  '/messages': typeof MessagesRoute
   '/pets': typeof PetsRoute
   '/policies': typeof PoliciesRoute
   '/safety': typeof SafetyRoute
@@ -437,6 +446,7 @@ export interface FileRouteTypes {
     | '/browse'
     | '/contact'
     | '/glossary'
+    | '/messages'
     | '/pets'
     | '/policies'
     | '/safety'
@@ -482,6 +492,7 @@ export interface FileRouteTypes {
     | '/browse'
     | '/contact'
     | '/glossary'
+    | '/messages'
     | '/pets'
     | '/policies'
     | '/safety'
@@ -527,6 +538,7 @@ export interface FileRouteTypes {
     | '/browse'
     | '/contact'
     | '/glossary'
+    | '/messages'
     | '/pets'
     | '/policies'
     | '/safety'
@@ -574,6 +586,7 @@ export interface RootRouteChildren {
   BrowseRoute: typeof BrowseRoute
   ContactRoute: typeof ContactRoute
   GlossaryRoute: typeof GlossaryRoute
+  MessagesRoute: typeof MessagesRoute
   PetsRoute: typeof PetsRoute
   PoliciesRoute: typeof PoliciesRoute
   SafetyRoute: typeof SafetyRoute
@@ -638,6 +651,13 @@ declare module '@tanstack/react-router' {
       path: '/glossary'
       fullPath: '/glossary'
       preLoaderRoute: typeof GlossaryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/messages': {
+      id: '/messages'
+      path: '/messages'
+      fullPath: '/messages'
+      preLoaderRoute: typeof MessagesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pets': {
@@ -979,6 +999,7 @@ const rootRouteChildren: RootRouteChildren = {
   BrowseRoute: BrowseRoute,
   ContactRoute: ContactRoute,
   GlossaryRoute: GlossaryRoute,
+  MessagesRoute: MessagesRoute,
   PetsRoute: PetsRoute,
   PoliciesRoute: PoliciesRoute,
   SafetyRoute: SafetyRoute,

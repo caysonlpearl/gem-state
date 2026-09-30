@@ -19,6 +19,11 @@ import {
   classifiedListingSchema,
   type ClassifiedListingInput,
 } from "@/lib/classified-listing-contracts";
+import {
+  comparableJobPay,
+  isInvertedRange,
+  optionalNonNegativeNumber,
+} from "@/lib/classifieds-query";
 
 /**
  * Public read layer for individual classified listings.
@@ -1174,8 +1179,7 @@ const filterValues = (value: string | undefined) =>
     .map((item) => item.trim())
     .filter(Boolean) ?? [];
 const num = (value: unknown) => {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : undefined;
+  return optionalNonNegativeNumber(value);
 };
 
 export const browseClassifieds = createServerFn({ method: "GET" })
@@ -1271,6 +1275,13 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     const client = publicServerClient();
     const page = data.page ?? 1;
     const empty = { listings: [], total: 0, page, pageSize: PAGE_SIZE };
+    if (
+      isInvertedRange(data.priceMin, data.priceMax) ||
+      isInvertedRange(data.yearMin, data.yearMax) ||
+      isInvertedRange(data.jobPayMin, data.jobPayMax)
+    ) {
+      return empty;
+    }
     const nowIso = new Date().toISOString();
 
     // Expired placements are cleared before ranking so an old purchase can
@@ -1484,10 +1495,24 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     query = query.order("featured_until", { ascending: false, nullsFirst: false });
     switch (data.sort) {
       case "price_low":
-        query = query.order("price_cents", { ascending: true });
+        query =
+          data.category === "jobs"
+            ? query.order("job_pay_min", {
+                ascending: true,
+                nullsFirst: false,
+                referencedTable: "classified_listing_details",
+              })
+            : query.order("price_cents", { ascending: true });
         break;
       case "price_high":
-        query = query.order("price_cents", { ascending: false });
+        query =
+          data.category === "jobs"
+            ? query.order("job_pay_min", {
+                ascending: false,
+                nullsFirst: false,
+                referencedTable: "classified_listing_details",
+              })
+            : query.order("price_cents", { ascending: false });
         break;
       case "mileage_low":
         query = query.order("vehicle_mileage", {
@@ -1531,13 +1556,30 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
       data.group === "motors" || motorCategory ? mockVehicleListings : mockClassifiedListings;
     const mockListings =
       page === 1 ? mockSource.filter((listing) => mockMatches(listing, data)).map(mockCard) : [];
-    const featuredListings = listings.filter((listing) => listing.isFeatured);
-    const standardListings = listings.filter((listing) => !listing.isFeatured);
+    const compareListings = (a: ClassifiedCard, b: ClassifiedCard) => {
+      if (data.sort === "price_low" || data.sort === "price_high") {
+        const aValue = a.job ? comparableJobPay(a.job.payType, a.job.payMin) : a.priceCents;
+        const bValue = b.job ? comparableJobPay(b.job.payType, b.job.payMin) : b.priceCents;
+        const difference = data.sort === "price_low" ? aValue - bValue : bValue - aValue;
+        return difference || a.id.localeCompare(b.id);
+      }
+      if (data.sort === "mileage_low") {
+        const aMileage = a.vehicle?.mileage ?? Number.POSITIVE_INFINITY;
+        const bMileage = b.vehicle?.mileage ?? Number.POSITIVE_INFINITY;
+        return aMileage - bMileage || a.id.localeCompare(b.id);
+      }
+      return (
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() ||
+        a.id.localeCompare(b.id)
+      );
+    };
+    const featuredListings = listings.filter((listing) => listing.isFeatured).sort(compareListings);
+    const standardListings = [
+      ...listings.filter((listing) => !listing.isFeatured),
+      ...mockListings,
+    ].sort(compareListings);
     const resultLimit = data.includeAllMocks ? Math.max(PAGE_SIZE, mockSource.length) : PAGE_SIZE;
-    const combinedListings = [...featuredListings, ...mockListings, ...standardListings].slice(
-      0,
-      resultLimit,
-    );
+    const combinedListings = [...featuredListings, ...standardListings].slice(0, resultLimit);
     if (listings.length > 0) {
       void import("@/integrations/supabase/client.server")
         .then(({ supabaseAdmin }) =>

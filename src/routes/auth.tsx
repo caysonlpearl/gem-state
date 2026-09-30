@@ -12,6 +12,14 @@ export const Route = createFileRoute("/auth")({
       "/seller-setup",
       "/create-listing",
       "/create-missing-listing",
+      "/buying",
+      "/notifications",
+      "/onboarding",
+      "/shopper",
+      "/shopper-payouts",
+      "/suggest",
+      "/watchlist",
+      "/messages",
     ] as const;
     const redirect: AuthRedirect = allowedRedirects.includes(search["redirect"] as AuthRedirect)
       ? (search["redirect"] as AuthRedirect)
@@ -43,7 +51,19 @@ export const Route = createFileRoute("/auth")({
 
 type Mode = "signin" | "signup" | "forgot" | "reset";
 type AuthRedirect =
-  "/account" | "/selling" | "/seller-setup" | "/create-listing" | "/create-missing-listing";
+  | "/account"
+  | "/selling"
+  | "/seller-setup"
+  | "/create-listing"
+  | "/create-missing-listing"
+  | "/buying"
+  | "/notifications"
+  | "/onboarding"
+  | "/shopper"
+  | "/shopper-payouts"
+  | "/suggest"
+  | "/watchlist"
+  | "/messages";
 type AuthSearch = { redirect?: AuthRedirect | undefined; mode?: Mode | undefined };
 
 function AuthPage() {

@@ -58,6 +58,10 @@ type HomepageBrowseSearch = {
   allCategories?: boolean;
   category?: string;
   group?: "motors";
+  bodyStyle?: string;
+  homeTab?: "buy" | "build" | "rent";
+  jobEmploymentType?: string;
+  priceMax?: number;
 };
 
 const headlineOptions = [
@@ -173,7 +177,8 @@ function Home() {
         const currentIndex = headlineOptions.findIndex(
           (option) => option.join("|") === current.join("|"),
         );
-        const next = headlineOptions[(currentIndex + 1) % headlineOptions.length] ?? headlineOptions[0];
+        const next =
+          headlineOptions[(currentIndex + 1) % headlineOptions.length] ?? headlineOptions[0];
         try {
           window.localStorage.setItem(headlineStorageKey, next.join("|"));
         } catch {
@@ -192,61 +197,44 @@ function Home() {
   const jobListings = home.recent.filter((listing) => listing.job);
   // Keep the source shape easy to audit alongside the other category filters.
   // prettier-ignore
-  const serviceListings = home.recent.filter((listing) => listing.service).slice(0, HOMEPAGE_ROW_SIZE);
-  const generalListings = home.recent
-    .filter(
-      (listing) =>
-        !listing.vehicle && !listing.pet && !listing.home && !listing.job && !listing.service,
-    )
-    .slice(0, HOMEPAGE_ROW_SIZE);
-  const withFallback = (matches: typeof home.recent, fallback: typeof home.recent) =>
-    (matches.length >= HOMEPAGE_ROW_SIZE ? matches : fallback).slice(0, HOMEPAGE_ROW_SIZE);
+  const serviceSource = home.recent.filter((listing) => listing.service);
+  const serviceListings = serviceSource.slice(0, HOMEPAGE_ROW_SIZE);
+  const generalSource = home.recent.filter(
+    (listing) =>
+      !listing.vehicle && !listing.pet && !listing.home && !listing.job && !listing.service,
+  );
+  const generalListings = generalSource.slice(0, HOMEPAGE_ROW_SIZE);
+  const take = (matches: typeof home.recent) => matches.slice(0, HOMEPAGE_ROW_SIZE);
   const vehicleListings = home.motors.slice(0, HOMEPAGE_ROW_SIZE);
-  const truckListings = withFallback(
+  const truckListings = take(
     home.motors.filter((listing) => /truck|suv|pickup|jeep/i.test(listing.title)),
-    vehicleListings,
   );
   const valueVehicleListings = [...home.motors]
     .sort((a, b) => a.priceCents - b.priceCents)
     .slice(0, HOMEPAGE_ROW_SIZE);
-  const buyHomes = withFallback(
-    homeListings.filter((listing) => listing.home?.mode === "buy"),
-    homeListings,
-  );
-  const buildHomes = withFallback(
-    homeListings.filter((listing) => listing.home?.mode === "build"),
-    homeListings,
-  );
-  const rentalHomes = withFallback(
-    homeListings.filter((listing) => listing.home?.mode === "rent"),
-    homeListings,
-  );
-  const flexibleJobs = withFallback(
+  const buyHomes = take(homeListings.filter((listing) => listing.home?.mode === "buy"));
+  const buildHomes = take(homeListings.filter((listing) => listing.home?.mode === "build"));
+  const rentalHomes = take(homeListings.filter((listing) => listing.home?.mode === "rent"));
+  const flexibleJobs = take(
     jobListings.filter((listing) =>
       /part-time|contract|temporary/i.test(listing.job?.employmentType ?? ""),
     ),
-    jobListings,
   );
-  const homeServices = withFallback(
-    serviceListings.filter((listing) =>
+  const homeServices = take(
+    serviceSource.filter((listing) =>
       /home|handyman|lawn|landscape|repair|clean/i.test(
         `${listing.title} ${listing.service?.subcategory ?? ""}`,
       ),
     ),
-    serviceListings,
   );
-  const toyAndCollectibleListings = withFallback(
-    generalListings.filter((listing) =>
+  const toyAndCollectibleListings = take(
+    generalSource.filter((listing) =>
       /toy|plush|doll|collectible|ninja|mario/i.test(
         `${listing.title} ${listing.categoryName ?? ""}`,
       ),
     ),
-    generalListings,
   );
-  const valueFinds = withFallback(
-    generalListings.filter((listing) => listing.priceCents <= 10_000),
-    generalListings,
-  );
+  const valueFinds = take(generalSource.filter((listing) => listing.priceCents <= 10_000));
   const localSellerPicks =
     home.recent.slice(6, 6 + HOMEPAGE_ROW_SIZE).length > 1
       ? home.recent.slice(6, 6 + HOMEPAGE_ROW_SIZE)
@@ -280,13 +268,15 @@ function Home() {
             >
               {headlineItems[0]}
             </span>{" "}
-            to {headlineItems[1]} to{" "}
-            {headlineItems[2]} to {headlineItems[3]}.
+            to {headlineItems[1]} to {headlineItems[2]} to {headlineItems[3]}.
           </h1>
           <p className="mt-4 max-w-[56ch] text-[15px] leading-relaxed text-muted-foreground">
             And so much more across Idaho and surrounding states.
           </p>
-          <div className="classifieds-hero-accent mt-4 flex items-center gap-1.5" aria-hidden="true">
+          <div
+            className="classifieds-hero-accent mt-4 flex items-center gap-1.5"
+            aria-hidden="true"
+          >
             <span className="classifieds-hero-accent-bar h-1.5 w-9 rounded-full bg-brand-blue" />
             <span className="classifieds-hero-accent-bar classifieds-hero-accent-bar--warm h-1.5 w-5 rounded-full bg-brand-warm" />
             <span className="classifieds-hero-accent-bar h-1.5 w-2.5 rounded-full bg-brand-blue/60" />
@@ -457,7 +447,7 @@ function Home() {
         eyebrow="Bluebird motors"
         title="Trucks, SUVs & pickups"
         listings={truckListings}
-        search={{ group: "motors" }}
+        search={{ group: "motors", bodyStyle: "Pickup||SUV" }}
         action="Shop trucks & SUVs"
       />
 
@@ -481,7 +471,7 @@ function Home() {
         eyebrow="Bluebird homes"
         title="Homes for sale"
         listings={buyHomes}
-        search={{ category: "other-real-estate" }}
+        search={{ category: "other-real-estate", homeTab: "buy" }}
         action="Browse homes for sale"
       />
 
@@ -489,7 +479,7 @@ function Home() {
         eyebrow="Bluebird homes"
         title="New builds to explore"
         listings={buildHomes}
-        search={{ category: "other-real-estate" }}
+        search={{ category: "other-real-estate", homeTab: "build" }}
         action="Find new construction"
       />
 
@@ -497,7 +487,7 @@ function Home() {
         eyebrow="Bluebird homes"
         title="Rentals worth a look"
         listings={rentalHomes}
-        search={{ category: "other-real-estate" }}
+        search={{ category: "other-real-estate", homeTab: "rent" }}
         action="Browse rentals"
       />
 
@@ -522,7 +512,7 @@ function Home() {
         eyebrow="Bluebird jobs"
         title="Flexible and part-time work"
         listings={flexibleJobs}
-        search={{ category: "jobs" }}
+        search={{ category: "jobs", jobEmploymentType: "part-time||contract||temporary" }}
         action="Find flexible work"
       />
 
@@ -570,7 +560,7 @@ function Home() {
         eyebrow="Bluebird classifieds"
         title="Value finds under $100"
         listings={valueFinds}
-        search={{ allCategories: true }}
+        search={{ allCategories: true, priceMax: 100 }}
         action="Shop everyday finds"
       />
 
