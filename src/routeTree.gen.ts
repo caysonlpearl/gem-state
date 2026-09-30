@@ -26,6 +26,7 @@ import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedBuyingRouteImport } from './routes/_authenticated/buying'
 import { Route as AuthenticatedCreateListingRouteImport } from './routes/_authenticated/create-listing'
 import { Route as AuthenticatedCreateMissingListingRouteImport } from './routes/_authenticated/create-missing-listing'
+import { Route as AuthenticatedDealerSetupRouteImport } from './routes/_authenticated/dealer-setup'
 import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
 import { Route as AuthenticatedSellerSetupRouteImport } from './routes/_authenticated/seller-setup'
@@ -43,6 +44,7 @@ import { Route as AuthenticatedAdminCatalogRouteImport } from './routes/_authent
 import { Route as AuthenticatedAdminClassifiedsRouteImport } from './routes/_authenticated/admin.classifieds'
 import { Route as AuthenticatedAdminConversationReportsRouteImport } from './routes/_authenticated/admin.conversation-reports'
 import { Route as AuthenticatedAdminDealerInventoryRouteImport } from './routes/_authenticated/admin.dealer-inventory'
+import { Route as AuthenticatedAdminDealersRouteImport } from './routes/_authenticated/admin.dealers'
 import { Route as AuthenticatedAdminMembersRouteImport } from './routes/_authenticated/admin.members'
 import { Route as AuthenticatedAdminProductsRouteImport } from './routes/_authenticated/admin.products'
 import { Route as AuthenticatedAdminReviewFlagsRouteImport } from './routes/_authenticated/admin.review-flags'
@@ -142,6 +144,12 @@ const AuthenticatedCreateMissingListingRoute =
     path: '/create-missing-listing',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedDealerSetupRoute =
+  AuthenticatedDealerSetupRouteImport.update({
+    id: '/dealer-setup',
+    path: '/dealer-setup',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedNotificationsRoute =
   AuthenticatedNotificationsRouteImport.update({
     id: '/notifications',
@@ -234,6 +242,12 @@ const AuthenticatedAdminDealerInventoryRoute =
     path: '/dealer-inventory',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminDealersRoute =
+  AuthenticatedAdminDealersRouteImport.update({
+    id: '/dealers',
+    path: '/dealers',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminMembersRoute =
   AuthenticatedAdminMembersRouteImport.update({
     id: '/members',
@@ -322,6 +336,7 @@ export interface FileRoutesByFullPath {
   '/buying': typeof AuthenticatedBuyingRoute
   '/create-listing': typeof AuthenticatedCreateListingRoute
   '/create-missing-listing': typeof AuthenticatedCreateMissingListingRoute
+  '/dealer-setup': typeof AuthenticatedDealerSetupRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/seller-setup': typeof AuthenticatedSellerSetupRoute
@@ -338,6 +353,7 @@ export interface FileRoutesByFullPath {
   '/admin/classifieds': typeof AuthenticatedAdminClassifiedsRoute
   '/admin/conversation-reports': typeof AuthenticatedAdminConversationReportsRoute
   '/admin/dealer-inventory': typeof AuthenticatedAdminDealerInventoryRoute
+  '/admin/dealers': typeof AuthenticatedAdminDealersRoute
   '/admin/members': typeof AuthenticatedAdminMembersRoute
   '/admin/products': typeof AuthenticatedAdminProductsRoute
   '/admin/review-flags': typeof AuthenticatedAdminReviewFlagsRoute
@@ -368,6 +384,7 @@ export interface FileRoutesByTo {
   '/buying': typeof AuthenticatedBuyingRoute
   '/create-listing': typeof AuthenticatedCreateListingRoute
   '/create-missing-listing': typeof AuthenticatedCreateMissingListingRoute
+  '/dealer-setup': typeof AuthenticatedDealerSetupRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/seller-setup': typeof AuthenticatedSellerSetupRoute
@@ -384,6 +401,7 @@ export interface FileRoutesByTo {
   '/admin/classifieds': typeof AuthenticatedAdminClassifiedsRoute
   '/admin/conversation-reports': typeof AuthenticatedAdminConversationReportsRoute
   '/admin/dealer-inventory': typeof AuthenticatedAdminDealerInventoryRoute
+  '/admin/dealers': typeof AuthenticatedAdminDealersRoute
   '/admin/members': typeof AuthenticatedAdminMembersRoute
   '/admin/products': typeof AuthenticatedAdminProductsRoute
   '/admin/review-flags': typeof AuthenticatedAdminReviewFlagsRoute
@@ -417,6 +435,7 @@ export interface FileRoutesById {
   '/_authenticated/buying': typeof AuthenticatedBuyingRoute
   '/_authenticated/create-listing': typeof AuthenticatedCreateListingRoute
   '/_authenticated/create-missing-listing': typeof AuthenticatedCreateMissingListingRoute
+  '/_authenticated/dealer-setup': typeof AuthenticatedDealerSetupRoute
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
   '/_authenticated/seller-setup': typeof AuthenticatedSellerSetupRoute
@@ -433,6 +452,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/classifieds': typeof AuthenticatedAdminClassifiedsRoute
   '/_authenticated/admin/conversation-reports': typeof AuthenticatedAdminConversationReportsRoute
   '/_authenticated/admin/dealer-inventory': typeof AuthenticatedAdminDealerInventoryRoute
+  '/_authenticated/admin/dealers': typeof AuthenticatedAdminDealersRoute
   '/_authenticated/admin/members': typeof AuthenticatedAdminMembersRoute
   '/_authenticated/admin/products': typeof AuthenticatedAdminProductsRoute
   '/_authenticated/admin/review-flags': typeof AuthenticatedAdminReviewFlagsRoute
@@ -466,6 +486,7 @@ export interface FileRouteTypes {
     | '/buying'
     | '/create-listing'
     | '/create-missing-listing'
+    | '/dealer-setup'
     | '/notifications'
     | '/onboarding'
     | '/seller-setup'
@@ -482,6 +503,7 @@ export interface FileRouteTypes {
     | '/admin/classifieds'
     | '/admin/conversation-reports'
     | '/admin/dealer-inventory'
+    | '/admin/dealers'
     | '/admin/members'
     | '/admin/products'
     | '/admin/review-flags'
@@ -512,6 +534,7 @@ export interface FileRouteTypes {
     | '/buying'
     | '/create-listing'
     | '/create-missing-listing'
+    | '/dealer-setup'
     | '/notifications'
     | '/onboarding'
     | '/seller-setup'
@@ -528,6 +551,7 @@ export interface FileRouteTypes {
     | '/admin/classifieds'
     | '/admin/conversation-reports'
     | '/admin/dealer-inventory'
+    | '/admin/dealers'
     | '/admin/members'
     | '/admin/products'
     | '/admin/review-flags'
@@ -560,6 +584,7 @@ export interface FileRouteTypes {
     | '/_authenticated/buying'
     | '/_authenticated/create-listing'
     | '/_authenticated/create-missing-listing'
+    | '/_authenticated/dealer-setup'
     | '/_authenticated/notifications'
     | '/_authenticated/onboarding'
     | '/_authenticated/seller-setup'
@@ -576,6 +601,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/classifieds'
     | '/_authenticated/admin/conversation-reports'
     | '/_authenticated/admin/dealer-inventory'
+    | '/_authenticated/admin/dealers'
     | '/_authenticated/admin/members'
     | '/_authenticated/admin/products'
     | '/_authenticated/admin/review-flags'
@@ -736,6 +762,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCreateMissingListingRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/dealer-setup': {
+      id: '/_authenticated/dealer-setup'
+      path: '/dealer-setup'
+      fullPath: '/dealer-setup'
+      preLoaderRoute: typeof AuthenticatedDealerSetupRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/notifications': {
       id: '/_authenticated/notifications'
       path: '/notifications'
@@ -855,6 +888,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminDealerInventoryRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/dealers': {
+      id: '/_authenticated/admin/dealers'
+      path: '/dealers'
+      fullPath: '/admin/dealers'
+      preLoaderRoute: typeof AuthenticatedAdminDealersRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/members': {
       id: '/_authenticated/admin/members'
       path: '/members'
@@ -947,6 +987,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminClassifiedsRoute: typeof AuthenticatedAdminClassifiedsRoute
   AuthenticatedAdminConversationReportsRoute: typeof AuthenticatedAdminConversationReportsRoute
   AuthenticatedAdminDealerInventoryRoute: typeof AuthenticatedAdminDealerInventoryRoute
+  AuthenticatedAdminDealersRoute: typeof AuthenticatedAdminDealersRoute
   AuthenticatedAdminMembersRoute: typeof AuthenticatedAdminMembersRoute
   AuthenticatedAdminProductsRoute: typeof AuthenticatedAdminProductsRoute
   AuthenticatedAdminReviewFlagsRoute: typeof AuthenticatedAdminReviewFlagsRoute
@@ -962,6 +1003,7 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
     AuthenticatedAdminConversationReportsRoute,
   AuthenticatedAdminDealerInventoryRoute:
     AuthenticatedAdminDealerInventoryRoute,
+  AuthenticatedAdminDealersRoute: AuthenticatedAdminDealersRoute,
   AuthenticatedAdminMembersRoute: AuthenticatedAdminMembersRoute,
   AuthenticatedAdminProductsRoute: AuthenticatedAdminProductsRoute,
   AuthenticatedAdminReviewFlagsRoute: AuthenticatedAdminReviewFlagsRoute,
@@ -979,6 +1021,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedBuyingRoute: typeof AuthenticatedBuyingRoute
   AuthenticatedCreateListingRoute: typeof AuthenticatedCreateListingRoute
   AuthenticatedCreateMissingListingRoute: typeof AuthenticatedCreateMissingListingRoute
+  AuthenticatedDealerSetupRoute: typeof AuthenticatedDealerSetupRoute
   AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
   AuthenticatedSellerSetupRoute: typeof AuthenticatedSellerSetupRoute
@@ -998,6 +1041,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCreateListingRoute: AuthenticatedCreateListingRoute,
   AuthenticatedCreateMissingListingRoute:
     AuthenticatedCreateMissingListingRoute,
+  AuthenticatedDealerSetupRoute: AuthenticatedDealerSetupRoute,
   AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
   AuthenticatedSellerSetupRoute: AuthenticatedSellerSetupRoute,
