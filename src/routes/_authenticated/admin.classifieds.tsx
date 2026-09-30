@@ -144,11 +144,19 @@ function ClassifiedModerationRow({ listing }: { listing: AdminClassifiedRow }) {
               Seller note: {listing.sellerNote}
             </p>
           ) : null}
+          <details className="mt-3 rounded-md border border-border bg-background px-3 py-2">
+            <summary className="cursor-pointer text-[11.5px] font-semibold">
+              Open full listing description
+            </summary>
+            <p className="mt-2 whitespace-pre-line text-[12px] leading-relaxed text-muted-foreground">
+              {listing.description || "No description provided."}
+            </p>
+          </details>
           <textarea
             value={note}
             onChange={(event) => setNote(event.target.value.slice(0, 500))}
             rows={2}
-            placeholder="Optional moderation note"
+            placeholder="Required when rejecting: tell the seller what to correct"
             className="mt-3 w-full max-w-[560px] rounded-md border border-input bg-background px-3 py-2 text-[12px]"
           />
           <div className="mt-2 flex flex-wrap gap-2">
@@ -162,7 +170,13 @@ function ClassifiedModerationRow({ listing }: { listing: AdminClassifiedRow }) {
             </button>
             <button
               type="button"
-              onClick={() => reviewMutation.mutate(false)}
+              onClick={() => {
+                if (!note.trim()) {
+                  toast.error("Add a correction note before rejecting this listing.");
+                  return;
+                }
+                reviewMutation.mutate(false);
+              }}
               disabled={reviewMutation.isPending}
               className="h-9 rounded-md border border-input px-3 text-[12px] font-medium text-destructive disabled:opacity-50"
             >

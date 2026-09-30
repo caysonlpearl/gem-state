@@ -136,6 +136,8 @@ export type ClassifiedServiceReview = {
 export type ClassifiedServiceDetails = {
   subcategory: string;
   pricing: string;
+  pricingType?: "quote" | "flat" | "visit" | "hour";
+  priceMaxCents?: number | null;
   serviceArea: string;
   availability: string;
   serviceSummary: string;

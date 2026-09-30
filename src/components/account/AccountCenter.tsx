@@ -2598,7 +2598,14 @@ function ListingsSection({
     mutationFn: (id: string) => cancel({ data: { kind: "ask", id } }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["my-listings"] });
-      toast.success("Listing taken down.");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["classified-browse"] }),
+        queryClient.invalidateQueries({ queryKey: ["conversations"] }),
+        queryClient.invalidateQueries({ queryKey: ["watchlist"] }),
+      ]);
+      toast.success(
+        "Listing removed from public search. Existing messages and saved records remain available.",
+      );
     },
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "Could not take down listing."),
@@ -2718,7 +2725,12 @@ function ListingsSection({
               key={item.id}
               item={item}
               onTakeDown={() => {
-                if (window.confirm("Archive this listing?")) cancelMutation.mutate(item.id);
+                if (
+                  window.confirm(
+                    "Remove this listing from public search? Buyers will no longer find it, but existing messages and saved records will remain. You can relist it later for review.",
+                  )
+                )
+                  cancelMutation.mutate(item.id);
               }}
               onRelist={() => relistMutation.mutate(item.id)}
             />
@@ -2743,6 +2755,18 @@ function SellerListingCard({
   onRelist: () => void;
 }) {
   const active = item.status === "active" && Boolean(item.approvedAt);
+  const statusLabel =
+    item.productStatus === "rejected"
+      ? "Needs changes"
+      : active
+        ? "Active"
+        : item.status === "pending_review" || !item.approvedAt
+          ? "Awaiting approval"
+          : item.status === "cancelled"
+            ? "Removed"
+            : item.status === "matched"
+              ? "Sold"
+              : item.status;
   return (
     <article className="grid gap-4 rounded-2xl border border-border bg-card p-4 shadow-sm md:grid-cols-[120px_minmax(0,1fr)_220px]">
       <div className="aspect-[4/3] overflow-hidden rounded-xl bg-secondary">
@@ -2764,11 +2788,7 @@ function SellerListingCard({
             <span
               className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${active ? "bg-primary/10 text-primary" : "bg-secondary text-muted-foreground"}`}
             >
-              {active
-                ? "Active"
-                : item.status === "pending_review" || !item.approvedAt
-                  ? "Awaiting approval"
-                  : item.status}
+              {statusLabel}
             </span>
             {item.upgradeStatus === "paid" && (
               <span className="rounded-full bg-accent/20 px-2 py-0.5 text-[10px] font-semibold text-accent-foreground">

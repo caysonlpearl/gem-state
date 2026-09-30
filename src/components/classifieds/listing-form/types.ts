@@ -70,6 +70,8 @@ export type ListingFormState = {
 
   // Service
   subcategory: string;
+  servicePricingType: string;
+  servicePriceMax: string;
   serviceArea: string;
   availability: string;
   businessAddress: string;
@@ -167,6 +169,8 @@ export const initialListingForm: ListingFormState = {
   qualifications: "",
 
   subcategory: "",
+  servicePricingType: "quote",
+  servicePriceMax: "",
   serviceArea: "",
   availability: "",
   businessAddress: "",

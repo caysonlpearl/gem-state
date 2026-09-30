@@ -12,6 +12,8 @@ export type ListingInquiry = {
   message: string;
   status: "new" | "read" | "closed";
   createdAt: string;
+  source: "listing_inquiry" | "conversation";
+  conversationId?: string;
 };
 
 function cleanMessage(value: unknown) {
@@ -53,8 +55,25 @@ export const getSellerListingInquiries = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false })
       .limit(100);
     if (error) throw new Error(error.message);
-
-    return (rows ?? []).map((row: any) => ({
+    const { data: conversations, error: conversationError } = await client
+      .from("conversations")
+      .select(
+        "id,listing_id,buyer_id,last_message_at,created_at,asks(products(name)),conversation_messages(body,created_at)",
+      )
+      .eq("seller_id", context.userId)
+      .order("last_message_at", { ascending: false })
+      .limit(100);
+    if (conversationError) throw new Error(conversationError.message);
+    const buyerIds = [
+      ...new Set((conversations ?? []).map((row: any) => row.buyer_id).filter(Boolean)),
+    ];
+    const { data: profiles } = buyerIds.length
+      ? await client.from("profiles").select("id,display_name").in("id", buyerIds)
+      : { data: [] as any[] };
+    const names = new Map(
+      (profiles ?? []).map((profile: any) => [profile.id, profile.display_name]),
+    );
+    const legacy = (rows ?? []).map((row: any) => ({
       id: row.id,
       listingId: row.listing_id,
       listingTitle: row.asks?.products?.name ?? "Your listing",
@@ -63,5 +82,26 @@ export const getSellerListingInquiries = createServerFn({ method: "GET" })
       message: row.message,
       status: row.status,
       createdAt: row.created_at,
+      source: "listing_inquiry" as const,
     }));
+    const marketplace = (conversations ?? []).map((row: any) => {
+      const messages = [...(row.conversation_messages ?? [])].sort(
+        (a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+      );
+      return {
+        id: row.id,
+        listingId: row.listing_id,
+        listingTitle: row.asks?.products?.name ?? "Marketplace conversation",
+        buyerName: names.get(row.buyer_id) ?? "Bluebird member",
+        buyerEmail: "",
+        message: messages.at(-1)?.body ?? "Marketplace conversation",
+        status: "new" as const,
+        createdAt: row.last_message_at ?? row.created_at,
+        source: "conversation" as const,
+        conversationId: row.id,
+      };
+    });
+    return [...legacy, ...marketplace].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
   });

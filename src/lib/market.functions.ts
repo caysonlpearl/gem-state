@@ -54,6 +54,7 @@ export type MyListing = {
   views?: number;
   leadCount?: number;
   upgradeStatus?: string | null;
+  productStatus?: string | null;
 };
 
 export type MyOrder = {
@@ -582,7 +583,7 @@ export const getMyListings = createServerFn({ method: "GET" })
       client
         .from("asks")
         .select(
-          "id, variant_id, price_cents, currency, status, approved_at, expires_at, created_at, evidence_count, public_media_count, matched_order_id, products(slug, name), product_variants(size, color, edition), listing_media(storage_path, position)",
+          "id, variant_id, price_cents, currency, status, approved_at, expires_at, created_at, evidence_count, public_media_count, matched_order_id, products(slug, name, status), product_variants(size, color, edition), listing_media(storage_path, position)",
         )
         .eq("seller_id", userId)
         .order("created_at", { ascending: false }),
@@ -695,6 +696,7 @@ export const getMyListings = createServerFn({ method: "GET" })
         variantId: row["variant_id"] as string,
         productSlug: product?.slug ?? "",
         productName: product?.name ?? "Unknown product",
+        productStatus: (product as { status?: string } | null)?.status ?? null,
         variantLabel: label(
           row["product_variants"] as {
             size: string | null;

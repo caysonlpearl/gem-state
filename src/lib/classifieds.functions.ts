@@ -254,6 +254,7 @@ export const getClassifiedCategoryOptions = createServerFn({ method: "GET" }).ha
 export type AdminClassifiedRow = {
   id: string;
   title: string;
+  description: string;
   priceCents: number;
   condition: string;
   categoryName: string;
@@ -316,6 +317,17 @@ export const getAdminClassifiedQueue = createServerFn({ method: "GET" })
         row,
       ]),
     );
+    const { data: productRows, error: productError } = await client
+      .from("asks")
+      .select("id,products(description)")
+      .in("id", listingIds);
+    if (productError) throw new Error(productError.message);
+    const descriptionByListing = new Map(
+      (productRows ?? []).map((row: any) => [
+        row.id as string,
+        String(row.products?.description ?? ""),
+      ]),
+    );
     const listings = await Promise.all(
       rows.map(async (row) => {
         const details = detailsByListing.get(row.ask_id);
@@ -326,6 +338,7 @@ export const getAdminClassifiedQueue = createServerFn({ method: "GET" })
         return {
           id: row.ask_id,
           title: row.product_name,
+          description: descriptionByListing.get(row.ask_id) ?? "",
           priceCents: Number(row.price_cents),
           condition: row.item_condition,
           categoryName: category?.products?.categories?.name ?? "Classified",
@@ -467,7 +480,7 @@ const EDITOR_DETAILS_SELECT =
   "state,region,city,postal_code,fulfillment_mode,item_details,vehicle_make,vehicle_model,vehicle_year,vehicle_trim,vehicle_mileage,vehicle_body_style,vehicle_transmission,vehicle_drivetrain,vehicle_fuel_type,vehicle_exterior_color,vehicle_title_status,vin," +
   "home_mode,home_property_type,home_bedrooms,home_bathrooms,home_square_feet,home_year_built,home_acreage,home_heating,home_cooling,home_garage_parking,home_yard,home_appliances_included,home_floor_coverings,home_basement_type,home_exterior_material,home_special_features,home_hoa_fees,home_school_district,home_lease_length,home_available,home_pets_policy,home_smoking_policy,home_open_house," +
   "job_employer_name,job_employer_address,job_pay_type,job_pay_min,job_pay_max,job_employment_type,job_experience_required,job_education_level,job_responsibilities,job_qualifications," +
-  "service_subcategory,service_area,service_availability,service_business_address,service_license_number,service_license_lookup_url,service_offerings," +
+  "service_subcategory,service_area,service_availability,service_business_address,service_license_number,service_license_lookup_url,service_offerings,service_pricing_type,service_price_max_cents," +
   "pet_subcategory,pet_species,pet_breed,pet_name,pet_age,pet_sex,pet_placement_type,pet_offered_by,pet_hypoallergenic,pet_vaccinated,pet_spayed_neutered,pet_microchipped,pet_records_available,pet_good_with_kids,pet_good_with_dogs,pet_good_with_cats,pet_indoor_outdoor,pet_special_needs,pet_breeding_terms";
 
 export const getClassifiedListingEditor = createServerFn({ method: "GET" })
@@ -635,7 +648,7 @@ const LISTING_SELECT =
   "classified_listing_details!inner(region, city, state, postal_code, fulfillment_mode, item_details, vehicle_make, vehicle_model, vehicle_year, vehicle_trim, vehicle_mileage, vehicle_body_style, vehicle_transmission, vehicle_drivetrain, vehicle_fuel_type, vehicle_exterior_color, vehicle_title_status, vin, " +
   "home_mode, home_property_type, home_bedrooms, home_bathrooms, home_square_feet, home_year_built, home_acreage, home_acres, home_heating, home_cooling, home_garage_parking, home_yard, home_appliances_included, home_floor_coverings, home_basement_type, home_exterior_material, home_special_features, home_hoa_fees, home_school_district, home_lease_length, home_available, home_pets_policy, home_smoking_policy, home_open_house, " +
   "job_category, job_employer_name, job_employer_address, job_pay_type, job_pay_min, job_pay_max, job_employment_type, job_experience_required, job_education_level, job_responsibilities, job_qualifications, " +
-  "service_subcategory, service_area, service_availability, service_business_address, service_license_number, service_license_lookup_url, service_offerings, " +
+  "service_subcategory, service_area, service_availability, service_business_address, service_license_number, service_license_lookup_url, service_offerings, service_pricing_type, service_price_max_cents, " +
   "pet_subcategory, pet_species, pet_breed, pet_name, pet_age, pet_sex, pet_placement_type, pet_offered_by, pet_hypoallergenic, pet_vaccinated, pet_spayed_neutered, pet_microchipped, pet_records_available, pet_good_with_kids, pet_good_with_dogs, pet_good_with_cats, pet_indoor_outdoor, pet_special_needs, pet_breeding_terms), " +
   "listing_media(storage_path, position)";
 
@@ -810,7 +823,22 @@ function serviceOf(
   if (!subcategory || !serviceArea) return null;
   return {
     subcategory,
-    pricing: priceCents > 0 ? formatUsd(priceCents) : "Call for quote",
+    pricingType:
+      (details["service_pricing_type"] as ClassifiedServiceDetails["pricingType"]) ??
+      (priceCents > 0 ? "flat" : "quote"),
+    priceMaxCents:
+      details["service_price_max_cents"] == null
+        ? null
+        : Number(details["service_price_max_cents"]),
+    pricing:
+      details["service_pricing_type"] === "quote"
+        ? "Call for quote"
+        : details["service_price_max_cents"] != null &&
+            Number(details["service_price_max_cents"]) > priceCents
+          ? `From ${formatUsd(priceCents)} to ${formatUsd(Number(details["service_price_max_cents"]))}`
+          : priceCents > 0
+            ? formatUsd(priceCents)
+            : "Call for quote",
     serviceArea,
     availability: (details["service_availability"] as string | null) ?? "",
     serviceSummary: description,

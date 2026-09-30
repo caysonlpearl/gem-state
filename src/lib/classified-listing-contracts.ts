@@ -111,6 +111,8 @@ export const classifiedListingSchema = z
     service: z
       .object({
         subcategory: z.string().trim().min(1).max(80),
+        pricingType: z.enum(["quote", "flat", "visit", "hour"]),
+        priceMaxCents: z.number().int().min(0).max(100_000_000).optional(),
         serviceArea: z.string().trim().min(1).max(200),
         availability: z.string().trim().max(120).optional(),
         businessAddress: z.string().trim().max(200).optional(),
@@ -144,7 +146,9 @@ export const classifiedListingSchema = z
       .optional(),
   })
   .superRefine((listing, context) => {
-    if (listing.priceCents === 0 && listing.category !== "pets") {
+    const quoteService =
+      listing.category === "services" && listing.service?.pricingType === "quote";
+    if (listing.priceCents === 0 && listing.category !== "pets" && !quoteService) {
       context.addIssue({
         code: "custom",
         path: ["priceCents"],
@@ -187,6 +191,23 @@ export const classifiedListingSchema = z
         code: "custom",
         path: ["pet"],
         message: "Pet details are required for pet listings.",
+      });
+    }
+    if (listing.job && listing.job.payMax < listing.job.payMin) {
+      context.addIssue({
+        code: "custom",
+        path: ["job", "payMax"],
+        message: "Maximum compensation must be at least the minimum.",
+      });
+    }
+    if (
+      listing.service?.priceMaxCents != null &&
+      listing.service.priceMaxCents < listing.priceCents
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["service", "priceMaxCents"],
+        message: "Typical maximum price must be at least the starting price.",
       });
     }
     if (

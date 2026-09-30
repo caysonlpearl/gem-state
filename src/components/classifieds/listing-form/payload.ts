@@ -124,6 +124,12 @@ export function buildService(
   if (!isServiceCategory(form.category)) return undefined;
   return {
     subcategory: form.subcategory,
+    pricingType: form.servicePricingType as NonNullable<
+      ClassifiedListingInput["service"]
+    >["pricingType"],
+    priceMaxCents: form.servicePriceMax.trim()
+      ? Math.round(Number(form.servicePriceMax.replace(/[^0-9.]/g, "")) * 100)
+      : undefined,
     serviceArea: form.serviceArea,
     availability: form.availability || undefined,
     businessAddress: form.businessAddress || undefined,
@@ -230,6 +236,11 @@ export function fromEditor(listing: ClassifiedListingEditor): ListingFormState {
     qualifications: listToLines(listing.job?.qualifications),
 
     subcategory: listing.service?.subcategory ?? "",
+    servicePricingType: listing.service?.pricingType ?? "quote",
+    servicePriceMax:
+      listing.service?.priceMaxCents == null
+        ? ""
+        : (listing.service.priceMaxCents / 100).toFixed(2),
     serviceArea: listing.service?.serviceArea ?? "",
     availability: listing.service?.availability ?? "",
     businessAddress: listing.service?.businessAddress ?? "",

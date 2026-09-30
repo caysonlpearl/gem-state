@@ -203,6 +203,7 @@ export function ListingForm(props: ListingFormProps) {
   const hidesCondition = isHome || isJob || isService;
   const hidesFulfillment = isHome || isJob || isService;
   const hidesPrice = isJob;
+  const serviceIsQuote = isService && form.servicePricingType === "quote";
 
   const priceLabel = isHome
     ? form.homeMode === "rent"
@@ -439,11 +440,19 @@ export function ListingForm(props: ListingFormProps) {
                 </span>
               )}
               <input
-                required={!isPet}
+                // The historical free-pet contract was required={!isPet}; quote-mode services are
+                // the second intentional exception because their amount is genuinely optional.
+                required={!isPet && !serviceIsQuote}
                 inputMode="decimal"
                 value={form.price}
                 onChange={(event) => set("price", event.target.value)}
-                placeholder={isPet ? "0.00 or leave blank for free" : "0.00"}
+                placeholder={
+                  isPet
+                    ? "0.00 or leave blank for free"
+                    : serviceIsQuote
+                      ? "Leave blank for quote"
+                      : "0.00"
+                }
                 className={`${fieldClass} numeric`}
               />
             </label>
@@ -613,6 +622,17 @@ export function ListingForm(props: ListingFormProps) {
           </p>
         )}
       </section>
+
+      {props.mode === "create" && props.duplicateFrom ? (
+        <section className="border border-amber-300 bg-amber-50 p-4 text-[12px] leading-relaxed text-amber-950">
+          <p className="font-semibold">Duplicate started from an existing listing</p>
+          <p className="mt-1">
+            Your listing details were copied, but the original photos are not copied automatically.
+            Add at least one photo of the exact item and confirm you have permission to publish it
+            before submitting.
+          </p>
+        </section>
+      ) : null}
 
       <section className="border border-border bg-card p-5 sm:p-6">
         <SectionHeading number={String((hasSpecialDetails ? 3 : 2) + 1)} title="Photos" />
