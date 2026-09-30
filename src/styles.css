@@ -258,6 +258,48 @@
   animation: watcher-bob 3s ease-in-out infinite;
 }
 
+/* Quiet movement for the Bluebird classifieds landing hero. */
+@keyframes classifieds-hero-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  50% {
+    transform: translate3d(-12px, 10px, 0) scale(1.04);
+  }
+}
+
+@keyframes classifieds-hero-sheen {
+  0%,
+  18% {
+    opacity: 0;
+    transform: translateX(-120%) skewX(-18deg);
+  }
+  35% {
+    opacity: 0.34;
+  }
+  58%,
+  100% {
+    opacity: 0;
+    transform: translateX(410%) skewX(-18deg);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .classifieds-hero-orb {
+    animation: classifieds-hero-drift 11s ease-in-out infinite;
+  }
+
+  .classifieds-hero-orb--warm {
+    animation-delay: -4s;
+    animation-duration: 13s;
+  }
+
+  .classifieds-hero-sheen {
+    animation: classifieds-hero-sheen 14s ease-in-out infinite;
+  }
+}
+
 @keyframes category-art-bob {
   0%,
   100% {

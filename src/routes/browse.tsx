@@ -5355,33 +5355,43 @@ function ClassifiedsLandingHero({
   return (
     <section
       aria-label="Bluebird Marketplace all classifieds"
-      className="relative isolate min-h-[430px] overflow-hidden rounded-[32px] bg-secondary px-5 py-14 shadow-xl sm:min-h-[500px] sm:px-10 sm:py-20"
+      className="relative isolate min-h-[430px] overflow-hidden rounded-[32px] border border-brand-blue/15 bg-secondary px-5 py-14 shadow-xl sm:min-h-[500px] sm:px-10 sm:py-20"
     >
-      <span className="absolute -right-20 -top-24 h-72 w-72 rounded-full bg-brand-warm/15" />
-      <span className="absolute -bottom-36 left-1/3 h-80 w-80 rounded-full bg-primary/5" />
+      <span
+        className="classifieds-hero-orb classifieds-hero-orb--blue absolute -right-20 -top-24 h-72 w-72 rounded-full bg-brand-blue/12"
+        aria-hidden="true"
+      />
+      <span
+        className="classifieds-hero-orb classifieds-hero-orb--warm absolute -bottom-36 left-1/3 h-80 w-80 rounded-full bg-brand-warm/18"
+        aria-hidden="true"
+      />
+      <span
+        className="classifieds-hero-sheen pointer-events-none absolute inset-y-0 -left-1/3 z-0 w-1/3 skew-x-[-18deg] bg-white/20"
+        aria-hidden="true"
+      />
       <div className="absolute right-5 top-5 z-20 sm:right-7 sm:top-7">
         <SponsoredHeroBadge />
       </div>
-      <div className="relative mx-auto max-w-[920px] text-center">
+      <div className="relative z-10 mx-auto max-w-[920px] text-center">
         <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">
           Bluebird Marketplace Classifieds
         </p>
         <h1 className="mx-auto mt-3 max-w-[22ch] text-[36px] font-bold leading-[1.05] tracking-tight sm:text-[56px]">
-          Discover <span className="text-primary">local gems.</span>
+          Discover <span className="text-brand-blue">local gems.</span>
         </h1>
         <p className="mx-auto mt-4 max-w-[54ch] text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">
           Browse local listings from people and businesses across Idaho and surrounding states.
         </p>
 
         <form
-          className="mx-auto mt-8 flex max-w-[860px] flex-col gap-2 rounded-[24px] bg-card p-2 shadow-lg sm:flex-row"
+          className="mx-auto mt-8 flex max-w-[860px] flex-col gap-2 rounded-[24px] border border-brand-blue/15 bg-card p-2 shadow-[0_20px_45px_-28px_rgb(31_53_87_/_55%)] sm:flex-row"
           onSubmit={(event) => {
             event.preventDefault();
             onSearch();
           }}
         >
           <label className="flex min-w-0 flex-1 items-center gap-2 px-3">
-            <MagnifyingGlass size={19} className="shrink-0 text-primary" aria-hidden="true" />
+            <MagnifyingGlass size={19} className="shrink-0 text-brand-blue" aria-hidden="true" />
             <span className="sr-only">Search classifieds</span>
             <input
               type="search"
