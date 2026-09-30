@@ -1864,7 +1864,12 @@ export const mockVehicleListings: MockClassifiedListing[] = [
       titleStatus: "Clean",
       vin: null,
     },
-    images: [],
+    images: [
+      {
+        url: "/images/mock-vehicles/toyota-tacoma.jpg",
+        alt: "Gray Toyota Tacoma pickup in the Idaho foothills",
+      },
+    ],
   },
   {
     id: "mock-vehicle-f150",
@@ -1901,7 +1906,12 @@ export const mockVehicleListings: MockClassifiedListing[] = [
       titleStatus: "Clean",
       vin: null,
     },
-    images: [],
+    images: [
+      {
+        url: "/images/mock-vehicles/ford-f150.jpg",
+        alt: "Blue Ford F-150 pickup on an Idaho driveway",
+      },
+    ],
   },
   {
     id: "mock-vehicle-outback",
@@ -1938,7 +1948,12 @@ export const mockVehicleListings: MockClassifiedListing[] = [
       titleStatus: "Clean",
       vin: null,
     },
-    images: [],
+    images: [
+      {
+        url: "/images/mock-vehicles/subaru-outback.jpg",
+        alt: "Green Subaru Outback on an Idaho mountain road",
+      },
+    ],
   },
   {
     id: "mock-vehicle-wrangler",
@@ -1975,7 +1990,12 @@ export const mockVehicleListings: MockClassifiedListing[] = [
       titleStatus: "Clean",
       vin: null,
     },
-    images: [],
+    images: [
+      {
+        url: "/images/mock-vehicles/jeep-wrangler.jpg",
+        alt: "White Jeep Wrangler at an Idaho mountain overlook",
+      },
+    ],
   },
   {
     id: "mock-vehicle-civic",
