@@ -300,6 +300,21 @@
   }
 }
 
+.classifieds-hero-shell {
+  background-image:
+    radial-gradient(
+      circle at 93% 10%,
+      color-mix(in srgb, var(--color-brand-blue) 13%, transparent) 0 8rem,
+      transparent 8.1rem
+    ),
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-brand-blue) 4%, var(--color-secondary)),
+      var(--color-secondary) 54%,
+      color-mix(in srgb, var(--color-brand-warm) 5%, var(--color-secondary))
+    );
+}
+
 @keyframes category-art-bob {
   0%,
   100% {

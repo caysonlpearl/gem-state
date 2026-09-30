@@ -5355,7 +5355,7 @@ function ClassifiedsLandingHero({
   return (
     <section
       aria-label="Bluebird Marketplace all classifieds"
-      className="relative isolate min-h-[430px] overflow-hidden rounded-[32px] border border-brand-blue/15 bg-secondary px-5 py-14 shadow-xl sm:min-h-[500px] sm:px-10 sm:py-20"
+      className="classifieds-hero-shell relative isolate min-h-[430px] overflow-hidden rounded-[32px] border border-brand-blue/20 bg-secondary px-5 py-14 shadow-xl sm:min-h-[500px] sm:px-10 sm:py-20"
     >
       <span
         className="classifieds-hero-orb classifieds-hero-orb--blue absolute -right-20 -top-24 h-72 w-72 rounded-full bg-brand-blue/12"
@@ -5377,14 +5377,26 @@ function ClassifiedsLandingHero({
           Bluebird Marketplace Classifieds
         </p>
         <h1 className="mx-auto mt-3 max-w-[22ch] text-[36px] font-bold leading-[1.05] tracking-tight sm:text-[56px]">
-          Discover <span className="text-brand-blue">local gems.</span>
+          Discover{" "}
+          <span className="relative inline-block text-brand-blue">
+            local gems.
+            <span
+              className="absolute -bottom-2 left-1/4 h-1 w-1/2 rounded-full bg-brand-warm/80 sm:-bottom-3"
+              aria-hidden="true"
+            />
+          </span>
         </h1>
         <p className="mx-auto mt-4 max-w-[54ch] text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">
           Browse local listings from people and businesses across Idaho and surrounding states.
         </p>
+        <div className="mx-auto mt-5 flex w-fit items-center gap-1.5" aria-hidden="true">
+          <span className="h-1.5 w-9 rounded-full bg-brand-blue" />
+          <span className="h-1.5 w-5 rounded-full bg-brand-warm" />
+          <span className="h-1.5 w-2.5 rounded-full bg-brand-blue/60" />
+        </div>
 
         <form
-          className="mx-auto mt-8 flex max-w-[860px] flex-col gap-2 rounded-[24px] border border-brand-blue/15 bg-card p-2 shadow-[0_20px_45px_-28px_rgb(31_53_87_/_55%)] sm:flex-row"
+          className="mx-auto mt-7 flex max-w-[860px] flex-col gap-2 rounded-[24px] border border-brand-blue/20 bg-card p-2 shadow-[0_20px_45px_-28px_rgb(31_53_87_/_55%)] ring-1 ring-brand-warm/10 sm:flex-row"
           onSubmit={(event) => {
             event.preventDefault();
             onSearch();
