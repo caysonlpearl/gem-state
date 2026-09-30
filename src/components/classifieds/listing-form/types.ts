@@ -14,6 +14,7 @@ export type ListingFormState = {
   width: string;
   height: string;
   weight: string;
+  itemDetails: Record<string, string>;
 
   // Vehicle
   make: string;
@@ -114,6 +115,7 @@ export const initialListingForm: ListingFormState = {
   width: "",
   height: "",
   weight: "",
+  itemDetails: {},
 
   make: "",
   model: "",

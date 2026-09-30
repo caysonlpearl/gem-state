@@ -595,8 +595,8 @@ function TrustSafetyCard({ listing }: { listing: ClassifiedDetail }) {
         </span>
       </div>
       <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">
-        Bluebird Marketplace reviews listings for marketplace policy. Always inspect the item, confirm the
-        details, and agree on the final price before exchanging money.
+        Bluebird Marketplace reviews listings for marketplace policy. Always inspect the item,
+        confirm the details, and agree on the final price before exchanging money.
       </p>
       <FlagListingDialog listingId={listing.id} />
       {listing.seller?.payoutVerified && (
@@ -658,8 +658,8 @@ function FlagListingDialog({ listingId }: { listingId: string }) {
         <DialogHeader>
           <DialogTitle>Flag this listing</DialogTitle>
           <DialogDescription>
-            Tell us what looks wrong. Reports help Bluebird review unsafe, misleading, or
-            prohibited listings.
+            Tell us what looks wrong. Reports help Bluebird review unsafe, misleading, or prohibited
+            listings.
           </DialogDescription>
         </DialogHeader>
         {isSignedIn ? (
@@ -849,6 +849,7 @@ function ListingDetail() {
         listing={listing}
         title={title}
         condition={condition}
+        itemDetails={listing.itemDetails ?? {}}
         description={description}
         locationQuery={locationQuery}
         relatedListings={relatedQuery.data.listings}
@@ -2186,6 +2187,7 @@ function GeneralListingDetail({
   listing,
   title,
   condition,
+  itemDetails,
   description,
   locationQuery,
   relatedListings,
@@ -2194,6 +2196,7 @@ function GeneralListingDetail({
   listing: ClassifiedDetail;
   title: string;
   condition: string;
+  itemDetails: Record<string, string>;
   description: string;
   locationQuery: string;
   relatedListings: ClassifiedCard[];
@@ -2332,6 +2335,20 @@ function GeneralListingDetail({
                         {condition}
                       </span>
                     </div>
+                    {Object.keys(itemDetails).length > 0 && (
+                      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                        {Object.entries(itemDetails).map(([key, value]) => (
+                          <div key={key} className="rounded-xl bg-secondary/55 px-4 py-3">
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                              {key
+                                .replace(/[A-Z]/g, (letter) => ` ${letter}`)
+                                .replace(/^./, (letter) => letter.toUpperCase())}
+                            </p>
+                            <p className="mt-1 text-[13px] font-semibold">{value}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     {listing.pet ? <PetDetails pet={listing.pet} /> : null}
                     <p className="mt-6 whitespace-pre-line text-[14px] leading-7 text-muted-foreground">
                       {description || "The seller has not added a description yet."}

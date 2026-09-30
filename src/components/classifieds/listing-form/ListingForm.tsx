@@ -19,6 +19,7 @@ import { HomeFields } from "./HomeFields";
 import { JobFields } from "./JobFields";
 import { ServiceFields } from "./ServiceFields";
 import { PetFields } from "./PetFields";
+import { ItemFields } from "./ItemFields";
 import { VehicleFields, VehicleVinLookup } from "./VehicleFields";
 import {
   buildHome,
@@ -176,8 +177,8 @@ export function ListingForm(props: ListingFormProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.mode === "edit" ? props.listingId : null]);
 
-  const set = (key: keyof ListingFormState, value: string) =>
-    setForm((current) => ({ ...current, [key]: value }));
+  const set = (key: keyof ListingFormState, value: string | Record<string, string>) =>
+    setForm((current) => ({ ...current, [key]: value }) as ListingFormState);
 
   function selectKind(next: ListingKind) {
     setKind(next);
@@ -276,6 +277,7 @@ export function ListingForm(props: ListingFormProps) {
             priceCents,
             condition,
             sellerNote: form.sellerNote || undefined,
+            itemDetails: form.itemDetails,
             state: form.state,
             region: form.region,
             city: form.city,
@@ -305,6 +307,7 @@ export function ListingForm(props: ListingFormProps) {
           priceCents,
           condition,
           sellerNote: form.sellerNote || undefined,
+          itemDetails: form.itemDetails,
           state: form.state,
           region: form.region,
           city: form.city,
@@ -425,13 +428,6 @@ export function ListingForm(props: ListingFormProps) {
                     ))}
                 </select>
               </label>
-              {kind === "item" && form.category && (
-                <p className="self-end rounded-xl border border-accent/40 bg-accent/10 px-3 py-2 text-[11px] leading-relaxed text-muted-foreground">
-                  This category currently uses the basic item template. Include the
-                  category-specific details buyers need in the description; structured fields for
-                  this category are not available yet.
-                </p>
-              )}
             </div>
           )}
           {!hidesPrice && (
@@ -519,6 +515,23 @@ export function ListingForm(props: ListingFormProps) {
             {isJob && <JobFields form={form} set={set} />}
             {isService && <ServiceFields form={form} set={set} />}
             {isPet && <PetFields form={form} set={set} />}
+          </div>
+        </section>
+      )}
+
+      {kind === "item" && form.category && (
+        <section className="border border-border bg-card p-5 sm:p-6">
+          <SectionHeading number="2" title="Category details" />
+          <p className="mt-1 text-[12px] text-muted-foreground">
+            Add the structured facts buyers expect for this category. These values are saved with
+            the listing and remain available when you edit it.
+          </p>
+          <div className="mt-4">
+            <ItemFields
+              category={form.category}
+              details={form.itemDetails}
+              set={(key, value) => set("itemDetails", { ...form.itemDetails, [key]: value })}
+            />
           </div>
         </section>
       )}

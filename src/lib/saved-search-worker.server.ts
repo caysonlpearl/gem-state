@@ -54,6 +54,7 @@ function matchesAnyText(value: unknown, expected: unknown) {
 function matches(search: Record<string, unknown>, listing: ListingRow) {
   const product = listing.products;
   const details = (listing.classified_listing_details ?? {}) as Record<string, unknown>;
+  const itemDetails = (details["item_details"] ?? {}) as Record<string, unknown>;
   const haystack = text(`${product?.name ?? ""} ${product?.description ?? ""}`);
   const query = text(search["q"] ?? search["query"] ?? search["keyword"]);
   if (query && !haystack.includes(query)) return false;
@@ -77,6 +78,12 @@ function matches(search: Record<string, unknown>, listing: ListingRow) {
   if (isService && listingPrice <= 0 && (minimum !== null || maximum !== null)) return false;
   if (minimum !== null && listingPrice < minimum) return false;
   if (maximum !== null && listingPrice > maximum) return false;
+  if (
+    search["itemDetailKey"] &&
+    search["itemDetailValue"] &&
+    !text(itemDetails[String(search["itemDetailKey"])]).includes(text(search["itemDetailValue"]))
+  )
+    return false;
 
   if (!matchesAnyText(details["fulfillment_mode"], search["fulfillment"])) return false;
   if (!matchesAnyText(details["vehicle_make"], search["make"])) return false;

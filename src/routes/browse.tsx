@@ -32,6 +32,7 @@ import {
   normalizePetSpecies,
   normalizePetSubcategory,
 } from "@/config/pets";
+import { fieldsForClassifiedItem } from "@/config/classified-item-fields";
 import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { AllCategoriesPopover } from "@/components/classifieds/AllCategoriesPopover";
 import { ListingCard, ListingRow } from "@/components/classifieds/ListingCard";
@@ -69,6 +70,16 @@ type HomeTab = "build" | "buy" | "rent";
 type JobMode = "landing" | "results";
 type ServiceMode = "landing" | "results";
 type PetMode = "landing" | "results";
+
+const itemCategorySlugs = new Set(
+  classifiedCategories
+    .filter(
+      (category) =>
+        category.group === "classifieds" &&
+        !["other-real-estate", "jobs", "services", "pets"].includes(category.slug),
+    )
+    .map((category) => category.slug),
+);
 
 type Search = {
   allCategories?: boolean | undefined;
@@ -131,6 +142,8 @@ type Search = {
   petGoodWithDogs?: string | undefined;
   petGoodWithCats?: string | undefined;
   petIndoorOutdoor?: string | undefined;
+  itemDetailKey?: string | undefined;
+  itemDetailValue?: string | undefined;
   serviceSubcategory?: string | undefined;
   serviceExpandSearch?: string | undefined;
   servicePhotos?: string | undefined;
@@ -266,6 +279,8 @@ const savedSearchFilterKeys: readonly (keyof Search)[] = [
   "petGoodWithDogs",
   "petGoodWithCats",
   "petIndoorOutdoor",
+  "itemDetailKey",
+  "itemDetailValue",
 ];
 
 type VehicleHeroFilter =
@@ -1531,6 +1546,8 @@ function inputFromSearch(search: Search): ClassifiedBrowseInput {
     petGoodWithDogs: search.petGoodWithDogs,
     petGoodWithCats: search.petGoodWithCats,
     petIndoorOutdoor: search.petIndoorOutdoor,
+    itemDetailKey: search.itemDetailKey,
+    itemDetailValue: search.itemDetailValue,
     sort: search.sort ?? "newest",
     page: search.page ?? 1,
   };
@@ -1654,6 +1671,8 @@ export const Route = createFileRoute("/browse")({
       petGoodWithDogs: stringParam(search, "petGoodWithDogs", 20),
       petGoodWithCats: stringParam(search, "petGoodWithCats", 20),
       petIndoorOutdoor: stringParam(search, "petIndoorOutdoor", 30),
+      itemDetailKey: stringParam(search, "itemDetailKey", 60),
+      itemDetailValue: stringParam(search, "itemDetailValue", 200),
     };
   },
   head: () => ({
@@ -1855,6 +1874,10 @@ function Browse() {
       petGoodWithDogs: nextPets ? value("petGoodWithDogs") : undefined,
       petGoodWithCats: nextPets ? value("petGoodWithCats") : undefined,
       petIndoorOutdoor: nextPets ? value("petIndoorOutdoor") : undefined,
+      itemDetailKey:
+        category && itemCategorySlugs.has(category) ? value("itemDetailKey") : undefined,
+      itemDetailValue:
+        category && itemCategorySlugs.has(category) ? value("itemDetailValue") : undefined,
     };
   }
 
@@ -2402,6 +2425,30 @@ function Browse() {
                           ))}
                         </select>
                       </FilterSection>
+
+                      {search.category && itemCategorySlugs.has(search.category) && (
+                        <FilterSection title="Category details">
+                          <select
+                            name="itemDetailKey"
+                            defaultValue={search.itemDetailKey ?? ""}
+                            className="filter-input"
+                          >
+                            <option value="">Any detail</option>
+                            {fieldsForClassifiedItem(search.category).map((field) => (
+                              <option key={field.key} value={field.key}>
+                                {field.label}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            name="itemDetailValue"
+                            defaultValue={search.itemDetailValue ?? ""}
+                            placeholder="Match a detail value"
+                            className="filter-input"
+                            maxLength={200}
+                          />
+                        </FilterSection>
+                      )}
 
                       <FilterSection
                         title="Location"

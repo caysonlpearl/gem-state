@@ -178,6 +178,7 @@ export function fromEditor(listing: ClassifiedListingEditor): ListingFormState {
     width: listing.parcelWidthIn,
     height: listing.parcelHeightIn,
     weight: listing.parcelWeightLb,
+    itemDetails: listing.itemDetails ?? {},
 
     make: listing.vehicle?.make ?? "",
     model: listing.vehicle?.model ?? "",

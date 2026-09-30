@@ -4,6 +4,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { publicServerClient } from "./supabase-public.server";
 import { classifiedCategories } from "@/config/classifieds";
 import { normalizePetSpecies, normalizePetSubcategory } from "@/config/pets";
+import { normalizeClassifiedItemDetails } from "@/config/classified-item-fields";
 import { formatUsd } from "@/config/fees";
 import {
   mockClassifiedListings,
@@ -77,6 +78,7 @@ export type ClassifiedCard = {
   service?: ClassifiedServiceDetails | null;
   isMock?: boolean;
   listingNumber?: string;
+  itemDetails?: Record<string, string>;
 };
 
 export type ClassifiedDetail = ClassifiedCard & {
@@ -228,6 +230,7 @@ export type AdminClassifiedRow = {
   state: string;
   region: string;
   fulfillmentMode: string;
+  itemDetails: Record<string, string>;
   sellerDisplayName: string;
   sellerHandle: string;
   sellerNote: string | null;
@@ -271,7 +274,7 @@ export const getAdminClassifiedQueue = createServerFn({ method: "GET" })
     const { data: detailRows, error: detailsError } = await client
       .from("classified_listing_details")
       .select(
-        "listing_id,region,city,state,fulfillment_mode,vehicle_make,vehicle_model,vehicle_year,vehicle_trim,vehicle_mileage,vehicle_body_style,vehicle_transmission,vehicle_drivetrain,vehicle_fuel_type,vehicle_exterior_color,vehicle_title_status,vin,pet_subcategory,pet_species,pet_breed,pet_name,pet_age,pet_sex,pet_placement_type,pet_offered_by,pet_hypoallergenic,pet_vaccinated,pet_spayed_neutered,pet_microchipped,pet_records_available,pet_good_with_kids,pet_good_with_dogs,pet_good_with_cats,pet_indoor_outdoor,pet_special_needs,pet_breeding_terms,asks!inner(products!inner(categories(name)))",
+        "listing_id,region,city,state,fulfillment_mode,item_details,vehicle_make,vehicle_model,vehicle_year,vehicle_trim,vehicle_mileage,vehicle_body_style,vehicle_transmission,vehicle_drivetrain,vehicle_fuel_type,vehicle_exterior_color,vehicle_title_status,vin,pet_subcategory,pet_species,pet_breed,pet_name,pet_age,pet_sex,pet_placement_type,pet_offered_by,pet_hypoallergenic,pet_vaccinated,pet_spayed_neutered,pet_microchipped,pet_records_available,pet_good_with_kids,pet_good_with_dogs,pet_good_with_cats,pet_indoor_outdoor,pet_special_needs,pet_breeding_terms,asks!inner(products!inner(categories(name,slug)))",
       )
       .in("listing_id", listingIds);
     if (detailsError) throw new Error(detailsError.message);
@@ -287,7 +290,7 @@ export const getAdminClassifiedQueue = createServerFn({ method: "GET" })
         const details = detailsByListing.get(row.ask_id);
         if (!details) return null;
         const category = details["asks"] as {
-          products?: { categories?: { name?: string } };
+          products?: { categories?: { name?: string; slug?: string } };
         } | null;
         return {
           id: row.ask_id,
@@ -299,6 +302,12 @@ export const getAdminClassifiedQueue = createServerFn({ method: "GET" })
           state: String(details["state"] ?? "ID").toUpperCase(),
           region: String(details["region"] ?? ""),
           fulfillmentMode: String(details["fulfillment_mode"] ?? ""),
+          itemDetails: normalizeClassifiedItemDetails(
+            String(
+              (category?.products?.categories as { slug?: string } | undefined)?.slug ?? "general",
+            ),
+            (details["item_details"] as Record<string, unknown> | null) ?? {},
+          ),
           sellerDisplayName: row.seller_display_name,
           sellerHandle: row.seller_handle,
           sellerNote: row.seller_note,
@@ -386,6 +395,12 @@ export const createClassifiedListing = createServerFn({ method: "POST" })
       _pet: petForRpc(data.pet),
     });
     if (error) throw new Error(error.message);
+    const itemDetails = normalizeClassifiedItemDetails(data.category, data.itemDetails);
+    const { error: itemDetailsError } = await client
+      .from("classified_listing_details")
+      .update({ item_details: itemDetails })
+      .eq("listing_id", listingId);
+    if (itemDetailsError) throw new Error(itemDetailsError.message);
     return { listingId: listingId as string };
   });
 
@@ -397,6 +412,7 @@ export type ClassifiedListingEditor = {
   priceCents: number;
   condition: string;
   sellerNote: string;
+  itemDetails: Record<string, string>;
   state: string;
   region: string;
   city: string;
@@ -417,7 +433,7 @@ export type ClassifiedListingEditor = {
 };
 
 const EDITOR_DETAILS_SELECT =
-  "state,region,city,postal_code,fulfillment_mode,vehicle_make,vehicle_model,vehicle_year,vehicle_trim,vehicle_mileage,vehicle_body_style,vehicle_transmission,vehicle_drivetrain,vehicle_fuel_type,vehicle_exterior_color,vehicle_title_status,vin," +
+  "state,region,city,postal_code,fulfillment_mode,item_details,vehicle_make,vehicle_model,vehicle_year,vehicle_trim,vehicle_mileage,vehicle_body_style,vehicle_transmission,vehicle_drivetrain,vehicle_fuel_type,vehicle_exterior_color,vehicle_title_status,vin," +
   "home_mode,home_property_type,home_bedrooms,home_bathrooms,home_square_feet,home_year_built,home_acreage,home_heating,home_cooling,home_garage_parking,home_yard,home_appliances_included,home_floor_coverings,home_basement_type,home_exterior_material,home_special_features,home_hoa_fees,home_school_district,home_lease_length,home_available,home_pets_policy,home_smoking_policy,home_open_house," +
   "job_employer_name,job_employer_address,job_pay_type,job_pay_min,job_pay_max,job_employment_type,job_experience_required,job_education_level,job_responsibilities,job_qualifications," +
   "service_subcategory,service_area,service_availability,service_business_address,service_license_number,service_license_lookup_url,service_offerings," +
@@ -455,6 +471,10 @@ export const getClassifiedListingEditor = createServerFn({ method: "GET" })
       priceCents: Number(record.price_cents),
       condition: record.item_condition,
       sellerNote: record.seller_note ?? "",
+      itemDetails: normalizeClassifiedItemDetails(
+        category,
+        (details["item_details"] as Record<string, unknown> | null) ?? {},
+      ),
       state: String(details["state"] ?? "ID").toUpperCase(),
       region: String(details["region"] ?? ""),
       city: String(details["city"] ?? ""),
@@ -497,6 +517,7 @@ export type UpdateClassifiedListingInput = {
   job?: ClassifiedListingInput["job"];
   service?: ClassifiedListingInput["service"];
   pet?: ClassifiedListingInput["pet"];
+  itemDetails?: ClassifiedListingInput["itemDetails"];
   publicMediaPaths?: string[];
 };
 
@@ -552,6 +573,12 @@ export const updateClassifiedListing = createServerFn({ method: "POST" })
       _pet: petForRpc(data.pet),
     });
     if (error) throw new Error(error.message);
+    const itemDetails = normalizeClassifiedItemDetails(data.category, data.itemDetails);
+    const { error: itemDetailsError } = await client
+      .from("classified_listing_details")
+      .update({ item_details: itemDetails })
+      .eq("listing_id", data.listingId);
+    if (itemDetailsError) throw new Error(itemDetailsError.message);
     if (data.publicMediaPaths && data.publicMediaPaths.length > 0) {
       const replaced = await client.rpc("replace_listing_media", {
         _ask_id: data.listingId,
@@ -574,7 +601,7 @@ const conditionValues = [
 const LISTING_SELECT =
   "id, product_id, variant_id, seller_id, price_cents, currency, item_condition, seller_note, created_at, expires_at, featured_until, promoted_at, ranking_at, " +
   "products!inner(id, slug, name, description, status, category_id, categories(slug, name)), " +
-  "classified_listing_details!inner(region, city, state, postal_code, fulfillment_mode, vehicle_make, vehicle_model, vehicle_year, vehicle_trim, vehicle_mileage, vehicle_body_style, vehicle_transmission, vehicle_drivetrain, vehicle_fuel_type, vehicle_exterior_color, vehicle_title_status, vin, " +
+  "classified_listing_details!inner(region, city, state, postal_code, fulfillment_mode, item_details, vehicle_make, vehicle_model, vehicle_year, vehicle_trim, vehicle_mileage, vehicle_body_style, vehicle_transmission, vehicle_drivetrain, vehicle_fuel_type, vehicle_exterior_color, vehicle_title_status, vin, " +
   "home_mode, home_property_type, home_bedrooms, home_bathrooms, home_square_feet, home_year_built, home_acreage, home_acres, home_heating, home_cooling, home_garage_parking, home_yard, home_appliances_included, home_floor_coverings, home_basement_type, home_exterior_material, home_special_features, home_hoa_fees, home_school_district, home_lease_length, home_available, home_pets_policy, home_smoking_policy, home_open_house, " +
   "job_category, job_employer_name, job_employer_address, job_pay_type, job_pay_min, job_pay_max, job_employment_type, job_experience_required, job_education_level, job_responsibilities, job_qualifications, " +
   "service_subcategory, service_area, service_availability, service_business_address, service_license_number, service_license_lookup_url, service_offerings, " +
@@ -862,6 +889,10 @@ function toCard(row: Record<string, unknown>, urlByPath: Map<string, string>): C
     region: details["region"] as string,
     categorySlug: product.categories?.slug ?? null,
     categoryName: product.categories?.name ?? null,
+    itemDetails: normalizeClassifiedItemDetails(
+      product.categories?.slug ?? "general",
+      (details["item_details"] as Record<string, unknown> | null) ?? {},
+    ),
     condition: row["item_condition"] as string,
     fulfillmentMode: details["fulfillment_mode"] as string,
     createdAt: row["created_at"] as string,
@@ -979,6 +1010,14 @@ function mockMatches(
     return false;
   if (data.priceMin != null && listing.priceCents < data.priceMin * 100) return false;
   if (data.priceMax != null && listing.priceCents > data.priceMax * 100) return false;
+  if (
+    data.itemDetailKey &&
+    data.itemDetailValue &&
+    !listing.itemDetails?.[data.itemDetailKey]
+      ?.toLowerCase()
+      .includes(data.itemDetailValue.toLowerCase())
+  )
+    return false;
   if (data.make && !filterValues(data.make).includes(listing.vehicle?.make ?? "")) return false;
   if (data.model && !filterValues(data.model).includes(listing.vehicle?.model ?? "")) return false;
   if (data.yearMin != null && (listing.vehicle?.year ?? -1) < data.yearMin) return false;
@@ -1193,6 +1232,8 @@ export type ClassifiedBrowseInput = {
   petGoodWithDogs?: string | undefined;
   petGoodWithCats?: string | undefined;
   petIndoorOutdoor?: string | undefined;
+  itemDetailKey?: string | undefined;
+  itemDetailValue?: string | undefined;
   sort?: "newest" | "price_low" | "price_high" | "mileage_low" | undefined;
   page?: number | undefined;
 };
@@ -1288,6 +1329,8 @@ export const browseClassifieds = createServerFn({ method: "GET" })
     petGoodWithDogs: text(input?.petGoodWithDogs, 20),
     petGoodWithCats: text(input?.petGoodWithCats, 20),
     petIndoorOutdoor: text(input?.petIndoorOutdoor, 30),
+    itemDetailKey: text(input?.itemDetailKey, 60),
+    itemDetailValue: text(input?.itemDetailValue, 200),
     sort: (["newest", "price_low", "price_high", "mileage_low"] as const).includes(
       input?.sort as never,
     )
@@ -1410,6 +1453,16 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
       query = query.gt("price_cents", 0);
     if (data.priceMin != null) query = query.gte("price_cents", Math.round(data.priceMin * 100));
     if (data.priceMax != null) query = query.lte("price_cents", Math.round(data.priceMax * 100));
+    if (data.itemDetailKey && data.itemDetailValue) {
+      const allowedKey = /^[A-Za-z][A-Za-z0-9]{0,59}$/.test(data.itemDetailKey)
+        ? data.itemDetailKey
+        : null;
+      if (allowedKey)
+        query = query.ilike(
+          `classified_listing_details.item_details->>${allowedKey}`,
+          `%${escapeLikeValue(data.itemDetailValue)}%`,
+        );
+    }
     if (data.homeTab && data.category === "other-real-estate")
       query = applyReferencedFilter(query, "home_mode", [data.homeTab]);
     for (const [value, column] of [[data.homePropertyType, "home_property_type"]] as const) {

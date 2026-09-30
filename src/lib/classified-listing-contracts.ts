@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { classifiedCategories, vehicleOptions } from "@/config/classifieds";
 import { petOfferedBy, petPlacementTypes, petSexes } from "@/config/pets";
+import { fieldsForClassifiedItem } from "@/config/classified-item-fields";
 
 type NonEmpty = [string, ...string[]];
 const categorySlugs = classifiedCategories.map((category) => category.slug) as NonEmpty;
@@ -40,6 +41,7 @@ export const classifiedListingSchema = z
     ),
     fulfillmentMode: z.enum(["local_pickup", "shipping", "both"]),
     sellerNote: z.string().trim().max(500).optional(),
+    itemDetails: z.record(z.string(), z.string().trim().max(200)).optional(),
     vehicle: z
       .object({
         make: z.string().trim().min(1).max(80),
@@ -186,6 +188,26 @@ export const classifiedListingSchema = z
         path: ["pet"],
         message: "Pet details are required for pet listings.",
       });
+    }
+    if (
+      listing.category !== "other-real-estate" &&
+      listing.category !== "jobs" &&
+      listing.category !== "services" &&
+      listing.category !== "pets" &&
+      !listing.vehicle
+    ) {
+      const requiredFields = fieldsForClassifiedItem(listing.category).filter(
+        (field) => field.required,
+      );
+      for (const field of requiredFields) {
+        if (!listing.itemDetails?.[field.key]?.trim()) {
+          context.addIssue({
+            code: "custom",
+            path: ["itemDetails", field.key],
+            message: `${field.label} is required for this category.`,
+          });
+        }
+      }
     }
   });
 

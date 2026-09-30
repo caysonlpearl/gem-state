@@ -124,6 +124,19 @@ function ClassifiedModerationRow({ listing }: { listing: AdminClassifiedRow }) {
               <p className="mt-1">{pet.join(" · ")}</p>
             </div>
           ) : null}
+          {Object.keys(listing.itemDetails ?? {}).length > 0 ? (
+            <div className="mt-2 rounded-md border border-border bg-secondary/40 px-3 py-2 text-[12px]">
+              <p className="font-semibold">Category details</p>
+              <p className="mt-1 text-muted-foreground">
+                {Object.entries(listing.itemDetails ?? {})
+                  .map(
+                    ([key, value]) =>
+                      `${key.replace(/[A-Z]/g, (letter) => ` ${letter}`)}: ${value}`,
+                  )
+                  .join(" · ")}
+              </p>
+            </div>
+          ) : null}
           {listing.sellerNote ? (
             <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">
               Seller note: {listing.sellerNote}
