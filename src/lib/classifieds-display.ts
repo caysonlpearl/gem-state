@@ -67,6 +67,13 @@ export function formatSavedSearchFilter(key: string, value: unknown) {
   return `${label}: ${formatted}`;
 }
 
+export function formatSavedSearchScope(search: Record<string, unknown>) {
+  const category = typeof search.category === "string" ? search.category : "";
+  const categoryLabel = classifiedCategories.find((item) => item.slug === category)?.name;
+  if (categoryLabel) return categoryLabel;
+  return search.group === "motors" ? "Cars & motors" : "All classifieds";
+}
+
 export function isMotorsCategory(slug: string | null | undefined) {
   return classifiedCategories.some(
     (category) => category.slug === slug && category.group === "motors",

@@ -33,7 +33,7 @@ import { formatUsd } from "@/config/fees";
 import { SavedSearchNameDialog } from "@/components/classifieds/SavedSearchNameDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { trackEvent } from "@/lib/analytics";
-import { formatSavedSearchFilter } from "@/lib/classifieds-display";
+import { formatSavedSearchFilter, formatSavedSearchScope } from "@/lib/classifieds-display";
 import {
   getMyAccount,
   saveMyProfile,
@@ -1891,7 +1891,7 @@ function SavedSearchesSection({ searches }: { searches: SavedSearch[] }) {
                     <p className="mt-1 text-[11.5px] text-muted-foreground">
                       {typeof item.search["q"] === "string" && item.search["q"]
                         ? `“${item.search["q"]}” · `
-                        : "All classifieds · "}
+                        : `${formatSavedSearchScope(item.search as Record<string, unknown>)} · `}
                       {filterEntries.length ? `${filterEntries.length} filters · ` : ""}
                       {item.emailAlerts ? "Email alerts on" : "In-app only"}
                     </p>
