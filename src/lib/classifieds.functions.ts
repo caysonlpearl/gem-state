@@ -487,7 +487,12 @@ export const getClassifiedListingEditor = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .validator((input: { listingId: string }) => ({ listingId: String(input.listingId) }))
   .handler(async ({ data, context }): Promise<ClassifiedListingEditor | null> => {
-    const client = context.supabase as any;
+    // Seller edit/duplicate reads need the complete private details and media
+    // graph. Read through the server client after scoping the ask to the
+    // authenticated seller so a restrictive child-table policy cannot turn an
+    // owned listing into a misleading "not found" state.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const client = supabaseAdmin as any;
     const { data: row, error } = await client
       .from("asks")
       .select(
