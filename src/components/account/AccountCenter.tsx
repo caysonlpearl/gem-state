@@ -2018,6 +2018,7 @@ function MessagesSection({
   const [detail, setDetail] = useState<ConversationDetail | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState("");
+  const [reportSubmitted, setReportSubmitted] = useState(false);
   const [blockOpen, setBlockOpen] = useState(false);
   const activeId = conversationId ?? conversations[0]?.id;
   const activeList = conversations.filter(
@@ -2034,8 +2035,10 @@ function MessagesSection({
   useEffect(() => {
     if (!selectedId) {
       setDetail(null);
+      setReportSubmitted(false);
       return;
     }
+    setReportSubmitted(false);
     void fetchConversation({ data: { id: selectedId } })
       .then(async (value) => {
         setDetail(value);
@@ -2294,6 +2297,16 @@ function MessagesSection({
                     </button>
                   </div>
                 </div>
+                {reportSubmitted && (
+                  <p
+                    role="status"
+                    className="mt-2 rounded-lg border border-primary/25 bg-primary/5 px-3 py-2 text-[11px] text-primary"
+                  >
+                    Report submitted. Bluebird moderators can now review this conversation;
+                    submitting again will update the existing report instead of creating a
+                    duplicate.
+                  </p>
+                )}
                 {failedSend && (
                   <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-[11px] text-destructive">
                     <span>
@@ -2366,6 +2379,7 @@ function MessagesSection({
                 void report({ data: { conversationId: detail.id, reason: reportReason } })
                   .then(() => {
                     setReportOpen(false);
+                    setReportSubmitted(true);
                     toast.success("Conversation reported.");
                   })
                   .catch((error) =>
@@ -2864,10 +2878,17 @@ function ReviewsSection({
     const url = `${window.location.origin}/sellers/${sellerSetup.slug}?review=1`;
     try {
       if (navigator.share)
-        await navigator.share({ title: "Review my Bluebird seller profile", url });
-      else {
+        try {
+          await navigator.share({ title: "Review my Bluebird seller profile", url });
+          return;
+        } catch (error) {
+          if (error instanceof DOMException && error.name === "AbortError") return;
+        }
+      try {
         await navigator.clipboard.writeText(url);
-        toast.success("Review link copied.");
+        toast.success("Review link copied as a fallback.");
+      } catch {
+        toast.info(`Copy this review link: ${url}`);
       }
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;

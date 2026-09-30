@@ -39,7 +39,10 @@ export function ListingActions({
   const isJobApply = ctaVerb === "apply";
   const isMortgage = calculatorVariant === "mortgage";
   const internalMessagesEnabled = listing.seller?.allowInternalMessages !== false;
-  const { isSignedIn } = useAuth();
+  const { isSignedIn, user } = useAuth();
+  const isOwnListing = Boolean(
+    isSignedIn && listing.seller?.userId && listing.seller.userId === user?.id,
+  );
   const [contactOpen, setContactOpen] = useState(false);
   const [message, setMessage] = useState(isJobApply ? DEFAULT_APPLY_MESSAGE : DEFAULT_MESSAGE);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
@@ -170,7 +173,11 @@ export function ListingActions({
         </p>
 
         <div>
-          {isSignedIn && internalMessagesEnabled ? (
+          {isOwnListing ? (
+            <div className="rounded-2xl border border-border bg-secondary/45 px-3 py-3 text-[12px] leading-relaxed text-muted-foreground">
+              This is your listing. Open Seller Center to manage it or view buyer conversations.
+            </div>
+          ) : isSignedIn && internalMessagesEnabled ? (
             <button
               type="button"
               onClick={() => setContactOpen((open) => !open)}
@@ -194,7 +201,7 @@ export function ListingActions({
         </div>
       </div>
 
-      {contactOpen && isSignedIn ? (
+      {contactOpen && isSignedIn && !isOwnListing ? (
         <form
           className="mt-4 space-y-3 border-t border-border px-4 py-4"
           onSubmit={(event) => {

@@ -27,7 +27,7 @@ function ReportRow({ report }: { report: AdminConversationReport }) {
   const resolve = useServerFn(resolveAdminConversationReport);
   const [note, setNote] = useState(report.adminNote ?? "");
   const mutation = useMutation({
-    mutationFn: (action: "reviewed" | "dismissed") =>
+    mutationFn: (action: "assign" | "reviewed" | "dismissed") =>
       resolve({ data: { reportId: report.id, action, adminNote: note } }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["admin-conversation-reports"] });
@@ -65,8 +65,20 @@ function ReportRow({ report }: { report: AdminConversationReport }) {
       <div className="mt-3 flex flex-wrap gap-2">
         <button
           type="button"
+          onClick={() => mutation.mutate("assign")}
+          disabled={
+            mutation.isPending || report.status === "reviewed" || report.status === "dismissed"
+          }
+          className="h-8 rounded-md border border-primary px-2.5 text-[11.5px] font-semibold text-primary disabled:opacity-50"
+        >
+          Assign to me
+        </button>
+        <button
+          type="button"
           onClick={() => mutation.mutate("reviewed")}
-          disabled={mutation.isPending || report.status !== "open"}
+          disabled={
+            mutation.isPending || (report.status !== "open" && report.status !== "under_review")
+          }
           className="h-8 rounded-md bg-primary px-2.5 text-[11.5px] font-semibold text-primary-foreground disabled:opacity-50"
         >
           Mark reviewed
@@ -74,7 +86,9 @@ function ReportRow({ report }: { report: AdminConversationReport }) {
         <button
           type="button"
           onClick={() => mutation.mutate("dismissed")}
-          disabled={mutation.isPending || report.status !== "open"}
+          disabled={
+            mutation.isPending || (report.status !== "open" && report.status !== "under_review")
+          }
           className="h-8 rounded-md border border-input px-2.5 text-[11.5px] font-medium disabled:opacity-50"
         >
           Dismiss

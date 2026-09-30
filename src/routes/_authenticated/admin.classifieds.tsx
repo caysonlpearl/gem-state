@@ -9,6 +9,7 @@ import {
   getAdminClassifiedQueue,
   getAdminClassifiedReports,
   resolveAdminClassifiedReport,
+  type AdminClassifiedReport,
   type AdminClassifiedRow,
 } from "@/lib/classifieds.functions";
 import { adminReviewAsk } from "@/lib/admin-catalog.functions";
@@ -177,8 +178,6 @@ function ClassifiedModerationRow({ listing }: { listing: AdminClassifiedRow }) {
 function ClassifiedModerationPage() {
   const fetchQueue = useServerFn(getAdminClassifiedQueue);
   const fetchReports = useServerFn(getAdminClassifiedReports);
-  const resolveReport = useServerFn(resolveAdminClassifiedReport);
-  const queryClient = useQueryClient();
   const { data, isLoading, isError } = useQuery({
     queryKey: ["admin-classified-queue"],
     queryFn: () => fetchQueue(),
@@ -186,16 +185,6 @@ function ClassifiedModerationPage() {
   const reports = useQuery({
     queryKey: ["admin-classified-reports"],
     queryFn: () => fetchReports(),
-  });
-  const resolveMutation = useMutation({
-    mutationFn: (input: { reportId: string; action: "reviewed" | "dismissed" }) =>
-      resolveReport({ data: input }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["admin-classified-reports"] });
-      toast.success("Listing report updated.");
-    },
-    onError: (error) =>
-      toast.error(error instanceof Error ? error.message : "Could not update the listing report."),
   });
 
   if (isLoading) {
@@ -258,7 +247,7 @@ function ClassifiedModerationPage() {
         <section className="rounded-lg border border-border bg-card">
           <div className="border-b border-border px-4 py-3">
             <h2 className="text-[13px] font-semibold">
-              Open listing reports{" "}
+              Open and assigned listing reports{" "}
               <span className="numeric text-muted-foreground">{reports.data.reports.length}</span>
             </h2>
           </div>
@@ -269,42 +258,75 @@ function ClassifiedModerationPage() {
           ) : (
             <ul>
               {reports.data.reports.map((report) => (
-                <li key={report.id} className="border-b border-border p-4 last:border-b-0">
-                  <p className="text-[12.5px] font-semibold">{report.reason}</p>
-                  <p className="mt-1 text-[11.5px] text-muted-foreground">
-                    Listing {report.listingId} · {new Date(report.createdAt).toLocaleString()}
-                  </p>
-                  {report.details && (
-                    <p className="mt-2 text-[12px] leading-relaxed">{report.details}</p>
-                  )}
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        resolveMutation.mutate({ reportId: report.id, action: "reviewed" })
-                      }
-                      disabled={resolveMutation.isPending}
-                      className="h-8 rounded-md bg-primary px-2.5 text-[11.5px] font-semibold text-primary-foreground disabled:opacity-50"
-                    >
-                      Mark reviewed
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        resolveMutation.mutate({ reportId: report.id, action: "dismissed" })
-                      }
-                      disabled={resolveMutation.isPending}
-                      className="h-8 rounded-md border border-input px-2.5 text-[11.5px] font-medium disabled:opacity-50"
-                    >
-                      Dismiss
-                    </button>
-                  </div>
-                </li>
+                <ClassifiedReportRow key={report.id} report={report} />
               ))}
             </ul>
           )}
         </section>
       )}
     </main>
+  );
+}
+
+function ClassifiedReportRow({ report }: { report: AdminClassifiedReport }) {
+  const queryClient = useQueryClient();
+  const resolveReport = useServerFn(resolveAdminClassifiedReport);
+  const [note, setNote] = useState("");
+  const mutation = useMutation({
+    mutationFn: (action: "assign" | "reviewed" | "dismissed") =>
+      resolveReport({ data: { reportId: report.id, action, note } }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["admin-classified-reports"] });
+      toast.success("Listing report updated.");
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Could not update the listing report."),
+  });
+  const active = report.status === "open" || report.status === "under_review";
+  return (
+    <li className="border-b border-border p-4 last:border-b-0">
+      <p className="text-[12.5px] font-semibold">{report.reason}</p>
+      <p className="mt-1 text-[11.5px] text-muted-foreground">
+        Listing {report.listingId} · {new Date(report.createdAt).toLocaleString()}
+      </p>
+      {report.details && <p className="mt-2 text-[12px] leading-relaxed">{report.details}</p>}
+      <label className="mt-3 block text-[11.5px] font-medium">
+        Operator note
+        <textarea
+          rows={2}
+          maxLength={1000}
+          value={note}
+          onChange={(event) => setNote(event.target.value)}
+          placeholder="Record what was checked or what should happen next."
+          className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-[12px]"
+        />
+      </label>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => mutation.mutate("assign")}
+          disabled={mutation.isPending || !active}
+          className="h-8 rounded-md border border-primary px-2.5 text-[11.5px] font-semibold text-primary disabled:opacity-50"
+        >
+          Assign to me
+        </button>
+        <button
+          type="button"
+          onClick={() => mutation.mutate("reviewed")}
+          disabled={mutation.isPending || !active}
+          className="h-8 rounded-md bg-primary px-2.5 text-[11.5px] font-semibold text-primary-foreground disabled:opacity-50"
+        >
+          Mark reviewed
+        </button>
+        <button
+          type="button"
+          onClick={() => mutation.mutate("dismissed")}
+          disabled={mutation.isPending || !active}
+          className="h-8 rounded-md border border-input px-2.5 text-[11.5px] font-medium disabled:opacity-50"
+        >
+          Dismiss
+        </button>
+      </div>
+    </li>
   );
 }

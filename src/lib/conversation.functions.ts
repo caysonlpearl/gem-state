@@ -426,8 +426,12 @@ export const getAdminConversationReports = createServerFn({ method: "GET" })
 export const resolveAdminConversationReport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator(
-    (input: { reportId: string; action: "reviewed" | "dismissed"; adminNote?: string | null }) => {
-      if (input.action !== "reviewed" && input.action !== "dismissed")
+    (input: {
+      reportId: string;
+      action: "assign" | "reviewed" | "dismissed";
+      adminNote?: string | null;
+    }) => {
+      if (input.action !== "assign" && input.action !== "reviewed" && input.action !== "dismissed")
         throw new Error("Choose a report resolution.");
       const adminNote = input.adminNote == null ? null : String(input.adminNote).trim();
       if (adminNote && adminNote.length > 1000)

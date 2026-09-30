@@ -88,6 +88,7 @@ export type ClassifiedDetail = ClassifiedCard & {
   sellerNote: string | null;
   variantId: string;
   seller: {
+    userId?: string;
     slug: string;
     displayName: string;
     bio: string | null;
@@ -191,7 +192,7 @@ export const getAdminClassifiedReports = createServerFn({ method: "GET" })
     const { data, error } = await client
       .from("classified_listing_reports")
       .select("id,listing_id,reason,details,status,created_at")
-      .eq("status", "open")
+      .in("status", ["open", "under_review"])
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
     return {
@@ -210,27 +211,28 @@ export const getAdminClassifiedReports = createServerFn({ method: "GET" })
 
 export const resolveAdminClassifiedReport = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input: { reportId: string; action: "reviewed" | "dismissed" }) => {
-    if (input.action !== "reviewed" && input.action !== "dismissed")
-      throw new Error("Choose a report resolution.");
-    return { reportId: String(input.reportId), action: input.action };
-  })
+  .validator(
+    (input: {
+      reportId: string;
+      action: "assign" | "reviewed" | "dismissed";
+      note?: string | null;
+    }) => {
+      if (input.action !== "assign" && input.action !== "reviewed" && input.action !== "dismissed")
+        throw new Error("Choose a report resolution.");
+      const note = input.note == null ? null : String(input.note).trim();
+      if (note && note.length > 1000) throw new Error("Keep the note under 1,000 characters.");
+      return { reportId: String(input.reportId), action: input.action, note: note || null };
+    },
+  )
   .handler(async ({ data, context }) => {
-    const { data: isAdmin, error: roleError } = await context.supabase.rpc("has_role", {
-      _user_id: context.userId,
-      _role: "admin",
-    });
-    if (roleError) throw new Error(roleError.message);
-    if (!isAdmin) throw new Error("Administrator access required.");
-    const { error } = await (context.supabase as any)
-      .from("classified_listing_reports")
-      .update({
-        status: data.action,
-        resolved_at: new Date().toISOString(),
-        resolved_by: context.userId,
-      })
-      .eq("id", data.reportId)
-      .eq("status", "open");
+    const { error } = await (context.supabase as any).rpc(
+      "admin_update_classified_listing_report",
+      {
+        _report_id: data.reportId,
+        _action: data.action,
+        _note: data.note,
+      },
+    );
     if (error) throw new Error(error.message);
     return { ok: true as const };
   });
@@ -1802,6 +1804,7 @@ export const getClassifiedListing = createServerFn({ method: "GET" })
       variantId: record["variant_id"] as string,
       seller: sellerRow
         ? {
+            userId: sellerId ?? undefined,
             slug: sellerRow.slug ?? "",
             displayName: sellerRow.display_name ?? "Seller",
             bio: sellerRow.bio ?? null,

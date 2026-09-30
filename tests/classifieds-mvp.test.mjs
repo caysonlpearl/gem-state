@@ -603,6 +603,18 @@ test("member trust surfaces use Bluebird notification copy and actionable destin
   assert.match(actionsSource, /Minimum 10 characters\./);
 });
 
+test("phase 2 closes self-contact and operator ownership gaps", () => {
+  assert.match(classifiedsFunctionsSource, /userId\?: string/);
+  assert.match(actionsSource, /This is your listing/);
+  assert.match(accountCenterSource, /Report submitted\./);
+  assert.match(adminConversationReportsSource, /Assign to me/);
+  assert.match(adminClassifiedsSource, /Assign to me/);
+  assert.match(conversationReportsMigrationSource, /under_review/);
+  assert.match(conversationReportsMigrationSource, /classified_listing_report_events/);
+  assert.match(conversationReportsMigrationSource, /admin_update_classified_listing_report/);
+  assert.match(accountCenterSource, /Review link copied as a fallback/);
+});
+
 test("saved searches reopen their full filters and update in place", () => {
   assert.match(browseSource, /savedSearchId/);
   assert.match(
