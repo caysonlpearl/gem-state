@@ -247,7 +247,7 @@ function ClassifiedModerationPage() {
         <section className="rounded-lg border border-border bg-card">
           <div className="border-b border-border px-4 py-3">
             <h2 className="text-[13px] font-semibold">
-              Open and assigned listing reports{" "}
+              Open listing reports{" "}
               <span className="numeric text-muted-foreground">{reports.data.reports.length}</span>
             </h2>
           </div>

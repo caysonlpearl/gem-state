@@ -63,6 +63,7 @@ const policiesSource = await read("src/routes/policies.tsx");
 const authSource = await read("src/routes/auth.tsx");
 const classifiedsFunctionsSource = await read("src/lib/classifieds.functions.ts");
 const listingDetailSource = await read("src/routes/listings.$listingId.tsx");
+const sellerProfileSource = await read("src/routes/sellers.$slug.tsx");
 const adminClassifiedsSource = await read("src/routes/_authenticated/admin.classifieds.tsx");
 const listingReportsMigrationSource = await read(
   "supabase/migrations/20260920110000_add_classified_listing_reports.sql",
@@ -613,6 +614,8 @@ test("phase 2 closes self-contact and operator ownership gaps", () => {
   assert.match(conversationReportsMigrationSource, /classified_listing_report_events/);
   assert.match(conversationReportsMigrationSource, /admin_update_classified_listing_report/);
   assert.match(accountCenterSource, /Review link copied as a fallback/);
+  assert.match(sellerProfileSource, /one review per seller/);
+  assert.match(sellerProfileSource, /flag reviews that need moderation/);
 });
 
 test("saved searches reopen their full filters and update in place", () => {

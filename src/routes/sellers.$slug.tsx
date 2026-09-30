@@ -253,7 +253,8 @@ function ReviewForm({ sellerId, sellerSlug }: { sellerId: string; sellerSlug: st
         {myReview.data ? "Edit your review" : "Leave a review"}
       </h3>
       <p className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground">
-        Rate this seller based on your experience with them.
+        Signed-in members can leave one review per seller based on their experience. Submitting
+        again updates your existing review, and members can flag reviews that need moderation.
       </p>
       <form
         className="mt-4 space-y-3"
