@@ -265,7 +265,7 @@
     transform: translate3d(0, 0, 0) scale(1);
   }
   50% {
-    transform: translate3d(-12px, 10px, 0) scale(1.04);
+    transform: translate3d(-18px, 14px, 0) scale(1.06);
   }
 }
 
@@ -276,12 +276,24 @@
     transform: translateX(-120%) skewX(-18deg);
   }
   35% {
-    opacity: 0.34;
+    opacity: 0.48;
   }
   58%,
   100% {
     opacity: 0;
     transform: translateX(410%) skewX(-18deg);
+  }
+}
+
+@keyframes classifieds-hero-accent {
+  0%,
+  100% {
+    transform: translateY(0) scaleX(1);
+    opacity: 0.86;
+  }
+  50% {
+    transform: translateY(-2px) scaleX(1.08);
+    opacity: 1;
   }
 }
 
@@ -296,7 +308,17 @@
   }
 
   .classifieds-hero-sheen {
-    animation: classifieds-hero-sheen 14s ease-in-out infinite;
+    animation: classifieds-hero-sheen 9s ease-in-out infinite;
+  }
+
+  .classifieds-hero-accent-bar {
+    transform-origin: left center;
+    animation: classifieds-hero-accent 5s ease-in-out infinite;
+  }
+
+  .classifieds-hero-accent-bar--warm {
+    animation-delay: -1.8s;
+    animation-duration: 6.5s;
   }
 }
 

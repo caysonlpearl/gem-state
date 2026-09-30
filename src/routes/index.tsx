@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { ArrowRight, MagnifyingGlass, MapPin, Car } from "@phosphor-icons/react";
+import { ArrowRight, CaretDown, MagnifyingGlass, MapPin, Car } from "@phosphor-icons/react";
 
 import { brand } from "@/config/brand";
 import { classifiedCategories, idahoRegions, usStates } from "@/config/classifieds";
@@ -259,10 +259,10 @@ function Home() {
           <p className="mt-4 max-w-[56ch] text-[15px] leading-relaxed text-muted-foreground">
             And so much more across Idaho and surrounding states.
           </p>
-          <div className="mt-4 flex items-center gap-1.5" aria-hidden="true">
-            <span className="h-1.5 w-9 rounded-full bg-brand-blue" />
-            <span className="h-1.5 w-5 rounded-full bg-brand-warm" />
-            <span className="h-1.5 w-2.5 rounded-full bg-brand-blue/60" />
+          <div className="classifieds-hero-accent mt-4 flex items-center gap-1.5" aria-hidden="true">
+            <span className="classifieds-hero-accent-bar h-1.5 w-9 rounded-full bg-brand-blue" />
+            <span className="classifieds-hero-accent-bar classifieds-hero-accent-bar--warm h-1.5 w-5 rounded-full bg-brand-warm" />
+            <span className="classifieds-hero-accent-bar h-1.5 w-2.5 rounded-full bg-brand-blue/60" />
           </div>
 
           <form
@@ -294,19 +294,27 @@ function Home() {
                 className="h-12 w-full rounded-full border-0 bg-transparent pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
               />
             </label>
-            <select
-              value={category}
-              onChange={(event) => setCategory(event.target.value)}
-              aria-label="Category"
-              className="soft-control h-12 px-4 text-sm text-foreground outline-none"
-            >
-              <option value="">All categories</option>
-              {classifiedCategories.map((option) => (
-                <option key={option.slug} value={option.slug}>
-                  {option.name}
-                </option>
-              ))}
-            </select>
+            <label className="relative block">
+              <select
+                value={category}
+                onChange={(event) => setCategory(event.target.value)}
+                aria-label="Category"
+                className="soft-control h-12 w-full appearance-none px-4 pr-12 text-sm text-foreground outline-none"
+              >
+                <option value="">All categories</option>
+                {classifiedCategories.map((option) => (
+                  <option key={option.slug} value={option.slug}>
+                    {option.name}
+                  </option>
+                ))}
+              </select>
+              <CaretDown
+                size={16}
+                weight="bold"
+                className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground"
+                aria-hidden="true"
+              />
+            </label>
             <label className="soft-control relative flex h-12 items-center gap-2 px-4">
               <MapPin
                 size={16}
