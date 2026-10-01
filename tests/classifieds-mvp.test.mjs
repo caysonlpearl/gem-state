@@ -63,6 +63,7 @@ const glossarySource = await read("src/routes/glossary.tsx");
 const policiesSource = await read("src/routes/policies.tsx");
 const authSource = await read("src/routes/auth.tsx");
 const classifiedsFunctionsSource = await read("src/lib/classifieds.functions.ts");
+const pilotFunctionsSource = await read("src/lib/pilot.functions.ts");
 const dealerFunctionsSource = await read("src/lib/dealer.functions.ts");
 const listingDetailSource = await read("src/routes/listings.$listingId.tsx");
 const sellerProfileSource = await read("src/routes/sellers.$slug.tsx");
@@ -1503,4 +1504,25 @@ test("safety center explains scams, protections, and GemList limits", () => {
   assert.match(safetySource, /to="\/contact"/);
   assert.match(footerSource, /to="\/safety"/);
   assert.match(footerSource, /Safety center/);
+});
+
+test("job editor reload preserves the saved job category", () => {
+  assert.match(
+    classifiedsFunctionsSource,
+    /job_category,job_employer_name,job_employer_address/,
+    "the editor query must request the category column before jobOf maps it",
+  );
+  assert.match(listingFormPayloadSource, /jobCategory: listing\.job\?\.category/);
+});
+
+test("validation supply counters include classified listing submissions", () => {
+  assert.match(
+    pilotFunctionsSource,
+    /classified_listing_submit_succeeded:\s*"ask_submitted"/,
+    "admin validation must count classified listing success events",
+  );
+  assert.match(
+    pilotFunctionsSource,
+    /const name = VALIDATION_EVENT_ALIASES\[rawName\] \?\? rawName/,
+  );
 });

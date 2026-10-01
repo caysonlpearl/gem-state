@@ -1077,6 +1077,17 @@ export type ValidationSummary = {
   questions: { question: string; answer: string | null; detail: string }[];
 };
 
+/**
+ * Keep the validation console's legacy funnel labels useful as newer flows
+ * ship. Classified listings use their own explicit event names so the browser
+ * can distinguish them from the older offer flow; the operator-facing supply
+ * total still needs to include both.
+ */
+const VALIDATION_EVENT_ALIASES: Record<string, string> = {
+  classified_listing_submit_started: "ask_started",
+  classified_listing_submit_succeeded: "ask_submitted",
+};
+
 const FUNNEL_EVENTS = [
   "page_view",
   "search_performed",
@@ -1144,7 +1155,8 @@ export const getValidationSummary = createServerFn({ method: "GET" })
 
     const staffIds = new Set((staff ?? []).map((r) => r.user_id as string));
     for (const e of events ?? []) {
-      const name = String(e.name);
+      const rawName = String(e.name);
+      const name = VALIDATION_EVENT_ALIASES[rawName] ?? rawName;
       if (!(name in summary.real)) continue;
       const bucket = e.is_demo
         ? summary.demo
