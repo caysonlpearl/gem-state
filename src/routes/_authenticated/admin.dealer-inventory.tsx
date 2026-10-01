@@ -21,6 +21,7 @@ import {
   linkDealerInventoryRecord,
   previewDealerInventoryFeed,
   runConfiguredDealerInventorySource,
+  runScheduledDealerInventorySources,
   setDealerInventorySourceStatus,
 } from "@/lib/dealer-inventory.functions";
 import { getOwnedDealers } from "@/lib/dealer.functions";
@@ -49,6 +50,7 @@ function DealerInventoryPage() {
   const previewFeed = useServerFn(previewDealerInventoryFeed);
   const applyFeed = useServerFn(applyDealerInventoryFeed);
   const runConfiguredSource = useServerFn(runConfiguredDealerInventorySource);
+  const runScheduledSources = useServerFn(runScheduledDealerInventorySources);
   const setSourceStatus = useServerFn(setDealerInventorySourceStatus);
   const { data: sources, isLoading } = useQuery({
     queryKey: ["dealer-inventory-sources"],
@@ -219,6 +221,20 @@ function DealerInventoryPage() {
       toast.error(error instanceof Error ? error.message : "Could not run configured feed."),
   });
 
+  const scheduledRunMutation = useMutation({
+    mutationFn: () => runScheduledSources(),
+    onSuccess: async (results) => {
+      await queryClient.invalidateQueries({ queryKey: ["dealer-inventory-sources"] });
+      await queryClient.invalidateQueries({ queryKey: ["dealer-inventory-sync-runs"] });
+      await queryClient.invalidateQueries({ queryKey: ["dealer-inventory-records"] });
+      const completed = results.filter((result) => result.status === "completed").length;
+      const failed = results.filter((result) => result.status === "failed").length;
+      toast.success(`Scheduled feeds checked: ${completed} applied, ${failed} failed.`);
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Could not run scheduled feeds."),
+  });
+
   if (isLoading)
     return (
       <p className="mx-auto max-w-[1000px] px-4 py-10 text-[13px] text-muted-foreground">
@@ -232,12 +248,26 @@ function DealerInventoryPage() {
         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
           Operations
         </p>
-        <h1 className="mt-1 text-[24px] font-semibold tracking-tight">Dealer inventory feeds</h1>
-        <p className="mt-2 max-w-[780px] text-[13px] leading-relaxed text-muted-foreground">
-          Provider-neutral CSV, JSON, and XML intake for the dealership integration foundation.
-          Imported records stay private until an operator reviews and links them to public Bluebird
-          Marketplace listings.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="mt-1 text-[24px] font-semibold tracking-tight">
+              Dealer inventory feeds
+            </h1>
+            <p className="mt-2 max-w-[780px] text-[13px] leading-relaxed text-muted-foreground">
+              Provider-neutral CSV, JSON, and XML intake for the dealership integration foundation.
+              Imported records stay private until an operator reviews and links them to public
+              Bluebird Marketplace listings.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => scheduledRunMutation.mutate()}
+            disabled={scheduledRunMutation.isPending}
+          >
+            {scheduledRunMutation.isPending ? "Checking schedules…" : "Run due scheduled feeds"}
+          </Button>
+        </div>
       </header>
 
       <section className="grid gap-6 lg:grid-cols-[320px_1fr]">

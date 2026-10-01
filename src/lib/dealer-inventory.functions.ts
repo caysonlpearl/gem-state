@@ -521,6 +521,13 @@ export async function processScheduledDealerInventorySources(now = new Date()) {
   return results;
 }
 
+export const runScheduledDealerInventorySources = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await requireAdmin(context);
+    return processScheduledDealerInventorySources();
+  });
+
 export const applyDealerInventoryFeed = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) => feedInput.extend({ dryRun: z.literal(false) }).parse(input))
