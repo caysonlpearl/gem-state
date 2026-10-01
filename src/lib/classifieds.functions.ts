@@ -79,6 +79,13 @@ export type ClassifiedCard = {
   isMock?: boolean;
   listingNumber?: string;
   itemDetails?: Record<string, string>;
+  dealer?: {
+    displayName: string;
+    slug: string;
+    logoUrl: string | null;
+    city: string | null;
+    state: string | null;
+  } | null;
 };
 
 export type ClassifiedDetail = ClassifiedCard & {
@@ -648,8 +655,9 @@ const conditionValues = [
 ] as const;
 
 const LISTING_SELECT =
-  "id, product_id, variant_id, seller_id, price_cents, currency, item_condition, seller_note, created_at, expires_at, featured_until, promoted_at, ranking_at, " +
+  "id, product_id, variant_id, seller_id, dealer_id, price_cents, currency, item_condition, seller_note, created_at, expires_at, featured_until, promoted_at, ranking_at, " +
   "products!inner(id, slug, name, description, status, category_id, categories(slug, name)), " +
+  "dealer_profiles(display_name, slug, logo_url, city, state), " +
   "classified_listing_details!inner(region, city, state, postal_code, fulfillment_mode, item_details, vehicle_make, vehicle_model, vehicle_year, vehicle_trim, vehicle_mileage, vehicle_body_style, vehicle_transmission, vehicle_drivetrain, vehicle_fuel_type, vehicle_exterior_color, vehicle_title_status, vin, " +
   "home_mode, home_property_type, home_bedrooms, home_bathrooms, home_square_feet, home_year_built, home_acreage, home_acres, home_heating, home_cooling, home_garage_parking, home_yard, home_appliances_included, home_floor_coverings, home_basement_type, home_exterior_material, home_special_features, home_hoa_fees, home_school_district, home_lease_length, home_available, home_pets_policy, home_smoking_policy, home_open_house, " +
   "job_category, job_employer_name, job_employer_address, job_pay_type, job_pay_min, job_pay_max, job_employment_type, job_experience_required, job_education_level, job_responsibilities, job_qualifications, " +
@@ -969,6 +977,15 @@ function toCard(row: Record<string, unknown>, urlByPath: Map<string, string>): C
     home: homeOf(details),
     job: jobOf(details, description),
     service: serviceOf(details, description, priceCents),
+    dealer: row["dealer_profiles"]
+      ? {
+          displayName: (row["dealer_profiles"] as any).display_name,
+          slug: (row["dealer_profiles"] as any).slug,
+          logoUrl: (row["dealer_profiles"] as any).logo_url ?? null,
+          city: (row["dealer_profiles"] as any).city ?? null,
+          state: (row["dealer_profiles"] as any).state ?? null,
+        }
+      : null,
   };
 }
 

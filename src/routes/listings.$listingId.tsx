@@ -379,6 +379,15 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
           )}
         </div>
       </div>
+      {listing.dealer ? (
+        <div className="mt-4 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-[12px]">
+          <p className="font-semibold text-primary">Dealer inventory · {listing.dealer.displayName}</p>
+          <p className="mt-0.5 text-muted-foreground">
+            Verified dealership attribution for this listing
+            {listing.dealer.city ? ` · ${listing.dealer.city}${listing.dealer.state ? `, ${listing.dealer.state}` : ""}` : ""}
+          </p>
+        </div>
+      ) : null}
       {listing.service?.businessAddress && (
         <p className="mt-3 flex items-start gap-1.5 text-[12px] leading-relaxed text-primary">
           <MapPin size={14} weight="fill" className="mt-0.5 shrink-0" />

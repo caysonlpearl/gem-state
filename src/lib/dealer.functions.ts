@@ -44,6 +44,51 @@ export type DealerSetup = {
 
 export type OwnedDealerSummary = { id: string; display_name: string; slug: string; status: string };
 
+export type DealerMemberSummary = {
+  dealer_id: string;
+  user_id: string;
+  email: string | null;
+  display_name: string | null;
+  role: "owner" | "manager" | "inventory";
+  status: "active" | "invited" | "disabled";
+  created_at: string;
+};
+
+async function requireDealerManager(context: { supabase: unknown; userId: string }, dealerId: string) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const admin = supabaseAdmin as any;
+  const { data: isAdmin, error: roleError } = await (context.supabase as any).rpc("has_role", {
+    _user_id: context.userId,
+    _role: "admin",
+  });
+  if (roleError) throw new Error(roleError.message);
+  if (isAdmin === true) return { admin, isAdmin: true };
+  const { data: dealer, error } = await admin
+    .from("dealer_profiles")
+    .select("id,owner_user_id")
+    .eq("id", dealerId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!dealer || dealer.owner_user_id !== context.userId) {
+    throw new Error("Dealership owner access is required.");
+  }
+  return { admin, isAdmin: false };
+}
+
+async function recordDealerAudit(
+  admin: any,
+  input: { dealerId: string | null; actorUserId: string; action: string; targetType: string; targetId?: string | null; metadata?: Record<string, unknown> },
+) {
+  await admin.from("dealer_audit_events").insert({
+    dealer_id: input.dealerId,
+    actor_user_id: input.actorUserId,
+    action: input.action,
+    target_type: input.targetType,
+    target_id: input.targetId ?? null,
+    metadata: input.metadata ?? {},
+  });
+}
+
 export const getDealerSetup = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<DealerSetup> => {
@@ -86,6 +131,14 @@ export const saveDealerSetup = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     const { error: memberError } = await admin.from("dealer_members").upsert({ dealer_id: dealer.id, user_id: context.userId, role: "owner", status: "active" }, { onConflict: "dealer_id,user_id" });
     if (memberError) throw new Error(memberError.message);
+    await recordDealerAudit(admin, {
+      dealerId: dealer.id,
+      actorUserId: context.userId,
+      action: "profile_saved",
+      targetType: "dealer_profile",
+      targetId: dealer.id,
+      metadata: { status: dealer.status, slug: dealer.slug },
+    });
     return dealer;
   });
 
@@ -100,6 +153,69 @@ export const getOwnedDealers = createServerFn({ method: "GET" })
       .order("display_name");
     if (error) throw new Error(error.message);
     return data ?? [];
+  });
+
+export const getDealerMembers = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) => z.object({ dealerId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }): Promise<DealerMemberSummary[]> => {
+    const { admin } = await requireDealerManager(context, data.dealerId);
+    const { data: members, error } = await admin
+      .from("dealer_members")
+      .select("dealer_id,user_id,role,status,created_at")
+      .eq("dealer_id", data.dealerId)
+      .order("created_at");
+    if (error) throw new Error(error.message);
+    const users = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    if (users.error) throw new Error(users.error.message);
+    const byId = new Map((users.data.users ?? []).map((user: any) => [user.id, user]));
+    const profiles = await admin
+      .from("profiles")
+      .select("id,display_name")
+      .in("id", (members ?? []).map((member: any) => member.user_id));
+    const displayNames = new Map((profiles.data ?? []).map((profile: any) => [profile.id, profile.display_name]));
+    return (members ?? []).map((member: any) => ({
+      ...member,
+      email: byId.get(member.user_id)?.email ?? null,
+      display_name: displayNames.get(member.user_id) ?? null,
+    }));
+  });
+
+export const addDealerMember = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z.object({ dealerId: z.string().uuid(), email: z.string().trim().email(), role: z.enum(["manager", "inventory"]) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { admin } = await requireDealerManager(context, data.dealerId);
+    const users = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
+    if (users.error) throw new Error(users.error.message);
+    const user = (users.data.users ?? []).find((candidate: any) => candidate.email?.toLowerCase() === data.email.toLowerCase());
+    if (!user) throw new Error("No Bluebird member exists with that email yet. They must create an account first.");
+    const { data: member, error } = await admin
+      .from("dealer_members")
+      .upsert({ dealer_id: data.dealerId, user_id: user.id, role: data.role, status: "active" }, { onConflict: "dealer_id,user_id" })
+      .select("dealer_id,user_id,role,status")
+      .single();
+    if (error) throw new Error(error.message);
+    await recordDealerAudit(admin, { dealerId: data.dealerId, actorUserId: context.userId, action: "member_added", targetType: "dealer_member", targetId: user.id, metadata: { role: data.role } });
+    return member;
+  });
+
+export const updateDealerMember = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z.object({ dealerId: z.string().uuid(), userId: z.string().uuid(), role: z.enum(["manager", "inventory"]).optional(), status: z.enum(["active", "disabled"]).optional() }).refine((value) => value.role || value.status, "Choose a member change.").parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { admin } = await requireDealerManager(context, data.dealerId);
+    const updates: Record<string, string> = {};
+    if (data.role) updates.role = data.role;
+    if (data.status) updates.status = data.status;
+    const { error } = await admin.from("dealer_members").update(updates).eq("dealer_id", data.dealerId).eq("user_id", data.userId);
+    if (error) throw new Error(error.message);
+    await recordDealerAudit(admin, { dealerId: data.dealerId, actorUserId: context.userId, action: "member_updated", targetType: "dealer_member", targetId: data.userId, metadata: updates });
+    return { ok: true };
   });
 
 export const getAdminDealerDirectory = createServerFn({ method: "GET" })

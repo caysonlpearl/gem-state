@@ -5,7 +5,13 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 
 import { SellerCenterNav } from "@/components/seller/SellerCenterNav";
-import { getDealerSetup, saveDealerSetup } from "@/lib/dealer.functions";
+import {
+  addDealerMember,
+  getDealerMembers,
+  getDealerSetup,
+  updateDealerMember,
+} from "@/lib/dealer.functions";
+import { saveDealerSetup } from "@/lib/dealer.functions";
 
 export const Route = createFileRoute("/_authenticated/dealer-setup")({ component: DealerSetupPage });
 
@@ -13,8 +19,18 @@ function DealerSetupPage() {
   const client = useQueryClient();
   const fetchSetup = useServerFn(getDealerSetup);
   const save = useServerFn(saveDealerSetup);
+  const fetchMembers = useServerFn(getDealerMembers);
+  const addMember = useServerFn(addDealerMember);
+  const updateMember = useServerFn(updateDealerMember);
   const setup = useQuery({ queryKey: ["dealer-setup"], queryFn: () => fetchSetup() });
+  const members = useQuery({
+    queryKey: ["dealer-members", setup.data?.id],
+    queryFn: () => fetchMembers({ data: { dealerId: setup.data!.id! } }),
+    enabled: Boolean(setup.data?.id),
+  });
   const [draft, setDraft] = useState<Record<string, string | boolean> | null>(null);
+  const [memberEmail, setMemberEmail] = useState("");
+  const [memberRole, setMemberRole] = useState<"manager" | "inventory">("inventory");
   useEffect(() => {
     if (!setup.data || draft) return;
     const d = setup.data;
@@ -31,6 +47,23 @@ function DealerSetupPage() {
     onSuccess: async () => { await client.invalidateQueries({ queryKey: ["dealer-setup"] }); toast.success("Dealership profile saved and ready for inventory."); },
     onError: (error) => toast.error(error instanceof Error ? error.message : "Could not save dealership profile."),
   });
+  const addMemberMutation = useMutation({
+    mutationFn: () => addMember({ data: { dealerId: setup.data!.id!, email: memberEmail, role: memberRole } }),
+    onSuccess: async () => {
+      setMemberEmail("");
+      await client.invalidateQueries({ queryKey: ["dealer-members", setup.data?.id] });
+      toast.success("Existing Bluebird member added to the dealership.");
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : "Could not add dealership member."),
+  });
+  const updateMemberMutation = useMutation({
+    mutationFn: (input: { userId: string; role?: "manager" | "inventory"; status?: "active" | "disabled" }) => updateMember({ data: { dealerId: setup.data!.id!, ...input } }),
+    onSuccess: async () => {
+      await client.invalidateQueries({ queryKey: ["dealer-members", setup.data?.id] });
+      toast.success("Dealership member updated.");
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : "Could not update dealership member."),
+  });
   const set = (key: string, value: string | boolean) => setDraft((current) => ({ ...(current ?? {}), [key]: value }));
   if (!draft) return <p className="mx-auto max-w-[940px] px-4 py-10 text-sm text-muted-foreground">Loading dealership setup…</p>;
   const readiness = setup.data?.readiness;
@@ -45,6 +78,15 @@ function DealerSetupPage() {
       <button type="submit" disabled={mutation.isPending || !draft.acceptAgreements} className="h-10 bg-primary px-4 text-[12.5px] font-semibold text-primary-foreground disabled:opacity-50">{mutation.isPending ? "Saving…" : "Save dealership setup"}</button>
     </form>
     {setup.data?.exists ? <p className="text-[12px] text-muted-foreground">Status: <span className="font-medium text-foreground">{setup.data.status}</span>. Inventory sources can now be associated with this dealership from the admin inventory workspace.</p> : null}
+    {setup.data?.exists ? <section className="space-y-4 border border-border bg-card p-5">
+      <div><h2 className="text-[16px] font-semibold">Staff access</h2><p className="mt-1 text-[12px] text-muted-foreground">Add existing Bluebird members to help manage this dealership. Inventory staff can work feeds; managers can update dealership members.</p></div>
+      <form className="grid gap-3 sm:grid-cols-[1fr_180px_auto]" onSubmit={(event) => { event.preventDefault(); addMemberMutation.mutate(); }}>
+        <input required type="email" value={memberEmail} onChange={(event) => setMemberEmail(event.target.value)} placeholder="member@email.com" className="h-10 border border-input bg-background px-3 text-sm" aria-label="Existing member email" />
+        <select value={memberRole} onChange={(event) => setMemberRole(event.target.value as "manager" | "inventory")} className="h-10 border border-input bg-background px-3 text-sm" aria-label="Member role"><option value="inventory">Inventory staff</option><option value="manager">Manager</option></select>
+        <button type="submit" disabled={addMemberMutation.isPending || !memberEmail.trim()} className="h-10 bg-primary px-4 text-[12px] font-semibold text-primary-foreground disabled:opacity-50">{addMemberMutation.isPending ? "Adding…" : "Add member"}</button>
+      </form>
+      {members.isLoading ? <p className="text-[12px] text-muted-foreground">Loading staff…</p> : members.error ? <p className="text-[12px] text-destructive">{members.error instanceof Error ? members.error.message : "Could not load staff."}</p> : <div className="overflow-x-auto rounded-md border border-border"><table className="w-full min-w-[620px] text-left text-[12px]"><thead className="bg-secondary/50"><tr><th className="px-3 py-2">Member</th><th className="px-3 py-2">Role</th><th className="px-3 py-2">Status</th><th className="px-3 py-2">Action</th></tr></thead><tbody>{(members.data ?? []).map((member) => <tr key={member.user_id} className="border-t border-border"><td className="px-3 py-2"><p className="font-medium">{member.display_name || member.email || member.user_id.slice(0, 8)}</p><p className="text-[11px] text-muted-foreground">{member.email || "Email unavailable"}</p></td><td className="px-3 py-2">{member.role === "owner" ? "Owner" : <select value={member.role} onChange={(event) => updateMemberMutation.mutate({ userId: member.user_id, role: event.target.value as "manager" | "inventory" })} className="h-8 border border-input bg-background px-2 text-[11px]"><option value="inventory">Inventory staff</option><option value="manager">Manager</option></select>}</td><td className="px-3 py-2">{member.status}</td><td className="px-3 py-2">{member.role !== "owner" ? <button type="button" onClick={() => updateMemberMutation.mutate({ userId: member.user_id, status: member.status === "disabled" ? "active" : "disabled" })} className="text-primary hover:underline">{member.status === "disabled" ? "Reactivate" : "Disable"}</button> : <span className="text-muted-foreground">Primary owner</span>}</td></tr>)}</tbody></table></div>}
+    </section> : null}
   </main>;
 }
 

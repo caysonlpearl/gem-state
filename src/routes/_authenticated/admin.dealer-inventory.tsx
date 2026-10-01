@@ -20,6 +20,7 @@ import {
   getDealerInventorySyncRuns,
   linkDealerInventoryRecord,
   previewDealerInventoryFeed,
+  runConfiguredDealerInventorySource,
   setDealerInventorySourceStatus,
 } from "@/lib/dealer-inventory.functions";
 import { getOwnedDealers } from "@/lib/dealer.functions";
@@ -47,6 +48,7 @@ function DealerInventoryPage() {
   const fetchDealers = useServerFn(getOwnedDealers);
   const previewFeed = useServerFn(previewDealerInventoryFeed);
   const applyFeed = useServerFn(applyDealerInventoryFeed);
+  const runConfiguredSource = useServerFn(runConfiguredDealerInventorySource);
   const setSourceStatus = useServerFn(setDealerInventorySourceStatus);
   const { data: sources, isLoading } = useQuery({
     queryKey: ["dealer-inventory-sources"],
@@ -183,6 +185,20 @@ function DealerInventoryPage() {
     },
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "Could not apply feed."),
+  });
+
+  const remoteRunMutation = useMutation({
+    mutationFn: () => {
+      if (!selectedSourceId) throw new Error("Select an inventory source first.");
+      return runConfiguredSource({ data: { sourceId: selectedSourceId } });
+    },
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ["dealer-inventory-sources"] });
+      await queryClient.invalidateQueries({ queryKey: ["dealer-inventory-sync-runs", selectedSourceId] });
+      await queryClient.invalidateQueries({ queryKey: ["dealer-inventory-records", selectedSourceId] });
+      toast.success(`Configured feed applied: ${result.createdCount ?? 0} created, ${result.updatedCount ?? 0} updated.`);
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : "Could not run configured feed."),
   });
 
   if (isLoading)
@@ -356,6 +372,17 @@ function DealerInventoryPage() {
                     Pause source
                   </Button>
                 )}
+                {selectedSource.feed_url ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => remoteRunMutation.mutate()}
+                    disabled={remoteRunMutation.isPending || selectedSource.status === "paused"}
+                  >
+                    {remoteRunMutation.isPending ? "Running…" : "Run configured feed"}
+                  </Button>
+                ) : null}
               </div>
             </div>
           ) : null}

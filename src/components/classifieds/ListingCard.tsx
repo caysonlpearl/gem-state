@@ -132,6 +132,11 @@ export function ListingCard({ listing }: { listing: ClassifiedCard }) {
           {listing.title}
         </h3>
         <Facts listing={listing} />
+        {listing.dealer ? (
+          <p className="mt-1 truncate text-[11.5px] font-medium text-primary">
+            {listing.dealer.displayName} · Dealer inventory
+          </p>
+        ) : null}
         <p className="mt-2 flex items-center gap-1 truncate text-[11.5px] text-muted-foreground">
           <MapPin size={12} weight="fill" className="shrink-0 text-primary" />
           {listing.city}, {listing.state}
@@ -177,6 +182,11 @@ export function ListingRow({ listing }: { listing: ClassifiedCard }) {
             </p>
           </div>
           <Facts listing={listing} />
+          {listing.dealer ? (
+            <p className="mt-1 truncate text-[11.5px] font-medium text-primary">
+              {listing.dealer.displayName} · Dealer inventory
+            </p>
+          ) : null}
           <p className="mt-2 flex items-center gap-1 truncate text-[11.5px] text-muted-foreground">
             <MapPin size={12} weight="fill" className="shrink-0 text-primary" />
             {listing.city}, {listing.state} ·{" "}
