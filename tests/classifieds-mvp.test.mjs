@@ -1239,6 +1239,8 @@ test("discrete browse inputs reject decimals and lease filters match whole month
     classifiedsFunctionsSource,
     /matchesLeaseLength\(listing\.home\?\.leaseLength, item\)/,
   );
+  assert.match(classifiedsFunctionsSource, /unitAwareJobSort/);
+  assert.match(classifiedsFunctionsSource, /comparableJobPay/);
 });
 
 test("jobs browse results use real listing data, not static placeholder cards", () => {

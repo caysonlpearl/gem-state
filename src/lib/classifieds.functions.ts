@@ -1725,13 +1725,24 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     query = query.order("id", { ascending: true });
 
     const from = (page - 1) * PAGE_SIZE;
+    // Pay units are deliberately normalized in `comparableJobPay` (hourly
+    // annualized, salary/commission/contract kept in their stated units).
+    // A raw SQL order on job_pay_min would put $16/hour beside $16/year and
+    // would make page boundaries disagree with the visible sort. Fetch the
+    // bounded job result set before applying the same comparator used for
+    // preview records so the selected sort is truthful for real listings too.
+    const unitAwareJobSort =
+      data.category === "jobs" && (data.sort === "price_low" || data.sort === "price_high");
+    const resultRange = unitAwareJobSort
+      ? { from: 0, to: Math.max(4_999, from + PAGE_SIZE - 1) }
+      : { from, to: from + PAGE_SIZE - 1 };
     const {
       data: rows,
       count,
       error,
     } = mockOnlyCategory
       ? { data: [], count: 0, error: null }
-      : await query.range(from, from + PAGE_SIZE - 1);
+      : await query.range(resultRange.from, resultRange.to);
     if (error) console.error("browseClassifieds failed; showing preview fixtures", error.message);
 
     const visibleRows = (rows ?? []).filter(
@@ -1775,7 +1786,10 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
       ...mockListings,
     ].sort(compareListings);
     const resultLimit = data.includeAllMocks ? Math.max(PAGE_SIZE, mockSource.length) : PAGE_SIZE;
-    const combinedListings = [...featuredListings, ...standardListings].slice(0, resultLimit);
+    const orderedListings = [...featuredListings, ...standardListings];
+    const combinedListings = unitAwareJobSort
+      ? orderedListings.slice(from, from + resultLimit)
+      : orderedListings.slice(0, resultLimit);
     if (listings.length > 0) {
       void import("@/integrations/supabase/client.server")
         .then(({ supabaseAdmin }) =>
