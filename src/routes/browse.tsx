@@ -8659,7 +8659,11 @@ function VehicleBrowseHero({
       : "Year";
   const priceLabel =
     search.priceMin != null || search.priceMax != null
-      ? `$${search.priceMin ?? 0}–${search.priceMax ?? "up"}`
+      ? search.priceMin != null && search.priceMax != null
+        ? `$${search.priceMin}–$${search.priceMax}`
+        : search.priceMin != null
+          ? `$${search.priceMin}+`
+          : `Up to $${search.priceMax}`
       : "Price";
   const selectedSummary = (value: string | undefined, fallback: string) => {
     const values = value?.split("||").filter(Boolean) ?? [];
@@ -9403,7 +9407,13 @@ function activeFilterLabels(search: Search, motors: boolean, pets: boolean) {
   if (search.condition) labels.push(formatSavedSearchFilter("condition", search.condition));
   if (search.fulfillment) labels.push(formatSavedSearchFilter("fulfillment", search.fulfillment));
   if (search.priceMin != null || search.priceMax != null)
-    labels.push(`$${search.priceMin ?? 0}–${search.priceMax ?? "up"}`);
+    labels.push(
+      search.priceMin != null && search.priceMax != null
+        ? `$${search.priceMin}–$${search.priceMax}`
+        : search.priceMin != null
+          ? `$${search.priceMin}+`
+          : `Up to $${search.priceMax}`,
+    );
   if (motors) {
     if (search.make) labels.push(search.make);
     if (search.model) labels.push(search.model);

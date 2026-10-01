@@ -78,6 +78,7 @@ const seedScriptSource = await read("scripts/seed-classifieds.mjs");
 const mediaCountMigrationSource = await read(
   "supabase/migrations/20260915140000_repair_classified_media_counts.sql",
 );
+const displaySource = await read("src/lib/classifieds-display.ts");
 const classifiedSchemaSource = await read(
   "supabase/migrations/20260913173736_32625455-cc9d-4572-a1dc-713b70e33dce.sql",
 );
@@ -1241,6 +1242,12 @@ test("discrete browse inputs reject decimals and lease filters match whole month
   );
   assert.match(classifiedsFunctionsSource, /unitAwareJobSort/);
   assert.match(classifiedsFunctionsSource, /comparableJobPay/);
+});
+
+test("job pay display uses one currency marker and preserves pay units", () => {
+  assert.equal(displaySource.includes("value >= 1000 ? `$${Math.round(value / 1000)}k`"), true);
+  assert.equal(displaySource.includes("return payMin === payMax ? `${fmt(payMin)}/yr`"), true);
+  assert.equal(displaySource.includes("return payMin === payMax ? `$$${fmt(payMin)}`"), false);
 });
 
 test("jobs browse results use real listing data, not static placeholder cards", () => {
