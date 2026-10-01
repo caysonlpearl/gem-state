@@ -1362,6 +1362,12 @@ test("listing sharing falls back when embedded native share never resolves", () 
   assert.match(detailSource, /Sharing is not available in this browser\./);
 });
 
+test("listing sharing confirms native share completion", () => {
+  assert.match(detailSource, /shareResult === "shared"/);
+  assert.match(detailSource, /Share sheet opened\./);
+  assert.match(detailSource, /Share canceled\./);
+});
+
 test("general classifieds have mock detail fixtures without changing category setup", () => {
   assert.match(mockListingsSource, /mock-general-squishmallows/);
   assert.match(mockListingsSource, /mock-general-vintage-plush/);

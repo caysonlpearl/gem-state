@@ -828,7 +828,14 @@ function ListingDetail() {
           shareAttempt,
           new Promise<"fallback">((resolve) => window.setTimeout(() => resolve("fallback"), 1200)),
         ]);
-        if (shareResult === "shared" || shareResult === "aborted") return;
+        if (shareResult === "shared") {
+          toast.success("Share sheet opened.");
+          return;
+        }
+        if (shareResult === "aborted") {
+          toast.info("Share canceled.");
+          return;
+        }
       }
 
       if (await copyListingUrl(shareUrl)) {
