@@ -176,6 +176,7 @@ function DealerInventoryPage() {
       setPreview(null);
       await queryClient.invalidateQueries({ queryKey: ["dealer-inventory-sources"] });
       await queryClient.invalidateQueries({ queryKey: ["dealer-inventory-sync-runs", selectedSourceId] });
+      await queryClient.invalidateQueries({ queryKey: ["dealer-inventory-records", selectedSourceId] });
       toast.success(
         `Feed applied: ${result.createdCount ?? 0} created, ${result.updatedCount ?? 0} updated.`,
       );
@@ -200,8 +201,8 @@ function DealerInventoryPage() {
         <h1 className="mt-1 text-[24px] font-semibold tracking-tight">Dealer inventory feeds</h1>
         <p className="mt-2 max-w-[780px] text-[13px] leading-relaxed text-muted-foreground">
           Provider-neutral CSV, JSON, and XML intake for the dealership integration foundation.
-          Imported records stay in the inventory layer until a future moderation step links them to
-          public Bluebird Marketplace listings.
+          Imported records stay private until an operator reviews and links them to public Bluebird
+          Marketplace listings.
         </p>
       </header>
 
