@@ -13,6 +13,7 @@ import {
   getShopperApplicationDocumentUrl,
   reviewShopperApplication,
 } from "@/lib/pilot.functions";
+import { getPaymentEnvironmentReadiness } from "@/lib/stripe-marketplace.functions";
 import {
   disputeStatusLabels,
   evidenceKindLabels,
@@ -33,8 +34,7 @@ export const Route = createFileRoute("/_authenticated/admin/")({
       { property: "og:title", content: `${brand.name} operations console` },
       {
         property: "og:description",
-        content:
-          "Role-protected operator queues for Bluebird Marketplace orders and trust review.",
+        content: "Role-protected operator queues for Bluebird Marketplace orders and trust review.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -168,9 +168,15 @@ function ShopperApplicationRow({
 
 function AdminPage() {
   const fetchQueues = useServerFn(getAdminQueues);
+  const fetchPaymentReadiness = useServerFn(getPaymentEnvironmentReadiness);
   const { data, isLoading } = useQuery({
     queryKey: ["admin-queues"],
     queryFn: () => fetchQueues(),
+  });
+  const paymentReadiness = useQuery({
+    queryKey: ["admin-payment-readiness"],
+    queryFn: () => fetchPaymentReadiness(),
+    enabled: Boolean(data?.isAdmin),
   });
 
   useEffect(() => {
@@ -198,7 +204,9 @@ function AdminPage() {
   return (
     <div className="mx-auto max-w-[1000px] space-y-6 px-4 py-10 sm:px-6">
       <div>
-        <h1 className="text-[22px] font-semibold tracking-tight">Bluebird Marketplace operations</h1>
+        <h1 className="text-[22px] font-semibold tracking-tight">
+          Bluebird Marketplace operations
+        </h1>
         <p className="mt-1 text-[13px] text-muted-foreground">
           Manage classified moderation, seller activity, listing performance, and marketplace
           controls from one administrator workspace. Every decision writes an append-only audit
@@ -287,6 +295,34 @@ function AdminPage() {
           </li>
         ))}
       </Queue>
+
+      <section className="rounded-lg border border-border bg-card px-4 py-3">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-[13px] font-semibold tracking-tight">
+            Payment environment readiness
+          </h2>
+          <span
+            className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+              paymentReadiness.data?.safeForTestExecution
+                ? "bg-emerald-100 text-emerald-800"
+                : "bg-amber-100 text-amber-900"
+            }`}
+          >
+            {paymentReadiness.data?.safeForTestExecution
+              ? "Test mode ready"
+              : "Test execution blocked"}
+          </span>
+        </div>
+        <p className="mt-1 text-[12px] text-muted-foreground">
+          {paymentReadiness.isLoading
+            ? "Checking Stripe configuration…"
+            : (paymentReadiness.data?.message ?? "Payment readiness could not be checked.")}
+        </p>
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          Live credentials are never used for audit transactions. Configure Stripe test credentials
+          and a webhook secret before running a payment test.
+        </p>
+      </section>
 
       <Queue
         title="Purchase evidence awaiting review"

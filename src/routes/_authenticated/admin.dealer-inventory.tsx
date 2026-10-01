@@ -67,7 +67,10 @@ function DealerInventoryPage() {
   const [csv, setCsv] = useState("");
   const [filename, setFilename] = useState("dealership-inventory.csv");
   const [preview, setPreview] = useState<PreviewResult | null>(null);
-  const { data: dealers } = useQuery({ queryKey: ["owned-dealers"], queryFn: () => fetchDealers() });
+  const { data: dealers } = useQuery({
+    queryKey: ["owned-dealers"],
+    queryFn: () => fetchDealers(),
+  });
 
   const selectedSourceId = sourceId;
   const selectedSource = useMemo(
@@ -141,8 +144,12 @@ function DealerInventoryPage() {
     },
     onSuccess: async (result) => {
       setPreview(result);
-      await queryClient.invalidateQueries({ queryKey: ["dealer-inventory-sync-runs", selectedSourceId] });
-      await queryClient.invalidateQueries({ queryKey: ["dealer-inventory-records", selectedSourceId] });
+      await queryClient.invalidateQueries({
+        queryKey: ["dealer-inventory-sync-runs", selectedSourceId],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["dealer-inventory-records", selectedSourceId],
+      });
       toast.success("Feed preview ready.");
     },
     onError: (error) =>
@@ -177,8 +184,12 @@ function DealerInventoryPage() {
     onSuccess: async (result) => {
       setPreview(null);
       await queryClient.invalidateQueries({ queryKey: ["dealer-inventory-sources"] });
-      await queryClient.invalidateQueries({ queryKey: ["dealer-inventory-sync-runs", selectedSourceId] });
-      await queryClient.invalidateQueries({ queryKey: ["dealer-inventory-records", selectedSourceId] });
+      await queryClient.invalidateQueries({
+        queryKey: ["dealer-inventory-sync-runs", selectedSourceId],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["dealer-inventory-records", selectedSourceId],
+      });
       toast.success(
         `Feed applied: ${result.createdCount ?? 0} created, ${result.updatedCount ?? 0} updated.`,
       );
@@ -194,11 +205,18 @@ function DealerInventoryPage() {
     },
     onSuccess: async (result) => {
       await queryClient.invalidateQueries({ queryKey: ["dealer-inventory-sources"] });
-      await queryClient.invalidateQueries({ queryKey: ["dealer-inventory-sync-runs", selectedSourceId] });
-      await queryClient.invalidateQueries({ queryKey: ["dealer-inventory-records", selectedSourceId] });
-      toast.success(`Configured feed applied: ${result.createdCount ?? 0} created, ${result.updatedCount ?? 0} updated.`);
+      await queryClient.invalidateQueries({
+        queryKey: ["dealer-inventory-sync-runs", selectedSourceId],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["dealer-inventory-records", selectedSourceId],
+      });
+      toast.success(
+        `Configured feed applied: ${result.createdCount ?? 0} created, ${result.updatedCount ?? 0} updated.`,
+      );
     },
-    onError: (error) => toast.error(error instanceof Error ? error.message : "Could not run configured feed."),
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Could not run configured feed."),
   });
 
   if (isLoading)
@@ -314,7 +332,7 @@ function DealerInventoryPage() {
             <Input
               value={schedule}
               onChange={(event) => setSchedule(event.target.value)}
-              placeholder="For example: daily at 2 AM"
+              placeholder="For example: daily at 02:00 UTC"
               className="mt-1"
             />
           </label>
@@ -456,7 +474,7 @@ function DealerInventoryPage() {
       </section>
 
       {selectedSourceId ? (
-      <section className="space-y-3 rounded-lg border border-border bg-card p-4">
+        <section className="space-y-3 rounded-lg border border-border bg-card p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h2 className="text-[14px] font-semibold">Sync health</h2>
@@ -522,9 +540,87 @@ function DealerInventoryPage() {
         <section className="space-y-3 rounded-lg border border-border bg-card p-4">
           <div>
             <h2 className="text-[14px] font-semibold">Marketplace links</h2>
-            <p className="mt-1 text-[12px] text-muted-foreground">Imported inventory stays out of public search until an operator links it to a moderated listing. Link IDs are deliberate so stale or sold records cannot silently replace a listing.</p>
+            <p className="mt-1 text-[12px] text-muted-foreground">
+              Imported inventory stays out of public search until an operator links it to a
+              moderated listing. Link IDs are deliberate so stale or sold records cannot silently
+              replace a listing.
+            </p>
           </div>
-          {records?.length ? <div className="overflow-x-auto rounded-md border border-border"><table className="w-full min-w-[820px] text-left text-[11px]"><thead className="bg-secondary/50"><tr><th className="px-3 py-2">Vehicle</th><th className="px-3 py-2">Identity</th><th className="px-3 py-2">Inventory state</th><th className="px-3 py-2">Listing ID</th><th className="px-3 py-2">Action</th></tr></thead><tbody>{records.slice(0, 50).map((record) => <tr key={record.id} className="border-t border-border"><td className="px-3 py-2 font-medium">{record.title}</td><td className="px-3 py-2 font-mono">{record.vin || record.stock_number || record.source_record_key}</td><td className="px-3 py-2">{record.inventory_status}</td><td className="px-3 py-2 font-mono">{record.listing_id || "Not linked"}</td><td className="px-3 py-2"><div className="flex gap-2"><Input aria-label={`Listing ID for ${record.title}`} value={linkInputs[record.id] ?? record.listing_id ?? ""} onChange={(event) => setLinkInputs((current) => ({ ...current, [record.id]: event.target.value }))} placeholder="ask UUID" className="h-8 w-56 font-mono text-[10px]" /><Button type="button" size="sm" variant="outline" disabled={!linkInputs[record.id] || linkInputs[record.id] === record.listing_id} onClick={async () => { try { await linkRecord({ data: { recordId: record.id, listingId: linkInputs[record.id] } }); await queryClient.invalidateQueries({ queryKey: ["dealer-inventory-records", selectedSourceId] }); toast.success("Inventory record linked to the moderated listing."); } catch (error) { toast.error(error instanceof Error ? error.message : "Could not link inventory record."); } }}>Link</Button></div></td></tr>)}</tbody></table></div> : <p className="rounded-md border border-dashed border-border px-3 py-4 text-[12px] text-muted-foreground">No applied inventory records yet. Apply a validated feed to create records for moderation linking.</p>}
+          {records?.length ? (
+            <div className="overflow-x-auto rounded-md border border-border">
+              <table className="w-full min-w-[820px] text-left text-[11px]">
+                <thead className="bg-secondary/50">
+                  <tr>
+                    <th className="px-3 py-2">Vehicle</th>
+                    <th className="px-3 py-2">Identity</th>
+                    <th className="px-3 py-2">Inventory state</th>
+                    <th className="px-3 py-2">Listing ID</th>
+                    <th className="px-3 py-2">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {records.slice(0, 50).map((record) => (
+                    <tr key={record.id} className="border-t border-border">
+                      <td className="px-3 py-2 font-medium">{record.title}</td>
+                      <td className="px-3 py-2 font-mono">
+                        {record.vin || record.stock_number || record.source_record_key}
+                      </td>
+                      <td className="px-3 py-2">{record.inventory_status}</td>
+                      <td className="px-3 py-2 font-mono">{record.listing_id || "Not linked"}</td>
+                      <td className="px-3 py-2">
+                        <div className="flex gap-2">
+                          <Input
+                            aria-label={`Listing ID for ${record.title}`}
+                            value={linkInputs[record.id] ?? record.listing_id ?? ""}
+                            onChange={(event) =>
+                              setLinkInputs((current) => ({
+                                ...current,
+                                [record.id]: event.target.value,
+                              }))
+                            }
+                            placeholder="ask UUID"
+                            className="h-8 w-56 font-mono text-[10px]"
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={
+                              !linkInputs[record.id] || linkInputs[record.id] === record.listing_id
+                            }
+                            onClick={async () => {
+                              try {
+                                await linkRecord({
+                                  data: { recordId: record.id, listingId: linkInputs[record.id] },
+                                });
+                                await queryClient.invalidateQueries({
+                                  queryKey: ["dealer-inventory-records", selectedSourceId],
+                                });
+                                toast.success("Inventory record linked to the moderated listing.");
+                              } catch (error) {
+                                toast.error(
+                                  error instanceof Error
+                                    ? error.message
+                                    : "Could not link inventory record.",
+                                );
+                              }
+                            }}
+                          >
+                            Link
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="rounded-md border border-dashed border-border px-3 py-4 text-[12px] text-muted-foreground">
+              No applied inventory records yet. Apply a validated feed to create records for
+              moderation linking.
+            </p>
+          )}
         </section>
       ) : null}
 

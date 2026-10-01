@@ -184,6 +184,48 @@ export const getCheckoutReadiness = createServerFn({ method: "GET" }).handler(as
   ready: stripeCheckoutReady(),
 }));
 
+/**
+ * Operator-only deployment check. This reports configuration state without
+ * exposing any secret value and refuses to describe live mode as safe for a
+ * test transaction.
+ */
+export const getPaymentEnvironmentReadiness = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: isAdmin, error } = await (supabaseAdmin as any).rpc("has_role", {
+      _user_id: context.userId,
+      _role: "admin",
+    });
+    if (error) throw new Error(error.message);
+    if (!isAdmin) throw new Error("Operator access required.");
+
+    const values = [
+      serverEnv("STRIPE_SECRET_KEY"),
+      serverEnv("STRIPE_CONNECT_WEBHOOK_SECRET"),
+      serverEnv("STRIPE_WEBHOOK_SECRET"),
+    ].map((value) => value.trim());
+    const secret = values.find((value) => value.startsWith("sk_") || value.startsWith("rk_")) ?? "";
+    const webhook = values.find((value) => value.startsWith("whsec_")) ?? "";
+    const testMode = secret.startsWith("sk_test_") || secret.startsWith("rk_test_");
+    const liveMode = secret.startsWith("sk_live_") || secret.startsWith("rk_live_");
+    return {
+      configured: Boolean(secret && webhook),
+      testMode,
+      liveMode,
+      safeForTestExecution: Boolean(secret && webhook && testMode),
+      message: !secret
+        ? "Stripe API credentials are not configured."
+        : !webhook
+          ? "Stripe webhook signing secret is not configured."
+          : liveMode
+            ? "Live Stripe credentials are configured; test execution is blocked."
+            : testMode
+              ? "Stripe test mode is configured."
+              : "Stripe credentials use an unsupported mode.",
+    };
+  });
+
 export const getCheckoutShippingRates = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: { askId: string; address: CheckoutAddress }) => ({

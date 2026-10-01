@@ -17,6 +17,7 @@ import {
   dealerInventoryFeedJsonV1 as sampleJson,
   dealerInventoryFeedXmlV1 as sampleXml,
 } from "../src/config/dealer-inventory-sample.ts";
+import { scheduleIntervalMinutes, scheduleIsDue } from "../src/lib/dealer-inventory-schedule.ts";
 
 test("parses and normalizes a dealership CSV feed", () => {
   const result = parseAndNormalizeInventoryCsv(dealerInventoryFeedV1);
@@ -141,4 +142,15 @@ test("stale detection protects sold and removed inventory", () => {
   const diff = calculateInventoryDiff(incoming, existing);
   assert.equal(diff.updated, 1);
   assert.equal(diff.stale, 0);
+});
+
+test("scheduled inventory sources only run when their interval is due", () => {
+  const now = new Date("2026-10-01T12:00:00.000Z");
+  assert.equal(scheduleIntervalMinutes("every 15 minutes"), 15);
+  assert.equal(scheduleIntervalMinutes("daily at 14:00"), 1440);
+  assert.equal(scheduleIsDue("hourly", "2026-10-01T11:30:00.000Z", now), false);
+  assert.equal(scheduleIsDue("hourly", "2026-10-01T10:30:00.000Z", now), true);
+  assert.equal(scheduleIsDue("daily at 14:00", null, now), false);
+  assert.equal(scheduleIsDue("daily at 10:00", null, now), true);
+  assert.equal(scheduleIsDue("whenever", null, now), false);
 });
