@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- saved-search JSON supports category-specific filters */
 import { emailSavedSearchMatch } from "./email-notifications.server";
+import { matchesLeaseLength } from "./classifieds-query";
 
 type SavedSearchRow = {
   id: string;
@@ -108,8 +109,7 @@ function matches(search: Record<string, unknown>, listing: ListingRow) {
     leaseFilter &&
     !String(leaseFilter)
       .split(",")
-      .map((item) => item.match(/\d+/)?.[0] ?? item.trim())
-      .some((item) => text(details["home_lease_length"]).includes(text(item)))
+      .some((item) => matchesLeaseLength(details["home_lease_length"], item))
   )
     return false;
   if (

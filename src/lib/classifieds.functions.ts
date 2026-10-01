@@ -24,6 +24,8 @@ import {
 import {
   comparableJobPay,
   isInvertedRange,
+  matchesLeaseLength,
+  optionalNonNegativeInteger,
   optionalNonNegativeNumber,
 } from "@/lib/classifieds-query";
 
@@ -1166,14 +1168,9 @@ function mockMatches(
   if (!matchesAnyText(listing.home?.schoolDistrict, data.homeSchoolDistrict)) return false;
   if (
     data.homeLeaseLength &&
-    !filterValues(data.homeLeaseLength).some((item) => {
-      const wanted = item.toLowerCase();
-      if (wanted.includes("month") && /\d+/.test(wanted)) {
-        const months = wanted.match(/\d+/)?.[0];
-        return listing.home?.leaseLength?.toLowerCase().includes(months ?? "");
-      }
-      return listing.home?.leaseLength?.toLowerCase().includes(wanted);
-    })
+    !filterValues(data.homeLeaseLength).some((item) =>
+      matchesLeaseLength(listing.home?.leaseLength, item),
+    )
   )
     return false;
   if (!matchesAnyText(listing.home?.available, data.homeAvailable)) return false;
@@ -1345,6 +1342,9 @@ const filterValues = (value: string | undefined) =>
 const num = (value: unknown) => {
   return optionalNonNegativeNumber(value);
 };
+const integerNum = (value: unknown) => {
+  return optionalNonNegativeInteger(value);
+};
 
 export const browseClassifieds = createServerFn({ method: "GET" })
   .validator((input: ClassifiedBrowseInput): ClassifiedBrowseInput => ({
@@ -1358,7 +1358,7 @@ export const browseClassifieds = createServerFn({ method: "GET" })
     homeBedroomsMin: num(input?.homeBedroomsMin),
     homeBathroomsMin: num(input?.homeBathroomsMin),
     homeSquareFeetMin: num(input?.homeSquareFeetMin),
-    homeYearBuiltMin: num(input?.homeYearBuiltMin),
+    homeYearBuiltMin: integerNum(input?.homeYearBuiltMin),
     homeAcresMin: num(input?.homeAcresMin),
     homeHeating: text(input?.homeHeating, 80),
     homeCooling: text(input?.homeCooling, 80),
@@ -1401,9 +1401,9 @@ export const browseClassifieds = createServerFn({ method: "GET" })
     priceMax: num(input?.priceMax),
     make: text(input?.make),
     model: text(input?.model),
-    yearMin: num(input?.yearMin),
-    yearMax: num(input?.yearMax),
-    mileageMax: num(input?.mileageMax),
+    yearMin: integerNum(input?.yearMin),
+    yearMax: integerNum(input?.yearMax),
+    mileageMax: integerNum(input?.mileageMax),
     bodyStyle: text(input?.bodyStyle, 30),
     transmission: text(input?.transmission, 30),
     drivetrain: text(input?.drivetrain, 20),

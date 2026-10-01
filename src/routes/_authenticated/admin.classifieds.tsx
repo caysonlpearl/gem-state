@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -297,12 +297,28 @@ function ClassifiedReportRow({ report }: { report: AdminClassifiedReport }) {
       toast.error(error instanceof Error ? error.message : "Could not update the listing report."),
   });
   const active = report.status === "open" || report.status === "under_review";
+  const statusLabel: Record<string, string> = {
+    open: "Open",
+    under_review: "Under review",
+    reviewed: "Reviewed",
+    dismissed: "Dismissed",
+  };
   return (
     <li className="border-b border-border p-4 last:border-b-0">
       <p className="text-[12.5px] font-semibold">{report.reason}</p>
       <p className="mt-1 text-[11.5px] text-muted-foreground">
         Listing {report.listingId} · {new Date(report.createdAt).toLocaleString()}
       </p>
+      <Link
+        to="/listings/$listingId"
+        params={{ listingId: report.listingId }}
+        className="mt-2 inline-flex text-[11.5px] font-semibold text-primary underline-offset-2 hover:underline"
+      >
+        Open reported listing
+      </Link>
+      <span className="ml-3 rounded-full bg-secondary px-2 py-1 text-[10.5px] font-semibold">
+        {statusLabel[report.status] ?? "Needs review"}
+      </span>
       {report.details && <p className="mt-2 text-[12px] leading-relaxed">{report.details}</p>}
       <label className="mt-3 block text-[11.5px] font-medium">
         Operator note

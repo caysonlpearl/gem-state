@@ -53,6 +53,7 @@ import { toast } from "sonner";
 import {
   comparableJobPay,
   isInvertedRange,
+  optionalNonNegativeInteger,
   optionalNonNegativeNumber,
 } from "@/lib/classifieds-query";
 import {
@@ -1459,6 +1460,10 @@ function numberParam(search: Record<string, unknown>, key: string) {
   return optionalNonNegativeNumber(search[key]);
 }
 
+function integerParam(search: Record<string, unknown>, key: string) {
+  return optionalNonNegativeInteger(search[key]);
+}
+
 function thresholdValue(value: string | undefined) {
   const match = value?.match(/[0-9]+(?:\.[0-9]+)?/);
   const parsed = match ? Number(match[0]) : undefined;
@@ -1561,6 +1566,125 @@ function inputFromSearch(search: Search): ClassifiedBrowseInput {
   };
 }
 
+const vehicleSearchKeys: readonly (keyof Search)[] = [
+  "make",
+  "model",
+  "yearMin",
+  "yearMax",
+  "mileageMax",
+  "mileageBands",
+  "bodyStyle",
+  "transmission",
+  "drivetrain",
+  "fuelType",
+  "exteriorColor",
+  "titleStatus",
+];
+const petSearchKeys: readonly (keyof Search)[] = [
+  "petMode",
+  "petSubcategory",
+  "petSpecies",
+  "petBreed",
+  "petPlacementType",
+  "petOfferedBy",
+  "petSex",
+  "petAge",
+  "petHypoallergenic",
+  "petVaccinated",
+  "petSpayedNeutered",
+  "petMicrochipped",
+  "petRecordsAvailable",
+  "petGoodWithKids",
+  "petGoodWithDogs",
+  "petGoodWithCats",
+  "petIndoorOutdoor",
+];
+const jobSearchKeys: readonly (keyof Search)[] = [
+  "jobMode",
+  "jobCategory",
+  "jobEmployer",
+  "jobEmploymentType",
+  "jobType",
+  "jobPayType",
+  "jobPayMin",
+  "jobPayMax",
+  "jobExperience",
+  "jobPosted",
+  "jobEducation",
+  "jobPhotos",
+  "jobVideo",
+  "jobTimeOnSite",
+];
+const serviceSearchKeys: readonly (keyof Search)[] = [
+  "serviceMode",
+  "serviceSubcategory",
+  "serviceExpandSearch",
+  "servicePhotos",
+  "serviceVideo",
+  "serviceSellerType",
+  "serviceCondition",
+  "serviceTimeOnSite",
+  "serviceArea",
+  "serviceAvailability",
+  "serviceLicenseRequired",
+];
+const homeSearchKeys: readonly (keyof Search)[] = [
+  "homeMode",
+  "homeTab",
+  "homeLocation",
+  "homePrice",
+  "propertyType",
+  "bedrooms",
+  "bathrooms",
+  "homeSquareFeet",
+  "homeBuilder",
+  "constructionType",
+  "homeAcres",
+  "homeSellerType",
+  "petsCats",
+  "petsDogs",
+  "homeAmenities",
+  "communityAmenities",
+  "leaseLength",
+  "homeYearBuilt",
+  "homeHeating",
+  "homeCooling",
+  "homeGarageParking",
+  "homeYard",
+  "homeSchoolDistrict",
+  "homeAvailable",
+  "homePetsPolicy",
+  "homeSmokingPolicy",
+];
+
+function normalizeBrowseSearch(search: Search): Search {
+  const next = { ...search };
+  const clear = (keys: readonly (keyof Search)[]) => {
+    for (const key of keys) next[key] = undefined;
+  };
+  const motors = next.group === "motors" || isMotorsCategory(next.category);
+  const pets = next.category === "pets";
+  const jobs = next.category === "jobs";
+  const services = next.category === "services";
+  const homes = next.category === "other-real-estate";
+
+  if (!motors) clear(vehicleSearchKeys);
+  if (!pets) clear(petSearchKeys);
+  if (!jobs) clear(jobSearchKeys);
+  if (!services) clear(serviceSearchKeys);
+  if (!homes) clear(homeSearchKeys);
+
+  if (pets) {
+    const species = normalizePetSpecies(next.petSpecies);
+    const subcategory = normalizePetSubcategory(next.petSubcategory);
+    next.petSpecies = species;
+    next.petSubcategory = isPetSelectionCompatible(species, subcategory) ? subcategory : undefined;
+    if (!next.petSubcategory) next.petBreed = undefined;
+  }
+  if (homes && next.homeTab === undefined) next.homeTab = "buy";
+  return next;
+}
+
 export const Route = createFileRoute("/browse")({
   validateSearch: (search: Record<string, unknown>): Search => {
     const group = stringParam(search, "group", 20);
@@ -1574,7 +1698,7 @@ export const Route = createFileRoute("/browse")({
     const petMode = stringParam(search, "petMode", 10);
     const savedSearchId = stringParam(search, "savedSearchId", 64);
     const page = Number(search["page"]);
-    return {
+    const parsed: Search = {
       allCategories:
         search["allCategories"] === true || stringParam(search, "allCategories", 5) === "true",
       q: stringParam(search, "q"),
@@ -1591,9 +1715,9 @@ export const Route = createFileRoute("/browse")({
       priceMax: numberParam(search, "priceMax"),
       make: stringParam(search, "make"),
       model: stringParam(search, "model"),
-      yearMin: numberParam(search, "yearMin"),
-      yearMax: numberParam(search, "yearMax"),
-      mileageMax: numberParam(search, "mileageMax"),
+      yearMin: integerParam(search, "yearMin"),
+      yearMax: integerParam(search, "yearMax"),
+      mileageMax: integerParam(search, "mileageMax"),
       bodyStyle: stringParam(search, "bodyStyle", 30),
       transmission: stringParam(search, "transmission", 30),
       drivetrain: stringParam(search, "drivetrain", 20),
@@ -1654,7 +1778,7 @@ export const Route = createFileRoute("/browse")({
       homeAmenities: stringParam(search, "homeAmenities", 600),
       communityAmenities: stringParam(search, "communityAmenities", 800),
       leaseLength: stringParam(search, "leaseLength", 30),
-      homeYearBuilt: numberParam(search, "homeYearBuilt"),
+      homeYearBuilt: integerParam(search, "homeYearBuilt"),
       homeHeating: stringParam(search, "homeHeating", 80),
       homeCooling: stringParam(search, "homeCooling", 80),
       homeGarageParking: stringParam(search, "homeGarageParking", 120),
@@ -1682,6 +1806,7 @@ export const Route = createFileRoute("/browse")({
       itemDetailKey: stringParam(search, "itemDetailKey", 60),
       itemDetailValue: stringParam(search, "itemDetailValue", 200),
     };
+    return normalizeBrowseSearch(parsed);
   },
   head: () => ({
     meta: [
@@ -1872,9 +1997,9 @@ function Browse() {
       priceMax: numeric("priceMax"),
       make: nextMotors ? value("make") : undefined,
       model: nextMotors ? value("model") : undefined,
-      yearMin: nextMotors ? numeric("yearMin") : undefined,
-      yearMax: nextMotors ? numeric("yearMax") : undefined,
-      mileageMax: nextMotors ? numeric("mileageMax") : undefined,
+      yearMin: nextMotors ? optionalNonNegativeInteger(value("yearMin")) : undefined,
+      yearMax: nextMotors ? optionalNonNegativeInteger(value("yearMax")) : undefined,
+      mileageMax: nextMotors ? optionalNonNegativeInteger(value("mileageMax")) : undefined,
       bodyStyle: nextMotors ? value("bodyStyle") : undefined,
       transmission: nextMotors ? value("transmission") : undefined,
       drivetrain: nextMotors ? value("drivetrain") : undefined,
@@ -2073,6 +2198,7 @@ function Browse() {
         <VehicleResultsPage
           search={search}
           result={result}
+          onClear={() => void navigate({ to: "/browse", search: clearSearch() })}
           onApply={(patch) =>
             void navigate({ to: "/browse", search: scoped({ vehicleMode: "results", ...patch }) })
           }
@@ -2118,6 +2244,7 @@ function Browse() {
           activeTab={homeTab}
           search={search}
           resultCount={result.total}
+          onClear={() => void navigate({ to: "/browse", search: clearSearch() })}
           onTabChange={(tab) =>
             void navigate({
               to: "/browse",
@@ -2209,6 +2336,8 @@ function Browse() {
         <JobsFilterPage
           search={search}
           listings={result.listings}
+          total={result.total}
+          onClear={() => void navigate({ to: "/browse", search: clearSearch() })}
           onApply={(patch) =>
             void navigate({
               to: "/browse",
@@ -2258,6 +2387,8 @@ function Browse() {
         <ServicesFilterPage
           search={search}
           listings={result.listings}
+          total={result.total}
+          onClear={() => void navigate({ to: "/browse", search: clearSearch() })}
           onApply={(patch) =>
             void navigate({
               to: "/browse",
@@ -6325,12 +6456,16 @@ function ServicesCategoryShowcase({
 function ServicesFilterPage({
   search,
   listings,
+  total,
+  onClear,
   onApply,
   onSave,
   onPost,
 }: {
   search: Search;
   listings: ClassifiedBrowseResult["listings"];
+  total: number;
+  onClear: () => void;
   onApply: (patch: Partial<Search>) => void;
   onSave: (patch?: Partial<Search>) => void;
   onPost: () => void;
@@ -6565,7 +6700,7 @@ function ServicesFilterPage({
               onClick={apply}
               className="h-11 w-full rounded-xl bg-primary text-[12px] font-bold text-primary-foreground hover:opacity-90"
             >
-              Show {sortedListings.length.toLocaleString()} results
+              Show {total.toLocaleString()} results
             </button>
           </aside>
         )}
@@ -6573,8 +6708,8 @@ function ServicesFilterPage({
         <section aria-label="Service listings">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
             <p className="text-[13px] text-muted-foreground">
-              <strong className="numeric text-foreground">{sortedListings.length}</strong>{" "}
-              {sortedListings.length === 1 ? "service" : "services"} in Idaho
+              <strong className="numeric text-foreground">{total}</strong>{" "}
+              {total === 1 ? "service" : "services"} in Idaho
             </p>
             <label className="flex items-center gap-2 text-[12px] text-muted-foreground">
               Sort by
@@ -6604,17 +6739,7 @@ function ServicesFilterPage({
               </p>
               <button
                 type="button"
-                onClick={() =>
-                  onApply({
-                    q: undefined,
-                    serviceSubcategory: undefined,
-                    serviceArea: undefined,
-                    serviceAvailability: undefined,
-                    serviceLicenseRequired: undefined,
-                    priceMin: undefined,
-                    priceMax: undefined,
-                  })
-                }
+                onClick={onClear}
                 className="mt-4 inline-flex h-9 items-center rounded-md border border-input px-3 text-[12px] font-semibold hover:bg-secondary"
               >
                 Clear filters
@@ -6894,12 +7019,16 @@ function JobsLandingHero({
 function JobsFilterPage({
   search,
   listings,
+  total,
+  onClear,
   onApply,
   onSave,
   onPost,
 }: {
   search: Search;
   listings: ClassifiedBrowseResult["listings"];
+  total: number;
+  onClear: () => void;
   onApply: (patch: Partial<Search>) => void;
   onSave: (patch?: Partial<Search>) => void;
   onPost: () => void;
@@ -6935,6 +7064,7 @@ function JobsFilterPage({
 
   function currentPatch(): Partial<Search> {
     const numberValue = (value: string) => optionalNonNegativeNumber(value);
+    const integerValue = (value: string) => optionalNonNegativeInteger(value);
     return {
       q: term.trim() || undefined,
       jobCategory: category || undefined,
@@ -7150,8 +7280,8 @@ function JobsFilterPage({
         <section aria-label="Job listings">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
             <p className="text-[13px] text-muted-foreground">
-              <strong className="numeric text-foreground">{sortedListings.length}</strong>{" "}
-              {sortedListings.length === 1 ? "job" : "jobs"} in Idaho
+              <strong className="numeric text-foreground">{total}</strong>{" "}
+              {total === 1 ? "job" : "jobs"} in Idaho
             </p>
             <label className="flex items-center gap-2 text-[12px] text-muted-foreground">
               Sort by
@@ -7181,15 +7311,7 @@ function JobsFilterPage({
               </p>
               <button
                 type="button"
-                onClick={() =>
-                  onApply({
-                    q: undefined,
-                    jobType: undefined,
-                    jobPayType: undefined,
-                    jobPayMin: undefined,
-                    jobPayMax: undefined,
-                  })
-                }
+                onClick={onClear}
                 className="mt-4 inline-flex h-9 items-center rounded-md border border-input px-3 text-[12px] font-semibold hover:bg-secondary"
               >
                 Clear filters
@@ -7362,6 +7484,7 @@ function HomesFilterPage({
   activeTab,
   search,
   resultCount,
+  onClear,
   onTabChange,
   onApply,
   onSave,
@@ -7369,6 +7492,7 @@ function HomesFilterPage({
   activeTab: HomeTab;
   search: Search;
   resultCount: number;
+  onClear: () => void;
   onTabChange: (tab: HomeTab) => void;
   onApply: (patch: Partial<Search>) => void;
   onSave: (patch?: Partial<Search>) => void;
@@ -7683,6 +7807,13 @@ function HomesFilterPage({
           {showAll ? "Hide all filters" : "All filters"}
           <CaretDown size={14} className={showAll ? "rotate-180" : ""} aria-hidden="true" />
         </button>
+        <button
+          type="button"
+          onClick={onClear}
+          className="text-[12px] font-semibold text-primary underline-offset-2 hover:underline"
+        >
+          Clear filters
+        </button>
       </div>
 
       {showAll && (
@@ -7952,12 +8083,14 @@ function HomeMultiSelectControl({
 function VehicleResultsPage({
   search,
   result,
+  onClear,
   onApply,
   onSave,
   onSell,
 }: {
   search: Search;
   result: ClassifiedBrowseResult;
+  onClear: () => void;
   onApply: (patch: Partial<Search>) => void;
   onSave: (patch?: Partial<Search>) => void;
   onSell: () => void;
@@ -8024,8 +8157,8 @@ function VehicleResultsPage({
       q: term.trim() || undefined,
       make: make || undefined,
       model: model || undefined,
-      yearMin: numberValue(yearMin),
-      yearMax: numberValue(yearMax),
+      yearMin: integerValue(yearMin),
+      yearMax: integerValue(yearMax),
       priceMin: numberValue(priceMin),
       priceMax: numberValue(priceMax),
       mileageBands: mileageBands || undefined,
@@ -8081,6 +8214,13 @@ function VehicleResultsPage({
               Sell
             </button>
           </div>
+          <button
+            type="button"
+            onClick={onClear}
+            className="text-[12px] font-semibold text-primary underline-offset-2 hover:underline"
+          >
+            Clear filters
+          </button>
         </div>
         <form
           className="mt-5 grid gap-2 sm:grid-cols-[1fr_auto]"

@@ -7,6 +7,7 @@ const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 const configSource = await read("src/config/classifieds.ts");
 const petsConfigSource = await read("src/config/pets.ts");
 const browseSource = await read("src/routes/browse.tsx");
+const querySource = await read("src/lib/classifieds-query.ts");
 const createSource = await read("src/routes/_authenticated/create-listing.tsx");
 const listingFormSource = await read("src/components/classifieds/listing-form/ListingForm.tsx");
 const vehicleFieldsSource = await read("src/components/classifieds/listing-form/VehicleFields.tsx");
@@ -1228,6 +1229,16 @@ test("jobs browse has a landing hero and expanded local job filters", () => {
   ]) {
     assert.match(browseSource, new RegExp(row));
   }
+});
+
+test("discrete browse inputs reject decimals and lease filters match whole month values", () => {
+  assert.match(querySource, /optionalNonNegativeInteger/);
+  assert.match(querySource, /Number\.isInteger\(parsed\)/);
+  assert.match(querySource, /matchesLeaseLength/);
+  assert.match(
+    classifiedsFunctionsSource,
+    /matchesLeaseLength\(listing\.home\?\.leaseLength, item\)/,
+  );
 });
 
 test("jobs browse results use real listing data, not static placeholder cards", () => {

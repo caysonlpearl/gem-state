@@ -10,6 +10,16 @@ export function optionalNonNegativeNumber(value: unknown): number | undefined {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
 }
 
+/**
+ * Integer-only variant for fields whose saved data is discrete (years and
+ * mileage). Decimal input is treated as invalid instead of being silently
+ * rounded into a different search.
+ */
+export function optionalNonNegativeInteger(value: unknown): number | undefined {
+  const parsed = optionalNonNegativeNumber(value);
+  return parsed != null && Number.isInteger(parsed) ? parsed : undefined;
+}
+
 export function isInvertedRange(min: number | undefined, max: number | undefined) {
   return min != null && max != null && min > max;
 }
@@ -25,4 +35,20 @@ export function comparableJobPay(payType: unknown, payMin: unknown) {
   const amount = optionalNonNegativeNumber(payMin);
   if (amount == null) return Number.POSITIVE_INFINITY;
   return payType === "Hourly" ? amount * 2080 : amount;
+}
+
+/** Match lease labels by whole month values so `1 month` cannot match `12 months`. */
+export function matchesLeaseLength(actual: unknown, requested: unknown) {
+  if (typeof actual !== "string" || typeof requested !== "string") return false;
+  const actualLabel = actual.trim().toLowerCase();
+  const requestedLabel = requested.trim().toLowerCase();
+  if (!actualLabel || !requestedLabel) return false;
+  if (requestedLabel === "month-to-month") {
+    return actualLabel.includes("month-to-month") || actualLabel.includes("month to month");
+  }
+  const requestedMonths = requestedLabel.match(/\d+/)?.[0];
+  if (requestedMonths) {
+    return (actualLabel.match(/\d+/g) ?? []).some((value) => value === requestedMonths);
+  }
+  return actualLabel.includes(requestedLabel);
 }
