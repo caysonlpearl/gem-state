@@ -813,18 +813,22 @@ function ListingDetail() {
 
     try {
       if (typeof navigator.share === "function") {
-        try {
-          await navigator.share({
+        const shareAttempt = navigator
+          .share({
             title,
             text: `Check out ${title} on ${brand.name}`,
             url: shareUrl,
+          })
+          .then(() => "shared" as const)
+          .catch((error: unknown) => {
+            if (error instanceof DOMException && error.name === "AbortError") return "aborted" as const;
+            return "fallback" as const;
           });
-          return;
-        } catch (error) {
-          if (error instanceof DOMException && error.name === "AbortError") return;
-          // Native sharing can be unavailable in an embedded browser even
-          // when the API exists. Continue to the copy fallback below.
-        }
+        const shareResult = await Promise.race([
+          shareAttempt,
+          new Promise<"fallback">((resolve) => window.setTimeout(() => resolve("fallback"), 1200)),
+        ]);
+        if (shareResult === "shared" || shareResult === "aborted") return;
       }
 
       if (await copyListingUrl(shareUrl)) {

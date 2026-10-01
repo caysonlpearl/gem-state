@@ -1355,6 +1355,13 @@ test("listing detail keeps a responsive photo gallery and floating action card",
   assert.match(detailSource, /Array\.from\(\{ length: 5 \}/);
 });
 
+test("listing sharing falls back when embedded native share never resolves", () => {
+  assert.match(detailSource, /Promise\.race\(\[/);
+  assert.match(detailSource, /window\.setTimeout\(\(\) => resolve\("fallback"\), 1200\)/);
+  assert.match(detailSource, /Listing link copied\./);
+  assert.match(detailSource, /Sharing is not available in this browser\./);
+});
+
 test("general classifieds have mock detail fixtures without changing category setup", () => {
   assert.match(mockListingsSource, /mock-general-squishmallows/);
   assert.match(mockListingsSource, /mock-general-vintage-plush/);
