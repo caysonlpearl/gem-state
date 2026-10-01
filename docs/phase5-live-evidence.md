@@ -6,7 +6,7 @@ Browser: Codex In-app Browser
 
 ## Automated release gate
 
-`npm run test:phase5`, `npm run test:inventory`, `npm run test:release-gate`, the changed-file ESLint pass, `npm run build`, and `git diff --check` passed.
+`npm run test:phase5`, `npm run test:inventory`, the changed-file ESLint pass, `npm run build`, and `git diff --check` passed. The initial pre-publish route gate passed. A post-publish recheck on 2026-10-01 returned `500` for every live route, so live deployment health is currently blocked by the hosted runtime and is not claimed as verified.
 
 The live route gate returned the following verified states:
 
@@ -21,6 +21,8 @@ The live route gate returned the following verified states:
 - `200 /buying`
 - `200 /watchlist`
 - `401 /api/internal/dealer-inventory` without the internal secret
+
+Post-publish recheck: `/`, `/browse`, `/policies`, `/safety`, `/contact`, `/account`, `/create-listing`, `/selling`, `/buying`, `/watchlist`, and `/api/internal/dealer-inventory` all returned `500` from the hosted site. The local production preview remained healthy after media-signing failures were made recoverable; the hosted runtime still needs its deployment/environment issue resolved.
 
 ## Responsive and keyboard matrix
 
@@ -48,4 +50,3 @@ No production-wide settings, real user records, payment credentials, or permanen
 ## Observability checks
 
 Browser error and unhandled-rejection listeners are installed at the root. Listing submission, search, mutation, slow-mutation, and browser-error events are recorded with bounded/redacted properties. The admin validation workspace exposes the reliability event group. Mutation latency uses a 1.5 second default threshold (1 second for searches), with slow events emitted separately.
-
