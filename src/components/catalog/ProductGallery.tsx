@@ -97,6 +97,7 @@ export function ProductGallery({ images, model, productName }: ProductGalleryPro
   const [viewMode, setViewMode] = useState<"model" | "photo">(
     model && !hasSpin ? "model" : "photo",
   );
+  const [modelViewerReady, setModelViewerReady] = useState(false);
   const dragStart = useRef<{ x: number; frame: number } | null>(null);
 
   useEffect(() => {
@@ -105,8 +106,32 @@ export function ProductGallery({ images, model, productName }: ProductGalleryPro
   }, [hasSpin, images, model]);
 
   useEffect(() => {
-    if (!model) return;
-    void import("@google/model-viewer");
+    if (!model || typeof window === "undefined") return;
+
+    if (customElements.get("model-viewer")) {
+      setModelViewerReady(true);
+      return;
+    }
+
+    // Load the browser-only custom element after hydration. Importing the
+    // package from the server bundle evaluates HTMLElement during SSR and
+    // takes down every hosted route before React can render.
+    const existingScript = document.querySelector<HTMLScriptElement>(
+      'script[data-bluebird-model-viewer="true"]',
+    );
+    const script = existingScript ?? document.createElement("script");
+    if (!existingScript) {
+      script.type = "module";
+      script.src = "https://unpkg.com/@google/model-viewer@4.3.1/dist/model-viewer.min.js";
+      script.dataset.bluebirdModelViewer = "true";
+      document.head.appendChild(script);
+    }
+
+    const markReady = () => setModelViewerReady(true);
+    script.addEventListener("load", markReady, { once: true });
+    void customElements.whenDefined("model-viewer").then(markReady);
+
+    return () => script.removeEventListener("load", markReady);
   }, [model]);
 
   useEffect(() => {
@@ -132,7 +157,7 @@ export function ProductGallery({ images, model, productName }: ProductGalleryPro
 
   const activeImage = displayImages[activeIndex] ?? displayImages[0];
   const activeAngle = hasSpin ? spinFrames[activeIndex]?.angleDegrees : null;
-  const showModel = Boolean(model && viewMode === "model");
+  const showModel = Boolean(model && modelViewerReady && viewMode === "model");
 
   function moveFrame(direction: number) {
     setActiveIndex((current) => wrapFrame(current + direction, displayImages.length));
