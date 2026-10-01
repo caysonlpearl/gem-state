@@ -3,6 +3,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { publicServerClient } from "@/lib/supabase-public.server";
+import { browseClassifieds, type ClassifiedCard } from "@/lib/classifieds.functions";
 
 const dealerInput = z.object({
   legalName: z.string().trim().min(2).max(160),
@@ -53,6 +55,55 @@ export type DealerMemberSummary = {
   status: "active" | "invited" | "disabled";
   created_at: string;
 };
+
+export type PublicDealerProfile = {
+  id: string;
+  legalName: string;
+  displayName: string;
+  slug: string;
+  phone: string | null;
+  email: string | null;
+  website: string | null;
+  addressLine1: string | null;
+  city: string | null;
+  state: string | null;
+  postalCode: string | null;
+  logoUrl: string | null;
+  description: string | null;
+  listings: ClassifiedCard[];
+};
+
+export const getPublicDealer = createServerFn({ method: "GET" })
+  .validator((input: unknown) => z.object({ slug: z.string().trim().toLowerCase().min(1).max(80) }).parse(input))
+  .handler(async ({ data }): Promise<PublicDealerProfile | null> => {
+    const client = publicServerClient();
+    const { data: dealer, error } = await client
+      .from("dealer_profiles")
+      .select("id,legal_name,display_name,slug,phone,email,website,address_line1,city,state,postal_code,logo_url,description")
+      .eq("slug", data.slug)
+      .eq("status", "ready")
+      .not("agreements_accepted_at", "is", null)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!dealer) return null;
+    const result = await browseClassifieds({ data: { dealerSlug: data.slug, page: 1, sort: "newest" } });
+    return {
+      id: dealer.id,
+      legalName: dealer.legal_name,
+      displayName: dealer.display_name,
+      slug: dealer.slug,
+      phone: dealer.phone,
+      email: dealer.email,
+      website: dealer.website,
+      addressLine1: dealer.address_line1,
+      city: dealer.city,
+      state: dealer.state,
+      postalCode: dealer.postal_code,
+      logoUrl: dealer.logo_url,
+      description: dealer.description,
+      listings: result.listings,
+    };
+  });
 
 async function requireDealerManager(context: { supabase: unknown; userId: string }, dealerId: string) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

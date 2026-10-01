@@ -1282,6 +1282,7 @@ export type ClassifiedBrowseInput = {
   city?: string | undefined;
   postalCode?: string | undefined;
   sellerSlug?: string | undefined;
+  dealerSlug?: string | undefined;
   condition?: string | undefined;
   fulfillment?: string | undefined;
   priceMin?: number | undefined;
@@ -1376,6 +1377,7 @@ export const browseClassifieds = createServerFn({ method: "GET" })
     city: text(input?.city),
     postalCode: text(input?.postalCode, 12)?.replace(/[^0-9-]/g, ""),
     sellerSlug: text(input?.sellerSlug, 60),
+    dealerSlug: text(input?.dealerSlug, 80),
     condition:
       filterValues(text(input?.condition, 120))
         .filter((value) => conditionValues.includes(value as never))
@@ -1509,6 +1511,17 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
         .maybeSingle();
       if (!seller?.user_id) return empty;
       query = query.eq("seller_id", seller.user_id);
+    }
+    if (data.dealerSlug) {
+      const { data: dealer } = await client
+        .from("dealer_profiles")
+        .select("id")
+        .eq("slug", data.dealerSlug)
+        .eq("status", "ready")
+        .not("agreements_accepted_at", "is", null)
+        .maybeSingle();
+      if (!dealer?.id) return empty;
+      query = query.eq("dealer_id", dealer.id);
     }
     if (data.condition) {
       const conditions = filterValues(data.condition).filter((value) =>
