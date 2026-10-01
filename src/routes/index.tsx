@@ -260,15 +260,20 @@ function Home() {
             Bluebird classifieds
           </p>
           <h1 className="homepage-hero-headline mt-3 max-w-[34ch] text-[34px] font-bold leading-[1.08] tracking-tight sm:text-[48px]">
-            Find{" "}
-            <span
-              key={headlineItems.join("|")}
-              className="classifieds-hero-rotating-item text-brand-blue"
-              aria-live="polite"
-            >
-              {headlineItems[0]}
-            </span>{" "}
-            to {headlineItems[1]} to {headlineItems[2]} to {headlineItems[3]}.
+            <span className="block">
+              Find{" "}
+              <span
+                key={headlineItems.join("|")}
+                className="classifieds-hero-rotating-item text-brand-blue"
+                aria-live="polite"
+              >
+                {headlineItems[0]}
+              </span>{" "}
+              to {headlineItems[1]} to
+            </span>
+            <span className="block">
+              {headlineItems[2]} to {headlineItems[3]}.
+            </span>
           </h1>
           <p className="mt-4 max-w-[56ch] text-[15px] leading-relaxed text-muted-foreground">
             And so much more across Idaho and surrounding states.
