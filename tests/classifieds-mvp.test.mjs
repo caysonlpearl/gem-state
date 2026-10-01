@@ -146,6 +146,11 @@ test("vehicle sort control updates the canonical browse query", () => {
   assert.match(browseSource, /onChange=\{\(event\) => onApply\(\{ sort: event\.target\.value as Sort \}\)\}/);
 });
 
+test("public browse suppresses preview fixtures that duplicate persisted listings", () => {
+  assert.match(classifiedsFunctionsSource, /function previewListingKey\(listing: ClassifiedCard\)/);
+  assert.match(classifiedsFunctionsSource, /!listings\.some\(\(persisted\) => previewListingKey\(persisted\) === key\)/);
+});
+
 test("scoped seller and dealership inventory excludes preview fixtures", () => {
   assert.match(classifiedsFunctionsSource, /const scopedToOwner = Boolean\(data\.dealerSlug \|\| data\.sellerSlug\)/);
   assert.match(classifiedsFunctionsSource, /page === 1 && !scopedToOwner/);

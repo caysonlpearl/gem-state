@@ -1005,6 +1005,16 @@ function toCard(row: Record<string, unknown>, urlByPath: Map<string, string>): C
   };
 }
 
+function previewListingKey(listing: ClassifiedCard) {
+  return [
+    listing.title.trim().toLowerCase(),
+    listing.categorySlug ?? "",
+    listing.priceCents,
+    listing.city.trim().toLowerCase(),
+    listing.state.trim().toUpperCase(),
+  ].join("|");
+}
+
 function mockCard(listing: (typeof mockClassifiedListings)[number]): ClassifiedCard {
   return {
     id: listing.id,
@@ -1768,7 +1778,16 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     const scopedToOwner = Boolean(data.dealerSlug || data.sellerSlug);
     const mockListings =
       page === 1 && !scopedToOwner
-        ? mockSource.filter((listing) => mockMatches(listing, data)).map(mockCard)
+        ? mockSource
+            .filter((listing) => mockMatches(listing, data))
+            .filter((listing) => {
+              // Seeded production rows and preview fixtures can describe the
+              // same item. Keep the persisted record as the source of truth so
+              // buyers do not see duplicate cards or inflated counts.
+              const key = previewListingKey(mockCard(listing));
+              return !listings.some((persisted) => previewListingKey(persisted) === key);
+            })
+            .map(mockCard)
         : [];
     const compareListings = (a: ClassifiedCard, b: ClassifiedCard) => {
       if (data.sort === "price_low" || data.sort === "price_high") {
