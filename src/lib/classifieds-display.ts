@@ -11,6 +11,7 @@ export const fulfillmentLabels: Record<string, string> = {
   local_pickup: "Local pickup",
   shipping: "Ships",
   both: "Pickup or shipping",
+  pickup_or_shipping: "Pickup or shipping",
 };
 
 export const petPlacementLabels: Record<string, string> = {
@@ -32,6 +33,14 @@ const savedSearchFilterLabels: Record<string, string> = {
   jobType: "Job type",
   jobEmploymentType: "Employment type",
   jobPayType: "Pay type",
+  make: "Make",
+  model: "Model",
+  bodyStyle: "Body type",
+  titleStatus: "Title",
+  drivetrain: "Drive type",
+  transmission: "Transmission",
+  fuelType: "Fuel type",
+  exteriorColor: "Exterior color",
   homeTab: "Home mode",
   petSubcategory: "Pet category",
   petSpecies: "Animal",
@@ -46,24 +55,19 @@ export function formatSavedSearchFilter(key: string, value: unknown) {
     savedSearchFilterLabels[key] ??
     key.replace(/[A-Z]/g, (letter) => ` ${letter}`).replace(/^./, (letter) => letter.toUpperCase());
   const raw = Array.isArray(value) ? value.join(", ") : String(value ?? "");
-  const formatted =
-    key === "condition"
-      ? raw
-          .split(",")
-          .map((item) => conditionLabels[item.trim()] ?? item.trim())
-          .join(", ")
-      : key === "fulfillment"
-        ? raw
-            .split(",")
-            .map((item) => fulfillmentLabels[item.trim()] ?? item.trim())
-            .join(", ")
-        : key === "petPlacementType"
-          ? (petPlacementLabels[raw] ?? raw)
-          : raw === "both"
-            ? "Pickup or shipping"
-            : raw === "message"
-              ? "Message seller"
-              : raw;
+  const formatted = raw
+    .split(/\|\||,/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((item) => {
+      if (key === "condition") return conditionLabels[item] ?? item;
+      if (key === "fulfillment") return fulfillmentLabels[item] ?? item;
+      if (key === "petPlacementType") return petPlacementLabels[item] ?? item;
+      if (item === "both" || item === "pickup_or_shipping") return "Pickup or shipping";
+      if (item === "message") return "Message seller";
+      return item;
+    })
+    .join(", ");
   return `${label}: ${formatted}`;
 }
 

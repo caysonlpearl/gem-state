@@ -7,6 +7,7 @@ const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 const configSource = await read("src/config/classifieds.ts");
 const petsConfigSource = await read("src/config/pets.ts");
 const browseSource = await read("src/routes/browse.tsx");
+const displaySource = await read("src/lib/classifieds-display.ts");
 const querySource = await read("src/lib/classifieds-query.ts");
 const createSource = await read("src/routes/_authenticated/create-listing.tsx");
 const listingFormSource = await read("src/components/classifieds/listing-form/ListingForm.tsx");
@@ -83,7 +84,6 @@ const seedScriptSource = await read("scripts/seed-classifieds.mjs");
 const mediaCountMigrationSource = await read(
   "supabase/migrations/20260915140000_repair_classified_media_counts.sql",
 );
-const displaySource = await read("src/lib/classifieds-display.ts");
 const classifiedSchemaSource = await read(
   "supabase/migrations/20260913173736_32625455-cc9d-4572-a1dc-713b70e33dce.sql",
 );
@@ -650,6 +650,23 @@ test("saved searches reopen their full filters and update in place", () => {
   assert.match(browseSource, /Update saved search/);
   assert.match(accountCenterSource, /Edit filters/);
   assert.match(accountCenterSource, /params\.set\("savedSearchId", item\.id\)/);
+});
+
+test("browse URLs canonicalize legacy job and pet result parameters", () => {
+  assert.match(browseSource, /jobType:\s*stringParam\(search, "jobType", 40\)\s*\?\?/);
+  assert.match(browseSource, /stringParam\(search, "jobEmploymentType", 40\)/);
+  assert.match(browseSource, /next\.jobType = next\.jobType \?\? next\.jobEmploymentType/);
+  assert.match(browseSource, /next\.petMode = "results"/);
+  assert.match(browseSource, /petSearchKeys\.some/);
+});
+
+test("browse filter labels humanize serialized values", () => {
+  assert.match(browseSource, /formatSavedSearchFilter\("make", search\.make\)/);
+  assert.match(browseSource, /formatSavedSearchFilter\("drivetrain", search\.drivetrain\)/);
+  assert.match(browseSource, /onClick=\{\(\) => void clearFilters\(\)\}/);
+  assert.match(browseSource, /Updating results…/);
+  assert.equal(displaySource.includes(".split(/\\|\\||,/)"), true);
+  assert.match(displaySource, /pickup_or_shipping: "Pickup or shipping"/);
 });
 
 test("saved search naming works without browser prompts and preserves result modes", () => {

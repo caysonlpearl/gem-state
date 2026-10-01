@@ -443,6 +443,8 @@ const mileageBandOptions = [
   "Under 150,000 miles",
 ] as const;
 const splitVehicleFilter = (value: string | undefined) => value?.split("||").filter(Boolean) ?? [];
+const hasSearchValue = (value: unknown) =>
+  value !== undefined && value !== null && value !== "";
 const modelsForMakes = (makes: readonly string[]) =>
   [...new Set(makes.flatMap((make) => vehicleModelsByMake[make] ?? []))].sort();
 const vehicleConditionOptions = [
@@ -1675,11 +1677,23 @@ function normalizeBrowseSearch(search: Search): Search {
   if (!homes) clear(homeSearchKeys);
 
   if (pets) {
+    if (
+      next.petMode === undefined &&
+      petSearchKeys.some((key) => key !== "petMode" && hasSearchValue(next[key]))
+    ) {
+      next.petMode = "results";
+    }
     const species = normalizePetSpecies(next.petSpecies);
     const subcategory = normalizePetSubcategory(next.petSubcategory);
     next.petSpecies = species;
     next.petSubcategory = isPetSelectionCompatible(species, subcategory) ? subcategory : undefined;
     if (!next.petSubcategory) next.petBreed = undefined;
+  }
+  if (jobs) {
+    // Older shared links used jobEmploymentType. Consume that alias into the
+    // canonical jobType field so the constraint is never silently discarded.
+    next.jobType = next.jobType ?? next.jobEmploymentType;
+    next.jobEmploymentType = undefined;
   }
   if (homes && next.homeTab === undefined) next.homeTab = "buy";
   return next;
@@ -1752,8 +1766,9 @@ export const Route = createFileRoute("/browse")({
       serviceLicenseRequired: stringParam(search, "serviceLicenseRequired", 10),
       jobCategory: stringParam(search, "jobCategory", 60),
       jobEmployer: stringParam(search, "jobEmployer", 120),
-      jobEmploymentType: stringParam(search, "jobEmploymentType", 40),
-      jobType: stringParam(search, "jobType", 30),
+      jobEmploymentType: undefined,
+      jobType:
+        stringParam(search, "jobType", 40) ?? stringParam(search, "jobEmploymentType", 40),
       jobPayType: stringParam(search, "jobPayType", 30),
       jobPayMin: numberParam(search, "jobPayMin"),
       jobPayMax: numberParam(search, "jobPayMax"),
@@ -1859,6 +1874,7 @@ function Browse() {
   const [saveSearchPending, setSaveSearchPending] = useState(false);
   const [pendingSaveSearch, setPendingSaveSearch] = useState<Record<string, unknown> | null>(null);
   const [pendingFilterResultCount, setPendingFilterResultCount] = useState<number | null>(null);
+  const [isClearingFilters, setIsClearingFilters] = useState(false);
   const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const previewRequest = useRef(0);
   const saveSearch = useServerFn(createSavedSearch);
@@ -1913,6 +1929,16 @@ function Browse() {
     ) as Search;
   };
 
+  async function clearFilters() {
+    if (isClearingFilters) return;
+    setIsClearingFilters(true);
+    try {
+      await navigate({ to: "/browse", search: clearSearch() });
+    } finally {
+      setIsClearingFilters(false);
+    }
+  }
+
   const scopedWithoutVehicleFilters = (patch: Partial<Search>): Search =>
     scoped({
       make: undefined,
@@ -1964,6 +1990,20 @@ function Browse() {
           : motors
             ? "Try widening the year, price, mileage, location, or vehicle filters."
             : "Try widening the category, price, condition, location, or search terms.";
+
+  if (isClearingFilters) {
+    return (
+      <main className="mx-auto max-w-[1400px] px-4 py-10 sm:px-8">
+        <div
+          role="status"
+          aria-live="polite"
+          className="floating-card flex min-h-32 items-center justify-center px-5 text-[13px] text-muted-foreground"
+        >
+          Updating results…
+        </div>
+      </main>
+    );
+  }
 
   function searchPatchFromForm(form: HTMLFormElement): Partial<Search> {
     const values = new FormData(form);
@@ -2198,7 +2238,7 @@ function Browse() {
         <VehicleResultsPage
           search={search}
           result={result}
-          onClear={() => void navigate({ to: "/browse", search: clearSearch() })}
+          onClear={clearFilters}
           onApply={(patch) =>
             void navigate({ to: "/browse", search: scoped({ vehicleMode: "results", ...patch }) })
           }
@@ -2244,7 +2284,7 @@ function Browse() {
           activeTab={homeTab}
           search={search}
           resultCount={result.total}
-          onClear={() => void navigate({ to: "/browse", search: clearSearch() })}
+          onClear={clearFilters}
           onTabChange={(tab) =>
             void navigate({
               to: "/browse",
@@ -2337,7 +2377,7 @@ function Browse() {
           search={search}
           listings={result.listings}
           total={result.total}
-          onClear={() => void navigate({ to: "/browse", search: clearSearch() })}
+          onClear={clearFilters}
           onApply={(patch) =>
             void navigate({
               to: "/browse",
@@ -2388,7 +2428,7 @@ function Browse() {
           search={search}
           listings={result.listings}
           total={result.total}
-          onClear={() => void navigate({ to: "/browse", search: clearSearch() })}
+          onClear={clearFilters}
           onApply={(patch) =>
             void navigate({
               to: "/browse",
@@ -3014,13 +3054,13 @@ function Browse() {
                       {label}
                     </span>
                   ))}
-                  <Link
-                    to="/browse"
-                    search={clearSearch()}
+                  <button
+                    type="button"
+                    onClick={() => void clearFilters()}
                     className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10.5px] font-medium text-primary hover:bg-accent"
                   >
                     <X size={11} /> Clear
-                  </Link>
+                  </button>
                 </div>
               )}
             </div>
@@ -9416,11 +9456,20 @@ function activeFilterLabels(search: Search, motors: boolean, pets: boolean) {
           : `Up to $${search.priceMax}`,
     );
   if (motors) {
-    if (search.make) labels.push(search.make);
-    if (search.model) labels.push(search.model);
+    if (search.make) labels.push(formatSavedSearchFilter("make", search.make));
+    if (search.model) labels.push(formatSavedSearchFilter("model", search.model));
     if (search.yearMin != null || search.yearMax != null)
       labels.push(`${search.yearMin ?? "Any"}–${search.yearMax ?? "Any"}`);
-    if (search.drivetrain) labels.push(search.drivetrain);
+    if (search.bodyStyle) labels.push(formatSavedSearchFilter("bodyStyle", search.bodyStyle));
+    if (search.titleStatus)
+      labels.push(formatSavedSearchFilter("titleStatus", search.titleStatus));
+    if (search.transmission)
+      labels.push(formatSavedSearchFilter("transmission", search.transmission));
+    if (search.drivetrain)
+      labels.push(formatSavedSearchFilter("drivetrain", search.drivetrain));
+    if (search.fuelType) labels.push(formatSavedSearchFilter("fuelType", search.fuelType));
+    if (search.exteriorColor)
+      labels.push(formatSavedSearchFilter("exteriorColor", search.exteriorColor));
     if (search.mileageMax != null) labels.push(`≤ ${search.mileageMax.toLocaleString()} mi`);
   }
   if (pets) {
