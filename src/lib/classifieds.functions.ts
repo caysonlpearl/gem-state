@@ -906,35 +906,49 @@ async function signListingMedia(paths: string[]): Promise<Map<string, string>> {
   const unique = [...new Set(paths)];
   if (unique.length === 0) return new Map();
 
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data, error } = await supabaseAdmin.storage
-    .from("listing-media")
-    .createSignedUrls(unique, 60 * 60);
-  if (error) {
-    console.error("Could not sign classified listing media", error.message);
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin.storage
+      .from("listing-media")
+      .createSignedUrls(unique, 60 * 60);
+    if (error) {
+      console.error("Could not sign classified listing media", error.message);
+      return new Map();
+    }
+    return new Map(
+      (data ?? [])
+        .filter(
+          (item) =>
+            typeof item.path === "string" &&
+            typeof item.signedUrl === "string" &&
+            item.signedUrl.length > 0,
+        )
+        .map((item) => [item.path as string, item.signedUrl as string]),
+    );
+  } catch (error) {
+    // A missing storage signing secret must degrade to image-less cards rather
+    // than taking down public browse and homepage routes.
+    console.error("Could not sign classified listing media", error);
     return new Map();
   }
-  return new Map(
-    (data ?? [])
-      .filter(
-        (item) =>
-          typeof item.path === "string" &&
-          typeof item.signedUrl === "string" &&
-          item.signedUrl.length > 0,
-      )
-      .map((item) => [item.path as string, item.signedUrl as string]),
-  );
 }
 
 async function signedAdminUrls(bucket: string, paths: string[] | null): Promise<string[]> {
   if (!paths?.length) return [];
 
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data, error } = await supabaseAdmin.storage.from(bucket).createSignedUrls(paths, 60 * 60);
-  if (error) return [];
-  return (data ?? [])
-    .map((item) => item.signedUrl)
-    .filter((url): url is string => typeof url === "string" && url.length > 0);
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin.storage
+      .from(bucket)
+      .createSignedUrls(paths, 60 * 60);
+    if (error) return [];
+    return (data ?? [])
+      .map((item) => item.signedUrl)
+      .filter((url): url is string => typeof url === "string" && url.length > 0);
+  } catch (error) {
+    console.error("Could not sign classified media", error);
+    return [];
+  }
 }
 
 function toCard(row: Record<string, unknown>, urlByPath: Map<string, string>): ClassifiedCard {
