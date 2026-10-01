@@ -141,6 +141,11 @@ const { classifiedSeedListings } = await import("../scripts/classified-seed-data
 const { mockClassifiedListings, mockVehicleListings } =
   await import("../src/config/classified-mocks.ts");
 
+test("vehicle sort control updates the canonical browse query", () => {
+  assert.match(browseSource, /value=\{search\.sort \?\? "newest"\}/);
+  assert.match(browseSource, /onChange=\{\(event\) => onApply\(\{ sort: event\.target\.value as Sort \}\)\}/);
+});
+
 test("scoped seller and dealership inventory excludes preview fixtures", () => {
   assert.match(classifiedsFunctionsSource, /const scopedToOwner = Boolean\(data\.dealerSlug \|\| data\.sellerSlug\)/);
   assert.match(classifiedsFunctionsSource, /page === 1 && !scopedToOwner/);

@@ -8449,7 +8449,8 @@ function VehicleResultsPage({
               Sort by
               <select
                 className="h-9 rounded-lg border border-input bg-card px-2 text-[12px] text-foreground"
-                defaultValue="newest"
+                value={search.sort ?? "newest"}
+                onChange={(event) => onApply({ sort: event.target.value as Sort })}
               >
                 <option value="newest">Newest first</option>
                 <option value="price_low">Lowest price</option>
