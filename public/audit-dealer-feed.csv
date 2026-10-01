@@ -1,0 +1,3 @@
+stock_number,vin,year,make,model,trim,price,mileage,city,state,postal_code,status,body_style,transmission,drivetrain,fuel_type,exterior_color,title_status,description,photos
+SCHEDULE-1001,1HGCM82633A004352,2022,Toyota,Tacoma,TRD Sport,36995,28400,Boise,ID,83702,available,Truck,Automatic,4WD,Gas,Blue,Clean,Scheduled audit fixture Tacoma,https://images.example.test/scheduled-1001.jpg
+SCHEDULE-1002,1C4HJXDG4JW123456,2021,Jeep,Wrangler,Unlimited Sport,31900,44100,Nampa,ID,83651,available,SUV,Automatic,4WD,Gas,Green,Clean,Scheduled audit fixture Wrangler,https://images.example.test/scheduled-1002.jpg
