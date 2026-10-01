@@ -63,6 +63,7 @@ const glossarySource = await read("src/routes/glossary.tsx");
 const policiesSource = await read("src/routes/policies.tsx");
 const authSource = await read("src/routes/auth.tsx");
 const classifiedsFunctionsSource = await read("src/lib/classifieds.functions.ts");
+const dealerFunctionsSource = await read("src/lib/dealer.functions.ts");
 const listingDetailSource = await read("src/routes/listings.$listingId.tsx");
 const sellerProfileSource = await read("src/routes/sellers.$slug.tsx");
 const adminClassifiedsSource = await read("src/routes/_authenticated/admin.classifieds.tsx");
@@ -139,6 +140,12 @@ const stylesSource = await read("src/styles.css");
 const { classifiedSeedListings } = await import("../scripts/classified-seed-data.mjs");
 const { mockClassifiedListings, mockVehicleListings } =
   await import("../src/config/classified-mocks.ts");
+
+test("scoped seller and dealership inventory excludes preview fixtures", () => {
+  assert.match(classifiedsFunctionsSource, /const scopedToOwner = Boolean\(data\.dealerSlug \|\| data\.sellerSlug\)/);
+  assert.match(classifiedsFunctionsSource, /page === 1 && !scopedToOwner/);
+  assert.match(dealerFunctionsSource, /browseClassifieds\(\{ data: \{ dealerSlug: data\.slug/);
+});
 
 test("classified taxonomy includes Idaho categories and automotive inventory", () => {
   assert.match(configSource, /cars-trucks/);

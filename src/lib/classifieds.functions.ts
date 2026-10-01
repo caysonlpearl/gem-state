@@ -1761,8 +1761,15 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
       : false;
     const mockSource =
       data.group === "motors" || motorCategory ? mockVehicleListings : mockClassifiedListings;
+    // Preview fixtures are useful on public browse/homepage routes, but they
+    // must never appear in scoped seller or dealership inventory. A storefront
+    // represents one persisted owner/source and showing unrelated fixtures
+    // makes a newly created dealership look like it owns the marketplace.
+    const scopedToOwner = Boolean(data.dealerSlug || data.sellerSlug);
     const mockListings =
-      page === 1 ? mockSource.filter((listing) => mockMatches(listing, data)).map(mockCard) : [];
+      page === 1 && !scopedToOwner
+        ? mockSource.filter((listing) => mockMatches(listing, data)).map(mockCard)
+        : [];
     const compareListings = (a: ClassifiedCard, b: ClassifiedCard) => {
       if (data.sort === "price_low" || data.sort === "price_high") {
         const aValue = a.job ? comparableJobPay(a.job.payType, a.job.payMin) : a.priceCents;
