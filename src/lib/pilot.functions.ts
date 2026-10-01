@@ -1103,6 +1103,13 @@ const FUNNEL_EVENTS = [
   "delivery_confirmed",
   "verified_sale_confirmed",
   "form_abandoned",
+  "search_completed",
+  "mutation_started",
+  "mutation_completed",
+  "mutation_failed",
+  "mutation_slow",
+  "browser_error",
+  "unhandled_rejection",
 ] as const;
 
 export const getValidationSummary = createServerFn({ method: "GET" })

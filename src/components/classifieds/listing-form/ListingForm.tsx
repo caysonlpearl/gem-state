@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { classifiedCategories, idahoRegions, usStates } from "@/config/classifieds";
 import { supabase } from "@/integrations/supabase/client";
+import { traceMutation, trackEvent } from "@/lib/analytics";
 import {
   createClassifiedListing,
   getClassifiedCategoryOptions,
@@ -216,118 +217,129 @@ export function ListingForm(props: ListingFormProps) {
         : "Price (USD)";
 
   const mutation = useMutation({
-    mutationFn: async () => {
-      const uploadNew = props.mode === "create" || files.length > 0;
-      if (uploadNew) {
-        if (props.mode === "create" && files.length === 0)
-          throw new Error("Add at least one listing photo.");
-        if (files.length > 0 && !photoRights)
-          throw new Error("Confirm that you can publish these photos.");
-      }
-
-      const evidencePaths: string[] = [];
-      const publicMediaPaths: string[] = [];
-      if (files.length > 0) {
-        const { data: session } = await supabase.auth.getSession();
-        const uid = session.session?.user.id;
-        if (!uid) throw new Error("Sign in required.");
-        for (const file of files.slice(0, 8)) {
-          const ext =
-            file.name
-              .split(".")
-              .pop()
-              ?.toLowerCase()
-              .replace(/[^a-z0-9]/g, "") || "jpg";
-          const path = `${uid}/${crypto.randomUUID()}.${ext}`;
-          if (props.mode === "create") {
-            const evidence = await supabase.storage.from("ask-evidence").upload(path, file, {
-              contentType: file.type || "image/jpeg",
-            });
-            if (evidence.error)
-              throw new Error(`Private photo upload failed: ${evidence.error.message}`);
-            evidencePaths.push(path);
-          }
-          const publicPhoto = await supabase.storage.from("listing-media").upload(path, file, {
-            contentType: file.type || "image/jpeg",
-          });
-          if (publicPhoto.error)
-            throw new Error(`Listing photo upload failed: ${publicPhoto.error.message}`);
-          publicMediaPaths.push(path);
-        }
-      }
-
-      const vehicle = buildVehicle(form);
-      const home = buildHome(form);
-      const job = buildJob(form);
-      const service = buildService(form);
-      const pet = buildPet(form);
-      const priceCents = priceCentsFor(form);
-      const condition = (
-        hidesCondition ? "used_good" : form.condition
-      ) as ClassifiedListingInput["condition"];
-      const fulfillmentMode = (
-        hidesFulfillment ? "local_pickup" : form.fulfillmentMode
-      ) as ClassifiedListingInput["fulfillmentMode"];
-
-      if (props.mode === "create") {
-        return create({
-          data: {
-            title: form.title,
-            description: form.description,
-            category: form.category as ClassifiedListingInput["category"],
-            priceCents,
-            condition,
-            sellerNote: form.sellerNote || undefined,
-            itemDetails: form.itemDetails,
-            state: form.state,
-            region: form.region,
-            city: form.city,
-            postalCode: form.postalCode || undefined,
-            fulfillmentMode,
-            parcelLengthIn: optionalNumber(form.length),
-            parcelWidthIn: optionalNumber(form.width),
-            parcelHeightIn: optionalNumber(form.height),
-            parcelWeightLb: optionalNumber(form.weight),
-            evidencePaths,
-            publicMediaPaths,
-            vehicle,
-            home,
-            job,
-            service,
-            pet,
-          },
-        });
-      }
-
-      return update({
-        data: {
-          listingId: props.listingId,
-          title: form.title,
-          description: form.description,
-          category: form.category as ClassifiedListingInput["category"],
-          priceCents,
-          condition,
-          sellerNote: form.sellerNote || undefined,
-          itemDetails: form.itemDetails,
-          state: form.state,
-          region: form.region,
-          city: form.city,
-          postalCode: form.postalCode || undefined,
-          fulfillmentMode,
-          parcelLengthIn: optionalNumber(form.length),
-          parcelWidthIn: optionalNumber(form.width),
-          parcelHeightIn: optionalNumber(form.height),
-          parcelWeightLb: optionalNumber(form.weight),
-          vehicle,
-          home,
-          job,
-          service,
-          pet,
-          publicMediaPaths,
+    mutationFn: () =>
+      traceMutation(
+        {
+          flow: "classified_listing_submit",
+          props: { mode: props.mode, kind },
         },
-      });
-    },
+        async () => {
+          const uploadNew = props.mode === "create" || files.length > 0;
+          if (uploadNew) {
+            if (props.mode === "create" && files.length === 0)
+              throw new Error("Add at least one listing photo.");
+            if (files.length > 0 && !photoRights)
+              throw new Error("Confirm that you can publish these photos.");
+          }
+
+          const evidencePaths: string[] = [];
+          const publicMediaPaths: string[] = [];
+          if (files.length > 0) {
+            const { data: session } = await supabase.auth.getSession();
+            const uid = session.session?.user.id;
+            if (!uid) throw new Error("Sign in required.");
+            for (const file of files.slice(0, 8)) {
+              const ext =
+                file.name
+                  .split(".")
+                  .pop()
+                  ?.toLowerCase()
+                  .replace(/[^a-z0-9]/g, "") || "jpg";
+              const path = `${uid}/${crypto.randomUUID()}.${ext}`;
+              if (props.mode === "create") {
+                const evidence = await supabase.storage.from("ask-evidence").upload(path, file, {
+                  contentType: file.type || "image/jpeg",
+                });
+                if (evidence.error)
+                  throw new Error(`Private photo upload failed: ${evidence.error.message}`);
+                evidencePaths.push(path);
+              }
+              const publicPhoto = await supabase.storage.from("listing-media").upload(path, file, {
+                contentType: file.type || "image/jpeg",
+              });
+              if (publicPhoto.error)
+                throw new Error(`Listing photo upload failed: ${publicPhoto.error.message}`);
+              publicMediaPaths.push(path);
+            }
+          }
+
+          const vehicle = buildVehicle(form);
+          const home = buildHome(form);
+          const job = buildJob(form);
+          const service = buildService(form);
+          const pet = buildPet(form);
+          const priceCents = priceCentsFor(form);
+          const condition = (
+            hidesCondition ? "used_good" : form.condition
+          ) as ClassifiedListingInput["condition"];
+          const fulfillmentMode = (
+            hidesFulfillment ? "local_pickup" : form.fulfillmentMode
+          ) as ClassifiedListingInput["fulfillmentMode"];
+
+          if (props.mode === "create") {
+            return create({
+              data: {
+                title: form.title,
+                description: form.description,
+                category: form.category as ClassifiedListingInput["category"],
+                priceCents,
+                condition,
+                sellerNote: form.sellerNote || undefined,
+                itemDetails: form.itemDetails,
+                state: form.state,
+                region: form.region,
+                city: form.city,
+                postalCode: form.postalCode || undefined,
+                fulfillmentMode,
+                parcelLengthIn: optionalNumber(form.length),
+                parcelWidthIn: optionalNumber(form.width),
+                parcelHeightIn: optionalNumber(form.height),
+                parcelWeightLb: optionalNumber(form.weight),
+                evidencePaths,
+                publicMediaPaths,
+                vehicle,
+                home,
+                job,
+                service,
+                pet,
+              },
+            });
+          }
+
+          return update({
+            data: {
+              listingId: props.listingId,
+              title: form.title,
+              description: form.description,
+              category: form.category as ClassifiedListingInput["category"],
+              priceCents,
+              condition,
+              sellerNote: form.sellerNote || undefined,
+              itemDetails: form.itemDetails,
+              state: form.state,
+              region: form.region,
+              city: form.city,
+              postalCode: form.postalCode || undefined,
+              fulfillmentMode,
+              parcelLengthIn: optionalNumber(form.length),
+              parcelWidthIn: optionalNumber(form.width),
+              parcelHeightIn: optionalNumber(form.height),
+              parcelWeightLb: optionalNumber(form.weight),
+              vehicle,
+              home,
+              job,
+              service,
+              pet,
+              publicMediaPaths,
+            },
+          });
+        },
+      ),
     onSuccess: async () => {
+      void trackEvent("classified_listing_submit_succeeded", {
+        mode: props.mode,
+        kind,
+      });
       if (props.mode === "edit") {
         await queryClient.invalidateQueries({
           queryKey: ["classified-listing-editor", props.listingId],
@@ -339,14 +351,20 @@ export function ListingForm(props: ListingFormProps) {
       }
       await navigate({ to: "/selling" });
     },
-    onError: (error) =>
+    onError: (error) => {
+      void trackEvent("classified_listing_submit_failed", {
+        mode: props.mode,
+        kind,
+        error_name: error instanceof Error ? error.name : "UnknownError",
+      });
       toast.error(
         error instanceof Error
           ? error.message
           : props.mode === "create"
             ? "Could not submit this listing."
             : "Could not update listing.",
-      ),
+      );
+    },
   });
 
   const submitDisabled =

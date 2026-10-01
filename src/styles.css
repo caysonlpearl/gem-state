@@ -202,7 +202,9 @@
     border: 1px solid color-mix(in srgb, var(--color-border) 70%, transparent);
     border-radius: var(--radius-2xl);
     background: var(--color-card);
-    box-shadow: 0 18px 45px rgb(34 32 27 / 12%), 0 3px 10px rgb(34 32 27 / 5%);
+    box-shadow:
+      0 18px 45px rgb(34 32 27 / 12%),
+      0 3px 10px rgb(34 32 27 / 5%);
   }
 
   .soft-control {
@@ -214,7 +216,9 @@
   .category-art {
     transform-origin: 50% 78%;
     filter: drop-shadow(0 4px 5px rgb(34 32 27 / 7%));
-    transition: transform 360ms cubic-bezier(0.22, 1, 0.36, 1), filter 360ms ease;
+    transition:
+      transform 360ms cubic-bezier(0.22, 1, 0.36, 1),
+      filter 360ms ease;
   }
 
   .category-art--nav {
@@ -373,13 +377,15 @@
 /* Reserve the tallest headline shape at each breakpoint so rotating copy
  * never changes the hero's height and shifts the page below it. */
 .homepage-hero-headline {
-  min-height: 4.32em;
+  /* The narrowest supported viewport can wrap a rotating phrase to six
+   * lines. Reserve that shape so each rotation keeps the page below it still. */
+  min-height: 6em;
   text-wrap: balance;
 }
 
 @media (min-width: 640px) {
   .homepage-hero-headline {
-    min-height: 2.16em;
+    min-height: 3em;
   }
 }
 

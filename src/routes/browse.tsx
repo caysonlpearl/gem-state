@@ -46,7 +46,7 @@ import {
   type ClassifiedBrowseInput,
   type ClassifiedBrowseResult,
 } from "@/lib/classifieds.functions";
-import { trackEvent } from "@/lib/analytics";
+import { trackEvent, traceMutation } from "@/lib/analytics";
 import { createSavedSearch, updateSavedSearch } from "@/lib/account-center.functions";
 import { SavedSearchNameDialog } from "@/components/classifieds/SavedSearchNameDialog";
 import { toast } from "sonner";
@@ -1439,7 +1439,15 @@ const serviceTimeOnSiteOptions = [
 const classifiedQuery = (input: ClassifiedBrowseInput) =>
   queryOptions({
     queryKey: ["classified-browse", input],
-    queryFn: () => browseClassifieds({ data: input }),
+    queryFn: () =>
+      traceMutation(
+        {
+          flow: "classified_search",
+          props: { category: input.category ?? "all", group: input.group ?? "all" },
+          thresholdMs: 1_000,
+        },
+        () => browseClassifieds({ data: input }),
+      ),
   });
 
 function stringParam(search: Record<string, unknown>, key: string, max = 80) {
@@ -1741,6 +1749,11 @@ function Browse() {
     if (!search.q) return;
     void trackEvent(result.total === 0 ? "search_no_results" : "search_performed", {
       term_length: search.q.length,
+      results: result.total,
+      category: search.category ?? "all",
+      region: search.region ?? "all",
+    });
+    void trackEvent("search_completed", {
       results: result.total,
       category: search.category ?? "all",
       region: search.region ?? "all",
