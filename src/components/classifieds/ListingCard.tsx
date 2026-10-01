@@ -92,7 +92,12 @@ function Facts({ listing }: { listing: ClassifiedCard }) {
           : "For sale";
     return (
       <p className="mt-1 truncate text-[11.5px] text-muted-foreground">
-        {[modeLabel, listing.home.propertyType, listing.home.bedrooms ? `${listing.home.bedrooms} bd` : null, listing.home.bathrooms ? `${listing.home.bathrooms} ba` : null]
+        {[
+          modeLabel,
+          listing.home.propertyType,
+          listing.home.bedrooms ? `${listing.home.bedrooms} bd` : null,
+          listing.home.bathrooms ? `${listing.home.bathrooms} ba` : null,
+        ]
           .filter(Boolean)
           .join(" · ")}
       </p>
@@ -170,9 +175,7 @@ export function ListingCard({ listing }: { listing: ClassifiedCard }) {
           {listing.city}, {listing.state}
         </p>
         <div className="mt-2 flex items-center justify-between gap-2 text-[10.5px] text-muted-foreground">
-          <span className="truncate">
-            {cardActionLabel(listing)}
-          </span>
+          <span className="truncate">{cardActionLabel(listing)}</span>
           <span className="shrink-0">{postedAge(listing.createdAt)}</span>
         </div>
       </Link>
