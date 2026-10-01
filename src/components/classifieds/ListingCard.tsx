@@ -83,6 +83,21 @@ function Facts({ listing }: { listing: ClassifiedCard }) {
       </p>
     );
   }
+  if (listing.home) {
+    const modeLabel =
+      listing.home.mode === "rent"
+        ? "For rent"
+        : listing.home.mode === "build"
+          ? "New construction"
+          : "For sale";
+    return (
+      <p className="mt-1 truncate text-[11.5px] text-muted-foreground">
+        {[modeLabel, listing.home.propertyType, listing.home.bedrooms ? `${listing.home.bedrooms} bd` : null, listing.home.bathrooms ? `${listing.home.bathrooms} ba` : null]
+          .filter(Boolean)
+          .join(" · ")}
+      </p>
+    );
+  }
   const mileage = listing.vehicle ? formatMileage(listing.vehicle.mileage) : null;
   const bits = [
     mileage,
@@ -102,6 +117,19 @@ function Price({ listing }: { listing: ClassifiedCard }) {
         : (listing.service?.pricing ?? formatUsd(listing.priceCents))}
     </>
   );
+}
+
+function cardActionLabel(listing: ClassifiedCard) {
+  if (listing.job) return "Apply now";
+  if (listing.service) return "Get a quote";
+  if (listing.pet) return petPlacementLabels[listing.pet.placementType] ?? "Pet listing";
+  if (listing.home)
+    return listing.home.mode === "rent"
+      ? "Schedule a tour"
+      : listing.home.mode === "build"
+        ? "Explore new build"
+        : "Contact seller";
+  return fulfillmentLabels[listing.fulfillmentMode] ?? "Contact seller";
 }
 
 export function ListingCard({ listing }: { listing: ClassifiedCard }) {
@@ -143,13 +171,7 @@ export function ListingCard({ listing }: { listing: ClassifiedCard }) {
         </p>
         <div className="mt-2 flex items-center justify-between gap-2 text-[10.5px] text-muted-foreground">
           <span className="truncate">
-            {listing.job
-              ? "Apply now"
-              : listing.service
-                ? "Get a quote"
-                : listing.pet
-                  ? (petPlacementLabels[listing.pet.placementType] ?? "Pet listing")
-                  : fulfillmentLabels[listing.fulfillmentMode]}
+            {cardActionLabel(listing)}
           </span>
           <span className="shrink-0">{postedAge(listing.createdAt)}</span>
         </div>
@@ -194,7 +216,13 @@ export function ListingRow({ listing }: { listing: ClassifiedCard }) {
               ? "Apply now"
               : listing.service
                 ? "Get a quote"
-                : fulfillmentLabels[listing.fulfillmentMode]}
+                : listing.home
+                  ? listing.home.mode === "rent"
+                    ? "Schedule a tour"
+                    : listing.home.mode === "build"
+                      ? "Explore new build"
+                      : "Contact seller"
+                  : (fulfillmentLabels[listing.fulfillmentMode] ?? "Contact seller")}
           </p>
           <p className="mt-1 text-[10.5px] text-muted-foreground">{postedAge(listing.createdAt)}</p>
         </div>
