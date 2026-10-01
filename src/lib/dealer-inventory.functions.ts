@@ -482,7 +482,11 @@ export async function processScheduledDealerInventorySources(now = new Date()) {
       const timeout = setTimeout(() => controller.abort(), 15_000);
       let response: Response;
       try {
-        response = await fetch(parsedUrl, { signal: controller.signal, redirect: "error" });
+        response = await fetch(parsedUrl, {
+          signal: controller.signal,
+          redirect: "follow",
+          cache: "no-store",
+        });
       } finally {
         clearTimeout(timeout);
       }
@@ -562,7 +566,11 @@ export const runConfiguredDealerInventorySource = createServerFn({ method: "POST
     const timeout = setTimeout(() => controller.abort(), 15_000);
     let response: Response;
     try {
-      response = await fetch(parsedUrl, { signal: controller.signal, redirect: "error" });
+      response = await fetch(parsedUrl, {
+        signal: controller.signal,
+        redirect: "follow",
+        cache: "no-store",
+      });
     } catch (fetchError) {
       throw new Error(
         fetchError instanceof Error && fetchError.name === "AbortError"
