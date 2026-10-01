@@ -35,6 +35,7 @@ import { Route as AuthenticatedShopperRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedShopperPayoutsRouteImport } from './routes/_authenticated/shopper-payouts'
 import { Route as AuthenticatedSuggestRouteImport } from './routes/_authenticated/suggest'
 import { Route as AuthenticatedWatchlistRouteImport } from './routes/_authenticated/watchlist'
+import { Route as DealersSlugRouteImport } from './routes/dealers.$slug'
 import { Route as ListingsListingIdRouteImport } from './routes/listings.$listingId'
 import { Route as ProductsSlugRouteImport } from './routes/products.$slug'
 import { Route as SellersSlugRouteImport } from './routes/sellers.$slug'
@@ -193,6 +194,11 @@ const AuthenticatedWatchlistRoute = AuthenticatedWatchlistRouteImport.update({
   path: '/watchlist',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const DealersSlugRoute = DealersSlugRouteImport.update({
+  id: '/dealers/$slug',
+  path: '/dealers/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ListingsListingIdRoute = ListingsListingIdRouteImport.update({
   id: '/listings/$listingId',
   path: '/listings/$listingId',
@@ -345,6 +351,7 @@ export interface FileRoutesByFullPath {
   '/shopper-payouts': typeof AuthenticatedShopperPayoutsRoute
   '/suggest': typeof AuthenticatedSuggestRoute
   '/watchlist': typeof AuthenticatedWatchlistRoute
+  '/dealers/$slug': typeof DealersSlugRoute
   '/listings/$listingId': typeof ListingsListingIdRoute
   '/products/$slug': typeof ProductsSlugRoute
   '/sellers/$slug': typeof SellersSlugRoute
@@ -393,6 +400,7 @@ export interface FileRoutesByTo {
   '/shopper-payouts': typeof AuthenticatedShopperPayoutsRoute
   '/suggest': typeof AuthenticatedSuggestRoute
   '/watchlist': typeof AuthenticatedWatchlistRoute
+  '/dealers/$slug': typeof DealersSlugRoute
   '/listings/$listingId': typeof ListingsListingIdRoute
   '/products/$slug': typeof ProductsSlugRoute
   '/sellers/$slug': typeof SellersSlugRoute
@@ -444,6 +452,7 @@ export interface FileRoutesById {
   '/_authenticated/shopper-payouts': typeof AuthenticatedShopperPayoutsRoute
   '/_authenticated/suggest': typeof AuthenticatedSuggestRoute
   '/_authenticated/watchlist': typeof AuthenticatedWatchlistRoute
+  '/dealers/$slug': typeof DealersSlugRoute
   '/listings/$listingId': typeof ListingsListingIdRoute
   '/products/$slug': typeof ProductsSlugRoute
   '/sellers/$slug': typeof SellersSlugRoute
@@ -495,6 +504,7 @@ export interface FileRouteTypes {
     | '/shopper-payouts'
     | '/suggest'
     | '/watchlist'
+    | '/dealers/$slug'
     | '/listings/$listingId'
     | '/products/$slug'
     | '/sellers/$slug'
@@ -543,6 +553,7 @@ export interface FileRouteTypes {
     | '/shopper-payouts'
     | '/suggest'
     | '/watchlist'
+    | '/dealers/$slug'
     | '/listings/$listingId'
     | '/products/$slug'
     | '/sellers/$slug'
@@ -593,6 +604,7 @@ export interface FileRouteTypes {
     | '/_authenticated/shopper-payouts'
     | '/_authenticated/suggest'
     | '/_authenticated/watchlist'
+    | '/dealers/$slug'
     | '/listings/$listingId'
     | '/products/$slug'
     | '/sellers/$slug'
@@ -630,6 +642,7 @@ export interface RootRouteChildren {
   PoliciesRoute: typeof PoliciesRoute
   SafetyRoute: typeof SafetyRoute
   SellRoute: typeof SellRoute
+  DealersSlugRoute: typeof DealersSlugRoute
   ListingsListingIdRoute: typeof ListingsListingIdRoute
   ProductsSlugRoute: typeof ProductsSlugRoute
   SellersSlugRoute: typeof SellersSlugRoute
@@ -824,6 +837,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/watchlist'
       preLoaderRoute: typeof AuthenticatedWatchlistRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/dealers/$slug': {
+      id: '/dealers/$slug'
+      path: '/dealers/$slug'
+      fullPath: '/dealers/$slug'
+      preLoaderRoute: typeof DealersSlugRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/listings/$listingId': {
       id: '/listings/$listingId'
@@ -1071,6 +1091,7 @@ const rootRouteChildren: RootRouteChildren = {
   PoliciesRoute: PoliciesRoute,
   SafetyRoute: SafetyRoute,
   SellRoute: SellRoute,
+  DealersSlugRoute: DealersSlugRoute,
   ListingsListingIdRoute: ListingsListingIdRoute,
   ProductsSlugRoute: ProductsSlugRoute,
   SellersSlugRoute: SellersSlugRoute,
