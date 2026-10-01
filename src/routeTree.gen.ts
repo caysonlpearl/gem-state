@@ -51,6 +51,7 @@ import { Route as AuthenticatedAdminProductsRouteImport } from './routes/_authen
 import { Route as AuthenticatedAdminReviewFlagsRouteImport } from './routes/_authenticated/admin.review-flags'
 import { Route as AuthenticatedAdminValidationRouteImport } from './routes/_authenticated/admin.validation'
 import { Route as AuthenticatedOrdersOrderIdRouteImport } from './routes/_authenticated/orders.$orderId'
+import { Route as ApiInternalDealerInventoryRouteImport } from './routes/api/internal/dealer-inventory'
 import { Route as ApiInternalSavedSearchesRouteImport } from './routes/api/internal/saved-searches'
 import { Route as AuthenticatedAdminOrdersOrderIdRouteImport } from './routes/_authenticated/admin.orders.$orderId'
 import { Route as AuthenticatedListingsListingIdEditRouteImport } from './routes/_authenticated/listings.$listingId.edit'
@@ -284,6 +285,12 @@ const AuthenticatedOrdersOrderIdRoute =
     path: '/orders/$orderId',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiInternalDealerInventoryRoute =
+  ApiInternalDealerInventoryRouteImport.update({
+    id: '/api/internal/dealer-inventory',
+    path: '/api/internal/dealer-inventory',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiInternalSavedSearchesRoute =
   ApiInternalSavedSearchesRouteImport.update({
     id: '/api/internal/saved-searches',
@@ -366,6 +373,7 @@ export interface FileRoutesByFullPath {
   '/admin/review-flags': typeof AuthenticatedAdminReviewFlagsRoute
   '/admin/validation': typeof AuthenticatedAdminValidationRoute
   '/orders/$orderId': typeof AuthenticatedOrdersOrderIdRoute
+  '/api/internal/dealer-inventory': typeof ApiInternalDealerInventoryRoute
   '/api/internal/saved-searches': typeof ApiInternalSavedSearchesRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/admin/orders/$orderId': typeof AuthenticatedAdminOrdersOrderIdRoute
@@ -415,6 +423,7 @@ export interface FileRoutesByTo {
   '/admin/review-flags': typeof AuthenticatedAdminReviewFlagsRoute
   '/admin/validation': typeof AuthenticatedAdminValidationRoute
   '/orders/$orderId': typeof AuthenticatedOrdersOrderIdRoute
+  '/api/internal/dealer-inventory': typeof ApiInternalDealerInventoryRoute
   '/api/internal/saved-searches': typeof ApiInternalSavedSearchesRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/admin/orders/$orderId': typeof AuthenticatedAdminOrdersOrderIdRoute
@@ -467,6 +476,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/review-flags': typeof AuthenticatedAdminReviewFlagsRoute
   '/_authenticated/admin/validation': typeof AuthenticatedAdminValidationRoute
   '/_authenticated/orders/$orderId': typeof AuthenticatedOrdersOrderIdRoute
+  '/api/internal/dealer-inventory': typeof ApiInternalDealerInventoryRoute
   '/api/internal/saved-searches': typeof ApiInternalSavedSearchesRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/admin/orders/$orderId': typeof AuthenticatedAdminOrdersOrderIdRoute
@@ -519,6 +529,7 @@ export interface FileRouteTypes {
     | '/admin/review-flags'
     | '/admin/validation'
     | '/orders/$orderId'
+    | '/api/internal/dealer-inventory'
     | '/api/internal/saved-searches'
     | '/admin/'
     | '/admin/orders/$orderId'
@@ -568,6 +579,7 @@ export interface FileRouteTypes {
     | '/admin/review-flags'
     | '/admin/validation'
     | '/orders/$orderId'
+    | '/api/internal/dealer-inventory'
     | '/api/internal/saved-searches'
     | '/admin'
     | '/admin/orders/$orderId'
@@ -619,6 +631,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/review-flags'
     | '/_authenticated/admin/validation'
     | '/_authenticated/orders/$orderId'
+    | '/api/internal/dealer-inventory'
     | '/api/internal/saved-searches'
     | '/_authenticated/admin/'
     | '/_authenticated/admin/orders/$orderId'
@@ -647,6 +660,7 @@ export interface RootRouteChildren {
   ProductsSlugRoute: typeof ProductsSlugRoute
   SellersSlugRoute: typeof SellersSlugRoute
   ShoppersSlugRoute: typeof ShoppersSlugRoute
+  ApiInternalDealerInventoryRoute: typeof ApiInternalDealerInventoryRoute
   ApiInternalSavedSearchesRoute: typeof ApiInternalSavedSearchesRoute
   ApiPublicCatalogMediaSplatRoute: typeof ApiPublicCatalogMediaSplatRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
@@ -950,6 +964,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOrdersOrderIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/internal/dealer-inventory': {
+      id: '/api/internal/dealer-inventory'
+      path: '/api/internal/dealer-inventory'
+      fullPath: '/api/internal/dealer-inventory'
+      preLoaderRoute: typeof ApiInternalDealerInventoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/internal/saved-searches': {
       id: '/api/internal/saved-searches'
       path: '/api/internal/saved-searches'
@@ -1096,6 +1117,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProductsSlugRoute: ProductsSlugRoute,
   SellersSlugRoute: SellersSlugRoute,
   ShoppersSlugRoute: ShoppersSlugRoute,
+  ApiInternalDealerInventoryRoute: ApiInternalDealerInventoryRoute,
   ApiInternalSavedSearchesRoute: ApiInternalSavedSearchesRoute,
   ApiPublicCatalogMediaSplatRoute: ApiPublicCatalogMediaSplatRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
