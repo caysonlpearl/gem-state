@@ -64,6 +64,9 @@ const policiesSource = await read("src/routes/policies.tsx");
 const authSource = await read("src/routes/auth.tsx");
 const classifiedsFunctionsSource = await read("src/lib/classifieds.functions.ts");
 const pilotFunctionsSource = await read("src/lib/pilot.functions.ts");
+const sellerFunctionsSource = await read("src/lib/seller.functions.ts");
+const adminReviewFlagsSource = await read("src/routes/_authenticated/admin.review-flags.tsx");
+const dealerInventoryRouteSource = await read("src/routes/_authenticated/admin.dealer-inventory.tsx");
 const dealerFunctionsSource = await read("src/lib/dealer.functions.ts");
 const listingDetailSource = await read("src/routes/listings.$listingId.tsx");
 const sellerProfileSource = await read("src/routes/sellers.$slug.tsx");
@@ -1525,4 +1528,24 @@ test("validation supply counters include classified listing submissions", () => 
     pilotFunctionsSource,
     /const name = VALIDATION_EVENT_ALIASES\[rawName\] \?\? rawName/,
   );
+});
+
+test("review flags have a complete member-to-admin resolution path", () => {
+  assert.match(sellerFunctionsSource, /export const flagSellerReview/);
+  assert.match(sellerFunctionsSource, /rpc\("flag_seller_review"/);
+  assert.match(sellerFunctionsSource, /export const getFlaggedSellerReviews/);
+  assert.match(sellerFunctionsSource, /\.eq\("status", "flagged"\)/);
+  assert.match(sellerFunctionsSource, /export const adminResolveReviewFlag/);
+  assert.match(sellerFunctionsSource, /rpc\("admin_resolve_review_flag"/);
+  assert.match(adminReviewFlagsSource, /Dismiss flag, keep review/);
+  assert.match(adminReviewFlagsSource, /Remove review/);
+  assert.match(adminReviewFlagsSource, /invalidateQueries\(\{ queryKey: \["admin-review-flags"\]/);
+});
+
+test("dealer operations expose traceable runs and scheduled execution", () => {
+  assert.match(dealerInventoryRouteSource, /Run due scheduled feeds/);
+  assert.match(dealerInventoryRouteSource, /Preview \/ dry run/);
+  assert.match(dealerInventoryRouteSource, /Applied/);
+  assert.match(dealerInventoryRouteSource, /recorded run/);
+  assert.match(dealerInventoryRouteSource, /moderated listing/);
 });
