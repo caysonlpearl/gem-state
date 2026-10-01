@@ -813,6 +813,7 @@ function ListingDetail() {
 
     try {
       if (typeof navigator.share === "function") {
+        toast.info("Opening share options…");
         const shareAttempt = navigator
           .share({
             title,

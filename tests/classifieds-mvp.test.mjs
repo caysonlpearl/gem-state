@@ -1364,6 +1364,7 @@ test("listing sharing falls back when embedded native share never resolves", () 
 
 test("listing sharing confirms native share completion", () => {
   assert.match(detailSource, /shareResult === "shared"/);
+  assert.match(detailSource, /Opening share options/);
   assert.match(detailSource, /Share sheet opened\./);
   assert.match(detailSource, /Share canceled\./);
 });
