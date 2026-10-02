@@ -215,6 +215,12 @@ async function extractListingDetailsInPage() {
       : [];
   const description = descLines.join("\n\n").trim();
 
+  // Confirmed live earlier: "more from this seller" / recommendation
+  // thumbnails elsewhere on a listing page render at exactly 294x294 --
+  // right at the edge of a 150px floor, which is how a wrong photo from a
+  // totally different listing ended up attached here. A real hero photo
+  // measured 427x844. 320px clears the thumbnail case with margin while
+  // staying safely under real hero photo sizes.
   function mainPhoto(excludeEl) {
     let best = null;
     let bestArea = 0;
@@ -222,7 +228,7 @@ async function extractListingDetailsInPage() {
       if ((excludeEl && excludeEl.contains(img)) || !img.src) return;
       const rect = img.getBoundingClientRect();
       const area = rect.width * rect.height;
-      if (rect.width > 150 && rect.height > 150 && area > bestArea) {
+      if (rect.width > 320 && rect.height > 320 && area > bestArea) {
         bestArea = area;
         best = img;
       }
@@ -241,7 +247,7 @@ async function extractListingDetailsInPage() {
     // "Condition"/"Details" are populated -- check once isn't enough.
     let img = mainPhoto(block);
     const photoStart = Date.now();
-    while (!img && Date.now() - photoStart < 5000) {
+    while (!img && Date.now() - photoStart < 9000) {
       await sleep(300);
       img = mainPhoto(block);
     }

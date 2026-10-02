@@ -257,7 +257,13 @@
   // (the seller's profile picture, mutual-friend thumbnails) are often
   // uploaded at a large native resolution even though they're DISPLAYED
   // small, so naturalWidth alone can't tell a listing photo from an avatar.
-  // How big the browser actually draws it can.
+  // How big the browser actually draws it can. Confirmed live:
+  // "more from this seller"/recommendation thumbnails elsewhere on a
+  // listing page render at exactly 294x294 -- right at the edge of a
+  // 150px floor, which is how a wrong photo from a different listing
+  // ended up attached here. A real hero photo measured 427x844. 320px
+  // clears the thumbnail case with margin while staying safely under
+  // real hero photo sizes.
   function mainPhoto(doc, excludeEl) {
     let best = null;
     let bestArea = 0;
@@ -265,7 +271,7 @@
       if ((excludeEl && excludeEl.contains(img)) || !img.src) return;
       const rect = img.getBoundingClientRect();
       const area = rect.width * rect.height;
-      if (rect.width > 150 && rect.height > 150 && area > bestArea) {
+      if (rect.width > 320 && rect.height > 320 && area > bestArea) {
         bestArea = area;
         best = img;
       }
@@ -282,7 +288,7 @@
       // populated, so check more than once before giving up.
       let img = mainPhoto(doc, detailsBlock);
       const photoStart = Date.now();
-      while (!img && Date.now() - photoStart < 5000) {
+      while (!img && Date.now() - photoStart < 9000) {
         await sleep(300);
         img = mainPhoto(doc, detailsBlock);
       }
