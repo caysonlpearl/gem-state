@@ -138,22 +138,41 @@
     return null;
   }
 
+  // The "Details"/"Condition" labels render before the condition's actual
+  // value and the description text stream in a beat later -- so matching on
+  // the labels alone (the old check) grabs the block too early, while it's
+  // still "Details\nCondition" with nothing after it. Wait for a populated
+  // value line too, but fall back to whatever was found if that never
+  // resolves in time (partial data -- e.g. photos -- beats none).
+  function conditionLineValue(block) {
+    const lines = (block.innerText || "")
+      .split("\n")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    const conditionIdx = lines.findIndex((l) => l === "Condition");
+    return conditionIdx >= 0 ? lines[conditionIdx + 1] : null;
+  }
+
   async function waitForDetailsBlock(win, timeoutMs) {
     const start = Date.now();
+    let fallback = null;
     while (Date.now() - start < timeoutMs) {
       try {
-        if (win.closed) return null;
+        if (win.closed) return fallback;
         const doc = win.document;
         if (doc && doc.readyState === "complete") {
           const block = findDetailsBlock(doc);
-          if (block) return { doc, block };
+          if (block) {
+            fallback = { doc, block };
+            if (conditionLineValue(block)) return { doc, block };
+          }
         }
       } catch {
         // Not loaded yet / about:blank -- keep polling.
       }
       await sleep(400);
     }
-    return null;
+    return fallback;
   }
 
   async function collectCarouselPhotos(doc, detailsBlock) {

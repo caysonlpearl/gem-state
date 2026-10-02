@@ -257,14 +257,22 @@ function ReviewRow({
           />
         </label>
         <div className="flex gap-2">
-          {item.publicPaths.slice(0, 3).map((path) => (
-            <div
-              key={path}
-              className="grid h-16 w-16 shrink-0 place-items-center rounded-md border border-border bg-secondary text-[9px] text-muted-foreground"
-            >
-              photo
+          {item.photoUrls.length ? (
+            item.photoUrls
+              .slice(0, 3)
+              .map((url) => (
+                <img
+                  key={url}
+                  src={url}
+                  alt=""
+                  className="h-16 w-16 shrink-0 rounded-md border border-border object-cover"
+                />
+              ))
+          ) : (
+            <div className="grid h-16 w-16 shrink-0 place-items-center rounded-md border border-dashed border-border text-[9px] text-muted-foreground">
+              No photo
             </div>
-          ))}
+          )}
         </div>
         <div className="min-w-[280px] flex-1">
           <div className="flex items-center gap-2">

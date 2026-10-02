@@ -138,12 +138,28 @@ export type FbImportItem = {
   state: string;
   region: string;
   publicPaths: string[];
+  photoUrls: string[];
   status: "draft" | "needs_update" | "possibly_removed" | "published" | "discarded";
   previousPriceCents: number | null;
   previousDescription: string | null;
   listingId: string | null;
   createdAt: string;
 };
+
+// Staged photos live in a private bucket -- only the service-role client can
+// sign them, the same pattern used to show listing media everywhere else
+// (see signListingMedia in classifieds.functions.ts).
+async function signStagedPhotos(admin: any, paths: string[]): Promise<Map<string, string>> {
+  const unique = [...new Set(paths)];
+  if (!unique.length) return new Map();
+  const { data, error } = await admin.storage.from("listing-media").createSignedUrls(unique, 3600);
+  if (error) return new Map();
+  return new Map(
+    (data ?? [])
+      .filter((item: any) => item.path && item.signedUrl)
+      .map((item: any) => [item.path as string, item.signedUrl as string]),
+  );
+}
 
 /**
  * Downloads a photo into a seller-agnostic staging path. The seller account
@@ -346,27 +362,34 @@ export const getFacebookImportItems = createServerFn({ method: "GET" })
       .in("status", ["draft", "needs_update", "possibly_removed"])
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
-    return (data ?? []).map((row: any) => ({
-      id: row.id,
-      batchId: row.batch_id,
-      sourceProfileUrl: row.source_profile_url,
-      sourceUrl: row.source_url,
-      title: row.title,
-      description: row.description,
-      priceCents: Number(row.price_cents),
-      condition: row.condition,
-      categorySlug: row.category_slug,
-      city: row.city ?? "",
-      state: row.state ?? "",
-      region: row.region ?? "",
-      publicPaths: row.public_paths ?? [],
-      status: row.status,
-      previousPriceCents:
-        row.previous_price_cents == null ? null : Number(row.previous_price_cents),
-      previousDescription: row.previous_description,
-      listingId: row.listing_id,
-      createdAt: row.created_at,
-    }));
+    const rows = data ?? [];
+    const allPaths = rows.flatMap((row: any) => (row.public_paths as string[] | null) ?? []);
+    const signedByPath = await signStagedPhotos(admin, allPaths);
+    return rows.map((row: any) => {
+      const publicPaths: string[] = row.public_paths ?? [];
+      return {
+        id: row.id,
+        batchId: row.batch_id,
+        sourceProfileUrl: row.source_profile_url,
+        sourceUrl: row.source_url,
+        title: row.title,
+        description: row.description,
+        priceCents: Number(row.price_cents),
+        condition: row.condition,
+        categorySlug: row.category_slug,
+        city: row.city ?? "",
+        state: row.state ?? "",
+        region: row.region ?? "",
+        publicPaths,
+        photoUrls: publicPaths.map((path) => signedByPath.get(path)).filter(Boolean) as string[],
+        status: row.status,
+        previousPriceCents:
+          row.previous_price_cents == null ? null : Number(row.previous_price_cents),
+        previousDescription: row.previous_description,
+        listingId: row.listing_id,
+        createdAt: row.created_at,
+      };
+    });
   });
 
 export const updateFacebookImportItem = createServerFn({ method: "POST" })
