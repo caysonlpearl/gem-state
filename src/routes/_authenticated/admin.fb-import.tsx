@@ -9,7 +9,6 @@ import {
   discardFacebookImportItem,
   getFacebookImportItems,
   publishFacebookImportItems,
-  resolveOrCreateImportSeller,
   stageFacebookImportBatch,
   updateFacebookImportItem,
   type FbImportItem,
@@ -44,31 +43,32 @@ const statusLabels: Record<string, string> = {
 
 function StageForm() {
   const queryClient = useQueryClient();
-  const resolveSeller = useServerFn(resolveOrCreateImportSeller);
   const stage = useServerFn(stageFacebookImportBatch);
 
-  const [sellerEmail, setSellerEmail] = useState("");
-  const [sellerName, setSellerName] = useState("");
   const [profileUrl, setProfileUrl] = useState("");
   const [itemsJson, setItemsJson] = useState("");
 
   const mutation = useMutation({
     mutationFn: async () => {
-      let items: unknown;
+      let parsed: unknown;
       try {
-        items = JSON.parse(itemsJson);
+        parsed = JSON.parse(itemsJson);
       } catch {
-        throw new Error("Paste a valid JSON array of extracted listings.");
+        throw new Error("Paste valid JSON of the extracted listings.");
       }
+      // Accept either a bare array, or { sellerName, items } if the
+      // extraction happened to capture the seller's name from their profile.
+      const sellerName =
+        parsed && typeof parsed === "object" && !Array.isArray(parsed)
+          ? String((parsed as { sellerName?: string }).sellerName ?? "")
+          : "";
+      const items = Array.isArray(parsed) ? parsed : (parsed as { items?: unknown }).items;
       if (!Array.isArray(items)) throw new Error("Expected a JSON array of listings.");
 
-      const { sellerId } = await resolveSeller({
-        data: { email: sellerEmail, displayName: sellerName },
-      });
       return stage({
         data: {
-          sellerId,
           sourceProfileUrl: profileUrl,
+          sellerName: sellerName || undefined,
           items: items as never[],
         },
       });
@@ -88,9 +88,11 @@ function StageForm() {
     <section className="rounded-lg border border-border bg-card p-5">
       <h2 className="text-[14px] font-semibold">Stage a batch</h2>
       <p className="mt-1 max-w-[700px] text-[12.5px] leading-relaxed text-muted-foreground">
-        With a live, logged-in browser session, walk the seller's Facebook Marketplace profile
-        and every listing's detail page, then paste the extracted data below as a JSON array of{" "}
-        {"{ sourceUrl, title, description, priceCents, condition, categorySlug, city, state, photoUrls }"}{" "}
+        With a live, logged-in browser session, walk the seller's Facebook Marketplace profile and
+        every listing's detail page, then paste the extracted data below as a JSON array of{" "}
+        {
+          "{ sourceUrl, title, description, priceCents, condition, categorySlug, city, state, photoUrls }"
+        }{" "}
         objects.
       </p>
       <form
@@ -100,27 +102,8 @@ function StageForm() {
           mutation.mutate();
         }}
       >
-        <label className="text-[12px] font-medium">
-          Seller email
-          <input
-            required
-            type="email"
-            value={sellerEmail}
-            onChange={(e) => setSellerEmail(e.target.value)}
-            className="mt-1.5 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-          />
-        </label>
-        <label className="text-[12px] font-medium">
-          Seller display name
-          <input
-            required
-            value={sellerName}
-            onChange={(e) => setSellerName(e.target.value)}
-            className="mt-1.5 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-          />
-        </label>
         <label className="text-[12px] font-medium sm:col-span-2">
-          Facebook Marketplace profile URL
+          Seller's Facebook Marketplace profile URL
           <input
             required
             value={profileUrl}
@@ -136,7 +119,7 @@ function StageForm() {
             rows={8}
             value={itemsJson}
             onChange={(e) => setItemsJson(e.target.value)}
-            placeholder="[{&quot;sourceUrl&quot;: &quot;...&quot;, &quot;title&quot;: &quot;...&quot;, ...}]"
+            placeholder='[{"sourceUrl": "...", "title": "...", ...}]'
             className="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-[11.5px]"
           />
         </label>
@@ -387,6 +370,8 @@ function FbImportPage() {
     queryFn: () => fetchItems(),
   });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [sellerEmail, setSellerEmail] = useState("");
+  const [sellerDisplayName, setSellerDisplayName] = useState("");
 
   // New items default to selected; items that have since been discarded or
   // published drop out of `data` and should drop out of the selection too.
@@ -413,7 +398,14 @@ function FbImportPage() {
   };
 
   const publishMutation = useMutation({
-    mutationFn: () => publish({ data: { itemIds: Array.from(selectedIds) } }),
+    mutationFn: () =>
+      publish({
+        data: {
+          itemIds: Array.from(selectedIds),
+          sellerEmail,
+          sellerDisplayName: sellerDisplayName || undefined,
+        },
+      }),
     onSuccess: async (result) => {
       await queryClient.invalidateQueries({ queryKey: ["fb-import-items"] });
       setSelectedIds(new Set());
@@ -435,26 +427,42 @@ function FbImportPage() {
         <p className="mt-1 max-w-[720px] text-[13px] leading-relaxed text-muted-foreground">
           With a seller's permission, recreate their Facebook Marketplace listings as real GemList
           listings under their own account. Every extraction is driven by a person in a live,
-          logged-in browser session — nothing here stores a Facebook session or runs on a
-          schedule.
+          logged-in browser session — nothing here stores a Facebook session or runs on a schedule.
         </p>
       </div>
 
       <StageForm />
 
       <section className="rounded-lg border border-border bg-card">
-        <div className="flex items-center justify-between border-b border-border px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
           <h2 className="text-[13px] font-semibold">
-            Awaiting review <span className="numeric text-muted-foreground">{data?.length ?? 0}</span>
+            Awaiting review{" "}
+            <span className="numeric text-muted-foreground">{data?.length ?? 0}</span>
           </h2>
-          <button
-            type="button"
-            onClick={() => publishMutation.mutate()}
-            disabled={publishMutation.isPending || !data?.length}
-            className="h-9 rounded-md bg-primary px-3 text-[12px] font-semibold text-primary-foreground disabled:opacity-50"
-          >
-            {publishMutation.isPending ? "Applying…" : "Apply selected"}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="email"
+              value={sellerEmail}
+              onChange={(e) => setSellerEmail(e.target.value)}
+              placeholder="Seller's email"
+              title="The seller's GemList account email -- only needed once, right before publishing"
+              className="h-9 w-[180px] rounded-md border border-input bg-background px-2 text-[12px]"
+            />
+            <input
+              value={sellerDisplayName}
+              onChange={(e) => setSellerDisplayName(e.target.value)}
+              placeholder="Display name (optional)"
+              className="h-9 w-[180px] rounded-md border border-input bg-background px-2 text-[12px]"
+            />
+            <button
+              type="button"
+              onClick={() => publishMutation.mutate()}
+              disabled={publishMutation.isPending || !data?.length || !sellerEmail}
+              className="h-9 rounded-md bg-primary px-3 text-[12px] font-semibold text-primary-foreground disabled:opacity-50"
+            >
+              {publishMutation.isPending ? "Applying…" : "Apply selected"}
+            </button>
+          </div>
         </div>
         {isLoading ? (
           <p className="px-4 py-8 text-[12.5px] text-muted-foreground">Loading…</p>

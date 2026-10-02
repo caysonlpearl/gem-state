@@ -43,9 +43,7 @@ async function findOrCreateAuthUser(admin: any, email: string): Promise<string> 
   for (let page = 1; ; page += 1) {
     const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 200 });
     if (error) throw new Error(error.message);
-    const match = data.users.find(
-      (u: any) => u.email?.toLowerCase() === email.toLowerCase(),
-    );
+    const match = data.users.find((u: any) => u.email?.toLowerCase() === email.toLowerCase());
     if (match) return match.id;
     if (data.users.length < 200) break;
   }
@@ -77,45 +75,42 @@ async function ensureUniqueSlug(admin: any, displayName: string, email: string):
   throw new Error("Could not generate a unique seller handle.");
 }
 
-export const resolveOrCreateImportSeller = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .validator((input: { email: string; displayName: string }) => {
-    const email = String(input.email ?? "").trim().toLowerCase();
-    const displayName = String(input.displayName ?? "").trim();
-    if (!email || !email.includes("@")) throw new Error("Enter a valid seller email.");
-    if (!displayName) throw new Error("Enter the seller's display name.");
-    return { email, displayName };
-  })
-  .handler(async ({ data, context }): Promise<{ sellerId: string; slug: string }> => {
-    await requireAdmin(context);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const admin = supabaseAdmin as any;
+/**
+ * Resolves (or creates, with a real seller profile) the GemList account that
+ * imported listings get published under. Called once per publish, when an
+ * admin finally supplies the seller's email -- staging itself never needs
+ * one, since Facebook doesn't expose a seller's email address at all.
+ */
+async function resolveImportSellerAccount(
+  admin: any,
+  email: string,
+  displayName: string,
+): Promise<{ sellerId: string; slug: string }> {
+  const userId = await findOrCreateAuthUser(admin, email);
 
-    const userId = await findOrCreateAuthUser(admin, data.email);
+  await admin
+    .from("profiles")
+    .upsert({ id: userId, display_name: displayName }, { onConflict: "id" });
 
-    await admin
-      .from("profiles")
-      .upsert({ id: userId, display_name: data.displayName }, { onConflict: "id" });
+  const { data: existing, error: existingError } = await admin
+    .from("seller_profiles")
+    .select("slug")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (existingError) throw new Error(existingError.message);
+  if (existing) return { sellerId: userId, slug: existing.slug };
 
-    const { data: existing, error: existingError } = await admin
-      .from("seller_profiles")
-      .select("slug")
-      .eq("user_id", userId)
-      .maybeSingle();
-    if (existingError) throw new Error(existingError.message);
-    if (existing) return { sellerId: userId, slug: existing.slug };
-
-    const slug = await ensureUniqueSlug(admin, data.displayName, data.email);
-    const { error: insertError } = await admin.from("seller_profiles").insert({
-      user_id: userId,
-      slug,
-      status: "active",
-      terms_version: "seller-v1",
-      terms_accepted_at: new Date().toISOString(),
-    });
-    if (insertError) throw new Error(insertError.message);
-    return { sellerId: userId, slug };
+  const slug = await ensureUniqueSlug(admin, displayName, email);
+  const { error: insertError } = await admin.from("seller_profiles").insert({
+    user_id: userId,
+    slug,
+    status: "active",
+    terms_version: "seller-v1",
+    terms_accepted_at: new Date().toISOString(),
   });
+  if (insertError) throw new Error(insertError.message);
+  return { sellerId: userId, slug };
+}
 
 export type FbImportItemInput = {
   sourceUrl: string;
@@ -132,6 +127,7 @@ export type FbImportItemInput = {
 export type FbImportItem = {
   id: string;
   batchId: string;
+  sourceProfileUrl: string;
   sourceUrl: string;
   title: string;
   description: string | null;
@@ -149,7 +145,14 @@ export type FbImportItem = {
   createdAt: string;
 };
 
-async function downloadPhoto(admin: any, sellerId: string, url: string): Promise<string> {
+/**
+ * Downloads a photo into a seller-agnostic staging path. The seller account
+ * doesn't exist yet at stage time (Facebook never exposes an email to
+ * resolve one from), but create_classified_listing checks that every photo
+ * path's first segment is the caller's own uid -- so these get copied to a
+ * real `${sellerId}/...` path at publish time, once a seller is known.
+ */
+async function downloadPhoto(admin: any, batchId: string, url: string): Promise<string> {
   const response = await fetch(url);
   if (!response.ok) throw new Error(`Could not download photo (${response.status})`);
   const contentType = response.headers.get("content-type")?.split(";")[0]?.trim() || "image/jpeg";
@@ -157,10 +160,8 @@ async function downloadPhoto(admin: any, sellerId: string, url: string): Promise
   const buffer = new Uint8Array(await response.arrayBuffer());
   if (buffer.byteLength > MAX_PHOTO_BYTES) throw new Error("Photo is larger than 12 MB.");
   const ext = contentType.includes("png") ? "png" : contentType.includes("webp") ? "webp" : "jpg";
-  const path = `${sellerId}/${crypto.randomUUID()}.${ext}`;
-  const evidence = await admin.storage
-    .from("ask-evidence")
-    .upload(path, buffer, { contentType });
+  const path = `_staging/${batchId}/${crypto.randomUUID()}.${ext}`;
+  const evidence = await admin.storage.from("ask-evidence").upload(path, buffer, { contentType });
   if (evidence.error) throw new Error(`Evidence upload failed: ${evidence.error.message}`);
   const publicUpload = await admin.storage
     .from("listing-media")
@@ -169,29 +170,59 @@ async function downloadPhoto(admin: any, sellerId: string, url: string): Promise
   return path;
 }
 
+/** Copies a batch of staged photos into the resolved seller's own path
+ * prefix in both buckets, returning the new paths in the same order. */
+async function claimPhotosForSeller(
+  admin: any,
+  sellerId: string,
+  stagingPaths: string[],
+): Promise<string[]> {
+  const claimed: string[] = [];
+  for (const stagingPath of stagingPaths) {
+    const ext = stagingPath.split(".").pop() || "jpg";
+    const newPath = `${sellerId}/${crypto.randomUUID()}.${ext}`;
+    const evidenceCopy = await admin.storage.from("ask-evidence").copy(stagingPath, newPath);
+    if (evidenceCopy.error) throw new Error(`Could not claim photo: ${evidenceCopy.error.message}`);
+    const publicCopy = await admin.storage.from("listing-media").copy(stagingPath, newPath);
+    if (publicCopy.error) throw new Error(`Could not claim photo: ${publicCopy.error.message}`);
+    claimed.push(newPath);
+  }
+  return claimed;
+}
+
 export const stageFacebookImportBatch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input: { sellerId: string; sourceProfileUrl: string; items: FbImportItemInput[] }) => {
-    const sellerId = String(input.sellerId ?? "");
-    const sourceProfileUrl = String(input.sourceProfileUrl ?? "").trim();
-    if (!sellerId) throw new Error("Choose a seller first.");
-    if (!sourceProfileUrl) throw new Error("Enter the Facebook Marketplace profile URL.");
-    const items = (input.items ?? []).map((item) => ({
-      sourceUrl: String(item.sourceUrl ?? "").trim(),
-      title: String(item.title ?? "").trim().slice(0, 120),
-      description: item.description ? String(item.description).trim().slice(0, 5000) : null,
-      priceCents: Math.max(0, Math.round(Number(item.priceCents) || 0)),
-      condition: item.condition ? String(item.condition).trim() : null,
-      categorySlug: String(item.categorySlug ?? "general"),
-      city: item.city ? String(item.city).trim().slice(0, 80) : "",
-      state: item.state ? String(item.state).trim().slice(0, 80) : "",
-      photoUrls: (item.photoUrls ?? []).filter(Boolean).slice(0, 8),
-    }));
-    if (!items.length) throw new Error("No listings were provided.");
-    if (items.some((item) => !item.sourceUrl || !item.title))
-      throw new Error("Every listing needs a source URL and a title.");
-    return { sellerId, sourceProfileUrl, items };
-  })
+  .validator(
+    (input: {
+      sourceProfileUrl: string;
+      sellerName?: string | undefined;
+      items: FbImportItemInput[];
+    }) => {
+      const sourceProfileUrl = String(input.sourceProfileUrl ?? "").trim();
+      if (!sourceProfileUrl) throw new Error("Enter the Facebook Marketplace profile URL.");
+      const sellerName =
+        String(input.sellerName ?? "")
+          .trim()
+          .slice(0, 120) || null;
+      const items = (input.items ?? []).map((item) => ({
+        sourceUrl: String(item.sourceUrl ?? "").trim(),
+        title: String(item.title ?? "")
+          .trim()
+          .slice(0, 120),
+        description: item.description ? String(item.description).trim().slice(0, 5000) : null,
+        priceCents: Math.max(0, Math.round(Number(item.priceCents) || 0)),
+        condition: item.condition ? String(item.condition).trim() : null,
+        categorySlug: String(item.categorySlug ?? "general"),
+        city: item.city ? String(item.city).trim().slice(0, 80) : "",
+        state: item.state ? String(item.state).trim().slice(0, 80) : "",
+        photoUrls: (item.photoUrls ?? []).filter(Boolean).slice(0, 8),
+      }));
+      if (!items.length) throw new Error("No listings were provided.");
+      if (items.some((item) => !item.sourceUrl || !item.title))
+        throw new Error("Every listing needs a source URL and a title.");
+      return { sourceProfileUrl, sellerName, items };
+    },
+  )
   .handler(
     async ({
       data,
@@ -204,9 +235,9 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
       const { data: batch, error: batchError } = await admin
         .from("fb_marketplace_import_batches")
         .insert({
-          seller_id: data.sellerId,
           imported_by: context.userId,
           source_profile_url: data.sourceProfileUrl,
+          seller_name: data.sellerName,
         })
         .select("id")
         .single();
@@ -214,8 +245,8 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
 
       const { data: priorItems, error: priorError } = await admin
         .from("fb_marketplace_import_items")
-        .select("source_url, status, price_cents, description, listing_id")
-        .eq("seller_id", data.sellerId)
+        .select("source_url, status, price_cents, description, listing_id, seller_id")
+        .eq("source_profile_url", data.sourceProfileUrl)
         .in("status", ["draft", "needs_update", "possibly_removed", "published"]);
       if (priorError) throw new Error(priorError.message);
       const priorByUrl = new Map<string, any>(
@@ -233,7 +264,8 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
 
         if (prior && prior.status === "published") {
           const changed =
-            prior.price_cents !== item.priceCents || (prior.description ?? "") !== (item.description ?? "");
+            prior.price_cents !== item.priceCents ||
+            (prior.description ?? "") !== (item.description ?? "");
           if (!changed) continue;
           const { error } = await admin
             .from("fb_marketplace_import_items")
@@ -248,7 +280,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
               previous_price_cents: prior.price_cents,
               previous_description: prior.description,
             })
-            .eq("seller_id", data.sellerId)
+            .eq("source_profile_url", data.sourceProfileUrl)
             .eq("source_url", item.sourceUrl);
           if (error) throw new Error(error.message);
           updated += 1;
@@ -256,13 +288,13 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
         }
 
         try {
-          const publicPaths = await Promise.all(
-            item.photoUrls.map((url) => downloadPhoto(admin, data.sellerId, url)),
+          const stagingPaths = await Promise.all(
+            item.photoUrls.map((url) => downloadPhoto(admin, batch.id, url)),
           );
           const { error } = await admin.from("fb_marketplace_import_items").upsert(
             {
               batch_id: batch.id,
-              seller_id: data.sellerId,
+              source_profile_url: data.sourceProfileUrl,
               source_url: item.sourceUrl,
               title: item.title,
               description: item.description,
@@ -271,11 +303,11 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
               category_slug: item.categorySlug,
               city: item.city,
               state: item.state,
-              evidence_paths: publicPaths,
-              public_paths: publicPaths,
+              evidence_paths: stagingPaths,
+              public_paths: stagingPaths,
               status: "draft",
             },
-            { onConflict: "seller_id,source_url" },
+            { onConflict: "source_profile_url,source_url" },
           );
           if (error) throw new Error(error.message);
           staged += 1;
@@ -291,7 +323,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
         const { error } = await admin
           .from("fb_marketplace_import_items")
           .update({ batch_id: batch.id, status: "possibly_removed" })
-          .eq("seller_id", data.sellerId)
+          .eq("source_profile_url", data.sourceProfileUrl)
           .eq("source_url", row.source_url);
         if (error) throw new Error(error.message);
       }
@@ -309,7 +341,7 @@ export const getFacebookImportItems = createServerFn({ method: "GET" })
     const { data, error } = await admin
       .from("fb_marketplace_import_items")
       .select(
-        "id,batch_id,source_url,title,description,price_cents,condition,category_slug,city,state,region,public_paths,status,previous_price_cents,previous_description,listing_id,created_at",
+        "id,batch_id,source_profile_url,source_url,title,description,price_cents,condition,category_slug,city,state,region,public_paths,status,previous_price_cents,previous_description,listing_id,created_at",
       )
       .in("status", ["draft", "needs_update", "possibly_removed"])
       .order("created_at", { ascending: false });
@@ -317,6 +349,7 @@ export const getFacebookImportItems = createServerFn({ method: "GET" })
     return (data ?? []).map((row: any) => ({
       id: row.id,
       batchId: row.batch_id,
+      sourceProfileUrl: row.source_profile_url,
       sourceUrl: row.source_url,
       title: row.title,
       description: row.description,
@@ -328,7 +361,8 @@ export const getFacebookImportItems = createServerFn({ method: "GET" })
       region: row.region ?? "",
       publicPaths: row.public_paths ?? [],
       status: row.status,
-      previousPriceCents: row.previous_price_cents == null ? null : Number(row.previous_price_cents),
+      previousPriceCents:
+        row.previous_price_cents == null ? null : Number(row.previous_price_cents),
       previousDescription: row.previous_description,
       listingId: row.listing_id,
       createdAt: row.created_at,
@@ -351,13 +385,21 @@ export const updateFacebookImportItem = createServerFn({ method: "POST" })
     }) => ({
       itemId: String(input.itemId),
       title: String(input.title).trim().slice(0, 120),
-      description: String(input.description ?? "").trim().slice(0, 5000),
+      description: String(input.description ?? "")
+        .trim()
+        .slice(0, 5000),
       priceCents: Math.max(0, Math.round(Number(input.priceCents) || 0)),
       condition: String(input.condition ?? "used_good"),
       categorySlug: String(input.categorySlug ?? "general"),
-      city: String(input.city ?? "").trim().slice(0, 80),
-      state: String(input.state ?? "").trim().slice(0, 80),
-      region: String(input.region ?? "").trim().slice(0, 80),
+      city: String(input.city ?? "")
+        .trim()
+        .slice(0, 80),
+      state: String(input.state ?? "")
+        .trim()
+        .slice(0, 80),
+      region: String(input.region ?? "")
+        .trim()
+        .slice(0, 80),
     }),
   )
   .handler(async ({ data, context }) => {
@@ -421,16 +463,31 @@ async function createActingAsSellerSession(admin: any, sellerId: string) {
     type: "magiclink",
   });
   if (verifyError || !sessionData.session) {
-    throw new Error(`Could not establish a seller session: ${verifyError?.message ?? "unknown error"}`);
+    throw new Error(
+      `Could not establish a seller session: ${verifyError?.message ?? "unknown error"}`,
+    );
   }
   return actingClient as any;
 }
 
 export const publishFacebookImportItems = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input: { itemIds: string[] }) => ({
-    itemIds: (input.itemIds ?? []).map(String).filter(Boolean),
-  }))
+  .validator(
+    (input: { itemIds: string[]; sellerEmail: string; sellerDisplayName?: string | undefined }) => {
+      const itemIds = (input.itemIds ?? []).map(String).filter(Boolean);
+      const sellerEmail = String(input.sellerEmail ?? "")
+        .trim()
+        .toLowerCase();
+      if (itemIds.length && (!sellerEmail || !sellerEmail.includes("@"))) {
+        throw new Error("Enter the seller's email to publish under their account.");
+      }
+      return {
+        itemIds,
+        sellerEmail,
+        sellerDisplayName: String(input.sellerDisplayName ?? "").trim(),
+      };
+    },
+  )
   .handler(
     async ({
       data,
@@ -444,25 +501,44 @@ export const publishFacebookImportItems = createServerFn({ method: "POST" })
       const { data: items, error } = await admin
         .from("fb_marketplace_import_items")
         .select(
-          "id,seller_id,title,description,price_cents,condition,category_slug,city,state,region,public_paths,evidence_paths,status,listing_id",
+          "id,source_profile_url,title,description,price_cents,condition,category_slug,city,state,region,public_paths,evidence_paths,status,listing_id",
         )
         .in("id", data.itemIds);
       if (error) throw new Error(error.message);
+      if (!items?.length) return { created: 0, updated: 0, removed: 0, errors: 0 };
+
+      // One publish click is one seller: resolve/create their GemList account
+      // once, then attribute every item in this call -- and every other
+      // still-open item from the same Facebook profile, so a later re-stage
+      // of that profile correctly diffs against this now-known seller
+      // instead of treating everything as brand new again.
+      const { data: batchInfo } = await admin
+        .from("fb_marketplace_import_batches")
+        .select("seller_name")
+        .eq("source_profile_url", items[0].source_profile_url)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const displayName =
+        data.sellerDisplayName ||
+        batchInfo?.seller_name ||
+        data.sellerEmail.split("@")[0] ||
+        "Seller";
+      const seller = await resolveImportSellerAccount(admin, data.sellerEmail, displayName);
+      await admin
+        .from("fb_marketplace_import_items")
+        .update({ seller_id: seller.sellerId })
+        .eq("source_profile_url", items[0].source_profile_url)
+        .is("seller_id", null);
+      const acting = await createActingAsSellerSession(admin, seller.sellerId);
 
       let created = 0;
       let updated = 0;
       let removed = 0;
       let errors = 0;
-      const sessionBySeller = new Map<string, any>();
 
-      for (const item of items ?? []) {
+      for (const item of items) {
         try {
-          let acting = sessionBySeller.get(item.seller_id);
-          if (!acting) {
-            acting = await createActingAsSellerSession(admin, item.seller_id);
-            sessionBySeller.set(item.seller_id, acting);
-          }
-
           if (item.status === "possibly_removed") {
             if (!item.listing_id) throw new Error("No linked listing to remove.");
             const { error: cancelError } = await acting.rpc("cancel_ask", {
@@ -523,6 +599,12 @@ export const publishFacebookImportItems = createServerFn({ method: "POST" })
             continue;
           }
 
+          const claimedPaths = await claimPhotosForSeller(
+            admin,
+            seller.sellerId,
+            item.evidence_paths,
+          );
+
           const { data: listingId, error: createError } = await acting.rpc(
             "create_classified_listing",
             {
@@ -541,8 +623,8 @@ export const publishFacebookImportItems = createServerFn({ method: "POST" })
               _parcel_width_in: null,
               _parcel_height_in: null,
               _parcel_weight_lb: null,
-              _evidence_paths: item.evidence_paths,
-              _public_media_paths: item.public_paths,
+              _evidence_paths: claimedPaths,
+              _public_media_paths: claimedPaths,
               _vehicle: {},
               _home: {},
               _job: {},

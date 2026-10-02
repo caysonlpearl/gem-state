@@ -1875,21 +1875,24 @@ export type Database = {
           created_at: string;
           id: string;
           imported_by: string;
-          seller_id: string;
+          seller_id: string | null;
+          seller_name: string | null;
           source_profile_url: string;
         };
         Insert: {
           created_at?: string;
           id?: string;
           imported_by: string;
-          seller_id: string;
+          seller_id?: string | null;
+          seller_name?: string | null;
           source_profile_url: string;
         };
         Update: {
           created_at?: string;
           id?: string;
           imported_by?: string;
-          seller_id?: string;
+          seller_id?: string | null;
+          seller_name?: string | null;
           source_profile_url?: string;
         };
         Relationships: [];
@@ -1911,7 +1914,8 @@ export type Database = {
           price_cents: number;
           public_paths: string[];
           region: string;
-          seller_id: string;
+          seller_id: string | null;
+          source_profile_url: string;
           source_url: string;
           state: string;
           status: string;
@@ -1934,7 +1938,8 @@ export type Database = {
           price_cents: number;
           public_paths?: string[];
           region?: string;
-          seller_id: string;
+          seller_id?: string | null;
+          source_profile_url?: string;
           source_url: string;
           state?: string;
           status?: string;
@@ -1957,7 +1962,8 @@ export type Database = {
           price_cents?: number;
           public_paths?: string[];
           region?: string;
-          seller_id?: string;
+          seller_id?: string | null;
+          source_profile_url?: string;
           source_url?: string;
           state?: string;
           status?: string;
