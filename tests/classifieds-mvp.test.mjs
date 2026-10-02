@@ -962,11 +962,8 @@ test("header categories show four primary destinations and a Classifieds control
 });
 
 test("site header does not add a blue separator below the category row", () => {
-  assert.match(
-    headerSource,
-    /border-t-\[3px\] border-t-brand-blue\/60 border-b-0 bg-card\/95 backdrop-blur/,
-  );
-  assert.doesNotMatch(headerSource, /border-brand-blue\/60 border-b border-border/);
+  assert.match(headerSource, /overflow-visible border-0 bg-card\/95 backdrop-blur/);
+  assert.doesNotMatch(headerSource, /border-brand-blue/);
 });
 
 test("all categories opens a labeled icon menu with KSL-style sections", () => {
