@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { queryOptions, useMutation, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import {
+  queryOptions,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { CheckCircle, Flag, Star } from "@phosphor-icons/react";
 import { toast } from "sonner";
@@ -31,14 +37,14 @@ export const Route = createFileRoute("/sellers/$slug")({
     meta: [
       {
         title: loaderData?.seller
-          ? `${loaderData.seller.displayName} — Seller on Gem State Classifieds`
-          : `Seller profile — Gem State Classifieds`,
+          ? `${loaderData.seller.displayName} — Seller on Bluebird Marketplace`
+          : `Seller profile — Bluebird Marketplace`,
       },
       {
         name: "description",
         content: loaderData?.seller
-          ? `${loaderData.seller.displayName}'s active listings on Gem State Classifieds.`
-          : "Seller profile on Gem State Classifieds.",
+          ? `${loaderData.seller.displayName}'s active listings on Bluebird Marketplace.`
+          : "Seller profile on Bluebird Marketplace.",
       },
       { name: "robots", content: "noindex" },
     ],
@@ -161,7 +167,7 @@ function SellerPage() {
                 </p>
                 <div className="mt-3 flex items-center justify-between gap-2">
                   <p className="text-[10.5px] text-muted-foreground">
-                    {review.reviewerName ?? "Gem State member"} ·{" "}
+                    {review.reviewerName ?? "Bluebird member"} ·{" "}
                     {new Date(review.createdAt).toLocaleDateString()}
                   </p>
                   {user ? <ReviewFlagButton reviewId={review.id} /> : null}
@@ -219,7 +225,10 @@ function ReviewForm({ sellerId, sellerSlug }: { sellerId: string; sellerSlug: st
     return (
       <section className="border border-border bg-card px-5 py-4">
         <h3 className="text-[13px] font-semibold tracking-tight">Your review</h3>
-        <p className="mt-2 flex items-center gap-1 text-primary" aria-label={`${myReview.data.rating} out of 5 stars`}>
+        <p
+          className="mt-2 flex items-center gap-1 text-primary"
+          aria-label={`${myReview.data.rating} out of 5 stars`}
+        >
           {Array.from({ length: 5 }, (_, i) => (
             <Star key={i} size={16} weight={i < myReview.data!.rating ? "fill" : "regular"} />
           ))}
@@ -244,7 +253,8 @@ function ReviewForm({ sellerId, sellerSlug }: { sellerId: string; sellerSlug: st
         {myReview.data ? "Edit your review" : "Leave a review"}
       </h3>
       <p className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground">
-        Rate this seller based on your experience with them.
+        Signed-in members can leave one review per seller based on their experience. Submitting
+        again updates your existing review, and members can flag reviews that need moderation.
       </p>
       <form
         className="mt-4 space-y-3"
@@ -316,7 +326,7 @@ function ReviewFlagButton({ reviewId }: { reviewId: string }) {
     onSuccess: () => {
       setFlagged(true);
       setOpen(false);
-      toast.success("Thanks — this review has been sent to Gem State for review.");
+      toast.success("Thanks — this review has been sent to Bluebird for review.");
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not flag this review."),
   });

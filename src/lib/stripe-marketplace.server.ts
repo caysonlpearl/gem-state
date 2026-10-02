@@ -8,11 +8,47 @@ import { stripeAccountMatchesCurrentMode } from "./stripe-connect.server";
 let stripeInstance: Stripe | null = null;
 let stripeInstanceSecret = "";
 
+function isStripeApiSecret(value: string) {
+  return value.startsWith("sk_") || value.startsWith("rk_");
+}
+
+function isStripeWebhookSecret(value: string) {
+  return value.startsWith("whsec_");
+}
+
+/**
+ * Keep the deployment resilient to the two Stripe secrets being pasted into
+ * the wrong environment slots. This happened during the first Test-mode
+ * account setup: the API client received a whsec_ value and rejected every
+ * Checkout request. Prefix validation lets us use the correctly typed secret
+ * while preserving the normal environment names for a correctly configured
+ * deployment.
+ */
+function normalizedStripeSecrets(runtimeEnv?: unknown) {
+  // Deployments occasionally have the values pasted into the wrong named
+  // slot. Read all marketplace Stripe slots and choose by the value's
+  // prefix, while still preferring the documented names when they are valid.
+  const values = [
+    ...runtimeSecretCandidates(runtimeEnv, "STRIPE_SECRET_KEY"),
+    ...runtimeSecretCandidates(runtimeEnv, "STRIPE_WEBHOOK_SECRET"),
+    ...runtimeSecretCandidates(runtimeEnv, "STRIPE_CONNECT_WEBHOOK_SECRET"),
+  ];
+  const apiSecret =
+    values.find((value) => isStripeApiSecret(value.trim()))?.trim() ??
+    runtimeSecret(runtimeEnv, "STRIPE_SECRET_KEY").trim();
+  const webhookSecret =
+    values.find((value) => isStripeWebhookSecret(value.trim()))?.trim() ??
+    runtimeSecret(runtimeEnv, "STRIPE_WEBHOOK_SECRET").trim();
+  return { apiSecret, webhookSecret };
+}
+
 export function getStripe(secretOverride?: string) {
-  const secret = secretOverride ?? serverEnv("STRIPE_SECRET_KEY");
-  if (!secret) throw new Error("ParkVault Checkout is not configured yet.");
+  const secret = secretOverride ?? normalizedStripeSecrets().apiSecret;
+  if (!secret) throw new Error("Bluebird checkout is not configured yet.");
   if (!stripeInstance || stripeInstanceSecret !== secret) {
-    stripeInstance = new Stripe(secret, { appInfo: { name: "ParkVault", version: "1.0.0" } });
+    stripeInstance = new Stripe(secret, {
+      appInfo: { name: "Bluebird Marketplace", version: "1.0.0" },
+    });
     stripeInstanceSecret = secret;
   }
   return stripeInstance;
@@ -62,10 +98,24 @@ export function parkVaultOrigin(requestUrl?: string) {
   return origin.replace(/\/$/, "");
 }
 
+/**
+ * Origin used by the active Bluebird marketplace checkout flows.
+ * Keep the legacy variable as a fallback so existing non-marketplace flows
+ * remain compatible until their configuration is migrated separately.
+ */
+export function gemStateOrigin(requestUrl?: string) {
+  const configured = serverEnv("GEM_STATE_SITE_URL") || serverEnv("PARKVAULT_SITE_URL");
+  const requestOrigin = requestUrl ? new URL(requestUrl).origin : "";
+  const origin = configured || requestOrigin;
+  if (!origin.startsWith("https://"))
+    throw new Error("Bluebird checkout requires the live HTTPS URL.");
+  return origin.replace(/\/$/, "");
+}
+
 export function stripeCheckoutReady() {
+  const secrets = normalizedStripeSecrets();
   return Boolean(
-    serverEnv("STRIPE_SECRET_KEY") &&
-    (serverEnv("STRIPE_WEBHOOK_SECRET") || serverEnv("STRIPE_CONNECT_WEBHOOK_SECRET")),
+    secrets.apiSecret && (secrets.webhookSecret || serverEnv("STRIPE_CONNECT_WEBHOOK_SECRET")),
   );
 }
 
@@ -476,7 +526,7 @@ async function releaseFailedOfferCapture(intent: Stripe.PaymentIntent) {
 export async function finalizeListingUpgradeCheckout(session: Stripe.Checkout.Session) {
   const purchaseId = session.metadata?.["gemstate_purchase_id"] ?? "";
   if (!purchaseId) return;
-  if (session.payment_status !== "paid" && session.status !== "complete") return;
+  if (session.payment_status !== "paid") return;
 
   const admin = supabaseAdmin as any;
   const { data: purchase, error: purchaseError } = await admin
@@ -498,16 +548,41 @@ export async function finalizeListingUpgradeCheckout(session: Stripe.Checkout.Se
   const paidAt = new Date().toISOString();
   const listingUpdate: Record<string, unknown> = {};
   if (upgrade.code === "featured") {
-    listingUpdate["featured_until"] = new Date(Date.now() + Number(upgrade.duration_days || 7) * 864e5).toISOString();
+    const { data: listing } = await admin
+      .from("asks")
+      .select("featured_until")
+      .eq("id", purchase.listing_id)
+      .maybeSingle();
+    const base = Math.max(
+      Date.now(),
+      listing?.featured_until ? new Date(listing.featured_until).getTime() : Date.now(),
+    );
+    listingUpdate["featured_until"] = new Date(
+      base + Number(upgrade.duration_days || 1) * 864e5,
+    ).toISOString();
   } else if (upgrade.code === "bump") {
     listingUpdate["promoted_at"] = paidAt;
+    listingUpdate["ranking_at"] = paidAt;
   } else if (upgrade.code === "extend") {
-    const { data: listing } = await admin.from("asks").select("expires_at").eq("id", purchase.listing_id).maybeSingle();
-    const base = Math.max(Date.now(), listing?.expires_at ? new Date(listing.expires_at).getTime() : Date.now());
-    listingUpdate["expires_at"] = new Date(base + Number(upgrade.duration_days || 30) * 864e5).toISOString();
+    const { data: listing } = await admin
+      .from("asks")
+      .select("expires_at")
+      .eq("id", purchase.listing_id)
+      .maybeSingle();
+    const base = Math.max(
+      Date.now(),
+      listing?.expires_at ? new Date(listing.expires_at).getTime() : Date.now(),
+    );
+    listingUpdate["expires_at"] = new Date(
+      base + Number(upgrade.duration_days || 30) * 864e5,
+    ).toISOString();
   }
   if (Object.keys(listingUpdate).length) {
-    const { error: listingError } = await admin.from("asks").update(listingUpdate).eq("id", purchase.listing_id).eq("seller_id", purchase.user_id);
+    const { error: listingError } = await admin
+      .from("asks")
+      .update(listingUpdate)
+      .eq("id", purchase.listing_id)
+      .eq("seller_id", purchase.user_id);
     if (listingError) throw new Error(listingError.message);
   }
   const saved = await admin
@@ -515,7 +590,10 @@ export async function finalizeListingUpgradeCheckout(session: Stripe.Checkout.Se
     .update({
       status: "paid",
       stripe_checkout_session_id: session.id,
-      stripe_payment_intent_id: typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id ?? null,
+      stripe_payment_intent_id:
+        typeof session.payment_intent === "string"
+          ? session.payment_intent
+          : (session.payment_intent?.id ?? null),
       paid_at: paidAt,
     })
     .eq("id", purchase.id)
@@ -554,12 +632,13 @@ async function failListingUpgradePaymentIntent(intent: Stripe.PaymentIntent) {
 }
 
 export async function handleStripeWebhook(request: Request, runtimeEnv?: unknown) {
+  const normalized = normalizedStripeSecrets(runtimeEnv);
   const secrets = [
-    ...runtimeSecretCandidates(runtimeEnv, "STRIPE_WEBHOOK_SECRET"),
+    ...(normalized.webhookSecret ? [normalized.webhookSecret] : []),
     ...runtimeSecretCandidates(runtimeEnv, "STRIPE_CONNECT_WEBHOOK_SECRET"),
   ];
   if (!secrets.length) return new Response("Webhook not configured", { status: 503 });
-  const stripeSecret = runtimeSecret(runtimeEnv, "STRIPE_SECRET_KEY");
+  const stripeSecret = normalized.apiSecret;
   if (!stripeSecret) return new Response("Stripe API not configured", { status: 503 });
   const stripe = getStripe(stripeSecret);
   const signature = request.headers.get("stripe-signature");
@@ -600,21 +679,30 @@ export async function handleStripeWebhook(request: Request, runtimeEnv?: unknown
     switch (event.type) {
       case "checkout.session.completed":
       case "checkout.session.async_payment_succeeded":
-        if ((event.data.object as Stripe.Checkout.Session).metadata?.["gemstate_purpose"] === "listing_upgrade") {
+        if (
+          (event.data.object as Stripe.Checkout.Session).metadata?.["gemstate_purpose"] ===
+          "listing_upgrade"
+        ) {
           await finalizeListingUpgradeCheckout(event.data.object as Stripe.Checkout.Session);
         } else {
           await finalizeCheckoutSession(stripe, event.data.object as Stripe.Checkout.Session);
         }
         break;
       case "checkout.session.expired":
-        if ((event.data.object as Stripe.Checkout.Session).metadata?.["gemstate_purpose"] === "listing_upgrade") {
+        if (
+          (event.data.object as Stripe.Checkout.Session).metadata?.["gemstate_purpose"] ===
+          "listing_upgrade"
+        ) {
           await expireListingUpgradeCheckout(event.data.object as Stripe.Checkout.Session);
         } else {
           await expireCheckoutSession(event.data.object as Stripe.Checkout.Session);
         }
         break;
       case "checkout.session.async_payment_failed":
-        if ((event.data.object as Stripe.Checkout.Session).metadata?.["gemstate_purpose"] === "listing_upgrade") {
+        if (
+          (event.data.object as Stripe.Checkout.Session).metadata?.["gemstate_purpose"] ===
+          "listing_upgrade"
+        ) {
           await expireListingUpgradeCheckout(event.data.object as Stripe.Checkout.Session);
         }
         break;

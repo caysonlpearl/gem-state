@@ -255,7 +255,6 @@ function ProductPage() {
           </div>
         </div>
 
-
         {/* Title, variation control and buy box */}
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-1.5">
@@ -350,7 +349,6 @@ function ProductPage() {
               />
             </div>
           )}
-
         </div>
       </div>
 

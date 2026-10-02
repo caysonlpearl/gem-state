@@ -11,17 +11,22 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
+import { Route as AdvertiseRouteImport } from './routes/advertise'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as BrowseRouteImport } from './routes/browse'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as GlossaryRouteImport } from './routes/glossary'
+import { Route as MessagesRouteImport } from './routes/messages'
+import { Route as PetsRouteImport } from './routes/pets'
 import { Route as PoliciesRouteImport } from './routes/policies'
+import { Route as SafetyRouteImport } from './routes/safety'
 import { Route as SellRouteImport } from './routes/sell'
 import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedBuyingRouteImport } from './routes/_authenticated/buying'
 import { Route as AuthenticatedCreateListingRouteImport } from './routes/_authenticated/create-listing'
 import { Route as AuthenticatedCreateMissingListingRouteImport } from './routes/_authenticated/create-missing-listing'
+import { Route as AuthenticatedDealerSetupRouteImport } from './routes/_authenticated/dealer-setup'
 import { Route as AuthenticatedNotificationsRouteImport } from './routes/_authenticated/notifications'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
 import { Route as AuthenticatedSellerSetupRouteImport } from './routes/_authenticated/seller-setup'
@@ -30,6 +35,7 @@ import { Route as AuthenticatedShopperRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedShopperPayoutsRouteImport } from './routes/_authenticated/shopper-payouts'
 import { Route as AuthenticatedSuggestRouteImport } from './routes/_authenticated/suggest'
 import { Route as AuthenticatedWatchlistRouteImport } from './routes/_authenticated/watchlist'
+import { Route as DealersSlugRouteImport } from './routes/dealers.$slug'
 import { Route as ListingsListingIdRouteImport } from './routes/listings.$listingId'
 import { Route as ProductsSlugRouteImport } from './routes/products.$slug'
 import { Route as SellersSlugRouteImport } from './routes/sellers.$slug'
@@ -37,12 +43,15 @@ import { Route as ShoppersSlugRouteImport } from './routes/shoppers.$slug'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
 import { Route as AuthenticatedAdminCatalogRouteImport } from './routes/_authenticated/admin.catalog'
 import { Route as AuthenticatedAdminClassifiedsRouteImport } from './routes/_authenticated/admin.classifieds'
+import { Route as AuthenticatedAdminConversationReportsRouteImport } from './routes/_authenticated/admin.conversation-reports'
 import { Route as AuthenticatedAdminDealerInventoryRouteImport } from './routes/_authenticated/admin.dealer-inventory'
+import { Route as AuthenticatedAdminDealersRouteImport } from './routes/_authenticated/admin.dealers'
 import { Route as AuthenticatedAdminMembersRouteImport } from './routes/_authenticated/admin.members'
 import { Route as AuthenticatedAdminProductsRouteImport } from './routes/_authenticated/admin.products'
 import { Route as AuthenticatedAdminReviewFlagsRouteImport } from './routes/_authenticated/admin.review-flags'
 import { Route as AuthenticatedAdminValidationRouteImport } from './routes/_authenticated/admin.validation'
 import { Route as AuthenticatedOrdersOrderIdRouteImport } from './routes/_authenticated/orders.$orderId'
+import { Route as ApiInternalDealerInventoryRouteImport } from './routes/api/internal/dealer-inventory'
 import { Route as ApiInternalSavedSearchesRouteImport } from './routes/api/internal/saved-searches'
 import { Route as AuthenticatedAdminOrdersOrderIdRouteImport } from './routes/_authenticated/admin.orders.$orderId'
 import { Route as AuthenticatedListingsListingIdEditRouteImport } from './routes/_authenticated/listings.$listingId.edit'
@@ -58,6 +67,11 @@ const IndexRoute = IndexRouteImport.update({
 } as any)
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
   id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdvertiseRoute = AdvertiseRouteImport.update({
+  id: '/advertise',
+  path: '/advertise',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -80,9 +94,24 @@ const GlossaryRoute = GlossaryRouteImport.update({
   path: '/glossary',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MessagesRoute = MessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PetsRoute = PetsRouteImport.update({
+  id: '/pets',
+  path: '/pets',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PoliciesRoute = PoliciesRouteImport.update({
   id: '/policies',
   path: '/policies',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SafetyRoute = SafetyRouteImport.update({
+  id: '/safety',
+  path: '/safety',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SellRoute = SellRouteImport.update({
@@ -115,6 +144,12 @@ const AuthenticatedCreateMissingListingRoute =
   AuthenticatedCreateMissingListingRouteImport.update({
     id: '/create-missing-listing',
     path: '/create-missing-listing',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedDealerSetupRoute =
+  AuthenticatedDealerSetupRouteImport.update({
+    id: '/dealer-setup',
+    path: '/dealer-setup',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedNotificationsRoute =
@@ -160,6 +195,11 @@ const AuthenticatedWatchlistRoute = AuthenticatedWatchlistRouteImport.update({
   path: '/watchlist',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const DealersSlugRoute = DealersSlugRouteImport.update({
+  id: '/dealers/$slug',
+  path: '/dealers/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ListingsListingIdRoute = ListingsListingIdRouteImport.update({
   id: '/listings/$listingId',
   path: '/listings/$listingId',
@@ -197,10 +237,22 @@ const AuthenticatedAdminClassifiedsRoute =
     path: '/classifieds',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminConversationReportsRoute =
+  AuthenticatedAdminConversationReportsRouteImport.update({
+    id: '/conversation-reports',
+    path: '/conversation-reports',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminDealerInventoryRoute =
   AuthenticatedAdminDealerInventoryRouteImport.update({
     id: '/dealer-inventory',
     path: '/dealer-inventory',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
+const AuthenticatedAdminDealersRoute =
+  AuthenticatedAdminDealersRouteImport.update({
+    id: '/dealers',
+    path: '/dealers',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
 const AuthenticatedAdminMembersRoute =
@@ -232,6 +284,12 @@ const AuthenticatedOrdersOrderIdRoute =
     id: '/orders/$orderId',
     path: '/orders/$orderId',
     getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const ApiInternalDealerInventoryRoute =
+  ApiInternalDealerInventoryRouteImport.update({
+    id: '/api/internal/dealer-inventory',
+    path: '/api/internal/dealer-inventory',
+    getParentRoute: () => rootRouteImport,
   } as any)
 const ApiInternalSavedSearchesRoute =
   ApiInternalSavedSearchesRouteImport.update({
@@ -276,17 +334,22 @@ const LovableEmailTransactionalPreviewRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/advertise': typeof AdvertiseRoute
   '/auth': typeof AuthRoute
   '/browse': typeof BrowseRoute
   '/contact': typeof ContactRoute
   '/glossary': typeof GlossaryRoute
+  '/messages': typeof MessagesRoute
+  '/pets': typeof PetsRoute
   '/policies': typeof PoliciesRoute
+  '/safety': typeof SafetyRoute
   '/sell': typeof SellRoute
   '/account': typeof AuthenticatedAccountRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/buying': typeof AuthenticatedBuyingRoute
   '/create-listing': typeof AuthenticatedCreateListingRoute
   '/create-missing-listing': typeof AuthenticatedCreateMissingListingRoute
+  '/dealer-setup': typeof AuthenticatedDealerSetupRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/seller-setup': typeof AuthenticatedSellerSetupRoute
@@ -295,18 +358,22 @@ export interface FileRoutesByFullPath {
   '/shopper-payouts': typeof AuthenticatedShopperPayoutsRoute
   '/suggest': typeof AuthenticatedSuggestRoute
   '/watchlist': typeof AuthenticatedWatchlistRoute
+  '/dealers/$slug': typeof DealersSlugRoute
   '/listings/$listingId': typeof ListingsListingIdRoute
   '/products/$slug': typeof ProductsSlugRoute
   '/sellers/$slug': typeof SellersSlugRoute
   '/shoppers/$slug': typeof ShoppersSlugRoute
   '/admin/catalog': typeof AuthenticatedAdminCatalogRoute
   '/admin/classifieds': typeof AuthenticatedAdminClassifiedsRoute
+  '/admin/conversation-reports': typeof AuthenticatedAdminConversationReportsRoute
   '/admin/dealer-inventory': typeof AuthenticatedAdminDealerInventoryRoute
+  '/admin/dealers': typeof AuthenticatedAdminDealersRoute
   '/admin/members': typeof AuthenticatedAdminMembersRoute
   '/admin/products': typeof AuthenticatedAdminProductsRoute
   '/admin/review-flags': typeof AuthenticatedAdminReviewFlagsRoute
   '/admin/validation': typeof AuthenticatedAdminValidationRoute
   '/orders/$orderId': typeof AuthenticatedOrdersOrderIdRoute
+  '/api/internal/dealer-inventory': typeof ApiInternalDealerInventoryRoute
   '/api/internal/saved-searches': typeof ApiInternalSavedSearchesRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/admin/orders/$orderId': typeof AuthenticatedAdminOrdersOrderIdRoute
@@ -318,16 +385,21 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/advertise': typeof AdvertiseRoute
   '/auth': typeof AuthRoute
   '/browse': typeof BrowseRoute
   '/contact': typeof ContactRoute
   '/glossary': typeof GlossaryRoute
+  '/messages': typeof MessagesRoute
+  '/pets': typeof PetsRoute
   '/policies': typeof PoliciesRoute
+  '/safety': typeof SafetyRoute
   '/sell': typeof SellRoute
   '/account': typeof AuthenticatedAccountRoute
   '/buying': typeof AuthenticatedBuyingRoute
   '/create-listing': typeof AuthenticatedCreateListingRoute
   '/create-missing-listing': typeof AuthenticatedCreateMissingListingRoute
+  '/dealer-setup': typeof AuthenticatedDealerSetupRoute
   '/notifications': typeof AuthenticatedNotificationsRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/seller-setup': typeof AuthenticatedSellerSetupRoute
@@ -336,18 +408,22 @@ export interface FileRoutesByTo {
   '/shopper-payouts': typeof AuthenticatedShopperPayoutsRoute
   '/suggest': typeof AuthenticatedSuggestRoute
   '/watchlist': typeof AuthenticatedWatchlistRoute
+  '/dealers/$slug': typeof DealersSlugRoute
   '/listings/$listingId': typeof ListingsListingIdRoute
   '/products/$slug': typeof ProductsSlugRoute
   '/sellers/$slug': typeof SellersSlugRoute
   '/shoppers/$slug': typeof ShoppersSlugRoute
   '/admin/catalog': typeof AuthenticatedAdminCatalogRoute
   '/admin/classifieds': typeof AuthenticatedAdminClassifiedsRoute
+  '/admin/conversation-reports': typeof AuthenticatedAdminConversationReportsRoute
   '/admin/dealer-inventory': typeof AuthenticatedAdminDealerInventoryRoute
+  '/admin/dealers': typeof AuthenticatedAdminDealersRoute
   '/admin/members': typeof AuthenticatedAdminMembersRoute
   '/admin/products': typeof AuthenticatedAdminProductsRoute
   '/admin/review-flags': typeof AuthenticatedAdminReviewFlagsRoute
   '/admin/validation': typeof AuthenticatedAdminValidationRoute
   '/orders/$orderId': typeof AuthenticatedOrdersOrderIdRoute
+  '/api/internal/dealer-inventory': typeof ApiInternalDealerInventoryRoute
   '/api/internal/saved-searches': typeof ApiInternalSavedSearchesRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/admin/orders/$orderId': typeof AuthenticatedAdminOrdersOrderIdRoute
@@ -361,17 +437,22 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/advertise': typeof AdvertiseRoute
   '/auth': typeof AuthRoute
   '/browse': typeof BrowseRoute
   '/contact': typeof ContactRoute
   '/glossary': typeof GlossaryRoute
+  '/messages': typeof MessagesRoute
+  '/pets': typeof PetsRoute
   '/policies': typeof PoliciesRoute
+  '/safety': typeof SafetyRoute
   '/sell': typeof SellRoute
   '/_authenticated/account': typeof AuthenticatedAccountRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/_authenticated/buying': typeof AuthenticatedBuyingRoute
   '/_authenticated/create-listing': typeof AuthenticatedCreateListingRoute
   '/_authenticated/create-missing-listing': typeof AuthenticatedCreateMissingListingRoute
+  '/_authenticated/dealer-setup': typeof AuthenticatedDealerSetupRoute
   '/_authenticated/notifications': typeof AuthenticatedNotificationsRoute
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
   '/_authenticated/seller-setup': typeof AuthenticatedSellerSetupRoute
@@ -380,18 +461,22 @@ export interface FileRoutesById {
   '/_authenticated/shopper-payouts': typeof AuthenticatedShopperPayoutsRoute
   '/_authenticated/suggest': typeof AuthenticatedSuggestRoute
   '/_authenticated/watchlist': typeof AuthenticatedWatchlistRoute
+  '/dealers/$slug': typeof DealersSlugRoute
   '/listings/$listingId': typeof ListingsListingIdRoute
   '/products/$slug': typeof ProductsSlugRoute
   '/sellers/$slug': typeof SellersSlugRoute
   '/shoppers/$slug': typeof ShoppersSlugRoute
   '/_authenticated/admin/catalog': typeof AuthenticatedAdminCatalogRoute
   '/_authenticated/admin/classifieds': typeof AuthenticatedAdminClassifiedsRoute
+  '/_authenticated/admin/conversation-reports': typeof AuthenticatedAdminConversationReportsRoute
   '/_authenticated/admin/dealer-inventory': typeof AuthenticatedAdminDealerInventoryRoute
+  '/_authenticated/admin/dealers': typeof AuthenticatedAdminDealersRoute
   '/_authenticated/admin/members': typeof AuthenticatedAdminMembersRoute
   '/_authenticated/admin/products': typeof AuthenticatedAdminProductsRoute
   '/_authenticated/admin/review-flags': typeof AuthenticatedAdminReviewFlagsRoute
   '/_authenticated/admin/validation': typeof AuthenticatedAdminValidationRoute
   '/_authenticated/orders/$orderId': typeof AuthenticatedOrdersOrderIdRoute
+  '/api/internal/dealer-inventory': typeof ApiInternalDealerInventoryRoute
   '/api/internal/saved-searches': typeof ApiInternalSavedSearchesRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/_authenticated/admin/orders/$orderId': typeof AuthenticatedAdminOrdersOrderIdRoute
@@ -405,17 +490,22 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/advertise'
     | '/auth'
     | '/browse'
     | '/contact'
     | '/glossary'
+    | '/messages'
+    | '/pets'
     | '/policies'
+    | '/safety'
     | '/sell'
     | '/account'
     | '/admin'
     | '/buying'
     | '/create-listing'
     | '/create-missing-listing'
+    | '/dealer-setup'
     | '/notifications'
     | '/onboarding'
     | '/seller-setup'
@@ -424,18 +514,22 @@ export interface FileRouteTypes {
     | '/shopper-payouts'
     | '/suggest'
     | '/watchlist'
+    | '/dealers/$slug'
     | '/listings/$listingId'
     | '/products/$slug'
     | '/sellers/$slug'
     | '/shoppers/$slug'
     | '/admin/catalog'
     | '/admin/classifieds'
+    | '/admin/conversation-reports'
     | '/admin/dealer-inventory'
+    | '/admin/dealers'
     | '/admin/members'
     | '/admin/products'
     | '/admin/review-flags'
     | '/admin/validation'
     | '/orders/$orderId'
+    | '/api/internal/dealer-inventory'
     | '/api/internal/saved-searches'
     | '/admin/'
     | '/admin/orders/$orderId'
@@ -447,16 +541,21 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/advertise'
     | '/auth'
     | '/browse'
     | '/contact'
     | '/glossary'
+    | '/messages'
+    | '/pets'
     | '/policies'
+    | '/safety'
     | '/sell'
     | '/account'
     | '/buying'
     | '/create-listing'
     | '/create-missing-listing'
+    | '/dealer-setup'
     | '/notifications'
     | '/onboarding'
     | '/seller-setup'
@@ -465,18 +564,22 @@ export interface FileRouteTypes {
     | '/shopper-payouts'
     | '/suggest'
     | '/watchlist'
+    | '/dealers/$slug'
     | '/listings/$listingId'
     | '/products/$slug'
     | '/sellers/$slug'
     | '/shoppers/$slug'
     | '/admin/catalog'
     | '/admin/classifieds'
+    | '/admin/conversation-reports'
     | '/admin/dealer-inventory'
+    | '/admin/dealers'
     | '/admin/members'
     | '/admin/products'
     | '/admin/review-flags'
     | '/admin/validation'
     | '/orders/$orderId'
+    | '/api/internal/dealer-inventory'
     | '/api/internal/saved-searches'
     | '/admin'
     | '/admin/orders/$orderId'
@@ -489,17 +592,22 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/_authenticated'
+    | '/advertise'
     | '/auth'
     | '/browse'
     | '/contact'
     | '/glossary'
+    | '/messages'
+    | '/pets'
     | '/policies'
+    | '/safety'
     | '/sell'
     | '/_authenticated/account'
     | '/_authenticated/admin'
     | '/_authenticated/buying'
     | '/_authenticated/create-listing'
     | '/_authenticated/create-missing-listing'
+    | '/_authenticated/dealer-setup'
     | '/_authenticated/notifications'
     | '/_authenticated/onboarding'
     | '/_authenticated/seller-setup'
@@ -508,18 +616,22 @@ export interface FileRouteTypes {
     | '/_authenticated/shopper-payouts'
     | '/_authenticated/suggest'
     | '/_authenticated/watchlist'
+    | '/dealers/$slug'
     | '/listings/$listingId'
     | '/products/$slug'
     | '/sellers/$slug'
     | '/shoppers/$slug'
     | '/_authenticated/admin/catalog'
     | '/_authenticated/admin/classifieds'
+    | '/_authenticated/admin/conversation-reports'
     | '/_authenticated/admin/dealer-inventory'
+    | '/_authenticated/admin/dealers'
     | '/_authenticated/admin/members'
     | '/_authenticated/admin/products'
     | '/_authenticated/admin/review-flags'
     | '/_authenticated/admin/validation'
     | '/_authenticated/orders/$orderId'
+    | '/api/internal/dealer-inventory'
     | '/api/internal/saved-searches'
     | '/_authenticated/admin/'
     | '/_authenticated/admin/orders/$orderId'
@@ -533,16 +645,22 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AdvertiseRoute: typeof AdvertiseRoute
   AuthRoute: typeof AuthRoute
   BrowseRoute: typeof BrowseRoute
   ContactRoute: typeof ContactRoute
   GlossaryRoute: typeof GlossaryRoute
+  MessagesRoute: typeof MessagesRoute
+  PetsRoute: typeof PetsRoute
   PoliciesRoute: typeof PoliciesRoute
+  SafetyRoute: typeof SafetyRoute
   SellRoute: typeof SellRoute
+  DealersSlugRoute: typeof DealersSlugRoute
   ListingsListingIdRoute: typeof ListingsListingIdRoute
   ProductsSlugRoute: typeof ProductsSlugRoute
   SellersSlugRoute: typeof SellersSlugRoute
   ShoppersSlugRoute: typeof ShoppersSlugRoute
+  ApiInternalDealerInventoryRoute: typeof ApiInternalDealerInventoryRoute
   ApiInternalSavedSearchesRoute: typeof ApiInternalSavedSearchesRoute
   ApiPublicCatalogMediaSplatRoute: typeof ApiPublicCatalogMediaSplatRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
@@ -564,6 +682,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/advertise': {
+      id: '/advertise'
+      path: '/advertise'
+      fullPath: '/advertise'
+      preLoaderRoute: typeof AdvertiseRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -594,11 +719,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof GlossaryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/messages': {
+      id: '/messages'
+      path: '/messages'
+      fullPath: '/messages'
+      preLoaderRoute: typeof MessagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pets': {
+      id: '/pets'
+      path: '/pets'
+      fullPath: '/pets'
+      preLoaderRoute: typeof PetsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/policies': {
       id: '/policies'
       path: '/policies'
       fullPath: '/policies'
       preLoaderRoute: typeof PoliciesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/safety': {
+      id: '/safety'
+      path: '/safety'
+      fullPath: '/safety'
+      preLoaderRoute: typeof SafetyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sell': {
@@ -641,6 +787,13 @@ declare module '@tanstack/react-router' {
       path: '/create-missing-listing'
       fullPath: '/create-missing-listing'
       preLoaderRoute: typeof AuthenticatedCreateMissingListingRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/dealer-setup': {
+      id: '/_authenticated/dealer-setup'
+      path: '/dealer-setup'
+      fullPath: '/dealer-setup'
+      preLoaderRoute: typeof AuthenticatedDealerSetupRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/notifications': {
@@ -699,6 +852,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedWatchlistRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/dealers/$slug': {
+      id: '/dealers/$slug'
+      path: '/dealers/$slug'
+      fullPath: '/dealers/$slug'
+      preLoaderRoute: typeof DealersSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/listings/$listingId': {
       id: '/listings/$listingId'
       path: '/listings/$listingId'
@@ -748,11 +908,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminClassifiedsRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/conversation-reports': {
+      id: '/_authenticated/admin/conversation-reports'
+      path: '/conversation-reports'
+      fullPath: '/admin/conversation-reports'
+      preLoaderRoute: typeof AuthenticatedAdminConversationReportsRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/dealer-inventory': {
       id: '/_authenticated/admin/dealer-inventory'
       path: '/dealer-inventory'
       fullPath: '/admin/dealer-inventory'
       preLoaderRoute: typeof AuthenticatedAdminDealerInventoryRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
+    '/_authenticated/admin/dealers': {
+      id: '/_authenticated/admin/dealers'
+      path: '/dealers'
+      fullPath: '/admin/dealers'
+      preLoaderRoute: typeof AuthenticatedAdminDealersRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
     '/_authenticated/admin/members': {
@@ -789,6 +963,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/orders/$orderId'
       preLoaderRoute: typeof AuthenticatedOrdersOrderIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/internal/dealer-inventory': {
+      id: '/api/internal/dealer-inventory'
+      path: '/api/internal/dealer-inventory'
+      fullPath: '/api/internal/dealer-inventory'
+      preLoaderRoute: typeof ApiInternalDealerInventoryRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/internal/saved-searches': {
       id: '/api/internal/saved-searches'
@@ -845,7 +1026,9 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminCatalogRoute: typeof AuthenticatedAdminCatalogRoute
   AuthenticatedAdminClassifiedsRoute: typeof AuthenticatedAdminClassifiedsRoute
+  AuthenticatedAdminConversationReportsRoute: typeof AuthenticatedAdminConversationReportsRoute
   AuthenticatedAdminDealerInventoryRoute: typeof AuthenticatedAdminDealerInventoryRoute
+  AuthenticatedAdminDealersRoute: typeof AuthenticatedAdminDealersRoute
   AuthenticatedAdminMembersRoute: typeof AuthenticatedAdminMembersRoute
   AuthenticatedAdminProductsRoute: typeof AuthenticatedAdminProductsRoute
   AuthenticatedAdminReviewFlagsRoute: typeof AuthenticatedAdminReviewFlagsRoute
@@ -857,8 +1040,11 @@ interface AuthenticatedAdminRouteChildren {
 const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminCatalogRoute: AuthenticatedAdminCatalogRoute,
   AuthenticatedAdminClassifiedsRoute: AuthenticatedAdminClassifiedsRoute,
+  AuthenticatedAdminConversationReportsRoute:
+    AuthenticatedAdminConversationReportsRoute,
   AuthenticatedAdminDealerInventoryRoute:
     AuthenticatedAdminDealerInventoryRoute,
+  AuthenticatedAdminDealersRoute: AuthenticatedAdminDealersRoute,
   AuthenticatedAdminMembersRoute: AuthenticatedAdminMembersRoute,
   AuthenticatedAdminProductsRoute: AuthenticatedAdminProductsRoute,
   AuthenticatedAdminReviewFlagsRoute: AuthenticatedAdminReviewFlagsRoute,
@@ -876,6 +1062,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedBuyingRoute: typeof AuthenticatedBuyingRoute
   AuthenticatedCreateListingRoute: typeof AuthenticatedCreateListingRoute
   AuthenticatedCreateMissingListingRoute: typeof AuthenticatedCreateMissingListingRoute
+  AuthenticatedDealerSetupRoute: typeof AuthenticatedDealerSetupRoute
   AuthenticatedNotificationsRoute: typeof AuthenticatedNotificationsRoute
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
   AuthenticatedSellerSetupRoute: typeof AuthenticatedSellerSetupRoute
@@ -895,6 +1082,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCreateListingRoute: AuthenticatedCreateListingRoute,
   AuthenticatedCreateMissingListingRoute:
     AuthenticatedCreateMissingListingRoute,
+  AuthenticatedDealerSetupRoute: AuthenticatedDealerSetupRoute,
   AuthenticatedNotificationsRoute: AuthenticatedNotificationsRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
   AuthenticatedSellerSetupRoute: AuthenticatedSellerSetupRoute,
@@ -914,16 +1102,22 @@ const AuthenticatedRouteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AdvertiseRoute: AdvertiseRoute,
   AuthRoute: AuthRoute,
   BrowseRoute: BrowseRoute,
   ContactRoute: ContactRoute,
   GlossaryRoute: GlossaryRoute,
+  MessagesRoute: MessagesRoute,
+  PetsRoute: PetsRoute,
   PoliciesRoute: PoliciesRoute,
+  SafetyRoute: SafetyRoute,
   SellRoute: SellRoute,
+  DealersSlugRoute: DealersSlugRoute,
   ListingsListingIdRoute: ListingsListingIdRoute,
   ProductsSlugRoute: ProductsSlugRoute,
   SellersSlugRoute: SellersSlugRoute,
   ShoppersSlugRoute: ShoppersSlugRoute,
+  ApiInternalDealerInventoryRoute: ApiInternalDealerInventoryRoute,
   ApiInternalSavedSearchesRoute: ApiInternalSavedSearchesRoute,
   ApiPublicCatalogMediaSplatRoute: ApiPublicCatalogMediaSplatRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,

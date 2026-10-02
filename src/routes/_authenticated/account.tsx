@@ -25,7 +25,8 @@ export const Route = createFileRoute("/_authenticated/account")({
       typeof search["conversation"] === "string" ? search["conversation"] : undefined;
     const conversation = rawConversation ? rawConversation.slice(0, 80) : undefined;
     const rawCheckout = typeof search["checkout"] === "string" ? search["checkout"] : undefined;
-    const checkout = rawCheckout === "success" || rawCheckout === "cancelled" ? rawCheckout : undefined;
+    const checkout =
+      rawCheckout === "success" || rawCheckout === "cancelled" ? rawCheckout : undefined;
     const rawPurchase = typeof search["purchase"] === "string" ? search["purchase"] : undefined;
     const purchase = rawPurchase ? rawPurchase.slice(0, 80) : undefined;
     return {
@@ -37,10 +38,10 @@ export const Route = createFileRoute("/_authenticated/account")({
   },
   head: () => ({
     meta: [
-      { title: "Account center · Gem State Classifieds" },
+      { title: "Account center · Bluebird Marketplace" },
       {
         name: "description",
-        content: "Manage your Gem State profile, saved listings, messages, and seller tools.",
+        content: "Manage your Bluebird profile, saved listings, messages, and seller tools.",
       },
       { name: "robots", content: "noindex,nofollow" },
     ],

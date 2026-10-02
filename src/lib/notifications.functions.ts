@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- notification rows include migration-backed JSON fields */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
@@ -29,7 +30,9 @@ export const getMyNotifications = createServerFn({ method: "GET" })
     const client = context.supabase as any;
     const { data, error } = await client
       .from("notifications")
-      .select("id, kind, title, body, order_id, entity_type, entity_id, destination_url, read_at, created_at")
+      .select(
+        "id, kind, title, body, order_id, entity_type, entity_id, destination_url, read_at, created_at",
+      )
       .order("created_at", { ascending: false })
       .limit(60);
     if (error) throw new Error(error.message);
@@ -51,7 +54,7 @@ export const getMyNotifications = createServerFn({ method: "GET" })
 
 export const markNotificationsRead = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { ids?: string[] | null }) => ({
+  .validator((input: { ids?: string[] | null }) => ({
     ids: Array.isArray(input.ids) ? input.ids.map((id) => String(id)).slice(0, 100) : null,
   }))
   .handler(async ({ data, context }) => {

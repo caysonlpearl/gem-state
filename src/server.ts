@@ -68,9 +68,14 @@ export default {
   },
   async scheduled(_controller: unknown, env: unknown, ctx: unknown) {
     registerRuntimeBindings(env);
-    const task = import("./lib/saved-search-worker.server").then(({ processSavedSearchAlerts }) =>
-      processSavedSearchAlerts(),
-    );
+    const task = Promise.all([
+      import("./lib/saved-search-worker.server").then(({ processSavedSearchAlerts }) =>
+        processSavedSearchAlerts(),
+      ),
+      import("./lib/dealer-inventory.functions").then(
+        ({ processScheduledDealerInventorySources }) => processScheduledDealerInventorySources(),
+      ),
+    ]);
     const runtime = ctx as { waitUntil?: (promise: Promise<unknown>) => void };
     if (typeof runtime.waitUntil === "function") runtime.waitUntil(task);
     else await task;

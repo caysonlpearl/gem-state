@@ -13,6 +13,7 @@ import {
   type InventoryFileFormat,
   type InventoryMapping,
 } from "@/lib/dealer-inventory";
+import { scheduleIsDue } from "@/lib/dealer-inventory-schedule";
 
 const sourceInput = z.object({
   name: z.string().trim().min(2).max(120),
@@ -26,10 +27,12 @@ const sourceInput = z.object({
   minimumRowCount: z.number().int().positive().max(1_000_000).default(1),
   deactivationGraceRuns: z.number().int().positive().max(30).default(2),
   mappingProfile: z.record(z.string(), z.string()).default({}),
+  dealerId: z.string().uuid().optional().nullable(),
 });
 
 export type DealerInventorySourceSummary = {
   id: string;
+  dealer_id: string | null;
   name: string;
   provider_name: string | null;
   source_type: string;
@@ -49,6 +52,7 @@ export type DealerInventorySourceSummary = {
 export type DealerInventorySyncRunSummary = {
   id: string;
   source_id: string;
+  actor_user_id: string | null;
   mode: "dry_run" | "apply";
   status: "running" | "completed" | "failed" | "rejected";
   source_filename: string | null;
@@ -62,6 +66,17 @@ export type DealerInventorySyncRunSummary = {
   unchanged_count: number;
   stale_count: number;
   error_summary: Array<{ rowNumber?: number; field?: string; message?: string }>;
+};
+
+export type DealerInventoryRecordSummary = {
+  id: string;
+  source_record_key: string;
+  title: string;
+  vin: string | null;
+  stock_number: string | null;
+  inventory_status: string;
+  price_cents: number | null;
+  listing_id: string | null;
 };
 
 const feedInput = z.object({
@@ -98,7 +113,7 @@ export const getDealerInventorySources = createServerFn({ method: "GET" })
     const { data, error } = await (supabaseAdmin as any)
       .from("dealer_inventory_sources")
       .select(
-        "id,name,provider_name,source_type,file_format,feed_url,schedule,mapping_profile,minimum_row_count,deactivation_grace_runs,status,last_success_at,last_error_at,last_error,created_at",
+        "id,dealer_id,name,provider_name,source_type,file_format,feed_url,schedule,mapping_profile,minimum_row_count,deactivation_grace_runs,status,last_success_at,last_error_at,last_error,created_at",
       )
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
@@ -107,7 +122,7 @@ export const getDealerInventorySources = createServerFn({ method: "GET" })
 
 export const createDealerInventorySource = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => sourceInput.parse(input))
+  .validator((input: unknown) => sourceInput.parse(input))
   .handler(async ({ data, context }) => {
     await requireAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -115,6 +130,7 @@ export const createDealerInventorySource = createServerFn({ method: "POST" })
       .from("dealer_inventory_sources")
       .insert({
         owner_user_id: context.userId,
+        dealer_id: data.dealerId || null,
         name: data.name,
         provider_name: data.providerName || null,
         source_type: data.sourceType,
@@ -128,19 +144,27 @@ export const createDealerInventorySource = createServerFn({ method: "POST" })
       .select("id,name")
       .single();
     if (error) throw new Error(error.message);
+    await (supabaseAdmin as any).from("dealer_audit_events").insert({
+      dealer_id: data.dealerId || null,
+      actor_user_id: context.userId,
+      action: "inventory_source_created",
+      target_type: "inventory_source",
+      target_id: source.id,
+      metadata: { fileFormat: data.fileFormat, sourceType: data.sourceType },
+    });
     return source;
   });
 
 export const getDealerInventorySyncRuns = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => z.object({ sourceId: z.string().uuid() }).parse(input))
+  .validator((input: unknown) => z.object({ sourceId: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }): Promise<DealerInventorySyncRunSummary[]> => {
     await requireAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: runs, error } = await (supabaseAdmin as any)
       .from("dealer_inventory_sync_runs")
       .select(
-        "id,source_id,mode,status,source_filename,started_at,finished_at,received_row_count,valid_row_count,invalid_row_count,created_count,updated_count,unchanged_count,stale_count,error_summary",
+        "id,source_id,actor_user_id,mode,status,source_filename,started_at,finished_at,received_row_count,valid_row_count,invalid_row_count,created_count,updated_count,unchanged_count,stale_count,error_summary",
       )
       .eq("source_id", data.sourceId)
       .order("started_at", { ascending: false });
@@ -150,7 +174,7 @@ export const getDealerInventorySyncRuns = createServerFn({ method: "GET" })
 
 export const setDealerInventorySourceStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) =>
+  .validator((input: unknown) =>
     z.object({ sourceId: z.string().uuid(), status: z.enum(["active", "paused"]) }).parse(input),
   )
   .handler(async ({ data, context }) => {
@@ -161,12 +185,107 @@ export const setDealerInventorySourceStatus = createServerFn({ method: "POST" })
       .update({ status: data.status })
       .eq("id", data.sourceId);
     if (error) throw new Error(error.message);
+    const { data: source } = await (supabaseAdmin as any)
+      .from("dealer_inventory_sources")
+      .select("dealer_id")
+      .eq("id", data.sourceId)
+      .maybeSingle();
+    await (supabaseAdmin as any).from("dealer_audit_events").insert({
+      dealer_id: source?.dealer_id ?? null,
+      actor_user_id: context.userId,
+      action: "inventory_source_status_changed",
+      target_type: "inventory_source",
+      target_id: data.sourceId,
+      metadata: { status: data.status },
+    });
     return { sourceId: data.sourceId, status: data.status };
+  });
+
+export const getDealerInventoryRecords = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) => z.object({ sourceId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }): Promise<DealerInventoryRecordSummary[]> => {
+    await requireAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: records, error } = await (supabaseAdmin as any)
+      .from("dealer_inventory_records")
+      .select(
+        "id,source_record_key,title,vin,stock_number,inventory_status,price_cents,dealer_inventory_listing_links(listing_id)",
+      )
+      .eq("source_id", data.sourceId)
+      .order("updated_at", { ascending: false });
+    if (error) throw new Error(error.message);
+    return (records ?? []).map((row: any) => ({
+      ...row,
+      listing_id: row.dealer_inventory_listing_links?.[0]?.listing_id ?? null,
+    }));
+  });
+
+export const linkDealerInventoryRecord = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z.object({ recordId: z.string().uuid(), listingId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = supabaseAdmin as any;
+    const [{ data: record, error: recordError }, { data: listing, error: listingError }] =
+      await Promise.all([
+        admin.from("dealer_inventory_records").select("id").eq("id", data.recordId).maybeSingle(),
+        admin.from("asks").select("id,status").eq("id", data.listingId).maybeSingle(),
+      ]);
+    if (recordError) throw new Error(recordError.message);
+    if (listingError) throw new Error(listingError.message);
+    if (!record) throw new Error("Inventory record not found.");
+    if (!listing) throw new Error("Listing not found.");
+    const { data: source, error: sourceError } = await admin
+      .from("dealer_inventory_records")
+      .select("source_id,dealer_inventory_sources(dealer_id)")
+      .eq("id", data.recordId)
+      .maybeSingle();
+    if (sourceError) throw new Error(sourceError.message);
+    const dealerId = source?.dealer_inventory_sources?.dealer_id ?? null;
+    if (!dealerId)
+      throw new Error(
+        "Associate the inventory source with a ready dealership before linking listings.",
+      );
+    const { data: dealer, error: dealerError } = await admin
+      .from("dealer_profiles")
+      .select("id,status,agreements_accepted_at")
+      .eq("id", dealerId)
+      .maybeSingle();
+    if (dealerError) throw new Error(dealerError.message);
+    if (!dealer || dealer.status !== "ready" || !dealer.agreements_accepted_at)
+      throw new Error(
+        "The dealership must be ready and agreement-accepted before inventory can go public.",
+      );
+    const { error } = await admin
+      .from("dealer_inventory_listing_links")
+      .upsert(
+        { record_id: data.recordId, listing_id: data.listingId, link_type: "manual" },
+        { onConflict: "record_id" },
+      );
+    if (error) throw new Error(error.message);
+    const { error: listingErrorUpdate } = await admin
+      .from("asks")
+      .update({ dealer_id: dealerId })
+      .eq("id", data.listingId);
+    if (listingErrorUpdate) throw new Error(listingErrorUpdate.message);
+    await admin.from("dealer_audit_events").insert({
+      dealer_id: dealerId,
+      actor_user_id: context.userId,
+      action: "inventory_listing_linked",
+      target_type: "listing",
+      target_id: data.listingId,
+      metadata: { recordId: data.recordId, listingStatus: listing.status },
+    });
+    return { ok: true, listingStatus: listing.status, dealerId };
   });
 
 export const previewDealerInventoryFeed = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => feedInput.parse(input))
+  .validator((input: unknown) => feedInput.parse(input))
   .handler(async ({ data, context }) => {
     await requireAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -194,6 +313,7 @@ export const previewDealerInventoryFeed = createServerFn({ method: "POST" })
       .from("dealer_inventory_sync_runs")
       .insert({
         source_id: data.sourceId,
+        actor_user_id: context.userId,
         mode: "dry_run",
         status: rejected ? "rejected" : "completed",
         source_filename: data.filename ?? null,
@@ -240,84 +360,246 @@ export const previewDealerInventoryFeed = createServerFn({ method: "POST" })
     };
   });
 
+async function applyInventoryPayload(
+  admin: any,
+  context: { userId: string | null },
+  data: { sourceId: string; filename?: string; dryRun: false },
+  source: {
+    id: string;
+    dealer_id?: string | null;
+    file_format: string;
+    mapping_profile?: Record<string, string>;
+    minimum_row_count?: number;
+  },
+  payload: string,
+) {
+  const result = parseInventoryFeed(source.file_format as InventoryFileFormat, payload, {
+    ...defaultInventoryMapping,
+    ...(source.mapping_profile ?? {}),
+  } as InventoryMapping);
+  if (result.records.length < Number(source.minimum_row_count ?? 1)) {
+    throw new Error(
+      `Feed rejected: at least ${source.minimum_row_count} valid row(s) are required.`,
+    );
+  }
+  const checksum = result.records.map((record) => record.contentHash).join(":");
+  const { data: run, error: runError } = await admin
+    .from("dealer_inventory_sync_runs")
+    .insert({
+      source_id: data.sourceId,
+      actor_user_id: context.userId,
+      mode: "apply",
+      status: "running",
+      source_filename: data.filename ?? null,
+      source_checksum: checksum,
+      raw_payload: payload,
+      received_row_count: result.rows.length,
+      valid_row_count: result.records.length,
+      invalid_row_count: result.errors.length,
+      error_summary: result.errors.slice(0, 100),
+    })
+    .select("id")
+    .single();
+  if (runError) throw new Error(runError.message);
+  const { data: reconciliation, error: reconciliationError } = await admin.rpc(
+    "reconcile_dealer_inventory_records",
+    { _source_id: data.sourceId, _run_id: run.id, _records: recordsForDatabase(result.records) },
+  );
+  if (reconciliationError) {
+    await admin
+      .from("dealer_inventory_sync_runs")
+      .update({
+        status: "failed",
+        finished_at: new Date().toISOString(),
+        error_summary: [{ message: reconciliationError.message }],
+      })
+      .eq("id", run.id);
+    await admin.rpc("touch_dealer_inventory_source", {
+      _source_id: data.sourceId,
+      _ok: false,
+      _error: reconciliationError.message,
+    });
+    throw new Error(reconciliationError.message);
+  }
+  const summary = reconciliation ?? {};
+  const { error: finishError } = await admin
+    .from("dealer_inventory_sync_runs")
+    .update({
+      status: "completed",
+      finished_at: new Date().toISOString(),
+      created_count: summary.createdCount ?? 0,
+      updated_count: summary.updatedCount ?? 0,
+      unchanged_count: summary.unchangedCount ?? 0,
+      stale_count: summary.staleCount ?? 0,
+    })
+    .eq("id", run.id);
+  if (finishError) throw new Error(finishError.message);
+  await admin.rpc("touch_dealer_inventory_source", { _source_id: data.sourceId, _ok: true });
+  await admin.from("dealer_audit_events").insert({
+    dealer_id: source.dealer_id ?? null,
+    actor_user_id: context.userId,
+    action: "inventory_sync_applied",
+    target_type: "inventory_sync_run",
+    target_id: run.id,
+    metadata: {
+      created: summary.createdCount ?? 0,
+      updated: summary.updatedCount ?? 0,
+      stale: summary.staleCount ?? 0,
+    },
+  });
+  return { runId: run.id, ...summary, validRowCount: result.records.length };
+}
+
+/** Called by the host scheduler. A run is recorded through the same apply path as manual imports. */
+export async function processScheduledDealerInventorySources(now = new Date()) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const admin = supabaseAdmin as any;
+  const { data: sources, error } = await admin
+    .from("dealer_inventory_sources")
+    .select(
+      "id,dealer_id,file_format,mapping_profile,minimum_row_count,status,feed_url,schedule,last_success_at",
+    )
+    .eq("status", "active")
+    .not("feed_url", "is", null)
+    .not("schedule", "is", null);
+  if (error) throw new Error(error.message);
+  const results: Array<{
+    sourceId: string;
+    status: "completed" | "skipped" | "failed";
+    runId?: string;
+    message?: string;
+  }> = [];
+  for (const source of sources ?? []) {
+    if (!scheduleIsDue(source.schedule, source.last_success_at, now)) {
+      results.push({ sourceId: source.id, status: "skipped" });
+      continue;
+    }
+    try {
+      const parsedUrl = new URL(source.feed_url);
+      if (parsedUrl.protocol !== "https:")
+        throw new Error("Configured inventory sources must use HTTPS.");
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 15_000);
+      let response: Response;
+      try {
+        response = await fetch(parsedUrl, {
+          signal: controller.signal,
+          redirect: "follow",
+          cache: "no-store",
+        });
+      } finally {
+        clearTimeout(timeout);
+      }
+      if (!response.ok) throw new Error(`Feed returned HTTP ${response.status}.`);
+      const length = Number(response.headers.get("content-length") ?? 0);
+      if (length > 5_000_000) throw new Error("Feed exceeds the 5 MB safety limit.");
+      const payload = await response.text();
+      if (!payload || payload.length > 5_000_000)
+        throw new Error("Feed is empty or exceeds the 5 MB safety limit.");
+      const filename =
+        parsedUrl.pathname.split("/").filter(Boolean).pop() || `scheduled-${source.file_format}`;
+      const result = await applyInventoryPayload(
+        admin,
+        { userId: null },
+        { sourceId: source.id, filename, dryRun: false },
+        source,
+        payload,
+      );
+      results.push({ sourceId: source.id, status: "completed", runId: result.runId });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Scheduled feed failed.";
+      await admin
+        .rpc("touch_dealer_inventory_source", {
+          _source_id: source.id,
+          _ok: false,
+          _error: message,
+        })
+        .catch(() => undefined);
+      results.push({ sourceId: source.id, status: "failed", message });
+    }
+  }
+  return results;
+}
+
+export const runScheduledDealerInventorySources = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await requireAdmin(context);
+    return processScheduledDealerInventorySources();
+  });
+
 export const applyDealerInventoryFeed = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: unknown) => feedInput.extend({ dryRun: z.literal(false) }).parse(input))
+  .validator((input: unknown) => feedInput.extend({ dryRun: z.literal(false) }).parse(input))
   .handler(async ({ data, context }) => {
     await requireAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
     const { data: source, error: sourceError } = await admin
       .from("dealer_inventory_sources")
-      .select("id,file_format,mapping_profile,minimum_row_count")
+      .select("id,dealer_id,file_format,mapping_profile,minimum_row_count")
       .eq("id", data.sourceId)
       .maybeSingle();
     if (sourceError) throw new Error(sourceError.message);
     if (!source) throw new Error("Inventory source not found.");
+    return applyInventoryPayload(admin, context, data, source, data.payload);
+  });
 
-    const result = parseInventoryFeed(source.file_format as InventoryFileFormat, data.payload, {
-      ...defaultInventoryMapping,
-      ...(source.mapping_profile ?? {}),
-    } as InventoryMapping);
-    if (result.records.length < Number(source.minimum_row_count ?? 1)) {
-      throw new Error(
-        `Feed rejected: at least ${source.minimum_row_count} valid row(s) are required.`,
-      );
+export const runConfiguredDealerInventorySource = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) => z.object({ sourceId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = supabaseAdmin as any;
+    const { data: source, error } = await admin
+      .from("dealer_inventory_sources")
+      .select("id,dealer_id,file_format,mapping_profile,minimum_row_count,status,feed_url")
+      .eq("id", data.sourceId)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!source) throw new Error("Inventory source not found.");
+    if (!source.feed_url)
+      throw new Error("Add an HTTPS feed URL before running a configured source.");
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(source.feed_url);
+    } catch {
+      throw new Error("The configured feed URL is invalid.");
     }
-
-    const checksum = result.records.map((record) => record.contentHash).join(":");
-    const { data: run, error: runError } = await admin
-      .from("dealer_inventory_sync_runs")
-      .insert({
-        source_id: data.sourceId,
-        mode: "apply",
-        status: "running",
-        source_filename: data.filename ?? null,
-        source_checksum: checksum,
-        raw_payload: data.payload,
-        received_row_count: result.rows.length,
-        valid_row_count: result.records.length,
-        invalid_row_count: result.errors.length,
-        error_summary: result.errors.slice(0, 100),
-      })
-      .select("id")
-      .single();
-    if (runError) throw new Error(runError.message);
-
-    const { data: reconciliation, error: reconciliationError } = await admin.rpc(
-      "reconcile_dealer_inventory_records",
-      { _source_id: data.sourceId, _run_id: run.id, _records: recordsForDatabase(result.records) },
-    );
-    if (reconciliationError) {
-      await admin
-        .from("dealer_inventory_sync_runs")
-        .update({
-          status: "failed",
-          finished_at: new Date().toISOString(),
-          error_summary: [{ message: reconciliationError.message }],
-        })
-        .eq("id", run.id);
-      await admin.rpc("touch_dealer_inventory_source", {
-        _source_id: data.sourceId,
-        _ok: false,
-        _error: reconciliationError.message,
+    if (parsedUrl.protocol !== "https:")
+      throw new Error("Configured inventory sources must use HTTPS.");
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15_000);
+    let response: Response;
+    try {
+      response = await fetch(parsedUrl, {
+        signal: controller.signal,
+        redirect: "follow",
+        cache: "no-store",
       });
-      throw new Error(reconciliationError.message);
+    } catch (fetchError) {
+      throw new Error(
+        fetchError instanceof Error && fetchError.name === "AbortError"
+          ? "The feed timed out after 15 seconds."
+          : "The feed could not be reached.",
+      );
+    } finally {
+      clearTimeout(timeout);
     }
-
-    const summary = reconciliation ?? {};
-    const { error: finishError } = await admin
-      .from("dealer_inventory_sync_runs")
-      .update({
-        status: "completed",
-        finished_at: new Date().toISOString(),
-        created_count: summary.createdCount ?? 0,
-        updated_count: summary.updatedCount ?? 0,
-        unchanged_count: summary.unchangedCount ?? 0,
-        stale_count: summary.staleCount ?? 0,
-      })
-      .eq("id", run.id);
-    if (finishError) throw new Error(finishError.message);
-    await admin.rpc("touch_dealer_inventory_source", { _source_id: data.sourceId, _ok: true });
-    return { runId: run.id, ...summary, validRowCount: result.records.length };
+    if (!response.ok) throw new Error(`Feed returned HTTP ${response.status}.`);
+    const length = Number(response.headers.get("content-length") ?? 0);
+    if (length > 5_000_000) throw new Error("Feed exceeds the 5 MB safety limit.");
+    const payload = await response.text();
+    if (payload.length === 0 || payload.length > 5_000_000)
+      throw new Error("Feed is empty or exceeds the 5 MB safety limit.");
+    const filename =
+      parsedUrl.pathname.split("/").filter(Boolean).pop() || `remote-${source.file_format}`;
+    return applyInventoryPayload(
+      admin,
+      context,
+      { sourceId: data.sourceId, filename, dryRun: false },
+      source,
+      payload,
+    );
   });

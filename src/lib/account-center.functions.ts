@@ -40,7 +40,7 @@ export const getMyContactPreferences = createServerFn({ method: "GET" })
 
 export const updateMyContactPreferences = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: Partial<ContactPreferences>) => ({
+  .validator((input: Partial<ContactPreferences>) => ({
     allowEmail: input.allowEmail !== false,
     allowPhone: input.allowPhone === true,
     allowText: input.allowText === true,
@@ -108,7 +108,7 @@ export const getMySavedSearches = createServerFn({ method: "GET" })
 
 export const createSavedSearch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { name: string; search?: Record<string, unknown>; emailAlerts?: boolean }) => {
+  .validator((input: { name: string; search?: Record<string, unknown>; emailAlerts?: boolean }) => {
     const name = String(input.name ?? "").trim();
     if (name.length < 1 || name.length > 80) throw new Error("Name your saved search.");
     return {
@@ -135,18 +135,26 @@ export const createSavedSearch = createServerFn({ method: "POST" })
 
 export const updateSavedSearch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { id: string; name?: string; search?: Record<string, unknown>; emailAlerts?: boolean; paused?: boolean }) => {
-    const updates: Record<string, unknown> = {};
-    if (input.name !== undefined) {
-      const name = String(input.name).trim();
-      if (name.length < 1 || name.length > 80) throw new Error("Name your saved search.");
-      updates["name"] = name;
-    }
-    if (input.search !== undefined) updates["search"] = input.search;
-    if (input.emailAlerts !== undefined) updates["email_alerts"] = input.emailAlerts === true;
-    if (input.paused !== undefined) updates["paused"] = input.paused === true;
-    return { id: String(input.id), updates };
-  })
+  .validator(
+    (input: {
+      id: string;
+      name?: string;
+      search?: Record<string, unknown>;
+      emailAlerts?: boolean;
+      paused?: boolean;
+    }) => {
+      const updates: Record<string, unknown> = {};
+      if (input.name !== undefined) {
+        const name = String(input.name).trim();
+        if (name.length < 1 || name.length > 80) throw new Error("Name your saved search.");
+        updates["name"] = name;
+      }
+      if (input.search !== undefined) updates["search"] = input.search;
+      if (input.emailAlerts !== undefined) updates["email_alerts"] = input.emailAlerts === true;
+      if (input.paused !== undefined) updates["paused"] = input.paused === true;
+      return { id: String(input.id), updates };
+    },
+  )
   .handler(async ({ data, context }): Promise<SavedSearch> => {
     const client = context.supabase as any;
     const { data: row, error } = await client
@@ -162,7 +170,7 @@ export const updateSavedSearch = createServerFn({ method: "POST" })
 
 export const deleteSavedSearch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { id: string }) => ({ id: String(input.id) }))
+  .validator((input: { id: string }) => ({ id: String(input.id) }))
   .handler(async ({ data, context }) => {
     const client = context.supabase as any;
     const { error } = await client
@@ -200,7 +208,9 @@ export const getMyNotificationPreferences = createServerFn({ method: "GET" })
     const client = context.supabase as any;
     const { data, error } = await client
       .from("account_notification_preferences")
-      .select("message_alerts,listing_activity,saved_search_matches,review_requests,listing_upgrade_receipts,product_updates,marketing_email")
+      .select(
+        "message_alerts,listing_activity,saved_search_matches,review_requests,listing_upgrade_receipts,product_updates,marketing_email",
+      )
       .eq("user_id", context.userId)
       .maybeSingle();
     if (error) throw new Error(error.message);
@@ -218,7 +228,7 @@ export const getMyNotificationPreferences = createServerFn({ method: "GET" })
 
 export const updateMyNotificationPreferences = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: Partial<NotificationPreferences>) => ({
+  .validator((input: Partial<NotificationPreferences>) => ({
     messageAlerts: input.messageAlerts !== false,
     listingActivity: input.listingActivity !== false,
     savedSearchMatches: input.savedSearchMatches !== false,

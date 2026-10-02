@@ -5,18 +5,18 @@ import { readFile } from "node:fs/promises";
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
 const configSource = await read("src/config/classifieds.ts");
+const petsConfigSource = await read("src/config/pets.ts");
 const browseSource = await read("src/routes/browse.tsx");
+const displaySource = await read("src/lib/classifieds-display.ts");
+const querySource = await read("src/lib/classifieds-query.ts");
 const createSource = await read("src/routes/_authenticated/create-listing.tsx");
 const listingFormSource = await read("src/components/classifieds/listing-form/ListingForm.tsx");
 const vehicleFieldsSource = await read("src/components/classifieds/listing-form/VehicleFields.tsx");
 const homeFieldsSource = await read("src/components/classifieds/listing-form/HomeFields.tsx");
 const jobFieldsSource = await read("src/components/classifieds/listing-form/JobFields.tsx");
-const serviceFieldsSource = await read(
-  "src/components/classifieds/listing-form/ServiceFields.tsx",
-);
-const listingFormPayloadSource = await read(
-  "src/components/classifieds/listing-form/payload.ts",
-);
+const serviceFieldsSource = await read("src/components/classifieds/listing-form/ServiceFields.tsx");
+const petFieldsSource = await read("src/components/classifieds/listing-form/PetFields.tsx");
+const listingFormPayloadSource = await read("src/components/classifieds/listing-form/payload.ts");
 const editSource = await read("src/routes/_authenticated/listings.$listingId.edit.tsx");
 const homeJobServiceMigrationSource = await read(
   "supabase/migrations/20260918100000_add_classified_home_job_service_details.sql",
@@ -36,19 +36,46 @@ const sellerSetupSource = await read("src/routes/_authenticated/seller-setup.tsx
 const sellingSource = await read("src/routes/_authenticated/selling.tsx");
 const accountSource = await read("src/routes/_authenticated/account.tsx");
 const accountCenterSource = await read("src/components/account/AccountCenter.tsx");
+const accountFunctionsSource = await read("src/lib/account.functions.ts");
 const accountCenterFunctionsSource = await read("src/lib/account-center.functions.ts");
 const conversationFunctionsSource = await read("src/lib/conversation.functions.ts");
+const notificationsFunctionsSource = await read("src/lib/notifications.functions.ts");
+const adminConversationReportsSource = await read(
+  "src/routes/_authenticated/admin.conversation-reports.tsx",
+);
+const conversationReportsMigrationSource = await read(
+  "supabase/migrations/20260930150000_add_phase2_conversation_report_workflow.sql",
+);
 const listingUpgradeFunctionsSource = await read("src/lib/listing-upgrade.functions.ts");
 const listingUpgradeMigrationSource = await read(
   "supabase/migrations/20260918113000_add_seller_listing_upgrades.sql",
 );
+const simplifiedUpgradeMigrationSource = await read(
+  "supabase/migrations/20260920120000_simplify_listing_upgrades.sql",
+);
 const accountCenterMigrationSource = await read(
   "supabase/migrations/20260918110000_add_account_center_tools.sql",
+);
+const profileAvatarMigrationSource = await read(
+  "supabase/migrations/20260920100000_add_profile_avatar_storage.sql",
 );
 const savedSearchWorkerSource = await read("src/lib/saved-search-worker.server.ts");
 const glossarySource = await read("src/routes/glossary.tsx");
 const policiesSource = await read("src/routes/policies.tsx");
+const authSource = await read("src/routes/auth.tsx");
 const classifiedsFunctionsSource = await read("src/lib/classifieds.functions.ts");
+const pilotFunctionsSource = await read("src/lib/pilot.functions.ts");
+const sellerFunctionsSource = await read("src/lib/seller.functions.ts");
+const adminReviewFlagsSource = await read("src/routes/_authenticated/admin.review-flags.tsx");
+const dealerInventoryRouteSource = await read("src/routes/_authenticated/admin.dealer-inventory.tsx");
+const dealerFunctionsSource = await read("src/lib/dealer.functions.ts");
+const listingDetailSource = await read("src/routes/listings.$listingId.tsx");
+const sellerProfileSource = await read("src/routes/sellers.$slug.tsx");
+const adminClassifiedsSource = await read("src/routes/_authenticated/admin.classifieds.tsx");
+const listingReportsMigrationSource = await read(
+  "supabase/migrations/20260920110000_add_classified_listing_reports.sql",
+);
+const vehicleFunctionsSource = await read("src/lib/vehicle.functions.ts");
 const marketFunctionsSource = await read("src/lib/market.functions.ts");
 const stripeMarketplaceSource = await read("src/lib/stripe-marketplace.functions.ts");
 const stripeServerSource = await read("src/lib/stripe-marketplace.server.ts");
@@ -59,6 +86,12 @@ const mediaCountMigrationSource = await read(
 );
 const classifiedSchemaSource = await read(
   "supabase/migrations/20260913173736_32625455-cc9d-4572-a1dc-713b70e33dce.sql",
+);
+const petMigrationSource = await read(
+  "supabase/migrations/20260920150000_add_classified_pet_details.sql",
+);
+const freePetMigrationSource = await read(
+  "supabase/migrations/20260920170000_allow_free_pet_listings.sql",
 );
 const inquiryMigrationSource = await read(
   "supabase/migrations/20260915160000_add_classified_listing_inquiries.sql",
@@ -78,7 +111,13 @@ const classifiedMediaSecurityMigrationSource = await read(
 const mvpCopyMigrationSource = await read(
   "supabase/migrations/20260915170000_refresh_classified_mvp_copy.sql",
 );
+const seedCopyMigrationSource = await read(
+  "supabase/migrations/20260919240000_clean_classified_seed_copy.sql",
+);
 const seedRunnerSource = await read("scripts/seed-classifieds.mjs");
+const advertiseSource = await read("src/routes/advertise.tsx");
+const safetySource = await read("src/routes/safety.tsx");
+const footerSource = await read("src/components/layout/SiteFooter.tsx");
 const seedMigrationSource = await read(
   "supabase/migrations/20260914110000_add_classified_seed_listing_function.sql",
 );
@@ -103,12 +142,42 @@ const detailSource = await read("src/routes/listings.$listingId.tsx");
 const mockListingsSource = await read("src/config/classified-mocks.ts");
 const stylesSource = await read("src/styles.css");
 const { classifiedSeedListings } = await import("../scripts/classified-seed-data.mjs");
+const { mockClassifiedListings, mockVehicleListings } =
+  await import("../src/config/classified-mocks.ts");
+
+test("vehicle sort control updates the canonical browse query", () => {
+  assert.match(browseSource, /value=\{search\.sort \?\? "newest"\}/);
+  assert.match(browseSource, /onChange=\{\(event\) => onApply\(\{ sort: event\.target\.value as Sort \}\)\}/);
+});
+
+test("public browse suppresses preview fixtures that duplicate persisted listings", () => {
+  assert.match(classifiedsFunctionsSource, /function previewListingKey\(listing: ClassifiedCard\)/);
+  assert.match(classifiedsFunctionsSource, /!listings\.some\(\(persisted\) => previewListingKey\(persisted\) === key\)/);
+});
+
+test("scoped seller and dealership inventory excludes preview fixtures", () => {
+  assert.match(classifiedsFunctionsSource, /const scopedToOwner = Boolean\(data\.dealerSlug \|\| data\.sellerSlug\)/);
+  assert.match(classifiedsFunctionsSource, /page === 1 && !scopedToOwner/);
+  assert.match(dealerFunctionsSource, /browseClassifieds\(\{ data: \{ dealerSlug: data\.slug/);
+});
 
 test("classified taxonomy includes Idaho categories and automotive inventory", () => {
   assert.match(configSource, /cars-trucks/);
   assert.match(configSource, /furniture/);
   assert.match(configSource, /idahoRegions/);
   assert.match(configSource, /drivetrains: \[[\s\S]*4WD/);
+  assert.match(configSource, /vehicleModelsByMake/);
+  for (const make of [
+    "Abarth",
+    "Alfa Romeo",
+    "Freightliner",
+    "Polestar",
+    "Rivian",
+    "Winnebago",
+    "Big Tex",
+  ]) {
+    assert.match(configSource, new RegExp(make.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")));
+  }
 });
 
 test("browse and create flows expose the same vehicle fields", () => {
@@ -129,6 +198,71 @@ test("browse and create flows expose the same vehicle fields", () => {
   }
   assert.match(contractsSource, /state:/);
   assert.match(contractsSource, /region:/);
+  assert.match(vehicleFieldsSource, /vehicle-make-options/);
+  assert.match(vehicleFieldsSource, /vehicle-model-options/);
+  assert.match(vehicleFieldsSource, /vehicleModelsByMake/);
+});
+
+test("pets have KSL-style taxonomy, structured listing fields, and searchable filters", () => {
+  for (const category of [
+    "birds",
+    "cats",
+    "dogs",
+    "dogs-studs-breeding",
+    "ferrets",
+    "fish",
+    "guinea-pigs",
+    "hamsters",
+    "hedgehogs",
+    "lost-found",
+    "other-pets",
+    "pet-equipment-supplies",
+    "rabbits",
+    "reptiles",
+    "stock-dogs",
+    "wanted-iso",
+  ]) {
+    assert.match(petsConfigSource, new RegExp(category));
+  }
+  for (const field of ["petSubcategory", "petSpecies", "petBreed", "petPlacementType"]) {
+    assert.match(browseSource, new RegExp(field));
+    assert.match(petFieldsSource, new RegExp(field));
+    assert.match(classifiedsFunctionsSource, new RegExp(field));
+  }
+  assert.match(configSource, /slug: "pets"/);
+  assert.match(listingFormSource, /PetFields/);
+  assert.match(listingFormPayloadSource, /buildPet/);
+  assert.match(contractsSource, /pet: z/);
+  assert.match(classifiedsFunctionsSource, /function petOf/);
+  assert.match(classifiedsFunctionsSource, /_pet: petForRpc/);
+  assert.match(petMigrationSource, /pet_subcategory/);
+  assert.match(petMigrationSource, /pet_placement_type/);
+  assert.match(petMigrationSource, /create_classified_listing/);
+  assert.match(petMigrationSource, /VALUES \('pets', 'Pets'/);
+});
+
+test("free pet, wanted, and lost/found listings are allowed without weakening other categories", () => {
+  assert.match(listingFormSource, /required=\{!isPet\}/);
+  assert.match(
+    listingFormPayloadSource,
+    /isPetCategory\(form\.category\) && !form\.price\.trim\(\)/,
+  );
+  assert.match(contractsSource, /priceCents: z\.number\(\)\.int\(\)\.min\(0\)/);
+  assert.match(contractsSource, /listing\.priceCents === 0 && listing\.category !== "pets"/);
+  assert.match(classifiedsFunctionsSource, /create_free_pet_listing/);
+  assert.match(classifiedsFunctionsSource, /update_free_pet_listing/);
+  assert.match(
+    freePetMigrationSource,
+    /asks_price_cents_check CHECK \(price_cents BETWEEN 0 AND 1000000000\)/,
+  );
+  assert.match(freePetMigrationSource, /Only free pet listings may use this function/);
+});
+
+test("admin moderation includes structured pet details", () => {
+  assert.match(classifiedsFunctionsSource, /pet_subcategory,pet_species,pet_breed/);
+  assert.match(classifiedsFunctionsSource, /pet: petOf\(details\)/);
+  assert.match(adminClassifiedsSource, /function petSummary/);
+  assert.match(adminClassifiedsSource, /Pet details/);
 });
 
 test("listing creation and edit share one form, extended with home/job/service fields", () => {
@@ -196,6 +330,51 @@ test("classified MVP contacts the seller while future checkout stays available",
   assert.doesNotMatch(actionsSource, /ParkVaultCheckoutFlow/);
   assert.match(marketFunctionsSource, /requestExactListing/);
   assert.match(stripeMarketplaceSource, /reconcileMyListingOfferCheckouts/);
+});
+
+test("post-a-listing uses category-specific basics, compensation, taxonomy, and pet controls", async () => {
+  for (const copy of [
+    "Item details",
+    "Vehicle basics",
+    "Property basics",
+    "Job basics",
+    "Service basics",
+    "Pet basics",
+    "Solid oak dining table",
+    "3-bedroom home with a fenced yard",
+    "Front Desk Associate",
+    "Boise Home Works",
+    "Golden Retriever puppies",
+  ]) {
+    assert.match(listingFormSource, new RegExp(copy.replace(/[.*+?^${}()|[\\]\\]/g, "\\$&")));
+  }
+  for (const category of [
+    "apparel-accessories",
+    "baby-kids",
+    "books-media",
+    "collectibles",
+    "crafts-hobbies",
+    "health-beauty",
+    "home-garden",
+    "jewelry-watches",
+    "musical-instruments",
+    "office-business",
+    "tickets-events",
+  ]) {
+    assert.match(configSource, new RegExp(category));
+  }
+  assert.match(jobFieldsSource, /Minimum commission \(%\)/);
+  assert.match(jobFieldsSource, /Minimum contract amount \(\$\)/);
+  assert.doesNotMatch(petFieldsSource, /Pet category/);
+  assert.match(petFieldsSource, /petSubcategoryForSelection/);
+  assert.match(petFieldsSource, /<select[\s\S]*Breed \/ variety/);
+  assert.match(petsConfigSource, /Horse/);
+  assert.match(petsConfigSource, /Livestock/);
+  assert.match(petsConfigSource, /Poultry/);
+  assert.match(
+    await read("supabase/migrations/20260921130000_expand_classified_item_categories.sql"),
+    /apparel-accessories/,
+  );
 });
 
 test("buyer inquiries are stored against the exact listing and shown to its seller", () => {
@@ -281,12 +460,38 @@ test("classified listing media stays private until approval", () => {
   assert.doesNotMatch(classifiedsFunctionsSource, /object\/public\/listing-media/);
 });
 
-test("direct-contact MVP copy is consistent across buyer and seller surfaces", () => {
+test("flag this listing submits an authenticated report and exposes it to admins", () => {
+  assert.match(listingDetailSource, /FlagListingDialog/);
+  assert.match(listingDetailSource, /reportClassifiedListing/);
+  assert.match(listingDetailSource, /Submit report/);
+  assert.match(classifiedsFunctionsSource, /classified_listing_reports/);
+  assert.match(classifiedsFunctionsSource, /getAdminClassifiedReports/);
+  assert.match(adminClassifiedsSource, /Open listing reports/);
+  assert.match(listingReportsMigrationSource, /Members create listing reports/);
+  assert.match(listingReportsMigrationSource, /Admins read listing reports/);
+  assert.match(listingReportsMigrationSource, /classified_listing_reports_one_per_member/);
+});
+
+test("vehicle forms can decode VINs through the server-side NHTSA adapter", () => {
+  assert.match(vehicleFunctionsSource, /vpic\.nhtsa\.dot\.gov\/api\/vehicles\/DecodeVin/);
+  assert.match(vehicleFunctionsSource, /requireSupabaseAuth/);
+  assert.match(vehicleFunctionsSource, /VIN_PATTERN/);
+  assert.match(vehicleFunctionsSource, /bodyStyleFor/);
+  assert.match(vehicleFunctionsSource, /fuelTypeFor/);
+  assert.match(vehicleFunctionsSource, /exteriorColorFor/);
+  assert.match(vehicleFieldsSource, /decodeVehicleVin/);
+  assert.match(vehicleFieldsSource, /Start with the VIN/);
+  assert.match(vehicleFieldsSource, /Auto-fill details/);
+  assert.match(vehicleFieldsSource, /enter the vehicle details manually below/);
+  assert.match(vehicleFieldsSource, /NHTSA\s+vehicle\s+database/);
+});
+
+test("direct-contact marketplace copy is consistent across buyer and seller surfaces", () => {
   assert.match(homeSource, /Buyers contact\s+you directly/);
   assert.match(glossarySource, /Contact seller sends your message/);
   assert.match(
     policiesSource,
-    /does not process payment, hold funds or provide escrow in this MVP/,
+    /does not process payment, hold funds or provide escrow through the\s+marketplace/,
   );
   assert.match(accountSource, /Save listings, contact sellers and arrange pickup/);
   assert.match(sellSource, /Buyers can message you about the exact listing/);
@@ -305,6 +510,22 @@ test("direct-contact MVP copy is consistent across buyer and seller surfaces", (
     /MVP seed record; replace demo media and copy before launch/,
   );
   assert.match(mvpCopyMigrationSource, /UPDATE storage\.buckets/);
+  assert.match(seedCopyMigrationSource, /UPDATE public\.products/);
+  assert.match(
+    seedCopyMigrationSource,
+    /Confirm item details and availability directly with the seller/,
+  );
+  assert.doesNotMatch(glossarySource, /\bMVP\b/);
+  assert.doesNotMatch(policiesSource, /\bMVP\b/);
+});
+
+test("Google sign-in has a recognizable provider mark", () => {
+  assert.match(authSource, /Continue with Google/);
+  assert.match(authSource, /viewBox="0 0 24 24"/);
+  assert.match(authSource, /fill="#4285F4"/);
+  assert.match(authSource, /fill="#34A853"/);
+  assert.match(authSource, /fill="#FBBC05"/);
+  assert.match(authSource, /fill="#EA4335"/);
 });
 
 test("account center exposes the unified sections and preserves legacy entry points", () => {
@@ -327,7 +548,32 @@ test("account center exposes the unified sections and preserves legacy entry poi
   assert.match(accountCenterSource, /Saved listings/);
   assert.match(accountCenterSource, /Saved searches/);
   assert.match(accountCenterSource, /Messages/);
-  assert.match(accountCenterSource, /Seller billing/);
+  assert.match(accountCenterSource, /Billing/);
+  assert.match(accountCenterSource, /Manage billing/);
+  assert.match(accountCenterSource, /Set up seller profile/);
+});
+
+test("account profile editing and listing upgrades use clear current-state controls", () => {
+  assert.match(accountCenterSource, /Edit the fields below/);
+  assert.match(accountCenterSource, /h-11 w-full rounded-xl border border-input/);
+  assert.doesNotMatch(accountCenterSource, /Connected through Supabase/);
+  assert.doesNotMatch(accountCenterSource, /Managed by Supabase Auth/);
+  assert.match(accountCenterSource, /Upgrade your listing now/);
+  assert.match(accountCenterSource, /Secure checkout is handled by Stripe/);
+  assert.match(accountCenterSource, /do not need to connect a Stripe seller account/);
+  assert.doesNotMatch(accountCenterSource, /Continue to Stripe/);
+  assert.doesNotMatch(accountCenterSource, /Stripe seller connection:/);
+});
+
+test("account profile supports an authenticated public profile picture", () => {
+  assert.match(accountCenterSource, /profile-photo-upload/);
+  assert.match(accountCenterSource, /profile-avatars/);
+  assert.match(accountCenterSource, /updateMyAvatar/);
+  assert.match(accountFunctionsSource, /updateMyAvatar/);
+  assert.match(accountFunctionsSource, /avatar_url/);
+  assert.match(profileAvatarMigrationSource, /profile-avatars/);
+  assert.match(profileAvatarMigrationSource, /Members upload their profile avatar/);
+  assert.match(profileAvatarMigrationSource, /file_size_limit/);
 });
 
 test("account center writes are authenticated and conversations are participant-scoped", () => {
@@ -352,12 +598,85 @@ test("messaging supports protected attachments, moderation controls, and send re
   assert.match(accountCenterSource, /Retry send/);
 });
 
+test("saved listings keep visible counts and bulk selection scoped to active filters", () => {
+  assert.match(accountCenterSource, /title=\{`\$\{filtered\.length\} saved/);
+  assert.match(accountCenterSource, /Showing \$\{filtered\.length\} of \$\{items\.length\}/);
+  assert.match(accountCenterSource, /visible selected/);
+  assert.match(accountCenterSource, /visibleIdKey/);
+});
+
+test("conversation reports carry context into an admin resolution queue", () => {
+  assert.match(conversationFunctionsSource, /otherMemberName/);
+  assert.match(accountCenterSource, /With \{item\.otherMemberName\}/);
+  assert.match(accountCenterSource, /refetchInterval: 15000/);
+  assert.match(conversationFunctionsSource, /getAdminConversationReports/);
+  assert.match(conversationFunctionsSource, /resolveAdminConversationReport/);
+  assert.match(adminConversationReportsSource, /Operator note/);
+  assert.match(adminConversationReportsSource, /Mark reviewed/);
+  assert.match(conversationReportsMigrationSource, /admin_resolve_conversation_report/);
+  assert.match(conversationReportsMigrationSource, /Admins read conversation reports/);
+});
+
+test("member trust surfaces use Bluebird notification copy and actionable destinations", () => {
+  assert.match(accountCenterSource, /notificationText\(item\.title\)/);
+  assert.match(accountCenterSource, /Open conversation/);
+  assert.match(accountCenterSource, /Open listing/);
+  assert.match(listingDetailSource, /Report received\./);
+  assert.match(listingDetailSource, /existing report is already in the Bluebird moderation queue/);
+  assert.match(actionsSource, /messageError/);
+  assert.match(actionsSource, /Minimum 10 characters\./);
+});
+
+test("phase 2 closes self-contact and operator ownership gaps", () => {
+  assert.match(classifiedsFunctionsSource, /userId\?: string/);
+  assert.match(actionsSource, /This is your listing/);
+  assert.match(accountCenterSource, /Report submitted\./);
+  assert.match(adminConversationReportsSource, /Assign to me/);
+  assert.match(adminClassifiedsSource, /Assign to me/);
+  assert.match(conversationReportsMigrationSource, /under_review/);
+  assert.match(conversationReportsMigrationSource, /classified_listing_report_events/);
+  assert.match(conversationReportsMigrationSource, /admin_update_classified_listing_report/);
+  assert.match(accountCenterSource, /Review link copied as a fallback/);
+  assert.match(sellerProfileSource, /one review per seller/);
+  assert.match(sellerProfileSource, /flag reviews that need moderation/);
+});
+
 test("saved searches reopen their full filters and update in place", () => {
   assert.match(browseSource, /savedSearchId/);
-  assert.match(browseSource, /updateSearch\(\{ data: \{ id: search\.savedSearchId, search: searchToSave \} \}\)/);
+  assert.match(
+    browseSource,
+    /updateSearch\(\{ data: \{ id: search\.savedSearchId, search: searchToSave \} \}\)/,
+  );
   assert.match(browseSource, /Update saved search/);
   assert.match(accountCenterSource, /Edit filters/);
   assert.match(accountCenterSource, /params\.set\("savedSearchId", item\.id\)/);
+});
+
+test("browse URLs canonicalize legacy job and pet result parameters", () => {
+  assert.match(browseSource, /jobType:\s*stringParam\(search, "jobType", 40\)\s*\?\?/);
+  assert.match(browseSource, /stringParam\(search, "jobEmploymentType", 40\)/);
+  assert.match(browseSource, /next\.jobType = next\.jobType \?\? next\.jobEmploymentType/);
+  assert.match(browseSource, /next\.petMode = "results"/);
+  assert.match(browseSource, /petSearchKeys\.some/);
+});
+
+test("browse filter labels humanize serialized values", () => {
+  assert.match(browseSource, /formatSavedSearchFilter\("make", search\.make\)/);
+  assert.match(browseSource, /formatSavedSearchFilter\("drivetrain", search\.drivetrain\)/);
+  assert.match(browseSource, /onClick=\{\(\) => void clearFilters\(\)\}/);
+  assert.match(browseSource, /Updating results…/);
+  assert.equal(displaySource.includes(".split(/\\|\\||,/)"), true);
+  assert.match(displaySource, /pickup_or_shipping: "Pickup or shipping"/);
+});
+
+test("saved search naming works without browser prompts and preserves result modes", () => {
+  assert.match(browseSource, /SavedSearchNameDialog/);
+  assert.match(accountCenterSource, /SavedSearchNameDialog/);
+  assert.doesNotMatch(browseSource, /window\.prompt/);
+  assert.doesNotMatch(accountCenterSource, /window\.prompt/);
+  for (const mode of ["homeMode", "jobMode", "serviceMode", "vehicleMode", "petMode"]) {
+    assert.match(browseSource, new RegExp(`\\"${mode}\\"`));
+  }
 });
 
 test("saved-search alerts honor category-specific filters", () => {
@@ -372,6 +691,11 @@ test("seller billing is catalog-backed and settles upgrades through Stripe webho
   assert.match(listingUpgradeFunctionsSource, /getListingUpgradeOptions/);
   assert.match(listingUpgradeFunctionsSource, /createListingUpgradeCheckout/);
   assert.match(listingUpgradeFunctionsSource, /idempotencyKey/);
+  assert.match(listingUpgradeFunctionsSource, /display_name: "Bluebird Marketplace"/);
+  assert.match(listingUpgradeFunctionsSource, /background_color: "#f3eae0"/);
+  assert.match(listingUpgradeFunctionsSource, /button_color: "#1f3557"/);
+  assert.match(stripeMarketplaceSource, /display_name: "Bluebird Marketplace"/);
+  assert.doesNotMatch(stripeMarketplaceSource, /display_name: "ParkVault"/);
   assert.match(listingUpgradeMigrationSource, /listing_upgrade_catalog/);
   assert.match(listingUpgradeMigrationSource, /listing_upgrade_purchases/);
   assert.match(stripeServerSource, /gemstate_purpose/);
@@ -380,8 +704,22 @@ test("seller billing is catalog-backed and settles upgrades through Stripe webho
   assert.match(stripeServerSource, /checkout\.session\.async_payment_failed/);
   assert.match(stripeServerSource, /payment_intent\.payment_failed/);
   assert.match(stripeServerSource, /status: "failed"/);
-  assert.match(accountCenterSource, /Continue to Stripe/);
+  assert.match(accountCenterSource, /Upgrade your listing now/);
   assert.match(accountCenterSource, /queryKey: \["my-listings"\][\s\S]*?enabled: true/);
+  assert.match(simplifiedUpgradeMigrationSource, /amount_cents = 1200/);
+  assert.match(simplifiedUpgradeMigrationSource, /amount_cents = 1000/);
+  assert.match(simplifiedUpgradeMigrationSource, /duration_days = 1/);
+  assert.match(simplifiedUpgradeMigrationSource, /where code not in \('bump', 'featured'\)/);
+  assert.match(classifiedsFunctionsSource, /order\("featured_until"/);
+  assert.match(classifiedsFunctionsSource, /order\("ranking_at"/);
+  assert.match(stripeServerSource, /listingUpdate\["ranking_at"\] = paidAt/);
+  assert.match(listingCardSource, />\s*Featured\s*</);
+  assert.match(createSource, /Every listing is free/);
+  assert.match(
+    accountCenterSource,
+    /Boosted and Featured are the only paid options, and both are completely optional/,
+  );
+  assert.doesNotMatch(accountCenterSource, /extra visibility or time/);
 });
 
 test("marketplace notification delivery is Resend-only", () => {
@@ -398,8 +736,10 @@ test("admin moderation reviews classified listings instead of publishing them di
 });
 
 test("step four protects authenticated, seller-owned, and admin-only surfaces", () => {
-  assert.match(authenticatedRouteSource, /supabase\.auth\.getUser\(\)/);
-  assert.match(authenticatedRouteSource, /throw redirect\(\{ to: "\/auth"/);
+  assert.match(authenticatedRouteSource, /ssr: false/);
+  assert.match(authenticatedRouteSource, /useAuth\(\)/);
+  assert.match(authenticatedRouteSource, /navigate\(\{ to: "\/auth"/);
+  assert.match(authenticatedRouteSource, /aria-label="Checking your account session"/);
   assert.match(authenticatedRouteSource, /sellerRedirects = \[/);
   assert.match(authMiddlewareSource, /getClaims/);
   assert.match(authMiddlewareSource, /userId: data\.claims\.sub/);
@@ -415,9 +755,9 @@ test("step four protects authenticated, seller-owned, and admin-only surfaces", 
   assert.match(classifiedSchemaSource, /created_by = auth\.uid\(\)/);
 });
 
-test("step five keeps classified checkout delivery labels on the Gem State brand", () => {
+test("step five keeps classified checkout delivery labels on the Bluebird brand", () => {
   assert.match(stripeMarketplaceSource, /id: "gemstate_flat_ground"/);
-  assert.match(stripeMarketplaceSource, /carrier: "Gem State Classifieds"/);
+  assert.match(stripeMarketplaceSource, /carrier: "Bluebird Marketplace"/);
   assert.doesNotMatch(
     stripeMarketplaceSource,
     /id: "parkvault_flat_ground"[\s\S]*carrier: "ParkVault"/,
@@ -446,9 +786,9 @@ test("classified approval publishes the linked product", () => {
   assert.match(approvalRepairSource, /AFTER UPDATE OF status, approved_at ON public\.asks/);
 });
 
-test("public seller landing page is Gem State-specific", () => {
+test("public seller landing page is Bluebird-specific", () => {
   assert.doesNotMatch(sellSource, /ParkVault|Disney|park merchandise|catalog product/i);
-  assert.match(sellSource, /Gem State seller/);
+  assert.match(sellSource, /Bluebird seller/);
   assert.match(sellSource, /exact-item photos/);
 });
 
@@ -468,7 +808,7 @@ test("step five seed fixtures cover realistic Idaho vehicle browse cases", () =>
     assert.ok(listing.vehicle.year >= 2010);
     assert.ok(listing.vehicle.drivetrain);
     assert.ok(listing.vehicle.title_status);
-    assert.match(listing.description, /Staged Idaho listing for marketplace testing/);
+    assert.match(listing.description, /Buyers should confirm availability/);
   }
 });
 
@@ -487,18 +827,17 @@ test("step five preserves vehicle filters and keeps seeded records safe to revie
   assert.match(seedMigrationSource, /classified_listing_details/);
 });
 
-test("step six keeps customer email surfaces on the Gem State brand", () => {
-  assert.match(emailShellSource, /Gem State Classifieds is an independent marketplace/);
+test("step six keeps customer email surfaces on the Bluebird brand", () => {
+  assert.match(emailShellSource, /Bluebird Marketplace is an independent marketplace/);
   assert.match(emailShellSource, /https:\/\/gemstateclassifieds\.com/);
-  assert.match(authEmailSource, /const SITE_NAME = "Gem State Classifieds"/);
+  assert.match(authEmailSource, /const SITE_NAME = "Bluebird Marketplace"/);
   assert.match(authEmailSource, /notify\.gemstateclassifieds\.com/);
   assert.doesNotMatch(emailShellSource, /ParkVault|Disney/);
   assert.doesNotMatch(authEmailSource, /ParkVault|getparkvault/);
 });
 
-test("approved Idaho gem logo is used across the responsive brand mark", () => {
-  assert.match(brandMarkSource, /gem-state-classifieds-logo\.png/);
-  assert.match(brandMarkSource, /gem-state-classifieds-mark\.png/);
+test("approved Bluebird logo is used across the responsive brand mark", () => {
+  assert.match(brandMarkSource, /bluebird-marketplace-logo\.png/);
   assert.doesNotMatch(brandMarkSource, /Diamond/);
 });
 
@@ -544,13 +883,33 @@ test("main homepage presents category-curated listing rows", () => {
     assert.match(homeSource, new RegExp(title.replaceAll("$", "\\$")));
   }
   assert.match(homeSource, /function HomepageInfoBand/);
-  assert.match(homeSource, /How GemList works/);
+  assert.match(homeSource, /Local marketplace/);
+  assert.doesNotMatch(homeSource, /to="\/glossary"/);
+  assert.doesNotMatch(headerSource, /How it works/);
+  assert.doesNotMatch(footerSource, /How listings and seller contact work|Glossary/);
   assert.match(homeSource, /For sellers and businesses/);
   assert.match(homeSource, /A marketplace with a local feel/);
   assert.match(homeSource, /home\.recent\.filter\(\(listing\) => listing\.home\)/);
   assert.match(homeSource, /home\.recent\.filter\(\(listing\) => listing\.job\)/);
   assert.match(homeSource, /home\.recent\.filter\(\(listing\) => listing\.service\)/);
   assert.match(homeSource, /no-scrollbar mt-5 flex gap-4/);
+});
+
+test("browse heroes surface the Bluebird sponsorship opportunity", () => {
+  assert.match(browseSource, /function SponsoredHeroBadge\(\)/);
+  assert.match(browseSource, /Sponsored by Bluebird Marketplace/);
+  assert.doesNotMatch(browseSource, /Your business could be here/);
+  assert.doesNotMatch(browseSource, /eyebrow\.replace\("GemList ", ""\)/);
+  assert.match(browseSource, /to="\/advertise"/);
+  assert.match(browseSource, /min-h-\[430px\]/);
+  assert.match(browseSource, /min-h-\[500px\]/);
+  assert.match(browseSource, /Bluebird Marketplace Classifieds/);
+  assert.match(browseSource, /Bluebird Marketplace Homes/);
+  assert.match(browseSource, /Bluebird Marketplace Services/);
+  assert.match(browseSource, /Bluebird Marketplace Jobs/);
+  assert.match(browseSource, /Bluebird motors/);
+  assert.match(browseSource, /min-h-\[590px\]/);
+  assert.match(browseSource, /absolute right-5 top-5 z-20 sm:right-7 sm:top-7/);
 });
 
 test("shared category icons and no-photo cards have deterministic presentation", () => {
@@ -599,7 +958,12 @@ test("header categories show four primary destinations and a Classifieds control
   assert.match(headerSource, /Find your next local gem\./);
   assert.match(headerSource, /category\.description/);
   assert.match(headerSource, /size=\{42\}/);
-  assert.match(headerSource, /size=\{64\}/);
+  assert.match(headerSource, /size=\{88\}/);
+});
+
+test("site header does not add a blue separator below the category row", () => {
+  assert.match(headerSource, /overflow-visible border-0 bg-card\/95 backdrop-blur/);
+  assert.doesNotMatch(headerSource, /border-brand-blue/);
 });
 
 test("all categories opens a labeled icon menu with KSL-style sections", () => {
@@ -616,7 +980,7 @@ test("all categories opens a labeled icon menu with KSL-style sections", () => {
   );
   assert.match(allCategoriesSource, /w-\[min\(1280px,calc\(100vw-2rem\)\)\]/);
   assert.match(allCategoriesSource, /xl:grid-cols-6/);
-  assert.match(headerSource, /w-auto min-w-\[158px\]/);
+  assert.match(headerSource, /w-auto min-w-\[164px\]/);
   assert.match(allCategoriesSource, /sm:gap-2/);
   assert.match(allCategoriesSource, /hover:bg-secondary/);
   for (const label of [
@@ -730,7 +1094,7 @@ test("browse filters remain complete inside the spacious drawer", () => {
   assert.match(browseSource, /setFiltersOpen\(false\)/);
 });
 
-test("vehicle browse uses a branded buy and eight-filter discovery hero", () => {
+test("vehicle browse uses a branded buy and category-accurate discovery filters", () => {
   assert.match(browseSource, /function VehicleBrowseHero/);
   assert.match(browseSource, /Find your next gem on wheels/);
   assert.match(browseSource, /setShowAllFilters/);
@@ -752,15 +1116,7 @@ test("vehicle browse uses a branded buy and eight-filter discovery hero", () => 
   assert.match(browseSource, /selected\.includes\(optionValue\)/);
   assert.match(browseSource, /label: "Broken\/needs repairs"/);
   assert.doesNotMatch(browseSource, /vehicleConditionOptions[\s\S]*New, no tags/);
-  for (const label of [
-    "Make / model",
-    "Year",
-    "Price",
-    "Mileage",
-    "Body type",
-    "Seller type",
-    "Title type",
-  ]) {
+  for (const label of ["Make / model", "Year", "Price", "Mileage", "Body type", "Title type"]) {
     assert.match(browseSource, new RegExp(`"${label.replace(/[/.]/g, "\\$&")}"`));
   }
   assert.match(browseSource, /Buy/);
@@ -782,7 +1138,7 @@ test("vehicle browse uses a branded buy and eight-filter discovery hero", () => 
   ]) {
     assert.match(browseSource, new RegExp(row.replaceAll("$", "\\$")));
   }
-  assert.match(browseSource, /GemList Motors/);
+  assert.match(browseSource, /Bluebird Marketplace Motors/);
 });
 
 test("homes browse has a large landing hero and tab-specific filter views", () => {
@@ -796,14 +1152,13 @@ test("homes browse has a large landing hero and tab-specific filter views", () =
   assert.match(browseSource, /homeTabs/);
   for (const label of [
     "Square feet",
-    "Home builder",
-    "Construction type",
     "Acres",
-    "Seller type",
-    "Cats",
-    "Dogs",
-    "Home amenities",
-    "Community amenities",
+    "Heating",
+    "Cooling",
+    "Garage \/ parking",
+    "School district",
+    "Pet policy",
+    "Smoking policy",
     "Lease length",
   ]) {
     assert.match(browseSource, new RegExp(label));
@@ -820,13 +1175,10 @@ test("homes browse has a large landing hero and tab-specific filter views", () =
     'label="Bedrooms" value={bedrooms} options={homeBedroomOptions} multi={false}',
     'label={activeTab === "rent" ? "Bathrooms" : "Bathrooms"} value={bathrooms} options={homeBathroomOptions} multi={false}',
     'label: "Square feet", options: homeSquareFeetOptions, multi: false',
-    'label: "Construction type", options: ["Any construction", "New construction", "Existing home"], multi: true',
     'label: "Acres", options: homeAcresOptions, multi: false',
-    'label: "Seller type", options: ["Any seller", "Owner", "Agent", "Builder"], multi: true',
-    'label: "Cats", options: ["Any cat policy", "Cats allowed", "Cats not allowed"], multi: false',
-    'label: "Dogs", options: ["Any dog policy", "Dogs allowed", "Dogs not allowed"], multi: false',
-    'label: "Home amenities", options: homeAmenitiesOptions, multi: true',
-    'label: "Community amenities", options: communityAmenitiesOptions, multi: true',
+    'label: "Heating", options: ["Any heating", "Forced air", "Gas", "Electric", "Heat pump", "Radiant"], multi: true',
+    'label: "Cooling", options: ["Any cooling", "Central air", "Window unit", "Evaporative", "Heat pump"], multi: true',
+    'label: "School district", options: ["Any district", "West Ada", "Boise", "Nampa", "Vallivue", "Twin Falls"], multi: true',
     'label: "Lease length", options: leaseLengthOptions, multi: false',
   ]) {
     assert.ok(
@@ -835,14 +1187,15 @@ test("homes browse has a large landing hero and tab-specific filter views", () =
     );
   }
   for (const option of [
-    "<250",
     "10000+",
-    "< .10",
     "2.5+",
-    "Air Conditioning",
-    "WiFi in Common Areas",
+    "Built 2025 or newer",
+    "Forced air",
+    "Central air",
+    "Attached garage",
+    "Pets allowed",
+    "No smoking",
     "Month-to-month",
-    "24 Months or Less",
   ]) {
     assert.ok(browseSource.includes(option), `missing homes filter option: ${option}`);
   }
@@ -866,7 +1219,7 @@ test("homes browse has a large landing hero and tab-specific filter views", () =
   ]) {
     assert.match(browseSource, new RegExp(row.replaceAll("$", "\\$")));
   }
-  assert.match(browseSource, /HomeShowcaseRows activeTab=\{homeTab\}/);
+  assert.match(browseSource, /LandingListingsShowcase/);
 });
 
 test("jobs browse has a landing hero and expanded local job filters", () => {
@@ -874,7 +1227,7 @@ test("jobs browse has a landing hero and expanded local job filters", () => {
   assert.match(browseSource, /function JobsFilterPage/);
   assert.match(browseSource, /function JobChecklist/);
   assert.match(browseSource, /selected\.includes\(option\)/);
-  assert.match(browseSource, /next\.join\("\|"\)/);
+  assert.match(browseSource, /next\.join\("\|\|"\)/);
   assert.match(
     browseSource,
     /Find <span className="text-accent">local<\/span> work that fits your life/,
@@ -897,7 +1250,7 @@ test("jobs browse has a landing hero and expanded local job filters", () => {
     "Job pay range",
     "Education level",
     "Years of experience",
-    "Photos / video",
+    "Photos",
     "Time on site",
   ]) {
     assert.match(browseSource, new RegExp(label));
@@ -922,6 +1275,24 @@ test("jobs browse has a landing hero and expanded local job filters", () => {
   }
 });
 
+test("discrete browse inputs reject decimals and lease filters match whole month values", () => {
+  assert.match(querySource, /optionalNonNegativeInteger/);
+  assert.match(querySource, /Number\.isInteger\(parsed\)/);
+  assert.match(querySource, /matchesLeaseLength/);
+  assert.match(
+    classifiedsFunctionsSource,
+    /matchesLeaseLength\(listing\.home\?\.leaseLength, item\)/,
+  );
+  assert.match(classifiedsFunctionsSource, /unitAwareJobSort/);
+  assert.match(classifiedsFunctionsSource, /comparableJobPay/);
+});
+
+test("job pay display uses one currency marker and preserves pay units", () => {
+  assert.equal(displaySource.includes("value >= 1000 ? `$${Math.round(value / 1000)}k`"), true);
+  assert.equal(displaySource.includes("return payMin === payMax ? `${fmt(payMin)}/yr`"), true);
+  assert.equal(displaySource.includes("return payMin === payMax ? `$$${fmt(payMin)}`"), false);
+});
+
 test("jobs browse results use real listing data, not static placeholder cards", () => {
   assert.match(browseSource, /listings: ClassifiedBrowseResult\["listings"\]/);
   assert.match(browseSource, /sortedListings\.map\(\(listing\) => \(/);
@@ -944,7 +1315,8 @@ test("services browse has a category-led landing page", () => {
   assert.match(browseSource, /What service are you looking for\?/);
   assert.match(browseSource, /Expand Your Search/);
   assert.match(browseSource, /Only show listings with photos/);
-  assert.match(browseSource, /Seller Type/);
+  assert.match(browseSource, /Service details/);
+  assert.match(browseSource, /Only show licensed providers/);
   assert.match(browseSource, /Time On Site/);
   assert.match(browseSource, /serviceMode: "results"/);
   assert.match(browseSource, /servicesShowcaseRows/);
@@ -966,6 +1338,32 @@ test("services browse has a category-led landing page", () => {
   }
 });
 
+test("expanded category filters use normalized listing fields and server-side matching", () => {
+  for (const field of [
+    "home_acres",
+    "job_category",
+    "home_square_feet",
+    "job_pay_min",
+    "job_pay_max",
+    "service_area",
+    "service_license_number",
+    "pet_good_with_kids",
+  ]) {
+    assert.match(classifiedsFunctionsSource, new RegExp(field));
+  }
+  for (const mapping of [
+    "homeAcresMin: thresholdValue(search.homeAcres)",
+    "jobCategory: search.jobCategory",
+    'serviceLicenseRequired: search.serviceLicenseRequired === "true"',
+    "petGoodWithKids: search.petGoodWithKids",
+  ]) {
+    assert.match(browseSource, new RegExp(mapping.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  }
+  assert.doesNotMatch(browseSource, /label: "Home builder"/);
+  assert.doesNotMatch(browseSource, /label: "Construction type"/);
+  assert.doesNotMatch(browseSource, /label: "Seller type"/);
+});
+
 test("listing detail keeps a responsive photo gallery and floating action card", () => {
   assert.match(detailSource, /Show all photos/);
   assert.match(detailSource, /row-span-2/);
@@ -975,8 +1373,22 @@ test("listing detail keeps a responsive photo gallery and floating action card",
   assert.match(detailSource, /listingTabListClass/);
   assert.match(detailSource, /ring-1 ring-primary\/15/);
   assert.match(detailSource, /hover:border-border\/80/);
-  assert.match(detailSource, /Gem State Reviews/);
+  assert.match(detailSource, /Bluebird Reviews/);
   assert.match(detailSource, /Array\.from\(\{ length: 5 \}/);
+});
+
+test("listing sharing falls back when embedded native share never resolves", () => {
+  assert.match(detailSource, /Promise\.race\(\[/);
+  assert.match(detailSource, /window\.setTimeout\(\(\) => resolve\("fallback"\), 1200\)/);
+  assert.match(detailSource, /Listing link copied\./);
+  assert.match(detailSource, /Sharing is not available in this browser\./);
+});
+
+test("listing sharing confirms native share completion", () => {
+  assert.match(detailSource, /shareResult === "shared"/);
+  assert.match(detailSource, /Opening share options/);
+  assert.match(detailSource, /Share sheet opened\./);
+  assert.match(detailSource, /Share canceled\./);
 });
 
 test("general classifieds have mock detail fixtures without changing category setup", () => {
@@ -1007,6 +1419,20 @@ test("job and service mock listings exist with realistic detail fixtures", () =>
   // fetched at runtime rather than hardcoded in browse.tsx.
   assert.match(classifiedsFunctionsSource, /service\?: ClassifiedServiceDetails/);
   assert.match(listingCardSource, /listing\.service\?\.pricing/);
+});
+
+test("preview catalog keeps complete home and vehicle rows available", () => {
+  assert.equal(mockVehicleListings.length, 8);
+  assert.equal(mockClassifiedListings.filter((listing) => listing.home?.mode === "buy").length, 4);
+  assert.equal(
+    mockClassifiedListings.filter((listing) => listing.home?.mode === "build").length,
+    4,
+  );
+  assert.equal(mockClassifiedListings.filter((listing) => listing.home?.mode === "rent").length, 4);
+  assert.equal(mockClassifiedListings.filter((listing) => listing.job).length, 4);
+  assert.equal(mockClassifiedListings.filter((listing) => listing.service).length, 4);
+  assert.match(classifiedsFunctionsSource, /showing preview fixtures/);
+  assert.match(classifiedsFunctionsSource, /mockVehicleListings/);
 });
 
 test("services browse results use real listing data, not static placeholder cards", () => {
@@ -1092,4 +1518,70 @@ test("all categories routes to its own general classifieds landing page", () => 
   ]) {
     assert.match(browseSource, new RegExp(row));
   }
+});
+
+test("advertising page explains local partner opportunities and links to contact", () => {
+  assert.match(advertiseSource, /createFileRoute\("\/advertise"\)/);
+  assert.match(advertiseSource, /Start a conversation/);
+  assert.match(advertiseSource, /Featured placements/);
+  assert.match(advertiseSource, /sample CSV, XML, or JSON feed/);
+  assert.match(advertiseSource, /Do you have a fixed advertising rate card/);
+  assert.match(advertiseSource, /to="\/contact"/);
+  assert.match(footerSource, /to="\/advertise"/);
+  assert.match(footerSource, /Advertise with us/);
+});
+
+test("safety center explains scams, protections, and GemList limits", () => {
+  assert.match(safetySource, /createFileRoute\("\/safety"\)/);
+  assert.match(safetySource, /Common marketplace scams and what to do instead/);
+  assert.match(safetySource, /Overpayment or refund tricks/);
+  assert.match(safetySource, /What we do not do/);
+  assert.match(safetySource, /does not inspect, authenticate, or guarantee/);
+  assert.match(safetySource, /do not provide escrow or hold funds/);
+  assert.match(safetySource, /Stop, save, report/);
+  assert.match(safetySource, /Flag This Listing/);
+  assert.match(safetySource, /to="\/contact"/);
+  assert.match(footerSource, /to="\/safety"/);
+  assert.match(footerSource, /Safety center/);
+});
+
+test("job editor reload preserves the saved job category", () => {
+  assert.match(
+    classifiedsFunctionsSource,
+    /job_category,job_employer_name,job_employer_address/,
+    "the editor query must request the category column before jobOf maps it",
+  );
+  assert.match(listingFormPayloadSource, /jobCategory: listing\.job\?\.category/);
+});
+
+test("validation supply counters include classified listing submissions", () => {
+  assert.match(
+    pilotFunctionsSource,
+    /classified_listing_submit_succeeded:\s*"ask_submitted"/,
+    "admin validation must count classified listing success events",
+  );
+  assert.match(
+    pilotFunctionsSource,
+    /const name = VALIDATION_EVENT_ALIASES\[rawName\] \?\? rawName/,
+  );
+});
+
+test("review flags have a complete member-to-admin resolution path", () => {
+  assert.match(sellerFunctionsSource, /export const flagSellerReview/);
+  assert.match(sellerFunctionsSource, /rpc\("flag_seller_review"/);
+  assert.match(sellerFunctionsSource, /export const getFlaggedSellerReviews/);
+  assert.match(sellerFunctionsSource, /\.eq\("status", "flagged"\)/);
+  assert.match(sellerFunctionsSource, /export const adminResolveReviewFlag/);
+  assert.match(sellerFunctionsSource, /rpc\("admin_resolve_review_flag"/);
+  assert.match(adminReviewFlagsSource, /Dismiss flag, keep review/);
+  assert.match(adminReviewFlagsSource, /Remove review/);
+  assert.match(adminReviewFlagsSource, /invalidateQueries\(\{ queryKey: \["admin-review-flags"\]/);
+});
+
+test("dealer operations expose traceable runs and scheduled execution", () => {
+  assert.match(dealerInventoryRouteSource, /Run due scheduled feeds/);
+  assert.match(dealerInventoryRouteSource, /Preview \/ dry run/);
+  assert.match(dealerInventoryRouteSource, /Applied/);
+  assert.match(dealerInventoryRouteSource, /recorded run/);
+  assert.match(dealerInventoryRouteSource, /moderated listing/);
 });

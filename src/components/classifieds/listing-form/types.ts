@@ -14,6 +14,7 @@ export type ListingFormState = {
   width: string;
   height: string;
   weight: string;
+  itemDetails: Record<string, string>;
 
   // Vehicle
   make: string;
@@ -55,6 +56,7 @@ export type ListingFormState = {
   openHouse: string;
 
   // Job
+  jobCategory: string;
   employerName: string;
   employerAddress: string;
   payType: string;
@@ -70,12 +72,35 @@ export type ListingFormState = {
 
   // Service
   subcategory: string;
+  servicePricingType: string;
+  servicePriceMax: string;
   serviceArea: string;
   availability: string;
   businessAddress: string;
   licenseNumber: string;
   licenseLookupUrl: string;
   offerings: string;
+
+  // Pets
+  petSubcategory: string;
+  petSpecies: string;
+  petBreed: string;
+  petName: string;
+  petAge: string;
+  petSex: string;
+  petPlacementType: string;
+  petOfferedBy: string;
+  petHypoallergenic: string;
+  petVaccinated: string;
+  petSpayedNeutered: string;
+  petMicrochipped: string;
+  petRecordsAvailable: string;
+  petGoodWithKids: string;
+  petGoodWithDogs: string;
+  petGoodWithCats: string;
+  petIndoorOutdoor: string;
+  petSpecialNeeds: string;
+  petBreedingTerms: string;
 };
 
 export const initialListingForm: ListingFormState = {
@@ -94,6 +119,7 @@ export const initialListingForm: ListingFormState = {
   width: "",
   height: "",
   weight: "",
+  itemDetails: {},
 
   make: "",
   model: "",
@@ -132,6 +158,7 @@ export const initialListingForm: ListingFormState = {
   smokingPolicy: "",
   openHouse: "",
 
+  jobCategory: "Other",
   employerName: "",
   employerAddress: "",
   payType: "Hourly",
@@ -146,10 +173,32 @@ export const initialListingForm: ListingFormState = {
   applicationExternalContact: "",
 
   subcategory: "",
+  servicePricingType: "quote",
+  servicePriceMax: "",
   serviceArea: "",
   availability: "",
   businessAddress: "",
   licenseNumber: "",
   licenseLookupUrl: "",
   offerings: "",
+
+  petSubcategory: "dogs",
+  petSpecies: "Dog",
+  petBreed: "",
+  petName: "",
+  petAge: "",
+  petSex: "Unknown / not disclosed",
+  petPlacementType: "sale",
+  petOfferedBy: "Owner",
+  petHypoallergenic: "Unknown",
+  petVaccinated: "Unknown",
+  petSpayedNeutered: "Unknown",
+  petMicrochipped: "Unknown",
+  petRecordsAvailable: "Unknown",
+  petGoodWithKids: "Unknown",
+  petGoodWithDogs: "Unknown",
+  petGoodWithCats: "Unknown",
+  petIndoorOutdoor: "Unknown",
+  petSpecialNeeds: "",
+  petBreedingTerms: "",
 };

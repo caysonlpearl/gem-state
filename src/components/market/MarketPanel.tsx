@@ -172,7 +172,6 @@ export function MarketPanel({
       toast.error(error instanceof Error ? error.message : "Purchase request failed."),
   });
 
-
   const sellMutation = useMutation({
     mutationFn: () => runSellNow({ data: { variantId } }),
     onSuccess: async (result) => {
@@ -388,7 +387,12 @@ export function MarketPanel({
         </p>
       </div>
       <div className="min-w-0 border-l border-border pl-3">
-        <p title="Highest active buyer bid for this variation" className="text-[10px] uppercase tracking-[0.07em] text-muted-foreground">Highest bid</p>
+        <p
+          title="Highest active buyer bid for this variation"
+          className="text-[10px] uppercase tracking-[0.07em] text-muted-foreground"
+        >
+          Highest bid
+        </p>
         <p
           className={
             highestBid != null
@@ -447,7 +451,6 @@ export function MarketPanel({
             >
               {buyMutation.isPending || startingCheckout ? "Matching…" : buyLabel}
             </button>
-
           ) : (
             <Link
               to={brand.urls.auth}
@@ -784,6 +787,5 @@ export function MarketPanel({
         />
       ) : null}
     </div>
-
   );
 }

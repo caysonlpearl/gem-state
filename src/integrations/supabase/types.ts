@@ -322,6 +322,7 @@ export type Database = {
           product_id: string
           promoted_at: string | null
           public_media_count: number
+          ranking_at: string
           review_note: string | null
           seller_id: string
           seller_note: string | null
@@ -353,6 +354,7 @@ export type Database = {
           product_id: string
           promoted_at?: string | null
           public_media_count?: number
+          ranking_at?: string
           review_note?: string | null
           seller_id: string
           seller_note?: string | null
@@ -384,6 +386,7 @@ export type Database = {
           product_id?: string
           promoted_at?: string | null
           public_media_count?: number
+          ranking_at?: string
           review_note?: string | null
           seller_id?: string
           seller_note?: string | null
@@ -704,6 +707,7 @@ export type Database = {
           created_at: string
           fulfillment_mode: string
           home_acreage: string | null
+          home_acres: number | null
           home_appliances_included: string | null
           home_available: string | null
           home_basement_type: string | null
@@ -726,6 +730,10 @@ export type Database = {
           home_square_feet: number | null
           home_yard: string | null
           home_year_built: number | null
+          item_details: Json
+          job_application_external_contact: string | null
+          job_application_method: string
+          job_category: string | null
           job_education_level: string | null
           job_employer_address: string | null
           job_employer_name: string | null
@@ -737,6 +745,25 @@ export type Database = {
           job_qualifications: string[] | null
           job_responsibilities: string[] | null
           listing_id: string
+          pet_age: string | null
+          pet_breed: string | null
+          pet_breeding_terms: string | null
+          pet_good_with_cats: string | null
+          pet_good_with_dogs: string | null
+          pet_good_with_kids: string | null
+          pet_hypoallergenic: string | null
+          pet_indoor_outdoor: string | null
+          pet_microchipped: string | null
+          pet_name: string | null
+          pet_offered_by: string | null
+          pet_placement_type: string | null
+          pet_records_available: string | null
+          pet_sex: string | null
+          pet_spayed_neutered: string | null
+          pet_special_needs: string | null
+          pet_species: string | null
+          pet_subcategory: string | null
+          pet_vaccinated: string | null
           postal_code: string | null
           region: string
           service_area: string | null
@@ -766,6 +793,7 @@ export type Database = {
           created_at?: string
           fulfillment_mode: string
           home_acreage?: string | null
+          home_acres?: number | null
           home_appliances_included?: string | null
           home_available?: string | null
           home_basement_type?: string | null
@@ -788,6 +816,10 @@ export type Database = {
           home_square_feet?: number | null
           home_yard?: string | null
           home_year_built?: number | null
+          item_details?: Json
+          job_application_external_contact?: string | null
+          job_application_method?: string
+          job_category?: string | null
           job_education_level?: string | null
           job_employer_address?: string | null
           job_employer_name?: string | null
@@ -799,6 +831,25 @@ export type Database = {
           job_qualifications?: string[] | null
           job_responsibilities?: string[] | null
           listing_id: string
+          pet_age?: string | null
+          pet_breed?: string | null
+          pet_breeding_terms?: string | null
+          pet_good_with_cats?: string | null
+          pet_good_with_dogs?: string | null
+          pet_good_with_kids?: string | null
+          pet_hypoallergenic?: string | null
+          pet_indoor_outdoor?: string | null
+          pet_microchipped?: string | null
+          pet_name?: string | null
+          pet_offered_by?: string | null
+          pet_placement_type?: string | null
+          pet_records_available?: string | null
+          pet_sex?: string | null
+          pet_spayed_neutered?: string | null
+          pet_special_needs?: string | null
+          pet_species?: string | null
+          pet_subcategory?: string | null
+          pet_vaccinated?: string | null
           postal_code?: string | null
           region: string
           service_area?: string | null
@@ -828,6 +879,7 @@ export type Database = {
           created_at?: string
           fulfillment_mode?: string
           home_acreage?: string | null
+          home_acres?: number | null
           home_appliances_included?: string | null
           home_available?: string | null
           home_basement_type?: string | null
@@ -850,6 +902,10 @@ export type Database = {
           home_square_feet?: number | null
           home_yard?: string | null
           home_year_built?: number | null
+          item_details?: Json
+          job_application_external_contact?: string | null
+          job_application_method?: string
+          job_category?: string | null
           job_education_level?: string | null
           job_employer_address?: string | null
           job_employer_name?: string | null
@@ -861,6 +917,25 @@ export type Database = {
           job_qualifications?: string[] | null
           job_responsibilities?: string[] | null
           listing_id?: string
+          pet_age?: string | null
+          pet_breed?: string | null
+          pet_breeding_terms?: string | null
+          pet_good_with_cats?: string | null
+          pet_good_with_dogs?: string | null
+          pet_good_with_kids?: string | null
+          pet_hypoallergenic?: string | null
+          pet_indoor_outdoor?: string | null
+          pet_microchipped?: string | null
+          pet_name?: string | null
+          pet_offered_by?: string | null
+          pet_placement_type?: string | null
+          pet_records_available?: string | null
+          pet_sex?: string | null
+          pet_spayed_neutered?: string | null
+          pet_special_needs?: string | null
+          pet_species?: string | null
+          pet_subcategory?: string | null
+          pet_vaccinated?: string | null
           postal_code?: string | null
           region?: string
           service_area?: string | null
@@ -950,6 +1025,64 @@ export type Database = {
             foreignKeyName: "classified_listing_metrics_listing_id_fkey"
             columns: ["listing_id"]
             isOneToOne: true
+            referencedRelation: "variant_sourcing_offers"
+            referencedColumns: ["ask_id"]
+          },
+        ]
+      }
+      classified_listing_reports: {
+        Row: {
+          created_at: string
+          details: string | null
+          id: string
+          listing_id: string
+          reason: string
+          reporter_id: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          details?: string | null
+          id?: string
+          listing_id: string
+          reason: string
+          reporter_id: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          details?: string | null
+          id?: string
+          listing_id?: string
+          reason?: string
+          reporter_id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classified_listing_reports_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "active_seller_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classified_listing_reports_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "asks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classified_listing_reports_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
             referencedRelation: "variant_sourcing_offers"
             referencedColumns: ["ask_id"]
           },
@@ -1172,6 +1305,354 @@ export type Database = {
           },
         ]
       }
+      dealer_inventory_listing_links: {
+        Row: {
+          created_at: string
+          id: string
+          link_type: string
+          listing_id: string
+          record_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          link_type?: string
+          listing_id: string
+          record_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          link_type?: string
+          listing_id?: string
+          record_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dealer_inventory_listing_links_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "active_seller_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dealer_inventory_listing_links_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "asks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dealer_inventory_listing_links_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "variant_sourcing_offers"
+            referencedColumns: ["ask_id"]
+          },
+          {
+            foreignKeyName: "dealer_inventory_listing_links_record_id_fkey"
+            columns: ["record_id"]
+            isOneToOne: true
+            referencedRelation: "dealer_inventory_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dealer_inventory_media: {
+        Row: {
+          active: boolean
+          alt_text: string | null
+          content_hash: string
+          created_at: string
+          id: string
+          last_seen_at: string
+          media_url: string
+          position: number
+          record_id: string
+        }
+        Insert: {
+          active?: boolean
+          alt_text?: string | null
+          content_hash: string
+          created_at?: string
+          id?: string
+          last_seen_at?: string
+          media_url: string
+          position?: number
+          record_id: string
+        }
+        Update: {
+          active?: boolean
+          alt_text?: string | null
+          content_hash?: string
+          created_at?: string
+          id?: string
+          last_seen_at?: string
+          media_url?: string
+          position?: number
+          record_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dealer_inventory_media_record_id_fkey"
+            columns: ["record_id"]
+            isOneToOne: false
+            referencedRelation: "dealer_inventory_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dealer_inventory_records: {
+        Row: {
+          city: string
+          content_hash: string
+          created_at: string
+          description: string | null
+          first_seen_at: string
+          id: string
+          inventory_status: string
+          last_seen_at: string
+          last_seen_run_id: string | null
+          missed_run_count: number
+          postal_code: string | null
+          price_cents: number | null
+          raw_record: Json
+          source_id: string
+          source_record_key: string
+          source_updated_at: string | null
+          state: string
+          stock_number: string | null
+          title: string
+          updated_at: string
+          vehicle_body_style: string | null
+          vehicle_drivetrain: string | null
+          vehicle_exterior_color: string | null
+          vehicle_fuel_type: string | null
+          vehicle_make: string | null
+          vehicle_mileage: number | null
+          vehicle_model: string | null
+          vehicle_title_status: string | null
+          vehicle_transmission: string | null
+          vehicle_trim: string | null
+          vehicle_year: number | null
+          vin: string | null
+        }
+        Insert: {
+          city: string
+          content_hash: string
+          created_at?: string
+          description?: string | null
+          first_seen_at?: string
+          id?: string
+          inventory_status?: string
+          last_seen_at?: string
+          last_seen_run_id?: string | null
+          missed_run_count?: number
+          postal_code?: string | null
+          price_cents?: number | null
+          raw_record?: Json
+          source_id: string
+          source_record_key: string
+          source_updated_at?: string | null
+          state: string
+          stock_number?: string | null
+          title: string
+          updated_at?: string
+          vehicle_body_style?: string | null
+          vehicle_drivetrain?: string | null
+          vehicle_exterior_color?: string | null
+          vehicle_fuel_type?: string | null
+          vehicle_make?: string | null
+          vehicle_mileage?: number | null
+          vehicle_model?: string | null
+          vehicle_title_status?: string | null
+          vehicle_transmission?: string | null
+          vehicle_trim?: string | null
+          vehicle_year?: number | null
+          vin?: string | null
+        }
+        Update: {
+          city?: string
+          content_hash?: string
+          created_at?: string
+          description?: string | null
+          first_seen_at?: string
+          id?: string
+          inventory_status?: string
+          last_seen_at?: string
+          last_seen_run_id?: string | null
+          missed_run_count?: number
+          postal_code?: string | null
+          price_cents?: number | null
+          raw_record?: Json
+          source_id?: string
+          source_record_key?: string
+          source_updated_at?: string | null
+          state?: string
+          stock_number?: string | null
+          title?: string
+          updated_at?: string
+          vehicle_body_style?: string | null
+          vehicle_drivetrain?: string | null
+          vehicle_exterior_color?: string | null
+          vehicle_fuel_type?: string | null
+          vehicle_make?: string | null
+          vehicle_mileage?: number | null
+          vehicle_model?: string | null
+          vehicle_title_status?: string | null
+          vehicle_transmission?: string | null
+          vehicle_trim?: string | null
+          vehicle_year?: number | null
+          vin?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dealer_inventory_records_last_seen_run_id_fkey"
+            columns: ["last_seen_run_id"]
+            isOneToOne: false
+            referencedRelation: "dealer_inventory_sync_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dealer_inventory_records_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "dealer_inventory_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dealer_inventory_sources: {
+        Row: {
+          created_at: string
+          deactivation_grace_runs: number
+          feed_url: string | null
+          file_format: string
+          id: string
+          last_error: string | null
+          last_error_at: string | null
+          last_success_at: string | null
+          mapping_profile: Json
+          minimum_row_count: number
+          name: string
+          owner_user_id: string
+          provider_name: string | null
+          schedule: string | null
+          source_type: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          deactivation_grace_runs?: number
+          feed_url?: string | null
+          file_format?: string
+          id?: string
+          last_error?: string | null
+          last_error_at?: string | null
+          last_success_at?: string | null
+          mapping_profile?: Json
+          minimum_row_count?: number
+          name: string
+          owner_user_id: string
+          provider_name?: string | null
+          schedule?: string | null
+          source_type?: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          deactivation_grace_runs?: number
+          feed_url?: string | null
+          file_format?: string
+          id?: string
+          last_error?: string | null
+          last_error_at?: string | null
+          last_success_at?: string | null
+          mapping_profile?: Json
+          minimum_row_count?: number
+          name?: string
+          owner_user_id?: string
+          provider_name?: string | null
+          schedule?: string | null
+          source_type?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      dealer_inventory_sync_runs: {
+        Row: {
+          created_count: number
+          error_summary: Json
+          finished_at: string | null
+          id: string
+          invalid_row_count: number
+          mode: string
+          raw_payload: string | null
+          received_row_count: number
+          source_checksum: string | null
+          source_filename: string | null
+          source_id: string
+          stale_count: number
+          started_at: string
+          status: string
+          unchanged_count: number
+          updated_count: number
+          valid_row_count: number
+        }
+        Insert: {
+          created_count?: number
+          error_summary?: Json
+          finished_at?: string | null
+          id?: string
+          invalid_row_count?: number
+          mode: string
+          raw_payload?: string | null
+          received_row_count?: number
+          source_checksum?: string | null
+          source_filename?: string | null
+          source_id: string
+          stale_count?: number
+          started_at?: string
+          status?: string
+          unchanged_count?: number
+          updated_count?: number
+          valid_row_count?: number
+        }
+        Update: {
+          created_count?: number
+          error_summary?: Json
+          finished_at?: string | null
+          id?: string
+          invalid_row_count?: number
+          mode?: string
+          raw_payload?: string | null
+          received_row_count?: number
+          source_checksum?: string | null
+          source_filename?: string | null
+          source_id?: string
+          stale_count?: number
+          started_at?: string
+          status?: string
+          unchanged_count?: number
+          updated_count?: number
+          valid_row_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dealer_inventory_sync_runs_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "dealer_inventory_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       fee_schedules: {
         Row: {
           active: boolean
@@ -1222,6 +1703,61 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "resorts"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      job_applications: {
+        Row: {
+          applicant_id: string
+          cover_letter: string | null
+          created_at: string
+          id: string
+          listing_id: string
+          resume_path: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          applicant_id: string
+          cover_letter?: string | null
+          created_at?: string
+          id?: string
+          listing_id: string
+          resume_path: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          applicant_id?: string
+          cover_letter?: string | null
+          created_at?: string
+          id?: string
+          listing_id?: string
+          resume_path?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "job_applications_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "active_seller_listings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_applications_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "asks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "job_applications_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "variant_sourcing_offers"
+            referencedColumns: ["ask_id"]
           },
         ]
       }
@@ -3220,21 +3756,6 @@ export type Database = {
         }
         Relationships: []
       }
-      review_worker_tokens: {
-        Row: {
-          expires_at: string
-          token_hash: string
-        }
-        Insert: {
-          expires_at: string
-          token_hash: string
-        }
-        Update: {
-          expires_at?: string
-          token_hash?: string
-        }
-        Relationships: []
-      }
       saved_search_matches: {
         Row: {
           emailed_at: string | null
@@ -3494,6 +4015,47 @@ export type Database = {
         }
         Relationships: []
       }
+      seller_review_flags: {
+        Row: {
+          created_at: string
+          flagger_id: string
+          id: string
+          reason: string | null
+          resolution: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          review_id: string
+        }
+        Insert: {
+          created_at?: string
+          flagger_id: string
+          id?: string
+          reason?: string | null
+          resolution?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          review_id: string
+        }
+        Update: {
+          created_at?: string
+          flagger_id?: string
+          id?: string
+          reason?: string | null
+          resolution?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          review_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seller_review_flags_review_id_fkey"
+            columns: ["review_id"]
+            isOneToOne: false
+            referencedRelation: "seller_reviews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       seller_reviews: {
         Row: {
           comment: string | null
@@ -3502,6 +4064,7 @@ export type Database = {
           rating: number
           reviewer_id: string
           seller_id: string
+          status: string
           updated_at: string
         }
         Insert: {
@@ -3511,6 +4074,7 @@ export type Database = {
           rating: number
           reviewer_id: string
           seller_id: string
+          status?: string
           updated_at?: string
         }
         Update: {
@@ -3520,6 +4084,7 @@ export type Database = {
           rating?: number
           reviewer_id?: string
           seller_id?: string
+          status?: string
           updated_at?: string
         }
         Relationships: []
@@ -4437,62 +5002,6 @@ export type Database = {
         }
         Relationships: []
       }
-      transactional_email_queue: {
-        Row: {
-          attempts: number
-          created_at: string
-          id: string
-          last_error: string | null
-          lease_token: string | null
-          locked_until: string | null
-          next_attempt_at: string
-          order_id: string
-          sent_at: string | null
-          status: string
-          template: string
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          attempts?: number
-          created_at?: string
-          id?: string
-          last_error?: string | null
-          lease_token?: string | null
-          locked_until?: string | null
-          next_attempt_at?: string
-          order_id: string
-          sent_at?: string | null
-          status?: string
-          template: string
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          attempts?: number
-          created_at?: string
-          id?: string
-          last_error?: string | null
-          lease_token?: string | null
-          locked_until?: string | null
-          next_attempt_at?: string
-          order_id?: string
-          sent_at?: string | null
-          status?: string
-          template?: string
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "transactional_email_queue_order_id_fkey"
-            columns: ["order_id"]
-            isOneToOne: false
-            referencedRelation: "orders"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       user_roles: {
         Row: {
           created_at: string
@@ -4993,6 +5502,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      _apply_classified_pet_details: {
+        Args: { _listing_id: string; _pet?: Json }
+        Returns: undefined
+      }
       accept_shopper_quote: { Args: { _quote_id: string }; Returns: string }
       admin_add_product_image: {
         Args: {
@@ -5112,6 +5625,10 @@ export type Database = {
           _order_status?: Database["public"]["Enums"]["order_status"]
           _status: Database["public"]["Enums"]["dispute_status"]
         }
+        Returns: undefined
+      }
+      admin_resolve_review_flag: {
+        Args: { _action: string; _review_id: string }
         Returns: undefined
       }
       admin_review_ask: {
@@ -5240,30 +5757,6 @@ export type Database = {
         Returns: undefined
       }
       capture_price_snapshots: { Args: never; Returns: number }
-      claim_review_emails: {
-        Args: { _order_id?: string }
-        Returns: {
-          attempts: number
-          created_at: string
-          id: string
-          last_error: string | null
-          lease_token: string | null
-          locked_until: string | null
-          next_attempt_at: string
-          order_id: string
-          sent_at: string | null
-          status: string
-          template: string
-          updated_at: string
-          user_id: string
-        }[]
-        SetofOptions: {
-          from: "*"
-          to: "transactional_email_queue"
-          isOneToOne: false
-          isSetofReturn: true
-        }
-      }
       claim_sourcing_tip_payment: {
         Args: {
           _amount_cents: number
@@ -5318,10 +5811,6 @@ export type Database = {
       confirm_delivery: {
         Args: { _order_id: string; _proof_path?: string }
         Returns: undefined
-      }
-      consume_review_worker_token: {
-        Args: { _token: string }
-        Returns: boolean
       }
       create_classified_listing:
         | {
@@ -5395,6 +5884,60 @@ export type Database = {
             }
             Returns: string
           }
+        | {
+            Args: {
+              _category_id: string
+              _city: string
+              _description: string
+              _evidence_paths: string[]
+              _fulfillment_mode: string
+              _home: Json
+              _item_condition: Database["public"]["Enums"]["item_condition"]
+              _job: Json
+              _parcel_height_in: number
+              _parcel_length_in: number
+              _parcel_weight_lb: number
+              _parcel_width_in: number
+              _pet: Json
+              _postal_code: string
+              _price_cents: number
+              _public_media_paths: string[]
+              _region: string
+              _seller_note: string
+              _service: Json
+              _state: string
+              _title: string
+              _vehicle: Json
+            }
+            Returns: string
+          }
+      create_free_pet_listing: {
+        Args: {
+          _category_id: string
+          _city: string
+          _description: string
+          _evidence_paths: string[]
+          _fulfillment_mode: string
+          _home: Json
+          _item_condition: Database["public"]["Enums"]["item_condition"]
+          _job: Json
+          _parcel_height_in: number
+          _parcel_length_in: number
+          _parcel_weight_lb: number
+          _parcel_width_in: number
+          _pet: Json
+          _postal_code: string
+          _price_cents: number
+          _public_media_paths: string[]
+          _region: string
+          _seller_note: string
+          _service: Json
+          _state: string
+          _title: string
+          _vehicle: Json
+        }
+        Returns: string
+      }
       create_listing_inquiry: {
         Args: { _listing_id: string; _message: string }
         Returns: string
@@ -5515,6 +6058,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      flag_seller_review: {
+        Args: { _reason?: string; _review_id: string }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -5625,6 +6172,10 @@ export type Database = {
           status: Database["public"]["Enums"]["shopper_quote_status"]
         }[]
       }
+      reconcile_dealer_inventory_records: {
+        Args: { _records: Json; _run_id: string; _source_id: string }
+        Returns: Json
+      }
       record_classified_listing_impressions: {
         Args: { _listing_ids: string[] }
         Returns: undefined
@@ -5704,6 +6255,10 @@ export type Database = {
       replace_listing_media: {
         Args: { _ask_id: string; _paths: string[] }
         Returns: undefined
+      }
+      report_conversation: {
+        Args: { _conversation_id: string; _reason: string }
+        Returns: string
       }
       report_sighting: {
         Args: {
@@ -5934,6 +6489,14 @@ export type Database = {
         }
         Returns: string
       }
+      submit_job_application: {
+        Args: {
+          _cover_letter?: string
+          _listing_id: string
+          _resume_path: string
+        }
+        Returns: string
+      }
       submit_missing_product_listing: {
         Args: {
           _brand_text: string
@@ -5986,6 +6549,10 @@ export type Database = {
           _valid_for_days?: number
         }
         Returns: string
+      }
+      touch_dealer_inventory_source: {
+        Args: { _error?: string; _ok: boolean; _source_id: string }
+        Returns: undefined
       }
       update_ask: {
         Args: {
@@ -6048,6 +6615,62 @@ export type Database = {
             }
             Returns: undefined
           }
+        | {
+            Args: {
+              _category_id: string
+              _city: string
+              _description: string
+              _fulfillment_mode: string
+              _home: Json
+              _item_condition: Database["public"]["Enums"]["item_condition"]
+              _job: Json
+              _listing_id: string
+              _parcel_height_in: number
+              _parcel_length_in: number
+              _parcel_weight_lb: number
+              _parcel_width_in: number
+              _pet: Json
+              _postal_code: string
+              _price_cents: number
+              _region: string
+              _seller_note: string
+              _service: Json
+              _state: string
+              _title: string
+              _vehicle: Json
+            }
+            Returns: undefined
+          }
+      update_free_pet_listing: {
+        Args: {
+          _category_id: string
+          _city: string
+          _description: string
+          _fulfillment_mode: string
+          _home: Json
+          _item_condition: Database["public"]["Enums"]["item_condition"]
+          _job: Json
+          _listing_id: string
+          _parcel_height_in: number
+          _parcel_length_in: number
+          _parcel_weight_lb: number
+          _parcel_width_in: number
+          _pet: Json
+          _postal_code: string
+          _price_cents: number
+          _region: string
+          _seller_note: string
+          _service: Json
+          _state: string
+          _title: string
+          _vehicle: Json
+        }
+        Returns: undefined
+      }
+      update_job_application_status: {
+        Args: { _application_id: string; _status: string }
+        Returns: undefined
+      }
       variant_price_reference: {
         Args: { _variant_id: string }
         Returns: {

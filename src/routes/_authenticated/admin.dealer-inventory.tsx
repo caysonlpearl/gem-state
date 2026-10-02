@@ -16,15 +16,20 @@ import {
   applyDealerInventoryFeed,
   createDealerInventorySource,
   getDealerInventorySources,
+  getDealerInventoryRecords,
   getDealerInventorySyncRuns,
+  linkDealerInventoryRecord,
   previewDealerInventoryFeed,
+  runConfiguredDealerInventorySource,
+  runScheduledDealerInventorySources,
   setDealerInventorySourceStatus,
 } from "@/lib/dealer-inventory.functions";
+import { getOwnedDealers } from "@/lib/dealer.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/dealer-inventory")({
   head: () => ({
     meta: [
-      { title: "Dealer inventory feeds · Gem State Classifieds" },
+      { title: "Dealer inventory feeds · Bluebird Marketplace" },
       { name: "description", content: "Import and validate dealership inventory feeds." },
       { name: "robots", content: "noindex" },
     ],
@@ -39,8 +44,13 @@ function DealerInventoryPage() {
   const fetchSources = useServerFn(getDealerInventorySources);
   const createSource = useServerFn(createDealerInventorySource);
   const fetchSyncRuns = useServerFn(getDealerInventorySyncRuns);
+  const fetchRecords = useServerFn(getDealerInventoryRecords);
+  const linkRecord = useServerFn(linkDealerInventoryRecord);
+  const fetchDealers = useServerFn(getOwnedDealers);
   const previewFeed = useServerFn(previewDealerInventoryFeed);
   const applyFeed = useServerFn(applyDealerInventoryFeed);
+  const runConfiguredSource = useServerFn(runConfiguredDealerInventorySource);
+  const runScheduledSources = useServerFn(runScheduledDealerInventorySources);
   const setSourceStatus = useServerFn(setDealerInventorySourceStatus);
   const { data: sources, isLoading } = useQuery({
     queryKey: ["dealer-inventory-sources"],
@@ -55,9 +65,14 @@ function DealerInventoryPage() {
   const [schedule, setSchedule] = useState("");
   const [mappingJson, setMappingJson] = useState("");
   const [sourceId, setSourceId] = useState("");
+  const [dealerId, setDealerId] = useState("");
   const [csv, setCsv] = useState("");
   const [filename, setFilename] = useState("dealership-inventory.csv");
   const [preview, setPreview] = useState<PreviewResult | null>(null);
+  const { data: dealers } = useQuery({
+    queryKey: ["owned-dealers"],
+    queryFn: () => fetchDealers(),
+  });
 
   const selectedSourceId = sourceId;
   const selectedSource = useMemo(
@@ -76,6 +91,12 @@ function DealerInventoryPage() {
     queryFn: () => fetchSyncRuns({ data: { sourceId: selectedSourceId } }),
     enabled: Boolean(selectedSourceId),
   });
+  const { data: records } = useQuery({
+    queryKey: ["dealer-inventory-records", selectedSourceId],
+    queryFn: () => fetchRecords({ data: { sourceId: selectedSourceId } }),
+    enabled: Boolean(selectedSourceId),
+  });
+  const [linkInputs, setLinkInputs] = useState<Record<string, string>>({});
 
   const createMutation = useMutation({
     mutationFn: () => {
@@ -90,6 +111,7 @@ function DealerInventoryPage() {
       return createSource({
         data: {
           name,
+          dealerId: dealerId || null,
           providerName: providerName || null,
           sourceType: "manual_upload",
           fileFormat,
@@ -122,8 +144,14 @@ function DealerInventoryPage() {
         data: { sourceId: selectedSourceId, payload: csv, filename, dryRun: true },
       });
     },
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
       setPreview(result);
+      await queryClient.invalidateQueries({
+        queryKey: ["dealer-inventory-sync-runs", selectedSourceId],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["dealer-inventory-records", selectedSourceId],
+      });
       toast.success("Feed preview ready.");
     },
     onError: (error) =>
@@ -158,12 +186,53 @@ function DealerInventoryPage() {
     onSuccess: async (result) => {
       setPreview(null);
       await queryClient.invalidateQueries({ queryKey: ["dealer-inventory-sources"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["dealer-inventory-sync-runs", selectedSourceId],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["dealer-inventory-records", selectedSourceId],
+      });
       toast.success(
         `Feed applied: ${result.createdCount ?? 0} created, ${result.updatedCount ?? 0} updated.`,
       );
     },
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "Could not apply feed."),
+  });
+
+  const remoteRunMutation = useMutation({
+    mutationFn: () => {
+      if (!selectedSourceId) throw new Error("Select an inventory source first.");
+      return runConfiguredSource({ data: { sourceId: selectedSourceId } });
+    },
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ["dealer-inventory-sources"] });
+      await queryClient.invalidateQueries({
+        queryKey: ["dealer-inventory-sync-runs", selectedSourceId],
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["dealer-inventory-records", selectedSourceId],
+      });
+      toast.success(
+        `Configured feed applied: ${result.createdCount ?? 0} created, ${result.updatedCount ?? 0} updated.`,
+      );
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Could not run configured feed."),
+  });
+
+  const scheduledRunMutation = useMutation({
+    mutationFn: () => runScheduledSources(),
+    onSuccess: async (results) => {
+      await queryClient.invalidateQueries({ queryKey: ["dealer-inventory-sources"] });
+      await queryClient.invalidateQueries({ queryKey: ["dealer-inventory-sync-runs"] });
+      await queryClient.invalidateQueries({ queryKey: ["dealer-inventory-records"] });
+      const completed = results.filter((result) => result.status === "completed").length;
+      const failed = results.filter((result) => result.status === "failed").length;
+      toast.success(`Scheduled feeds checked: ${completed} applied, ${failed} failed.`);
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Could not run scheduled feeds."),
   });
 
   if (isLoading)
@@ -179,12 +248,26 @@ function DealerInventoryPage() {
         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
           Operations
         </p>
-        <h1 className="mt-1 text-[24px] font-semibold tracking-tight">Dealer inventory feeds</h1>
-        <p className="mt-2 max-w-[780px] text-[13px] leading-relaxed text-muted-foreground">
-          Provider-neutral CSV, JSON, and XML intake for the dealership integration foundation.
-          Imported records stay in the inventory layer until a future moderation step links them to
-          public GemList listings.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 className="mt-1 text-[24px] font-semibold tracking-tight">
+              Dealer inventory feeds
+            </h1>
+            <p className="mt-2 max-w-[780px] text-[13px] leading-relaxed text-muted-foreground">
+              Provider-neutral CSV, JSON, and XML intake for the dealership integration foundation.
+              Imported records stay private until an operator reviews and links them to public
+              Bluebird Marketplace listings.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => scheduledRunMutation.mutate()}
+            disabled={scheduledRunMutation.isPending}
+          >
+            {scheduledRunMutation.isPending ? "Checking schedules…" : "Run due scheduled feeds"}
+          </Button>
+        </div>
       </header>
 
       <section className="grid gap-6 lg:grid-cols-[320px_1fr]">
@@ -220,6 +303,24 @@ function DealerInventoryPage() {
               onChange={(event) => setName(event.target.value)}
               className="mt-1"
             />
+          </label>
+          <label className="block text-[12px] font-medium">
+            Dealership identity
+            <select
+              value={dealerId}
+              onChange={(event) => setDealerId(event.target.value)}
+              className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-[12px]"
+            >
+              <option value="">Unassigned inventory source</option>
+              {(dealers ?? []).map((dealer) => (
+                <option key={dealer.id} value={dealer.id}>
+                  {dealer.display_name} · {dealer.status}
+                </option>
+              ))}
+            </select>
+            <span className="mt-1 block text-[11px] font-normal text-muted-foreground">
+              Associate feeds with a verified business storefront.
+            </span>
           </label>
           <label className="block text-[12px] font-medium">
             Provider note
@@ -261,7 +362,7 @@ function DealerInventoryPage() {
             <Input
               value={schedule}
               onChange={(event) => setSchedule(event.target.value)}
-              placeholder="For example: daily at 2 AM"
+              placeholder="For example: daily at 02:00 UTC"
               className="mt-1"
             />
           </label>
@@ -319,6 +420,17 @@ function DealerInventoryPage() {
                     Pause source
                   </Button>
                 )}
+                {selectedSource.feed_url ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => remoteRunMutation.mutate()}
+                    disabled={remoteRunMutation.isPending || selectedSource.status === "paused"}
+                  >
+                    {remoteRunMutation.isPending ? "Running…" : "Run configured feed"}
+                  </Button>
+                ) : null}
               </div>
             </div>
           ) : null}
@@ -329,11 +441,11 @@ function DealerInventoryPage() {
             <div>
               <h2 className="text-[14px] font-semibold">Inventory feed</h2>
               <p className="mt-1 text-[12px] text-muted-foreground">
-                Use the sample dealership feed to test create, update, sold, and photo behavior.
+                Use the example dealership feed to verify create, update, sold, and photo behavior.
               </p>
             </div>
             <Button type="button" variant="secondary" size="sm" onClick={() => setCsv(sampleFeed)}>
-              Load {selectedFormat.toUpperCase()} sample
+              Load {selectedFormat.toUpperCase()} example
             </Button>
           </div>
           <label className="block text-[12px] font-medium">
@@ -412,9 +524,9 @@ function DealerInventoryPage() {
               <table className="w-full min-w-[760px] text-left text-[11px]">
                 <thead className="bg-secondary/50">
                   <tr>
-                    <th className="px-3 py-2">Started</th>
+                    <th className="px-3 py-2">Started / actor</th>
                     <th className="px-3 py-2">File</th>
-                    <th className="px-3 py-2">Status</th>
+                    <th className="px-3 py-2">Mode / status</th>
                     <th className="px-3 py-2">Rows</th>
                     <th className="px-3 py-2">Changes</th>
                     <th className="px-3 py-2">Errors</th>
@@ -423,9 +535,16 @@ function DealerInventoryPage() {
                 <tbody>
                   {syncRuns.slice(0, 10).map((run) => (
                     <tr key={run.id} className="border-t border-border">
-                      <td className="px-3 py-2">{new Date(run.started_at).toLocaleString()}</td>
+                      <td className="px-3 py-2">
+                        {new Date(run.started_at).toLocaleString()}
+                        <span className="block text-[10px] text-muted-foreground">
+                          {run.actor_user_id ? `Actor ${run.actor_user_id.slice(0, 8)}` : "System"}
+                        </span>
+                      </td>
                       <td className="px-3 py-2 font-mono">{run.source_filename || "—"}</td>
-                      <td className="px-3 py-2">{run.status}</td>
+                      <td className="px-3 py-2">
+                        {run.mode === "dry_run" ? "Preview / dry run" : "Applied"} · {run.status}
+                      </td>
                       <td className="px-3 py-2">
                         {run.valid_row_count}/{run.received_row_count}
                       </td>
@@ -442,6 +561,94 @@ function DealerInventoryPage() {
             <p className="rounded-md border border-dashed border-border px-3 py-4 text-[12px] text-muted-foreground">
               No syncs yet. Preview the sample feed, then apply it to create the first traceable
               run.
+            </p>
+          )}
+        </section>
+      ) : null}
+
+      {selectedSourceId ? (
+        <section className="space-y-3 rounded-lg border border-border bg-card p-4">
+          <div>
+            <h2 className="text-[14px] font-semibold">Marketplace links</h2>
+            <p className="mt-1 text-[12px] text-muted-foreground">
+              Imported inventory stays out of public search until an operator links it to a
+              moderated listing. Link IDs are deliberate so stale or sold records cannot silently
+              replace a listing.
+            </p>
+          </div>
+          {records?.length ? (
+            <div className="overflow-x-auto rounded-md border border-border">
+              <table className="w-full min-w-[820px] text-left text-[11px]">
+                <thead className="bg-secondary/50">
+                  <tr>
+                    <th className="px-3 py-2">Vehicle</th>
+                    <th className="px-3 py-2">Identity</th>
+                    <th className="px-3 py-2">Inventory state</th>
+                    <th className="px-3 py-2">Listing ID</th>
+                    <th className="px-3 py-2">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {records.slice(0, 50).map((record) => (
+                    <tr key={record.id} className="border-t border-border">
+                      <td className="px-3 py-2 font-medium">{record.title}</td>
+                      <td className="px-3 py-2 font-mono">
+                        {record.vin || record.stock_number || record.source_record_key}
+                      </td>
+                      <td className="px-3 py-2">{record.inventory_status}</td>
+                      <td className="px-3 py-2 font-mono">{record.listing_id || "Not linked"}</td>
+                      <td className="px-3 py-2">
+                        <div className="flex gap-2">
+                          <Input
+                            aria-label={`Listing ID for ${record.title}`}
+                            value={linkInputs[record.id] ?? record.listing_id ?? ""}
+                            onChange={(event) =>
+                              setLinkInputs((current) => ({
+                                ...current,
+                                [record.id]: event.target.value,
+                              }))
+                            }
+                            placeholder="ask UUID"
+                            className="h-8 w-56 font-mono text-[10px]"
+                          />
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={
+                              !linkInputs[record.id] || linkInputs[record.id] === record.listing_id
+                            }
+                            onClick={async () => {
+                              try {
+                                await linkRecord({
+                                  data: { recordId: record.id, listingId: linkInputs[record.id] },
+                                });
+                                await queryClient.invalidateQueries({
+                                  queryKey: ["dealer-inventory-records", selectedSourceId],
+                                });
+                                toast.success("Inventory record linked to the moderated listing.");
+                              } catch (error) {
+                                toast.error(
+                                  error instanceof Error
+                                    ? error.message
+                                    : "Could not link inventory record.",
+                                );
+                              }
+                            }}
+                          >
+                            Link
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p className="rounded-md border border-dashed border-border px-3 py-4 text-[12px] text-muted-foreground">
+              No applied inventory records yet. Apply a validated feed to create records for
+              moderation linking.
             </p>
           )}
         </section>

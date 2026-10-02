@@ -84,7 +84,7 @@ export type ServiceProfile = {
  * signed-out or signed-in caller can reach the underlying function directly.
  */
 export const getSourcingOptions = createServerFn({ method: "GET" })
-  .inputValidator((input: { variantId: string }) => ({
+  .validator((input: { variantId: string }) => ({
     variantId: String(input.variantId).slice(0, 40),
   }))
   .handler(async ({ data }): Promise<SourcingOption[]> => {
@@ -190,7 +190,7 @@ export const getMyServiceProfile = createServerFn({ method: "GET" })
 
 export const saveServiceProfile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
+  .validator(
     (input: {
       flatFeeCents: number;
       purchaseWindowDays: number;
@@ -404,7 +404,7 @@ export const refreshStripeShopperStatus = createServerFn({ method: "POST" })
 
 export const setAvailability = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { available: boolean; hours?: number }) => {
+  .validator((input: { available: boolean; hours?: number }) => {
     const hours = Math.round(Number(input.hours ?? 8));
     if (input.available && (!Number.isFinite(hours) || hours < 1 || hours > 72)) {
       throw new Error("Availability must expire between 1 and 72 hours from now.");
@@ -528,7 +528,7 @@ export const getMyShopperPublicProfile = createServerFn({ method: "GET" })
 
 export const saveShopperPublicProfile = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: ShopperPublicProfileDraft) => {
+  .validator((input: ShopperPublicProfileDraft) => {
     const slug = String(input.slug ?? "")
       .trim()
       .toLowerCase();
@@ -563,7 +563,7 @@ export const saveShopperPublicProfile = createServerFn({ method: "POST" })
 
 /** Public, unauthenticated shopper profile page read. */
 export const getPublicShopper = createServerFn({ method: "GET" })
-  .inputValidator((input: { slug: string }) => ({
+  .validator((input: { slug: string }) => ({
     slug: String(input.slug ?? "")
       .trim()
       .toLowerCase()
@@ -714,7 +714,7 @@ export const getMyShopperJobs = createServerFn({ method: "GET" })
 /** "I'm shopping for this" — visible to the buyer as progress. */
 export const startShopping = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { orderId: string }) => ({ orderId: String(input.orderId) }))
+  .validator((input: { orderId: string }) => ({ orderId: String(input.orderId) }))
   .handler(async ({ data, context }) => {
     const { data: order } = await context.supabase
       .from("orders")
@@ -737,7 +737,7 @@ export const startShopping = createServerFn({ method: "POST" })
 /** "I bought it" — the real price paid plus the receipt, capped by the buyer's approved maximum. */
 export const confirmSourcingPurchase = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { orderId: string; actualCostCents: number; receiptPath: string }) => {
+  .validator((input: { orderId: string; actualCostCents: number; receiptPath: string }) => {
     const cents = Math.round(Number(input.actualCostCents));
     if (!Number.isFinite(cents) || cents < 1 || cents > 5_000_000) {
       throw new Error("Enter what you actually paid for the item.");
@@ -758,7 +758,11 @@ export const confirmSourcingPurchase = createServerFn({ method: "POST" })
       },
     );
     if (error) throw new Error(error.message);
-    const payload = (result ?? {}) as { balance_due_cents?: number; refund_due_cents?: number; already_confirmed?: boolean };
+    const payload = (result ?? {}) as {
+      balance_due_cents?: number;
+      refund_due_cents?: number;
+      already_confirmed?: boolean;
+    };
     const refundDueCents = Number(payload.refund_due_cents ?? 0);
     let refundIssued = false;
     if (refundDueCents > 0) {
@@ -768,16 +772,23 @@ export const confirmSourcingPurchase = createServerFn({ method: "POST" })
         const admin = supabaseAdmin as any;
         const { data: order } = await admin
           .from("orders")
-          .select("stripe_payment_intent_id,stripe_checkout_session_id,merchandise_cents,buyer_fee_cents,shipping_cents,tax_cents")
+          .select(
+            "stripe_payment_intent_id,stripe_checkout_session_id,merchandise_cents,buyer_fee_cents,shipping_cents,tax_cents",
+          )
           .eq("id", data.orderId)
           .maybeSingle();
         if (order?.stripe_payment_intent_id) {
           const { refundReceiptReduction } = await import("./receipt-tax.server");
           const refund = await refundReceiptReduction(getStripe(), {
-            orderId: data.orderId, actualCostCents: data.actualCostCents,
-            paymentIntentId: order.stripe_payment_intent_id, amountCents: refundDueCents,
-            checkoutId: order.stripe_checkout_session_id, merchandise: order.merchandise_cents,
-            fee: order.buyer_fee_cents, shipping: order.shipping_cents, finalTaxCents: order.tax_cents,
+            orderId: data.orderId,
+            actualCostCents: data.actualCostCents,
+            paymentIntentId: order.stripe_payment_intent_id,
+            amountCents: refundDueCents,
+            checkoutId: order.stripe_checkout_session_id,
+            merchandise: order.merchandise_cents,
+            fee: order.buyer_fee_cents,
+            shipping: order.shipping_cents,
+            finalTaxCents: order.tax_cents,
           });
           const { error: refundError } = await admin.rpc("finalize_sourcing_refund", {
             _order_id: data.orderId,
@@ -796,11 +807,12 @@ export const confirmSourcingPurchase = createServerFn({ method: "POST" })
     }
     const balanceDueCents = Number(payload.balance_due_cents ?? 0);
     const { emailSourcingUpdate } = await import("./email-notifications.server");
-    if (!payload.already_confirmed) await emailSourcingUpdate(
-      data.orderId,
-      balanceDueCents > 0 ? "balance_due" : "purchased",
-      balanceDueCents > 0 ? balanceDueCents : undefined,
-    );
+    if (!payload.already_confirmed)
+      await emailSourcingUpdate(
+        data.orderId,
+        balanceDueCents > 0 ? "balance_due" : "purchased",
+        balanceDueCents > 0 ? balanceDueCents : undefined,
+      );
     return {
       balanceDueCents,
       refundDueCents,
@@ -849,7 +861,7 @@ export type SourcingProgress = {
 /** Progress on a Park Shopper job, for either party on the order. RLS scopes it. */
 export const getSourcingProgress = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { orderId: string }) => ({ orderId: String(input.orderId) }))
+  .validator((input: { orderId: string }) => ({ orderId: String(input.orderId) }))
   .handler(async ({ data, context }): Promise<SourcingProgress | null> => {
     const { data: row, error } = await (context.supabase as any)
       .from("sourcing_assignments")

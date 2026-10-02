@@ -218,7 +218,7 @@ export type BrowseInput = {
 };
 
 export const browseProducts = createServerFn({ method: "GET" })
-  .inputValidator((input: BrowseInput): BrowseInput => ({
+  .validator((input: BrowseInput): BrowseInput => ({
     q: input?.q ? String(input.q).slice(0, 80) : undefined,
     resort: input?.resort ? String(input.resort).slice(0, 12) : undefined,
     category: input?.category ? String(input.category).slice(0, 60) : undefined,
@@ -379,7 +379,7 @@ export const browseProducts = createServerFn({ method: "GET" })
   });
 
 export const getProductBySlug = createServerFn({ method: "GET" })
-  .inputValidator((input: { slug: string }) => ({ slug: String(input.slug).slice(0, 120) }))
+  .validator((input: { slug: string }) => ({ slug: String(input.slug).slice(0, 120) }))
   .handler(async ({ data }): Promise<ProductDetail | null> => {
     const client = publicServerClient();
     const { data: product, error } = await client

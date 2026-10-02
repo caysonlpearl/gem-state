@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { classifyLatency, sanitizeTelemetryText } from "@/lib/release-gate";
 
 /**
  * Validation analytics. Instrumented from the foundation phase onward: every
@@ -70,9 +71,25 @@ export type AnalyticsEventName =
   | "dispute_opened"
   | "dispute_resolved"
   | "review_submitted"
-  | "notifications_viewed";
+  | "notifications_viewed"
+  | "classified_listing_submit_started"
+  | "classified_listing_submit_succeeded"
+  | "classified_listing_submit_failed"
+  | "search_completed"
+  | "mutation_started"
+  | "mutation_completed"
+  | "mutation_failed"
+  | "mutation_slow"
+  | "browser_error"
+  | "unhandled_rejection";
 
 type Props = Record<string, string | number | boolean | null>;
+
+export type MutationTelemetry = {
+  flow: string;
+  thresholdMs?: number;
+  props?: Props;
+};
 
 const SESSION_KEY = "pv_session_id";
 
@@ -113,5 +130,58 @@ export async function trackEvent(
   } catch (error) {
     // Analytics must never break a user flow.
     console.warn("analytics event dropped", name, error);
+  }
+}
+
+function telemetryError(error: unknown): Props {
+  const message = error instanceof Error ? error.message : String(error ?? "Unknown error");
+  return {
+    error_name: error instanceof Error ? error.name : "UnknownError",
+    error_message: sanitizeTelemetryText(message),
+  };
+}
+
+/** Record a bounded browser failure without allowing telemetry to interrupt the flow. */
+export function trackBrowserError(error: unknown, kind: "error" | "unhandled_rejection" = "error") {
+  void trackEvent(kind === "error" ? "browser_error" : "unhandled_rejection", {
+    route: typeof window === "undefined" ? null : window.location.pathname,
+    ...telemetryError(error),
+  });
+}
+
+/** Trace an async mutation and emit a slow marker when it exceeds the user-facing threshold. */
+export async function traceMutation<T>(
+  telemetry: MutationTelemetry,
+  task: () => Promise<T>,
+): Promise<T> {
+  const startedAt = typeof performance !== "undefined" ? performance.now() : Date.now();
+  void trackEvent("mutation_started", { flow: telemetry.flow, ...(telemetry.props ?? {}) });
+  try {
+    const result = await task();
+    const latencyMs = Math.round(
+      (typeof performance !== "undefined" ? performance.now() : Date.now()) - startedAt,
+    );
+    const latency = classifyLatency(latencyMs, telemetry.thresholdMs);
+    const props = {
+      flow: telemetry.flow,
+      latency_ms: latency.durationMs,
+      threshold_ms: latency.thresholdMs,
+      slow: latency.slow,
+      ...(telemetry.props ?? {}),
+    } satisfies Props;
+    void trackEvent("mutation_completed", props);
+    if (latency.slow) void trackEvent("mutation_slow", props);
+    return result;
+  } catch (error) {
+    const latencyMs = Math.round(
+      (typeof performance !== "undefined" ? performance.now() : Date.now()) - startedAt,
+    );
+    void trackEvent("mutation_failed", {
+      flow: telemetry.flow,
+      latency_ms: latencyMs,
+      ...(telemetry.props ?? {}),
+      ...telemetryError(error),
+    });
+    throw error;
   }
 }

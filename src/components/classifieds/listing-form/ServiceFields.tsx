@@ -21,6 +21,31 @@ export function ServiceFields({
         />
       </label>
       <label className="text-[12px] font-medium">
+        Pricing model
+        <select
+          required
+          value={form.servicePricingType}
+          onChange={(event) => set("servicePricingType", event.target.value)}
+          className={fieldClass}
+        >
+          <option value="quote">Call for quote</option>
+          <option value="flat">Flat project price</option>
+          <option value="visit">Per visit</option>
+          <option value="hour">Per hour</option>
+        </select>
+      </label>
+      <label className="text-[12px] font-medium">
+        Typical maximum price (USD){" "}
+        <span className="font-normal text-muted-foreground">(optional)</span>
+        <input
+          inputMode="decimal"
+          value={form.servicePriceMax}
+          onChange={(event) => set("servicePriceMax", event.target.value)}
+          placeholder="250.00"
+          className={`${fieldClass} numeric`}
+        />
+      </label>
+      <label className="text-[12px] font-medium">
         Service area
         <input
           required
@@ -74,7 +99,9 @@ export function ServiceFields({
           rows={4}
           value={form.offerings}
           onChange={(event) => set("offerings", event.target.value)}
-          placeholder={"Drywall patching and texture matching\nTrim, doors, and hardware installation"}
+          placeholder={
+            "Drywall patching and texture matching\nTrim, doors, and hardware installation"
+          }
           className={textareaClass}
         />
       </label>

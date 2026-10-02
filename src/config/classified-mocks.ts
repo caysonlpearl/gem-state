@@ -20,6 +20,7 @@ export type ClassifiedHomeDetails = {
   bathrooms: number | null;
   squareFeet: number | null;
   yearBuilt?: number | null;
+  acres?: number | null;
   available?: string | null;
   pets?: string | null;
   smoking?: string | null;
@@ -110,6 +111,7 @@ export const homeCommunities: Record<string, ClassifiedHomeCommunity> = {
 };
 
 export type ClassifiedJobDetails = {
+  category?: string | null;
   employerName: string;
   employerAddress?: string | null;
   payType: "Hourly" | "Salary" | "Commission" | "Contract";
@@ -136,6 +138,8 @@ export type ClassifiedServiceReview = {
 export type ClassifiedServiceDetails = {
   subcategory: string;
   pricing: string;
+  pricingType?: "quote" | "flat" | "visit" | "hour";
+  priceMaxCents?: number | null;
   serviceArea: string;
   availability: string;
   serviceSummary: string;
@@ -144,6 +148,43 @@ export type ClassifiedServiceDetails = {
   licenseNumber?: string | null;
   licenseLookupUrl?: string | null;
   reviews?: ClassifiedServiceReview[];
+};
+
+export type ClassifiedPetDetails = {
+  subcategory: string;
+  species: string;
+  breed: string | null;
+  name: string | null;
+  age: string | null;
+  sex: string | null;
+  placementType: string;
+  offeredBy: string;
+  hypoallergenic: string | null;
+  vaccinated: string | null;
+  spayedNeutered: string | null;
+  microchipped: string | null;
+  recordsAvailable: string | null;
+  goodWithKids: string | null;
+  goodWithDogs: string | null;
+  goodWithCats: string | null;
+  indoorOutdoor: string | null;
+  specialNeeds: string | null;
+  breedingTerms: string | null;
+};
+
+export type MockClassifiedVehicle = {
+  year: number;
+  make: string;
+  model: string;
+  trim: string;
+  mileage: number;
+  bodyStyle: string;
+  transmission: string;
+  drivetrain: string;
+  fuelType: string;
+  exteriorColor: string;
+  titleStatus: string;
+  vin: string | null;
 };
 
 export type MockClassifiedListing = {
@@ -165,6 +206,8 @@ export type MockClassifiedListing = {
   description: string;
   postalCode: string;
   sellerNote: string;
+  vehicle?: MockClassifiedVehicle;
+  pet?: ClassifiedPetDetails;
   home?: ClassifiedHomeDetails;
   job?: ClassifiedJobDetails;
   service?: ClassifiedServiceDetails;
@@ -276,7 +319,7 @@ const sellers = {
   },
   gemStateLogistics: {
     slug: "mock-gem-state-logistics",
-    displayName: "Gem State Logistics",
+    displayName: "Bluebird Logistics",
     bio: "A Nampa-based warehousing and distribution company serving the Treasure Valley.",
     avatarUrl: null,
     payoutVerified: true,
@@ -315,7 +358,7 @@ const sellers = {
   },
   gemStateTech: {
     slug: "mock-gem-state-tech",
-    displayName: "Gem State Tech Help",
+    displayName: "Bluebird Tech Help",
     bio: "Friendly in-home technology help for families, remote workers, and small offices.",
     avatarUrl: null,
     payoutVerified: false,
@@ -326,9 +369,218 @@ const sellers = {
     contactPhone: "208-555-0106",
     contactEmail: "help@gemstatetech.example",
   },
+  gemStateMotors: {
+    slug: "mock-gem-state-motors",
+    displayName: "Bluebird Motors",
+    bio: "A local seller offering a rotating selection of well-kept vehicles across Idaho.",
+    avatarUrl: null,
+    payoutVerified: true,
+    ratingAverage: 4.9,
+    reviewCount: 19,
+    memberSince: 2016,
+    sellerType: "Business",
+    contactPhone: "208-555-0107",
+    contactEmail: "sales@gemstatemotors.example",
+  },
 } as const;
 
-export const mockClassifiedListings: MockClassifiedListing[] = [
+const baseMockClassifiedListings: MockClassifiedListing[] = [
+  {
+    id: "mock-pet-labrador-puppies",
+    listingNumber: "80787101",
+    title: "Friendly Labrador puppies",
+    productId: "mock-product-labrador-puppies",
+    productSlug: "friendly-labrador-puppies",
+    priceCents: 650_00,
+    city: "Boise",
+    state: "ID",
+    region: "Treasure Valley",
+    categorySlug: "pets",
+    categoryName: "Pets",
+    condition: "new",
+    fulfillmentMode: "local_pickup",
+    createdAt: "2026-09-18T17:30:00.000Z",
+    expiresAt: "2026-10-19T17:30:00.000Z",
+    description:
+      "Friendly Labrador puppies raised around children and household sounds. Vet records and a starter supply kit are included with each placement.",
+    postalCode: "83702",
+    sellerNote: "Meet by appointment in Boise during daylight hours.",
+    seller: sellers.stacie,
+    pet: {
+      subcategory: "dogs",
+      species: "Dogs",
+      breed: "Labrador Retriever",
+      name: null,
+      age: "Puppy",
+      sex: "Unknown / not disclosed",
+      placementType: "For sale",
+      offeredBy: "Owner",
+      hypoallergenic: "No",
+      vaccinated: "Yes",
+      spayedNeutered: "No",
+      microchipped: "No",
+      recordsAvailable: "Yes",
+      goodWithKids: "Yes",
+      goodWithDogs: "Yes",
+      goodWithCats: "Unknown",
+      indoorOutdoor: "Indoor / outdoor",
+      specialNeeds: "No",
+      breedingTerms: null,
+    },
+    images: [
+      {
+        url: image("photo-1552053831-71594a27632d", "Labrador puppy"),
+        alt: "Labrador puppy",
+      },
+    ],
+  },
+  {
+    id: "mock-pet-tabby-cats",
+    listingNumber: "80787102",
+    title: "Young tabby cats",
+    productId: "mock-product-tabby-cats",
+    productSlug: "young-tabby-cats",
+    priceCents: 125_00,
+    city: "Meridian",
+    state: "ID",
+    region: "Treasure Valley",
+    categorySlug: "pets",
+    categoryName: "Pets",
+    condition: "used_good",
+    fulfillmentMode: "local_pickup",
+    createdAt: "2026-09-17T15:10:00.000Z",
+    expiresAt: "2026-10-18T15:10:00.000Z",
+    description:
+      "Two friendly young tabby cats looking for calm indoor homes. They are social, litter trained, and can be placed together or separately.",
+    postalCode: "83642",
+    sellerNote: "Please bring a carrier for pickup in Meridian.",
+    seller: sellers.jenna,
+    pet: {
+      subcategory: "cats",
+      species: "Cats",
+      breed: "Domestic Shorthair",
+      name: null,
+      age: "Young",
+      sex: "Unknown / not disclosed",
+      placementType: "Adoption",
+      offeredBy: "Owner",
+      hypoallergenic: "No",
+      vaccinated: "Yes",
+      spayedNeutered: "Yes",
+      microchipped: "No",
+      recordsAvailable: "Yes",
+      goodWithKids: "Yes",
+      goodWithDogs: "Unknown",
+      goodWithCats: "Yes",
+      indoorOutdoor: "Indoor",
+      specialNeeds: "No",
+      breedingTerms: null,
+    },
+    images: [
+      {
+        url: image("photo-1519052537078-e6302a4968d4", "Young tabby cat"),
+        alt: "Young tabby cat",
+      },
+    ],
+  },
+  {
+    id: "mock-pet-cockatiels",
+    listingNumber: "80787103",
+    title: "Hand-fed cockatiels",
+    productId: "mock-product-cockatiels",
+    productSlug: "hand-fed-cockatiels",
+    priceCents: 225_00,
+    city: "Nampa",
+    state: "ID",
+    region: "Treasure Valley",
+    categorySlug: "pets",
+    categoryName: "Pets",
+    condition: "new",
+    fulfillmentMode: "local_pickup",
+    createdAt: "2026-09-16T18:45:00.000Z",
+    expiresAt: "2026-10-17T18:45:00.000Z",
+    description:
+      "Hand-fed cockatiels with friendly temperaments. Includes care notes and a small bag of their current food to help with the transition.",
+    postalCode: "83651",
+    sellerNote: "Nampa pickup by appointment; no shipping.",
+    seller: sellers.marcus,
+    pet: {
+      subcategory: "birds",
+      species: "Birds",
+      breed: "Cockatiel",
+      name: null,
+      age: "Young",
+      sex: "Unknown / not disclosed",
+      placementType: "For sale",
+      offeredBy: "Breeder",
+      hypoallergenic: "Unknown",
+      vaccinated: "Unknown",
+      spayedNeutered: "Unknown",
+      microchipped: "No",
+      recordsAvailable: "Yes",
+      goodWithKids: "Yes",
+      goodWithDogs: "Unknown",
+      goodWithCats: "Unknown",
+      indoorOutdoor: "Indoor",
+      specialNeeds: "No",
+      breedingTerms: null,
+    },
+    images: [
+      {
+        url: image("photo-1444464666168-49d633b86797", "Cockatiel"),
+        alt: "Cockatiel",
+      },
+    ],
+  },
+  {
+    id: "mock-pet-aquarium-setup",
+    listingNumber: "80787104",
+    title: "Freshwater aquarium setup",
+    productId: "mock-product-aquarium-setup",
+    productSlug: "freshwater-aquarium-setup",
+    priceCents: 90_00,
+    city: "Eagle",
+    state: "ID",
+    region: "Treasure Valley",
+    categorySlug: "pets",
+    categoryName: "Pets",
+    condition: "used_good",
+    fulfillmentMode: "local_pickup",
+    createdAt: "2026-09-15T12:20:00.000Z",
+    expiresAt: "2026-10-16T12:20:00.000Z",
+    description:
+      "Freshwater aquarium setup with tank, filter, heater, and starter accessories. A practical option for a first-time fish keeper.",
+    postalCode: "83616",
+    sellerNote: "Eagle pickup; buyer should bring help for the tank.",
+    seller: sellers.marcus,
+    pet: {
+      subcategory: "fish",
+      species: "Fish",
+      breed: null,
+      name: null,
+      age: null,
+      sex: null,
+      placementType: "Supplies",
+      offeredBy: "Owner",
+      hypoallergenic: "Unknown",
+      vaccinated: "Unknown",
+      spayedNeutered: "Unknown",
+      microchipped: "No",
+      recordsAvailable: "No",
+      goodWithKids: "Yes",
+      goodWithDogs: "Unknown",
+      goodWithCats: "Unknown",
+      indoorOutdoor: "Indoor",
+      specialNeeds: "No",
+      breedingTerms: null,
+    },
+    images: [
+      {
+        url: image("photo-1524704654690-b56c05c78a00", "Freshwater aquarium"),
+        alt: "Freshwater aquarium",
+      },
+    ],
+  },
   {
     id: "mock-general-squishmallows",
     listingNumber: "80786961",
@@ -1009,6 +1261,7 @@ export const mockClassifiedListings: MockClassifiedListing[] = [
     sellerNote: "Weekend availability required. Message Craig with your availability.",
     seller: sellers.craig,
     job: {
+      category: "Hospitality",
       employerName: "Twilite Lounge",
       employerAddress: "Boise, ID 83702",
       payType: "Hourly",
@@ -1057,9 +1310,11 @@ export const mockClassifiedListings: MockClassifiedListing[] = [
     description:
       "Job Title: Front Desk Receptionist\n\nJob Summary: Meridian Family Dental is hiring a front desk receptionist to greet patients, manage scheduling, and handle insurance verification for our growing practice.",
     postalCode: "83642",
-    sellerNote: "No dental experience required, front office or customer service experience helpful.",
+    sellerNote:
+      "No dental experience required, front office or customer service experience helpful.",
     seller: sellers.meridianDental,
     job: {
+      category: "Healthcare",
       employerName: "Meridian Family Dental",
       employerAddress: "Meridian, ID 83642",
       payType: "Hourly",
@@ -1106,12 +1361,13 @@ export const mockClassifiedListings: MockClassifiedListing[] = [
     createdAt: "2026-09-14T00:00:00.000Z",
     expiresAt: "2026-10-14T00:00:00.000Z",
     description:
-      "Job Title: Warehouse Associate\n\nJob Summary: Gem State Logistics is hiring a warehouse associate to pick, pack, and stage outbound shipments at our Nampa distribution center.",
+      "Job Title: Warehouse Associate\n\nJob Summary: Bluebird Logistics is hiring a warehouse associate to pick, pack, and stage outbound shipments at our Nampa distribution center.",
     postalCode: "83651",
     sellerNote: "Steel-toed boots required on day one. Forklift certification provided on the job.",
     seller: sellers.gemStateLogistics,
     job: {
-      employerName: "Gem State Logistics",
+      category: "Retail",
+      employerName: "Bluebird Logistics",
       employerAddress: "Nampa, ID 83651",
       payType: "Salary",
       payMin: 38_000,
@@ -1120,7 +1376,7 @@ export const mockClassifiedListings: MockClassifiedListing[] = [
       experienceRequired: "None",
       educationLevel: "None",
       jobSummary:
-        "Gem State Logistics is hiring a warehouse associate to pick, pack, and stage outbound shipments at our Nampa distribution center.",
+        "Bluebird Logistics is hiring a warehouse associate to pick, pack, and stage outbound shipments at our Nampa distribution center.",
       responsibilities: [
         "Pick and pack orders accurately against pick tickets",
         "Stage and load outbound shipments",
@@ -1277,7 +1533,7 @@ export const mockClassifiedListings: MockClassifiedListing[] = [
   {
     id: "mock-service-gem-state-tech",
     listingNumber: "83010394",
-    title: "Gem State Tech Help | Home Wi-Fi & Computer Setup",
+    title: "Bluebird Tech Help | Home Wi-Fi & Computer Setup",
     productId: "mock-product-gem-state-tech",
     productSlug: "gem-state-tech-help-home-wifi-computer-setup",
     priceCents: 8_500,
@@ -1291,9 +1547,10 @@ export const mockClassifiedListings: MockClassifiedListing[] = [
     createdAt: "2026-09-15T19:20:00.000Z",
     expiresAt: "2026-10-15T19:20:00.000Z",
     description:
-      "Need a hand getting the technology at home to work the way it should? Gem State Tech Help provides friendly in-home setup for Wi-Fi, printers, computers, smart TVs, and small-office basics, with patient explanations and no confusing jargon.",
+      "Need a hand getting the technology at home to work the way it should? Bluebird Tech Help provides friendly in-home setup for Wi-Fi, printers, computers, smart TVs, and small-office basics, with patient explanations and no confusing jargon.",
     postalCode: "83702",
-    sellerNote: "Tell us what is not working and whether you prefer an in-home or remote appointment.",
+    sellerNote:
+      "Tell us what is not working and whether you prefer an in-home or remote appointment.",
     seller: sellers.gemStateTech,
     service: {
       subcategory: "IT Services",
@@ -1337,3 +1594,597 @@ export const mockClassifiedListings: MockClassifiedListing[] = [
     ],
   },
 ];
+
+// Curated homepage rows are presented as complete four-card rows. These
+// additional fixtures keep the demo catalog representative for each
+// marketplace vertical without changing the real listing workflow.
+const cloneMockListing = (
+  sourceId: string,
+  overrides: Partial<MockClassifiedListing>,
+): MockClassifiedListing => {
+  const source = baseMockClassifiedListings.find((listing) => listing.id === sourceId);
+  if (!source) throw new Error(`Missing mock listing source: ${sourceId}`);
+  return { ...source, ...overrides };
+};
+
+export const mockClassifiedListings: MockClassifiedListing[] = [
+  ...baseMockClassifiedListings,
+  cloneMockListing("mock-general-princess-doll", {
+    id: "mock-general-vintage-board-game",
+    listingNumber: "80786718",
+    title: "Vintage Family Board Game Collection",
+    productId: "mock-product-vintage-board-game",
+    productSlug: "vintage-family-board-game-collection",
+    priceCents: 3_500,
+    city: "Meridian",
+    state: "ID",
+    region: "Treasure Valley",
+    createdAt: "2026-09-09T18:20:00.000Z",
+    expiresAt: "2026-10-10T18:20:00.000Z",
+    description:
+      "A clean collection of classic family board games with complete pieces and original boxes. Great for game nights, a cabin, or a family room shelf.",
+    postalCode: "83642",
+    sellerNote: "Bundle pricing is available when you take more than one game.",
+    images: [
+      {
+        url: image("photo-1610890716171-6b1bb98ffd09", "Vintage family board games"),
+        alt: "Vintage family board games",
+      },
+    ],
+  }),
+  cloneMockListing("mock-general-fisher-price-doll", {
+    id: "mock-general-camping-kitchen",
+    listingNumber: "80786684",
+    title: "Compact Camp Kitchen and Cooler Set",
+    productId: "mock-product-camping-kitchen",
+    productSlug: "compact-camp-kitchen-and-cooler-set",
+    priceCents: 4_500,
+    city: "Eagle",
+    state: "ID",
+    region: "Treasure Valley",
+    createdAt: "2026-09-08T16:40:00.000Z",
+    expiresAt: "2026-10-09T16:40:00.000Z",
+    description:
+      "Portable camp kitchen with folding prep table, two-burner stove, nesting cookware, and a clean 45-quart cooler. Ready for the next weekend outside.",
+    postalCode: "83616",
+    sellerNote: "Local pickup in Eagle; happy to demonstrate the folding setup.",
+    images: [
+      {
+        url: image("photo-1475483768296-6163e08872a1", "Camping kitchen and cooler"),
+        alt: "Camping kitchen and cooler",
+      },
+    ],
+  }),
+  cloneMockListing("mock-home-sale-sage-creek", {
+    id: "mock-home-sale-foothill-grove",
+    listingNumber: "40629984",
+    title: "Foothill Grove Ranch Home with Covered Patio",
+    productId: "mock-product-foothill-grove",
+    productSlug: "foothill-grove-ranch-home-covered-patio",
+    priceCents: 389_900_00,
+    city: "Nampa",
+    state: "ID",
+    region: "Treasure Valley",
+    createdAt: "2026-09-09T17:00:00.000Z",
+    expiresAt: "2026-10-10T17:00:00.000Z",
+    description:
+      "One-level 3 bedroom, 2 bathroom ranch home with 1,620 square feet, a covered patio, updated flooring, and a fenced backyard close to parks and schools.",
+    postalCode: "83651",
+    sellerNote: "Private showings are available most afternoons with advance notice.",
+    home: {
+      ...sourceHome("mock-home-sale-sage-creek"),
+      available: "For sale",
+      sellerType: "By owner",
+      bedrooms: 3,
+      bathrooms: 2,
+      squareFeet: 1620,
+      yearBuilt: 2018,
+      community: null,
+      amenities: ["Covered patio", "Fenced backyard", "Updated flooring", "Two-car garage"],
+    },
+    images: [
+      {
+        url: image("photo-1600585154526-990dced4db0d", "Nampa ranch home exterior"),
+        alt: "Nampa ranch home exterior",
+      },
+    ],
+  }),
+  cloneMockListing("mock-home-build-north-bench-highlands", {
+    id: "mock-home-build-spring-valley",
+    listingNumber: "40629976",
+    title: "Spring Valley | Modern Farmhouse Plan",
+    productId: "mock-product-spring-valley",
+    productSlug: "spring-valley-modern-farmhouse-plan",
+    priceCents: 479_900_00,
+    city: "Meridian",
+    state: "ID",
+    region: "Treasure Valley",
+    createdAt: "2026-09-08T15:30:00.000Z",
+    expiresAt: "2026-10-09T15:30:00.000Z",
+    description:
+      "A flexible new-construction plan with 4 bedrooms, 2.5 bathrooms, an open kitchen, a dedicated office, and a covered outdoor living area. Choose finishes while the build is in design.",
+    postalCode: "83642",
+    sellerNote: "Builder consultations are available by appointment.",
+    home: {
+      ...sourceHome("mock-home-build-north-bench-highlands"),
+      available: "Build to order",
+      sellerType: "Builder",
+      bedrooms: 4,
+      bathrooms: 2.5,
+      squareFeet: 2380,
+      community: null,
+      amenities: ["Dedicated office", "Open kitchen", "Covered outdoor living", "Three-car garage"],
+    },
+    images: [
+      {
+        url: image("photo-1600566753190-17f0baa2a6c3", "Modern farmhouse plan"),
+        alt: "Modern farmhouse plan",
+      },
+    ],
+  }),
+  cloneMockListing("mock-home-rental-warm-springs", {
+    id: "mock-home-rental-riverbend",
+    listingNumber: "40629961",
+    title: "Riverbend Cottage with Fenced Yard",
+    productId: "mock-product-riverbend-cottage",
+    productSlug: "riverbend-cottage-fenced-yard",
+    priceCents: 249_000,
+    city: "Eagle",
+    state: "ID",
+    region: "Treasure Valley",
+    createdAt: "2026-09-07T19:15:00.000Z",
+    expiresAt: "2026-10-08T19:15:00.000Z",
+    description:
+      "Bright 2 bedroom, 1.5 bathroom cottage with a fenced yard, carport, storage shed, and easy access to the greenbelt. Available for a 12-month lease.",
+    postalCode: "83616",
+    sellerNote: "Pets considered with approval and deposit.",
+    home: {
+      ...sourceHome("mock-home-rental-warm-springs"),
+      available: "Available October 1",
+      sellerType: "Property manager",
+      bedrooms: 2,
+      bathrooms: 1.5,
+      squareFeet: 1180,
+      amenities: ["Fenced yard", "Carport", "Storage shed", "Near the greenbelt"],
+    },
+    images: [
+      {
+        url: image("photo-1605276374104-dee2a0ed3cd6", "Eagle rental cottage"),
+        alt: "Eagle rental cottage",
+      },
+    ],
+  }),
+  cloneMockListing("mock-job-gem-state-logistics-warehouse", {
+    id: "mock-job-nampa-delivery-driver",
+    listingNumber: "82085264",
+    title: "Local Delivery Driver",
+    productId: "mock-product-nampa-delivery-driver",
+    productSlug: "local-delivery-driver-treasure-valley",
+    priceCents: 22_00,
+    city: "Nampa",
+    state: "ID",
+    region: "Treasure Valley",
+    createdAt: "2026-09-13T00:00:00.000Z",
+    expiresAt: "2026-10-13T00:00:00.000Z",
+    description:
+      "Local delivery driver needed for scheduled routes between Boise, Meridian, and Nampa. Company vehicle provided and training included.",
+    postalCode: "83651",
+    sellerNote: "Clean driving record required; weekday and Saturday shifts available.",
+    job: {
+      ...sourceJob("mock-job-gem-state-logistics-warehouse"),
+      employerName: "Treasure Valley Supply Co.",
+      employerAddress: "Nampa, ID 83651",
+      payType: "Hourly",
+      payMin: 20,
+      payMax: 22,
+      employmentType: "Part-time",
+      jobSummary: "Deliver scheduled orders across the Treasure Valley using a company vehicle.",
+      responsibilities: [
+        "Complete scheduled local deliveries",
+        "Load and secure orders safely",
+        "Collect delivery signatures",
+        "Keep route notes up to date",
+      ],
+    },
+    images: [
+      {
+        url: image("photo-1601584115197-04ecc0da31d8", "Local delivery van"),
+        alt: "Local delivery van",
+      },
+    ],
+  }),
+  cloneMockListing("mock-service-gem-state-tech", {
+    id: "mock-service-treasure-valley-moving",
+    listingNumber: "83010371",
+    title: "Treasure Valley Moving Help",
+    productId: "mock-product-treasure-valley-moving",
+    productSlug: "treasure-valley-moving-help",
+    priceCents: 75_00,
+    city: "Meridian",
+    state: "ID",
+    region: "Treasure Valley",
+    createdAt: "2026-09-14T18:00:00.000Z",
+    expiresAt: "2026-10-14T18:00:00.000Z",
+    description:
+      "Reliable two-person moving help for apartments, homes, and small offices. We bring pads, straps, and a careful plan for stairs and tight hallways.",
+    postalCode: "83642",
+    sellerNote: "Share the move date, origin, destination, and largest items for a quote.",
+    service: {
+      ...sourceService("mock-service-gem-state-tech"),
+      subcategory: "Moving & Hauling",
+      pricing: "From $75 / hour",
+      serviceArea: "Boise, Meridian, Eagle, Nampa, and nearby Treasure Valley communities",
+      availability: "Weekday and weekend bookings",
+      serviceSummary: "Careful local moving help for homes, apartments, and small offices.",
+      offerings: [
+        "Apartment and home moves",
+        "Small office moves",
+        "Furniture loading and unloading",
+        "Packing and protective wrapping",
+      ],
+    },
+    images: [
+      {
+        url: image("photo-1600518464441-9154a4dea21b", "Moving boxes and furniture"),
+        alt: "Moving boxes and furniture",
+      },
+    ],
+  }),
+];
+
+export const mockVehicleListings: MockClassifiedListing[] = [
+  {
+    id: "mock-vehicle-tacoma",
+    listingNumber: "83010401",
+    title: "2019 Toyota Tacoma TRD Off-Road 4x4",
+    productId: "mock-product-vehicle-tacoma",
+    productSlug: "2019-toyota-tacoma-trd-off-road-4x4",
+    priceCents: 31_750_00,
+    city: "Meridian",
+    state: "ID",
+    region: "Treasure Valley",
+    categorySlug: "cars-trucks",
+    categoryName: "Cars & Trucks",
+    condition: "used_good",
+    fulfillmentMode: "both",
+    createdAt: "2026-09-18T17:30:00.000Z",
+    expiresAt: "2026-10-19T17:30:00.000Z",
+    description:
+      "Double cab pickup with the 3.5L V6, automatic transmission, backup camera, and a clean title. Buyers should confirm availability, condition, title, and ownership directly with the seller.",
+    postalCode: "83642",
+    sellerNote: "Schedule a local test drive in Meridian during daylight hours.",
+    seller: sellers.gemStateMotors,
+    vehicle: {
+      year: 2019,
+      make: "Toyota",
+      model: "Tacoma",
+      trim: "TRD Off-Road",
+      mileage: 68420,
+      bodyStyle: "Pickup",
+      transmission: "Automatic",
+      drivetrain: "4WD",
+      fuelType: "Gasoline",
+      exteriorColor: "Gray",
+      titleStatus: "Clean",
+      vin: null,
+    },
+    images: [
+      {
+        url: "/images/mock-vehicles/toyota-tacoma.jpg",
+        alt: "Gray Toyota Tacoma pickup in the Idaho foothills",
+      },
+    ],
+  },
+  {
+    id: "mock-vehicle-f150",
+    listingNumber: "83010402",
+    title: "2021 Ford F-150 XLT SuperCrew 4WD",
+    productId: "mock-product-vehicle-f150",
+    productSlug: "2021-ford-f-150-xlt-supercrew-4wd",
+    priceCents: 34_500_00,
+    city: "Nampa",
+    state: "ID",
+    region: "Treasure Valley",
+    categorySlug: "cars-trucks",
+    categoryName: "Cars & Trucks",
+    condition: "used_excellent",
+    fulfillmentMode: "local_pickup",
+    createdAt: "2026-09-17T15:10:00.000Z",
+    expiresAt: "2026-10-18T15:10:00.000Z",
+    description:
+      "SuperCrew pickup with a 5.0L V8, tow package, bed liner, and clean title. Buyers should confirm availability, condition, title, and ownership directly with the seller.",
+    postalCode: "83651",
+    sellerNote: "Local pickup and test drives available in Nampa by appointment.",
+    seller: sellers.gemStateMotors,
+    vehicle: {
+      year: 2021,
+      make: "Ford",
+      model: "F-150",
+      trim: "XLT SuperCrew",
+      mileage: 49210,
+      bodyStyle: "Pickup",
+      transmission: "Automatic",
+      drivetrain: "4WD",
+      fuelType: "Gasoline",
+      exteriorColor: "Blue",
+      titleStatus: "Clean",
+      vin: null,
+    },
+    images: [
+      {
+        url: "/images/mock-vehicles/ford-f150.jpg",
+        alt: "Blue Ford F-150 pickup on an Idaho driveway",
+      },
+    ],
+  },
+  {
+    id: "mock-vehicle-outback",
+    listingNumber: "83010403",
+    title: "2018 Subaru Outback 2.5i Premium AWD",
+    productId: "mock-product-vehicle-outback",
+    productSlug: "2018-subaru-outback-2-5i-premium-awd",
+    priceCents: 16_900_00,
+    city: "Boise",
+    state: "ID",
+    region: "Treasure Valley",
+    categorySlug: "cars-trucks",
+    categoryName: "Cars & Trucks",
+    condition: "used_good",
+    fulfillmentMode: "both",
+    createdAt: "2026-09-16T18:45:00.000Z",
+    expiresAt: "2026-10-17T18:45:00.000Z",
+    description:
+      "All-wheel-drive wagon with heated seats, roof rails, and a clean title. Buyers should confirm availability, condition, title, and ownership directly with the seller.",
+    postalCode: "83702",
+    sellerNote: "Boise pickup by appointment; bring your preferred inspection checklist.",
+    seller: sellers.gemStateMotors,
+    vehicle: {
+      year: 2018,
+      make: "Subaru",
+      model: "Outback",
+      trim: "2.5i Premium",
+      mileage: 87500,
+      bodyStyle: "Wagon",
+      transmission: "CVT",
+      drivetrain: "AWD",
+      fuelType: "Gasoline",
+      exteriorColor: "Green",
+      titleStatus: "Clean",
+      vin: null,
+    },
+    images: [
+      {
+        url: "/images/mock-vehicles/subaru-outback.jpg",
+        alt: "Green Subaru Outback on an Idaho mountain road",
+      },
+    ],
+  },
+  {
+    id: "mock-vehicle-wrangler",
+    listingNumber: "83010404",
+    title: "2020 Jeep Wrangler Sport 4WD",
+    productId: "mock-product-vehicle-wrangler",
+    productSlug: "2020-jeep-wrangler-sport-4wd",
+    priceCents: 28_900_00,
+    city: "Idaho Falls",
+    state: "ID",
+    region: "Eastern Idaho",
+    categorySlug: "cars-trucks",
+    categoryName: "Cars & Trucks",
+    condition: "used_good",
+    fulfillmentMode: "local_pickup",
+    createdAt: "2026-09-15T12:20:00.000Z",
+    expiresAt: "2026-10-16T12:20:00.000Z",
+    description:
+      "Two-door Wrangler with removable top, manual transmission, and clean title. Buyers should confirm availability, condition, title, and ownership directly with the seller.",
+    postalCode: "83402",
+    sellerNote: "Idaho Falls pickup by appointment; inspection welcome.",
+    seller: sellers.gemStateMotors,
+    vehicle: {
+      year: 2020,
+      make: "Jeep",
+      model: "Wrangler",
+      trim: "Sport",
+      mileage: 52100,
+      bodyStyle: "SUV",
+      transmission: "Manual",
+      drivetrain: "4WD",
+      fuelType: "Gasoline",
+      exteriorColor: "White",
+      titleStatus: "Clean",
+      vin: null,
+    },
+    images: [
+      {
+        url: "/images/mock-vehicles/jeep-wrangler.jpg",
+        alt: "White Jeep Wrangler at an Idaho mountain overlook",
+      },
+    ],
+  },
+  {
+    id: "mock-vehicle-civic",
+    listingNumber: "83010405",
+    title: "2016 Honda Civic EX Sedan",
+    productId: "mock-product-vehicle-civic",
+    productSlug: "2016-honda-civic-ex-sedan",
+    priceCents: 14_250_00,
+    city: "Twin Falls",
+    state: "ID",
+    region: "Magic Valley",
+    categorySlug: "cars-trucks",
+    categoryName: "Cars & Trucks",
+    condition: "used_good",
+    fulfillmentMode: "both",
+    createdAt: "2026-09-14T20:15:00.000Z",
+    expiresAt: "2026-10-15T20:15:00.000Z",
+    description:
+      "Fuel-efficient sedan with a backup camera, sunroof, and clean title. Buyers should confirm availability, condition, title, and ownership directly with the seller.",
+    postalCode: "83301",
+    sellerNote: "Twin Falls pickup or delivery options can be discussed with the seller.",
+    seller: sellers.gemStateMotors,
+    vehicle: {
+      year: 2016,
+      make: "Honda",
+      model: "Civic",
+      trim: "EX",
+      mileage: 93800,
+      bodyStyle: "Sedan",
+      transmission: "CVT",
+      drivetrain: "FWD",
+      fuelType: "Gasoline",
+      exteriorColor: "Silver",
+      titleStatus: "Clean",
+      vin: null,
+    },
+    images: [
+      {
+        url: "/images/mock-vehicles/honda-civic.jpg",
+        alt: "Silver Honda Civic sedan in a Boise neighborhood",
+      },
+    ],
+  },
+  {
+    id: "mock-vehicle-tucson",
+    listingNumber: "83010406",
+    title: "2022 Hyundai Tucson SEL AWD",
+    productId: "mock-product-vehicle-tucson",
+    productSlug: "2022-hyundai-tucson-sel-awd",
+    priceCents: 25_900_00,
+    city: "Coeur d'Alene",
+    state: "ID",
+    region: "North Idaho",
+    categorySlug: "cars-trucks",
+    categoryName: "Cars & Trucks",
+    condition: "used_excellent",
+    fulfillmentMode: "shipping",
+    createdAt: "2026-09-13T16:40:00.000Z",
+    expiresAt: "2026-10-14T16:40:00.000Z",
+    description:
+      "Compact SUV with heated seats, adaptive cruise, and clean title. Buyers should confirm availability, condition, title, and ownership directly with the seller.",
+    postalCode: "83814",
+    sellerNote: "Shipping can be arranged after the buyer confirms the vehicle details.",
+    seller: sellers.gemStateMotors,
+    vehicle: {
+      year: 2022,
+      make: "Hyundai",
+      model: "Tucson",
+      trim: "SEL",
+      mileage: 27400,
+      bodyStyle: "SUV",
+      transmission: "Automatic",
+      drivetrain: "AWD",
+      fuelType: "Gasoline",
+      exteriorColor: "Black",
+      titleStatus: "Clean",
+      vin: null,
+    },
+    images: [
+      {
+        url: "/images/mock-vehicles/hyundai-tucson.jpg",
+        alt: "Black Hyundai Tucson near the Idaho mountains",
+      },
+    ],
+  },
+  {
+    id: "mock-vehicle-silverado",
+    listingNumber: "83010407",
+    title: "2017 Chevrolet Silverado 1500 LT 4WD",
+    productId: "mock-product-vehicle-silverado",
+    productSlug: "2017-chevrolet-silverado-1500-lt-4wd",
+    priceCents: 19_600_00,
+    city: "Lewiston",
+    state: "ID",
+    region: "North Central Idaho",
+    categorySlug: "cars-trucks",
+    categoryName: "Cars & Trucks",
+    condition: "used_good",
+    fulfillmentMode: "local_pickup",
+    createdAt: "2026-09-12T14:05:00.000Z",
+    expiresAt: "2026-10-13T14:05:00.000Z",
+    description:
+      "Full-size pickup with crew cab, trailer brake controller, and clean title. Buyers should confirm availability, condition, title, and ownership directly with the seller.",
+    postalCode: "83501",
+    sellerNote: "Lewiston pickup by appointment with inspection welcome.",
+    seller: sellers.gemStateMotors,
+    vehicle: {
+      year: 2017,
+      make: "Chevrolet",
+      model: "Silverado 1500",
+      trim: "LT",
+      mileage: 112600,
+      bodyStyle: "Pickup",
+      transmission: "Automatic",
+      drivetrain: "4WD",
+      fuelType: "Gasoline",
+      exteriorColor: "Red",
+      titleStatus: "Clean",
+      vin: null,
+    },
+    images: [
+      {
+        url: "/images/mock-vehicles/chevrolet-silverado.jpg",
+        alt: "Red Chevrolet Silverado on an Idaho farm road",
+      },
+    ],
+  },
+  {
+    id: "mock-vehicle-ram",
+    listingNumber: "83010408",
+    title: "2015 Ram 1500 Big Horn 4WD",
+    productId: "mock-product-vehicle-ram",
+    productSlug: "2015-ram-1500-big-horn-4wd",
+    priceCents: 24_800_00,
+    city: "Caldwell",
+    state: "ID",
+    region: "Southwest Idaho",
+    categorySlug: "cars-trucks",
+    categoryName: "Cars & Trucks",
+    condition: "used_good",
+    fulfillmentMode: "both",
+    createdAt: "2026-09-11T13:25:00.000Z",
+    expiresAt: "2026-10-12T13:25:00.000Z",
+    description:
+      "Crew cab truck with a 5.7L V8, spray-in bed liner, and clean title. Buyers should confirm availability, condition, title, and ownership directly with the seller.",
+    postalCode: "83605",
+    sellerNote: "Caldwell pickup or delivery options can be discussed with the seller.",
+    seller: sellers.gemStateMotors,
+    vehicle: {
+      year: 2015,
+      make: "Ram",
+      model: "1500",
+      trim: "Big Horn",
+      mileage: 101300,
+      bodyStyle: "Pickup",
+      transmission: "Automatic",
+      drivetrain: "4WD",
+      fuelType: "Gasoline",
+      exteriorColor: "Black",
+      titleStatus: "Clean",
+      vin: null,
+    },
+    images: [
+      {
+        url: "/images/mock-vehicles/ram-1500.jpg",
+        alt: "Black Ram 1500 pickup in the Idaho foothills",
+      },
+    ],
+  },
+];
+
+function sourceHome(id: string): ClassifiedHomeDetails {
+  const source = baseMockClassifiedListings.find((listing) => listing.id === id)?.home;
+  if (!source) throw new Error(`Missing mock home source: ${id}`);
+  return source;
+}
+
+function sourceJob(id: string): ClassifiedJobDetails {
+  const source = baseMockClassifiedListings.find((listing) => listing.id === id)?.job;
+  if (!source) throw new Error(`Missing mock job source: ${id}`);
+  return source;
+}
+
+function sourceService(id: string): ClassifiedServiceDetails {
+  const source = baseMockClassifiedListings.find((listing) => listing.id === id)?.service;
+  if (!source) throw new Error(`Missing mock service source: ${id}`);
+  return source;
+}

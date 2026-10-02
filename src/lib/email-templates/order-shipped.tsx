@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- template payloads are registry-driven JSON */
 import * as React from "react";
 import type { TemplateEntry } from "./registry";
 import { EmailShell } from "./shell";
@@ -12,7 +13,7 @@ interface Props {
 
 const Email = ({ itemName, orderNumber, carrier, trackingNumber, orderPath }: Props) => (
   <EmailShell
-    preview={`${itemName ?? "Your Gem State Classifieds order"} is on its way`}
+    preview={`${itemName ?? "Your Bluebird Marketplace order"} is on its way`}
     heading="Your order has shipped"
     intro={`${itemName ?? "Your order"} is on its way. Confirm delivery when it arrives so we can close out the order.`}
     facts={[
@@ -29,7 +30,7 @@ const Email = ({ itemName, orderNumber, carrier, trackingNumber, orderPath }: Pr
 export const template = {
   component: Email,
   subject: (d: Record<string, any>) =>
-    d["itemName"] ? `Shipped: ${d["itemName"]}` : "Your Gem State Classifieds order has shipped",
+    d["itemName"] ? `Shipped: ${d["itemName"]}` : "Your Bluebird Marketplace order has shipped",
   displayName: "Order shipped (buyer)",
   previewData: {
     itemName: "2019 Toyota Tacoma TRD Off-Road 4x4",

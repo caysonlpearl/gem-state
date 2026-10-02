@@ -105,9 +105,7 @@ export function NotificationBell() {
         onClick={toggle}
         aria-expanded={open}
         aria-haspopup="dialog"
-        aria-label={
-          hydrated && unread > 0 ? `Notifications, ${unread} unread` : "Notifications"
-        }
+        aria-label={hydrated && unread > 0 ? `Notifications, ${unread} unread` : "Notifications"}
         className="relative inline-flex h-11 w-11 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-secondary hover:text-secondary-foreground"
       >
         <Bell size={17} aria-hidden="true" />
@@ -142,9 +140,7 @@ export function NotificationBell() {
             )}
           </div>
 
-          {isLoading && (
-            <p className="px-3.5 py-4 text-[12.5px] text-muted-foreground">Loading…</p>
-          )}
+          {isLoading && <p className="px-3.5 py-4 text-[12.5px] text-muted-foreground">Loading…</p>}
 
           {!isLoading && preview.length === 0 && (
             <p className="px-3.5 py-4 text-[12.5px] leading-relaxed text-muted-foreground">

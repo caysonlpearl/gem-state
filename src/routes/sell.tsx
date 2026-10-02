@@ -34,7 +34,7 @@ function SellLandingPage() {
         <div className="mx-auto grid max-w-[1280px] gap-12 px-4 py-16 sm:px-8 lg:grid-cols-[1.2fr_0.8fr] lg:py-24">
           <div>
             <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-primary">
-              Gem State seller
+              Bluebird seller
             </p>
             <h1 className="mt-4 max-w-[760px] font-editorial text-[48px] font-normal leading-[1] tracking-[-0.045em] sm:text-[68px]">
               Turn what you own into a trusted local listing.
@@ -42,7 +42,8 @@ function SellLandingPage() {
             <p className="mt-5 max-w-[650px] text-[14px] leading-relaxed text-muted-foreground">
               Build a seller profile and list the exact item you own. Buyers across Idaho see your
               photos, price, condition, location and pickup or shipping details in one place, then
-              contact you directly.
+              contact you directly. Posting is free in every section; Boosted and Featured placement
+              are optional.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
               {isSignedIn ? (
@@ -59,7 +60,7 @@ function SellLandingPage() {
                   search={{ redirect: "/selling", mode: "signup" }}
                   className="inline-flex h-12 items-center gap-2 rounded-full bg-primary px-6 text-[13px] font-semibold text-primary-foreground shadow-sm"
                 >
-                  Become a Gem State seller
+                  Become a Bluebird seller
                   <ArrowRight size={16} />
                 </Link>
               )}
@@ -122,7 +123,7 @@ function SellLandingPage() {
         </div>
         <div className="mt-8 flex items-start gap-2 border-l-2 border-primary pl-4 text-[12px] leading-relaxed text-muted-foreground">
           <CheckCircle size={16} weight="fill" className="mt-0.5 shrink-0 text-primary" />
-          Gem State Classifieds never asks sellers to send government ID or bank details through
+          Bluebird Marketplace never asks sellers to send government ID or bank details through
           messages. Payment and payout features are reserved for a future marketplace phase.
         </div>
       </section>

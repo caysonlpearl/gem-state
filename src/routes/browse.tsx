@@ -4,28 +4,58 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
 import {
   ArrowRight,
+  BookmarkSimple,
   CaretDown,
   Check,
   FunnelSimple,
   MapPin,
   MagnifyingGlass,
+  Megaphone,
   X,
 } from "@phosphor-icons/react";
 
 import { brand } from "@/config/brand";
-import { classifiedCategories, idahoRegions, usStates, vehicleOptions } from "@/config/classifieds";
+import {
+  classifiedCategories,
+  idahoRegions,
+  usStates,
+  vehicleModelsByMake,
+  vehicleOptions,
+} from "@/config/classifieds";
+import {
+  petOfferedBy,
+  petPlacementTypes,
+  petSexes,
+  petSpecies,
+  petSubcategories,
+  isPetSelectionCompatible,
+  normalizePetSpecies,
+  normalizePetSubcategory,
+} from "@/config/pets";
+import { fieldsForClassifiedItem } from "@/config/classified-item-fields";
 import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { AllCategoriesPopover } from "@/components/classifieds/AllCategoriesPopover";
 import { ListingCard, ListingRow } from "@/components/classifieds/ListingCard";
-import { conditionLabels, isMotorsCategory } from "@/lib/classifieds-display";
+import {
+  conditionLabels,
+  formatSavedSearchFilter,
+  isMotorsCategory,
+} from "@/lib/classifieds-display";
 import {
   browseClassifieds,
   type ClassifiedBrowseInput,
   type ClassifiedBrowseResult,
 } from "@/lib/classifieds.functions";
-import { trackEvent } from "@/lib/analytics";
+import { trackEvent, traceMutation } from "@/lib/analytics";
 import { createSavedSearch, updateSavedSearch } from "@/lib/account-center.functions";
+import { SavedSearchNameDialog } from "@/components/classifieds/SavedSearchNameDialog";
 import { toast } from "sonner";
+import {
+  comparableJobPay,
+  isInvertedRange,
+  optionalNonNegativeInteger,
+  optionalNonNegativeNumber,
+} from "@/lib/classifieds-query";
 import {
   Sheet,
   SheetContent,
@@ -40,6 +70,17 @@ type View = "grid" | "list";
 type HomeTab = "build" | "buy" | "rent";
 type JobMode = "landing" | "results";
 type ServiceMode = "landing" | "results";
+type PetMode = "landing" | "results";
+
+const itemCategorySlugs = new Set<string>(
+  classifiedCategories
+    .filter(
+      (category) =>
+        category.group === "classifieds" &&
+        !["other-real-estate", "jobs", "services", "pets"].includes(category.slug),
+    )
+    .map((category) => category.slug),
+);
 
 type Search = {
   allCategories?: boolean | undefined;
@@ -73,9 +114,37 @@ type Search = {
   page?: number | undefined;
   homeMode?: "landing" | "results" | undefined;
   homeTab?: HomeTab | undefined;
+  homeYearBuilt?: number | undefined;
+  homeHeating?: string | undefined;
+  homeCooling?: string | undefined;
+  homeGarageParking?: string | undefined;
+  homeYard?: string | undefined;
+  homeSchoolDistrict?: string | undefined;
+  homeAvailable?: string | undefined;
+  homePetsPolicy?: string | undefined;
+  homeSmokingPolicy?: string | undefined;
   jobMode?: JobMode | undefined;
   serviceMode?: ServiceMode | undefined;
   vehicleMode?: "landing" | "results" | undefined;
+  petMode?: PetMode | undefined;
+  petSubcategory?: string | undefined;
+  petSpecies?: string | undefined;
+  petBreed?: string | undefined;
+  petPlacementType?: string | undefined;
+  petOfferedBy?: string | undefined;
+  petSex?: string | undefined;
+  petAge?: string | undefined;
+  petHypoallergenic?: string | undefined;
+  petVaccinated?: string | undefined;
+  petSpayedNeutered?: string | undefined;
+  petMicrochipped?: string | undefined;
+  petRecordsAvailable?: string | undefined;
+  petGoodWithKids?: string | undefined;
+  petGoodWithDogs?: string | undefined;
+  petGoodWithCats?: string | undefined;
+  petIndoorOutdoor?: string | undefined;
+  itemDetailKey?: string | undefined;
+  itemDetailValue?: string | undefined;
   serviceSubcategory?: string | undefined;
   serviceExpandSearch?: string | undefined;
   servicePhotos?: string | undefined;
@@ -83,7 +152,12 @@ type Search = {
   serviceSellerType?: string | undefined;
   serviceCondition?: string | undefined;
   serviceTimeOnSite?: string | undefined;
+  serviceArea?: string | undefined;
+  serviceAvailability?: string | undefined;
+  serviceLicenseRequired?: string | undefined;
   jobCategory?: string | undefined;
+  jobEmployer?: string | undefined;
+  jobEmploymentType?: string | undefined;
   jobType?: string | undefined;
   jobPayType?: string | undefined;
   jobPayMin?: number | undefined;
@@ -112,6 +186,7 @@ type Search = {
 };
 
 const savedSearchFilterKeys: readonly (keyof Search)[] = [
+  "allCategories",
   "q",
   "category",
   "group",
@@ -137,6 +212,20 @@ const savedSearchFilterKeys: readonly (keyof Search)[] = [
   "titleStatus",
   "sellerType",
   "homeTab",
+  "homeMode",
+  "homeYearBuilt",
+  "homeHeating",
+  "homeCooling",
+  "homeGarageParking",
+  "homeYard",
+  "homeSchoolDistrict",
+  "homeAvailable",
+  "homePetsPolicy",
+  "homeSmokingPolicy",
+  "jobMode",
+  "serviceMode",
+  "vehicleMode",
+  "petMode",
   "serviceSubcategory",
   "serviceExpandSearch",
   "servicePhotos",
@@ -144,7 +233,12 @@ const savedSearchFilterKeys: readonly (keyof Search)[] = [
   "serviceSellerType",
   "serviceCondition",
   "serviceTimeOnSite",
+  "serviceArea",
+  "serviceAvailability",
+  "serviceLicenseRequired",
   "jobCategory",
+  "jobEmployer",
+  "jobEmploymentType",
   "jobType",
   "jobPayType",
   "jobPayMin",
@@ -170,6 +264,24 @@ const savedSearchFilterKeys: readonly (keyof Search)[] = [
   "homeAmenities",
   "communityAmenities",
   "leaseLength",
+  "petSubcategory",
+  "petSpecies",
+  "petBreed",
+  "petPlacementType",
+  "petOfferedBy",
+  "petSex",
+  "petAge",
+  "petHypoallergenic",
+  "petVaccinated",
+  "petSpayedNeutered",
+  "petMicrochipped",
+  "petRecordsAvailable",
+  "petGoodWithKids",
+  "petGoodWithDogs",
+  "petGoodWithCats",
+  "petIndoorOutdoor",
+  "itemDetailKey",
+  "itemDetailValue",
 ];
 
 type VehicleHeroFilter =
@@ -178,7 +290,6 @@ type VehicleHeroFilter =
   | "price"
   | "mileage"
   | "bodyStyle"
-  | "sellerType"
   | "titleStatus"
   | "location"
   | "condition"
@@ -205,11 +316,13 @@ const homeTabs: { value: HomeTab; label: string; eyebrow: string }[] = [
 
 const homePropertyTypes = [
   "Any property type",
-  "Single family",
+  "Single-family home",
   "Townhome",
   "Condo",
+  "Apartment",
+  "Duplex",
+  "Manufactured home",
   "Land",
-  "Multi-family",
 ];
 const homeBedroomOptions = [
   "Any bedrooms",
@@ -228,7 +341,6 @@ const homeBathroomOptions = [
 ];
 const homeSquareFeetOptions = [
   "Any",
-  "<250",
   "250+",
   "500+",
   "1000+",
@@ -241,7 +353,6 @@ const homeSquareFeetOptions = [
 ];
 const homeAcresOptions = [
   "Any",
-  "< .10",
   ".10+",
   ".20+",
   ".25+",
@@ -252,6 +363,14 @@ const homeAcresOptions = [
   "1.5+",
   "2+",
   "2.5+",
+];
+const homeYearBuiltOptions = [
+  "Any year",
+  "Built 2025 or newer",
+  "Built 2020 or newer",
+  "Built 2010 or newer",
+  "Built 2000 or newer",
+  "Built 1990 or newer",
 ];
 const homeAmenitiesOptions = [
   "Any",
@@ -304,16 +423,16 @@ const communityAmenitiesOptions = [
 const leaseLengthOptions = [
   "Any",
   "Month-to-month",
-  "1 Month or Less",
-  "2 Months or Less",
-  "3 Months or Less",
-  "4 Months or Less",
-  "5 Months or Less",
-  "6 Months or Less",
-  "9 Months or Less",
-  "12 Months or Less",
-  "18 Months or Less",
-  "24 Months or Less",
+  "1 month",
+  "2 months",
+  "3 months",
+  "4 months",
+  "5 months",
+  "6 months",
+  "9 months",
+  "12 months",
+  "18 months",
+  "24 months",
 ];
 
 const mileageBandOptions = [
@@ -323,39 +442,9 @@ const mileageBandOptions = [
   "Under 100,000 miles",
   "Under 150,000 miles",
 ] as const;
-const vehicleModelsByMake: Record<string, readonly string[]> = {
-  Acura: ["Integra", "TLX", "MDX", "RDX"],
-  Audi: ["A3", "A4", "Q5", "Q7"],
-  BMW: ["3 Series", "5 Series", "X3", "X5"],
-  Buick: ["Encore", "Enclave", "Envision"],
-  Cadillac: ["CT4", "CT5", "XT4", "XT5", "Escalade"],
-  Chevrolet: ["Equinox", "Malibu", "Silverado 1500", "Tahoe", "Traverse"],
-  Chrysler: ["300", "Pacifica", "Voyager"],
-  Dodge: ["Challenger", "Charger", "Durango", "Hornet"],
-  Ford: ["Bronco", "Edge", "Escape", "Explorer", "F-150", "Maverick", "Mustang"],
-  Genesis: ["G70", "G80", "GV70", "GV80"],
-  GMC: ["Canyon", "Sierra 1500", "Terrain", "Acadia", "Yukon"],
-  Honda: ["Accord", "Civic", "CR-V", "Pilot", "Ridgeline"],
-  Hyundai: ["Elantra", "Santa Fe", "Sonata", "Tucson", "Palisade"],
-  Infiniti: ["Q50", "QX50", "QX60"],
-  Jeep: ["Cherokee", "Compass", "Grand Cherokee", "Gladiator", "Wrangler"],
-  Kia: ["Forte", "K5", "Sorento", "Sportage", "Telluride"],
-  "Land Rover": ["Defender", "Discovery", "Range Rover"],
-  Lexus: ["ES", "IS", "NX", "RX", "GX"],
-  Lincoln: ["Aviator", "Corsair", "Nautilus", "Navigator"],
-  Mazda: ["Mazda3", "CX-5", "CX-30", "CX-50", "CX-90"],
-  "Mercedes-Benz": ["C-Class", "E-Class", "GLC", "GLE", "Sprinter"],
-  Mitsubishi: ["Eclipse Cross", "Outlander", "Outlander Sport"],
-  Nissan: ["Altima", "Frontier", "Kicks", "Rogue", "Titan"],
-  Porsche: ["911", "Cayenne", "Macan", "Taycan"],
-  Ram: ["1500", "2500", "3500", "ProMaster"],
-  Subaru: ["Ascent", "Crosstrek", "Forester", "Outback", "Impreza"],
-  Tesla: ["Model 3", "Model S", "Model X", "Model Y"],
-  Toyota: ["4Runner", "Camry", "Corolla", "RAV4", "Tacoma", "Tundra"],
-  Volkswagen: ["Atlas", "Golf", "Jetta", "Tiguan"],
-  Volvo: ["S60", "XC40", "XC60", "XC90"],
-};
 const splitVehicleFilter = (value: string | undefined) => value?.split("||").filter(Boolean) ?? [];
+const hasSearchValue = (value: unknown) =>
+  value !== undefined && value !== null && value !== "";
 const modelsForMakes = (makes: readonly string[]) =>
   [...new Set(makes.flatMap((make) => vehicleModelsByMake[make] ?? []))].sort();
 const vehicleConditionOptions = [
@@ -364,7 +453,6 @@ const vehicleConditionOptions = [
   { value: "used_good", label: "Used good" },
   { value: "broken_needs_repairs", label: "Broken/needs repairs" },
 ] as const;
-const vehicleSellerTypeOptions = ["Private", "Dealer"] as const;
 const jobCategoryOptions = [
   "Any category",
   "Accounting & Finance",
@@ -383,13 +471,11 @@ const jobTypeOptions = [
   "Any job type",
   "Contract",
   "Full-time",
-  "Internships",
   "Part-time",
   "Seasonal",
   "Temporary",
-  "Weekend only",
 ] as const;
-const jobPayTypeOptions = ["All pay types", "Hourly", "Salary"] as const;
+const jobPayTypeOptions = ["All pay types", "Hourly", "Salary", "Commission", "Contract"] as const;
 const jobExperienceOptions = [
   "Any experience",
   "1–2 years",
@@ -1356,7 +1442,15 @@ const serviceTimeOnSiteOptions = [
 const classifiedQuery = (input: ClassifiedBrowseInput) =>
   queryOptions({
     queryKey: ["classified-browse", input],
-    queryFn: () => browseClassifieds({ data: input }),
+    queryFn: () =>
+      traceMutation(
+        {
+          flow: "classified_search",
+          props: { category: input.category ?? "all", group: input.group ?? "all" },
+          thresholdMs: 1_000,
+        },
+        () => browseClassifieds({ data: input }),
+      ),
   });
 
 function stringParam(search: Record<string, unknown>, key: string, max = 80) {
@@ -1365,8 +1459,34 @@ function stringParam(search: Record<string, unknown>, key: string, max = 80) {
 }
 
 function numberParam(search: Record<string, unknown>, key: string) {
-  const value = Number(search[key]);
-  return Number.isFinite(value) && value >= 0 ? value : undefined;
+  return optionalNonNegativeNumber(search[key]);
+}
+
+function integerParam(search: Record<string, unknown>, key: string) {
+  return optionalNonNegativeInteger(search[key]);
+}
+
+function thresholdValue(value: string | undefined) {
+  const match = value?.match(/[0-9]+(?:\.[0-9]+)?/);
+  const parsed = match ? Number(match[0]) : undefined;
+  return parsed != null && Number.isFinite(parsed) ? parsed : undefined;
+}
+
+function postedWindow(value: string | undefined): ClassifiedBrowseInput["postedWithin"] {
+  if (!value) return undefined;
+  if (value === "Last hour") return "hour";
+  if (value === "Last 24 hours") return "day";
+  if (value === "Last 7 days") return "week";
+  if (value === "Last 30 days") return "month";
+  return undefined;
+}
+
+function normalizedCondition(value: string | undefined) {
+  if (!value) return undefined;
+  if (value === "New") return "new_with_tags||new_without_tags";
+  if (value === "Used") return "used_excellent||used_good";
+  if (value === "Like new") return "used_excellent";
+  return value;
 }
 
 function inputFromSearch(search: Search): ClassifiedBrowseInput {
@@ -1379,7 +1499,7 @@ function inputFromSearch(search: Search): ClassifiedBrowseInput {
     region: search.region,
     city: search.city,
     postalCode: search.postalCode,
-    condition: search.condition,
+    condition: search.condition ?? normalizedCondition(search.serviceCondition),
     fulfillment: search.fulfillment,
     priceMin: search.priceMin,
     priceMax: search.priceMax,
@@ -1394,9 +1514,189 @@ function inputFromSearch(search: Search): ClassifiedBrowseInput {
     fuelType: search.fuelType,
     exteriorColor: search.exteriorColor,
     titleStatus: search.titleStatus,
+    homePropertyType: search.propertyType,
+    homeBedroomsMin: thresholdValue(search.bedrooms),
+    homeBathroomsMin: thresholdValue(search.bathrooms),
+    homeSquareFeetMin: thresholdValue(search.homeSquareFeet),
+    homeYearBuiltMin: search.homeYearBuilt,
+    homeAcresMin: thresholdValue(search.homeAcres),
+    homeHeating: search.homeHeating,
+    homeCooling: search.homeCooling,
+    homeGarageParking: search.homeGarageParking,
+    homeYard: search.homeYard,
+    homeSchoolDistrict: search.homeSchoolDistrict,
+    homeLeaseLength: search.leaseLength,
+    homeAvailable: search.homeAvailable,
+    homePetsPolicy: search.homePetsPolicy,
+    homeSmokingPolicy: search.homeSmokingPolicy,
+    jobCategory: search.jobCategory,
+    jobEmployer: search.jobEmployer,
+    jobEmploymentType: search.jobEmploymentType ?? search.jobType,
+    jobPayType: search.jobPayType,
+    jobPayMin: search.jobPayMin,
+    jobPayMax: search.jobPayMax,
+    jobExperience: search.jobExperience,
+    jobEducation: search.jobEducation,
+    serviceSubcategory: search.serviceSubcategory,
+    serviceArea: search.serviceArea,
+    serviceAvailability: search.serviceAvailability,
+    serviceLicenseRequired: search.serviceLicenseRequired === "true" ? true : undefined,
+    postedWithin: postedWindow(
+      search.jobPosted ?? search.jobTimeOnSite ?? search.serviceTimeOnSite,
+    ),
+    hasPhotos: search.jobPhotos === "true" || search.servicePhotos === "true",
+    petSubcategory: search.petSubcategory,
+    petSpecies: search.petSpecies,
+    petBreed: search.petBreed,
+    petPlacementType: search.petPlacementType,
+    petOfferedBy: search.petOfferedBy,
+    petSex: search.petSex,
+    petAge: search.petAge,
+    petHypoallergenic: search.petHypoallergenic,
+    petVaccinated: search.petVaccinated,
+    petSpayedNeutered: search.petSpayedNeutered,
+    petMicrochipped: search.petMicrochipped,
+    petRecordsAvailable: search.petRecordsAvailable,
+    petGoodWithKids: search.petGoodWithKids,
+    petGoodWithDogs: search.petGoodWithDogs,
+    petGoodWithCats: search.petGoodWithCats,
+    petIndoorOutdoor: search.petIndoorOutdoor,
+    itemDetailKey: search.itemDetailKey,
+    itemDetailValue: search.itemDetailValue,
     sort: search.sort ?? "newest",
     page: search.page ?? 1,
   };
+}
+
+const vehicleSearchKeys: readonly (keyof Search)[] = [
+  "make",
+  "model",
+  "yearMin",
+  "yearMax",
+  "mileageMax",
+  "mileageBands",
+  "bodyStyle",
+  "transmission",
+  "drivetrain",
+  "fuelType",
+  "exteriorColor",
+  "titleStatus",
+];
+const petSearchKeys: readonly (keyof Search)[] = [
+  "petMode",
+  "petSubcategory",
+  "petSpecies",
+  "petBreed",
+  "petPlacementType",
+  "petOfferedBy",
+  "petSex",
+  "petAge",
+  "petHypoallergenic",
+  "petVaccinated",
+  "petSpayedNeutered",
+  "petMicrochipped",
+  "petRecordsAvailable",
+  "petGoodWithKids",
+  "petGoodWithDogs",
+  "petGoodWithCats",
+  "petIndoorOutdoor",
+];
+const jobSearchKeys: readonly (keyof Search)[] = [
+  "jobMode",
+  "jobCategory",
+  "jobEmployer",
+  "jobEmploymentType",
+  "jobType",
+  "jobPayType",
+  "jobPayMin",
+  "jobPayMax",
+  "jobExperience",
+  "jobPosted",
+  "jobEducation",
+  "jobPhotos",
+  "jobVideo",
+  "jobTimeOnSite",
+];
+const serviceSearchKeys: readonly (keyof Search)[] = [
+  "serviceMode",
+  "serviceSubcategory",
+  "serviceExpandSearch",
+  "servicePhotos",
+  "serviceVideo",
+  "serviceSellerType",
+  "serviceCondition",
+  "serviceTimeOnSite",
+  "serviceArea",
+  "serviceAvailability",
+  "serviceLicenseRequired",
+];
+const homeSearchKeys: readonly (keyof Search)[] = [
+  "homeMode",
+  "homeTab",
+  "homeLocation",
+  "homePrice",
+  "propertyType",
+  "bedrooms",
+  "bathrooms",
+  "homeSquareFeet",
+  "homeBuilder",
+  "constructionType",
+  "homeAcres",
+  "homeSellerType",
+  "petsCats",
+  "petsDogs",
+  "homeAmenities",
+  "communityAmenities",
+  "leaseLength",
+  "homeYearBuilt",
+  "homeHeating",
+  "homeCooling",
+  "homeGarageParking",
+  "homeYard",
+  "homeSchoolDistrict",
+  "homeAvailable",
+  "homePetsPolicy",
+  "homeSmokingPolicy",
+];
+
+function normalizeBrowseSearch(search: Search): Search {
+  const next = { ...search };
+  const clear = (keys: readonly (keyof Search)[]) => {
+    for (const key of keys) next[key] = undefined;
+  };
+  const motors = next.group === "motors" || isMotorsCategory(next.category);
+  const pets = next.category === "pets";
+  const jobs = next.category === "jobs";
+  const services = next.category === "services";
+  const homes = next.category === "other-real-estate";
+
+  if (!motors) clear(vehicleSearchKeys);
+  if (!pets) clear(petSearchKeys);
+  if (!jobs) clear(jobSearchKeys);
+  if (!services) clear(serviceSearchKeys);
+  if (!homes) clear(homeSearchKeys);
+
+  if (pets) {
+    if (
+      next.petMode === undefined &&
+      petSearchKeys.some((key) => key !== "petMode" && hasSearchValue(next[key]))
+    ) {
+      next.petMode = "results";
+    }
+    const species = normalizePetSpecies(next.petSpecies);
+    const subcategory = normalizePetSubcategory(next.petSubcategory);
+    next.petSpecies = species;
+    next.petSubcategory = isPetSelectionCompatible(species, subcategory) ? subcategory : undefined;
+    if (!next.petSubcategory) next.petBreed = undefined;
+  }
+  if (jobs) {
+    // Older shared links used jobEmploymentType. Consume that alias into the
+    // canonical jobType field so the constraint is never silently discarded.
+    next.jobType = next.jobType ?? next.jobEmploymentType;
+    next.jobEmploymentType = undefined;
+  }
+  if (homes && next.homeTab === undefined) next.homeTab = "buy";
+  return next;
 }
 
 export const Route = createFileRoute("/browse")({
@@ -1409,9 +1709,10 @@ export const Route = createFileRoute("/browse")({
     const jobMode = stringParam(search, "jobMode", 10);
     const serviceMode = stringParam(search, "serviceMode", 10);
     const vehicleMode = stringParam(search, "vehicleMode", 10);
+    const petMode = stringParam(search, "petMode", 10);
     const savedSearchId = stringParam(search, "savedSearchId", 64);
     const page = Number(search["page"]);
-    return {
+    const parsed: Search = {
       allCategories:
         search["allCategories"] === true || stringParam(search, "allCategories", 5) === "true",
       q: stringParam(search, "q"),
@@ -1428,9 +1729,9 @@ export const Route = createFileRoute("/browse")({
       priceMax: numberParam(search, "priceMax"),
       make: stringParam(search, "make"),
       model: stringParam(search, "model"),
-      yearMin: numberParam(search, "yearMin"),
-      yearMax: numberParam(search, "yearMax"),
-      mileageMax: numberParam(search, "mileageMax"),
+      yearMin: integerParam(search, "yearMin"),
+      yearMax: integerParam(search, "yearMax"),
+      mileageMax: integerParam(search, "mileageMax"),
       bodyStyle: stringParam(search, "bodyStyle", 30),
       transmission: stringParam(search, "transmission", 30),
       drivetrain: stringParam(search, "drivetrain", 20),
@@ -1450,6 +1751,7 @@ export const Route = createFileRoute("/browse")({
         serviceMode === "results" ? "results" : serviceMode === "landing" ? "landing" : undefined,
       vehicleMode:
         vehicleMode === "results" ? "results" : vehicleMode === "landing" ? "landing" : undefined,
+      petMode: petMode === "results" ? "results" : petMode === "landing" ? "landing" : undefined,
       sellerType: stringParam(search, "sellerType", 30),
       mileageBands: stringParam(search, "mileageBands", 300),
       serviceSubcategory: stringParam(search, "serviceSubcategory", 80),
@@ -1459,8 +1761,14 @@ export const Route = createFileRoute("/browse")({
       serviceSellerType: stringParam(search, "serviceSellerType", 30),
       serviceCondition: stringParam(search, "serviceCondition", 30),
       serviceTimeOnSite: stringParam(search, "serviceTimeOnSite", 30),
+      serviceArea: stringParam(search, "serviceArea", 200),
+      serviceAvailability: stringParam(search, "serviceAvailability", 120),
+      serviceLicenseRequired: stringParam(search, "serviceLicenseRequired", 10),
       jobCategory: stringParam(search, "jobCategory", 60),
-      jobType: stringParam(search, "jobType", 30),
+      jobEmployer: stringParam(search, "jobEmployer", 120),
+      jobEmploymentType: undefined,
+      jobType:
+        stringParam(search, "jobType", 40) ?? stringParam(search, "jobEmploymentType", 40),
       jobPayType: stringParam(search, "jobPayType", 30),
       jobPayMin: numberParam(search, "jobPayMin"),
       jobPayMax: numberParam(search, "jobPayMax"),
@@ -1485,7 +1793,35 @@ export const Route = createFileRoute("/browse")({
       homeAmenities: stringParam(search, "homeAmenities", 600),
       communityAmenities: stringParam(search, "communityAmenities", 800),
       leaseLength: stringParam(search, "leaseLength", 30),
+      homeYearBuilt: integerParam(search, "homeYearBuilt"),
+      homeHeating: stringParam(search, "homeHeating", 80),
+      homeCooling: stringParam(search, "homeCooling", 80),
+      homeGarageParking: stringParam(search, "homeGarageParking", 120),
+      homeYard: stringParam(search, "homeYard", 120),
+      homeSchoolDistrict: stringParam(search, "homeSchoolDistrict", 120),
+      homeAvailable: stringParam(search, "homeAvailable", 60),
+      homePetsPolicy: stringParam(search, "homePetsPolicy", 120),
+      homeSmokingPolicy: stringParam(search, "homeSmokingPolicy", 60),
+      petSubcategory: normalizePetSubcategory(stringParam(search, "petSubcategory", 80)),
+      petSpecies: normalizePetSpecies(stringParam(search, "petSpecies", 40)),
+      petBreed: stringParam(search, "petBreed", 100),
+      petPlacementType: stringParam(search, "petPlacementType", 30),
+      petOfferedBy: stringParam(search, "petOfferedBy", 30),
+      petSex: stringParam(search, "petSex", 30),
+      petAge: stringParam(search, "petAge", 60),
+      petHypoallergenic: stringParam(search, "petHypoallergenic", 20),
+      petVaccinated: stringParam(search, "petVaccinated", 20),
+      petSpayedNeutered: stringParam(search, "petSpayedNeutered", 20),
+      petMicrochipped: stringParam(search, "petMicrochipped", 20),
+      petRecordsAvailable: stringParam(search, "petRecordsAvailable", 20),
+      petGoodWithKids: stringParam(search, "petGoodWithKids", 20),
+      petGoodWithDogs: stringParam(search, "petGoodWithDogs", 20),
+      petGoodWithCats: stringParam(search, "petGoodWithCats", 20),
+      petIndoorOutdoor: stringParam(search, "petIndoorOutdoor", 30),
+      itemDetailKey: stringParam(search, "itemDetailKey", 60),
+      itemDetailValue: stringParam(search, "itemDetailValue", 200),
     };
+    return normalizeBrowseSearch(parsed);
   },
   head: () => ({
     meta: [
@@ -1533,6 +1869,14 @@ function Browse() {
   const { data: result } = useSuspenseQuery(classifiedQuery(inputFromSearch(search)));
   const [term, setTerm] = useState(search.q ?? "");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [saveSearchDialogOpen, setSaveSearchDialogOpen] = useState(false);
+  const [saveSearchName, setSaveSearchName] = useState("");
+  const [saveSearchPending, setSaveSearchPending] = useState(false);
+  const [pendingSaveSearch, setPendingSaveSearch] = useState<Record<string, unknown> | null>(null);
+  const [pendingFilterResultCount, setPendingFilterResultCount] = useState<number | null>(null);
+  const [isClearingFilters, setIsClearingFilters] = useState(false);
+  const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const previewRequest = useRef(0);
   const saveSearch = useServerFn(createSavedSearch);
   const updateSearch = useServerFn(updateSavedSearch);
 
@@ -1550,6 +1894,11 @@ function Browse() {
       category: search.category ?? "all",
       region: search.region ?? "all",
     });
+    void trackEvent("search_completed", {
+      results: result.total,
+      category: search.category ?? "all",
+      region: search.region ?? "all",
+    });
   }, [search.q, search.category, search.region, result.total]);
 
   const scoped = (patch: Partial<Search>): Search =>
@@ -1558,6 +1907,37 @@ function Browse() {
         ([, value]) => value !== undefined && value !== "",
       ),
     ) as Search;
+
+  const clearSearch = (): Search => {
+    const preservedKeys: (keyof Search)[] = [
+      "allCategories",
+      "category",
+      "group",
+      "homeMode",
+      "homeTab",
+      "jobMode",
+      "serviceMode",
+      "vehicleMode",
+      "petMode",
+      "view",
+    ];
+    return Object.fromEntries(
+      preservedKeys.flatMap((key) => {
+        const value = search[key];
+        return value !== undefined && value !== "" && value !== false ? [[key, value]] : [];
+      }),
+    ) as Search;
+  };
+
+  async function clearFilters() {
+    if (isClearingFilters) return;
+    setIsClearingFilters(true);
+    try {
+      await navigate({ to: "/browse", search: clearSearch() });
+    } finally {
+      setIsClearingFilters(false);
+    }
+  }
 
   const scopedWithoutVehicleFilters = (patch: Partial<Search>): Search =>
     scoped({
@@ -1585,82 +1965,186 @@ function Browse() {
   const homes = search.category === "other-real-estate";
   const jobs = search.category === "jobs";
   const services = search.category === "services";
+  const pets = search.category === "pets";
   const vehicleLanding = motors && search.vehicleMode !== "results";
-  const showGenericBrowse = !allCategoriesLanding && (!motors || vehicleLanding);
+  const petLanding = pets && search.petMode !== "results";
+  const showGenericBrowse =
+    !allCategoriesLanding && (!motors || vehicleLanding) && (!pets || !petLanding);
   const homeTab: HomeTab = search.homeTab ?? "buy";
   const homeLanding = homes && search.homeMode !== "results";
   const jobLanding = jobs && search.jobMode !== "results";
   const serviceLanding = services && search.serviceMode !== "results";
   const page = search.page ?? 1;
   const pageCount = Math.max(1, Math.ceil(result.total / result.pageSize));
-  const activeFilterCount = countActiveFilters(search, motors);
+  const activeFilterCount = countActiveFilters(search, motors, pets);
   const heading =
     selectedCategory?.name ?? (search.group === "motors" ? "Cars & motors" : "All classifieds");
+  const noResultsHint = pets
+    ? "Try widening the animal, breed, placement type, location, or price filters."
+    : homes
+      ? "Try widening the price, location, property type, or bedroom filters."
+      : jobs
+        ? "Try widening the job type, pay range, experience, location, or search terms."
+        : services
+          ? "Try widening the service type, price, location, availability, or search terms."
+          : motors
+            ? "Try widening the year, price, mileage, location, or vehicle filters."
+            : "Try widening the category, price, condition, location, or search terms.";
 
-  function applyFilters(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const values = new FormData(event.currentTarget);
+  if (isClearingFilters) {
+    return (
+      <main className="mx-auto max-w-[1400px] px-4 py-10 sm:px-8">
+        <div
+          role="status"
+          aria-live="polite"
+          className="floating-card flex min-h-32 items-center justify-center px-5 text-[13px] text-muted-foreground"
+        >
+          Updating results…
+        </div>
+      </main>
+    );
+  }
+
+  function searchPatchFromForm(form: HTMLFormElement): Partial<Search> {
+    const values = new FormData(form);
     const value = (key: string) => {
       const raw = values.get(key);
       return typeof raw === "string" && raw.trim() ? raw.trim() : undefined;
     };
     const numeric = (key: string) => {
-      const parsed = Number(value(key));
-      return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
+      return optionalNonNegativeNumber(value(key));
     };
     const category = value("category");
     const nextMotors = value("group") === "motors" || isMotorsCategory(category);
+    const nextPets = category === "pets";
+    const nextPetSpecies = nextPets ? normalizePetSpecies(value("petSpecies")) : undefined;
+    const nextPetSubcategory = nextPets
+      ? normalizePetSubcategory(value("petSubcategory"))
+      : undefined;
+    const compatiblePetSubcategory = isPetSelectionCompatible(nextPetSpecies, nextPetSubcategory)
+      ? nextPetSubcategory
+      : undefined;
+
+    return {
+      category,
+      group: category ? undefined : value("group") === "motors" ? "motors" : undefined,
+      state: value("state")?.toUpperCase(),
+      region: value("region"),
+      city: value("city"),
+      condition: value("condition"),
+      fulfillment: value("fulfillment"),
+      priceMin: numeric("priceMin"),
+      priceMax: numeric("priceMax"),
+      make: nextMotors ? value("make") : undefined,
+      model: nextMotors ? value("model") : undefined,
+      yearMin: nextMotors ? optionalNonNegativeInteger(value("yearMin")) : undefined,
+      yearMax: nextMotors ? optionalNonNegativeInteger(value("yearMax")) : undefined,
+      mileageMax: nextMotors ? optionalNonNegativeInteger(value("mileageMax")) : undefined,
+      bodyStyle: nextMotors ? value("bodyStyle") : undefined,
+      transmission: nextMotors ? value("transmission") : undefined,
+      drivetrain: nextMotors ? value("drivetrain") : undefined,
+      fuelType: nextMotors ? value("fuelType") : undefined,
+      exteriorColor: nextMotors ? value("exteriorColor") : undefined,
+      titleStatus: nextMotors ? value("titleStatus") : undefined,
+      petMode: nextPets ? "results" : undefined,
+      petSubcategory: compatiblePetSubcategory,
+      petSpecies: nextPetSpecies,
+      petBreed: nextPets && compatiblePetSubcategory ? value("petBreed") : undefined,
+      petPlacementType: nextPets ? value("petPlacementType") : undefined,
+      petOfferedBy: nextPets ? value("petOfferedBy") : undefined,
+      petSex: nextPets ? value("petSex") : undefined,
+      petAge: nextPets ? value("petAge") : undefined,
+      petHypoallergenic: nextPets ? value("petHypoallergenic") : undefined,
+      petVaccinated: nextPets ? value("petVaccinated") : undefined,
+      petSpayedNeutered: nextPets ? value("petSpayedNeutered") : undefined,
+      petMicrochipped: nextPets ? value("petMicrochipped") : undefined,
+      petRecordsAvailable: nextPets ? value("petRecordsAvailable") : undefined,
+      petGoodWithKids: nextPets ? value("petGoodWithKids") : undefined,
+      petGoodWithDogs: nextPets ? value("petGoodWithDogs") : undefined,
+      petGoodWithCats: nextPets ? value("petGoodWithCats") : undefined,
+      petIndoorOutdoor: nextPets ? value("petIndoorOutdoor") : undefined,
+      itemDetailKey:
+        category && itemCategorySlugs.has(category) ? value("itemDetailKey") : undefined,
+      itemDetailValue:
+        category && itemCategorySlugs.has(category) ? value("itemDetailValue") : undefined,
+    };
+  }
+
+  function previewFilterResults(form: HTMLFormElement) {
+    if (previewTimer.current) clearTimeout(previewTimer.current);
+    previewTimer.current = setTimeout(() => {
+      const requestId = ++previewRequest.current;
+      const previewSearch = scoped(searchPatchFromForm(form));
+      void browseClassifieds({ data: inputFromSearch(previewSearch) }).then((preview) => {
+        if (requestId === previewRequest.current) setPendingFilterResultCount(preview.total);
+      });
+    }, 250);
+  }
+
+  function applyFilters(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const patch = searchPatchFromForm(event.currentTarget);
+
+    const ranges: [number | undefined, number | undefined, string][] = [
+      [patch.priceMin, patch.priceMax, "Price"],
+      [patch.yearMin, patch.yearMax, "Year"],
+      [patch.jobPayMin, patch.jobPayMax, "Pay"],
+    ];
+    const invalidRange = ranges.find(([min, max]) => isInvertedRange(min, max));
+    if (invalidRange) {
+      toast.error(`${invalidRange[2]} minimum cannot exceed maximum.`);
+      return;
+    }
 
     void navigate({
       to: "/browse",
-      search: scoped({
-        category,
-        group: category ? undefined : value("group") === "motors" ? "motors" : undefined,
-        state: value("state")?.toUpperCase(),
-        region: value("region"),
-        city: value("city"),
-        condition: value("condition"),
-        fulfillment: value("fulfillment"),
-        priceMin: numeric("priceMin"),
-        priceMax: numeric("priceMax"),
-        make: nextMotors ? value("make") : undefined,
-        model: nextMotors ? value("model") : undefined,
-        yearMin: nextMotors ? numeric("yearMin") : undefined,
-        yearMax: nextMotors ? numeric("yearMax") : undefined,
-        mileageMax: nextMotors ? numeric("mileageMax") : undefined,
-        bodyStyle: nextMotors ? value("bodyStyle") : undefined,
-        transmission: nextMotors ? value("transmission") : undefined,
-        drivetrain: nextMotors ? value("drivetrain") : undefined,
-        fuelType: nextMotors ? value("fuelType") : undefined,
-        exteriorColor: nextMotors ? value("exteriorColor") : undefined,
-        titleStatus: nextMotors ? value("titleStatus") : undefined,
-      }),
+      search: scoped(patch),
     });
+    setPendingFilterResultCount(null);
     setFiltersOpen(false);
   }
 
-  async function saveCurrentSearch() {
-    const searchToSave = Object.fromEntries(
+  function currentSearchFilters(source: Search = search) {
+    return Object.fromEntries(
       savedSearchFilterKeys.flatMap((key) => {
-        const value = search[key];
+        const value = source[key];
         return value !== undefined && value !== "" ? [[key, value]] : [];
       }),
     );
+  }
 
+  function requestSaveSearch(patch: Partial<Search> = {}) {
+    const nextSearch = scoped(patch);
+    const searchToSave = currentSearchFilters(nextSearch);
+    if (search.savedSearchId) {
+      void saveCurrentSearch(searchToSave);
+      return;
+    }
+    const suggestedName =
+      [selectedCategory?.name, nextSearch.q].filter(Boolean).join(" · ") || "My marketplace search";
+    setPendingSaveSearch(searchToSave);
+    setSaveSearchName(suggestedName);
+    setSaveSearchDialogOpen(true);
+  }
+
+  async function saveCurrentSearch(searchToSave = pendingSaveSearch ?? currentSearchFilters()) {
     try {
       if (search.savedSearchId) {
         await updateSearch({ data: { id: search.savedSearchId, search: searchToSave } });
         toast.success("Saved search updated.");
       } else {
-        const suggestedName =
-          [selectedCategory?.name, search.q].filter(Boolean).join(" · ") || "My marketplace search";
-        const name = window.prompt("Name this saved search", suggestedName)?.trim();
+        const name = saveSearchName.trim();
         if (!name) return;
+        setSaveSearchPending(true);
         await saveSearch({ data: { name, search: searchToSave } });
+        setSaveSearchDialogOpen(false);
+        setPendingSaveSearch(null);
         toast.success("Saved search created.");
       }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Sign in to save this search.");
+    } finally {
+      setSaveSearchPending(false);
     }
   }
 
@@ -1679,7 +2163,10 @@ function Browse() {
             }
           />
           <GeneralClassifiedShowcase listings={result.listings} />
-          <HomepageShowcaseRows eyebrow="GemList Classifieds" rows={classifiedShowcaseRows} />
+          <HomepageShowcaseRows
+            eyebrow="Bluebird Marketplace Classifieds"
+            rows={classifiedShowcaseRows}
+          />
         </>
       )}
 
@@ -1701,17 +2188,61 @@ function Browse() {
         />
       )}
 
+      {pets && petLanding && (
+        <PetsLandingHero
+          term={term}
+          onTermChange={setTerm}
+          onSearch={() =>
+            void navigate({
+              to: "/browse",
+              search: scoped({ petMode: "results", q: term.trim() || undefined }),
+            })
+          }
+          onCategory={(subcategory) =>
+            void navigate({
+              to: "/browse",
+              search: scoped({ petMode: "results", petSubcategory: subcategory }),
+            })
+          }
+          onPost={() => void navigate({ to: "/create-listing" })}
+        />
+      )}
+
+      {pets && petLanding && (
+        <>
+          <LandingListingsShowcase
+            eyebrow="Bluebird Marketplace Pets"
+            title="Latest pet listings"
+            action="Browse all pets"
+            browseSearch={{ category: "pets", petMode: "results" }}
+            listings={result.listings}
+          />
+          <HomepageShowcaseRows eyebrow="Bluebird Marketplace Pets" rows={petShowcaseRows} />
+        </>
+      )}
+
       {motors && vehicleLanding && (
-        <HomepageShowcaseRows eyebrow="GemList Motors" rows={vehicleShowcaseRows} />
+        <>
+          <LandingListingsShowcase
+            eyebrow="Bluebird Marketplace Motors"
+            title="Latest vehicles"
+            action="Browse all vehicles"
+            browseSearch={{ group: "motors", vehicleMode: "results" }}
+            listings={result.listings}
+          />
+          <HomepageShowcaseRows eyebrow="Bluebird Marketplace Motors" rows={vehicleShowcaseRows} />
+        </>
       )}
 
       {motors && !vehicleLanding && (
         <VehicleResultsPage
           search={search}
           result={result}
+          onClear={clearFilters}
           onApply={(patch) =>
             void navigate({ to: "/browse", search: scoped({ vehicleMode: "results", ...patch }) })
           }
+          onSave={(patch) => requestSaveSearch(patch)}
           onSell={() => void navigate({ to: "/create-listing" })}
         />
       )}
@@ -1753,10 +2284,27 @@ function Browse() {
           activeTab={homeTab}
           search={search}
           resultCount={result.total}
+          onClear={clearFilters}
           onTabChange={(tab) =>
             void navigate({
               to: "/browse",
-              search: scoped({ category: "other-real-estate", homeTab: tab, homeMode: "results" }),
+              search: scoped({
+                category: "other-real-estate",
+                homeTab: tab,
+                homeMode: "results",
+                homeSquareFeet: undefined,
+                homeAcres: undefined,
+                homeYearBuilt: undefined,
+                homeHeating: undefined,
+                homeCooling: undefined,
+                homeGarageParking: undefined,
+                homeYard: undefined,
+                homeSchoolDistrict: undefined,
+                homeAvailable: undefined,
+                homePetsPolicy: undefined,
+                homeSmokingPolicy: undefined,
+                leaseLength: undefined,
+              }),
             })
           }
           onApply={(patch) =>
@@ -1770,26 +2318,41 @@ function Browse() {
               }),
             })
           }
-          onSave={() => void saveCurrentSearch()}
+          onSave={(patch) => requestSaveSearch(patch)}
         />
       )}
 
-      {homeLanding && <HomeShowcaseRows activeTab={homeTab} />}
+      {homeLanding && (
+        <>
+          <LandingListingsShowcase
+            eyebrow="Bluebird Marketplace Homes"
+            title={`${homeTab.charAt(0).toUpperCase()}${homeTab.slice(1)} listings`}
+            action="Browse all homes"
+            browseSearch={{
+              category: "other-real-estate",
+              homeMode: "results",
+              homeTab,
+            }}
+            listings={result.listings}
+          />
+          <HomeShowcaseRows activeTab={homeTab} />
+        </>
+      )}
 
       {jobs && jobLanding && (
         <JobsLandingHero
           search={search}
           resultCount={result.total}
-          onSearch={(term) =>
+          onSearch={(patch) =>
             void navigate({
               to: "/browse",
-              search: scoped({ category: "jobs", jobMode: "results", q: term.trim() || undefined }),
+              search: scoped({ category: "jobs", jobMode: "results", ...patch }),
             })
           }
-          onMoreFilters={() =>
+          onMoreFilters={(patch) =>
             void navigate({
               to: "/browse",
-              search: scoped({ category: "jobs", jobMode: "results" }),
+              search: scoped({ category: "jobs", jobMode: "results", ...patch }),
             })
           }
           onPost={() => void navigate({ to: "/create-listing" })}
@@ -1797,20 +2360,31 @@ function Browse() {
       )}
 
       {jobs && jobLanding && (
-        <HomepageShowcaseRows eyebrow="GemList Jobs" rows={jobsShowcaseRows} />
+        <>
+          <LandingListingsShowcase
+            eyebrow="Bluebird Marketplace Jobs"
+            title="Latest local jobs"
+            action="Browse all jobs"
+            browseSearch={{ category: "jobs", jobMode: "results" }}
+            listings={result.listings}
+          />
+          <HomepageShowcaseRows eyebrow="Bluebird Marketplace Jobs" rows={jobsShowcaseRows} />
+        </>
       )}
 
       {jobs && !jobLanding && (
         <JobsFilterPage
           search={search}
           listings={result.listings}
+          total={result.total}
+          onClear={clearFilters}
           onApply={(patch) =>
             void navigate({
               to: "/browse",
               search: scoped({ category: "jobs", jobMode: "results", ...patch }),
             })
           }
-          onSave={() => void saveCurrentSearch()}
+          onSave={(patch) => requestSaveSearch(patch)}
           onPost={() => void navigate({ to: "/create-listing" })}
         />
       )}
@@ -1834,20 +2408,34 @@ function Browse() {
       )}
 
       {services && serviceLanding && (
-        <HomepageShowcaseRows eyebrow="GemList Services" rows={servicesShowcaseRows} />
+        <>
+          <LandingListingsShowcase
+            eyebrow="Bluebird Marketplace Services"
+            title="Latest local services"
+            action="Browse all services"
+            browseSearch={{ category: "services", serviceMode: "results" }}
+            listings={result.listings}
+          />
+          <HomepageShowcaseRows
+            eyebrow="Bluebird Marketplace Services"
+            rows={servicesShowcaseRows}
+          />
+        </>
       )}
 
       {services && !serviceLanding && (
         <ServicesFilterPage
           search={search}
           listings={result.listings}
+          total={result.total}
+          onClear={clearFilters}
           onApply={(patch) =>
             void navigate({
               to: "/browse",
               search: scoped({ category: "services", serviceMode: "results", ...patch }),
             })
           }
-          onSave={() => void saveCurrentSearch()}
+          onSave={(patch) => requestSaveSearch(patch)}
           onPost={() => void navigate({ to: "/create-listing" })}
         />
       )}
@@ -1873,7 +2461,7 @@ function Browse() {
       >
         <div className={motors ? "hidden" : ""}>
           <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-primary">
-            Gem State classifieds
+            Bluebird classifieds
           </p>
           <h1 className="mt-2 text-[30px] font-bold tracking-tight">{heading}</h1>
           <p className="mt-2 max-w-[62ch] text-[14px] leading-relaxed text-muted-foreground">
@@ -1918,7 +2506,7 @@ function Browse() {
         </div>
       </div>
 
-      {!allCategoriesLanding && !motors && !homes && !jobs && !services && (
+      {!allCategoriesLanding && !motors && !homes && !jobs && !services && !pets && (
         <form
           className="floating-card mt-8 p-2 sm:p-3"
           onSubmit={(event) => {
@@ -1943,7 +2531,7 @@ function Browse() {
         </form>
       )}
 
-      {!allCategoriesLanding && !motors && !homes && !jobs && !services && (
+      {!allCategoriesLanding && !motors && !homes && !jobs && !services && !pets && (
         <div className="no-scrollbar mt-5 flex gap-2 overflow-x-auto pb-1">
           <BrowsePill
             active={!search.group && !search.category}
@@ -1979,276 +2567,473 @@ function Browse() {
               {result.total === 1 ? "listing" : "listings"}
             </p>
             {!motors && !homes && (
-              <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
-                <SheetTrigger asChild>
-                  <button
-                    type="button"
-                    className={`inline-flex h-11 items-center gap-2 rounded-full border border-input bg-card px-5 text-[13px] font-semibold shadow-sm transition-shadow hover:shadow-md ${motors || homes ? "hidden" : ""}`}
-                  >
-                    <FunnelSimple size={17} className="text-primary" />
-                    Filters
-                    {activeFilterCount > 0 && (
-                      <span className="grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1.5 text-[10px] font-bold">
-                        {activeFilterCount}
-                      </span>
-                    )}
-                  </button>
-                </SheetTrigger>
-                <SheetContent side="right" className="w-full overflow-y-auto p-0 sm:max-w-lg">
-                  <SheetHeader className="border-b border-border px-6 py-6 pr-16 text-left">
-                    <SheetTitle className="text-[22px] tracking-tight">Filter listings</SheetTitle>
-                    <SheetDescription>
-                      Narrow down local items, or add every vehicle detail that matters.
-                    </SheetDescription>
-                  </SheetHeader>
-                  <form onSubmit={applyFilters} className="space-y-6 px-6 py-6">
-                    <input type="hidden" name="group" value={search.group ?? ""} />
-                    <FilterSection title="Category">
-                      <select
-                        name="category"
-                        defaultValue={search.category ?? ""}
-                        className="filter-input"
-                      >
-                        <option value="">All categories</option>
-                        {classifiedCategories.map((category) => (
-                          <option key={category.slug} value={category.slug}>
-                            {category.name}
-                          </option>
-                        ))}
-                      </select>
-                    </FilterSection>
-
-                    <FilterSection
-                      title="Location"
-                      icon={<MapPin size={13} className="text-primary" />}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => requestSaveSearch()}
+                  className="inline-flex h-11 items-center gap-2 rounded-full border border-primary bg-card px-5 text-[13px] font-semibold text-primary shadow-sm transition-shadow hover:bg-secondary hover:shadow-md"
+                >
+                  <BookmarkSimple size={17} />
+                  {search.savedSearchId ? "Update saved search" : "Save this search"}
+                </button>
+                <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
+                  <SheetTrigger asChild>
+                    <button
+                      type="button"
+                      className={`inline-flex h-11 items-center gap-2 rounded-full border border-input bg-card px-5 text-[13px] font-semibold shadow-sm transition-shadow hover:shadow-md ${motors || homes ? "hidden" : ""}`}
                     >
-                      <select
-                        name="region"
-                        defaultValue={search.region ?? ""}
-                        className="filter-input"
-                      >
-                        <option value="">All of Idaho</option>
-                        {idahoRegions.map((region) => (
-                          <option key={region} value={region}>
-                            {region}
-                          </option>
-                        ))}
-                      </select>
-                      <select
-                        name="state"
-                        defaultValue={search.state ?? ""}
-                        className="filter-input"
-                      >
-                        <option value="">All states</option>
-                        {usStates.map(([code, name]) => (
-                          <option key={code} value={code}>
-                            {name}
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        name="city"
-                        defaultValue={search.city ?? ""}
-                        placeholder="City"
-                        className="filter-input"
-                        maxLength={80}
-                      />
-                    </FilterSection>
-
-                    <FilterSection title="Price">
-                      <div className="grid grid-cols-2 gap-2">
-                        <input
-                          name="priceMin"
-                          type="number"
-                          min="0"
-                          step="1"
-                          defaultValue={search.priceMin ?? ""}
-                          placeholder="Min"
-                          className="filter-input"
-                        />
-                        <input
-                          name="priceMax"
-                          type="number"
-                          min="0"
-                          step="1"
-                          defaultValue={search.priceMax ?? ""}
-                          placeholder="Max"
-                          className="filter-input"
-                        />
-                      </div>
-                    </FilterSection>
-
-                    <FilterSection title="Condition and fulfillment">
-                      <select
-                        name="condition"
-                        defaultValue={search.condition ?? ""}
-                        className="filter-input"
-                      >
-                        <option value="">Any condition</option>
-                        {conditionOptions.map(([value, label]) => (
-                          <option key={value} value={value}>
-                            {label}
-                          </option>
-                        ))}
-                      </select>
-                      <select
-                        name="fulfillment"
-                        defaultValue={search.fulfillment ?? ""}
-                        className="filter-input"
-                      >
-                        <option value="">Any fulfillment</option>
-                        <option value="local_pickup">Local pickup</option>
-                        <option value="shipping">Ships</option>
-                        <option value="both">Pickup or shipping</option>
-                      </select>
-                    </FilterSection>
-
-                    {motors && (
-                      <FilterSection title="Vehicle details">
-                        <input
-                          list="vehicle-makes"
-                          name="make"
-                          defaultValue={search.make ?? ""}
-                          placeholder="Make / brand"
-                          className="filter-input"
-                          maxLength={80}
-                        />
-                        <datalist id="vehicle-makes">
-                          {vehicleOptions.makes.map((make) => (
-                            <option key={make} value={make} />
-                          ))}
-                        </datalist>
-                        <input
-                          name="model"
-                          defaultValue={search.model ?? ""}
-                          placeholder="Model"
-                          className="filter-input"
-                          maxLength={80}
-                        />
-                        <div className="grid grid-cols-2 gap-2">
-                          <input
-                            name="yearMin"
-                            type="number"
-                            min="1900"
-                            max="2100"
-                            step="1"
-                            defaultValue={search.yearMin ?? ""}
-                            placeholder="Year from"
-                            className="filter-input"
-                          />
-                          <input
-                            name="yearMax"
-                            type="number"
-                            min="1900"
-                            max="2100"
-                            step="1"
-                            defaultValue={search.yearMax ?? ""}
-                            placeholder="Year to"
-                            className="filter-input"
-                          />
-                        </div>
-                        <input
-                          name="mileageMax"
-                          type="number"
-                          min="0"
-                          step="1000"
-                          defaultValue={search.mileageMax ?? ""}
-                          placeholder="Max mileage"
-                          className="filter-input"
-                        />
+                      <FunnelSimple size={17} className="text-primary" />
+                      Filters
+                      {activeFilterCount > 0 && (
+                        <span className="grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1.5 text-[10px] font-bold">
+                          {activeFilterCount}
+                        </span>
+                      )}
+                    </button>
+                  </SheetTrigger>
+                  <SheetContent side="right" className="w-full overflow-y-auto p-0 sm:max-w-lg">
+                    <SheetHeader className="border-b border-border px-6 py-6 pr-16 text-left">
+                      <SheetTitle className="text-[22px] tracking-tight">
+                        Filter listings
+                      </SheetTitle>
+                      <SheetDescription>
+                        Narrow down local items, or add every vehicle detail that matters.
+                      </SheetDescription>
+                    </SheetHeader>
+                    <form
+                      onSubmit={applyFilters}
+                      onInput={(event) => previewFilterResults(event.currentTarget)}
+                      className="space-y-6 px-6 py-6"
+                    >
+                      <input type="hidden" name="group" value={search.group ?? ""} />
+                      <FilterSection title="Category">
                         <select
-                          name="bodyStyle"
-                          defaultValue={search.bodyStyle ?? ""}
+                          name="category"
+                          defaultValue={search.category ?? ""}
                           className="filter-input"
                         >
-                          <option value="">Any body style</option>
-                          {vehicleOptions.bodyStyles.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </select>
-                        <select
-                          name="drivetrain"
-                          defaultValue={search.drivetrain ?? ""}
-                          className="filter-input"
-                        >
-                          <option value="">Any drivetrain</option>
-                          {vehicleOptions.drivetrains.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </select>
-                        <select
-                          name="transmission"
-                          defaultValue={search.transmission ?? ""}
-                          className="filter-input"
-                        >
-                          <option value="">Any transmission</option>
-                          {vehicleOptions.transmissions.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </select>
-                        <select
-                          name="fuelType"
-                          defaultValue={search.fuelType ?? ""}
-                          className="filter-input"
-                        >
-                          <option value="">Any fuel type</option>
-                          {vehicleOptions.fuelTypes.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </select>
-                        <select
-                          name="exteriorColor"
-                          defaultValue={search.exteriorColor ?? ""}
-                          className="filter-input"
-                        >
-                          <option value="">Any exterior color</option>
-                          {vehicleOptions.exteriorColors.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </select>
-                        <select
-                          name="titleStatus"
-                          defaultValue={search.titleStatus ?? ""}
-                          className="filter-input"
-                        >
-                          <option value="">Any title status</option>
-                          {vehicleOptions.titleStatuses.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
+                          <option value="">All categories</option>
+                          {classifiedCategories.map((category) => (
+                            <option key={category.slug} value={category.slug}>
+                              {category.name}
                             </option>
                           ))}
                         </select>
                       </FilterSection>
-                    )}
 
-                    <div className="mt-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-                      <button
-                        type="submit"
-                        className="inline-flex h-12 w-full items-center justify-center rounded-full bg-primary px-3 text-[13px] font-semibold text-primary-foreground shadow-sm hover:opacity-90"
+                      {search.category && itemCategorySlugs.has(search.category) && (
+                        <FilterSection title="Category details">
+                          <select
+                            name="itemDetailKey"
+                            defaultValue={search.itemDetailKey ?? ""}
+                            className="filter-input"
+                          >
+                            <option value="">Any detail</option>
+                            {fieldsForClassifiedItem(search.category).map((field) => (
+                              <option key={field.key} value={field.key}>
+                                {field.label}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            name="itemDetailValue"
+                            defaultValue={search.itemDetailValue ?? ""}
+                            placeholder="Match a detail value"
+                            className="filter-input"
+                            maxLength={200}
+                          />
+                        </FilterSection>
+                      )}
+
+                      <FilterSection
+                        title="Location"
+                        icon={<MapPin size={13} className="text-primary" />}
                       >
-                        Show {result.total} {result.total === 1 ? "listing" : "listings"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void saveCurrentSearch()}
-                        className="inline-flex h-12 items-center justify-center rounded-full border border-primary px-5 text-[13px] font-semibold text-primary hover:bg-secondary"
-                      >
-                        {search.savedSearchId ? "Update saved search" : "Save this search"}
-                      </button>
-                    </div>
-                  </form>
-                </SheetContent>
-              </Sheet>
+                        <select
+                          name="region"
+                          defaultValue={search.region ?? ""}
+                          className="filter-input"
+                        >
+                          <option value="">All of Idaho</option>
+                          {idahoRegions.map((region) => (
+                            <option key={region} value={region}>
+                              {region}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          name="state"
+                          defaultValue={search.state ?? ""}
+                          className="filter-input"
+                        >
+                          <option value="">All states</option>
+                          {usStates.map(([code, name]) => (
+                            <option key={code} value={code}>
+                              {name}
+                            </option>
+                          ))}
+                        </select>
+                        <input
+                          name="city"
+                          defaultValue={search.city ?? ""}
+                          placeholder="City"
+                          className="filter-input"
+                          maxLength={80}
+                        />
+                      </FilterSection>
+
+                      <FilterSection title="Price">
+                        <div className="grid grid-cols-2 gap-2">
+                          <input
+                            name="priceMin"
+                            type="number"
+                            min="0"
+                            step="1"
+                            defaultValue={search.priceMin ?? ""}
+                            placeholder="Min"
+                            className="filter-input"
+                          />
+                          <input
+                            name="priceMax"
+                            type="number"
+                            min="0"
+                            step="1"
+                            defaultValue={search.priceMax ?? ""}
+                            placeholder="Max"
+                            className="filter-input"
+                          />
+                        </div>
+                      </FilterSection>
+
+                      <FilterSection title="Condition and fulfillment">
+                        <select
+                          name="condition"
+                          defaultValue={search.condition ?? ""}
+                          className="filter-input"
+                        >
+                          <option value="">Any condition</option>
+                          {conditionOptions.map(([value, label]) => (
+                            <option key={value} value={value}>
+                              {label}
+                            </option>
+                          ))}
+                        </select>
+                        <select
+                          name="fulfillment"
+                          defaultValue={search.fulfillment ?? ""}
+                          className="filter-input"
+                        >
+                          <option value="">Any fulfillment</option>
+                          <option value="local_pickup">Local pickup</option>
+                          <option value="shipping">Ships</option>
+                          <option value="both">Pickup or shipping</option>
+                        </select>
+                      </FilterSection>
+
+                      {pets && (
+                        <FilterSection title="Pet details">
+                          <select
+                            name="petSubcategory"
+                            defaultValue={search.petSubcategory ?? ""}
+                            className="filter-input"
+                            onChange={(event) => {
+                              const form = event.currentTarget.form;
+                              const species = form?.elements.namedItem(
+                                "petSpecies",
+                              ) as HTMLSelectElement | null;
+                              const breed = form?.elements.namedItem(
+                                "petBreed",
+                              ) as HTMLInputElement | null;
+                              if (
+                                species &&
+                                !isPetSelectionCompatible(species.value, event.currentTarget.value)
+                              )
+                                species.value = "";
+                              if (breed) breed.value = "";
+                            }}
+                          >
+                            <option value="">All pet categories</option>
+                            {petSubcategories.map(([value, label]) => (
+                              <option key={value} value={value}>
+                                {label}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            name="petSpecies"
+                            defaultValue={search.petSpecies ?? ""}
+                            className="filter-input"
+                            onChange={(event) => {
+                              const species = normalizePetSpecies(event.currentTarget.value);
+                              const form = event.currentTarget.form;
+                              const subcategory = form?.elements.namedItem(
+                                "petSubcategory",
+                              ) as HTMLSelectElement | null;
+                              const breed = form?.elements.namedItem(
+                                "petBreed",
+                              ) as HTMLInputElement | null;
+                              if (
+                                subcategory &&
+                                !isPetSelectionCompatible(species, subcategory.value)
+                              )
+                                subcategory.value = "";
+                              if (breed) breed.value = "";
+                            }}
+                          >
+                            <option value="">Any animal</option>
+                            {petSpecies.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            name="petBreed"
+                            defaultValue={search.petBreed ?? ""}
+                            placeholder="Breed"
+                            className="filter-input"
+                            maxLength={100}
+                          />
+                          <select
+                            name="petPlacementType"
+                            defaultValue={search.petPlacementType ?? ""}
+                            className="filter-input"
+                          >
+                            <option value="">Any listing type</option>
+                            {petPlacementTypes.map(([value, label]) => (
+                              <option key={value} value={value}>
+                                {label}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            name="petOfferedBy"
+                            defaultValue={search.petOfferedBy ?? ""}
+                            className="filter-input"
+                          >
+                            <option value="">Any offered by</option>
+                            {petOfferedBy.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            name="petSex"
+                            defaultValue={search.petSex ?? ""}
+                            className="filter-input"
+                          >
+                            <option value="">Any sex</option>
+                            {petSexes.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            name="petAge"
+                            defaultValue={search.petAge ?? ""}
+                            placeholder="Age or age range"
+                            className="filter-input"
+                            maxLength={60}
+                          />
+                          {(
+                            [
+                              ["petHypoallergenic", "Hypoallergenic"],
+                              ["petVaccinated", "Vaccinated"],
+                              ["petSpayedNeutered", "Spayed / neutered"],
+                              ["petMicrochipped", "Microchipped"],
+                              ["petRecordsAvailable", "Records available"],
+                              ["petGoodWithKids", "Good with children"],
+                              ["petGoodWithDogs", "Good with dogs"],
+                              ["petGoodWithCats", "Good with cats"],
+                            ] as const
+                          ).map(([name, label]) => (
+                            <select
+                              key={name}
+                              name={name}
+                              defaultValue={search[name as keyof Search] as string | undefined}
+                              className="filter-input"
+                            >
+                              <option value="">Any {label.toLowerCase()}</option>
+                              <option value="Yes">Yes</option>
+                              <option value="No">No</option>
+                              <option value="Unknown">Unknown</option>
+                            </select>
+                          ))}
+                          <select
+                            name="petIndoorOutdoor"
+                            defaultValue={search.petIndoorOutdoor ?? ""}
+                            className="filter-input"
+                          >
+                            <option value="">Any indoor / outdoor</option>
+                            <option value="Indoor">Indoor</option>
+                            <option value="Outdoor">Outdoor</option>
+                            <option value="Indoor / outdoor">Indoor / outdoor</option>
+                            <option value="Unknown">Unknown</option>
+                          </select>
+                        </FilterSection>
+                      )}
+
+                      {motors && (
+                        <FilterSection title="Vehicle details">
+                          <input
+                            list="vehicle-makes"
+                            name="make"
+                            defaultValue={search.make ?? ""}
+                            placeholder="Make / brand"
+                            className="filter-input"
+                            maxLength={80}
+                          />
+                          <datalist id="vehicle-makes">
+                            {vehicleOptions.makes.map((make) => (
+                              <option key={make} value={make} />
+                            ))}
+                          </datalist>
+                          <input
+                            name="model"
+                            defaultValue={search.model ?? ""}
+                            placeholder="Model"
+                            className="filter-input"
+                            maxLength={80}
+                          />
+                          <div className="grid grid-cols-2 gap-2">
+                            <input
+                              name="yearMin"
+                              type="number"
+                              min="1900"
+                              max="2100"
+                              step="1"
+                              defaultValue={search.yearMin ?? ""}
+                              placeholder="Year from"
+                              className="filter-input"
+                            />
+                            <input
+                              name="yearMax"
+                              type="number"
+                              min="1900"
+                              max="2100"
+                              step="1"
+                              defaultValue={search.yearMax ?? ""}
+                              placeholder="Year to"
+                              className="filter-input"
+                            />
+                          </div>
+                          <input
+                            name="mileageMax"
+                            type="number"
+                            min="0"
+                            step="1000"
+                            defaultValue={search.mileageMax ?? ""}
+                            placeholder="Max mileage"
+                            className="filter-input"
+                          />
+                          <select
+                            name="bodyStyle"
+                            defaultValue={search.bodyStyle ?? ""}
+                            className="filter-input"
+                          >
+                            <option value="">Any body style</option>
+                            {vehicleOptions.bodyStyles.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            name="drivetrain"
+                            defaultValue={search.drivetrain ?? ""}
+                            className="filter-input"
+                          >
+                            <option value="">Any drivetrain</option>
+                            {vehicleOptions.drivetrains.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            name="transmission"
+                            defaultValue={search.transmission ?? ""}
+                            className="filter-input"
+                          >
+                            <option value="">Any transmission</option>
+                            {vehicleOptions.transmissions.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            name="fuelType"
+                            defaultValue={search.fuelType ?? ""}
+                            className="filter-input"
+                          >
+                            <option value="">Any fuel type</option>
+                            {vehicleOptions.fuelTypes.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            name="exteriorColor"
+                            defaultValue={search.exteriorColor ?? ""}
+                            className="filter-input"
+                          >
+                            <option value="">Any exterior color</option>
+                            {vehicleOptions.exteriorColors.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            name="titleStatus"
+                            defaultValue={search.titleStatus ?? ""}
+                            className="filter-input"
+                          >
+                            <option value="">Any title status</option>
+                            {vehicleOptions.titleStatuses.map((option) => (
+                              <option key={option} value={option}>
+                                {option}
+                              </option>
+                            ))}
+                          </select>
+                        </FilterSection>
+                      )}
+
+                      <div className="mt-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
+                        <button
+                          type="submit"
+                          className="inline-flex h-12 w-full items-center justify-center rounded-full bg-primary px-3 text-[13px] font-semibold text-primary-foreground shadow-sm hover:opacity-90"
+                        >
+                          {pendingFilterResultCount == null ? (
+                            <>
+                              Show {result.total} {result.total === 1 ? "listing" : "listings"}
+                            </>
+                          ) : (
+                            <>
+                              Show {pendingFilterResultCount}{" "}
+                              {pendingFilterResultCount === 1 ? "listing" : "listings"}
+                            </>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            const form = event.currentTarget.form;
+                            if (form) requestSaveSearch(searchPatchFromForm(form));
+                          }}
+                          className="inline-flex h-12 items-center justify-center rounded-full border border-primary px-5 text-[13px] font-semibold text-primary hover:bg-secondary"
+                        >
+                          {search.savedSearchId ? "Update saved search" : "Save this search"}
+                        </button>
+                      </div>
+                    </form>
+                  </SheetContent>
+                </Sheet>
+              </div>
             )}
           </div>
 
@@ -2261,7 +3046,7 @@ function Browse() {
               </p>
               {activeFilterCount > 0 && (
                 <div className="flex flex-wrap gap-1.5">
-                  {activeFilterLabels(search, motors).map((label) => (
+                  {activeFilterLabels(search, motors, pets).map((label) => (
                     <span
                       key={label}
                       className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-1 text-[10.5px] text-muted-foreground"
@@ -2269,13 +3054,13 @@ function Browse() {
                       {label}
                     </span>
                   ))}
-                  <Link
-                    to="/browse"
-                    search={scoped({ category: undefined, group: search.group })}
+                  <button
+                    type="button"
+                    onClick={() => void clearFilters()}
                     className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10.5px] font-medium text-primary hover:bg-accent"
                   >
                     <X size={11} /> Clear
-                  </Link>
+                  </button>
                 </div>
               )}
             </div>
@@ -2284,13 +3069,11 @@ function Browse() {
               <div className="soft-card mt-5 px-5 py-12 text-center">
                 <p className="text-[14px] font-medium">No listings match these filters.</p>
                 <p className="mx-auto mt-1.5 max-w-md text-[13px] leading-relaxed text-muted-foreground">
-                  {homes
-                    ? "Try widening the price, location, property type, or bedroom filters."
-                    : "Try widening the year, price, mileage, location, or vehicle filters."}
+                  {noResultsHint}
                 </p>
                 <Link
                   to="/browse"
-                  search={scoped({ category: undefined, group: search.group })}
+                  search={clearSearch()}
                   className="mt-4 inline-flex h-9 items-center rounded-md border border-input px-3 text-[12px] font-semibold hover:bg-secondary"
                 >
                   Clear filters
@@ -2319,7 +3102,9 @@ function Browse() {
                 <Link
                   to="/browse"
                   search={scoped({ page: page > 2 ? page - 1 : undefined })}
-                  disabled={page <= 1}
+                  onClick={(event) => {
+                    if (page <= 1) event.preventDefault();
+                  }}
                   className="inline-flex h-9 items-center rounded-md border border-input px-3 text-[13px] font-medium aria-disabled:pointer-events-none aria-disabled:opacity-40"
                   aria-disabled={page <= 1}
                 >
@@ -2331,7 +3116,9 @@ function Browse() {
                 <Link
                   to="/browse"
                   search={scoped({ page: page + 1 })}
-                  disabled={page >= pageCount}
+                  onClick={(event) => {
+                    if (page >= pageCount) event.preventDefault();
+                  }}
                   className="inline-flex h-9 items-center rounded-md border border-input px-3 text-[13px] font-medium aria-disabled:pointer-events-none aria-disabled:opacity-40"
                   aria-disabled={page >= pageCount}
                 >
@@ -2342,7 +3129,109 @@ function Browse() {
           </section>
         </div>
       )}
+      <SavedSearchNameDialog
+        open={saveSearchDialogOpen}
+        name={saveSearchName}
+        mode="create"
+        pending={saveSearchPending}
+        onOpenChange={(open) => {
+          setSaveSearchDialogOpen(open);
+          if (!open) setPendingSaveSearch(null);
+        }}
+        onNameChange={setSaveSearchName}
+        onSubmit={() => void saveCurrentSearch()}
+      />
     </main>
+  );
+}
+
+function PetsLandingHero({
+  term,
+  onTermChange,
+  onSearch,
+  onCategory,
+  onPost,
+}: {
+  term: string;
+  onTermChange: (value: string) => void;
+  onSearch: () => void;
+  onCategory: (subcategory: string) => void;
+  onPost: () => void;
+}) {
+  const quickCategories = [
+    { slug: "dogs", label: "Dogs" },
+    { slug: "cats", label: "Cats" },
+    { slug: "birds", label: "Birds" },
+    { slug: "fish", label: "Fish" },
+    { slug: "rabbits", label: "Rabbits" },
+    { slug: "reptiles", label: "Reptiles" },
+    { slug: "other-pets", label: "Other pets" },
+  ];
+
+  return (
+    <section className="relative overflow-hidden rounded-[28px] border border-border/70 bg-gradient-to-br from-secondary via-card to-accent/20 px-5 py-9 shadow-sm sm:px-10 sm:py-12">
+      <span className="absolute -right-16 -top-20 h-56 w-56 rounded-full bg-brand-warm/20" />
+      <span className="absolute -bottom-24 left-1/3 h-64 w-64 rounded-full bg-primary/5" />
+      <div className="relative mx-auto max-w-3xl text-center">
+        <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-primary">
+          Bluebird Marketplace Pets
+        </p>
+        <h1 className="mt-3 text-[34px] font-bold tracking-tight sm:text-[48px]">
+          Find the right pet for your home.
+        </h1>
+        <p className="mx-auto mt-3 max-w-2xl text-[14px] leading-7 text-muted-foreground sm:text-[16px]">
+          Browse local pets, supplies, and rehoming listings with filters for the animal, breed,
+          placement type, and seller.
+        </p>
+        <form
+          className="mx-auto mt-7 flex max-w-2xl flex-col gap-2 rounded-2xl border border-border/70 bg-card p-2 shadow-md sm:flex-row"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onSearch();
+          }}
+        >
+          <label className="relative min-w-0 flex-1">
+            <MagnifyingGlass
+              size={18}
+              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-primary"
+            />
+            <input
+              type="search"
+              value={term}
+              onChange={(event) => onTermChange(event.target.value)}
+              placeholder="Search dogs, cats, birds, breeders, and more"
+              aria-label="Search pets"
+              className="h-12 w-full rounded-xl bg-transparent pl-11 pr-3 text-[14px] outline-none placeholder:text-muted-foreground"
+            />
+          </label>
+          <button
+            type="submit"
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-6 text-[13px] font-semibold text-primary-foreground hover:opacity-90"
+          >
+            <MagnifyingGlass size={16} /> Search pets
+          </button>
+        </form>
+        <div className="mt-5 flex flex-wrap justify-center gap-2">
+          {quickCategories.map((category) => (
+            <button
+              key={category.slug}
+              type="button"
+              onClick={() => onCategory(category.slug)}
+              className="rounded-full border border-border bg-card/80 px-3.5 py-2 text-[12px] font-semibold text-foreground transition hover:border-primary hover:text-primary"
+            >
+              {category.label}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={onPost}
+          className="mt-6 inline-flex h-10 items-center gap-2 rounded-full border border-primary px-5 text-[12px] font-semibold text-primary hover:bg-primary/10"
+        >
+          Post a pet listing <ArrowRight size={15} />
+        </button>
+      </div>
+    </section>
   );
 }
 
@@ -2359,13 +3248,64 @@ const generalCategoryHighlights = [
   { slug: "general", name: "General", description: "Everyday local finds" },
 ] as const;
 
+const petShowcaseRows: HomepagePreviewRow[] = [
+  {
+    title: "Pets and companions near you",
+    action: "Browse all pets",
+    href: "/browse?category=pets&petMode=results",
+    cards: [
+      previewCard(
+        "Friendly Labrador puppies",
+        "Boise, ID",
+        "$650",
+        "Dogs · adoption",
+        "https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "Young tabby cats",
+        "Meridian, ID",
+        "$125",
+        "Cats · rehoming",
+        "https://images.unsplash.com/photo-1519052537078-e6302a4968d4?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "Hand-fed cockatiels",
+        "Nampa, ID",
+        "$225",
+        "Birds · owner",
+        "https://images.unsplash.com/photo-1444464666168-49d633b86797?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "Freshwater aquarium setup",
+        "Eagle, ID",
+        "$90",
+        "Fish · supplies",
+        "https://images.unsplash.com/photo-1524704654690-b56c05c78a00?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "Golden retriever family dog",
+        "Caldwell, ID",
+        "$450",
+        "Dogs · young adult",
+        "https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=900&q=80",
+      ),
+      previewCard(
+        "Rabbit habitat with supplies",
+        "Twin Falls, ID",
+        "$75",
+        "Small animals · setup",
+        "https://images.unsplash.com/photo-1585110396000-c9ffd4e4b308?auto=format&fit=crop&w=900&q=80",
+      ),
+    ],
+  },
+];
+
 type HomepagePreviewCard = {
   title: string;
   location: string;
   price: string;
   detail: string;
   image: string;
-  badge?: string;
 };
 
 type HomepagePreviewRow = {
@@ -2381,7 +3321,7 @@ function previewCard(
   price: string,
   detail: string,
   image: string,
-  badge?: string,
+  _badge?: string,
 ): HomepagePreviewCard & { name: string; facts: string } {
   return {
     title,
@@ -2391,7 +3331,6 @@ function previewCard(
     detail,
     facts: detail,
     image,
-    ...(badge ? { badge } : {}),
   };
 }
 
@@ -4152,7 +5091,7 @@ const servicesShowcaseRows: HomepagePreviewRow[] = [
         "New",
       ),
       previewCard(
-        "Gem State Tech Help | Home Wi-Fi & Computer Setup",
+        "Bluebird Tech Help | Home Wi-Fi & Computer Setup",
         "Boise, ID",
         "From $85 / visit",
         "2 days · IT services",
@@ -4205,7 +5144,7 @@ const servicesShowcaseRows: HomepagePreviewRow[] = [
         "https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=900&q=80",
       ),
       previewCard(
-        "Gem State Tech Help",
+        "Bluebird Tech Help",
         "Boise, ID",
         "From $85 / visit",
         "Wi-Fi · Computer setup",
@@ -4340,7 +5279,7 @@ const servicesShowcaseRows: HomepagePreviewRow[] = [
     "/browse?category=services&serviceMode=results&serviceSubcategory=Electricians",
     [
       previewCard(
-        "Gem State Electric",
+        "Bluebird Electric",
         "Boise, ID",
         "From $110 service call",
         "Residential · Licensed",
@@ -4487,7 +5426,7 @@ const servicesShowcaseRows: HomepagePreviewRow[] = [
     "/browse?category=services&serviceMode=results&serviceSubcategory=Automotive",
     [
       previewCard(
-        "Gem State Mobile Mechanic",
+        "Bluebird Mobile Mechanic",
         "Boise, ID",
         "From $95 diagnostic",
         "Mobile repair · Brakes",
@@ -4585,7 +5524,7 @@ const servicesShowcaseRows: HomepagePreviewRow[] = [
     "/browse?category=services&serviceMode=results",
     [
       previewCard(
-        "Gem State Tech Help",
+        "Bluebird Tech Help",
         "Boise, ID",
         "From $85 / visit",
         "Wi-Fi · Computer setup",
@@ -4732,7 +5671,7 @@ const servicesShowcaseRows: HomepagePreviewRow[] = [
     "/browse?category=services&serviceMode=results",
     [
       previewCard(
-        "Gem State Roofing",
+        "Bluebird Roofing",
         "Boise, ID",
         "Free inspection",
         "Roof repair · Replacement",
@@ -4788,31 +5727,56 @@ function ClassifiedsLandingHero({
 }) {
   return (
     <section
-      aria-label="GemList all classifieds"
-      className="relative isolate overflow-hidden rounded-[32px] bg-secondary px-5 py-10 shadow-xl sm:px-10 sm:py-14"
+      aria-label="Bluebird Marketplace all classifieds"
+      className="classifieds-hero-shell relative isolate min-h-[430px] overflow-hidden rounded-[32px] border border-brand-blue/20 bg-secondary px-5 py-14 shadow-xl sm:min-h-[500px] sm:px-10 sm:py-20"
     >
-      <span className="absolute -right-20 -top-24 h-72 w-72 rounded-full bg-brand-warm/15" />
-      <span className="absolute -bottom-36 left-1/3 h-80 w-80 rounded-full bg-primary/5" />
-      <div className="relative mx-auto max-w-[920px] text-center">
+      <span
+        className="classifieds-hero-orb classifieds-hero-orb--blue absolute -right-20 -top-24 h-72 w-72 rounded-full bg-brand-blue/12"
+        aria-hidden="true"
+      />
+      <span
+        className="classifieds-hero-orb classifieds-hero-orb--warm absolute -bottom-36 left-1/3 h-80 w-80 rounded-full bg-brand-warm/18"
+        aria-hidden="true"
+      />
+      <span
+        className="classifieds-hero-sheen pointer-events-none absolute inset-y-0 -left-1/3 z-0 w-1/3 skew-x-[-18deg] bg-white/20"
+        aria-hidden="true"
+      />
+      <div className="absolute right-5 top-5 z-20 sm:right-7 sm:top-7">
+        <SponsoredHeroBadge />
+      </div>
+      <div className="relative z-10 mx-auto max-w-[920px] text-center">
         <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">
-          GemList Classifieds
+          Bluebird Marketplace Classifieds
         </p>
         <h1 className="mx-auto mt-3 max-w-[22ch] text-[36px] font-bold leading-[1.05] tracking-tight sm:text-[56px]">
-          Discover <span className="text-primary">local gems.</span>
+          Discover{" "}
+          <span className="relative inline-block text-brand-blue">
+            local gems.
+            <span
+              className="absolute -bottom-2 left-1/4 h-1 w-1/2 rounded-full bg-brand-warm/80 sm:-bottom-3"
+              aria-hidden="true"
+            />
+          </span>
         </h1>
         <p className="mx-auto mt-4 max-w-[54ch] text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">
           Browse local listings from people and businesses across Idaho and surrounding states.
         </p>
+        <div className="mx-auto mt-5 flex w-fit items-center gap-1.5" aria-hidden="true">
+          <span className="h-1.5 w-9 rounded-full bg-brand-blue" />
+          <span className="h-1.5 w-5 rounded-full bg-brand-warm" />
+          <span className="h-1.5 w-2.5 rounded-full bg-brand-blue/60" />
+        </div>
 
         <form
-          className="mx-auto mt-8 flex max-w-[860px] flex-col gap-2 rounded-[24px] bg-card p-2 shadow-lg sm:flex-row"
+          className="mx-auto mt-7 flex max-w-[860px] flex-col gap-2 rounded-[24px] border border-brand-blue/20 bg-card p-2 shadow-[0_20px_45px_-28px_rgb(31_53_87_/_55%)] ring-1 ring-brand-warm/10 sm:flex-row"
           onSubmit={(event) => {
             event.preventDefault();
             onSearch();
           }}
         >
           <label className="flex min-w-0 flex-1 items-center gap-2 px-3">
-            <MagnifyingGlass size={19} className="shrink-0 text-primary" aria-hidden="true" />
+            <MagnifyingGlass size={19} className="shrink-0 text-brand-blue" aria-hidden="true" />
             <span className="sr-only">Search classifieds</span>
             <input
               type="search"
@@ -4842,11 +5806,11 @@ function GeneralClassifiedShowcase({ listings }: { listings: ClassifiedBrowseRes
   const listingRows = [
     {
       title: "Top listings",
-      listings: generalListings.slice(0, Math.ceil(generalListings.length / 2)),
+      listings: generalListings.slice(0, 4),
     },
     {
       title: "Newest listings",
-      listings: generalListings.slice(Math.ceil(generalListings.length / 2)),
+      listings: generalListings.slice(4, 8),
     },
   ].filter((row) => row.listings.length > 0);
 
@@ -4856,7 +5820,7 @@ function GeneralClassifiedShowcase({ listings }: { listings: ClassifiedBrowseRes
         <div className="mb-4 flex items-end justify-between gap-3 border-b border-border pb-3">
           <div>
             <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
-              GemList Classifieds
+              Bluebird Marketplace Classifieds
             </p>
             <h2
               id="top-general-categories"
@@ -4894,7 +5858,7 @@ function GeneralClassifiedShowcase({ listings }: { listings: ClassifiedBrowseRes
           <div className="mb-4 flex items-end justify-between gap-3 border-b border-border pb-3">
             <div>
               <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
-                GemList Classifieds
+                Bluebird Marketplace Classifieds
               </p>
               <h2
                 id={row.title.replaceAll(" ", "-")}
@@ -4911,12 +5875,9 @@ function GeneralClassifiedShowcase({ listings }: { listings: ClassifiedBrowseRes
               See all <ArrowRight size={14} aria-hidden="true" />
             </Link>
           </div>
-          <ul className="no-scrollbar flex gap-4 overflow-x-auto pb-2">
+          <ul className="no-scrollbar grid grid-cols-1 gap-4 overflow-x-auto pb-2 sm:grid-cols-2 lg:grid-cols-4">
             {row.listings.map((listing) => (
-              <li
-                key={row.title + "-" + listing.id}
-                className="min-w-[220px] flex-1 sm:min-w-[245px]"
-              >
+              <li key={row.title + "-" + listing.id} className="min-w-0">
                 <ListingCard listing={listing} />
               </li>
             ))}
@@ -4924,6 +5885,76 @@ function GeneralClassifiedShowcase({ listings }: { listings: ClassifiedBrowseRes
         </section>
       ))}
     </div>
+  );
+}
+
+function LandingListingsShowcase({
+  eyebrow,
+  title,
+  action,
+  browseSearch,
+  listings,
+}: {
+  eyebrow: string;
+  title: string;
+  action: string;
+  browseSearch: Search;
+  listings: ClassifiedBrowseResult["listings"];
+}) {
+  // This showcase is a single curated row. Keep it to the desktop row width
+  // so a short second row can never appear beneath it.
+  const visibleListings = listings.slice(0, 4);
+
+  return (
+    <section
+      className="mt-10 sm:mt-14"
+      aria-labelledby={`${eyebrow}-${title}`.replaceAll(" ", "-").toLowerCase()}
+    >
+      <div className="mb-4 flex items-end justify-between gap-3 border-b border-border pb-3">
+        <div>
+          <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">{eyebrow}</p>
+          <h2
+            id={`${eyebrow}-${title}`.replaceAll(" ", "-").toLowerCase()}
+            className="mt-1 text-[22px] font-bold tracking-tight sm:text-[27px]"
+          >
+            {title}
+          </h2>
+        </div>
+        <Link
+          to="/browse"
+          search={browseSearch}
+          className="inline-flex shrink-0 items-center gap-1 text-[12px] font-bold text-primary hover:underline"
+        >
+          {action}
+          <ArrowRight size={14} aria-hidden="true" />
+        </Link>
+      </div>
+
+      {visibleListings.length > 0 ? (
+        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {visibleListings.map((listing) => (
+            <li key={listing.id} className="min-w-0">
+              <ListingCard listing={listing} />
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <div className="rounded-2xl border border-border/70 bg-card px-5 py-10 text-center shadow-sm">
+          <p className="text-[14px] font-semibold">New listings are on the way.</p>
+          <p className="mx-auto mt-2 max-w-[46ch] text-[13px] leading-relaxed text-muted-foreground">
+            Browse the full category to see everything currently available in your area.
+          </p>
+          <Link
+            to="/browse"
+            search={browseSearch}
+            className="mt-5 inline-flex h-10 items-center rounded-full bg-primary px-4 text-[12px] font-semibold text-primary-foreground"
+          >
+            {action}
+            <ArrowRight size={14} className="ml-1" aria-hidden="true" />
+          </Link>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -4961,7 +5992,10 @@ function HomepageShowcaseRows({
           <ul className="no-scrollbar grid grid-flow-col auto-cols-[minmax(215px,1fr)] gap-4 overflow-x-auto pb-2 sm:auto-cols-[minmax(240px,1fr)] lg:grid-flow-row lg:grid-cols-6 lg:overflow-visible">
             {row.cards.map((card) => (
               <li key={`${row.title}-${card.title}`}>
-                <HomepagePreviewCard card={card} eyebrow={eyebrow} />
+                <HomepagePreviewCard
+                  card={card}
+                  href={getHomepagePreviewCardHref(row.href, card)}
+                />
               </li>
             ))}
           </ul>
@@ -4971,29 +6005,57 @@ function HomepageShowcaseRows({
   );
 }
 
-function HomepagePreviewCard({ card, eyebrow }: { card: HomepagePreviewCard; eyebrow: string }) {
+function getHomepagePreviewCardHref(rowHref: string, card: HomepagePreviewCard) {
+  const [pathname, rawSearch = ""] = rowHref.split("?", 2);
+  const params = new URLSearchParams(rawSearch);
+  params.set("q", card.title);
+  return `${pathname}?${params.toString()}`;
+}
+
+function HomepagePreviewCard({ card, href }: { card: HomepagePreviewCard; href: string }) {
   return (
-    <article className="group relative overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm transition-shadow hover:shadow-lg">
-      <div className="relative aspect-[4/3] overflow-hidden bg-secondary">
-        <img
-          src={card.image}
-          alt=""
-          loading="lazy"
-          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
-        />
-        <span className="absolute left-3 top-3 rounded-md bg-primary/85 px-2 py-1 font-mono text-[9px] uppercase tracking-[0.12em] text-primary-foreground">
-          {card.badge ?? eyebrow.replace("GemList ", "")}
-        </span>
-      </div>
-      <div className="p-3.5">
-        <p className="numeric text-[16px] font-bold text-primary">{card.price}</p>
-        <h3 className="mt-1 line-clamp-2 min-h-[34px] text-[13px] font-bold leading-tight">
-          {card.title}
-        </h3>
-        <p className="mt-1 truncate text-[11.5px] text-muted-foreground">{card.location}</p>
-        <p className="mt-2 truncate text-[11px] text-muted-foreground">{card.detail}</p>
-      </div>
-    </article>
+    <a
+      href={href}
+      aria-label={`View listings for ${card.title}`}
+      className="group block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+    >
+      <article className="relative overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm transition-shadow group-hover:shadow-lg">
+        <div className="relative aspect-[4/3] overflow-hidden bg-secondary">
+          <img
+            src={card.image}
+            alt=""
+            loading="lazy"
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+          />
+        </div>
+        <div className="p-3.5">
+          <p className="numeric text-[16px] font-bold text-primary">{card.price}</p>
+          <h3 className="mt-1 line-clamp-2 min-h-[34px] text-[13px] font-bold leading-tight">
+            {card.title}
+          </h3>
+          <p className="mt-1 truncate text-[11.5px] text-muted-foreground">{card.location}</p>
+          <p className="mt-2 truncate text-[11px] text-muted-foreground">{card.detail}</p>
+        </div>
+      </article>
+    </a>
+  );
+}
+
+function SponsoredHeroBadge() {
+  return (
+    <Link
+      to="/advertise"
+      aria-label="Sponsored by Bluebird Marketplace — learn about advertising with us"
+      className="inline-flex items-center gap-2.5 rounded-full border border-accent/70 bg-primary/90 px-3.5 py-2 text-left text-primary-foreground shadow-lg backdrop-blur-md transition-transform hover:-translate-y-0.5"
+    >
+      <span className="grid size-7 shrink-0 place-items-center rounded-full bg-accent text-accent-foreground">
+        <Megaphone size={15} weight="fill" aria-hidden="true" />
+      </span>
+      <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-accent">
+        Sponsored by Bluebird Marketplace
+      </span>
+      <ArrowRight size={15} weight="bold" className="ml-1 text-accent" aria-hidden="true" />
+    </Link>
   );
 }
 
@@ -5018,7 +6080,7 @@ function HomesLandingHero({
 
   return (
     <section
-      aria-label="GemList Homes"
+      aria-label="Bluebird Marketplace Homes"
       className="relative isolate min-h-[610px] overflow-hidden rounded-[32px] bg-primary bg-cover bg-center shadow-xl sm:min-h-[680px]"
       style={{
         backgroundImage:
@@ -5026,10 +6088,13 @@ function HomesLandingHero({
       }}
     >
       <div className="absolute inset-0 bg-gradient-to-t from-primary/55 via-transparent to-primary/15" />
-      <div className="relative flex min-h-[610px] items-center justify-center px-4 py-12 sm:min-h-[680px] sm:px-8">
+      <div className="absolute right-5 top-5 z-20 sm:right-7 sm:top-7">
+        <SponsoredHeroBadge />
+      </div>
+      <div className="relative flex min-h-[610px] items-center justify-center px-4 pb-12 pt-24 sm:min-h-[680px] sm:px-8 sm:pb-12 sm:pt-16">
         <div className="w-full max-w-[650px] rounded-[28px] border border-white/20 bg-primary/80 p-5 text-primary-foreground shadow-2xl backdrop-blur-md sm:p-8">
           <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">
-            GemList Homes
+            Bluebird Marketplace Homes
           </p>
           <h1 className="mt-3 text-center font-display text-[34px] font-bold leading-[1.05] tracking-tight sm:text-[52px]">
             Build. Buy. Rent.
@@ -5114,7 +6179,7 @@ function HomeShowcaseRows({ activeTab }: { activeTab: HomeTab }) {
           <div className="mb-4 flex items-end justify-between gap-3 border-b border-border pb-3">
             <div>
               <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
-                GemList Homes
+                Bluebird Marketplace Homes
               </p>
               <h2
                 id={row.title.replaceAll(" ", "-").toLowerCase()}
@@ -5160,7 +6225,7 @@ function HomePreviewCard({ card }: { card: (typeof homePreviewRows)[number]["car
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
         />
         <span className="absolute left-3 top-3 rounded-full bg-primary/85 px-2.5 py-1 font-mono text-[9px] uppercase tracking-[0.12em] text-primary-foreground backdrop-blur">
-          GemList Homes
+          Bluebird Marketplace Homes
         </span>
       </div>
       <div className="p-3.5">
@@ -5187,7 +6252,7 @@ function ServicesLandingHero({
 
   return (
     <section
-      aria-label="GemList Services"
+      aria-label="Bluebird Marketplace Services"
       className="relative isolate min-h-[610px] overflow-hidden rounded-[32px] bg-primary bg-cover bg-center shadow-xl sm:min-h-[680px]"
       style={{
         backgroundImage:
@@ -5195,10 +6260,13 @@ function ServicesLandingHero({
       }}
     >
       <div className="absolute inset-0 bg-gradient-to-t from-primary/60 via-transparent to-primary/10" />
-      <div className="relative flex min-h-[610px] items-center justify-center px-4 py-12 sm:min-h-[680px] sm:px-8">
+      <div className="absolute right-5 top-5 z-20 sm:right-7 sm:top-7">
+        <SponsoredHeroBadge />
+      </div>
+      <div className="relative flex min-h-[610px] items-center justify-center px-4 pb-12 pt-24 sm:min-h-[680px] sm:px-8 sm:pb-12 sm:pt-16">
         <div className="w-full max-w-[720px] rounded-[28px] border border-white/20 bg-primary/80 p-5 text-primary-foreground shadow-2xl backdrop-blur-md sm:p-8">
           <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">
-            GemList Services
+            Bluebird Marketplace Services
           </p>
           <h1 className="mt-3 text-center font-display text-[34px] font-bold leading-[1.05] tracking-tight sm:text-[54px]">
             Find qualified <span className="text-accent">local pros.</span>
@@ -5361,7 +6429,7 @@ function ServicesCategoryShowcase({
         <section key={row.title} aria-labelledby={row.title.replaceAll(" ", "-").toLowerCase()}>
           <div className="mb-4 border-b border-border pb-3">
             <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
-              GemList Services
+              Bluebird Marketplace Services
             </p>
             <h2
               id={row.title.replaceAll(" ", "-").toLowerCase()}
@@ -5398,7 +6466,7 @@ function ServicesCategoryShowcase({
       <section aria-labelledby="browse-all-service-categories">
         <div className="mb-4 border-b border-border pb-3">
           <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
-            GemList Services
+            Bluebird Marketplace Services
           </p>
           <h2
             id="browse-all-service-categories"
@@ -5428,14 +6496,18 @@ function ServicesCategoryShowcase({
 function ServicesFilterPage({
   search,
   listings,
+  total,
+  onClear,
   onApply,
   onSave,
   onPost,
 }: {
   search: Search;
   listings: ClassifiedBrowseResult["listings"];
+  total: number;
+  onClear: () => void;
   onApply: (patch: Partial<Search>) => void;
-  onSave: () => void;
+  onSave: (patch?: Partial<Search>) => void;
   onPost: () => void;
 }) {
   const [showAll, setShowAll] = useState(true);
@@ -5445,8 +6517,9 @@ function ServicesFilterPage({
   const [priceMax, setPriceMax] = useState(search.priceMax == null ? "" : String(search.priceMax));
   const [expandSearch, setExpandSearch] = useState(search.serviceExpandSearch === "true");
   const [photos, setPhotos] = useState(search.servicePhotos === "true");
-  const [video, setVideo] = useState(search.serviceVideo === "true");
-  const [sellerType, setSellerType] = useState(search.serviceSellerType ?? "");
+  const [area, setArea] = useState(search.serviceArea ?? "");
+  const [availability, setAvailability] = useState(search.serviceAvailability ?? "");
+  const [licenseRequired, setLicenseRequired] = useState(search.serviceLicenseRequired === "true");
   const [condition, setCondition] = useState(search.serviceCondition ?? "");
   const [timeOnSite, setTimeOnSite] = useState(search.serviceTimeOnSite ?? "");
 
@@ -5457,40 +6530,46 @@ function ServicesFilterPage({
     setPriceMax(search.priceMax == null ? "" : String(search.priceMax));
     setExpandSearch(search.serviceExpandSearch === "true");
     setPhotos(search.servicePhotos === "true");
-    setVideo(search.serviceVideo === "true");
-    setSellerType(search.serviceSellerType ?? "");
+    setArea(search.serviceArea ?? "");
+    setAvailability(search.serviceAvailability ?? "");
+    setLicenseRequired(search.serviceLicenseRequired === "true");
     setCondition(search.serviceCondition ?? "");
     setTimeOnSite(search.serviceTimeOnSite ?? "");
   }, [search]);
 
-  function apply() {
-    const numberValue = (value: string) => {
-      const parsed = Number(value);
-      return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
-    };
-    onApply({
+  function currentPatch(): Partial<Search> {
+    const numberValue = (value: string) => optionalNonNegativeNumber(value);
+    return {
       q: term.trim() || undefined,
       serviceSubcategory: subcategory || undefined,
       priceMin: numberValue(priceMin),
       priceMax: numberValue(priceMax),
       serviceExpandSearch: expandSearch ? "true" : undefined,
       servicePhotos: photos ? "true" : undefined,
-      serviceVideo: video ? "true" : undefined,
-      serviceSellerType: sellerType || undefined,
+      serviceArea: area.trim() || undefined,
+      serviceAvailability: availability.trim() || undefined,
+      serviceLicenseRequired: licenseRequired ? "true" : undefined,
       serviceCondition: condition || undefined,
       serviceTimeOnSite: timeOnSite || undefined,
-    });
+    };
   }
 
-  // priceMin/priceMax already filter server-side via inputFromSearch; only
-  // subcategory needs a client-side pass since it has no matching field on
-  // ClassifiedBrowseInput.
-  const filteredListings = listings.filter(
-    (listing) => !subcategory || listing.service?.subcategory === subcategory,
-  );
+  function apply() {
+    const patch = currentPatch();
+    if (isInvertedRange(patch.priceMin, patch.priceMax)) {
+      toast.error("Price minimum cannot exceed maximum.");
+      return;
+    }
+    onApply(patch);
+  }
+
+  const filteredListings = listings;
   const sortedListings = [...filteredListings].sort((a, b) => {
-    if (search.sort === "price_high") return b.priceCents - a.priceCents;
-    if (search.sort === "price_low") return a.priceCents - b.priceCents;
+    if (search.sort === "price_high" || search.sort === "price_low") {
+      const aValue = a.job ? comparableJobPay(a.job.payType, a.job.payMin) : a.priceCents;
+      const bValue = b.job ? comparableJobPay(b.job.payType, b.job.payMin) : b.priceCents;
+      return search.sort === "price_low" ? aValue - bValue : bValue - aValue;
+    }
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
 
@@ -5556,7 +6635,7 @@ function ServicesFilterPage({
             </button>
             <button
               type="button"
-              onClick={onSave}
+              onClick={() => onSave(currentPatch())}
               className="h-12 rounded-xl border border-primary px-4 text-[12px] font-bold text-primary hover:bg-secondary"
             >
               Save search
@@ -5608,31 +6687,31 @@ function ServicesFilterPage({
                 onChange={setExpandSearch}
               />
             </ServiceFilterGroup>
-            <ServiceFilterGroup title="Photos/Video">
+            <ServiceFilterGroup title="Photos">
               <ServiceToggle
                 label="Only show listings with photos"
                 checked={photos}
                 onChange={setPhotos}
               />
-              <ServiceToggle
-                label="Only show listings with a video"
-                checked={video}
-                onChange={setVideo}
-              />
             </ServiceFilterGroup>
-            <ServiceFilterGroup title="Seller Type">
-              <div className="space-y-2">
-                {["Private", "Business"].map((option) => (
-                  <button
-                    key={option}
-                    type="button"
-                    onClick={() => setSellerType(sellerType === option ? "" : option)}
-                    className={`h-10 w-full rounded-lg border px-3 text-[12px] font-bold ${sellerType === option ? "border-primary bg-primary text-primary-foreground" : "border-primary text-primary hover:bg-secondary"}`}
-                  >
-                    {option}
-                  </button>
-                ))}
-              </div>
+            <ServiceFilterGroup title="Service details">
+              <input
+                value={area}
+                onChange={(event) => setArea(event.target.value)}
+                placeholder="Service area"
+                className="filter-input"
+              />
+              <input
+                value={availability}
+                onChange={(event) => setAvailability(event.target.value)}
+                placeholder="Availability or schedule"
+                className="filter-input"
+              />
+              <ServiceToggle
+                label="Only show licensed providers"
+                checked={licenseRequired}
+                onChange={setLicenseRequired}
+              />
             </ServiceFilterGroup>
             <ServiceFilterGroup title="Condition" initiallyOpen={false}>
               <ServiceOptionSelect
@@ -5661,7 +6740,7 @@ function ServicesFilterPage({
               onClick={apply}
               className="h-11 w-full rounded-xl bg-primary text-[12px] font-bold text-primary-foreground hover:opacity-90"
             >
-              Show {sortedListings.length.toLocaleString()} results
+              Show {total.toLocaleString()} results
             </button>
           </aside>
         )}
@@ -5669,8 +6748,8 @@ function ServicesFilterPage({
         <section aria-label="Service listings">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
             <p className="text-[13px] text-muted-foreground">
-              <strong className="numeric text-foreground">{sortedListings.length}</strong>{" "}
-              {sortedListings.length === 1 ? "service" : "services"} in Idaho
+              <strong className="numeric text-foreground">{total}</strong>{" "}
+              {total === 1 ? "service" : "services"} in Idaho
             </p>
             <label className="flex items-center gap-2 text-[12px] text-muted-foreground">
               Sort by
@@ -5700,14 +6779,7 @@ function ServicesFilterPage({
               </p>
               <button
                 type="button"
-                onClick={() =>
-                  onApply({
-                    q: undefined,
-                    serviceSubcategory: undefined,
-                    priceMin: undefined,
-                    priceMax: undefined,
-                  })
-                }
+                onClick={onClear}
                 className="mt-4 inline-flex h-9 items-center rounded-md border border-input px-3 text-[12px] font-semibold hover:bg-secondary"
               >
                 Clear filters
@@ -5829,18 +6901,26 @@ function JobsLandingHero({
 }: {
   search: Search;
   resultCount: number;
-  onSearch: (term: string) => void;
-  onMoreFilters: () => void;
+  onSearch: (patch: Partial<Search>) => void;
+  onMoreFilters: (patch: Partial<Search>) => void;
   onPost: () => void;
 }) {
   const [mode, setMode] = useState<"search" | "post">("search");
   const [draft, setDraft] = useState(search.q ?? "");
+  const [category, setCategory] = useState(search.jobCategory ?? "");
+  const [jobType, setJobType] = useState(search.jobType ?? search.jobEmploymentType ?? "");
+  const [payType, setPayType] = useState(search.jobPayType ?? "");
 
-  useEffect(() => setDraft(search.q ?? ""), [search.q]);
+  useEffect(() => {
+    setDraft(search.q ?? "");
+    setCategory(search.jobCategory ?? "");
+    setJobType(search.jobType ?? search.jobEmploymentType ?? "");
+    setPayType(search.jobPayType ?? "");
+  }, [search.q, search.jobCategory, search.jobType, search.jobEmploymentType, search.jobPayType]);
 
   return (
     <section
-      aria-label="GemList Jobs"
+      aria-label="Bluebird Marketplace Jobs"
       className="relative isolate min-h-[590px] overflow-hidden rounded-[32px] bg-primary bg-cover bg-center shadow-xl sm:min-h-[670px]"
       style={{
         backgroundImage:
@@ -5848,10 +6928,13 @@ function JobsLandingHero({
       }}
     >
       <div className="absolute inset-0 bg-gradient-to-t from-primary/60 via-transparent to-primary/10" />
-      <div className="relative flex min-h-[590px] items-center justify-center px-4 py-12 sm:min-h-[670px] sm:px-8">
+      <div className="absolute right-5 top-5 z-20 sm:right-7 sm:top-7">
+        <SponsoredHeroBadge />
+      </div>
+      <div className="relative flex min-h-[590px] items-center justify-center px-4 pb-12 pt-24 sm:min-h-[670px] sm:px-8 sm:pb-12 sm:pt-16">
         <div className="w-full max-w-[720px] rounded-[28px] border border-white/20 bg-primary/80 p-5 text-primary-foreground shadow-2xl backdrop-blur-md sm:p-8">
           <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">
-            GemList Jobs
+            Bluebird Marketplace Jobs
           </p>
           <h1 className="mt-3 text-center font-display text-[34px] font-bold leading-[1.05] tracking-tight sm:text-[54px]">
             Find <span className="text-accent">local</span> work that fits your life.
@@ -5886,7 +6969,12 @@ function JobsLandingHero({
                 className="mt-3 flex flex-col gap-2 rounded-2xl bg-card p-2 text-foreground"
                 onSubmit={(event) => {
                   event.preventDefault();
-                  onSearch(draft);
+                  onSearch({
+                    q: draft.trim() || undefined,
+                    jobCategory: category || undefined,
+                    jobType: jobType && !jobType.startsWith("Any ") ? jobType : undefined,
+                    jobPayType: payType && !payType.startsWith("Any ") ? payType : undefined,
+                  });
                 }}
               >
                 <label className="flex min-w-0 items-center gap-2 px-3">
@@ -5909,9 +6997,24 @@ function JobsLandingHero({
                 </label>
               </form>
               <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                <JobSelect label="Category" options={jobCategoryOptions} />
-                <JobSelect label="Job type" options={jobTypeOptions} />
-                <JobSelect label="Job pay range" options={jobPayTypeOptions} />
+                <JobSelect
+                  label="Category"
+                  options={jobCategoryOptions}
+                  value={category}
+                  onChange={setCategory}
+                />
+                <JobSelect
+                  label="Job type"
+                  options={jobTypeOptions}
+                  value={jobType}
+                  onChange={setJobType}
+                />
+                <JobSelect
+                  label="Job pay range"
+                  options={jobPayTypeOptions}
+                  value={payType}
+                  onChange={setPayType}
+                />
               </div>
               <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-[12px]">
                 <span className="text-white/70">
@@ -5919,7 +7022,13 @@ function JobsLandingHero({
                 </span>
                 <button
                   type="button"
-                  onClick={onMoreFilters}
+                  onClick={() =>
+                    onMoreFilters({
+                      jobCategory: category || undefined,
+                      jobType: jobType && !jobType.startsWith("Any ") ? jobType : undefined,
+                      jobPayType: payType && !payType.startsWith("Any ") ? payType : undefined,
+                    })
+                  }
                   className="inline-flex items-center gap-1.5 rounded-full border border-accent/70 px-4 py-2 font-bold text-accent transition-colors hover:bg-accent hover:text-accent-foreground"
                 >
                   More filters <ArrowRight size={14} aria-hidden="true" />
@@ -5950,19 +7059,24 @@ function JobsLandingHero({
 function JobsFilterPage({
   search,
   listings,
+  total,
+  onClear,
   onApply,
   onSave,
   onPost,
 }: {
   search: Search;
   listings: ClassifiedBrowseResult["listings"];
+  total: number;
+  onClear: () => void;
   onApply: (patch: Partial<Search>) => void;
-  onSave: () => void;
+  onSave: (patch?: Partial<Search>) => void;
   onPost: () => void;
 }) {
   const [showAll, setShowAll] = useState(true);
   const [term, setTerm] = useState(search.q ?? "");
   const [category, setCategory] = useState(search.jobCategory ?? "");
+  const [employer, setEmployer] = useState(search.jobEmployer ?? "");
   const [jobType, setJobType] = useState(search.jobType ?? "");
   const [payType, setPayType] = useState(search.jobPayType ?? "");
   const [payMin, setPayMin] = useState(search.jobPayMin == null ? "" : String(search.jobPayMin));
@@ -5971,12 +7085,12 @@ function JobsFilterPage({
   const [posted, setPosted] = useState(search.jobPosted ?? "");
   const [education, setEducation] = useState(search.jobEducation ?? "");
   const [photos, setPhotos] = useState(search.jobPhotos === "true");
-  const [video, setVideo] = useState(search.jobVideo === "true");
   const [timeOnSite, setTimeOnSite] = useState(search.jobTimeOnSite ?? "");
 
   useEffect(() => {
     setTerm(search.q ?? "");
     setCategory(search.jobCategory ?? "");
+    setEmployer(search.jobEmployer ?? "");
     setJobType(search.jobType ?? "");
     setPayType(search.jobPayType ?? "");
     setPayMin(search.jobPayMin == null ? "" : String(search.jobPayMin));
@@ -5985,18 +7099,16 @@ function JobsFilterPage({
     setPosted(search.jobPosted ?? "");
     setEducation(search.jobEducation ?? "");
     setPhotos(search.jobPhotos === "true");
-    setVideo(search.jobVideo === "true");
     setTimeOnSite(search.jobTimeOnSite ?? "");
   }, [search]);
 
-  function apply() {
-    const numberValue = (value: string) => {
-      const parsed = Number(value);
-      return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
-    };
-    onApply({
+  function currentPatch(): Partial<Search> {
+    const numberValue = (value: string) => optionalNonNegativeNumber(value);
+    const integerValue = (value: string) => optionalNonNegativeInteger(value);
+    return {
       q: term.trim() || undefined,
       jobCategory: category || undefined,
+      jobEmployer: employer.trim() || undefined,
       jobType: jobType || undefined,
       jobPayType: payType || undefined,
       jobPayMin: numberValue(payMin),
@@ -6005,21 +7117,26 @@ function JobsFilterPage({
       jobPosted: posted || undefined,
       jobEducation: education || undefined,
       jobPhotos: photos ? "true" : undefined,
-      jobVideo: video ? "true" : undefined,
       jobTimeOnSite: timeOnSite || undefined,
-    });
+    };
   }
 
-  const filteredListings = listings
-    .filter((listing) => !search.jobType || listing.job?.employmentType === search.jobType)
-    .filter((listing) => !search.jobPayType || listing.job?.payType === search.jobPayType)
-    .filter((listing) => search.jobPayMin == null || (listing.job?.payMax ?? 0) >= search.jobPayMin)
-    .filter(
-      (listing) => search.jobPayMax == null || (listing.job?.payMin ?? 0) <= search.jobPayMax,
-    );
+  function apply() {
+    const patch = currentPatch();
+    if (isInvertedRange(patch.jobPayMin, patch.jobPayMax)) {
+      toast.error("Pay minimum cannot exceed maximum.");
+      return;
+    }
+    onApply(patch);
+  }
+
+  const filteredListings = listings;
   const sortedListings = [...filteredListings].sort((a, b) => {
-    if (search.sort === "price_high") return b.priceCents - a.priceCents;
-    if (search.sort === "price_low") return a.priceCents - b.priceCents;
+    if (search.sort === "price_high" || search.sort === "price_low") {
+      const aValue = a.job ? comparableJobPay(a.job.payType, a.job.payMin) : a.priceCents;
+      const bValue = b.job ? comparableJobPay(b.job.payType, b.job.payMin) : b.priceCents;
+      return search.sort === "price_low" ? aValue - bValue : bValue - aValue;
+    }
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
 
@@ -6097,7 +7214,7 @@ function JobsFilterPage({
             </button>
             <button
               type="button"
-              onClick={onSave}
+              onClick={() => onSave(currentPatch())}
               className="h-12 rounded-xl border border-primary px-4 text-[12px] font-bold text-primary hover:bg-secondary"
             >
               Save search
@@ -6115,6 +7232,14 @@ function JobsFilterPage({
                 value={category}
                 options={jobCategoryOptions}
                 onChange={setCategory}
+              />
+            </JobFilterGroup>
+            <JobFilterGroup title="Employer">
+              <input
+                value={employer}
+                onChange={(event) => setEmployer(event.target.value)}
+                placeholder="Company or employer"
+                className="filter-input"
               />
             </JobFilterGroup>
             <JobFilterGroup title="Job type">
@@ -6174,16 +7299,11 @@ function JobsFilterPage({
                 />
               </div>
             </JobFilterGroup>
-            <JobFilterGroup title="Photos / video">
+            <JobFilterGroup title="Photos">
               <JobToggle
                 label="Only show listings with photos"
                 checked={photos}
                 onChange={setPhotos}
-              />
-              <JobToggle
-                label="Only show listings with a video"
-                checked={video}
-                onChange={setVideo}
               />
             </JobFilterGroup>
             <JobFilterGroup title="Time on site">
@@ -6200,8 +7320,8 @@ function JobsFilterPage({
         <section aria-label="Job listings">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
             <p className="text-[13px] text-muted-foreground">
-              <strong className="numeric text-foreground">{sortedListings.length}</strong>{" "}
-              {sortedListings.length === 1 ? "job" : "jobs"} in Idaho
+              <strong className="numeric text-foreground">{total}</strong>{" "}
+              {total === 1 ? "job" : "jobs"} in Idaho
             </p>
             <label className="flex items-center gap-2 text-[12px] text-muted-foreground">
               Sort by
@@ -6231,15 +7351,7 @@ function JobsFilterPage({
               </p>
               <button
                 type="button"
-                onClick={() =>
-                  onApply({
-                    q: undefined,
-                    jobType: undefined,
-                    jobPayType: undefined,
-                    jobPayMin: undefined,
-                    jobPayMax: undefined,
-                  })
-                }
+                onClick={onClear}
                 className="mt-4 inline-flex h-9 items-center rounded-md border border-input px-3 text-[12px] font-semibold hover:bg-secondary"
               >
                 Clear filters
@@ -6322,7 +7434,7 @@ function JobChecklist({
     const next = selected.includes(option)
       ? selected.filter((item) => item !== option)
       : [...selected, option];
-    onChange(next.join("|"));
+    onChange(next.join("||"));
   }
 
   return (
@@ -6412,6 +7524,7 @@ function HomesFilterPage({
   activeTab,
   search,
   resultCount,
+  onClear,
   onTabChange,
   onApply,
   onSave,
@@ -6419,9 +7532,10 @@ function HomesFilterPage({
   activeTab: HomeTab;
   search: Search;
   resultCount: number;
+  onClear: () => void;
   onTabChange: (tab: HomeTab) => void;
   onApply: (patch: Partial<Search>) => void;
-  onSave: () => void;
+  onSave: (patch?: Partial<Search>) => void;
 }) {
   const [showAll, setShowAll] = useState(false);
   const [location, setLocation] = useState(search.homeLocation ?? search.q ?? "");
@@ -6431,14 +7545,14 @@ function HomesFilterPage({
   const [bathrooms, setBathrooms] = useState(search.bathrooms ?? "");
   const [extra, setExtra] = useState<Record<string, string>>({
     homeSquareFeet: search.homeSquareFeet ?? "",
-    homeBuilder: search.homeBuilder ?? "",
-    constructionType: search.constructionType ?? "",
     homeAcres: search.homeAcres ?? "",
-    homeSellerType: search.homeSellerType ?? "",
-    petsCats: search.petsCats ?? "",
-    petsDogs: search.petsDogs ?? "",
-    homeAmenities: search.homeAmenities ?? "",
-    communityAmenities: search.communityAmenities ?? "",
+    homeYearBuilt: search.homeYearBuilt == null ? "" : String(search.homeYearBuilt),
+    homeHeating: search.homeHeating ?? "",
+    homeCooling: search.homeCooling ?? "",
+    homeGarageParking: search.homeGarageParking ?? "",
+    homeSchoolDistrict: search.homeSchoolDistrict ?? "",
+    homePetsPolicy: search.homePetsPolicy ?? "",
+    homeSmokingPolicy: search.homeSmokingPolicy ?? "",
     leaseLength: search.leaseLength ?? "",
   });
 
@@ -6448,6 +7562,18 @@ function HomesFilterPage({
     setHomePrice(search.homePrice ?? "");
     setBedrooms(search.bedrooms ?? "");
     setBathrooms(search.bathrooms ?? "");
+    setExtra({
+      homeSquareFeet: search.homeSquareFeet ?? "",
+      homeAcres: search.homeAcres ?? "",
+      homeYearBuilt: search.homeYearBuilt == null ? "" : String(search.homeYearBuilt),
+      homeHeating: search.homeHeating ?? "",
+      homeCooling: search.homeCooling ?? "",
+      homeGarageParking: search.homeGarageParking ?? "",
+      homeSchoolDistrict: search.homeSchoolDistrict ?? "",
+      homePetsPolicy: search.homePetsPolicy ?? "",
+      homeSmokingPolicy: search.homeSmokingPolicy ?? "",
+      leaseLength: search.leaseLength ?? "",
+    });
   }, [
     search.homeLocation,
     search.q,
@@ -6455,6 +7581,16 @@ function HomesFilterPage({
     search.propertyType,
     search.bedrooms,
     search.bathrooms,
+    search.homeYearBuilt,
+    search.homeHeating,
+    search.homeCooling,
+    search.homeGarageParking,
+    search.homeSchoolDistrict,
+    search.homePetsPolicy,
+    search.homeSmokingPolicy,
+    search.homeAcres,
+    search.homeSquareFeet,
+    search.leaseLength,
   ]);
 
   const extraFields =
@@ -6467,9 +7603,27 @@ function HomesFilterPage({
             multi: false,
           },
           {
-            key: "homeBuilder",
-            label: "Home builder",
-            options: ["Any builder", "Local builders", "National builders"],
+            key: "homeYearBuilt",
+            label: "Year built",
+            options: homeYearBuiltOptions,
+            multi: false,
+          },
+          {
+            key: "homeHeating",
+            label: "Heating",
+            options: ["Any heating", "Forced air", "Gas", "Electric", "Heat pump", "Radiant"],
+            multi: true,
+          },
+          {
+            key: "homeCooling",
+            label: "Cooling",
+            options: ["Any cooling", "Central air", "Window unit", "Evaporative", "Heat pump"],
+            multi: true,
+          },
+          {
+            key: "homeGarageParking",
+            label: "Garage / parking",
+            options: ["Any parking", "Attached garage", "Detached garage", "Carport", "No garage"],
             multi: true,
           },
         ]
@@ -6482,43 +7636,55 @@ function HomesFilterPage({
               multi: false,
             },
             {
-              key: "constructionType",
-              label: "Construction type",
-              options: ["Any construction", "New construction", "Existing home"],
-              multi: true,
+              key: "homeYearBuilt",
+              label: "Year built",
+              options: homeYearBuiltOptions,
+              multi: false,
             },
             { key: "homeAcres", label: "Acres", options: homeAcresOptions, multi: false },
             {
-              key: "homeSellerType",
-              label: "Seller type",
-              options: ["Any seller", "Owner", "Agent", "Builder"],
+              key: "homeHeating",
+              label: "Heating",
+              options: ["Any heating", "Forced air", "Gas", "Electric", "Heat pump", "Radiant"],
+              multi: true,
+            },
+            {
+              key: "homeCooling",
+              label: "Cooling",
+              options: ["Any cooling", "Central air", "Window unit", "Evaporative", "Heat pump"],
+              multi: true,
+            },
+            {
+              key: "homeGarageParking",
+              label: "Garage / parking",
+              options: [
+                "Any parking",
+                "Attached garage",
+                "Detached garage",
+                "Carport",
+                "No garage",
+              ],
+              multi: true,
+            },
+            {
+              key: "homeSchoolDistrict",
+              label: "School district",
+              options: ["Any district", "West Ada", "Boise", "Nampa", "Vallivue", "Twin Falls"],
               multi: true,
             },
           ]
         : [
             {
-              key: "petsCats",
-              label: "Cats",
-              options: ["Any cat policy", "Cats allowed", "Cats not allowed"],
+              key: "homePetsPolicy",
+              label: "Pet policy",
+              options: ["Any pet policy", "Cats", "Dogs", "Pets allowed", "No pets"],
               multi: false,
             },
             {
-              key: "petsDogs",
-              label: "Dogs",
-              options: ["Any dog policy", "Dogs allowed", "Dogs not allowed"],
+              key: "homeSmokingPolicy",
+              label: "Smoking policy",
+              options: ["Any smoking policy", "No smoking", "Smoking allowed"],
               multi: false,
-            },
-            {
-              key: "homeAmenities",
-              label: "Home amenities",
-              options: homeAmenitiesOptions,
-              multi: true,
-            },
-            {
-              key: "communityAmenities",
-              label: "Community amenities",
-              options: communityAmenitiesOptions,
-              multi: true,
             },
             {
               key: "leaseLength",
@@ -6532,18 +7698,57 @@ function HomesFilterPage({
               options: homeSquareFeetOptions,
               multi: false,
             },
+            {
+              key: "homeHeating",
+              label: "Heating",
+              options: ["Any heating", "Forced air", "Gas", "Electric", "Heat pump", "Radiant"],
+              multi: true,
+            },
+            {
+              key: "homeCooling",
+              label: "Cooling",
+              options: ["Any cooling", "Central air", "Window unit", "Evaporative", "Heat pump"],
+              multi: true,
+            },
           ];
 
-  function apply() {
-    onApply({
+  function currentPatch(): Partial<Search> {
+    const [minPrice, maxPrice] = homePrice.split("||");
+    const parsedPrice = (value: string | undefined) => {
+      return optionalNonNegativeNumber(value);
+    };
+    return {
       q: location.trim() || undefined,
       homeLocation: location.trim() || undefined,
       propertyType: propertyType || undefined,
       homePrice: homePrice || undefined,
+      priceMin: parsedPrice(minPrice),
+      priceMax: parsedPrice(maxPrice),
       bedrooms: bedrooms || undefined,
       bathrooms: bathrooms || undefined,
+      homeSquareFeet: undefined,
+      homeAcres: undefined,
+      homeYearBuilt: undefined,
+      homeHeating: undefined,
+      homeCooling: undefined,
+      homeGarageParking: undefined,
+      homeYard: undefined,
+      homeSchoolDistrict: undefined,
+      homeAvailable: undefined,
+      homePetsPolicy: undefined,
+      homeSmokingPolicy: undefined,
+      leaseLength: undefined,
       ...Object.fromEntries(extraFields.map(({ key }) => [key, extra[key] || undefined])),
-    });
+    };
+  }
+
+  function apply() {
+    const patch = currentPatch();
+    if (isInvertedRange(patch.priceMin, patch.priceMax)) {
+      toast.error("Price minimum cannot exceed maximum.");
+      return;
+    }
+    onApply(patch);
   }
 
   return (
@@ -6551,7 +7756,7 @@ function HomesFilterPage({
       <div className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
-            GemList Homes
+            Bluebird Marketplace Homes
           </p>
           <h1 className="mt-2 text-[28px] font-bold tracking-tight sm:text-[36px]">
             Find a gem to call home.
@@ -6619,7 +7824,7 @@ function HomesFilterPage({
           </button>
           <button
             type="button"
-            onClick={onSave}
+            onClick={() => onSave(currentPatch())}
             className="h-11 rounded-xl border border-primary px-4 text-[12px] font-bold text-primary hover:bg-secondary"
           >
             Save search
@@ -6641,6 +7846,13 @@ function HomesFilterPage({
           <FunnelSimple size={15} aria-hidden="true" />
           {showAll ? "Hide all filters" : "All filters"}
           <CaretDown size={14} className={showAll ? "rotate-180" : ""} aria-hidden="true" />
+        </button>
+        <button
+          type="button"
+          onClick={onClear}
+          className="text-[12px] font-semibold text-primary underline-offset-2 hover:underline"
+        >
+          Clear filters
         </button>
       </div>
 
@@ -6829,7 +8041,7 @@ function HomeMultiSelectControl({
 }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const selected = value ? value.split("||").filter(Boolean) : [];
+  const selected = value ? value.split(/\|{1,2}/).filter(Boolean) : [];
   const visibleSelected = multi ? selected : selected.slice(0, 1);
   const summary =
     visibleSelected.length === 0
@@ -6911,12 +8123,16 @@ function HomeMultiSelectControl({
 function VehicleResultsPage({
   search,
   result,
+  onClear,
   onApply,
+  onSave,
   onSell,
 }: {
   search: Search;
   result: ClassifiedBrowseResult;
+  onClear: () => void;
   onApply: (patch: Partial<Search>) => void;
+  onSave: (patch?: Partial<Search>) => void;
   onSell: () => void;
 }) {
   const [showAll, setShowAll] = useState(true);
@@ -6931,7 +8147,6 @@ function VehicleResultsPage({
     splitVehicleFilter(search.mileageBands)[0] ?? "",
   );
   const [bodyStyle, setBodyStyle] = useState(search.bodyStyle ?? "");
-  const [sellerType, setSellerType] = useState(search.sellerType ?? "");
   const [condition, setCondition] = useState(search.condition ?? "");
   const [fulfillment, setFulfillment] = useState(search.fulfillment ?? "");
   const [drivetrain, setDrivetrain] = useState(search.drivetrain ?? "");
@@ -6955,7 +8170,6 @@ function VehicleResultsPage({
     setPriceMax(search.priceMax == null ? "" : String(search.priceMax));
     setMileageBands(splitVehicleFilter(search.mileageBands)[0] ?? "");
     setBodyStyle(search.bodyStyle ?? "");
-    setSellerType(search.sellerType ?? "");
     setCondition(search.condition ?? "");
     setFulfillment(search.fulfillment ?? "");
     setDrivetrain(search.drivetrain ?? "");
@@ -6977,22 +8191,18 @@ function VehicleResultsPage({
     );
   }, [make]);
 
-  function apply() {
-    const numberValue = (value: string) => {
-      const parsed = Number(value);
-      return Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
-    };
-    onApply({
+  function currentPatch(): Partial<Search> {
+    const numberValue = (value: string) => optionalNonNegativeNumber(value);
+    return {
       q: term.trim() || undefined,
       make: make || undefined,
       model: model || undefined,
-      yearMin: numberValue(yearMin),
-      yearMax: numberValue(yearMax),
+      yearMin: integerValue(yearMin),
+      yearMax: integerValue(yearMax),
       priceMin: numberValue(priceMin),
       priceMax: numberValue(priceMax),
       mileageBands: mileageBands || undefined,
       bodyStyle: bodyStyle || undefined,
-      sellerType: sellerType || undefined,
       condition: condition || undefined,
       fulfillment: fulfillment || undefined,
       drivetrain: drivetrain || undefined,
@@ -7003,7 +8213,19 @@ function VehicleResultsPage({
       region: region || undefined,
       state: state || undefined,
       city: city.trim() || undefined,
-    });
+    };
+  }
+
+  function apply() {
+    const patch = currentPatch();
+    if (
+      isInvertedRange(patch.yearMin, patch.yearMax) ||
+      isInvertedRange(patch.priceMin, patch.priceMax)
+    ) {
+      toast.error("Minimum cannot exceed maximum.");
+      return;
+    }
+    onApply(patch);
   }
 
   return (
@@ -7012,7 +8234,7 @@ function VehicleResultsPage({
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
           <div>
             <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
-              Gem State motors
+              Bluebird motors
             </p>
             <h1 className="mt-1 text-[28px] font-bold tracking-tight">Cars & Trucks</h1>
           </div>
@@ -7032,6 +8254,13 @@ function VehicleResultsPage({
               Sell
             </button>
           </div>
+          <button
+            type="button"
+            onClick={onClear}
+            className="text-[12px] font-semibold text-primary underline-offset-2 hover:underline"
+          >
+            Clear filters
+          </button>
         </div>
         <form
           className="mt-5 grid gap-2 sm:grid-cols-[1fr_auto]"
@@ -7058,15 +8287,25 @@ function VehicleResultsPage({
           </button>
         </form>
         <div className="mt-5 flex justify-end border-t border-border pt-4">
-          <button
-            type="button"
-            onClick={() => setShowAll((current) => !current)}
-            className="inline-flex items-center gap-2 rounded-full border border-primary px-4 py-2.5 text-[12px] font-bold text-primary hover:bg-secondary"
-          >
-            <FunnelSimple size={15} aria-hidden="true" />
-            {showAll ? "Hide all filters" : "Show all filters"}
-            <CaretDown size={14} className={showAll ? "rotate-180" : ""} aria-hidden="true" />
-          </button>
+          <div className="flex flex-wrap justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => onSave(currentPatch())}
+              className="inline-flex items-center gap-2 rounded-full border border-primary px-4 py-2.5 text-[12px] font-bold text-primary hover:bg-secondary"
+            >
+              <BookmarkSimple size={15} aria-hidden="true" />
+              Save this search
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAll((current) => !current)}
+              className="inline-flex items-center gap-2 rounded-full border border-primary px-4 py-2.5 text-[12px] font-bold text-primary hover:bg-secondary"
+            >
+              <FunnelSimple size={15} aria-hidden="true" />
+              {showAll ? "Hide all filters" : "Show all filters"}
+              <CaretDown size={14} className={showAll ? "rotate-180" : ""} aria-hidden="true" />
+            </button>
+          </div>
         </div>
       </section>
 
@@ -7140,14 +8379,6 @@ function VehicleResultsPage({
                 value={bodyStyle}
                 options={vehicleOptions.bodyStyles}
                 onChange={setBodyStyle}
-              />
-            </VehicleFilterGroup>
-            <VehicleFilterGroup title="Seller type">
-              <VehicleCheckboxList
-                label="Seller type"
-                value={sellerType}
-                options={vehicleSellerTypeOptions}
-                onChange={setSellerType}
               />
             </VehicleFilterGroup>
             <VehicleFilterGroup title="Condition">
@@ -7258,7 +8489,8 @@ function VehicleResultsPage({
               Sort by
               <select
                 className="h-9 rounded-lg border border-input bg-card px-2 text-[12px] text-foreground"
-                defaultValue="newest"
+                value={search.sort ?? "newest"}
+                onChange={(event) => onApply({ sort: event.target.value as Sort })}
               >
                 <option value="newest">Newest first</option>
                 <option value="price_low">Lowest price</option>
@@ -7468,7 +8700,11 @@ function VehicleBrowseHero({
       : "Year";
   const priceLabel =
     search.priceMin != null || search.priceMax != null
-      ? `$${search.priceMin ?? 0}–${search.priceMax ?? "up"}`
+      ? search.priceMin != null && search.priceMax != null
+        ? `$${search.priceMin}–$${search.priceMax}`
+        : search.priceMin != null
+          ? `$${search.priceMin}+`
+          : `Up to $${search.priceMax}`
       : "Price";
   const selectedSummary = (value: string | undefined, fallback: string) => {
     const values = value?.split("||").filter(Boolean) ?? [];
@@ -7506,7 +8742,6 @@ function VehicleBrowseHero({
       ),
     },
     { key: "bodyStyle", label: selectedSummary(search.bodyStyle, "Body type") },
-    { key: "sellerType", label: selectedSummary(search.sellerType, "Seller type") },
     { key: "titleStatus", label: selectedSummary(search.titleStatus, "Title type") },
   ];
   const additionalFilters: { key: VehicleHeroFilter; label: string }[] = [
@@ -7630,30 +8865,24 @@ function VehicleBrowseHero({
             onApply={(value) => applyInlineFilter({ fulfillment: value })}
           />
         );
-      case "sellerType":
-        return (
-          <InlineMultiFilter
-            label="Seller type"
-            value={search.sellerType}
-            options={vehicleSellerTypeOptions}
-            onApply={(value) => applyInlineFilter({ sellerType: value })}
-          />
-        );
     }
   }
 
   return (
-    <section className="floating-card relative overflow-visible bg-surface px-5 py-6 sm:px-8 sm:py-8">
+    <section className="floating-card relative min-h-[500px] overflow-visible bg-surface px-5 py-12 sm:min-h-[590px] sm:px-8 sm:py-14">
       <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]">
         <div className="absolute -right-24 -top-32 h-72 w-72 rounded-full bg-brand-warm/35" />
         <div className="absolute -bottom-36 left-1/3 h-64 w-64 rounded-full bg-primary/5" />
       </div>
+      <div className="absolute right-5 top-5 z-20 sm:right-7 sm:top-7">
+        <SponsoredHeroBadge />
+      </div>
 
-      <div className="relative">
+      <div className="relative pt-12 sm:pt-10">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
-              Gem State motors
+              Bluebird motors
             </p>
             <h1 className="mt-2 max-w-[22ch] text-[30px] font-bold leading-tight tracking-tight sm:text-[38px]">
               Find your next gem on wheels.
@@ -7956,8 +9185,7 @@ function InlineRangeFilter({
   }, [firstValue, secondValue]);
 
   const parse = (value: string) => {
-    const parsed = Number(value);
-    return value.trim() && Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined;
+    return optionalNonNegativeNumber(value);
   };
 
   return (
@@ -7996,7 +9224,17 @@ function InlineRangeFilter({
           />
         </label>
       </div>
-      <InlineApplyButton onClick={() => onApply(parse(first), parse(second))} />
+      <InlineApplyButton
+        onClick={() => {
+          const min = parse(first);
+          const max = parse(second);
+          if (isInvertedRange(min, max)) {
+            toast.error("Minimum cannot exceed maximum.");
+            return;
+          }
+          onApply(min, max);
+        }}
+      />
     </div>
   );
 }
@@ -8029,8 +9267,7 @@ function InlineNumberFilter({
       </label>
       <InlineApplyButton
         onClick={() => {
-          const parsed = Number(draft);
-          onApply(draft.trim() && Number.isFinite(parsed) && parsed >= 0 ? parsed : undefined);
+          onApply(optionalNonNegativeNumber(draft));
         }}
       />
     </div>
@@ -8146,7 +9383,7 @@ function InlineApplyButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-function countActiveFilters(search: Search, motors: boolean) {
+function countActiveFilters(search: Search, motors: boolean, pets: boolean) {
   const keys: (keyof Search)[] = [
     "category",
     "group",
@@ -8173,12 +9410,30 @@ function countActiveFilters(search: Search, motors: boolean) {
       "fuelType",
       "exteriorColor",
       "titleStatus",
-      "sellerType",
+    );
+  if (pets)
+    keys.push(
+      "petSubcategory",
+      "petSpecies",
+      "petBreed",
+      "petPlacementType",
+      "petOfferedBy",
+      "petSex",
+      "petAge",
+      "petHypoallergenic",
+      "petVaccinated",
+      "petSpayedNeutered",
+      "petMicrochipped",
+      "petRecordsAvailable",
+      "petGoodWithKids",
+      "petGoodWithDogs",
+      "petGoodWithCats",
+      "petIndoorOutdoor",
     );
   return keys.filter((key) => search[key] !== undefined && search[key] !== "").length;
 }
 
-function activeFilterLabels(search: Search, motors: boolean) {
+function activeFilterLabels(search: Search, motors: boolean, pets: boolean) {
   const labels: string[] = [];
   if (search.category)
     labels.push(
@@ -8190,15 +9445,56 @@ function activeFilterLabels(search: Search, motors: boolean) {
   if (search.state) labels.push(search.state);
   if (search.city) labels.push(search.city);
   if (search.postalCode) labels.push(search.postalCode);
+  if (search.condition) labels.push(formatSavedSearchFilter("condition", search.condition));
+  if (search.fulfillment) labels.push(formatSavedSearchFilter("fulfillment", search.fulfillment));
   if (search.priceMin != null || search.priceMax != null)
-    labels.push(`$${search.priceMin ?? 0}–${search.priceMax ?? "up"}`);
+    labels.push(
+      search.priceMin != null && search.priceMax != null
+        ? `$${search.priceMin}–$${search.priceMax}`
+        : search.priceMin != null
+          ? `$${search.priceMin}+`
+          : `Up to $${search.priceMax}`,
+    );
   if (motors) {
-    if (search.make) labels.push(search.make);
-    if (search.model) labels.push(search.model);
+    if (search.make) labels.push(formatSavedSearchFilter("make", search.make));
+    if (search.model) labels.push(formatSavedSearchFilter("model", search.model));
     if (search.yearMin != null || search.yearMax != null)
       labels.push(`${search.yearMin ?? "Any"}–${search.yearMax ?? "Any"}`);
-    if (search.drivetrain) labels.push(search.drivetrain);
+    if (search.bodyStyle) labels.push(formatSavedSearchFilter("bodyStyle", search.bodyStyle));
+    if (search.titleStatus)
+      labels.push(formatSavedSearchFilter("titleStatus", search.titleStatus));
+    if (search.transmission)
+      labels.push(formatSavedSearchFilter("transmission", search.transmission));
+    if (search.drivetrain)
+      labels.push(formatSavedSearchFilter("drivetrain", search.drivetrain));
+    if (search.fuelType) labels.push(formatSavedSearchFilter("fuelType", search.fuelType));
+    if (search.exteriorColor)
+      labels.push(formatSavedSearchFilter("exteriorColor", search.exteriorColor));
     if (search.mileageMax != null) labels.push(`≤ ${search.mileageMax.toLocaleString()} mi`);
+  }
+  if (pets) {
+    if (search.petSubcategory)
+      labels.push(
+        petSubcategories.find(([slug]) => slug === search.petSubcategory)?.[1] ??
+          search.petSubcategory,
+      );
+    if (search.petSpecies) labels.push(formatSavedSearchFilter("petSpecies", search.petSpecies));
+    if (search.petBreed) labels.push(search.petBreed);
+    if (search.petPlacementType)
+      labels.push(
+        petPlacementTypes.find(([value]) => value === search.petPlacementType)?.[1] ??
+          search.petPlacementType,
+      );
+    if (search.petOfferedBy) labels.push(search.petOfferedBy);
+    if (search.petSex) labels.push(search.petSex);
+    if (search.petAge) labels.push(search.petAge);
+    if (search.petHypoallergenic === "Yes") labels.push("Hypoallergenic");
+    if (search.petVaccinated === "Yes") labels.push("Vaccinated");
+    if (search.petSpayedNeutered === "Yes") labels.push("Spayed / neutered");
+    if (search.petMicrochipped === "Yes") labels.push("Microchipped");
+    if (search.petGoodWithKids === "Yes") labels.push("Good with children");
+    if (search.petGoodWithDogs === "Yes") labels.push("Good with dogs");
+    if (search.petGoodWithCats === "Yes") labels.push("Good with cats");
   }
   return labels;
 }

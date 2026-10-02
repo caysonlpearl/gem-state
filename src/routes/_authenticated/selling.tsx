@@ -54,13 +54,26 @@ const SHIP_STATUSES = ["authorized", "paid", "payment_captured", "ready_to_ship"
 /** Checkout started but not paid — never counted as a sale. */
 const RESERVED_STATUSES = ["inquiry", "awaiting_payment", "awaiting_authorization"];
 
-type ListingTab = "active" | "pending" | "sold" | "removed";
+type ListingTab = "active" | "pending" | "needs_changes" | "sold" | "removed";
 const listingTabLabels: Record<ListingTab, string> = {
   active: "Active",
   pending: "Awaiting approval",
+  needs_changes: "Needs changes",
   sold: "Sold",
   removed: "Removed",
 };
+
+function sellerListingStatusLabel(ask: {
+  status: string;
+  approvedAt?: string | null;
+  productStatus?: string | null;
+}) {
+  if (ask.productStatus === "rejected") return "Needs changes";
+  if (ask.status === "active" && !ask.approvedAt) return "Awaiting Bluebird review";
+  if (ask.status === "cancelled") return "Removed";
+  if (ask.status === "matched") return "Sold";
+  return listingStatusLabels[ask.status] ?? ask.status;
+}
 
 function SellingPage() {
   const queryClient = useQueryClient();
@@ -149,7 +162,14 @@ function SellingPage() {
     onSuccess: async () => {
       await trackEvent("ask_cancelled", {});
       await queryClient.invalidateQueries({ queryKey: ["my-listings"] });
-      toast.success("Listing taken down.");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["classified-browse"] }),
+        queryClient.invalidateQueries({ queryKey: ["conversations"] }),
+        queryClient.invalidateQueries({ queryKey: ["watchlist"] }),
+      ]);
+      toast.success(
+        "Listing removed from public search. Existing messages and saved records remain available.",
+      );
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "Could not cancel."),
   });
@@ -157,7 +177,7 @@ function SellingPage() {
     mutationFn: (listingId: string) => relist({ data: { listingId } }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["my-listings"] });
-      toast.success("Listing resubmitted for Gem State review.");
+      toast.success("Listing resubmitted for Bluebird review.");
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "Could not relist."),
   });
@@ -241,7 +261,7 @@ function SellingPage() {
               Seller center
             </p>
             <h1 className="mt-2 font-editorial text-[46px] font-normal leading-none tracking-[-0.04em]">
-              Become a Gem State seller
+              Become a Bluebird seller
             </h1>
             <p className="mt-4 max-w-[620px] text-[13px] leading-relaxed text-muted-foreground">
               Create your public seller profile, add your private return address, connect verified
@@ -294,11 +314,16 @@ function SellingPage() {
     (request) => request.requestStatus === "pending",
   );
   const pendingAsks = asks.filter((ask) => ask.status === "active" && !ask.approvedAt);
+  const needsChangesAsks = asks.filter(
+    (ask) => ask.status === "active" && ask.productStatus === "rejected",
+  );
   const soldAsks = asks.filter((ask) => ask.status === "matched");
   const removedAsks = asks.filter((ask) => ask.status === "cancelled" || ask.status === "expired");
   const tabCounts: Record<ListingTab, number> = {
     active: activeAsks.length,
-    pending: pendingAsks.length + heldRequests.length,
+    pending:
+      pendingAsks.filter((ask) => ask.productStatus !== "rejected").length + heldRequests.length,
+    needs_changes: needsChangesAsks.length,
     sold: soldAsks.length,
     removed: removedAsks.length,
   };
@@ -306,10 +331,12 @@ function SellingPage() {
     listingTab === "active"
       ? activeAsks
       : listingTab === "pending"
-        ? pendingAsks
-        : listingTab === "sold"
-          ? soldAsks
-          : removedAsks;
+        ? pendingAsks.filter((ask) => ask.productStatus !== "rejected")
+        : listingTab === "needs_changes"
+          ? needsChangesAsks
+          : listingTab === "sold"
+            ? soldAsks
+            : removedAsks;
 
   return (
     <main className="mx-auto max-w-[1120px] px-4 py-10 sm:px-8">
@@ -326,13 +353,17 @@ function SellingPage() {
       </div>
       <SellerCenterNav storefrontSlug={sellerSetup.data?.slug} />
 
-      <section className="mt-7 grid grid-cols-2 gap-px border border-border bg-border lg:grid-cols-3">
+      <section className="mt-7 grid grid-cols-2 gap-px border border-border bg-border lg:grid-cols-4">
         <Metric label="Active listings" value={String(activeAsks.length)} />
         <Metric
           label="Awaiting approval"
-          value={String(pendingAsks.length + heldRequests.length)}
+          value={String(
+            pendingAsks.filter((ask) => ask.productStatus !== "rejected").length +
+              heldRequests.length,
+          )}
         />
         <Metric label="Buyer inquiries" value={String(listingInquiries.data?.length ?? 0)} />
+        <Metric label="Completed sales" value={String(summary.data?.completedSalesCount ?? 0)} />
       </section>
 
       <section id="listings" className="mt-9 scroll-mt-28">
@@ -420,11 +451,8 @@ function SellingPage() {
                       {ask.productName}
                     </Link>
                     <p className="mt-0.5 text-[11.5px] text-muted-foreground">
-                      {ask.variantLabel} ·{" "}
-                      {ask.status === "active" && !ask.approvedAt
-                        ? "Awaiting Gem State review"
-                        : (listingStatusLabels[ask.status] ?? ask.status)}{" "}
-                      · {ask.publicMediaCount ?? 0} photos
+                      {ask.variantLabel} · {sellerListingStatusLabel(ask)} ·{" "}
+                      {ask.publicMediaCount ?? 0} photos
                     </p>
                     {ask.status === "active" && ask.approvedAt && ask.highestBidCents != null ? (
                       <p className="numeric mt-1 text-[11.5px] font-medium text-primary">
@@ -468,7 +496,14 @@ function SellingPage() {
                       </Link>
                       <button
                         type="button"
-                        onClick={() => cancelMutation.mutate(ask.id)}
+                        onClick={() => {
+                          if (
+                            window.confirm(
+                              "Remove this listing from public search? Buyers will no longer find it, but existing messages and saved records will remain. You can relist it later for review.",
+                            )
+                          )
+                            cancelMutation.mutate(ask.id);
+                        }}
                         disabled={cancelMutation.isPending}
                         className="h-8 border border-input px-2.5 text-[11.5px] font-medium hover:bg-secondary disabled:opacity-60"
                       >
@@ -479,7 +514,14 @@ function SellingPage() {
                   {ask.status === "cancelled" || ask.status === "expired" ? (
                     <button
                       type="button"
-                      onClick={() => relistMutation.mutate(ask.id)}
+                      onClick={() => {
+                        if (
+                          window.confirm(
+                            "Relist this record for review? It will stay hidden until Bluebird approves it again.",
+                          )
+                        )
+                          relistMutation.mutate(ask.id);
+                      }}
                       disabled={relistMutation.isPending}
                       className="h-8 border border-input px-2.5 text-[11.5px] font-medium hover:bg-secondary disabled:opacity-60"
                     >
@@ -535,10 +577,12 @@ function SellingPage() {
               : listingTab === "pending"
                 ? heldRequests.length > 0
                   ? ""
-                  : "Nothing waiting on Gem State review."
-                : listingTab === "sold"
-                  ? "No sold listings yet."
-                  : "No removed listings."}
+                  : "Nothing waiting on Bluebird review."
+                : listingTab === "needs_changes"
+                  ? "No listings need changes."
+                  : listingTab === "sold"
+                    ? "No sold listings yet."
+                    : "No removed listings."}
           </p>
         ) : null}
       </section>
@@ -547,7 +591,7 @@ function SellingPage() {
         <div className="border-b border-border pb-3">
           <h2 className="text-[14px] font-semibold">Buyer inquiries</h2>
           <p className="mt-0.5 text-[11px] text-muted-foreground">
-            Questions from buyers about your exact listings. Reply directly by email.
+            Questions from buyers about your exact listings, including Bluebird conversations.
           </p>
         </div>
         {listingInquiries.isLoading ? (
@@ -577,12 +621,22 @@ function SellingPage() {
                       {inquiry.message}
                     </p>
                   </div>
-                  <a
-                    href={`mailto:${inquiry.buyerEmail}?subject=${encodeURIComponent(`Re: ${inquiry.listingTitle}`)}`}
-                    className="inline-flex h-9 shrink-0 items-center rounded-full border border-foreground px-3 text-[11.5px] font-medium hover:bg-secondary"
-                  >
-                    Reply by email
-                  </a>
+                  {inquiry.source === "conversation" && inquiry.conversationId ? (
+                    <Link
+                      to="/account"
+                      search={{ section: "messages", conversation: inquiry.conversationId }}
+                      className="inline-flex h-9 shrink-0 items-center rounded-full border border-foreground px-3 text-[11.5px] font-medium hover:bg-secondary"
+                    >
+                      Open conversation
+                    </Link>
+                  ) : (
+                    <a
+                      href={`mailto:${inquiry.buyerEmail}?subject=${encodeURIComponent(`Re: ${inquiry.listingTitle}`)}`}
+                      className="inline-flex h-9 shrink-0 items-center rounded-full border border-foreground px-3 text-[11.5px] font-medium hover:bg-secondary"
+                    >
+                      Reply by email
+                    </a>
+                  )}
                 </div>
               </li>
             ))}
@@ -701,7 +755,7 @@ function SellingPage() {
                     </p>
                     {offer.status === "pending" || offer.paymentStatus === "capture_pending" ? (
                       <dl className="numeric mt-2 grid grid-cols-2 gap-x-5 gap-y-0.5 text-[11px] text-muted-foreground">
-                        <dt>Gem State selling fee</dt>
+                        <dt>Bluebird selling fee</dt>
                         <dd className="text-right">−{formatUsd(offer.sellerFeeCents)}</dd>
                         <dt>You’ll receive</dt>
                         <dd className="text-right font-semibold text-foreground">
@@ -789,7 +843,7 @@ function SellingPage() {
           <div>
             <h2 className="text-[14px] font-semibold">Your seller reviews</h2>
             <p className="mt-0.5 text-[11px] text-muted-foreground">
-              Reviews from Gem State buyers and other members.
+              Reviews from Bluebird buyers and other members.
             </p>
           </div>
           <p className="numeric text-[12px] font-semibold">
@@ -818,7 +872,7 @@ function SellingPage() {
                   {review.comment || "No written comment."}
                 </p>
                 <p className="mt-3 text-[10.5px] text-muted-foreground">
-                  {review.reviewerName ?? "Gem State member"} ·{" "}
+                  {review.reviewerName ?? "Bluebird member"} ·{" "}
                   {new Date(review.createdAt).toLocaleDateString()}
                 </p>
               </li>

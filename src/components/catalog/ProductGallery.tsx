@@ -11,13 +11,62 @@ type ProductGalleryProps = {
 
 const ownedSpinFallbacks: Record<string, CatalogImage[]> = {
   "The Haunted Mansion Hatbox Ghost Popcorn Bucket": [
-    { id: "hatbox-owned-000", src: "/images/products/launch-10/hatbox-ghost-spin/angle-000.jpg", alt: "Front view of The Haunted Mansion Hatbox Ghost popcorn bucket", isExample: false, viewRole: "spin", angleDegrees: 0 },
-    { id: "hatbox-owned-045", src: "/images/products/launch-10/hatbox-ghost-spin/angle-045.jpg", alt: "Front-left view of The Haunted Mansion Hatbox Ghost popcorn bucket", isExample: false, viewRole: "spin", angleDegrees: 45 },
-    { id: "hatbox-owned-090", src: "/images/products/launch-10/hatbox-ghost-spin/angle-090.jpg", alt: "Left-side view of The Haunted Mansion Hatbox Ghost popcorn bucket", isExample: false, viewRole: "spin", angleDegrees: 90 },
-    { id: "hatbox-owned-135", src: "/images/products/launch-10/hatbox-ghost-spin/angle-135.jpg", alt: "Back-left view of The Haunted Mansion Hatbox Ghost popcorn bucket", isExample: false, viewRole: "spin", angleDegrees: 135 },
-    { id: "hatbox-owned-180", src: "/images/products/launch-10/hatbox-ghost-spin/angle-180.jpg", alt: "Back view of The Haunted Mansion Hatbox Ghost popcorn bucket", isExample: false, viewRole: "spin", angleDegrees: 180 },
-    { id: "hatbox-owned-225", src: "/images/products/launch-10/hatbox-ghost-spin/angle-225.jpg", alt: "Back-right view of The Haunted Mansion Hatbox Ghost popcorn bucket", isExample: false, viewRole: "spin", angleDegrees: 225 },
-    { id: "hatbox-owned-315", src: "/images/products/launch-10/hatbox-ghost-spin/angle-315.jpg", alt: "Front-right view of The Haunted Mansion Hatbox Ghost popcorn bucket", isExample: false, viewRole: "spin", angleDegrees: 315 },
+    {
+      id: "hatbox-owned-000",
+      src: "/images/products/launch-10/hatbox-ghost-spin/angle-000.jpg",
+      alt: "Front view of The Haunted Mansion Hatbox Ghost popcorn bucket",
+      isExample: false,
+      viewRole: "spin",
+      angleDegrees: 0,
+    },
+    {
+      id: "hatbox-owned-045",
+      src: "/images/products/launch-10/hatbox-ghost-spin/angle-045.jpg",
+      alt: "Front-left view of The Haunted Mansion Hatbox Ghost popcorn bucket",
+      isExample: false,
+      viewRole: "spin",
+      angleDegrees: 45,
+    },
+    {
+      id: "hatbox-owned-090",
+      src: "/images/products/launch-10/hatbox-ghost-spin/angle-090.jpg",
+      alt: "Left-side view of The Haunted Mansion Hatbox Ghost popcorn bucket",
+      isExample: false,
+      viewRole: "spin",
+      angleDegrees: 90,
+    },
+    {
+      id: "hatbox-owned-135",
+      src: "/images/products/launch-10/hatbox-ghost-spin/angle-135.jpg",
+      alt: "Back-left view of The Haunted Mansion Hatbox Ghost popcorn bucket",
+      isExample: false,
+      viewRole: "spin",
+      angleDegrees: 135,
+    },
+    {
+      id: "hatbox-owned-180",
+      src: "/images/products/launch-10/hatbox-ghost-spin/angle-180.jpg",
+      alt: "Back view of The Haunted Mansion Hatbox Ghost popcorn bucket",
+      isExample: false,
+      viewRole: "spin",
+      angleDegrees: 180,
+    },
+    {
+      id: "hatbox-owned-225",
+      src: "/images/products/launch-10/hatbox-ghost-spin/angle-225.jpg",
+      alt: "Back-right view of The Haunted Mansion Hatbox Ghost popcorn bucket",
+      isExample: false,
+      viewRole: "spin",
+      angleDegrees: 225,
+    },
+    {
+      id: "hatbox-owned-315",
+      src: "/images/products/launch-10/hatbox-ghost-spin/angle-315.jpg",
+      alt: "Front-right view of The Haunted Mansion Hatbox Ghost popcorn bucket",
+      isExample: false,
+      viewRole: "spin",
+      angleDegrees: 315,
+    },
   ],
 };
 
@@ -26,21 +75,18 @@ function wrapFrame(frame: number, total: number) {
 }
 
 export function ProductGallery({ images, model, productName }: ProductGalleryProps) {
-  const spinFrames = useMemo(
-    () => {
-      const databaseFrames = images
-        .filter(
-          (image): image is CatalogImage & { angleDegrees: number } =>
-            image.viewRole === "spin" && image.angleDegrees !== null,
-        )
-        .sort((a, b) => a.angleDegrees - b.angleDegrees);
+  const spinFrames = useMemo(() => {
+    const databaseFrames = images
+      .filter(
+        (image): image is CatalogImage & { angleDegrees: number } =>
+          image.viewRole === "spin" && image.angleDegrees !== null,
+      )
+      .sort((a, b) => a.angleDegrees - b.angleDegrees);
 
-      return databaseFrames.length >= 2
-        ? databaseFrames
-        : (ownedSpinFallbacks[productName] ?? databaseFrames);
-    },
-    [images, productName],
-  );
+    return databaseFrames.length >= 2
+      ? databaseFrames
+      : (ownedSpinFallbacks[productName] ?? databaseFrames);
+  }, [images, productName]);
   const galleryImages = useMemo(
     () => images.filter((image) => image.viewRole === "gallery"),
     [images],
@@ -51,6 +97,7 @@ export function ProductGallery({ images, model, productName }: ProductGalleryPro
   const [viewMode, setViewMode] = useState<"model" | "photo">(
     model && !hasSpin ? "model" : "photo",
   );
+  const [modelViewerReady, setModelViewerReady] = useState(false);
   const dragStart = useRef<{ x: number; frame: number } | null>(null);
 
   useEffect(() => {
@@ -59,8 +106,32 @@ export function ProductGallery({ images, model, productName }: ProductGalleryPro
   }, [hasSpin, images, model]);
 
   useEffect(() => {
-    if (!model) return;
-    void import("@google/model-viewer");
+    if (!model || typeof window === "undefined") return;
+
+    if (customElements.get("model-viewer")) {
+      setModelViewerReady(true);
+      return;
+    }
+
+    // Load the browser-only custom element after hydration. Importing the
+    // package from the server bundle evaluates HTMLElement during SSR and
+    // takes down every hosted route before React can render.
+    const existingScript = document.querySelector<HTMLScriptElement>(
+      'script[data-bluebird-model-viewer="true"]',
+    );
+    const script = existingScript ?? document.createElement("script");
+    if (!existingScript) {
+      script.type = "module";
+      script.src = "https://unpkg.com/@google/model-viewer@4.3.1/dist/model-viewer.min.js";
+      script.dataset.bluebirdModelViewer = "true";
+      document.head.appendChild(script);
+    }
+
+    const markReady = () => setModelViewerReady(true);
+    script.addEventListener("load", markReady, { once: true });
+    void customElements.whenDefined("model-viewer").then(markReady);
+
+    return () => script.removeEventListener("load", markReady);
   }, [model]);
 
   useEffect(() => {
@@ -86,7 +157,7 @@ export function ProductGallery({ images, model, productName }: ProductGalleryPro
 
   const activeImage = displayImages[activeIndex] ?? displayImages[0];
   const activeAngle = hasSpin ? spinFrames[activeIndex]?.angleDegrees : null;
-  const showModel = Boolean(model && viewMode === "model");
+  const showModel = Boolean(model && modelViewerReady && viewMode === "model");
 
   function moveFrame(direction: number) {
     setActiveIndex((current) => wrapFrame(current + direction, displayImages.length));
@@ -200,9 +271,7 @@ export function ProductGallery({ images, model, productName }: ProductGalleryPro
               draggable={false}
               className={[
                 "h-full w-full",
-                hasSpin
-                  ? "pointer-events-none object-contain"
-                  : "object-contain p-4 sm:p-6",
+                hasSpin ? "pointer-events-none object-contain" : "object-contain p-4 sm:p-6",
               ].join(" ")}
             />
 

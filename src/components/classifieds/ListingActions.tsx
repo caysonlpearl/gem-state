@@ -49,7 +49,10 @@ export function ListingActions({
   const isGemlistApply = isJobApply && applicationMethod === "gemlist";
   const isMortgage = calculatorVariant === "mortgage";
   const internalMessagesEnabled = listing.seller?.allowInternalMessages !== false;
-  const { isSignedIn } = useAuth();
+  const { isSignedIn, user } = useAuth();
+  const isOwnListing = Boolean(
+    isSignedIn && listing.seller?.userId && listing.seller.userId === user?.id,
+  );
   const [contactOpen, setContactOpen] = useState(false);
   const [message, setMessage] = useState(DEFAULT_MESSAGE);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
@@ -58,6 +61,13 @@ export function ListingActions({
   const [downPayment, setDownPayment] = useState(
     isMortgage ? String(Math.round((listing.priceCents / 100) * 0.2)) : "0",
   );
+  const messageLength = message.trim().length;
+  const messageError =
+    messageLength === 0
+      ? "Write a message before sending."
+      : messageLength < 10
+        ? "Tell the seller a little more (at least 10 characters)."
+        : null;
 
   const principalCents = Math.max(
     0,
@@ -172,7 +182,7 @@ export function ListingActions({
               : "Contact the seller to confirm availability, condition, pickup, shipping, and the final amount."}
         </p>
 
-        {isExternalApply ? (
+        {isExternalApply && !isOwnListing ? (
           <a
             href={externalApplyHref(listing.job?.applicationExternalContact ?? "")}
             target="_blank"
@@ -183,7 +193,11 @@ export function ListingActions({
           </a>
         ) : (
           <div>
-            {isSignedIn && internalMessagesEnabled ? (
+            {isOwnListing ? (
+              <div className="rounded-2xl border border-border bg-secondary/45 px-3 py-3 text-[12px] leading-relaxed text-muted-foreground">
+                This is your listing. Open Seller Center to manage it or view buyer conversations.
+              </div>
+            ) : isSignedIn && internalMessagesEnabled ? (
               <button
                 type="button"
                 onClick={() => setContactOpen((open) => !open)}
@@ -208,17 +222,21 @@ export function ListingActions({
         )}
       </div>
 
-      {contactOpen && isSignedIn && isGemlistApply ? (
+      {contactOpen && isSignedIn && isGemlistApply && !isOwnListing ? (
         <div className="mt-4 border-t border-border px-4 py-4">
           <JobApplicationForm listingId={listing.id} />
         </div>
       ) : null}
 
-      {contactOpen && isSignedIn && !isJobApply ? (
+      {contactOpen && isSignedIn && !isJobApply && !isOwnListing ? (
         <form
           className="mt-4 space-y-3 border-t border-border px-4 py-4"
           onSubmit={(event) => {
             event.preventDefault();
+            if (messageError) {
+              toast.error(messageError);
+              return;
+            }
             inquiryMutation.mutate();
           }}
         >
@@ -234,16 +252,30 @@ export function ListingActions({
             maxLength={2000}
             rows={5}
             required
+            aria-invalid={Boolean(messageError)}
+            aria-describedby="seller-message-help seller-message-error"
             className="w-full resize-y rounded-2xl border border-input bg-background px-3 py-2.5 text-[13px] leading-relaxed outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
             placeholder="Ask about availability, condition, pickup, or shipping…"
           />
+          <div
+            id="seller-message-help"
+            className="flex justify-between text-[11px] text-muted-foreground"
+          >
+            <span>Minimum 10 characters.</span>
+            <span>{message.length}/2000</span>
+          </div>
+          {messageError && (
+            <p id="seller-message-error" role="alert" className="text-[11px] text-destructive">
+              {messageError}
+            </p>
+          )}
           <p className="text-[11px] leading-relaxed text-muted-foreground">
-            Your message will appear in Gem State Messages. The seller will only see contact
-            details you have explicitly enabled in your profile preferences.
+            Your message will appear in Bluebird Messages. The seller will only see contact details
+            you have explicitly enabled in your profile preferences.
           </p>
           <button
             type="submit"
-            disabled={inquiryMutation.isPending}
+            disabled={inquiryMutation.isPending || Boolean(messageError)}
             className="inline-flex h-10 items-center rounded-full bg-primary px-4 text-[12.5px] font-semibold text-primary-foreground disabled:opacity-60"
           >
             {inquiryMutation.isPending ? "Sending…" : "Send message"}
@@ -252,7 +284,7 @@ export function ListingActions({
       ) : null}
 
       <p className="border-t border-border px-5 py-3 text-[11px] leading-relaxed text-muted-foreground">
-        Gem State does not process payment for this listing. Confirm the item, price, and meeting or
+        Bluebird does not process payment for this listing. Confirm the item, price, and meeting or
         shipping details with the seller before exchanging money.
       </p>
     </div>

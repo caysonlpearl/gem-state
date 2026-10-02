@@ -10,7 +10,7 @@ Copy `.env.example` to the environment used by the deployment and fill in the va
 - `SUPABASE_URL` and `SUPABASE_PUBLISHABLE_KEY` are used by server-side auth verification.
 - `SUPABASE_SERVICE_ROLE_KEY` is server-only and is required for admin operations.
 - `SUPABASE_DB_URL` is only for Drizzle tooling. It is not needed by the running site.
-- `PARKVAULT_SITE_URL` must be the deployed HTTPS origin used for Stripe redirects.
+- `GEM_STATE_SITE_URL` must be the deployed HTTPS origin used for Gem State listing-upgrade redirects. `PARKVAULT_SITE_URL` remains only for legacy ParkVault checkout/connect flows.
 - `CRON_SECRET` and, during rotation, `CRON_SECRET_PREVIOUS` protect scheduled jobs.
 
 The Supabase Auth dashboard must also allow the deployed origin and its `/auth` callback URL. Google and Apple providers must be configured in Supabase Auth; the app now calls `supabase.auth.signInWithOAuth` directly.

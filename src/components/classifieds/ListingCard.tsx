@@ -9,9 +9,18 @@ import {
   formatJobPay,
   formatMileage,
   fulfillmentLabels,
+  petPlacementLabels,
   postedAge,
 } from "@/lib/classifieds-display";
 import type { ClassifiedCard } from "@/lib/classifieds.functions";
+
+function FeaturedBadge() {
+  return (
+    <span className="inline-flex rounded-full bg-accent px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-accent-foreground shadow-sm">
+      Featured
+    </span>
+  );
+}
 
 function Photo({ listing, tall }: { listing: ClassifiedCard; tall?: boolean }) {
   const ratio = tall ? "aspect-[4/3]" : "aspect-[4/3]";
@@ -22,6 +31,11 @@ function Photo({ listing, tall }: { listing: ClassifiedCard; tall?: boolean }) {
       >
         <span className="absolute -right-6 -top-8 h-28 w-28 rounded-full bg-primary/5" />
         <span className="absolute -bottom-10 -left-5 h-28 w-28 rounded-full bg-brand-warm/10" />
+        {listing.isFeatured ? (
+          <span className="absolute left-2 top-2 z-10">
+            <FeaturedBadge />
+          </span>
+        ) : null}
         <span className="relative grid h-14 w-14 place-items-center rounded-2xl bg-card/75 text-primary shadow-sm backdrop-blur">
           <CategoryArtwork slug={listing.categorySlug ?? "general"} size={84} />
         </span>
@@ -29,13 +43,18 @@ function Photo({ listing, tall }: { listing: ClassifiedCard; tall?: boolean }) {
     );
   }
   return (
-    <div className={`${ratio} overflow-hidden bg-secondary`}>
+    <div className={`relative ${ratio} overflow-hidden bg-secondary`}>
       <img
         src={listing.imageUrl}
         alt={listing.title}
         loading="lazy"
         className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
       />
+      {listing.isFeatured ? (
+        <span className="absolute left-2 top-2 z-10">
+          <FeaturedBadge />
+        </span>
+      ) : null}
     </div>
   );
 }
@@ -55,6 +74,35 @@ function Facts({ listing }: { listing: ClassifiedCard }) {
       </p>
     );
   }
+  if (listing.pet) {
+    return (
+      <p className="mt-1 truncate text-[11.5px] text-muted-foreground">
+        {[listing.pet.species, listing.pet.breed, petPlacementLabels[listing.pet.placementType]]
+          .filter(Boolean)
+          .join(" · ")}
+      </p>
+    );
+  }
+  if (listing.home) {
+    const modeLabel =
+      listing.home.mode === "rent"
+        ? "For rent"
+        : listing.home.mode === "build"
+          ? "New construction"
+          : "For sale";
+    return (
+      <p className="mt-1 truncate text-[11.5px] text-muted-foreground">
+        {[
+          modeLabel,
+          listing.home.propertyType,
+          listing.home.bedrooms ? `${listing.home.bedrooms} bd` : null,
+          listing.home.bathrooms ? `${listing.home.bathrooms} ba` : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
+      </p>
+    );
+  }
   const mileage = listing.vehicle ? formatMileage(listing.vehicle.mileage) : null;
   const bits = [
     mileage,
@@ -71,9 +119,22 @@ function Price({ listing }: { listing: ClassifiedCard }) {
     <>
       {listing.job
         ? formatJobPay(listing.job)
-        : listing.service?.pricing ?? formatUsd(listing.priceCents)}
+        : (listing.service?.pricing ?? formatUsd(listing.priceCents))}
     </>
   );
+}
+
+function cardActionLabel(listing: ClassifiedCard) {
+  if (listing.job) return "Apply now";
+  if (listing.service) return "Get a quote";
+  if (listing.pet) return petPlacementLabels[listing.pet.placementType] ?? "Pet listing";
+  if (listing.home)
+    return listing.home.mode === "rent"
+      ? "Schedule a tour"
+      : listing.home.mode === "build"
+        ? "Explore new build"
+        : "Contact seller";
+  return fulfillmentLabels[listing.fulfillmentMode] ?? "Contact seller";
 }
 
 export function ListingCard({ listing }: { listing: ClassifiedCard }) {
@@ -104,18 +165,17 @@ export function ListingCard({ listing }: { listing: ClassifiedCard }) {
           {listing.title}
         </h3>
         <Facts listing={listing} />
+        {listing.dealer ? (
+          <p className="mt-1 truncate text-[11.5px] font-medium text-primary">
+            {listing.dealer.displayName} · Dealer inventory
+          </p>
+        ) : null}
         <p className="mt-2 flex items-center gap-1 truncate text-[11.5px] text-muted-foreground">
           <MapPin size={12} weight="fill" className="shrink-0 text-primary" />
           {listing.city}, {listing.state}
         </p>
         <div className="mt-2 flex items-center justify-between gap-2 text-[10.5px] text-muted-foreground">
-          <span className="truncate">
-            {listing.job
-              ? "Apply now"
-              : listing.service
-                ? "Get a quote"
-                : fulfillmentLabels[listing.fulfillmentMode]}
-          </span>
+          <span className="truncate">{cardActionLabel(listing)}</span>
           <span className="shrink-0">{postedAge(listing.createdAt)}</span>
         </div>
       </Link>
@@ -135,6 +195,11 @@ export function ListingRow({ listing }: { listing: ClassifiedCard }) {
         <div className="min-w-0 py-3 pr-3">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3">
             <h3 className="min-w-0 flex-1 truncate text-[14px] font-semibold group-hover:text-primary">
+              {listing.isFeatured ? (
+                <span className="mr-2 inline-flex align-middle">
+                  <FeaturedBadge />
+                </span>
+              ) : null}
               {listing.title}
             </h3>
             <p className="numeric text-[17px] font-bold leading-none">
@@ -142,6 +207,11 @@ export function ListingRow({ listing }: { listing: ClassifiedCard }) {
             </p>
           </div>
           <Facts listing={listing} />
+          {listing.dealer ? (
+            <p className="mt-1 truncate text-[11.5px] font-medium text-primary">
+              {listing.dealer.displayName} · Dealer inventory
+            </p>
+          ) : null}
           <p className="mt-2 flex items-center gap-1 truncate text-[11.5px] text-muted-foreground">
             <MapPin size={12} weight="fill" className="shrink-0 text-primary" />
             {listing.city}, {listing.state} ·{" "}
@@ -149,7 +219,13 @@ export function ListingRow({ listing }: { listing: ClassifiedCard }) {
               ? "Apply now"
               : listing.service
                 ? "Get a quote"
-                : fulfillmentLabels[listing.fulfillmentMode]}
+                : listing.home
+                  ? listing.home.mode === "rent"
+                    ? "Schedule a tour"
+                    : listing.home.mode === "build"
+                      ? "Explore new build"
+                      : "Contact seller"
+                  : (fulfillmentLabels[listing.fulfillmentMode] ?? "Contact seller")}
           </p>
           <p className="mt-1 text-[10.5px] text-muted-foreground">{postedAge(listing.createdAt)}</p>
         </div>

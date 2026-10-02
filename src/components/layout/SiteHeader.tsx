@@ -28,7 +28,7 @@ import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
  * redirect after the SSR pass.
  */
 const navLinkClass =
-  "inline-flex h-[88px] w-auto min-w-[158px] shrink-0 flex-row items-center justify-start gap-2 rounded-2xl px-3 text-left text-[12px] font-semibold leading-tight tracking-[-0.01em] text-foreground transition-[background-color,color,box-shadow] hover:bg-secondary hover:text-primary hover:shadow-md";
+  "inline-flex h-[112px] w-auto min-w-[164px] shrink-0 flex-row items-center justify-start gap-3 rounded-2xl px-4 text-left text-[12px] font-semibold leading-tight tracking-[-0.01em] text-foreground transition-[background-color,color,box-shadow] hover:bg-brand-blue/10 hover:text-primary hover:shadow-md";
 
 const utilityLinkClass =
   "hidden h-9 items-center px-2.5 text-[12.5px] text-muted-foreground transition-colors hover:text-primary md:inline-flex";
@@ -87,7 +87,8 @@ export function SiteHeader() {
     };
     const onPointer = (e: MouseEvent) => {
       const target = e.target as Node;
-      if (accountMenuRef.current?.contains(target) || accountButtonRef.current?.contains(target)) return;
+      if (accountMenuRef.current?.contains(target) || accountButtonRef.current?.contains(target))
+        return;
       setAccountMenuOpen(false);
     };
     window.addEventListener("keydown", onKey);
@@ -105,7 +106,7 @@ export function SiteHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur">
+    <header className="sticky top-0 z-40 overflow-visible border-0 bg-card/95 backdrop-blur">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-2 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-1.5 focus:text-[12.5px] focus:font-medium focus:text-primary-foreground"
@@ -114,10 +115,10 @@ export function SiteHeader() {
       </a>
 
       {/* Level 1 */}
-      <div className="mx-auto grid h-[72px] max-w-[1440px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 sm:h-[88px] sm:gap-8 sm:px-8">
-        <Link to="/" className="flex shrink-0 items-center pr-1 sm:pr-2" {...pinned}>
+      <div className="relative z-30 mx-auto grid min-w-0 h-[98px] max-w-[1440px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 sm:h-[108px] sm:gap-8 sm:px-8">
+        <Link to="/" className="flex min-w-0 shrink-0 items-center pr-1 sm:pr-2" {...pinned}>
           <BrandMark className="hidden sm:inline-flex" />
-          <BrandMark compact className="sm:hidden" />
+          <BrandMark compact mobile className="sm:hidden" />
         </Link>
 
         <form
@@ -150,18 +151,18 @@ export function SiteHeader() {
           </label>
         </form>
 
-        <nav aria-label="Account and utilities" className="flex shrink-0 items-center gap-1.5">
+        <nav
+          aria-label="Account and utilities"
+          className="flex min-w-0 shrink-0 items-center justify-end gap-1.5"
+        >
           <button
             type="button"
             onClick={() => void navigate({ to: "/browse" })}
             aria-label="Search classifieds"
-            className="grid h-10 w-10 place-items-center rounded-full border border-input text-foreground transition-colors hover:bg-secondary sm:h-11 sm:w-11 md:hidden"
+            className="grid h-11 w-11 place-items-center rounded-full border border-input text-foreground transition-colors hover:bg-secondary sm:h-11 sm:w-11 md:hidden"
           >
             <MagnifyingGlass size={18} aria-hidden="true" />
           </button>
-          <Link to="/glossary" className={utilityLinkClass} {...pinned}>
-            How it works
-          </Link>
           <Link
             to="/create-listing"
             className="hidden h-11 items-center gap-1.5 rounded-full bg-accent px-4 text-[12.5px] font-semibold text-accent-foreground transition-opacity hover:opacity-90 sm:inline-flex"
@@ -176,7 +177,7 @@ export function SiteHeader() {
             equal the current location, and the router's active-state attribute
             would then differ between SSR and the client-resolved sign-in page.
           */}
-          <div className="relative">
+          <div className="relative z-50">
             <button
               ref={accountButtonRef}
               type="button"
@@ -189,7 +190,7 @@ export function SiteHeader() {
               }}
               aria-expanded={isSignedIn ? accountMenuOpen : undefined}
               aria-haspopup={isSignedIn ? "menu" : undefined}
-              className="inline-flex h-10 min-h-10 items-center gap-1.5 rounded-full border border-foreground px-3 text-[12px] font-medium transition-colors hover:bg-foreground hover:text-background sm:h-11 sm:min-h-11 sm:px-4 sm:text-[12.5px]"
+              className="inline-flex h-11 min-h-11 items-center gap-1.5 rounded-full border border-foreground px-3 text-[12px] font-medium transition-colors hover:bg-foreground hover:text-background sm:h-11 sm:min-h-11 sm:px-4 sm:text-[12.5px]"
             >
               <UserCircle size={16} aria-hidden="true" />
               {isSignedIn ? "Account" : "Sign in"}
@@ -199,7 +200,7 @@ export function SiteHeader() {
                 ref={accountMenuRef}
                 role="menu"
                 aria-label="Account menu"
-                className="absolute right-0 top-[calc(100%+6px)] z-50 min-w-[170px] overflow-hidden rounded-lg border border-border bg-card p-1.5 shadow-xl"
+                className="absolute right-0 top-[calc(100%+6px)] z-50 max-h-[calc(100vh-8rem)] min-w-[190px] overflow-x-hidden overflow-y-auto rounded-lg border border-border bg-card p-1.5 shadow-xl"
               >
                 <Link
                   to={brand.urls.account}
@@ -261,7 +262,7 @@ export function SiteHeader() {
             onClick={() => setMenuOpen((v) => !v)}
             aria-expanded={menuOpen}
             aria-controls="marketplace-menu"
-            className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-input text-foreground transition-colors hover:bg-secondary sm:h-11 sm:w-11 lg:hidden"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-input text-foreground transition-colors hover:bg-secondary sm:h-11 sm:w-11 lg:hidden"
           >
             {menuOpen ? <X size={17} aria-hidden="true" /> : <List size={17} aria-hidden="true" />}
             <span className="sr-only">{menuOpen ? "Close menu" : "Open menu"}</span>
@@ -269,8 +270,11 @@ export function SiteHeader() {
         </nav>
       </div>
 
-      {/* Level 2 — Gem State classifieds taxonomy. */}
-      <nav aria-label="Categories" className="hidden border-t border-border bg-background lg:block">
+      {/* Level 2 — Bluebird classifieds taxonomy. */}
+      <nav
+        aria-label="Categories"
+        className="relative z-10 hidden border-t border-border bg-background lg:block"
+      >
         <div className="mx-auto max-w-[1440px]">
           <ul className="mx-auto flex max-w-[1280px] flex-nowrap items-center justify-center gap-3 px-4 sm:gap-2 sm:px-8">
             <li>
@@ -278,10 +282,14 @@ export function SiteHeader() {
                 to="/browse"
                 search={{ allCategories: true }}
                 aria-label="Classifieds"
-                className={`${navLinkClass} w-[178px]`}
+                className={`${navLinkClass} w-[190px]`}
                 {...pinned}
               >
-                <CategoryArtwork slug="general" size={64} className="category-art--nav" />
+                <CategoryArtwork
+                  slug="general"
+                  size={88}
+                  className="category-art--nav category-art--header"
+                />
                 <span>Classifieds</span>
               </Link>
             </li>
@@ -293,7 +301,11 @@ export function SiteHeader() {
                   className={navLinkClass}
                   {...pinned}
                 >
-                  <CategoryArtwork slug={c.slug} size={64} className="category-art--nav" />
+                  <CategoryArtwork
+                    slug={c.slug}
+                    size={88}
+                    className="category-art--nav category-art--header"
+                  />
                   <span>{c.name}</span>
                 </Link>
               </li>
@@ -306,7 +318,7 @@ export function SiteHeader() {
           without forcing the desktop artwork row into a narrow viewport. */}
       {menuOpen && (
         <div id="marketplace-menu" className="border-t border-border bg-surface lg:hidden">
-          <div className="mx-auto max-w-[1360px] px-3 py-4 sm:px-8">
+          <div className="mx-auto min-w-0 max-w-[1360px] overflow-x-hidden px-3 py-4 sm:px-8">
             <div className="mb-3 flex items-center justify-between">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
@@ -335,7 +347,7 @@ export function SiteHeader() {
                         : { category: category.slug }
                     }
                     onClick={() => setMenuOpen(false)}
-                    className="group flex min-h-[72px] items-center gap-3 rounded-2xl border border-border bg-card px-3 py-2.5 transition-colors hover:border-primary/40 hover:bg-secondary"
+                    className="group flex min-w-0 min-h-[72px] items-center gap-3 rounded-2xl border border-border bg-card px-3 py-2.5 transition-colors hover:border-primary/40 hover:bg-secondary"
                     {...pinned}
                   >
                     <CategoryArtwork slug={category.slug} size={42} className="shrink-0" />
@@ -361,14 +373,6 @@ export function SiteHeader() {
                 {...pinned}
               >
                 Newest listings
-              </Link>
-              <Link
-                to="/glossary"
-                onClick={() => setMenuOpen(false)}
-                className="flex min-h-10 items-center rounded-xl border border-border bg-card px-3 text-[12px] font-medium"
-                {...pinned}
-              >
-                How it works
               </Link>
               {isSignedIn && (
                 <Link

@@ -36,5 +36,13 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": "off",
     },
   },
+  {
+    files: ["src/components/ui/**/*.{ts,tsx}", "src/lib/email-templates/**/*.{ts,tsx}"],
+    rules: {
+      // These files intentionally export Radix helpers or server-rendered email templates
+      // alongside components; Fast Refresh does not apply to either boundary.
+      "react-refresh/only-export-components": "off",
+    },
+  },
   eslintPluginPrettier,
 );

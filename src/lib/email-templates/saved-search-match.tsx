@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- template payloads are registry-driven JSON */
 import type { TemplateEntry } from "./registry";
 import { EmailShell } from "./shell";
 
@@ -12,7 +13,7 @@ const Email = ({ searchName, itemName, price, listingPath }: Props) => (
   <EmailShell
     preview={`A new listing matches ${searchName ?? "your saved search"}`}
     heading="A saved-search match is here"
-    intro={`A new Gem State listing matches “${searchName ?? "your saved search"}”.`}
+    intro={`A new Bluebird listing matches “${searchName ?? "your saved search"}”.`}
     facts={[
       { label: "Listing", value: itemName ?? "New marketplace listing" },
       ...(price ? [{ label: "Price", value: price }] : []),

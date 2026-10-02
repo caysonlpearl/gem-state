@@ -9,16 +9,17 @@ import { getValidationSummary } from "@/lib/pilot.functions";
 export const Route = createFileRoute("/_authenticated/admin/validation")({
   head: () => ({
     meta: [
-      { title: "Validation summary — ParkVault pilot operations" },
+      { title: "Validation summary — Bluebird Marketplace operations" },
       {
         name: "description",
         content:
-          "Administrator-only validation summary separating real member activity from demonstration and internal staff activity across the ParkVault pilot funnel.",
+          "Administrator-only validation summary for Bluebird Marketplace member activity and marketplace operations.",
       },
-      { property: "og:title", content: "Validation summary — ParkVault pilot operations" },
+      { property: "og:title", content: "Validation summary — Bluebird Marketplace operations" },
       {
         property: "og:description",
-        content: "Administrator-only funnel summary for the ParkVault validation pilot.",
+        content:
+          "Administrator-only funnel summary for Bluebird Marketplace marketplace operations.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -51,7 +52,7 @@ const groups: { title: string; events: string[] }[] = [
     ],
   },
   {
-    title: "Manual pilot fulfilment",
+    title: "Manual marketplace fulfilment",
     events: [
       "order_started",
       "payment_evidence_recorded",
@@ -59,6 +60,18 @@ const groups: { title: string; events: string[] }[] = [
       "shipment_recorded",
       "delivery_confirmed",
       "verified_sale_confirmed",
+    ],
+  },
+  {
+    title: "Reliability and browser health",
+    events: [
+      "search_completed",
+      "mutation_started",
+      "mutation_completed",
+      "mutation_failed",
+      "mutation_slow",
+      "browser_error",
+      "unhandled_rejection",
     ],
   },
 ];
@@ -89,6 +102,13 @@ const eventLabels: Record<string, string> = {
   shipment_recorded: "Shipments recorded",
   delivery_confirmed: "Deliveries confirmed",
   verified_sale_confirmed: "Verified sales",
+  search_completed: "Searches completed",
+  mutation_started: "Async mutations started",
+  mutation_completed: "Async mutations completed",
+  mutation_failed: "Async mutations failed",
+  mutation_slow: "Async mutations over threshold",
+  browser_error: "Browser errors",
+  unhandled_rejection: "Unhandled promise rejections",
 };
 
 function ValidationPage() {
@@ -141,9 +161,9 @@ function ValidationPage() {
     <div className="mx-auto max-w-[1200px] px-4 py-8 sm:px-6">
       <h1 className="text-[20px] font-semibold tracking-tight">Validation summary</h1>
       <p className="mt-1.5 max-w-2xl text-[12.5px] leading-relaxed text-muted-foreground">
-        Last {data.windowDays} days. Real activity excludes demonstration catalog events and any
-        event produced by an account holding a staff role. A rate is left blank when its denominator
-        is zero — no conversion is estimated.
+        Last {data.windowDays} days. Marketplace activity excludes catalog samples and any event
+        produced by an account holding a staff role. A rate is left blank when its denominator is
+        zero — no conversion is estimated.
       </p>
       <Link
         to="/admin"
@@ -158,43 +178,45 @@ function ValidationPage() {
             <div className="hairline-b px-4 py-2.5">
               <h2 className="text-[13px] font-semibold tracking-tight">{group.title}</h2>
             </div>
-            <table className="w-full text-[12.5px]">
-              <caption className="sr-only">{group.title} event counts</caption>
-              <thead>
-                <tr className="text-left text-[10.5px] uppercase tracking-[0.07em] text-muted-foreground">
-                  <th scope="col" className="px-4 py-2 font-medium">
-                    Event
-                  </th>
-                  <th scope="col" className="px-4 py-2 text-right font-medium">
-                    Real
-                  </th>
-                  <th scope="col" className="px-4 py-2 text-right font-medium">
-                    Demo
-                  </th>
-                  <th scope="col" className="px-4 py-2 text-right font-medium">
-                    Internal
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {group.events.map((name) => (
-                  <tr key={name} className="hairline-b">
-                    <th scope="row" className="px-4 py-2 text-left font-normal">
-                      {eventLabels[name] ?? name}
+            <div className="overflow-x-auto">
+              <table className="min-w-[420px] w-full text-[12.5px]">
+                <caption className="sr-only">{group.title} event counts</caption>
+                <thead>
+                  <tr className="text-left text-[10.5px] uppercase tracking-[0.07em] text-muted-foreground">
+                    <th scope="col" className="px-4 py-2 font-medium">
+                      Event
                     </th>
-                    <td className="numeric px-4 py-2 text-right font-medium">
-                      {data.real[name] ?? 0}
-                    </td>
-                    <td className="numeric px-4 py-2 text-right text-muted-foreground">
-                      {data.demo[name] ?? 0}
-                    </td>
-                    <td className="numeric px-4 py-2 text-right text-muted-foreground">
-                      {data.internal[name] ?? 0}
-                    </td>
+                    <th scope="col" className="px-4 py-2 text-right font-medium">
+                      Real
+                    </th>
+                    <th scope="col" className="px-4 py-2 text-right font-medium">
+                      Sample
+                    </th>
+                    <th scope="col" className="px-4 py-2 text-right font-medium">
+                      Internal
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {group.events.map((name) => (
+                    <tr key={name} className="hairline-b">
+                      <th scope="row" className="px-4 py-2 text-left font-normal">
+                        {eventLabels[name] ?? name}
+                      </th>
+                      <td className="numeric px-4 py-2 text-right font-medium">
+                        {data.real[name] ?? 0}
+                      </td>
+                      <td className="numeric px-4 py-2 text-right text-muted-foreground">
+                        {data.demo[name] ?? 0}
+                      </td>
+                      <td className="numeric px-4 py-2 text-right text-muted-foreground">
+                        {data.internal[name] ?? 0}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </section>
         ))}
       </div>

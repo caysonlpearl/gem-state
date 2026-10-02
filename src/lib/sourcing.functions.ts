@@ -112,9 +112,9 @@ export type SourcingMediaItem = {
   caption: string | null;
 };
 
-
-
-function variantLabel(v: { size: string | null; color: string | null; edition: string | null } | null) {
+function variantLabel(
+  v: { size: string | null; color: string | null; edition: string | null } | null,
+) {
   if (!v) return "One variation";
   const parts = [v.size, v.color, v.edition].filter(Boolean) as string[];
   return parts.length > 0 ? parts.join(" · ") : "One variation";
@@ -130,14 +130,17 @@ export const getShopperStatus = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<ShopperStatus> => {
     const { supabase, userId } = context;
-    const [{ data: roles, error: roleError }, { data: application, error: appError }] = await Promise.all([
-      supabase.from("user_roles").select("role").eq("user_id", userId),
-      supabase
-        .from("shopper_applications")
-        .select("id, status, park_frequency, home_resort_id, decision_note, reviewed_at, created_at")
-        .eq("user_id", userId)
-        .maybeSingle(),
-    ]);
+    const [{ data: roles, error: roleError }, { data: application, error: appError }] =
+      await Promise.all([
+        supabase.from("user_roles").select("role").eq("user_id", userId),
+        supabase
+          .from("shopper_applications")
+          .select(
+            "id, status, park_frequency, home_resort_id, decision_note, reviewed_at, created_at",
+          )
+          .eq("user_id", userId)
+          .maybeSingle(),
+      ]);
     if (roleError) throw new Error(roleError.message);
     if (appError) throw new Error(appError.message);
 
@@ -159,7 +162,7 @@ export const getShopperStatus = createServerFn({ method: "GET" })
 
 export const applyAsShopper = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
+  .validator(
     (input: {
       parkFrequency: string;
       idDocumentPath: string;
@@ -197,7 +200,7 @@ export const applyAsShopper = createServerFn({ method: "POST" })
 
 export const createSourcingRequest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
+  .validator(
     (input: {
       variantId: string;
       maxBudgetCents?: number | null;
@@ -217,7 +220,9 @@ export const createSourcingRequest = createServerFn({ method: "POST" })
       }
       const note = (input.buyerNote ?? "").trim();
       if (note.length > 500) throw new Error("Your note is too long.");
-      const media = (input.mediaPaths ?? []).filter((p) => typeof p === "string" && p.length > 0).slice(0, 6);
+      const media = (input.mediaPaths ?? [])
+        .filter((p) => typeof p === "string" && p.length > 0)
+        .slice(0, 6);
       const neededBy = (input.neededBy ?? "").trim();
       if (neededBy && !/^\d{4}-\d{2}-\d{2}$/.test(neededBy)) throw new Error("Enter a valid date.");
       return {
@@ -245,7 +250,7 @@ export const createSourcingRequest = createServerFn({ method: "POST" })
 
 export const cancelSourcingRequest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { requestId: string }) => ({ requestId: String(input.requestId) }))
+  .validator((input: { requestId: string }) => ({ requestId: String(input.requestId) }))
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase.rpc("cancel_sourcing_request", {
       _request_id: data.requestId,
@@ -253,8 +258,6 @@ export const cancelSourcingRequest = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     return { ok: true as const };
   });
-
-
 
 /**
  * Private reference media for one sourcing request, returned as short-lived
@@ -266,7 +269,7 @@ export const cancelSourcingRequest = createServerFn({ method: "POST" })
  */
 export const getSourcingRequestMedia = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { requestId: string }) => ({ requestId: String(input.requestId) }))
+  .validator((input: { requestId: string }) => ({ requestId: String(input.requestId) }))
   .handler(async ({ data, context }): Promise<SourcingMediaItem[]> => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: rows, error } = await supabaseAdmin.rpc("sourcing_request_media", {
@@ -289,8 +292,6 @@ export const getSourcingRequestMedia = createServerFn({ method: "POST" })
     }
     return items;
   });
-
-
 
 export const getMySourcingRequests = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -329,7 +330,6 @@ export const getMySourcingRequests = createServerFn({ method: "GET" })
       shopperReviewCount: (q as Record<string, unknown>)["shopper_review_count"] as number | null,
     }));
 
-
     return (rows ?? []).map((row) => {
       const product = row.products as { slug: string; name: string } | null;
       return {
@@ -338,7 +338,11 @@ export const getMySourcingRequests = createServerFn({ method: "GET" })
         productName: product?.name ?? "Unknown product",
         variantId: row.variant_id,
         variantLabel: variantLabel(
-          row.product_variants as { size: string | null; color: string | null; edition: string | null } | null,
+          row.product_variants as {
+            size: string | null;
+            color: string | null;
+            edition: string | null;
+          } | null,
         ),
         status: row.status,
         maxBudgetCents: row.max_budget_cents,
@@ -358,7 +362,7 @@ export const getMySourcingRequests = createServerFn({ method: "GET" })
 
 export const acceptShopperQuote = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { quoteId: string }) => ({ quoteId: String(input.quoteId) }))
+  .validator((input: { quoteId: string }) => ({ quoteId: String(input.quoteId) }))
   .handler(async ({ data, context }) => {
     const { data: orderId, error } = await context.supabase.rpc("accept_shopper_quote", {
       _quote_id: data.quoteId,
@@ -398,10 +402,9 @@ export const getSourcingBoard = createServerFn({ method: "GET" })
     }));
   });
 
-
 export const submitShopperQuote = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
+  .validator(
     (input: {
       requestId: string;
       merchCostCents: number;
@@ -460,7 +463,7 @@ export const submitShopperQuote = createServerFn({ method: "POST" })
 
 export const withdrawShopperQuote = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { quoteId: string }) => ({ quoteId: String(input.quoteId) }))
+  .validator((input: { quoteId: string }) => ({ quoteId: String(input.quoteId) }))
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase.rpc("withdraw_shopper_quote", {
       _quote_id: data.quoteId,
@@ -471,49 +474,59 @@ export const withdrawShopperQuote = createServerFn({ method: "POST" })
 
 export const getMyQuotes = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }): Promise<(SourcingQuote & { productName: string; variantLabel: string })[]> => {
-    const { supabase, userId } = context;
-    const { data, error } = await supabase
-      .from("shopper_quotes")
-      .select(
-        "id, request_id, merch_cost_cents, shopper_comp_cents, shipping_estimate_cents, buyer_fee_estimate_cents, delivered_estimate_cents, currency, availability_note, fulfillment_window_days, expires_at, status, matched_order_id, created_at, sourcing_requests!shopper_quotes_request_id_fkey(products(name), product_variants(size, color, edition))",
-      )
-      .eq("shopper_id", userId)
-      .order("created_at", { ascending: false });
-    if (error) throw new Error(error.message);
+  .handler(
+    async ({
+      context,
+    }): Promise<(SourcingQuote & { productName: string; variantLabel: string })[]> => {
+      const { supabase, userId } = context;
+      const { data, error } = await supabase
+        .from("shopper_quotes")
+        .select(
+          "id, request_id, merch_cost_cents, shopper_comp_cents, shipping_estimate_cents, buyer_fee_estimate_cents, delivered_estimate_cents, currency, availability_note, fulfillment_window_days, expires_at, status, matched_order_id, created_at, sourcing_requests!shopper_quotes_request_id_fkey(products(name), product_variants(size, color, edition))",
+        )
+        .eq("shopper_id", userId)
+        .order("created_at", { ascending: false });
+      if (error) throw new Error(error.message);
 
-    return (data ?? []).map((q) => {
-      const request = q.sourcing_requests as {
-        products: { name: string } | null;
-        product_variants: { size: string | null; color: string | null; edition: string | null } | null;
-      } | null;
-      return {
-        id: q.id,
-        requestId: q.request_id,
-        shopperRef: ref(q.id),
-        merchCostCents: q.merch_cost_cents,
-        shopperCompCents: q.shopper_comp_cents,
-        shippingEstimateCents: q.shipping_estimate_cents,
-        buyerFeeEstimateCents: q.buyer_fee_estimate_cents,
-        deliveredEstimateCents: q.delivered_estimate_cents,
-        currency: q.currency,
-        availabilityNote: q.availability_note,
-        fulfillmentWindowDays: q.fulfillment_window_days,
-        expiresAt: q.expires_at,
-        status: q.status,
-        matchedOrderId: q.matched_order_id,
-        createdAt: q.created_at,
-        productName: request?.products?.name ?? "Unknown product",
-        variantLabel: variantLabel(request?.product_variants ?? null),
-      };
-    });
-  });
+      return (data ?? []).map((q) => {
+        const request = q.sourcing_requests as {
+          products: { name: string } | null;
+          product_variants: {
+            size: string | null;
+            color: string | null;
+            edition: string | null;
+          } | null;
+        } | null;
+        return {
+          id: q.id,
+          requestId: q.request_id,
+          shopperRef: ref(q.id),
+          merchCostCents: q.merch_cost_cents,
+          shopperCompCents: q.shopper_comp_cents,
+          shippingEstimateCents: q.shipping_estimate_cents,
+          buyerFeeEstimateCents: q.buyer_fee_estimate_cents,
+          deliveredEstimateCents: q.delivered_estimate_cents,
+          currency: q.currency,
+          availabilityNote: q.availability_note,
+          fulfillmentWindowDays: q.fulfillment_window_days,
+          expiresAt: q.expires_at,
+          status: q.status,
+          matchedOrderId: q.matched_order_id,
+          createdAt: q.created_at,
+          productName: request?.products?.name ?? "Unknown product",
+          variantLabel: variantLabel(request?.product_variants ?? null),
+        };
+      });
+    },
+  );
 
 /* ------------------------------------------------------------ sourcing Asks */
 
 /** Public, identity-free list of open sourcing offers for a variation. */
 export const getSourcingOffers = createServerFn({ method: "GET" })
-  .inputValidator((input: { variantId: string }) => ({ variantId: String(input.variantId).slice(0, 40) }))
+  .validator((input: { variantId: string }) => ({
+    variantId: String(input.variantId).slice(0, 40),
+  }))
   .handler(async ({ data }): Promise<SourcingOffer[]> => {
     const client = publicServerClient();
     const { data: rows, error } = await client
@@ -543,7 +556,7 @@ export const getSourcingOffers = createServerFn({ method: "GET" })
 
 export const placeSourcingAsk = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
+  .validator(
     (input: {
       variantId: string;
       priceCents: number;
@@ -581,7 +594,7 @@ export const placeSourcingAsk = createServerFn({ method: "POST" })
 
 export const requestSourcingOffer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { askId: string }) => ({ askId: String(input.askId) }))
+  .validator((input: { askId: string }) => ({ askId: String(input.askId) }))
   .handler(async ({ data, context }) => {
     const { data: orderId, error } = await context.supabase.rpc("request_sourcing_ask", {
       _ask_id: data.askId,

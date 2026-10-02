@@ -16,6 +16,7 @@ import { SiteHeader } from "@/components/layout/SiteHeader";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { PilotBanner } from "@/components/layout/PilotBanner";
 import { Toaster } from "@/components/ui/sonner";
+import { trackBrowserError } from "@/lib/analytics";
 
 function NotFoundComponent() {
   return (
@@ -108,7 +109,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   shellComponent: RootShell,
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
-  errorComponent: ErrorComponent,
+  errorComponent: ErrorComponent as never,
 });
 
 function RootShell({ children }: { children: ReactNode }) {
@@ -137,6 +138,23 @@ function RootComponent() {
     });
     return () => data.subscription.unsubscribe();
   }, [queryClient, router]);
+
+  useEffect(() => {
+    const onError = (event: ErrorEvent) => {
+      // Browser errors are recorded without the current query string so typed
+      // search terms and other user-provided values never enter telemetry.
+      trackBrowserError(event.error ?? event.message, "error");
+    };
+    const onUnhandledRejection = (event: PromiseRejectionEvent) => {
+      trackBrowserError(event.reason, "unhandled_rejection");
+    };
+    window.addEventListener("error", onError);
+    window.addEventListener("unhandledrejection", onUnhandledRejection);
+    return () => {
+      window.removeEventListener("error", onError);
+      window.removeEventListener("unhandledrejection", onUnhandledRejection);
+    };
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

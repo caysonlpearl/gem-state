@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- registry entries share heterogeneous email payloads */
 import type { ComponentType } from "react";
 
 import { template as purchaseConfirmed } from "./purchase-confirmed";

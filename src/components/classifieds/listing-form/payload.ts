@@ -1,4 +1,5 @@
 import { isMotorsCategory } from "@/lib/classifieds-display";
+import { isPetSubcategory, normalizePetSpecies, normalizePetSubcategory } from "@/config/pets";
 import type { ClassifiedListingInput } from "@/lib/classified-listing-contracts";
 import type { ClassifiedListingEditor } from "@/lib/classifieds.functions";
 import { linesToList, listToLines } from "./shared";
@@ -13,8 +14,11 @@ export function isJobCategory(category: string) {
 export function isServiceCategory(category: string) {
   return category === "services";
 }
+export function isPetCategory(category: string) {
+  return isPetSubcategory(category);
+}
 
-export type ListingKind = "item" | "vehicle" | "home" | "job" | "service";
+export type ListingKind = "item" | "vehicle" | "home" | "job" | "service" | "pet";
 
 /** Which top-level listing-type tab a category belongs to. Drives the tab bar
  * at the top of the form so choosing "Home"/"Job"/"Service" is an explicit,
@@ -23,6 +27,7 @@ export function kindForCategory(category: string): ListingKind {
   if (isHomeCategory(category)) return "home";
   if (isJobCategory(category)) return "job";
   if (isServiceCategory(category)) return "service";
+  if (isPetCategory(category)) return "pet";
   if (isMotorsCategory(category)) return "vehicle";
   return "item";
 }
@@ -37,6 +42,7 @@ export function priceCentsFor(form: ListingFormState): number {
   if (isJobCategory(form.category)) {
     return Math.max(100, Math.round((Number(form.payMin) || 0) * 100));
   }
+  if (isPetCategory(form.category) && !form.price.trim()) return 0;
   return dollarsToCents(form.price);
 }
 
@@ -94,6 +100,7 @@ export function buildHome(form: ListingFormState): ClassifiedListingInput["home"
 export function buildJob(form: ListingFormState): ClassifiedListingInput["job"] | undefined {
   if (!isJobCategory(form.category)) return undefined;
   return {
+    category: form.jobCategory,
     employerName: form.employerName,
     employerAddress: form.employerAddress || undefined,
     payType: form.payType as NonNullable<ClassifiedListingInput["job"]>["payType"],
@@ -122,12 +129,45 @@ export function buildService(
   if (!isServiceCategory(form.category)) return undefined;
   return {
     subcategory: form.subcategory,
+    pricingType: form.servicePricingType as NonNullable<
+      ClassifiedListingInput["service"]
+    >["pricingType"],
+    priceMaxCents: form.servicePriceMax.trim()
+      ? Math.round(Number(form.servicePriceMax.replace(/[^0-9.]/g, "")) * 100)
+      : undefined,
     serviceArea: form.serviceArea,
     availability: form.availability || undefined,
     businessAddress: form.businessAddress || undefined,
     licenseNumber: form.licenseNumber || undefined,
     licenseLookupUrl: form.licenseLookupUrl || undefined,
     offerings: linesToList(form.offerings).length ? linesToList(form.offerings) : undefined,
+  };
+}
+
+export function buildPet(form: ListingFormState): ClassifiedListingInput["pet"] | undefined {
+  if (!isPetCategory(form.category)) return undefined;
+  return {
+    subcategory: normalizePetSubcategory(form.petSubcategory) ?? "dogs",
+    species: normalizePetSpecies(form.petSpecies) ?? "Dog",
+    breed: form.petBreed || undefined,
+    name: form.petName || undefined,
+    age: form.petAge || undefined,
+    sex: form.petSex as NonNullable<ClassifiedListingInput["pet"]>["sex"],
+    placementType: form.petPlacementType as NonNullable<
+      ClassifiedListingInput["pet"]
+    >["placementType"],
+    offeredBy: form.petOfferedBy as NonNullable<ClassifiedListingInput["pet"]>["offeredBy"],
+    hypoallergenic: form.petHypoallergenic,
+    vaccinated: form.petVaccinated,
+    spayedNeutered: form.petSpayedNeutered,
+    microchipped: form.petMicrochipped,
+    recordsAvailable: form.petRecordsAvailable,
+    goodWithKids: form.petGoodWithKids,
+    goodWithDogs: form.petGoodWithDogs,
+    goodWithCats: form.petGoodWithCats,
+    indoorOutdoor: form.petIndoorOutdoor,
+    specialNeeds: form.petSpecialNeeds || undefined,
+    breedingTerms: form.petBreedingTerms || undefined,
   };
 }
 
@@ -149,6 +189,7 @@ export function fromEditor(listing: ClassifiedListingEditor): ListingFormState {
     width: listing.parcelWidthIn,
     height: listing.parcelHeightIn,
     weight: listing.parcelWeightLb,
+    itemDetails: listing.itemDetails ?? {},
 
     make: listing.vehicle?.make ?? "",
     model: listing.vehicle?.model ?? "",
@@ -187,6 +228,7 @@ export function fromEditor(listing: ClassifiedListingEditor): ListingFormState {
     smokingPolicy: listing.home?.smoking ?? "",
     openHouse: listing.home?.openHouse ?? "",
 
+    jobCategory: listing.job?.category ?? "Other",
     employerName: listing.job?.employerName ?? "",
     employerAddress: listing.job?.employerAddress ?? "",
     payType: listing.job?.payType ?? "Hourly",
@@ -201,11 +243,36 @@ export function fromEditor(listing: ClassifiedListingEditor): ListingFormState {
     applicationExternalContact: listing.job?.applicationExternalContact ?? "",
 
     subcategory: listing.service?.subcategory ?? "",
+    servicePricingType: listing.service?.pricingType ?? "quote",
+    servicePriceMax:
+      listing.service?.priceMaxCents == null
+        ? ""
+        : (listing.service.priceMaxCents / 100).toFixed(2),
     serviceArea: listing.service?.serviceArea ?? "",
     availability: listing.service?.availability ?? "",
     businessAddress: listing.service?.businessAddress ?? "",
     licenseNumber: listing.service?.licenseNumber ?? "",
     licenseLookupUrl: listing.service?.licenseLookupUrl ?? "",
     offerings: listToLines(listing.service?.offerings),
+
+    petSubcategory: normalizePetSubcategory(listing.pet?.subcategory) ?? "dogs",
+    petSpecies: normalizePetSpecies(listing.pet?.species) ?? "Dog",
+    petBreed: listing.pet?.breed ?? "",
+    petName: listing.pet?.name ?? "",
+    petAge: listing.pet?.age ?? "",
+    petSex: listing.pet?.sex ?? "Unknown / not disclosed",
+    petPlacementType: listing.pet?.placementType ?? "sale",
+    petOfferedBy: listing.pet?.offeredBy ?? "Owner",
+    petHypoallergenic: listing.pet?.hypoallergenic ?? "Unknown",
+    petVaccinated: listing.pet?.vaccinated ?? "Unknown",
+    petSpayedNeutered: listing.pet?.spayedNeutered ?? "Unknown",
+    petMicrochipped: listing.pet?.microchipped ?? "Unknown",
+    petRecordsAvailable: listing.pet?.recordsAvailable ?? "Unknown",
+    petGoodWithKids: listing.pet?.goodWithKids ?? "Unknown",
+    petGoodWithDogs: listing.pet?.goodWithDogs ?? "Unknown",
+    petGoodWithCats: listing.pet?.goodWithCats ?? "Unknown",
+    petIndoorOutdoor: listing.pet?.indoorOutdoor ?? "Unknown",
+    petSpecialNeeds: listing.pet?.specialNeeds ?? "",
+    petBreedingTerms: listing.pet?.breedingTerms ?? "",
   };
 }

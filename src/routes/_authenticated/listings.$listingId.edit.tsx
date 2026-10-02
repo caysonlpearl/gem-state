@@ -2,7 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 
 import { formatUsd } from "@/config/fees";
-import { ListingForm, ListingFormBackLink } from "@/components/classifieds/listing-form/ListingForm";
+import {
+  ListingForm,
+  ListingFormBackLink,
+} from "@/components/classifieds/listing-form/ListingForm";
 import { getClassifiedListingEditor } from "@/lib/classifieds.functions";
 
 export const Route = createFileRoute("/_authenticated/listings/$listingId/edit")({
@@ -38,7 +41,7 @@ function ListingEditorPage() {
       <div className="mt-5 flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-primary">
-            Gem State seller center
+            Bluebird seller center
           </p>
           <h1 className="mt-1 font-editorial text-[36px] font-normal tracking-[-0.04em]">
             Edit listing

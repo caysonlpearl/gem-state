@@ -1,6 +1,8 @@
 import { z } from "zod";
 
 import { classifiedCategories, vehicleOptions } from "@/config/classifieds";
+import { petOfferedBy, petPlacementTypes, petSexes } from "@/config/pets";
+import { fieldsForClassifiedItem } from "@/config/classified-item-fields";
 
 type NonEmpty = [string, ...string[]];
 const categorySlugs = classifiedCategories.map((category) => category.slug) as NonEmpty;
@@ -9,6 +11,9 @@ const transmissions = [...vehicleOptions.transmissions] as NonEmpty;
 const drivetrains = [...vehicleOptions.drivetrains] as NonEmpty;
 const fuelTypes = [...vehicleOptions.fuelTypes] as NonEmpty;
 const titleStatuses = [...vehicleOptions.titleStatuses] as NonEmpty;
+const petPlacements = petPlacementTypes.map(([value]) => value) as NonEmpty;
+const petOfferedByValues = [...petOfferedBy] as NonEmpty;
+const petSexValues = [...petSexes] as NonEmpty;
 
 const emptyToUndefined = (value: unknown) =>
   typeof value === "string" && value.trim() === "" ? undefined : value;
@@ -19,7 +24,7 @@ export const classifiedListingSchema = z
     description: z.string().trim().min(20).max(5000),
     category: z.enum(categorySlugs),
     condition: z.enum(["new_with_tags", "new_without_tags", "used_excellent", "used_good"]),
-    priceCents: z.number().int().min(100).max(1_000_000_000),
+    priceCents: z.number().int().min(0).max(1_000_000_000),
     state: z
       .string()
       .trim()
@@ -36,6 +41,7 @@ export const classifiedListingSchema = z
     ),
     fulfillmentMode: z.enum(["local_pickup", "shipping", "both"]),
     sellerNote: z.string().trim().max(500).optional(),
+    itemDetails: z.record(z.string(), z.string().trim().max(200)).optional(),
     vehicle: z
       .object({
         make: z.string().trim().min(1).max(80),
@@ -89,18 +95,13 @@ export const classifiedListingSchema = z
       .optional(),
     job: z
       .object({
+        category: z.string().trim().min(1).max(80),
         employerName: z.string().trim().min(1).max(120),
         employerAddress: z.string().trim().max(200).optional(),
         payType: z.enum(["Hourly", "Salary", "Commission", "Contract"]),
         payMin: z.number().min(0).max(10_000_000),
         payMax: z.number().min(0).max(10_000_000),
-        employmentType: z.enum([
-          "Full-time",
-          "Part-time",
-          "Seasonal",
-          "Contract",
-          "Temporary",
-        ]),
+        employmentType: z.enum(["Full-time", "Part-time", "Seasonal", "Contract", "Temporary"]),
         experienceRequired: z.string().trim().max(80).optional(),
         educationLevel: z.string().trim().max(80).optional(),
         responsibilities: z.array(z.string().trim().min(1).max(300)).max(20).optional(),
@@ -112,6 +113,8 @@ export const classifiedListingSchema = z
     service: z
       .object({
         subcategory: z.string().trim().min(1).max(80),
+        pricingType: z.enum(["quote", "flat", "visit", "hour"]),
+        priceMaxCents: z.number().int().min(0).max(100_000_000).optional(),
         serviceArea: z.string().trim().min(1).max(200),
         availability: z.string().trim().max(120).optional(),
         businessAddress: z.string().trim().max(200).optional(),
@@ -120,8 +123,40 @@ export const classifiedListingSchema = z
         offerings: z.array(z.string().trim().min(1).max(200)).max(20).optional(),
       })
       .optional(),
+    pet: z
+      .object({
+        subcategory: z.string().trim().min(1).max(80),
+        species: z.string().trim().min(1).max(40),
+        breed: z.string().trim().max(100).optional(),
+        name: z.string().trim().max(80).optional(),
+        age: z.string().trim().max(60).optional(),
+        sex: z.enum(petSexValues),
+        placementType: z.enum(petPlacements),
+        offeredBy: z.enum(petOfferedByValues),
+        hypoallergenic: z.string().trim().max(20),
+        vaccinated: z.string().trim().max(20),
+        spayedNeutered: z.string().trim().max(20),
+        microchipped: z.string().trim().max(20),
+        recordsAvailable: z.string().trim().max(20),
+        goodWithKids: z.string().trim().max(20),
+        goodWithDogs: z.string().trim().max(20),
+        goodWithCats: z.string().trim().max(20),
+        indoorOutdoor: z.string().trim().max(30),
+        specialNeeds: z.string().trim().max(1000).optional(),
+        breedingTerms: z.string().trim().max(1000).optional(),
+      })
+      .optional(),
   })
   .superRefine((listing, context) => {
+    const quoteService =
+      listing.category === "services" && listing.service?.pricingType === "quote";
+    if (listing.priceCents === 0 && listing.category !== "pets" && !quoteService) {
+      context.addIssue({
+        code: "custom",
+        path: ["priceCents"],
+        message: "A price is required for this listing category.",
+      });
+    }
     const automotive = classifiedCategories.some(
       (category) => category.slug === listing.category && category.group === "motors",
     );
@@ -152,6 +187,50 @@ export const classifiedListingSchema = z
         path: ["service"],
         message: "Service details are required for service listings.",
       });
+    }
+    if (listing.category === "pets" && !listing.pet) {
+      context.addIssue({
+        code: "custom",
+        path: ["pet"],
+        message: "Pet details are required for pet listings.",
+      });
+    }
+    if (listing.job && listing.job.payMax < listing.job.payMin) {
+      context.addIssue({
+        code: "custom",
+        path: ["job", "payMax"],
+        message: "Maximum compensation must be at least the minimum.",
+      });
+    }
+    if (
+      listing.service?.priceMaxCents != null &&
+      listing.service.priceMaxCents < listing.priceCents
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["service", "priceMaxCents"],
+        message: "Typical maximum price must be at least the starting price.",
+      });
+    }
+    if (
+      listing.category !== "other-real-estate" &&
+      listing.category !== "jobs" &&
+      listing.category !== "services" &&
+      listing.category !== "pets" &&
+      !listing.vehicle
+    ) {
+      const requiredFields = fieldsForClassifiedItem(listing.category).filter(
+        (field) => field.required,
+      );
+      for (const field of requiredFields) {
+        if (!listing.itemDetails?.[field.key]?.trim()) {
+          context.addIssue({
+            code: "custom",
+            path: ["itemDetails", field.key],
+            message: `${field.label} is required for this category.`,
+          });
+        }
+      }
     }
   });
 

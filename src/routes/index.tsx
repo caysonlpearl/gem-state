@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { ArrowRight, MagnifyingGlass, MapPin, Car } from "@phosphor-icons/react";
+import { ArrowRight, CaretDown, MagnifyingGlass, MapPin, Car } from "@phosphor-icons/react";
 
 import { brand } from "@/config/brand";
 import { classifiedCategories, idahoRegions, usStates } from "@/config/classifieds";
@@ -43,10 +43,25 @@ export const Route = createFileRoute("/")({
 const seeAll =
   "inline-flex shrink-0 items-center gap-1 text-[12.5px] font-semibold text-primary hover:underline";
 
+const HOMEPAGE_ROW_SIZE = 4;
+
+const homepageCategoryHighlights = [
+  { slug: "furniture", name: "Furniture" },
+  { slug: "electronics", name: "Electronics" },
+  { slug: "tools-equipment", name: "Tools & Equipment" },
+  { slug: "outdoor-sporting", name: "Outdoor & Sporting" },
+  { slug: "farm-garden", name: "Farm & Garden" },
+  { slug: "general", name: "General" },
+] as const;
+
 type HomepageBrowseSearch = {
   allCategories?: boolean;
   category?: string;
   group?: "motors";
+  bodyStyle?: string;
+  homeTab?: "buy" | "build" | "rent";
+  jobEmploymentType?: string;
+  priceMax?: number;
 };
 
 const headlineOptions = [
@@ -154,87 +169,126 @@ function Home() {
   useEffect(() => {
     setHeadlineItems(pickHeadlineItems());
     void trackEvent("page_view", { route: "/" });
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const headlineRotation = window.setInterval(() => {
+      setHeadlineItems((current) => {
+        const currentIndex = headlineOptions.findIndex(
+          (option) => option.join("|") === current.join("|"),
+        );
+        const next =
+          headlineOptions[(currentIndex + 1) % headlineOptions.length] ?? headlineOptions[0];
+        try {
+          window.localStorage.setItem(headlineStorageKey, next.join("|"));
+        } catch {
+          window.name = `${headlineWindowKey}${next.join("|")}`;
+        }
+        return next;
+      });
+    }, 6500);
+
+    return () => window.clearInterval(headlineRotation);
   }, []);
 
   const motorCategories = classifiedCategories.filter((c) => c.group === "motors");
-  const generalCategories = classifiedCategories.filter((c) => c.group === "classifieds");
-  const freshListings = home.recent.slice(0, 6);
-  const homeListings = home.recent.filter((listing) => listing.home).slice(0, 6);
-  const jobListings = home.recent.filter((listing) => listing.job).slice(0, 6);
-  const serviceListings = home.recent.filter((listing) => listing.service).slice(0, 6);
-  const generalListings = home.recent
-    .filter((listing) => !listing.vehicle && !listing.home && !listing.job && !listing.service)
-    .slice(0, 6);
-  const withFallback = (matches: typeof home.recent, fallback: typeof home.recent) =>
-    (matches.length >= 2 ? matches : fallback).slice(0, 6);
-  const vehicleListings = home.motors.slice(0, 6);
-  const truckListings = withFallback(
+  const freshListings = home.recent.filter((listing) => !listing.pet).slice(0, HOMEPAGE_ROW_SIZE);
+  const homeListings = home.recent.filter((listing) => listing.home);
+  const jobListings = home.recent.filter((listing) => listing.job);
+  // Keep the source shape easy to audit alongside the other category filters.
+  // prettier-ignore
+  const serviceSource = home.recent.filter((listing) => listing.service);
+  const serviceListings = serviceSource.slice(0, HOMEPAGE_ROW_SIZE);
+  const generalSource = home.recent.filter(
+    (listing) =>
+      !listing.vehicle && !listing.pet && !listing.home && !listing.job && !listing.service,
+  );
+  const generalListings = generalSource.slice(0, HOMEPAGE_ROW_SIZE);
+  const take = (matches: typeof home.recent) => matches.slice(0, HOMEPAGE_ROW_SIZE);
+  const vehicleListings = home.motors.slice(0, HOMEPAGE_ROW_SIZE);
+  const truckListings = take(
     home.motors.filter((listing) => /truck|suv|pickup|jeep/i.test(listing.title)),
-    vehicleListings,
   );
   const valueVehicleListings = [...home.motors]
     .sort((a, b) => a.priceCents - b.priceCents)
-    .slice(0, 6);
-  const buyHomes = withFallback(
-    homeListings.filter((listing) => listing.home?.mode === "buy"),
-    homeListings,
-  );
-  const buildHomes = withFallback(
-    homeListings.filter((listing) => listing.home?.mode === "build"),
-    homeListings,
-  );
-  const rentalHomes = withFallback(
-    homeListings.filter((listing) => listing.home?.mode === "rent"),
-    homeListings,
-  );
-  const flexibleJobs = withFallback(
+    .slice(0, HOMEPAGE_ROW_SIZE);
+  const buyHomes = take(homeListings.filter((listing) => listing.home?.mode === "buy"));
+  const buildHomes = take(homeListings.filter((listing) => listing.home?.mode === "build"));
+  const rentalHomes = take(homeListings.filter((listing) => listing.home?.mode === "rent"));
+  const flexibleJobs = take(
     jobListings.filter((listing) =>
       /part-time|contract|temporary/i.test(listing.job?.employmentType ?? ""),
     ),
-    jobListings,
   );
-  const homeServices = withFallback(
-    serviceListings.filter((listing) =>
+  const homeServices = take(
+    serviceSource.filter((listing) =>
       /home|handyman|lawn|landscape|repair|clean/i.test(
         `${listing.title} ${listing.service?.subcategory ?? ""}`,
       ),
     ),
-    serviceListings,
   );
-  const toyAndCollectibleListings = withFallback(
-    generalListings.filter((listing) =>
+  const toyAndCollectibleListings = take(
+    generalSource.filter((listing) =>
       /toy|plush|doll|collectible|ninja|mario/i.test(
         `${listing.title} ${listing.categoryName ?? ""}`,
       ),
     ),
-    generalListings,
   );
-  const valueFinds = withFallback(
-    generalListings.filter((listing) => listing.priceCents <= 10_000),
-    generalListings,
-  );
+  const valueFinds = take(generalSource.filter((listing) => listing.priceCents <= 10_000));
   const localSellerPicks =
-    home.recent.slice(6, 12).length > 1 ? home.recent.slice(6, 12) : freshListings;
+    home.recent.slice(6, 6 + HOMEPAGE_ROW_SIZE).length > 1
+      ? home.recent.slice(6, 6 + HOMEPAGE_ROW_SIZE)
+      : freshListings;
 
   return (
     <main className="mx-auto max-w-[1360px] px-4 pb-16 sm:px-6">
-      <section className="relative mt-8 overflow-hidden rounded-[28px] bg-secondary px-5 py-9 sm:px-10 sm:py-12">
-        <span className="absolute -right-20 -top-24 h-64 w-64 rounded-full bg-brand-warm/10" />
-        <span className="absolute -bottom-28 left-1/3 h-72 w-72 rounded-full bg-primary/5" />
-        <div className="relative">
+      <section className="classifieds-hero-shell homepage-hero-shell relative mt-8 overflow-hidden rounded-[28px] border border-brand-blue/20 bg-secondary px-5 py-9 shadow-lg sm:px-10 sm:py-12">
+        <span
+          className="classifieds-hero-orb classifieds-hero-orb--blue absolute -right-20 -top-24 h-64 w-64 rounded-full bg-brand-blue/12"
+          aria-hidden="true"
+        />
+        <span
+          className="classifieds-hero-orb classifieds-hero-orb--warm absolute -bottom-28 left-1/3 h-72 w-72 rounded-full bg-brand-warm/18"
+          aria-hidden="true"
+        />
+        <span
+          className="classifieds-hero-sheen pointer-events-none absolute inset-y-0 -left-1/3 z-0 w-1/3 skew-x-[-18deg] bg-white/20"
+          aria-hidden="true"
+        />
+        <div className="relative z-10">
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
-            Gem State classifieds
+            Bluebird classifieds
           </p>
-          <h1 className="mt-3 max-w-[34ch] text-[34px] font-bold leading-[1.08] tracking-tight sm:text-[48px]">
-            Find {headlineItems[0]} to {headlineItems[1]} to {headlineItems[2]} to{" "}
-            {headlineItems[3]}.
+          <h1 className="homepage-hero-headline mt-3 max-w-[34ch] text-[34px] font-bold leading-[1.08] tracking-tight sm:text-[48px]">
+            <span className="block">
+              Find{" "}
+              <span
+                key={headlineItems.join("|")}
+                className="classifieds-hero-rotating-item text-brand-blue"
+                aria-live="polite"
+              >
+                {headlineItems[0]}
+              </span>{" "}
+              to {headlineItems[1]} to
+            </span>
+            <span className="block">
+              {headlineItems[2]} to {headlineItems[3]}.
+            </span>
           </h1>
           <p className="mt-4 max-w-[56ch] text-[15px] leading-relaxed text-muted-foreground">
             And so much more across Idaho and surrounding states.
           </p>
+          <div
+            className="classifieds-hero-accent mt-4 flex items-center gap-1.5"
+            aria-hidden="true"
+          >
+            <span className="classifieds-hero-accent-bar h-1.5 w-9 rounded-full bg-brand-blue" />
+            <span className="classifieds-hero-accent-bar classifieds-hero-accent-bar--warm h-1.5 w-5 rounded-full bg-brand-warm" />
+            <span className="classifieds-hero-accent-bar h-1.5 w-2.5 rounded-full bg-brand-blue/60" />
+          </div>
 
           <form
-            className="floating-card mt-8 grid gap-2 p-2 sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:p-3"
+            className="floating-card mt-7 grid gap-2 border border-brand-blue/15 ring-1 ring-brand-warm/10 p-2 sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:p-3"
             onSubmit={(event) => {
               event.preventDefault();
               const locationSearch = parseLocationSearch(location);
@@ -262,19 +316,27 @@ function Home() {
                 className="h-12 w-full rounded-full border-0 bg-transparent pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
               />
             </label>
-            <select
-              value={category}
-              onChange={(event) => setCategory(event.target.value)}
-              aria-label="Category"
-              className="soft-control h-12 px-4 text-sm text-foreground outline-none"
-            >
-              <option value="">All categories</option>
-              {classifiedCategories.map((option) => (
-                <option key={option.slug} value={option.slug}>
-                  {option.name}
-                </option>
-              ))}
-            </select>
+            <label className="relative block">
+              <select
+                value={category}
+                onChange={(event) => setCategory(event.target.value)}
+                aria-label="Category"
+                className="soft-control h-12 w-full appearance-none px-4 pr-12 text-sm text-foreground outline-none"
+              >
+                <option value="">All categories</option>
+                {classifiedCategories.map((option) => (
+                  <option key={option.slug} value={option.slug}>
+                    {option.name}
+                  </option>
+                ))}
+              </select>
+              <CaretDown
+                size={16}
+                weight="bold"
+                className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground"
+                aria-hidden="true"
+              />
+            </label>
             <label className="soft-control relative flex h-12 items-center gap-2 px-4">
               <MapPin
                 size={16}
@@ -336,7 +398,7 @@ function Home() {
         </div>
         {home.motors.length > 0 ? (
           <div className="no-scrollbar mt-5 flex gap-4 overflow-x-auto pb-2 lg:grid lg:grid-cols-4 lg:overflow-visible">
-            {home.motors.map((listing) => (
+            {home.motors.slice(0, HOMEPAGE_ROW_SIZE).map((listing) => (
               <div key={listing.id} className="min-w-[235px] lg:min-w-0">
                 <ListingCard listing={listing} />
               </div>
@@ -354,7 +416,7 @@ function Home() {
       <section className="mt-16">
         <h2 className="text-[26px] font-bold tracking-tight">Browse other classifieds</h2>
         <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
-          {generalCategories.map((option) => (
+          {homepageCategoryHighlights.map((option) => (
             <Link
               key={option.slug}
               to="/browse"
@@ -365,16 +427,13 @@ function Home() {
                 <CategoryArtwork slug={option.slug} size={54} className="category-art--nav" />
               </span>
               <span className="block text-[13px] font-semibold">{option.name}</span>
-              <span className="mt-1 block text-[11.5px] text-muted-foreground">
-                {home.categoryCounts[option.slug] ?? 0} listings
-              </span>
             </Link>
           ))}
         </div>
       </section>
 
       <HomepageListingRow
-        eyebrow="Gem State picks"
+        eyebrow="Bluebird picks"
         title="Fresh local finds"
         listings={freshListings}
         search={{ allCategories: true }}
@@ -382,7 +441,7 @@ function Home() {
       />
 
       <HomepageListingRow
-        eyebrow="Gem State motors"
+        eyebrow="Bluebird motors"
         title="New vehicle arrivals"
         listings={vehicleListings}
         search={{ group: "motors" }}
@@ -390,15 +449,15 @@ function Home() {
       />
 
       <HomepageListingRow
-        eyebrow="Gem State motors"
+        eyebrow="Bluebird motors"
         title="Trucks, SUVs & pickups"
         listings={truckListings}
-        search={{ group: "motors" }}
+        search={{ group: "motors", bodyStyle: "Pickup||SUV" }}
         action="Shop trucks & SUVs"
       />
 
       <HomepageListingRow
-        eyebrow="Gem State motors"
+        eyebrow="Bluebird motors"
         title="Affordable vehicles"
         listings={valueVehicleListings}
         search={{ group: "motors" }}
@@ -406,48 +465,48 @@ function Home() {
       />
 
       <HomepageInfoBand
-        eyebrow="How GemList works"
-        title="Buy locally, ask directly, and keep the transaction simple."
-        body="Every listing connects you with the person or business behind it. Ask questions, compare options, and arrange the details directly with the seller."
-        action="See how buying and selling works"
-        to="/glossary"
+        eyebrow="Local marketplace"
+        title="Buy locally and connect directly with sellers."
+        body="Explore listings from people and businesses across Idaho, then message sellers directly to ask questions and arrange the details."
+        action="Browse local listings"
+        to="/browse"
       />
 
       <HomepageListingRow
-        eyebrow="Gem State homes"
+        eyebrow="Bluebird homes"
         title="Homes for sale"
         listings={buyHomes}
-        search={{ category: "other-real-estate" }}
+        search={{ category: "other-real-estate", homeTab: "buy" }}
         action="Browse homes for sale"
       />
 
       <HomepageListingRow
-        eyebrow="Gem State homes"
+        eyebrow="Bluebird homes"
         title="New builds to explore"
         listings={buildHomes}
-        search={{ category: "other-real-estate" }}
+        search={{ category: "other-real-estate", homeTab: "build" }}
         action="Find new construction"
       />
 
       <HomepageListingRow
-        eyebrow="Gem State homes"
+        eyebrow="Bluebird homes"
         title="Rentals worth a look"
         listings={rentalHomes}
-        search={{ category: "other-real-estate" }}
+        search={{ category: "other-real-estate", homeTab: "rent" }}
         action="Browse rentals"
       />
 
       <HomepageInfoBand
         eyebrow="For sellers and businesses"
         title="Put your next opportunity in front of local buyers."
-        body="Post an item, promote a service, or share an open role. GemList gives Idaho sellers one simple place to be discovered."
+        body="Post an item, promote a service, or share an open role. Bluebird Marketplace gives Idaho sellers one simple place to be discovered."
         action="Post a listing"
         to="/sell"
         tone="accent"
       />
 
       <HomepageListingRow
-        eyebrow="Gem State jobs"
+        eyebrow="Bluebird jobs"
         title="Jobs hiring now"
         listings={jobListings}
         search={{ category: "jobs" }}
@@ -455,15 +514,15 @@ function Home() {
       />
 
       <HomepageListingRow
-        eyebrow="Gem State jobs"
+        eyebrow="Bluebird jobs"
         title="Flexible and part-time work"
         listings={flexibleJobs}
-        search={{ category: "jobs" }}
+        search={{ category: "jobs", jobEmploymentType: "part-time||contract||temporary" }}
         action="Find flexible work"
       />
 
       <HomepageListingRow
-        eyebrow="Gem State services"
+        eyebrow="Bluebird services"
         title="Services for your next project"
         listings={serviceListings}
         search={{ category: "services" }}
@@ -471,7 +530,7 @@ function Home() {
       />
 
       <HomepageListingRow
-        eyebrow="Gem State services"
+        eyebrow="Bluebird services"
         title="Home services and repairs"
         listings={homeServices}
         search={{ category: "services" }}
@@ -487,7 +546,7 @@ function Home() {
       />
 
       <HomepageListingRow
-        eyebrow="Gem State classifieds"
+        eyebrow="Bluebird classifieds"
         title="Everyday finds from local sellers"
         listings={generalListings}
         search={{ allCategories: true }}
@@ -495,7 +554,7 @@ function Home() {
       />
 
       <HomepageListingRow
-        eyebrow="Gem State classifieds"
+        eyebrow="Bluebird classifieds"
         title="Toys and collectibles"
         listings={toyAndCollectibleListings}
         search={{ category: "general" }}
@@ -503,15 +562,15 @@ function Home() {
       />
 
       <HomepageListingRow
-        eyebrow="Gem State classifieds"
+        eyebrow="Bluebird classifieds"
         title="Value finds under $100"
         listings={valueFinds}
-        search={{ allCategories: true }}
+        search={{ allCategories: true, priceMax: 100 }}
         action="Shop everyday finds"
       />
 
       <HomepageListingRow
-        eyebrow="Gem State picks"
+        eyebrow="Bluebird picks"
         title="More from local sellers"
         listings={localSellerPicks}
         search={{ allCategories: true }}
@@ -570,7 +629,7 @@ function HomepageListingRow({
         </Link>
       </div>
       <div className="no-scrollbar mt-5 flex gap-4 overflow-x-auto pb-2 lg:grid lg:grid-cols-4 lg:overflow-visible">
-        {listings.map((listing) => (
+        {listings.slice(0, HOMEPAGE_ROW_SIZE).map((listing) => (
           <div key={listing.id} className="min-w-[235px] lg:min-w-0">
             <ListingCard listing={listing} />
           </div>
@@ -592,7 +651,7 @@ function HomepageInfoBand({
   title: string;
   body: string;
   action: string;
-  to: "/glossary" | "/sell" | "/browse";
+  to: "/sell" | "/browse";
   tone?: "default" | "accent";
 }) {
   return (

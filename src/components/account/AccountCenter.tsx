@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -7,6 +7,7 @@ import {
   ArrowRight,
   Bell,
   BookmarkSimple,
+  Camera,
   CheckCircle,
   ChatCircle,
   Eye,
@@ -29,11 +30,14 @@ import {
 
 import { brand } from "@/config/brand";
 import { formatUsd } from "@/config/fees";
+import { SavedSearchNameDialog } from "@/components/classifieds/SavedSearchNameDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { trackEvent } from "@/lib/analytics";
+import { formatSavedSearchFilter, formatSavedSearchScope } from "@/lib/classifieds-display";
 import {
   getMyAccount,
   saveMyProfile,
+  updateMyAvatar,
   MEMBER_INTENTS,
   type MemberIntent,
   type MyAccount,
@@ -69,6 +73,7 @@ import {
   markNotificationsRead,
   type MemberNotification,
 } from "@/lib/notifications.functions";
+import { getAdminAccess } from "@/lib/admin-access.functions";
 import { cancelListing, getMyListings, type MyListing } from "@/lib/market.functions";
 import {
   AlertDialog,
@@ -151,7 +156,12 @@ const navItems: { section: AccountSection; label: string; icon: typeof UserCircl
   { section: "reviews", label: "Reviews & reputation", icon: Star },
 ];
 
-export function AccountCenter({ section, conversationId, checkout, purchaseId }: AccountCenterProps) {
+export function AccountCenter({
+  section,
+  conversationId,
+  checkout,
+  purchaseId,
+}: AccountCenterProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const fetchAccount = useServerFn(getMyAccount);
@@ -166,6 +176,7 @@ export function AccountCenter({ section, conversationId, checkout, purchaseId }:
   const fetchSellerSummary = useServerFn(getSellerDashboardSummary);
   const fetchUpgradeOptions = useServerFn(getListingUpgradeOptions);
   const fetchBillingHistory = useServerFn(getSellerBillingHistory);
+  const fetchAdminAccess = useServerFn(getAdminAccess);
   const reconcileCheckout = useServerFn(reconcileListingUpgradeCheckout);
 
   useEffect(() => {
@@ -174,16 +185,27 @@ export function AccountCenter({ section, conversationId, checkout, purchaseId }:
 
   useEffect(() => {
     if (section !== "billing" || !purchaseId || !checkout) return;
-    void reconcileCheckout({ data: { purchaseId, cancelled: checkout === "cancelled" } }).then((result) => {
-      queryClient.invalidateQueries({ queryKey: ["seller-billing-history"] });
-      if (result === "paid") toast.success("Listing upgrade applied.");
-      if (result === "canceled") toast.message("Stripe checkout canceled; no upgrade was applied.");
-    }).catch((error) => {
-      toast.error(error instanceof Error ? error.message : "Could not reconcile Stripe checkout.");
-    });
+    void reconcileCheckout({ data: { purchaseId, cancelled: checkout === "cancelled" } })
+      .then((result) => {
+        queryClient.invalidateQueries({ queryKey: ["seller-billing-history"] });
+        if (result === "paid") toast.success("Listing upgrade applied.");
+        if (result === "canceled")
+          toast.message("Stripe checkout canceled; no upgrade was applied.");
+      })
+      .catch((error) => {
+        toast.error(
+          error instanceof Error ? error.message : "Could not reconcile Stripe checkout.",
+        );
+      });
   }, [checkout, purchaseId, queryClient, reconcileCheckout, section]);
 
   const account = useQuery({ queryKey: ["my-account"], queryFn: () => fetchAccount() });
+  const adminAccess = useQuery({
+    queryKey: ["admin-access"],
+    queryFn: () => fetchAdminAccess(),
+    enabled: Boolean(account.data),
+    retry: false,
+  });
   const watchlist = useQuery({
     queryKey: ["my-watchlist"],
     queryFn: () => fetchWatchlist(),
@@ -201,6 +223,7 @@ export function AccountCenter({ section, conversationId, checkout, purchaseId }:
     queryFn: () => fetchConversations(),
     // The sidebar exposes the unread message count on every account view.
     enabled: true,
+    refetchInterval: 15000,
   });
   const savedSearches = useQuery({
     queryKey: ["saved-searches"],
@@ -260,8 +283,7 @@ export function AccountCenter({ section, conversationId, checkout, purchaseId }:
     await navigate({ to: "/", replace: true });
   }
 
-  if (account.isLoading) return <AccountLoading />;
-  if (account.isError || !account.data) {
+  if (account.isError) {
     return (
       <AccountError message={account.error instanceof Error ? account.error.message : undefined} />
     );
@@ -270,11 +292,12 @@ export function AccountCenter({ section, conversationId, checkout, purchaseId }:
   const data = account.data;
   const unreadMessages = conversations.data?.filter((item) => item.unread).length ?? 0;
   const unreadNotifications = notifications.data?.unread ?? 0;
-  const sellerVisible = Boolean(sellerSetup.data?.exists || data.primaryIntent === "selling");
+  const sellerVisible = Boolean(sellerSetup.data?.exists || data?.primaryIntent === "selling");
+  const adminVisible = adminAccess.data?.isAdmin === true;
 
   return (
     <main id="main-content" className="mx-auto max-w-[1320px] px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mb-6 flex items-center justify-between gap-4 lg:hidden">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-4 lg:hidden">
         <div>
           <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
             Member center
@@ -292,8 +315,17 @@ export function AccountCenter({ section, conversationId, checkout, purchaseId }:
               {item.label}
             </option>
           ))}
-          {sellerVisible && <option value="billing">Seller billing</option>}
+          {sellerVisible && <option value="billing">Billing</option>}
         </select>
+        {adminVisible && (
+          <Link
+            to="/admin"
+            className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-primary px-3 text-[12px] font-semibold text-primary-foreground shadow-sm"
+          >
+            <ShieldCheck size={16} weight="fill" aria-hidden="true" />
+            Admin panel
+          </Link>
+        )}
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[236px_minmax(0,1fr)]">
@@ -304,9 +336,14 @@ export function AccountCenter({ section, conversationId, checkout, purchaseId }:
           unreadMessages={unreadMessages}
           unreadNotifications={unreadNotifications}
           sellerVisible={sellerVisible}
+          adminVisible={adminVisible}
         />
         <div className="min-w-0">
-          {section === "overview" && (
+          {account.isLoading ? (
+            <AccountSectionSkeleton section={section} />
+          ) : !data ? (
+            <AccountError message="Could not load your account." />
+          ) : section === "overview" ? (
             <OverviewSection
               account={data}
               watchlistCount={watchlist.data?.length ?? 0}
@@ -319,39 +356,36 @@ export function AccountCenter({ section, conversationId, checkout, purchaseId }:
               notifications={notifications.data?.items ?? []}
               onSelect={go}
             />
-          )}
-          {section === "profile" && (
+          ) : section === "profile" ? (
             <ProfileSection
               account={data}
               contactPreferences={contactPreferences.data}
               sellerSetup={sellerSetup.data}
               sellerSummary={sellerSummary.data}
             />
-          )}
-          {section === "settings" && (
+          ) : section === "settings" ? (
             <SettingsSection
               account={data}
               contactPreferences={contactPreferences.data}
               notificationPreferences={notificationPreferences.data}
             />
-          )}
-          {section === "saved" && <SavedListingsSection items={watchlist.data ?? []} />}
-          {section === "searches" && <SavedSearchesSection searches={savedSearches.data ?? []} />}
-          {section === "messages" && (
+          ) : section === "saved" ? (
+            <SavedListingsSection items={watchlist.data ?? []} />
+          ) : section === "searches" ? (
+            <SavedSearchesSection searches={savedSearches.data ?? []} />
+          ) : section === "messages" ? (
             <MessagesSection
               conversations={conversations.data ?? []}
               conversationId={conversationId}
               onOpen={(id) => go("messages", { conversation: id })}
             />
-          )}
-          {section === "notifications" && <NotificationsSection data={notifications.data} />}
-          {section === "listings" && (
+          ) : section === "notifications" ? (
+            <NotificationsSection data={notifications.data} />
+          ) : section === "listings" ? (
             <ListingsSection listings={listings.data?.asks ?? []} sellerSetup={sellerSetup.data} />
-          )}
-          {section === "reviews" && (
+          ) : section === "reviews" ? (
             <ReviewsSection summary={sellerSummary.data} sellerSetup={sellerSetup.data} />
-          )}
-          {section === "billing" && (
+          ) : (
             <BillingSection
               sellerSetup={sellerSetup.data}
               listings={listings.data?.asks ?? []}
@@ -372,6 +406,7 @@ function AccountSidebar({
   unreadMessages,
   unreadNotifications,
   sellerVisible,
+  adminVisible,
 }: {
   section: AccountSection;
   onSelect: (section: AccountSection) => void;
@@ -379,12 +414,13 @@ function AccountSidebar({
   unreadMessages: number;
   unreadNotifications: number;
   sellerVisible: boolean;
+  adminVisible: boolean;
 }) {
   return (
     <aside className="hidden lg:block">
       <div className="sticky top-[108px] overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
         <div className="border-b border-border bg-secondary/45 px-5 py-5">
-          <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">Gem State</p>
+          <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">Bluebird</p>
           <h1 className="mt-1 text-[24px] font-bold tracking-tight">My account</h1>
         </div>
         <nav aria-label="Account sections" className="p-2">
@@ -423,8 +459,17 @@ function AccountSidebar({
               className={`flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-[12.5px] font-medium transition-colors ${section === "billing" ? "bg-primary text-primary-foreground shadow-sm" : "text-foreground hover:bg-secondary"}`}
             >
               <CreditCard size={18} aria-hidden="true" />
-              <span className="flex-1">Seller billing</span>
+              <span className="flex-1">Billing</span>
             </button>
+          )}
+          {adminVisible && (
+            <Link
+              to="/admin"
+              className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-[12.5px] font-medium text-foreground transition-colors hover:bg-secondary"
+            >
+              <ShieldCheck size={18} weight="fill" aria-hidden="true" />
+              <span className="flex-1">Admin panel</span>
+            </Link>
           )}
         </nav>
         <div className="border-t border-border p-2">
@@ -442,11 +487,107 @@ function AccountSidebar({
   );
 }
 
-function AccountLoading() {
+const accountSectionTitles: Record<AccountSection, { title: string; body: string }> = {
+  overview: {
+    title: "Account overview",
+    body: "Your saved activity, conversations, and selling tools are loading.",
+  },
+  profile: {
+    title: "Public profile",
+    body: "Your profile details and trust signals are loading.",
+  },
+  settings: {
+    title: "Account & security",
+    body: "Your account details and preferences are loading.",
+  },
+  listings: {
+    title: "Listings",
+    body: "Your seller workspace and listing performance are loading.",
+  },
+  saved: {
+    title: "Saved listings",
+    body: "Your saved marketplace listings are loading.",
+  },
+  searches: {
+    title: "Saved searches",
+    body: "Your saved filters and alert settings are loading.",
+  },
+  messages: {
+    title: "Messages",
+    body: "Your marketplace conversations are loading.",
+  },
+  notifications: {
+    title: "Notifications",
+    body: "Your marketplace updates are loading.",
+  },
+  reviews: {
+    title: "Reviews & reputation",
+    body: "Your ratings and review activity are loading.",
+  },
+  billing: {
+    title: "Seller billing",
+    body: "Your listing upgrade options and billing history are loading.",
+  },
+};
+
+function SkeletonBlock({ className }: { className: string }) {
   return (
-    <main className="mx-auto max-w-[980px] px-4 py-16 text-[13px] text-muted-foreground">
-      Loading your account center…
-    </main>
+    <div aria-hidden="true" className={`animate-pulse rounded-xl bg-secondary ${className}`} />
+  );
+}
+
+function AccountSectionSkeleton({ section }: { section: AccountSection }) {
+  const copy = accountSectionTitles[section];
+
+  return (
+    <div aria-busy="true" aria-label={`Loading ${copy.title}`}>
+      <SectionHeader eyebrow="Member center" title={copy.title} body={copy.body} />
+      {section === "messages" ? (
+        <div className="mt-6 grid gap-4 lg:grid-cols-[280px_minmax(0,1fr)]">
+          <div className="rounded-2xl border border-border bg-card p-4">
+            <SkeletonBlock className="h-10 w-full" />
+            <div className="mt-4 space-y-3">
+              <SkeletonBlock className="h-16 w-full" />
+              <SkeletonBlock className="h-16 w-full" />
+              <SkeletonBlock className="h-16 w-full" />
+            </div>
+          </div>
+          <div className="rounded-2xl border border-border bg-card p-5">
+            <SkeletonBlock className="h-8 w-2/5" />
+            <SkeletonBlock className="mt-5 h-40 w-full" />
+            <SkeletonBlock className="mt-4 h-12 w-full" />
+          </div>
+        </div>
+      ) : section === "overview" ? (
+        <div className="mt-6 space-y-5">
+          <div className="rounded-2xl border border-border bg-card p-5">
+            <div className="flex items-center gap-4">
+              <SkeletonBlock className="size-16 shrink-0 rounded-full" />
+              <div className="min-w-0 flex-1 space-y-2">
+                <SkeletonBlock className="h-5 w-1/3" />
+                <SkeletonBlock className="h-4 w-1/2" />
+              </div>
+            </div>
+            <SkeletonBlock className="mt-5 h-3 w-full" />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-3">
+            <SkeletonBlock className="h-24 w-full" />
+            <SkeletonBlock className="h-24 w-full" />
+            <SkeletonBlock className="h-24 w-full" />
+          </div>
+          <SkeletonBlock className="h-44 w-full" />
+        </div>
+      ) : (
+        <div className="mt-6 space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <SkeletonBlock className="h-28 w-full" />
+            <SkeletonBlock className="h-28 w-full" />
+          </div>
+          <SkeletonBlock className="h-44 w-full" />
+          <SkeletonBlock className="h-32 w-full" />
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -517,7 +658,7 @@ function OverviewSection({
   const pendingListings = listings.filter(
     (item) => !item.approvedAt || item.status === "pending_review",
   ).length;
-  const displayName = account.displayName || account.email?.split("@")[0] || "Gem State member";
+  const displayName = account.displayName || account.email?.split("@")[0] || "Bluebird member";
   return (
     <div className="space-y-8">
       <SectionHeader
@@ -606,7 +747,21 @@ function OverviewSection({
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(300px,0.9fr)]">
         <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-          <SectionTitle title={sellerSetup?.exists ? "Seller snapshot" : "Your next best steps"} />
+          <SectionTitle
+            title={sellerSetup?.exists ? "Seller snapshot" : "Your next best steps"}
+            action={
+              sellerSetup?.exists ? (
+                <button
+                  type="button"
+                  onClick={() => onSelect("billing")}
+                  className="text-[11.5px] font-semibold text-primary hover:underline"
+                >
+                  Billing
+                  <ArrowRight size={13} className="ml-1 inline" />
+                </button>
+              ) : undefined
+            }
+          />
           {sellerSetup?.exists ? (
             <div className="grid gap-3 sm:grid-cols-3">
               <MiniMetric label="Active listings" value={activeListings} />
@@ -682,6 +837,13 @@ function OverviewSection({
             label="Open messages"
             onClick={() => onSelect("messages")}
           />
+          {sellerSetup?.exists && (
+            <QuickAction
+              icon={CreditCard}
+              label="Manage billing"
+              onClick={() => onSelect("billing")}
+            />
+          )}
         </div>
       </section>
     </div>
@@ -725,6 +887,7 @@ function ProfileSection({
 }) {
   const queryClient = useQueryClient();
   const save = useServerFn(saveMyProfile);
+  const saveAvatar = useServerFn(updateMyAvatar);
   const updatePreferences = useServerFn(updateMyContactPreferences);
   const [displayName, setDisplayName] = useState(account.displayName ?? "");
   const [market, setMarket] = useState(account.homeResortCode ?? "");
@@ -736,6 +899,7 @@ function ProfileSection({
   const [allowInternalMessages, setAllowInternalMessages] = useState(
     contactPreferences?.allowInternalMessages ?? true,
   );
+  const [avatarBusy, setAvatarBusy] = useState(false);
   useEffect(() => {
     if (!contactPreferences) return;
     setAllowPhone(contactPreferences.allowPhone);
@@ -779,6 +943,45 @@ function ProfileSection({
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "Could not save contact preferences."),
   });
+  async function uploadAvatar(file: File) {
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      toast.error("Use a JPG, PNG, or WebP image.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Profile images must be 5 MB or smaller.");
+      return;
+    }
+    const extension = file.type === "image/jpeg" ? "jpg" : file.type.split("/")[1];
+    const path = `${account.userId}/avatar-${crypto.randomUUID()}.${extension}`;
+    setAvatarBusy(true);
+    try {
+      const { error: uploadError } = await supabase.storage
+        .from("profile-avatars")
+        .upload(path, file, { contentType: file.type, cacheControl: "3600", upsert: false });
+      if (uploadError) throw new Error(uploadError.message);
+      await saveAvatar({ data: { path } });
+      await queryClient.invalidateQueries({ queryKey: ["my-account"] });
+      toast.success("Profile picture updated.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not update your profile picture.",
+      );
+    } finally {
+      setAvatarBusy(false);
+    }
+  }
+  const removeAvatar = useMutation({
+    mutationFn: () => saveAvatar({ data: { path: null } }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["my-account"] });
+      toast.success("Profile picture removed.");
+    },
+    onError: (error) =>
+      toast.error(
+        error instanceof Error ? error.message : "Could not remove your profile picture.",
+      ),
+  });
   return (
     <div className="space-y-8">
       <SectionHeader
@@ -812,7 +1015,7 @@ function ProfileSection({
               icon={account.emailVerified ? CheckCircle : ShieldCheck}
             />
             <TrustBadge
-              label={account.phoneVerified ? "Phone verified" : "Gem State member"}
+              label={account.phoneVerified ? "Phone verified" : "Bluebird member"}
               icon={account.phoneVerified ? CheckCircle : ShieldCheck}
             />
             {sellerSummary?.ratingAverage != null && (
@@ -841,6 +1044,60 @@ function ProfileSection({
             <ArrowRight size={14} />
           </Link>
         )}
+      </section>
+      <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
+        <SectionTitle title="Profile picture" />
+        <div className="mt-4 flex flex-wrap items-center gap-4">
+          <div className="grid size-20 shrink-0 place-items-center overflow-hidden rounded-full bg-primary text-xl font-bold text-primary-foreground">
+            {account.avatarUrl ? (
+              <img
+                src={account.avatarUrl}
+                alt={`${displayName || "Your"} profile`}
+                className="size-full object-cover"
+              />
+            ) : (
+              (displayName || "GS").slice(0, 2).toUpperCase()
+            )}
+          </div>
+          <div className="min-w-[220px] flex-1">
+            <p className="text-[13px] font-semibold">Add a photo people recognize</p>
+            <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
+              This appears on your public seller profile, listings, reviews, and messages. Use a
+              JPG, PNG, or WebP up to 5 MB.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <label
+                htmlFor="profile-photo-upload"
+                className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl bg-primary px-3 text-[12px] font-semibold text-primary-foreground hover:opacity-90 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60"
+              >
+                <Camera size={15} />
+                {avatarBusy ? "Uploading…" : account.avatarUrl ? "Change photo" : "Add photo"}
+              </label>
+              <input
+                id="profile-photo-upload"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="sr-only"
+                disabled={avatarBusy}
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  event.target.value = "";
+                  if (file) void uploadAvatar(file);
+                }}
+              />
+              {account.avatarUrl && (
+                <button
+                  type="button"
+                  onClick={() => removeAvatar.mutate()}
+                  disabled={removeAvatar.isPending || avatarBusy}
+                  className="h-9 rounded-xl border border-input px-3 text-[12px] font-semibold hover:bg-secondary disabled:opacity-60"
+                >
+                  {removeAvatar.isPending ? "Removing…" : "Remove"}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       </section>
       {sellerSetup?.exists ? (
         <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
@@ -883,13 +1140,16 @@ function ProfileSection({
           profileMutation.mutate();
         }}
       >
-        <SectionTitle title="Public details" />
+        <SectionTitle
+          title="Public details"
+          action={<span className="text-[11px] text-muted-foreground">Edit the fields below</span>}
+        />
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
           <Field label="Display name">
             <input
               value={displayName}
               onChange={(event) => setDisplayName(event.target.value)}
-              className="field"
+              className="mt-2 block h-11 w-full rounded-xl border border-input bg-background px-3 text-[13px] outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-ring/30"
               maxLength={40}
             />
           </Field>
@@ -897,7 +1157,7 @@ function ProfileSection({
             <select
               value={market}
               onChange={(event) => setMarket(event.target.value)}
-              className="field"
+              className="mt-2 block h-11 w-full rounded-xl border border-input bg-background px-3 text-[13px] outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-ring/30"
             >
               <option value="">Select a market</option>
               {brand.markets.map((item) => (
@@ -912,7 +1172,7 @@ function ProfileSection({
           <select
             value={intent}
             onChange={(event) => setIntent(event.target.value as MemberIntent)}
-            className="field"
+            className="mt-2 block h-11 w-full rounded-xl border border-input bg-background px-3 text-[13px] outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-ring/30"
           >
             <option value="">Select an option</option>
             {MEMBER_INTENTS.map((value) => (
@@ -935,7 +1195,7 @@ function ProfileSection({
         <SectionTitle title="Contact preferences" />
         <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
           These settings control which contact buttons appear on your listings and whether members
-          can start Gem State conversations with you.
+          can start Bluebird conversations with you.
         </p>
         <div className="mt-4 divide-y divide-border">
           <ToggleRow
@@ -963,7 +1223,7 @@ function ProfileSection({
             onChange={setShowButtons}
           />
           <ToggleRow
-            label="Allow Gem State messages"
+            label="Allow Bluebird messages"
             body="Let members contact you through the marketplace inbox."
             checked={allowInternalMessages}
             onChange={setAllowInternalMessages}
@@ -1054,7 +1314,7 @@ function SettingsSection({
       <SectionHeader
         eyebrow="Account settings"
         title="Control your account"
-        body="Manage your sign-in, contact visibility, and the updates Gem State sends you."
+        body="Manage your sign-in, contact visibility, and the updates Bluebird sends you."
       />
       <div className="rounded-2xl border border-border bg-card shadow-sm">
         <SettingsBlock icon={UserCircle} title="Account details">
@@ -1080,7 +1340,7 @@ function SettingsSection({
           <SettingLine label="Account ID" value={account.userId.slice(0, 8) + "…"} />
         </SettingsBlock>
         <SettingsBlock icon={LockKey} title="Security">
-          <SettingLine label="Password" value="Managed by Supabase Auth">
+          <SettingLine label="Password" value="Protected">
             <button
               type="button"
               onClick={() => void requestPasswordReset()}
@@ -1092,13 +1352,7 @@ function SettingsSection({
           <SettingLine
             label="Google sign-in"
             value={account.googleConnected ? "Connected" : "Not connected"}
-          >
-            <span className="text-[11px] text-muted-foreground">
-              {account.googleConnected
-                ? "Connected through Supabase"
-                : "Use Google on the sign-in screen"}
-            </span>
-          </SettingLine>
+          />
           <SettingLine
             label="Phone verification"
             value={account.phoneVerified ? "Verified" : "Not verified"}
@@ -1118,7 +1372,7 @@ function SettingsSection({
         <SettingsBlock icon={ShieldCheck} title="Account deletion">
           <p className="text-[12px] leading-relaxed text-muted-foreground">
             To protect active listings, messages, and transaction records, account deletion requests
-            are reviewed by Gem State support.
+            are reviewed by Bluebird support.
           </p>
           <Link
             to="/contact"
@@ -1144,7 +1398,7 @@ function SettingsSection({
             },
             {
               key: "allowInternalMessages",
-              label: "Allow Gem State messages",
+              label: "Allow Bluebird messages",
               value: contact.allowInternalMessages,
             },
           ]}
@@ -1183,7 +1437,7 @@ function SettingsSection({
             },
             {
               key: "productUpdates",
-              label: "Gem State product updates",
+              label: "Bluebird product updates",
               value: notifications.productUpdates,
             },
             {
@@ -1229,6 +1483,17 @@ function SavedListingsSection({ items }: { items: WatchedVariant[] }) {
           ? (b.lowestAskCents ?? 0) - (a.lowestAskCents ?? 0)
           : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
+  const visibleIdKey = filtered.map((item) => item.variantId).join("|");
+  // The key is derived from the visible set, so this memo remains stable while
+  // other account data refreshes in the background.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- visibleIdKey captures the derived filtered IDs.
+  const visibleIds = useMemo(() => new Set(filtered.map((item) => item.variantId)), [visibleIdKey]);
+  useEffect(() => {
+    setSelectedIds((current) => {
+      const next = current.filter((id) => visibleIds.has(id));
+      return next.length === current.length ? current : next;
+    });
+  }, [visibleIdKey, visibleIds]);
   const removeMutation = useMutation({
     mutationFn: (variantId: string) => setWatch({ data: { variantId, watching: false } }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["my-watchlist"] }),
@@ -1263,8 +1528,12 @@ function SavedListingsSection({ items }: { items: WatchedVariant[] }) {
     <div className="space-y-6">
       <SectionHeader
         eyebrow="Saved listings"
-        title={`${items.length} saved ${items.length === 1 ? "listing" : "listings"}`}
-        body="Keep exact items handy while you compare local options. Saving does not reserve an item."
+        title={`${filtered.length} saved ${filtered.length === 1 ? "listing" : "listings"}`}
+        body={
+          filtered.length === items.length
+            ? "Keep exact items handy while you compare local options. Saving does not reserve an item."
+            : `Showing ${filtered.length} of ${items.length} saved listings. Saving does not reserve an item.`
+        }
         action={
           <div className="flex flex-wrap gap-2">
             <Link
@@ -1281,7 +1550,9 @@ function SavedListingsSection({ items }: { items: WatchedVariant[] }) {
                 disabled={bulkRemove.isPending}
                 className="inline-flex h-10 items-center gap-2 rounded-xl bg-destructive px-3 text-[12px] font-semibold text-destructive-foreground disabled:opacity-60"
               >
-                {bulkRemove.isPending ? "Removing…" : `Remove ${selectedIds.length} selected`}
+                {bulkRemove.isPending
+                  ? "Removing…"
+                  : `Remove ${selectedIds.length} visible selected`}
               </button>
             )}
           </div>
@@ -1472,6 +1743,8 @@ function SavedSearchesSection({ searches }: { searches: SavedSearch[] }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState("");
   const [sort, setSort] = useState<"newest" | "oldest">("newest");
+  const [renameSearchId, setRenameSearchId] = useState<string | null>(null);
+  const [renameSearchName, setRenameSearchName] = useState("");
   const createMutation = useMutation({
     mutationFn: () => create({ data: { name, search: { q: searchQuery || undefined } } }),
     onSuccess: async () => {
@@ -1518,15 +1791,21 @@ function SavedSearchesSection({ searches }: { searches: SavedSearch[] }) {
         : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
   function editSearch(item: SavedSearch) {
-    const nextName = window.prompt("Saved search name", item.name)?.trim();
-    if (!nextName || nextName === item.name) return;
-    const currentQuery = typeof item.search["q"] === "string" ? item.search["q"] : "";
-    const nextQuery = window.prompt("Search phrase", currentQuery);
-    updateMutation.mutate({
-      id: item.id,
-      name: nextName,
-      search: { ...item.search, q: nextQuery?.trim() || undefined },
-    });
+    setRenameSearchId(item.id);
+    setRenameSearchName(item.name);
+  }
+  async function renameSearch() {
+    if (!renameSearchId || !renameSearchName.trim()) return;
+    try {
+      await updateMutation.mutateAsync({
+        id: renameSearchId,
+        name: renameSearchName.trim(),
+      });
+      setRenameSearchId(null);
+      setRenameSearchName("");
+    } catch {
+      // The mutation displays its own error toast.
+    }
   }
   return (
     <div className="space-y-6">
@@ -1630,7 +1909,7 @@ function SavedSearchesSection({ searches }: { searches: SavedSearch[] }) {
                     <p className="mt-1 text-[11.5px] text-muted-foreground">
                       {typeof item.search["q"] === "string" && item.search["q"]
                         ? `“${item.search["q"]}” · `
-                        : "All classifieds · "}
+                        : `${formatSavedSearchScope(item.search as Record<string, unknown>)} · `}
                       {filterEntries.length ? `${filterEntries.length} filters · ` : ""}
                       {item.emailAlerts ? "Email alerts on" : "In-app only"}
                     </p>
@@ -1640,10 +1919,7 @@ function SavedSearchesSection({ searches }: { searches: SavedSearch[] }) {
                           key={key}
                           className="rounded-full bg-secondary px-2 py-1 text-[10px] text-muted-foreground"
                         >
-                          {key
-                            .replace(/[A-Z]/g, (letter) => ` ${letter}`)
-                            .replace(/^./, (letter) => letter.toUpperCase())}
-                          : {Array.isArray(value) ? value.join(", ") : String(value)}
+                          {formatSavedSearchFilter(key, value)}
                         </span>
                       ))}
                       {filterEntries.length > 8 && (
@@ -1699,6 +1975,20 @@ function SavedSearchesSection({ searches }: { searches: SavedSearch[] }) {
           })}
         </div>
       )}
+      <SavedSearchNameDialog
+        open={renameSearchId !== null}
+        name={renameSearchName}
+        mode="rename"
+        pending={updateMutation.isPending}
+        onOpenChange={(open) => {
+          if (!open) {
+            setRenameSearchId(null);
+            setRenameSearchName("");
+          }
+        }}
+        onNameChange={setRenameSearchName}
+        onSubmit={() => void renameSearch()}
+      />
     </div>
   );
 }
@@ -1728,7 +2018,9 @@ function MessagesSection({
   const [detail, setDetail] = useState<ConversationDetail | null>(null);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState("");
+  const [reportSubmitted, setReportSubmitted] = useState(false);
   const [blockOpen, setBlockOpen] = useState(false);
+  const sendLockRef = useRef(false);
   const activeId = conversationId ?? conversations[0]?.id;
   const activeList = conversations.filter(
     (item) =>
@@ -1739,22 +2031,26 @@ function MessagesSection({
       item.listingTitle.toLowerCase().includes(query.toLowerCase()),
   );
   const selected = activeList.find((item) => item.id === activeId) ?? activeList[0];
+  const selectedId = selected?.id;
+  const selectedUnread = selected?.unread ?? false;
   useEffect(() => {
-    if (!selected) {
+    if (!selectedId) {
       setDetail(null);
+      setReportSubmitted(false);
       return;
     }
-    void fetchConversation({ data: { id: selected.id } })
+    setReportSubmitted(false);
+    void fetchConversation({ data: { id: selectedId } })
       .then(async (value) => {
         setDetail(value);
-        if (selected.unread) {
-          await markRead({ data: { conversationId: selected.id } });
+        if (selectedUnread) {
+          await markRead({ data: { conversationId: selectedId } });
           await queryClient.invalidateQueries({ queryKey: ["conversations"] });
           await queryClient.invalidateQueries({ queryKey: ["notifications"] });
         }
       })
       .catch(() => setDetail(null));
-  }, [selected?.id]);
+  }, [fetchConversation, markRead, queryClient, selectedId, selectedUnread]);
   const sendMutation = useMutation({
     mutationFn: () => send({ data: { conversationId: selected?.id ?? "", body } }),
     onSuccess: async () => {
@@ -1762,6 +2058,7 @@ function MessagesSection({
       setFailedSend(null);
       if (selected) setDetail(await fetchConversation({ data: { id: selected.id } }));
       await queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      await queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
     onError: (error) => {
       setFailedSend("message");
@@ -1799,12 +2096,30 @@ function MessagesSection({
       setFailedSend(null);
       if (selected) setDetail(await fetchConversation({ data: { id: selected.id } }));
       await queryClient.invalidateQueries({ queryKey: ["conversations"] });
+      await queryClient.invalidateQueries({ queryKey: ["notifications"] });
     },
     onError: (error) => {
       setFailedSend("attachment");
       toast.error(error instanceof Error ? error.message : "Could not send attachment.");
     },
   });
+  const submitMessage = () => {
+    if (
+      sendLockRef.current ||
+      sendMutation.isPending ||
+      sendAttachmentMutation.isPending ||
+      (!body.trim() && !attachment)
+    ) {
+      return;
+    }
+    sendLockRef.current = true;
+    const mutation = attachment ? sendAttachmentMutation : sendMutation;
+    mutation.mutate(undefined, {
+      onSettled: () => {
+        sendLockRef.current = false;
+      },
+    });
+  };
   const blockMutation = useMutation({
     mutationFn: (id: string) => block({ data: { conversationId: id } }),
     onSuccess: async () => {
@@ -1819,7 +2134,7 @@ function MessagesSection({
       <SectionHeader
         eyebrow="Messages"
         title="Keep marketplace conversations together"
-        body="Message buyers and sellers inside Gem State. Your phone, text, and email buttons remain separate contact options on listings."
+        body="Message buyers and sellers inside Bluebird. Your phone, text, and email buttons remain separate contact options on listings."
       />
       <div className="grid gap-4 rounded-2xl border border-border bg-card p-3 shadow-sm lg:grid-cols-[300px_minmax(0,1fr)]">
         <div className="border-b border-border pb-3 lg:border-b-0 lg:border-r lg:pb-0 lg:pr-3">
@@ -1864,7 +2179,7 @@ function MessagesSection({
                 <p
                   className={`mt-1 text-[11px] ${item.id === selected?.id ? "text-primary-foreground/70" : "text-muted-foreground"}`}
                 >
-                  {new Date(item.lastMessageAt).toLocaleDateString()}
+                  With {item.otherMemberName} · {new Date(item.lastMessageAt).toLocaleDateString()}
                 </p>
               </button>
             ))}
@@ -1884,7 +2199,7 @@ function MessagesSection({
                 </p>
                 <p className="mt-1 text-[11.5px] text-muted-foreground">
                   {detail
-                    ? "Keep payment details and sensitive information out of messages."
+                    ? `With ${detail.otherMemberName} · Keep payment details and sensitive information out of messages.`
                     : "Your buyer and seller conversations will appear here."}
                 </p>
               </div>
@@ -1930,8 +2245,7 @@ function MessagesSection({
                 className="border-t border-border px-2 pt-3"
                 onSubmit={(event) => {
                   event.preventDefault();
-                  if (attachment) sendAttachmentMutation.mutate();
-                  else if (body.trim()) sendMutation.mutate();
+                  submitMessage();
                 }}
               >
                 <textarea
@@ -2000,6 +2314,16 @@ function MessagesSection({
                     </button>
                   </div>
                 </div>
+                {reportSubmitted && (
+                  <p
+                    role="status"
+                    className="mt-2 rounded-lg border border-primary/25 bg-primary/5 px-3 py-2 text-[11px] text-primary"
+                  >
+                    Report submitted. Bluebird moderators can now review this conversation;
+                    submitting again will update the existing report instead of creating a
+                    duplicate.
+                  </p>
+                )}
                 {failedSend && (
                   <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-[11px] text-destructive">
                     <span>
@@ -2010,8 +2334,7 @@ function MessagesSection({
                     <button
                       type="button"
                       onClick={() => {
-                        if (failedSend === "attachment") sendAttachmentMutation.mutate();
-                        else sendMutation.mutate();
+                        submitMessage();
                       }}
                       disabled={sendMutation.isPending || sendAttachmentMutation.isPending}
                       className="font-semibold underline underline-offset-2 disabled:opacity-50"
@@ -2047,7 +2370,7 @@ function MessagesSection({
           <DialogHeader>
             <DialogTitle>Report this conversation</DialogTitle>
             <DialogDescription>
-              Tell us what happened. Reports are reviewed by Gem State moderators.
+              Tell us what happened. Reports are reviewed by Bluebird moderators.
             </DialogDescription>
           </DialogHeader>
           <textarea
@@ -2072,6 +2395,7 @@ function MessagesSection({
                 void report({ data: { conversationId: detail.id, reason: reportReason } })
                   .then(() => {
                     setReportOpen(false);
+                    setReportSubmitted(true);
                     toast.success("Conversation reported.");
                   })
                   .catch((error) =>
@@ -2131,6 +2455,15 @@ function NotificationsSection({
   const items = data?.items ?? [];
   const visible = items.filter((item) => filter === "all" || item.kind === filter);
   const kinds = [...new Set(items.map((item) => item.kind).filter(Boolean))];
+  const kindLabels: Record<string, string> = {
+    message: "Messages",
+    saved_search_match: "Saved search matches",
+    listing_reviewed: "Listing review",
+    listing_upgrade: "Listing promotion",
+    review_request: "Review requests",
+  };
+  const notificationText = (value: string) =>
+    value.replaceAll("ParkVault", brand.name).replaceAll("Gem State", brand.name);
   return (
     <div className="space-y-6">
       <SectionHeader
@@ -2165,7 +2498,7 @@ function NotificationsSection({
           <option value="all">All activity</option>
           {kinds.map((kind) => (
             <option key={kind} value={kind}>
-              {kind.replaceAll("_", " ")}
+              {kindLabels[kind] ?? kind.replaceAll("_", " ")}
             </option>
           ))}
         </select>
@@ -2173,7 +2506,7 @@ function NotificationsSection({
       {visible.length === 0 ? (
         <EmptyState
           title={items.length === 0 ? "No notifications yet" : "No matching notifications"}
-          body="Your account activity will appear here as you use Gem State."
+          body="Your account activity will appear here as you use Bluebird."
         />
       ) : (
         <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
@@ -2187,9 +2520,9 @@ function NotificationsSection({
                   className={`mt-1 size-2 shrink-0 rounded-full ${item.readAt ? "bg-border" : "bg-primary"}`}
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-semibold">{item.title}</p>
+                  <p className="text-[13px] font-semibold">{notificationText(item.title)}</p>
                   <p className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground">
-                    {item.body}
+                    {notificationText(item.body)}
                   </p>
                   <p className="mt-1 text-[11px] text-muted-foreground">
                     {new Date(item.createdAt).toLocaleString()}
@@ -2200,7 +2533,11 @@ function NotificationsSection({
                         href={item.destinationUrl}
                         className="inline-flex text-[11.5px] font-semibold text-primary hover:underline"
                       >
-                        Open related activity
+                        {item.entityType === "conversation"
+                          ? "Open conversation"
+                          : item.entityType === "listing"
+                            ? "Open listing"
+                            : "Open related activity"}
                         <ArrowRight size={13} className="ml-1" />
                       </a>
                     )}
@@ -2246,9 +2583,7 @@ function ListingsSection({
   };
   const visible = listings
     .filter(
-      (item) =>
-        item.productName.toLowerCase().includes(query.toLowerCase()) &&
-        matchesFilter(item),
+      (item) => item.productName.toLowerCase().includes(query.toLowerCase()) && matchesFilter(item),
     )
     .sort((a, b) =>
       sort === "views"
@@ -2263,7 +2598,14 @@ function ListingsSection({
     mutationFn: (id: string) => cancel({ data: { kind: "ask", id } }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["my-listings"] });
-      toast.success("Listing taken down.");
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["classified-browse"] }),
+        queryClient.invalidateQueries({ queryKey: ["conversations"] }),
+        queryClient.invalidateQueries({ queryKey: ["watchlist"] }),
+      ]);
+      toast.success(
+        "Listing removed from public search. Existing messages and saved records remain available.",
+      );
     },
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "Could not take down listing."),
@@ -2294,7 +2636,7 @@ function ListingsSection({
       />
       {!sellerSetup?.exists && (
         <div className="rounded-2xl border border-primary/25 bg-primary/5 p-5">
-          <p className="text-[14px] font-semibold">Become a Gem State seller</p>
+          <p className="text-[14px] font-semibold">Become a Bluebird seller</p>
           <p className="mt-1 max-w-[60ch] text-[12.5px] leading-relaxed text-muted-foreground">
             Set up your public seller profile before publishing. Direct-contact listings do not
             require buyer checkout or payout onboarding.
@@ -2383,7 +2725,12 @@ function ListingsSection({
               key={item.id}
               item={item}
               onTakeDown={() => {
-                if (window.confirm("Archive this listing?")) cancelMutation.mutate(item.id);
+                if (
+                  window.confirm(
+                    "Remove this listing from public search? Buyers will no longer find it, but existing messages and saved records will remain. You can relist it later for review.",
+                  )
+                )
+                  cancelMutation.mutate(item.id);
               }}
               onRelist={() => relistMutation.mutate(item.id)}
             />
@@ -2408,6 +2755,18 @@ function SellerListingCard({
   onRelist: () => void;
 }) {
   const active = item.status === "active" && Boolean(item.approvedAt);
+  const statusLabel =
+    item.productStatus === "rejected"
+      ? "Needs changes"
+      : active
+        ? "Active"
+        : item.status === "pending_review" || !item.approvedAt
+          ? "Awaiting approval"
+          : item.status === "cancelled"
+            ? "Removed"
+            : item.status === "matched"
+              ? "Sold"
+              : item.status;
   return (
     <article className="grid gap-4 rounded-2xl border border-border bg-card p-4 shadow-sm md:grid-cols-[120px_minmax(0,1fr)_220px]">
       <div className="aspect-[4/3] overflow-hidden rounded-xl bg-secondary">
@@ -2429,11 +2788,7 @@ function SellerListingCard({
             <span
               className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${active ? "bg-primary/10 text-primary" : "bg-secondary text-muted-foreground"}`}
             >
-              {active
-                ? "Active"
-                : item.status === "pending_review" || !item.approvedAt
-                  ? "Awaiting approval"
-                  : item.status}
+              {statusLabel}
             </span>
             {item.upgradeStatus === "paid" && (
               <span className="rounded-full bg-accent/20 px-2 py-0.5 text-[10px] font-semibold text-accent-foreground">
@@ -2559,10 +2914,17 @@ function ReviewsSection({
     const url = `${window.location.origin}/sellers/${sellerSetup.slug}?review=1`;
     try {
       if (navigator.share)
-        await navigator.share({ title: "Review my Gem State seller profile", url });
-      else {
+        try {
+          await navigator.share({ title: "Review my Bluebird seller profile", url });
+          return;
+        } catch (error) {
+          if (error instanceof DOMException && error.name === "AbortError") return;
+        }
+      try {
         await navigator.clipboard.writeText(url);
-        toast.success("Review link copied.");
+        toast.success("Review link copied as a fallback.");
+      } catch {
+        toast.info(`Copy this review link: ${url}`);
       }
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
@@ -2575,7 +2937,7 @@ function ReviewsSection({
       <SectionHeader
         eyebrow="Trust profile"
         title="Reviews & reputation"
-        body="See the reputation you have earned on Gem State. Anyone can leave you a review from your public profile — share your link so members you have dealt with can rate you."
+        body="See the reputation you have earned on Bluebird. Anyone can leave you a review from your public profile — share your link with people who know your work."
         action={
           sellerSetup?.slug ? (
             <Link
@@ -2624,7 +2986,7 @@ function ReviewsSection({
       <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
         <SectionTitle title="Reviews received" />
         <p className="mt-1 text-[11.5px] text-muted-foreground">
-          Anyone can leave you a review from your public profile — no transaction required.
+          Reviews from your community help members understand your reputation.
         </p>
         {reviews.length ? (
           <div className="mt-4 space-y-3">
@@ -2680,21 +3042,46 @@ function BillingSection({
     if (!listingId && eligibleListings[0]) setListingId(eligibleListings[0].id);
     if (!upgradeCode && options[0]) setUpgradeCode(options[0].code);
   }, [eligibleListings, listingId, options, upgradeCode]);
+  if (!sellerSetup?.exists) {
+    return (
+      <div className="space-y-6">
+        <SectionHeader
+          eyebrow="Billing"
+          title="Seller billing"
+          body="Billing is available after you create your Bluebird seller profile. Buyer payment methods are not needed for this marketplace phase."
+        />
+        <section className="rounded-2xl border border-primary/25 bg-primary/5 p-5 shadow-sm">
+          <p className="text-[14px] font-semibold">Start selling before purchasing upgrades</p>
+          <p className="mt-1 max-w-[60ch] text-[12.5px] leading-relaxed text-muted-foreground">
+            Your base listings are free. Once your seller profile is ready, this area will show
+            listing promotion options and receipts.
+          </p>
+          <Link
+            to="/seller-setup"
+            className="mt-4 inline-flex h-9 items-center gap-1.5 rounded-xl bg-primary px-3 text-[12px] font-semibold text-primary-foreground"
+          >
+            Set up seller profile
+            <ArrowRight size={14} />
+          </Link>
+        </section>
+      </div>
+    );
+  }
   return (
     <div className="space-y-6">
       <SectionHeader
-        eyebrow="Seller billing"
-        title="Listing upgrades"
-        body="Basic listings remain free. Choose an upgrade only when you want extra visibility or time, then pay securely through Stripe."
+        eyebrow="Billing"
+        title="Boost or feature a listing"
+        body="Every listing is free to post. Boosted and Featured are the only paid options, and both are completely optional."
       />
       <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
         <div className="flex items-start gap-3">
           <CreditCard size={22} className="mt-0.5 text-primary" />
           <div>
-            <h3 className="text-[15px] font-bold">Promote a listing</h3>
+            <h3 className="text-[15px] font-bold">Choose extra visibility</h3>
             <p className="mt-1 max-w-[68ch] text-[12.5px] leading-relaxed text-muted-foreground">
-              Gem State calculates the price from the active catalog and applies the upgrade only
-              after Stripe confirms payment. Card details never touch Gem State.
+              Boost moves a listing back to the top of relevant results. Featured pins it above
+              standard results for one full day. Card details never touch Bluebird.
             </p>
           </div>
         </div>
@@ -2713,14 +3100,14 @@ function BillingSection({
           />
         ) : (
           <div className="mt-5 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
-            <label className="field">
+            <label className="block rounded-xl border border-input bg-background px-3 py-2.5 text-[12px] font-medium">
               <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
                 Listing
               </span>
               <select
                 value={listingId}
                 onChange={(event) => setListingId(event.target.value)}
-                className="w-full bg-transparent outline-none"
+                className="mt-1 h-8 w-full rounded-lg bg-transparent text-[13px] outline-none focus:ring-2 focus:ring-ring/30"
               >
                 {eligibleListings.map((item) => (
                   <option key={item.id} value={item.id}>
@@ -2729,14 +3116,14 @@ function BillingSection({
                 ))}
               </select>
             </label>
-            <label className="field">
+            <label className="block rounded-xl border border-input bg-background px-3 py-2.5 text-[12px] font-medium">
               <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
                 Upgrade
               </span>
               <select
                 value={upgradeCode}
                 onChange={(event) => setUpgradeCode(event.target.value)}
-                className="w-full bg-transparent outline-none"
+                className="mt-1 h-8 w-full rounded-lg bg-transparent text-[13px] outline-none focus:ring-2 focus:ring-ring/30"
               >
                 {options.map((item) => (
                   <option key={item.code} value={item.code}>
@@ -2751,11 +3138,11 @@ function BillingSection({
               disabled={checkout.isPending || !listingId || !upgradeCode}
               className="h-10 self-end rounded-xl bg-accent px-4 text-[12px] font-semibold text-accent-foreground disabled:opacity-60"
             >
-              {checkout.isPending ? "Opening Stripe…" : "Continue to Stripe"}
+              {checkout.isPending ? "Opening secure checkout…" : "Upgrade your listing now"}
             </button>
           </div>
         )}
-        <div className="mt-5 grid gap-3 sm:grid-cols-3">
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
           {options.map((item) => (
             <div key={item.code} className="rounded-xl border border-border p-3">
               <div className="flex items-center justify-between gap-2">
@@ -2768,18 +3155,12 @@ function BillingSection({
             </div>
           ))}
         </div>
-        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-secondary/45 p-3">
-          <p className="text-[11.5px] text-muted-foreground">
-            Stripe seller connection:{" "}
-            {sellerSetup?.stripeAccountModeCurrent ? "Connected" : "Platform checkout ready"}
+        <div className="mt-5 flex items-start gap-2 rounded-xl bg-secondary/45 p-3">
+          <ShieldCheck size={17} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
+          <p className="text-[11.5px] leading-relaxed text-muted-foreground">
+            Secure checkout is handled by Stripe. You do not need to connect a Stripe seller account
+            to purchase a listing upgrade.
           </p>
-          <Link
-            to="/seller-setup"
-            className="text-[12px] font-semibold text-primary hover:underline"
-          >
-            Seller setup
-            <ArrowRight size={13} className="ml-1 inline" />
-          </Link>
         </div>
       </section>
       <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
@@ -2926,7 +3307,7 @@ function Field({
 }) {
   return (
     <label className={`block text-[12px] font-medium ${className}`}>
-      {label}
+      <span className="block">{label}</span>
       {children}
     </label>
   );

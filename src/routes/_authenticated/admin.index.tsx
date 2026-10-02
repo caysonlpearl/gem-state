@@ -13,6 +13,7 @@ import {
   getShopperApplicationDocumentUrl,
   reviewShopperApplication,
 } from "@/lib/pilot.functions";
+import { getPaymentEnvironmentReadiness } from "@/lib/stripe-marketplace.functions";
 import {
   disputeStatusLabels,
   evidenceKindLabels,
@@ -28,13 +29,12 @@ export const Route = createFileRoute("/_authenticated/admin/")({
       {
         name: "description",
         content:
-          "Role-protected operator queues for Gem State Classifieds listings, orders, disputes, and seller activity.",
+          "Role-protected operator queues for Bluebird Marketplace listings, orders, disputes, and seller activity.",
       },
       { property: "og:title", content: `${brand.name} operations console` },
       {
         property: "og:description",
-        content:
-          "Role-protected operator queues for Gem State Classifieds orders and trust review.",
+        content: "Role-protected operator queues for Bluebird Marketplace orders and trust review.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -168,9 +168,15 @@ function ShopperApplicationRow({
 
 function AdminPage() {
   const fetchQueues = useServerFn(getAdminQueues);
+  const fetchPaymentReadiness = useServerFn(getPaymentEnvironmentReadiness);
   const { data, isLoading } = useQuery({
     queryKey: ["admin-queues"],
     queryFn: () => fetchQueues(),
+  });
+  const paymentReadiness = useQuery({
+    queryKey: ["admin-payment-readiness"],
+    queryFn: () => fetchPaymentReadiness(),
+    enabled: Boolean(data?.isAdmin),
   });
 
   useEffect(() => {
@@ -189,7 +195,7 @@ function AdminPage() {
       <div className="mx-auto max-w-[760px] px-4 py-16 sm:px-6">
         <h1 className="text-[20px] font-semibold tracking-tight">Operator access required</h1>
         <p className="mt-2 text-[13px] text-muted-foreground">
-          This console is limited to the Gem State administrator account.
+          This console is limited to the Bluebird administrator account.
         </p>
       </div>
     );
@@ -198,11 +204,13 @@ function AdminPage() {
   return (
     <div className="mx-auto max-w-[1000px] space-y-6 px-4 py-10 sm:px-6">
       <div>
-        <h1 className="text-[22px] font-semibold tracking-tight">Pilot operations</h1>
+        <h1 className="text-[22px] font-semibold tracking-tight">
+          Bluebird Marketplace operations
+        </h1>
         <p className="mt-1 text-[13px] text-muted-foreground">
-          Live checkout is disabled. Every payment, capture, payout and verified sale here is
-          evidence recorded from an external provider — ParkVault never authorizes, captures or
-          holds funds. Every decision writes an append-only audit entry.
+          Manage classified moderation, seller activity, listing performance, and marketplace
+          controls from one administrator workspace. Every decision writes an append-only audit
+          entry.
         </p>
         {data.isAdmin && (
           <div className="mt-3 flex flex-wrap gap-2">
@@ -230,6 +238,12 @@ function AdminPage() {
             >
               Sellers &amp; shoppers
             </Link>
+            <Link
+              to="/admin/dealers"
+              className="inline-flex h-9 items-center rounded-md border border-input px-3 text-[12.5px] font-medium hover:bg-secondary"
+            >
+              Dealerships
+            </Link>
 
             <Link
               to="/admin/validation"
@@ -249,15 +263,17 @@ function AdminPage() {
             >
               Flagged reviews
             </Link>
+            <Link
+              to="/admin/conversation-reports"
+              className="inline-flex h-9 items-center rounded-md border border-input px-3 text-[12.5px] font-medium hover:bg-secondary"
+            >
+              Conversation reports
+            </Link>
           </div>
         )}
       </div>
 
-      <Queue
-        title="Pilot orders"
-        count={data.orders.length}
-        emptyLabel="No real orders yet. Demonstration catalog activity is excluded."
-      >
+      <Queue title="Orders" count={data.orders.length} emptyLabel="No marketplace orders yet.">
         {data.orders.map((o) => (
           <li
             key={o.id}
@@ -279,6 +295,34 @@ function AdminPage() {
           </li>
         ))}
       </Queue>
+
+      <section className="rounded-lg border border-border bg-card px-4 py-3">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-[13px] font-semibold tracking-tight">
+            Payment environment readiness
+          </h2>
+          <span
+            className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+              paymentReadiness.data?.safeForTestExecution
+                ? "bg-emerald-100 text-emerald-800"
+                : "bg-amber-100 text-amber-900"
+            }`}
+          >
+            {paymentReadiness.data?.safeForTestExecution
+              ? "Test mode ready"
+              : "Test execution blocked"}
+          </span>
+        </div>
+        <p className="mt-1 text-[12px] text-muted-foreground">
+          {paymentReadiness.isLoading
+            ? "Checking Stripe configuration…"
+            : (paymentReadiness.data?.message ?? "Payment readiness could not be checked.")}
+        </p>
+        <p className="mt-1 text-[11px] text-muted-foreground">
+          Live credentials are never used for audit transactions. Configure Stripe test credentials
+          and a webhook secret before running a payment test.
+        </p>
+      </section>
 
       <Queue
         title="Purchase evidence awaiting review"

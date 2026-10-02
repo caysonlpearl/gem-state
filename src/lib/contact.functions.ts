@@ -22,7 +22,7 @@ const contactSchema = z.object({
 export type ContactInput = z.infer<typeof contactSchema>;
 
 export const submitContactMessage = createServerFn({ method: "POST" })
-  .inputValidator((input: unknown) => contactSchema.parse(input))
+  .validator((input: unknown) => contactSchema.parse(input))
   .handler(async ({ data }): Promise<{ ok: true }> => {
     const client = publicServerClient();
     const { error } = await client.from("contact_messages").insert({

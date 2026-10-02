@@ -201,7 +201,7 @@ export const getSellerSetup = createServerFn({ method: "GET" })
 
 export const submitMissingProductListing = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
+  .validator(
     (input: {
       name: string;
       brandText?: string | null;
@@ -329,7 +329,7 @@ export const getMyMissingListingRequests = createServerFn({ method: "GET" })
 
 export const saveSellerSetup = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
+  .validator(
     (input: {
       slug: string;
       bio: string;
@@ -356,11 +356,11 @@ export const saveSellerSetup = createServerFn({ method: "POST" })
       const displayName = requireText(input.displayName, "seller display name", 80);
       const avatarUrl = String(input.avatarUrl ?? "").trim();
       if (avatarUrl && !avatarUrl.includes("/storage/v1/object/public/seller-avatars/")) {
-        throw new Error("Upload the seller photo through Gem State Classifieds.");
+        throw new Error("Upload the seller photo through Bluebird Marketplace.");
       }
       if (!input.acceptTerms) throw new Error("Accept the seller and photo-display terms.");
       // Shipping method, handling time, and the ship-from address only matter for
-      // Gem State's own checkout-marketplace listings -- direct-contact classifieds
+      // Bluebird's own checkout-marketplace listings -- direct-contact classifieds
       // sellers arrange shipping themselves, so none of this is required to save a
       // profile. Only validate a field if the seller actually filled it in.
       const rawShippingMethod = String(input.defaultShippingMethod ?? "").trim();
@@ -368,9 +368,14 @@ export const saveSellerSetup = createServerFn({ method: "POST" })
         throw new Error("Choose a valid default shipping method.");
       }
       const defaultShippingMethod = rawShippingMethod || null;
+      // The seller setup form historically serialized a blank select as 0.
+      // Treat both blank and zero as "not configured" for direct-contact
+      // classifieds; shipping defaults are only required by the future
+      // checkout marketplace.
       const rawHandlingDays = String(input.defaultHandlingDays ?? "").trim();
+      const hasHandlingDays = rawHandlingDays !== "" && rawHandlingDays !== "0";
       let defaultHandlingDays: number | null = null;
-      if (rawHandlingDays) {
+      if (hasHandlingDays) {
         const parsed = Math.round(Number(rawHandlingDays));
         if (!Number.isFinite(parsed) || parsed < 1 || parsed > 5) {
           throw new Error("Choose a handling time between 1 and 5 business days.");
@@ -461,7 +466,9 @@ export const getSellerDashboardSummary = createServerFn({ method: "GET" })
     const { data: reviewerProfiles } = reviewerIds.length
       ? await client.from("profiles").select("id,display_name").in("id", reviewerIds)
       : { data: [] as any[] };
-    const reviewerNameById = new Map((reviewerProfiles ?? []).map((p: any) => [p.id, p.display_name]));
+    const reviewerNameById = new Map(
+      (reviewerProfiles ?? []).map((p: any) => [p.id, p.display_name]),
+    );
     const reviewRows = (reviews ?? []).map((row: any) => ({
       id: row.id,
       rating: Number(row.rating),
@@ -491,7 +498,7 @@ export const getSellerDashboardSummary = createServerFn({ method: "GET" })
 
 export const submitSellerReview = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { sellerId: string; rating: number; comment?: string | null }) => {
+  .validator((input: { sellerId: string; rating: number; comment?: string | null }) => {
     const rating = Math.round(Number(input.rating));
     if (!Number.isFinite(rating) || rating < 1 || rating > 5)
       throw new Error("Rate between 1 and 5.");
@@ -512,7 +519,7 @@ export const submitSellerReview = createServerFn({ method: "POST" })
 
 export const deleteSellerReview = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { sellerId: string }) => ({ sellerId: String(input.sellerId) }))
+  .validator((input: { sellerId: string }) => ({ sellerId: String(input.sellerId) }))
   .handler(async ({ data, context }) => {
     const client = context.supabase as any;
     const { error } = await client.rpc("delete_seller_review", {
@@ -524,7 +531,7 @@ export const deleteSellerReview = createServerFn({ method: "POST" })
 
 export const getMySellerReview = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { sellerId: string }) => ({ sellerId: String(input.sellerId) }))
+  .validator((input: { sellerId: string }) => ({ sellerId: String(input.sellerId) }))
   .handler(async ({ data, context }): Promise<SellerReview | null> => {
     const client = context.supabase as any;
     const { data: row, error } = await client
@@ -545,7 +552,7 @@ export const getMySellerReview = createServerFn({ method: "GET" })
 
 export const flagSellerReview = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { reviewId: string; reason?: string | null }) => {
+  .validator((input: { reviewId: string; reason?: string | null }) => {
     const reason = String(input.reason ?? "").trim();
     if (reason.length > 500) throw new Error("Keep your flag reason under 500 characters.");
     return { reviewId: String(input.reviewId), reason: reason || null };
@@ -645,7 +652,7 @@ export const getFlaggedSellerReviews = createServerFn({ method: "GET" })
 
 export const adminResolveReviewFlag = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { reviewId: string; action: "dismiss" | "remove" }) => {
+  .validator((input: { reviewId: string; action: "dismiss" | "remove" }) => {
     if (input.action !== "dismiss" && input.action !== "remove")
       throw new Error("Action must be dismiss or remove.");
     return { reviewId: String(input.reviewId), action: input.action };
@@ -837,7 +844,7 @@ async function shapePublicListings(rows: any[]): Promise<PublicListing[]> {
 }
 
 export const getActiveListingsForVariant = createServerFn({ method: "GET" })
-  .inputValidator((input: { variantId: string }) => ({ variantId: String(input.variantId) }))
+  .validator((input: { variantId: string }) => ({ variantId: String(input.variantId) }))
   .handler(async ({ data }): Promise<PublicListing[]> => {
     const client = publicServerClient() as any;
     const { data: rows, error } = await client
@@ -851,7 +858,7 @@ export const getActiveListingsForVariant = createServerFn({ method: "GET" })
   });
 
 export const getPublicSeller = createServerFn({ method: "GET" })
-  .inputValidator((input: { slug: string }) => ({ slug: cleanSlug(input.slug) }))
+  .validator((input: { slug: string }) => ({ slug: cleanSlug(input.slug) }))
   .handler(async ({ data }): Promise<PublicSeller | null> => {
     const client = publicServerClient() as any;
     const { data: seller, error } = await client
@@ -941,7 +948,7 @@ export const getPublicSeller = createServerFn({ method: "GET" })
         rating: Number(row.rating),
         comment: row.comment,
         createdAt: row.created_at,
-        reviewerName: reviewerById.get(row.reviewer_id)?.display_name ?? "Gem State member",
+        reviewerName: reviewerById.get(row.reviewer_id)?.display_name ?? "Bluebird member",
         reviewerAvatarUrl: reviewerById.get(row.reviewer_id)?.avatar_url ?? null,
       })),
     };
@@ -966,7 +973,7 @@ export type ListingEditor = {
 
 export const getListingEditor = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { listingId: string }) => ({ listingId: String(input.listingId) }))
+  .validator((input: { listingId: string }) => ({ listingId: String(input.listingId) }))
   .handler(async ({ data, context }): Promise<ListingEditor | null> => {
     const client = context.supabase as any;
     const { data: row, error } = await client
@@ -1010,7 +1017,7 @@ function optionalPositive(value: unknown) {
 
 export const updateSellerListing = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
+  .validator(
     (input: {
       listingId: string;
       priceCents: number;
@@ -1068,7 +1075,7 @@ export const updateSellerListing = createServerFn({ method: "POST" })
 
 export const relistSellerListing = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { listingId: string }) => ({ listingId: String(input.listingId) }))
+  .validator((input: { listingId: string }) => ({ listingId: String(input.listingId) }))
   .handler(async ({ data, context }) => {
     const client = context.supabase as any;
     const { error } = await client.rpc("relist_ask", { _ask_id: data.listingId });
@@ -1114,7 +1121,7 @@ async function shippoRequest<T>(path: string, body: unknown): Promise<T> {
 
 export const getShippingRates = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
+  .validator(
     (input: {
       orderId: string;
       lengthIn: number;
@@ -1221,7 +1228,7 @@ export const getShippingRates = createServerFn({ method: "POST" })
 
 export const purchaseShippingLabel = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { quoteId: string; rateId: string }) => ({
+  .validator((input: { quoteId: string; rateId: string }) => ({
     quoteId: String(input.quoteId),
     rateId: String(input.rateId),
   }))
@@ -1258,7 +1265,7 @@ export const purchaseShippingLabel = createServerFn({ method: "POST" })
     }
     if (reservation?.state !== "reserved") {
       throw new Error(
-        "A label purchase is already being processed for this order. Gem State support must reconcile it before another label can be purchased.",
+        "A label purchase is already being processed for this order. Bluebird support must reconcile it before another label can be purchased.",
       );
     }
 

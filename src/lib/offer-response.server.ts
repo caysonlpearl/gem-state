@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- dependency adapter accepts the payment provider's runtime shape */
 /** Persist the authorized response atomically before releasing its old card hold. */
 export async function applyOfferResponse(deps: {
   respond: () => Promise<string | null>;

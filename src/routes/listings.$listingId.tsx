@@ -1,6 +1,7 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { queryOptions, useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
+import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
   ArrowLeft,
@@ -40,6 +41,7 @@ import {
   formatJobPay,
   formatMileage,
   fulfillmentLabels,
+  petPlacementLabels,
   postedAge,
   vehicleHeadline,
 } from "@/lib/classifieds-display";
@@ -54,6 +56,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
+import { useAuth } from "@/hooks/useAuth";
+import { reportClassifiedListing } from "@/lib/classifieds.functions";
 
 const listingQuery = (id: string) =>
   queryOptions({
@@ -70,6 +74,57 @@ const listingTabClass = (selected: boolean) =>
       : "border-transparent text-muted-foreground hover:border-border/80 hover:bg-card/75 hover:text-foreground hover:shadow-sm"
   }`;
 
+async function copyListingUrl(url: string) {
+  try {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      await navigator.clipboard.writeText(url);
+      return true;
+    }
+  } catch {
+    // Fall through to the legacy clipboard path for embedded browsers and
+    // contexts where the Clipboard API is present but permission is denied.
+  }
+
+  if (typeof document === "undefined") return false;
+
+  const input = document.createElement("textarea");
+  input.value = url;
+  input.setAttribute("readonly", "true");
+  input.style.position = "fixed";
+  input.style.opacity = "0";
+  document.body.appendChild(input);
+  input.focus();
+  input.select();
+
+  try {
+    return document.execCommand("copy");
+  } catch {
+    return false;
+  } finally {
+    input.remove();
+  }
+}
+
+function ListingMapEmbed({
+  locationQuery,
+  title,
+  className = "h-[210px]",
+}: {
+  locationQuery: string;
+  title: string;
+  className?: string;
+}) {
+  return (
+    <iframe
+      title={title}
+      src={`https://www.google.com/maps?q=${locationQuery}&output=embed`}
+      className={`w-full border-0 ${className}`}
+      loading="lazy"
+      referrerPolicy="no-referrer-when-downgrade"
+    />
+  );
+}
+
 export const Route = createFileRoute("/listings/$listingId")({
   loader: async ({ context, params }) => {
     const listing = await context.queryClient.ensureQueryData(listingQuery(params.listingId));
@@ -78,7 +133,7 @@ export const Route = createFileRoute("/listings/$listingId")({
       title: listing.title,
       priceLabel: listing.job
         ? formatJobPay(listing.job)
-        : listing.service?.pricing ?? formatUsd(listing.priceCents),
+        : (listing.service?.pricing ?? formatUsd(listing.priceCents)),
       city: listing.city,
       state: listing.state,
     };
@@ -324,6 +379,15 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
           )}
         </div>
       </div>
+      {listing.dealer ? (
+        <div className="mt-4 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-[12px]">
+          <p className="font-semibold text-primary">Dealer inventory · {listing.dealer.displayName}</p>
+          <p className="mt-0.5 text-muted-foreground">
+            Verified dealership attribution for this listing
+            {listing.dealer.city ? ` · ${listing.dealer.city}${listing.dealer.state ? `, ${listing.dealer.state}` : ""}` : ""}
+          </p>
+        </div>
+      ) : null}
       {listing.service?.businessAddress && (
         <p className="mt-3 flex items-start gap-1.5 text-[12px] leading-relaxed text-primary">
           <MapPin size={14} weight="fill" className="mt-0.5 shrink-0" />
@@ -372,7 +436,7 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
             </span>
           </div>
           <div className="bg-primary px-3 py-1.5 text-center text-[11px] font-semibold text-primary-foreground">
-            Gem State Reviews
+            Bluebird Reviews
           </div>
         </div>
       )}
@@ -402,7 +466,7 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
         </div>
         {seller.contactTextPhone || seller.contactPhone || seller.contactEmail ? (
           <p className="mt-2 text-[10.5px] leading-relaxed text-muted-foreground">
-            Enabled contact options go directly to the seller. Use Gem State messaging below if you
+            Enabled contact options go directly to the seller. Use Bluebird messaging below if you
             prefer to keep the conversation in the marketplace.
           </p>
         ) : (
@@ -432,7 +496,7 @@ function VehicleHistoryCard({ vehicle }: { vehicle: ClassifiedDetail["vehicle"] 
   return (
     <section className="soft-card px-5 py-5">
       <div className="flex items-center gap-3 border-b border-border pb-4">
-        <span className="grid h-9 w-8 shrink-0 place-items-end overflow-hidden rounded-lg bg-[#f6b544] shadow-sm">
+        <span className="grid h-9 w-8 shrink-0 place-items-end overflow-hidden rounded-lg bg-brand-warm shadow-sm">
           <img
             src="https://images.carfax.com/image/1000257/Car-Fox_Looking-Left-cropped-med.png?width=416"
             alt="CARFAX Car Fox"
@@ -443,7 +507,7 @@ function VehicleHistoryCard({ vehicle }: { vehicle: ClassifiedDetail["vehicle"] 
           <p className="text-[23px] font-black leading-none tracking-[-0.04em] text-foreground">
             CARFAX
           </p>
-          <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.16em] text-[#f6b544]">
+          <p className="mt-1 text-[10px] font-bold uppercase tracking-[0.16em] text-brand-warm">
             Vehicle history
           </p>
         </div>
@@ -479,7 +543,9 @@ function PageStatsCard({ listing }: { listing: ClassifiedDetail }) {
     Math.max(0, Math.round((to - new Date(from).getTime()) / (1000 * 60 * 60 * 24)));
   const now = Date.now();
   const daysOnline = daysBetween(listing.createdAt, now);
-  const daysLeft = listing.expiresAt ? daysBetween(listing.createdAt, new Date(listing.expiresAt).getTime()) - daysOnline : null;
+  const daysLeft = listing.expiresAt
+    ? daysBetween(listing.createdAt, new Date(listing.expiresAt).getTime()) - daysOnline
+    : null;
   return (
     <section className="soft-card px-5 py-5">
       <h2 className="text-[14px] font-bold">Page stats</h2>
@@ -534,19 +600,14 @@ function TrustSafetyCard({ listing }: { listing: ClassifiedDetail }) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-[14px] font-bold">Safe. Simple. Trusted.</h2>
         <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary">
-          <ShieldCheck size={13} weight="fill" /> GemList Safety
+          <ShieldCheck size={13} weight="fill" /> Bluebird Marketplace Safety
         </span>
       </div>
       <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">
-        GemList reviews listings for marketplace policy. Always inspect the item, confirm the
-        details, and agree on the final price before exchanging money.
+        Bluebird Marketplace reviews listings for marketplace policy. Always inspect the item,
+        confirm the details, and agree on the final price before exchanging money.
       </p>
-      <Link
-        to="/contact"
-        className="mt-4 flex h-10 items-center justify-center gap-1.5 rounded-full border border-primary/40 text-[12px] font-semibold text-primary hover:bg-primary/5"
-      >
-        <Flag size={14} /> Flag this listing
-      </Link>
+      <FlagListingDialog listingId={listing.id} />
       {listing.seller?.payoutVerified && (
         <p className="mt-3 flex items-center gap-1.5 text-[11px] text-muted-foreground">
           <CheckCircle size={13} weight="fill" className="text-primary" /> Seller account
@@ -559,6 +620,142 @@ function TrustSafetyCard({ listing }: { listing: ClassifiedDetail }) {
         </p>
       )}
     </section>
+  );
+}
+
+const listingReportReasons = [
+  "Scam or fraud",
+  "Prohibited item",
+  "Misleading information",
+  "Unsafe or threatening",
+  "Other",
+] as const;
+
+function FlagListingDialog({ listingId }: { listingId: string }) {
+  const { isSignedIn } = useAuth();
+  const report = useServerFn(reportClassifiedListing);
+  const [open, setOpen] = useState(false);
+  const [reason, setReason] = useState("");
+  const [details, setDetails] = useState("");
+  const [submitted, setSubmitted] = useState<"new" | "duplicate" | null>(null);
+  const reportMutation = useMutation({
+    mutationFn: () => report({ data: { listingId, reason, details } }),
+    onSuccess: (result) => {
+      setSubmitted(result.alreadyReported ? "duplicate" : "new");
+      setReason("");
+      setDetails("");
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Could not submit the report."),
+  });
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        setOpen(nextOpen);
+        if (!nextOpen) setSubmitted(null);
+      }}
+    >
+      <DialogTrigger asChild>
+        <button
+          type="button"
+          className="mt-4 flex h-10 w-full items-center justify-center gap-1.5 rounded-full border border-primary/40 text-[12px] font-semibold text-primary hover:bg-primary/5"
+        >
+          <Flag size={14} /> Flag this listing
+        </button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Flag this listing</DialogTitle>
+          <DialogDescription>
+            Tell us what looks wrong. Reports help Bluebird review unsafe, misleading, or prohibited
+            listings.
+          </DialogDescription>
+        </DialogHeader>
+        {submitted ? (
+          <div className="space-y-4 rounded-xl border border-primary/20 bg-primary/5 p-4 text-[12px] leading-relaxed">
+            <p className="font-semibold text-primary">
+              {submitted === "duplicate" ? "This listing is already reported." : "Report received."}
+            </p>
+            <p className="text-muted-foreground">
+              {submitted === "duplicate"
+                ? "Your existing report is already in the Bluebird moderation queue. We will not create a duplicate report."
+                : "Your report is pending Bluebird moderation. We will review the listing and update the queue without changing your account state."}
+            </p>
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="h-9 rounded-xl bg-primary px-3 text-[12px] font-semibold text-primary-foreground"
+            >
+              Done
+            </button>
+          </div>
+        ) : isSignedIn ? (
+          <form
+            className="space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              reportMutation.mutate();
+            }}
+          >
+            <label className="block text-[12px] font-medium">
+              Reason
+              <select
+                required
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+                className="mt-1 h-10 w-full rounded-xl border border-input bg-background px-3 text-[12px]"
+              >
+                <option value="">Choose a reason</option>
+                {listingReportReasons.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block text-[12px] font-medium">
+              Details <span className="font-normal text-muted-foreground">(optional)</span>
+              <textarea
+                value={details}
+                onChange={(event) => setDetails(event.target.value.slice(0, 500))}
+                rows={4}
+                maxLength={500}
+                className="mt-1 w-full resize-y rounded-xl border border-input bg-background px-3 py-2.5 text-[12px] leading-relaxed"
+                placeholder="What should our moderation team know?"
+              />
+            </label>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className="h-10 rounded-xl border border-input px-4 text-[12px] font-semibold hover:bg-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={reportMutation.isPending}
+                className="h-10 rounded-xl bg-primary px-4 text-[12px] font-semibold text-primary-foreground disabled:opacity-60"
+              >
+                {reportMutation.isPending ? "Sending…" : "Submit report"}
+              </button>
+            </div>
+          </form>
+        ) : (
+          <div className="rounded-xl border border-border bg-secondary/40 p-4 text-[12px] leading-relaxed text-muted-foreground">
+            Sign in to report a listing. This helps us prevent duplicate or anonymous abuse reports.
+            <Link
+              to={brand.urls.auth}
+              className="mt-3 inline-flex h-9 items-center rounded-xl bg-primary px-3 font-semibold text-primary-foreground"
+            >
+              Sign in
+            </Link>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -612,13 +809,37 @@ function ListingDetail() {
   const description = listing.description?.trim() ?? "";
   const locationQuery = encodeURIComponent(`${listing.city}, ${listing.state}`);
   const handleShare = async () => {
+    const shareUrl = `${window.location.origin}/listings/${listing.id}`;
+
     try {
-      if (navigator.share) {
-        await navigator.share({ title, url: window.location.href });
-        return;
+      if (typeof navigator.share === "function") {
+        toast.info("Opening share options…");
+        const shareAttempt = navigator
+          .share({
+            title,
+            text: `Check out ${title} on ${brand.name}`,
+            url: shareUrl,
+          })
+          .then(() => "shared" as const)
+          .catch((error: unknown) => {
+            if (error instanceof DOMException && error.name === "AbortError") return "aborted" as const;
+            return "fallback" as const;
+          });
+        const shareResult = await Promise.race([
+          shareAttempt,
+          new Promise<"fallback">((resolve) => window.setTimeout(() => resolve("fallback"), 1200)),
+        ]);
+        if (shareResult === "shared") {
+          toast.success("Share sheet opened.");
+          return;
+        }
+        if (shareResult === "aborted") {
+          toast.info("Share canceled.");
+          return;
+        }
       }
-      if (navigator.clipboard) {
-        await navigator.clipboard.writeText(window.location.href);
+
+      if (await copyListingUrl(shareUrl)) {
         toast.success("Listing link copied.");
         return;
       }
@@ -669,6 +890,7 @@ function ListingDetail() {
         listing={listing}
         title={title}
         condition={condition}
+        itemDetails={listing.itemDetails ?? {}}
         description={description}
         locationQuery={locationQuery}
         relatedListings={relatedQuery.data.listings}
@@ -756,6 +978,9 @@ function ListingDetail() {
             <Eye size={15} /> Local listing
           </span>
         </div>
+        <p className="numeric mt-4 text-[30px] font-bold leading-none text-brand-warm sm:text-[34px]">
+          {formatUsd(listing.priceCents)}
+        </p>
       </header>
 
       <div className="mt-6 grid gap-7 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,370px)] lg:items-start">
@@ -795,11 +1020,7 @@ function ListingDetail() {
           </section>
 
           <section className="soft-card overflow-hidden">
-            <div
-              className={listingTabListClass}
-              role="tablist"
-              aria-label="Listing information"
-            >
+            <div className={listingTabListClass} role="tablist" aria-label="Listing information">
               {(["description", "specifications", "location"] as const).map((tab) => (
                 <button
                   key={tab}
@@ -856,30 +1077,34 @@ function ListingDetail() {
               {activeTab === "location" && (
                 <div>
                   <h2 className="text-[18px] font-bold">Listing location</h2>
-                  <div className="mt-4 flex flex-col gap-4 rounded-2xl border border-border/70 bg-secondary/45 p-5 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-start gap-3">
-                      <MapTrifold
-                        size={24}
-                        weight="duotone"
-                        className="mt-0.5 shrink-0 text-primary"
-                      />
-                      <div>
-                        <p className="font-semibold">
-                          {listing.city}, {listing.state}
-                        </p>
-                        <p className="mt-1 text-[12px] text-muted-foreground">
-                          The seller's exact meeting location should be confirmed before pickup.
-                        </p>
+                  <div className="mt-4 overflow-hidden rounded-2xl border border-border/70 bg-secondary/45">
+                    <ListingMapEmbed locationQuery={locationQuery} title="Listing location map" />
+                    <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-start gap-3">
+                        <MapTrifold
+                          size={24}
+                          weight="duotone"
+                          className="mt-0.5 shrink-0 text-primary"
+                        />
+                        <div>
+                          <p className="font-semibold">
+                            {listing.city}, {listing.state}
+                          </p>
+                          <p className="mt-1 text-[12px] text-muted-foreground">
+                            Approximate public location. Confirm the exact meeting location before
+                            pickup.
+                          </p>
+                        </div>
                       </div>
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${locationQuery}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex h-10 shrink-0 items-center justify-center rounded-full bg-primary px-4 text-[12px] font-semibold text-primary-foreground hover:opacity-90"
+                      >
+                        Open map
+                      </a>
                     </div>
-                    <a
-                      href={`https://www.google.com/maps/search/?api=1&query=${locationQuery}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex h-10 shrink-0 items-center justify-center rounded-full bg-primary px-4 text-[12px] font-semibold text-primary-foreground hover:opacity-90"
-                    >
-                      Open map
-                    </a>
                   </div>
                 </div>
               )}
@@ -914,7 +1139,7 @@ function ListingDetail() {
               </li>
               <li className="flex items-start gap-2">
                 <Flag size={16} className="mt-0.5 shrink-0 text-primary" /> Report anything
-                misleading or unsafe through Gem State.
+                misleading or unsafe through Bluebird.
               </li>
             </ul>
           </section>
@@ -1054,19 +1279,14 @@ function HomeLocationPanel({
 }) {
   return (
     <section className="soft-card overflow-hidden">
-      <div className="relative h-[210px] overflow-hidden bg-[#e8edf2]">
-        <div className="absolute inset-0 opacity-60 [background-image:linear-gradient(35deg,transparent_46%,#fff_47%,#fff_49%,transparent_50%),linear-gradient(120deg,transparent_44%,#fff_45%,#fff_47%,transparent_48%),linear-gradient(#d8e0e7_1px,transparent_1px),linear-gradient(90deg,#d8e0e7_1px,transparent_1px)] [background-size:180px_140px,220px_180px,34px_34px,34px_34px]" />
-        <div className="absolute left-1/2 top-1/2 grid h-12 w-12 -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-brand-warm text-white shadow-lg ring-8 ring-brand-warm/20">
-          <MapPin size={24} weight="fill" />
-        </div>
-      </div>
+      <ListingMapEmbed locationQuery={locationQuery} title="Home listing location map" />
       <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="text-[12px] font-semibold">
             {listing.city}, {listing.state}
           </p>
           <p className="mt-1 text-[11px] text-muted-foreground">
-            Confirm the exact address and tour details with the seller.
+            Approximate public location. Confirm the exact address and tour details with the seller.
           </p>
         </div>
         <a
@@ -1108,11 +1328,7 @@ function HomeRentalInformation({
 
   return (
     <section className="soft-card overflow-hidden">
-      <div
-        className={listingTabListClass}
-        role="tablist"
-        aria-label="Home information"
-      >
+      <div className={listingTabListClass} role="tablist" aria-label="Home information">
         {(["description", "amenities"] as const).map((tab) => (
           <button
             key={tab}
@@ -1222,13 +1438,13 @@ function HomeRentalInformation({
   );
 }
 
-function HomeSafetyPanel({ isRental }: { isRental: boolean }) {
+function HomeSafetyPanel({ isRental, listingId }: { isRental: boolean; listingId: string }) {
   return (
     <section className="rounded-2xl border border-brand-warm/50 bg-brand-warm/10 px-5 py-5 sm:px-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-[18px] font-bold">Important safety tip</h2>
         <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary">
-          <ShieldCheck size={13} weight="fill" /> GemList Safety
+          <ShieldCheck size={13} weight="fill" /> Bluebird Marketplace Safety
         </span>
       </div>
       <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
@@ -1236,12 +1452,7 @@ function HomeSafetyPanel({ isRental }: { isRental: boolean }) {
           ? "Never send a deposit before touring the home and verifying the owner or property manager. Review the lease, fees, utilities, and application process before paying."
           : "Never send money before touring the home and verifying ownership. Review disclosures, fees, inspection details, and the offer terms before making a payment."}
       </p>
-      <Link
-        to="/contact"
-        className="mt-4 inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-primary/40 px-4 text-[12px] font-semibold text-primary hover:bg-primary/5"
-      >
-        <Flag size={14} /> Flag this listing
-      </Link>
+      <FlagListingDialog listingId={listingId} />
     </section>
   );
 }
@@ -1360,7 +1571,7 @@ function HomeListingDetail({
           </section>
           <HomeLocationPanel listing={listing} locationQuery={locationQuery} />
           <HomeRentalInformation listing={listing} description={description} />
-          <HomeSafetyPanel isRental={details.isRental} />
+          <HomeSafetyPanel isRental={details.isRental} listingId={listing.id} />
         </div>
 
         <aside className="min-w-0 space-y-5 lg:sticky lg:top-24">
@@ -1563,11 +1774,7 @@ function JobListingDetail({
           <Gallery listing={listing} />
 
           <section className="soft-card overflow-hidden">
-            <div
-              className={listingTabListClass}
-              role="tablist"
-              aria-label="Job information"
-            >
+            <div className={listingTabListClass} role="tablist" aria-label="Job information">
               {(["description", "specifications", "map"] as const).map((tab) => (
                 <button
                   key={tab}
@@ -1744,7 +1951,9 @@ function StarRating({ rating }: { rating: number }) {
           key={position}
           size={14}
           weight={position <= Math.round(rating) ? "fill" : "regular"}
-          className={position <= Math.round(rating) ? "text-brand-warm" : "text-muted-foreground/40"}
+          className={
+            position <= Math.round(rating) ? "text-brand-warm" : "text-muted-foreground/40"
+          }
         />
       ))}
     </span>
@@ -1900,7 +2109,9 @@ function ServiceListingDetail({
                       ].map(([label, value]) => (
                         <div key={label} className="flex items-center justify-between gap-4 py-3">
                           <dt>{label}</dt>
-                          <dd className="text-right font-semibold text-muted-foreground">{value}</dd>
+                          <dd className="text-right font-semibold text-muted-foreground">
+                            {value}
+                          </dd>
                         </div>
                       ))}
                     </dl>
@@ -1986,7 +2197,6 @@ function ServiceListingDetail({
               )}
             </div>
           </section>
-
         </div>
 
         <aside className="min-w-0 space-y-5 lg:sticky lg:top-24">
@@ -2018,6 +2228,7 @@ function GeneralListingDetail({
   listing,
   title,
   condition,
+  itemDetails,
   description,
   locationQuery,
   relatedListings,
@@ -2026,6 +2237,7 @@ function GeneralListingDetail({
   listing: ClassifiedDetail;
   title: string;
   condition: string;
+  itemDetails: Record<string, string>;
   description: string;
   locationQuery: string;
   relatedListings: ClassifiedCard[];
@@ -2061,9 +2273,9 @@ function GeneralListingDetail({
         </span>
       </nav>
 
-      <div className="mt-5 grid gap-7 lg:grid-cols-[minmax(255px,330px)_minmax(0,1fr)] lg:items-start">
-        <aside className="order-2 min-w-0 space-y-5 lg:order-1 lg:sticky lg:top-24">
-          <header>
+      <header className="mt-5 border-b border-border/70 pb-5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
             <h1 className="text-[28px] font-bold leading-tight tracking-tight sm:text-[36px]">
               {title}
             </h1>
@@ -2078,47 +2290,51 @@ function GeneralListingDetail({
                 <Eye size={15} /> Local listing
               </span>
             </div>
-            <p className="numeric mt-4 text-[32px] font-bold leading-none text-primary">
-              {listing.service?.pricing ?? formatUsd(listing.priceCents)}
-            </p>
-            <div className="mt-5 flex items-center gap-2">
-              {listing.isMock ? (
-                <button
-                  type="button"
-                  aria-label="Save listing"
-                  onClick={() => toast.info("Saving is shown here in the mock listing preview.")}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <Heart size={18} />
-                </button>
-              ) : (
-                <WatchHeartButton
-                  productId={listing.productId}
-                  productSlug={listing.productSlug}
-                  productName={title}
-                  isDemo={false}
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
-                />
-              )}
+          </div>
+          <div className="flex items-center gap-2">
+            {listing.isMock ? (
               <button
                 type="button"
-                aria-label="Share listing"
-                onClick={() => void handleShare()}
-                className="grid h-10 w-10 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground"
+                aria-label="Save listing"
+                onClick={() => toast.info("Saving is shown here in the mock listing preview.")}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <ShareNetwork size={18} />
+                <Heart size={18} />
               </button>
-              <button
-                type="button"
-                aria-label="Print listing"
-                onClick={() => window.print()}
-                className="grid h-10 w-10 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground"
-              >
-                <Printer size={18} />
-              </button>
-            </div>
-          </header>
+            ) : (
+              <WatchHeartButton
+                productId={listing.productId}
+                productSlug={listing.productSlug}
+                productName={title}
+                isDemo={false}
+                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+              />
+            )}
+            <button
+              type="button"
+              aria-label="Share listing"
+              onClick={() => void handleShare()}
+              className="grid h-10 w-10 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground"
+            >
+              <ShareNetwork size={18} />
+            </button>
+            <button
+              type="button"
+              aria-label="Print listing"
+              onClick={() => window.print()}
+              className="hidden h-10 w-10 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground sm:grid"
+            >
+              <Printer size={18} />
+            </button>
+          </div>
+        </div>
+        <p className="numeric mt-4 text-[30px] font-bold leading-none text-primary sm:text-[34px]">
+          {formatUsd(listing.priceCents)}
+        </p>
+      </header>
 
+      <div className="mt-5 grid gap-7 lg:grid-cols-[minmax(255px,330px)_minmax(0,1fr)] lg:items-start">
+        <aside className="order-2 min-w-0 space-y-5 lg:order-1 lg:sticky lg:top-24">
           <SellerCard listing={listing} />
           <ListingActions listing={listing} showPaymentCalculator={false} showPriceHeader={false} />
           <PageStatsCard listing={listing} />
@@ -2129,11 +2345,7 @@ function GeneralListingDetail({
           <Gallery listing={listing} />
 
           <section className="soft-card overflow-hidden">
-            <div
-              className={listingTabListClass}
-              role="tablist"
-              aria-label="Listing information"
-            >
+            <div className={listingTabListClass} role="tablist" aria-label="Listing information">
               {(["description", "location"] as const).map((tab) => (
                 <button
                   key={tab}
@@ -2164,6 +2376,21 @@ function GeneralListingDetail({
                         {condition}
                       </span>
                     </div>
+                    {Object.keys(itemDetails).length > 0 && (
+                      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+                        {Object.entries(itemDetails).map(([key, value]) => (
+                          <div key={key} className="rounded-xl bg-secondary/55 px-4 py-3">
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                              {key
+                                .replace(/[A-Z]/g, (letter) => ` ${letter}`)
+                                .replace(/^./, (letter) => letter.toUpperCase())}
+                            </p>
+                            <p className="mt-1 text-[13px] font-semibold">{value}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {listing.pet ? <PetDetails pet={listing.pet} /> : null}
                     <p className="mt-6 whitespace-pre-line text-[14px] leading-7 text-muted-foreground">
                       {description || "The seller has not added a description yet."}
                     </p>
@@ -2185,31 +2412,34 @@ function GeneralListingDetail({
               ) : (
                 <div>
                   <h2 className="text-[21px] font-bold">Map</h2>
-                  <div className="mt-5 flex flex-col gap-4 rounded-2xl border border-border/70 bg-secondary/45 p-5 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-start gap-3">
-                      <MapTrifold
-                        size={25}
-                        weight="duotone"
-                        className="mt-0.5 shrink-0 text-primary"
-                      />
-                      <div>
-                        <p className="font-semibold">
-                          {listing.city}, {listing.state}
-                        </p>
-                        <p className="mt-1 text-[12px] text-muted-foreground">
-                          Confirm the exact pickup or meeting location with the seller before you
-                          go.
-                        </p>
+                  <div className="mt-5 overflow-hidden rounded-2xl border border-border/70 bg-secondary/45">
+                    <ListingMapEmbed locationQuery={locationQuery} title="Listing location map" />
+                    <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="flex items-start gap-3">
+                        <MapTrifold
+                          size={25}
+                          weight="duotone"
+                          className="mt-0.5 shrink-0 text-primary"
+                        />
+                        <div>
+                          <p className="font-semibold">
+                            {listing.city}, {listing.state}
+                          </p>
+                          <p className="mt-1 text-[12px] text-muted-foreground">
+                            Approximate public location. Confirm the exact pickup or meeting
+                            location with the seller before you go.
+                          </p>
+                        </div>
                       </div>
+                      <a
+                        href={"https://www.google.com/maps/search/?api=1&query=" + locationQuery}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex h-10 shrink-0 items-center justify-center rounded-full bg-primary px-4 text-[12px] font-semibold text-primary-foreground hover:opacity-90"
+                      >
+                        Open map
+                      </a>
                     </div>
-                    <a
-                      href={"https://www.google.com/maps/search/?api=1&query=" + locationQuery}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex h-10 shrink-0 items-center justify-center rounded-full bg-primary px-4 text-[12px] font-semibold text-primary-foreground hover:opacity-90"
-                    >
-                      Open map
-                    </a>
                   </div>
                 </div>
               )}
@@ -2234,5 +2464,60 @@ function GeneralListingDetail({
         </div>
       </div>
     </main>
+  );
+}
+
+function PetDetails({ pet }: { pet: NonNullable<ClassifiedDetail["pet"]> }) {
+  const details = [
+    ["Listing type", petPlacementLabels[pet.placementType] ?? pet.placementType],
+    ["Animal", pet.species],
+    ["Breed", pet.breed],
+    ["Name", pet.name],
+    ["Age", pet.age],
+    ["Sex", pet.sex],
+    ["Offered by", pet.offeredBy],
+    ["Living arrangement", pet.indoorOutdoor],
+    ["Hypoallergenic", pet.hypoallergenic],
+    ["Vaccinated", pet.vaccinated],
+    ["Spayed / neutered", pet.spayedNeutered],
+    ["Microchipped", pet.microchipped],
+    ["Records available", pet.recordsAvailable],
+    ["Good with kids", pet.goodWithKids],
+    ["Good with dogs", pet.goodWithDogs],
+    ["Good with cats", pet.goodWithCats],
+  ].filter(([, value]) => Boolean(value));
+
+  return (
+    <section className="mt-7 rounded-2xl border border-border/70 bg-secondary/35 p-4 sm:p-5">
+      <h3 className="text-[16px] font-bold">Pet details</h3>
+      <dl className="mt-4 grid gap-x-6 gap-y-3 sm:grid-cols-2">
+        {details.map(([label, value]) => (
+          <div key={label} className="flex items-baseline justify-between gap-3 text-[12.5px]">
+            <dt className="text-muted-foreground">{label}</dt>
+            <dd className="text-right font-semibold text-foreground">{value}</dd>
+          </div>
+        ))}
+      </dl>
+      {pet.specialNeeds || pet.breedingTerms ? (
+        <div className="mt-4 border-t border-border/70 pt-4 text-[12.5px] leading-6">
+          {pet.specialNeeds ? (
+            <p>
+              <span className="font-semibold">Special needs: </span>
+              {pet.specialNeeds}
+            </p>
+          ) : null}
+          {pet.breedingTerms ? (
+            <p className={pet.specialNeeds ? "mt-2" : ""}>
+              <span className="font-semibold">Breeding terms: </span>
+              {pet.breedingTerms}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+      <p className="mt-4 border-t border-border/70 pt-4 text-[12px] leading-5 text-muted-foreground">
+        Meet in person, verify records, and avoid deposits, wire transfers, or gift cards before you
+        have confirmed the pet and seller.
+      </p>
+    </section>
   );
 }

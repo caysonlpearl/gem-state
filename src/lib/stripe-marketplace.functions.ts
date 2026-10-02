@@ -36,10 +36,10 @@ type ParcelDimensions = {
   weight: number;
 };
 
-const parkVaultCheckoutBranding: Stripe.Checkout.SessionCreateParams.BrandingSettings = {
-  display_name: "ParkVault",
-  background_color: "#14544a",
-  button_color: "#c8601f",
+const gemStateCheckoutBranding: Stripe.Checkout.SessionCreateParams.BrandingSettings = {
+  display_name: "Bluebird Marketplace",
+  background_color: "#f3eae0",
+  button_color: "#1f3557",
   border_style: "rounded",
 };
 
@@ -149,7 +149,7 @@ function sandboxShippingRate(): CheckoutShippingRate | null {
   if (!stripeSecret.startsWith("sk_test_")) return null;
   return {
     id: "gemstate_flat_ground",
-    carrier: "Gem State Classifieds",
+    carrier: "Bluebird Marketplace",
     service: "Tracked ground delivery",
     amountCents: 995,
     currency: "USD",
@@ -184,9 +184,51 @@ export const getCheckoutReadiness = createServerFn({ method: "GET" }).handler(as
   ready: stripeCheckoutReady(),
 }));
 
+/**
+ * Operator-only deployment check. This reports configuration state without
+ * exposing any secret value and refuses to describe live mode as safe for a
+ * test transaction.
+ */
+export const getPaymentEnvironmentReadiness = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: isAdmin, error } = await (supabaseAdmin as any).rpc("has_role", {
+      _user_id: context.userId,
+      _role: "admin",
+    });
+    if (error) throw new Error(error.message);
+    if (!isAdmin) throw new Error("Operator access required.");
+
+    const values = [
+      serverEnv("STRIPE_SECRET_KEY"),
+      serverEnv("STRIPE_CONNECT_WEBHOOK_SECRET"),
+      serverEnv("STRIPE_WEBHOOK_SECRET"),
+    ].map((value) => value.trim());
+    const secret = values.find((value) => value.startsWith("sk_") || value.startsWith("rk_")) ?? "";
+    const webhook = values.find((value) => value.startsWith("whsec_")) ?? "";
+    const testMode = secret.startsWith("sk_test_") || secret.startsWith("rk_test_");
+    const liveMode = secret.startsWith("sk_live_") || secret.startsWith("rk_live_");
+    return {
+      configured: Boolean(secret && webhook),
+      testMode,
+      liveMode,
+      safeForTestExecution: Boolean(secret && webhook && testMode),
+      message: !secret
+        ? "Stripe API credentials are not configured."
+        : !webhook
+          ? "Stripe webhook signing secret is not configured."
+          : liveMode
+            ? "Live Stripe credentials are configured; test execution is blocked."
+            : testMode
+              ? "Stripe test mode is configured."
+              : "Stripe credentials use an unsupported mode.",
+    };
+  });
+
 export const getCheckoutShippingRates = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { askId: string; address: CheckoutAddress }) => ({
+  .validator((input: { askId: string; address: CheckoutAddress }) => ({
     askId: String(input.askId),
     address: validateAddress(input.address),
   }))
@@ -370,7 +412,7 @@ async function createCheckout(params: {
       // Itemized credit notes keep receipt reductions and Stripe tax reports aligned.
       // User-approved post-payment invoice fee applies only to Park Shopper orders.
       ...(params.purpose === "sourcing" ? { invoice_creation: { enabled: true } } : {}),
-      branding_settings: parkVaultCheckoutBranding,
+      branding_settings: gemStateCheckoutBranding,
       customer: customer.id,
       customer_update: { address: "never", name: "never", shipping: "never" },
       line_items: [
@@ -519,7 +561,7 @@ async function persistOfferCheckout(
 
 export const startExactListingCheckout = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { askId: string; quoteId: string; rateId: string }) => ({
+  .validator((input: { askId: string; quoteId: string; rateId: string }) => ({
     askId: String(input.askId),
     quoteId: String(input.quoteId),
     rateId: String(input.rateId),
@@ -583,14 +625,12 @@ export const startExactListingCheckout = createServerFn({ method: "POST" })
 
 export const startListingOfferCheckout = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
-    (input: { askId: string; amountCents: number; quoteId: string; rateId: string }) => ({
-      askId: String(input.askId),
-      amountCents: Math.round(Number(input.amountCents)),
-      quoteId: String(input.quoteId),
-      rateId: String(input.rateId),
-    }),
-  )
+  .validator((input: { askId: string; amountCents: number; quoteId: string; rateId: string }) => ({
+    askId: String(input.askId),
+    amountCents: Math.round(Number(input.amountCents)),
+    quoteId: String(input.quoteId),
+    rateId: String(input.rateId),
+  }))
   .handler(async ({ data, context }) => {
     const { admin, quote, rate } = await loadQuote(
       context.userId,
@@ -676,7 +716,7 @@ export const reconcileMyListingOfferCheckouts = createServerFn({ method: "POST" 
 
 export const startCounterofferCheckout = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { offerId: string; quoteId: string; rateId: string }) => ({
+  .validator((input: { offerId: string; quoteId: string; rateId: string }) => ({
     offerId: String(input.offerId),
     quoteId: String(input.quoteId),
     rateId: String(input.rateId),
@@ -851,7 +891,7 @@ export async function captureAuthorizedOffer(offerId: string, sellerId: string) 
 
 export const acceptSecuredListingOffer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { offerId: string }) => ({ offerId: String(input.offerId) }))
+  .validator((input: { offerId: string }) => ({ offerId: String(input.offerId) }))
   .handler(async ({ data, context }) => ({
     orderId: await captureAuthorizedOffer(data.offerId, context.userId),
   }));
@@ -864,7 +904,7 @@ export const acceptSecuredListingOffer = createServerFn({ method: "POST" })
  */
 export const confirmOrderCheckout = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { orderId: string }) => ({ orderId: String(input.orderId) }))
+  .validator((input: { orderId: string }) => ({ orderId: String(input.orderId) }))
   .handler(async ({ data, context }): Promise<{ state: "paid" | "pending" | "unavailable" }> => {
     const { data: order, error } = await context.supabase
       .from("orders")
@@ -886,7 +926,7 @@ export const confirmOrderCheckout = createServerFn({ method: "POST" })
 
 export const confirmSourcingBalanceCheckout = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { orderId: string }) => ({ orderId: String(input.orderId) }))
+  .validator((input: { orderId: string }) => ({ orderId: String(input.orderId) }))
   .handler(async ({ data, context }): Promise<{ state: "paid" | "pending" | "unavailable" }> => {
     const { reconcileSourcingBalanceCheckout } = await import("./stripe-marketplace.server");
     try {
@@ -908,7 +948,7 @@ export const confirmSourcingBalanceCheckout = createServerFn({ method: "POST" })
  */
 export const getSourcingShippingRates = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { variantId: string; optionRef: string; address: CheckoutAddress }) => ({
+  .validator((input: { variantId: string; optionRef: string; address: CheckoutAddress }) => ({
     variantId: String(input.variantId),
     optionRef: String(input.optionRef),
     address: validateAddress(input.address),
@@ -1020,7 +1060,7 @@ export const getSourcingShippingRates = createServerFn({ method: "POST" })
  */
 export const startSourcingCheckout = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator(
+  .validator(
     (input: {
       variantId: string;
       optionRef: string;
@@ -1103,7 +1143,7 @@ export const startSourcingCheckout = createServerFn({ method: "POST" })
 /** A separate post-delivery tip. The full selected amount is transferred to the shopper. */
 export const startSourcingTipCheckout = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { orderId: string; amountCents: number }) => {
+  .validator((input: { orderId: string; amountCents: number }) => {
     const amountCents = Math.round(Number(input.amountCents));
     if (!Number.isFinite(amountCents) || amountCents < 100 || amountCents > 50_000) {
       throw new Error("Choose a tip between $1 and $500.");
@@ -1175,7 +1215,7 @@ export const startSourcingTipCheckout = createServerFn({ method: "POST" })
     };
     const tipParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
-      branding_settings: parkVaultCheckoutBranding,
+      branding_settings: gemStateCheckoutBranding,
       ...(customerEmail(context) ? { customer_email: customerEmail(context) as string } : {}),
       line_items: [
         {
@@ -1239,7 +1279,7 @@ export const startSourcingTipCheckout = createServerFn({ method: "POST" })
  */
 export const startSourcingBalanceCheckout = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { orderId: string }) => ({ orderId: String(input.orderId) }))
+  .validator((input: { orderId: string }) => ({ orderId: String(input.orderId) }))
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
@@ -1314,7 +1354,7 @@ export const startSourcingBalanceCheckout = createServerFn({ method: "POST" })
     );
     const proposedParams: Stripe.Checkout.SessionCreateParams = {
       mode: "payment",
-      branding_settings: parkVaultCheckoutBranding,
+      branding_settings: gemStateCheckoutBranding,
       customer: taxCustomer.id,
       line_items: [
         {
@@ -1384,7 +1424,7 @@ export const startSourcingBalanceCheckout = createServerFn({ method: "POST" })
  */
 export const reportSourcingUnavailable = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((input: { orderId: string; note?: string }) => ({
+  .validator((input: { orderId: string; note?: string }) => ({
     orderId: String(input.orderId),
     note: String(input.note ?? "").slice(0, 400),
   }))

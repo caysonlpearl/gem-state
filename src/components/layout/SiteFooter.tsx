@@ -4,7 +4,7 @@ import { brand, policyTopics } from "@/config/brand";
 import { classifiedCategories, idahoRegions } from "@/config/classifieds";
 
 /*
- * Dense multi-column footer for Gem State Classifieds. Columns are generated
+ * Dense multi-column footer for Bluebird Marketplace. Columns are generated
  * from the classifieds taxonomy and Idaho regions; nothing is padded out with
  * placeholder links, review scores, or trust marks.
  */
@@ -74,11 +74,6 @@ export function SiteFooter() {
             <h2 className={headingClass}>Buying and selling</h2>
             <ul className="mt-2">
               <li>
-                <Link to="/glossary" className={linkClass} {...pinned}>
-                  How listings and seller contact work
-                </Link>
-              </li>
-              <li>
                 <Link to="/create-listing" className={linkClass} {...pinned}>
                   Post a listing
                 </Link>
@@ -105,13 +100,18 @@ export function SiteFooter() {
             <h2 className={headingClass}>Help and policies</h2>
             <ul className="mt-2">
               <li>
-                <Link to="/glossary" className={linkClass} {...pinned}>
-                  Glossary
+                <Link to="/contact" className={linkClass} {...pinned}>
+                  Contact us
                 </Link>
               </li>
               <li>
-                <Link to="/contact" className={linkClass} {...pinned}>
-                  Contact us
+                <Link to="/advertise" className={linkClass} {...pinned}>
+                  Advertise with us
+                </Link>
+              </li>
+              <li>
+                <Link to="/safety" className={linkClass} {...pinned}>
+                  Safety center
                 </Link>
               </li>
               {policyTopics.map((topic) => (

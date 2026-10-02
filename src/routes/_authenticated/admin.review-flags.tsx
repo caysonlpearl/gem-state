@@ -14,7 +14,7 @@ import {
 export const Route = createFileRoute("/_authenticated/admin/review-flags")({
   head: () => ({
     meta: [
-      { title: "Flagged reviews · Gem State Classifieds" },
+      { title: "Flagged reviews · Bluebird Marketplace" },
       { name: "description", content: "Review seller reviews flagged by members before removal." },
       { name: "robots", content: "noindex" },
     ],
@@ -43,11 +43,12 @@ function FlaggedReviewRow({ review }: { review: FlaggedSellerReview }) {
         <div className="min-w-[260px] flex-1">
           <p className="text-[13px] font-semibold">
             Review of {review.sellerName}
-            <span className="ml-2 font-normal text-muted-foreground">
-              by {review.reviewerName}
-            </span>
+            <span className="ml-2 font-normal text-muted-foreground">by {review.reviewerName}</span>
           </p>
-          <p className="mt-1 flex items-center gap-0.5 text-primary" aria-label={`${review.rating} out of 5 stars`}>
+          <p
+            className="mt-1 flex items-center gap-0.5 text-primary"
+            aria-label={`${review.rating} out of 5 stars`}
+          >
             {Array.from({ length: 5 }, (_, index) => (
               <Star key={index} size={13} weight={index < review.rating ? "fill" : "regular"} />
             ))}
@@ -109,7 +110,7 @@ function ReviewFlagsPage() {
     <main className="mx-auto max-w-[900px] space-y-6 px-4 py-10 sm:px-6">
       <div>
         <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-primary">
-          Gem State operations
+          Bluebird operations
         </p>
         <h1 className="mt-1 text-[22px] font-semibold tracking-tight">Flagged reviews</h1>
         <p className="mt-1 max-w-[680px] text-[13px] leading-relaxed text-muted-foreground">
@@ -120,7 +121,8 @@ function ReviewFlagsPage() {
       <section className="rounded-lg border border-border bg-card">
         <div className="border-b border-border px-4 py-3">
           <h2 className="text-[13px] font-semibold">
-            Awaiting review <span className="numeric text-muted-foreground">{data?.length ?? 0}</span>
+            Awaiting review{" "}
+            <span className="numeric text-muted-foreground">{data?.length ?? 0}</span>
           </h2>
         </div>
         {isLoading ? (
