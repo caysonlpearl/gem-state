@@ -253,22 +253,25 @@
     );
   }
 
-  // Rendered size, not naturalWidth/Height: Facebook's own avatar images
-  // (the seller's profile picture, mutual-friend thumbnails) are often
-  // uploaded at a large native resolution even though they're DISPLAYED
-  // small, so naturalWidth alone can't tell a listing photo from an avatar.
-  // How big the browser actually draws it can. Confirmed live:
-  // "more from this seller"/recommendation thumbnails elsewhere on a
-  // listing page render at exactly 294x294 -- right at the edge of a
-  // 150px floor, which is how a wrong photo from a different listing
-  // ended up attached here. A real hero photo measured 427x844. 320px
-  // clears the thumbnail case with margin while staying safely under
-  // real hero photo sizes.
-  function mainPhoto(doc, excludeEl) {
+  // Confirmed live: on a multi-photo listing, Facebook tags the currently
+  // displayed hero image with alt="Product photo of {title}" -- a stable,
+  // specific marker that updates correctly after each "View photo N"
+  // click and is never used by recommendation thumbnails elsewhere on the
+  // page. A single-photo listing doesn't tag it this way (empty alt
+  // instead), but in that case it's reliably just the single biggest
+  // rendered image on the page -- no exclusion zone needed. (An earlier
+  // version excluded the details-text block here, but that block's own
+  // upper bound isn't fixed -- confirmed live that on some listings it
+  // grows to contain the hero photo too, which silently excluded the only
+  // real candidate and produced "no photo found" for a page that plainly
+  // had one.)
+  function mainPhoto(doc) {
+    const tagged = doc.querySelector('img[alt^="Product photo of "]');
+    if (tagged && tagged.src) return tagged;
     let best = null;
     let bestArea = 0;
     doc.querySelectorAll("img").forEach((img) => {
-      if ((excludeEl && excludeEl.contains(img)) || !img.src) return;
+      if (!img.src) return;
       const rect = img.getBoundingClientRect();
       const area = rect.width * rect.height;
       if (rect.width > 320 && rect.height > 320 && area > bestArea) {
@@ -279,18 +282,17 @@
     return best;
   }
 
-  async function collectCarouselPhotos(doc, detailsBlock) {
+  async function collectCarouselPhotos(doc) {
     const buttons = photoButtons(doc);
     if (!buttons.length) {
-      // Single-photo listing -- the main photo is reliably the single
-      // largest rendered image outside the text block. It can still lag a
-      // beat behind the text content even once "Condition"/"Details" are
-      // populated, so check more than once before giving up.
-      let img = mainPhoto(doc, detailsBlock);
+      // Single-photo listing. The photo can still lag a beat behind the
+      // text content even once "Condition"/"Details" are populated, so
+      // check more than once before giving up.
+      let img = mainPhoto(doc);
       const photoStart = Date.now();
       while (!img && Date.now() - photoStart < 9000) {
         await sleep(300);
-        img = mainPhoto(doc, detailsBlock);
+        img = mainPhoto(doc);
       }
       return img ? [img.src] : [];
     }
@@ -306,8 +308,12 @@
       );
       if (!btn) continue;
       btn.click();
-      await sleep(700);
-      const img = mainPhoto(doc, detailsBlock);
+      let img = mainPhoto(doc);
+      const clickStart = Date.now();
+      while ((!img || img.src === urls[urls.length - 1]) && Date.now() - clickStart < 3000) {
+        await sleep(250);
+        img = mainPhoto(doc);
+      }
       if (img && img.src) urls.push(img.src);
     }
     return Array.from(new Set(urls)).slice(0, 8);
@@ -326,7 +332,7 @@
         ? lines.slice(conditionIdx + 2, locationIdx >= 0 ? locationIdx : lines.length)
         : [];
     const description = descLines.join("\n\n").trim();
-    const photoUrls = await collectCarouselPhotos(doc, block);
+    const photoUrls = await collectCarouselPhotos(doc);
     return { condition: mapCondition(condition), description, photoUrls };
   }
 

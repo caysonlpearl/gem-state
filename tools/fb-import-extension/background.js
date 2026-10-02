@@ -215,17 +215,25 @@ async function extractListingDetailsInPage() {
       : [];
   const description = descLines.join("\n\n").trim();
 
-  // Confirmed live earlier: "more from this seller" / recommendation
-  // thumbnails elsewhere on a listing page render at exactly 294x294 --
-  // right at the edge of a 150px floor, which is how a wrong photo from a
-  // totally different listing ended up attached here. A real hero photo
-  // measured 427x844. 320px clears the thumbnail case with margin while
-  // staying safely under real hero photo sizes.
-  function mainPhoto(excludeEl) {
+  // Confirmed live: on a multi-photo listing, Facebook tags the currently
+  // displayed hero image with alt="Product photo of {title}" -- a stable,
+  // specific marker that updates correctly after each "View photo N"
+  // click and is never used by recommendation thumbnails elsewhere on the
+  // page. A single-photo listing doesn't tag it this way (empty alt
+  // instead), but in that case it's reliably just the single biggest
+  // rendered image on the page -- no exclusion zone needed. (An earlier
+  // version excluded the details-text block here, but that block's own
+  // upper bound isn't fixed -- confirmed live that on some listings it
+  // grows to contain the hero photo too, which silently excluded the only
+  // real candidate and produced "no photo found" for a page that plainly
+  // had one.)
+  function mainPhoto() {
+    const tagged = document.querySelector('img[alt^="Product photo of "]');
+    if (tagged && tagged.src) return tagged;
     let best = null;
     let bestArea = 0;
     document.querySelectorAll("img").forEach((img) => {
-      if ((excludeEl && excludeEl.contains(img)) || !img.src) return;
+      if (!img.src) return;
       const rect = img.getBoundingClientRect();
       const area = rect.width * rect.height;
       if (rect.width > 320 && rect.height > 320 && area > bestArea) {
@@ -245,11 +253,11 @@ async function extractListingDetailsInPage() {
   if (!buttons.length) {
     // The photo can still lag a beat behind the text content even once
     // "Condition"/"Details" are populated -- check once isn't enough.
-    let img = mainPhoto(block);
+    let img = mainPhoto();
     const photoStart = Date.now();
     while (!img && Date.now() - photoStart < 9000) {
       await sleep(300);
-      img = mainPhoto(block);
+      img = mainPhoto();
     }
     if (img) photoUrls.push(img.src);
   } else {
@@ -257,8 +265,12 @@ async function extractListingDetailsInPage() {
       const btn = photoButtons().find((el) => el.getAttribute("aria-label") === `View photo ${i}`);
       if (!btn) continue;
       btn.click();
-      await sleep(700);
-      const img = mainPhoto(block);
+      let img = mainPhoto();
+      const clickStart = Date.now();
+      while ((!img || img.src === photoUrls[photoUrls.length - 1]) && Date.now() - clickStart < 3000) {
+        await sleep(250);
+        img = mainPhoto();
+      }
       if (img && img.src) photoUrls.push(img.src);
     }
   }
