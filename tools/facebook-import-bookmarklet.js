@@ -7,8 +7,11 @@
  * Use, every time, by hand:
  *   1. In your own browser, while actually signed into Facebook, open the
  *      seller's Marketplace profile page.
- *   2. Click the bookmarklet. It scrolls the profile to load every listing,
- *      then shows a small panel in the top-right corner.
+ *   2. Click the bookmarklet. A small panel appears in the top-right
+ *      corner. Facebook only loads more of the seller's listings as you
+ *      actually scroll (a script can't fake that), so scroll down through
+ *      the listings yourself until no new ones appear, then click "Done
+ *      scrolling" in the panel.
  *   3. Click "Fetch details" in that panel. It opens ONE extra tab/window
  *      (your browser may ask you to allow pop-ups for facebook.com -- allow
  *      it) and walks every listing's detail page in it, one at a time, to
@@ -31,18 +34,6 @@
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
-  function findScrollParent(el) {
-    let node = el;
-    while (node && node !== document.body) {
-      const style = getComputedStyle(node);
-      if (/(auto|scroll)/.test(style.overflowY) && node.scrollHeight > node.clientHeight) {
-        return node;
-      }
-      node = node.parentElement;
-    }
-    return document.scrollingElement || document.body;
-  }
-
   // Facebook mixes unrelated "you might also like" recommendations into the
   // same page as a seller's real listings once you scroll past them, but
   // tags the two apart in the link itself: the seller's own items carry
@@ -52,34 +43,62 @@
     return /[?&]ref=marketplace_profile\b/.test(a.getAttribute("href") || "");
   }
 
-  // The profile grid lazy-loads; keep scrolling its real scroll container
-  // (not the page) until the listing count stops growing for a few tries.
-  async function collectListingLinks(onProgress) {
-    await sleep(300);
-    let all = Array.from(document.querySelectorAll('a[href*="/marketplace/item/"]'));
-    if (!all.length) return [];
-    const scrollParent = findScrollParent(all[0]);
-    let stagnant = 0;
-    let lastCount = all.filter(isOwnProfileListing).length;
-    for (let i = 0; i < 60 && stagnant < 3; i++) {
-      scrollParent.scrollTop = scrollParent.scrollHeight;
-      await sleep(650);
-      all = Array.from(document.querySelectorAll('a[href*="/marketplace/item/"]'));
-      const count = all.filter(isOwnProfileListing).length;
-      onProgress && onProgress(count);
-      if (count === lastCount) stagnant++;
-      else stagnant = 0;
-      lastCount = count;
-    }
-    return all.filter(isOwnProfileListing);
+  function collectOwnLinks() {
+    return Array.from(document.querySelectorAll('a[href*="/marketplace/item/"]')).filter(
+      isOwnProfileListing,
+    );
+  }
+
+  // Facebook's lazy-loaded listing grid only fetches more on a genuinely
+  // user-driven scroll -- confirmed live that no amount of script-driven
+  // scrollTop assignment, incremental or not, with dispatched scroll/wheel
+  // events, ever triggers it, while an actual mouse-wheel scroll does
+  // every time. A bookmarklet can't fake trusted input, so instead of
+  // guessing at a scroll that won't work, this watches the page live and
+  // has you do the scrolling -- which also means it never has to guess
+  // when "done" means done.
+  function waitForManualScroll(overlay, sellerName) {
+    return new Promise((resolve) => {
+      let links = collectOwnLinks();
+      function renderWaiting() {
+        render(
+          overlay,
+          `<strong>GemList import</strong>
+           <div style="margin-top:6px">${sellerName ? "Seller: " + sellerName + "<br/>" : ""}<span id="gemlist-scroll-count">${links.length}</span> listing(s) found so far.</div>
+           <div style="margin-top:8px;opacity:.85">Scroll down through the listings below (Facebook only loads more as you actually scroll) until no new ones appear, then click Done.</div>
+           <button id="gemlist-scroll-done-btn" style="margin-top:10px;width:100%;padding:6px 8px;border-radius:6px;border:0;background:#2563eb;color:#fff;font:inherit;cursor:pointer">Done scrolling</button>`,
+        );
+        const btn = overlay.querySelector("#gemlist-scroll-done-btn");
+        if (btn) btn.onclick = finish;
+      }
+      const observer = new MutationObserver(() => {
+        const next = collectOwnLinks();
+        if (next.length !== links.length) {
+          links = next;
+          const countEl = overlay.querySelector("#gemlist-scroll-count");
+          if (countEl) countEl.textContent = String(links.length);
+          else renderWaiting();
+        }
+      });
+      function finish() {
+        observer.disconnect();
+        resolve(links);
+      }
+      observer.observe(document.body, { childList: true, subtree: true });
+      renderWaiting();
+    });
   }
 
   // Facebook's own aria-label on each listing link is
   // "{title}, ${price}, {city}, {state}, listing {id}" -- matched from the
-  // right so a title containing a comma doesn't throw off the split.
+  // right so a title containing a comma doesn't throw off the split. A
+  // discounted listing inserts an extra "reduced from $X, " segment
+  // between the price and the city (confirmed live), so that's optional.
   function parseListingLink(a) {
     const label = a.getAttribute("aria-label") || "";
-    const m = label.match(/^(.*), \$([\d,]+), ([^,]+), ([A-Za-z]{2}), listing (\d+)$/);
+    const m = label.match(
+      /^(.*), \$([\d,]+), (?:reduced from \$[\d,]+, )?([^,]+), ([A-Za-z]{2}), listing (\d+)$/,
+    );
     if (!m) return null;
     const [, title, priceStr, city, state, id] = m;
     const href = a.getAttribute("href") || "";
@@ -97,16 +116,35 @@
   // The seller's display name isn't tagged with a stable attribute, but it's
   // reliably the largest text on the profile dialog (confirmed live: 32px vs
   // everything else under 20px).
+  // A page-wide search for the largest text picks up unrelated chrome
+  // (confirmed live: it grabbed the sidebar's "Notifications" label on the
+  // full profile page layout). Scoping to the card that actually holds
+  // "{Name}'s listings", then its grandparent (which also holds the name
+  // heading as a sibling block), reliably isolates just the seller's own
+  // profile card.
   function findSellerName() {
-    const container = document.querySelector('[role="dialog"]') || document.body;
-    const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+    const ownLink = collectOwnLinks()[0];
+    let node = ownLink || null;
+    let listingsSection = null;
+    while (node && node !== document.body) {
+      if (/'s listings/i.test(node.textContent || "")) {
+        listingsSection = node;
+        break;
+      }
+      node = node.parentElement;
+    }
+    const scope =
+      (listingsSection && listingsSection.parentElement && listingsSection.parentElement.parentElement) ||
+      document.querySelector('[role="dialog"]') ||
+      document.body;
+    const walker = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT);
     let best = null;
     let bestSize = 0;
-    let node;
-    while ((node = walker.nextNode())) {
-      const text = node.textContent.trim();
+    let textNode;
+    while ((textNode = walker.nextNode())) {
+      const text = textNode.textContent.trim();
       if (!text || text.length > 60) continue;
-      const el = node.parentElement;
+      const el = textNode.parentElement;
       if (!el) continue;
       const size = parseFloat(getComputedStyle(el).fontSize) || 0;
       if (size >= 20 && size > bestSize) {
@@ -334,16 +372,9 @@
     }
 
     const overlay = buildOverlay();
-    render(overlay, "<strong>GemList import</strong><div style='margin-top:6px'>Scrolling to load listings…</div>");
-
     const sourceProfileUrl = location.href.split("?")[0];
     const sellerName = findSellerName();
-    const links = await collectListingLinks((count) => {
-      render(
-        overlay,
-        `<strong>GemList import</strong><div style='margin-top:6px'>Loading listings… ${count} found</div>`,
-      );
-    });
+    const links = await waitForManualScroll(overlay, sellerName);
 
     const byId = new Map();
     for (const a of links) {

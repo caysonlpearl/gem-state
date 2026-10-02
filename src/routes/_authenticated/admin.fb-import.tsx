@@ -136,12 +136,38 @@ function StageForm() {
         With a live, logged-in browser session, walk the seller's Facebook Marketplace profile and
         every listing's detail page, then hand the extracted data to GemList below.
       </p>
+      <div className="mt-3 rounded-md border border-dashed border-border bg-secondary/40 p-3">
+        <p className="text-[12px] font-semibold">
+          Option A: Chrome extension{" "}
+          <span className="font-normal text-muted-foreground">
+            (fully automatic, including scrolling)
+          </span>
+        </p>
+        <p className="mt-1 max-w-[700px] text-[11.5px] leading-relaxed text-muted-foreground">
+          One-time setup, in your own Chrome: open <code>chrome://extensions</code>, turn on{" "}
+          <strong>Developer mode</strong> (top right), click <strong>Load unpacked</strong>, and
+          select the <code>tools/fb-import-extension</code> folder from your local copy of this
+          repo. Then, on a seller's Facebook Marketplace profile page, click the extension's icon in
+          your toolbar -- it scrolls, fetches every listing's details, and copies the result to your
+          clipboard on its own. (Facebook's grid ignores a script-faked scroll, so the extension
+          uses Chrome's own debugger API to send a real one -- you'll see a brief "started debugging
+          this browser" notice each run; that's expected.)
+        </p>
+      </div>
       <div className="mt-3 flex flex-wrap items-center gap-3 rounded-md border border-dashed border-border bg-secondary/40 p-3">
-        <BookmarkletLink />
-        <p className="max-w-[420px] text-[11.5px] leading-relaxed text-muted-foreground">
-          Drag that to your bookmarks bar once. On a seller's Facebook Marketplace profile page (in
-          your own signed-in browser), click it, then "Fetch details", then "Copy JSON" -- then come
-          back here and paste.
+        <div>
+          <p className="text-[12px] font-semibold">
+            Option B: Bookmarklet{" "}
+            <span className="font-normal text-muted-foreground">(no install, one manual step)</span>
+          </p>
+          <div className="mt-2">
+            <BookmarkletLink />
+          </div>
+        </div>
+        <p className="max-w-[380px] text-[11.5px] leading-relaxed text-muted-foreground">
+          Drag that to your bookmarks bar once. On a seller's profile page, click it, scroll down
+          through their listings yourself until no new ones appear (Facebook only loads more as you
+          actually scroll), click "Done scrolling", then "Fetch details", then "Copy JSON".
         </p>
         <button
           type="button"
