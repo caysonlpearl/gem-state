@@ -75,10 +75,11 @@ function StageForm() {
   const [itemsJson, setItemsJson] = useState("");
 
   const mutation = useMutation({
-    mutationFn: async () => {
+    mutationFn: async (override?: { profileUrl: string; itemsJson: string }) => {
+      const sourceProfileUrl = override?.profileUrl ?? profileUrl;
       let parsed: unknown;
       try {
-        parsed = JSON.parse(itemsJson);
+        parsed = JSON.parse(override?.itemsJson ?? itemsJson);
       } catch {
         throw new Error("Paste valid JSON of the extracted listings.");
       }
@@ -93,7 +94,7 @@ function StageForm() {
 
       return stage({
         data: {
-          sourceProfileUrl: profileUrl,
+          sourceProfileUrl,
           sellerName: sellerName || undefined,
           items: items as never[],
         },
@@ -109,6 +110,28 @@ function StageForm() {
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "Could not stage this batch."),
   });
+
+  // The Chrome extension posts the extracted batch straight to this page
+  // (same origin only) and it stages immediately, so the admin only has to
+  // review. Staging itself is still gated server-side to admins.
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      const data = event.data as { type?: string; text?: unknown } | null;
+      if (data?.type !== "gemlist-fb-import" || typeof data.text !== "string") return;
+      try {
+        const parsed = JSON.parse(data.text) as { sourceProfileUrl?: string };
+        const url = String(parsed?.sourceProfileUrl ?? "");
+        setProfileUrl(url);
+        setItemsJson(data.text);
+        mutation.mutate({ profileUrl: url, itemsJson: data.text });
+      } catch {
+        toast.error("The extension sent data that wasn't valid JSON.");
+      }
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [mutation]);
 
   const pasteFromClipboard = async () => {
     try {
@@ -182,7 +205,7 @@ function StageForm() {
         className="mt-4 grid gap-3 sm:grid-cols-2"
         onSubmit={(event) => {
           event.preventDefault();
-          mutation.mutate();
+          mutation.mutate(undefined);
         }}
       >
         <label className="text-[12px] font-medium sm:col-span-2">

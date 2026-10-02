@@ -388,6 +388,26 @@ async function fetchAllDetails(items, tabId, sellerName) {
   await Promise.all(Array.from({ length: workerCount }, () => runWorker(queue, onItemDone)));
 }
 
+// Hands the finished batch to the open GemList admin import page, which
+// stages it on its own -- GemList's page, not Facebook's, so none of the
+// Facebook-side caution applies here. Returns false if that page isn't
+// open (the clipboard copy is the fallback).
+const ADMIN_PAGE_PATTERN = "https://gemstateclassifieds.lovable.app/admin/fb-import*";
+
+async function handoffToAdmin(json) {
+  const tabs = await chrome.tabs.query({ url: ADMIN_PAGE_PATTERN });
+  if (!tabs.length) return false;
+  const adminTab = tabs[0];
+  await chrome.tabs.update(adminTab.id, { active: true });
+  await chrome.windows.update(adminTab.windowId, { focused: true }).catch(() => {});
+  await exec(
+    adminTab.id,
+    (text) => window.postMessage({ type: "gemlist-fb-import", text }, window.location.origin),
+    [json],
+  );
+  return true;
+}
+
 async function run(tabId) {
   await overlay(
     tabId,
@@ -429,12 +449,18 @@ async function run(tabId) {
       photoUrls: item.photoUrls || [],
     })),
   };
-  await exec(tabId, (json) => navigator.clipboard.writeText(json), [JSON.stringify(payload)]);
+  const json = JSON.stringify(payload);
+  await exec(tabId, (text) => navigator.clipboard.writeText(text), [json]);
+  const handedOff = await handoffToAdmin(json).catch(() => false);
   await overlay(
     tabId,
     `<strong>GemList import</strong>
      <div style="margin-top:6px">${sellerName ? "Seller: " + sellerName + "<br/>" : ""}Done — ${items.length} listing(s).</div>
-     <div style="margin-top:6px;opacity:.85">Copied to clipboard. Paste into GemList's admin import tool.</div>`,
+     <div style="margin-top:6px;opacity:.85">${
+       handedOff
+         ? "Sent to the GemList admin import page and staged."
+         : "Copied to clipboard. Open the GemList admin import page and use Paste from clipboard."
+     }</div>`,
   );
 }
 

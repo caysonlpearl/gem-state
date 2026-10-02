@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "description": "With a seller's permission, extracts their Facebook Marketplace listings for GemList's admin import tool. Only runs when you click it, in your own signed-in browser -- nothing is stored or scheduled.",
   "permissions": ["debugger", "scripting", "tabs", "clipboardWrite"],
-  "host_permissions": ["https://www.facebook.com/*"],
+  "host_permissions": ["https://www.facebook.com/*", "https://gemstateclassifieds.lovable.app/*"],
   "action": {
     "default_title": "Import this seller's Facebook listings to GemList"
   },
