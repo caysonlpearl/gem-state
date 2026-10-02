@@ -6,6 +6,7 @@ import { toast } from "sonner";
 
 import { classifiedCategories } from "@/config/classifieds";
 import {
+  discardAllFacebookImportItems,
   discardFacebookImportItem,
   getFacebookImportItems,
   publishFacebookImportItems,
@@ -507,6 +508,18 @@ function FbImportPage() {
       toast.error(error instanceof Error ? error.message : "Could not publish selected items."),
   });
 
+  const clearAll = useServerFn(discardAllFacebookImportItems);
+  const clearAllMutation = useMutation({
+    mutationFn: () => clearAll(),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ["fb-import-items"] });
+      setSelectedIds(new Set());
+      toast.success(`Cleared ${result.cleared} listing(s).`);
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Could not clear the list."),
+  });
+
   return (
     <main className="mx-auto max-w-[1000px] space-y-6 px-4 py-10 sm:px-6">
       <div>
@@ -551,6 +564,23 @@ function FbImportPage() {
               className="h-9 rounded-md bg-primary px-3 text-[12px] font-semibold text-primary-foreground disabled:opacity-50"
             >
               {publishMutation.isPending ? "Applying…" : "Apply selected"}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (!data?.length) return;
+                if (
+                  !window.confirm(
+                    `Discard all ${data.length} staged listing(s)? This can't be undone -- nothing will be published.`,
+                  )
+                )
+                  return;
+                clearAllMutation.mutate();
+              }}
+              disabled={clearAllMutation.isPending || !data?.length}
+              className="h-9 rounded-md border border-input px-3 text-[12px] font-medium text-destructive hover:bg-secondary disabled:opacity-50"
+            >
+              {clearAllMutation.isPending ? "Clearing…" : "Clear list"}
             </button>
           </div>
         </div>

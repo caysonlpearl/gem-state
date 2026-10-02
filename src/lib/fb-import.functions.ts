@@ -459,6 +459,21 @@ export const discardFacebookImportItem = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
+export const discardAllFacebookImportItems = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    await requireAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = supabaseAdmin as any;
+    const { data, error } = await admin
+      .from("fb_marketplace_import_items")
+      .update({ status: "discarded" })
+      .in("status", ["draft", "needs_update", "possibly_removed"])
+      .select("id");
+    if (error) throw new Error(error.message);
+    return { cleared: (data ?? []).length };
+  });
+
 /**
  * Mints a real session for the seller's own account, the same way a "sign-in
  * link" email works, just completed in one step with the service role key's
