@@ -10,13 +10,20 @@ import { formatUsd } from "@/config/fees";
 import { useAuth } from "@/hooks/useAuth";
 import type { ClassifiedDetail } from "@/lib/classifieds.functions";
 import { startConversation } from "@/lib/conversation.functions";
+import { JobApplicationForm } from "./JobApplicationForm";
+
+function looksLikeEmail(value: string) {
+  return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value);
+}
+function externalApplyHref(contact: string) {
+  if (looksLikeEmail(contact)) return `mailto:${contact}`;
+  return /^https?:\/\//i.test(contact) ? contact : `https://${contact}`;
+}
 
 // The legacy create_listing_inquiry RPC remains available for existing seller records;
 // new listing contact now starts a two-way conversation through startConversation.
 
 const DEFAULT_MESSAGE = "Hi, is this still available? I would love to learn more.";
-const DEFAULT_APPLY_MESSAGE =
-  "Hi, I would like to apply for this position. I am available to start right away.";
 
 /**
  * Direct-contact controls for the current classifieds MVP. Transactional
@@ -37,11 +44,14 @@ export function ListingActions({
   ctaVerb?: "contact" | "apply";
 }) {
   const isJobApply = ctaVerb === "apply";
+  const applicationMethod = listing.job?.applicationMethod ?? "gemlist";
+  const isExternalApply = isJobApply && applicationMethod === "external";
+  const isGemlistApply = isJobApply && applicationMethod === "gemlist";
   const isMortgage = calculatorVariant === "mortgage";
   const internalMessagesEnabled = listing.seller?.allowInternalMessages !== false;
   const { isSignedIn } = useAuth();
   const [contactOpen, setContactOpen] = useState(false);
-  const [message, setMessage] = useState(isJobApply ? DEFAULT_APPLY_MESSAGE : DEFAULT_MESSAGE);
+  const [message, setMessage] = useState(DEFAULT_MESSAGE);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [loanTerm, setLoanTerm] = useState(isMortgage ? "360" : "60");
   const start = useServerFn(startConversation);
@@ -63,8 +73,8 @@ export function ListingActions({
   const inquiryMutation = useMutation({
     mutationFn: () => start({ data: { listingId: listing.id, body: message } }),
     onSuccess: () => {
-      toast.success(isJobApply ? "Application sent to the employer." : "Message sent to the seller.");
-      setMessage(isJobApply ? DEFAULT_APPLY_MESSAGE : DEFAULT_MESSAGE);
+      toast.success("Message sent to the seller.");
+      setMessage(DEFAULT_MESSAGE);
       setContactOpen(false);
     },
     onError: (error) =>
@@ -155,37 +165,56 @@ export function ListingActions({
 
         <p className="flex items-start gap-2 text-[12px] leading-relaxed text-muted-foreground">
           <Info size={15} className="mt-0.5 shrink-0 text-primary" />
-          {isJobApply
-            ? "Apply to let the employer know you're interested. They will reach out about next steps."
-            : "Contact the seller to confirm availability, condition, pickup, shipping, and the final amount."}
+          {isExternalApply
+            ? "This employer accepts applications on their own site or by email."
+            : isJobApply
+              ? "Apply to let the employer know you're interested. They will reach out about next steps."
+              : "Contact the seller to confirm availability, condition, pickup, shipping, and the final amount."}
         </p>
 
-        <div>
-          {isSignedIn && internalMessagesEnabled ? (
-            <button
-              type="button"
-              onClick={() => setContactOpen((open) => !open)}
-              className="h-12 w-full rounded-full bg-nav-accent text-[14.5px] font-semibold text-primary-foreground transition-opacity hover:opacity-90"
-            >
-              {contactOpen ? "Close message" : isJobApply ? "Apply now" : "Contact seller"}
-            </button>
-          ) : isSignedIn ? (
-            <div className="rounded-2xl border border-border bg-secondary/45 px-3 py-3 text-[12px] leading-relaxed text-muted-foreground">
-              This seller has disabled Gem State messages. Use an enabled contact option on the
-              listing, or choose another seller.
-            </div>
-          ) : (
-            <Link
-              to={brand.urls.auth}
-              className="flex h-12 w-full items-center justify-center rounded-full bg-nav-accent text-[14.5px] font-semibold text-primary-foreground"
-            >
-              {isJobApply ? "Sign in to apply" : "Sign in to contact seller"}
-            </Link>
-          )}
-        </div>
+        {isExternalApply ? (
+          <a
+            href={externalApplyHref(listing.job?.applicationExternalContact ?? "")}
+            target="_blank"
+            rel="noreferrer"
+            className="flex h-12 w-full items-center justify-center rounded-full bg-nav-accent text-[14.5px] font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+          >
+            Apply on the employer's site
+          </a>
+        ) : (
+          <div>
+            {isSignedIn && internalMessagesEnabled ? (
+              <button
+                type="button"
+                onClick={() => setContactOpen((open) => !open)}
+                className="h-12 w-full rounded-full bg-nav-accent text-[14.5px] font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+              >
+                {contactOpen ? "Close" : isJobApply ? "Apply now" : "Contact seller"}
+              </button>
+            ) : isSignedIn ? (
+              <div className="rounded-2xl border border-border bg-secondary/45 px-3 py-3 text-[12px] leading-relaxed text-muted-foreground">
+                This seller has disabled Gem State messages. Use an enabled contact option on the
+                listing, or choose another seller.
+              </div>
+            ) : (
+              <Link
+                to={brand.urls.auth}
+                className="flex h-12 w-full items-center justify-center rounded-full bg-nav-accent text-[14.5px] font-semibold text-primary-foreground"
+              >
+                {isJobApply ? "Sign in to apply" : "Sign in to contact seller"}
+              </Link>
+            )}
+          </div>
+        )}
       </div>
 
-      {contactOpen && isSignedIn ? (
+      {contactOpen && isSignedIn && isGemlistApply ? (
+        <div className="mt-4 border-t border-border px-4 py-4">
+          <JobApplicationForm listingId={listing.id} />
+        </div>
+      ) : null}
+
+      {contactOpen && isSignedIn && !isJobApply ? (
         <form
           className="mt-4 space-y-3 border-t border-border px-4 py-4"
           onSubmit={(event) => {
@@ -194,9 +223,7 @@ export function ListingActions({
           }}
         >
           <label htmlFor="seller-message" className="block text-[12px] font-medium">
-            {isJobApply
-              ? `Message to ${listing.seller?.displayName ?? "the employer"}`
-              : `Message ${listing.seller?.displayName ?? "the seller"}`}
+            Message {listing.seller?.displayName ?? "the seller"}
           </label>
           <textarea
             id="seller-message"
@@ -208,11 +235,7 @@ export function ListingActions({
             rows={5}
             required
             className="w-full resize-y rounded-2xl border border-input bg-background px-3 py-2.5 text-[13px] leading-relaxed outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
-            placeholder={
-              isJobApply
-                ? "Share your availability and relevant experience…"
-                : "Ask about availability, condition, pickup, or shipping…"
-            }
+            placeholder="Ask about availability, condition, pickup, or shipping…"
           />
           <p className="text-[11px] leading-relaxed text-muted-foreground">
             Your message will appear in Gem State Messages. The seller will only see contact

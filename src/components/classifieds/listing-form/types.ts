@@ -65,6 +65,8 @@ export type ListingFormState = {
   educationLevel: string;
   responsibilities: string;
   qualifications: string;
+  applicationMethod: string;
+  applicationExternalContact: string;
 
   // Service
   subcategory: string;
@@ -140,6 +142,8 @@ export const initialListingForm: ListingFormState = {
   educationLevel: "",
   responsibilities: "",
   qualifications: "",
+  applicationMethod: "gemlist",
+  applicationExternalContact: "",
 
   subcategory: "",
   serviceArea: "",

@@ -214,6 +214,37 @@ export async function emailListingInquiry(inquiryId: string): Promise<void> {
   }
 }
 
+export async function emailJobApplicationReceived(applicationId: string): Promise<void> {
+  try {
+    const client = await admin();
+    const { data: application } = await client
+      .from("job_applications")
+      .select("id,cover_letter,applicant_id,listing_id,asks(seller_id,products(name))")
+      .eq("id", applicationId)
+      .maybeSingle();
+    if (!application?.asks?.seller_id) return;
+
+    const { data: applicant } = await client
+      .from("profiles")
+      .select("display_name")
+      .eq("id", application.applicant_id)
+      .maybeSingle();
+
+    await emailMember(
+      application.asks.seller_id,
+      "job-application-received",
+      {
+        jobTitle: application.asks.products?.name ?? "your job listing",
+        applicantName: applicant?.display_name ?? "A Gem State member",
+        coverLetter: application.cover_letter ?? undefined,
+      },
+      `job-application-${application.id}`,
+    );
+  } catch (error) {
+    console.error("Job application email was not delivered", error);
+  }
+}
+
 /** Emails both sides of a paid order: buyer receipt plus seller/shopper job. */
 export async function emailOrderPaid(orderId: string): Promise<void> {
   const ctx = await loadOrderEmailContext(orderId);

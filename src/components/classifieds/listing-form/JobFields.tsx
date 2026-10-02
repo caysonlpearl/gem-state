@@ -123,6 +123,52 @@ export function JobFields({
           className={textareaClass}
         />
       </label>
+      <div className="sm:col-span-2 border-t border-border pt-4">
+        <p className="text-[12px] font-medium">How should applicants apply?</p>
+        <div className="mt-2 flex gap-2">
+          <button
+            type="button"
+            onClick={() => set("applicationMethod", "gemlist")}
+            aria-pressed={form.applicationMethod === "gemlist"}
+            className={`h-10 rounded-full border px-4 text-[12.5px] font-semibold transition-colors ${
+              form.applicationMethod === "gemlist"
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-input bg-background text-foreground hover:border-primary"
+            }`}
+          >
+            Apply through Gem State
+          </button>
+          <button
+            type="button"
+            onClick={() => set("applicationMethod", "external")}
+            aria-pressed={form.applicationMethod === "external"}
+            className={`h-10 rounded-full border px-4 text-[12.5px] font-semibold transition-colors ${
+              form.applicationMethod === "external"
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-input bg-background text-foreground hover:border-primary"
+            }`}
+          >
+            Apply elsewhere
+          </button>
+        </div>
+        <p className="mt-1.5 text-[11px] text-muted-foreground">
+          {form.applicationMethod === "gemlist"
+            ? "Applicants upload a resume and optional cover letter here. You'll review them in your seller dashboard."
+            : "Applicants are sent to a link or email address you provide instead."}
+        </p>
+        {form.applicationMethod === "external" && (
+          <label className="mt-3 block text-[12px] font-medium">
+            Application link or email
+            <input
+              required
+              value={form.applicationExternalContact}
+              onChange={(event) => set("applicationExternalContact", event.target.value)}
+              placeholder="https://example.com/careers or jobs@example.com"
+              className={fieldClass}
+            />
+          </label>
+        )}
+      </div>
     </div>
   );
 }

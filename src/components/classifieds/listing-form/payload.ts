@@ -108,6 +108,11 @@ export function buildJob(form: ListingFormState): ClassifiedListingInput["job"] 
     qualifications: linesToList(form.qualifications).length
       ? linesToList(form.qualifications)
       : undefined,
+    applicationMethod: form.applicationMethod as NonNullable<
+      ClassifiedListingInput["job"]
+    >["applicationMethod"],
+    applicationExternalContact:
+      form.applicationMethod === "external" ? form.applicationExternalContact : undefined,
   };
 }
 
@@ -192,6 +197,8 @@ export function fromEditor(listing: ClassifiedListingEditor): ListingFormState {
     educationLevel: listing.job?.educationLevel ?? "",
     responsibilities: listToLines(listing.job?.responsibilities),
     qualifications: listToLines(listing.job?.qualifications),
+    applicationMethod: listing.job?.applicationMethod ?? "gemlist",
+    applicationExternalContact: listing.job?.applicationExternalContact ?? "",
 
     subcategory: listing.service?.subcategory ?? "",
     serviceArea: listing.service?.serviceArea ?? "",

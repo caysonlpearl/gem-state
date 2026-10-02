@@ -121,6 +121,8 @@ export type ClassifiedJobDetails = {
   jobSummary: string;
   responsibilities: string[];
   qualifications?: string[];
+  applicationMethod?: "gemlist" | "external";
+  applicationExternalContact?: string | null;
 };
 
 export type ClassifiedServiceReview = {

@@ -11,6 +11,7 @@ import { template as listingReviewed } from "./listing-reviewed";
 import { template as sourcingUpdate } from "./sourcing-update";
 import { template as disputeUpdate } from "./dispute-update";
 import { template as listingInquiryReceived } from "./listing-inquiry-received";
+import { template as jobApplicationReceived } from "./job-application-received";
 import { template as marketplaceMessage } from "./marketplace-message";
 import { template as savedSearchMatch } from "./saved-search-match";
 
@@ -39,6 +40,7 @@ export const TEMPLATES: Record<string, TemplateEntry> = {
   "sourcing-update": sourcingUpdate,
   "dispute-update": disputeUpdate,
   "listing-inquiry-received": listingInquiryReceived,
+  "job-application-received": jobApplicationReceived,
   "marketplace-message": marketplaceMessage,
   "saved-search-match": savedSearchMatch,
 };

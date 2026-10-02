@@ -105,6 +105,8 @@ export const classifiedListingSchema = z
         educationLevel: z.string().trim().max(80).optional(),
         responsibilities: z.array(z.string().trim().min(1).max(300)).max(20).optional(),
         qualifications: z.array(z.string().trim().min(1).max(300)).max(20).optional(),
+        applicationMethod: z.enum(["gemlist", "external"]).default("gemlist"),
+        applicationExternalContact: z.string().trim().max(300).optional(),
       })
       .optional(),
     service: z

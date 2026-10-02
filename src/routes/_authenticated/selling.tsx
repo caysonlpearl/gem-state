@@ -10,6 +10,12 @@ import { formatUsd } from "@/config/fees";
 import { trackEvent } from "@/lib/analytics";
 import { getSellerListingInquiries } from "@/lib/classified-inquiry.functions";
 import {
+  getJobApplicationResumeUrl,
+  getSellerJobApplications,
+  updateJobApplicationStatus,
+  type JobApplicationStatus,
+} from "@/lib/job-applications.functions";
+import {
   cancelListing,
   getMyListingOffers,
   getMyListings,
@@ -72,6 +78,9 @@ function SellingPage() {
   const acceptSecuredOffer = useServerFn(acceptSecuredListingOffer);
   const fetchMissingRequests = useServerFn(getMyMissingListingRequests);
   const fetchListingInquiries = useServerFn(getSellerListingInquiries);
+  const fetchJobApplications = useServerFn(getSellerJobApplications);
+  const updateApplicationStatus = useServerFn(updateJobApplicationStatus);
+  const fetchApplicationResumeUrl = useServerFn(getJobApplicationResumeUrl);
   const [counterPrices, setCounterPrices] = useState<Record<string, string>>({});
   const [listingTab, setListingTab] = useState<ListingTab>("active");
 
@@ -110,6 +119,29 @@ function SellingPage() {
     queryKey: ["seller-listing-inquiries"],
     queryFn: () => fetchListingInquiries(),
     enabled: profileReady,
+  });
+  const jobApplications = useQuery({
+    queryKey: ["seller-job-applications"],
+    queryFn: () => fetchJobApplications(),
+    enabled: profileReady,
+  });
+
+  const applicationStatusMutation = useMutation({
+    mutationFn: (input: { applicationId: string; status: JobApplicationStatus }) =>
+      updateApplicationStatus({ data: input }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["seller-job-applications"] });
+      toast.success("Application status updated.");
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Could not update the status."),
+  });
+  const viewResumeMutation = useMutation({
+    mutationFn: (applicationId: string) =>
+      fetchApplicationResumeUrl({ data: { applicationId } }),
+    onSuccess: (result) => window.open(result.url, "_blank", "noopener,noreferrer"),
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Could not open the resume."),
   });
 
   const cancelMutation = useMutation({
@@ -551,6 +583,68 @@ function SellingPage() {
                   >
                     Reply by email
                   </a>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </section>
+
+      <section id="applications" className="mt-10 scroll-mt-28">
+        <div className="border-b border-border pb-3">
+          <h2 className="text-[14px] font-semibold">Job applications</h2>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">
+            Candidates who applied through Gem State for your job listings.
+          </p>
+        </div>
+        {jobApplications.isLoading ? (
+          <p className="py-5 text-[12.5px] text-muted-foreground">Loading applications…</p>
+        ) : null}
+        {!jobApplications.isLoading && (jobApplications.data ?? []).length === 0 ? (
+          <p className="py-6 text-[12.5px] text-muted-foreground">No applications yet.</p>
+        ) : null}
+        {(jobApplications.data ?? []).length > 0 ? (
+          <ul className="divide-y divide-border border-b border-border">
+            {(jobApplications.data ?? []).map((application) => (
+              <li key={application.id} className="py-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-semibold">{application.listingTitle}</p>
+                    <p className="mt-0.5 text-[11.5px] text-muted-foreground">
+                      {application.applicantName} ·{" "}
+                      {new Date(application.createdAt).toLocaleDateString()}
+                    </p>
+                    {application.coverLetter ? (
+                      <p className="mt-2 whitespace-pre-line text-[12.5px] leading-relaxed">
+                        {application.coverLetter}
+                      </p>
+                    ) : null}
+                  </div>
+                  <div className="flex shrink-0 flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => viewResumeMutation.mutate(application.id)}
+                      disabled={viewResumeMutation.isPending}
+                      className="inline-flex h-9 items-center rounded-full border border-foreground px-3 text-[11.5px] font-medium hover:bg-secondary disabled:opacity-50"
+                    >
+                      View resume
+                    </button>
+                    <select
+                      value={application.status}
+                      onChange={(event) =>
+                        applicationStatusMutation.mutate({
+                          applicationId: application.id,
+                          status: event.target.value as JobApplicationStatus,
+                        })
+                      }
+                      className="h-9 rounded-full border border-input bg-background px-2 text-[11.5px]"
+                    >
+                      <option value="submitted">Submitted</option>
+                      <option value="reviewed">Reviewed</option>
+                      <option value="contacted">Contacted</option>
+                      <option value="rejected">Not selected</option>
+                    </select>
+                  </div>
                 </div>
               </li>
             ))}
