@@ -113,7 +113,9 @@
     // "Used - Like New" contains "new" too, and is not actually new.
     if (t.includes("like new") || t.includes("excellent")) return "used_excellent";
     if (t.includes("used")) return "used_good";
-    if (t.includes("new")) return t.includes("tag") ? "new_with_tags" : "new_without_tags";
+    // "tag" is a substring of "tags", so a bare .includes("tag") can't tell
+    // "with tags" from "no tags" -- require the actual phrase.
+    if (t.includes("new")) return /with\s*tags?/.test(t) ? "new_with_tags" : "new_without_tags";
     return "used_good";
   }
 
@@ -175,21 +177,69 @@
     return fallback;
   }
 
+  function findNextPhotoButton(scope) {
+    return Array.from(scope.querySelectorAll("[aria-label]")).find((el) =>
+      /next photo|next image/i.test(el.getAttribute("aria-label") || ""),
+    );
+  }
+
+  // Rendered size, not naturalWidth/Height: Facebook's own avatar images
+  // (the seller's profile picture, mutual-friend thumbnails) are often
+  // uploaded at a large native resolution even though they're DISPLAYED
+  // small, so naturalWidth alone can't tell a listing photo from an avatar.
+  // How big the browser actually draws it can.
+  function isPhotoSized(img) {
+    const rect = img.getBoundingClientRect();
+    return rect.width > 150 && rect.height > 150;
+  }
+
+  function biggestPhotoOutside(doc, excludeEl) {
+    let best = null;
+    let bestArea = 0;
+    doc.querySelectorAll("img").forEach((img) => {
+      if (excludeEl.contains(img) || !img.src) return;
+      const rect = img.getBoundingClientRect();
+      const area = rect.width * rect.height;
+      if (rect.width > 150 && rect.height > 150 && area > bestArea) {
+        bestArea = area;
+        best = img;
+      }
+    });
+    return best;
+  }
+
   async function collectCarouselPhotos(doc, detailsBlock) {
+    const nextBtn = findNextPhotoButton(doc);
+    if (!nextBtn) {
+      // Single-photo listing (no carousel control) -- the main photo is
+      // reliably the single largest rendered image outside the text block.
+      const img = biggestPhotoOutside(doc, detailsBlock);
+      return img ? [img.src] : [];
+    }
+
+    // Scope collection to the carousel itself, not the whole page, by
+    // climbing from its own "next photo" button until we reach an ancestor
+    // that actually contains a photo-sized image.
+    let container = doc.body;
+    let node = nextBtn;
+    for (let i = 0; i < 8 && node; i++) {
+      if (Array.from(node.querySelectorAll("img")).some(isPhotoSized)) {
+        container = node;
+        break;
+      }
+      node = node.parentElement;
+    }
+
     const seen = new Set();
     const snapshot = () => {
-      doc.querySelectorAll("img").forEach((img) => {
-        if (img.naturalWidth > 150 && img.src && !detailsBlock.contains(img)) seen.add(img.src);
+      container.querySelectorAll("img").forEach((img) => {
+        if (img.src && !detailsBlock.contains(img) && isPhotoSized(img)) seen.add(img.src);
       });
     };
     snapshot();
-    const findNextButton = () =>
-      Array.from(doc.querySelectorAll("[aria-label]")).find((el) =>
-        /next photo|next image/i.test(el.getAttribute("aria-label") || ""),
-      );
     let stagnant = 0;
     for (let i = 0; i < 20 && stagnant < 2; i++) {
-      const btn = findNextButton();
+      const btn = findNextPhotoButton(container);
       if (!btn) break;
       const before = seen.size;
       btn.click();
