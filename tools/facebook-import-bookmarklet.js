@@ -310,7 +310,7 @@
       btn.click();
       let img = mainPhoto(doc);
       const clickStart = Date.now();
-      while ((!img || img.src === urls[urls.length - 1]) && Date.now() - clickStart < 3000) {
+      while ((!img || img.src === urls[urls.length - 1]) && Date.now() - clickStart < 8000) {
         await sleep(250);
         img = mainPhoto(doc);
       }

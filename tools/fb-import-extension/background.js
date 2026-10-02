@@ -267,7 +267,7 @@ async function extractListingDetailsInPage() {
       btn.click();
       let img = mainPhoto();
       const clickStart = Date.now();
-      while ((!img || img.src === photoUrls[photoUrls.length - 1]) && Date.now() - clickStart < 3000) {
+      while ((!img || img.src === photoUrls[photoUrls.length - 1]) && Date.now() - clickStart < 8000) {
         await sleep(250);
         img = mainPhoto();
       }
@@ -364,7 +364,12 @@ async function runWorker(queue, onItemDone) {
   }
 }
 
-const DETAIL_FETCH_CONCURRENCY = 4;
+// 4 concurrent workers caused real, repeated misses (wrong photos, then
+// missing photos) under resource contention -- both traced back to the
+// same cause: a real hero photo taking longer to finish loading than
+// expected while several tabs compete for network/CPU at once. 2 is a
+// deliberate trade of some speed for reliability.
+const DETAIL_FETCH_CONCURRENCY = 2;
 
 async function fetchAllDetails(items, tabId, sellerName) {
   const queue = items.slice();
