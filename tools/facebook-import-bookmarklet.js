@@ -43,25 +43,35 @@
     return document.scrollingElement || document.body;
   }
 
+  // Facebook mixes unrelated "you might also like" recommendations into the
+  // same page as a seller's real listings once you scroll past them, but
+  // tags the two apart in the link itself: the seller's own items carry
+  // ref=marketplace_profile, recommendations carry
+  // ref=browse_tab&referral_code=marketplace_top_picks (confirmed live).
+  function isOwnProfileListing(a) {
+    return /[?&]ref=marketplace_profile\b/.test(a.getAttribute("href") || "");
+  }
+
   // The profile grid lazy-loads; keep scrolling its real scroll container
   // (not the page) until the listing count stops growing for a few tries.
   async function collectListingLinks(onProgress) {
     await sleep(300);
-    let links = Array.from(document.querySelectorAll('a[href*="/marketplace/item/"]'));
-    if (!links.length) return [];
-    const scrollParent = findScrollParent(links[0]);
+    let all = Array.from(document.querySelectorAll('a[href*="/marketplace/item/"]'));
+    if (!all.length) return [];
+    const scrollParent = findScrollParent(all[0]);
     let stagnant = 0;
-    let lastCount = links.length;
+    let lastCount = all.filter(isOwnProfileListing).length;
     for (let i = 0; i < 60 && stagnant < 3; i++) {
       scrollParent.scrollTop = scrollParent.scrollHeight;
       await sleep(650);
-      links = Array.from(document.querySelectorAll('a[href*="/marketplace/item/"]'));
-      onProgress && onProgress(links.length);
-      if (links.length === lastCount) stagnant++;
+      all = Array.from(document.querySelectorAll('a[href*="/marketplace/item/"]'));
+      const count = all.filter(isOwnProfileListing).length;
+      onProgress && onProgress(count);
+      if (count === lastCount) stagnant++;
       else stagnant = 0;
-      lastCount = links.length;
+      lastCount = count;
     }
-    return links;
+    return all.filter(isOwnProfileListing);
   }
 
   // Facebook's own aria-label on each listing link is
@@ -155,31 +165,53 @@
     return conditionIdx >= 0 ? lines[conditionIdx + 1] : null;
   }
 
-  async function waitForDetailsBlock(win, timeoutMs) {
+  function listingIdFromUrl(url) {
+    const m = (url || "").match(/\/marketplace\/item\/(\d+)/);
+    return m ? m[1] : null;
+  }
+
+  // Setting `win.location.href` doesn't navigate instantly -- the previous
+  // listing's document (readyState "complete", its own real Details/
+  // Condition block) is still sitting there for a beat. Without confirming
+  // the worker has actually reached the NEW listing's id first, polling
+  // would happily extract the PREVIOUS listing's title/photos/description
+  // and attribute them to this one -- which is exactly the mismatched
+  // title/photo pairing seen on a live run. Only trust the document once
+  // its own URL matches the listing we just navigated to.
+  async function waitForDetailsBlock(win, expectedUrl, timeoutMs) {
+    const expectedId = listingIdFromUrl(expectedUrl);
     const start = Date.now();
     let fallback = null;
     while (Date.now() - start < timeoutMs) {
       try {
         if (win.closed) return fallback;
-        const doc = win.document;
-        if (doc && doc.readyState === "complete") {
-          const block = findDetailsBlock(doc);
-          if (block) {
-            fallback = { doc, block };
-            if (conditionLineValue(block)) return { doc, block };
+        const currentId = listingIdFromUrl(win.location.href);
+        if (expectedId && currentId === expectedId) {
+          const doc = win.document;
+          if (doc && doc.readyState === "complete") {
+            const block = findDetailsBlock(doc);
+            if (block) {
+              fallback = { doc, block };
+              if (conditionLineValue(block)) return { doc, block };
+            }
           }
         }
       } catch {
-        // Not loaded yet / about:blank -- keep polling.
+        // Mid cross-document transition -- keep polling.
       }
       await sleep(400);
     }
     return fallback;
   }
 
-  function findNextPhotoButton(scope) {
-    return Array.from(scope.querySelectorAll("[aria-label]")).find((el) =>
-      /next photo|next image/i.test(el.getAttribute("aria-label") || ""),
+  // Confirmed live: each photo in a listing's carousel has its own numbered
+  // control ("View photo 1", "View photo 2", ...) that deterministically
+  // swaps the single large main image -- a far more reliable signal than
+  // guessing at a "next" button's label or clicking until nothing changes.
+  // A single-photo listing has no such buttons at all.
+  function photoButtons(doc) {
+    return Array.from(doc.querySelectorAll("[aria-label]")).filter((el) =>
+      /^View photo \d+$/i.test(el.getAttribute("aria-label") || ""),
     );
   }
 
@@ -188,16 +220,11 @@
   // uploaded at a large native resolution even though they're DISPLAYED
   // small, so naturalWidth alone can't tell a listing photo from an avatar.
   // How big the browser actually draws it can.
-  function isPhotoSized(img) {
-    const rect = img.getBoundingClientRect();
-    return rect.width > 150 && rect.height > 150;
-  }
-
-  function biggestPhotoOutside(doc, excludeEl) {
+  function mainPhoto(doc, excludeEl) {
     let best = null;
     let bestArea = 0;
     doc.querySelectorAll("img").forEach((img) => {
-      if (excludeEl.contains(img) || !img.src) return;
+      if ((excludeEl && excludeEl.contains(img)) || !img.src) return;
       const rect = img.getBoundingClientRect();
       const area = rect.width * rect.height;
       if (rect.width > 150 && rect.height > 150 && area > bestArea) {
@@ -209,46 +236,30 @@
   }
 
   async function collectCarouselPhotos(doc, detailsBlock) {
-    const nextBtn = findNextPhotoButton(doc);
-    if (!nextBtn) {
-      // Single-photo listing (no carousel control) -- the main photo is
-      // reliably the single largest rendered image outside the text block.
-      const img = biggestPhotoOutside(doc, detailsBlock);
+    const buttons = photoButtons(doc);
+    if (!buttons.length) {
+      // Single-photo listing -- the main photo is reliably the single
+      // largest rendered image outside the text block.
+      const img = mainPhoto(doc, detailsBlock);
       return img ? [img.src] : [];
     }
 
-    // Scope collection to the carousel itself, not the whole page, by
-    // climbing from its own "next photo" button until we reach an ancestor
-    // that actually contains a photo-sized image.
-    let container = doc.body;
-    let node = nextBtn;
-    for (let i = 0; i < 8 && node; i++) {
-      if (Array.from(node.querySelectorAll("img")).some(isPhotoSized)) {
-        container = node;
-        break;
-      }
-      node = node.parentElement;
-    }
-
-    const seen = new Set();
-    const snapshot = () => {
-      container.querySelectorAll("img").forEach((img) => {
-        if (img.src && !detailsBlock.contains(img) && isPhotoSized(img)) seen.add(img.src);
-      });
-    };
-    snapshot();
-    let stagnant = 0;
-    for (let i = 0; i < 20 && stagnant < 2; i++) {
-      const btn = findNextPhotoButton(container);
-      if (!btn) break;
-      const before = seen.size;
+    const count = buttons.length;
+    const urls = [];
+    for (let i = 1; i <= count; i++) {
+      // Re-query by label each time rather than reusing earlier element
+      // references -- Facebook can re-render the control strip between
+      // clicks, which would make a stale reference silently no-op.
+      const btn = photoButtons(doc).find(
+        (el) => el.getAttribute("aria-label") === `View photo ${i}`,
+      );
+      if (!btn) continue;
       btn.click();
-      await sleep(550);
-      snapshot();
-      if (seen.size === before) stagnant++;
-      else stagnant = 0;
+      await sleep(700);
+      const img = mainPhoto(doc, detailsBlock);
+      if (img && img.src) urls.push(img.src);
     }
-    return Array.from(seen).slice(0, 8);
+    return Array.from(new Set(urls)).slice(0, 8);
   }
 
   async function extractListingDetails(doc, block) {
@@ -278,7 +289,7 @@
       if (item.done) continue;
       try {
         worker.location.href = item.sourceUrl;
-        const found = await waitForDetailsBlock(worker, 20000);
+        const found = await waitForDetailsBlock(worker, item.sourceUrl, 20000);
         if (!found) {
           item.error = "Timed out loading listing detail page.";
         } else {
