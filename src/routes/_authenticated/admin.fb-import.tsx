@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -43,6 +43,28 @@ const statusLabels: Record<string, string> = {
   needs_update: "Needs update",
   possibly_removed: "No longer on Facebook",
 };
+
+// React sanitizes any href prop that starts with "javascript:" (replacing it
+// with a thrown-error placeholder) as an XSS precaution, so a plain
+// `<a href={bookmarkletHref}>` can never work for a bookmarklet. Setting the
+// attribute directly on the DOM node bypasses React's prop diffing entirely.
+function BookmarkletLink() {
+  const ref = useRef<HTMLAnchorElement>(null);
+  useEffect(() => {
+    ref.current?.setAttribute("href", bookmarkletHref);
+  }, []);
+  return (
+    <a
+      ref={ref}
+      onClick={(e) => e.preventDefault()}
+      draggable
+      className="inline-flex h-9 cursor-grab items-center rounded-md border border-input bg-background px-3 text-[12px] font-semibold"
+      title="Drag this to your bookmarks bar -- clicking it here won't run it."
+    >
+      📥 GemList FB Import
+    </a>
+  );
+}
 
 function StageForm() {
   const queryClient = useQueryClient();
@@ -115,15 +137,7 @@ function StageForm() {
         every listing's detail page, then hand the extracted data to GemList below.
       </p>
       <div className="mt-3 flex flex-wrap items-center gap-3 rounded-md border border-dashed border-border bg-secondary/40 p-3">
-        <a
-          href={bookmarkletHref}
-          onClick={(e) => e.preventDefault()}
-          draggable
-          className="inline-flex h-9 cursor-grab items-center rounded-md border border-input bg-background px-3 text-[12px] font-semibold"
-          title="Drag this to your bookmarks bar -- clicking it here won't run it."
-        >
-          📥 GemList FB Import
-        </a>
+        <BookmarkletLink />
         <p className="max-w-[420px] text-[11.5px] leading-relaxed text-muted-foreground">
           Drag that to your bookmarks bar once. On a seller's Facebook Marketplace profile page (in
           your own signed-in browser), click it, then "Fetch details", then "Copy JSON" -- then come
