@@ -458,7 +458,7 @@ async function run(tabId) {
      <div style="margin-top:6px">${sellerName ? "Seller: " + sellerName + "<br/>" : ""}Done — ${items.length} listing(s).</div>
      <div style="margin-top:6px;opacity:.85">${
        handedOff
-         ? "Sent to the GemList admin import page and staged."
+         ? "Sent to the GemList admin import page. Click Stage batch there."
          : "Copied to clipboard. Open the GemList admin import page and use Paste from clipboard."
      }</div>`,
   );

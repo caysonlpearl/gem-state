@@ -112,8 +112,8 @@ function StageForm() {
   });
 
   // The Chrome extension posts the extracted batch straight to this page
-  // (same origin only) and it stages immediately, so the admin only has to
-  // review. Staging itself is still gated server-side to admins.
+  // (same origin only) and it fills the form; the admin still clicks
+  // Stage batch themselves. Staging is gated server-side to admins.
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== window.location.origin) return;
@@ -124,14 +124,14 @@ function StageForm() {
         const url = String(parsed?.sourceProfileUrl ?? "");
         setProfileUrl(url);
         setItemsJson(data.text);
-        mutation.mutate({ profileUrl: url, itemsJson: data.text });
+        toast.success("Batch received from the extension. Click Stage batch when ready.");
       } catch {
         toast.error("The extension sent data that wasn't valid JSON.");
       }
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [mutation]);
+  }, []);
 
   const pasteFromClipboard = async () => {
     try {
