@@ -1870,6 +1870,131 @@ export type Database = {
         };
         Relationships: [];
       };
+      fb_marketplace_import_batches: {
+        Row: {
+          created_at: string;
+          id: string;
+          imported_by: string;
+          seller_id: string;
+          source_profile_url: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          imported_by: string;
+          seller_id: string;
+          source_profile_url: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          imported_by?: string;
+          seller_id?: string;
+          source_profile_url?: string;
+        };
+        Relationships: [];
+      };
+      fb_marketplace_import_items: {
+        Row: {
+          batch_id: string;
+          category_slug: string;
+          city: string;
+          condition: string | null;
+          created_at: string;
+          description: string | null;
+          evidence_paths: string[];
+          fulfillment_mode: string;
+          id: string;
+          listing_id: string | null;
+          previous_description: string | null;
+          previous_price_cents: number | null;
+          price_cents: number;
+          public_paths: string[];
+          region: string;
+          seller_id: string;
+          source_url: string;
+          state: string;
+          status: string;
+          title: string;
+          updated_at: string;
+        };
+        Insert: {
+          batch_id: string;
+          category_slug?: string;
+          city?: string;
+          condition?: string | null;
+          created_at?: string;
+          description?: string | null;
+          evidence_paths?: string[];
+          fulfillment_mode?: string;
+          id?: string;
+          listing_id?: string | null;
+          previous_description?: string | null;
+          previous_price_cents?: number | null;
+          price_cents: number;
+          public_paths?: string[];
+          region?: string;
+          seller_id: string;
+          source_url: string;
+          state?: string;
+          status?: string;
+          title: string;
+          updated_at?: string;
+        };
+        Update: {
+          batch_id?: string;
+          category_slug?: string;
+          city?: string;
+          condition?: string | null;
+          created_at?: string;
+          description?: string | null;
+          evidence_paths?: string[];
+          fulfillment_mode?: string;
+          id?: string;
+          listing_id?: string | null;
+          previous_description?: string | null;
+          previous_price_cents?: number | null;
+          price_cents?: number;
+          public_paths?: string[];
+          region?: string;
+          seller_id?: string;
+          source_url?: string;
+          state?: string;
+          status?: string;
+          title?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "fb_marketplace_import_items_batch_id_fkey";
+            columns: ["batch_id"];
+            isOneToOne: false;
+            referencedRelation: "fb_marketplace_import_batches";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "fb_marketplace_import_items_listing_id_fkey";
+            columns: ["listing_id"];
+            isOneToOne: false;
+            referencedRelation: "active_seller_listings";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "fb_marketplace_import_items_listing_id_fkey";
+            columns: ["listing_id"];
+            isOneToOne: false;
+            referencedRelation: "asks";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "fb_marketplace_import_items_listing_id_fkey";
+            columns: ["listing_id"];
+            isOneToOne: false;
+            referencedRelation: "variant_sourcing_offers";
+            referencedColumns: ["ask_id"];
+          },
+        ];
+      };
       fee_schedules: {
         Row: {
           active: boolean;

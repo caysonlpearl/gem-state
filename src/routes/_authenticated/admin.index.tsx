@@ -269,6 +269,12 @@ function AdminPage() {
             >
               Conversation reports
             </Link>
+            <Link
+              to="/admin/fb-import"
+              className="inline-flex h-9 items-center rounded-md border border-input px-3 text-[12.5px] font-medium hover:bg-secondary"
+            >
+              Facebook seller import
+            </Link>
           </div>
         )}
       </div>

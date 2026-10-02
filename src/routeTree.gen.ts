@@ -46,6 +46,7 @@ import { Route as AuthenticatedAdminClassifiedsRouteImport } from './routes/_aut
 import { Route as AuthenticatedAdminConversationReportsRouteImport } from './routes/_authenticated/admin.conversation-reports'
 import { Route as AuthenticatedAdminDealerInventoryRouteImport } from './routes/_authenticated/admin.dealer-inventory'
 import { Route as AuthenticatedAdminDealersRouteImport } from './routes/_authenticated/admin.dealers'
+import { Route as AuthenticatedAdminFbImportRouteImport } from './routes/_authenticated/admin.fb-import'
 import { Route as AuthenticatedAdminMembersRouteImport } from './routes/_authenticated/admin.members'
 import { Route as AuthenticatedAdminProductsRouteImport } from './routes/_authenticated/admin.products'
 import { Route as AuthenticatedAdminReviewFlagsRouteImport } from './routes/_authenticated/admin.review-flags'
@@ -255,6 +256,12 @@ const AuthenticatedAdminDealersRoute =
     path: '/dealers',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminFbImportRoute =
+  AuthenticatedAdminFbImportRouteImport.update({
+    id: '/fb-import',
+    path: '/fb-import',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminMembersRoute =
   AuthenticatedAdminMembersRouteImport.update({
     id: '/members',
@@ -368,6 +375,7 @@ export interface FileRoutesByFullPath {
   '/admin/conversation-reports': typeof AuthenticatedAdminConversationReportsRoute
   '/admin/dealer-inventory': typeof AuthenticatedAdminDealerInventoryRoute
   '/admin/dealers': typeof AuthenticatedAdminDealersRoute
+  '/admin/fb-import': typeof AuthenticatedAdminFbImportRoute
   '/admin/members': typeof AuthenticatedAdminMembersRoute
   '/admin/products': typeof AuthenticatedAdminProductsRoute
   '/admin/review-flags': typeof AuthenticatedAdminReviewFlagsRoute
@@ -418,6 +426,7 @@ export interface FileRoutesByTo {
   '/admin/conversation-reports': typeof AuthenticatedAdminConversationReportsRoute
   '/admin/dealer-inventory': typeof AuthenticatedAdminDealerInventoryRoute
   '/admin/dealers': typeof AuthenticatedAdminDealersRoute
+  '/admin/fb-import': typeof AuthenticatedAdminFbImportRoute
   '/admin/members': typeof AuthenticatedAdminMembersRoute
   '/admin/products': typeof AuthenticatedAdminProductsRoute
   '/admin/review-flags': typeof AuthenticatedAdminReviewFlagsRoute
@@ -471,6 +480,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/conversation-reports': typeof AuthenticatedAdminConversationReportsRoute
   '/_authenticated/admin/dealer-inventory': typeof AuthenticatedAdminDealerInventoryRoute
   '/_authenticated/admin/dealers': typeof AuthenticatedAdminDealersRoute
+  '/_authenticated/admin/fb-import': typeof AuthenticatedAdminFbImportRoute
   '/_authenticated/admin/members': typeof AuthenticatedAdminMembersRoute
   '/_authenticated/admin/products': typeof AuthenticatedAdminProductsRoute
   '/_authenticated/admin/review-flags': typeof AuthenticatedAdminReviewFlagsRoute
@@ -524,6 +534,7 @@ export interface FileRouteTypes {
     | '/admin/conversation-reports'
     | '/admin/dealer-inventory'
     | '/admin/dealers'
+    | '/admin/fb-import'
     | '/admin/members'
     | '/admin/products'
     | '/admin/review-flags'
@@ -574,6 +585,7 @@ export interface FileRouteTypes {
     | '/admin/conversation-reports'
     | '/admin/dealer-inventory'
     | '/admin/dealers'
+    | '/admin/fb-import'
     | '/admin/members'
     | '/admin/products'
     | '/admin/review-flags'
@@ -626,6 +638,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/conversation-reports'
     | '/_authenticated/admin/dealer-inventory'
     | '/_authenticated/admin/dealers'
+    | '/_authenticated/admin/fb-import'
     | '/_authenticated/admin/members'
     | '/_authenticated/admin/products'
     | '/_authenticated/admin/review-flags'
@@ -929,6 +942,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminDealersRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/fb-import': {
+      id: '/_authenticated/admin/fb-import'
+      path: '/fb-import'
+      fullPath: '/admin/fb-import'
+      preLoaderRoute: typeof AuthenticatedAdminFbImportRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/members': {
       id: '/_authenticated/admin/members'
       path: '/members'
@@ -1029,6 +1049,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminConversationReportsRoute: typeof AuthenticatedAdminConversationReportsRoute
   AuthenticatedAdminDealerInventoryRoute: typeof AuthenticatedAdminDealerInventoryRoute
   AuthenticatedAdminDealersRoute: typeof AuthenticatedAdminDealersRoute
+  AuthenticatedAdminFbImportRoute: typeof AuthenticatedAdminFbImportRoute
   AuthenticatedAdminMembersRoute: typeof AuthenticatedAdminMembersRoute
   AuthenticatedAdminProductsRoute: typeof AuthenticatedAdminProductsRoute
   AuthenticatedAdminReviewFlagsRoute: typeof AuthenticatedAdminReviewFlagsRoute
@@ -1045,6 +1066,7 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminDealerInventoryRoute:
     AuthenticatedAdminDealerInventoryRoute,
   AuthenticatedAdminDealersRoute: AuthenticatedAdminDealersRoute,
+  AuthenticatedAdminFbImportRoute: AuthenticatedAdminFbImportRoute,
   AuthenticatedAdminMembersRoute: AuthenticatedAdminMembersRoute,
   AuthenticatedAdminProductsRoute: AuthenticatedAdminProductsRoute,
   AuthenticatedAdminReviewFlagsRoute: AuthenticatedAdminReviewFlagsRoute,
