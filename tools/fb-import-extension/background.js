@@ -80,7 +80,7 @@ async function autoScroll(tabId, onProgress) {
         deltaX: 0,
         deltaY: 700,
       });
-      await sleep(500);
+      await sleep(400);
       const count = await countOwnListings(tabId);
       onProgress && onProgress(count);
       if (count === last) stagnant++;
@@ -272,35 +272,97 @@ async function extractListingDetailsInPage() {
   };
 }
 
-function waitForTabComplete(tabId, timeoutMs) {
+function listingIdFromUrl(url) {
+  const m = (url || "").match(/\/marketplace\/item\/(\d+)/);
+  return m ? m[1] : null;
+}
+
+// Worker tabs get reused across navigations (chrome.tabs.update, not a
+// fresh chrome.tabs.create each time) to keep the concurrent pool small,
+// which reintroduces the same stale-read race the bookmarklet hit: a
+// tab's PREVIOUS page can still report status "complete" for a beat after
+// a new navigation starts. Confirming the tab's own URL matches the
+// listing we just navigated to -- not just "complete" -- is what the
+// bookmarklet's fix for that race relies on too.
+function waitForTabReady(tabId, expectedUrl, timeoutMs) {
+  const expectedId = listingIdFromUrl(expectedUrl);
   return new Promise((resolve) => {
     let settled = false;
-    const timer = setTimeout(() => {
+    const timer = setTimeout(finish, timeoutMs || 20000);
+    function check() {
+      if (settled) return;
+      chrome.tabs.get(tabId, (t) => {
+        if (settled || !t) return;
+        const currentId = listingIdFromUrl(t.url);
+        if (t.status === "complete" && (!expectedId || currentId === expectedId)) finish();
+      });
+    }
+    function listener(id, info) {
+      if (id === tabId && info.status === "complete") check();
+    }
+    function finish() {
       if (settled) return;
       settled = true;
+      clearTimeout(timer);
       chrome.tabs.onUpdated.removeListener(listener);
       resolve();
-    }, timeoutMs || 20000);
-    function listener(id, info) {
-      if (id === tabId && info.status === "complete") {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        chrome.tabs.onUpdated.removeListener(listener);
-        resolve();
-      }
     }
-    chrome.tabs.get(tabId, (t) => {
-      if (settled) return;
-      if (t && t.status === "complete") {
-        settled = true;
-        clearTimeout(timer);
-        resolve();
-        return;
-      }
-      chrome.tabs.onUpdated.addListener(listener);
-    });
+    chrome.tabs.onUpdated.addListener(listener);
+    check();
   });
+}
+
+// Each worker gets its own small popup window rather than a background
+// tab in the shared window: a window's single active tab counts as
+// "visible" to Chrome's own throttling regardless of whether the window
+// itself has OS focus, so several of these can run genuinely concurrently
+// without hitting the background-tab throttling that caused missing
+// photos before. `focused: false` keeps them from stealing your attention
+// while they work.
+async function runWorker(queue, onItemDone) {
+  const win = await chrome.windows.create({
+    url: "about:blank",
+    focused: false,
+    type: "popup",
+    width: 900,
+    height: 1000,
+  });
+  const tabId = win.tabs[0].id;
+  try {
+    while (queue.length) {
+      const item = queue.shift();
+      try {
+        await chrome.tabs.update(tabId, { url: item.sourceUrl });
+        await waitForTabReady(tabId, item.sourceUrl, 20000);
+        const details = await exec(tabId, extractListingDetailsInPage);
+        if (details) Object.assign(item, details);
+      } catch {
+        // Leave this item with whatever card-level data it already has.
+      }
+      onItemDone();
+    }
+  } finally {
+    await chrome.windows.remove(win.id).catch(() => {});
+  }
+}
+
+const DETAIL_FETCH_CONCURRENCY = 4;
+
+async function fetchAllDetails(items, tabId, sellerName) {
+  const queue = items.slice();
+  const total = queue.length;
+  let done = 0;
+  const onItemDone = () => {
+    done += 1;
+    overlay(
+      tabId,
+      `<strong>GemList import</strong>
+       <div style="margin-top:6px">${sellerName ? "Seller: " + sellerName + "<br/>" : ""}${total} listing(s) found.</div>
+       <div style="margin-top:6px">Fetching details… ${done}/${total}</div>`,
+    );
+  };
+  const workerCount = Math.min(DETAIL_FETCH_CONCURRENCY, queue.length) || 1;
+  await Promise.all(Array.from({ length: workerCount }, () => runWorker(queue, onItemDone)));
 }
 
 async function run(tabId) {
@@ -321,33 +383,13 @@ async function run(tabId) {
     return;
   }
 
-  for (let i = 0; i < items.length; i++) {
-    await overlay(
-      tabId,
-      `<strong>GemList import</strong>
-       <div style="margin-top:6px">${sellerName ? "Seller: " + sellerName + "<br/>" : ""}${items.length} listing(s) found.</div>
-       <div style="margin-top:6px">Fetching details… ${i}/${items.length}</div>`,
-    );
-    // Chrome throttles background tabs -- timers get clamped and
-    // requestAnimationFrame stops firing entirely while a tab isn't
-    // visible. Facebook's photo carousel needs rAF to actually swap the
-    // displayed image after a click, so a background detail tab can
-    // register the click but never finish rendering the next photo before
-    // the wait elapses -- a real cause of missing photos, not just a slow
-    // listing. Opening it active (foreground) avoids that; focus returns
-    // to the original tab once every listing is done.
-    const detailTab = await chrome.tabs.create({ url: items[i].sourceUrl, active: true });
-    try {
-      await waitForTabComplete(detailTab.id);
-      const details = await exec(detailTab.id, extractListingDetailsInPage);
-      if (details) Object.assign(items[i], details);
-    } catch {
-      // Leave this item with whatever card-level data it already has.
-    } finally {
-      await chrome.tabs.remove(detailTab.id).catch(() => {});
-    }
-  }
-  await chrome.tabs.update(tabId, { active: true }).catch(() => {});
+  await overlay(
+    tabId,
+    `<strong>GemList import</strong>
+     <div style="margin-top:6px">${sellerName ? "Seller: " + sellerName + "<br/>" : ""}${items.length} listing(s) found.</div>
+     <div style="margin-top:6px">Fetching details… 0/${items.length}</div>`,
+  );
+  await fetchAllDetails(items, tabId, sellerName);
 
   const payload = {
     sourceProfileUrl,
