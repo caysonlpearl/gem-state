@@ -237,7 +237,14 @@ async function extractListingDetailsInPage() {
   const buttons = photoButtons();
   const photoUrls = [];
   if (!buttons.length) {
-    const img = mainPhoto(block);
+    // The photo can still lag a beat behind the text content even once
+    // "Condition"/"Details" are populated -- check once isn't enough.
+    let img = mainPhoto(block);
+    const photoStart = Date.now();
+    while (!img && Date.now() - photoStart < 5000) {
+      await sleep(300);
+      img = mainPhoto(block);
+    }
     if (img) photoUrls.push(img.src);
   } else {
     for (let i = 1; i <= buttons.length; i++) {
@@ -321,7 +328,15 @@ async function run(tabId) {
        <div style="margin-top:6px">${sellerName ? "Seller: " + sellerName + "<br/>" : ""}${items.length} listing(s) found.</div>
        <div style="margin-top:6px">Fetching details… ${i}/${items.length}</div>`,
     );
-    const detailTab = await chrome.tabs.create({ url: items[i].sourceUrl, active: false });
+    // Chrome throttles background tabs -- timers get clamped and
+    // requestAnimationFrame stops firing entirely while a tab isn't
+    // visible. Facebook's photo carousel needs rAF to actually swap the
+    // displayed image after a click, so a background detail tab can
+    // register the click but never finish rendering the next photo before
+    // the wait elapses -- a real cause of missing photos, not just a slow
+    // listing. Opening it active (foreground) avoids that; focus returns
+    // to the original tab once every listing is done.
+    const detailTab = await chrome.tabs.create({ url: items[i].sourceUrl, active: true });
     try {
       await waitForTabComplete(detailTab.id);
       const details = await exec(detailTab.id, extractListingDetailsInPage);
@@ -332,6 +347,7 @@ async function run(tabId) {
       await chrome.tabs.remove(detailTab.id).catch(() => {});
     }
   }
+  await chrome.tabs.update(tabId, { active: true }).catch(() => {});
 
   const payload = {
     sourceProfileUrl,

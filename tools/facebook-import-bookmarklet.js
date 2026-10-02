@@ -277,8 +277,15 @@
     const buttons = photoButtons(doc);
     if (!buttons.length) {
       // Single-photo listing -- the main photo is reliably the single
-      // largest rendered image outside the text block.
-      const img = mainPhoto(doc, detailsBlock);
+      // largest rendered image outside the text block. It can still lag a
+      // beat behind the text content even once "Condition"/"Details" are
+      // populated, so check more than once before giving up.
+      let img = mainPhoto(doc, detailsBlock);
+      const photoStart = Date.now();
+      while (!img && Date.now() - photoStart < 5000) {
+        await sleep(300);
+        img = mainPhoto(doc, detailsBlock);
+      }
       return img ? [img.src] : [];
     }
 
@@ -327,6 +334,10 @@
       if (item.done) continue;
       try {
         worker.location.href = item.sourceUrl;
+        // Chrome throttles timers/rAF in a window that never has focus,
+        // which can stop a photo-carousel click from ever finishing its
+        // render -- keep the worker focused while it's doing the work.
+        worker.focus();
         const found = await waitForDetailsBlock(worker, item.sourceUrl, 20000);
         if (!found) {
           item.error = "Timed out loading listing detail page.";
