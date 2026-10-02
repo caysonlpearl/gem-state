@@ -13,6 +13,9 @@ import {
   updateFacebookImportItem,
   type FbImportItem,
 } from "@/lib/fb-import.functions";
+import bookmarkletSource from "../../../tools/facebook-import-bookmarklet.js?raw";
+
+const bookmarkletHref = `javascript:${encodeURIComponent(bookmarkletSource)}`;
 
 export const Route = createFileRoute("/_authenticated/admin/fb-import")({
   head: () => ({
@@ -84,17 +87,56 @@ function StageForm() {
       toast.error(error instanceof Error ? error.message : "Could not stage this batch."),
   });
 
+  const pasteFromClipboard = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      if (!text.trim()) {
+        toast.error("Clipboard is empty.");
+        return;
+      }
+      const parsed = JSON.parse(text);
+      const url =
+        parsed && typeof parsed === "object" && !Array.isArray(parsed)
+          ? String((parsed as { sourceProfileUrl?: string }).sourceProfileUrl ?? "")
+          : "";
+      if (url) setProfileUrl(url);
+      setItemsJson(text);
+      toast.success("Pasted from clipboard. Review the profile URL, then stage.");
+    } catch {
+      toast.error("Clipboard didn't contain valid JSON from the bookmarklet.");
+    }
+  };
+
   return (
     <section className="rounded-lg border border-border bg-card p-5">
       <h2 className="text-[14px] font-semibold">Stage a batch</h2>
       <p className="mt-1 max-w-[700px] text-[12.5px] leading-relaxed text-muted-foreground">
         With a live, logged-in browser session, walk the seller's Facebook Marketplace profile and
-        every listing's detail page, then paste the extracted data below as a JSON array of{" "}
-        {
-          "{ sourceUrl, title, description, priceCents, condition, categorySlug, city, state, photoUrls }"
-        }{" "}
-        objects.
+        every listing's detail page, then hand the extracted data to GemList below.
       </p>
+      <div className="mt-3 flex flex-wrap items-center gap-3 rounded-md border border-dashed border-border bg-secondary/40 p-3">
+        <a
+          href={bookmarkletHref}
+          onClick={(e) => e.preventDefault()}
+          draggable
+          className="inline-flex h-9 cursor-grab items-center rounded-md border border-input bg-background px-3 text-[12px] font-semibold"
+          title="Drag this to your bookmarks bar -- clicking it here won't run it."
+        >
+          📥 GemList FB Import
+        </a>
+        <p className="max-w-[420px] text-[11.5px] leading-relaxed text-muted-foreground">
+          Drag that to your bookmarks bar once. On a seller's Facebook Marketplace profile page (in
+          your own signed-in browser), click it, then "Fetch details", then "Copy JSON" -- then come
+          back here and paste.
+        </p>
+        <button
+          type="button"
+          onClick={pasteFromClipboard}
+          className="ml-auto inline-flex h-9 items-center rounded-md bg-primary px-3 text-[12px] font-semibold text-primary-foreground"
+        >
+          Paste from clipboard
+        </button>
+      </div>
       <form
         className="mt-4 grid gap-3 sm:grid-cols-2"
         onSubmit={(event) => {
