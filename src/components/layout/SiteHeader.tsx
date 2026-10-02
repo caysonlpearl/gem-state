@@ -106,7 +106,7 @@ export function SiteHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-40 overflow-visible border-t-[3px] border-brand-blue/60 border-b border-border bg-card/95 backdrop-blur">
+    <header className="sticky top-0 z-40 overflow-visible border-t-[3px] border-t-brand-blue/60 border-b-0 bg-card/95 backdrop-blur">
       <a
         href="#main-content"
         className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-2 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-1.5 focus:text-[12.5px] focus:font-medium focus:text-primary-foreground"
