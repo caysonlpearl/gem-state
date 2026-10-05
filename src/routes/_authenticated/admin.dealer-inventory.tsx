@@ -24,6 +24,7 @@ import {
   runScheduledDealerInventorySources,
   setDealerInventorySourceStatus,
 } from "@/lib/dealer-inventory.functions";
+import { normalizeInventoryFilename } from "@/lib/dealer-inventory";
 import { getOwnedDealers } from "@/lib/dealer.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/dealer-inventory")({
@@ -80,13 +81,16 @@ function DealerInventoryPage() {
     [selectedSourceId, sources],
   );
   const selectedFormat = (selectedSource?.file_format ?? fileFormat) as "csv" | "json" | "xml";
+  const normalizedFilename = normalizeInventoryFilename(filename, selectedFormat);
   useEffect(() => {
     if (!selectedSource) return;
-    const extension = selectedFormat;
-    if (/^dealership-inventory\.(csv|json|xml)$/i.test(filename)) {
-      setFilename(`dealership-inventory.${extension}`);
+    if (
+      filename !== normalizedFilename &&
+      /^dealership-inventory\.(csv|json|xml)$/i.test(filename)
+    ) {
+      setFilename(normalizedFilename);
     }
-  }, [filename, selectedFormat, selectedSource]);
+  }, [filename, normalizedFilename, selectedFormat, selectedSource]);
   const sampleFeed =
     selectedFormat === "json"
       ? dealerInventoryFeedJsonV1
@@ -148,7 +152,12 @@ function DealerInventoryPage() {
         );
       }
       return previewFeed({
-        data: { sourceId: selectedSourceId, payload: csv, filename, dryRun: true },
+        data: {
+          sourceId: selectedSourceId,
+          payload: csv,
+          filename: normalizedFilename,
+          dryRun: true,
+        },
       });
     },
     onSuccess: async (result) => {
@@ -187,7 +196,12 @@ function DealerInventoryPage() {
         );
       }
       return applyFeed({
-        data: { sourceId: selectedSourceId, payload: csv, filename, dryRun: false },
+        data: {
+          sourceId: selectedSourceId,
+          payload: csv,
+          filename: normalizedFilename,
+          dryRun: false,
+        },
       });
     },
     onSuccess: async (result) => {

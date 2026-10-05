@@ -1,5 +1,22 @@
 export type InventorySourceType = "manual_upload" | "file_url" | "sftp" | "api" | "webhook";
 export type InventoryFileFormat = "csv" | "xml" | "json";
+
+/**
+ * Keep run provenance truthful when a sample feed is loaded or a caller edits
+ * the filename manually. A source's format is authoritative, so a generic
+ * filename (or a filename with a different extension) is normalized before it
+ * is persisted to the sync-run history.
+ */
+export function normalizeInventoryFilename(
+  filename: string | null | undefined,
+  format: InventoryFileFormat,
+): string {
+  const fallback = `dealership-inventory.${format}`;
+  const trimmed = String(filename ?? "").trim();
+  if (!trimmed) return fallback;
+  const withoutExtension = trimmed.replace(/\.(csv|json|xml)$/i, "");
+  return `${withoutExtension || "dealership-inventory"}.${format}`;
+}
 export type InventoryStatus =
   "active" | "sold" | "pending" | "reserved" | "removed" | "stale" | "invalid";
 

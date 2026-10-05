@@ -667,7 +667,7 @@ test("saved searches reopen their full filters and update in place", () => {
 });
 
 test("browse URLs canonicalize legacy job and pet result parameters", () => {
-  assert.match(browseSource, /jobType:\s*stringParam\(search, "jobType", 40\)\s*\?\?/);
+  assert.match(browseSource, /jobType:\s*normalizeMultiSelect\(/);
   assert.match(browseSource, /stringParam\(search, "jobEmploymentType", 40\)/);
   assert.match(browseSource, /next\.jobType = next\.jobType \?\? next\.jobEmploymentType/);
   assert.match(browseSource, /next\.petMode = "results"/);
@@ -1602,7 +1602,7 @@ test("dealer operations expose traceable runs and scheduled execution", () => {
     dealerInventoryRouteSource,
     /value=\{selectedSource\?\.file_format \?\? fileFormat\}/,
   );
-  assert.match(dealerInventoryRouteSource, /dealership-inventory\.\$\{extension\}/);
+  assert.match(dealerInventoryRouteSource, /normalizeInventoryFilename/);
 });
 
 test("preview listings never send UUID-only buyer mutations", () => {

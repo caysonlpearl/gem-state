@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   calculateInventoryDiff,
+  normalizeInventoryFilename,
   parseAndNormalizeInventoryJson,
   parseAndNormalizeInventoryCsv,
   parseAndNormalizeInventoryXml,
@@ -153,4 +154,14 @@ test("scheduled inventory sources only run when their interval is due", () => {
   assert.equal(scheduleIsDue("daily at 14:00", null, now), false);
   assert.equal(scheduleIsDue("daily at 10:00", null, now), true);
   assert.equal(scheduleIsDue("whenever", null, now), false);
+});
+
+test("sync-run filenames always match the source format", () => {
+  assert.equal(
+    normalizeInventoryFilename("dealership-inventory.csv", "json"),
+    "dealership-inventory.json",
+  );
+  assert.equal(normalizeInventoryFilename("dealer-feed.XML", "csv"), "dealer-feed.csv");
+  assert.equal(normalizeInventoryFilename("", "xml"), "dealership-inventory.xml");
+  assert.equal(normalizeInventoryFilename(null, "json"), "dealership-inventory.json");
 });
