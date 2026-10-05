@@ -56,6 +56,10 @@ export const Route = createFileRoute("/_authenticated/orders/$orderId")({
 
 function OrderPage() {
   const { orderId } = Route.useParams();
+  const orderIdLooksValid =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+      orderId,
+    );
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const fetchOrder = useServerFn(getOrder);
@@ -63,6 +67,7 @@ function OrderPage() {
   const { data, isLoading, error } = useQuery({
     queryKey: ["order", orderId],
     queryFn: () => fetchOrder({ data: { orderId } }),
+    enabled: orderIdLooksValid,
   });
 
   const isBuyer = data?.role === "buyer";
@@ -115,7 +120,7 @@ function OrderPage() {
           {error instanceof Error ? error.message : "Could not load this order."}
         </p>
       )}
-      {data === null && !isLoading && (
+      {(!orderIdLooksValid || data === null) && !isLoading && !error && (
         <p className="mt-6 text-[13px] text-muted-foreground">
           This order does not exist, or you are not a party to it.
         </p>
