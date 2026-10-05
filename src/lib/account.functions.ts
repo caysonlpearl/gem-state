@@ -41,23 +41,18 @@ export const getMyAccount = createServerFn({ method: "GET" })
     const { supabase, userId, claims } = context;
 
     const [
-      { data: profile, error: profileError },
+      { data: profileRows, error: profileError },
       { data: roles, error: rolesError },
       { data: authUser },
     ] = await Promise.all([
-      supabase
-        .from("profiles")
-        .select(
-          "display_name, avatar_url, home_resort_code, primary_intent, onboarded_at, created_at",
-        )
-        .eq("id", userId)
-        .maybeSingle(),
+      (supabase as any).rpc("get_my_profile"),
       supabase.from("user_roles").select("role").eq("user_id", userId),
       supabase.auth.getUser(),
     ]);
 
     if (profileError) throw new Error(profileError.message);
     if (rolesError) throw new Error(rolesError.message);
+    const profile = Array.isArray(profileRows) ? (profileRows[0] ?? null) : profileRows;
 
     const filled = [
       Boolean(profile?.display_name),

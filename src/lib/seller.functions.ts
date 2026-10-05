@@ -160,7 +160,7 @@ export const getSellerSetup = createServerFn({ method: "GET" })
         .eq("user_id", context.userId)
         .maybeSingle(),
       client
-        .from("profiles")
+        .from("public_profile_display")
         .select("display_name,avatar_url")
         .eq("id", context.userId)
         .maybeSingle(),
@@ -464,7 +464,7 @@ export const getSellerDashboardSummary = createServerFn({ method: "GET" })
     // look profiles up separately by id instead.
     const reviewerIds = [...new Set((reviews ?? []).map((row: any) => row.reviewer_id))];
     const { data: reviewerProfiles } = reviewerIds.length
-      ? await client.from("profiles").select("id,display_name").in("id", reviewerIds)
+      ? await client.from("public_profile_display").select("id,display_name").in("id", reviewerIds)
       : { data: [] as any[] };
     const reviewerNameById = new Map(
       (reviewerProfiles ?? []).map((p: any) => [p.id, p.display_name]),
@@ -898,7 +898,10 @@ export const getPublicSeller = createServerFn({ method: "GET" })
     // look profiles up separately by id instead.
     const reviewerIds = [...new Set((reviewRows ?? []).map((row: any) => row.reviewer_id))];
     const { data: reviewerProfiles } = reviewerIds.length
-      ? await client.from("profiles").select("id,display_name,avatar_url").in("id", reviewerIds)
+      ? await client
+          .from("public_profile_display")
+          .select("id,display_name,avatar_url")
+          .in("id", reviewerIds)
       : { data: [] as any[] };
     const reviewerById = new Map<string, any>((reviewerProfiles ?? []).map((p: any) => [p.id, p]));
     const listings: PublicListing[] = await Promise.all(

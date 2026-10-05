@@ -68,7 +68,7 @@ export const getSellerListingInquiries = createServerFn({ method: "GET" })
       ...new Set((conversations ?? []).map((row: any) => row.buyer_id).filter(Boolean)),
     ];
     const { data: profiles } = buyerIds.length
-      ? await client.from("profiles").select("id,display_name").in("id", buyerIds)
+      ? await client.from("public_profile_display").select("id,display_name").in("id", buyerIds)
       : { data: [] as any[] };
     const names = new Map(
       (profiles ?? []).map((profile: any) => [profile.id, profile.display_name]),

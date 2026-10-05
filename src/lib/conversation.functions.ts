@@ -84,7 +84,10 @@ export const getMyConversations = createServerFn({ method: "GET" })
       ),
     ];
     const { data: profiles } = otherMemberIds.length
-      ? await client.from("profiles").select("id,display_name").in("id", otherMemberIds)
+      ? await client
+          .from("public_profile_display")
+          .select("id,display_name")
+          .in("id", otherMemberIds)
       : { data: [] as any[] };
     const names = new Map<string, string>(
       (profiles ?? []).map((profile: any) => [
@@ -120,7 +123,7 @@ export const getConversation = createServerFn({ method: "GET" })
     if (messageError) throw new Error(messageError.message);
     const otherMemberId = row.buyer_id === context.userId ? row.seller_id : row.buyer_id;
     const { data: otherProfile } = await client
-      .from("profiles")
+      .from("public_profile_display")
       .select("display_name")
       .eq("id", otherMemberId)
       .maybeSingle();

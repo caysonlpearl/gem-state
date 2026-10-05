@@ -225,7 +225,7 @@ export async function emailJobApplicationReceived(applicationId: string): Promis
     if (!application?.asks?.seller_id) return;
 
     const { data: applicant } = await client
-      .from("profiles")
+      .from("public_profile_display")
       .select("display_name")
       .eq("id", application.applicant_id)
       .maybeSingle();

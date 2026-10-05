@@ -512,7 +512,7 @@ export const getMyShopperPublicProfile = createServerFn({ method: "GET" })
         .eq("shopper_id", context.userId)
         .maybeSingle(),
       client
-        .from("profiles")
+        .from("public_profile_display")
         .select("display_name,avatar_url")
         .eq("id", context.userId)
         .maybeSingle(),
