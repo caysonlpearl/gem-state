@@ -8162,6 +8162,8 @@ function VehicleResultsPage({
   const [region, setRegion] = useState(search.region ?? "");
   const [state, setState] = useState(search.state ?? "");
   const [city, setCity] = useState(search.city ?? "");
+  const [pendingResultCount, setPendingResultCount] = useState<number | null>(null);
+  const previewRequest = useRef(0);
   const selectedMakes = splitVehicleFilter(make);
   const availableModels = modelsForMakes(selectedMakes);
 
@@ -8221,6 +8223,44 @@ function VehicleResultsPage({
     };
   }
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const requestId = ++previewRequest.current;
+      const pendingSearch = {
+        ...search,
+        ...currentPatch(),
+        page: undefined,
+        vehicleMode: "results" as const,
+      };
+      void browseClassifieds({ data: inputFromSearch(pendingSearch) }).then((preview) => {
+        if (requestId === previewRequest.current) setPendingResultCount(preview.total);
+      });
+    }, 200);
+
+    return () => clearTimeout(timer);
+  }, [
+    bodyStyle,
+    city,
+    condition,
+    drivetrain,
+    exteriorColor,
+    fuelType,
+    fulfillment,
+    make,
+    mileageBands,
+    model,
+    priceMax,
+    priceMin,
+    region,
+    search,
+    state,
+    term,
+    titleStatus,
+    transmission,
+    yearMax,
+    yearMin,
+  ]);
+
   function apply() {
     const patch = currentPatch();
     if (
@@ -8230,6 +8270,7 @@ function VehicleResultsPage({
       toast.error("Minimum cannot exceed maximum.");
       return;
     }
+    setPendingResultCount(null);
     onApply(patch);
   }
 
@@ -8480,7 +8521,7 @@ function VehicleResultsPage({
               onClick={apply}
               className="h-11 w-full rounded-xl bg-primary text-[12px] font-bold text-primary-foreground hover:opacity-90"
             >
-              Show {result.total.toLocaleString()} results
+              Show {(pendingResultCount ?? result.total).toLocaleString()} results
             </button>
           </aside>
         )}
