@@ -25,6 +25,7 @@ GRANT SELECT ON public.public_profile_display TO anon, authenticated;
 -- review surface. Keep it inaccessible to browser roles until an order-review
 -- workflow with explicit participant rules is intentionally reintroduced.
 ALTER TABLE public.order_reviews ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Reviews are public" ON public.order_reviews;
 REVOKE ALL ON TABLE public.order_reviews FROM anon, authenticated;
 
 CREATE OR REPLACE FUNCTION public.get_my_profile()
