@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -80,6 +80,13 @@ function DealerInventoryPage() {
     [selectedSourceId, sources],
   );
   const selectedFormat = (selectedSource?.file_format ?? fileFormat) as "csv" | "json" | "xml";
+  useEffect(() => {
+    if (!selectedSource) return;
+    const extension = selectedFormat;
+    if (/^dealership-inventory\.(csv|json|xml)$/i.test(filename)) {
+      setFilename(`dealership-inventory.${extension}`);
+    }
+  }, [filename, selectedFormat, selectedSource]);
   const sampleFeed =
     selectedFormat === "json"
       ? dealerInventoryFeedJsonV1
@@ -333,7 +340,7 @@ function DealerInventoryPage() {
           <label className="block text-[12px] font-medium">
             File format
             <select
-              value={fileFormat}
+              value={selectedSource?.file_format ?? fileFormat}
               onChange={(event) => setFileFormat(event.target.value as "csv" | "json" | "xml")}
               className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-[12px]"
               disabled={Boolean(sourceId)}

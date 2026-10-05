@@ -381,10 +381,14 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
       </div>
       {listing.dealer ? (
         <div className="mt-4 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-[12px]">
-          <p className="font-semibold text-primary">Dealer inventory · {listing.dealer.displayName}</p>
+          <p className="font-semibold text-primary">
+            Dealer inventory · {listing.dealer.displayName}
+          </p>
           <p className="mt-0.5 text-muted-foreground">
             Verified dealership attribution for this listing
-            {listing.dealer.city ? ` · ${listing.dealer.city}${listing.dealer.state ? `, ${listing.dealer.state}` : ""}` : ""}
+            {listing.dealer.city
+              ? ` · ${listing.dealer.city}${listing.dealer.state ? `, ${listing.dealer.state}` : ""}`
+              : ""}
           </p>
         </div>
       ) : null}
@@ -607,7 +611,7 @@ function TrustSafetyCard({ listing }: { listing: ClassifiedDetail }) {
         Bluebird Marketplace reviews listings for marketplace policy. Always inspect the item,
         confirm the details, and agree on the final price before exchanging money.
       </p>
-      <FlagListingDialog listingId={listing.id} />
+      <FlagListingDialog listingId={listing.id} isMock={listing.isMock === true} />
       {listing.seller?.payoutVerified && (
         <p className="mt-3 flex items-center gap-1.5 text-[11px] text-muted-foreground">
           <CheckCircle size={13} weight="fill" className="text-primary" /> Seller account
@@ -631,7 +635,7 @@ const listingReportReasons = [
   "Other",
 ] as const;
 
-function FlagListingDialog({ listingId }: { listingId: string }) {
+function FlagListingDialog({ listingId, isMock = false }: { listingId: string; isMock?: boolean }) {
   const { isSignedIn } = useAuth();
   const report = useServerFn(reportClassifiedListing);
   const [open, setOpen] = useState(false);
@@ -648,6 +652,15 @@ function FlagListingDialog({ listingId }: { listingId: string }) {
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "Could not submit the report."),
   });
+
+  if (isMock) {
+    return (
+      <p className="mt-4 rounded-xl border border-primary/20 bg-primary/5 px-3 py-3 text-[11px] leading-relaxed text-muted-foreground">
+        Reporting is available on published seller listings. This preview does not create a
+        moderation record.
+      </p>
+    );
+  }
 
   return (
     <Dialog
@@ -822,7 +835,8 @@ function ListingDetail() {
           })
           .then(() => "shared" as const)
           .catch((error: unknown) => {
-            if (error instanceof DOMException && error.name === "AbortError") return "aborted" as const;
+            if (error instanceof DOMException && error.name === "AbortError")
+              return "aborted" as const;
             return "fallback" as const;
           });
         const shareResult = await Promise.race([
@@ -1438,7 +1452,15 @@ function HomeRentalInformation({
   );
 }
 
-function HomeSafetyPanel({ isRental, listingId }: { isRental: boolean; listingId: string }) {
+function HomeSafetyPanel({
+  isRental,
+  listingId,
+  isMock = false,
+}: {
+  isRental: boolean;
+  listingId: string;
+  isMock?: boolean;
+}) {
   return (
     <section className="rounded-2xl border border-brand-warm/50 bg-brand-warm/10 px-5 py-5 sm:px-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1452,7 +1474,7 @@ function HomeSafetyPanel({ isRental, listingId }: { isRental: boolean; listingId
           ? "Never send a deposit before touring the home and verifying the owner or property manager. Review the lease, fees, utilities, and application process before paying."
           : "Never send money before touring the home and verifying ownership. Review disclosures, fees, inspection details, and the offer terms before making a payment."}
       </p>
-      <FlagListingDialog listingId={listingId} />
+      <FlagListingDialog listingId={listingId} isMock={isMock} />
     </section>
   );
 }
@@ -1571,7 +1593,11 @@ function HomeListingDetail({
           </section>
           <HomeLocationPanel listing={listing} locationQuery={locationQuery} />
           <HomeRentalInformation listing={listing} description={description} />
-          <HomeSafetyPanel isRental={details.isRental} listingId={listing.id} />
+          <HomeSafetyPanel
+            isRental={details.isRental}
+            listingId={listing.id}
+            isMock={listing.isMock === true}
+          />
         </div>
 
         <aside className="min-w-0 space-y-5 lg:sticky lg:top-24">

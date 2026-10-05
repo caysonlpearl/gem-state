@@ -44,6 +44,7 @@ export function ListingActions({
   ctaVerb?: "contact" | "apply";
 }) {
   const isJobApply = ctaVerb === "apply";
+  const isPreviewListing = listing.isMock === true;
   const applicationMethod = listing.job?.applicationMethod ?? "gemlist";
   const isExternalApply = isJobApply && applicationMethod === "external";
   const isGemlistApply = isJobApply && applicationMethod === "gemlist";
@@ -182,7 +183,12 @@ export function ListingActions({
               : "Contact the seller to confirm availability, condition, pickup, shipping, and the final amount."}
         </p>
 
-        {isExternalApply && !isOwnListing ? (
+        {isPreviewListing ? (
+          <div className="rounded-2xl border border-primary/20 bg-primary/5 px-3 py-3 text-[12px] leading-relaxed text-muted-foreground">
+            This is a preview listing. Contact and application actions become available on a
+            published seller listing.
+          </div>
+        ) : isExternalApply && !isOwnListing ? (
           <a
             href={externalApplyHref(listing.job?.applicationExternalContact ?? "")}
             target="_blank"
@@ -222,13 +228,13 @@ export function ListingActions({
         )}
       </div>
 
-      {contactOpen && isSignedIn && isGemlistApply && !isOwnListing ? (
+      {contactOpen && !isPreviewListing && isSignedIn && isGemlistApply && !isOwnListing ? (
         <div className="mt-4 border-t border-border px-4 py-4">
           <JobApplicationForm listingId={listing.id} />
         </div>
       ) : null}
 
-      {contactOpen && isSignedIn && !isJobApply && !isOwnListing ? (
+      {contactOpen && !isPreviewListing && isSignedIn && !isJobApply && !isOwnListing ? (
         <form
           className="mt-4 space-y-3 border-t border-border px-4 py-4"
           onSubmit={(event) => {

@@ -21,6 +21,9 @@ const editSource = await read("src/routes/_authenticated/listings.$listingId.edi
 const homeJobServiceMigrationSource = await read(
   "supabase/migrations/20260918100000_add_classified_home_job_service_details.sql",
 );
+const reassertClassifiedSetupMigrationSource = await read(
+  "supabase/migrations/20261004090000_reassert_classified_listing_setup_gate.sql",
+);
 const contractsSource = await read("src/lib/classified-listing-contracts.ts");
 const actionsSource = await read("src/components/classifieds/ListingActions.tsx");
 const inquirySource = await read("src/lib/classified-inquiry.functions.ts");
@@ -67,7 +70,9 @@ const classifiedsFunctionsSource = await read("src/lib/classifieds.functions.ts"
 const pilotFunctionsSource = await read("src/lib/pilot.functions.ts");
 const sellerFunctionsSource = await read("src/lib/seller.functions.ts");
 const adminReviewFlagsSource = await read("src/routes/_authenticated/admin.review-flags.tsx");
-const dealerInventoryRouteSource = await read("src/routes/_authenticated/admin.dealer-inventory.tsx");
+const dealerInventoryRouteSource = await read(
+  "src/routes/_authenticated/admin.dealer-inventory.tsx",
+);
 const dealerFunctionsSource = await read("src/lib/dealer.functions.ts");
 const listingDetailSource = await read("src/routes/listings.$listingId.tsx");
 const sellerProfileSource = await read("src/routes/sellers.$slug.tsx");
@@ -147,16 +152,25 @@ const { mockClassifiedListings, mockVehicleListings } =
 
 test("vehicle sort control updates the canonical browse query", () => {
   assert.match(browseSource, /value=\{search\.sort \?\? "newest"\}/);
-  assert.match(browseSource, /onChange=\{\(event\) => onApply\(\{ sort: event\.target\.value as Sort \}\)\}/);
+  assert.match(
+    browseSource,
+    /onChange=\{\(event\) => onApply\(\{ sort: event\.target\.value as Sort \}\)\}/,
+  );
 });
 
 test("public browse suppresses preview fixtures that duplicate persisted listings", () => {
   assert.match(classifiedsFunctionsSource, /function previewListingKey\(listing: ClassifiedCard\)/);
-  assert.match(classifiedsFunctionsSource, /!listings\.some\(\(persisted\) => previewListingKey\(persisted\) === key\)/);
+  assert.match(
+    classifiedsFunctionsSource,
+    /!listings\.some\(\(persisted\) => previewListingKey\(persisted\) === key\)/,
+  );
 });
 
 test("scoped seller and dealership inventory excludes preview fixtures", () => {
-  assert.match(classifiedsFunctionsSource, /const scopedToOwner = Boolean\(data\.dealerSlug \|\| data\.sellerSlug\)/);
+  assert.match(
+    classifiedsFunctionsSource,
+    /const scopedToOwner = Boolean\(data\.dealerSlug \|\| data\.sellerSlug\)/,
+  );
   assert.match(classifiedsFunctionsSource, /page === 1 && !scopedToOwner/);
   assert.match(dealerFunctionsSource, /browseClassifieds\(\{ data: \{ dealerSlug: data\.slug/);
 });
@@ -1584,4 +1598,30 @@ test("dealer operations expose traceable runs and scheduled execution", () => {
   assert.match(dealerInventoryRouteSource, /Applied/);
   assert.match(dealerInventoryRouteSource, /recorded run/);
   assert.match(dealerInventoryRouteSource, /moderated listing/);
+  assert.match(
+    dealerInventoryRouteSource,
+    /value=\{selectedSource\?\.file_format \?\? fileFormat\}/,
+  );
+  assert.match(dealerInventoryRouteSource, /dealership-inventory\.\$\{extension\}/);
+});
+
+test("preview listings never send UUID-only buyer mutations", () => {
+  assert.match(actionsSource, /const isPreviewListing = listing\.isMock === true/);
+  assert.match(actionsSource, /This is a preview listing/);
+  assert.match(detailSource, /isMock=\{listing\.isMock === true\}/);
+  assert.match(detailSource, /Reporting is available on published seller listings/);
+});
+
+test("classified listing setup gate is reasserted for every RPC overload", () => {
+  assert.match(reassertClassifiedSetupMigrationSource, /default_handling_days, 7/);
+  assert.match(reassertClassifiedSetupMigrationSource, /shipping-independent base/);
+  assert.equal(
+    (
+      reassertClassifiedSetupMigrationSource.match(
+        /CREATE OR REPLACE FUNCTION public\.create_classified_listing/g,
+      ) ?? []
+    ).length,
+    3,
+  );
+  assert.match(reassertClassifiedSetupMigrationSource, /TO authenticated, service_role/);
 });
