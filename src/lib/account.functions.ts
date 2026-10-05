@@ -33,7 +33,10 @@ function isIntent(value: unknown): value is MemberIntent {
 /**
  * Authenticated server function. Reads the caller's own profile and roles
  * through an RLS-scoped client — the row is reachable only because the
- * bearer token resolves to that user.
+ * bearer token resolves to that user. Keep this as a table read rather than
+ * an RPC so older deployed databases without the newer helper function in
+ * their schema cache continue to work; the RLS policy provides the same
+ * own-row boundary.
  */
 export const getMyAccount = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -45,7 +48,11 @@ export const getMyAccount = createServerFn({ method: "GET" })
       { data: roles, error: rolesError },
       { data: authUser },
     ] = await Promise.all([
-      (supabase as any).rpc("get_my_profile"),
+      supabase
+        .from("profiles")
+        .select("display_name, avatar_url, home_resort_code, primary_intent, onboarded_at, created_at")
+        .eq("id", userId)
+        .maybeSingle(),
       supabase.from("user_roles").select("role").eq("user_id", userId),
       supabase.auth.getUser(),
     ]);
