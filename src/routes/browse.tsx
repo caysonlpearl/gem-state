@@ -443,6 +443,8 @@ const mileageBandOptions = [
   "Under 150,000 miles",
 ] as const;
 const splitVehicleFilter = (value: string | undefined) => value?.split("||").filter(Boolean) ?? [];
+const normalizeMultiSelect = (value: string | undefined) =>
+  value?.split(/\|\||,/).map((item) => item.trim()).filter(Boolean).join("||") ?? "";
 const hasSearchValue = (value: unknown) =>
   value !== undefined && value !== null && value !== "";
 const modelsForMakes = (makes: readonly string[]) =>
@@ -1767,8 +1769,9 @@ export const Route = createFileRoute("/browse")({
       jobCategory: stringParam(search, "jobCategory", 60),
       jobEmployer: stringParam(search, "jobEmployer", 120),
       jobEmploymentType: undefined,
-      jobType:
+      jobType: normalizeMultiSelect(
         stringParam(search, "jobType", 40) ?? stringParam(search, "jobEmploymentType", 40),
+      ) || undefined,
       jobPayType: stringParam(search, "jobPayType", 30),
       jobPayMin: numberParam(search, "jobPayMin"),
       jobPayMax: numberParam(search, "jobPayMax"),
@@ -6908,13 +6911,15 @@ function JobsLandingHero({
   const [mode, setMode] = useState<"search" | "post">("search");
   const [draft, setDraft] = useState(search.q ?? "");
   const [category, setCategory] = useState(search.jobCategory ?? "");
-  const [jobType, setJobType] = useState(search.jobType ?? search.jobEmploymentType ?? "");
+  const [jobType, setJobType] = useState(
+    normalizeMultiSelect(search.jobType ?? search.jobEmploymentType),
+  );
   const [payType, setPayType] = useState(search.jobPayType ?? "");
 
   useEffect(() => {
     setDraft(search.q ?? "");
     setCategory(search.jobCategory ?? "");
-    setJobType(search.jobType ?? search.jobEmploymentType ?? "");
+    setJobType(normalizeMultiSelect(search.jobType ?? search.jobEmploymentType));
     setPayType(search.jobPayType ?? "");
   }, [search.q, search.jobCategory, search.jobType, search.jobEmploymentType, search.jobPayType]);
 
@@ -7003,7 +7008,7 @@ function JobsLandingHero({
                   value={category}
                   onChange={setCategory}
                 />
-                <JobSelect
+                <JobChecklist
                   label="Job type"
                   options={jobTypeOptions}
                   value={jobType}
