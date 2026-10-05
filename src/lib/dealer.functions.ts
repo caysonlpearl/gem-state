@@ -6,6 +6,22 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { publicServerClient } from "@/lib/supabase-public.server";
 import { browseClassifieds, type ClassifiedCard } from "@/lib/classifieds.functions";
 
+const US_STATE_ABBREVIATIONS: Record<string, string> = {
+  alabama: "AL", alaska: "AK", arizona: "AZ", arkansas: "AR", california: "CA", colorado: "CO", connecticut: "CT",
+  delaware: "DE", florida: "FL", georgia: "GA", hawaii: "HI", idaho: "ID", illinois: "IL", indiana: "IN", iowa: "IA",
+  kansas: "KS", kentucky: "KY", louisiana: "LA", maine: "ME", maryland: "MD", massachusetts: "MA", michigan: "MI",
+  minnesota: "MN", mississippi: "MS", missouri: "MO", montana: "MT", nebraska: "NE", nevada: "NV", "new hampshire": "NH",
+  "new jersey": "NJ", "new mexico": "NM", "new york": "NY", "north carolina": "NC", "north dakota": "ND", ohio: "OH",
+  oklahoma: "OK", oregon: "OR", pennsylvania: "PA", "rhode island": "RI", "south carolina": "SC", "south dakota": "SD",
+  tennessee: "TN", texas: "TX", utah: "UT", vermont: "VT", virginia: "VA", washington: "WA", "west virginia": "WV",
+  wisconsin: "WI", wyoming: "WY",
+};
+
+const normalizeState = (value: string) => {
+  const trimmed = value.trim();
+  return US_STATE_ABBREVIATIONS[trimmed.toLowerCase()] ?? trimmed.toUpperCase();
+};
+
 const dealerInput = z.object({
   legalName: z.string().trim().min(2).max(160),
   displayName: z.string().trim().min(2).max(120),
@@ -16,7 +32,7 @@ const dealerInput = z.object({
   addressLine1: z.string().trim().max(160).optional().nullable(),
   addressLine2: z.string().trim().max(160).optional().nullable(),
   city: z.string().trim().max(80).optional().nullable(),
-  state: z.string().trim().length(2).transform((value) => value.toUpperCase()).optional().nullable(),
+  state: z.string().trim().min(2).transform(normalizeState).refine((value) => /^[A-Z]{2}$/.test(value), "Use a two-letter state abbreviation or full state name.").optional().nullable(),
   postalCode: z.string().trim().regex(/^\d{5}(?:-\d{4})?$/).optional().nullable(),
   logoUrl: z.string().trim().url().max(500).optional().nullable(),
   description: z.string().trim().max(500).optional().nullable(),
