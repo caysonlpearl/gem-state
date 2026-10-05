@@ -84,6 +84,7 @@ function DealerInventoryPage() {
   const normalizedFilename = normalizeInventoryFilename(filename, selectedFormat);
   useEffect(() => {
     if (!selectedSource) return;
+    setDealerId(selectedSource.dealer_id ?? "");
     if (
       filename !== normalizedFilename &&
       /^dealership-inventory\.(csv|json|xml)$/i.test(filename)
@@ -331,6 +332,7 @@ function DealerInventoryPage() {
               value={dealerId}
               onChange={(event) => setDealerId(event.target.value)}
               className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-[12px]"
+              disabled={Boolean(selectedSource)}
             >
               <option value="">Unassigned inventory source</option>
               {(dealers ?? []).map((dealer) => (
@@ -340,7 +342,9 @@ function DealerInventoryPage() {
               ))}
             </select>
             <span className="mt-1 block text-[11px] font-normal text-muted-foreground">
-              Associate feeds with a verified business storefront.
+              {selectedSource
+                ? "Existing source association is shown here; create a new source to choose a different dealership."
+                : "Associate feeds with a verified business storefront."}
             </span>
           </label>
           <label className="block text-[12px] font-medium">
