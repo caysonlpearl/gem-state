@@ -6,6 +6,10 @@ DROP POLICY IF EXISTS "Users read their own profile" ON public.profiles;
 CREATE POLICY "Members read their own profile"
 ON public.profiles FOR SELECT TO authenticated
 USING (id = auth.uid());
+CREATE POLICY "Members update their own profile"
+ON public.profiles FOR UPDATE TO authenticated
+USING (id = auth.uid())
+WITH CHECK (id = auth.uid());
 
 REVOKE ALL ON TABLE public.profiles FROM anon, authenticated;
 GRANT SELECT, UPDATE ON TABLE public.profiles TO authenticated;
