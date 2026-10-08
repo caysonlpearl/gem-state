@@ -25,7 +25,7 @@ export function formatFulfillmentLabel(mode: string | null | undefined, isVehicl
   return fulfillmentLabels[mode ?? ""] ?? "Contact seller";
 }
 
-/** Category-aware price copy for cards and listing headers. */
+/** Category-aware price copy for cards and listing headers, including rental cadence. */
 export function formatClassifiedPrice(
   cents: number,
   options: { wholeDollars?: boolean; monthly?: boolean } = {},
