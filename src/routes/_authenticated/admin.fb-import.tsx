@@ -9,6 +9,7 @@ import {
   discardAllFacebookImportItems,
   discardFacebookImportItem,
   getFacebookImportItems,
+  getFacebookImportProfiles,
   publishFacebookImportItems,
   stageFacebookImportBatch,
   updateFacebookImportItem,
@@ -67,6 +68,65 @@ function BookmarkletLink() {
   );
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function ImportedSellers() {
+  const fetchProfiles = useServerFn(getFacebookImportProfiles);
+  const { data } = useQuery({
+    queryKey: ["fb-import-profiles"],
+    queryFn: () => fetchProfiles(),
+  });
+  if (!data?.length) return null;
+
+  return (
+    <section className="rounded-lg border border-border bg-card">
+      <div className="border-b border-border px-4 py-3">
+        <h2 className="text-[13px] font-semibold">Imported sellers</h2>
+        <p className="mt-0.5 text-[11.5px] text-muted-foreground">
+          Refresh a seller by opening their profile and clicking the extension -- it only picks up
+          what changed (price/description edits, listings that disappeared).
+        </p>
+      </div>
+      <ul>
+        {data.map((profile) => {
+          const ageMs = Date.now() - new Date(profile.lastStagedAt).getTime();
+          const days = Math.floor(ageMs / DAY_MS);
+          const due = profile.publishedCount > 0 && ageMs >= DAY_MS;
+          return (
+            <li
+              key={profile.sourceProfileUrl}
+              className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-3 last:border-b-0"
+            >
+              <div className="min-w-[200px] flex-1">
+                <p className="text-[12.5px] font-medium">
+                  {profile.sellerName || profile.sourceProfileUrl}
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  {profile.publishedCount} published · {profile.openCount} awaiting review · last
+                  refreshed {days === 0 ? "today" : `${days} day${days === 1 ? "" : "s"} ago`}
+                </p>
+              </div>
+              {due ? (
+                <span className="rounded-full border border-amber-500/50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-600">
+                  Due for refresh
+                </span>
+              ) : null}
+              <a
+                href={profile.sourceProfileUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-[11.5px] text-primary hover:underline"
+              >
+                Open profile
+              </a>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 function StageForm() {
   const queryClient = useQueryClient();
   const stage = useServerFn(stageFacebookImportBatch);
@@ -102,6 +162,7 @@ function StageForm() {
     },
     onSuccess: async (result) => {
       await queryClient.invalidateQueries({ queryKey: ["fb-import-items"] });
+      await queryClient.invalidateQueries({ queryKey: ["fb-import-profiles"] });
       toast.success(
         `Staged ${result.staged} new, ${result.updated} changed. ${result.failed} failed.`,
       );
@@ -522,6 +583,7 @@ function FbImportPage() {
       }),
     onSuccess: async (result) => {
       await queryClient.invalidateQueries({ queryKey: ["fb-import-items"] });
+      await queryClient.invalidateQueries({ queryKey: ["fb-import-profiles"] });
       setSelectedIds(new Set());
       toast.success(
         `Created ${result.created}, updated ${result.updated}, removed ${result.removed}. ${result.errors} failed.`,
@@ -558,6 +620,8 @@ function FbImportPage() {
       </div>
 
       <StageForm />
+
+      <ImportedSellers />
 
       <section className="rounded-lg border border-border bg-card">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">

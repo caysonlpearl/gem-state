@@ -392,6 +392,59 @@ export const getFacebookImportItems = createServerFn({ method: "GET" })
     });
   });
 
+export type FbImportProfile = {
+  sourceProfileUrl: string;
+  sellerName: string | null;
+  lastStagedAt: string;
+  openCount: number;
+  publishedCount: number;
+};
+
+/** One row per Facebook profile that's been imported, with when it was last
+ * staged -- so the admin can see which sellers are due for a refresh. */
+export const getFacebookImportProfiles = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<FbImportProfile[]> => {
+    await requireAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = supabaseAdmin as any;
+
+    const { data: batches, error: batchError } = await admin
+      .from("fb_marketplace_import_batches")
+      .select("source_profile_url, seller_name, created_at")
+      .order("created_at", { ascending: false })
+      .limit(1000);
+    if (batchError) throw new Error(batchError.message);
+
+    const { data: items, error: itemError } = await admin
+      .from("fb_marketplace_import_items")
+      .select("source_profile_url, status")
+      .neq("status", "discarded");
+    if (itemError) throw new Error(itemError.message);
+
+    const counts = new Map<string, { open: number; published: number }>();
+    for (const row of items ?? []) {
+      const entry = counts.get(row.source_profile_url) ?? { open: 0, published: 0 };
+      if (row.status === "published") entry.published += 1;
+      else entry.open += 1;
+      counts.set(row.source_profile_url, entry);
+    }
+
+    const profiles = new Map<string, FbImportProfile>();
+    for (const batch of batches ?? []) {
+      if (profiles.has(batch.source_profile_url)) continue;
+      const entry = counts.get(batch.source_profile_url) ?? { open: 0, published: 0 };
+      profiles.set(batch.source_profile_url, {
+        sourceProfileUrl: batch.source_profile_url,
+        sellerName: batch.seller_name,
+        lastStagedAt: batch.created_at,
+        openCount: entry.open,
+        publishedCount: entry.published,
+      });
+    }
+    return Array.from(profiles.values());
+  });
+
 export const updateFacebookImportItem = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator(
