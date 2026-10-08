@@ -10,10 +10,12 @@ import {
   discardFacebookImportItem,
   getFacebookImportItems,
   getFacebookImportProfiles,
+  getFacebookRefreshTargets,
   publishFacebookImportItems,
   stageFacebookImportBatch,
   updateFacebookImportItem,
   type FbImportItem,
+  type FbImportItemInput,
 } from "@/lib/fb-import.functions";
 import bookmarkletSource from "../../../tools/facebook-import-bookmarklet.js?raw";
 
@@ -70,22 +72,158 @@ function BookmarkletLink() {
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+type ExtensionRefreshResult = {
+  sourceUrl: string;
+  title?: string;
+  priceCents?: number;
+  description?: string;
+  unavailable?: boolean;
+};
+
 function ImportedSellers() {
+  const queryClient = useQueryClient();
   const fetchProfiles = useServerFn(getFacebookImportProfiles);
+  const fetchTargets = useServerFn(getFacebookRefreshTargets);
+  const stage = useServerFn(stageFacebookImportBatch);
   const { data } = useQuery({
     queryKey: ["fb-import-profiles"],
     queryFn: () => fetchProfiles(),
   });
+
+  const [extensionReady, setExtensionReady] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+
+  // The extension's bridge script answers this ping; it's only present on
+  // pages opened after the extension was (re)loaded.
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin) return;
+      if ((event.data as { type?: string } | null)?.type === "gemlist-ext-pong") {
+        setExtensionReady(true);
+      }
+    };
+    window.addEventListener("message", onMessage);
+    window.postMessage({ type: "gemlist-ext-ping" }, window.location.origin);
+    return () => window.removeEventListener("message", onMessage);
+  }, []);
+
+  const refreshMutation = useMutation({
+    mutationFn: async (profileUrl: string | null) => {
+      const all = await fetchTargets();
+      const targets = profileUrl ? all.filter((t) => t.sourceProfileUrl === profileUrl) : all;
+      if (!targets.length) throw new Error("No published listings to refresh yet.");
+
+      const requestId = crypto.randomUUID();
+      setProgress({ done: 0, total: targets.length });
+      const results = await new Promise<ExtensionRefreshResult[]>((resolve, reject) => {
+        const cleanup = () => {
+          clearTimeout(timer);
+          window.removeEventListener("message", onMessage);
+        };
+        const timer = setTimeout(
+          () => {
+            cleanup();
+            reject(new Error("The extension didn't respond. Reload it and this page, then retry."));
+          },
+          20 * 60 * 1000,
+        );
+        const onMessage = (event: MessageEvent) => {
+          if (event.origin !== window.location.origin) return;
+          const message = event.data as {
+            type?: string;
+            requestId?: string;
+            done?: number;
+            total?: number;
+            results?: ExtensionRefreshResult[];
+          } | null;
+          if (!message || message.requestId !== requestId) return;
+          if (message.type === "gemlist-fb-refresh-progress") {
+            setProgress({ done: message.done ?? 0, total: message.total ?? targets.length });
+          } else if (message.type === "gemlist-fb-refresh-result") {
+            cleanup();
+            resolve(message.results ?? []);
+          }
+        };
+        window.addEventListener("message", onMessage);
+        window.postMessage(
+          {
+            type: "gemlist-ext-refresh",
+            requestId,
+            targets: targets.map((t) => ({ sourceUrl: t.sourceUrl })),
+          },
+          window.location.origin,
+        );
+      });
+
+      // Anything the extension couldn't read is left out entirely -- a refresh
+      // never treats "not read" as "removed", only an explicit unavailable page.
+      const targetByUrl = new Map(targets.map((t) => [t.sourceUrl, t]));
+      const groups = new Map<string, FbImportItemInput[]>();
+      for (const result of results) {
+        const target = targetByUrl.get(result.sourceUrl);
+        if (!target) continue;
+        const readable = result.unavailable || (result.title && result.priceCents != null);
+        if (!readable) continue;
+        const list = groups.get(target.sourceProfileUrl) ?? [];
+        list.push({
+          sourceUrl: result.sourceUrl,
+          title: result.unavailable ? target.title : (result.title ?? target.title),
+          description: result.description ?? null,
+          priceCents: result.unavailable ? target.priceCents : (result.priceCents ?? 0),
+          categorySlug: "general",
+          photoUrls: [],
+          unavailable: result.unavailable === true,
+        });
+        groups.set(target.sourceProfileUrl, list);
+      }
+
+      let changed = 0;
+      let removed = 0;
+      for (const [sourceProfileUrl, items] of groups) {
+        const outcome = await stage({ data: { sourceProfileUrl, mode: "refresh", items } });
+        changed += outcome.updated;
+        removed += outcome.flaggedRemoved;
+      }
+      const checked = Array.from(groups.values()).reduce((sum, list) => sum + list.length, 0);
+      return { checked, changed, removed, unread: targets.length - checked };
+    },
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ["fb-import-items"] });
+      await queryClient.invalidateQueries({ queryKey: ["fb-import-profiles"] });
+      toast.success(
+        `Checked ${result.checked} listing(s): ${result.changed} changed, ${result.removed} no longer on Facebook` +
+          (result.unread ? `, ${result.unread} couldn't be read (left as-is).` : "."),
+      );
+    },
+    onError: (error) => toast.error(error instanceof Error ? error.message : "Could not refresh."),
+    onSettled: () => setProgress(null),
+  });
+
   if (!data?.length) return null;
 
   return (
     <section className="rounded-lg border border-border bg-card">
-      <div className="border-b border-border px-4 py-3">
-        <h2 className="text-[13px] font-semibold">Imported sellers</h2>
-        <p className="mt-0.5 text-[11.5px] text-muted-foreground">
-          Refresh a seller by opening their profile and clicking the extension -- it only picks up
-          what changed (price/description edits, listings that disappeared).
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+        <div className="min-w-[240px] flex-1">
+          <h2 className="text-[13px] font-semibold">Imported sellers</h2>
+          <p className="mt-0.5 text-[11.5px] text-muted-foreground">
+            Refresh re-checks each published listing for price/description changes and listings that
+            are gone, and queues only what changed for your review below.
+            {extensionReady
+              ? ""
+              : " Extension not detected -- reload the extension, then reload this page."}
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={() => refreshMutation.mutate(null)}
+          disabled={!extensionReady || refreshMutation.isPending}
+          className="h-9 rounded-md bg-primary px-3 text-[12px] font-semibold text-primary-foreground disabled:opacity-50"
+        >
+          {refreshMutation.isPending && progress
+            ? `Checking ${progress.done}/${progress.total}…`
+            : "Refresh all"}
+        </button>
       </div>
       <ul>
         {data.map((profile) => {
@@ -111,6 +249,14 @@ function ImportedSellers() {
                   Due for refresh
                 </span>
               ) : null}
+              <button
+                type="button"
+                onClick={() => refreshMutation.mutate(profile.sourceProfileUrl)}
+                disabled={!extensionReady || refreshMutation.isPending || !profile.publishedCount}
+                className="h-8 rounded-md border border-input px-3 text-[11.5px] font-medium hover:bg-secondary disabled:opacity-50"
+              >
+                Refresh
+              </button>
               <a
                 href={profile.sourceProfileUrl}
                 target="_blank"

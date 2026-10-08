@@ -122,6 +122,7 @@ export type FbImportItemInput = {
   city?: string | null;
   state?: string | null;
   photoUrls: string[];
+  unavailable?: boolean | undefined;
 };
 
 export type FbImportItem = {
@@ -212,6 +213,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
     (input: {
       sourceProfileUrl: string;
       sellerName?: string | undefined;
+      mode?: "refresh" | undefined;
       items: FbImportItemInput[];
     }) => {
       const sourceProfileUrl = String(input.sourceProfileUrl ?? "").trim();
@@ -232,18 +234,25 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
         city: item.city ? String(item.city).trim().slice(0, 80) : "",
         state: item.state ? String(item.state).trim().slice(0, 80) : "",
         photoUrls: (item.photoUrls ?? []).filter(Boolean).slice(0, 8),
+        unavailable: item.unavailable === true,
       }));
       if (!items.length) throw new Error("No listings were provided.");
       if (items.some((item) => !item.sourceUrl || !item.title))
         throw new Error("Every listing needs a source URL and a title.");
-      return { sourceProfileUrl, sellerName, items };
+      return { sourceProfileUrl, sellerName, mode: input.mode, items };
     },
   )
   .handler(
     async ({
       data,
       context,
-    }): Promise<{ batchId: string; staged: number; updated: number; failed: number }> => {
+    }): Promise<{
+      batchId: string;
+      staged: number;
+      updated: number;
+      failed: number;
+      flaggedRemoved: number;
+    }> => {
       await requireAdmin(context);
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const admin = supabaseAdmin as any;
@@ -273,10 +282,49 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
       let staged = 0;
       let updated = 0;
       let failed = 0;
+      let flaggedRemoved = 0;
+      const isRefresh = data.mode === "refresh";
 
       for (const item of data.items) {
         seenUrls.add(item.sourceUrl);
         const prior = priorByUrl.get(item.sourceUrl);
+
+        // A refresh only re-checks listings that are already published, and
+        // only touches what Facebook can actually have changed. Category,
+        // condition and location are left exactly as the admin set them.
+        if (isRefresh) {
+          if (!prior || prior.status !== "published") continue;
+          if (item.unavailable) {
+            const { error } = await admin
+              .from("fb_marketplace_import_items")
+              .update({ batch_id: batch.id, status: "possibly_removed" })
+              .eq("source_profile_url", data.sourceProfileUrl)
+              .eq("source_url", item.sourceUrl);
+            if (error) throw new Error(error.message);
+            flaggedRemoved += 1;
+            continue;
+          }
+          const changed =
+            prior.price_cents !== item.priceCents ||
+            (prior.description ?? "") !== (item.description ?? "");
+          if (!changed) continue;
+          const { error } = await admin
+            .from("fb_marketplace_import_items")
+            .update({
+              batch_id: batch.id,
+              title: item.title,
+              description: item.description,
+              price_cents: item.priceCents,
+              status: "needs_update",
+              previous_price_cents: prior.price_cents,
+              previous_description: prior.description,
+            })
+            .eq("source_profile_url", data.sourceProfileUrl)
+            .eq("source_url", item.sourceUrl);
+          if (error) throw new Error(error.message);
+          updated += 1;
+          continue;
+        }
 
         if (prior && prior.status === "published") {
           const changed =
@@ -332,9 +380,14 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
         }
       }
 
-      const vanished = (priorItems ?? []).filter(
-        (row: any) => row.status === "published" && !seenUrls.has(row.source_url),
-      );
+      // Absence only means "removed" after a full profile scrape. A refresh
+      // reads a handful of known listings, so a missing one just means it
+      // wasn't read -- never a reason to flag it.
+      const vanished = isRefresh
+        ? []
+        : (priorItems ?? []).filter(
+            (row: any) => row.status === "published" && !seenUrls.has(row.source_url),
+          );
       for (const row of vanished) {
         const { error } = await admin
           .from("fb_marketplace_import_items")
@@ -344,7 +397,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
         if (error) throw new Error(error.message);
       }
 
-      return { batchId: batch.id, staged, updated, failed };
+      return { batchId: batch.id, staged, updated, failed, flaggedRemoved };
     },
   );
 
@@ -430,19 +483,52 @@ export const getFacebookImportProfiles = createServerFn({ method: "GET" })
       counts.set(row.source_profile_url, entry);
     }
 
+    const namesByProfile = new Map<string, string>();
+    for (const batch of batches ?? []) {
+      if (batch.seller_name && !namesByProfile.has(batch.source_profile_url)) {
+        namesByProfile.set(batch.source_profile_url, batch.seller_name);
+      }
+    }
+
     const profiles = new Map<string, FbImportProfile>();
     for (const batch of batches ?? []) {
       if (profiles.has(batch.source_profile_url)) continue;
       const entry = counts.get(batch.source_profile_url) ?? { open: 0, published: 0 };
       profiles.set(batch.source_profile_url, {
         sourceProfileUrl: batch.source_profile_url,
-        sellerName: batch.seller_name,
+        sellerName: namesByProfile.get(batch.source_profile_url) ?? null,
         lastStagedAt: batch.created_at,
         openCount: entry.open,
         publishedCount: entry.published,
       });
     }
     return Array.from(profiles.values());
+  });
+
+export type FbRefreshTarget = {
+  sourceProfileUrl: string;
+  sourceUrl: string;
+  title: string;
+  priceCents: number;
+};
+
+/** The published listings a refresh should re-check. */
+export const getFacebookRefreshTargets = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<FbRefreshTarget[]> => {
+    await requireAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await (supabaseAdmin as any)
+      .from("fb_marketplace_import_items")
+      .select("source_profile_url, source_url, title, price_cents")
+      .eq("status", "published");
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((row: any) => ({
+      sourceProfileUrl: row.source_profile_url,
+      sourceUrl: row.source_url,
+      title: row.title,
+      priceCents: Number(row.price_cents),
+    }));
   });
 
 export const updateFacebookImportItem = createServerFn({ method: "POST" })

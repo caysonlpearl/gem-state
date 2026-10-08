@@ -165,7 +165,7 @@ function collectListingsFromPage() {
 
 // Runs inside each listing's own detail tab. Returns null if the page
 // never settles (caller keeps whatever card-level data it already had).
-async function extractListingDetailsInPage() {
+async function extractListingDetailsInPage(withPhotos = true) {
   function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
@@ -200,7 +200,13 @@ async function extractListingDetailsInPage() {
     await sleep(400);
   }
   if (!block) block = findDetailsBlock();
-  if (!block) return null;
+  if (!block) {
+    // Only an explicit "gone" page counts as unavailable -- a page that is
+    // merely slow or odd returns null, which callers treat as "unknown".
+    return /isn.t available right now/i.test(document.body.innerText || "")
+      ? { unavailable: true }
+      : null;
+  }
 
   const lines = (block.innerText || "")
     .split("\n")
@@ -214,6 +220,16 @@ async function extractListingDetailsInPage() {
       ? lines.slice(conditionIdx + 2, locationIdx >= 0 ? locationIdx : lines.length)
       : [];
   const description = descLines.join("\n\n").trim();
+
+  if (!withPhotos) {
+    const priceLine = lines.find((l) => /^\$[\d,]+$/.test(l));
+    if (!priceLine || !lines[0]) return null;
+    return {
+      title: lines[0],
+      priceCents: Math.round(parseFloat(priceLine.replace(/[$,]/g, "")) * 100) || 0,
+      description,
+    };
+  }
 
   // Confirmed live: on a multi-photo listing, Facebook tags the currently
   // displayed hero image with alt="Product photo of {title}" -- a stable,
@@ -337,7 +353,7 @@ function waitForTabReady(tabId, expectedUrl, timeoutMs) {
 // without hitting the background-tab throttling that caused missing
 // photos before. `focused: false` keeps them from stealing your attention
 // while they work.
-async function runWorker(queue, onItemDone) {
+async function runWorker(queue, onItemDone, withPhotos = true) {
   const win = await chrome.windows.create({
     url: "about:blank",
     focused: false,
@@ -352,7 +368,7 @@ async function runWorker(queue, onItemDone) {
       try {
         await chrome.tabs.update(tabId, { url: item.sourceUrl });
         await waitForTabReady(tabId, item.sourceUrl, 20000);
-        const details = await exec(tabId, extractListingDetailsInPage);
+        const details = await exec(tabId, extractListingDetailsInPage, [withPhotos]);
         if (details) Object.assign(item, details);
       } catch {
         // Leave this item with whatever card-level data it already has.
@@ -407,6 +423,53 @@ async function handoffToAdmin(json) {
   );
   return true;
 }
+
+const LISTING_URL_RE = /^https:\/\/www\.facebook\.com\/marketplace\/item\/\d+/;
+
+// Re-reads price and description for listings that are already imported.
+// Started by the admin clicking Refresh on the GemList page; no profile
+// scrolling and no debugger needed since the listing URLs are already known.
+async function refreshListings(adminTabId, requestId, targets) {
+  const send = (payload) =>
+    chrome.tabs.sendMessage(adminTabId, { type: "gemlist-ext-event", payload }).catch(() => {});
+  const items = (Array.isArray(targets) ? targets : [])
+    .map((t) => ({ sourceUrl: String(t && t.sourceUrl) }))
+    .filter((t) => LISTING_URL_RE.test(t.sourceUrl));
+  const queue = items.slice();
+  const total = items.length;
+  let done = 0;
+  const onItemDone = () => {
+    done += 1;
+    send({ type: "gemlist-fb-refresh-progress", requestId, done, total });
+  };
+  const workerCount = Math.min(DETAIL_FETCH_CONCURRENCY, queue.length) || 1;
+  await Promise.all(
+    Array.from({ length: workerCount }, () => runWorker(queue, onItemDone, false)),
+  );
+  send({
+    type: "gemlist-fb-refresh-result",
+    requestId,
+    results: items.map((item) => ({
+      sourceUrl: item.sourceUrl,
+      title: item.title,
+      priceCents: item.priceCents,
+      description: item.description,
+      unavailable: item.unavailable === true,
+    })),
+  });
+}
+
+chrome.runtime.onMessage.addListener((message, sender) => {
+  if (!message || message.type !== "refresh" || !sender.tab || !sender.tab.id) return;
+  refreshListings(sender.tab.id, message.requestId, message.targets).catch(() => {
+    chrome.tabs
+      .sendMessage(sender.tab.id, {
+        type: "gemlist-ext-event",
+        payload: { type: "gemlist-fb-refresh-result", requestId: message.requestId, results: [] },
+      })
+      .catch(() => {});
+  });
+});
 
 async function run(tabId) {
   await overlay(
