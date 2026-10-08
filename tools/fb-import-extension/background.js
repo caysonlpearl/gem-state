@@ -221,6 +221,15 @@ async function extractListingDetailsInPage(withPhotos = true) {
       : [];
   const description = descLines.join("\n\n").trim();
 
+  // A sold listing shows a standalone "Sold" badge at the top of this block
+  // (confirmed live), with the title pushed to the line after it. Only the
+  // header lines above "Details" are checked, so a description that happens
+  // to contain the word "sold" can't trigger this. Treated like a removed
+  // listing: it's no longer for sale.
+  const detailsIdx = lines.findIndex((l) => l === "Details");
+  const headerLines = detailsIdx >= 0 ? lines.slice(0, detailsIdx) : lines.slice(0, 6);
+  if (headerLines.some((l) => /^sold$/i.test(l))) return { unavailable: true };
+
   if (!withPhotos) {
     const priceLine = lines.find((l) => /^\$[\d,]+$/.test(l));
     if (!priceLine || !lines[0]) return null;

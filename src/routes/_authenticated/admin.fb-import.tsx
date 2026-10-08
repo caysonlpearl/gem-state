@@ -45,7 +45,7 @@ const conditions = [
 const statusLabels: Record<string, string> = {
   draft: "New",
   needs_update: "Needs update",
-  possibly_removed: "No longer on Facebook",
+  possibly_removed: "Sold or removed on Facebook",
 };
 
 // React sanitizes any href prop that starts with "javascript:" (replacing it
@@ -191,7 +191,7 @@ function ImportedSellers() {
       await queryClient.invalidateQueries({ queryKey: ["fb-import-items"] });
       await queryClient.invalidateQueries({ queryKey: ["fb-import-profiles"] });
       toast.success(
-        `Checked ${result.checked} listing(s): ${result.changed} changed, ${result.removed} no longer on Facebook` +
+        `Checked ${result.checked} listing(s): ${result.changed} changed, ${result.removed} sold or removed` +
           (result.unread ? `, ${result.unread} couldn't be read (left as-is).` : "."),
       );
     },
