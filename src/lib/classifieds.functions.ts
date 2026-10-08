@@ -1107,6 +1107,7 @@ function mockMatches(
     if (!`${listing.title} ${listing.description}`.toLowerCase().includes(needle)) return false;
   }
   if (data.state && data.state !== listing.state) return false;
+  if (data.postalCode && !listing.postalCode.startsWith(data.postalCode)) return false;
   if (data.city && !data.radiusMiles && !listing.city.toLowerCase().includes(data.city.toLowerCase())) return false;
   if (data.city && data.radiusMiles != null && !isWithinClassifiedCityRadius(data.city, listing.city, data.radiusMiles)) return false;
   if (data.sellerSlug && data.sellerSlug !== listing.seller.slug) return false;
