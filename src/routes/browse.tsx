@@ -2658,37 +2658,7 @@ function Browse() {
                         title="Location"
                         icon={<MapPin size={13} className="text-primary" />}
                       >
-                        <select
-                          name="region"
-                          defaultValue={search.region ?? ""}
-                          className="filter-input"
-                        >
-                          <option value="">All of Idaho</option>
-                          {idahoRegions.map((region) => (
-                            <option key={region} value={region}>
-                              {region}
-                            </option>
-                          ))}
-                        </select>
-                        <select
-                          name="state"
-                          defaultValue={search.state ?? ""}
-                          className="filter-input"
-                        >
-                          <option value="">All states</option>
-                          {usStates.map(([code, name]) => (
-                            <option key={code} value={code}>
-                              {name}
-                            </option>
-                          ))}
-                        </select>
-                        <input
-                          name="city"
-                          defaultValue={search.city ?? ""}
-                          placeholder="City"
-                          className="filter-input"
-                          maxLength={80}
-                        />
+                        <BrowseLocationFields search={search} />
                       </FilterSection>
 
                       <FilterSection title="Price">
@@ -9457,6 +9427,88 @@ function InlineLocationFilter({
         }
       />
     </div>
+  );
+}
+
+function BrowseLocationFields({ search }: { search: Search }) {
+  const [city, setCity] = useState(search.city ?? "");
+  const [radiusMiles, setRadiusMiles] = useState(search.radiusMiles ?? 25);
+
+  useEffect(() => {
+    setCity(search.city ?? "");
+    setRadiusMiles(search.radiusMiles ?? 25);
+  }, [search.city, search.radiusMiles]);
+
+  return (
+    <>
+      <select name="region" defaultValue={search.region ?? ""} className="filter-input">
+        <option value="">All of Idaho</option>
+        {idahoRegions.map((region) => (
+          <option key={region} value={region}>
+            {region}
+          </option>
+        ))}
+      </select>
+      <select name="state" defaultValue={search.state ?? ""} className="filter-input">
+        <option value="">All states</option>
+        {usStates.map(([code, name]) => (
+          <option key={code} value={code}>
+            {name}
+          </option>
+        ))}
+      </select>
+      <input
+        name="city"
+        value={city}
+        onChange={(event) => setCity(event.target.value)}
+        placeholder="City"
+        className="filter-input"
+        maxLength={80}
+        list="bluebird-browse-city-options"
+      />
+      <datalist id="bluebird-browse-city-options">
+        {idahoCities.map((option) => (
+          <option key={option} value={option} />
+        ))}
+      </datalist>
+      {city.trim() ? (
+        <div className="overflow-hidden rounded-2xl border border-border bg-[#eaf1f0] p-3">
+          <div className="relative h-28 overflow-hidden rounded-xl bg-[linear-gradient(135deg,#dbe8e5_25%,transparent_25%),linear-gradient(45deg,#dbe8e5_25%,transparent_25%),linear-gradient(135deg,transparent_75%,#dbe8e5_75%),linear-gradient(45deg,transparent_75%,#dbe8e5_75%)] bg-[length:34px_34px] bg-[position:0_0,0_17px,17px_-17px,-17px_0]">
+            <div
+              className="absolute left-1/2 top-1/2 rounded-full border-2 border-primary/60 bg-primary/15"
+              style={{
+                width: `${Math.min(92, 22 + radiusMiles / 2)}%`,
+                aspectRatio: "1",
+                transform: "translate(-50%, -50%)",
+              }}
+            />
+            <MapPin
+              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-full text-primary"
+              size={22}
+              weight="fill"
+            />
+          </div>
+          <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
+            <span>{city.trim()} search area</span>
+            <span className="font-semibold text-foreground">Within {radiusMiles} miles</span>
+          </div>
+        </div>
+      ) : null}
+      <label className="block text-[11px] font-medium text-muted-foreground">
+        Search radius: <span className="font-semibold text-foreground">{radiusMiles} miles</span>
+        <input
+          name="radiusMiles"
+          type="range"
+          min="5"
+          max="100"
+          step="5"
+          value={radiusMiles}
+          onChange={(event) => setRadiusMiles(Number(event.target.value))}
+          className="mt-2 w-full accent-primary"
+          disabled={!city.trim()}
+        />
+      </label>
+    </>
   );
 }
 
