@@ -9,6 +9,20 @@ export const idahoRegions = [
   "North Idaho",
 ] as const;
 
+/** City centers used by location browse links and the adjustable search radius. */
+export const idahoCities = [
+  "Boise",
+  "Meridian",
+  "Nampa",
+  "Caldwell",
+  "Eagle",
+  "Twin Falls",
+  "Idaho Falls",
+  "Pocatello",
+  "Coeur d'Alene",
+  "Lewiston",
+] as const;
+
 export const usStates = [
   ["AL", "Alabama"],
   ["AK", "Alaska"],

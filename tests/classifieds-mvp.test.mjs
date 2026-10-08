@@ -1625,3 +1625,12 @@ test("classified listing setup gate is reasserted for every RPC overload", () =>
   );
   assert.match(reassertClassifiedSetupMigrationSource, /TO authenticated, service_role/);
 });
+
+test("city browse links preserve an adjustable radius and filter by distance", () => {
+  assert.match(configSource, /export const idahoCities = \[/);
+  assert.match(browseSource, /radiusMiles\?: number/);
+  assert.match(browseSource, /Search radius:/);
+  assert.match(browseSource, /Within \{radiusMiles\} miles/);
+  assert.match(classifiedsFunctionsSource, /function withinCityRadius/);
+  assert.match(classifiedsFunctionsSource, /data\.radiusMiles != null/);
+});

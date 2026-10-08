@@ -17,6 +17,7 @@ import {
 import { brand } from "@/config/brand";
 import {
   classifiedCategories,
+  idahoCities,
   idahoRegions,
   usStates,
   vehicleModelsByMake,
@@ -91,6 +92,7 @@ type Search = {
   state?: string | undefined;
   region?: string | undefined;
   city?: string | undefined;
+  radiusMiles?: number | undefined;
   postalCode?: string | undefined;
   condition?: string | undefined;
   fulfillment?: string | undefined;
@@ -193,6 +195,7 @@ const savedSearchFilterKeys: readonly (keyof Search)[] = [
   "state",
   "region",
   "city",
+  "radiusMiles",
   "postalCode",
   "condition",
   "fulfillment",
@@ -1500,6 +1503,7 @@ function inputFromSearch(search: Search): ClassifiedBrowseInput {
     state: search.state,
     region: search.region,
     city: search.city,
+    radiusMiles: search.radiusMiles,
     postalCode: search.postalCode,
     condition: search.condition ?? normalizedCondition(search.serviceCondition),
     fulfillment: search.fulfillment,
@@ -1724,6 +1728,7 @@ export const Route = createFileRoute("/browse")({
       state: stringParam(search, "state", 2)?.toUpperCase(),
       region: stringParam(search, "region"),
       city: stringParam(search, "city"),
+      radiusMiles: integerParam(search, "radiusMiles"),
       postalCode: stringParam(search, "postalCode", 12),
       condition: stringParam(search, "condition", 30),
       fulfillment: stringParam(search, "fulfillment", 20),
@@ -2034,6 +2039,7 @@ function Browse() {
       state: value("state")?.toUpperCase(),
       region: value("region"),
       city: value("city"),
+      radiusMiles: optionalNonNegativeInteger(value("radiusMiles")),
       condition: value("condition"),
       fulfillment: value("fulfillment"),
       priceMin: numeric("priceMin"),
@@ -9365,12 +9371,14 @@ function InlineLocationFilter({
   const [region, setRegion] = useState(search.region ?? "");
   const [state, setState] = useState(search.state ?? "");
   const [city, setCity] = useState(search.city ?? "");
+  const [radiusMiles, setRadiusMiles] = useState(search.radiusMiles ?? 25);
 
   useEffect(() => {
     setRegion(search.region ?? "");
     setState(search.state ?? "");
     setCity(search.city ?? "");
-  }, [search.region, search.state, search.city]);
+    setRadiusMiles(search.radiusMiles ?? 25);
+  }, [search.region, search.state, search.city, search.radiusMiles]);
 
   return (
     <div className="w-full space-y-2.5">
@@ -9401,15 +9409,50 @@ function InlineLocationFilter({
       <input
         value={city}
         onChange={(event) => setCity(event.target.value)}
-        placeholder="City"
+        placeholder="City, e.g. Boise"
         className="filter-input w-full"
+        list="bluebird-city-options"
       />
+      <datalist id="bluebird-city-options">
+        {idahoCities.map((option) => (
+          <option key={option} value={option} />
+        ))}
+      </datalist>
+      {city.trim() ? (
+        <div className="overflow-hidden rounded-2xl border border-border bg-[#eaf1f0] p-3">
+          <div className="relative h-28 overflow-hidden rounded-xl bg-[linear-gradient(135deg,#dbe8e5_25%,transparent_25%),linear-gradient(45deg,#dbe8e5_25%,transparent_25%),linear-gradient(135deg,transparent_75%,#dbe8e5_75%),linear-gradient(45deg,transparent_75%,#dbe8e5_75%)] bg-[length:34px_34px] bg-[position:0_0,0_17px,17px_-17px,-17px_0]">
+            <div
+              className="absolute left-1/2 top-1/2 rounded-full border-2 border-primary/60 bg-primary/15"
+              style={{ width: `${Math.min(92, 22 + radiusMiles / 2)}%`, aspectRatio: "1", transform: "translate(-50%, -50%)" }}
+            />
+            <MapPin className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-full text-primary" size={22} weight="fill" />
+          </div>
+          <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
+            <span>{city.trim()} search area</span>
+            <span className="font-semibold text-foreground">Within {radiusMiles} miles</span>
+          </div>
+        </div>
+      ) : null}
+      <label className="block text-[11px] font-medium text-muted-foreground">
+        Search radius: <span className="font-semibold text-foreground">{radiusMiles} miles</span>
+        <input
+          type="range"
+          min="5"
+          max="100"
+          step="5"
+          value={radiusMiles}
+          onChange={(event) => setRadiusMiles(Number(event.target.value))}
+          className="mt-2 w-full accent-primary"
+          disabled={!city.trim()}
+        />
+      </label>
       <InlineApplyButton
         onClick={() =>
           onApply({
             region: region || undefined,
             state: state || undefined,
             city: city.trim() || undefined,
+            radiusMiles: city.trim() ? radiusMiles : undefined,
           })
         }
       />
@@ -9436,6 +9479,7 @@ function countActiveFilters(search: Search, motors: boolean, pets: boolean) {
     "state",
     "region",
     "city",
+    "radiusMiles",
     "postalCode",
     "condition",
     "fulfillment",
@@ -9490,6 +9534,7 @@ function activeFilterLabels(search: Search, motors: boolean, pets: boolean) {
   if (search.region) labels.push(search.region);
   if (search.state) labels.push(search.state);
   if (search.city) labels.push(search.city);
+  if (search.city && search.radiusMiles != null) labels.push(`Within ${search.radiusMiles} miles`);
   if (search.postalCode) labels.push(search.postalCode);
   if (search.condition) labels.push(formatSavedSearchFilter("condition", search.condition));
   if (search.fulfillment) labels.push(formatSavedSearchFilter("fulfillment", search.fulfillment));

@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 
 import { brand, policyTopics } from "@/config/brand";
-import { classifiedCategories, idahoRegions } from "@/config/classifieds";
+import { classifiedCategories, idahoCities } from "@/config/classifieds";
 
 /*
  * Dense multi-column footer for Bluebird Marketplace. Columns are generated
@@ -58,12 +58,17 @@ export function SiteFooter() {
           </div>
 
           <div>
-            <h2 className={headingClass}>Idaho regions</h2>
+            <h2 className={headingClass}>Popular Idaho cities</h2>
             <ul className="mt-2">
-              {idahoRegions.map((region) => (
-                <li key={region}>
-                  <Link to="/browse" search={{ q: region }} className={linkClass} {...pinned}>
-                    {region}
+              {idahoCities.map((city) => (
+                <li key={city}>
+                  <Link
+                    to="/browse"
+                    search={{ city, state: "ID", radiusMiles: 25 }}
+                    className={linkClass}
+                    {...pinned}
+                  >
+                    {city}
                   </Link>
                 </li>
               ))}

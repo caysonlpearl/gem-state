@@ -1083,6 +1083,37 @@ function mockDetail(listing: (typeof mockClassifiedListings)[number]): Classifie
   };
 }
 
+const cityCenters: Record<string, [number, number]> = {
+  boise: [43.615, -116.2023],
+  meridian: [43.6121, -116.3915],
+  nampa: [43.5407, -116.5635],
+  caldwell: [43.6629, -116.6874],
+  eagle: [43.6954, -116.354],
+  "twin falls": [42.5629, -114.4609],
+  "idaho falls": [43.4917, -112.0339],
+  pocatello: [42.8713, -112.4455],
+  "coeur d'alene": [47.6777, -116.7805],
+  lewiston: [46.4004, -117.0012],
+  "salt lake city": [40.7608, -111.891],
+  murray: [40.6669, -111.888],
+  "west jordan": [40.6097, -111.9391],
+  sandy: [40.56498, -111.83897],
+};
+
+function withinCityRadius(city: string | undefined, listingCity: string, radiusMiles: number | undefined) {
+  if (!city || radiusMiles == null) return true;
+  const center = cityCenters[city.trim().toLowerCase()];
+  const point = cityCenters[listingCity.trim().toLowerCase()];
+  if (!center || !point) return listingCity.trim().toLowerCase() === city.trim().toLowerCase();
+  const toRadians = (value: number) => (value * Math.PI) / 180;
+  const dLat = toRadians(point[0] - center[0]);
+  const dLon = toRadians(point[1] - center[1]);
+  const lat1 = toRadians(center[0]);
+  const lat2 = toRadians(point[0]);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  return 3958.8 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) <= radiusMiles;
+}
+
 function mockMatches(
   listing: (typeof mockClassifiedListings)[number],
   data: ClassifiedBrowseInput,
@@ -1104,7 +1135,8 @@ function mockMatches(
     if (!`${listing.title} ${listing.description}`.toLowerCase().includes(needle)) return false;
   }
   if (data.state && data.state !== listing.state) return false;
-  if (data.city && !listing.city.toLowerCase().includes(data.city.toLowerCase())) return false;
+  if (data.city && !data.radiusMiles && !listing.city.toLowerCase().includes(data.city.toLowerCase())) return false;
+  if (data.city && data.radiusMiles != null && !withinCityRadius(data.city, listing.city, data.radiusMiles)) return false;
   if (data.sellerSlug && data.sellerSlug !== listing.seller.slug) return false;
   if (data.condition && !filterValues(data.condition).includes(listing.condition)) return false;
   if (
@@ -1306,6 +1338,7 @@ export type ClassifiedBrowseInput = {
   region?: string | undefined;
   state?: string | undefined;
   city?: string | undefined;
+  radiusMiles?: number | undefined;
   postalCode?: string | undefined;
   sellerSlug?: string | undefined;
   dealerSlug?: string | undefined;
@@ -1404,6 +1437,10 @@ export const browseClassifieds = createServerFn({ method: "GET" })
     region: text(input?.region),
     state: text(input?.state, 2)?.toUpperCase(),
     city: text(input?.city),
+    radiusMiles:
+      input?.radiusMiles == null
+        ? undefined
+        : Math.min(200, Math.max(1, Math.round(Number(input.radiusMiles)))) || undefined,
     postalCode: text(input?.postalCode, 12)?.replace(/[^0-9-]/g, ""),
     sellerSlug: text(input?.sellerSlug, 60),
     dealerSlug: text(input?.dealerSlug, 80),
@@ -1525,7 +1562,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     }
     if (data.region) query = query.eq("classified_listing_details.region", data.region);
     if (data.state) query = query.eq("classified_listing_details.state", data.state);
-    if (data.city)
+    if (data.city && data.radiusMiles == null)
       query = query.ilike("classified_listing_details.city", `%${escapeLikeValue(data.city)}%`);
     if (data.postalCode)
       query = query.ilike(
@@ -1748,7 +1785,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     // preview records so the selected sort is truthful for real listings too.
     const unitAwareJobSort =
       data.category === "jobs" && (data.sort === "price_low" || data.sort === "price_high");
-    const resultRange = unitAwareJobSort
+    const resultRange = unitAwareJobSort || data.radiusMiles != null
       ? { from: 0, to: Math.max(4_999, from + PAGE_SIZE - 1) }
       : { from, to: from + PAGE_SIZE - 1 };
     const {
@@ -1768,9 +1805,9 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
         sortedMedia(row as unknown as Record<string, unknown>).slice(0, 1),
       ),
     );
-    const listings = visibleRows.map((row) =>
-      toCard(row as unknown as Record<string, unknown>, urlByPath),
-    );
+    const listings = visibleRows
+      .map((row) => toCard(row as unknown as Record<string, unknown>, urlByPath))
+      .filter((listing) => withinCityRadius(data.city, listing.city, data.radiusMiles));
     const motorCategory = data.category
       ? classifiedCategories.find((category) => category.slug === data.category)?.group === "motors"
       : false;
@@ -1818,7 +1855,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     ].sort(compareListings);
     const resultLimit = data.includeAllMocks ? Math.max(PAGE_SIZE, mockSource.length) : PAGE_SIZE;
     const orderedListings = [...featuredListings, ...standardListings];
-    const combinedListings = unitAwareJobSort
+    const combinedListings = unitAwareJobSort || data.radiusMiles != null
       ? orderedListings.slice(from, from + resultLimit)
       : orderedListings.slice(0, resultLimit);
     if (listings.length > 0) {
@@ -1832,7 +1869,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     }
     return {
       listings: combinedListings,
-      total: (count ?? listings.length) + mockListings.length,
+      total: (data.radiusMiles != null ? listings.length : count ?? listings.length) + mockListings.length,
       page,
       pageSize: PAGE_SIZE,
     };
