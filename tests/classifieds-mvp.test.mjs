@@ -909,6 +909,8 @@ test("main homepage presents category-curated listing rows", () => {
   assert.match(homeSource, /City or ZIP code/);
   assert.match(homeSource, /Search area:/);
   assert.match(homeSource, /Farther away/);
+  assert.match(homeSource, /bluebird-home-city-options/);
+  assert.match(homeSource, /absolute right-4 top-1\/2 -translate-y-1\/2 text-muted-foreground/);
   assert.match(homeSource, /no-scrollbar mt-5 flex gap-4/);
 });
 
@@ -1631,6 +1633,9 @@ test("classified listing setup gate is reasserted for every RPC overload", () =>
 
 test("city browse links preserve an adjustable radius and filter by distance", () => {
   assert.match(configSource, /export const idahoCities = \[/);
+  for (const city of ["Garden City", "Kuna", "Mountain Home", "Moscow", "Post Falls", "Sandpoint"]) {
+    assert.match(configSource, new RegExp(`\\"${city.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}\\"`));
+  }
   assert.match(browseSource, /radiusMiles\?: number/);
   assert.match(browseSource, /Search radius:/);
   assert.match(browseSource, /Within \{radiusMiles\} miles/);

@@ -386,7 +386,7 @@ function Home() {
                 aria-hidden="true"
               />
             </label>
-            <label className="soft-control relative flex h-12 items-center gap-2 px-4">
+            <label className="soft-control relative flex h-12 items-center gap-2 px-4 pr-11">
               <MapPin
                 size={16}
                 weight="duotone"
@@ -402,6 +402,12 @@ function Home() {
                 aria-label="City or ZIP code"
                 list="bluebird-home-city-options"
                 className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+              />
+              <CaretDown
+                size={16}
+                weight="bold"
+                className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground"
+                aria-hidden="true"
               />
             </label>
             <button
