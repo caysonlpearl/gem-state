@@ -4,7 +4,13 @@ import { useEffect, useState } from "react";
 import { ArrowRight, CaretDown, MagnifyingGlass, MapPin, Car } from "@phosphor-icons/react";
 
 import { brand } from "@/config/brand";
-import { classifiedCategories, idahoRegions, usStates } from "@/config/classifieds";
+import {
+  classifiedCategories,
+  idahoCities,
+  idahoRegions,
+  isWithinClassifiedCityRadius,
+  usStates,
+} from "@/config/classifieds";
 import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { ListingCard } from "@/components/classifieds/ListingCard";
 import { getClassifiedsHome } from "@/lib/classifieds.functions";
@@ -62,6 +68,11 @@ type HomepageBrowseSearch = {
   homeTab?: "buy" | "build" | "rent";
   jobEmploymentType?: string;
   priceMax?: number;
+  city?: string;
+  state?: string;
+  region?: string;
+  postalCode?: string;
+  radiusMiles?: number;
 };
 
 const headlineOptions = [
@@ -165,6 +176,7 @@ function Home() {
   const [term, setTerm] = useState("");
   const [category, setCategory] = useState("");
   const [location, setLocation] = useState("");
+  const [radiusMiles, setRadiusMiles] = useState(25);
 
   useEffect(() => {
     setHeadlineItems(pickHeadlineItems());
@@ -192,24 +204,60 @@ function Home() {
   }, []);
 
   const motorCategories = classifiedCategories.filter((c) => c.group === "motors");
-  const freshListings = home.recent.filter((listing) => !listing.pet).slice(0, HOMEPAGE_ROW_SIZE);
-  const homeListings = home.recent.filter((listing) => listing.home);
-  const jobListings = home.recent.filter((listing) => listing.job);
+  const parsedLocation = parseLocationSearch(location);
+  const matchesLocation = (listing: (typeof home.recent)[number]) => {
+    if (parsedLocation.postalCode) {
+      return (listing.postalCode ?? "").startsWith(parsedLocation.postalCode);
+    }
+    if (parsedLocation.city) {
+      return isWithinClassifiedCityRadius(parsedLocation.city, listing.city, radiusMiles);
+    }
+    if (parsedLocation.region) return listing.region === parsedLocation.region;
+    if (parsedLocation.state) return listing.state === parsedLocation.state;
+    // The homepage promise is local by default. Broader browsing remains
+    // available through the optional state/region controls on browse.
+    return listing.state === "ID";
+  };
+  const localRecent = home.recent.filter(matchesLocation);
+  const fartherAwayListings = home.recent.filter((listing) => !matchesLocation(listing));
+  const localMotors = home.motors.filter(matchesLocation);
+  const selectedStateName = parsedLocation.state
+    ? usStates.find(([code]) => code === parsedLocation.state)?.[1]
+    : undefined;
+  const locationSummary = parsedLocation.city
+    ? `${parsedLocation.city} · within ${radiusMiles} miles`
+    : parsedLocation.postalCode
+      ? `ZIP ${parsedLocation.postalCode}`
+      : parsedLocation.region ?? selectedStateName ?? "Idaho";
+  const browseLocationSearch = {
+    ...(!parsedLocation.city && !parsedLocation.postalCode && !parsedLocation.region && !parsedLocation.state
+      ? { state: "ID" }
+      : {}),
+    ...parsedLocation,
+    ...(parsedLocation.city ? { radiusMiles } : {}),
+  };
+  const withLocation = (search: HomepageBrowseSearch): HomepageBrowseSearch => ({
+    ...search,
+    ...browseLocationSearch,
+  });
+  const freshListings = localRecent.filter((listing) => !listing.pet).slice(0, HOMEPAGE_ROW_SIZE);
+  const homeListings = localRecent.filter((listing) => listing.home);
+  const jobListings = localRecent.filter((listing) => listing.job);
   // Keep the source shape easy to audit alongside the other category filters.
   // prettier-ignore
-  const serviceSource = home.recent.filter((listing) => listing.service);
+  const serviceSource = localRecent.filter((listing) => listing.service);
   const serviceListings = serviceSource.slice(0, HOMEPAGE_ROW_SIZE);
-  const generalSource = home.recent.filter(
+  const generalSource = localRecent.filter(
     (listing) =>
       !listing.vehicle && !listing.pet && !listing.home && !listing.job && !listing.service,
   );
   const generalListings = generalSource.slice(0, HOMEPAGE_ROW_SIZE);
   const take = (matches: typeof home.recent) => matches.slice(0, HOMEPAGE_ROW_SIZE);
-  const vehicleListings = home.motors.slice(0, HOMEPAGE_ROW_SIZE);
+  const vehicleListings = localMotors.slice(0, HOMEPAGE_ROW_SIZE);
   const truckListings = take(
-    home.motors.filter((listing) => /truck|suv|pickup|jeep/i.test(listing.title)),
+    localMotors.filter((listing) => /truck|suv|pickup|jeep/i.test(listing.title)),
   );
-  const valueVehicleListings = [...home.motors]
+  const valueVehicleListings = [...localMotors]
     .sort((a, b) => a.priceCents - b.priceCents)
     .slice(0, HOMEPAGE_ROW_SIZE);
   const buyHomes = take(homeListings.filter((listing) => listing.home?.mode === "buy"));
@@ -236,8 +284,8 @@ function Home() {
   );
   const valueFinds = take(generalSource.filter((listing) => listing.priceCents <= 10_000));
   const localSellerPicks =
-    home.recent.slice(6, 6 + HOMEPAGE_ROW_SIZE).length > 1
-      ? home.recent.slice(6, 6 + HOMEPAGE_ROW_SIZE)
+    localRecent.slice(6, 6 + HOMEPAGE_ROW_SIZE).length > 1
+      ? localRecent.slice(6, 6 + HOMEPAGE_ROW_SIZE)
       : freshListings;
 
   return (
@@ -298,6 +346,7 @@ function Home() {
                   ...(term.trim() ? { q: term.trim() } : {}),
                   ...(category ? { category } : {}),
                   ...locationSearch,
+                  ...(locationSearch.city ? { radiusMiles } : {}),
                 },
               });
             }}
@@ -349,8 +398,9 @@ function Home() {
                 type="search"
                 value={location}
                 onChange={(event) => setLocation(event.target.value)}
-                placeholder="Search by city or region"
-                aria-label="Location"
+                placeholder="City or ZIP code"
+                aria-label="City or ZIP code"
+                list="bluebird-home-city-options"
                 className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
               />
             </label>
@@ -361,6 +411,31 @@ function Home() {
               Search
             </button>
           </form>
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12px] text-muted-foreground">
+            <span className="font-semibold text-foreground">Search area: {locationSummary}</span>
+            <label className="flex min-w-[220px] flex-1 items-center gap-2 sm:max-w-[360px]">
+              <span className="whitespace-nowrap">Distance</span>
+              <input
+                aria-label="Search radius in miles"
+                type="range"
+                min="5"
+                max="100"
+                step="5"
+                value={radiusMiles}
+                onChange={(event) => setRadiusMiles(Number(event.target.value))}
+                disabled={!parsedLocation.city}
+                className="w-full accent-primary disabled:opacity-40"
+              />
+              <span className="whitespace-nowrap font-semibold text-foreground">
+                {parsedLocation.city ? `${radiusMiles} mi` : parsedLocation.postalCode ? "ZIP" : "Idaho-wide"}
+              </span>
+            </label>
+          </div>
+          <datalist id="bluebird-home-city-options">
+            {idahoCities.map((option) => (
+              <option key={option} value={option} />
+            ))}
+          </datalist>
         </div>
       </section>
 
@@ -375,7 +450,7 @@ function Home() {
               Vehicles for sale in Idaho
             </h2>
           </div>
-          <Link to="/browse" search={{ group: "motors" }} className={seeAll}>
+          <Link to="/browse" search={withLocation({ group: "motors" })} className={seeAll}>
             All vehicles <ArrowRight size={12} />
           </Link>
         </div>
@@ -384,7 +459,7 @@ function Home() {
             <Link
               key={option.slug}
               to="/browse"
-              search={{ category: option.slug }}
+              search={withLocation({ category: option.slug })}
               className="rounded-full border border-input bg-card px-3.5 py-2 text-[12px] transition-colors hover:border-primary hover:bg-secondary"
             >
               {option.name}
@@ -396,9 +471,9 @@ function Home() {
             </Link>
           ))}
         </div>
-        {home.motors.length > 0 ? (
+        {localMotors.length > 0 ? (
           <div className="no-scrollbar mt-5 flex gap-4 overflow-x-auto pb-2 lg:grid lg:grid-cols-4 lg:overflow-visible">
-            {home.motors.slice(0, HOMEPAGE_ROW_SIZE).map((listing) => (
+            {localMotors.slice(0, HOMEPAGE_ROW_SIZE).map((listing) => (
               <div key={listing.id} className="min-w-[235px] lg:min-w-0">
                 <ListingCard listing={listing} />
               </div>
@@ -436,15 +511,23 @@ function Home() {
         eyebrow="Bluebird picks"
         title="Fresh local finds"
         listings={freshListings}
-        search={{ allCategories: true }}
+        search={withLocation({ allCategories: true })}
         action="See all fresh listings"
+      />
+
+      <HomepageListingRow
+        eyebrow="Bluebird distance"
+        title="Farther away"
+        listings={fartherAwayListings}
+        search={withLocation({ allCategories: true })}
+        action="Browse farther-away listings"
       />
 
       <HomepageListingRow
         eyebrow="Bluebird motors"
         title="New vehicle arrivals"
         listings={vehicleListings}
-        search={{ group: "motors" }}
+        search={withLocation({ group: "motors" })}
         action="Browse all vehicles"
       />
 
@@ -452,7 +535,7 @@ function Home() {
         eyebrow="Bluebird motors"
         title="Trucks, SUVs & pickups"
         listings={truckListings}
-        search={{ group: "motors", bodyStyle: "Pickup||SUV" }}
+        search={withLocation({ group: "motors", bodyStyle: "Pickup||SUV" })}
         action="Shop trucks & SUVs"
       />
 
@@ -460,7 +543,7 @@ function Home() {
         eyebrow="Bluebird motors"
         title="Affordable vehicles"
         listings={valueVehicleListings}
-        search={{ group: "motors" }}
+        search={withLocation({ group: "motors" })}
         action="Find a vehicle"
       />
 
@@ -476,7 +559,7 @@ function Home() {
         eyebrow="Bluebird homes"
         title="Homes for sale"
         listings={buyHomes}
-        search={{ category: "other-real-estate", homeTab: "buy" }}
+        search={withLocation({ category: "other-real-estate", homeTab: "buy" })}
         action="Browse homes for sale"
       />
 
@@ -484,7 +567,7 @@ function Home() {
         eyebrow="Bluebird homes"
         title="New builds to explore"
         listings={buildHomes}
-        search={{ category: "other-real-estate", homeTab: "build" }}
+        search={withLocation({ category: "other-real-estate", homeTab: "build" })}
         action="Find new construction"
       />
 
@@ -492,7 +575,7 @@ function Home() {
         eyebrow="Bluebird homes"
         title="Rentals worth a look"
         listings={rentalHomes}
-        search={{ category: "other-real-estate", homeTab: "rent" }}
+        search={withLocation({ category: "other-real-estate", homeTab: "rent" })}
         action="Browse rentals"
       />
 
@@ -509,7 +592,7 @@ function Home() {
         eyebrow="Bluebird jobs"
         title="Jobs hiring now"
         listings={jobListings}
-        search={{ category: "jobs" }}
+        search={withLocation({ category: "jobs" })}
         action="Browse local jobs"
       />
 
@@ -517,7 +600,7 @@ function Home() {
         eyebrow="Bluebird jobs"
         title="Flexible and part-time work"
         listings={flexibleJobs}
-        search={{ category: "jobs", jobEmploymentType: "part-time||contract||temporary" }}
+        search={withLocation({ category: "jobs", jobEmploymentType: "part-time||contract||temporary" })}
         action="Find flexible work"
       />
 
@@ -525,7 +608,7 @@ function Home() {
         eyebrow="Bluebird services"
         title="Services for your next project"
         listings={serviceListings}
-        search={{ category: "services" }}
+        search={withLocation({ category: "services" })}
         action="Find a local pro"
       />
 
@@ -533,7 +616,7 @@ function Home() {
         eyebrow="Bluebird services"
         title="Home services and repairs"
         listings={homeServices}
-        search={{ category: "services" }}
+        search={withLocation({ category: "services" })}
         action="Find home help"
       />
 
@@ -549,7 +632,7 @@ function Home() {
         eyebrow="Bluebird classifieds"
         title="Everyday finds from local sellers"
         listings={generalListings}
-        search={{ allCategories: true }}
+        search={withLocation({ allCategories: true })}
         action="Browse all classifieds"
       />
 
@@ -557,7 +640,7 @@ function Home() {
         eyebrow="Bluebird classifieds"
         title="Toys and collectibles"
         listings={toyAndCollectibleListings}
-        search={{ category: "general" }}
+        search={withLocation({ category: "general" })}
         action="Browse collectibles"
       />
 
@@ -565,7 +648,7 @@ function Home() {
         eyebrow="Bluebird classifieds"
         title="Value finds under $100"
         listings={valueFinds}
-        search={{ allCategories: true, priceMax: 100 }}
+        search={withLocation({ allCategories: true, priceMax: 100 })}
         action="Shop everyday finds"
       />
 
@@ -573,7 +656,7 @@ function Home() {
         eyebrow="Bluebird picks"
         title="More from local sellers"
         listings={localSellerPicks}
-        search={{ allCategories: true }}
+        search={withLocation({ allCategories: true })}
         action="See more local listings"
       />
 

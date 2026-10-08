@@ -23,6 +23,44 @@ export const idahoCities = [
   "Lewiston",
 ] as const;
 
+/** Coordinates used for the city-radius experience. Keep this list limited to
+ * cities represented by marketplace fixtures until a geocoding provider is
+ * introduced. Unknown cities fall back to an exact city match. */
+export const classifiedCityCenters: Record<string, [number, number]> = {
+  boise: [43.615, -116.2023],
+  meridian: [43.6121, -116.3915],
+  nampa: [43.5407, -116.5635],
+  caldwell: [43.6629, -116.6874],
+  eagle: [43.6954, -116.354],
+  "twin falls": [42.5629, -114.4609],
+  "idaho falls": [43.4917, -112.0339],
+  pocatello: [42.8713, -112.4455],
+  "coeur d'alene": [47.6777, -116.7805],
+  lewiston: [46.4004, -117.0012],
+  "salt lake city": [40.7608, -111.891],
+  murray: [40.6669, -111.888],
+  "west jordan": [40.6097, -111.9391],
+  sandy: [40.56498, -111.83897],
+};
+
+export function isWithinClassifiedCityRadius(
+  city: string | undefined,
+  listingCity: string,
+  radiusMiles: number | undefined,
+) {
+  if (!city || radiusMiles == null) return true;
+  const center = classifiedCityCenters[city.trim().toLowerCase()];
+  const point = classifiedCityCenters[listingCity.trim().toLowerCase()];
+  if (!center || !point) return listingCity.trim().toLowerCase() === city.trim().toLowerCase();
+  const toRadians = (value: number) => (value * Math.PI) / 180;
+  const dLat = toRadians(point[0] - center[0]);
+  const dLon = toRadians(point[1] - center[1]);
+  const lat1 = toRadians(center[0]);
+  const lat2 = toRadians(point[0]);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  return 3958.8 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) <= radiusMiles;
+}
+
 export const usStates = [
   ["AL", "Alabama"],
   ["AK", "Alaska"],

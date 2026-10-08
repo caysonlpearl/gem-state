@@ -903,9 +903,12 @@ test("main homepage presents category-curated listing rows", () => {
   assert.doesNotMatch(footerSource, /How listings and seller contact work|Glossary/);
   assert.match(homeSource, /For sellers and businesses/);
   assert.match(homeSource, /A marketplace with a local feel/);
-  assert.match(homeSource, /home\.recent\.filter\(\(listing\) => listing\.home\)/);
-  assert.match(homeSource, /home\.recent\.filter\(\(listing\) => listing\.job\)/);
-  assert.match(homeSource, /home\.recent\.filter\(\(listing\) => listing\.service\)/);
+  assert.match(homeSource, /localRecent\.filter\(\(listing\) => listing\.home\)/);
+  assert.match(homeSource, /localRecent\.filter\(\(listing\) => listing\.job\)/);
+  assert.match(homeSource, /localRecent\.filter\(\(listing\) => listing\.service\)/);
+  assert.match(homeSource, /City or ZIP code/);
+  assert.match(homeSource, /Search area:/);
+  assert.match(homeSource, /Farther away/);
   assert.match(homeSource, /no-scrollbar mt-5 flex gap-4/);
 });
 
@@ -1631,6 +1634,9 @@ test("city browse links preserve an adjustable radius and filter by distance", (
   assert.match(browseSource, /radiusMiles\?: number/);
   assert.match(browseSource, /Search radius:/);
   assert.match(browseSource, /Within \{radiusMiles\} miles/);
-  assert.match(classifiedsFunctionsSource, /function withinCityRadius/);
+  assert.match(configSource, /isWithinClassifiedCityRadius/);
   assert.match(classifiedsFunctionsSource, /data\.radiusMiles != null/);
+  assert.match(browseSource, /Any region \(optional\)/);
+  assert.match(browseSource, /Any state \(optional\)/);
+  assert.match(browseSource, /City or ZIP code/);
 });
