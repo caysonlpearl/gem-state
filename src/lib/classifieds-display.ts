@@ -1,4 +1,5 @@
 import { classifiedCategories } from "@/config/classifieds";
+import { formatUsd } from "@/config/fees";
 
 export const conditionLabels: Record<string, string> = {
   new_with_tags: "New",
@@ -13,6 +14,32 @@ export const fulfillmentLabels: Record<string, string> = {
   both: "Pickup or shipping",
   pickup_or_shipping: "Pickup or shipping",
 };
+
+/** Marketplace-facing fulfillment copy. Vehicle transport is clearer than the
+ * generic shipping language used for ordinary classifieds. */
+export function formatFulfillmentLabel(mode: string | null | undefined, isVehicle = false) {
+  if (isVehicle) {
+    if (mode === "shipping") return "Vehicle transport available";
+    if (mode === "both" || mode === "pickup_or_shipping") return "Pickup or vehicle transport";
+  }
+  return fulfillmentLabels[mode ?? ""] ?? "Contact seller";
+}
+
+/** Category-aware price copy for cards and listing headers. */
+export function formatClassifiedPrice(
+  cents: number,
+  options: { wholeDollars?: boolean; monthly?: boolean } = {},
+) {
+  const value = options.wholeDollars
+    ? new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(cents / 100)
+    : formatUsd(cents);
+  return options.monthly ? `${value}/month` : value;
+}
 
 export const petPlacementLabels: Record<string, string> = {
   sale: "For sale",

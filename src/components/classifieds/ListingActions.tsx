@@ -9,6 +9,7 @@ import { brand } from "@/config/brand";
 import { formatUsd } from "@/config/fees";
 import { useAuth } from "@/hooks/useAuth";
 import type { ClassifiedDetail } from "@/lib/classifieds.functions";
+import { formatClassifiedPrice } from "@/lib/classifieds-display";
 import { startConversation } from "@/lib/conversation.functions";
 import { JobApplicationForm } from "./JobApplicationForm";
 
@@ -100,7 +101,10 @@ export function ListingActions({
             Seller price
           </p>
           <p className="numeric mt-1 text-[32px] font-bold leading-none">
-            {formatUsd(listing.priceCents)}
+            {formatClassifiedPrice(listing.priceCents, {
+              wholeDollars: Boolean(listing.vehicle || listing.home),
+              monthly: listing.home?.mode === "rent",
+            })}
           </p>
         </div>
       )}

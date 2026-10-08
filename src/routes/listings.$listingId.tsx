@@ -38,6 +38,8 @@ import { ListingCard } from "@/components/classifieds/ListingCard";
 import { WatchHeartButton } from "@/components/community/WatchHeartButton";
 import {
   conditionLabels,
+  formatClassifiedPrice,
+  formatFulfillmentLabel,
   formatJobPay,
   formatMileage,
   fulfillmentLabels,
@@ -133,7 +135,11 @@ export const Route = createFileRoute("/listings/$listingId")({
       title: listing.title,
       priceLabel: listing.job
         ? formatJobPay(listing.job)
-        : (listing.service?.pricing ?? formatUsd(listing.priceCents)),
+        : (listing.service?.pricing ??
+          formatClassifiedPrice(listing.priceCents, {
+            wholeDollars: Boolean(listing.vehicle || listing.home),
+            monthly: listing.home?.mode === "rent",
+          })),
       city: listing.city,
       state: listing.state,
     };
@@ -352,7 +358,10 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-[15px] font-bold">{seller.displayName}</h2>
             {seller.payoutVerified && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary">
+              <span
+                className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary"
+                title="Bluebird verified this seller's payout identity with its payment provider. This does not verify the listing, item condition, ownership, or transaction."
+              >
                 <CheckCircle size={12} weight="fill" /> Verified seller
               </span>
             )}
@@ -615,7 +624,8 @@ function TrustSafetyCard({ listing }: { listing: ClassifiedDetail }) {
       {listing.seller?.payoutVerified && (
         <p className="mt-3 flex items-center gap-1.5 text-[11px] text-muted-foreground">
           <CheckCircle size={13} weight="fill" className="text-primary" /> Seller account
-          verification is complete.
+          payout identity verified through Bluebird’s payment provider. This does not verify the
+          listing, item condition, ownership, or transaction.
         </p>
       )}
       {isVehicle && (
@@ -811,11 +821,11 @@ function ListingDetail() {
         ["Title", vehicle.titleStatus],
         ["VIN", vehicle.vin],
         ["Condition", condition],
-        ["Fulfillment", fulfillmentLabels[listing.fulfillmentMode]],
+        ["Fulfillment", formatFulfillmentLabel(listing.fulfillmentMode, true)],
       ].filter(([, value]) => Boolean(value)) as [string, string][])
     : ([
         ["Condition", condition],
-        ["Fulfillment", fulfillmentLabels[listing.fulfillmentMode]],
+        ["Fulfillment", formatFulfillmentLabel(listing.fulfillmentMode)],
       ].filter(([, value]) => Boolean(value)) as [string, string][]);
 
   const title = vehicle ? vehicleHeadline(vehicle) || listing.title : listing.title;
@@ -993,7 +1003,7 @@ function ListingDetail() {
           </span>
         </div>
         <p className="numeric mt-4 text-[30px] font-bold leading-none text-brand-warm sm:text-[34px]">
-          {formatUsd(listing.priceCents)}
+          {formatClassifiedPrice(listing.priceCents, { wholeDollars: true })}
         </p>
       </header>
 
@@ -1495,7 +1505,10 @@ function HomeListingDetail({
   handleShare: () => Promise<void>;
 }) {
   const details = homeRentalDetails(listing, description);
-  const price = formatUsd(listing.priceCents).replace(/\.00$/, "");
+  const price = formatClassifiedPrice(listing.priceCents, {
+    wholeDollars: true,
+    monthly: details.isRental,
+  });
   const homeTab = details.isRental ? "rent" : "buy";
 
   return (
@@ -2355,7 +2368,7 @@ function GeneralListingDetail({
           </div>
         </div>
         <p className="numeric mt-4 text-[30px] font-bold leading-none text-primary sm:text-[34px]">
-          {formatUsd(listing.priceCents)}
+          {formatClassifiedPrice(listing.priceCents, { wholeDollars: true })}
         </p>
       </header>
 

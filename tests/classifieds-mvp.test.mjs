@@ -962,13 +962,13 @@ test("shared category icons and no-photo cards have deterministic presentation",
   assert.match(stylesSource, /prefers-reduced-motion: no-preference/);
 });
 
-test("header categories show four primary destinations and a Classifieds control", () => {
+test("header categories show four primary destinations and an Items for sale control", () => {
   assert.match(headerSource, /featuredHeaderCategories = \[/);
   for (const label of ["Cars", "Homes", "Jobs", "Services"]) {
     assert.match(headerSource, new RegExp(`name: "${label.replace(/&/g, "\\&")}"`));
   }
-  assert.match(headerSource, /aria-label="Classifieds"/);
-  assert.match(headerSource, /<span>Classifieds<\/span>/);
+  assert.match(headerSource, /aria-label="Items for sale"/);
+  assert.match(headerSource, /<span>Items for sale<\/span>/);
   assert.doesNotMatch(headerSource, /Scroll categories left/);
   assert.doesNotMatch(headerSource, /Scroll categories right/);
   assert.doesNotMatch(headerSource, /scrollBy\(/);
@@ -980,6 +980,16 @@ test("header categories show four primary destinations and a Classifieds control
   assert.match(headerSource, /size=\{88\}/);
 });
 
+test("classified cards use category-aware price and fulfillment language", () => {
+  assert.match(displaySource, /function formatClassifiedPrice/);
+  assert.match(displaySource, /monthly \? `\$\{value\}\/month`/);
+  assert.match(displaySource, /Vehicle transport available/);
+  assert.match(displaySource, /Pickup or vehicle transport/);
+  assert.match(listingCardSource, /wholeDollars: Boolean\(listing\.vehicle \|\| listing\.home\)/);
+  assert.match(listingCardSource, /monthly: listing\.home\?\.mode === "rent"/);
+  assert.match(listingDetailSource, /payout identity verified through Bluebird/);
+});
+
 test("site header does not add a blue separator below the category row", () => {
   assert.match(headerSource, /overflow-visible border-0 bg-card\/95 backdrop-blur/);
   assert.doesNotMatch(headerSource, /border-brand-blue/);
@@ -988,7 +998,7 @@ test("site header does not add a blue separator below the category row", () => {
 test("all categories opens a labeled icon menu with KSL-style sections", () => {
   assert.match(allCategoriesSource, /PopoverContent/);
   assert.match(allCategoriesSource, /function AllCategoriesPopover/);
-  assert.match(headerSource, /aria-label="Classifieds"/);
+  assert.match(headerSource, /aria-label="Items for sale"/);
   assert.match(
     allCategoriesSource,
     /<p className="text-\[18px\] font-semibold tracking-tight">All categories<\/p>/,

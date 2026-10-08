@@ -1,14 +1,14 @@
 import { Link } from "@tanstack/react-router";
 import { MapPin } from "@phosphor-icons/react";
 
-import { formatUsd } from "@/config/fees";
 import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { WatchHeartButton } from "@/components/community/WatchHeartButton";
 import {
   conditionLabels,
+  formatClassifiedPrice,
+  formatFulfillmentLabel,
   formatJobPay,
   formatMileage,
-  fulfillmentLabels,
   petPlacementLabels,
   postedAge,
 } from "@/lib/classifieds-display";
@@ -119,7 +119,11 @@ function Price({ listing }: { listing: ClassifiedCard }) {
     <>
       {listing.job
         ? formatJobPay(listing.job)
-        : (listing.service?.pricing ?? formatUsd(listing.priceCents))}
+        : (listing.service?.pricing ??
+          formatClassifiedPrice(listing.priceCents, {
+            wholeDollars: Boolean(listing.vehicle || listing.home),
+            monthly: listing.home?.mode === "rent",
+          }))}
     </>
   );
 }
@@ -134,7 +138,7 @@ function cardActionLabel(listing: ClassifiedCard) {
       : listing.home.mode === "build"
         ? "Explore new build"
         : "Contact seller";
-  return fulfillmentLabels[listing.fulfillmentMode] ?? "Contact seller";
+  return formatFulfillmentLabel(listing.fulfillmentMode, Boolean(listing.vehicle));
 }
 
 export function ListingCard({ listing }: { listing: ClassifiedCard }) {
@@ -225,7 +229,7 @@ export function ListingRow({ listing }: { listing: ClassifiedCard }) {
                     : listing.home.mode === "build"
                       ? "Explore new build"
                       : "Contact seller"
-                  : (fulfillmentLabels[listing.fulfillmentMode] ?? "Contact seller")}
+                  : formatFulfillmentLabel(listing.fulfillmentMode, Boolean(listing.vehicle))}
           </p>
           <p className="mt-1 text-[10.5px] text-muted-foreground">{postedAge(listing.createdAt)}</p>
         </div>

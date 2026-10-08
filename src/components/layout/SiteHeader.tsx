@@ -42,7 +42,7 @@ const featuredHeaderCategories = [
 ] as const;
 
 const mobilePrimaryCategories = [
-  { slug: "general", name: "Classifieds", description: "Everyday local finds" },
+  { slug: "general", name: "Items for sale", description: "Everyday local finds" },
   { slug: "cars-trucks", name: "Cars", description: "Cars, trucks & motors" },
   { slug: "other-real-estate", name: "Homes", description: "Homes, rentals & builds" },
   { slug: "jobs", name: "Jobs", description: "Local work & hiring" },
@@ -281,7 +281,7 @@ export function SiteHeader() {
               <Link
                 to="/browse"
                 search={{ allCategories: true }}
-                aria-label="Classifieds"
+                aria-label="Items for sale"
                 className={`${navLinkClass} w-[190px]`}
                 {...pinned}
               >
@@ -290,7 +290,7 @@ export function SiteHeader() {
                   size={88}
                   className="category-art--nav category-art--header"
                 />
-                <span>Classifieds</span>
+                <span>Items for sale</span>
               </Link>
             </li>
             {featuredHeaderCategories.map((c) => (
