@@ -8,11 +8,12 @@ import {
   classifiedCategories,
   idahoCities,
   idahoRegions,
-  isWithinClassifiedCityRadius,
+  isWithinClassifiedRadius,
   usStates,
 } from "@/config/classifieds";
 import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { ListingCard } from "@/components/classifieds/ListingCard";
+import { LocationRadiusPicker, type LocationPoint } from "@/components/classifieds/LocationRadiusPicker";
 import { getClassifiedsHome } from "@/lib/classifieds.functions";
 import { trackEvent } from "@/lib/analytics";
 
@@ -73,6 +74,8 @@ type HomepageBrowseSearch = {
   region?: string;
   postalCode?: string;
   radiusMiles?: number;
+  latitude?: number;
+  longitude?: number;
 };
 
 const headlineOptions = [
@@ -177,6 +180,8 @@ function Home() {
   const [category, setCategory] = useState("");
   const [location, setLocation] = useState("");
   const [radiusMiles, setRadiusMiles] = useState(25);
+  const [mapPoint, setMapPoint] = useState<LocationPoint>();
+  const [mapOpen, setMapOpen] = useState(false);
 
   useEffect(() => {
     setHeadlineItems(pickHeadlineItems());
@@ -209,8 +214,14 @@ function Home() {
     if (parsedLocation.postalCode) {
       return (listing.postalCode ?? "").startsWith(parsedLocation.postalCode);
     }
-    if (parsedLocation.city) {
-      return isWithinClassifiedCityRadius(parsedLocation.city, listing.city, radiusMiles);
+    if (parsedLocation.city || mapPoint) {
+      return isWithinClassifiedRadius({
+        city: parsedLocation.city,
+        listingCity: listing.city,
+        latitude: mapPoint?.latitude,
+        longitude: mapPoint?.longitude,
+        radiusMiles,
+      });
     }
     if (parsedLocation.region) return listing.region === parsedLocation.region;
     if (parsedLocation.state) return listing.state === parsedLocation.state;
@@ -224,8 +235,10 @@ function Home() {
   const selectedStateName = parsedLocation.state
     ? usStates.find(([code]) => code === parsedLocation.state)?.[1]
     : undefined;
-  const locationSummary = parsedLocation.city
-    ? `${parsedLocation.city} · within ${radiusMiles} miles`
+  const locationSummary = mapPoint
+    ? `${mapPoint.city ?? "Map point"} · within ${radiusMiles} miles`
+    : parsedLocation.city
+      ? `${parsedLocation.city} · within ${radiusMiles} miles`
     : parsedLocation.postalCode
       ? `ZIP ${parsedLocation.postalCode}`
       : parsedLocation.region ?? selectedStateName ?? "Idaho";
@@ -234,7 +247,8 @@ function Home() {
       ? { state: "ID" }
       : {}),
     ...parsedLocation,
-    ...(parsedLocation.city ? { radiusMiles } : {}),
+    ...(parsedLocation.city || mapPoint ? { radiusMiles } : {}),
+    ...(mapPoint ? { latitude: mapPoint.latitude, longitude: mapPoint.longitude } : {}),
   };
   const withLocation = (search: HomepageBrowseSearch): HomepageBrowseSearch => ({
     ...search,
@@ -346,7 +360,10 @@ function Home() {
                   ...(term.trim() ? { q: term.trim() } : {}),
                   ...(category ? { category } : {}),
                   ...locationSearch,
-                  ...(locationSearch.city ? { radiusMiles } : {}),
+                  ...(locationSearch.city || mapPoint ? { radiusMiles } : {}),
+                  ...(mapPoint
+                    ? { latitude: mapPoint.latitude, longitude: mapPoint.longitude }
+                    : {}),
                 },
               });
             }}
@@ -397,7 +414,10 @@ function Home() {
               <input
                 type="search"
                 value={location}
-                onChange={(event) => setLocation(event.target.value)}
+                onChange={(event) => {
+                  setLocation(event.target.value);
+                  setMapPoint(undefined);
+                }}
                 placeholder="City or ZIP code"
                 aria-label="City or ZIP code"
                 list="bluebird-home-city-options"
@@ -419,24 +439,49 @@ function Home() {
           </form>
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12px] text-muted-foreground">
             <span className="font-semibold text-foreground">Search area: {locationSummary}</span>
+            <button
+              type="button"
+              onClick={() => setMapOpen((open) => !open)}
+              className="font-semibold text-primary underline-offset-2 hover:underline"
+              aria-expanded={mapOpen}
+            >
+              {mapOpen ? "Hide map" : "Choose anywhere on map"}
+            </button>
             <label className="flex min-w-[220px] flex-1 items-center gap-2 sm:max-w-[360px]">
               <span className="whitespace-nowrap">Distance</span>
               <input
                 aria-label="Search radius in miles"
                 type="range"
                 min="5"
-                max="100"
+                max="500"
                 step="5"
                 value={radiusMiles}
                 onChange={(event) => setRadiusMiles(Number(event.target.value))}
-                disabled={!parsedLocation.city}
+                disabled={!parsedLocation.city && !mapPoint}
                 className="w-full accent-primary disabled:opacity-40"
               />
               <span className="whitespace-nowrap font-semibold text-foreground">
-                {parsedLocation.city ? `${radiusMiles} mi` : parsedLocation.postalCode ? "ZIP" : "Idaho-wide"}
+                {parsedLocation.city || mapPoint
+                  ? `${radiusMiles} mi`
+                  : parsedLocation.postalCode
+                    ? "ZIP"
+                    : "Idaho-wide"}
               </span>
             </label>
           </div>
+          {mapOpen ? (
+            <LocationRadiusPicker
+              city={parsedLocation.city}
+              latitude={mapPoint?.latitude}
+              longitude={mapPoint?.longitude}
+              radiusMiles={radiusMiles}
+              onChange={(point) => {
+                setMapPoint(point);
+                setLocation(point.city ?? "");
+              }}
+              className="mt-3"
+            />
+          ) : null}
           <datalist id="bluebird-home-city-options">
             {idahoCities.map((option) => (
               <option key={option} value={option} />

@@ -2,7 +2,7 @@
 import { createServerFn } from "@tanstack/react-start";
 
 import { publicServerClient } from "./supabase-public.server";
-import { classifiedCategories, isWithinClassifiedCityRadius } from "@/config/classifieds";
+import { classifiedCategories, isWithinClassifiedRadius } from "@/config/classifieds";
 import { normalizePetSpecies, normalizePetSubcategory } from "@/config/pets";
 import { normalizeClassifiedItemDetails } from "@/config/classified-item-fields";
 import { formatUsd } from "@/config/fees";
@@ -1109,7 +1109,18 @@ function mockMatches(
   if (data.state && data.state !== listing.state) return false;
   if (data.postalCode && !listing.postalCode.startsWith(data.postalCode)) return false;
   if (data.city && !data.radiusMiles && !listing.city.toLowerCase().includes(data.city.toLowerCase())) return false;
-  if (data.city && data.radiusMiles != null && !isWithinClassifiedCityRadius(data.city, listing.city, data.radiusMiles)) return false;
+  if (
+    (data.city || (data.latitude != null && data.longitude != null)) &&
+    data.radiusMiles != null &&
+    !isWithinClassifiedRadius({
+      city: data.city,
+      listingCity: listing.city,
+      latitude: data.latitude,
+      longitude: data.longitude,
+      radiusMiles: data.radiusMiles,
+    })
+  )
+    return false;
   if (data.sellerSlug && data.sellerSlug !== listing.seller.slug) return false;
   if (data.condition && !filterValues(data.condition).includes(listing.condition)) return false;
   if (
@@ -1312,6 +1323,8 @@ export type ClassifiedBrowseInput = {
   state?: string | undefined;
   city?: string | undefined;
   radiusMiles?: number | undefined;
+  latitude?: number | undefined;
+  longitude?: number | undefined;
   postalCode?: string | undefined;
   sellerSlug?: string | undefined;
   dealerSlug?: string | undefined;
@@ -1413,7 +1426,15 @@ export const browseClassifieds = createServerFn({ method: "GET" })
     radiusMiles:
       input?.radiusMiles == null
         ? undefined
-        : Math.min(200, Math.max(1, Math.round(Number(input.radiusMiles)))) || undefined,
+        : Math.min(500, Math.max(1, Math.round(Number(input.radiusMiles)))) || undefined,
+    latitude:
+      input?.latitude == null || !Number.isFinite(Number(input.latitude))
+        ? undefined
+        : Math.max(-90, Math.min(90, Number(input.latitude))),
+    longitude:
+      input?.longitude == null || !Number.isFinite(Number(input.longitude))
+        ? undefined
+        : Math.max(-180, Math.min(180, Number(input.longitude))),
     postalCode: text(input?.postalCode, 12)?.replace(/[^0-9-]/g, ""),
     sellerSlug: text(input?.sellerSlug, 60),
     dealerSlug: text(input?.dealerSlug, 80),
@@ -1780,7 +1801,15 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     );
     const listings = visibleRows
       .map((row) => toCard(row as unknown as Record<string, unknown>, urlByPath))
-      .filter((listing) => isWithinClassifiedCityRadius(data.city, listing.city, data.radiusMiles));
+      .filter((listing) =>
+        isWithinClassifiedRadius({
+          city: data.city,
+          listingCity: listing.city,
+          latitude: data.latitude,
+          longitude: data.longitude,
+          radiusMiles: data.radiusMiles,
+        }),
+      );
     const motorCategory = data.category
       ? classifiedCategories.find((category) => category.slug === data.category)?.group === "motors"
       : false;

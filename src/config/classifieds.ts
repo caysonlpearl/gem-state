@@ -43,9 +43,9 @@ export const idahoCities = [
   "Lewiston",
 ] as const;
 
-/** Coordinates used for the city-radius experience. Keep this list limited to
- * cities represented by marketplace fixtures until a geocoding provider is
- * introduced. Unknown cities fall back to an exact city match. */
+/** Coordinates used for the marketplace location experience. Listing records
+ * currently store city names, so these centers provide a stable, transparent
+ * fallback until per-listing geocoding is added. */
 export const classifiedCityCenters: Record<string, [number, number]> = {
   boise: [43.615, -116.2023],
   meridian: [43.6121, -116.3915],
@@ -83,22 +83,75 @@ export const classifiedCityCenters: Record<string, [number, number]> = {
   sandy: [40.56498, -111.83897],
 };
 
+const classifiedCityNamesByKey = new Map(
+  [...idahoCities, "Salt Lake City", "Murray", "West Jordan", "Sandy"].map((city) => [
+    city.trim().toLowerCase(),
+    city,
+  ]),
+);
+
+export function classifiedCoordinatesForCity(city: string | undefined) {
+  if (!city) return undefined;
+  return classifiedCityCenters[city.trim().toLowerCase()];
+}
+
+export function nearestClassifiedCity(latitude: number, longitude: number) {
+  let nearest: { city: string; distanceMiles: number } | undefined;
+  for (const [key, point] of Object.entries(classifiedCityCenters)) {
+    const distanceMiles = classifiedDistanceMiles(latitude, longitude, point[0], point[1]);
+    if (!nearest || distanceMiles < nearest.distanceMiles) {
+      nearest = { city: classifiedCityNamesByKey.get(key) ?? key, distanceMiles };
+    }
+  }
+  return nearest;
+}
+
+export function classifiedDistanceMiles(
+  latitude: number,
+  longitude: number,
+  targetLatitude: number,
+  targetLongitude: number,
+) {
+  const toRadians = (value: number) => (value * Math.PI) / 180;
+  const dLat = toRadians(targetLatitude - latitude);
+  const dLon = toRadians(targetLongitude - longitude);
+  const lat1 = toRadians(latitude);
+  const lat2 = toRadians(targetLatitude);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  return 3958.8 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+export function isWithinClassifiedRadius({
+  city,
+  listingCity,
+  latitude,
+  longitude,
+  radiusMiles,
+}: {
+  city?: string;
+  listingCity: string;
+  latitude?: number;
+  longitude?: number;
+  radiusMiles?: number;
+}) {
+  if (radiusMiles == null) return true;
+  const center =
+    latitude != null && longitude != null
+      ? ([latitude, longitude] as [number, number])
+      : classifiedCoordinatesForCity(city);
+  const point = classifiedCoordinatesForCity(listingCity);
+  if (!center || !point) {
+    return listingCity.trim().toLowerCase() === city?.trim().toLowerCase();
+  }
+  return classifiedDistanceMiles(center[0], center[1], point[0], point[1]) <= radiusMiles;
+}
+
 export function isWithinClassifiedCityRadius(
   city: string | undefined,
   listingCity: string,
   radiusMiles: number | undefined,
 ) {
-  if (!city || radiusMiles == null) return true;
-  const center = classifiedCityCenters[city.trim().toLowerCase()];
-  const point = classifiedCityCenters[listingCity.trim().toLowerCase()];
-  if (!center || !point) return listingCity.trim().toLowerCase() === city.trim().toLowerCase();
-  const toRadians = (value: number) => (value * Math.PI) / 180;
-  const dLat = toRadians(point[0] - center[0]);
-  const dLon = toRadians(point[1] - center[1]);
-  const lat1 = toRadians(center[0]);
-  const lat2 = toRadians(point[0]);
-  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
-  return 3958.8 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) <= radiusMiles;
+  return isWithinClassifiedRadius({ city, listingCity, radiusMiles });
 }
 
 export const usStates = [

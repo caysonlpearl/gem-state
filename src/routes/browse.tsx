@@ -19,6 +19,7 @@ import {
   classifiedCategories,
   idahoCities,
   idahoRegions,
+  nearestClassifiedCity,
   usStates,
   vehicleModelsByMake,
   vehicleOptions,
@@ -37,6 +38,7 @@ import { fieldsForClassifiedItem } from "@/config/classified-item-fields";
 import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { AllCategoriesPopover } from "@/components/classifieds/AllCategoriesPopover";
 import { ListingCard, ListingRow } from "@/components/classifieds/ListingCard";
+import { LocationRadiusPicker, type LocationPoint } from "@/components/classifieds/LocationRadiusPicker";
 import {
   conditionLabels,
   formatSavedSearchFilter,
@@ -95,6 +97,8 @@ type Search = {
   region?: string | undefined;
   city?: string | undefined;
   radiusMiles?: number | undefined;
+  latitude?: number | undefined;
+  longitude?: number | undefined;
   postalCode?: string | undefined;
   condition?: string | undefined;
   fulfillment?: string | undefined;
@@ -198,6 +202,8 @@ const savedSearchFilterKeys: readonly (keyof Search)[] = [
   "region",
   "city",
   "radiusMiles",
+  "latitude",
+  "longitude",
   "postalCode",
   "condition",
   "fulfillment",
@@ -1469,6 +1475,12 @@ function numberParam(search: Record<string, unknown>, key: string) {
   return optionalNonNegativeNumber(search[key]);
 }
 
+function coordinateParam(search: Record<string, unknown>, key: string) {
+  const value = search[key];
+  const parsed = typeof value === "number" || typeof value === "string" ? Number(value) : NaN;
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
 function integerParam(search: Record<string, unknown>, key: string) {
   return optionalNonNegativeInteger(search[key]);
 }
@@ -1506,6 +1518,8 @@ function inputFromSearch(search: Search): ClassifiedBrowseInput {
     region: search.region,
     city: search.city,
     radiusMiles: search.radiusMiles,
+    latitude: search.latitude,
+    longitude: search.longitude,
     postalCode: search.postalCode,
     condition: search.condition ?? normalizedCondition(search.serviceCondition),
     fulfillment: search.fulfillment,
@@ -1731,6 +1745,8 @@ export const Route = createFileRoute("/browse")({
       region: stringParam(search, "region"),
       city: stringParam(search, "city"),
       radiusMiles: integerParam(search, "radiusMiles"),
+      latitude: coordinateParam(search, "latitude"),
+      longitude: coordinateParam(search, "longitude"),
       postalCode: stringParam(search, "postalCode", 12),
       condition: stringParam(search, "condition", 30),
       fulfillment: stringParam(search, "fulfillment", 20),
@@ -2024,6 +2040,12 @@ function Browse() {
     const numeric = (key: string) => {
       return optionalNonNegativeNumber(value(key));
     };
+    const coordinate = (key: string) => {
+      const raw = value(key);
+      if (!raw) return undefined;
+      const parsed = Number(raw);
+      return Number.isFinite(parsed) ? parsed : undefined;
+    };
     const category = value("category");
     const nextMotors = value("group") === "motors" || isMotorsCategory(category);
     const nextPets = category === "pets";
@@ -2045,6 +2067,8 @@ function Browse() {
       radiusMiles: isPostalCode(value("city") ?? "")
         ? undefined
         : optionalNonNegativeInteger(value("radiusMiles")),
+      latitude: coordinate("latitude"),
+      longitude: coordinate("longitude"),
       condition: value("condition"),
       fulfillment: value("fulfillment"),
       priceMin: numeric("priceMin"),
@@ -8144,6 +8168,12 @@ function VehicleResultsPage({
   const [state, setState] = useState(search.state ?? "");
   const [city, setCity] = useState(search.city ?? "");
   const [radiusMiles, setRadiusMiles] = useState(search.radiusMiles ?? 25);
+  const [mapPoint, setMapPoint] = useState<LocationPoint | undefined>(
+    search.latitude != null && search.longitude != null
+      ? { latitude: search.latitude, longitude: search.longitude, city: search.city }
+      : undefined,
+  );
+  const [mapOpen, setMapOpen] = useState(false);
   const [pendingResultCount, setPendingResultCount] = useState<number | null>(null);
   const previewRequest = useRef(0);
   const selectedMakes = splitVehicleFilter(make);
@@ -8170,6 +8200,11 @@ function VehicleResultsPage({
     setState(search.state ?? "");
     setCity(search.city ?? "");
     setRadiusMiles(search.radiusMiles ?? 25);
+    setMapPoint(
+      search.latitude != null && search.longitude != null
+        ? { latitude: search.latitude, longitude: search.longitude, city: search.city }
+        : undefined,
+    );
   }, [search]);
 
   useEffect(() => {
@@ -8204,7 +8239,9 @@ function VehicleResultsPage({
       state: state || undefined,
       city: isPostalCode(city) ? undefined : city.trim() || undefined,
       postalCode: isPostalCode(city) ? city.trim() : undefined,
-      radiusMiles: isPostalCode(city) ? undefined : city.trim() ? radiusMiles : undefined,
+      radiusMiles: isPostalCode(city) ? undefined : city.trim() || mapPoint ? radiusMiles : undefined,
+      latitude: mapPoint?.latitude,
+      longitude: mapPoint?.longitude,
     };
   }
 
@@ -8245,6 +8282,7 @@ function VehicleResultsPage({
     yearMax,
     yearMin,
     radiusMiles,
+    mapPoint,
   ]);
 
   function apply() {
@@ -8506,20 +8544,43 @@ function VehicleResultsPage({
               <VehicleTextField
                 label="City or ZIP code"
                 value={city}
-                onChange={setCity}
+                onChange={(value) => {
+                  setCity(value);
+                  setMapPoint(undefined);
+                }}
                 placeholder="Boise or 83702"
               />
+              <button
+                type="button"
+                onClick={() => setMapOpen((open) => !open)}
+                className="text-left text-[11px] font-semibold text-primary underline-offset-2 hover:underline"
+                aria-expanded={mapOpen}
+              >
+                {mapOpen ? "Hide map" : "Choose anywhere on map"}
+              </button>
+              {mapOpen ? (
+                <LocationRadiusPicker
+                  city={city}
+                  latitude={mapPoint?.latitude}
+                  longitude={mapPoint?.longitude}
+                  radiusMiles={radiusMiles}
+                  onChange={(point) => {
+                    setMapPoint(point);
+                    setCity(point.city ?? "");
+                  }}
+                />
+              ) : null}
               <label className="block text-[11px] font-medium text-muted-foreground">
                 Distance radius: <span className="font-semibold text-foreground">{radiusMiles} miles</span>
                 <input
                   type="range"
                   min="5"
-                  max="100"
+                  max="500"
                   step="5"
                   value={radiusMiles}
                   onChange={(event) => setRadiusMiles(Number(event.target.value))}
                   className="mt-2 w-full accent-primary"
-                  disabled={!city.trim() || isPostalCode(city)}
+                  disabled={(!city.trim() && !mapPoint) || isPostalCode(city)}
                 />
                 {isPostalCode(city) ? (
                   <span className="mt-1 block font-normal">ZIP searches match that ZIP; use a city for distance.</span>
@@ -9376,13 +9437,32 @@ function InlineLocationFilter({
   const [state, setState] = useState(search.state ?? "");
   const [city, setCity] = useState(search.city ?? "");
   const [radiusMiles, setRadiusMiles] = useState(search.radiusMiles ?? 25);
+  const [mapPoint, setMapPoint] = useState<LocationPoint | undefined>(
+    search.latitude != null && search.longitude != null
+      ? { latitude: search.latitude, longitude: search.longitude, city: search.city }
+      : undefined,
+  );
+  const [mapOpen, setMapOpen] = useState(false);
 
   useEffect(() => {
     setRegion(search.region ?? "");
     setState(search.state ?? "");
     setCity(search.city ?? search.postalCode ?? "");
     setRadiusMiles(search.radiusMiles ?? 25);
-  }, [search.region, search.state, search.city, search.postalCode, search.radiusMiles]);
+    setMapPoint(
+      search.latitude != null && search.longitude != null
+        ? { latitude: search.latitude, longitude: search.longitude, city: search.city }
+        : undefined,
+    );
+  }, [
+    search.region,
+    search.state,
+    search.city,
+    search.postalCode,
+    search.radiusMiles,
+    search.latitude,
+    search.longitude,
+  ]);
 
   return (
     <div className="w-full space-y-2.5">
@@ -9415,7 +9495,10 @@ function InlineLocationFilter({
       </select>
       <input
         value={city}
-        onChange={(event) => setCity(event.target.value)}
+        onChange={(event) => {
+          setCity(event.target.value);
+          setMapPoint(undefined);
+        }}
         placeholder="City or ZIP code, e.g. Boise or 83702"
         aria-label="City or ZIP code"
         className="filter-input w-full"
@@ -9426,20 +9509,28 @@ function InlineLocationFilter({
           <option key={option} value={option} />
         ))}
       </datalist>
+      <button
+        type="button"
+        onClick={() => setMapOpen((open) => !open)}
+        className="text-left text-[11px] font-semibold text-primary underline-offset-2 hover:underline"
+        aria-expanded={mapOpen}
+      >
+        {mapOpen ? "Hide map" : "Choose anywhere on map"}
+      </button>
+      {mapOpen ? (
+        <LocationRadiusPicker
+          city={city}
+          latitude={mapPoint?.latitude}
+          longitude={mapPoint?.longitude}
+          radiusMiles={radiusMiles}
+          onChange={(point) => {
+            setMapPoint(point);
+            setCity(point.city ?? "");
+          }}
+        />
+      ) : null}
       {city.trim() && !isPostalCode(city) ? (
-        <div className="overflow-hidden rounded-2xl border border-border bg-[#eaf1f0] p-3">
-          <div className="relative h-28 overflow-hidden rounded-xl bg-[linear-gradient(135deg,#dbe8e5_25%,transparent_25%),linear-gradient(45deg,#dbe8e5_25%,transparent_25%),linear-gradient(135deg,transparent_75%,#dbe8e5_75%),linear-gradient(45deg,transparent_75%,#dbe8e5_75%)] bg-[length:34px_34px] bg-[position:0_0,0_17px,17px_-17px,-17px_0]">
-            <div
-              className="absolute left-1/2 top-1/2 rounded-full border-2 border-primary/60 bg-primary/15"
-              style={{ width: `${Math.min(92, 22 + radiusMiles / 2)}%`, aspectRatio: "1", transform: "translate(-50%, -50%)" }}
-            />
-            <MapPin className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-full text-primary" size={22} weight="fill" />
-          </div>
-          <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
-            <span>{city.trim()} search area</span>
-            <span className="font-semibold text-foreground">Within {radiusMiles} miles</span>
-          </div>
-        </div>
+        <span className="sr-only">Within {radiusMiles} miles</span>
       ) : null}
       {isPostalCode(city) ? (
         <p className="rounded-xl bg-secondary px-3 py-2 text-[11px] text-muted-foreground">
@@ -9451,12 +9542,12 @@ function InlineLocationFilter({
         <input
           type="range"
           min="5"
-          max="100"
+          max="500"
           step="5"
           value={radiusMiles}
           onChange={(event) => setRadiusMiles(Number(event.target.value))}
           className="mt-2 w-full accent-primary"
-          disabled={!city.trim() || isPostalCode(city)}
+          disabled={(!city.trim() && !mapPoint) || isPostalCode(city)}
         />
       </label>
       <InlineApplyButton
@@ -9466,7 +9557,9 @@ function InlineLocationFilter({
             state: state || undefined,
             city: isPostalCode(city) ? undefined : city.trim() || undefined,
             postalCode: isPostalCode(city) ? city.trim() : undefined,
-            radiusMiles: isPostalCode(city) ? undefined : city.trim() ? radiusMiles : undefined,
+            radiusMiles: isPostalCode(city) ? undefined : city.trim() || mapPoint ? radiusMiles : undefined,
+            latitude: mapPoint?.latitude,
+            longitude: mapPoint?.longitude,
           })
         }
       />
@@ -9477,11 +9570,22 @@ function InlineLocationFilter({
 function BrowseLocationFields({ search }: { search: Search }) {
   const [city, setCity] = useState(search.city ?? search.postalCode ?? "");
   const [radiusMiles, setRadiusMiles] = useState(search.radiusMiles ?? 25);
+  const [mapPoint, setMapPoint] = useState<LocationPoint | undefined>(
+    search.latitude != null && search.longitude != null
+      ? { latitude: search.latitude, longitude: search.longitude, city: search.city }
+      : undefined,
+  );
+  const [mapOpen, setMapOpen] = useState(false);
 
   useEffect(() => {
     setCity(search.city ?? search.postalCode ?? "");
     setRadiusMiles(search.radiusMiles ?? 25);
-  }, [search.city, search.postalCode, search.radiusMiles]);
+    setMapPoint(
+      search.latitude != null && search.longitude != null
+        ? { latitude: search.latitude, longitude: search.longitude, city: search.city }
+        : undefined,
+    );
+  }, [search.city, search.postalCode, search.radiusMiles, search.latitude, search.longitude]);
 
   return (
     <>
@@ -9507,7 +9611,10 @@ function BrowseLocationFields({ search }: { search: Search }) {
       <input
         name="city"
         value={city}
-        onChange={(event) => setCity(event.target.value)}
+        onChange={(event) => {
+          setCity(event.target.value);
+          setMapPoint(undefined);
+        }}
         placeholder="City or ZIP code"
         aria-label="City or ZIP code"
         className="filter-input"
@@ -9519,28 +9626,25 @@ function BrowseLocationFields({ search }: { search: Search }) {
           <option key={option} value={option} />
         ))}
       </datalist>
-      {city.trim() && !isPostalCode(city) ? (
-        <div className="overflow-hidden rounded-2xl border border-border bg-[#eaf1f0] p-3">
-          <div className="relative h-28 overflow-hidden rounded-xl bg-[linear-gradient(135deg,#dbe8e5_25%,transparent_25%),linear-gradient(45deg,#dbe8e5_25%,transparent_25%),linear-gradient(135deg,transparent_75%,#dbe8e5_75%),linear-gradient(45deg,transparent_75%,#dbe8e5_75%)] bg-[length:34px_34px] bg-[position:0_0,0_17px,17px_-17px,-17px_0]">
-            <div
-              className="absolute left-1/2 top-1/2 rounded-full border-2 border-primary/60 bg-primary/15"
-              style={{
-                width: `${Math.min(92, 22 + radiusMiles / 2)}%`,
-                aspectRatio: "1",
-                transform: "translate(-50%, -50%)",
-              }}
-            />
-            <MapPin
-              className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-full text-primary"
-              size={22}
-              weight="fill"
-            />
-          </div>
-          <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
-            <span>{city.trim()} search area</span>
-            <span className="font-semibold text-foreground">Within {radiusMiles} miles</span>
-          </div>
-        </div>
+      <button
+        type="button"
+        onClick={() => setMapOpen((open) => !open)}
+        className="text-left text-[11px] font-semibold text-primary underline-offset-2 hover:underline"
+        aria-expanded={mapOpen}
+      >
+        {mapOpen ? "Hide map" : "Choose anywhere on map"}
+      </button>
+      {mapOpen ? (
+        <LocationRadiusPicker
+          city={city}
+          latitude={mapPoint?.latitude}
+          longitude={mapPoint?.longitude}
+          radiusMiles={radiusMiles}
+          onChange={(point) => {
+            setMapPoint(point);
+            setCity(point.city ?? "");
+          }}
+        />
       ) : null}
       {isPostalCode(city) ? (
         <p className="rounded-xl bg-secondary px-3 py-2 text-[11px] text-muted-foreground">
@@ -9553,14 +9657,16 @@ function BrowseLocationFields({ search }: { search: Search }) {
           name="radiusMiles"
           type="range"
           min="5"
-          max="100"
+          max="500"
           step="5"
           value={radiusMiles}
           onChange={(event) => setRadiusMiles(Number(event.target.value))}
           className="mt-2 w-full accent-primary"
-          disabled={!city.trim() || isPostalCode(city)}
+          disabled={(!city.trim() && !mapPoint) || isPostalCode(city)}
         />
       </label>
+      <input type="hidden" name="latitude" value={mapPoint?.latitude ?? ""} />
+      <input type="hidden" name="longitude" value={mapPoint?.longitude ?? ""} />
     </>
   );
 }
@@ -9641,7 +9747,12 @@ function activeFilterLabels(search: Search, motors: boolean, pets: boolean) {
     const stateName = usStates.find(([code]) => code === search.state)?.[1];
     labels.push(`State · ${stateName ?? search.state}`);
   }
-  if (search.city && search.radiusMiles != null)
+  if (search.latitude != null && search.longitude != null && search.radiusMiles != null) {
+    const nearest = nearestClassifiedCity(search.latitude, search.longitude);
+    labels.push(
+      `${nearest?.city ?? "Map point"} · within ${search.radiusMiles} miles`,
+    );
+  } else if (search.city && search.radiusMiles != null)
     labels.push(`${search.city} · within ${search.radiusMiles} miles`);
   else if (search.city) labels.push(`City · ${search.city}`);
   if (search.postalCode) labels.push(`ZIP · ${search.postalCode}`);
