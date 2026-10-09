@@ -20,6 +20,8 @@ const markerCities = [
   "Murray",
   "West Jordan",
   "Sandy",
+  "Draper",
+  "South Jordan",
 ];
 
 export type LocationPoint = {

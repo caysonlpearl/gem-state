@@ -81,10 +81,20 @@ export const classifiedCityCenters: Record<string, [number, number]> = {
   murray: [40.6669, -111.888],
   "west jordan": [40.6097, -111.9391],
   sandy: [40.56498, -111.83897],
+  draper: [40.5247, -111.8638],
+  "south jordan": [40.5622, -111.9297],
 };
 
 const classifiedCityNamesByKey = new Map(
-  [...idahoCities, "Salt Lake City", "Murray", "West Jordan", "Sandy"].map((city) => [
+  [
+    ...idahoCities,
+    "Salt Lake City",
+    "Murray",
+    "West Jordan",
+    "Sandy",
+    "Draper",
+    "South Jordan",
+  ].map((city) => [
     city.trim().toLowerCase(),
     city,
   ]),
