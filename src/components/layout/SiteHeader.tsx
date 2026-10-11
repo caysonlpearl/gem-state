@@ -318,8 +318,8 @@ export function SiteHeader() {
           without forcing the desktop artwork row into a narrow viewport. */}
       {menuOpen && (
         <div id="marketplace-menu" className="border-t border-border bg-surface lg:hidden">
-          <div className="mx-auto min-w-0 max-w-[1360px] overflow-x-hidden px-3 py-4 sm:px-8">
-            <div className="mb-3 flex items-center justify-between">
+          <div className="mx-auto w-full min-w-0 max-w-[1360px] overflow-x-hidden px-4 py-4 sm:px-8">
+            <div className="mb-3 flex min-w-0 items-center justify-between gap-3">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
                   Browse marketplace
@@ -329,7 +329,7 @@ export function SiteHeader() {
               <Link
                 to="/create-listing"
                 onClick={() => setMenuOpen(false)}
-                className="inline-flex min-h-10 items-center rounded-full bg-accent px-3 text-[12px] font-semibold text-accent-foreground"
+                className="inline-flex min-h-10 max-w-[48%] shrink-0 items-center overflow-hidden rounded-full bg-accent px-3 text-[12px] font-semibold whitespace-nowrap text-ellipsis text-accent-foreground"
                 {...pinned}
               >
                 Post a listing
@@ -347,7 +347,7 @@ export function SiteHeader() {
                         : { category: category.slug }
                     }
                     onClick={() => setMenuOpen(false)}
-                    className="group flex min-w-0 min-h-[72px] items-center gap-3 rounded-2xl border border-border bg-card px-3 py-2.5 transition-colors hover:border-primary/40 hover:bg-secondary"
+                    className="group flex w-full min-w-0 min-h-[72px] items-center gap-3 rounded-2xl border border-border bg-card px-3 py-2.5 transition-colors hover:border-primary/40 hover:bg-secondary"
                     {...pinned}
                   >
                     <CategoryArtwork slug={category.slug} size={42} className="shrink-0" />
