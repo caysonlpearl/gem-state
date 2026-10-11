@@ -142,9 +142,12 @@ export const Route = createFileRoute("/listings/$listingId")({
           })),
       city: listing.city,
       state: listing.state,
+      description: listing.description?.trim() ?? "",
+      priceCents: listing.job || listing.service ? null : (listing.priceCents ?? null),
+      condition: listing.condition as string | null,
     };
   },
-  head: ({ loaderData }) => {
+  head: ({ loaderData, params }) => {
     if (!loaderData) {
       return {
         meta: [
@@ -155,15 +158,41 @@ export const Route = createFileRoute("/listings/$listingId")({
     }
     const title = `${loaderData.title} — ${loaderData.priceLabel} in ${loaderData.city}, ${loaderData.state}`;
     const description = `${loaderData.title} listed for ${loaderData.priceLabel} by a seller in ${loaderData.city}, ${loaderData.state} on ${brand.name}.`;
+    const url = `https://onbluebird.com/listings/${params.listingId}`;
+    const product: Record<string, unknown> = {
+      "@context": "https://schema.org",
+      "@type": "Product",
+      name: loaderData.title,
+      description: loaderData.description || description,
+      url,
+    };
+    if (loaderData.priceCents != null) {
+      const cond = String(loaderData.condition ?? "").toLowerCase();
+      product.offers = {
+        "@type": "Offer",
+        price: (loaderData.priceCents / 100).toFixed(2),
+        priceCurrency: "USD",
+        availability: "https://schema.org/InStock",
+        url,
+        ...(cond === "new"
+          ? { itemCondition: "https://schema.org/NewCondition" }
+          : cond
+            ? { itemCondition: "https://schema.org/UsedCondition" }
+            : {}),
+      };
+    }
     return {
       meta: [
         { title },
         { name: "description", content: description },
         { property: "og:title", content: title },
         { property: "og:description", content: description },
-        { property: "og:type", content: "website" },
+        { property: "og:type", content: "product" },
+        { property: "og:url", content: url },
         { name: "twitter:card", content: "summary_large_image" },
       ],
+      links: [{ rel: "canonical", href: url }],
+      scripts: [{ type: "application/ld+json", children: JSON.stringify(product) }],
     };
   },
   component: ListingDetail,
