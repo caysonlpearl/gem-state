@@ -985,7 +985,7 @@ test("mobile menu trigger uses a visible Bluebird brand treatment", () => {
   assert.match(headerSource, /aria-label=\{menuOpen \? "Close menu" : "Open menu"\}/);
   assert.match(
     headerSource,
-    /w-11 shrink-0 items-center justify-center rounded-full border-2 border-brand-blue bg-brand-blue text-primary shadow-sm[\s\S]*hover:bg-brand-blue\/90/,
+    /w-11 shrink-0 items-center justify-center rounded-full border-2 border-brand-blue bg-brand-blue text-white shadow-sm[\s\S]*hover:bg-brand-blue\/90/,
   );
 });
 
