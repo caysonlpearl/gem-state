@@ -605,7 +605,11 @@ function Home() {
               className="group rounded-2xl border border-transparent bg-card px-4 py-5 shadow-sm transition-shadow hover:shadow-md"
             >
               <span className="flex h-12 items-center">
-                <CategoryArtwork slug={option.slug} size={54} className="category-art--nav" />
+                <CategoryArtwork
+                  slug={option.slug === "all" ? "general" : option.slug}
+                  size={54}
+                  className="category-art--nav"
+                />
               </span>
               <span className="block text-[13px] font-semibold">{option.name}</span>
             </Link>
