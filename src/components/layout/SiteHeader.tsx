@@ -260,9 +260,10 @@ export function SiteHeader() {
             ref={menuButtonRef}
             type="button"
             onClick={() => setMenuOpen((v) => !v)}
+            aria-label={menuOpen ? "Close menu" : "Open menu"}
             aria-expanded={menuOpen}
             aria-controls="marketplace-menu"
-            className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-input text-foreground transition-colors hover:bg-secondary sm:h-11 sm:w-11 lg:hidden"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full border-2 border-brand-blue bg-brand-blue text-primary shadow-sm transition-[background-color,box-shadow,transform] hover:bg-brand-blue/90 hover:shadow-md hover:-translate-y-0.5 sm:h-11 sm:w-11 lg:hidden"
           >
             {menuOpen ? <X size={17} aria-hidden="true" /> : <List size={17} aria-hidden="true" />}
             <span className="sr-only">{menuOpen ? "Close menu" : "Open menu"}</span>

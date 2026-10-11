@@ -981,6 +981,14 @@ test("header categories show four primary destinations and an Items for sale con
   assert.match(headerSource, /size=\{88\}/);
 });
 
+test("mobile menu trigger uses a visible Bluebird brand treatment", () => {
+  assert.match(headerSource, /aria-label=\{menuOpen \? "Close menu" : "Open menu"\}/);
+  assert.match(
+    headerSource,
+    /border-2 border-brand-blue bg-brand-blue text-primary shadow-sm[\s\S]*hover:bg-brand-blue\/90/,
+  );
+});
+
 test("classified cards use category-aware price and fulfillment language", () => {
   assert.match(displaySource, /function formatClassifiedPrice/);
   assert.match(displaySource, /monthly \? `\$\{value\}\/month`/);
@@ -993,7 +1001,7 @@ test("classified cards use category-aware price and fulfillment language", () =>
 
 test("site header does not add a blue separator below the category row", () => {
   assert.match(headerSource, /overflow-visible border-0 bg-card\/95 backdrop-blur/);
-  assert.doesNotMatch(headerSource, /border-brand-blue/);
+  assert.match(headerSource, /<nav[\s\S]*className="relative z-10 hidden border-t border-border bg-background lg:block"/);
 });
 
 test("all categories opens a labeled icon menu with KSL-style sections", () => {
