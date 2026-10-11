@@ -139,6 +139,7 @@ const emailShellSource = await read("src/lib/email-templates/shell.tsx");
 const authEmailSource = await read("src/routes/lovable/email/auth/webhook.ts");
 const brandMarkSource = await read("src/components/layout/BrandMark.tsx");
 const headerSource = await read("src/components/layout/SiteHeader.tsx");
+const rootSource = await read("src/routes/__root.tsx");
 const allCategoriesSource = await read("src/components/classifieds/AllCategoriesPopover.tsx");
 const homeSource = await read("src/routes/index.tsx");
 const categoryIconSource = await read("src/components/classifieds/CategoryIcon.tsx");
@@ -987,6 +988,10 @@ test("mobile menu trigger uses a visible Bluebird brand treatment", () => {
     headerSource,
     /w-11 shrink-0 items-center justify-center rounded-full border-2 border-brand-blue bg-brand-blue text-white shadow-sm[\s\S]*hover:bg-brand-blue\/90/,
   );
+});
+
+test("site favicon uses the bird-only Bluebird mark", () => {
+  assert.match(rootSource, /rel: "icon", href: "\/images\/brand\/bluebird-bird\.png", type: "image\/png"/);
 });
 
 test("classified cards use category-aware price and fulfillment language", () => {
