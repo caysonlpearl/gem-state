@@ -377,10 +377,40 @@
 /* Reserve the tallest headline shape at each breakpoint so rotating copy
  * never changes the hero's height and shifts the page below it. */
 .homepage-hero-headline {
-  /* The narrowest supported viewport can wrap a rotating phrase to six
-   * lines. Reserve that shape so each rotation keeps the page below it still. */
-  min-height: 6em;
+  /* Mobile rotations fit in four lines. Keep that stable height without the
+   * two-line blank block that previously appeared under shorter rotations. */
+  min-height: 4.32em;
   text-wrap: balance;
+}
+
+.bluebird-radius-map .leaflet-control-attribution {
+  font-size: 8px;
+  background: rgb(255 255 255 / 0.82);
+}
+
+.bluebird-radius-map .leaflet-control-zoom {
+  border: 0;
+  box-shadow: 0 2px 8px rgb(23 54 77 / 0.18);
+}
+
+.bluebird-radius-map .leaflet-control-zoom a {
+  color: var(--color-foreground);
+  background: var(--color-card);
+}
+
+.bluebird-map-center-marker {
+  display: grid;
+  place-items: center;
+}
+
+.bluebird-map-center-marker span {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border: 3px solid white;
+  border-radius: 999px;
+  background: var(--color-brand-blue);
+  box-shadow: 0 2px 8px rgb(23 54 77 / 0.4);
 }
 
 @media (min-width: 640px) {

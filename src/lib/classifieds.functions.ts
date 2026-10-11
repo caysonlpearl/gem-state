@@ -29,6 +29,10 @@ import {
   optionalNonNegativeNumber,
 } from "@/lib/classifieds-query";
 
+// Preview fixtures remain in source for regression coverage, but they must not
+// appear in the public marketplace once Bluebird is preparing for launch.
+const SHOW_PUBLIC_PREVIEW_FIXTURES = false;
+
 /**
  * Public read layer for individual classified listings.
  *
@@ -1821,7 +1825,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     // makes a newly created dealership look like it owns the marketplace.
     const scopedToOwner = Boolean(data.dealerSlug || data.sellerSlug);
     const mockListings =
-      page === 1 && !scopedToOwner
+      SHOW_PUBLIC_PREVIEW_FIXTURES && page === 1 && !scopedToOwner
         ? mockSource
             .filter((listing) => mockMatches(listing, data))
             .filter((listing) => {
@@ -1855,7 +1859,10 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
       ...listings.filter((listing) => !listing.isFeatured),
       ...mockListings,
     ].sort(compareListings);
-    const resultLimit = data.includeAllMocks ? Math.max(PAGE_SIZE, mockSource.length) : PAGE_SIZE;
+    const resultLimit =
+      data.includeAllMocks && SHOW_PUBLIC_PREVIEW_FIXTURES
+        ? Math.max(PAGE_SIZE, mockSource.length)
+        : PAGE_SIZE;
     const orderedListings = [...featuredListings, ...standardListings];
     const combinedListings = unitAwareJobSort || data.radiusMiles != null
       ? orderedListings.slice(from, from + resultLimit)
@@ -1884,7 +1891,7 @@ export const getClassifiedListing = createServerFn({ method: "GET" })
     const mockListing = [...mockClassifiedListings, ...mockVehicleListings].find(
       (listing) => listing.id === data.id,
     );
-    if (mockListing) return mockDetail(mockListing);
+    if (mockListing && SHOW_PUBLIC_PREVIEW_FIXTURES) return mockDetail(mockListing);
 
     const client = publicServerClient();
     const { data: row, error } = await client

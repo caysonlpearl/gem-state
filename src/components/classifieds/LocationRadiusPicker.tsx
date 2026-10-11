@@ -1,5 +1,7 @@
 import { MapPin, NavigationArrow } from "@phosphor-icons/react";
-import { useMemo, type MouseEvent } from "react";
+import { useEffect, useMemo, useRef } from "react";
+import type { Map as LeafletMap, LayerGroup, Circle, Marker } from "leaflet";
+import "leaflet/dist/leaflet.css";
 
 import {
   classifiedCoordinatesForCity,
@@ -7,12 +9,11 @@ import {
   nearestClassifiedCity,
 } from "@/config/classifieds";
 
-const MAP_BOUNDS = {
-  north: 49.2,
-  south: 40.1,
-  west: -117.5,
-  east: -110.4,
-};
+const DEFAULT_CENTER: [number, number] = [44.15, -114.45];
+const MAP_BOUNDS: [[number, number], [number, number]] = [
+  [40.1, -117.5],
+  [49.2, -110.4],
+];
 
 const markerCities = [
   ...idahoCities,
@@ -39,15 +40,12 @@ type Props = {
   className?: string;
 };
 
-function project(latitude: number, longitude: number) {
+function mapPointFromProps(city?: string, latitude?: number, longitude?: number) {
+  const fallback = classifiedCoordinatesForCity(city) ?? DEFAULT_CENTER;
   return {
-    left: ((longitude - MAP_BOUNDS.west) / (MAP_BOUNDS.east - MAP_BOUNDS.west)) * 100,
-    top: ((MAP_BOUNDS.north - latitude) / (MAP_BOUNDS.north - MAP_BOUNDS.south)) * 100,
+    latitude: latitude ?? fallback[0],
+    longitude: longitude ?? fallback[1],
   };
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
 }
 
 export function LocationRadiusPicker({
@@ -58,31 +56,117 @@ export function LocationRadiusPicker({
   onChange,
   className,
 }: Props) {
-  const fallback = classifiedCoordinatesForCity(city) ?? [44.15, -114.45];
-  const center = {
-    latitude: latitude ?? fallback[0],
-    longitude: longitude ?? fallback[1],
-  };
-  const centerPosition = project(center.latitude, center.longitude);
+  const mapElementRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<LeafletMap | null>(null);
+  const cityMarkersRef = useRef<LayerGroup | null>(null);
+  const radiusCircleRef = useRef<Circle | null>(null);
+  const centerMarkerRef = useRef<Marker | null>(null);
+  const point = mapPointFromProps(city, latitude, longitude);
+  const center: [number, number] = [point.latitude, point.longitude];
   const nearest = useMemo(
-    () => nearestClassifiedCity(center.latitude, center.longitude),
-    [center.latitude, center.longitude],
+    () => nearestClassifiedCity(point.latitude, point.longitude),
+    [point.latitude, point.longitude],
   );
-  const radiusSize = clamp((radiusMiles / 500) * 180, 7, 180);
 
-  function handleMapClick(event: MouseEvent<HTMLDivElement>) {
-    const bounds = event.currentTarget.getBoundingClientRect();
-    const left = clamp((event.clientX - bounds.left) / bounds.width, 0, 1);
-    const top = clamp((event.clientY - bounds.top) / bounds.height, 0, 1);
-    const nextLatitude = MAP_BOUNDS.north - top * (MAP_BOUNDS.north - MAP_BOUNDS.south);
-    const nextLongitude = MAP_BOUNDS.west + left * (MAP_BOUNDS.east - MAP_BOUNDS.west);
-    const nextNearest = nearestClassifiedCity(nextLatitude, nextLongitude);
-    onChange({
-      latitude: Number(nextLatitude.toFixed(5)),
-      longitude: Number(nextLongitude.toFixed(5)),
-      city: nextNearest?.distanceMiles <= 20 ? nextNearest.city : undefined,
+  useEffect(() => {
+    let cancelled = false;
+
+    void import("leaflet").then((L) => {
+      if (cancelled || !mapElementRef.current || mapRef.current) return;
+
+      const map = L.map(mapElementRef.current, {
+        center,
+        zoom: 6.15,
+        minZoom: 5.7,
+        maxZoom: 12,
+        maxBounds: MAP_BOUNDS,
+        maxBoundsViscosity: 0.7,
+        zoomControl: true,
+        attributionControl: true,
+      });
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        crossOrigin: true,
+      }).addTo(map);
+
+      const cityMarkers = L.layerGroup().addTo(map);
+      for (const markerCity of markerCities) {
+        const markerPoint = classifiedCoordinatesForCity(markerCity);
+        if (!markerPoint) continue;
+        L.circleMarker(markerPoint, {
+          radius: 4,
+          color: "#17364d",
+          weight: 1.5,
+          fillColor: "#ffffff",
+          fillOpacity: 0.95,
+        })
+          .bindTooltip(markerCity, { direction: "top", offset: [0, -4] })
+          .addTo(cityMarkers);
+      }
+
+      map.on("click", (event) => {
+        const clickedLatitude = Number(event.latlng.lat.toFixed(5));
+        const clickedLongitude = Number(event.latlng.lng.toFixed(5));
+        const clickedNearest = nearestClassifiedCity(clickedLatitude, clickedLongitude);
+        onChange({
+          latitude: clickedLatitude,
+          longitude: clickedLongitude,
+          city: clickedNearest?.distanceMiles <= 20 ? clickedNearest.city : undefined,
+        });
+      });
+
+      mapRef.current = map;
+      cityMarkersRef.current = cityMarkers;
+      map.invalidateSize();
     });
-  }
+
+    return () => {
+      cancelled = true;
+      mapRef.current?.remove();
+      mapRef.current = null;
+      cityMarkersRef.current = null;
+      radiusCircleRef.current = null;
+      centerMarkerRef.current = null;
+    };
+    // The map is initialized once; the update effect below keeps its state current.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void import("leaflet").then((L) => {
+      if (cancelled || !mapRef.current) return;
+      const map = mapRef.current;
+      map.setView(center, map.getZoom(), { animate: false });
+
+      radiusCircleRef.current?.remove();
+      radiusCircleRef.current = L.circle(center, {
+        radius: radiusMiles * 1609.344,
+        color: "#149fd6",
+        weight: 2,
+        fillColor: "#149fd6",
+        fillOpacity: 0.12,
+      }).addTo(map);
+
+      centerMarkerRef.current?.remove();
+      centerMarkerRef.current = L.marker(center, {
+        icon: L.divIcon({
+          className: "bluebird-map-center-marker",
+          html: '<span aria-hidden="true"></span>',
+          iconSize: [24, 24],
+          iconAnchor: [12, 12],
+        }),
+        keyboard: false,
+        zIndexOffset: 1000,
+      })
+        .bindTooltip(nearest?.city ?? "Selected map point", { direction: "top", offset: [0, -10] })
+        .addTo(map);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [center[0], center[1], nearest?.city, radiusMiles]);
 
   return (
     <div className={className}>
@@ -94,71 +178,24 @@ export function LocationRadiusPicker({
         <span className="whitespace-nowrap font-semibold text-foreground">Up to 500 miles</span>
       </div>
       <div
+        ref={mapElementRef}
         role="application"
         tabIndex={0}
-        aria-label="Interactive search radius map"
-        onClick={handleMapClick}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            onChange({
-              latitude: Number(center.latitude.toFixed(5)),
-              longitude: Number(center.longitude.toFixed(5)),
-              city: nearest?.distanceMiles <= 20 ? nearest.city : undefined,
-            });
-          }
-        }}
-        className="relative isolate h-56 cursor-crosshair overflow-hidden rounded-2xl border border-border bg-[#dceae8] shadow-inner outline-none focus-visible:ring-2 focus-visible:ring-primary sm:h-64"
-      >
-        <div
-          aria-hidden="true"
-          className="absolute inset-0 opacity-80 [background-image:linear-gradient(135deg,rgba(255,255,255,.55)_25%,transparent_25%),linear-gradient(45deg,rgba(255,255,255,.4)_25%,transparent_25%),linear-gradient(135deg,transparent_75%,rgba(255,255,255,.45)_75%),linear-gradient(45deg,transparent_75%,rgba(255,255,255,.3)_75%)] [background-position:0_0,0_18px,18px_-18px,-18px_0] [background-size:36px_36px]"
-        />
-        <div className="absolute inset-x-[18%] top-[8%] h-[84%] rounded-[48%_42%_50%_38%] border border-white/80 bg-[#edf3e9]/80 shadow-[inset_-22px_-16px_0_rgba(178,207,193,.3)]" />
-        <div className="absolute left-[61%] top-[2%] h-[42%] w-[20%] rounded-full bg-[#f6e6ab]/70 blur-[1px]" />
-        <div className="absolute left-[7%] top-[56%] h-[28%] w-[24%] rounded-full bg-[#c4dfdc]/70 blur-[1px]" />
-        {markerCities.map((markerCity) => {
-          const point = classifiedCoordinatesForCity(markerCity);
-          if (!point) return null;
-          const position = project(point[0], point[1]);
-          return (
-            <span
-              key={markerCity}
-              className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-1/2"
-              style={{ left: `${position.left}%`, top: `${position.top}%` }}
-              title={markerCity}
-            >
-              <span className="block size-1.5 rounded-full bg-primary/65 ring-2 ring-white/80" />
-              <span className="mt-0.5 block whitespace-nowrap text-[8px] font-semibold text-primary/80">
-                {markerCity}
-              </span>
-            </span>
-          );
-        })}
-        <div
-          aria-hidden="true"
-          className="absolute z-20 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-primary/70 bg-primary/15 shadow-[0_0_0_9999px_rgba(255,255,255,.03)]"
-          style={{
-            left: `${centerPosition.left}%`,
-            top: `${centerPosition.top}%`,
-            width: `${radiusSize}%`,
-            aspectRatio: "1",
-          }}
-        />
-        <MapPin
-          aria-hidden="true"
-          size={25}
-          weight="fill"
-          className="pointer-events-none absolute z-30 -translate-x-1/2 -translate-y-full text-primary drop-shadow"
-          style={{ left: `${centerPosition.left}%`, top: `${centerPosition.top}%` }}
-        />
-        <div className="pointer-events-none absolute bottom-2 left-2 rounded-full bg-card/90 px-2.5 py-1 text-[10px] font-semibold text-foreground shadow-sm">
+        aria-label="Interactive Google Maps-style search radius map"
+        className="bluebird-radius-map relative isolate h-64 overflow-hidden rounded-2xl border border-border bg-[#dceae8] shadow-inner outline-none focus-visible:ring-2 focus-visible:ring-primary sm:h-72"
+      />
+      <div className="pointer-events-none -mt-9 relative z-[500] mx-2 mb-2 flex items-center justify-between gap-2">
+        <span className="inline-flex items-center gap-1 rounded-full bg-card/95 px-2.5 py-1 text-[10px] font-semibold text-foreground shadow-sm">
+          <MapPin size={12} weight="fill" className="text-primary" />
           {nearest?.city ?? "Selected map point"} · {radiusMiles} miles
-        </div>
+        </span>
+        <span className="rounded-full bg-card/90 px-2 py-1 text-[9px] text-muted-foreground shadow-sm">
+          Drag to pan · scroll to zoom
+        </span>
       </div>
       <p className="mt-2 text-[10.5px] leading-relaxed text-muted-foreground">
         Results use the selected point and include listings whose saved city falls inside the circle.
-        City labels are shown as reference points; the map point is the search center.
+        City labels are reference points; the map point is the search center.
       </p>
     </div>
   );
