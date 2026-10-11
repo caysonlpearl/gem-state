@@ -235,12 +235,16 @@ export const getDealerMembers = createServerFn({ method: "GET" })
     if (error) throw new Error(error.message);
     const users = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
     if (users.error) throw new Error(users.error.message);
-    const byId = new Map((users.data.users ?? []).map((user: any) => [user.id, user]));
+    const byId = new Map<string, any>(
+      (users.data.users ?? []).map((user: any) => [String(user.id), user] as const),
+    );
     const profiles = await admin
       .from("profiles")
       .select("id,display_name")
       .in("id", (members ?? []).map((member: any) => member.user_id));
-    const displayNames = new Map((profiles.data ?? []).map((profile: any) => [profile.id, profile.display_name]));
+    const displayNames = new Map<string, any>(
+      (profiles.data ?? []).map((profile: any) => [String(profile.id), profile] as const),
+    );
     return (members ?? []).map((member: any) => ({
       ...member,
       email: byId.get(member.user_id)?.email ?? null,

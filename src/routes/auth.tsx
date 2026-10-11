@@ -10,6 +10,7 @@ export const Route = createFileRoute("/auth")({
       "/account",
       "/selling",
       "/seller-setup",
+      "/dealer-setup",
       "/create-listing",
       "/create-missing-listing",
       "/buying",
@@ -63,6 +64,7 @@ type StaticRedirect =
   | "/account"
   | "/selling"
   | "/seller-setup"
+  | "/dealer-setup"
   | "/create-listing"
   | "/create-missing-listing"
   | "/buying"

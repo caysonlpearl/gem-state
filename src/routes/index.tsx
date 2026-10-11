@@ -58,12 +58,12 @@ const HOMEPAGE_MIN_ROW = 3;
 const HOMEPAGE_THIN_INVENTORY = 12;
 
 const homepageCategoryHighlights = [
-  { slug: "furniture", name: "Furniture" },
-  { slug: "electronics", name: "Electronics" },
-  { slug: "tools-equipment", name: "Tools & Equipment" },
-  { slug: "outdoor-sporting", name: "Outdoor & Sporting" },
-  { slug: "farm-garden", name: "Farm & Garden" },
-  { slug: "general", name: "General" },
+  { slug: "all", name: "All items" },
+  { slug: "other-real-estate", name: "Homes" },
+  { slug: "cars-trucks", name: "Cars" },
+  { slug: "services", name: "Services" },
+  { slug: "pets", name: "Pets" },
+  { slug: "jobs", name: "Jobs" },
 ] as const;
 
 type HomepageBrowseSearch = {
@@ -119,7 +119,14 @@ function pickHeadlineItems() {
   return selected;
 }
 
-function parseLocationSearch(value: string) {
+type ParsedLocationSearch = {
+  city?: string;
+  region?: string;
+  state?: string;
+  postalCode?: string;
+};
+
+function parseLocationSearch(value: string): ParsedLocationSearch {
   const normalized = value.trim().replace(/\s+/g, " ");
   if (!normalized) return {};
 
@@ -597,11 +604,19 @@ function Home() {
             <Link
               key={option.slug}
               to="/browse"
-              search={{ category: option.slug }}
+              search={
+                option.slug === "all"
+                  ? withLocation({ allCategories: true })
+                  : { category: option.slug }
+              }
               className="group rounded-2xl border border-transparent bg-card px-4 py-5 shadow-sm transition-shadow hover:shadow-md"
             >
               <span className="flex h-12 items-center">
-                <CategoryArtwork slug={option.slug} size={54} className="category-art--nav" />
+                <CategoryArtwork
+                  slug={option.slug === "all" ? "general" : option.slug}
+                  size={54}
+                  className="category-art--nav"
+                />
               </span>
               <span className="block text-[13px] font-semibold">{option.name}</span>
             </Link>

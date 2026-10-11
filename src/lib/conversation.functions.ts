@@ -386,7 +386,9 @@ export const getAdminConversationReports = createServerFn({ method: "GET" })
           .in("id", conversationIds)
       : { data: [], error: null };
     if (conversationError) throw new Error(conversationError.message);
-    const conversationsById = new Map((conversations ?? []).map((row: any) => [row.id, row]));
+    const conversationsById = new Map<string, any>(
+      (conversations ?? []).map((row: any) => [String(row.id), row] as const),
+    );
     const userIds = [
       ...new Set(
         (reports ?? []).flatMap((report: any) => {

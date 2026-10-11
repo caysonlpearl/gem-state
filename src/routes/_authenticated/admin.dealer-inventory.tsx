@@ -335,7 +335,7 @@ function DealerInventoryPage() {
               disabled={Boolean(selectedSource)}
             >
               <option value="">Unassigned inventory source</option>
-              {(dealers ?? []).map((dealer) => (
+              {(dealers ?? []).map((dealer: any) => (
                 <option key={dealer.id} value={dealer.id}>
                   {dealer.display_name} · {dealer.status}
                 </option>
