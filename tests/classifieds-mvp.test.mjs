@@ -1008,6 +1008,8 @@ test("all categories opens a labeled icon menu with KSL-style sections", () => {
     /CategoryArtwork[\s\S]*slug=\{category\.slug\}[\s\S]*size=\{58\}[\s\S]*className="!h-\[58px\] !w-\[58px\] shrink-0"/,
   );
   assert.match(allCategoriesSource, /w-\[min\(1280px,calc\(100vw-2rem\)\)\]/);
+  assert.match(allCategoriesSource, /max-h-\[calc\(100dvh-2rem\)\]/);
+  assert.match(allCategoriesSource, /break-words whitespace-normal/);
   assert.match(allCategoriesSource, /xl:grid-cols-6/);
   assert.match(headerSource, /w-auto min-w-\[164px\]/);
   assert.match(allCategoriesSource, /sm:gap-2/);

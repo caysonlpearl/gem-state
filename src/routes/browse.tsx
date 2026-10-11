@@ -5736,7 +5736,7 @@ function ClassifiedsLandingHero({
   return (
     <section
       aria-label="Bluebird Marketplace all classifieds"
-      className="classifieds-hero-shell relative isolate min-h-[430px] overflow-hidden rounded-[32px] border border-brand-blue/20 bg-secondary px-5 py-14 shadow-xl sm:min-h-[500px] sm:px-10 sm:py-20"
+      className="classifieds-hero-shell relative isolate min-h-[430px] overflow-hidden rounded-[32px] border border-brand-blue/20 bg-secondary px-5 pb-14 pt-24 shadow-xl sm:min-h-[500px] sm:px-10 sm:py-20"
     >
       <span
         className="classifieds-hero-orb classifieds-hero-orb--blue absolute -right-20 -top-24 h-72 w-72 rounded-full bg-brand-blue/12"
@@ -5750,7 +5750,7 @@ function ClassifiedsLandingHero({
         className="classifieds-hero-sheen pointer-events-none absolute inset-y-0 -left-1/3 z-0 w-1/3 skew-x-[-18deg] bg-white/20"
         aria-hidden="true"
       />
-      <div className="absolute right-5 top-5 z-20 sm:right-7 sm:top-7">
+      <div className="absolute left-5 right-5 top-5 z-20 flex justify-end sm:left-auto sm:right-7 sm:top-7">
         <SponsoredHeroBadge />
       </div>
       <div className="relative z-10 mx-auto max-w-[920px] text-center">
@@ -6054,15 +6054,15 @@ function SponsoredHeroBadge() {
     <Link
       to="/advertise"
       aria-label="Sponsored by Bluebird Marketplace — learn about advertising with us"
-      className="inline-flex items-center gap-2.5 rounded-full border border-accent/70 bg-primary/90 px-3.5 py-2 text-left text-primary-foreground shadow-lg backdrop-blur-md transition-transform hover:-translate-y-0.5"
+      className="inline-flex max-w-full items-center gap-2 rounded-full border border-accent/70 bg-primary/90 px-3 py-2 text-left text-primary-foreground shadow-lg backdrop-blur-md transition-transform hover:-translate-y-0.5 sm:gap-2.5 sm:px-3.5"
     >
       <span className="grid size-7 shrink-0 place-items-center rounded-full bg-accent text-accent-foreground">
         <Megaphone size={15} weight="fill" aria-hidden="true" />
       </span>
-      <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-accent">
+      <span className="min-w-0 flex-1 whitespace-normal text-[9px] font-bold uppercase leading-snug tracking-[0.1em] text-accent sm:text-[10px] sm:tracking-[0.12em]">
         Sponsored by Bluebird Marketplace
       </span>
-      <ArrowRight size={15} weight="bold" className="ml-1 text-accent" aria-hidden="true" />
+      <ArrowRight size={15} weight="bold" className="ml-1 shrink-0 text-accent" aria-hidden="true" />
     </Link>
   );
 }

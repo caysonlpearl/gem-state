@@ -75,7 +75,7 @@ export function AllCategoriesPopover({
       <PopoverContent
         align="center"
         sideOffset={12}
-        className="w-[min(1280px,calc(100vw-2rem))] rounded-[24px] p-3 shadow-xl sm:p-5"
+        className="max-h-[calc(100dvh-2rem)] w-[min(1280px,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-[24px] p-3 shadow-xl sm:max-h-none sm:overflow-visible sm:p-5"
       >
         <div className="border-b border-border px-2 pb-4 sm:px-3">
           <p className="text-[18px] font-semibold tracking-tight">All categories</p>
@@ -83,21 +83,23 @@ export function AllCategoriesPopover({
             Browse every corner of Bluebird classifieds.
           </p>
         </div>
-        <div className="mt-3 grid max-h-[min(720px,70vh)] gap-1 overflow-y-auto pr-1 sm:grid-cols-2 sm:gap-2 lg:grid-cols-4 xl:grid-cols-6 xl:max-h-none xl:overflow-visible xl:gap-3">
+        <div className="mt-3 grid gap-1 pr-1 sm:grid-cols-2 sm:gap-2 sm:max-h-[min(720px,70vh)] sm:overflow-y-auto lg:grid-cols-4 xl:grid-cols-6 xl:max-h-none xl:overflow-visible xl:gap-3">
           {allCategoryMenuItems.map((category) => (
             <Link
               key={category.slug}
               to="/browse"
               search={{ category: category.slug }}
               onClick={onSelect}
-              className="group flex min-h-20 items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-secondary"
+              className="group flex min-h-20 min-w-0 items-center gap-3 rounded-2xl px-3 py-2 text-left transition-colors hover:bg-secondary"
             >
               <CategoryArtwork
                 slug={category.slug}
                 size={58}
                 className="!h-[58px] !w-[58px] shrink-0"
               />
-              <span className="text-[13px] font-medium leading-tight">{category.name}</span>
+              <span className="min-w-0 flex-1 break-words whitespace-normal text-[13px] font-medium leading-snug">
+                {category.name}
+              </span>
             </Link>
           ))}
         </div>
