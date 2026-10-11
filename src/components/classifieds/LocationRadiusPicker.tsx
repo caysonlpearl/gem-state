@@ -5,25 +5,17 @@ import "leaflet/dist/leaflet.css";
 
 import {
   classifiedCoordinatesForCity,
-  idahoCities,
+  marketplaceCities,
   nearestClassifiedCity,
 } from "@/config/classifieds";
 
 const DEFAULT_CENTER: [number, number] = [44.15, -114.45];
 const MAP_BOUNDS: [[number, number], [number, number]] = [
-  [40.1, -117.5],
-  [49.2, -110.4],
+  [36.5, -124.5],
+  [49.5, -109.0],
 ];
 
-const markerCities = [
-  ...idahoCities,
-  "Salt Lake City",
-  "Murray",
-  "West Jordan",
-  "Sandy",
-  "Draper",
-  "South Jordan",
-];
+const markerCities = marketplaceCities;
 
 export type LocationPoint = {
   latitude: number;

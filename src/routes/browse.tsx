@@ -17,7 +17,7 @@ import {
 import { brand } from "@/config/brand";
 import {
   classifiedCategories,
-  idahoCities,
+  marketplaceCities,
   idahoRegions,
   nearestClassifiedCity,
   usStates,
@@ -9505,7 +9505,7 @@ function InlineLocationFilter({
         list="bluebird-city-options"
       />
       <datalist id="bluebird-city-options">
-        {idahoCities.map((option) => (
+        {marketplaceCities.map((option) => (
           <option key={option} value={option} />
         ))}
       </datalist>
@@ -9622,7 +9622,7 @@ function BrowseLocationFields({ search }: { search: Search }) {
         list="bluebird-browse-city-options"
       />
       <datalist id="bluebird-browse-city-options">
-        {idahoCities.map((option) => (
+        {marketplaceCities.map((option) => (
           <option key={option} value={option} />
         ))}
       </datalist>

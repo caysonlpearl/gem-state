@@ -1650,6 +1650,11 @@ test("city browse links preserve an adjustable radius and filter by distance", (
   assert.match(browseSource, /Search radius:/);
   assert.match(browseSource, /Within \{radiusMiles\} miles/);
   assert.match(configSource, /isWithinClassifiedCityRadius/);
+  assert.match(configSource, /export const regionalCities = \[/);
+  for (const city of ["St. George", "Portland", "Spokane", "Seattle", "Wenatchee"]) {
+    assert.match(configSource, new RegExp(`\\"${city.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}\\"`));
+  }
+  assert.match(configSource, /export const marketplaceCities = \[\.\.\.idahoCities, \.\.\.regionalCities\]/);
   assert.match(classifiedsFunctionsSource, /data\.radiusMiles != null/);
   assert.match(browseSource, /Any region \(optional\)/);
   assert.match(browseSource, /Any state \(optional\)/);
