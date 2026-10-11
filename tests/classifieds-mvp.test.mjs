@@ -929,6 +929,7 @@ test("browse heroes surface the Bluebird sponsorship opportunity", () => {
   assert.match(browseSource, /Bluebird motors/);
   assert.match(browseSource, /min-h-\[590px\]/);
   assert.match(browseSource, /absolute right-5 top-5 z-20 sm:right-7 sm:top-7/);
+  assert.match(browseSource, /relative z-20 mb-5 flex justify-end sm:mb-6/);
 });
 
 test("shared category icons and no-photo cards have deterministic presentation", () => {
