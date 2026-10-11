@@ -209,7 +209,12 @@ function Home() {
   }, []);
 
   const motorCategories = classifiedCategories.filter((c) => c.group === "motors");
-  const parsedLocation = parseLocationSearch(location);
+  const parsedLocation = parseLocationSearch(location) as {
+    postalCode?: string;
+    city?: string;
+    region?: string;
+    state?: string;
+  };
   const matchesLocation = (listing: (typeof home.recent)[number]) => {
     if (parsedLocation.postalCode) {
       return (listing.postalCode ?? "").startsWith(parsedLocation.postalCode);
@@ -360,7 +365,7 @@ function Home() {
                   ...(term.trim() ? { q: term.trim() } : {}),
                   ...(category ? { category } : {}),
                   ...locationSearch,
-                  ...(locationSearch.city || mapPoint ? { radiusMiles } : {}),
+                  ...((locationSearch as { city?: string }).city || mapPoint ? { radiusMiles } : {}),
                   ...(mapPoint
                     ? { latitude: mapPoint.latitude, longitude: mapPoint.longitude }
                     : {}),

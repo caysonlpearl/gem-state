@@ -243,7 +243,7 @@ export const getDealerMembers = createServerFn({ method: "GET" })
     const displayNames = new Map((profiles.data ?? []).map((profile: any) => [profile.id, profile.display_name]));
     return (members ?? []).map((member: any) => ({
       ...member,
-      email: byId.get(member.user_id)?.email ?? null,
+      email: (byId.get(member.user_id) as any)?.email ?? null,
       display_name: displayNames.get(member.user_id) ?? null,
     }));
   });

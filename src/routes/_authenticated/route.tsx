@@ -38,7 +38,7 @@ function AuthenticatedGate() {
       ? (pathname as (typeof sellerRedirects)[number])
       : undefined;
 
-    void navigate({ to: "/auth", search: { redirect: destination }, replace: true });
+    void navigate({ to: "/auth", search: { redirect: destination as never }, replace: true });
   }, [isSignedIn, loading, navigate, pathname, redirecting]);
 
   if (loading) {

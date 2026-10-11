@@ -352,7 +352,7 @@ export const getAdminClassifiedQueue = createServerFn({ method: "GET" })
         return {
           id: row.ask_id,
           title: row.product_name,
-          description: descriptionByListing.get(row.ask_id) ?? "",
+          description: String(descriptionByListing.get(row.ask_id) ?? ""),
           priceCents: Number(row.price_cents),
           condition: row.item_condition,
           categoryName: category?.products?.categories?.name ?? "Classified",

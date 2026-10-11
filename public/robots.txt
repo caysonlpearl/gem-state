@@ -13,4 +13,4 @@ Allow: /
 User-agent: *
 Allow: /
 
-Sitemap: https://gemstateclassifieds.com/sitemap.xml
+Sitemap: https://onbluebird.com/sitemap.xml
