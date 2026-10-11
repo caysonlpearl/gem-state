@@ -168,7 +168,7 @@ export const Route = createFileRoute("/listings/$listingId")({
     };
     if (loaderData.priceCents != null) {
       const cond = String(loaderData.condition ?? "").toLowerCase();
-      product.offers = {
+      product["offers"] = {
         "@type": "Offer",
         price: (loaderData.priceCents / 100).toFixed(2),
         priceCurrency: "USD",
