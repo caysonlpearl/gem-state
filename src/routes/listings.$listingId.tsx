@@ -34,6 +34,7 @@ import {
 import { brand } from "@/config/brand";
 import { formatUsd } from "@/config/fees";
 import { ListingActions } from "@/components/classifieds/ListingActions";
+import { MobileContactBar } from "@/components/classifieds/MobileContactBar";
 import { ListingCard } from "@/components/classifieds/ListingCard";
 import { WatchHeartButton } from "@/components/community/WatchHeartButton";
 import {
@@ -785,6 +786,17 @@ function FlagListingDialog({ listingId, isMock = false }: { listingId: string; i
 function ListingDetail() {
   const { listingId } = Route.useParams();
   const { data: listing } = useSuspenseQuery(listingQuery(listingId));
+  return (
+    <>
+      <ListingDetailContent />
+      {listing ? <MobileContactBar listing={listing} /> : null}
+    </>
+  );
+}
+
+function ListingDetailContent() {
+  const { listingId } = Route.useParams();
+  const { data: listing } = useSuspenseQuery(listingQuery(listingId));
   const [activeTab, setActiveTab] = useState<"description" | "specifications" | "location">(
     "description",
   );
@@ -1002,7 +1014,7 @@ function ListingDetail() {
             <Eye size={15} /> Local listing
           </span>
         </div>
-        <p className="numeric mt-4 text-[30px] font-bold leading-none text-brand-warm sm:text-[34px]">
+        <p className="numeric mt-4 text-[30px] font-bold leading-none text-primary sm:text-[34px]">
           {formatClassifiedPrice(listing.priceCents, { wholeDollars: true })}
         </p>
       </header>
@@ -1586,7 +1598,7 @@ function HomeListingDetail({
             </button>
           </div>
         </div>
-        <p className="numeric mt-4 text-[30px] font-bold leading-none text-brand-warm sm:text-[34px]">
+        <p className="numeric mt-4 text-[30px] font-bold leading-none text-primary sm:text-[34px]">
           {price}
           {details.isRental ? " / mo." : ""}
         </p>
@@ -1803,7 +1815,7 @@ function JobListingDetail({
             </button>
           </div>
         </div>
-        <p className="numeric mt-4 text-[30px] font-bold leading-none text-brand-warm sm:text-[34px]">
+        <p className="numeric mt-4 text-[30px] font-bold leading-none text-primary sm:text-[34px]">
           {details.payRange}
         </p>
       </header>
@@ -2090,7 +2102,7 @@ function ServiceListingDetail({
             </button>
           </div>
         </div>
-        <p className="numeric mt-4 text-[30px] font-bold leading-none text-brand-warm sm:text-[34px]">
+        <p className="numeric mt-4 text-[30px] font-bold leading-none text-primary sm:text-[34px]">
           {details.pricing}
         </p>
       </header>

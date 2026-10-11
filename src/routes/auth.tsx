@@ -21,9 +21,15 @@ export const Route = createFileRoute("/auth")({
       "/watchlist",
       "/messages",
     ] as const;
-    const redirect: AuthRedirect = allowedRedirects.includes(search["redirect"] as AuthRedirect)
-      ? (search["redirect"] as AuthRedirect)
-      : "/account";
+    const requested = search["redirect"];
+    // A listing page can also send a buyer here (Google or new-account
+    // sign-in from the contact panel) and get them straight back to it.
+    const redirect: AuthRedirect =
+      typeof requested === "string" && LISTING_REDIRECT.test(requested)
+        ? (requested as ListingRedirect)
+        : allowedRedirects.includes(requested as StaticRedirect)
+          ? (requested as StaticRedirect)
+          : "/account";
     return {
       redirect: redirect === "/account" ? undefined : redirect,
       mode:
@@ -50,7 +56,10 @@ export const Route = createFileRoute("/auth")({
 });
 
 type Mode = "signin" | "signup" | "forgot" | "reset";
-type AuthRedirect =
+const LISTING_REDIRECT = /^\/listings\/[0-9a-f-]{36}$/i;
+type ListingRedirect = `/listings/${string}`;
+type AuthRedirect = StaticRedirect | ListingRedirect;
+type StaticRedirect =
   | "/account"
   | "/selling"
   | "/seller-setup"
@@ -78,11 +87,20 @@ function AuthPage() {
   const [displayName, setDisplayName] = useState("");
   const [busy, setBusy] = useState(false);
   const [pendingConfirm, setPendingConfirm] = useState(false);
+  const goToRedirect = () =>
+    redirect.startsWith("/listings/")
+      ? navigate({
+          to: "/listings/$listingId",
+          params: { listingId: redirect.slice("/listings/".length) },
+        })
+      : navigate({ to: redirect as StaticRedirect });
 
   useEffect(() => {
     void supabase.auth.getSession().then(({ data }) => {
-      if (data.session && mode !== "reset" && mode !== "forgot") void navigate({ to: redirect });
+      if (data.session && mode !== "reset" && mode !== "forgot") void goToRedirect();
     });
+    // goToRedirect only closes over navigate and redirect, both listed here.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate, redirect, mode]);
 
   useEffect(() => {
@@ -110,13 +128,13 @@ function AuthPage() {
           setPendingConfirm(true);
           return;
         }
-        await navigate({ to: redirect });
+        await goToRedirect();
         return;
       }
 
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-      await navigate({ to: redirect });
+      await goToRedirect();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Something went wrong.");
     } finally {
@@ -155,7 +173,7 @@ function AuthPage() {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
       toast.success("Password updated.");
-      await navigate({ to: redirect });
+      await goToRedirect();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not update your password.");
     } finally {

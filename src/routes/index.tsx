@@ -13,7 +13,10 @@ import {
 } from "@/config/classifieds";
 import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { ListingCard } from "@/components/classifieds/ListingCard";
-import { LocationRadiusPicker, type LocationPoint } from "@/components/classifieds/LocationRadiusPicker";
+import {
+  LocationRadiusPicker,
+  type LocationPoint,
+} from "@/components/classifieds/LocationRadiusPicker";
 import { getClassifiedsHome } from "@/lib/classifieds.functions";
 import { trackEvent } from "@/lib/analytics";
 
@@ -51,6 +54,8 @@ const seeAll =
   "inline-flex shrink-0 items-center gap-1 text-[12.5px] font-semibold text-primary hover:underline";
 
 const HOMEPAGE_ROW_SIZE = 4;
+const HOMEPAGE_MIN_ROW = 3;
+const HOMEPAGE_THIN_INVENTORY = 12;
 
 const homepageCategoryHighlights = [
   { slug: "furniture", name: "Furniture" },
@@ -230,7 +235,6 @@ function Home() {
     return listing.state === "ID";
   };
   const localRecent = home.recent.filter(matchesLocation);
-  const fartherAwayListings = home.recent.filter((listing) => !matchesLocation(listing));
   const localMotors = home.motors.filter(matchesLocation);
   const selectedStateName = parsedLocation.state
     ? usStates.find(([code]) => code === parsedLocation.state)?.[1]
@@ -239,11 +243,14 @@ function Home() {
     ? `${mapPoint.city ?? "Map point"} · within ${radiusMiles} miles`
     : parsedLocation.city
       ? `${parsedLocation.city} · within ${radiusMiles} miles`
-    : parsedLocation.postalCode
-      ? `ZIP ${parsedLocation.postalCode}`
-      : parsedLocation.region ?? selectedStateName ?? "Idaho";
+      : parsedLocation.postalCode
+        ? `ZIP ${parsedLocation.postalCode}`
+        : (parsedLocation.region ?? selectedStateName ?? "Idaho");
   const browseLocationSearch = {
-    ...(!parsedLocation.city && !parsedLocation.postalCode && !parsedLocation.region && !parsedLocation.state
+    ...(!parsedLocation.city &&
+    !parsedLocation.postalCode &&
+    !parsedLocation.region &&
+    !parsedLocation.state
       ? { state: "ID" }
       : {}),
     ...parsedLocation,
@@ -254,53 +261,70 @@ function Home() {
     ...search,
     ...browseLocationSearch,
   });
-  const freshListings = localRecent.filter((listing) => !listing.pet).slice(0, HOMEPAGE_ROW_SIZE);
   const homeListings = localRecent.filter((listing) => listing.home);
   const jobListings = localRecent.filter((listing) => listing.job);
-  // Keep the source shape easy to audit alongside the other category filters.
-  // prettier-ignore
   const serviceSource = localRecent.filter((listing) => listing.service);
-  const serviceListings = serviceSource.slice(0, HOMEPAGE_ROW_SIZE);
   const generalSource = localRecent.filter(
     (listing) =>
       !listing.vehicle && !listing.pet && !listing.home && !listing.job && !listing.service,
   );
-  const generalListings = generalSource.slice(0, HOMEPAGE_ROW_SIZE);
-  const take = (matches: typeof home.recent) => matches.slice(0, HOMEPAGE_ROW_SIZE);
-  const vehicleListings = localMotors.slice(0, HOMEPAGE_ROW_SIZE);
-  const truckListings = take(
+
+  // Every row below draws from the same small pool, so without this the same
+  // few listings repeat row after row and the site reads as empty. Each
+  // listing appears at most once on the page, and a row too thin to look
+  // intentional is hidden. Rows claim listings in the order they render.
+  const allLocalListings = [...localRecent];
+  for (const listing of localMotors) {
+    if (!allLocalListings.some((existing) => existing.id === listing.id)) {
+      allLocalListings.push(listing);
+    }
+  }
+  const thinInventory = allLocalListings.length < HOMEPAGE_THIN_INVENTORY;
+  const leadMotors = localMotors.slice(0, HOMEPAGE_ROW_SIZE);
+  const shownIds = new Set<string>(thinInventory ? [] : leadMotors.map((listing) => listing.id));
+  const pick = (candidates: typeof home.recent) => {
+    if (thinInventory) return [];
+    const unseen = candidates
+      .filter((listing) => !shownIds.has(listing.id))
+      .slice(0, HOMEPAGE_ROW_SIZE);
+    if (unseen.length < HOMEPAGE_MIN_ROW) return [];
+    for (const listing of unseen) shownIds.add(listing.id);
+    return unseen;
+  };
+  const freshListings = pick(localRecent.filter((listing) => !listing.pet));
+  const fartherAwayListings = pick(home.recent.filter((listing) => !matchesLocation(listing)));
+  const vehicleListings = pick(localMotors);
+  const truckListings = pick(
     localMotors.filter((listing) => /truck|suv|pickup|jeep/i.test(listing.title)),
   );
-  const valueVehicleListings = [...localMotors]
-    .sort((a, b) => a.priceCents - b.priceCents)
-    .slice(0, HOMEPAGE_ROW_SIZE);
-  const buyHomes = take(homeListings.filter((listing) => listing.home?.mode === "buy"));
-  const buildHomes = take(homeListings.filter((listing) => listing.home?.mode === "build"));
-  const rentalHomes = take(homeListings.filter((listing) => listing.home?.mode === "rent"));
-  const flexibleJobs = take(
+  const valueVehicleListings = pick([...localMotors].sort((a, b) => a.priceCents - b.priceCents));
+  const buyHomes = pick(homeListings.filter((listing) => listing.home?.mode === "buy"));
+  const buildHomes = pick(homeListings.filter((listing) => listing.home?.mode === "build"));
+  const rentalHomes = pick(homeListings.filter((listing) => listing.home?.mode === "rent"));
+  const jobRow = pick(jobListings);
+  const flexibleJobs = pick(
     jobListings.filter((listing) =>
       /part-time|contract|temporary/i.test(listing.job?.employmentType ?? ""),
     ),
   );
-  const homeServices = take(
+  const serviceListings = pick(serviceSource);
+  const homeServices = pick(
     serviceSource.filter((listing) =>
       /home|handyman|lawn|landscape|repair|clean/i.test(
         `${listing.title} ${listing.service?.subcategory ?? ""}`,
       ),
     ),
   );
-  const toyAndCollectibleListings = take(
+  const generalListings = pick(generalSource);
+  const toyAndCollectibleListings = pick(
     generalSource.filter((listing) =>
       /toy|plush|doll|collectible|ninja|mario/i.test(
         `${listing.title} ${listing.categoryName ?? ""}`,
       ),
     ),
   );
-  const valueFinds = take(generalSource.filter((listing) => listing.priceCents <= 10_000));
-  const localSellerPicks =
-    localRecent.slice(6, 6 + HOMEPAGE_ROW_SIZE).length > 1
-      ? localRecent.slice(6, 6 + HOMEPAGE_ROW_SIZE)
-      : freshListings;
+  const valueFinds = pick(generalSource.filter((listing) => listing.priceCents <= 10_000));
+  const localSellerPicks = pick(localRecent);
 
   return (
     <main className="mx-auto max-w-[1360px] px-4 pb-16 sm:px-6">
@@ -490,6 +514,33 @@ function Home() {
         </div>
       </section>
 
+      {thinInventory ? (
+        <section className="mt-12" aria-labelledby="newest-listings-heading">
+          <div className="flex items-end justify-between gap-4 border-b border-border pb-3">
+            <h2 id="newest-listings-heading" className="text-[26px] font-bold tracking-tight">
+              Newest listings
+            </h2>
+            {allLocalListings.length ? (
+              <Link to="/browse" search={withLocation({ allCategories: true })} className={seeAll}>
+                See all <ArrowRight size={12} />
+              </Link>
+            ) : null}
+          </div>
+          {allLocalListings.length ? (
+            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
+              {allLocalListings.map((listing) => (
+                <ListingCard key={listing.id} listing={listing} />
+              ))}
+            </div>
+          ) : (
+            <EmptyState
+              title="Bluebird is just getting started."
+              body="New listings from Idaho sellers show up here as soon as they're posted. Have something to sell? Be one of the first."
+            />
+          )}
+        </section>
+      ) : null}
+
       {/* Motors lead */}
       <section className="mt-14">
         <div className="flex items-end justify-between gap-4">
@@ -522,9 +573,9 @@ function Home() {
             </Link>
           ))}
         </div>
-        {localMotors.length > 0 ? (
+        {thinInventory ? null : leadMotors.length > 0 ? (
           <div className="no-scrollbar mt-5 flex gap-4 overflow-x-auto pb-2 lg:grid lg:grid-cols-4 lg:overflow-visible">
-            {localMotors.slice(0, HOMEPAGE_ROW_SIZE).map((listing) => (
+            {leadMotors.map((listing) => (
               <div key={listing.id} className="min-w-[235px] lg:min-w-0">
                 <ListingCard listing={listing} />
               </div>
@@ -642,7 +693,7 @@ function Home() {
       <HomepageListingRow
         eyebrow="Bluebird jobs"
         title="Jobs hiring now"
-        listings={jobListings}
+        listings={jobRow}
         search={withLocation({ category: "jobs" })}
         action="Browse local jobs"
       />
@@ -651,7 +702,10 @@ function Home() {
         eyebrow="Bluebird jobs"
         title="Flexible and part-time work"
         listings={flexibleJobs}
-        search={withLocation({ category: "jobs", jobEmploymentType: "part-time||contract||temporary" })}
+        search={withLocation({
+          category: "jobs",
+          jobEmploymentType: "part-time||contract||temporary",
+        })}
         action="Find flexible work"
       />
 

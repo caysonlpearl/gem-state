@@ -509,3 +509,22 @@
     display: flex;
   }
 }
+
+/* iOS Safari zooms the whole page when a field under 16px gets focus, and
+   most inputs here use 12-14px utility sizes. Phones only, so desktop
+   layouts keep their compact type. */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Room for the listing page's fixed bottom contact bar, so it never covers
+   the end of the page. Matches the bar's lg:hidden breakpoint. */
+@media (max-width: 1023px) {
+  html.has-mobile-contact-bar body {
+    padding-bottom: calc(76px + env(safe-area-inset-bottom));
+  }
+}

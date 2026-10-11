@@ -1,16 +1,15 @@
-import { useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Calculator, Info } from "@phosphor-icons/react";
 
-import { brand } from "@/config/brand";
 import { formatUsd } from "@/config/fees";
 import { useAuth } from "@/hooks/useAuth";
 import type { ClassifiedDetail } from "@/lib/classifieds.functions";
 import { formatClassifiedPrice } from "@/lib/classifieds-display";
 import { startConversation } from "@/lib/conversation.functions";
+import { ContactSignInSheet, OPEN_CONTACT_EVENT, consumeContactIntent } from "./ContactSignInSheet";
 import { JobApplicationForm } from "./JobApplicationForm";
 
 function looksLikeEmail(value: string) {
@@ -56,6 +55,8 @@ export function ListingActions({
     isSignedIn && listing.seller?.userId && listing.seller.userId === user?.id,
   );
   const [contactOpen, setContactOpen] = useState(false);
+  const [signInOpen, setSignInOpen] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
   const [message, setMessage] = useState(DEFAULT_MESSAGE);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [loanTerm, setLoanTerm] = useState(isMortgage ? "360" : "60");
@@ -82,6 +83,35 @@ export function ListingActions({
   const monthlyPayment =
     principal === 0 ? 0 : (principal * monthlyRate) / (1 - Math.pow(1 + monthlyRate, -payments));
 
+  const canContactHere = !isPreviewListing && !isOwnListing && !isExternalApply;
+
+  // Opens the message (or application) form and brings it on screen, or asks
+  // a signed-out buyer to sign in first. Also what the mobile bottom bar
+  // triggers, so both entry points behave identically.
+  const openContact = useCallback(() => {
+    if (!canContactHere) return;
+    if (!isSignedIn) {
+      setSignInOpen(true);
+      return;
+    }
+    setContactOpen(true);
+    window.setTimeout(() => {
+      panelRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      document.getElementById("seller-message")?.focus({ preventScroll: true });
+    }, 50);
+  }, [canContactHere, isSignedIn]);
+
+  useEffect(() => {
+    const onOpen = () => openContact();
+    window.addEventListener(OPEN_CONTACT_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_CONTACT_EVENT, onOpen);
+  }, [openContact]);
+
+  // Back from Google or the full sign-up page: open the form they asked for.
+  useEffect(() => {
+    if (isSignedIn && consumeContactIntent(listing.id)) openContact();
+  }, [isSignedIn, listing.id, openContact]);
+
   const inquiryMutation = useMutation({
     mutationFn: () => start({ data: { listingId: listing.id, body: message } }),
     onSuccess: () => {
@@ -94,7 +124,7 @@ export function ListingActions({
   });
 
   return (
-    <div className="floating-card overflow-hidden border-foreground/20">
+    <div ref={panelRef} className="floating-card overflow-hidden border-foreground/20">
       {showPriceHeader && (
         <div className="bg-primary px-5 py-4 text-primary-foreground">
           <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary-foreground/75">
@@ -197,7 +227,7 @@ export function ListingActions({
             href={externalApplyHref(listing.job?.applicationExternalContact ?? "")}
             target="_blank"
             rel="noreferrer"
-            className="flex h-12 w-full items-center justify-center rounded-full bg-nav-accent text-[14.5px] font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+            className="flex h-12 w-full items-center justify-center rounded-full bg-nav-accent text-[14.5px] font-semibold text-primary transition-opacity hover:opacity-90"
           >
             Apply on the employer's site
           </a>
@@ -211,7 +241,7 @@ export function ListingActions({
               <button
                 type="button"
                 onClick={() => setContactOpen((open) => !open)}
-                className="h-12 w-full rounded-full bg-nav-accent text-[14.5px] font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+                className="h-12 w-full rounded-full bg-nav-accent text-[14.5px] font-semibold text-primary transition-opacity hover:opacity-90"
               >
                 {contactOpen ? "Close" : isJobApply ? "Apply now" : "Contact seller"}
               </button>
@@ -221,12 +251,13 @@ export function ListingActions({
                 listing, or choose another seller.
               </div>
             ) : (
-              <Link
-                to={brand.urls.auth}
-                className="flex h-12 w-full items-center justify-center rounded-full bg-nav-accent text-[14.5px] font-semibold text-primary-foreground"
+              <button
+                type="button"
+                onClick={() => setSignInOpen(true)}
+                className="flex h-12 w-full items-center justify-center rounded-full bg-nav-accent text-[14.5px] font-semibold text-primary"
               >
                 {isJobApply ? "Sign in to apply" : "Sign in to contact seller"}
-              </Link>
+              </button>
             )}
           </div>
         )}
@@ -292,6 +323,20 @@ export function ListingActions({
           </button>
         </form>
       ) : null}
+
+      <ContactSignInSheet
+        open={signInOpen}
+        onOpenChange={setSignInOpen}
+        listingId={listing.id}
+        isJob={isJobApply}
+        onSignedIn={() => {
+          setSignInOpen(false);
+          setContactOpen(true);
+          window.setTimeout(() => {
+            panelRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+          }, 300);
+        }}
+      />
 
       <p className="border-t border-border px-5 py-3 text-[11px] leading-relaxed text-muted-foreground">
         Bluebird does not process payment for this listing. Confirm the item, price, and meeting or

@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 8080
+    },
+    {
+      "name": "bluebird-dev-alt-port",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["vite", "dev", "--port", "8091", "--strictPort"],
+      "port": 8091
     }
   ]
 }
