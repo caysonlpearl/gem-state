@@ -103,7 +103,10 @@ export function LocationRadiusPicker({
         onChange({
           latitude: clickedLatitude,
           longitude: clickedLongitude,
-          city: clickedNearest?.distanceMiles <= 20 ? clickedNearest.city : undefined,
+          city:
+            clickedNearest && clickedNearest.distanceMiles <= 20
+              ? clickedNearest.city
+              : undefined,
         });
       });
 

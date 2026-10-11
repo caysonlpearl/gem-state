@@ -119,7 +119,14 @@ function pickHeadlineItems() {
   return selected;
 }
 
-function parseLocationSearch(value: string) {
+type ParsedLocationSearch = {
+  city?: string;
+  region?: string;
+  state?: string;
+  postalCode?: string;
+};
+
+function parseLocationSearch(value: string): ParsedLocationSearch {
   const normalized = value.trim().replace(/\s+/g, " ");
   if (!normalized) return {};
 

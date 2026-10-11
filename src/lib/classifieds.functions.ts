@@ -336,11 +336,10 @@ export const getAdminClassifiedQueue = createServerFn({ method: "GET" })
       .select("id,products(description)")
       .in("id", listingIds);
     if (productError) throw new Error(productError.message);
-    const descriptionByListing = new Map(
-      (productRows ?? []).map((row: any) => [
-        row.id as string,
-        String(row.products?.description ?? ""),
-      ]),
+    const descriptionByListing = new Map<string, string>(
+      (productRows ?? []).map(
+        (row: any) => [String(row.id), String(row.products?.description ?? "")] as const,
+      ),
     );
     const listings = await Promise.all(
       rows.map(async (row) => {
