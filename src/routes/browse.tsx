@@ -5750,7 +5750,7 @@ function ClassifiedsLandingHero({
         className="classifieds-hero-sheen pointer-events-none absolute inset-y-0 -left-1/3 z-0 w-1/3 skew-x-[-18deg] bg-white/20"
         aria-hidden="true"
       />
-      <div className="relative z-10 mx-auto max-w-[920px] text-center">
+      <div className="relative z-10 mx-auto max-w-[920px] translate-y-[67px] text-center sm:translate-y-[83px]">
         <div className="relative z-20 mb-5 flex justify-end sm:mb-6">
           <SponsoredHeroBadge />
         </div>
