@@ -365,7 +365,7 @@ function Home() {
                   ...(term.trim() ? { q: term.trim() } : {}),
                   ...(category ? { category } : {}),
                   ...locationSearch,
-                  ...(locationSearch.city || mapPoint ? { radiusMiles } : {}),
+                  ...((locationSearch as { city?: string }).city || mapPoint ? { radiusMiles } : {}),
                   ...(mapPoint
                     ? { latitude: mapPoint.latitude, longitude: mapPoint.longitude }
                     : {}),
