@@ -8218,6 +8218,7 @@ function VehicleResultsPage({
 
   function currentPatch(): Partial<Search> {
     const numberValue = (value: string) => optionalNonNegativeNumber(value);
+    const integerValue = (value: string) => optionalNonNegativeInteger(value);
     return {
       q: term.trim() || undefined,
       make: make || undefined,
