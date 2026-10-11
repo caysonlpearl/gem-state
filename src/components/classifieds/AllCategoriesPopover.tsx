@@ -75,7 +75,7 @@ export function AllCategoriesPopover({
       <PopoverContent
         align="center"
         sideOffset={12}
-        className="max-h-[calc(100dvh-2rem)] w-[min(1280px,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-[24px] p-3 shadow-xl sm:max-h-none sm:overflow-visible sm:p-5"
+        className="max-h-[min(calc(100dvh-2rem),var(--radix-popper-available-height))] w-[min(1280px,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] overflow-y-auto rounded-[24px] p-3 shadow-xl sm:max-h-none sm:overflow-visible sm:p-5"
       >
         <div className="border-b border-border px-2 pb-4 sm:px-3">
           <p className="text-[18px] font-semibold tracking-tight">All categories</p>
