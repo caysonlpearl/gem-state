@@ -1651,7 +1651,7 @@ test("city browse links preserve an adjustable radius and filter by distance", (
   assert.match(browseSource, /Within \{radiusMiles\} miles/);
   assert.match(configSource, /isWithinClassifiedCityRadius/);
   assert.match(configSource, /export const regionalCities = \[/);
-  for (const city of ["St. George", "Portland", "Spokane", "Seattle", "Wenatchee"]) {
+  for (const city of ["St. George", "Cedar City", "Portland", "Albany", "Spokane", "Everett", "Seattle", "Wenatchee"]) {
     assert.match(configSource, new RegExp(`\\"${city.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}\\"`));
   }
   assert.match(configSource, /export const marketplaceCities = \[\.\.\.idahoCities, \.\.\.regionalCities\]/);
