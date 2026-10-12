@@ -1,84 +1,13 @@
-import {
-  Airplane,
-  ArrowsLeftRight,
-  Baby,
-  Bicycle,
-  Boat,
-  BookOpenText,
-  Buildings,
-  Briefcase,
-  Car,
-  Cow,
-  DeviceMobile,
-  DesktopTower,
-  Dress,
-  Farm,
-  Fish,
-  GameController,
-  Gift,
-  Guitar,
-  Heart,
-  Hammer,
-  House,
-  Megaphone,
-  Motorcycle,
-  Oven,
-  Package,
-  PawPrint,
-  PersonSimpleRun,
-  Snowflake,
-  SquaresFour,
-  Tent,
-  Ticket,
-  TShirt,
-  Tree,
-  Truck,
-  type IconProps,
-  Wrench,
-  Waves,
-} from "@phosphor-icons/react";
+import { SquaresFour } from "@phosphor-icons/react";
 
-const categoryIcons = {
-  "cars-trucks": Car,
-  motorcycles: Motorcycle,
-  "rvs-campers": Tent,
-  powersports: Bicycle,
-  "auto-parts": Package,
-  trailers: Truck,
-  furniture: House,
-  electronics: DeviceMobile,
-  "tools-equipment": Hammer,
-  "outdoor-sporting": Tent,
-  "farm-garden": Farm,
-  general: SquaresFour,
-  announcements: Megaphone,
-  appliances: Oven,
-  baby: Baby,
-  "books-media": BookOpenText,
-  "clothing-apparel": TShirt,
-  computers: DesktopTower,
-  cycling: Bicycle,
-  "fitness-equipment": PersonSimpleRun,
-  "for-trade-barter": ArrowsLeftRight,
-  free: Gift,
-  "home-garden": Tree,
-  "hunting-fishing": Fish,
-  industrial: Buildings,
-  jobs: Briefcase,
-  livestock: Cow,
-  "musical-instruments": Guitar,
-  "other-real-estate": Buildings,
-  pets: PawPrint,
-  services: Wrench,
-  tickets: Ticket,
-  toys: GameController,
-  "water-sports": Waves,
-  weddings: Heart,
-  "winter-sports": Snowflake,
-  clothing: Dress,
-  boats: Boat,
-  travel: Airplane,
-} as const;
+// Older slugs without artwork of their own borrow the closest one. (Every
+// current category has artwork; a full icon set here would add ~120 KB of
+// icon code to every page that shows a listing card.)
+const artworkAliases: Record<string, CategoryArtworkSlug> = {
+  clothing: "clothing-apparel",
+  boats: "water-sports",
+  travel: "general",
+};
 
 const categoryArtwork = {
   "cars-trucks": {
@@ -259,13 +188,7 @@ const categoryArtwork = {
   },
 } as const;
 
-export type CategoryIconSlug = keyof typeof categoryIcons;
 export type CategoryArtworkSlug = keyof typeof categoryArtwork;
-
-export function CategoryIcon({ slug, ...props }: { slug: string } & IconProps) {
-  const Icon = categoryIcons[slug as CategoryIconSlug] ?? SquaresFour;
-  return <Icon {...props} />;
-}
 
 export function CategoryArtwork({
   slug,
@@ -276,8 +199,10 @@ export function CategoryArtwork({
   size?: number;
   className?: string;
 }) {
-  const artwork = categoryArtwork[slug as CategoryArtworkSlug];
-  if (!artwork) return <CategoryIcon slug={slug} size={Math.round(size * 0.6)} weight="duotone" />;
+  const alias = artworkAliases[slug];
+  const artwork =
+    categoryArtwork[slug as CategoryArtworkSlug] ?? (alias ? categoryArtwork[alias] : undefined);
+  if (!artwork) return <SquaresFour size={Math.round(size * 0.6)} weight="duotone" />;
 
   return (
     <img
@@ -287,6 +212,10 @@ export function CategoryArtwork({
       width={size}
       height={size}
       loading="eager"
+      // Small decorative art: never worth competing with the page's CSS,
+      // fonts and main photo (React would otherwise preload every one).
+      fetchPriority="low"
+      decoding="async"
       // Keep the requested artwork size authoritative. The previous `w-auto`
       // / `h-auto` rules allowed the source image's intrinsic dimensions to
       // escape into compact cards and the mobile header menu.

@@ -105,128 +105,139 @@ export const getPlacePage = createServerFn({ method: "GET" })
     category: String(input?.category ?? "").slice(0, 60),
   }))
   .handler(async ({ data }): Promise<PlacePageData | null> => {
-    // One slug segment can be a place or a category (/idaho/boise,
-    // /idaho/trailers); two are always place then category.
-    let place: ResolvedPlace | null = null;
-    let category: ReturnType<typeof categoryFromUrlSlug> = null;
-    if (data.place && data.category) {
-      place = placeFromSlug(data.place);
-      category = categoryFromUrlSlug(data.category);
-      if (!place || !category) return null;
-    } else if (data.place) {
-      place = placeFromSlug(data.place);
-      if (!place) {
-        category = categoryFromUrlSlug(data.place);
-        if (!category) return null;
-      }
-    } else {
-      return null;
-    }
+    const { shortCache, PUBLIC_PAGE_CACHE_MS } = await import("./short-cache.server");
+    return shortCache(
+      `place-page:${data.place}:${data.category}`,
+      PUBLIC_PAGE_CACHE_MS,
+      async () => {
+        // One slug segment can be a place or a category (/idaho/boise,
+        // /idaho/trailers); two are always place then category.
+        let place: ResolvedPlace | null = null;
+        let category: ReturnType<typeof categoryFromUrlSlug> = null;
+        if (data.place && data.category) {
+          place = placeFromSlug(data.place);
+          category = categoryFromUrlSlug(data.category);
+          if (!place || !category) return null;
+        } else if (data.place) {
+          place = placeFromSlug(data.place);
+          if (!place) {
+            category = categoryFromUrlSlug(data.place);
+            if (!category) return null;
+          }
+        } else {
+          return null;
+        }
 
-    const main = await fetchListings(filtersFor(place, category?.slug ?? null));
-    const phrase = category ? categoryPhrase(category.slug, category.name) : null;
-    const where = whereText(place);
+        const main = await fetchListings(filtersFor(place, category?.slug ?? null));
+        const phrase = category ? categoryPhrase(category.slug, category.name) : null;
+        const where = whereText(place);
 
-    // Related links: other categories for this place, other cities for this
-    // category. Each count comes from the same live listings.
-    const placeWide = place && category ? await fetchListings(filtersFor(place, null)) : main;
-    const categoryWide = category
-      ? place
-        ? await fetchListings(filtersFor(null, category.slug))
-        : main
-      : await fetchListings(filtersFor(null, null));
+        // Related links: other categories for this place, other cities for this
+        // category. Each count comes from the same live listings.
+        const placeWide = place && category ? await fetchListings(filtersFor(place, null)) : main;
+        const categoryWide = category
+          ? place
+            ? await fetchListings(filtersFor(null, category.slug))
+            : main
+          : await fetchListings(filtersFor(null, null));
 
-    const categoryCounts = countBy(placeWide.listings, (listing) => listing.categorySlug);
-    const relatedCategories: PlacePageLink[] = classifiedCategories
-      .filter((option) => option.slug !== category?.slug && categoryCounts.has(option.slug))
-      .map((option) => ({
-        label: categoryPhrase(option.slug, option.name).heading,
-        path: place ? placePath(place.name, option.slug) : categoryPagePath(option.slug),
-        count: categoryCounts.get(option.slug) ?? 0,
-      }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 12);
+        const categoryCounts = countBy(placeWide.listings, (listing) => listing.categorySlug);
+        const relatedCategories: PlacePageLink[] = classifiedCategories
+          .filter((option) => option.slug !== category?.slug && categoryCounts.has(option.slug))
+          .map((option) => ({
+            label: categoryPhrase(option.slug, option.name).heading,
+            path: place ? placePath(place.name, option.slug) : categoryPagePath(option.slug),
+            count: categoryCounts.get(option.slug) ?? 0,
+          }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 12);
 
-    const cityCounts = countBy(categoryWide.listings, (listing) =>
-      idahoCities.find((city) => city === listing.city),
+        const cityCounts = countBy(categoryWide.listings, (listing) =>
+          idahoCities.find((city) => city === listing.city),
+        );
+        const relatedPlaces: PlacePageLink[] = Array.from(cityCounts.entries())
+          .filter(([city]) => !(place?.kind === "city" && place.name === city))
+          .map(([city, count]) => ({
+            label: city,
+            path: placePath(city, category?.slug),
+            count,
+          }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 10);
+
+        const prices = main.listings
+          .map((listing) => listing.priceCents)
+          .filter((cents) => cents > 0);
+        const showPrice = category && !NO_PRICE_STATS.has(category.slug) && prices.length >= 3;
+        const newest = main.listings.reduce(
+          (latest, listing) => (listing.createdAt > latest ? listing.createdAt : latest),
+          "",
+        );
+        const fresh =
+          Boolean(newest) && Date.now() - Date.parse(newest) < PLACE_PAGE_FRESH_DAYS * 86_400_000;
+        const indexable = main.total >= PLACE_PAGE_MIN_LISTINGS && fresh;
+
+        let heading: string;
+        if (place && phrase && category) {
+          heading = FOR_SALE_EXCEPTIONS.has(category.slug)
+            ? `${phrase.heading} in ${placeLabel(place)}`
+            : `${phrase.heading} for sale in ${placeLabel(place)}`;
+        } else if (place) {
+          heading = `${place.kind === "city" ? `${place.name}, Idaho` : place.name} classifieds`;
+        } else {
+          heading = FOR_SALE_EXCEPTIONS.has(category!.slug)
+            ? `${phrase!.heading} in Idaho`
+            : `${phrase!.heading} for sale in Idaho`;
+        }
+
+        // Answer first, from the live numbers, so the page states the fact a
+        // searcher (or an assistant) came for.
+        const noun = phrase ? `listings for ${phrase.noun}` : "listings";
+        const lead =
+          main.total === 0
+            ? `No ${noun} ${where} right now. New ones show up here as soon as they're posted.`
+            : `There ${main.total === 1 ? "is" : "are"} ${main.total} ${
+                main.total === 1 ? noun.replace("listings", "listing") : noun
+              } ${where} right now${
+                showPrice
+                  ? `, with a median asking price of ${wholeDollars.format(median(prices) / 100)}`
+                  : ""
+              }.`;
+
+        const breadcrumbs: { label: string; path: string }[] = [
+          { label: "Idaho", path: "/browse" },
+        ];
+        if (place) breadcrumbs.push({ label: place.name, path: placePath(place.name) });
+        if (category && place)
+          breadcrumbs.push({ label: phrase!.heading, path: placePath(place.name, category.slug) });
+        if (category && !place)
+          breadcrumbs.push({ label: phrase!.heading, path: categoryPagePath(category.slug) });
+
+        const browseSearch: Record<string, string | number> = {
+          ...(category ? { category: category.slug } : { allCategories: "true" }),
+          ...(place?.kind === "city" ? { city: place.name, state: "ID", radiusMiles: 25 } : {}),
+          ...(place?.kind === "region" ? { region: place.name } : {}),
+          ...(!place ? { state: "ID" } : {}),
+        };
+
+        return {
+          heading,
+          title: `${heading} — ${brand.name}`,
+          description: `${lead} Contact local sellers directly on ${brand.name}.`,
+          lead,
+          listings: main.listings.slice(0, SHOWN_LISTINGS),
+          total: main.total,
+          indexable,
+          relatedCategories,
+          relatedPlaces,
+          relatedPlacesHeading: category
+            ? `${phrase!.heading} in other Idaho cities`
+            : "Other Idaho cities",
+          browseSearch,
+          breadcrumbs,
+        };
+      },
     );
-    const relatedPlaces: PlacePageLink[] = Array.from(cityCounts.entries())
-      .filter(([city]) => !(place?.kind === "city" && place.name === city))
-      .map(([city, count]) => ({
-        label: city,
-        path: placePath(city, category?.slug),
-        count,
-      }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 10);
-
-    const prices = main.listings.map((listing) => listing.priceCents).filter((cents) => cents > 0);
-    const showPrice = category && !NO_PRICE_STATS.has(category.slug) && prices.length >= 3;
-    const newest = main.listings.reduce(
-      (latest, listing) => (listing.createdAt > latest ? listing.createdAt : latest),
-      "",
-    );
-    const fresh =
-      Boolean(newest) && Date.now() - Date.parse(newest) < PLACE_PAGE_FRESH_DAYS * 86_400_000;
-    const indexable = main.total >= PLACE_PAGE_MIN_LISTINGS && fresh;
-
-    let heading: string;
-    if (place && phrase && category) {
-      heading = FOR_SALE_EXCEPTIONS.has(category.slug)
-        ? `${phrase.heading} in ${placeLabel(place)}`
-        : `${phrase.heading} for sale in ${placeLabel(place)}`;
-    } else if (place) {
-      heading = `${place.kind === "city" ? `${place.name}, Idaho` : place.name} classifieds`;
-    } else {
-      heading = FOR_SALE_EXCEPTIONS.has(category!.slug)
-        ? `${phrase!.heading} in Idaho`
-        : `${phrase!.heading} for sale in Idaho`;
-    }
-
-    // Answer first, from the live numbers, so the page states the fact a
-    // searcher (or an assistant) came for.
-    const noun = phrase ? `listings for ${phrase.noun}` : "listings";
-    const lead =
-      main.total === 0
-        ? `No ${noun} ${where} right now. New ones show up here as soon as they're posted.`
-        : `There ${main.total === 1 ? "is" : "are"} ${main.total} ${
-            main.total === 1 ? noun.replace("listings", "listing") : noun
-          } ${where} right now${
-            showPrice
-              ? `, with a median asking price of ${wholeDollars.format(median(prices) / 100)}`
-              : ""
-          }.`;
-
-    const breadcrumbs: { label: string; path: string }[] = [{ label: "Idaho", path: "/browse" }];
-    if (place) breadcrumbs.push({ label: place.name, path: placePath(place.name) });
-    if (category && place)
-      breadcrumbs.push({ label: phrase!.heading, path: placePath(place.name, category.slug) });
-    if (category && !place)
-      breadcrumbs.push({ label: phrase!.heading, path: categoryPagePath(category.slug) });
-
-    const browseSearch: Record<string, string | number> = {
-      ...(category ? { category: category.slug } : { allCategories: "true" }),
-      ...(place?.kind === "city" ? { city: place.name, state: "ID", radiusMiles: 25 } : {}),
-      ...(place?.kind === "region" ? { region: place.name } : {}),
-      ...(!place ? { state: "ID" } : {}),
-    };
-
-    return {
-      heading,
-      title: `${heading} — ${brand.name}`,
-      description: `${lead} Contact local sellers directly on ${brand.name}.`,
-      lead,
-      listings: main.listings.slice(0, SHOWN_LISTINGS),
-      total: main.total,
-      indexable,
-      relatedCategories,
-      relatedPlaces,
-      relatedPlacesHeading: category
-        ? `${phrase!.heading} in other Idaho cities`
-        : "Other Idaho cities",
-      browseSearch,
-      breadcrumbs,
-    };
   });
 
 /**

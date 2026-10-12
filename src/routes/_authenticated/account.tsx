@@ -1,10 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import {
-  ACCOUNT_SECTIONS,
-  AccountCenter,
-  type AccountSection,
-} from "@/components/account/AccountCenter";
+import { AccountCenter } from "@/components/account/AccountCenter";
+import { ACCOUNT_SECTIONS, type AccountSection } from "@/components/account/account-sections";
 
 // Save listings, contact sellers and arrange pickup from one account center.
 

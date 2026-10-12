@@ -1,4 +1,4 @@
-import { supabase } from "@/integrations/supabase/client";
+import { loadSupabase } from "@/integrations/supabase/lazy-client";
 import { classifyLatency, sanitizeTelemetryText } from "@/lib/release-gate";
 
 /**
@@ -119,6 +119,7 @@ export async function trackEvent(
 ): Promise<void> {
   if (typeof window === "undefined") return;
   try {
+    const supabase = await loadSupabase();
     const { data } = await supabase.auth.getSession();
     const userId = data.session?.user.id ?? null;
     await supabase.from("analytics_events").insert({

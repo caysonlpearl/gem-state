@@ -107,21 +107,7 @@ import {
   type ListingUpgradeOption,
   type ListingUpgradePurchase,
 } from "@/lib/listing-upgrade.functions";
-
-export const ACCOUNT_SECTIONS = [
-  "overview",
-  "profile",
-  "settings",
-  "listings",
-  "saved",
-  "searches",
-  "messages",
-  "notifications",
-  "reviews",
-  "billing",
-] as const;
-
-export type AccountSection = (typeof ACCOUNT_SECTIONS)[number];
+import type { AccountSection } from "./account-sections";
 
 type AccountCenterProps = {
   section: AccountSection;

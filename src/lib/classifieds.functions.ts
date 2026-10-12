@@ -2090,8 +2090,7 @@ async function buildClassifiedDetail(
           bio: sellerRow.bio ?? null,
           avatarUrl: sellerRow.avatar_url ?? null,
           payoutVerified: sellerRow.payout_verified === true,
-          ratingAverage:
-            sellerRow.rating_average == null ? null : Number(sellerRow.rating_average),
+          ratingAverage: sellerRow.rating_average == null ? null : Number(sellerRow.rating_average),
           reviewCount: Number(sellerRow.review_count ?? 0),
           contactPhone: sellerContact.phone,
           contactTextPhone: sellerContact.textPhone,
@@ -2159,39 +2158,42 @@ export type ClassifiedsHome = {
 
 export const getClassifiedsHome = createServerFn({ method: "GET" }).handler(
   async (): Promise<ClassifiedsHome> => {
-    const client = publicServerClient();
-    const nowIso = new Date().toISOString();
+    const { shortCache, PUBLIC_PAGE_CACHE_MS } = await import("./short-cache.server");
+    return shortCache("classifieds-home", PUBLIC_PAGE_CACHE_MS, async () => {
+      const client = publicServerClient();
+      const nowIso = new Date().toISOString();
 
-    const [{ data: categoryRows }, motors, recent] = await Promise.all([
-      client
-        .from("asks")
-        .select(
-          "id, products!inner(status, categories!inner(slug)), classified_listing_details!inner(listing_id)",
-        )
-        .eq("status", "active")
-        .eq("is_demo", false)
-        .not("approved_at", "is", null)
-        .gt("expires_at", nowIso)
-        .eq("products.status", "published")
-        .limit(1000),
-      runBrowseClassifieds({ group: "motors", sort: "newest", page: 1 }),
-      runBrowseClassifieds({ sort: "newest", page: 1, includeAllMocks: true }),
-    ]);
+      const [{ data: categoryRows }, motors, recent] = await Promise.all([
+        client
+          .from("asks")
+          .select(
+            "id, products!inner(status, categories!inner(slug)), classified_listing_details!inner(listing_id)",
+          )
+          .eq("status", "active")
+          .eq("is_demo", false)
+          .not("approved_at", "is", null)
+          .gt("expires_at", nowIso)
+          .eq("products.status", "published")
+          .limit(1000),
+        runBrowseClassifieds({ group: "motors", sort: "newest", page: 1 }),
+        runBrowseClassifieds({ sort: "newest", page: 1, includeAllMocks: true }),
+      ]);
 
-    const categoryCounts: Record<string, number> = {};
-    for (const row of (categoryRows ?? []) as Record<string, unknown>[]) {
-      const slug = (row["products"] as { categories: { slug: string } | null })?.categories?.slug;
-      if (!slug) continue;
-      categoryCounts[slug] = (categoryCounts[slug] ?? 0) + 1;
-    }
+      const categoryCounts: Record<string, number> = {};
+      for (const row of (categoryRows ?? []) as Record<string, unknown>[]) {
+        const slug = (row["products"] as { categories: { slug: string } | null })?.categories?.slug;
+        if (!slug) continue;
+        categoryCounts[slug] = (categoryCounts[slug] ?? 0) + 1;
+      }
 
-    return {
-      totalActive: (categoryRows ?? []).length,
-      categoryCounts,
-      motors: motors.listings.slice(0, 8),
-      // Keep enough of the first page available for the homepage to build
-      // several useful, non-identical curated rows without another round trip.
-      recent: recent.listings.slice(0, Math.max(24, mockClassifiedListings.length)),
-    };
+      return {
+        totalActive: (categoryRows ?? []).length,
+        categoryCounts,
+        motors: motors.listings.slice(0, 8),
+        // Keep enough of the first page available for the homepage to build
+        // several useful, non-identical curated rows without another round trip.
+        recent: recent.listings.slice(0, Math.max(24, mockClassifiedListings.length)),
+      };
+    });
   },
 );

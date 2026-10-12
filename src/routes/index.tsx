@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useState } from "react";
 import { ArrowRight, CaretDown, MagnifyingGlass, MapPin, Car } from "@phosphor-icons/react";
 
 import { brand } from "@/config/brand";
@@ -13,15 +13,20 @@ import {
 } from "@/config/classifieds";
 import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { ListingCard } from "@/components/classifieds/ListingCard";
-import {
-  LocationRadiusPicker,
-  type LocationPoint,
-} from "@/components/classifieds/LocationRadiusPicker";
+import type { LocationPoint } from "@/components/classifieds/LocationRadiusPicker";
 import { browseClassifieds, getClassifiedsHome } from "@/lib/classifieds.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { trackEvent } from "@/lib/analytics";
 import { PUBLIC_PAGE_STALE_MS } from "@/lib/query-freshness";
+
+// The map (and its stylesheet) only loads when someone opens it, so it never
+// delays the first paint of the home page.
+const LocationRadiusPicker = lazy(() =>
+  import("@/components/classifieds/LocationRadiusPicker").then((module) => ({
+    default: module.LocationRadiusPicker,
+  })),
+);
 
 const homeQuery = queryOptions({
   queryKey: ["classifieds-home"],
@@ -534,17 +539,19 @@ function Home() {
             ) : null}
           </div>
           {mapOpen ? (
-            <LocationRadiusPicker
-              city={parsedLocation.city}
-              latitude={mapPoint?.latitude}
-              longitude={mapPoint?.longitude}
-              radiusMiles={radiusMiles}
-              onChange={(point) => {
-                setMapPoint(point);
-                setLocation(point.city ?? "");
-              }}
-              className="mt-3"
-            />
+            <Suspense fallback={<div className="mt-3 h-[260px] rounded-xl bg-secondary" />}>
+              <LocationRadiusPicker
+                city={parsedLocation.city}
+                latitude={mapPoint?.latitude}
+                longitude={mapPoint?.longitude}
+                radiusMiles={radiusMiles}
+                onChange={(point) => {
+                  setMapPoint(point);
+                  setLocation(point.city ?? "");
+                }}
+                className="mt-3"
+              />
+            </Suspense>
           ) : null}
           <datalist id="bluebird-home-city-options">
             {marketplaceCities.map((option) => (

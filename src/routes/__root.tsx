@@ -16,7 +16,7 @@ import soraLatin from "@fontsource-variable/sora/files/sora-latin-wght-normal.wo
 import { brand } from "@/config/brand";
 import { classifiedCategories } from "@/config/classifieds";
 import { categoryPagePath } from "@/lib/place-pages";
-import { supabase } from "@/integrations/supabase/client";
+import { loadSupabase } from "@/integrations/supabase/lazy-client";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { MobileTabBar } from "@/components/layout/MobileTabBar";
@@ -169,12 +169,21 @@ function RootComponent() {
   const router = useRouter();
 
   useEffect(() => {
-    const { data } = supabase.auth.onAuthStateChange((event) => {
-      if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
-      void router.invalidate();
-      if (event !== "SIGNED_OUT") void queryClient.invalidateQueries();
+    let active = true;
+    let unsubscribe = () => {};
+    void loadSupabase().then((supabase) => {
+      if (!active) return;
+      const { data } = supabase.auth.onAuthStateChange((event) => {
+        if (event !== "SIGNED_IN" && event !== "SIGNED_OUT" && event !== "USER_UPDATED") return;
+        void router.invalidate();
+        if (event !== "SIGNED_OUT") void queryClient.invalidateQueries();
+      });
+      unsubscribe = () => data.subscription.unsubscribe();
     });
-    return () => data.subscription.unsubscribe();
+    return () => {
+      active = false;
+      unsubscribe();
+    };
   }, [queryClient, router]);
 
   useEffect(() => {
