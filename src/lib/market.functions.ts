@@ -339,6 +339,10 @@ export const cancelListing = createServerFn({ method: "POST" })
       } as never,
     );
     if (error) throw new Error(error.message);
+    if (data.kind === "ask") {
+      const { pingIndexNow } = await import("./indexnow.server");
+      void pingIndexNow([`/listings/${data.id}`]);
+    }
     return { ok: true as const };
   });
 

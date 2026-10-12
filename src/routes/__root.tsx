@@ -4,6 +4,7 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -113,11 +114,39 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: ErrorComponent as never,
 });
 
+// Every page points search engines at one clean URL on the live domain:
+// sort, view, page, filter and tracking parameters are dropped. Browse keeps
+// category and group, the only parameters that identify a distinct page
+// until categories get their own paths.
+const CANONICAL_BROWSE_PARAMS = ["category", "group"] as const;
+
+function CanonicalTags() {
+  const location = useRouterState({ select: (s) => s.location });
+  const params = new URLSearchParams();
+  if (location.pathname === "/browse") {
+    const search = location.search as Record<string, unknown>;
+    for (const key of CANONICAL_BROWSE_PARAMS) {
+      const value = search[key];
+      if (typeof value === "string" && value) params.set(key, value);
+    }
+  }
+  const path = location.pathname === "/" ? "/" : location.pathname.replace(/\/+$/, "");
+  const query = params.toString();
+  const href = `${brand.urls.siteUrl}${path}${query ? `?${query}` : ""}`;
+  return (
+    <>
+      <link rel="canonical" href={href} />
+      <meta property="og:url" content={href} />
+    </>
+  );
+}
+
 function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
       <head>
         <HeadContent />
+        <CanonicalTags />
       </head>
       <body>
         {children}

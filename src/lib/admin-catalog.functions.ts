@@ -350,6 +350,8 @@ export const adminReviewAsk = createServerFn({ method: "POST" })
     if (data.approve) {
       const { processSavedSearchAlerts } = await import("./saved-search-worker.server");
       void processSavedSearchAlerts(data.askId);
+      const { pingIndexNow } = await import("./indexnow.server");
+      void pingIndexNow([`/listings/${data.askId}`]);
     }
     return { ok: true as const };
   });

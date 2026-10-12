@@ -1721,6 +1721,28 @@ function normalizeBrowseSearch(search: Search): Search {
   return next;
 }
 
+// Keys that don't change which listings a page shows: sort order, layout and
+// paging are handled by the canonical tag alone, not by noindex.
+const BROWSE_IDENTITY_KEYS = new Set(["category", "group", "allCategories", "sort", "view", "page"]);
+
+function isIndexableBrowse(search: Search) {
+  return Object.entries(search).every(
+    ([key, value]) =>
+      BROWSE_IDENTITY_KEYS.has(key) || value === undefined || value === false || value === "",
+  );
+}
+
+function browseHeadHeading(search: Search) {
+  const category = classifiedCategories.find((option) => option.slug === search.category);
+  if (category?.slug === "jobs") return "Jobs in Idaho";
+  if (category?.slug === "services") return "Local services in Idaho";
+  if (category?.slug === "other-real-estate") return "Homes for sale and rent in Idaho";
+  if (category?.slug === "pets") return "Pets in Idaho";
+  if (category) return `${category.name} for sale in Idaho`;
+  if (search.group === "motors") return "Cars, trucks and motors for sale in Idaho";
+  return null;
+}
+
 export const Route = createFileRoute("/browse")({
   validateSearch: (search: Record<string, unknown>): Search => {
     const group = stringParam(search, "group", 20);
@@ -1735,8 +1757,12 @@ export const Route = createFileRoute("/browse")({
     const savedSearchId = stringParam(search, "savedSearchId", 64);
     const page = Number(search["page"]);
     const parsed: Search = {
+      // Undefined rather than false when absent: a false value gets written
+      // back into the URL, which redirected every category link once.
       allCategories:
-        search["allCategories"] === true || stringParam(search, "allCategories", 5) === "true",
+        search["allCategories"] === true || stringParam(search, "allCategories", 5) === "true"
+          ? true
+          : undefined,
       q: stringParam(search, "q"),
       savedSearchId,
       category: stringParam(search, "category", 60),
@@ -1849,24 +1875,27 @@ export const Route = createFileRoute("/browse")({
     };
     return normalizeBrowseSearch(parsed);
   },
-  head: () => ({
-    meta: [
-      { title: `Browse Idaho classifieds — ${brand.name}` },
-      {
-        name: "description",
-        content:
-          "Search Idaho classifieds by category, region, price, condition, and detailed vehicle filters including make, model, year, mileage, drivetrain, fuel type, and title status.",
-      },
-      { property: "og:title", content: `Browse Idaho classifieds — ${brand.name}` },
-      {
-        property: "og:description",
-        content:
-          "Find cars, trucks, powersports, furniture, tools, and more from sellers across Idaho.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
-  }),
+  head: ({ match }) => {
+    const search = match.search as Search;
+    const heading = browseHeadHeading(search);
+    const title = heading ? `${heading} — ${brand.name}` : `Browse Idaho classifieds — ${brand.name}`;
+    const description = heading
+      ? `${heading}: browse listings from local sellers across Idaho and contact them directly on ${brand.name}.`
+      : "Search Idaho classifieds by category, region, price, condition, and detailed vehicle filters including make, model, year, mileage, drivetrain, fuel type, and title status.";
+    return {
+      meta: [
+        { title },
+        { name: "description", content: description },
+        // Category pages are indexable; keyword searches, filter combinations
+        // and saved-search views are not (followed, never indexed).
+        ...(isIndexableBrowse(search) ? [] : [{ name: "robots", content: "noindex, follow" }]),
+        { property: "og:title", content: title },
+        { property: "og:description", content: description },
+        { property: "og:type", content: "website" },
+        { name: "twitter:card", content: "summary_large_image" },
+      ],
+    };
+  },
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
     await context.queryClient.ensureQueryData(classifiedQuery(inputFromSearch(deps)));

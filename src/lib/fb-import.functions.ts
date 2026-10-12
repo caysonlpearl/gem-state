@@ -722,6 +722,8 @@ export const publishFacebookImportItems = createServerFn({ method: "POST" })
               _ask_id: item.listing_id,
             });
             if (cancelError) throw new Error(cancelError.message);
+            const { pingIndexNow } = await import("./indexnow.server");
+            void pingIndexNow([`/listings/${item.listing_id}`]);
             await admin
               .from("fb_marketplace_import_items")
               .update({ status: "published" })

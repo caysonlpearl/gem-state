@@ -21,6 +21,7 @@ import { Route as PetsRouteImport } from './routes/pets'
 import { Route as PoliciesRouteImport } from './routes/policies'
 import { Route as SafetyRouteImport } from './routes/safety'
 import { Route as SellRouteImport } from './routes/sell'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedBuyingRouteImport } from './routes/_authenticated/buying'
@@ -118,6 +119,11 @@ const SafetyRoute = SafetyRouteImport.update({
 const SellRoute = SellRouteImport.update({
   id: '/sell',
   path: '/sell',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAccountRoute = AuthenticatedAccountRouteImport.update({
@@ -351,6 +357,7 @@ export interface FileRoutesByFullPath {
   '/policies': typeof PoliciesRoute
   '/safety': typeof SafetyRoute
   '/sell': typeof SellRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/account': typeof AuthenticatedAccountRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/buying': typeof AuthenticatedBuyingRoute
@@ -403,6 +410,7 @@ export interface FileRoutesByTo {
   '/policies': typeof PoliciesRoute
   '/safety': typeof SafetyRoute
   '/sell': typeof SellRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/account': typeof AuthenticatedAccountRoute
   '/buying': typeof AuthenticatedBuyingRoute
   '/create-listing': typeof AuthenticatedCreateListingRoute
@@ -456,6 +464,7 @@ export interface FileRoutesById {
   '/policies': typeof PoliciesRoute
   '/safety': typeof SafetyRoute
   '/sell': typeof SellRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/_authenticated/account': typeof AuthenticatedAccountRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/_authenticated/buying': typeof AuthenticatedBuyingRoute
@@ -510,6 +519,7 @@ export interface FileRouteTypes {
     | '/policies'
     | '/safety'
     | '/sell'
+    | '/sitemap.xml'
     | '/account'
     | '/admin'
     | '/buying'
@@ -562,6 +572,7 @@ export interface FileRouteTypes {
     | '/policies'
     | '/safety'
     | '/sell'
+    | '/sitemap.xml'
     | '/account'
     | '/buying'
     | '/create-listing'
@@ -614,6 +625,7 @@ export interface FileRouteTypes {
     | '/policies'
     | '/safety'
     | '/sell'
+    | '/sitemap.xml'
     | '/_authenticated/account'
     | '/_authenticated/admin'
     | '/_authenticated/buying'
@@ -668,6 +680,7 @@ export interface RootRouteChildren {
   PoliciesRoute: typeof PoliciesRoute
   SafetyRoute: typeof SafetyRoute
   SellRoute: typeof SellRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   DealersSlugRoute: typeof DealersSlugRoute
   ListingsListingIdRoute: typeof ListingsListingIdRoute
   ProductsSlugRoute: typeof ProductsSlugRoute
@@ -765,6 +778,13 @@ declare module '@tanstack/react-router' {
       path: '/sell'
       fullPath: '/sell'
       preLoaderRoute: typeof SellRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/account': {
@@ -1134,6 +1154,7 @@ const rootRouteChildren: RootRouteChildren = {
   PoliciesRoute: PoliciesRoute,
   SafetyRoute: SafetyRoute,
   SellRoute: SellRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   DealersSlugRoute: DealersSlugRoute,
   ListingsListingIdRoute: ListingsListingIdRoute,
   ProductsSlugRoute: ProductsSlugRoute,

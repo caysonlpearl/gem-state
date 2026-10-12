@@ -12,7 +12,7 @@ export const brand = {
   tagline: "Idaho's local marketplace for cars, gear, home goods, and more.",
   description:
     "Idaho classifieds for cars, trucks, outdoor gear, tools, home goods, and more from local sellers.",
-  domain: "gemstateclassifieds.com",
+  domain: "onbluebird.com",
   supportEmail: "support@gemstateclassifieds.com",
   pressEmail: "hello@gemstateclassifieds.com",
   urls: {
@@ -22,7 +22,7 @@ export const brand = {
     stripePlatformSetup: "https://dashboard.stripe.com/register",
     // Absolute origin for building fully-qualified URLs in <meta> tags
     // (og:image etc.), which crawlers require rather than resolving relative.
-    siteUrl: "https://gemstateclassifieds.com",
+    siteUrl: "https://onbluebird.com",
   },
   legal: {
     disclaimer:
