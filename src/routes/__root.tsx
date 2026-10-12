@@ -12,6 +12,8 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { brand } from "@/config/brand";
+import { classifiedCategories } from "@/config/classifieds";
+import { categoryPagePath } from "@/lib/place-pages";
 import { supabase } from "@/integrations/supabase/client";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { SiteFooter } from "@/components/layout/SiteFooter";
@@ -115,24 +117,25 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 });
 
 // Every page points search engines at one clean URL on the live domain:
-// sort, view, page, filter and tracking parameters are dropped. Browse keeps
-// category and group, the only parameters that identify a distinct page
-// until categories get their own paths.
-const CANONICAL_BROWSE_PARAMS = ["category", "group"] as const;
+// sort, view, page, filter and tracking parameters are dropped. A browse view
+// of a single category points at that category's landing page, and the
+// vehicles group keeps its one identifying parameter.
+function canonicalPath(pathname: string, search: Record<string, unknown>) {
+  if (pathname === "/browse") {
+    const category = classifiedCategories.find((option) => option.slug === search["category"]);
+    if (category) return categoryPagePath(category.slug);
+    if (search["group"] === "motors") return "/browse?group=motors";
+    return "/browse";
+  }
+  return pathname === "/" ? "/" : pathname.replace(/\/+$/, "");
+}
 
 function CanonicalTags() {
   const location = useRouterState({ select: (s) => s.location });
-  const params = new URLSearchParams();
-  if (location.pathname === "/browse") {
-    const search = location.search as Record<string, unknown>;
-    for (const key of CANONICAL_BROWSE_PARAMS) {
-      const value = search[key];
-      if (typeof value === "string" && value) params.set(key, value);
-    }
-  }
-  const path = location.pathname === "/" ? "/" : location.pathname.replace(/\/+$/, "");
-  const query = params.toString();
-  const href = `${brand.urls.siteUrl}${path}${query ? `?${query}` : ""}`;
+  const href = `${brand.urls.siteUrl}${canonicalPath(
+    location.pathname,
+    location.search as Record<string, unknown>,
+  )}`;
   return (
     <>
       <link rel="canonical" href={href} />

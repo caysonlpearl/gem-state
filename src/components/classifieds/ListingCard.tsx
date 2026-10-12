@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { MapPin } from "@phosphor-icons/react";
+import { listingParam } from "@/lib/listing-url";
 
 import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { WatchHeartButton } from "@/components/community/WatchHeartButton";
@@ -145,7 +146,7 @@ export function ListingCard({ listing }: { listing: ClassifiedCard }) {
   return (
     <article className="group relative min-w-0 overflow-hidden rounded-2xl border border-transparent bg-card shadow-sm transition-shadow hover:shadow-md">
       <div className="relative">
-        <Link to="/listings/$listingId" params={{ listingId: listing.id }} className="block">
+        <Link to="/listings/$listingId" params={{ listingId: listingParam(listing) }} className="block">
           <Photo listing={listing} />
         </Link>
         <div className="absolute right-2 top-2 z-10">
@@ -159,7 +160,7 @@ export function ListingCard({ listing }: { listing: ClassifiedCard }) {
       </div>
       <Link
         to="/listings/$listingId"
-        params={{ listingId: listing.id }}
+        params={{ listingId: listingParam(listing) }}
         className="block px-3.5 pb-4 pt-3.5"
       >
         <p className="numeric text-[17px] font-bold leading-none text-foreground">
@@ -192,7 +193,7 @@ export function ListingRow({ listing }: { listing: ClassifiedCard }) {
     <article className="group relative overflow-hidden rounded-2xl border border-transparent bg-card shadow-sm transition-shadow hover:shadow-md">
       <Link
         to="/listings/$listingId"
-        params={{ listingId: listing.id }}
+        params={{ listingId: listingParam(listing) }}
         className="grid grid-cols-[130px_minmax(0,1fr)] gap-3 sm:grid-cols-[210px_minmax(0,1fr)]"
       >
         <Photo listing={listing} />

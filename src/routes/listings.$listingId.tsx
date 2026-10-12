@@ -1,4 +1,4 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound, redirect } from "@tanstack/react-router";
 import { queryOptions, useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -35,6 +35,7 @@ import { brand } from "@/config/brand";
 import { formatUsd } from "@/config/fees";
 import { ListingActions } from "@/components/classifieds/ListingActions";
 import { MobileContactBar } from "@/components/classifieds/MobileContactBar";
+import { listingIdFromParam, listingParam, listingPath } from "@/lib/listing-url";
 import { ListingCard } from "@/components/classifieds/ListingCard";
 import { WatchHeartButton } from "@/components/community/WatchHeartButton";
 import {
@@ -49,6 +50,7 @@ import {
   vehicleHeadline,
 } from "@/lib/classifieds-display";
 import { getClassifiedListing, getRelatedClassifieds } from "@/lib/classifieds.functions";
+import { getRemovedListingRedirect } from "@/lib/place-pages.functions";
 import type { ClassifiedCard, ClassifiedDetail } from "@/lib/classifieds.functions";
 import {
   Dialog,
@@ -130,8 +132,24 @@ function ListingMapEmbed({
 
 export const Route = createFileRoute("/listings/$listingId")({
   loader: async ({ context, params }) => {
-    const listing = await context.queryClient.ensureQueryData(listingQuery(params.listingId));
-    if (!listing) throw notFound();
+    const listingId = listingIdFromParam(params.listingId);
+    const listing = await context.queryClient.ensureQueryData(listingQuery(listingId));
+    if (!listing) {
+      // A removed or expired listing sends its visitors (and whatever search
+      // value it earned) to the closest live page instead of a dead end.
+      const fallback = await getRemovedListingRedirect({ data: { id: listingId } });
+      if (fallback) throw redirect({ href: fallback, statusCode: 301 });
+      throw notFound();
+    }
+    // One URL per listing: bare-ID and outdated-title URLs redirect to it.
+    const canonicalParam = listingParam(listing);
+    if (params.listingId !== canonicalParam) {
+      throw redirect({
+        to: "/listings/$listingId",
+        params: { listingId: canonicalParam },
+        statusCode: 301,
+      });
+    }
     return {
       title: listing.title,
       priceLabel: listing.job
@@ -788,7 +806,7 @@ function FlagListingDialog({ listingId, isMock = false }: { listingId: string; i
 }
 
 function ListingDetail() {
-  const { listingId } = Route.useParams();
+  const listingId = listingIdFromParam(Route.useParams().listingId);
   const { data: listing } = useSuspenseQuery(listingQuery(listingId));
   const relatedQuery = useSuspenseQuery(
     queryOptions({
@@ -901,7 +919,7 @@ function RelatedRails({
 }
 
 function ListingDetailContent() {
-  const { listingId } = Route.useParams();
+  const listingId = listingIdFromParam(Route.useParams().listingId);
   const { data: listing } = useSuspenseQuery(listingQuery(listingId));
   const [activeTab, setActiveTab] = useState<"description" | "specifications" | "location">(
     "description",
@@ -934,7 +952,7 @@ function ListingDetailContent() {
   const description = listing.description?.trim() ?? "";
   const locationQuery = encodeURIComponent(`${listing.city}, ${listing.state}`);
   const handleShare = async () => {
-    const shareUrl = `${window.location.origin}/listings/${listing.id}`;
+    const shareUrl = `${window.location.origin}${listingPath(listing)}`;
 
     try {
       if (typeof navigator.share === "function") {

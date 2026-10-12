@@ -55,6 +55,8 @@ import { Route as AuthenticatedAdminValidationRouteImport } from './routes/_auth
 import { Route as AuthenticatedOrdersOrderIdRouteImport } from './routes/_authenticated/orders.$orderId'
 import { Route as ApiInternalDealerInventoryRouteImport } from './routes/api/internal/dealer-inventory'
 import { Route as ApiInternalSavedSearchesRouteImport } from './routes/api/internal/saved-searches'
+import { Route as IdahoPlaceIndexRouteImport } from './routes/idaho.$place.index'
+import { Route as IdahoPlaceCategoryRouteImport } from './routes/idaho.$place.$category'
 import { Route as AuthenticatedAdminOrdersOrderIdRouteImport } from './routes/_authenticated/admin.orders.$orderId'
 import { Route as AuthenticatedListingsListingIdEditRouteImport } from './routes/_authenticated/listings.$listingId.edit'
 import { Route as ApiPublicCatalogMediaSplatRouteImport } from './routes/api/public/catalog-media.$'
@@ -310,6 +312,16 @@ const ApiInternalSavedSearchesRoute =
     path: '/api/internal/saved-searches',
     getParentRoute: () => rootRouteImport,
   } as any)
+const IdahoPlaceIndexRoute = IdahoPlaceIndexRouteImport.update({
+  id: '/idaho/$place/',
+  path: '/idaho/$place/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IdahoPlaceCategoryRoute = IdahoPlaceCategoryRouteImport.update({
+  id: '/idaho/$place/$category',
+  path: '/idaho/$place/$category',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedAdminOrdersOrderIdRoute =
   AuthenticatedAdminOrdersOrderIdRouteImport.update({
     id: '/orders/$orderId',
@@ -390,7 +402,9 @@ export interface FileRoutesByFullPath {
   '/orders/$orderId': typeof AuthenticatedOrdersOrderIdRoute
   '/api/internal/dealer-inventory': typeof ApiInternalDealerInventoryRoute
   '/api/internal/saved-searches': typeof ApiInternalSavedSearchesRoute
+  '/idaho/$place/$category': typeof IdahoPlaceCategoryRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
+  '/idaho/$place/': typeof IdahoPlaceIndexRoute
   '/admin/orders/$orderId': typeof AuthenticatedAdminOrdersOrderIdRoute
   '/listings/$listingId/edit': typeof AuthenticatedListingsListingIdEditRoute
   '/api/public/catalog-media/$': typeof ApiPublicCatalogMediaSplatRoute
@@ -442,7 +456,9 @@ export interface FileRoutesByTo {
   '/orders/$orderId': typeof AuthenticatedOrdersOrderIdRoute
   '/api/internal/dealer-inventory': typeof ApiInternalDealerInventoryRoute
   '/api/internal/saved-searches': typeof ApiInternalSavedSearchesRoute
+  '/idaho/$place/$category': typeof IdahoPlaceCategoryRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
+  '/idaho/$place': typeof IdahoPlaceIndexRoute
   '/admin/orders/$orderId': typeof AuthenticatedAdminOrdersOrderIdRoute
   '/listings/$listingId/edit': typeof AuthenticatedListingsListingIdEditRoute
   '/api/public/catalog-media/$': typeof ApiPublicCatalogMediaSplatRoute
@@ -497,7 +513,9 @@ export interface FileRoutesById {
   '/_authenticated/orders/$orderId': typeof AuthenticatedOrdersOrderIdRoute
   '/api/internal/dealer-inventory': typeof ApiInternalDealerInventoryRoute
   '/api/internal/saved-searches': typeof ApiInternalSavedSearchesRoute
+  '/idaho/$place/$category': typeof IdahoPlaceCategoryRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
+  '/idaho/$place/': typeof IdahoPlaceIndexRoute
   '/_authenticated/admin/orders/$orderId': typeof AuthenticatedAdminOrdersOrderIdRoute
   '/_authenticated/listings/$listingId/edit': typeof AuthenticatedListingsListingIdEditRoute
   '/api/public/catalog-media/$': typeof ApiPublicCatalogMediaSplatRoute
@@ -552,7 +570,9 @@ export interface FileRouteTypes {
     | '/orders/$orderId'
     | '/api/internal/dealer-inventory'
     | '/api/internal/saved-searches'
+    | '/idaho/$place/$category'
     | '/admin/'
+    | '/idaho/$place/'
     | '/admin/orders/$orderId'
     | '/listings/$listingId/edit'
     | '/api/public/catalog-media/$'
@@ -604,7 +624,9 @@ export interface FileRouteTypes {
     | '/orders/$orderId'
     | '/api/internal/dealer-inventory'
     | '/api/internal/saved-searches'
+    | '/idaho/$place/$category'
     | '/admin'
+    | '/idaho/$place'
     | '/admin/orders/$orderId'
     | '/listings/$listingId/edit'
     | '/api/public/catalog-media/$'
@@ -658,7 +680,9 @@ export interface FileRouteTypes {
     | '/_authenticated/orders/$orderId'
     | '/api/internal/dealer-inventory'
     | '/api/internal/saved-searches'
+    | '/idaho/$place/$category'
     | '/_authenticated/admin/'
+    | '/idaho/$place/'
     | '/_authenticated/admin/orders/$orderId'
     | '/_authenticated/listings/$listingId/edit'
     | '/api/public/catalog-media/$'
@@ -688,6 +712,8 @@ export interface RootRouteChildren {
   ShoppersSlugRoute: typeof ShoppersSlugRoute
   ApiInternalDealerInventoryRoute: typeof ApiInternalDealerInventoryRoute
   ApiInternalSavedSearchesRoute: typeof ApiInternalSavedSearchesRoute
+  IdahoPlaceCategoryRoute: typeof IdahoPlaceCategoryRoute
+  IdahoPlaceIndexRoute: typeof IdahoPlaceIndexRoute
   ApiPublicCatalogMediaSplatRoute: typeof ApiPublicCatalogMediaSplatRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
   LovableEmailAuthWebhookRoute: typeof LovableEmailAuthWebhookRoute
@@ -1018,6 +1044,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiInternalSavedSearchesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/idaho/$place/': {
+      id: '/idaho/$place/'
+      path: '/idaho/$place'
+      fullPath: '/idaho/$place/'
+      preLoaderRoute: typeof IdahoPlaceIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/idaho/$place/$category': {
+      id: '/idaho/$place/$category'
+      path: '/idaho/$place/$category'
+      fullPath: '/idaho/$place/$category'
+      preLoaderRoute: typeof IdahoPlaceCategoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/admin/orders/$orderId': {
       id: '/_authenticated/admin/orders/$orderId'
       path: '/orders/$orderId'
@@ -1162,6 +1202,8 @@ const rootRouteChildren: RootRouteChildren = {
   ShoppersSlugRoute: ShoppersSlugRoute,
   ApiInternalDealerInventoryRoute: ApiInternalDealerInventoryRoute,
   ApiInternalSavedSearchesRoute: ApiInternalSavedSearchesRoute,
+  IdahoPlaceCategoryRoute: IdahoPlaceCategoryRoute,
+  IdahoPlaceIndexRoute: IdahoPlaceIndexRoute,
   ApiPublicCatalogMediaSplatRoute: ApiPublicCatalogMediaSplatRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
   LovableEmailAuthWebhookRoute: LovableEmailAuthWebhookRoute,

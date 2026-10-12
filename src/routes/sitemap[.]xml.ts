@@ -1,11 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { brand } from "@/config/brand";
-
-// A category page only goes into the sitemap once it has enough live
-// listings to be worth landing on; near-empty template pages hurt the whole
-// site under Google's scaled-content rules. Same threshold as the SEO plan.
-const CATEGORY_MIN_LISTINGS = 5;
+import { idahoCities, idahoRegions } from "@/config/classifieds";
+import { listingPath } from "@/lib/listing-url";
+import {
+  PLACE_PAGE_FRESH_DAYS,
+  PLACE_PAGE_MIN_LISTINGS,
+  categoryPagePath,
+  placePath,
+} from "@/lib/place-pages";
 
 const STATIC_PATHS: { path: string; changefreq: string; priority: string }[] = [
   { path: "/", changefreq: "daily", priority: "1.0" },
@@ -39,9 +42,41 @@ function urlEntry(
 type LiveListingRow = {
   id: string;
   seller_id: string;
+  created_at: string;
   updated_at: string;
-  products: { categories: { slug: string } | null } | null;
+  products: { name: string; categories: { slug: string } | null } | null;
+  classified_listing_details:
+    | { city: string | null; region: string | null }
+    | { city: string | null; region: string | null }[]
+    | null;
 };
+
+/**
+ * Tallies live listings per landing page. A page only enters the sitemap
+ * once it passes the same inventory gate the page itself checks (enough
+ * listings, one of them recent); counts here use exact city matches, which
+ * never exceed the page's own radius-based count, so a page listed here
+ * always passes its gate.
+ */
+class PageTally {
+  private pages = new Map<string, { count: number; newest: string; lastmod: string }>();
+
+  add(path: string, createdAt: string, updatedAt: string) {
+    const current = this.pages.get(path);
+    this.pages.set(path, {
+      count: (current?.count ?? 0) + 1,
+      newest: current && current.newest > createdAt ? current.newest : createdAt,
+      lastmod: current && current.lastmod > updatedAt ? current.lastmod : updatedAt,
+    });
+  }
+
+  passing() {
+    const freshAfter = Date.now() - PLACE_PAGE_FRESH_DAYS * 86_400_000;
+    return Array.from(this.pages.entries()).filter(
+      ([, info]) => info.count >= PLACE_PAGE_MIN_LISTINGS && Date.parse(info.newest) >= freshAfter,
+    );
+  }
+}
 
 /** Generated from live inventory on every request (cached for an hour). */
 export const Route = createFileRoute("/sitemap.xml")({
@@ -55,7 +90,7 @@ export const Route = createFileRoute("/sitemap.xml")({
         const { data: listingRows, error } = await supabaseAdmin
           .from("asks")
           .select(
-            "id, seller_id, updated_at, products!inner(status, categories!inner(slug)), classified_listing_details!inner(listing_id)",
+            "id, seller_id, created_at, updated_at, products!inner(name, status, categories!inner(slug)), classified_listing_details!inner(listing_id, city, region)",
           )
           .eq("status", "active")
           .eq("is_demo", false)
@@ -67,17 +102,21 @@ export const Route = createFileRoute("/sitemap.xml")({
         if (error) return new Response("Sitemap unavailable", { status: 503 });
         const listings = (listingRows ?? []) as unknown as LiveListingRow[];
 
-        const categoryCounts = new Map<string, { count: number; lastmod: string }>();
+        const pages = new PageTally();
         const sellerLastmod = new Map<string, string>();
         for (const row of listings) {
-          const slug = row.products?.categories?.slug;
-          if (slug) {
-            const current = categoryCounts.get(slug);
-            categoryCounts.set(slug, {
-              count: (current?.count ?? 0) + 1,
-              lastmod: current?.lastmod ?? row.updated_at,
-            });
-          }
+          const details = Array.isArray(row.classified_listing_details)
+            ? row.classified_listing_details[0]
+            : row.classified_listing_details;
+          const category = row.products?.categories?.slug;
+          const city = idahoCities.find((name) => name === details?.city);
+          const region = idahoRegions.find((name) => name === details?.region);
+          const add = (path: string) => pages.add(path, row.created_at, row.updated_at);
+          if (category) add(categoryPagePath(category));
+          if (city) add(placePath(city));
+          if (city && category) add(placePath(city, category));
+          if (region) add(placePath(region));
+          if (region && category) add(placePath(region, category));
           if (!sellerLastmod.has(row.seller_id)) sellerLastmod.set(row.seller_id, row.updated_at);
         }
 
@@ -96,18 +135,20 @@ export const Route = createFileRoute("/sitemap.xml")({
           ...STATIC_PATHS.map(({ path, changefreq, priority }) =>
             urlEntry(path, { changefreq, priority }),
           ),
-          ...Array.from(categoryCounts.entries())
-            .filter(([, info]) => info.count >= CATEGORY_MIN_LISTINGS)
-            .map(([slug, info]) =>
-              urlEntry(`/browse?category=${encodeURIComponent(slug)}`, {
-                lastmod: info.lastmod,
-                changefreq: "daily",
-                priority: "0.8",
-              }),
+          ...pages
+            .passing()
+            .map(([path, info]) =>
+              urlEntry(path, { lastmod: info.lastmod, changefreq: "daily", priority: "0.8" }),
             ),
-          ...listings.map((row) =>
-            urlEntry(`/listings/${row.id}`, { lastmod: row.updated_at, priority: "0.7" }),
-          ),
+          ...listings.map((row) => {
+            const details = Array.isArray(row.classified_listing_details)
+              ? row.classified_listing_details[0]
+              : row.classified_listing_details;
+            return urlEntry(
+              listingPath({ id: row.id, title: row.products?.name ?? "", city: details?.city }),
+              { lastmod: row.updated_at, priority: "0.7" },
+            );
+          }),
           ...Array.from(sellerLastmod.entries())
             .filter(([sellerId]) => sellerSlugs.has(sellerId))
             .map(([sellerId, lastmod]) =>

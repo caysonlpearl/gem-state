@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { categoryUrlSlug, placeSlug } from "@/lib/place-pages";
 
 import { brand, policyTopics } from "@/config/brand";
 import { classifiedCategories, idahoCities } from "@/config/classifieds";
@@ -27,8 +28,8 @@ export function SiteFooter() {
               {motorsCategories.map((c) => (
                 <li key={c.slug}>
                   <Link
-                    to="/browse"
-                    search={{ category: c.slug }}
+                    to="/idaho/$place"
+                    params={{ place: categoryUrlSlug(c.slug) }}
                     className={linkClass}
                     {...pinned}
                   >
@@ -45,8 +46,8 @@ export function SiteFooter() {
               {generalCategories.map((c) => (
                 <li key={c.slug}>
                   <Link
-                    to="/browse"
-                    search={{ category: c.slug }}
+                    to="/idaho/$place"
+                    params={{ place: categoryUrlSlug(c.slug) }}
                     className={linkClass}
                     {...pinned}
                   >
@@ -63,8 +64,8 @@ export function SiteFooter() {
               {idahoCities.map((city) => (
                 <li key={city}>
                   <Link
-                    to="/browse"
-                    search={{ city, state: "ID", radiusMiles: 25 }}
+                    to="/idaho/$place"
+                    params={{ place: placeSlug(city) }}
                     className={linkClass}
                     {...pinned}
                   >
