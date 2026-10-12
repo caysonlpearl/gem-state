@@ -1,5 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
 import { createRouter } from "@tanstack/react-router";
+import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
 import { routeTree } from "./routeTree.gen";
 
 export const getRouter = () => {
@@ -21,6 +22,11 @@ export const getRouter = () => {
     scrollRestoration: true,
     defaultPreloadStaleTime: 0,
   });
+
+  // Hands the queries fetched during server rendering to the browser, so a
+  // page doesn't fetch all of its data a second time right after loading.
+  // The root route already provides the QueryClient.
+  setupRouterSsrQueryIntegration({ router, queryClient, wrapQueryClient: false });
 
   return router;
 };

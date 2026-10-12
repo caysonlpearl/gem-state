@@ -28,6 +28,7 @@ export function MobileContactBar({ listing }: { listing: ClassifiedDetail }) {
   const messagesEnabled = seller?.allowInternalMessages !== false;
   const showPrimary = Boolean(externalApply) || messagesEnabled;
   const hidden =
+    Boolean(listing.ended) ||
     listing.isMock === true ||
     isOwnListing ||
     (!showPrimary && !seller?.contactPhone && !seller?.contactTextPhone);

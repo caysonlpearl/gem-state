@@ -36,6 +36,7 @@ import { formatUsd } from "@/config/fees";
 import { ListingActions } from "@/components/classifieds/ListingActions";
 import { MobileContactBar } from "@/components/classifieds/MobileContactBar";
 import { listingIdFromParam, listingParam, listingPath } from "@/lib/listing-url";
+import { PUBLIC_PAGE_STALE_MS } from "@/lib/query-freshness";
 import { ListingCard } from "@/components/classifieds/ListingCard";
 import { WatchHeartButton } from "@/components/community/WatchHeartButton";
 import {
@@ -49,7 +50,12 @@ import {
   postedAge,
   vehicleHeadline,
 } from "@/lib/classifieds-display";
-import { getClassifiedListing, getRelatedClassifieds } from "@/lib/classifieds.functions";
+import {
+  getClassifiedListing,
+  getEndedClassifiedListing,
+  getRelatedClassifieds,
+} from "@/lib/classifieds.functions";
+import { nearbyPagePath } from "@/lib/place-pages";
 import { getRemovedListingRedirect } from "@/lib/place-pages.functions";
 import type { ClassifiedCard, ClassifiedDetail } from "@/lib/classifieds.functions";
 import {
@@ -67,7 +73,11 @@ import { reportClassifiedListing } from "@/lib/classifieds.functions";
 const listingQuery = (id: string) =>
   queryOptions({
     queryKey: ["classified-listing", id],
-    queryFn: () => getClassifiedListing({ data: { id } }),
+    staleTime: PUBLIC_PAGE_STALE_MS,
+    // A sold or expired listing keeps a read-only page for a while.
+    queryFn: async () =>
+      (await getClassifiedListing({ data: { id } })) ??
+      (await getEndedClassifiedListing({ data: { id } })),
   });
 
 const listingTabListClass =
@@ -161,6 +171,7 @@ export const Route = createFileRoute("/listings/$listingId")({
           })),
       city: listing.city,
       state: listing.state,
+      ended: listing.ended?.reason ?? null,
     };
   },
   head: ({ loaderData }) => {
@@ -172,8 +183,14 @@ export const Route = createFileRoute("/listings/$listingId")({
         ],
       };
     }
-    const title = `${loaderData.title} — ${loaderData.priceLabel} in ${loaderData.city}, ${loaderData.state}`;
-    const description = `${loaderData.title} listed for ${loaderData.priceLabel} by a seller in ${loaderData.city}, ${loaderData.state} on ${brand.name}.`;
+    const endedLabel =
+      loaderData.ended === "sold" ? "Sold" : loaderData.ended === "expired" ? "Expired" : null;
+    const title = endedLabel
+      ? `${loaderData.title} (${endedLabel}) in ${loaderData.city}, ${loaderData.state}`
+      : `${loaderData.title} — ${loaderData.priceLabel} in ${loaderData.city}, ${loaderData.state}`;
+    const description = endedLabel
+      ? `${loaderData.title} in ${loaderData.city}, ${loaderData.state} is no longer available. See similar listings from local sellers on ${brand.name}.`
+      : `${loaderData.title} listed for ${loaderData.priceLabel} by a seller in ${loaderData.city}, ${loaderData.state} on ${brand.name}.`;
     return {
       meta: [
         { title },
@@ -476,41 +493,43 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
           </div>
         </div>
       )}
-      <div className="mt-4 border-t border-border/70 pt-4">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-          Contact seller
-        </p>
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          {seller.contactTextPhone ? (
-            <a href={`sms:${seller.contactTextPhone}`} className={contactLinkClass}>
-              <DeviceMobile size={15} aria-hidden="true" /> Text
-            </a>
-          ) : null}
-          {seller.contactPhone ? (
-            <a href={`tel:${seller.contactPhone}`} className={contactLinkClass}>
-              <Phone size={15} aria-hidden="true" /> Call
-            </a>
-          ) : null}
-          {seller.contactEmail ? (
-            <a
-              href={`mailto:${seller.contactEmail}?subject=${encodeURIComponent(listing.title)}`}
-              className={contactLinkClass}
-            >
-              <EnvelopeSimple size={15} aria-hidden="true" /> Email
-            </a>
-          ) : null}
+      {listing.ended ? null : (
+        <div className="mt-4 border-t border-border/70 pt-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Contact seller
+          </p>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            {seller.contactTextPhone ? (
+              <a href={`sms:${seller.contactTextPhone}`} className={contactLinkClass}>
+                <DeviceMobile size={15} aria-hidden="true" /> Text
+              </a>
+            ) : null}
+            {seller.contactPhone ? (
+              <a href={`tel:${seller.contactPhone}`} className={contactLinkClass}>
+                <Phone size={15} aria-hidden="true" /> Call
+              </a>
+            ) : null}
+            {seller.contactEmail ? (
+              <a
+                href={`mailto:${seller.contactEmail}?subject=${encodeURIComponent(listing.title)}`}
+                className={contactLinkClass}
+              >
+                <EnvelopeSimple size={15} aria-hidden="true" /> Email
+              </a>
+            ) : null}
+          </div>
+          {seller.contactTextPhone || seller.contactPhone || seller.contactEmail ? (
+            <p className="mt-2 text-[10.5px] leading-relaxed text-muted-foreground">
+              Enabled contact options go directly to the seller. Use Bluebird messaging below if you
+              prefer to keep the conversation in the marketplace.
+            </p>
+          ) : (
+            <p className="mt-2 text-[10.5px] leading-relaxed text-muted-foreground">
+              This seller has not enabled direct phone, text, or email contact for this listing.
+            </p>
+          )}
         </div>
-        {seller.contactTextPhone || seller.contactPhone || seller.contactEmail ? (
-          <p className="mt-2 text-[10.5px] leading-relaxed text-muted-foreground">
-            Enabled contact options go directly to the seller. Use Bluebird messaging below if you
-            prefer to keep the conversation in the marketplace.
-          </p>
-        ) : (
-          <p className="mt-2 text-[10.5px] leading-relaxed text-muted-foreground">
-            This seller has not enabled direct phone, text, or email contact for this listing.
-          </p>
-        )}
-      </div>
+      )}
       <Link
         to="/sellers/$slug"
         params={{ slug: seller.slug }}
@@ -620,9 +639,15 @@ function PageStatsCard({ listing }: { listing: ClassifiedDetail }) {
         </div>
         <div className="flex items-center justify-between gap-4 py-2 last:pb-0">
           <dt className="text-muted-foreground">Status</dt>
-          <dd className="inline-flex items-center gap-1.5 text-right font-medium text-primary">
-            <CheckCircle size={13} weight="fill" /> Active
-          </dd>
+          {listing.ended ? (
+            <dd className="text-right font-medium text-muted-foreground">
+              {listing.ended.reason === "sold" ? "Sold" : "Expired"}
+            </dd>
+          ) : (
+            <dd className="inline-flex items-center gap-1.5 text-right font-medium text-primary">
+              <CheckCircle size={13} weight="fill" /> Active
+            </dd>
+          )}
         </div>
       </dl>
     </section>
@@ -810,6 +835,7 @@ function ListingDetail() {
   const { data: listing } = useSuspenseQuery(listingQuery(listingId));
   const relatedQuery = useSuspenseQuery(
     queryOptions({
+      staleTime: PUBLIC_PAGE_STALE_MS,
       queryKey: [
         "classified-related",
         listingId,
@@ -831,6 +857,7 @@ function ListingDetail() {
   );
   return (
     <>
+      {listing?.ended ? <EndedListingBanner listing={listing} /> : null}
       <ListingDetailContent />
       {listing ? (
         <RelatedRails
@@ -841,6 +868,33 @@ function ListingDetail() {
       ) : null}
       {listing ? <MobileContactBar listing={listing} /> : null}
     </>
+  );
+}
+
+function EndedListingBanner({ listing }: { listing: ClassifiedDetail }) {
+  const sold = listing.ended?.reason === "sold";
+  return (
+    <div className="mx-auto max-w-[1360px] px-4 pt-6 sm:px-7 lg:px-10">
+      <div
+        role="status"
+        className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-secondary px-5 py-4"
+      >
+        <div>
+          <p className="text-[15px] font-bold">
+            {sold ? "This listing has sold" : "This listing has expired"}
+          </p>
+          <p className="mt-0.5 text-[13px] text-muted-foreground">
+            It's no longer available, but there are similar {similarNoun(listing)} nearby.
+          </p>
+        </div>
+        <a
+          href={nearbyPagePath(listing.categorySlug, listing.city)}
+          className="inline-flex min-h-11 items-center rounded-full bg-primary px-5 text-[13px] font-semibold text-primary-foreground"
+        >
+          See similar {similarNoun(listing)}
+        </a>
+      </div>
+    </div>
   );
 }
 

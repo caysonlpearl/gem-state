@@ -21,9 +21,11 @@ import { browseClassifieds, getClassifiedsHome } from "@/lib/classifieds.functio
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { trackEvent } from "@/lib/analytics";
+import { PUBLIC_PAGE_STALE_MS } from "@/lib/query-freshness";
 
 const homeQuery = queryOptions({
   queryKey: ["classifieds-home"],
+  staleTime: PUBLIC_PAGE_STALE_MS,
   queryFn: () => getClassifiedsHome(),
 });
 
@@ -334,7 +336,9 @@ function Home() {
   );
   const valueFinds = pick(generalSource.filter((listing) => listing.priceCents <= 10_000));
   const localSellerPicks = pick(localRecent);
-  const feedStart = thinInventory ? [] : allLocalListings.filter((listing) => !shownIds.has(listing.id));
+  const feedStart = thinInventory
+    ? []
+    : allLocalListings.filter((listing) => !shownIds.has(listing.id));
   const locationFields = browseLocationSearch as {
     state?: string;
     region?: string;

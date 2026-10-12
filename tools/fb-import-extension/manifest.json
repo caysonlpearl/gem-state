@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "GemList Facebook Import",
-  "version": "1.0.0",
-  "description": "With a seller's permission, extracts their Facebook Marketplace listings for GemList's admin import tool. Only runs when you click it, in your own signed-in browser -- nothing is stored or scheduled.",
+  "name": "Bluebird Facebook Import",
+  "version": "1.1.0",
+  "description": "With a seller's permission, extracts their Facebook Marketplace listings for Bluebird's admin import tool. Only runs when you click it, in your own signed-in browser -- nothing is stored or scheduled.",
   "permissions": [
     "debugger",
     "scripting",
@@ -11,10 +11,11 @@
   ],
   "host_permissions": [
     "https://www.facebook.com/*",
+    "https://onbluebird.com/*",
     "https://gemstateclassifieds.lovable.app/*"
   ],
   "action": {
-    "default_title": "Import this seller's Facebook listings to GemList"
+    "default_title": "Import this seller's Facebook listings to Bluebird"
   },
   "background": {
     "service_worker": "background.js"
@@ -22,6 +23,7 @@
   "content_scripts": [
     {
       "matches": [
+        "https://onbluebird.com/*",
         "https://gemstateclassifieds.lovable.app/*"
       ],
       "js": [

@@ -121,6 +121,8 @@ export type ClassifiedDetail = ClassifiedCard & {
   communityListings?: ClassifiedCard[] | undefined;
   communityFloorplans?: ClassifiedFloorplan[] | undefined;
   employerListings?: ClassifiedCard[] | undefined;
+  /** Set when the listing has sold or expired and its page is being kept up for a while. */
+  ended?: { reason: "sold" | "expired"; endedAt: string } | undefined;
 };
 
 export type ClassifiedBrowseResult = {
@@ -1486,6 +1488,55 @@ export const browseClassifieds = createServerFn({ method: "GET" })
   }))
   .handler(async ({ data }): Promise<ClassifiedBrowseResult> => runBrowseClassifieds(data));
 
+// Expired placements are cleared before ranking so an old purchase can never
+// remain above ordinary results. This does not touch the immutable
+// purchase/receipt history shown in Seller Billing. It runs at most once a
+// minute per server instance (concurrent requests share the run) rather than
+// as a write in front of every page view.
+const FEATURED_CLEANUP_INTERVAL_MS = 60_000;
+let featuredCleanup: { startedAt: number; done: Promise<void> } | null = null;
+
+function clearExpiredFeaturedPlacements(nowIso: string) {
+  if (featuredCleanup && Date.now() - featuredCleanup.startedAt < FEATURED_CLEANUP_INTERVAL_MS)
+    return featuredCleanup.done;
+  const done = (async () => {
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { error } = await (supabaseAdmin as any)
+        .from("asks")
+        .update({ featured_until: null })
+        .not("featured_until", "is", null)
+        .lte("featured_until", nowIso);
+      if (error) console.error("Could not clear expired featured placements", error.message);
+    } catch (error) {
+      console.error("Could not clear expired featured placements", error);
+    }
+  })();
+  featuredCleanup = { startedAt: Date.now(), done };
+  return done;
+}
+
+// Category ids change only when an admin edits categories; a short cache
+// saves a lookup on every category and group search.
+const CATEGORY_ID_CACHE_MS = 10 * 60_000;
+let categoryIdCache: { loadedAt: number; ids: Promise<Map<string, string>> } | null = null;
+
+function categoryIdsBySlug(client: ReturnType<typeof publicServerClient>) {
+  if (categoryIdCache && Date.now() - categoryIdCache.loadedAt < CATEGORY_ID_CACHE_MS)
+    return categoryIdCache.ids;
+  const ids = (async () => {
+    const { data: rows, error } = await client.from("categories").select("id, slug");
+    if (error) {
+      console.error("Could not load category ids", error.message);
+      categoryIdCache = null;
+      return new Map<string, string>();
+    }
+    return new Map((rows ?? []).map((row) => [row.slug, row.id]));
+  })();
+  categoryIdCache = { loadedAt: Date.now(), ids };
+  return ids;
+}
+
 async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<ClassifiedBrowseResult> {
   {
     const client = publicServerClient();
@@ -1500,44 +1551,35 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     }
     const nowIso = new Date().toISOString();
 
-    // Expired placements are cleared before ranking so an old purchase can
-    // never remain above ordinary results. This does not touch the immutable
-    // purchase/receipt history shown in Seller Billing.
-    try {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { error } = await (supabaseAdmin as any)
-        .from("asks")
-        .update({ featured_until: null })
-        .not("featured_until", "is", null)
-        .lte("featured_until", nowIso);
-      if (error) console.error("Could not clear expired featured placements", error.message);
-    } catch (error) {
-      console.error("Could not clear expired featured placements", error);
-    }
-
     let categoryIds: string[] | null = null;
     let mockOnlyCategory = false;
+    const groupSlugs = data.group
+      ? classifiedCategories
+          .filter((category) => category.group === data.group)
+          .map((category) => category.slug)
+      : [];
+    if (!data.category && data.group && groupSlugs.length === 0) return empty;
+    // The placement cleanup and the category lookup are independent, so they
+    // share one round trip before the listing query.
+    const [, idBySlug] = await Promise.all([
+      clearExpiredFeaturedPlacements(nowIso),
+      data.category || data.group ? categoryIdsBySlug(client) : null,
+    ]);
     if (data.category) {
-      const { data: category } = await client
-        .from("categories")
-        .select("id")
-        .eq("slug", data.category)
-        .maybeSingle();
-      if (!category) {
+      const categoryId = idBySlug?.get(data.category);
+      if (!categoryId) {
         mockOnlyCategory = [...mockClassifiedListings, ...mockVehicleListings].some(
           (listing) => listing.categorySlug === data.category,
         );
         if (!mockOnlyCategory) return empty;
       } else {
-        categoryIds = [category.id];
+        categoryIds = [categoryId];
       }
     } else if (data.group) {
-      const slugs = classifiedCategories
-        .filter((category) => category.group === data.group)
-        .map((category) => category.slug);
-      if (slugs.length === 0) return empty;
-      const { data: rows } = await client.from("categories").select("id").in("slug", slugs);
-      categoryIds = (rows ?? []).map((row) => row.id);
+      categoryIds = groupSlugs.flatMap((slug) => {
+        const id = idBySlug?.get(slug);
+        return id ? [id] : [];
+      });
       if (categoryIds.length === 0) mockOnlyCategory = true;
     }
 
@@ -1913,85 +1955,141 @@ export const getClassifiedListing = createServerFn({ method: "GET" })
         (supabaseAdmin as any).rpc("record_classified_listing_view", { _listing_id: data.id }),
       )
       .catch(() => undefined);
-    const paths = sortedMedia(record);
-    const urlByPath = await signListingMedia(paths);
-    const product = record["products"] as { id: string; slug: string; description: string | null };
-    const details = record["classified_listing_details"] as Record<string, unknown>;
-    const card = toCard(record, urlByPath);
-    const sellerId = record["seller_id"] as string | null;
-    const [{ data: sellerRow }, sellerContact] = sellerId
-      ? await Promise.all([
-          client
-            .from("seller_storefronts")
-            .select("slug,display_name,bio,avatar_url,payout_verified,rating_average,review_count")
-            .eq("user_id", sellerId)
-            .maybeSingle(),
-          (async () => {
-            const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-            const [{ data: sellerProfile }, { data: sellerAuth }, { data: contactPreferences }] =
-              await Promise.all([
-                supabaseAdmin
-                  .from("seller_profiles")
-                  .select("ship_from_phone")
-                  .eq("user_id", sellerId)
-                  .maybeSingle(),
-                supabaseAdmin.auth.admin.getUserById(sellerId),
-                supabaseAdmin
-                  .from("account_contact_preferences")
-                  .select(
-                    "allow_email,allow_phone,allow_text,show_contact_buttons,allow_internal_messages",
-                  )
-                  .eq("user_id", sellerId)
-                  .maybeSingle(),
-              ]);
-            const showButtons = contactPreferences?.show_contact_buttons !== false;
-            const phone = sellerProfile?.ship_from_phone ?? null;
-            return {
-              phone: showButtons && contactPreferences?.allow_phone === true ? phone : null,
-              textPhone: showButtons && contactPreferences?.allow_text === true ? phone : null,
-              email:
-                showButtons && contactPreferences?.allow_email !== false
-                  ? (sellerAuth?.user?.email ?? null)
-                  : null,
-              allowInternalMessages: contactPreferences?.allow_internal_messages !== false,
-            };
-          })(),
-        ])
-      : [
-          { data: null },
-          { phone: null, textPhone: null, email: null, allowInternalMessages: true },
-        ];
-
-    return {
-      ...card,
-      description: product.description,
-      postalCode: (details["postal_code"] as string | null) ?? null,
-      expiresAt: (record["expires_at"] as string | null) ?? null,
-      sellerNote: (record["seller_note"] as string | null) ?? null,
-      variantId: record["variant_id"] as string,
-      seller: sellerRow
-        ? {
-            userId: sellerId ?? undefined,
-            slug: sellerRow.slug ?? "",
-            displayName: sellerRow.display_name ?? "Seller",
-            bio: sellerRow.bio ?? null,
-            avatarUrl: sellerRow.avatar_url ?? null,
-            payoutVerified: sellerRow.payout_verified === true,
-            ratingAverage:
-              sellerRow.rating_average == null ? null : Number(sellerRow.rating_average),
-            reviewCount: Number(sellerRow.review_count ?? 0),
-            contactPhone: sellerContact.phone,
-            contactTextPhone: sellerContact.textPhone,
-            contactEmail: sellerContact.email,
-            allowInternalMessages: sellerContact.allowInternalMessages,
-          }
-        : null,
-      images: paths
-        .map((path) => urlByPath.get(path))
-        .filter((url): url is string => Boolean(url))
-        .map((url) => ({ url, alt: card.title })),
-    };
+    return buildClassifiedDetail(record, client, { includeContact: true });
   });
+
+/** How long a sold or expired listing keeps its page before redirecting. */
+export const ENDED_LISTING_RETENTION_DAYS = 60;
+
+/**
+ * A listing that sold or expired keeps its page for a while, so links and
+ * search results still land somewhere useful: the details and photos, a
+ * banner saying it has ended, and similar live listings. Listings a seller
+ * or moderator took down are never shown here; they redirect right away.
+ * Contact details are left out, since the seller is no longer taking offers.
+ */
+export const getEndedClassifiedListing = createServerFn({ method: "GET" })
+  .validator((input: { id: string }) => ({ id: String(input.id).slice(0, 64) }))
+  .handler(async ({ data }): Promise<ClassifiedDetail | null> => {
+    if (!/^[0-9a-f-]{36}$/i.test(data.id)) return null;
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: row, error } = await supabaseAdmin
+      .from("asks")
+      .select(`${LISTING_SELECT}, status, updated_at`)
+      .eq("id", data.id)
+      .in("status", ["active", "expired", "matched"])
+      .eq("is_demo", false)
+      .not("approved_at", "is", null)
+      .eq("products.status", "published")
+      .maybeSingle();
+    if (error) console.error("getEndedClassifiedListing failed", error.message);
+    if (!row || isReleaseQaListing(row as unknown as Record<string, unknown>)) return null;
+
+    const record = row as unknown as Record<string, unknown>;
+    const status = record["status"] as string;
+    const expiresAt = record["expires_at"] as string;
+    const ended =
+      status === "matched"
+        ? { reason: "sold" as const, endedAt: record["updated_at"] as string }
+        : status === "expired" || Date.parse(expiresAt) <= Date.now()
+          ? { reason: "expired" as const, endedAt: expiresAt }
+          : null;
+    if (!ended) return null;
+    const retainedUntil = Date.parse(ended.endedAt) + ENDED_LISTING_RETENTION_DAYS * 86_400_000;
+    if (!(retainedUntil > Date.now())) return null;
+
+    const detail = await buildClassifiedDetail(record, publicServerClient(), {
+      includeContact: false,
+    });
+    return { ...detail, ended };
+  });
+
+/** Turns a listing row into the detail page's data: photos, seller and contact options. */
+async function buildClassifiedDetail(
+  record: Record<string, unknown>,
+  client: ReturnType<typeof publicServerClient>,
+  { includeContact }: { includeContact: boolean },
+): Promise<ClassifiedDetail> {
+  const paths = sortedMedia(record);
+  const product = record["products"] as { id: string; slug: string; description: string | null };
+  const details = record["classified_listing_details"] as Record<string, unknown>;
+  const sellerId = record["seller_id"] as string | null;
+  const noContact = { phone: null, textPhone: null, email: null, allowInternalMessages: false };
+  // Photo signing and the seller lookups don't depend on each other.
+  const [urlByPath, { data: sellerRow }, sellerContact] = await Promise.all([
+    signListingMedia(paths),
+    sellerId
+      ? client
+          .from("seller_storefronts")
+          .select("slug,display_name,bio,avatar_url,payout_verified,rating_average,review_count")
+          .eq("user_id", sellerId)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    sellerId && includeContact
+      ? (async () => {
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          const [{ data: sellerProfile }, { data: sellerAuth }, { data: contactPreferences }] =
+            await Promise.all([
+              supabaseAdmin
+                .from("seller_profiles")
+                .select("ship_from_phone")
+                .eq("user_id", sellerId)
+                .maybeSingle(),
+              supabaseAdmin.auth.admin.getUserById(sellerId),
+              supabaseAdmin
+                .from("account_contact_preferences")
+                .select(
+                  "allow_email,allow_phone,allow_text,show_contact_buttons,allow_internal_messages",
+                )
+                .eq("user_id", sellerId)
+                .maybeSingle(),
+            ]);
+          const showButtons = contactPreferences?.show_contact_buttons !== false;
+          const phone = sellerProfile?.ship_from_phone ?? null;
+          return {
+            phone: showButtons && contactPreferences?.allow_phone === true ? phone : null,
+            textPhone: showButtons && contactPreferences?.allow_text === true ? phone : null,
+            email:
+              showButtons && contactPreferences?.allow_email !== false
+                ? (sellerAuth?.user?.email ?? null)
+                : null,
+            allowInternalMessages: contactPreferences?.allow_internal_messages !== false,
+          };
+        })()
+      : Promise.resolve(sellerId ? noContact : { ...noContact, allowInternalMessages: true }),
+  ]);
+  const card = toCard(record, urlByPath);
+
+  return {
+    ...card,
+    description: product.description,
+    postalCode: (details["postal_code"] as string | null) ?? null,
+    expiresAt: (record["expires_at"] as string | null) ?? null,
+    sellerNote: (record["seller_note"] as string | null) ?? null,
+    variantId: record["variant_id"] as string,
+    seller: sellerRow
+      ? {
+          userId: sellerId ?? undefined,
+          slug: sellerRow.slug ?? "",
+          displayName: sellerRow.display_name ?? "Seller",
+          bio: sellerRow.bio ?? null,
+          avatarUrl: sellerRow.avatar_url ?? null,
+          payoutVerified: sellerRow.payout_verified === true,
+          ratingAverage:
+            sellerRow.rating_average == null ? null : Number(sellerRow.rating_average),
+          reviewCount: Number(sellerRow.review_count ?? 0),
+          contactPhone: sellerContact.phone,
+          contactTextPhone: sellerContact.textPhone,
+          contactEmail: sellerContact.email,
+          allowInternalMessages: sellerContact.allowInternalMessages,
+        }
+      : null,
+    images: paths
+      .map((path) => urlByPath.get(path))
+      .filter((url): url is string => Boolean(url))
+      .map((url) => ({ url, alt: card.title })),
+  };
+}
 
 export type ClassifiedRelated = { fromSeller: ClassifiedCard[]; similar: ClassifiedCard[] };
 

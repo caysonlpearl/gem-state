@@ -3,10 +3,12 @@ import { ArrowRight, CaretRight } from "@phosphor-icons/react";
 
 import { ListingCard } from "@/components/classifieds/ListingCard";
 import { getPlacePage, type PlacePageData } from "@/lib/place-pages.functions";
+import { PUBLIC_PAGE_STALE_MS } from "@/lib/query-freshness";
 
 export const placePageQuery = (place: string, category?: string) =>
   queryOptions({
     queryKey: ["place-page", place, category ?? null],
+    staleTime: PUBLIC_PAGE_STALE_MS,
     queryFn: () => getPlacePage({ data: { place, ...(category ? { category } : {}) } }),
   });
 

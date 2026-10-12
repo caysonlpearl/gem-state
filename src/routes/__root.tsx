@@ -11,6 +11,8 @@ import {
 import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
+import manropeLatin from "@fontsource-variable/manrope/files/manrope-latin-wght-normal.woff2?url";
+import soraLatin from "@fontsource-variable/sora/files/sora-latin-wght-normal.woff2?url";
 import { brand } from "@/config/brand";
 import { classifiedCategories } from "@/config/classifieds";
 import { categoryPagePath } from "@/lib/place-pages";
@@ -102,12 +104,15 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: appCss,
       },
       { rel: "icon", href: "/images/brand/bluebird-favicon.png", type: "image/png" },
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
+      // The two fonts nearly every page paints first, fetched alongside the CSS.
       {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&family=Sora:wght@500;600;700&display=swap",
+        rel: "preload",
+        href: manropeLatin,
+        as: "font",
+        type: "font/woff2",
+        crossOrigin: "anonymous",
       },
+      { rel: "preload", href: soraLatin, as: "font", type: "font/woff2", crossOrigin: "anonymous" },
     ],
   }),
   shellComponent: RootShell,

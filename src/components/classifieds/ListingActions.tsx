@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import type { ClassifiedDetail } from "@/lib/classifieds.functions";
 import { formatClassifiedPrice } from "@/lib/classifieds-display";
 import { startConversation } from "@/lib/conversation.functions";
+import { nearbyPagePath } from "@/lib/place-pages";
 import { ContactSignInSheet, OPEN_CONTACT_EVENT, consumeContactIntent } from "./ContactSignInSheet";
 import { JobApplicationForm } from "./JobApplicationForm";
 
@@ -30,19 +31,49 @@ const DEFAULT_MESSAGE = "Hi, is this still available? I would love to learn more
  * checkout and offers remain implemented elsewhere for a future phase, but
  * classified buyers currently arrange the sale directly with the seller.
  */
-export function ListingActions({
-  listing,
-  showPaymentCalculator = true,
-  showPriceHeader = true,
-  calculatorVariant = "auto",
-  ctaVerb = "contact",
-}: {
+type ListingActionsProps = {
   listing: ClassifiedDetail;
   showPaymentCalculator?: boolean;
   showPriceHeader?: boolean;
   calculatorVariant?: "auto" | "mortgage";
   ctaVerb?: "contact" | "apply";
-}) {
+};
+
+export function ListingActions(props: ListingActionsProps) {
+  if (props.listing.ended) return <EndedListingNotice listing={props.listing} />;
+  return <LiveListingActions {...props} />;
+}
+
+/** Takes the place of the contact controls once a listing has sold or expired. */
+function EndedListingNotice({ listing }: { listing: ClassifiedDetail }) {
+  const sold = listing.ended?.reason === "sold";
+  return (
+    <div className="floating-card overflow-hidden border-foreground/20">
+      <div className="space-y-3 px-5 py-5">
+        <p className="text-[17px] font-bold">
+          {sold ? "This listing has sold" : "This listing has expired"}
+        </p>
+        <p className="text-[13px] leading-relaxed text-muted-foreground">
+          The seller is no longer taking messages about it.
+        </p>
+        <a
+          href={nearbyPagePath(listing.categorySlug, listing.city)}
+          className="inline-flex h-11 w-full items-center justify-center rounded-md bg-primary px-4 text-[13.5px] font-semibold text-primary-foreground"
+        >
+          See similar listings nearby
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function LiveListingActions({
+  listing,
+  showPaymentCalculator = true,
+  showPriceHeader = true,
+  calculatorVariant = "auto",
+  ctaVerb = "contact",
+}: ListingActionsProps) {
   const isJobApply = ctaVerb === "apply";
   const isPreviewListing = listing.isMock === true;
   const applicationMethod = listing.job?.applicationMethod ?? "gemlist";

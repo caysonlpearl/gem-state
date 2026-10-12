@@ -417,10 +417,13 @@ async function fetchAllDetails(items, tabId, sellerName) {
 // stages it on its own -- GemList's page, not Facebook's, so none of the
 // Facebook-side caution applies here. Returns false if that page isn't
 // open (the clipboard copy is the fallback).
-const ADMIN_PAGE_PATTERN = "https://gemstateclassifieds.lovable.app/admin/fb-import*";
+const ADMIN_PAGE_PATTERNS = [
+  "https://onbluebird.com/admin/fb-import*",
+  "https://gemstateclassifieds.lovable.app/admin/fb-import*",
+];
 
 async function handoffToAdmin(json) {
-  const tabs = await chrome.tabs.query({ url: ADMIN_PAGE_PATTERN });
+  const tabs = await chrome.tabs.query({ url: ADMIN_PAGE_PATTERNS });
   if (!tabs.length) return false;
   const adminTab = tabs[0];
   await chrome.tabs.update(adminTab.id, { active: true });

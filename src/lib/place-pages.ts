@@ -47,6 +47,16 @@ export function categoryPagePath(categorySlug: string) {
   return `/idaho/${categoryUrlSlug(categorySlug)}`;
 }
 
+/** The closest landing page for a listing: its city and category, else its category statewide. */
+export function nearbyPagePath(
+  categorySlug: string | null | undefined,
+  city: string | null | undefined,
+) {
+  if (!categorySlug) return "/browse";
+  const knownCity = idahoCities.find((name) => name === city);
+  return knownCity ? placePath(knownCity, categorySlug) : categoryPagePath(categorySlug);
+}
+
 /** How a category reads in a sentence and a heading. */
 export function categoryPhrase(slug: string, name: string) {
   if (slug === "jobs") return { noun: "jobs", heading: "Jobs" };
