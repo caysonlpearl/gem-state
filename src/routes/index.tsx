@@ -14,7 +14,11 @@ import {
 import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { ListingCard } from "@/components/classifieds/ListingCard";
 import type { LocationPoint } from "@/components/classifieds/LocationRadiusPicker";
-import { browseClassifieds, getClassifiedsHome } from "@/lib/classifieds.functions";
+import {
+  browseClassifieds,
+  getClassifiedsHome,
+  type ClassifiedsHome,
+} from "@/lib/classifieds.functions";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { trackEvent } from "@/lib/analytics";
@@ -53,8 +57,11 @@ export const Route = createFileRoute("/")({
       { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
-  loader: async ({ context }) => {
-    await context.queryClient.ensureQueryData(homeQuery);
+  // Not awaited: the page shell and hero render right away and the listing
+  // rows stream in when the data is ready (same HTML response, so crawlers
+  // still get them).
+  loader: ({ context }) => {
+    void context.queryClient.prefetchQuery(homeQuery);
   },
   component: Home,
 });
@@ -193,7 +200,6 @@ function parseLocationSearch(value: string): ParsedLocationSearch {
 
 function Home() {
   const navigate = useNavigate();
-  const { data: home } = useSuspenseQuery(homeQuery);
   const [headlineItems, setHeadlineItems] = useState<(typeof headlineOptions)[number]>(
     headlineOptions[0],
   );
@@ -240,137 +246,8 @@ function Home() {
     return () => window.clearInterval(headlineRotation);
   }, []);
 
-  const motorCategories = classifiedCategories.filter((c) => c.group === "motors");
-  const parsedLocation = parseLocationSearch(location);
-  const matchesLocation = (listing: (typeof home.recent)[number]) => {
-    if (parsedLocation.postalCode) {
-      return (listing.postalCode ?? "").startsWith(parsedLocation.postalCode);
-    }
-    if (parsedLocation.city || mapPoint) {
-      return isWithinClassifiedRadius({
-        city: parsedLocation.city,
-        listingCity: listing.city,
-        latitude: mapPoint?.latitude,
-        longitude: mapPoint?.longitude,
-        radiusMiles,
-      });
-    }
-    if (parsedLocation.region) return listing.region === parsedLocation.region;
-    if (parsedLocation.state) return listing.state === parsedLocation.state;
-    // The homepage promise is local by default. Broader browsing remains
-    // available through the optional state/region controls on browse.
-    return listing.state === "ID";
-  };
-  const localRecent = home.recent.filter(matchesLocation);
-  const localMotors = home.motors.filter(matchesLocation);
-  const selectedStateName = parsedLocation.state
-    ? usStates.find(([code]) => code === parsedLocation.state)?.[1]
-    : undefined;
-  const locationSummary = mapPoint
-    ? `${mapPoint.city ?? "Map point"} · within ${radiusMiles} miles`
-    : parsedLocation.city
-      ? `${parsedLocation.city} · within ${radiusMiles} miles`
-      : parsedLocation.postalCode
-        ? `ZIP ${parsedLocation.postalCode}`
-        : (parsedLocation.region ?? selectedStateName ?? "Idaho");
-  const browseLocationSearch = {
-    ...(!parsedLocation.city &&
-    !parsedLocation.postalCode &&
-    !parsedLocation.region &&
-    !parsedLocation.state
-      ? { state: "ID" }
-      : {}),
-    ...parsedLocation,
-    ...(parsedLocation.city || mapPoint ? { radiusMiles } : {}),
-    ...(mapPoint ? { latitude: mapPoint.latitude, longitude: mapPoint.longitude } : {}),
-  };
-  const withLocation = (search: HomepageBrowseSearch): HomepageBrowseSearch => ({
-    ...search,
-    ...browseLocationSearch,
-  });
-  const homeListings = localRecent.filter((listing) => listing.home);
-  const jobListings = localRecent.filter((listing) => listing.job);
-  const serviceSource = localRecent.filter((listing) => listing.service);
-  const generalSource = localRecent.filter(
-    (listing) =>
-      !listing.vehicle && !listing.pet && !listing.home && !listing.job && !listing.service,
-  );
-
-  // Every row below draws from the same small pool, so without this the same
-  // few listings repeat row after row and the site reads as empty. Each
-  // listing appears at most once on the page, and a row too thin to look
-  // intentional is hidden. Rows claim listings in the order they render.
-  const allLocalListings = [...localRecent];
-  for (const listing of localMotors) {
-    if (!allLocalListings.some((existing) => existing.id === listing.id)) {
-      allLocalListings.push(listing);
-    }
-  }
-  const thinInventory = allLocalListings.length < HOMEPAGE_THIN_INVENTORY;
-  const leadMotors = localMotors.slice(0, HOMEPAGE_ROW_SIZE);
-  const shownIds = new Set<string>(thinInventory ? [] : leadMotors.map((listing) => listing.id));
-  const pick = (candidates: typeof home.recent) => {
-    if (thinInventory) return [];
-    const unseen = candidates
-      .filter((listing) => !shownIds.has(listing.id))
-      .slice(0, HOMEPAGE_ROW_SIZE);
-    if (unseen.length < HOMEPAGE_MIN_ROW) return [];
-    for (const listing of unseen) shownIds.add(listing.id);
-    return unseen;
-  };
-  const freshListings = pick(localRecent.filter((listing) => !listing.pet));
-  const fartherAwayListings = pick(home.recent.filter((listing) => !matchesLocation(listing)));
-  const vehicleListings = pick(localMotors);
-  const truckListings = pick(
-    localMotors.filter((listing) => /truck|suv|pickup|jeep/i.test(listing.title)),
-  );
-  const valueVehicleListings = pick([...localMotors].sort((a, b) => a.priceCents - b.priceCents));
-  const buyHomes = pick(homeListings.filter((listing) => listing.home?.mode === "buy"));
-  const buildHomes = pick(homeListings.filter((listing) => listing.home?.mode === "build"));
-  const rentalHomes = pick(homeListings.filter((listing) => listing.home?.mode === "rent"));
-  const jobRow = pick(jobListings);
-  const flexibleJobs = pick(
-    jobListings.filter((listing) =>
-      /part-time|contract|temporary/i.test(listing.job?.employmentType ?? ""),
-    ),
-  );
-  const serviceListings = pick(serviceSource);
-  const homeServices = pick(
-    serviceSource.filter((listing) =>
-      /home|handyman|lawn|landscape|repair|clean/i.test(
-        `${listing.title} ${listing.service?.subcategory ?? ""}`,
-      ),
-    ),
-  );
-  const generalListings = pick(generalSource);
-  const toyAndCollectibleListings = pick(
-    generalSource.filter((listing) =>
-      /toy|plush|doll|collectible|ninja|mario/i.test(
-        `${listing.title} ${listing.categoryName ?? ""}`,
-      ),
-    ),
-  );
-  const valueFinds = pick(generalSource.filter((listing) => listing.priceCents <= 10_000));
-  const localSellerPicks = pick(localRecent);
-  const feedStart = thinInventory
-    ? []
-    : allLocalListings.filter((listing) => !shownIds.has(listing.id));
-  const locationFields = browseLocationSearch as {
-    state?: string;
-    region?: string;
-    city?: string;
-    postalCode?: string;
-    radiusMiles?: number;
-  };
-  const feedLocation = {
-    state: locationFields.state,
-    region: locationFields.region,
-    city: locationFields.city,
-    postalCode: locationFields.postalCode,
-    radiusMiles: locationFields.radiusMiles,
-    latitude: mapPoint?.latitude,
-    longitude: mapPoint?.longitude,
-  };
+  const where = homeLocation(location, mapPoint, radiusMiles);
+  const { parsedLocation, locationSummary } = where;
 
   return (
     <main className="mx-auto max-w-[1360px] px-4 pb-16 sm:px-6">
@@ -561,6 +438,178 @@ function Home() {
         </div>
       </section>
 
+      {/* Listing rows wait on data; the hero above never does, so the
+          page's largest text paints without waiting on the database. */}
+      <Suspense fallback={<HomeSectionsLoading />}>
+        <HomeSections where={where} />
+      </Suspense>
+    </main>
+  );
+}
+
+/** Everything the page derives from the visitor's chosen location. */
+function homeLocation(location: string, mapPoint: LocationPoint | undefined, radiusMiles: number) {
+  const motorCategories = classifiedCategories.filter((c) => c.group === "motors");
+  const parsedLocation = parseLocationSearch(location);
+  const matchesLocation = (listing: ClassifiedsHome["recent"][number]) => {
+    if (parsedLocation.postalCode) {
+      return (listing.postalCode ?? "").startsWith(parsedLocation.postalCode);
+    }
+    if (parsedLocation.city || mapPoint) {
+      return isWithinClassifiedRadius({
+        city: parsedLocation.city,
+        listingCity: listing.city,
+        latitude: mapPoint?.latitude,
+        longitude: mapPoint?.longitude,
+        radiusMiles,
+      });
+    }
+    if (parsedLocation.region) return listing.region === parsedLocation.region;
+    if (parsedLocation.state) return listing.state === parsedLocation.state;
+    // The homepage promise is local by default. Broader browsing remains
+    // available through the optional state/region controls on browse.
+    return listing.state === "ID";
+  };
+  const selectedStateName = parsedLocation.state
+    ? usStates.find(([code]) => code === parsedLocation.state)?.[1]
+    : undefined;
+  const locationSummary = mapPoint
+    ? `${mapPoint.city ?? "Map point"} · within ${radiusMiles} miles`
+    : parsedLocation.city
+      ? `${parsedLocation.city} · within ${radiusMiles} miles`
+      : parsedLocation.postalCode
+        ? `ZIP ${parsedLocation.postalCode}`
+        : (parsedLocation.region ?? selectedStateName ?? "Idaho");
+  const browseLocationSearch = {
+    ...(!parsedLocation.city &&
+    !parsedLocation.postalCode &&
+    !parsedLocation.region &&
+    !parsedLocation.state
+      ? { state: "ID" }
+      : {}),
+    ...parsedLocation,
+    ...(parsedLocation.city || mapPoint ? { radiusMiles } : {}),
+    ...(mapPoint ? { latitude: mapPoint.latitude, longitude: mapPoint.longitude } : {}),
+  };
+  const withLocation = (search: HomepageBrowseSearch): HomepageBrowseSearch => ({
+    ...search,
+    ...browseLocationSearch,
+  });
+  const locationFields = browseLocationSearch as {
+    state?: string;
+    region?: string;
+    city?: string;
+    postalCode?: string;
+    radiusMiles?: number;
+  };
+  const feedLocation = {
+    state: locationFields.state,
+    region: locationFields.region,
+    city: locationFields.city,
+    postalCode: locationFields.postalCode,
+    radiusMiles: locationFields.radiusMiles,
+    latitude: mapPoint?.latitude,
+    longitude: mapPoint?.longitude,
+  };
+
+  return {
+    motorCategories,
+    parsedLocation,
+    matchesLocation,
+    locationSummary,
+    withLocation,
+    feedLocation,
+  };
+}
+
+function HomeSectionsLoading() {
+  return (
+    <div
+      className="mt-12 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4"
+      aria-hidden="true"
+    >
+      {Array.from({ length: 4 }, (_, index) => (
+        <div key={index} className="aspect-[4/3] rounded-2xl bg-secondary" />
+      ))}
+    </div>
+  );
+}
+
+function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
+  const { data: home } = useSuspenseQuery(homeQuery);
+  const { motorCategories, matchesLocation, withLocation, feedLocation } = where;
+  const localRecent = home.recent.filter(matchesLocation);
+  const localMotors = home.motors.filter(matchesLocation);
+  const homeListings = localRecent.filter((listing) => listing.home);
+  const jobListings = localRecent.filter((listing) => listing.job);
+  const serviceSource = localRecent.filter((listing) => listing.service);
+  const generalSource = localRecent.filter(
+    (listing) =>
+      !listing.vehicle && !listing.pet && !listing.home && !listing.job && !listing.service,
+  );
+
+  // Every row below draws from the same small pool, so without this the same
+  // few listings repeat row after row and the site reads as empty. Each
+  // listing appears at most once on the page, and a row too thin to look
+  // intentional is hidden. Rows claim listings in the order they render.
+  const allLocalListings = [...localRecent];
+  for (const listing of localMotors) {
+    if (!allLocalListings.some((existing) => existing.id === listing.id)) {
+      allLocalListings.push(listing);
+    }
+  }
+  const thinInventory = allLocalListings.length < HOMEPAGE_THIN_INVENTORY;
+  const leadMotors = localMotors.slice(0, HOMEPAGE_ROW_SIZE);
+  const shownIds = new Set<string>(thinInventory ? [] : leadMotors.map((listing) => listing.id));
+  const pick = (candidates: ClassifiedsHome["recent"]) => {
+    if (thinInventory) return [];
+    const unseen = candidates
+      .filter((listing) => !shownIds.has(listing.id))
+      .slice(0, HOMEPAGE_ROW_SIZE);
+    if (unseen.length < HOMEPAGE_MIN_ROW) return [];
+    for (const listing of unseen) shownIds.add(listing.id);
+    return unseen;
+  };
+  const freshListings = pick(localRecent.filter((listing) => !listing.pet));
+  const fartherAwayListings = pick(home.recent.filter((listing) => !matchesLocation(listing)));
+  const vehicleListings = pick(localMotors);
+  const truckListings = pick(
+    localMotors.filter((listing) => /truck|suv|pickup|jeep/i.test(listing.title)),
+  );
+  const valueVehicleListings = pick([...localMotors].sort((a, b) => a.priceCents - b.priceCents));
+  const buyHomes = pick(homeListings.filter((listing) => listing.home?.mode === "buy"));
+  const buildHomes = pick(homeListings.filter((listing) => listing.home?.mode === "build"));
+  const rentalHomes = pick(homeListings.filter((listing) => listing.home?.mode === "rent"));
+  const jobRow = pick(jobListings);
+  const flexibleJobs = pick(
+    jobListings.filter((listing) =>
+      /part-time|contract|temporary/i.test(listing.job?.employmentType ?? ""),
+    ),
+  );
+  const serviceListings = pick(serviceSource);
+  const homeServices = pick(
+    serviceSource.filter((listing) =>
+      /home|handyman|lawn|landscape|repair|clean/i.test(
+        `${listing.title} ${listing.service?.subcategory ?? ""}`,
+      ),
+    ),
+  );
+  const generalListings = pick(generalSource);
+  const toyAndCollectibleListings = pick(
+    generalSource.filter((listing) =>
+      /toy|plush|doll|collectible|ninja|mario/i.test(
+        `${listing.title} ${listing.categoryName ?? ""}`,
+      ),
+    ),
+  );
+  const valueFinds = pick(generalSource.filter((listing) => listing.priceCents <= 10_000));
+  const localSellerPicks = pick(localRecent);
+  const feedStart = thinInventory
+    ? []
+    : allLocalListings.filter((listing) => !shownIds.has(listing.id));
+
+  return (
+    <>
       {thinInventory ? (
         <section className="mt-12" aria-labelledby="newest-listings-heading">
           <div className="flex items-end justify-between gap-4 border-b border-border pb-3">
@@ -843,7 +892,7 @@ function Home() {
           Post a listing
         </Link>
       </section>
-    </main>
+    </>
   );
 }
 
