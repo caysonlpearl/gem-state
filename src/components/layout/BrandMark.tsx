@@ -11,7 +11,7 @@ export function BrandMark({
   return (
     <span className={cn("inline-flex items-center gap-2.5", className)}>
       <img
-        src="/images/brand/bluebird-marketplace-logo.png"
+        src="/images/brand/bluebird-marketplace-logo.webp"
         alt="Bluebird Marketplace — Idaho's local marketplace"
         className={
           mobile

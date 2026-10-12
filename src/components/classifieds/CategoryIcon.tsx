@@ -82,179 +82,179 @@ const categoryIcons = {
 
 const categoryArtwork = {
   "cars-trucks": {
-    src: "/category-icons/cars-trucks.png",
+    src: "/category-icons/cars-trucks.webp",
     alt: "Dimensional teal pickup truck illustration",
   },
   motorcycles: {
-    src: "/category-icons/motorcycles.png",
+    src: "/category-icons/motorcycles.webp",
     alt: "Dimensional navy motorcycle illustration",
   },
   "rvs-campers": {
-    src: "/category-icons/rvs-campers.png",
+    src: "/category-icons/rvs-campers.webp",
     alt: "Dimensional cream travel trailer illustration",
   },
   powersports: {
-    src: "/category-icons/powersports.png",
+    src: "/category-icons/powersports.webp",
     alt: "Dimensional teal all-terrain vehicle illustration",
   },
   "auto-parts": {
-    src: "/category-icons/auto-parts.png",
+    src: "/category-icons/auto-parts.webp",
     alt: "Dimensional tire and rim illustration",
   },
   trailers: {
-    src: "/category-icons/trailers.png",
+    src: "/category-icons/trailers.webp",
     alt: "Dimensional teal utility trailer illustration",
   },
   furniture: {
-    src: "/category-icons/furniture.png",
+    src: "/category-icons/furniture.webp",
     alt: "Dimensional teal lounge chair illustration",
   },
   "apparel-accessories": {
-    src: "/category-icons/apparel-accessories.png",
+    src: "/category-icons/apparel-accessories.webp",
     alt: "Dimensional jean jacket illustration",
   },
   "baby-kids": {
-    src: "/category-icons/baby-kids.png",
+    src: "/category-icons/baby-kids.webp",
     alt: "Dimensional toy illustration",
   },
   electronics: {
-    src: "/category-icons/electronics.png",
+    src: "/category-icons/electronics.webp",
     alt: "Dimensional smartphone illustration",
   },
   "tools-equipment": {
-    src: "/category-icons/tools-equipment.png",
+    src: "/category-icons/tools-equipment.webp",
     alt: "Dimensional drill illustration",
   },
   "outdoor-sporting": {
-    src: "/category-icons/outdoor-sporting.png",
+    src: "/category-icons/outdoor-sporting.webp",
     alt: "Dimensional camping tent illustration",
   },
   "farm-garden": {
-    src: "/category-icons/farm-garden.png",
+    src: "/category-icons/farm-garden.webp",
     alt: "Dimensional garden wheelbarrow illustration",
   },
   general: {
-    src: "/category-icons/general.png",
+    src: "/category-icons/general.webp",
     alt: "Dimensional shipping boxes and household goods illustration",
   },
   announcements: {
-    src: "/category-icons/announcements.png",
+    src: "/category-icons/announcements.webp",
     alt: "Dimensional navy and cream megaphone illustration",
   },
   appliances: {
-    src: "/category-icons/appliances.png",
+    src: "/category-icons/appliances.webp",
     alt: "Dimensional countertop oven illustration",
   },
   collectibles: {
-    src: "/category-icons/collectibles.png",
+    src: "/category-icons/collectibles.webp",
     alt: "Dimensional coin in a glass case illustration",
   },
   "crafts-hobbies": {
-    src: "/category-icons/crafts-hobbies.png",
+    src: "/category-icons/crafts-hobbies.webp",
     alt: "Dimensional yarn ball illustration",
   },
   "health-beauty": {
-    src: "/category-icons/health-beauty.png",
+    src: "/category-icons/health-beauty.webp",
     alt: "Dimensional beauty tub with a green leaf illustration",
   },
   baby: {
-    src: "/category-icons/baby.png",
+    src: "/category-icons/baby.webp",
     alt: "Dimensional modern baby stroller illustration",
   },
   "books-media": {
-    src: "/category-icons/books-media.png",
+    src: "/category-icons/books-media.webp",
     alt: "Dimensional books and vinyl record illustration",
   },
   "clothing-apparel": {
-    src: "/category-icons/clothing-apparel.png",
+    src: "/category-icons/clothing-apparel.webp",
     alt: "Dimensional folded cream sweater illustration",
   },
   computers: {
-    src: "/category-icons/computers.png",
+    src: "/category-icons/computers.webp",
     alt: "Dimensional laptop illustration",
   },
   cycling: {
-    src: "/category-icons/cycling.png",
+    src: "/category-icons/cycling.webp",
     alt: "Dimensional teal bicycle illustration",
   },
   "fitness-equipment": {
-    src: "/category-icons/fitness-equipment.png",
+    src: "/category-icons/fitness-equipment.webp",
     alt: "Dimensional navy and amber dumbbell illustration",
   },
   "for-trade-barter": {
-    src: "/category-icons/for-trade-barter.png",
+    src: "/category-icons/for-trade-barter.webp",
     alt: "Dimensional navy and amber exchange arrows illustration",
   },
   free: {
-    src: "/category-icons/free.png",
+    src: "/category-icons/free.webp",
     alt: "Dimensional cream gift box illustration",
   },
   "home-garden": {
-    src: "/category-icons/home-garden.png",
+    src: "/category-icons/home-garden.webp",
     alt: "Dimensional leafy houseplant illustration",
   },
   "hunting-fishing": {
-    src: "/category-icons/hunting-fishing.png",
+    src: "/category-icons/hunting-fishing.webp",
     alt: "Dimensional teal fishing rod and lure illustration",
   },
   industrial: {
-    src: "/category-icons/industrial.png",
+    src: "/category-icons/industrial.webp",
     alt: "Dimensional yellow forklift illustration",
   },
   "jewelry-watches": {
-    src: "/category-icons/jewelry-watches.png",
+    src: "/category-icons/jewelry-watches.webp",
     alt: "Dimensional necklace on a display illustration",
   },
   jobs: {
-    src: "/category-icons/jobs.png",
+    src: "/category-icons/jobs.webp",
     alt: "Dimensional navy briefcase illustration",
   },
   livestock: {
-    src: "/category-icons/livestock.png",
+    src: "/category-icons/livestock.webp",
     alt: "Dimensional cream and brown cow illustration",
   },
   "musical-instruments": {
-    src: "/category-icons/musical-instruments.png",
+    src: "/category-icons/musical-instruments.webp",
     alt: "Dimensional teal acoustic guitar illustration",
   },
   "other-real-estate": {
-    src: "/category-icons/other-real-estate.png",
+    src: "/category-icons/other-real-estate.webp",
     alt: "Dimensional house and for-sale sign illustration",
   },
   "office-business": {
-    src: "/category-icons/office-business.png",
+    src: "/category-icons/office-business.webp",
     alt: "Dimensional office organizer with plant and supplies illustration",
   },
   pets: {
-    src: "/category-icons/pets.png",
+    src: "/category-icons/pets.webp",
     alt: "Dimensional golden retriever puppy illustration",
   },
   services: {
-    src: "/category-icons/services.png",
+    src: "/category-icons/services.webp",
     alt: "Dimensional navy and amber adjustable wrench illustration",
   },
   "tickets-events": {
-    src: "/category-icons/tickets-events.png",
+    src: "/category-icons/tickets-events.webp",
     alt: "Dimensional event ticket illustration",
   },
   tickets: {
-    src: "/category-icons/tickets.png",
+    src: "/category-icons/tickets.webp",
     alt: "Dimensional cream event tickets illustration",
   },
   toys: {
-    src: "/category-icons/toys.png",
+    src: "/category-icons/toys.webp",
     alt: "Dimensional teddy bear illustration",
   },
   "water-sports": {
-    src: "/category-icons/water-sports.png",
+    src: "/category-icons/water-sports.webp",
     alt: "Dimensional teal kayak and paddle illustration",
   },
   weddings: {
-    src: "/category-icons/weddings.png",
+    src: "/category-icons/weddings.webp",
     alt: "Dimensional wedding ring box illustration",
   },
   "winter-sports": {
-    src: "/category-icons/winter-sports.png",
+    src: "/category-icons/winter-sports.webp",
     alt: "Dimensional crossed teal skis illustration",
   },
 } as const;

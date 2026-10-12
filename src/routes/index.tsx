@@ -192,6 +192,10 @@ function Home() {
   const [headlineItems, setHeadlineItems] = useState<(typeof headlineOptions)[number]>(
     headlineOptions[0],
   );
+  // The server-rendered headline stays put for the first paint (it's the
+  // page's largest text, so swapping it on load delays LCP); the entrance
+  // animation only plays on later rotations.
+  const [headlineRotated, setHeadlineRotated] = useState(false);
   const [term, setTerm] = useState("");
   const [category, setCategory] = useState("");
   const [location, setLocation] = useState("");
@@ -200,12 +204,19 @@ function Home() {
   const [mapOpen, setMapOpen] = useState(false);
 
   useEffect(() => {
-    setHeadlineItems(pickHeadlineItems());
     void trackEvent("page_view", { route: "/" });
 
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
 
+    let firstRotation = true;
     const headlineRotation = window.setInterval(() => {
+      setHeadlineRotated(true);
+      // First change: something other than what this visitor saw last time.
+      if (firstRotation) {
+        firstRotation = false;
+        setHeadlineItems(pickHeadlineItems());
+        return;
+      }
       setHeadlineItems((current) => {
         const currentIndex = headlineOptions.findIndex(
           (option) => option.join("|") === current.join("|"),
@@ -380,7 +391,7 @@ function Home() {
               Find{" "}
               <span
                 key={headlineItems.join("|")}
-                className="classifieds-hero-rotating-item text-brand-blue"
+                className={`${headlineRotated ? "classifieds-hero-rotating-item " : ""}text-brand-blue`}
                 aria-live="polite"
               >
                 {headlineItems[0]}

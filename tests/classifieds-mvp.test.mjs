@@ -852,7 +852,7 @@ test("step six keeps customer email surfaces on the Bluebird brand", () => {
 });
 
 test("approved Bluebird logo is used across the responsive brand mark", () => {
-  assert.match(brandMarkSource, /bluebird-marketplace-logo\.png/);
+  assert.match(brandMarkSource, /bluebird-marketplace-logo\.webp/);
   assert.doesNotMatch(brandMarkSource, /Diamond/);
 });
 
@@ -951,8 +951,8 @@ test("shared category icons and no-photo cards have deterministic presentation",
     assert.match(categoryIconSource, new RegExp(`(?:[\\\"']${slug}[\\\"']|${slug}:)`));
   }
   assert.match(categoryIconSource, /weight="duotone"/);
-  assert.match(categoryIconSource, /category-icons\/cars-trucks\.png/);
-  assert.match(categoryIconSource, /category-icons\/general\.png/);
+  assert.match(categoryIconSource, /category-icons\/cars-trucks\.webp/);
+  assert.match(categoryIconSource, /category-icons\/general\.webp/);
   assert.match(categoryIconSource, /function CategoryArtwork/);
   assert.match(categoryIconSource, /loading="eager"/);
   assert.match(categoryIconSource, /SquaresFour/);
@@ -1113,7 +1113,7 @@ test("expanded category menu entries use transparent dimensional artwork", () =>
     "weddings",
     "winter-sports",
   ]) {
-    assert.match(categoryIconSource, new RegExp(`src: "/category-icons/${slug}\\.png"`));
+    assert.match(categoryIconSource, new RegExp(`src: "/category-icons/${slug}\\.webp"`));
   }
 });
 
