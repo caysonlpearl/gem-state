@@ -1965,7 +1965,8 @@ export const ENDED_LISTING_RETENTION_DAYS = 60;
  * A listing that sold or expired keeps its page for a while, so links and
  * search results still land somewhere useful: the details and photos, a
  * banner saying it has ended, and similar live listings. Listings a seller
- * or moderator took down are never shown here; they redirect right away.
+ * or moderator took down (without marking them sold) are never shown here;
+ * they redirect right away.
  * Contact details are left out, since the seller is no longer taking offers.
  */
 export const getEndedClassifiedListing = createServerFn({ method: "GET" })
@@ -1977,7 +1978,7 @@ export const getEndedClassifiedListing = createServerFn({ method: "GET" })
       .from("asks")
       .select(`${LISTING_SELECT}, status, updated_at`)
       .eq("id", data.id)
-      .in("status", ["active", "expired", "matched"])
+      .in("status", ["active", "expired", "matched", "cancelled"])
       .eq("is_demo", false)
       .not("approved_at", "is", null)
       .eq("products.status", "published")
@@ -1988,12 +1989,26 @@ export const getEndedClassifiedListing = createServerFn({ method: "GET" })
     const record = row as unknown as Record<string, unknown>;
     const status = record["status"] as string;
     const expiresAt = record["expires_at"] as string;
+    // A cancelled listing only counts as ended if the seller marked it sold;
+    // a plain take-down is left to redirect. Read on its own so the page
+    // still works while the sold_at migration is pending.
+    let soldAt: string | null = null;
+    if (status === "cancelled") {
+      const { data: soldRow } = await supabaseAdmin
+        .from("asks")
+        .select("sold_at")
+        .eq("id", data.id)
+        .maybeSingle();
+      soldAt = soldRow?.sold_at ?? null;
+    }
     const ended =
       status === "matched"
         ? { reason: "sold" as const, endedAt: record["updated_at"] as string }
-        : status === "expired" || Date.parse(expiresAt) <= Date.now()
-          ? { reason: "expired" as const, endedAt: expiresAt }
-          : null;
+        : soldAt
+          ? { reason: "sold" as const, endedAt: soldAt }
+          : status !== "cancelled" && (status === "expired" || Date.parse(expiresAt) <= Date.now())
+            ? { reason: "expired" as const, endedAt: expiresAt }
+            : null;
     if (!ended) return null;
     const retainedUntil = Date.parse(ended.endedAt) + ENDED_LISTING_RETENTION_DAYS * 86_400_000;
     if (!(retainedUntil > Date.now())) return null;

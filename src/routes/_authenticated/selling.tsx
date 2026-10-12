@@ -17,6 +17,7 @@ import {
 } from "@/lib/job-applications.functions";
 import {
   cancelListing,
+  markListingSold,
   getMyListingOffers,
   getMyListings,
   getMyOrders,
@@ -67,7 +68,9 @@ function sellerListingStatusLabel(ask: {
   status: string;
   approvedAt?: string | null;
   productStatus?: string | null;
+  soldAt?: string;
 }) {
+  if (ask.soldAt) return "Sold";
   if (ask.productStatus === "rejected") return "Needs changes";
   if (ask.status === "active" && !ask.approvedAt) return "Awaiting Bluebird review";
   if (ask.status === "cancelled") return "Removed";
@@ -81,6 +84,7 @@ function SellingPage() {
   const fetchListings = useServerFn(getMyListings);
   const fetchOrders = useServerFn(getMyOrders);
   const cancel = useServerFn(cancelListing);
+  const markSold = useServerFn(markListingSold);
   const fetchSellerSetup = useServerFn(getSellerSetup);
   const fetchSummary = useServerFn(getSellerDashboardSummary);
   const relist = useServerFn(relistSellerListing);
@@ -157,6 +161,20 @@ function SellingPage() {
       toast.error(error instanceof Error ? error.message : "Could not open the resume."),
   });
 
+  const markSoldMutation = useMutation({
+    mutationFn: (id: string) => markSold({ data: { id } }),
+    onSuccess: async () => {
+      await trackEvent("ask_marked_sold", {});
+      await queryClient.invalidateQueries({ queryKey: ["my-listings"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["classified-browse"] }),
+        queryClient.invalidateQueries({ queryKey: ["watchlist"] }),
+      ]);
+      toast.success("Marked as sold. Congratulations on the sale!");
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Could not mark this listing as sold."),
+  });
   const cancelMutation = useMutation({
     mutationFn: (id: string) => cancel({ data: { kind: "ask", id } }),
     onSuccess: async () => {
@@ -317,8 +335,10 @@ function SellingPage() {
   const needsChangesAsks = asks.filter(
     (ask) => ask.status === "active" && ask.productStatus === "rejected",
   );
-  const soldAsks = asks.filter((ask) => ask.status === "matched");
-  const removedAsks = asks.filter((ask) => ask.status === "cancelled" || ask.status === "expired");
+  const soldAsks = asks.filter((ask) => ask.status === "matched" || Boolean(ask.soldAt));
+  const removedAsks = asks.filter(
+    (ask) => (ask.status === "cancelled" && !ask.soldAt) || ask.status === "expired",
+  );
   const tabCounts: Record<ListingTab, number> = {
     active: activeAsks.length,
     pending:
@@ -494,6 +514,21 @@ function SellingPage() {
                       >
                         Edit
                       </Link>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (
+                            window.confirm(
+                              "Mark this listing as sold? It will leave public search, and its page will show that it sold.",
+                            )
+                          )
+                            markSoldMutation.mutate(ask.id);
+                        }}
+                        disabled={markSoldMutation.isPending}
+                        className="h-8 border border-input px-2.5 text-[11.5px] font-medium hover:bg-secondary disabled:opacity-60"
+                      >
+                        Mark as sold
+                      </button>
                       <button
                         type="button"
                         onClick={() => {

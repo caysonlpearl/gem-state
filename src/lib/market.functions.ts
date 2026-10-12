@@ -46,6 +46,8 @@ export type MyListing = {
   publicMediaCount?: number;
   paymentAuthorized?: boolean;
   matchedOrderId: string | null;
+  /** When the seller marked it sold; a sold listing's status is "cancelled". */
+  soldAt?: string;
   thumbnailUrl?: string;
   highestBidCents?: number | null;
   activeBidCount?: number;
@@ -576,6 +578,21 @@ export const sellNow = createServerFn({ method: "POST" })
     return { orderId: orderId as string };
   });
 
+/**
+ * The seller's own "it sold" action: the listing leaves search like a
+ * take-down, and its page shows a Sold banner for a while before redirecting.
+ */
+export const markListingSold = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: { id: string }) => ({ id: String(input?.id ?? "").slice(0, 64) }))
+  .handler(async ({ data, context }) => {
+    const { error } = await context.supabase.rpc("mark_ask_sold", { _ask_id: data.id });
+    if (error) throw new Error(error.message);
+    const { pingIndexNow } = await import("./indexnow.server");
+    void pingIndexNow([`/listings/${data.id}`]);
+    return { ok: true as const };
+  });
+
 export const getMyListings = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<{ asks: MyListing[]; bids: MyListing[] }> => {
@@ -620,15 +637,24 @@ export const getMyListings = createServerFn({ method: "GET" })
             .select("listing_id,status,created_at")
             .in("listing_id", askIds)
             .order("created_at", { ascending: false }),
+          client.from("asks").select("id,sold_at").in("id", askIds).not("sold_at", "is", null),
         ])
       : [
           { data: [], error: null },
           { data: [], error: null },
           { data: [], error: null },
           { data: [], error: null },
+          { data: [], error: null },
         ];
-    const [metricsResult, conversationResult, inquiryResult, upgradeResult] = optionalResults;
-    for (const result of [metricsResult, conversationResult, inquiryResult, upgradeResult]) {
+    const [metricsResult, conversationResult, inquiryResult, upgradeResult, soldResult] =
+      optionalResults;
+    for (const result of [
+      metricsResult,
+      conversationResult,
+      inquiryResult,
+      upgradeResult,
+      soldResult,
+    ]) {
       if (result.error)
         console.warn("Optional seller listing enrichment unavailable", result.error.message);
     }
@@ -645,6 +671,12 @@ export const getMyListings = createServerFn({ method: "GET" })
     ] as any[]) {
       leadsByListing.set(row.listing_id, (leadsByListing.get(row.listing_id) ?? 0) + 1);
     }
+    const soldAtByListing = new Map<string, string>(
+      ((soldResult.error ? [] : (soldResult.data ?? [])) as any[]).map((row) => [
+        row.id as string,
+        row.sold_at as string,
+      ]),
+    );
     const upgradesByListing = new Map<string, string>();
     for (const row of (upgradeResult.error ? [] : (upgradeResult.data ?? [])) as any[]) {
       if (!upgradesByListing.has(row.listing_id)) upgradesByListing.set(row.listing_id, row.status);
@@ -715,6 +747,9 @@ export const getMyListings = createServerFn({ method: "GET" })
         expiresAt: row["expires_at"] as string,
         createdAt: row["created_at"] as string,
         matchedOrderId: (row["matched_order_id"] as string | null) ?? null,
+        ...(soldAtByListing.has(row["id"] as string)
+          ? { soldAt: soldAtByListing.get(row["id"] as string)! }
+          : {}),
         ...(thumbnailByAsk.has(row["id"] as string)
           ? { thumbnailUrl: thumbnailByAsk.get(row["id"] as string)! }
           : {}),

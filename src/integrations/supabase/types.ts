@@ -328,6 +328,7 @@ export type Database = {
           seller_id: string
           seller_note: string | null
           ship_by_days: number
+          sold_at: string | null
           status: Database["public"]["Enums"]["listing_status"]
           updated_at: string
           variant_id: string
@@ -361,6 +362,7 @@ export type Database = {
           seller_id: string
           seller_note?: string | null
           ship_by_days?: number
+          sold_at?: string | null
           status?: Database["public"]["Enums"]["listing_status"]
           updated_at?: string
           variant_id: string
@@ -394,6 +396,7 @@ export type Database = {
           seller_id?: string
           seller_note?: string | null
           ship_by_days?: number
+          sold_at?: string | null
           status?: Database["public"]["Enums"]["listing_status"]
           updated_at?: string
           variant_id?: string
@@ -6452,6 +6455,7 @@ export type Database = {
           primary_intent: string
         }[]
       }
+      mark_ask_sold: { Args: { _ask_id: string }; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

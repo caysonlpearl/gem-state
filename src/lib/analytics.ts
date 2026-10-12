@@ -29,6 +29,7 @@ export type AnalyticsEventName =
   | "bid_cancelled"
   | "ask_submitted"
   | "ask_cancelled"
+  | "ask_marked_sold"
   | "ask_evidence_uploaded"
   | "sourcing_request_submitted"
   | "sourcing_request_cancelled"

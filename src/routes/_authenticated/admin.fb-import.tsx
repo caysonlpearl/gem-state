@@ -78,6 +78,7 @@ type ExtensionRefreshResult = {
   priceCents?: number;
   description?: string;
   unavailable?: boolean;
+  sold?: boolean;
 };
 
 function ImportedSellers() {
@@ -173,6 +174,7 @@ function ImportedSellers() {
           categorySlug: "general",
           photoUrls: [],
           unavailable: result.unavailable === true,
+          sold: result.sold === true,
         });
         groups.set(target.sourceProfileUrl, list);
       }

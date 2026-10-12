@@ -123,6 +123,8 @@ export type FbImportItemInput = {
   state?: string | null;
   photoUrls: string[];
   unavailable?: boolean | undefined;
+  /** Facebook shows the Sold badge (implies unavailable). */
+  sold?: boolean | undefined;
 };
 
 export type FbImportItem = {
@@ -207,6 +209,33 @@ async function claimPhotosForSeller(
   return claimed;
 }
 
+type RemovedReason = "sold" | "unavailable" | "missing";
+
+// removed_reason is read and written on its own and failures are ignored, so
+// imports keep working (as plain take-downs) if its migration hasn't run.
+async function recordRemovedReason(
+  admin: any,
+  sourceProfileUrl: string,
+  sourceUrl: string,
+  reason: RemovedReason,
+) {
+  const { error } = await admin
+    .from("fb_marketplace_import_items")
+    .update({ removed_reason: reason })
+    .eq("source_profile_url", sourceProfileUrl)
+    .eq("source_url", sourceUrl);
+  if (error) console.warn("Could not record why an import was flagged", error.message);
+}
+
+async function removedReason(admin: any, itemId: string): Promise<RemovedReason | null> {
+  const { data, error } = await admin
+    .from("fb_marketplace_import_items")
+    .select("removed_reason")
+    .eq("id", itemId)
+    .maybeSingle();
+  return error ? null : ((data?.removed_reason as RemovedReason | null) ?? null);
+}
+
 export const stageFacebookImportBatch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator(
@@ -235,6 +264,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
         state: item.state ? String(item.state).trim().slice(0, 80) : "",
         photoUrls: (item.photoUrls ?? []).filter(Boolean).slice(0, 8),
         unavailable: item.unavailable === true,
+        sold: item.sold === true,
       }));
       if (!items.length) throw new Error("No listings were provided.");
       if (items.some((item) => !item.sourceUrl || !item.title))
@@ -301,6 +331,12 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
               .eq("source_profile_url", data.sourceProfileUrl)
               .eq("source_url", item.sourceUrl);
             if (error) throw new Error(error.message);
+            await recordRemovedReason(
+              admin,
+              data.sourceProfileUrl,
+              item.sourceUrl,
+              item.sold ? "sold" : "unavailable",
+            );
             flaggedRemoved += 1;
             continue;
           }
@@ -395,6 +431,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
           .eq("source_profile_url", data.sourceProfileUrl)
           .eq("source_url", row.source_url);
         if (error) throw new Error(error.message);
+        await recordRemovedReason(admin, data.sourceProfileUrl, row.source_url, "missing");
       }
 
       return { batchId: batch.id, staged, updated, failed, flaggedRemoved };
@@ -718,10 +755,18 @@ export const publishFacebookImportItems = createServerFn({ method: "POST" })
         try {
           if (item.status === "possibly_removed") {
             if (!item.listing_id) throw new Error("No linked listing to remove.");
-            const { error: cancelError } = await acting.rpc("cancel_ask", {
-              _ask_id: item.listing_id,
-            });
-            if (cancelError) throw new Error(cancelError.message);
+            // Sold on Facebook -> sold on Bluebird (its page keeps a Sold
+            // banner for a while). Anything else is a plain take-down, which
+            // is also the fallback if marking sold isn't available.
+            const soldOnFacebook =
+              (await removedReason(admin, item.id)) === "sold" &&
+              !(await acting.rpc("mark_ask_sold", { _ask_id: item.listing_id })).error;
+            if (!soldOnFacebook) {
+              const { error: cancelError } = await acting.rpc("cancel_ask", {
+                _ask_id: item.listing_id,
+              });
+              if (cancelError) throw new Error(cancelError.message);
+            }
             const { pingIndexNow } = await import("./indexnow.server");
             void pingIndexNow([`/listings/${item.listing_id}`]);
             await admin
