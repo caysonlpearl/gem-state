@@ -528,3 +528,10 @@
     padding-bottom: calc(76px + env(safe-area-inset-bottom));
   }
 }
+
+/* Room for the phone tab bar so it never covers the end of a page. */
+@media (max-width: 1023px) {
+  html.has-mobile-tab-bar body {
+    padding-bottom: calc(60px + env(safe-area-inset-bottom));
+  }
+}

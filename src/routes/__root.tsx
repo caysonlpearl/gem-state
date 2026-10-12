@@ -14,6 +14,7 @@ import { brand } from "@/config/brand";
 import { supabase } from "@/integrations/supabase/client";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { SiteFooter } from "@/components/layout/SiteFooter";
+import { MobileTabBar } from "@/components/layout/MobileTabBar";
 import { PilotBanner } from "@/components/layout/PilotBanner";
 import { Toaster } from "@/components/ui/sonner";
 import { trackBrowserError } from "@/lib/analytics";
@@ -166,6 +167,7 @@ function RootComponent() {
           <Outlet />
         </main>
         <SiteFooter />
+        <MobileTabBar />
       </div>
       <Toaster />
     </QueryClientProvider>

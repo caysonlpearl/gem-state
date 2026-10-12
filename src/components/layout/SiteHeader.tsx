@@ -115,7 +115,7 @@ export function SiteHeader() {
       </a>
 
       {/* Level 1 */}
-      <div className="relative z-30 mx-auto grid min-w-0 h-[98px] max-w-[1440px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 sm:h-[108px] sm:gap-8 sm:px-8">
+      <div className="relative z-30 mx-auto grid min-w-0 h-16 max-w-[1440px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 sm:h-[108px] sm:gap-8 sm:px-8">
         <Link to="/" className="flex min-w-0 shrink-0 items-center pr-1 sm:pr-2" {...pinned}>
           <BrandMark className="hidden sm:inline-flex" />
           <BrandMark compact mobile className="sm:hidden" />
@@ -155,14 +155,6 @@ export function SiteHeader() {
           aria-label="Account and utilities"
           className="flex min-w-0 shrink-0 items-center justify-end gap-1.5"
         >
-          <button
-            type="button"
-            onClick={() => void navigate({ to: "/browse" })}
-            aria-label="Search classifieds"
-            className="grid h-11 w-11 place-items-center rounded-full border border-input text-foreground transition-colors hover:bg-secondary sm:h-11 sm:w-11 md:hidden"
-          >
-            <MagnifyingGlass size={18} aria-hidden="true" />
-          </button>
           <Link
             to="/create-listing"
             className="hidden h-11 items-center gap-1.5 rounded-full bg-accent px-4 text-[12.5px] font-semibold text-accent-foreground transition-opacity hover:opacity-90 sm:inline-flex"
@@ -190,10 +182,11 @@ export function SiteHeader() {
               }}
               aria-expanded={isSignedIn ? accountMenuOpen : undefined}
               aria-haspopup={isSignedIn ? "menu" : undefined}
-              className="inline-flex h-11 min-h-11 items-center gap-1.5 rounded-full border border-foreground px-3 text-[12px] font-medium transition-colors hover:bg-foreground hover:text-background sm:h-11 sm:min-h-11 sm:px-4 sm:text-[12.5px]"
+              aria-label={isSignedIn ? "Account" : "Sign in"}
+              className="inline-flex h-11 min-h-11 w-11 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-foreground text-[12px] font-medium transition-colors hover:bg-foreground hover:text-background sm:w-auto sm:px-4 sm:text-[12.5px]"
             >
-              <UserCircle size={16} aria-hidden="true" />
-              {isSignedIn ? "Account" : "Sign in"}
+              <UserCircle size={20} aria-hidden="true" />
+              <span className="hidden sm:inline">{isSignedIn ? "Account" : "Sign in"}</span>
             </button>
             {isSignedIn && accountMenuOpen && (
               <div

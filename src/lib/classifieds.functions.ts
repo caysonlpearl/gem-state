@@ -1993,29 +1993,48 @@ export const getClassifiedListing = createServerFn({ method: "GET" })
     };
   });
 
-export type ClassifiedRelated = { listings: ClassifiedCard[] };
+export type ClassifiedRelated = { fromSeller: ClassifiedCard[]; similar: ClassifiedCard[] };
 
+/**
+ * Two rails under a listing: the same seller's other listings, and similar
+ * listings nearby from other sellers (same category, same region, widening
+ * to the whole state when the region is thin).
+ */
 export const getRelatedClassifieds = createServerFn({ method: "GET" })
   .validator(
-    (input: { category?: string; region?: string; sellerSlug?: string; excludeId: string }) => ({
+    (input: {
+      category?: string;
+      region?: string;
+      state?: string;
+      sellerSlug?: string;
+      excludeId: string;
+    }) => ({
       category: text(input?.category, 60),
       region: text(input?.region),
+      state: text(input?.state, 2),
       sellerSlug: text(input?.sellerSlug, 60),
       excludeId: String(input?.excludeId ?? "").slice(0, 64),
     }),
   )
   .handler(async ({ data }): Promise<ClassifiedRelated> => {
-    if (!data.category && !data.sellerSlug) return { listings: [] };
-    const result = await browseClassifieds({
-      data: {
-        ...(data.category ? { category: data.category } : {}),
-        ...(data.region ? { region: data.region } : {}),
-        ...(data.sellerSlug ? { sellerSlug: data.sellerSlug } : {}),
-        sort: "newest",
-        page: 1,
-      },
-    });
-    return { listings: result.listings.filter((row) => row.id !== data.excludeId).slice(0, 8) };
+    const fromSellerResult = data.sellerSlug
+      ? await browseClassifieds({ data: { sellerSlug: data.sellerSlug, sort: "newest", page: 1 } })
+      : null;
+    const fromSeller = (fromSellerResult?.listings ?? [])
+      .filter((row) => row.id !== data.excludeId)
+      .slice(0, 8);
+
+    if (!data.category) return { fromSeller, similar: [] };
+    const exclude = new Set([data.excludeId, ...(fromSellerResult?.listings ?? []).map((row) => row.id)]);
+    const similarIn = async (place: { region?: string; state?: string }) => {
+      const result = await browseClassifieds({
+        data: { category: data.category, ...place, sort: "newest", page: 1 },
+      });
+      return result.listings.filter((row) => !exclude.has(row.id)).slice(0, 8);
+    };
+    let similar = data.region ? await similarIn({ region: data.region }) : [];
+    if (similar.length < 4 && data.state) similar = await similarIn({ state: data.state });
+    return { fromSeller, similar };
   });
 
 export type ClassifiedsHome = {

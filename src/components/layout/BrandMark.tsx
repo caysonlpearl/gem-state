@@ -15,7 +15,7 @@ export function BrandMark({
         alt="Bluebird Marketplace — Idaho's local marketplace"
         className={
           mobile
-            ? "h-[56px] w-[190px] max-w-full shrink-0 object-contain"
+            ? "h-[44px] w-[150px] max-w-full shrink-0 object-contain"
             : "h-[82px] w-[320px] max-w-full shrink-0 object-contain"
         }
       />

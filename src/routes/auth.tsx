@@ -77,6 +77,50 @@ type StaticRedirect =
   | "/messages";
 type AuthSearch = { redirect?: AuthRedirect | undefined; mode?: Mode | undefined };
 
+// Tell people why they're being asked to sign in, based on where they were
+// headed -- a generic "sign in" at the moment of posting or messaging reads
+// as a wall rather than a step.
+function authIntent(redirect: AuthRedirect) {
+  if (redirect.startsWith("/listings/")) {
+    return {
+      signinTitle: "Sign in to message the seller",
+      signupTitle: "Create an account to message the seller",
+      body: "You'll come right back to the listing with your message ready to send.",
+    };
+  }
+  if (
+    redirect === "/create-listing" ||
+    redirect === "/create-missing-listing" ||
+    redirect === "/seller-setup" ||
+    redirect === "/selling"
+  ) {
+    return {
+      signinTitle: "Sign in to post your listing",
+      signupTitle: "Create an account to post your listing",
+      body: "Posting is free. Buyers across Idaho contact you directly.",
+    };
+  }
+  if (redirect === "/watchlist") {
+    return {
+      signinTitle: "Sign in to see your saved items",
+      signupTitle: "Create an account to save listings",
+      body: "Save listings and searches, and get alerts when something new matches.",
+    };
+  }
+  if (redirect === "/messages") {
+    return {
+      signinTitle: "Sign in to see your messages",
+      signupTitle: "Create an account to message sellers",
+      body: "Your conversations with buyers and sellers live here.",
+    };
+  }
+  return {
+    signinTitle: `Sign in to ${brand.name}`,
+    signupTitle: `Create your ${brand.name} account`,
+    body: "An account is needed to save listings, contact sellers and post on the marketplace.",
+  };
+}
+
 function AuthPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
@@ -89,6 +133,7 @@ function AuthPage() {
   const [displayName, setDisplayName] = useState("");
   const [busy, setBusy] = useState(false);
   const [pendingConfirm, setPendingConfirm] = useState(false);
+  const intent = authIntent(redirect);
   const goToRedirect = () =>
     redirect.startsWith("/listings/")
       ? navigate({
@@ -204,20 +249,20 @@ function AuthPage() {
     <div className="mx-auto max-w-[460px] px-4 py-16 sm:px-6">
       <div className="soft-card p-6 sm:p-8">
         <h1 className="text-[26px] font-bold tracking-tight">
-          {mode === "signin"
-            ? `Sign in to ${brand.name}`
-            : mode === "signup"
-              ? `Create your ${brand.name} account`
-              : mode === "forgot"
-                ? "Reset your password"
-                : "Choose a new password"}
+          {mode === "forgot"
+            ? "Reset your password"
+            : mode === "reset"
+              ? "Choose a new password"
+              : mode === "signup"
+                ? intent.signupTitle
+                : intent.signinTitle}
         </h1>
         <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
           {mode === "forgot"
             ? "Enter your email and we’ll send you a secure password reset link."
             : mode === "reset"
               ? "Choose a new password for your Bluebird account."
-              : "An account is needed to save listings, contact sellers and post on the marketplace."}
+              : intent.body}
         </p>
 
         {pendingConfirm ? (

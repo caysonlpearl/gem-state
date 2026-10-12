@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { queryOptions, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -2002,6 +2002,37 @@ function Browse() {
   const serviceLanding = services && search.serviceMode !== "results";
   const page = search.page ?? 1;
   const pageCount = Math.max(1, Math.ceil(result.total / result.pageSize));
+  // "Load more" appends the following pages under the current one instead
+  // of making shoppers page back and forth. Reset whenever the search changes.
+  const queryClient = useQueryClient();
+  const searchKey = JSON.stringify({ ...inputFromSearch(search), page: undefined });
+  const [extraListings, setExtraListings] = useState<typeof result.listings>([]);
+  const [loadedThroughPage, setLoadedThroughPage] = useState(page);
+  const [loadingMore, setLoadingMore] = useState(false);
+  useEffect(() => {
+    setExtraListings([]);
+    setLoadedThroughPage(page);
+  }, [searchKey, page]);
+  const shownListings = [...result.listings, ...extraListings];
+  const canLoadMore = loadedThroughPage < pageCount;
+  async function loadMore() {
+    setLoadingMore(true);
+    try {
+      const next = await queryClient.fetchQuery(
+        classifiedQuery({ ...inputFromSearch(search), page: loadedThroughPage + 1 }),
+      );
+      setExtraListings((current) => [...current, ...next.listings]);
+      setLoadedThroughPage(next.page);
+    } catch {
+      toast.error("Could not load more listings.");
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+  const alertSubject = search.q
+    ? `“${search.q}”`
+    : (selectedCategory?.name.toLowerCase() ?? (motors ? "vehicles" : "listings"));
+  const alertPlace = search.city ? ` near ${search.city}` : "";
   const activeFilterCount = countActiveFilters(search, motors, pets);
   const heading =
     selectedCategory?.name ?? (search.group === "motors" ? "Cars & motors" : "All classifieds");
@@ -2503,44 +2534,8 @@ function Browse() {
           </p>
           <h1 className="mt-2 text-[30px] font-bold tracking-tight">{heading}</h1>
           <p className="mt-2 max-w-[62ch] text-[14px] leading-relaxed text-muted-foreground">
-            Search listings from sellers across Idaho. Vehicle shoppers can narrow by the details
-            that matter before they open a listing.
+            Local listings from sellers across Idaho.
           </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <label className="text-[12px] text-muted-foreground" htmlFor="sort">
-            Sort
-          </label>
-          <select
-            id="sort"
-            value={search.sort ?? "newest"}
-            onChange={(event) =>
-              void navigate({ to: "/browse", search: scoped({ sort: event.target.value as Sort }) })
-            }
-            className="h-9 rounded-md border border-input bg-card px-2 text-[13px]"
-          >
-            {sortOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <Link
-            to="/browse"
-            search={scoped({ view: "grid" })}
-            aria-label="Grid view"
-            className={`hidden h-9 items-center rounded-md border px-2 text-[12px] sm:inline-flex ${search.view !== "list" ? "border-primary bg-accent font-semibold" : "border-input"}`}
-          >
-            Grid
-          </Link>
-          <Link
-            to="/browse"
-            search={scoped({ view: "list" })}
-            aria-label="List view"
-            className={`hidden h-9 items-center rounded-md border px-2 text-[12px] sm:inline-flex ${search.view === "list" ? "border-primary bg-accent font-semibold" : "border-input"}`}
-          >
-            List
-          </Link>
         </div>
       </div>
 
@@ -2600,20 +2595,54 @@ function Browse() {
       {!jobs && !services && showGenericBrowse && (
         <div className={`${motors || homes ? "mt-6" : "mt-8"} ${homeLanding ? "hidden" : ""}`}>
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className={motors || homes ? "hidden" : "text-[13px] text-muted-foreground"}>
-              <span className="numeric font-semibold text-foreground">{result.total}</span>{" "}
-              {result.total === 1 ? "listing" : "listings"}
-            </p>
             {!motors && !homes && (
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => requestSaveSearch()}
-                  className="inline-flex h-11 items-center gap-2 rounded-full border border-primary bg-card px-5 text-[13px] font-semibold text-primary shadow-sm transition-shadow hover:bg-secondary hover:shadow-md"
+              <div className="flex w-full flex-wrap items-center gap-2">
+                <label className="sr-only" htmlFor="sort">
+                  Sort
+                </label>
+                <select
+                  id="sort"
+                  value={search.sort ?? "newest"}
+                  onChange={(event) =>
+                    void navigate({
+                      to: "/browse",
+                      search: scoped({ sort: event.target.value as Sort }),
+                    })
+                  }
+                  className="h-11 rounded-full border border-input bg-card px-4 text-[13px] font-medium shadow-sm"
                 >
-                  <BookmarkSimple size={17} />
-                  {search.savedSearchId ? "Update saved search" : "Save this search"}
-                </button>
+                  {sortOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <Link
+                  to="/browse"
+                  search={scoped({ view: "grid" })}
+                  aria-label="Grid view"
+                  className={`hidden h-11 items-center rounded-full border px-4 text-[12px] sm:inline-flex ${search.view !== "list" ? "border-primary bg-accent font-semibold" : "border-input"}`}
+                >
+                  Grid
+                </Link>
+                <Link
+                  to="/browse"
+                  search={scoped({ view: "list" })}
+                  aria-label="List view"
+                  className={`hidden h-11 items-center rounded-full border px-4 text-[12px] sm:inline-flex ${search.view === "list" ? "border-primary bg-accent font-semibold" : "border-input"}`}
+                >
+                  List
+                </Link>
+                {search.savedSearchId ? (
+                  <button
+                    type="button"
+                    onClick={() => requestSaveSearch()}
+                    className="inline-flex h-11 items-center gap-2 rounded-full border border-primary bg-card px-5 text-[13px] font-semibold text-primary shadow-sm"
+                  >
+                    <BookmarkSimple size={17} />
+                    Update saved search
+                  </button>
+                ) : null}
                 <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
                   <SheetTrigger asChild>
                     <button
@@ -3089,7 +3118,7 @@ function Browse() {
               </div>
             ) : search.view === "list" ? (
               <ul className="mt-5 space-y-4">
-                {result.listings.map((listing) => (
+                {shownListings.map((listing) => (
                   <li key={listing.id}>
                     <ListingRow listing={listing} />
                   </li>
@@ -3097,7 +3126,7 @@ function Browse() {
               </ul>
             ) : (
               <ul className="mt-5 grid grid-cols-2 gap-x-4 gap-y-9 md:grid-cols-3 xl:grid-cols-4">
-                {result.listings.map((listing) => (
+                {shownListings.map((listing) => (
                   <li key={listing.id}>
                     <ListingCard listing={listing} />
                   </li>
@@ -3105,35 +3134,47 @@ function Browse() {
               </ul>
             )}
 
-            {pageCount > 1 && (
-              <div className="mt-5 flex items-center justify-between">
-                <Link
-                  to="/browse"
-                  search={scoped({ page: page > 2 ? page - 1 : undefined })}
-                  onClick={(event) => {
-                    if (page <= 1) event.preventDefault();
-                  }}
-                  className="inline-flex h-9 items-center rounded-md border border-input px-3 text-[13px] font-medium aria-disabled:pointer-events-none aria-disabled:opacity-40"
-                  aria-disabled={page <= 1}
-                >
-                  Previous
-                </Link>
-                <span className="numeric text-[12.5px] text-muted-foreground">
-                  Page {page} of {pageCount}
-                </span>
-                <Link
-                  to="/browse"
-                  search={scoped({ page: page + 1 })}
-                  onClick={(event) => {
-                    if (page >= pageCount) event.preventDefault();
-                  }}
-                  className="inline-flex h-9 items-center rounded-md border border-input px-3 text-[13px] font-medium aria-disabled:pointer-events-none aria-disabled:opacity-40"
-                  aria-disabled={page >= pageCount}
-                >
-                  Next
-                </Link>
+            {result.listings.length > 0 && (
+              <div className="mt-8 flex flex-col items-center gap-2">
+                <p className="numeric text-[12.5px] text-muted-foreground">
+                  Showing {shownListings.length.toLocaleString()} of{" "}
+                  {result.total.toLocaleString()}
+                </p>
+                {canLoadMore ? (
+                  <button
+                    type="button"
+                    onClick={() => void loadMore()}
+                    disabled={loadingMore}
+                    className="inline-flex h-11 items-center rounded-full border border-input bg-card px-6 text-[13.5px] font-semibold shadow-sm disabled:opacity-60"
+                  >
+                    {loadingMore ? "Loading…" : "Load more"}
+                  </button>
+                ) : null}
               </div>
             )}
+
+            {/* Offer alerts once the shopper has seen results, not before. */}
+            {result.listings.length > 0 && !search.savedSearchId ? (
+              <div className="soft-card mt-8 flex flex-col gap-3 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-[15px] font-semibold">
+                    Get alerts for new {alertSubject}
+                    {alertPlace}
+                  </p>
+                  <p className="mt-0.5 text-[12.5px] text-muted-foreground">
+                    We'll let you know when something new matches this search.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => requestSaveSearch()}
+                  className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-primary px-5 text-[13.5px] font-semibold text-primary-foreground"
+                >
+                  <BookmarkSimple size={17} />
+                  Turn on alerts
+                </button>
+              </div>
+            ) : null}
           </section>
         </div>
       )}
@@ -9844,7 +9885,7 @@ function BrowsePill({
     <Link
       to="/browse"
       search={search}
-      className={`shrink-0 rounded-full border px-3 py-1.5 text-[11.5px] ${active ? "border-primary bg-accent font-semibold text-accent-foreground" : "border-input"}`}
+      className={`inline-flex min-h-11 shrink-0 items-center rounded-full border px-4 text-[12.5px] ${active ? "border-primary bg-accent font-semibold text-accent-foreground" : "border-input"}`}
     >
       {children}
     </Link>

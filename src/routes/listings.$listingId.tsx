@@ -271,24 +271,28 @@ function Gallery({ listing }: { listing: ClassifiedDetail }) {
             fetchPriority="high"
           />
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/55 to-transparent" />
-          <div className="absolute bottom-4 left-4 rounded-full bg-black/65 px-3 py-1 text-[11px] font-medium text-white">
-            {activeImage + 1} / {images.length}
-          </div>
-          <DialogTrigger asChild>
-            <button
-              type="button"
-              className="absolute right-4 top-4 rounded-full bg-card/95 px-3.5 py-2 text-[11px] font-semibold text-foreground opacity-100 transition hover:bg-card sm:opacity-0 sm:group-hover:opacity-100"
-            >
-              Show all photos
-            </button>
-          </DialogTrigger>
+          {images.length > 1 && (
+            <>
+              <div className="absolute bottom-4 left-4 rounded-full bg-black/65 px-3 py-1 text-[11px] font-medium text-white">
+                {activeImage + 1} / {images.length}
+              </div>
+              <DialogTrigger asChild>
+                <button
+                  type="button"
+                  className="absolute right-4 top-4 min-h-11 rounded-full bg-card/95 px-4 text-[12px] font-semibold text-foreground opacity-100 transition hover:bg-card sm:opacity-0 sm:group-hover:opacity-100"
+                >
+                  Show all {images.length} photos
+                </button>
+              </DialogTrigger>
+            </>
+          )}
           {images.length > 1 && (
             <>
               <button
                 type="button"
                 onClick={() => goToImage(activeImage - 1)}
                 aria-label={`Previous ${subject} photo`}
-                className="absolute left-3 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-card/95 text-foreground transition hover:scale-105"
+                className="absolute left-3 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-card/95 text-foreground transition hover:scale-105"
               >
                 <ArrowLeft size={18} />
               </button>
@@ -296,7 +300,7 @@ function Gallery({ listing }: { listing: ClassifiedDetail }) {
                 type="button"
                 onClick={() => goToImage(activeImage + 1)}
                 aria-label={`Next ${subject} photo`}
-                className="absolute right-3 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full bg-card/95 text-foreground transition hover:scale-105"
+                className="absolute right-3 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full bg-card/95 text-foreground transition hover:scale-105"
               >
                 <ArrowRight size={18} />
               </button>
@@ -786,11 +790,113 @@ function FlagListingDialog({ listingId, isMock = false }: { listingId: string; i
 function ListingDetail() {
   const { listingId } = Route.useParams();
   const { data: listing } = useSuspenseQuery(listingQuery(listingId));
+  const relatedQuery = useSuspenseQuery(
+    queryOptions({
+      queryKey: [
+        "classified-related",
+        listingId,
+        listing?.categorySlug,
+        listing?.seller?.slug,
+        listing?.region,
+      ],
+      queryFn: () =>
+        getRelatedClassifieds({
+          data: {
+            excludeId: listingId,
+            ...(listing?.categorySlug ? { category: listing.categorySlug } : {}),
+            ...(listing?.seller?.slug ? { sellerSlug: listing.seller.slug } : {}),
+            ...(listing?.region ? { region: listing.region } : {}),
+            ...(listing?.state ? { state: listing.state } : {}),
+          },
+        }),
+    }),
+  );
   return (
     <>
       <ListingDetailContent />
+      {listing ? (
+        <RelatedRails
+          listing={listing}
+          fromSeller={relatedQuery.data.fromSeller}
+          similar={relatedQuery.data.similar}
+        />
+      ) : null}
       {listing ? <MobileContactBar listing={listing} /> : null}
     </>
+  );
+}
+
+function similarNoun(listing: ClassifiedDetail) {
+  if (listing.vehicle) return "vehicles";
+  if (listing.job) return "jobs";
+  if (listing.home) return "homes";
+  if (listing.service) return "services";
+  return "items";
+}
+
+// Two rails under every listing type, so a shopper who isn't sold on this
+// item has an obvious next step instead of a dead end.
+function RelatedRails({
+  listing,
+  fromSeller,
+  similar,
+}: {
+  listing: ClassifiedDetail;
+  fromSeller: ClassifiedCard[];
+  similar: ClassifiedCard[];
+}) {
+  if (!fromSeller.length && !similar.length) return null;
+  const sellerName = listing.seller?.displayName;
+  const rail = (title: string, subtitle: string, items: ClassifiedCard[], href: ReactNode) => (
+    <section className="border-t border-border/70 pt-9">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="text-[23px] font-bold tracking-tight">{title}</h2>
+          <p className="mt-1 text-[13px] text-muted-foreground">{subtitle}</p>
+        </div>
+        {href}
+      </div>
+      <div className="no-scrollbar mt-5 flex snap-x gap-4 overflow-x-auto pb-2">
+        {items.map((related) => (
+          <div key={related.id} className="w-[220px] shrink-0 snap-start sm:w-[260px]">
+            <ListingCard listing={related} />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+  const seeAll =
+    "inline-flex min-h-11 items-center gap-1 text-[12.5px] font-semibold text-primary hover:underline";
+  return (
+    <div className="mx-auto max-w-[1360px] space-y-10 px-4 pb-14 sm:px-7 lg:px-10">
+      {fromSeller.length > 0 && listing.seller
+        ? rail(
+            `More from ${sellerName ?? "this seller"}`,
+            "Other listings from the same seller",
+            fromSeller,
+            <Link to="/sellers/$slug" params={{ slug: listing.seller.slug }} className={seeAll}>
+              View all <CaretRight size={15} />
+            </Link>,
+          )
+        : null}
+      {similar.length > 0
+        ? rail(
+            `Similar ${similarNoun(listing)} near you`,
+            `More ${listing.categoryName ?? "listings"} around ${listing.region || listing.state}`,
+            similar,
+            <Link
+              to="/browse"
+              search={{
+                ...(listing.categorySlug ? { category: listing.categorySlug } : {}),
+                ...(listing.region ? { region: listing.region } : { state: listing.state }),
+              }}
+              className={seeAll}
+            >
+              View all <CaretRight size={15} />
+            </Link>,
+          )
+        : null}
+    </div>
   );
 }
 
@@ -801,22 +907,6 @@ function ListingDetailContent() {
     "description",
   );
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
-
-  const relatedQuery = useSuspenseQuery(
-    queryOptions({
-      queryKey: ["classified-related", listingId, listing?.categorySlug],
-      queryFn: () =>
-        getRelatedClassifieds({
-          data: {
-            ...(listing?.categorySlug ? { category: listing.categorySlug } : {}),
-            ...(listing?.vehicle && listing?.seller?.slug
-              ? { sellerSlug: listing.seller.slug }
-              : {}),
-            excludeId: listingId,
-          },
-        }),
-    }),
-  );
 
   if (!listing) return <ListingMissing />;
 
@@ -894,7 +984,6 @@ function ListingDetailContent() {
           title={title}
           description={description}
           locationQuery={locationQuery}
-          relatedListings={relatedQuery.data.listings}
           handleShare={handleShare}
         />
       );
@@ -905,7 +994,6 @@ function ListingDetailContent() {
           listing={listing}
           title={title}
           locationQuery={locationQuery}
-          relatedListings={relatedQuery.data.listings}
           handleShare={handleShare}
         />
       );
@@ -916,7 +1004,6 @@ function ListingDetailContent() {
           listing={listing}
           title={title}
           locationQuery={locationQuery}
-          relatedListings={relatedQuery.data.listings}
           handleShare={handleShare}
         />
       );
@@ -929,7 +1016,6 @@ function ListingDetailContent() {
         itemDetails={listing.itemDetails ?? {}}
         description={description}
         locationQuery={locationQuery}
-        relatedListings={relatedQuery.data.listings}
         handleShare={handleShare}
       />
     );
@@ -962,66 +1048,73 @@ function ListingDetailContent() {
         </span>
       </nav>
 
-      <header className="mt-5 border-b border-border/70 pb-5">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-[28px] font-bold leading-tight tracking-tight sm:text-[38px]">
-              {title}
-            </h1>
-            {vehicle && vehicle.trim && vehicle.trim !== title && (
-              <p className="mt-1 text-[14px] text-muted-foreground">{listing.title}</p>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <WatchHeartButton
-              productId={listing.productId}
-              productSlug={listing.productSlug}
-              productName={title}
-              isDemo={listing.isMock === true}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
-            />
-            <button
-              type="button"
-              aria-label="Share listing"
-              onClick={() => void handleShare()}
-              className="grid h-10 w-10 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground"
-            >
-              <ShareNetwork size={18} />
-            </button>
-            <button
-              type="button"
-              aria-label="Print listing"
-              onClick={() => window.print()}
-              className="hidden h-10 w-10 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground sm:grid"
-            >
-              <Printer size={18} />
-            </button>
-          </div>
-        </div>
-        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12.5px] text-muted-foreground">
-          <span className="flex items-center gap-1.5 text-primary">
-            <MapPin size={15} weight="fill" /> {listing.city}, {listing.state}
-          </span>
-          <span className="flex items-center gap-1.5">
-            <Clock size={15} /> Posted {postedAge(listing.createdAt).toLowerCase()}
-          </span>
-          {vehicle?.mileage != null && (
-            <span className="flex items-center gap-1.5">
-              <Gauge size={15} /> {formatMileage(vehicle.mileage)}
-            </span>
-          )}
-          <span className="flex items-center gap-1.5">
-            <Eye size={15} /> Local listing
-          </span>
-        </div>
-        <p className="numeric mt-4 text-[30px] font-bold leading-none text-primary sm:text-[34px]">
-          {formatClassifiedPrice(listing.priceCents, { wholeDollars: true })}
-        </p>
-      </header>
-
-      <div className="mt-6 grid gap-7 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,370px)] lg:items-start">
-        <div className="min-w-0 space-y-7">
+      {/* Photo first on phones; on desktop the grid places the header across
+          the top and the photo beside the sidebar, exactly as before. */}
+      <div className="mt-5 grid gap-6 lg:mt-6 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,370px)] lg:grid-rows-[auto_auto_1fr] lg:items-start lg:gap-7">
+        <div className="min-w-0 lg:col-start-1 lg:row-start-2">
           <Gallery listing={listing} />
+        </div>
+
+        <header className="border-b border-border/70 pb-5 lg:col-span-2 lg:row-start-1">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h1 className="text-[28px] font-bold leading-tight tracking-tight sm:text-[38px]">
+                {title}
+              </h1>
+              {vehicle &&
+                !listing.title.toLowerCase().includes(title.toLowerCase()) &&
+                !title.toLowerCase().includes(listing.title.toLowerCase()) && (
+                <p className="mt-1 text-[14px] text-muted-foreground">{listing.title}</p>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <WatchHeartButton
+                productId={listing.productId}
+                productSlug={listing.productSlug}
+                productName={title}
+                isDemo={listing.isMock === true}
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+              />
+              <button
+                type="button"
+                aria-label="Share listing"
+                onClick={() => void handleShare()}
+                className="grid h-11 w-11 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground"
+              >
+                <ShareNetwork size={18} />
+              </button>
+              <button
+                type="button"
+                aria-label="Print listing"
+                onClick={() => window.print()}
+                className="hidden h-11 w-11 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground sm:grid"
+              >
+                <Printer size={18} />
+              </button>
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12.5px] text-muted-foreground">
+            <span className="flex items-center gap-1.5 text-primary">
+              <MapPin size={15} weight="fill" /> {listing.city}, {listing.state}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Clock size={15} /> Posted {postedAge(listing.createdAt).toLowerCase()}
+            </span>
+            {vehicle?.mileage != null && (
+              <span className="flex items-center gap-1.5">
+                <Gauge size={15} /> {formatMileage(vehicle.mileage)}
+              </span>
+            )}
+            <span className="flex items-center gap-1.5">
+              <Eye size={15} /> Local listing
+            </span>
+          </div>
+          <p className="numeric mt-4 text-[30px] font-bold leading-none text-primary sm:text-[34px]">
+            {formatClassifiedPrice(listing.priceCents, { wholeDollars: true })}
+          </p>
+        </header>
+
+        <div className="min-w-0 space-y-7 lg:col-start-1 lg:row-start-3">
 
           <section
             className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4"
@@ -1157,9 +1250,9 @@ function ListingDetailContent() {
           )}
         </div>
 
-        <aside className="min-w-0 space-y-5 lg:sticky lg:top-24">
+        <aside className="min-w-0 space-y-5 lg:sticky lg:top-24 lg:col-start-2 lg:row-start-2 lg:row-span-2">
           <SellerCard listing={listing} />
-          <ListingActions listing={listing} />
+          <ListingActions listing={listing} showPriceHeader={false} />
           <VehicleHistoryCard vehicle={vehicle} />
           <PageStatsCard listing={listing} />
           <section className="soft-card px-5 py-5">
@@ -1182,39 +1275,6 @@ function ListingDetailContent() {
           <TrustSafetyCard listing={listing} />
         </aside>
       </div>
-
-      {relatedQuery.data.listings.length > 0 && (
-        <section className="mt-14 border-t border-border/70 pt-9">
-          <div className="flex flex-wrap items-end justify-between gap-3">
-            <div>
-              <h2 className="text-[23px] font-bold tracking-tight">
-                {listing.seller
-                  ? "More from this seller"
-                  : `Similar ${isVehicle ? "vehicles" : "listings"}`}
-              </h2>
-              <p className="mt-1 text-[13px] text-muted-foreground">
-                {listing.seller
-                  ? `Other listings from ${listing.seller.displayName}`
-                  : `More options in ${listing.categoryName}`}
-              </p>
-            </div>
-            <Link
-              to="/browse"
-              search={{ ...(listing.categorySlug ? { category: listing.categorySlug } : {}) }}
-              className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-primary hover:underline"
-            >
-              View all <CaretRight size={15} />
-            </Link>
-          </div>
-          <div className="no-scrollbar mt-5 flex snap-x gap-4 overflow-x-auto pb-2">
-            {relatedQuery.data.listings.map((related) => (
-              <div key={related.id} className="w-[245px] shrink-0 snap-start sm:w-[280px]">
-                <ListingCard listing={related} />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
     </main>
   );
 }
@@ -1506,14 +1566,12 @@ function HomeListingDetail({
   title,
   description,
   locationQuery,
-  relatedListings,
   handleShare,
 }: {
   listing: ClassifiedDetail;
   title: string;
   description: string;
   locationQuery: string;
-  relatedListings: ClassifiedCard[];
   handleShare: () => Promise<void>;
 }) {
   const details = homeRentalDetails(listing, description);
@@ -1546,67 +1604,72 @@ function HomeListingDetail({
         </span>
       </nav>
 
-      <header className="mt-5 border-b border-border/70 pb-5">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            {details.community && (
-              <a
-                href="#community-homes"
-                className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-primary hover:underline"
+      {/* Photo first on phones; on desktop the grid places the header across
+          the top and the photo beside the sidebar, exactly as before. */}
+      <div className="mt-5 grid gap-6 lg:mt-6 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,370px)] lg:grid-rows-[auto_auto_1fr] lg:items-start lg:gap-7">
+        <div className="min-w-0 lg:col-start-1 lg:row-start-2">
+          <Gallery listing={listing} />
+        </div>
+
+        <header className="border-b border-border/70 pb-5 lg:col-span-2 lg:row-start-1">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              {details.community && (
+                <a
+                  href="#community-homes"
+                  className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-primary hover:underline"
+                >
+                  Part of the {details.community.name} community
+                </a>
+              )}
+              <h1 className="mt-1 text-[28px] font-bold leading-tight tracking-tight sm:text-[38px]">
+                {title}
+              </h1>
+              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12.5px] text-muted-foreground">
+                <span className="flex items-center gap-1.5 text-primary">
+                  <MapPin size={15} weight="fill" /> {listing.city}, {listing.state}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Clock size={15} /> Posted {postedAge(listing.createdAt).toLowerCase()}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Eye size={15} /> Local listing
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <WatchHeartButton
+                productId={listing.productId}
+                productSlug={listing.productSlug}
+                productName={title}
+                isDemo={listing.isMock === true}
+                className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+              />
+              <button
+                type="button"
+                aria-label="Share listing"
+                onClick={() => void handleShare()}
+                className="grid h-11 w-11 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground"
               >
-                Part of the {details.community.name} community
-              </a>
-            )}
-            <h1 className="mt-1 text-[28px] font-bold leading-tight tracking-tight sm:text-[38px]">
-              {title}
-            </h1>
-            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12.5px] text-muted-foreground">
-              <span className="flex items-center gap-1.5 text-primary">
-                <MapPin size={15} weight="fill" /> {listing.city}, {listing.state}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Clock size={15} /> Posted {postedAge(listing.createdAt).toLowerCase()}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Eye size={15} /> Local listing
-              </span>
+                <ShareNetwork size={18} />
+              </button>
+              <button
+                type="button"
+                aria-label="Print listing"
+                onClick={() => window.print()}
+                className="hidden h-11 w-11 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground sm:grid"
+              >
+                <Printer size={18} />
+              </button>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <WatchHeartButton
-              productId={listing.productId}
-              productSlug={listing.productSlug}
-              productName={title}
-              isDemo={listing.isMock === true}
-              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
-            />
-            <button
-              type="button"
-              aria-label="Share listing"
-              onClick={() => void handleShare()}
-              className="grid h-10 w-10 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground"
-            >
-              <ShareNetwork size={18} />
-            </button>
-            <button
-              type="button"
-              aria-label="Print listing"
-              onClick={() => window.print()}
-              className="hidden h-10 w-10 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground sm:grid"
-            >
-              <Printer size={18} />
-            </button>
-          </div>
-        </div>
-        <p className="numeric mt-4 text-[30px] font-bold leading-none text-primary sm:text-[34px]">
-          {price}
-          {details.isRental ? " / mo." : ""}
-        </p>
-      </header>
+          <p className="numeric mt-4 text-[30px] font-bold leading-none text-primary sm:text-[34px]">
+            {price}
+            {details.isRental ? " / mo." : ""}
+          </p>
+        </header>
 
-      <div className="mt-6 grid gap-7 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,370px)] lg:items-start">
-        <div className="min-w-0 space-y-7">
-          <Gallery listing={listing} />
+        <div className="min-w-0 space-y-7 lg:col-start-1 lg:row-start-3">
           <section className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4" aria-label="Key home facts">
             <HomeFactCard label="Bedrooms" value={details.bedrooms} />
             <HomeFactCard label="Bathrooms" value={details.bathrooms} />
@@ -1625,7 +1688,7 @@ function HomeListingDetail({
           />
         </div>
 
-        <aside className="min-w-0 space-y-5 lg:sticky lg:top-24">
+        <aside className="min-w-0 space-y-5 lg:sticky lg:top-24 lg:col-start-2 lg:row-start-2 lg:row-span-2">
           <SellerCard listing={listing} />
           <ListingActions
             listing={listing}
@@ -1688,22 +1751,6 @@ function HomeListingDetail({
           </div>
         </section>
       )}
-
-      {relatedListings.length > 0 && (
-        <section className="mt-14 border-t border-border/70 pt-9">
-          <h2 className="text-[23px] font-bold tracking-tight">More listings like this</h2>
-          <p className="mt-1 text-[13px] text-muted-foreground">
-            Other homes and rentals in this category
-          </p>
-          <div className="no-scrollbar mt-5 flex snap-x gap-4 overflow-x-auto pb-2">
-            {relatedListings.map((related) => (
-              <div key={related.id} className="w-[245px] shrink-0 snap-start sm:w-[280px]">
-                <ListingCard listing={related} />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
     </main>
   );
 }
@@ -1727,13 +1774,11 @@ function JobListingDetail({
   listing,
   title,
   locationQuery,
-  relatedListings,
   handleShare,
 }: {
   listing: ClassifiedDetail;
   title: string;
   locationQuery: string;
-  relatedListings: ClassifiedCard[];
   handleShare: () => Promise<void>;
 }) {
   const [activeTab, setActiveTab] = useState<"description" | "specifications" | "map">(
@@ -1760,69 +1805,74 @@ function JobListingDetail({
         </span>
       </nav>
 
-      <header className="mt-5 border-b border-border/70 pb-5">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-[28px] font-bold leading-tight tracking-tight sm:text-[38px]">
-              {title}
-            </h1>
-            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12.5px] text-muted-foreground">
-              <span className="flex items-center gap-1.5 text-primary">
-                <MapPin size={15} weight="fill" /> {listing.city}, {listing.state}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Clock size={15} /> Posted {postedAge(listing.createdAt).toLowerCase()}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Eye size={15} /> Local listing
-              </span>
+      {/* Photo first on phones; on desktop the grid places the header across
+          the top and the photo beside the sidebar, exactly as before. */}
+      <div className="mt-5 grid gap-6 lg:mt-6 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,370px)] lg:grid-rows-[auto_auto_1fr] lg:items-start lg:gap-7">
+        <div className="min-w-0 lg:col-start-1 lg:row-start-2">
+          <Gallery listing={listing} />
+        </div>
+
+        <header className="border-b border-border/70 pb-5 lg:col-span-2 lg:row-start-1">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h1 className="text-[28px] font-bold leading-tight tracking-tight sm:text-[38px]">
+                {title}
+              </h1>
+              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12.5px] text-muted-foreground">
+                <span className="flex items-center gap-1.5 text-primary">
+                  <MapPin size={15} weight="fill" /> {listing.city}, {listing.state}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Clock size={15} /> Posted {postedAge(listing.createdAt).toLowerCase()}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Eye size={15} /> Local listing
+                </span>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {listing.isMock ? (
+            <div className="flex items-center gap-2">
+              {listing.isMock ? (
+                <button
+                  type="button"
+                  aria-label="Save listing"
+                  onClick={() => toast.info("Saving is shown here in the mock listing preview.")}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Heart size={18} />
+                </button>
+              ) : (
+                <WatchHeartButton
+                  productId={listing.productId}
+                  productSlug={listing.productSlug}
+                  productName={title}
+                  isDemo={false}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+                />
+              )}
               <button
                 type="button"
-                aria-label="Save listing"
-                onClick={() => toast.info("Saving is shown here in the mock listing preview.")}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="Share listing"
+                onClick={() => void handleShare()}
+                className="grid h-11 w-11 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground"
               >
-                <Heart size={18} />
+                <ShareNetwork size={18} />
               </button>
-            ) : (
-              <WatchHeartButton
-                productId={listing.productId}
-                productSlug={listing.productSlug}
-                productName={title}
-                isDemo={false}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
-              />
-            )}
-            <button
-              type="button"
-              aria-label="Share listing"
-              onClick={() => void handleShare()}
-              className="grid h-10 w-10 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground"
-            >
-              <ShareNetwork size={18} />
-            </button>
-            <button
-              type="button"
-              aria-label="Print listing"
-              onClick={() => window.print()}
-              className="hidden h-10 w-10 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground sm:grid"
-            >
-              <Printer size={18} />
-            </button>
+              <button
+                type="button"
+                aria-label="Print listing"
+                onClick={() => window.print()}
+                className="hidden h-11 w-11 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground sm:grid"
+              >
+                <Printer size={18} />
+              </button>
+            </div>
           </div>
-        </div>
-        <p className="numeric mt-4 text-[30px] font-bold leading-none text-primary sm:text-[34px]">
-          {details.payRange}
-        </p>
-      </header>
+          <p className="numeric mt-4 text-[30px] font-bold leading-none text-primary sm:text-[34px]">
+            {details.payRange}
+          </p>
+        </header>
 
-      <div className="mt-6 grid gap-7 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,370px)] lg:items-start">
-        <div className="min-w-0 space-y-7">
-          <Gallery listing={listing} />
+        <div className="min-w-0 space-y-7 lg:col-start-1 lg:row-start-3">
 
           <section className="soft-card overflow-hidden">
             <div className={listingTabListClass} role="tablist" aria-label="Job information">
@@ -1933,7 +1983,7 @@ function JobListingDetail({
           </section>
         </div>
 
-        <aside className="min-w-0 space-y-5 lg:sticky lg:top-24">
+        <aside className="min-w-0 space-y-5 lg:sticky lg:top-24 lg:col-start-2 lg:row-start-2 lg:row-span-2">
           <SellerCard listing={listing} />
           <ListingActions
             listing={listing}
@@ -1956,20 +2006,6 @@ function JobListingDetail({
           </p>
           <div className="no-scrollbar mt-5 flex snap-x gap-4 overflow-x-auto pb-2">
             {listing.employerListings.map((related) => (
-              <div key={related.id} className="w-[245px] shrink-0 snap-start sm:w-[280px]">
-                <ListingCard listing={related} />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {relatedListings.length > 0 && (
-        <section className="mt-14 border-t border-border/70 pt-9">
-          <h2 className="text-[23px] font-bold tracking-tight">More jobs like this</h2>
-          <p className="mt-1 text-[13px] text-muted-foreground">Other listings in this category</p>
-          <div className="no-scrollbar mt-5 flex snap-x gap-4 overflow-x-auto pb-2">
-            {relatedListings.map((related) => (
               <div key={related.id} className="w-[245px] shrink-0 snap-start sm:w-[280px]">
                 <ListingCard listing={related} />
               </div>
@@ -2015,13 +2051,11 @@ function ServiceListingDetail({
   listing,
   title,
   locationQuery,
-  relatedListings,
   handleShare,
 }: {
   listing: ClassifiedDetail;
   title: string;
   locationQuery: string;
-  relatedListings: ClassifiedCard[];
   handleShare: () => Promise<void>;
 }) {
   const [activeTab, setActiveTab] = useState<"description" | "reviews" | "map">("description");
@@ -2047,69 +2081,74 @@ function ServiceListingDetail({
         </span>
       </nav>
 
-      <header className="mt-5 border-b border-border/70 pb-5">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-[28px] font-bold leading-tight tracking-tight sm:text-[38px]">
-              {title}
-            </h1>
-            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12.5px] text-muted-foreground">
-              <span className="flex items-center gap-1.5 text-primary">
-                <MapPin size={15} weight="fill" /> {listing.city}, {listing.state}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Clock size={15} /> Posted {postedAge(listing.createdAt).toLowerCase()}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Eye size={15} /> Local listing
-              </span>
+      {/* Photo first on phones; on desktop the grid places the header across
+          the top and the photo beside the sidebar, exactly as before. */}
+      <div className="mt-5 grid gap-6 lg:mt-6 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,370px)] lg:grid-rows-[auto_auto_1fr] lg:items-start lg:gap-7">
+        <div className="min-w-0 lg:col-start-1 lg:row-start-2">
+          <Gallery listing={listing} />
+        </div>
+
+        <header className="border-b border-border/70 pb-5 lg:col-span-2 lg:row-start-1">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h1 className="text-[28px] font-bold leading-tight tracking-tight sm:text-[38px]">
+                {title}
+              </h1>
+              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12.5px] text-muted-foreground">
+                <span className="flex items-center gap-1.5 text-primary">
+                  <MapPin size={15} weight="fill" /> {listing.city}, {listing.state}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Clock size={15} /> Posted {postedAge(listing.createdAt).toLowerCase()}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Eye size={15} /> Local listing
+                </span>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {listing.isMock ? (
+            <div className="flex items-center gap-2">
+              {listing.isMock ? (
+                <button
+                  type="button"
+                  aria-label="Save listing"
+                  onClick={() => toast.info("Saving is shown here in the mock listing preview.")}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Heart size={18} />
+                </button>
+              ) : (
+                <WatchHeartButton
+                  productId={listing.productId}
+                  productSlug={listing.productSlug}
+                  productName={title}
+                  isDemo={false}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+                />
+              )}
               <button
                 type="button"
-                aria-label="Save listing"
-                onClick={() => toast.info("Saving is shown here in the mock listing preview.")}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="Share listing"
+                onClick={() => void handleShare()}
+                className="grid h-11 w-11 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground"
               >
-                <Heart size={18} />
+                <ShareNetwork size={18} />
               </button>
-            ) : (
-              <WatchHeartButton
-                productId={listing.productId}
-                productSlug={listing.productSlug}
-                productName={title}
-                isDemo={false}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
-              />
-            )}
-            <button
-              type="button"
-              aria-label="Share listing"
-              onClick={() => void handleShare()}
-              className="grid h-10 w-10 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground"
-            >
-              <ShareNetwork size={18} />
-            </button>
-            <button
-              type="button"
-              aria-label="Print listing"
-              onClick={() => window.print()}
-              className="hidden h-10 w-10 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground sm:grid"
-            >
-              <Printer size={18} />
-            </button>
+              <button
+                type="button"
+                aria-label="Print listing"
+                onClick={() => window.print()}
+                className="hidden h-11 w-11 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground sm:grid"
+              >
+                <Printer size={18} />
+              </button>
+            </div>
           </div>
-        </div>
-        <p className="numeric mt-4 text-[30px] font-bold leading-none text-primary sm:text-[34px]">
-          {details.pricing}
-        </p>
-      </header>
+          <p className="numeric mt-4 text-[30px] font-bold leading-none text-primary sm:text-[34px]">
+            {details.pricing}
+          </p>
+        </header>
 
-      <div className="mt-6 grid gap-7 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,370px)] lg:items-start">
-        <div className="min-w-0 space-y-7">
-          <Gallery listing={listing} />
+        <div className="min-w-0 space-y-7 lg:col-start-1 lg:row-start-3">
 
           <section className="soft-card overflow-hidden">
             <div className={listingTabListClass} role="tablist" aria-label="Service information">
@@ -2250,27 +2289,13 @@ function ServiceListingDetail({
           </section>
         </div>
 
-        <aside className="min-w-0 space-y-5 lg:sticky lg:top-24">
+        <aside className="min-w-0 space-y-5 lg:sticky lg:top-24 lg:col-start-2 lg:row-start-2 lg:row-span-2">
           <SellerCard listing={listing} />
           <ListingActions listing={listing} showPaymentCalculator={false} showPriceHeader={false} />
           <PageStatsCard listing={listing} />
           <TrustSafetyCard listing={listing} />
         </aside>
       </div>
-
-      {relatedListings.length > 0 && (
-        <section className="mt-14 border-t border-border/70 pt-9">
-          <h2 className="text-[23px] font-bold tracking-tight">More listings like this</h2>
-          <p className="mt-1 text-[13px] text-muted-foreground">Other services in this category</p>
-          <div className="no-scrollbar mt-5 flex snap-x gap-4 overflow-x-auto pb-2">
-            {relatedListings.map((related) => (
-              <div key={related.id} className="w-[245px] shrink-0 snap-start sm:w-[280px]">
-                <ListingCard listing={related} />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
     </main>
   );
 }
@@ -2282,7 +2307,6 @@ function GeneralListingDetail({
   itemDetails,
   description,
   locationQuery,
-  relatedListings,
   handleShare,
 }: {
   listing: ClassifiedDetail;
@@ -2291,7 +2315,6 @@ function GeneralListingDetail({
   itemDetails: Record<string, string>;
   description: string;
   locationQuery: string;
-  relatedListings: ClassifiedCard[];
   handleShare: () => Promise<void>;
 }) {
   const [activeTab, setActiveTab] = useState<"description" | "location">("description");
@@ -2324,76 +2347,74 @@ function GeneralListingDetail({
         </span>
       </nav>
 
-      <header className="mt-5 border-b border-border/70 pb-5">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <h1 className="text-[28px] font-bold leading-tight tracking-tight sm:text-[36px]">
-              {title}
-            </h1>
-            <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-[12.5px] text-muted-foreground">
-              <span className="flex items-center gap-1.5 text-primary">
-                <MapPin size={15} weight="fill" /> {listing.city}, {listing.state}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Clock size={15} /> Posted {postedAge(listing.createdAt).toLowerCase()}
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Eye size={15} /> Local listing
-              </span>
+      {/* Photo first on phones; on desktop the grid places the header across
+          the top and the photo beside the sidebar, exactly as before. */}
+      <div className="mt-5 grid gap-6 lg:grid-cols-[minmax(255px,330px)_minmax(0,1fr)] lg:grid-rows-[auto_auto_1fr] lg:items-start lg:gap-7">
+        <div className="min-w-0 lg:col-start-2 lg:row-start-2">
+          <Gallery listing={listing} />
+        </div>
+
+        <header className="border-b border-border/70 pb-5 lg:col-span-2 lg:row-start-1">
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h1 className="text-[28px] font-bold leading-tight tracking-tight sm:text-[36px]">
+                {title}
+              </h1>
+              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-[12.5px] text-muted-foreground">
+                <span className="flex items-center gap-1.5 text-primary">
+                  <MapPin size={15} weight="fill" /> {listing.city}, {listing.state}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Clock size={15} /> Posted {postedAge(listing.createdAt).toLowerCase()}
+                </span>
+                <span className="flex items-center gap-1.5">
+                  <Eye size={15} /> Local listing
+                </span>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {listing.isMock ? (
+            <div className="flex items-center gap-2">
+              {listing.isMock ? (
+                <button
+                  type="button"
+                  aria-label="Save listing"
+                  onClick={() => toast.info("Saving is shown here in the mock listing preview.")}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  <Heart size={18} />
+                </button>
+              ) : (
+                <WatchHeartButton
+                  productId={listing.productId}
+                  productSlug={listing.productSlug}
+                  productName={title}
+                  isDemo={false}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+                />
+              )}
               <button
                 type="button"
-                aria-label="Save listing"
-                onClick={() => toast.info("Saving is shown here in the mock listing preview.")}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label="Share listing"
+                onClick={() => void handleShare()}
+                className="grid h-11 w-11 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground"
               >
-                <Heart size={18} />
+                <ShareNetwork size={18} />
               </button>
-            ) : (
-              <WatchHeartButton
-                productId={listing.productId}
-                productSlug={listing.productSlug}
-                productName={title}
-                isDemo={false}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
-              />
-            )}
-            <button
-              type="button"
-              aria-label="Share listing"
-              onClick={() => void handleShare()}
-              className="grid h-10 w-10 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground"
-            >
-              <ShareNetwork size={18} />
-            </button>
-            <button
-              type="button"
-              aria-label="Print listing"
-              onClick={() => window.print()}
-              className="hidden h-10 w-10 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground sm:grid"
-            >
-              <Printer size={18} />
-            </button>
+              <button
+                type="button"
+                aria-label="Print listing"
+                onClick={() => window.print()}
+                className="hidden h-11 w-11 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground sm:grid"
+              >
+                <Printer size={18} />
+              </button>
+            </div>
           </div>
-        </div>
-        <p className="numeric mt-4 text-[30px] font-bold leading-none text-primary sm:text-[34px]">
-          {formatClassifiedPrice(listing.priceCents, { wholeDollars: true })}
-        </p>
-      </header>
+          <p className="numeric mt-4 text-[30px] font-bold leading-none text-primary sm:text-[34px]">
+            {formatClassifiedPrice(listing.priceCents, { wholeDollars: true })}
+          </p>
+        </header>
 
-      <div className="mt-5 grid gap-7 lg:grid-cols-[minmax(255px,330px)_minmax(0,1fr)] lg:items-start">
-        <aside className="order-2 min-w-0 space-y-5 lg:order-1 lg:sticky lg:top-24">
-          <SellerCard listing={listing} />
-          <ListingActions listing={listing} showPaymentCalculator={false} showPriceHeader={false} />
-          <PageStatsCard listing={listing} />
-          <TrustSafetyCard listing={listing} />
-        </aside>
-
-        <div className="order-1 min-w-0 space-y-7 lg:order-2">
-          <Gallery listing={listing} />
+        <div className="min-w-0 space-y-7 lg:col-start-2 lg:row-start-3">
 
           <section className="soft-card overflow-hidden">
             <div className={listingTabListClass} role="tablist" aria-label="Listing information">
@@ -2496,23 +2517,14 @@ function GeneralListingDetail({
               )}
             </div>
           </section>
-
-          {relatedListings.length > 0 && (
-            <section className="border-t border-border/70 pt-9">
-              <div>
-                <h2 className="text-[23px] font-bold tracking-tight">You Might Also Like</h2>
-                <p className="mt-1 text-[13px] text-muted-foreground">
-                  Similar items from other sellers
-                </p>
-              </div>
-              <div className="mt-5 grid grid-cols-2 gap-4 xl:grid-cols-4">
-                {relatedListings.map((related) => (
-                  <ListingCard key={related.id} listing={related} />
-                ))}
-              </div>
-            </section>
-          )}
         </div>
+
+        <aside className="min-w-0 space-y-5 lg:sticky lg:top-24 lg:col-start-1 lg:row-start-2 lg:row-span-2">
+          <SellerCard listing={listing} />
+          <ListingActions listing={listing} showPaymentCalculator={false} showPriceHeader={false} />
+          <PageStatsCard listing={listing} />
+          <TrustSafetyCard listing={listing} />
+        </aside>
       </div>
     </main>
   );

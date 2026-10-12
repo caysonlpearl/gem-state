@@ -86,7 +86,7 @@ export function WatchHeartButton({
       }}
       className={
         className ??
-        "inline-flex h-7 w-7 items-center justify-center rounded-full border border-border bg-card/95 text-muted-foreground shadow-sm backdrop-blur transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+        "relative inline-flex h-7 w-7 items-center justify-center rounded-full before:absolute before:-inset-2 before:content-[''] border border-border bg-card/95 text-muted-foreground shadow-sm backdrop-blur transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
       }
     >
       <Heart

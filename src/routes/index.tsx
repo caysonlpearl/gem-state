@@ -17,7 +17,9 @@ import {
   LocationRadiusPicker,
   type LocationPoint,
 } from "@/components/classifieds/LocationRadiusPicker";
-import { getClassifiedsHome } from "@/lib/classifieds.functions";
+import { browseClassifieds, getClassifiedsHome } from "@/lib/classifieds.functions";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
 import { trackEvent } from "@/lib/analytics";
 
 const homeQuery = queryOptions({
@@ -51,7 +53,7 @@ export const Route = createFileRoute("/")({
 });
 
 const seeAll =
-  "inline-flex shrink-0 items-center gap-1 text-[12.5px] font-semibold text-primary hover:underline";
+  "inline-flex min-h-11 shrink-0 items-center gap-1 text-[12.5px] font-semibold text-primary hover:underline";
 
 const HOMEPAGE_ROW_SIZE = 4;
 const HOMEPAGE_MIN_ROW = 3;
@@ -332,6 +334,23 @@ function Home() {
   );
   const valueFinds = pick(generalSource.filter((listing) => listing.priceCents <= 10_000));
   const localSellerPicks = pick(localRecent);
+  const feedStart = thinInventory ? [] : allLocalListings.filter((listing) => !shownIds.has(listing.id));
+  const locationFields = browseLocationSearch as {
+    state?: string;
+    region?: string;
+    city?: string;
+    postalCode?: string;
+    radiusMiles?: number;
+  };
+  const feedLocation = {
+    state: locationFields.state,
+    region: locationFields.region,
+    city: locationFields.city,
+    postalCode: locationFields.postalCode,
+    radiusMiles: locationFields.radiusMiles,
+    latitude: mapPoint?.latitude,
+    longitude: mapPoint?.longitude,
+  };
 
   return (
     <main className="mx-auto max-w-[1360px] px-4 pb-16 sm:px-6">
@@ -473,32 +492,31 @@ function Home() {
             <button
               type="button"
               onClick={() => setMapOpen((open) => !open)}
-              className="font-semibold text-primary underline-offset-2 hover:underline"
+              className="inline-flex min-h-11 items-center font-semibold text-primary underline-offset-2 hover:underline"
               aria-expanded={mapOpen}
             >
               {mapOpen ? "Hide map" : "Choose anywhere on map"}
             </button>
-            <label className="flex min-w-[220px] flex-1 items-center gap-2 sm:max-w-[360px]">
-              <span className="whitespace-nowrap">Distance</span>
-              <input
-                aria-label="Search radius in miles"
-                type="range"
-                min="5"
-                max="500"
-                step="5"
-                value={radiusMiles}
-                onChange={(event) => setRadiusMiles(Number(event.target.value))}
-                disabled={!parsedLocation.city && !mapPoint}
-                className="w-full accent-primary disabled:opacity-40"
-              />
-              <span className="whitespace-nowrap font-semibold text-foreground">
-                {parsedLocation.city || mapPoint
-                  ? `${radiusMiles} mi`
-                  : parsedLocation.postalCode
-                    ? "ZIP"
-                    : "Idaho-wide"}
-              </span>
-            </label>
+            {/* The radius only means something around a chosen city or map
+                point; before that, "Search area: Idaho" already says it. */}
+            {parsedLocation.city || mapPoint ? (
+              <label className="flex min-h-11 min-w-[220px] flex-1 items-center gap-2 sm:max-w-[360px]">
+                <span className="whitespace-nowrap">Distance</span>
+                <input
+                  aria-label="Search radius in miles"
+                  type="range"
+                  min="5"
+                  max="500"
+                  step="5"
+                  value={radiusMiles}
+                  onChange={(event) => setRadiusMiles(Number(event.target.value))}
+                  className="w-full accent-primary"
+                />
+                <span className="whitespace-nowrap font-semibold text-foreground">
+                  {radiusMiles} mi
+                </span>
+              </label>
+            ) : null}
           </div>
           {mapOpen ? (
             <LocationRadiusPicker
@@ -569,7 +587,7 @@ function Home() {
               key={option.slug}
               to="/browse"
               search={withLocation({ category: option.slug })}
-              className="rounded-full border border-input bg-card px-3.5 py-2 text-[12px] transition-colors hover:border-primary hover:bg-secondary"
+              className="inline-flex min-h-11 items-center rounded-full border border-input bg-card px-4 text-[12.5px] transition-colors hover:border-primary hover:bg-secondary"
             >
               {option.name}
               {home.categoryCounts[option.slug] ? (
@@ -780,6 +798,16 @@ function Home() {
         action="See more local listings"
       />
 
+      {thinInventory ? null : (
+        <HomeFeed
+          key={JSON.stringify(feedLocation)}
+          initial={feedStart}
+          shownIds={shownIds}
+          hasMore={home.totalActive > home.recent.length}
+          location={feedLocation}
+        />
+      )}
+
       <section className="soft-card mt-16 px-6 py-8 sm:px-8">
         <h2 className="text-[20px] font-bold tracking-tight">Have something to sell?</h2>
         <p className="mt-2 max-w-[60ch] text-[13px] leading-relaxed text-muted-foreground">
@@ -838,6 +866,78 @@ function HomepageListingRow({
           </div>
         ))}
       </div>
+    </section>
+  );
+}
+
+// The end of the home page keeps going instead of dead-ending: first the
+// listings no row above picked, then further pages of the newest listings in
+// the same area on request.
+function HomeFeed({
+  initial,
+  shownIds,
+  hasMore,
+  location,
+}: {
+  initial: Awaited<ReturnType<typeof getClassifiedsHome>>["recent"];
+  shownIds: Set<string>;
+  hasMore: boolean;
+  location: Record<string, string | number | undefined>;
+}) {
+  const fetchPage = useServerFn(browseClassifieds);
+  const [items, setItems] = useState(initial);
+  const [nextPage, setNextPage] = useState(2);
+  const [done, setDone] = useState(!hasMore);
+  const [loading, setLoading] = useState(false);
+
+  async function loadMore() {
+    setLoading(true);
+    try {
+      const filters = Object.fromEntries(
+        Object.entries(location).filter(([, value]) => value !== undefined && value !== ""),
+      );
+      const result = await fetchPage({ data: { ...filters, sort: "newest", page: nextPage } });
+      setItems((current) => {
+        const seen = new Set([...shownIds, ...current.map((listing) => listing.id)]);
+        return [...current, ...result.listings.filter((listing) => !seen.has(listing.id))];
+      });
+      setNextPage(result.page + 1);
+      if (!result.listings.length || result.page * result.pageSize >= result.total) setDone(true);
+    } catch {
+      toast.error("Could not load more listings.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (!items.length && done) return null;
+
+  return (
+    <section className="mt-16" aria-labelledby="keep-browsing-heading">
+      <div className="border-b border-border pb-3">
+        <h2 id="keep-browsing-heading" className="text-[26px] font-bold tracking-tight">
+          Keep browsing
+        </h2>
+      </div>
+      {items.length > 0 && (
+        <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
+          {items.map((listing) => (
+            <ListingCard key={listing.id} listing={listing} />
+          ))}
+        </div>
+      )}
+      {!done && (
+        <div className="mt-6 flex justify-center">
+          <button
+            type="button"
+            onClick={() => void loadMore()}
+            disabled={loading}
+            className="inline-flex h-11 items-center rounded-full border border-input bg-card px-6 text-[13.5px] font-semibold shadow-sm disabled:opacity-60"
+          >
+            {loading ? "Loading…" : "Load more"}
+          </button>
+        </div>
+      )}
     </section>
   );
 }

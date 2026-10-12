@@ -1410,7 +1410,7 @@ test("expanded category filters use normalized listing fields and server-side ma
 });
 
 test("listing detail keeps a responsive photo gallery and floating action card", () => {
-  assert.match(detailSource, /Show all photos/);
+  assert.match(detailSource, /Show all \{images\.length\} photos/);
   assert.match(detailSource, /row-span-2/);
   assert.match(detailSource, /DialogContent/);
   assert.match(actionsSource, /floating-card/);
@@ -1442,7 +1442,7 @@ test("general classifieds have mock detail fixtures without changing category se
   assert.match(mockListingsSource, /mock-general-princess-doll/);
   assert.match(classifiedsFunctionsSource, /mockClassifiedListings/);
   assert.match(detailSource, /function GeneralListingDetail/);
-  assert.match(detailSource, /You Might Also Like/);
+  assert.match(detailSource, /Similar \$\{similarNoun\(listing\)\} near you/);
   assert.match(detailSource, /More From This Seller/);
   assert.match(detailSource, /Safe\. Simple\. Trusted\./);
   assert.match(detailSource, /showPaymentCalculator={false}/);
@@ -1516,7 +1516,7 @@ test("home listings use a rental-specific detail layout", () => {
   assert.match(detailSource, /Lease terms/);
   assert.match(detailSource, /Important safety tip/);
   assert.match(detailSource, /Property details/);
-  assert.match(detailSource, /More listings like this/);
+  assert.match(detailSource, /More from \$\{sellerName/);
 });
 
 test("build listings show community and floorplan context", () => {
