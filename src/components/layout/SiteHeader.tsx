@@ -69,6 +69,8 @@ const mobilePrimaryCategories = [
 export function SiteHeader() {
   const { isSignedIn } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const hydrated = useHydrated();
   const [term, setTerm] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
@@ -76,6 +78,33 @@ export function SiteHeader() {
   const accountButtonRef = useRef<HTMLButtonElement>(null);
   const accountMenuRef = useRef<HTMLDivElement>(null);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+
+  const fetchAccount = useServerFn(getMyAccount);
+  const fetchNotifications = useServerFn(getMyNotifications);
+  const fetchConversations = useServerFn(getMyConversations);
+
+  // Shared query keys with the account center and the notification bell, so a
+  // badge read here always agrees with those surfaces.
+  const account = useQuery({
+    queryKey: ["my-account"],
+    queryFn: () => fetchAccount(),
+    enabled: hydrated && isSignedIn,
+  });
+  const notifications = useQuery({
+    queryKey: ["notifications"],
+    queryFn: () => fetchNotifications(),
+    enabled: hydrated && isSignedIn,
+    refetchInterval: 60_000,
+  });
+  const conversations = useQuery({
+    queryKey: ["conversations"],
+    queryFn: () => fetchConversations(),
+    enabled: hydrated && isSignedIn,
+    refetchInterval: 60_000,
+  });
+
+  const unreadMessages = conversations.data?.filter((item) => item.unread).length ?? 0;
+  const unreadNotifications = notifications.data?.unread ?? 0;
 
   // Close the mobile sheet on Escape and return focus to its trigger.
   useEffect(() => {
