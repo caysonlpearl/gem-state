@@ -9,7 +9,7 @@ export function normalizeFacebookCondition(value: string | null | undefined): st
   if (["new_with_tags", "new_without_tags", "used_excellent", "used_good"].includes(raw)) {
     return raw;
   }
-  if (/(like\s*new|excellent| barely used|gently used)/i.test(normalized)) return "used_excellent";
+  if (/(like\s*new|excellent|barely used|gently used)/i.test(normalized)) return "used_excellent";
   if (/\bused\b/i.test(normalized)) return "used_good";
   if (/new\s*(?:,|-)?\s*(?:with|has)\s*tags?/i.test(normalized)) return "new_with_tags";
   if (/new\s*(?:,|-)?\s*(?:without|no)\s*tags?/i.test(normalized)) return "new_without_tags";
