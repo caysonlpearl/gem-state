@@ -3926,7 +3926,7 @@ function ServicesFilterPage({
                         : (event.target.value as Search["sort"]),
                   })
                 }
-                className="h-9 rounded-lg border border-input bg-card px-2 text-[12px] text-foreground"
+                className="select-chevron h-9 rounded-lg border border-input bg-card pl-2 pr-7 text-[12px] text-foreground"
               >
                 <option value="newest">Newest to oldest</option>
                 <option value="price_low">Lowest price</option>
@@ -4490,7 +4490,7 @@ function JobsFilterPage({
                         : (event.target.value as Search["sort"]),
                   })
                 }
-                className="h-9 rounded-lg border border-input bg-card px-2 text-[12px] text-foreground"
+                className="select-chevron h-9 rounded-lg border border-input bg-card pl-2 pr-7 text-[12px] text-foreground"
               >
                 <option value="newest">Newest to oldest</option>
                 <option value="price_high">Highest pay</option>
@@ -5742,7 +5742,7 @@ function VehicleResultsPage({
             <label className="flex items-center gap-2 text-[12px] text-muted-foreground">
               Sort by
               <select
-                className="h-9 rounded-lg border border-input bg-card px-2 text-[12px] text-foreground"
+                className="select-chevron h-9 rounded-lg border border-input bg-card pl-2 pr-7 text-[12px] text-foreground"
                 value={search.sort ?? "newest"}
                 onChange={(event) => onApply({ sort: event.target.value as Sort })}
               >
