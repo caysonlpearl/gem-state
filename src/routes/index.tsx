@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
-import { ArrowRight, CaretDown, MagnifyingGlass, MapPin, Car } from "@phosphor-icons/react";
+import { ArrowRight, MagnifyingGlass, Car } from "@phosphor-icons/react";
 
 import { brand } from "@/config/brand";
 import {
