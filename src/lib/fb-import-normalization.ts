@@ -1,6 +1,6 @@
 import { classifiedCategories } from "@/config/classifieds";
 
-const knownCategorySlugs = new Set(classifiedCategories.map((category) => category.slug));
+const knownCategorySlugs = new Set<string>(classifiedCategories.map((category) => category.slug));
 
 /** Convert Facebook's free-form condition text into Bluebird's enum values. */
 export function normalizeFacebookCondition(value: string | null | undefined): string {
