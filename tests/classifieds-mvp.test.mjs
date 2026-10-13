@@ -964,13 +964,13 @@ test("shared category icons and no-photo cards have deterministic presentation",
   assert.match(stylesSource, /prefers-reduced-motion: no-preference/);
 });
 
-test("header categories show four primary destinations and an Items for sale control", () => {
+test("header categories show four primary destinations and an All items control", () => {
   assert.match(headerSource, /featuredHeaderCategories = \[/);
   for (const label of ["Cars", "Homes", "Jobs", "Services"]) {
     assert.match(headerSource, new RegExp(`name: "${label.replace(/&/g, "\\&")}"`));
   }
-  assert.match(headerSource, /aria-label="Items for sale"/);
-  assert.match(headerSource, /<span>Items for sale<\/span>/);
+  assert.match(headerSource, /aria-label="All items"/);
+  assert.match(headerSource, /<span>All items<\/span>/);
   assert.doesNotMatch(headerSource, /Scroll categories left/);
   assert.doesNotMatch(headerSource, /Scroll categories right/);
   assert.doesNotMatch(headerSource, /scrollBy\(/);
@@ -1012,7 +1012,7 @@ test("site header does not add a blue separator below the category row", () => {
 test("all categories opens a labeled icon menu with KSL-style sections", () => {
   assert.match(allCategoriesSource, /PopoverContent/);
   assert.match(allCategoriesSource, /function AllCategoriesPopover/);
-  assert.match(headerSource, /aria-label="Items for sale"/);
+  assert.match(headerSource, /aria-label="All items"/);
   assert.match(
     allCategoriesSource,
     /<p className="text-\[18px\] font-semibold tracking-tight">All categories<\/p>/,
