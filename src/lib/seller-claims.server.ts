@@ -42,7 +42,17 @@ export async function ensureManagedImportSeller(
       throw new Error(error?.message ?? "Could not prepare a managed seller.");
     candidate = data.user.id;
     created = true;
-    const slug = `managed-${candidate.replaceAll("-", "").slice(0, 20)}`;
+    const nameSlug =
+      name
+        .normalize("NFKD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-|-$/g, "")
+        .slice(0, 18)
+        .replace(/-$/g, "") || "seller";
+    // Public storefront handles must not encode the provisional account ID.
+    const slug = `${nameSlug}-${randomBytes(5).toString("hex")}`;
     const { error: profileError } = await admin
       .from("profiles")
       .upsert({ id: candidate, display_name: name }, { onConflict: "id" });

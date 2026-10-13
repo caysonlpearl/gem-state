@@ -322,6 +322,12 @@ function ClaimSeller() {
                         </div>
                       ))}
                     </div>
+                    {details.pendingCount > 0 && (
+                      <p className="mb-4 text-sm text-muted-foreground">
+                        Some imports are still being prepared by Bluebird. They will be saved in
+                        your account and will go live after review.
+                      </p>
+                    )}
                   </>
                 ) : !error ? (
                   <p role="status">Loading your listings…</p>
@@ -407,7 +413,7 @@ function ClaimSeller() {
                             className="mt-1 h-11 w-full rounded-xl border border-input bg-background px-3 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             type="password"
                             autoComplete={mode === "signup" ? "new-password" : "current-password"}
-                            minLength={8}
+                            minLength={mode === "signup" ? 8 : undefined}
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             required

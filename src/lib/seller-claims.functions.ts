@@ -31,6 +31,7 @@ export const inspectSellerClaim = createServerFn({ method: "POST" })
         status: "Invalid",
         sellerName: "",
         count: 0,
+        pendingCount: 0,
         previews: [] as { title: string; imageUrl: string | null }[],
         existingAccount: false,
       };
@@ -45,6 +46,7 @@ export const inspectSellerClaim = createServerFn({ method: "POST" })
         status,
         sellerName: seller?.display_name ?? "",
         count: 0,
+        pendingCount: 0,
         previews: [] as { title: string; imageUrl: string | null }[],
         existingAccount: Boolean(seller?.required_claimant_id),
       };
@@ -67,6 +69,7 @@ export const inspectSellerClaim = createServerFn({ method: "POST" })
       status,
       sellerName: seller.display_name as string,
       count: items?.length ?? 0,
+      pendingCount: (items ?? []).filter((i: any) => !i.listing_id).length,
       previews,
       existingAccount: Boolean(seller.required_claimant_id),
     };
@@ -182,20 +185,45 @@ export const getManagedImportSellers = createServerFn({ method: "GET" })
 export const getMyImportSync = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data, error } = await (
-      await admin()
-    )
+    const db = await admin();
+    const { data, error } = await db
       .from("managed_import_sellers")
       .select("id,display_name,source_profile_url,sync_enabled")
       .eq("owner_user_id", context.userId)
       .not("claimed_at", "is", null);
     if (error) throw new Error(error.message);
-    return data as {
+    const sellers = data as {
       id: string;
       display_name: string;
       source_profile_url: string;
       sync_enabled: boolean;
     }[];
+    return Promise.all(
+      sellers.map(async (seller) => {
+        const { data: items, error: itemError } = await db
+          .from("fb_marketplace_import_items")
+          .select("id,title,public_paths")
+          .eq("source_profile_url", seller.source_profile_url)
+          .eq("seller_id", context.userId)
+          .is("listing_id", null)
+          .neq("status", "discarded");
+        if (itemError) throw new Error("Could not load your pending imports. Try again.");
+        const pendingListings = await Promise.all(
+          (items ?? []).map(async (item: any) => {
+            const path = item.public_paths?.[0];
+            const signed = path
+              ? await db.storage.from("listing-media").createSignedUrl(path, 600)
+              : null;
+            return {
+              id: String(item.id),
+              title: String(item.title),
+              imageUrl: signed?.data?.signedUrl as string | undefined,
+            };
+          }),
+        );
+        return { ...seller, pendingListings };
+      }),
+    );
   });
 export const updateMyImportSync = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
