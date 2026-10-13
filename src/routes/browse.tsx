@@ -1448,6 +1448,10 @@ function Browse() {
 
     return {
       category,
+      vehicleMode: nextMotors ? "results" : undefined,
+      homeMode: category === "other-real-estate" ? "results" : undefined,
+      jobMode: category === "jobs" ? "results" : undefined,
+      serviceMode: category === "services" ? "results" : undefined,
       group: category ? undefined : value("group") === "motors" ? "motors" : undefined,
       state: value("state")?.toUpperCase(),
       region: value("region"),
