@@ -34,8 +34,10 @@ const utilityLinkClass =
   "hidden h-9 items-center px-2.5 text-[12.5px] text-muted-foreground transition-colors hover:text-primary md:inline-flex";
 const pinned = { activeProps: { className: "" }, inactiveProps: { className: "" } } as const;
 
+// "Vehicles" covers the whole motors group (cars, trucks, motorcycles, RVs,
+// powersports, trailers), so the pill links by group instead of one category.
 const featuredHeaderCategories = [
-  { slug: "cars-trucks", name: "Cars" },
+  { slug: "cars-trucks", name: "Vehicles", group: "motors" },
   { slug: "other-real-estate", name: "Homes" },
   { slug: "jobs", name: "Jobs" },
   { slug: "services", name: "Services" },
@@ -43,7 +45,12 @@ const featuredHeaderCategories = [
 
 const mobilePrimaryCategories = [
   { slug: "general", name: "All items", description: "Everyday local finds" },
-  { slug: "cars-trucks", name: "Cars", description: "Cars, trucks & motors" },
+  {
+    slug: "cars-trucks",
+    name: "Vehicles",
+    group: "motors",
+    description: "Cars, trucks, RVs & trailers",
+  },
   { slug: "other-real-estate", name: "Homes", description: "Homes, rentals & builds" },
   { slug: "jobs", name: "Jobs", description: "Local work & hiring" },
   { slug: "services", name: "Services", description: "Help for your next project" },
@@ -291,7 +298,7 @@ export function SiteHeader() {
               <li key={c.slug}>
                 <Link
                   to="/browse"
-                  search={{ category: c.slug }}
+                  search={"group" in c ? { group: c.group } : { category: c.slug }}
                   className={navLinkClass}
                   {...pinned}
                 >
@@ -338,7 +345,9 @@ export function SiteHeader() {
                     search={
                       category.slug === "general"
                         ? { allCategories: true }
-                        : { category: category.slug }
+                        : "group" in category
+                          ? { group: category.group }
+                          : { category: category.slug }
                     }
                     onClick={() => setMenuOpen(false)}
                     className="group flex w-full min-w-0 min-h-[72px] items-center gap-3 rounded-2xl border border-border bg-card px-3 py-2.5 transition-colors hover:border-primary/40 hover:bg-secondary"

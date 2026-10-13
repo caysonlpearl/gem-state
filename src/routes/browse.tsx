@@ -1065,7 +1065,7 @@ function browseHeadHeading(search: Search) {
   if (category?.slug === "other-real-estate") return "Homes for sale and rent in Idaho";
   if (category?.slug === "pets") return "Pets in Idaho";
   if (category) return `${category.name} for sale in Idaho`;
-  if (search.group === "motors") return "Cars, trucks and motors for sale in Idaho";
+  if (search.group === "motors") return "Vehicles for sale in Idaho";
   return null;
 }
 
@@ -1392,7 +1392,7 @@ function Browse() {
   const alertPlace = search.city ? ` near ${search.city}` : "";
   const activeFilterCount = countActiveFilters(search, motors, pets);
   const heading =
-    selectedCategory?.name ?? (search.group === "motors" ? "Cars & motors" : "All classifieds");
+    selectedCategory?.name ?? (search.group === "motors" ? "Vehicles" : "All classifieds");
   const noResultsHint = pets
     ? "Try widening the animal, breed, placement type, location, or price filters."
     : homes
@@ -1933,7 +1933,7 @@ function Browse() {
             active={search.group === "motors" || motors}
             search={scoped({ group: "motors", category: undefined })}
           >
-            Cars & motors
+            Vehicles
           </BrowsePill>
           {classifiedCategories
             .filter((category) => category.group === "classifieds")
@@ -6961,7 +6961,7 @@ function activeFilterLabels(search: Search, motors: boolean, pets: boolean) {
       classifiedCategories.find((category) => category.slug === search.category)?.name ??
         search.category,
     );
-  if (search.group === "motors" && !search.category) labels.push("Cars & motors");
+  if (search.group === "motors" && !search.category) labels.push("Vehicles");
   if (search.region) labels.push(`Region · ${search.region}`);
   if (search.state) {
     const stateName = usStates.find(([code]) => code === search.state)?.[1];

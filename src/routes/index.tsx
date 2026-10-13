@@ -79,7 +79,7 @@ const HOMEPAGE_ROW_SIZE = 4;
 const homepageCategoryHighlights = [
   { slug: "all", name: "All items" },
   { slug: "other-real-estate", name: "Homes" },
-  { slug: "cars-trucks", name: "Cars" },
+  { slug: "cars-trucks", name: "Vehicles", group: "motors" },
   { slug: "services", name: "Services" },
   { slug: "pets", name: "Pets" },
   { slug: "jobs", name: "Jobs" },
@@ -714,7 +714,9 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
               search={
                 option.slug === "all"
                   ? withLocation({ allCategories: true })
-                  : { category: option.slug }
+                  : "group" in option
+                    ? withLocation({ group: option.group })
+                    : { category: option.slug }
               }
               className="group rounded-2xl border border-transparent bg-card px-4 py-5 shadow-sm transition-shadow hover:shadow-md"
             >
