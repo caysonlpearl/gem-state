@@ -15,6 +15,11 @@
 - [x] Route that link to the whole motors group (cars, trucks, motorcycles, RVs, powersports, trailers) instead of cars only.
 - [x] Match the vehicles landing heading, filter pill and page title; keep the honest empty state.
 
+## Dropdown arrow spacing
+- [x] Replace the browser's edge-flush select arrow with the shared inset chevron used by the custom dropdowns (14px, 12px off the border).
+- [x] Apply it to the sidebar filters, the sort control and the compact sort controls so every dropdown matches.
+- [x] Verify the arrows sit clear of the border in the preview; code check and tests pass.
+
 ## Phase 1 — Foundation (done)
 - [x] Brand config, colors, Sora/Manrope fonts, Gem State mark
 - [x] Classifieds taxonomy + Idaho regions + listing contracts
