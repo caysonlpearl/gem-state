@@ -354,16 +354,11 @@ export const guides: Guide[] = [
     categories: [
       "furniture",
       "electronics",
-      "appliances",
       "tools-equipment",
       "home-garden",
       "outdoor-sporting",
-      "computers",
-      "fitness-equipment",
-      "cycling",
       "musical-instruments",
       "collectibles",
-      "toys",
       "general",
     ],
   },
@@ -640,7 +635,7 @@ export const guides: Guide[] = [
       { label: "Trailers for sale in Idaho", path: "/idaho/trailers" },
       { label: "How to sell a car in Idaho", path: "/guides/how-to-sell-a-car-in-idaho" },
     ],
-    categories: ["rvs-campers", "trailers", "water-sports", "powersports", "winter-sports"],
+    categories: ["rvs-campers", "trailers", "powersports", "outdoor-sporting"],
   },
   {
     slug: "marketplace-scams-to-watch-for",
@@ -758,14 +753,7 @@ export const guides: Guide[] = [
       },
       { label: "Homes and rentals in Idaho", path: "/idaho/homes" },
     ],
-    categories: [
-      "other-real-estate",
-      "electronics",
-      "computers",
-      "general",
-      "tickets",
-      "tickets-events",
-    ],
+    categories: ["other-real-estate", "electronics", "general", "tickets-events"],
   },
   {
     slug: "new-to-idaho-title-and-register-your-vehicle",
@@ -876,6 +864,155 @@ export const guides: Guide[] = [
       { label: "Furniture for sale in Idaho", path: "/idaho/furniture" },
     ],
     categories: ["cars-trucks", "other-real-estate"],
+  },
+  {
+    slug: "moving-to-idaho-on-a-budget",
+    title: "Moving to Idaho on a budget: furnishing your place secondhand",
+    description:
+      "How to furnish a new Idaho home for less: sell before you haul, what's worth buying used, checking recalls on dressers and cribs, where to look by city, and getting set up in your first month.",
+    answer:
+      "The cheapest way to furnish a new place in Idaho is to sell the heavy, bulky things before you move and buy them again secondhand once you arrive. Good used buys include solid wood furniture, bed frames, shelving, tools, bikes and outdoor gear. Look up dressers and cribs on the CPSC recall list before you buy, since recalled products can't legally be resold unless they've been fixed. And if you're selling your own things, Idaho doesn't make you collect sales tax as long as you make no more than two sales in a year.",
+    published: "2026-10-14",
+    reviewed: "2026-10-14",
+    sections: [
+      {
+        heading: "Sell before you haul",
+        blocks: [
+          {
+            kind: "p",
+            text: "Moving costs are driven by weight and space, and big furniture is both. Selling a couch or dresser where you live now and buying another here often costs less than moving it, especially for pieces that are worn or won't fit the new place.",
+          },
+          {
+            kind: "note",
+            text: "Selling your own things in Idaho? The Idaho State Tax Commission's occasional sales exemption means you don't need a seller's permit or collect sales tax if you make no more than two sales in any 12 months, don't publicly present yourself as someone who sells, and hold no more than two yard sales a year. Selling a group of your own items at once counts as one sale, and there's no form to file.",
+          },
+        ],
+      },
+      {
+        heading: "What's worth buying used",
+        blocks: [
+          {
+            kind: "list",
+            items: [
+              "**Solid wood furniture:** dressers, tables, bookshelves and bed frames last for decades and often cost a fraction of new. Check that drawers run smoothly and joints are tight.",
+              "**Tools, lawn equipment, bikes and outdoor gear:** buy used freely, but see them run or ride them first.",
+              "**Appliances:** ask how old they are, see them running, and measure your space and doorways before you go.",
+              "**Upholstered furniture and mattresses:** inspect seams, folds and underneath for signs of bed bugs before anything comes inside.",
+            ],
+          },
+        ],
+      },
+      {
+        heading: "Check for recalls before you buy",
+        blocks: [
+          {
+            kind: "list",
+            items: [
+              "Search the brand and model on [CPSC's recall list](https://www.cpsc.gov/Recalls). Dressers are recalled regularly for tip-over hazards; whatever you buy, anchor tall furniture to the wall if there are kids at home.",
+              "Selling a recalled product is against federal law unless the recall fix has been applied, and the listing should say so.",
+              "**Cribs:** full-size cribs made before June 28, 2011 have to have proof they meet the current federal standard, and drop-side cribs in the used market can't meet it. When in doubt, buy new.",
+              "Spot a recalled or unsafe product for sale? Report it at [SaferProducts.gov](https://www.saferproducts.gov/).",
+            ],
+          },
+        ],
+      },
+      {
+        heading: "Where to look in your city",
+        blocks: [
+          {
+            kind: "list",
+            items: [
+              "Furniture: [Boise](/idaho/boise/furniture), [Meridian](/idaho/meridian/furniture), [Nampa](/idaho/nampa/furniture), [Idaho Falls](/idaho/idaho-falls/furniture), [Pocatello](/idaho/pocatello/furniture), [Twin Falls](/idaho/twin-falls/furniture), [Coeur d'Alene](/idaho/coeur-dalene/furniture), or [all of Idaho](/idaho/furniture)",
+              "[Home and garden](/idaho/home-garden), [tools and equipment](/idaho/tools-equipment) and [baby and kids](/idaho/baby-kids) across Idaho",
+            ],
+          },
+        ],
+      },
+      {
+        heading: "Getting it home",
+        blocks: [
+          {
+            kind: "list",
+            items: [
+              "Measure doorways, stairs and the spot it's going before you buy.",
+              "Line up a truck or trailer and a helper ahead of time; many sellers want big items gone the same day.",
+              "Tie loads down and cover anything that could blow out. A load that comes loose on the freeway is dangerous and easy to prevent.",
+              "Meet somewhere safe for small items and bring someone along for pickups at a home. See [safe places to meet in Idaho](/guides/safe-places-to-meet-for-a-local-sale-in-idaho).",
+            ],
+          },
+        ],
+      },
+      {
+        heading: "Your first month in Idaho",
+        blocks: [
+          {
+            kind: "list",
+            items: [
+              "**Electricity:** which company serves you depends on where you live. The Idaho Public Utilities Commission publishes [service area maps](https://puc.idaho.gov/Page/Standard/20) and a [list of utilities by city](https://puc.idaho.gov/Fileroom/PublicFiles/Consumer/cities.pdf). For example, Idaho Power serves Caldwell and Kuna and Avista serves Coeur d'Alene and Moscow, while some towns are served by co-ops or city utilities.",
+              "**Driver's license and vehicles:** you have 30 days to get an Idaho driver's license and 30 days to title and register your vehicle. See [new to Idaho: title and register your vehicle](/guides/new-to-idaho-title-and-register-your-vehicle).",
+              "**Watch for rental scams** if you're still looking for a place: rent far below the area, an owner who can't show it, and pressure to pay first. See [marketplace scams to watch for](/guides/marketplace-scams-to-watch-for).",
+            ],
+          },
+        ],
+      },
+    ],
+    faqs: [
+      {
+        question: "Do I need a seller's permit to sell my furniture before moving out of Idaho?",
+        answer:
+          "Usually not. Idaho's occasional sales exemption covers people who make no more than two sales in any 12 months, don't publicly present themselves as sellers, and hold no more than two yard sales a year. Selling a group of your own things at once counts as one sale, and there's no form to file.",
+      },
+      {
+        question: "Is it legal to sell a recalled dresser or crib?",
+        answer:
+          "No, not unless the recall fix has been applied. The CPSC says selling recalled products is unlawful, and full-size cribs made before June 28, 2011 need proof they meet the current federal standard.",
+      },
+      {
+        question: "How do I find out which electric company serves my Idaho address?",
+        answer:
+          "Check the Idaho Public Utilities Commission's service area maps or its list of utilities by city, then confirm with the utility, since some cities are split between providers.",
+      },
+    ],
+    sources: [
+      {
+        label: "Idaho State Tax Commission: Occasional sellers",
+        url: "https://tax.idaho.gov/taxes/sales-use/exemptions/occasional-sales-exemption/",
+      },
+      {
+        label: "CPSC: FAQs for buying and selling products online",
+        url: "https://www.cpsc.gov/About-CPSC/Division-of-Field-Operations/FAQs-For-Buying-and-Selling-Products-Online",
+      },
+      { label: "CPSC: Recalls and product safety warnings", url: "https://www.cpsc.gov/Recalls" },
+      {
+        label: "CPSC: Crib information center",
+        url: "https://www.cpsc.gov/Business--Manufacturing/Business-Education/Business-Guidance/Full-Size-Baby-Cribs/Crib-Information-Center-",
+      },
+      {
+        label: "SaferProducts.gov (report an unsafe product)",
+        url: "https://www.saferproducts.gov/",
+      },
+      {
+        label: "Idaho Public Utilities Commission: Utility maps",
+        url: "https://puc.idaho.gov/Page/Standard/20",
+      },
+      {
+        label: "Idaho Public Utilities Commission: Utilities by city",
+        url: "https://puc.idaho.gov/Fileroom/PublicFiles/Consumer/cities.pdf",
+      },
+      {
+        label: "Idaho Transportation Department: New to Idaho",
+        url: "https://itd.idaho.gov/guide/new-to-idaho/",
+      },
+    ],
+    related: [
+      { label: "Furniture for sale in Idaho", path: "/idaho/furniture" },
+      { label: "Home and garden in Idaho", path: "/idaho/home-garden" },
+      {
+        label: "New to Idaho: title and register your vehicle",
+        path: "/guides/new-to-idaho-title-and-register-your-vehicle",
+      },
+    ],
+    categories: ["furniture", "home-garden", "baby-kids"],
   },
 ];
 
