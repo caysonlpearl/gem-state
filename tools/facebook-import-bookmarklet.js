@@ -170,8 +170,21 @@
   }
 
   function inferCategory(title, description) {
+    if (title && description) {
+      const primary = inferCategory(title, "");
+      if (primary !== "general") return primary;
+    }
     const text = `${title || ""} ${description || ""}`.toLowerCase();
     const matches = (pattern) => pattern.test(text);
+    if (
+      matches(
+        /\b(industrial|forklift|heavy equipment|heavy machinery|cnc|lathe|milling machine|scissor lift|pallet jack)\b/,
+      )
+    )
+      return "industrial";
+    if (matches(/\b(car seat|stroller|crib|baby carrier)\b/)) return "baby-kids";
+    if (matches(/\b(rv|camper|motorhome|fifth wheel|travel trailer)\b/)) return "rvs-campers";
+    if (matches(/\b(bicycle|mountain bike|road bike)\b/)) return "outdoor-sporting";
     if (
       matches(
         /\b(car parts?|auto parts?|brake|bumper|alternator|engine|transmission|tire|tyre|wheel|rim|catalytic converter)\b/,
@@ -187,13 +200,19 @@
     if (matches(/\b(motorcycle|motorbike|scooter|vespa)\b/)) return "motorcycles";
     if (
       matches(
+        /\b(?:19|20)\d{2}\s+(?:toyota|ford|chevrolet|chevy|dodge|ram|honda|subaru|nissan|gmc|jeep|hyundai|kia|mazda|bmw|mercedes|audi|volkswagen|lexus|buick|cadillac|volvo|tesla)\b/,
+      )
+    )
+      return "cars-trucks";
+    if (
+      matches(
         /\b(car|truck|suv|sedan|coupe|convertible|van|pickup|vehicle|automobile|hatchback|wagon)\b/,
       )
     )
       return "cars-trucks";
     if (
       matches(
-        /\b(smart ?watch|apple watch|galaxy watch|iphone|ipad|android|laptop|computer|desktop|television|tv|camera|headphones|earbuds|speaker|monitor|printer|gaming console|playstation|xbox|nintendo|electronics?)\b/,
+        /\b(smart ?watch|apple watch|galaxy watch|mechanical keyboard|gaming keyboard|computer keyboard|ring light|iphone|ipad|android|laptop|computer|desktop|television|tv|camera|headphones|earbuds|speaker|monitor|printer|gaming console|playstation|xbox|nintendo|electronics?)\b/,
       )
     )
       return "electronics";
@@ -218,7 +237,7 @@
       return "books-media";
     if (
       matches(
-        /\b(antique|collectible|trading card|sports card|coin collection|memorabilia|figurine|action figure|vintage)\b/,
+        /\b(collectible|trading card|sports card|coin collection|memorabilia|figurine|action figure)\b/,
       )
     )
       return "collectibles";
@@ -304,6 +323,7 @@
       )
     )
       return "other-real-estate";
+    if (matches(/\b(antique|vintage)\b/)) return "collectibles";
     return "general";
   }
 

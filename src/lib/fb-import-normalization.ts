@@ -26,9 +26,22 @@ export function inferFacebookCategorySlug(
   const supplied = String(suppliedCategory ?? "").trim();
   if (supplied && supplied !== "general" && knownCategorySlugs.has(supplied)) return supplied;
 
+  if (title && description) {
+    const primary = inferFacebookCategorySlug(null, title, null);
+    if (primary !== "general") return primary;
+  }
   const text = `${title ?? ""} ${description ?? ""}`.toLowerCase();
   const matches = (pattern: RegExp) => pattern.test(text);
 
+  if (
+    matches(
+      /\b(industrial|forklift|heavy equipment|heavy machinery|cnc|lathe|milling machine|scissor lift|pallet jack)\b/,
+    )
+  )
+    return "industrial";
+  if (matches(/\b(car seat|stroller|crib|baby carrier)\b/)) return "baby-kids";
+  if (matches(/\b(rv|camper|motorhome|fifth wheel|travel trailer)\b/)) return "rvs-campers";
+  if (matches(/\b(bicycle|mountain bike|road bike)\b/)) return "outdoor-sporting";
   // Specific categories run before broad words such as "ring", "bike", or
   // "garden" so ordinary products do not get mistaken for a nearby category.
   if (
@@ -45,6 +58,12 @@ export function inferFacebookCategorySlug(
   if (matches(/\b(motorcycle|motorbike|scooter|vespa)\b/)) return "motorcycles";
   if (
     matches(
+      /\b(?:19|20)\d{2}\s+(?:toyota|ford|chevrolet|chevy|dodge|ram|honda|subaru|nissan|gmc|jeep|hyundai|kia|mazda|bmw|mercedes|audi|volkswagen|lexus|buick|cadillac|volvo|tesla)\b/,
+    )
+  )
+    return "cars-trucks";
+  if (
+    matches(
       /\b(car|truck|suv|sedan|coupe|convertible|van|pickup|vehicle|automobile|hatchback|wagon)\b/,
     )
   )
@@ -52,7 +71,7 @@ export function inferFacebookCategorySlug(
 
   if (
     matches(
-      /\b(smart ?watch|apple watch|galaxy watch|iphone|ipad|android|laptop|computer|desktop|television|tv|camera|headphones|earbuds|speaker|monitor|printer|gaming console|playstation|xbox|nintendo|electronics?)\b/,
+      /\b(smart ?watch|apple watch|galaxy watch|mechanical keyboard|gaming keyboard|computer keyboard|ring light|iphone|ipad|android|laptop|computer|desktop|television|tv|camera|headphones|earbuds|speaker|monitor|printer|gaming console|playstation|xbox|nintendo|electronics?)\b/,
     )
   )
     return "electronics";
@@ -77,7 +96,7 @@ export function inferFacebookCategorySlug(
     return "books-media";
   if (
     matches(
-      /\b(antique|collectible|trading card|sports card|coin collection|memorabilia|figurine|action figure|vintage)\b/,
+      /\b(collectible|trading card|sports card|coin collection|memorabilia|figurine|action figure)\b/,
     )
   )
     return "collectibles";
@@ -163,5 +182,6 @@ export function inferFacebookCategorySlug(
     )
   )
     return "other-real-estate";
+  if (matches(/\b(antique|vintage)\b/)) return "collectibles";
   return knownCategorySlugs.has(supplied) ? supplied : "general";
 }
