@@ -246,23 +246,23 @@ function AuthPage() {
   }
 
   return (
-    <div className="mx-auto max-w-[460px] px-4 py-16 sm:px-6">
-      <div className="soft-card overflow-hidden p-6 sm:p-8">
+    <div className="mx-auto max-w-[460px] px-4 py-6 sm:px-6 sm:py-10">
+      <div className="soft-card overflow-hidden p-4 sm:p-6">
         {mode === "signin" || mode === "signup" ? (
-          <div className="relative mb-6 min-h-[126px] overflow-hidden rounded-[22px] border border-brand-blue/15 bg-secondary/65 px-4 py-4 sm:min-h-[136px] sm:px-5">
+          <div className="relative mb-4 min-h-[92px] overflow-hidden rounded-[18px] border border-brand-blue/15 bg-secondary/65 px-4 py-3 sm:min-h-[104px] sm:px-5 sm:py-3.5">
             <span
-              className="absolute -right-10 -top-16 h-36 w-36 rounded-full bg-brand-blue/12"
+              className="absolute -right-8 -top-14 h-32 w-32 rounded-full bg-brand-blue/12"
               aria-hidden="true"
             />
             <span
-              className="absolute -bottom-20 left-1/3 h-32 w-32 rounded-full bg-brand-warm/20"
+              className="absolute -bottom-16 left-1/3 h-24 w-24 rounded-full bg-brand-warm/20"
               aria-hidden="true"
             />
-            <div className="relative z-10 max-w-[56%] pt-1">
-              <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-primary">
+            <div className="relative z-10 max-w-[54%] pt-0.5">
+              <p className="font-mono text-[8px] font-semibold uppercase tracking-[0.18em] text-primary">
                 Welcome to Bluebird
               </p>
-              <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">
+              <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground">
                 Your local marketplace starts here.
               </p>
             </div>
@@ -270,11 +270,11 @@ function AuthPage() {
               src="/images/brand/bluebird-signin-bird.png"
               alt=""
               aria-hidden="true"
-              className="absolute -bottom-5 right-1 h-36 w-40 object-contain sm:-bottom-6 sm:right-3 sm:h-40 sm:w-44"
+              className="absolute -bottom-4 right-1 h-28 w-32 object-contain sm:-bottom-5 sm:right-3 sm:h-32 sm:w-36"
             />
           </div>
         ) : null}
-        <h1 className="text-[26px] font-bold tracking-tight">
+        <h1 className="text-[23px] font-bold leading-tight tracking-tight sm:text-[25px]">
           {mode === "forgot"
             ? "Reset your password"
             : mode === "reset"
@@ -283,7 +283,7 @@ function AuthPage() {
                 ? intent.signupTitle
                 : intent.signinTitle}
         </h1>
-        <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
+        <p className="mt-1 text-[12px] leading-snug text-muted-foreground">
           {mode === "forgot"
             ? "Enter your email and we’ll send you a secure password reset link."
             : mode === "reset"
@@ -299,7 +299,7 @@ function AuthPage() {
             </p>
           </div>
         ) : mode === "forgot" ? (
-          <form onSubmit={handleForgotPassword} className="mt-6 space-y-3">
+          <form onSubmit={handleForgotPassword} className="mt-4 space-y-2.5">
             <div>
               <label htmlFor="forgot-email" className="text-[12px] font-medium">
                 Email
@@ -311,13 +311,13 @@ function AuthPage() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="email"
-                className="soft-control mt-1 h-11 w-full px-4 text-sm outline-none"
+                className="soft-control mt-1 h-10 w-full px-4 text-sm outline-none"
               />
             </div>
             <button
               type="submit"
               disabled={busy}
-              className="inline-flex h-12 w-full items-center justify-center rounded-full bg-primary text-[13.5px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+              className="inline-flex h-11 w-full items-center justify-center rounded-full bg-primary text-[13.5px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
             >
               {busy ? "Sending…" : "Send reset email"}
             </button>
@@ -330,7 +330,7 @@ function AuthPage() {
             </button>
           </form>
         ) : mode === "reset" ? (
-          <form onSubmit={handleResetPassword} className="mt-6 space-y-3">
+          <form onSubmit={handleResetPassword} className="mt-4 space-y-2.5">
             <div>
               <label htmlFor="new-password" className="text-[12px] font-medium">
                 New password
@@ -343,7 +343,7 @@ function AuthPage() {
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 autoComplete="new-password"
-                className="soft-control mt-1 h-11 w-full px-4 text-sm outline-none"
+                className="soft-control mt-1 h-10 w-full px-4 text-sm outline-none"
               />
             </div>
             <div>
@@ -358,25 +358,25 @@ function AuthPage() {
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 autoComplete="new-password"
-                className="soft-control mt-1 h-11 w-full px-4 text-sm outline-none"
+                className="soft-control mt-1 h-10 w-full px-4 text-sm outline-none"
               />
             </div>
             <button
               type="submit"
               disabled={busy}
-              className="inline-flex h-12 w-full items-center justify-center rounded-full bg-primary text-[13.5px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+              className="inline-flex h-11 w-full items-center justify-center rounded-full bg-primary text-[13.5px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
             >
               {busy ? "Updating…" : "Update password"}
             </button>
           </form>
         ) : (
           <>
-            <div className="mt-6 space-y-2.5">
+            <div className="mt-4 space-y-2">
               <button
                 type="button"
                 onClick={handleOAuth}
                 disabled={busy}
-                className="inline-flex h-12 w-full items-center justify-center gap-2.5 rounded-full border border-input bg-card text-[13.5px] font-medium transition-colors hover:bg-secondary disabled:opacity-60"
+                className="inline-flex h-11 w-full items-center justify-center gap-2.5 rounded-full border border-input bg-card text-[13.5px] font-medium transition-colors hover:bg-secondary disabled:opacity-60"
               >
                 <svg aria-hidden="true" className="h-5 w-5 shrink-0" viewBox="0 0 24 24" role="img">
                   <path
@@ -400,7 +400,7 @@ function AuthPage() {
               </button>
             </div>
 
-            <div className="my-5 flex items-center gap-3">
+            <div className="my-3 flex items-center gap-3">
               <span className="h-px flex-1 bg-border" />
               <span className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
                 or
@@ -408,7 +408,7 @@ function AuthPage() {
               <span className="h-px flex-1 bg-border" />
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-3">
+            <form onSubmit={handleSubmit} className="space-y-2.5">
               {mode === "signup" && (
                 <div>
                   <label htmlFor="displayName" className="text-[12px] font-medium">
@@ -419,7 +419,7 @@ function AuthPage() {
                     value={displayName}
                     onChange={(e) => setDisplayName(e.target.value)}
                     autoComplete="nickname"
-                    className="soft-control mt-1 h-11 w-full px-4 text-sm outline-none"
+                    className="soft-control mt-1 h-10 w-full px-4 text-sm outline-none"
                   />
                 </div>
               )}
@@ -434,7 +434,7 @@ function AuthPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   autoComplete="email"
-                  className="soft-control mt-1 h-11 w-full px-4 text-sm outline-none"
+                  className="soft-control mt-1 h-10 w-full px-4 text-sm outline-none"
                 />
               </div>
               <div>
@@ -449,13 +449,13 @@ function AuthPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   autoComplete={mode === "signin" ? "current-password" : "new-password"}
-                  className="soft-control mt-1 h-11 w-full px-4 text-sm outline-none"
+                  className="soft-control mt-1 h-10 w-full px-4 text-sm outline-none"
                 />
               </div>
               <button
                 type="submit"
                 disabled={busy}
-                className="inline-flex h-12 w-full items-center justify-center rounded-full bg-primary text-[13.5px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
+                className="inline-flex h-11 w-full items-center justify-center rounded-full bg-primary text-[13.5px] font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-60"
               >
                 {mode === "signin" ? "Sign in" : "Create account"}
               </button>
@@ -464,7 +464,7 @@ function AuthPage() {
             <button
               type="button"
               onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-              className="mt-4 text-[13px] text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+              className="mt-3 text-[12px] text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
             >
               {mode === "signin"
                 ? "Need an account? Create one"
@@ -474,7 +474,7 @@ function AuthPage() {
               <button
                 type="button"
                 onClick={() => setMode("forgot")}
-                className="mt-3 w-full text-[12.5px] text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                className="mt-2 w-full text-[12px] text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
               >
                 Forgot password?
               </button>
