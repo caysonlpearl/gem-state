@@ -468,7 +468,15 @@
   box-shadow: 0 2px 8px rgb(23 54 77 / 0.4);
 }
 
-@media (min-width: 400px) {
+@media (min-width: 375px) {
+  /* 375-409px: the longest rotation wraps to five lines. */
+  .homepage-hero-headline {
+    min-height: 5.4em;
+  }
+}
+
+@media (min-width: 410px) {
+  /* 410px and up (through the small-tablet range): four lines. */
   .homepage-hero-headline {
     min-height: 4.32em;
   }
