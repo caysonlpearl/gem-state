@@ -8,6 +8,8 @@ tree when routes change, and verify production configuration before deployment.
 
 Category landing listing sections retain their headings and navigation when empty and use the shared Bluebird empty-state component; hardcoded showcase metadata must not supply listing cards, so empty inventory remains honest without deleting database records.
 
+Industrial uses the shared classifieds taxonomy and stores its subcategory in item_details.itemType; create, edit, display and browse reuse the existing item-details pipeline without a parallel schema.
+
 Keep `noPropertyAccessFromIndexSignature`, `noUncheckedIndexedAccess`, and
 `exactOptionalPropertyTypes` off in tsconfig.json. These three extra-strict
 settings flag safe code across the whole app (index-signature property access,

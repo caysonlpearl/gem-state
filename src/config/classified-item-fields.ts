@@ -6,7 +6,35 @@ export type ClassifiedItemField = {
   required?: boolean;
 };
 
+export const industrialSubcategories = [
+  "Air Compressors",
+  "Boom Lift",
+  "Drills",
+  "Excavators",
+  "Farm Equipment",
+  "Fork Lifts",
+  "Heavy Equipment/Tractors",
+  "Industrial Equipment Rentals",
+  "Ladders",
+  "Machinery",
+  "Other Industrial/Construction Equipment",
+  "Parts - Heavy Equipment/Industrial/Semi Truck",
+  "Power and Hand Tools",
+  "Pressure Washers",
+  "Saws",
+  "Scissor Lifts",
+  "Shipping Container",
+  "Shop Tools",
+  "Skid Steer Loaders",
+  "Tool Storage",
+  "Wanted/ISO - Industrial",
+  "Woodworking Tools",
+] as const;
+
 export const classifiedItemFields: Record<string, ClassifiedItemField[]> = {
+  industrial: [
+    { key: "itemType", label: "Industrial subcategory", options: industrialSubcategories, required: true },
+  ],
   furniture: [
     {
       key: "itemType",
