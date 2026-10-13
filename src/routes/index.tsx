@@ -1,11 +1,13 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { Suspense, lazy, useEffect, useState } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import { ArrowRight, CaretDown, MagnifyingGlass, MapPin, Car } from "@phosphor-icons/react";
 
 import { brand } from "@/config/brand";
 import {
   classifiedCategories,
+  classifiedCoordinatesForCity,
+  nearestClassifiedCity,
   marketplaceCities,
   idahoRegions,
   isWithinClassifiedRadius,
@@ -249,6 +251,51 @@ function Home() {
   const where = homeLocation(location, mapPoint, radiusMiles);
   const { parsedLocation, locationSummary } = where;
 
+  const defaultingRef = useRef(false);
+  function openMapWithDefault() {
+    if (mapOpen || defaultingRef.current) return;
+    setMapOpen(true);
+    if (mapPoint || parsedLocation.city) return;
+    defaultingRef.current = true;
+    const apply = (latitude: number, longitude: number, fallbackCity?: string) => {
+      const nearest = nearestClassifiedCity(latitude, longitude);
+      const city = fallbackCity ?? (nearest && nearest.distanceMiles <= 20 ? nearest.city : undefined);
+      setMapPoint({ latitude, longitude, city });
+      setLocation(city ?? "");
+      defaultingRef.current = false;
+    };
+    const boise = () => {
+      const coords = classifiedCoordinatesForCity("Boise") ?? [43.615, -116.2023];
+      apply(coords[0], coords[1], "Boise");
+    };
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      boise();
+      return;
+    }
+    let done = false;
+    const timer = window.setTimeout(() => {
+      if (done) return;
+      done = true;
+      boise();
+    }, 4000);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        if (done) return;
+        done = true;
+        window.clearTimeout(timer);
+        apply(Number(pos.coords.latitude.toFixed(5)), Number(pos.coords.longitude.toFixed(5)));
+      },
+      () => {
+        if (done) return;
+        done = true;
+        window.clearTimeout(timer);
+        boise();
+      },
+      { timeout: 4000 },
+    );
+  }
+
+
   return (
     <main className="mx-auto max-w-[1360px] px-4 pb-16 sm:px-6">
       <section className="classifieds-hero-shell homepage-hero-shell relative mt-8 overflow-hidden rounded-[28px] border border-brand-blue/20 bg-secondary px-5 py-9 shadow-lg sm:px-10 sm:py-12">
@@ -396,24 +443,26 @@ function Home() {
             </button>
             {/* The radius only means something around a chosen city or map
                 point; before that, "Search area: Idaho" already says it. */}
-            {parsedLocation.city || mapPoint ? (
-              <label className="flex min-h-11 min-w-[220px] flex-1 items-center gap-2 sm:max-w-[360px]">
-                <span className="whitespace-nowrap">Distance</span>
-                <input
-                  aria-label="Search radius in miles"
-                  type="range"
-                  min="5"
-                  max="500"
-                  step="5"
-                  value={radiusMiles}
-                  onChange={(event) => setRadiusMiles(Number(event.target.value))}
-                  className="w-full accent-primary"
-                />
-                <span className="whitespace-nowrap font-semibold text-foreground">
-                  {radiusMiles} mi
-                </span>
-              </label>
-            ) : null}
+            <label className="flex min-h-11 min-w-[220px] flex-1 items-center gap-2 sm:max-w-[360px]">
+              <span className="whitespace-nowrap">Distance</span>
+              <input
+                aria-label="Search radius in miles"
+                type="range"
+                min="5"
+                max="500"
+                step="5"
+                value={radiusMiles}
+                onPointerDown={openMapWithDefault}
+                onChange={(event) => {
+                  openMapWithDefault();
+                  setRadiusMiles(Number(event.target.value));
+                }}
+                className="w-full accent-primary"
+              />
+              <span className="whitespace-nowrap font-semibold text-foreground">
+                {radiusMiles} mi
+              </span>
+            </label>
           </div>
           {mapOpen ? (
             <Suspense fallback={<div className="mt-3 h-[260px] rounded-xl bg-secondary" />}>
