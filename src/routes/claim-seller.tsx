@@ -242,7 +242,7 @@ function ClaimSeller() {
                 {details ? (
                   <>
                     <p className="text-sm">
-                      We’ve prepared <strong>{details.count} listings</strong> for{" "}
+                      We’ve prepared <strong>{details.count} {details.count === 1 ? "listing" : "listings"}</strong> for{" "}
                       <strong>{details.sellerName}</strong>.
                     </p>
                     <div className="my-4 space-y-2">

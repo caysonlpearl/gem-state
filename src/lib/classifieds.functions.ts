@@ -294,13 +294,16 @@ export type AdminClassifiedRow = {
 export const getAdminClassifiedQueue = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const client = context.supabase as any;
     const { data: isAdmin, error: roleError } = await context.supabase.rpc("has_role", {
       _user_id: context.userId,
       _role: "admin",
     });
     if (roleError) throw new Error(roleError.message);
     if (!isAdmin) return { isAdmin: false, listings: [] as AdminClassifiedRow[] };
+    // Pending asks are private to their seller under ordinary account policies.
+    // Scope privileged projections to the IDs returned by the guarded queue.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const client = supabaseAdmin as any;
 
     const { data: rawRows, error: queueError } =
       await context.supabase.rpc("admin_ask_review_queue");
