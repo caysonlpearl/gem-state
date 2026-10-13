@@ -1,6 +1,6 @@
 import { createFileRoute, Link, notFound, redirect } from "@tanstack/react-router";
 import { queryOptions, useMutation, useSuspenseQuery } from "@tanstack/react-query";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
@@ -37,6 +37,7 @@ import { BluebirdEmptyState } from "@/components/layout/BluebirdEmptyState";
 import { ListingActions } from "@/components/classifieds/ListingActions";
 import { MobileContactBar } from "@/components/classifieds/MobileContactBar";
 import { listingIdFromParam, listingParam, listingPath } from "@/lib/listing-url";
+import { trackEvent, trackSellerContact } from "@/lib/analytics";
 import { PUBLIC_PAGE_STALE_MS } from "@/lib/query-freshness";
 import { ListingCard } from "@/components/classifieds/ListingCard";
 import { WatchHeartButton } from "@/components/community/WatchHeartButton";
@@ -510,18 +511,27 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
           </p>
           <div className="mt-2 grid grid-cols-2 gap-2">
             {seller.contactTextPhone ? (
-              <a href={`sms:${seller.contactTextPhone}`} className={contactLinkClass}>
+              <a
+                href={`sms:${seller.contactTextPhone}`}
+                onClick={() => trackSellerContact("text", listing)}
+                className={contactLinkClass}
+              >
                 <DeviceMobile size={15} aria-hidden="true" /> Text
               </a>
             ) : null}
             {seller.contactPhone ? (
-              <a href={`tel:${seller.contactPhone}`} className={contactLinkClass}>
+              <a
+                href={`tel:${seller.contactPhone}`}
+                onClick={() => trackSellerContact("call", listing)}
+                className={contactLinkClass}
+              >
                 <Phone size={15} aria-hidden="true" /> Call
               </a>
             ) : null}
             {seller.contactEmail ? (
               <a
                 href={`mailto:${seller.contactEmail}?subject=${encodeURIComponent(listing.title)}`}
+                onClick={() => trackSellerContact("email", listing)}
                 className={contactLinkClass}
               >
                 <EnvelopeSimple size={15} aria-hidden="true" /> Email
@@ -843,6 +853,22 @@ function FlagListingDialog({ listingId, isMock = false }: { listingId: string; i
 function ListingDetail() {
   const listingId = listingIdFromParam(Route.useParams().listingId);
   const { data: listing } = useSuspenseQuery(listingQuery(listingId));
+  // One view per listing page load, tagged with where the visit came from.
+  // The ref keeps React's development double-run of effects from counting twice.
+  const trackedListing = useRef<string | null>(null);
+  useEffect(() => {
+    if (!listing || trackedListing.current === listing.id) return;
+    trackedListing.current = listing.id;
+    void trackEvent(
+      "listing_viewed",
+      {
+        listing_id: listing.id,
+        category: listing.categorySlug ?? null,
+        ended: Boolean(listing.ended),
+      },
+      { isDemo: listing.isMock === true },
+    );
+  }, [listing?.id]);
   const relatedQuery = useSuspenseQuery(
     queryOptions({
       staleTime: PUBLIC_PAGE_STALE_MS,

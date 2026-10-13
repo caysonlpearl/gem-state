@@ -252,6 +252,12 @@ function AdminPage() {
               Validation summary
             </Link>
             <Link
+              to="/admin/traffic"
+              className="inline-flex h-9 items-center rounded-md border border-input px-3 text-[12.5px] font-medium hover:bg-secondary"
+            >
+              Traffic &amp; contacts
+            </Link>
+            <Link
               to="/admin/dealer-inventory"
               className="inline-flex h-9 items-center rounded-md border border-input px-3 text-[12.5px] font-medium hover:bg-secondary"
             >

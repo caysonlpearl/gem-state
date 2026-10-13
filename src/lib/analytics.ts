@@ -1,5 +1,6 @@
 import { loadSupabase } from "@/integrations/supabase/lazy-client";
 import { classifyLatency, sanitizeTelemetryText } from "@/lib/release-gate";
+import { classifyTrafficSource } from "@/lib/traffic-source";
 
 /**
  * Validation analytics. Instrumented from the foundation phase onward: every
@@ -82,7 +83,10 @@ export type AnalyticsEventName =
   | "mutation_failed"
   | "mutation_slow"
   | "browser_error"
-  | "unhandled_rejection";
+  | "unhandled_rejection"
+  | "visit_started"
+  | "listing_viewed"
+  | "seller_contacted";
 
 type Props = Record<string, string | number | boolean | null>;
 
@@ -108,6 +112,68 @@ function sessionId(): string | null {
   }
 }
 
+type Visit = { id: string; source: string; channel: string; landing: string };
+
+const VISIT_KEY = "bb_visit";
+let currentVisit: Visit | null = null;
+
+/**
+ * The visit this tab is in: where it came from (search engine, AI assistant,
+ * social site, another site or direct) and the page it landed on. Worked out
+ * once per tab session and attached to every event, so contacts can be traced
+ * back to the source that brought the visitor. The first call in a visit also
+ * records a visit_started event.
+ */
+export function ensureVisit(): Visit | null {
+  if (typeof window === "undefined") return null;
+  if (currentVisit) return currentVisit;
+  try {
+    const stored = window.sessionStorage.getItem(VISIT_KEY);
+    if (stored) {
+      currentVisit = JSON.parse(stored) as Visit;
+      return currentVisit;
+    }
+  } catch {
+    // Storage blocked: classify this page on its own below.
+  }
+  const { source, channel } = classifyTrafficSource(
+    document.referrer,
+    window.location.search,
+    window.location.host,
+  );
+  currentVisit = {
+    id:
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : String(Date.now()),
+    source,
+    channel,
+    landing: window.location.pathname.slice(0, 200),
+  };
+  try {
+    window.sessionStorage.setItem(VISIT_KEY, JSON.stringify(currentVisit));
+  } catch {
+    // Without storage the visit is still known for this page load.
+  }
+  void trackEvent("visit_started", { landing_path: currentVisit.landing });
+  return currentVisit;
+}
+
+export type SellerContactMethod =
+  "message" | "call" | "text" | "email" | "apply" | "apply_external";
+
+/** A buyer reaching out about a listing, the number this tracking exists for. */
+export function trackSellerContact(
+  method: SellerContactMethod,
+  listing: { id: string; categorySlug?: string | null; isMock?: boolean | undefined },
+) {
+  void trackEvent(
+    "seller_contacted",
+    { method, listing_id: listing.id, category: listing.categorySlug ?? null },
+    { isDemo: listing.isMock === true },
+  );
+}
+
 /**
  * `isDemo` marks the event as generated against demonstration catalog data so
  * validation and conversion metrics can exclude it.
@@ -122,9 +188,19 @@ export async function trackEvent(
     const supabase = await loadSupabase();
     const { data } = await supabase.auth.getSession();
     const userId = data.session?.user.id ?? null;
+    const visit = ensureVisit();
     await supabase.from("analytics_events").insert({
       name,
-      props,
+      props: visit
+        ? {
+            ...props,
+            traffic_source: visit.source,
+            traffic_channel: visit.channel,
+            traffic_visit: visit.id,
+            // Lets reports drop events from dev servers and preview builds.
+            site_host: window.location.hostname,
+          }
+        : props,
       is_demo: options.isDemo ?? false,
       session_id: sessionId(),
       user_id: userId,

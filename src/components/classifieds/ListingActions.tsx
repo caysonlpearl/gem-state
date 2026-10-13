@@ -8,6 +8,7 @@ import { formatUsd } from "@/config/fees";
 import { useAuth } from "@/hooks/useAuth";
 import type { ClassifiedDetail } from "@/lib/classifieds.functions";
 import { formatClassifiedPrice } from "@/lib/classifieds-display";
+import { trackSellerContact } from "@/lib/analytics";
 import { startConversation } from "@/lib/conversation.functions";
 import { nearbyPagePath } from "@/lib/place-pages";
 import { ContactSignInSheet, OPEN_CONTACT_EVENT, consumeContactIntent } from "./ContactSignInSheet";
@@ -146,6 +147,7 @@ function LiveListingActions({
   const inquiryMutation = useMutation({
     mutationFn: () => start({ data: { listingId: listing.id, body: message } }),
     onSuccess: () => {
+      trackSellerContact("message", listing);
       toast.success("Message sent to the seller.");
       setMessage(DEFAULT_MESSAGE);
       setContactOpen(false);
@@ -258,6 +260,7 @@ function LiveListingActions({
             href={externalApplyHref(listing.job?.applicationExternalContact ?? "")}
             target="_blank"
             rel="noreferrer"
+            onClick={() => trackSellerContact("apply_external", listing)}
             className="flex h-12 w-full items-center justify-center rounded-full bg-nav-accent text-[14.5px] font-semibold text-primary transition-opacity hover:opacity-90"
           >
             Apply on the employer's site

@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import type { ClassifiedDetail } from "@/lib/classifieds.functions";
 import { formatClassifiedPrice } from "@/lib/classifieds-display";
 import { OPEN_CONTACT_EVENT } from "./ContactSignInSheet";
+import { trackSellerContact } from "@/lib/analytics";
 
 function externalApplyHref(contact: string) {
   if (/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(contact)) return `mailto:${contact}`;
@@ -68,6 +69,7 @@ export function MobileContactBar({ listing }: { listing: ClassifiedDetail }) {
         {seller?.contactTextPhone ? (
           <a
             href={`sms:${seller.contactTextPhone}`}
+            onClick={() => trackSellerContact("text", listing)}
             className={iconButton}
             aria-label="Text seller"
           >
@@ -75,7 +77,12 @@ export function MobileContactBar({ listing }: { listing: ClassifiedDetail }) {
           </a>
         ) : null}
         {seller?.contactPhone ? (
-          <a href={`tel:${seller.contactPhone}`} className={iconButton} aria-label="Call seller">
+          <a
+            href={`tel:${seller.contactPhone}`}
+            onClick={() => trackSellerContact("call", listing)}
+            className={iconButton}
+            aria-label="Call seller"
+          >
             <Phone size={18} aria-hidden="true" />
           </a>
         ) : null}
@@ -84,6 +91,7 @@ export function MobileContactBar({ listing }: { listing: ClassifiedDetail }) {
             href={externalApplyHref(externalApply)}
             target="_blank"
             rel="noreferrer"
+            onClick={() => trackSellerContact("apply_external", listing)}
             className={primaryButton}
           >
             Apply

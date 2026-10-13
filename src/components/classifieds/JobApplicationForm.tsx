@@ -8,6 +8,7 @@ import {
   getMyJobApplicationForListing,
   submitJobApplication,
 } from "@/lib/job-applications.functions";
+import { trackSellerContact } from "@/lib/analytics";
 
 const ALLOWED_TYPES = [
   "application/pdf",
@@ -70,6 +71,7 @@ export function JobApplicationForm({ listingId }: { listingId: string }) {
       return submit({ data: { listingId, resumePath, coverLetter: coverLetter || null } });
     },
     onSuccess: async () => {
+      trackSellerContact("apply", { id: listingId, categorySlug: "jobs" });
       setEditing(false);
       setResume(null);
       await queryClient.invalidateQueries({ queryKey: ["my-job-application", listingId] });

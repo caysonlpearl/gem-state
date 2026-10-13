@@ -54,6 +54,7 @@ import { Route as AuthenticatedAdminFbImportRouteImport } from './routes/_authen
 import { Route as AuthenticatedAdminMembersRouteImport } from './routes/_authenticated/admin.members'
 import { Route as AuthenticatedAdminProductsRouteImport } from './routes/_authenticated/admin.products'
 import { Route as AuthenticatedAdminReviewFlagsRouteImport } from './routes/_authenticated/admin.review-flags'
+import { Route as AuthenticatedAdminTrafficRouteImport } from './routes/_authenticated/admin.traffic'
 import { Route as AuthenticatedAdminValidationRouteImport } from './routes/_authenticated/admin.validation'
 import { Route as AuthenticatedOrdersOrderIdRouteImport } from './routes/_authenticated/orders.$orderId'
 import { Route as ApiInternalDealerInventoryRouteImport } from './routes/api/internal/dealer-inventory'
@@ -307,6 +308,12 @@ const AuthenticatedAdminReviewFlagsRoute =
     path: '/review-flags',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminTrafficRoute =
+  AuthenticatedAdminTrafficRouteImport.update({
+    id: '/traffic',
+    path: '/traffic',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminValidationRoute =
   AuthenticatedAdminValidationRouteImport.update({
     id: '/validation',
@@ -426,6 +433,7 @@ export interface FileRoutesByFullPath {
   '/admin/members': typeof AuthenticatedAdminMembersRoute
   '/admin/products': typeof AuthenticatedAdminProductsRoute
   '/admin/review-flags': typeof AuthenticatedAdminReviewFlagsRoute
+  '/admin/traffic': typeof AuthenticatedAdminTrafficRoute
   '/admin/validation': typeof AuthenticatedAdminValidationRoute
   '/orders/$orderId': typeof AuthenticatedOrdersOrderIdRoute
   '/api/internal/dealer-inventory': typeof ApiInternalDealerInventoryRoute
@@ -484,6 +492,7 @@ export interface FileRoutesByTo {
   '/admin/members': typeof AuthenticatedAdminMembersRoute
   '/admin/products': typeof AuthenticatedAdminProductsRoute
   '/admin/review-flags': typeof AuthenticatedAdminReviewFlagsRoute
+  '/admin/traffic': typeof AuthenticatedAdminTrafficRoute
   '/admin/validation': typeof AuthenticatedAdminValidationRoute
   '/orders/$orderId': typeof AuthenticatedOrdersOrderIdRoute
   '/api/internal/dealer-inventory': typeof ApiInternalDealerInventoryRoute
@@ -545,6 +554,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/members': typeof AuthenticatedAdminMembersRoute
   '/_authenticated/admin/products': typeof AuthenticatedAdminProductsRoute
   '/_authenticated/admin/review-flags': typeof AuthenticatedAdminReviewFlagsRoute
+  '/_authenticated/admin/traffic': typeof AuthenticatedAdminTrafficRoute
   '/_authenticated/admin/validation': typeof AuthenticatedAdminValidationRoute
   '/_authenticated/orders/$orderId': typeof AuthenticatedOrdersOrderIdRoute
   '/api/internal/dealer-inventory': typeof ApiInternalDealerInventoryRoute
@@ -606,6 +616,7 @@ export interface FileRouteTypes {
     | '/admin/members'
     | '/admin/products'
     | '/admin/review-flags'
+    | '/admin/traffic'
     | '/admin/validation'
     | '/orders/$orderId'
     | '/api/internal/dealer-inventory'
@@ -664,6 +675,7 @@ export interface FileRouteTypes {
     | '/admin/members'
     | '/admin/products'
     | '/admin/review-flags'
+    | '/admin/traffic'
     | '/admin/validation'
     | '/orders/$orderId'
     | '/api/internal/dealer-inventory'
@@ -724,6 +736,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/members'
     | '/_authenticated/admin/products'
     | '/_authenticated/admin/review-flags'
+    | '/_authenticated/admin/traffic'
     | '/_authenticated/admin/validation'
     | '/_authenticated/orders/$orderId'
     | '/api/internal/dealer-inventory'
@@ -1090,6 +1103,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminReviewFlagsRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/traffic': {
+      id: '/_authenticated/admin/traffic'
+      path: '/traffic'
+      fullPath: '/admin/traffic'
+      preLoaderRoute: typeof AuthenticatedAdminTrafficRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/validation': {
       id: '/_authenticated/admin/validation'
       path: '/validation'
@@ -1194,6 +1214,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminMembersRoute: typeof AuthenticatedAdminMembersRoute
   AuthenticatedAdminProductsRoute: typeof AuthenticatedAdminProductsRoute
   AuthenticatedAdminReviewFlagsRoute: typeof AuthenticatedAdminReviewFlagsRoute
+  AuthenticatedAdminTrafficRoute: typeof AuthenticatedAdminTrafficRoute
   AuthenticatedAdminValidationRoute: typeof AuthenticatedAdminValidationRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
   AuthenticatedAdminOrdersOrderIdRoute: typeof AuthenticatedAdminOrdersOrderIdRoute
@@ -1211,6 +1232,7 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminMembersRoute: AuthenticatedAdminMembersRoute,
   AuthenticatedAdminProductsRoute: AuthenticatedAdminProductsRoute,
   AuthenticatedAdminReviewFlagsRoute: AuthenticatedAdminReviewFlagsRoute,
+  AuthenticatedAdminTrafficRoute: AuthenticatedAdminTrafficRoute,
   AuthenticatedAdminValidationRoute: AuthenticatedAdminValidationRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
   AuthenticatedAdminOrdersOrderIdRoute: AuthenticatedAdminOrdersOrderIdRoute,
