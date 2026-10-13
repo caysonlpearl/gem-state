@@ -32,7 +32,9 @@ function ClaimSeller() {
   const navigate = useNavigate();
   const location = useLocation();
   const [token, setToken] = useState(readToken);
-  useEffect(() => { setToken(readToken()); }, [location.hash]);
+  useEffect(() => {
+    setToken(readToken());
+  }, [location.hash]);
   const inspect = useServerFn(inspectSellerClaim);
   const complete = useServerFn(completeSellerClaim);
   const [details, setDetails] = useState<Awaited<ReturnType<typeof inspect>> | null>(null);
@@ -247,8 +249,11 @@ function ClaimSeller() {
                 {details ? (
                   <>
                     <p className="text-sm">
-                      We’ve prepared <strong>{details.count} {details.count === 1 ? "listing" : "listings"}</strong> for{" "}
-                      <strong>{details.sellerName}</strong>.
+                      We’ve prepared{" "}
+                      <strong>
+                        {details.count} {details.count === 1 ? "listing" : "listings"}
+                      </strong>{" "}
+                      for <strong>{details.sellerName}</strong>.
                     </p>
                     <div className="my-4 space-y-2">
                       {details.previews.map((p, i) => (

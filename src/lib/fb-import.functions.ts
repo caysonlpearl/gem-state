@@ -187,6 +187,14 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const admin = supabaseAdmin as any;
 
+      const { data: managed, error: managedError } = await admin
+        .from("managed_import_sellers")
+        .select("sync_enabled,owner_user_id")
+        .eq("source_profile_url", data.sourceProfileUrl)
+        .maybeSingle();
+      if (managedError) throw new Error(managedError.message);
+      if (managed?.sync_enabled === false) throw new Error("This seller paused Facebook sync.");
+
       const { data: batch, error: batchError } = await admin
         .from("fb_marketplace_import_batches")
         .insert({
@@ -204,12 +212,6 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
         .eq("source_profile_url", data.sourceProfileUrl)
         .in("status", ["draft", "needs_update", "possibly_removed", "published"]);
       if (priorError) throw new Error(priorError.message);
-      const { data: managed } = await admin
-        .from("managed_import_sellers")
-        .select("sync_enabled,owner_user_id")
-        .eq("source_profile_url", data.sourceProfileUrl)
-        .maybeSingle();
-      if (managed?.sync_enabled === false) throw new Error("This seller paused Facebook sync.");
       const priorByUrl = new Map<string, any>(
         (priorItems ?? []).map((row: any) => [row.source_url, row]),
       );

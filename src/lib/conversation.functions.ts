@@ -64,6 +64,41 @@ function summary(
   };
 }
 
+/** Only enrich conversations already authorized for this participant. Listing
+ * policies can hide a pending/removed ask from a buyer without hiding their
+ * conversation history; keep its title and public counterparty name intact. */
+async function conversationContext(rows: any[], userId: string) {
+  for (const row of rows) {
+    if (row.buyer_id !== userId && row.seller_id !== userId)
+      throw new Error("Conversation not found.");
+  }
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const db = supabaseAdmin as any;
+  const listingIds = [...new Set(rows.map((r) => r.listing_id).filter(Boolean))];
+  const memberIds = [
+    ...new Set(rows.map((r) => (r.buyer_id === userId ? r.seller_id : r.buyer_id))),
+  ];
+  const [{ data: asks, error: askError }, { data: profiles, error: profileError }] =
+    await Promise.all([
+      listingIds.length
+        ? db.from("asks").select("id,products(name)").in("id", listingIds)
+        : { data: [], error: null },
+      memberIds.length
+        ? db.from("profiles").select("id,display_name").in("id", memberIds)
+        : { data: [], error: null },
+    ]);
+  if (askError || profileError) throw new Error("Could not load conversation details. Try again.");
+  const titles = new Map((asks ?? []).map((a: any) => [a.id, a.products]));
+  for (const row of rows)
+    row.asks = titles.get(row.listing_id) ? { products: titles.get(row.listing_id) } : row.asks;
+  return new Map<string, string>(
+    (profiles ?? []).map((p: any) => [
+      p.id,
+      String(p.display_name ?? "").trim() || "Bluebird member",
+    ]),
+  );
+}
+
 export const getMyConversations = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<ConversationSummary[]> => {
@@ -77,25 +112,7 @@ export const getMyConversations = createServerFn({ method: "GET" })
       .order("last_message_at", { ascending: false })
       .limit(100);
     if (error) throw new Error(error.message);
-    const otherMemberIds = [
-      ...new Set(
-        (data ?? []).map((row: any) =>
-          row.buyer_id === context.userId ? row.seller_id : row.buyer_id,
-        ),
-      ),
-    ];
-    const { data: profiles } = otherMemberIds.length
-      ? await client
-          .from("public_profile_display")
-          .select("id,display_name")
-          .in("id", otherMemberIds)
-      : { data: [] as any[] };
-    const names = new Map<string, string>(
-      (profiles ?? []).map((profile: any) => [
-        profile.id,
-        String(profile.display_name ?? "").trim() || "Bluebird member",
-      ]),
-    );
+    const names = await conversationContext(data ?? [], context.userId);
     return (data ?? []).map((row: any) => summary(row, context.userId, names));
   });
 
@@ -113,6 +130,7 @@ export const getConversation = createServerFn({ method: "GET" })
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!row) throw new Error("Conversation not found.");
+    const otherMemberNames = await conversationContext([row], context.userId);
     const { data: messages, error: messageError } = await client
       .from("conversation_messages")
       .select(
@@ -122,15 +140,6 @@ export const getConversation = createServerFn({ method: "GET" })
       .order("created_at", { ascending: true })
       .limit(200);
     if (messageError) throw new Error(messageError.message);
-    const otherMemberId = row.buyer_id === context.userId ? row.seller_id : row.buyer_id;
-    const { data: otherProfile } = await client
-      .from("public_profile_display")
-      .select("display_name")
-      .eq("id", otherMemberId)
-      .maybeSingle();
-    const otherMemberNames = new Map<string, string>([
-      [otherMemberId, String(otherProfile?.display_name ?? "").trim() || "Bluebird member"],
-    ]);
     const attachmentPaths = (messages ?? [])
       .map((message: any) => message.attachment_path)
       .filter((path: unknown): path is string => typeof path === "string" && path.length > 0);
