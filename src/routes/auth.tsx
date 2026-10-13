@@ -277,13 +277,13 @@ function AuthPage() {
             {mode === "forgot" ? "Reset your password" : "Choose a new password"}
           </h1>
         )}
-        <p className="mt-1 text-[12px] leading-snug text-muted-foreground">
-          {mode === "forgot"
-            ? "Enter your email and we’ll send you a secure password reset link."
-            : mode === "reset"
-              ? "Choose a new password for your Bluebird account."
-              : intent.body}
-        </p>
+        {(mode === "forgot" || mode === "reset") && (
+          <p className="mt-1 text-[12px] leading-snug text-muted-foreground">
+            {mode === "forgot"
+              ? "Enter your email and we’ll send you a secure password reset link."
+              : "Choose a new password for your Bluebird account."}
+          </p>
+        )}
 
         {pendingConfirm ? (
           <div className="mt-6 rounded-2xl bg-secondary p-5">
