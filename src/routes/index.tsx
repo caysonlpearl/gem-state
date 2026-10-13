@@ -26,6 +26,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { trackEvent } from "@/lib/analytics";
 import { PUBLIC_PAGE_STALE_MS } from "@/lib/query-freshness";
+import { jsonLdScript, siteStructuredData } from "@/lib/structured-data";
 
 // The map (and its stylesheet) only loads when someone opens it, so it never
 // delays the first paint of the home page.
@@ -59,6 +60,7 @@ export const Route = createFileRoute("/")({
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
+    scripts: [jsonLdScript(siteStructuredData())],
   }),
   // Not awaited: the page shell and hero render right away and the listing
   // rows stream in when the data is ready (same HTML response, so crawlers
@@ -260,7 +262,8 @@ function Home() {
     defaultingRef.current = true;
     const apply = (latitude: number, longitude: number, fallbackCity?: string) => {
       const nearest = nearestClassifiedCity(latitude, longitude);
-      const city = fallbackCity ?? (nearest && nearest.distanceMiles <= 20 ? nearest.city : undefined);
+      const city =
+        fallbackCity ?? (nearest && nearest.distanceMiles <= 20 ? nearest.city : undefined);
       setMapPoint({ latitude, longitude, city });
       setLocation(city ?? "");
       defaultingRef.current = false;
@@ -295,7 +298,6 @@ function Home() {
       { timeout: 4000 },
     );
   }
-
 
   return (
     <main className="mx-auto max-w-[1360px] px-4 pb-16 sm:px-6">

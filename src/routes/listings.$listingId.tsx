@@ -57,6 +57,7 @@ import {
   getRelatedClassifieds,
 } from "@/lib/classifieds.functions";
 import { nearbyPagePath } from "@/lib/place-pages";
+import { jsonLdScript, listingStructuredData } from "@/lib/structured-data";
 import { getRemovedListingRedirect } from "@/lib/place-pages.functions";
 import type { ClassifiedCard, ClassifiedDetail } from "@/lib/classifieds.functions";
 import {
@@ -173,6 +174,7 @@ export const Route = createFileRoute("/listings/$listingId")({
       city: listing.city,
       state: listing.state,
       ended: listing.ended?.reason ?? null,
+      structuredData: listingStructuredData(listing),
     };
   },
   head: ({ loaderData }) => {
@@ -201,6 +203,7 @@ export const Route = createFileRoute("/listings/$listingId")({
         { property: "og:type", content: "website" },
         { name: "twitter:card", content: "summary_large_image" },
       ],
+      scripts: [jsonLdScript(loaderData.structuredData)],
     };
   },
   component: ListingDetail,

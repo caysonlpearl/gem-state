@@ -3,6 +3,7 @@ import { ArrowRight, CaretRight } from "@phosphor-icons/react";
 
 import { ListingCard } from "@/components/classifieds/ListingCard";
 import { getPlacePage, type PlacePageData } from "@/lib/place-pages.functions";
+import { jsonLdScript, placePageStructuredData } from "@/lib/structured-data";
 import { PUBLIC_PAGE_STALE_MS } from "@/lib/query-freshness";
 
 export const placePageQuery = (place: string, category?: string) =>
@@ -24,6 +25,16 @@ export function placePageHead(data: PlacePageData | null | undefined) {
       { property: "og:title", content: data.title },
       { property: "og:description", content: data.description },
       { property: "og:type", content: "website" },
+    ],
+    scripts: [
+      jsonLdScript(
+        placePageStructuredData({
+          heading: data.heading,
+          path: data.breadcrumbs.at(-1)?.path ?? "/browse",
+          breadcrumbs: data.breadcrumbs,
+          listings: data.listings,
+        }),
+      ),
     ],
   };
 }

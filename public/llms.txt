@@ -1,0 +1,26 @@
+# Bluebird Marketplace
+
+> Bluebird Marketplace (onbluebird.com) is a local classifieds site for Idaho. Local sellers and dealers list cars and trucks, RVs, trailers, powersports, furniture, tools, farm and garden equipment, outdoor gear, homes and rentals, jobs, and local services. Buyers contact sellers directly to arrange the sale; Bluebird does not hold payments for classified listings.
+
+Listings are reviewed before they appear publicly, and they expire unless renewed. Sold and expired listings stay visible for up to 60 days with a "Sold" or "Expired" notice, then redirect to the matching city and category page. Prices and counts on Bluebird pages come from current listings on the site.
+
+## Find listings
+
+- [Browse and search all listings](https://onbluebird.com/browse): search by keyword, category, city, ZIP code, radius, price and category-specific filters
+- City pages: `https://onbluebird.com/idaho/{city}`, for example [Boise](https://onbluebird.com/idaho/boise)
+- Category pages across Idaho: `https://onbluebird.com/idaho/{category}`, for example [cars and trucks](https://onbluebird.com/idaho/cars-trucks)
+- One category in one city or region: `https://onbluebird.com/idaho/{city-or-region}/{category}`, for example [trailers in Boise](https://onbluebird.com/idaho/boise/trailers)
+- Listing pages: `https://onbluebird.com/listings/{title-and-city}-{id}`
+- Seller profiles: `https://onbluebird.com/sellers/{seller}`
+- [Sitemap](https://onbluebird.com/sitemap.xml): every live listing, seller, and city or category page with enough listings to be useful
+
+## Buying and selling safely
+
+- [Safety](https://onbluebird.com/safety): common scams to watch for (overpayment, pressure, off-site links, fake shipping), meeting safely, and how reports and moderation work
+- [Glossary](https://onbluebird.com/glossary): plain-language definitions of marketplace terms such as listings, offers, seller reviews, pickup and shipping
+- [Sell on Bluebird](https://onbluebird.com/sell): how to post a listing
+
+## Policies and contact
+
+- [Policies](https://onbluebird.com/policies): marketplace disclosure, privacy, buyer and seller terms, prohibited items
+- [Contact](https://onbluebird.com/contact)
