@@ -116,9 +116,8 @@ function SellerPage() {
             ) : null}
           </div>
         </div>
-        <div className="mt-5 grid max-w-[560px] grid-cols-3 gap-px bg-border border border-border">
+        <div className="mt-5 grid max-w-[380px] grid-cols-2 gap-px bg-border border border-border">
           <Metric label="Active listings" value={seller.activeListingCount} />
-          <Metric label="Verified sales" value={seller.completedSalesCount} />
           <Metric
             label="Rating"
             value={seller.ratingAverage == null ? "New" : `${seller.ratingAverage.toFixed(1)} / 5`}
