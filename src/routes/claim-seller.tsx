@@ -1,5 +1,6 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { completeSellerClaim, inspectSellerClaim } from "@/lib/seller-claims.functions";
@@ -27,6 +28,7 @@ function readToken() {
   return sessionStorage.getItem(KEY) ?? "";
 }
 function ClaimSeller() {
+  const navigate = useNavigate();
   const [token] = useState(readToken);
   const inspect = useServerFn(inspectSellerClaim);
   const complete = useServerFn(completeSellerClaim);
@@ -130,6 +132,13 @@ function ClaimSeller() {
       sessionStorage.removeItem(KEY);
       window.history.replaceState(null, "", "/claim-seller");
       setDone(true);
+      toast.success("Your imported listings and buyer messages are now in your account.", {
+        action: {
+          label: "View messages",
+          onClick: () => void navigate({ to: "/account", search: { section: "messages" } }),
+        },
+      });
+      await navigate({ to: "/account", search: { section: "listings" } });
     } catch (e) {
       setError(
         e instanceof Error ? e.message : "Claiming failed. Your listings are unchanged; retry.",

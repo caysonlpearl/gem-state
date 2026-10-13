@@ -23,7 +23,7 @@ test("seller profiles canonicalize independently of host, trailing slash and tra
   ])
     assert.throws(() => canonicalFacebookProfile(url));
 });
-test("claim tokens reject malformed and low entropy inputs without reflecting secret values", () => {
+test("claim tokens reject malformed inputs without reflecting secret values", () => {
   assert.equal(validClaimToken("f".repeat(64)), "f".repeat(64));
   for (const token of ["", "a".repeat(63), "g".repeat(64), "token=123"])
     assert.throws(() => validClaimToken(token), /claim link is invalid/);
