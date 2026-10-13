@@ -1,7 +1,7 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { Suspense, lazy, useEffect, useRef, useState } from "react";
-import { ArrowRight, CaretDown, MagnifyingGlass, MapPin, Car } from "@phosphor-icons/react";
+import { ArrowRight, MagnifyingGlass, Car } from "@phosphor-icons/react";
 
 import { brand } from "@/config/brand";
 import {
@@ -14,6 +14,7 @@ import {
   usStates,
 } from "@/config/classifieds";
 import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
+import { HomeSearchDropdown } from "@/components/classifieds/HomeSearchDropdown";
 import { ListingCard } from "@/components/classifieds/ListingCard";
 import { BluebirdEmptyState } from "@/components/layout/BluebirdEmptyState";
 import type { LocationPoint } from "@/components/classifieds/LocationRadiusPicker";
@@ -377,54 +378,24 @@ function Home() {
                 className="h-12 w-full rounded-full border-0 bg-transparent pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
               />
             </label>
-            <label className="relative block">
-              <select
+            <HomeSearchDropdown
                 value={category}
-                onChange={(event) => setCategory(event.target.value)}
-                aria-label="Category"
-                className="soft-control h-12 w-full appearance-none px-4 pr-12 text-sm text-foreground outline-none"
-              >
-                <option value="">All categories</option>
-                {classifiedCategories.map((option) => (
-                  <option key={option.slug} value={option.slug}>
-                    {option.name}
-                  </option>
-                ))}
-              </select>
-              <CaretDown
-                size={16}
-                weight="bold"
-                className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground"
-                aria-hidden="true"
-              />
-            </label>
-            <label className="soft-control relative flex h-12 items-center gap-2 px-4 pr-11">
-              <MapPin
-                size={16}
-                weight="duotone"
-                className="shrink-0 text-primary"
-                aria-hidden="true"
-              />
-              <span className="sr-only">Location</span>
-              <input
-                type="search"
+                onChange={setCategory}
+                label="Category"
+                placeholder="All categories"
+                options={[{ value: "", label: "All categories" }, ...classifiedCategories.map((option) => ({ value: option.slug, label: option.name }))]}
+            />
+            <HomeSearchDropdown
                 value={location}
-                onChange={(event) => {
-                  setLocation(event.target.value);
+                onChange={(next) => {
+                  setLocation(next);
                   setMapPoint(undefined);
                 }}
                 placeholder="City or ZIP code"
-                aria-label="City or ZIP code"
-                list="bluebird-home-city-options"
-                className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
-              />
-              <CaretDown
-                size={16}
-                weight="bold"
-                className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground"
-                aria-hidden="true"
-              />
-            </label>
+                label="City or ZIP code"
+                editable
+                options={marketplaceCities.map((option) => ({ value: option, label: option }))}
+            />
             <button
               type="submit"
               className="h-12 rounded-full bg-primary px-7 text-[13.5px] font-semibold text-primary-foreground shadow-sm transition-transform hover:scale-[1.02]"
@@ -480,11 +451,6 @@ function Home() {
               />
             </Suspense>
           ) : null}
-          <datalist id="bluebird-home-city-options">
-            {marketplaceCities.map((option) => (
-              <option key={option} value={option} />
-            ))}
-          </datalist>
         </div>
       </section>
 
