@@ -1,10 +1,15 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
 import {
+  Bell,
   BookmarkSimple,
+  ChatCircle,
   List,
   MagnifyingGlass,
   PlusCircle,
+  SignOut,
   Storefront,
   UserCircle,
   X,
@@ -14,6 +19,11 @@ import { NotificationBell } from "@/components/layout/NotificationBell";
 import { BrandMark } from "@/components/layout/BrandMark";
 import { brand } from "@/config/brand";
 import { useAuth } from "@/hooks/useAuth";
+import { useHydrated } from "@/hooks/useHydrated";
+import { getMyAccount } from "@/lib/account.functions";
+import { getMyConversations } from "@/lib/conversation.functions";
+import { getMyNotifications } from "@/lib/notifications.functions";
+import { loadSupabase } from "@/integrations/supabase/lazy-client";
 import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 
 /*
