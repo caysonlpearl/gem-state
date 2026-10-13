@@ -258,13 +258,10 @@ function AuthPage() {
               className="absolute -bottom-16 left-1/3 h-24 w-24 rounded-full bg-brand-warm/20"
               aria-hidden="true"
             />
-            <div className="relative z-10 max-w-[54%] pt-0.5">
-              <p className="font-mono text-[8px] font-semibold uppercase tracking-[0.18em] text-primary">
-                Welcome to Bluebird
-              </p>
-              <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground">
-                Your local marketplace starts here.
-              </p>
+            <div className="relative z-10 max-w-[58%] pt-0.5">
+              <h1 className="text-[18px] font-bold leading-tight tracking-tight sm:text-[20px]">
+                {mode === "signup" ? intent.signupTitle : intent.signinTitle}
+              </h1>
             </div>
             <img
               src="/images/brand/bluebird-signin-bird.png"
@@ -274,15 +271,11 @@ function AuthPage() {
             />
           </div>
         ) : null}
-        <h1 className="text-[23px] font-bold leading-tight tracking-tight sm:text-[25px]">
-          {mode === "forgot"
-            ? "Reset your password"
-            : mode === "reset"
-              ? "Choose a new password"
-              : mode === "signup"
-                ? intent.signupTitle
-                : intent.signinTitle}
-        </h1>
+        {(mode === "forgot" || mode === "reset") && (
+          <h1 className="text-[23px] font-bold leading-tight tracking-tight sm:text-[25px]">
+            {mode === "forgot" ? "Reset your password" : "Choose a new password"}
+          </h1>
+        )}
         <p className="mt-1 text-[12px] leading-snug text-muted-foreground">
           {mode === "forgot"
             ? "Enter your email and we’ll send you a secure password reset link."
