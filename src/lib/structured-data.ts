@@ -81,6 +81,7 @@ function offer(listing: ClassifiedDetail, url: string, extra: JsonLd = {}) {
     priceCurrency: listing.currency || brand.defaultCurrency,
     availability: "https://schema.org/InStock",
     itemCondition: itemCondition(listing.condition),
+    validFrom: listing.createdAt,
     priceValidUntil: listing.expiresAt?.slice(0, 10),
     availableAtOrFrom: { "@type": "Place", address: address(listing) },
     seller: seller(listing),
