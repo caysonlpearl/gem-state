@@ -81,7 +81,7 @@ DECLARE j public.seller_claim_transfers; t public.seller_claim_tokens; s public.
  VALUES(_claimant,slug,'active','seller-v1',now()) ON CONFLICT(user_id) DO UPDATE SET terms_version='seller-v1',terms_accepted_at=now();
  UPDATE public.asks SET seller_id=_claimant WHERE id=ANY(coalesce(ids,'{}'));
  -- Preserve created_by, message sender_id and historical audit actors.
- UPDATE public.conversation_participants cp SET user_id=_claimant,last_read_at=NULL WHERE cp.user_id=s.owner_user_id AND cp.role='seller' AND EXISTS(SELECT 1 FROM public.conversations c WHERE c.id=cp.conversation_id AND c.listing_id=ANY(coalesce(ids,'{}')));
+ UPDATE public.conversation_participants cp SET user_id=_claimant,last_read_at=CASE WHEN s.owner_user_id=_claimant THEN cp.last_read_at ELSE NULL END WHERE cp.user_id=s.owner_user_id AND cp.role='seller' AND EXISTS(SELECT 1 FROM public.conversations c WHERE c.id=cp.conversation_id AND c.listing_id=ANY(coalesce(ids,'{}')));
  UPDATE public.conversations SET seller_id=_claimant WHERE listing_id=ANY(coalesce(ids,'{}')) AND seller_id=s.owner_user_id;
  UPDATE public.listing_inquiries SET seller_id=_claimant WHERE listing_id=ANY(coalesce(ids,'{}')) AND seller_id=s.owner_user_id;
  UPDATE public.notifications SET user_id=_claimant,read_at=NULL WHERE user_id=s.owner_user_id AND s.owner_user_id<>_claimant AND ((entity_type='conversation' AND entity_id IN (SELECT id FROM public.conversations WHERE listing_id=ANY(coalesce(ids,'{}')))) OR entity_id=ANY(coalesce(ids,'{}')));
