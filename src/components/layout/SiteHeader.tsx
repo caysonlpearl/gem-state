@@ -515,3 +515,16 @@ export function SiteHeader() {
     </header>
   );
 }
+
+/** Small count pill beside Messages and Notifications in the account menu,
+ * matching the header bell's badge styling. */
+function UnreadBadge({ count }: { count: number }) {
+  return (
+    <span
+      aria-label={`${count} unread`}
+      className="numeric ml-auto inline-flex min-w-[17px] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold leading-[16px] text-primary-foreground"
+    >
+      {count > 9 ? "9+" : count}
+    </span>
+  );
+}
