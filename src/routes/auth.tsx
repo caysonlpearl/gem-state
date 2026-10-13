@@ -247,7 +247,33 @@ function AuthPage() {
 
   return (
     <div className="mx-auto max-w-[460px] px-4 py-16 sm:px-6">
-      <div className="soft-card p-6 sm:p-8">
+      <div className="soft-card overflow-hidden p-6 sm:p-8">
+        {mode === "signin" || mode === "signup" ? (
+          <div className="relative mb-6 min-h-[126px] overflow-hidden rounded-[22px] border border-brand-blue/15 bg-secondary/65 px-4 py-4 sm:min-h-[136px] sm:px-5">
+            <span
+              className="absolute -right-10 -top-16 h-36 w-36 rounded-full bg-brand-blue/12"
+              aria-hidden="true"
+            />
+            <span
+              className="absolute -bottom-20 left-1/3 h-32 w-32 rounded-full bg-brand-warm/20"
+              aria-hidden="true"
+            />
+            <div className="relative z-10 max-w-[56%] pt-1">
+              <p className="font-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-primary">
+                Welcome to Bluebird
+              </p>
+              <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">
+                Your local marketplace starts here.
+              </p>
+            </div>
+            <img
+              src="/images/brand/bluebird-signin-bird.png"
+              alt=""
+              aria-hidden="true"
+              className="absolute -bottom-5 right-1 h-36 w-40 object-contain sm:-bottom-6 sm:right-3 sm:h-40 sm:w-44"
+            />
+          </div>
+        ) : null}
         <h1 className="text-[26px] font-bold tracking-tight">
           {mode === "forgot"
             ? "Reset your password"
