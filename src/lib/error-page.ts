@@ -20,7 +20,7 @@ export function renderErrorPage(): string {
   </head>
   <body>
     <div class="card">
-      <div class="bird-wrap"><img class="bird" src="/images/brand/bluebird-error-bird.png" alt="" aria-hidden="true" /></div>
+      <div class="bird-wrap"><img class="bird" src="/images/brand/bluebird-error-bird.webp" alt="" aria-hidden="true" /></div>
       <h1>This page didn't load</h1>
       <p>Something went wrong on our end. You can try refreshing or head back home.</p>
       <div class="actions">

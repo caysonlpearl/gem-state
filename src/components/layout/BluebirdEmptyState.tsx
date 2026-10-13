@@ -23,9 +23,15 @@ export function BluebirdEmptyState({
       <div className="mx-auto flex max-w-2xl flex-col items-center gap-5 sm:flex-row sm:gap-7 sm:text-left">
         <div className="grid h-28 w-28 shrink-0 place-items-center rounded-full bg-secondary/70 p-3 sm:h-32 sm:w-32">
           <img
-            src="/images/brand/bluebird-error-bird.png"
+            src="/images/brand/bluebird-error-bird.webp"
             alt=""
             aria-hidden="true"
+            width={320}
+            height={267}
+            // Usually below the fold (empty listing rows); don't let React
+            // preload it ahead of what the page needs to paint.
+            loading="lazy"
+            decoding="async"
             className="h-full w-full object-contain"
           />
         </div>

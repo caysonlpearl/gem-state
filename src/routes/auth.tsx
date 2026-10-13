@@ -264,9 +264,10 @@ function AuthPage() {
               </h1>
             </div>
             <img
-              src="/images/brand/bluebird-signin-bird.png"
+              src="/images/brand/bluebird-signin-bird.webp"
               alt=""
               aria-hidden="true"
+              decoding="async"
               className="absolute -bottom-4 right-1 h-28 w-32 object-contain sm:-bottom-5 sm:right-3 sm:h-32 sm:w-36"
             />
           </div>
