@@ -1121,8 +1121,8 @@ test("expanded category menu entries use transparent dimensional artwork", () =>
   }
 });
 
-test("browse filters remain complete inside the spacious drawer", () => {
-  assert.match(browseSource, /SheetContent/);
+test("browse filters remain complete in responsive category sidebars", () => {
+  assert.match(browseSource, /ResponsiveBrowseFilters/);
   assert.match(browseSource, /Filter listings/);
   assert.match(browseSource, /Show \{result\.total\}/);
   for (const field of [
@@ -1140,7 +1140,8 @@ test("browse filters remain complete inside the spacious drawer", () => {
   ]) {
     assert.match(browseSource, new RegExp(field));
   }
-  assert.match(browseSource, /setFiltersOpen\(false\)/);
+  assert.match(browseSource, /!motors && !homeLanding/);
+  assert.match(browseSource, /resetKey=\{searchKey\}/);
 });
 
 test("vehicle browse uses a branded buy and category-accurate discovery filters", () => {
@@ -1248,8 +1249,8 @@ test("homes browse has a large landing hero and tab-specific filter views", () =
   ]) {
     assert.ok(browseSource.includes(option), `missing homes filter option: ${option}`);
   }
-  assert.match(browseSource, /h-\[88px\]/g);
-  assert.match(browseSource, /Hide all filters/);
+  assert.match(browseSource, /function HomeFilterControl[\s\S]*?className="flex h-12/);
+  assert.match(browseSource, /Home filters/);
   assert.match(browseSource, /homeTab: activeTab/);
   assert.match(browseSource, /homePreviewRowsByTab/);
   assert.match(browseSource, /Price drops to watch/);

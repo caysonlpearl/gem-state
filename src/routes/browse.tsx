@@ -63,14 +63,7 @@ import {
   optionalNonNegativeInteger,
   optionalNonNegativeNumber,
 } from "@/lib/classifieds-query";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+import { ResponsiveBrowseFilters } from "@/components/classifieds/ResponsiveBrowseFilters";
 
 type Sort = NonNullable<ClassifiedBrowseInput["sort"]>;
 type View = "grid" | "list";
@@ -1049,7 +1042,14 @@ function normalizeBrowseSearch(search: Search): Search {
 
 // Keys that don't change which listings a page shows: sort order, layout and
 // paging are handled by the canonical tag alone, not by noindex.
-const BROWSE_IDENTITY_KEYS = new Set(["category", "group", "allCategories", "sort", "view", "page"]);
+const BROWSE_IDENTITY_KEYS = new Set([
+  "category",
+  "group",
+  "allCategories",
+  "sort",
+  "view",
+  "page",
+]);
 
 function isIndexableBrowse(search: Search) {
   return Object.entries(search).every(
@@ -1205,7 +1205,9 @@ export const Route = createFileRoute("/browse")({
   head: ({ match }) => {
     const search = match.search as Search;
     const heading = browseHeadHeading(search);
-    const title = heading ? `${heading} — ${brand.name}` : `Browse Idaho classifieds — ${brand.name}`;
+    const title = heading
+      ? `${heading} — ${brand.name}`
+      : `Browse Idaho classifieds — ${brand.name}`;
     const description = heading
       ? `${heading}: browse listings from local sellers across Idaho and contact them directly on ${brand.name}.`
       : "Search Idaho classifieds by category, region, price, condition, and detailed vehicle filters including make, model, year, mileage, drivetrain, fuel type, and title status.";
@@ -1251,7 +1253,6 @@ function Browse() {
   const navigate = useNavigate({ from: Route.fullPath });
   const { data: result } = useSuspenseQuery(classifiedQuery(inputFromSearch(search)));
   const [term, setTerm] = useState(search.q ?? "");
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const [saveSearchDialogOpen, setSaveSearchDialogOpen] = useState(false);
   const [saveSearchName, setSaveSearchName] = useState("");
   const [saveSearchPending, setSaveSearchPending] = useState(false);
@@ -1527,7 +1528,6 @@ function Browse() {
       search: scoped(patch),
     });
     setPendingFilterResultCount(null);
-    setFiltersOpen(false);
   }
 
   function currentSearchFilters(source: Search = search) {
@@ -1573,6 +1573,439 @@ function Browse() {
       setSaveSearchPending(false);
     }
   }
+
+  const genericFilters = (
+    <form
+      key={searchKey}
+      onSubmit={applyFilters}
+      onInput={(event) => previewFilterResults(event.currentTarget)}
+      aria-label="Listing filters"
+      className="space-y-6"
+    >
+      <input type="hidden" name="group" value={search.group ?? ""} />
+      <FilterSection title="Category">
+        <select name="category" defaultValue={search.category ?? ""} className="filter-input">
+          <option value="">All categories</option>
+          {classifiedCategories.map((category) => (
+            <option key={category.slug} value={category.slug}>
+              {category.name}
+            </option>
+          ))}
+        </select>
+      </FilterSection>
+
+      {search.category && itemCategorySlugs.has(search.category) && (
+        <FilterSection title="Category details">
+          {search.category === "industrial" ? (
+            <>
+              <input type="hidden" name="itemDetailKey" value="itemType" />
+              <select
+                name="itemDetailValue"
+                aria-label="Industrial subcategory"
+                defaultValue={search.itemDetailValue ?? ""}
+                className="filter-input"
+              >
+                <option value="">All Industrial subcategories</option>
+                {industrialSubcategories.map((subcategory) => (
+                  <option key={subcategory} value={subcategory}>
+                    {subcategory}
+                  </option>
+                ))}
+              </select>
+            </>
+          ) : (
+            <>
+              <select
+                name="itemDetailKey"
+                defaultValue={search.itemDetailKey ?? ""}
+                className="filter-input"
+              >
+                <option value="">Any detail</option>
+                {fieldsForClassifiedItem(search.category).map((field) => (
+                  <option key={field.key} value={field.key}>
+                    {field.label}
+                  </option>
+                ))}
+              </select>
+              <input
+                name="itemDetailValue"
+                defaultValue={search.itemDetailValue ?? ""}
+                placeholder="Match a detail value"
+                className="filter-input"
+                maxLength={200}
+              />
+            </>
+          )}
+        </FilterSection>
+      )}
+
+      <FilterSection title="Location" icon={<MapPin size={13} className="text-primary" />}>
+        <BrowseLocationFields search={search} />
+      </FilterSection>
+
+      <FilterSection title="Price">
+        <div className="grid grid-cols-2 gap-2">
+          <input
+            name="priceMin"
+            type="number"
+            min="0"
+            step="1"
+            defaultValue={search.priceMin ?? ""}
+            placeholder="Min"
+            className="filter-input"
+          />
+          <input
+            name="priceMax"
+            type="number"
+            min="0"
+            step="1"
+            defaultValue={search.priceMax ?? ""}
+            placeholder="Max"
+            className="filter-input"
+          />
+        </div>
+      </FilterSection>
+
+      <FilterSection title="Condition and fulfillment">
+        <select name="condition" defaultValue={search.condition ?? ""} className="filter-input">
+          <option value="">Any condition</option>
+          {conditionOptions.map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+        <select name="fulfillment" defaultValue={search.fulfillment ?? ""} className="filter-input">
+          <option value="">Any fulfillment</option>
+          <option value="local_pickup">Local pickup</option>
+          <option value="shipping">Ships</option>
+          <option value="both">Pickup or shipping</option>
+        </select>
+      </FilterSection>
+
+      {pets && (
+        <FilterSection title="Pet details">
+          <select
+            name="petSubcategory"
+            defaultValue={search.petSubcategory ?? ""}
+            className="filter-input"
+            onChange={(event) => {
+              const form = event.currentTarget.form;
+              const species = form?.elements.namedItem("petSpecies") as HTMLSelectElement | null;
+              const breed = form?.elements.namedItem("petBreed") as HTMLInputElement | null;
+              if (species && !isPetSelectionCompatible(species.value, event.currentTarget.value))
+                species.value = "";
+              if (breed) breed.value = "";
+            }}
+          >
+            <option value="">All pet categories</option>
+            {petSubcategories.map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <select
+            name="petSpecies"
+            defaultValue={search.petSpecies ?? ""}
+            className="filter-input"
+            onChange={(event) => {
+              const species = normalizePetSpecies(event.currentTarget.value);
+              const form = event.currentTarget.form;
+              const subcategory = form?.elements.namedItem(
+                "petSubcategory",
+              ) as HTMLSelectElement | null;
+              const breed = form?.elements.namedItem("petBreed") as HTMLInputElement | null;
+              if (subcategory && !isPetSelectionCompatible(species, subcategory.value))
+                subcategory.value = "";
+              if (breed) breed.value = "";
+            }}
+          >
+            <option value="">Any animal</option>
+            {petSpecies.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+          <input
+            name="petBreed"
+            defaultValue={search.petBreed ?? ""}
+            placeholder="Breed"
+            className="filter-input"
+            maxLength={100}
+          />
+          <select
+            name="petPlacementType"
+            defaultValue={search.petPlacementType ?? ""}
+            className="filter-input"
+          >
+            <option value="">Any listing type</option>
+            {petPlacementTypes.map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <select
+            name="petOfferedBy"
+            defaultValue={search.petOfferedBy ?? ""}
+            className="filter-input"
+          >
+            <option value="">Any offered by</option>
+            {petOfferedBy.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+          <select name="petSex" defaultValue={search.petSex ?? ""} className="filter-input">
+            <option value="">Any sex</option>
+            {petSexes.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+          <input
+            name="petAge"
+            defaultValue={search.petAge ?? ""}
+            placeholder="Age or age range"
+            className="filter-input"
+            maxLength={60}
+          />
+          {(
+            [
+              ["petHypoallergenic", "Hypoallergenic"],
+              ["petVaccinated", "Vaccinated"],
+              ["petSpayedNeutered", "Spayed / neutered"],
+              ["petMicrochipped", "Microchipped"],
+              ["petRecordsAvailable", "Records available"],
+              ["petGoodWithKids", "Good with children"],
+              ["petGoodWithDogs", "Good with dogs"],
+              ["petGoodWithCats", "Good with cats"],
+            ] as const
+          ).map(([name, label]) => (
+            <select
+              key={name}
+              name={name}
+              defaultValue={search[name as keyof Search] as string | undefined}
+              className="filter-input"
+            >
+              <option value="">Any {label.toLowerCase()}</option>
+              <option value="Yes">Yes</option>
+              <option value="No">No</option>
+              <option value="Unknown">Unknown</option>
+            </select>
+          ))}
+          <select
+            name="petIndoorOutdoor"
+            defaultValue={search.petIndoorOutdoor ?? ""}
+            className="filter-input"
+          >
+            <option value="">Any indoor / outdoor</option>
+            <option value="Indoor">Indoor</option>
+            <option value="Outdoor">Outdoor</option>
+            <option value="Indoor / outdoor">Indoor / outdoor</option>
+            <option value="Unknown">Unknown</option>
+          </select>
+        </FilterSection>
+      )}
+
+      {motors && (
+        <FilterSection title="Vehicle details">
+          <input
+            list="vehicle-makes"
+            name="make"
+            defaultValue={search.make ?? ""}
+            placeholder="Make / brand"
+            className="filter-input"
+            maxLength={80}
+          />
+          <datalist id="vehicle-makes">
+            {vehicleOptions.makes.map((make) => (
+              <option key={make} value={make} />
+            ))}
+          </datalist>
+          <input
+            name="model"
+            defaultValue={search.model ?? ""}
+            placeholder="Model"
+            className="filter-input"
+            maxLength={80}
+          />
+          <div className="grid grid-cols-2 gap-2">
+            <input
+              name="yearMin"
+              type="number"
+              min="1900"
+              max="2100"
+              step="1"
+              defaultValue={search.yearMin ?? ""}
+              placeholder="Year from"
+              className="filter-input"
+            />
+            <input
+              name="yearMax"
+              type="number"
+              min="1900"
+              max="2100"
+              step="1"
+              defaultValue={search.yearMax ?? ""}
+              placeholder="Year to"
+              className="filter-input"
+            />
+          </div>
+          <input
+            name="mileageMax"
+            type="number"
+            min="0"
+            step="1000"
+            defaultValue={search.mileageMax ?? ""}
+            placeholder="Max mileage"
+            className="filter-input"
+          />
+          <select name="bodyStyle" defaultValue={search.bodyStyle ?? ""} className="filter-input">
+            <option value="">Any body style</option>
+            {vehicleOptions.bodyStyles.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+          <select name="drivetrain" defaultValue={search.drivetrain ?? ""} className="filter-input">
+            <option value="">Any drivetrain</option>
+            {vehicleOptions.drivetrains.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+          <select
+            name="transmission"
+            defaultValue={search.transmission ?? ""}
+            className="filter-input"
+          >
+            <option value="">Any transmission</option>
+            {vehicleOptions.transmissions.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+          <select name="fuelType" defaultValue={search.fuelType ?? ""} className="filter-input">
+            <option value="">Any fuel type</option>
+            {vehicleOptions.fuelTypes.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+          <select
+            name="exteriorColor"
+            defaultValue={search.exteriorColor ?? ""}
+            className="filter-input"
+          >
+            <option value="">Any exterior color</option>
+            {vehicleOptions.exteriorColors.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+          <select
+            name="titleStatus"
+            defaultValue={search.titleStatus ?? ""}
+            className="filter-input"
+          >
+            <option value="">Any title status</option>
+            {vehicleOptions.titleStatuses.map((option) => (
+              <option key={option} value={option}>
+                {option}
+              </option>
+            ))}
+          </select>
+        </FilterSection>
+      )}
+
+      <button
+        type="button"
+        onClick={() => void clearFilters()}
+        className="text-sm font-semibold text-primary underline underline-offset-4"
+      >
+        Clear filters
+      </button>
+      <div className="mt-2 grid gap-2">
+        <button
+          type="submit"
+          className="inline-flex h-12 w-full items-center justify-center rounded-full bg-primary px-3 text-[13px] font-semibold text-primary-foreground shadow-sm hover:opacity-90"
+        >
+          {pendingFilterResultCount == null ? (
+            <>
+              Show {result.total} {result.total === 1 ? "listing" : "listings"}
+            </>
+          ) : (
+            <>
+              Show {pendingFilterResultCount}{" "}
+              {pendingFilterResultCount === 1 ? "listing" : "listings"}
+            </>
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={(event) => {
+            const form = event.currentTarget.form;
+            if (form) requestSaveSearch(searchPatchFromForm(form));
+          }}
+          className="inline-flex h-12 items-center justify-center rounded-full border border-primary px-5 text-[13px] font-semibold text-primary hover:bg-secondary"
+        >
+          {search.savedSearchId ? "Update saved search" : "Save this search"}
+        </button>
+      </div>
+    </form>
+  );
+  const homeFilters = homes && !homeLanding && (
+    <HomesFilterPage
+      activeTab={homeTab}
+      search={search}
+      resultCount={result.total}
+      onClear={clearFilters}
+      onTabChange={(tab) =>
+        void navigate({
+          to: "/browse",
+          search: scoped({
+            category: "other-real-estate",
+            homeTab: tab,
+            homeMode: "results",
+            homeSquareFeet: undefined,
+            homeAcres: undefined,
+            homeYearBuilt: undefined,
+            homeHeating: undefined,
+            homeCooling: undefined,
+            homeGarageParking: undefined,
+            homeYard: undefined,
+            homeSchoolDistrict: undefined,
+            homeAvailable: undefined,
+            homePetsPolicy: undefined,
+            homeSmokingPolicy: undefined,
+            leaseLength: undefined,
+          }),
+        })
+      }
+      onApply={(patch) =>
+        void navigate({
+          to: "/browse",
+          search: scoped({
+            category: "other-real-estate",
+            homeTab,
+            homeMode: "results",
+            ...patch,
+          }),
+        })
+      }
+      onSave={(patch) => requestSaveSearch(patch)}
+    />
+  );
 
   return (
     <main className="mx-auto max-w-[1400px] px-4 py-10 sm:px-8">
@@ -1702,49 +2135,6 @@ function Browse() {
               search: scoped({ category: "other-real-estate", homeTab, homeMode: "results" }),
             })
           }
-        />
-      )}
-
-      {homes && !homeLanding && (
-        <HomesFilterPage
-          activeTab={homeTab}
-          search={search}
-          resultCount={result.total}
-          onClear={clearFilters}
-          onTabChange={(tab) =>
-            void navigate({
-              to: "/browse",
-              search: scoped({
-                category: "other-real-estate",
-                homeTab: tab,
-                homeMode: "results",
-                homeSquareFeet: undefined,
-                homeAcres: undefined,
-                homeYearBuilt: undefined,
-                homeHeating: undefined,
-                homeCooling: undefined,
-                homeGarageParking: undefined,
-                homeYard: undefined,
-                homeSchoolDistrict: undefined,
-                homeAvailable: undefined,
-                homePetsPolicy: undefined,
-                homeSmokingPolicy: undefined,
-                leaseLength: undefined,
-              }),
-            })
-          }
-          onApply={(patch) =>
-            void navigate({
-              to: "/browse",
-              search: scoped({
-                category: "other-real-estate",
-                homeTab,
-                homeMode: "results",
-                ...patch,
-              }),
-            })
-          }
-          onSave={(patch) => requestSaveSearch(patch)}
         />
       )}
 
@@ -1950,608 +2340,175 @@ function Browse() {
       )}
 
       {!jobs && !services && showGenericBrowse && (
-        <div className={`${motors || homes ? "mt-6" : "mt-8"} ${homeLanding ? "hidden" : ""}`}>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            {!motors && !homes && (
-              <div className="flex w-full flex-wrap items-center gap-2">
-                <label className="sr-only" htmlFor="sort">
-                  Sort
-                </label>
-                <select
-                  id="sort"
-                  value={search.sort ?? "newest"}
-                  onChange={(event) =>
-                    void navigate({
-                      to: "/browse",
-                      search: scoped({ sort: event.target.value as Sort }),
-                    })
-                  }
-                  className="h-11 rounded-full border border-input bg-card px-4 text-[13px] font-medium shadow-sm"
-                >
-                  {sortOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-                <Link
-                  to="/browse"
-                  search={scoped({ view: "grid" })}
-                  aria-label="Grid view"
-                  className={`hidden h-11 items-center rounded-full border px-4 text-[12px] sm:inline-flex ${search.view !== "list" ? "border-primary bg-accent font-semibold" : "border-input"}`}
-                >
-                  Grid
-                </Link>
-                <Link
-                  to="/browse"
-                  search={scoped({ view: "list" })}
-                  aria-label="List view"
-                  className={`hidden h-11 items-center rounded-full border px-4 text-[12px] sm:inline-flex ${search.view === "list" ? "border-primary bg-accent font-semibold" : "border-input"}`}
-                >
-                  List
-                </Link>
-                {search.savedSearchId ? (
-                  <button
-                    type="button"
-                    onClick={() => requestSaveSearch()}
-                    className="inline-flex h-11 items-center gap-2 rounded-full border border-primary bg-card px-5 text-[13px] font-semibold text-primary shadow-sm"
+        <div
+          className={`${motors || homes ? "mt-6" : "mt-8"} ${homeLanding ? "hidden" : ""} ${!motors ? "grid items-start gap-6 lg:grid-cols-[300px_minmax(0,1fr)] lg:gap-8" : ""}`}
+        >
+          {!motors && !homeLanding && (
+            <ResponsiveBrowseFilters
+              title={homes ? "Home filters" : "Filter listings"}
+              activeCount={activeFilterCount}
+              resetKey={searchKey}
+            >
+              {homes ? homeFilters : genericFilters}
+            </ResponsiveBrowseFilters>
+          )}
+          <div className={`min-w-0 ${!motors ? "lg:col-start-2" : ""}`}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              {!motors && !homes && (
+                <div className="flex w-full flex-wrap items-center gap-2">
+                  <label className="sr-only" htmlFor="sort">
+                    Sort
+                  </label>
+                  <select
+                    id="sort"
+                    value={search.sort ?? "newest"}
+                    onChange={(event) =>
+                      void navigate({
+                        to: "/browse",
+                        search: scoped({ sort: event.target.value as Sort }),
+                      })
+                    }
+                    className="h-11 rounded-full border border-input bg-card px-4 text-[13px] font-medium shadow-sm"
                   >
-                    <BookmarkSimple size={17} />
-                    Update saved search
-                  </button>
-                ) : null}
-                <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
-                  <SheetTrigger asChild>
+                    {sortOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                  <Link
+                    to="/browse"
+                    search={scoped({ view: "grid" })}
+                    aria-label="Grid view"
+                    className={`hidden h-11 items-center rounded-full border px-4 text-[12px] sm:inline-flex ${search.view !== "list" ? "border-primary bg-accent font-semibold" : "border-input"}`}
+                  >
+                    Grid
+                  </Link>
+                  <Link
+                    to="/browse"
+                    search={scoped({ view: "list" })}
+                    aria-label="List view"
+                    className={`hidden h-11 items-center rounded-full border px-4 text-[12px] sm:inline-flex ${search.view === "list" ? "border-primary bg-accent font-semibold" : "border-input"}`}
+                  >
+                    List
+                  </Link>
+                  {search.savedSearchId ? (
                     <button
                       type="button"
-                      className={`inline-flex h-11 items-center gap-2 rounded-full border border-input bg-card px-5 text-[13px] font-semibold shadow-sm transition-shadow hover:shadow-md ${motors || homes ? "hidden" : ""}`}
+                      onClick={() => requestSaveSearch()}
+                      className="inline-flex h-11 items-center gap-2 rounded-full border border-primary bg-card px-5 text-[13px] font-semibold text-primary shadow-sm"
                     >
-                      <FunnelSimple size={17} className="text-primary" />
-                      Filters
-                      {activeFilterCount > 0 && (
-                        <span className="grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1.5 text-[10px] font-bold">
-                          {activeFilterCount}
-                        </span>
-                      )}
+                      <BookmarkSimple size={17} />
+                      Update saved search
                     </button>
-                  </SheetTrigger>
-                  <SheetContent side="right" className="w-full overflow-y-auto p-0 sm:max-w-lg">
-                    <SheetHeader className="border-b border-border px-6 py-6 pr-16 text-left">
-                      <SheetTitle className="text-[22px] tracking-tight">
-                        Filter listings
-                      </SheetTitle>
-                      <SheetDescription>
-                        Narrow down local items, or add every vehicle detail that matters.
-                      </SheetDescription>
-                    </SheetHeader>
-                    <form
-                      onSubmit={applyFilters}
-                      onInput={(event) => previewFilterResults(event.currentTarget)}
-                      className="space-y-6 px-6 py-6"
-                    >
-                      <input type="hidden" name="group" value={search.group ?? ""} />
-                      <FilterSection title="Category">
-                        <select
-                          name="category"
-                          defaultValue={search.category ?? ""}
-                          className="filter-input"
-                        >
-                          <option value="">All categories</option>
-                          {classifiedCategories.map((category) => (
-                            <option key={category.slug} value={category.slug}>
-                              {category.name}
-                            </option>
-                          ))}
-                        </select>
-                      </FilterSection>
-
-                      {search.category && itemCategorySlugs.has(search.category) && (
-                        <FilterSection title="Category details">
-                          {search.category === "industrial" ? (
-                            <>
-                              <input type="hidden" name="itemDetailKey" value="itemType" />
-                              <select
-                                name="itemDetailValue"
-                                aria-label="Industrial subcategory"
-                                defaultValue={search.itemDetailValue ?? ""}
-                                className="filter-input"
-                              >
-                                <option value="">All Industrial subcategories</option>
-                                {industrialSubcategories.map((subcategory) => (
-                                  <option key={subcategory} value={subcategory}>{subcategory}</option>
-                                ))}
-                              </select>
-                            </>
-                          ) : (
-                            <>
-                          <select
-                            name="itemDetailKey"
-                            defaultValue={search.itemDetailKey ?? ""}
-                            className="filter-input"
-                          >
-                            <option value="">Any detail</option>
-                            {fieldsForClassifiedItem(search.category).map((field) => (
-                              <option key={field.key} value={field.key}>
-                                {field.label}
-                              </option>
-                            ))}
-                          </select>
-                          <input
-                            name="itemDetailValue"
-                            defaultValue={search.itemDetailValue ?? ""}
-                            placeholder="Match a detail value"
-                            className="filter-input"
-                            maxLength={200}
-                          />
-                            </>
-                          )}
-                        </FilterSection>
-                      )}
-
-                      <FilterSection
-                        title="Location"
-                        icon={<MapPin size={13} className="text-primary" />}
-                      >
-                        <BrowseLocationFields search={search} />
-                      </FilterSection>
-
-                      <FilterSection title="Price">
-                        <div className="grid grid-cols-2 gap-2">
-                          <input
-                            name="priceMin"
-                            type="number"
-                            min="0"
-                            step="1"
-                            defaultValue={search.priceMin ?? ""}
-                            placeholder="Min"
-                            className="filter-input"
-                          />
-                          <input
-                            name="priceMax"
-                            type="number"
-                            min="0"
-                            step="1"
-                            defaultValue={search.priceMax ?? ""}
-                            placeholder="Max"
-                            className="filter-input"
-                          />
-                        </div>
-                      </FilterSection>
-
-                      <FilterSection title="Condition and fulfillment">
-                        <select
-                          name="condition"
-                          defaultValue={search.condition ?? ""}
-                          className="filter-input"
-                        >
-                          <option value="">Any condition</option>
-                          {conditionOptions.map(([value, label]) => (
-                            <option key={value} value={value}>
-                              {label}
-                            </option>
-                          ))}
-                        </select>
-                        <select
-                          name="fulfillment"
-                          defaultValue={search.fulfillment ?? ""}
-                          className="filter-input"
-                        >
-                          <option value="">Any fulfillment</option>
-                          <option value="local_pickup">Local pickup</option>
-                          <option value="shipping">Ships</option>
-                          <option value="both">Pickup or shipping</option>
-                        </select>
-                      </FilterSection>
-
-                      {pets && (
-                        <FilterSection title="Pet details">
-                          <select
-                            name="petSubcategory"
-                            defaultValue={search.petSubcategory ?? ""}
-                            className="filter-input"
-                            onChange={(event) => {
-                              const form = event.currentTarget.form;
-                              const species = form?.elements.namedItem(
-                                "petSpecies",
-                              ) as HTMLSelectElement | null;
-                              const breed = form?.elements.namedItem(
-                                "petBreed",
-                              ) as HTMLInputElement | null;
-                              if (
-                                species &&
-                                !isPetSelectionCompatible(species.value, event.currentTarget.value)
-                              )
-                                species.value = "";
-                              if (breed) breed.value = "";
-                            }}
-                          >
-                            <option value="">All pet categories</option>
-                            {petSubcategories.map(([value, label]) => (
-                              <option key={value} value={value}>
-                                {label}
-                              </option>
-                            ))}
-                          </select>
-                          <select
-                            name="petSpecies"
-                            defaultValue={search.petSpecies ?? ""}
-                            className="filter-input"
-                            onChange={(event) => {
-                              const species = normalizePetSpecies(event.currentTarget.value);
-                              const form = event.currentTarget.form;
-                              const subcategory = form?.elements.namedItem(
-                                "petSubcategory",
-                              ) as HTMLSelectElement | null;
-                              const breed = form?.elements.namedItem(
-                                "petBreed",
-                              ) as HTMLInputElement | null;
-                              if (
-                                subcategory &&
-                                !isPetSelectionCompatible(species, subcategory.value)
-                              )
-                                subcategory.value = "";
-                              if (breed) breed.value = "";
-                            }}
-                          >
-                            <option value="">Any animal</option>
-                            {petSpecies.map((option) => (
-                              <option key={option} value={option}>
-                                {option}
-                              </option>
-                            ))}
-                          </select>
-                          <input
-                            name="petBreed"
-                            defaultValue={search.petBreed ?? ""}
-                            placeholder="Breed"
-                            className="filter-input"
-                            maxLength={100}
-                          />
-                          <select
-                            name="petPlacementType"
-                            defaultValue={search.petPlacementType ?? ""}
-                            className="filter-input"
-                          >
-                            <option value="">Any listing type</option>
-                            {petPlacementTypes.map(([value, label]) => (
-                              <option key={value} value={value}>
-                                {label}
-                              </option>
-                            ))}
-                          </select>
-                          <select
-                            name="petOfferedBy"
-                            defaultValue={search.petOfferedBy ?? ""}
-                            className="filter-input"
-                          >
-                            <option value="">Any offered by</option>
-                            {petOfferedBy.map((option) => (
-                              <option key={option} value={option}>
-                                {option}
-                              </option>
-                            ))}
-                          </select>
-                          <select
-                            name="petSex"
-                            defaultValue={search.petSex ?? ""}
-                            className="filter-input"
-                          >
-                            <option value="">Any sex</option>
-                            {petSexes.map((option) => (
-                              <option key={option} value={option}>
-                                {option}
-                              </option>
-                            ))}
-                          </select>
-                          <input
-                            name="petAge"
-                            defaultValue={search.petAge ?? ""}
-                            placeholder="Age or age range"
-                            className="filter-input"
-                            maxLength={60}
-                          />
-                          {(
-                            [
-                              ["petHypoallergenic", "Hypoallergenic"],
-                              ["petVaccinated", "Vaccinated"],
-                              ["petSpayedNeutered", "Spayed / neutered"],
-                              ["petMicrochipped", "Microchipped"],
-                              ["petRecordsAvailable", "Records available"],
-                              ["petGoodWithKids", "Good with children"],
-                              ["petGoodWithDogs", "Good with dogs"],
-                              ["petGoodWithCats", "Good with cats"],
-                            ] as const
-                          ).map(([name, label]) => (
-                            <select
-                              key={name}
-                              name={name}
-                              defaultValue={search[name as keyof Search] as string | undefined}
-                              className="filter-input"
-                            >
-                              <option value="">Any {label.toLowerCase()}</option>
-                              <option value="Yes">Yes</option>
-                              <option value="No">No</option>
-                              <option value="Unknown">Unknown</option>
-                            </select>
-                          ))}
-                          <select
-                            name="petIndoorOutdoor"
-                            defaultValue={search.petIndoorOutdoor ?? ""}
-                            className="filter-input"
-                          >
-                            <option value="">Any indoor / outdoor</option>
-                            <option value="Indoor">Indoor</option>
-                            <option value="Outdoor">Outdoor</option>
-                            <option value="Indoor / outdoor">Indoor / outdoor</option>
-                            <option value="Unknown">Unknown</option>
-                          </select>
-                        </FilterSection>
-                      )}
-
-                      {motors && (
-                        <FilterSection title="Vehicle details">
-                          <input
-                            list="vehicle-makes"
-                            name="make"
-                            defaultValue={search.make ?? ""}
-                            placeholder="Make / brand"
-                            className="filter-input"
-                            maxLength={80}
-                          />
-                          <datalist id="vehicle-makes">
-                            {vehicleOptions.makes.map((make) => (
-                              <option key={make} value={make} />
-                            ))}
-                          </datalist>
-                          <input
-                            name="model"
-                            defaultValue={search.model ?? ""}
-                            placeholder="Model"
-                            className="filter-input"
-                            maxLength={80}
-                          />
-                          <div className="grid grid-cols-2 gap-2">
-                            <input
-                              name="yearMin"
-                              type="number"
-                              min="1900"
-                              max="2100"
-                              step="1"
-                              defaultValue={search.yearMin ?? ""}
-                              placeholder="Year from"
-                              className="filter-input"
-                            />
-                            <input
-                              name="yearMax"
-                              type="number"
-                              min="1900"
-                              max="2100"
-                              step="1"
-                              defaultValue={search.yearMax ?? ""}
-                              placeholder="Year to"
-                              className="filter-input"
-                            />
-                          </div>
-                          <input
-                            name="mileageMax"
-                            type="number"
-                            min="0"
-                            step="1000"
-                            defaultValue={search.mileageMax ?? ""}
-                            placeholder="Max mileage"
-                            className="filter-input"
-                          />
-                          <select
-                            name="bodyStyle"
-                            defaultValue={search.bodyStyle ?? ""}
-                            className="filter-input"
-                          >
-                            <option value="">Any body style</option>
-                            {vehicleOptions.bodyStyles.map((option) => (
-                              <option key={option} value={option}>
-                                {option}
-                              </option>
-                            ))}
-                          </select>
-                          <select
-                            name="drivetrain"
-                            defaultValue={search.drivetrain ?? ""}
-                            className="filter-input"
-                          >
-                            <option value="">Any drivetrain</option>
-                            {vehicleOptions.drivetrains.map((option) => (
-                              <option key={option} value={option}>
-                                {option}
-                              </option>
-                            ))}
-                          </select>
-                          <select
-                            name="transmission"
-                            defaultValue={search.transmission ?? ""}
-                            className="filter-input"
-                          >
-                            <option value="">Any transmission</option>
-                            {vehicleOptions.transmissions.map((option) => (
-                              <option key={option} value={option}>
-                                {option}
-                              </option>
-                            ))}
-                          </select>
-                          <select
-                            name="fuelType"
-                            defaultValue={search.fuelType ?? ""}
-                            className="filter-input"
-                          >
-                            <option value="">Any fuel type</option>
-                            {vehicleOptions.fuelTypes.map((option) => (
-                              <option key={option} value={option}>
-                                {option}
-                              </option>
-                            ))}
-                          </select>
-                          <select
-                            name="exteriorColor"
-                            defaultValue={search.exteriorColor ?? ""}
-                            className="filter-input"
-                          >
-                            <option value="">Any exterior color</option>
-                            {vehicleOptions.exteriorColors.map((option) => (
-                              <option key={option} value={option}>
-                                {option}
-                              </option>
-                            ))}
-                          </select>
-                          <select
-                            name="titleStatus"
-                            defaultValue={search.titleStatus ?? ""}
-                            className="filter-input"
-                          >
-                            <option value="">Any title status</option>
-                            {vehicleOptions.titleStatuses.map((option) => (
-                              <option key={option} value={option}>
-                                {option}
-                              </option>
-                            ))}
-                          </select>
-                        </FilterSection>
-                      )}
-
-                      <div className="mt-2 grid gap-2 sm:grid-cols-[minmax(0,1fr)_auto]">
-                        <button
-                          type="submit"
-                          className="inline-flex h-12 w-full items-center justify-center rounded-full bg-primary px-3 text-[13px] font-semibold text-primary-foreground shadow-sm hover:opacity-90"
-                        >
-                          {pendingFilterResultCount == null ? (
-                            <>
-                              Show {result.total} {result.total === 1 ? "listing" : "listings"}
-                            </>
-                          ) : (
-                            <>
-                              Show {pendingFilterResultCount}{" "}
-                              {pendingFilterResultCount === 1 ? "listing" : "listings"}
-                            </>
-                          )}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(event) => {
-                            const form = event.currentTarget.form;
-                            if (form) requestSaveSearch(searchPatchFromForm(form));
-                          }}
-                          className="inline-flex h-12 items-center justify-center rounded-full border border-primary px-5 text-[13px] font-semibold text-primary hover:bg-secondary"
-                        >
-                          {search.savedSearchId ? "Update saved search" : "Save this search"}
-                        </button>
-                      </div>
-                    </form>
-                  </SheetContent>
-                </Sheet>
-              </div>
-            )}
-          </div>
-
-          <section id="results" className="mt-6">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <p className={motors ? "hidden" : "text-[12.5px] text-muted-foreground"}>
-                <span className="numeric">{result.total}</span>{" "}
-                {result.total === 1 ? "listing" : "listings"}
-                {search.q ? <span> matching “{search.q}”</span> : null}
-              </p>
-              {activeFilterCount > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {activeFilterLabels(search, motors, pets).map((label) => (
-                    <span
-                      key={label}
-                      className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-1 text-[10.5px] text-muted-foreground"
-                    >
-                      {label}
-                    </span>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => void clearFilters()}
-                    className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10.5px] font-medium text-primary hover:bg-accent"
-                  >
-                    <X size={11} /> Clear
-                  </button>
+                  ) : null}
                 </div>
               )}
             </div>
 
-            {result.listings.length === 0 ? (
-              <BluebirdEmptyState
-                className="mt-5"
-                title="No listings match these filters."
-                description={noResultsHint}
-              >
-                <Link
-                  to="/browse"
-                  search={clearSearch()}
-                  className="inline-flex h-9 items-center rounded-md border border-input px-3 text-[12px] font-semibold hover:bg-secondary"
-                >
-                  Clear filters
-                </Link>
-              </BluebirdEmptyState>
-            ) : search.view === "list" ? (
-              <ul className="mt-5 space-y-4">
-                {shownListings.map((listing) => (
-                  <li key={listing.id}>
-                    <ListingRow listing={listing} />
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <ul className="mt-5 grid grid-cols-2 gap-x-4 gap-y-9 md:grid-cols-3 xl:grid-cols-4">
-                {shownListings.map((listing) => (
-                  <li key={listing.id}>
-                    <ListingCard listing={listing} />
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            {result.listings.length > 0 && (
-              <div className="mt-8 flex flex-col items-center gap-2">
-                <p className="numeric text-[12.5px] text-muted-foreground">
-                  Showing {shownListings.length.toLocaleString()} of{" "}
-                  {result.total.toLocaleString()}
+            <section id="results" className="mt-6">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <p className={motors ? "hidden" : "text-[12.5px] text-muted-foreground"}>
+                  <span className="numeric">{result.total}</span>{" "}
+                  {result.total === 1 ? "listing" : "listings"}
+                  {search.q ? <span> matching “{search.q}”</span> : null}
                 </p>
-                {canLoadMore ? (
+                {activeFilterCount > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {activeFilterLabels(search, motors, pets).map((label) => (
+                      <span
+                        key={label}
+                        className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-1 text-[10.5px] text-muted-foreground"
+                      >
+                        {label}
+                      </span>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => void clearFilters()}
+                      className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10.5px] font-medium text-primary hover:bg-accent"
+                    >
+                      <X size={11} /> Clear
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {result.listings.length === 0 ? (
+                <BluebirdEmptyState
+                  className="mt-5"
+                  title="No listings match these filters."
+                  description={noResultsHint}
+                >
+                  <Link
+                    to="/browse"
+                    search={clearSearch()}
+                    className="inline-flex h-9 items-center rounded-md border border-input px-3 text-[12px] font-semibold hover:bg-secondary"
+                  >
+                    Clear filters
+                  </Link>
+                </BluebirdEmptyState>
+              ) : search.view === "list" ? (
+                <ul className="mt-5 space-y-4">
+                  {shownListings.map((listing) => (
+                    <li key={listing.id}>
+                      <ListingRow listing={listing} />
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <ul className="mt-5 grid grid-cols-2 gap-x-4 gap-y-9 md:grid-cols-3 xl:grid-cols-3">
+                  {shownListings.map((listing) => (
+                    <li key={listing.id}>
+                      <ListingCard listing={listing} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {result.listings.length > 0 && (
+                <div className="mt-8 flex flex-col items-center gap-2">
+                  <p className="numeric text-[12.5px] text-muted-foreground">
+                    Showing {shownListings.length.toLocaleString()} of{" "}
+                    {result.total.toLocaleString()}
+                  </p>
+                  {canLoadMore ? (
+                    <button
+                      type="button"
+                      onClick={() => void loadMore()}
+                      disabled={loadingMore}
+                      className="inline-flex h-11 items-center rounded-full border border-input bg-card px-6 text-[13.5px] font-semibold shadow-sm disabled:opacity-60"
+                    >
+                      {loadingMore ? "Loading…" : "Load more"}
+                    </button>
+                  ) : null}
+                </div>
+              )}
+
+              {/* Offer alerts once the shopper has seen results, not before. */}
+              {result.listings.length > 0 && !search.savedSearchId ? (
+                <div className="soft-card mt-8 flex flex-col gap-3 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-[15px] font-semibold">
+                      Get alerts for new {alertSubject}
+                      {alertPlace}
+                    </p>
+                    <p className="mt-0.5 text-[12.5px] text-muted-foreground">
+                      We'll let you know when something new matches this search.
+                    </p>
+                  </div>
                   <button
                     type="button"
-                    onClick={() => void loadMore()}
-                    disabled={loadingMore}
-                    className="inline-flex h-11 items-center rounded-full border border-input bg-card px-6 text-[13.5px] font-semibold shadow-sm disabled:opacity-60"
+                    onClick={() => requestSaveSearch()}
+                    className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-primary px-5 text-[13.5px] font-semibold text-primary-foreground"
                   >
-                    {loadingMore ? "Loading…" : "Load more"}
+                    <BookmarkSimple size={17} />
+                    Turn on alerts
                   </button>
-                ) : null}
-              </div>
-            )}
-
-            {/* Offer alerts once the shopper has seen results, not before. */}
-            {result.listings.length > 0 && !search.savedSearchId ? (
-              <div className="soft-card mt-8 flex flex-col gap-3 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-[15px] font-semibold">
-                    Get alerts for new {alertSubject}
-                    {alertPlace}
-                  </p>
-                  <p className="mt-0.5 text-[12.5px] text-muted-foreground">
-                    We'll let you know when something new matches this search.
-                  </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => requestSaveSearch()}
-                  className="inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-primary px-5 text-[13.5px] font-semibold text-primary-foreground"
-                >
-                  <BookmarkSimple size={17} />
-                  Turn on alerts
-                </button>
-              </div>
-            ) : null}
-          </section>
+              ) : null}
+            </section>
+          </div>
         </div>
       )}
       <SavedSearchNameDialog
@@ -3161,14 +3118,16 @@ function GeneralClassifiedShowcase({ listings }: { listings: ClassifiedBrowseRes
               See all <ArrowRight size={14} aria-hidden="true" />
             </Link>
           </div>
-          {row.listings.length === 0 ? <CategoryGettingStarted /> : (
-          <ul className="no-scrollbar grid grid-cols-1 gap-4 overflow-x-auto pb-2 sm:grid-cols-2 lg:grid-cols-4">
-            {row.listings.map((listing) => (
-              <li key={row.title + "-" + listing.id} className="min-w-0">
-                <ListingCard listing={listing} />
-              </li>
-            ))}
-          </ul>
+          {row.listings.length === 0 ? (
+            <CategoryGettingStarted />
+          ) : (
+            <ul className="no-scrollbar grid grid-cols-1 gap-4 overflow-x-auto pb-2 sm:grid-cols-2 lg:grid-cols-4">
+              {row.listings.map((listing) => (
+                <li key={row.title + "-" + listing.id} className="min-w-0">
+                  <ListingCard listing={listing} />
+                </li>
+              ))}
+            </ul>
           )}
         </section>
       ))}
@@ -3724,7 +3683,6 @@ function ServicesFilterPage({
   onSave: (patch?: Partial<Search>) => void;
   onPost: () => void;
 }) {
-  const [showAll, setShowAll] = useState(true);
   const [term, setTerm] = useState(search.q ?? "");
   const [subcategory, setSubcategory] = useState(search.serviceSubcategory ?? "");
   const [priceMin, setPriceMin] = useState(search.priceMin == null ? "" : String(search.priceMin));
@@ -3807,15 +3765,6 @@ function ServicesFilterPage({
               Post a Listing
             </button>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowAll((current) => !current)}
-            className="inline-flex items-center gap-2 rounded-full border border-primary px-4 py-2.5 text-[12px] font-bold text-primary hover:bg-secondary"
-          >
-            <FunnelSimple size={15} aria-hidden="true" />
-            {showAll ? "Hide all filters" : "Show all filters"}
-            <CaretDown size={14} className={showAll ? "rotate-180" : ""} aria-hidden="true" />
-          </button>
         </div>
         <form
           className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-[1.65fr_minmax(0,1fr)_auto]"
@@ -3858,9 +3807,9 @@ function ServicesFilterPage({
         </form>
       </section>
 
-      <div className="mt-7 grid gap-6 lg:grid-cols-[250px_minmax(0,1fr)]">
-        {showAll && (
-          <aside className="space-y-3">
+      <div className="mt-7 grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
+        <ResponsiveBrowseFilters title="Service filters" resetKey={JSON.stringify(search)}>
+          <div className="space-y-3">
             <ServiceFilterGroup title="Category">
               <ServiceOptionSelect
                 label="Category"
@@ -3956,10 +3905,10 @@ function ServicesFilterPage({
             >
               Show {total.toLocaleString()} results
             </button>
-          </aside>
-        )}
+          </div>
+        </ResponsiveBrowseFilters>
 
-        <section aria-label="Service listings">
+        <section aria-label="Service listings" className="min-w-0 lg:col-start-2">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
             <p className="text-[13px] text-muted-foreground">
               <strong className="numeric text-foreground">{total}</strong>{" "}
@@ -4000,7 +3949,7 @@ function ServicesFilterPage({
               </button>
             </BluebirdEmptyState>
           ) : (
-            <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {sortedListings.map((listing) => (
                 <ListingCard key={listing.id} listing={listing} />
               ))}
@@ -4289,7 +4238,6 @@ function JobsFilterPage({
   onSave: (patch?: Partial<Search>) => void;
   onPost: () => void;
 }) {
-  const [showAll, setShowAll] = useState(true);
   const [term, setTerm] = useState(search.q ?? "");
   const [category, setCategory] = useState(search.jobCategory ?? "");
   const [employer, setEmployer] = useState(search.jobEmployer ?? "");
@@ -4376,15 +4324,6 @@ function JobsFilterPage({
               Post a Job
             </button>
           </div>
-          <button
-            type="button"
-            onClick={() => setShowAll((current) => !current)}
-            className="inline-flex items-center gap-2 rounded-full border border-primary px-4 py-2.5 text-[12px] font-bold text-primary hover:bg-secondary"
-          >
-            <FunnelSimple size={15} aria-hidden="true" />
-            {showAll ? "Hide all filters" : "Show all filters"}
-            <CaretDown size={14} className={showAll ? "rotate-180" : ""} aria-hidden="true" />
-          </button>
         </div>
         <form
           className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-[1.65fr_repeat(3,minmax(0,1fr))_auto]"
@@ -4439,9 +4378,9 @@ function JobsFilterPage({
         </form>
       </section>
 
-      <div className="mt-7 grid gap-6 lg:grid-cols-[250px_minmax(0,1fr)]">
-        {showAll && (
-          <aside className="space-y-3">
+      <div className="mt-7 grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
+        <ResponsiveBrowseFilters title="Job filters" resetKey={JSON.stringify(search)}>
+          <div className="space-y-3">
             <JobFilterGroup title="Category">
               <JobChecklist
                 label="Category"
@@ -4530,10 +4469,10 @@ function JobsFilterPage({
                 onChange={setTimeOnSite}
               />
             </JobFilterGroup>
-          </aside>
-        )}
+          </div>
+        </ResponsiveBrowseFilters>
 
-        <section aria-label="Job listings">
+        <section aria-label="Job listings" className="min-w-0 lg:col-start-2">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
             <p className="text-[13px] text-muted-foreground">
               <strong className="numeric text-foreground">{total}</strong>{" "}
@@ -4753,7 +4692,6 @@ function HomesFilterPage({
   onApply: (patch: Partial<Search>) => void;
   onSave: (patch?: Partial<Search>) => void;
 }) {
-  const [showAll, setShowAll] = useState(false);
   const [location, setLocation] = useState(search.homeLocation ?? search.q ?? "");
   const [propertyType, setPropertyType] = useState(search.propertyType ?? "");
   const [homePrice, setHomePrice] = useState(search.homePrice ?? "");
@@ -4968,15 +4906,13 @@ function HomesFilterPage({
   }
 
   return (
-    <section className="floating-card relative mt-2 overflow-visible bg-surface px-4 py-5 sm:px-7 sm:py-7">
-      <div className="flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-end sm:justify-between">
+    <section className="min-w-0 space-y-4">
+      <div className="flex flex-col gap-4 border-b border-border pb-4">
         <div>
           <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
             Bluebird Marketplace Homes
           </p>
-          <h1 className="mt-2 text-[28px] font-bold tracking-tight sm:text-[36px]">
-            Find a gem to call home.
-          </h1>
+          <h1 className="mt-2 text-[22px] font-bold tracking-tight">Find a gem to call home.</h1>
           <p className="mt-1 max-w-[55ch] text-[13px] text-muted-foreground">
             Search new builds, homes for sale, and rentals across Idaho.
           </p>
@@ -4997,7 +4933,7 @@ function HomesFilterPage({
       </div>
 
       <form
-        className="mt-5 grid gap-2 sm:grid-cols-2 lg:grid-cols-[1.45fr_repeat(4,minmax(0,1fr))_auto]"
+        className="grid gap-3"
         onSubmit={(event) => {
           event.preventDefault();
           apply();
@@ -5031,7 +4967,7 @@ function HomesFilterPage({
           multi={false}
           onChange={setBathrooms}
         />
-        <div className="grid grid-cols-2 gap-2 sm:contents">
+        <div className="grid grid-cols-2 gap-2">
           <button
             type="submit"
             className="h-11 rounded-xl border border-primary px-4 text-[12px] font-bold text-primary hover:bg-primary hover:text-primary-foreground"
@@ -5053,16 +4989,7 @@ function HomesFilterPage({
           <strong className="numeric text-foreground">{resultCount.toLocaleString()}</strong>{" "}
           {homeTabs.find((tab) => tab.value === activeTab)?.eyebrow.toLowerCase()}
         </span>
-        <button
-          type="button"
-          onClick={() => setShowAll((current) => !current)}
-          aria-expanded={showAll}
-          className="inline-flex items-center gap-2 rounded-full border border-primary px-4 py-2.5 text-[12px] font-bold text-primary hover:bg-secondary"
-        >
-          <FunnelSimple size={15} aria-hidden="true" />
-          {showAll ? "Hide all filters" : "All filters"}
-          <CaretDown size={14} className={showAll ? "rotate-180" : ""} aria-hidden="true" />
-        </button>
+
         <button
           type="button"
           onClick={onClear}
@@ -5072,24 +4999,29 @@ function HomesFilterPage({
         </button>
       </div>
 
-      {showAll && (
-        <div className="mt-4 grid gap-2 border-t border-border pt-4 sm:grid-cols-2 lg:grid-cols-4">
-          {extraFields.map((field) => (
-            <div key={field.key} className="min-w-0">
-              <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-                {field.label}
-              </p>
-              <HomeFilterControl
-                label={field.label}
-                value={extra[field.key] ?? ""}
-                options={field.options}
-                multi={field.multi}
-                onChange={(value) => setExtra((current) => ({ ...current, [field.key]: value }))}
-              />
-            </div>
-          ))}
-        </div>
-      )}
+      <div className="grid gap-3 border-t border-border pt-4">
+        {extraFields.map((field) => (
+          <div key={field.key} className="min-w-0">
+            <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+              {field.label}
+            </p>
+            <HomeFilterControl
+              label={field.label}
+              value={extra[field.key] ?? ""}
+              options={field.options}
+              multi={field.multi}
+              onChange={(value) => setExtra((current) => ({ ...current, [field.key]: value }))}
+            />
+          </div>
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={apply}
+        className="h-11 w-full rounded-xl bg-primary px-4 text-sm font-semibold text-primary-foreground"
+      >
+        Apply filters
+      </button>
     </section>
   );
 }
@@ -5122,7 +5054,7 @@ function HomeFilterControl({
   }
 
   return input ? (
-    <label className="flex h-[88px] min-w-0 items-center gap-2 rounded-xl border border-input bg-card px-3 focus-within:border-primary">
+    <label className="flex h-12 min-w-0 items-center gap-2 rounded-xl border border-input bg-card px-3 focus-within:border-primary">
       <MapPin size={15} className="shrink-0 text-primary" aria-hidden="true" />
       <span className="sr-only">{label}</span>
       <input
@@ -5139,7 +5071,7 @@ function HomeFilterControl({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         aria-label={label}
-        className="h-[88px] w-full appearance-none rounded-xl border border-input bg-card px-3 pr-8 text-[12px] text-foreground outline-none focus:border-primary"
+        className="h-12 w-full appearance-none rounded-xl border border-input bg-card px-3 pr-8 text-[12px] text-foreground outline-none focus:border-primary"
       >
         {options?.map((option) => (
           <option key={option} value={option === options[0] ? "" : option}>
@@ -5184,7 +5116,7 @@ function HomePriceRangeControl({
         aria-label="Price"
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
-        className="flex h-[88px] w-full items-center justify-between gap-3 rounded-xl border border-input bg-card px-3 text-left text-[12px] text-foreground outline-none focus:border-primary"
+        className="flex h-12 w-full items-center justify-between gap-3 rounded-xl border border-input bg-card px-3 text-left text-[12px] text-foreground outline-none focus:border-primary"
       >
         <span className="min-w-0 truncate">{summary}</span>
         <CaretDown
@@ -5297,7 +5229,7 @@ function HomeMultiSelectControl({
         aria-label={label}
         aria-expanded={open}
         onClick={() => setOpen((current) => !current)}
-        className="flex h-[88px] w-full items-center justify-between gap-3 rounded-xl border border-input bg-card px-3 text-left text-[12px] text-foreground outline-none focus:border-primary"
+        className="flex h-12 w-full items-center justify-between gap-3 rounded-xl border border-input bg-card px-3 text-left text-[12px] text-foreground outline-none focus:border-primary"
       >
         <span className="min-w-0 truncate">{summary}</span>
         <CaretDown
@@ -5351,7 +5283,6 @@ function VehicleResultsPage({
   onSave: (patch?: Partial<Search>) => void;
   onSell: () => void;
 }) {
-  const [showAll, setShowAll] = useState(true);
   const [term, setTerm] = useState(search.q ?? "");
   const [make, setMake] = useState(search.make ?? "");
   const [model, setModel] = useState(search.model ?? "");
@@ -5577,22 +5508,13 @@ function VehicleResultsPage({
               <BookmarkSimple size={15} aria-hidden="true" />
               Save this search
             </button>
-            <button
-              type="button"
-              onClick={() => setShowAll((current) => !current)}
-              className="inline-flex items-center gap-2 rounded-full border border-primary px-4 py-2.5 text-[12px] font-bold text-primary hover:bg-secondary"
-            >
-              <FunnelSimple size={15} aria-hidden="true" />
-              {showAll ? "Hide all filters" : "Show all filters"}
-              <CaretDown size={14} className={showAll ? "rotate-180" : ""} aria-hidden="true" />
-            </button>
           </div>
         </div>
       </section>
 
-      <div className="mt-7 grid gap-6 lg:grid-cols-[260px_minmax(0,1fr)]">
-        {showAll && (
-          <aside className="space-y-3">
+      <div className="mt-7 grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
+        <ResponsiveBrowseFilters title="Vehicle filters" resetKey={JSON.stringify(search)}>
+          <div className="space-y-3">
             <VehicleFilterGroup title="Make / model">
               <VehicleCheckboxList
                 label="Makes"
@@ -5809,10 +5731,10 @@ function VehicleResultsPage({
             >
               Show {(pendingResultCount ?? result.total).toLocaleString()} results
             </button>
-          </aside>
-        )}
+          </div>
+        </ResponsiveBrowseFilters>
 
-        <section id="results" aria-label="Car listings">
+        <section id="results" aria-label="Car listings" className="min-w-0 lg:col-start-2">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
             <p className="text-[13px] text-muted-foreground">
               <strong className="numeric text-foreground">{result.total}</strong> cars and trucks
@@ -5837,7 +5759,7 @@ function VehicleResultsPage({
               description="Try widening your year, price, make, model, or location choices."
             />
           ) : (
-            <ul className="mt-5 grid grid-cols-2 gap-x-4 gap-y-9 md:grid-cols-3 xl:grid-cols-4">
+            <ul className="mt-5 grid grid-cols-2 gap-x-4 gap-y-9 md:grid-cols-3 xl:grid-cols-3">
               {result.listings.map((listing) => (
                 <li key={listing.id}>
                   <ListingCard listing={listing} />
