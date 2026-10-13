@@ -953,7 +953,14 @@ function HomepageListingRow({
           ))}
         </div>
       ) : (
-        <EmptyState title={EMPTY_ROW_TITLE} body={EMPTY_ROW_BODY} />
+        // A slim line rather than the full card: with little inventory most
+        // rows are empty, and the vehicles section already shows the card.
+        <p className="mt-5 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-2xl border border-dashed border-border px-5 py-4 text-[13px] text-muted-foreground">
+          Nothing here yet. New listings show up as soon as Idaho sellers post them.
+          <Link to="/sell" className="font-semibold text-primary hover:underline">
+            Post a listing
+          </Link>
+        </p>
       )}
     </section>
   );
@@ -1071,8 +1078,6 @@ function HomepageInfoBand({
 }
 
 const EMPTY_ROW_TITLE = "Bluebird is just getting started.";
-const EMPTY_ROW_BODY =
-  "New listings from Idaho sellers show up here as soon as they're posted. Have something to sell? Be one of the first.";
 
 function EmptyState({ title, body }: { title: string; body: string }) {
   return <BluebirdEmptyState className="mt-5" title={title} description={body} />;
