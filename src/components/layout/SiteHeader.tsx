@@ -249,59 +249,123 @@ export function SiteHeader() {
                 ref={accountMenuRef}
                 role="menu"
                 aria-label="Account menu"
-                className="absolute right-0 top-[calc(100%+6px)] z-50 max-h-[calc(100vh-8rem)] min-w-[190px] overflow-x-hidden overflow-y-auto rounded-lg border border-border bg-card p-1.5 shadow-xl"
+                className="absolute right-0 top-[calc(100%+6px)] z-50 w-[244px] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-xl border border-border bg-card shadow-xl"
               >
                 <Link
                   to={brand.urls.account}
                   role="menuitem"
                   onClick={() => setAccountMenuOpen(false)}
-                  className="flex h-10 items-center rounded-md px-3 text-[12.5px] font-medium transition-colors hover:bg-secondary"
+                  className="hairline-b block px-3.5 pb-3 pt-3 transition-colors hover:bg-secondary/60"
                   {...pinned}
                 >
-                  Account
+                  <span className="flex items-center gap-3">
+                    {account.data?.avatarUrl ? (
+                      <img
+                        src={account.data.avatarUrl}
+                        alt=""
+                        className="h-9 w-9 shrink-0 rounded-full border border-border object-cover"
+                      />
+                    ) : (
+                      <UserCircle
+                        size={36}
+                        weight="duotone"
+                        aria-hidden="true"
+                        className="shrink-0 text-muted-foreground"
+                      />
+                    )}
+                    <span className="min-w-0">
+                      <span className="block text-[9.5px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                        Signed in as
+                      </span>
+                      <span className="mt-0.5 block truncate text-[13px] font-semibold leading-tight text-foreground">
+                        {account.data?.displayName ?? account.data?.email ?? "Your account"}
+                      </span>
+                      {account.data?.displayName && account.data?.email && (
+                        <span className="mt-0.5 block truncate text-[11.5px] leading-tight text-muted-foreground">
+                          {account.data.email}
+                        </span>
+                      )}
+                    </span>
+                  </span>
                 </Link>
-                <Link
-                  to="/account"
-                  search={{ section: "saved" }}
-                  role="menuitem"
-                  onClick={() => setAccountMenuOpen(false)}
-                  className="flex h-10 items-center gap-2 rounded-md px-3 text-[12.5px] font-medium transition-colors hover:bg-secondary"
-                  {...pinned}
-                >
-                  <BookmarkSimple size={17} weight="duotone" aria-hidden="true" />
-                  Saved
-                </Link>
-                <Link
-                  to="/account"
-                  search={{ section: "listings" }}
-                  role="menuitem"
-                  onClick={() => setAccountMenuOpen(false)}
-                  className="flex h-10 items-center gap-2 rounded-md px-3 text-[12.5px] font-medium transition-colors hover:bg-secondary"
-                  {...pinned}
-                >
-                  <Storefront size={17} weight="duotone" aria-hidden="true" />
-                  Selling
-                </Link>
-                <Link
-                  to="/account"
-                  search={{ section: "messages" }}
-                  role="menuitem"
-                  onClick={() => setAccountMenuOpen(false)}
-                  className="flex h-10 items-center gap-2 rounded-md px-3 text-[12.5px] font-medium transition-colors hover:bg-secondary"
-                  {...pinned}
-                >
-                  Messages
-                </Link>
-                <Link
-                  to="/account"
-                  search={{ section: "notifications" }}
-                  role="menuitem"
-                  onClick={() => setAccountMenuOpen(false)}
-                  className="flex h-10 items-center gap-2 rounded-md px-3 text-[12.5px] font-medium transition-colors hover:bg-secondary"
-                  {...pinned}
-                >
-                  Notifications
-                </Link>
+
+                <div className="p-1.5">
+                  <p className="px-2.5 pb-1 pt-1.5 text-[9.5px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+                    Marketplace
+                  </p>
+                  <Link
+                    to="/account"
+                    search={{ section: "listings" }}
+                    role="menuitem"
+                    onClick={() => setAccountMenuOpen(false)}
+                    className="flex h-10 items-center gap-2.5 rounded-md px-2.5 text-[12.5px] font-medium transition-colors hover:bg-secondary"
+                    {...pinned}
+                  >
+                    <Storefront size={17} weight="duotone" aria-hidden="true" />
+                    Selling
+                  </Link>
+                  <Link
+                    to="/account"
+                    search={{ section: "saved" }}
+                    role="menuitem"
+                    onClick={() => setAccountMenuOpen(false)}
+                    className="flex h-10 items-center gap-2.5 rounded-md px-2.5 text-[12.5px] font-medium transition-colors hover:bg-secondary"
+                    {...pinned}
+                  >
+                    <BookmarkSimple size={17} weight="duotone" aria-hidden="true" />
+                    Saved
+                  </Link>
+                  <Link
+                    to="/account"
+                    search={{ section: "messages" }}
+                    role="menuitem"
+                    onClick={() => setAccountMenuOpen(false)}
+                    className="flex h-10 items-center gap-2.5 rounded-md px-2.5 text-[12.5px] font-medium transition-colors hover:bg-secondary"
+                    {...pinned}
+                  >
+                    <ChatCircle size={17} weight="duotone" aria-hidden="true" />
+                    Messages
+                    {unreadMessages > 0 && <UnreadBadge count={unreadMessages} />}
+                  </Link>
+                  <Link
+                    to="/account"
+                    search={{ section: "notifications" }}
+                    role="menuitem"
+                    onClick={() => setAccountMenuOpen(false)}
+                    className="flex h-10 items-center gap-2.5 rounded-md px-2.5 text-[12.5px] font-medium transition-colors hover:bg-secondary"
+                    {...pinned}
+                  >
+                    <Bell size={17} weight="duotone" aria-hidden="true" />
+                    Notifications
+                    {unreadNotifications > 0 && <UnreadBadge count={unreadNotifications} />}
+                  </Link>
+                </div>
+
+                <div className="hairline-t p-1.5">
+                  <Link
+                    to="/account"
+                    search={{ section: "overview" }}
+                    role="menuitem"
+                    onClick={() => setAccountMenuOpen(false)}
+                    className="flex h-10 items-center gap-2.5 rounded-md px-2.5 text-[12.5px] font-medium transition-colors hover:bg-secondary"
+                    {...pinned}
+                  >
+                    <UserCircle size={17} weight="duotone" aria-hidden="true" />
+                    Account settings
+                  </Link>
+                </div>
+
+                <div className="hairline-t p-1.5 pb-1.5">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => void signOut()}
+                    className="flex h-10 w-full items-center gap-2.5 rounded-md px-2.5 text-[12.5px] font-medium transition-colors hover:bg-secondary"
+                  >
+                    <SignOut size={17} weight="duotone" aria-hidden="true" />
+                    Sign out
+                  </button>
+                </div>
               </div>
             )}
           </div>
