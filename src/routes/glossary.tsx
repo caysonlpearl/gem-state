@@ -1,12 +1,21 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { ArrowSquareOut } from "@phosphor-icons/react";
 import { useEffect } from "react";
 
 import { brand } from "@/config/brand";
+import { inline } from "@/components/guides/GuideArticle";
+import {
+  glossaryAnchor,
+  glossaryReviewed,
+  glossarySections,
+  glossarySources,
+} from "@/content/glossary";
 import { trackEvent } from "@/lib/analytics";
+import { jsonLdScript } from "@/lib/structured-data";
 
-const title = `How Bluebird Marketplace works — listings, contact and selling`;
+const title = "Glossary: Idaho buying and selling terms";
 const description =
-  "Plain-language definitions of Bluebird Marketplace: how listings, seller contact, buying, selling, pickup, shipping and reviews work across Idaho.";
+  "Plain-language definitions for buying and selling in Idaho: vehicle titles, liens, bills of sale, release of liability, title brands, rentals and deposits, job pay, and how Bluebird Marketplace works.";
 
 export const Route = createFileRoute("/glossary")({
   head: () => ({
@@ -16,62 +25,25 @@ export const Route = createFileRoute("/glossary")({
       { property: "og:title", content: title },
       { property: "og:description", content: description },
     ],
+    scripts: [
+      jsonLdScript({
+        "@context": "https://schema.org",
+        "@type": "DefinedTermSet",
+        name: title,
+        url: `${brand.urls.siteUrl}/glossary`,
+        hasDefinedTerm: glossarySections.flatMap((section) =>
+          section.terms.map((item) => ({
+            "@type": "DefinedTerm",
+            name: item.term,
+            description: item.body.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1"),
+            url: `${brand.urls.siteUrl}/glossary#${glossaryAnchor(item.term)}`,
+          })),
+        ),
+      }),
+    ],
   }),
   component: GlossaryPage,
 });
-
-const terms: { term: string; short: string; body: string }[] = [
-  {
-    term: "Listing",
-    short: "What a seller wants for an item",
-    body: "A listing is one seller's offer to sell one specific item. It includes the item's title, condition, price, photos, location and pickup or shipping options. Cars and trucks can also include year, make, model, mileage, drivetrain, title status and other vehicle details.",
-  },
-  {
-    term: "Offer",
-    short: "A price discussed with the seller",
-    body: "Offers and checkout are reserved for a future marketplace phase. For now, contact the seller directly to discuss price, condition and availability before making payment.",
-  },
-  {
-    term: "Contact seller",
-    short: "Message the person who listed the item",
-    body: "Contact seller sends your message and email address to the seller of that exact listing. Continue the conversation directly to confirm the item, price, meeting place, shipping and payment details.",
-  },
-  {
-    term: "Seller review",
-    short: "Moderation before publication",
-    body: "New listings are reviewed for prohibited items, missing information and clear photos before they appear publicly. Approval does not authenticate, inspect or guarantee an item.",
-  },
-  {
-    term: "Pickup or shipping",
-    short: "How the buyer receives the item",
-    body: "A seller chooses local pickup, shipping, or both when creating a listing. Ask the seller about pickup details, shipping availability and cost, then arrange the details directly.",
-  },
-  {
-    term: "Saved listing",
-    short: "A private listing bookmark",
-    body: "Saving a listing adds it to your private saved list so you can find the exact item again. Saved listings are not public and do not reserve the item.",
-  },
-  {
-    term: "Moderation",
-    short: "A marketplace safety review",
-    body: "Bluebird Marketplace may review listing content and photos before publication and may remove listings that violate the published policies. Moderation is not an inspection or a warranty.",
-  },
-  {
-    term: "Buyer inquiry",
-    short: "A message about one listing",
-    body: "A buyer inquiry is a message attached to one exact listing. The seller can read it in Seller Center and reply to the buyer by email.",
-  },
-  {
-    term: "Seller payout",
-    short: "Not currently available",
-    body: "Bluebird Marketplace does not process buyer payments or seller payouts through the marketplace. If hosted payment and payout features are added, this page will explain how they work.",
-  },
-  {
-    term: "Report a problem",
-    short: "Tell Bluebird about a listing issue",
-    body: "Use Contact us or report the listing when content appears unsafe, prohibited, fraudulent or otherwise violates the published policies. Bluebird does not process payment or hold funds through the marketplace.",
-  },
-];
 
 function GlossaryPage() {
   useEffect(() => {
@@ -84,26 +56,51 @@ function GlossaryPage() {
         Plain language
       </p>
       <h1 className="mt-3 text-3xl font-semibold leading-[1.15] tracking-tight sm:text-4xl">
-        How {brand.name} works
+        Glossary
       </h1>
       <p className="mt-4 text-[15px] leading-relaxed text-muted-foreground">
-        No jargon and no promises the platform can't keep. Here is exactly what each term means on
-        this site.
+        What the terms mean when you buy or sell in Idaho, and on {brand.name}. No jargon and no
+        promises the platform can&apos;t keep.
       </p>
 
-      <dl className="mt-10 overflow-hidden rounded-lg border border-border bg-card">
-        {terms.map((item) => (
-          <div key={item.term} className="hairline-b px-5 py-5 last:border-b-0">
-            <dt className="flex flex-wrap items-baseline gap-2">
-              <span className="text-[15px] font-semibold tracking-tight">{item.term}</span>
-              <span className="text-[12px] text-muted-foreground">{item.short}</span>
-            </dt>
-            <dd className="mt-2 text-[13.5px] leading-relaxed text-muted-foreground">
-              {item.body}
-            </dd>
-          </div>
+      <nav aria-label="Glossary sections" className="mt-6 flex flex-wrap gap-2">
+        {glossarySections.map((section) => (
+          <a
+            key={section.heading}
+            href={`#${glossaryAnchor(section.heading)}`}
+            className="inline-flex min-h-11 items-center rounded-full border border-input bg-card px-4 text-[13px] font-medium hover:border-primary"
+          >
+            {section.heading}
+          </a>
         ))}
-      </dl>
+      </nav>
+
+      {glossarySections.map((section) => (
+        <section
+          key={section.heading}
+          id={glossaryAnchor(section.heading)}
+          className="mt-10 scroll-mt-24"
+        >
+          <h2 className="text-[20px] font-bold tracking-tight">{section.heading}</h2>
+          <dl className="mt-4 overflow-hidden rounded-lg border border-border bg-card">
+            {section.terms.map((item) => (
+              <div
+                key={item.term}
+                id={glossaryAnchor(item.term)}
+                className="hairline-b scroll-mt-24 px-5 py-5 last:border-b-0"
+              >
+                <dt className="flex flex-wrap items-baseline gap-2">
+                  <span className="text-[15px] font-semibold tracking-tight">{item.term}</span>
+                  <span className="text-[12px] text-muted-foreground">{item.short}</span>
+                </dt>
+                <dd className="mt-2 text-[13.5px] leading-relaxed text-muted-foreground">
+                  {inline(item.body)}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </section>
+      ))}
 
       <div className="mt-8 rounded-lg border border-border bg-surface p-5">
         <h2 className="text-[13px] font-semibold tracking-tight">How payment works right now</h2>
@@ -120,13 +117,43 @@ function GlossaryPage() {
             Browse listings
           </Link>
           <Link
-            to={brand.urls.auth}
+            to="/guides"
             className="inline-flex h-9 items-center rounded-md border border-input px-4 text-[13px] font-medium transition-colors hover:bg-secondary"
           >
-            Create an account
+            Buying and selling guides
           </Link>
         </div>
       </div>
+
+      <section className="mt-10 border-t border-border pt-6">
+        <h2 className="text-[15px] font-bold">Sources</h2>
+        <p className="mt-1 text-[13px] text-muted-foreground">
+          Idaho fees, deadlines and rules were last checked against these sources on{" "}
+          {new Date(`${glossaryReviewed}T12:00:00Z`).toLocaleDateString("en-US", {
+            month: "long",
+            day: "numeric",
+            year: "numeric",
+            timeZone: "UTC",
+          })}
+          . They change; check with the agency before you rely on them. General information, not
+          legal advice.
+        </p>
+        <ul className="mt-3 space-y-1.5 text-[13.5px]">
+          {glossarySources.map((source) => (
+            <li key={source.url} className="flex items-start gap-1.5">
+              <ArrowSquareOut size={14} className="mt-1 shrink-0 text-muted-foreground" />
+              <a
+                href={source.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-medium text-primary underline underline-offset-2 hover:no-underline"
+              >
+                {source.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
     </div>
   );
 }

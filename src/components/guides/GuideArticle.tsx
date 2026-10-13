@@ -6,7 +6,7 @@ import type { Guide, GuideBlock } from "@/content/guides";
 const linkClass = "font-medium text-primary underline underline-offset-2 hover:no-underline";
 
 /** Renders **bold** and [label](href) inside guide text. */
-function inline(text: string): ReactNode[] {
+export function inline(text: string): ReactNode[] {
   const parts: ReactNode[] = [];
   const pattern = /\*\*([^*]+)\*\*|\[([^\]]+)\]\(([^)\s]+)\)/g;
   let last = 0;

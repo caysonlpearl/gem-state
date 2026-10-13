@@ -63,7 +63,7 @@ const profileAvatarMigrationSource = await read(
   "supabase/migrations/20260920100000_add_profile_avatar_storage.sql",
 );
 const savedSearchWorkerSource = await read("src/lib/saved-search-worker.server.ts");
-const glossarySource = await read("src/routes/glossary.tsx");
+const glossarySource = await read("src/content/glossary.ts");
 const policiesSource = await read("src/routes/policies.tsx");
 const authSource = await read("src/routes/auth.tsx");
 const classifiedsFunctionsSource = await read("src/lib/classifieds.functions.ts");
