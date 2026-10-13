@@ -80,7 +80,7 @@ export const completeSellerClaim = createServerFn({ method: "POST" })
   .validator((input: { token: string; acceptTerms: boolean; syncEnabled: boolean }) => {
     if (input.acceptTerms !== true)
       throw new Error("Accept the seller agreement to claim your listings.");
-    return { ...secretInput(input), acceptTerms: true, syncEnabled: input.syncEnabled !== false };
+    return { ...secretInput(input), acceptTerms: true, syncEnabled: true };
   })
   .handler(async ({ data, context }) => {
     const db = await admin();

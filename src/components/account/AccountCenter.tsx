@@ -2643,35 +2643,26 @@ function ListingsSection({
         </div>
       )}
       <div className="rounded-2xl border border-border bg-card p-3 shadow-sm">
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={() => setFilter("active")}
-            className={`tab-button ${filter === "active" ? "tab-button--active" : ""}`}
-          >
-            Active
-          </button>
-          <button
-            type="button"
-            onClick={() => setFilter("pending")}
-            className={`tab-button ${filter === "pending" ? "tab-button--active" : ""}`}
-          >
-            Awaiting approval
-          </button>
-          <button
-            type="button"
-            onClick={() => setFilter("inactive")}
-            className={`tab-button ${filter === "inactive" ? "tab-button--active" : ""}`}
-          >
-            Inactive
-          </button>
-          <button
-            type="button"
-            onClick={() => setFilter("all")}
-            className={`tab-button ${filter === "all" ? "tab-button--active" : ""}`}
-          >
-            All
-          </button>
+        <div role="group" aria-label="Filter listings by status" className="flex flex-wrap gap-2.5">
+          {(
+            [
+              ["active", "Active"],
+              ["pending", "Awaiting approval"],
+              ["inactive", "Inactive"],
+              ["all", "All"],
+            ] as const
+          ).map(([value, label]) => (
+            <Button
+              key={value}
+              type="button"
+              aria-pressed={filter === value}
+              variant={filter === value ? "default" : "outline"}
+              onClick={() => setFilter(value)}
+              className="min-h-11 rounded-xl px-4 text-[12.5px] font-semibold focus-visible:ring-2 focus-visible:ring-offset-2"
+            >
+              {label}
+            </Button>
+          ))}
         </div>
         <div className="mt-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_180px]">
           <label className="field flex items-center gap-2">

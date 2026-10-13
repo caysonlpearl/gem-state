@@ -80,7 +80,6 @@ function ClaimSeller() {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [terms, setTerms] = useState(false);
-  const [sync, setSync] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -167,7 +166,7 @@ function ClaimSeller() {
     setBusy(true);
     setError("");
     try {
-      await complete({ data: { token, acceptTerms: terms, syncEnabled: sync } });
+      await complete({ data: { token, acceptTerms: terms, syncEnabled: true } });
       sessionStorage.removeItem(KEY);
       window.history.replaceState(null, "", "/claim-seller");
       setDone(true);
@@ -505,21 +504,14 @@ function ClaimSeller() {
                             and confirm these are my listings.
                           </span>
                         </label>
-                        <label className="flex items-start gap-2 text-sm">
-                          <input
-                            type="checkbox"
-                            checked={sync}
-                            onChange={(e) => setSync(e.target.checked)}
-                          />
-                          <span>
-                            Keep my listings synced with Facebook.
-                            <span className="mt-1 block text-muted-foreground">
-                              Bluebird checks for price and description changes and sold listings.
-                              You can pause syncing in your account. Your Bluebird edits will be
-                              protected from conflicting updates.
-                            </span>
-                          </span>
-                        </label>
+                        <div className="rounded-xl border border-border bg-secondary/40 px-4 py-3 text-sm">
+                          <p className="font-medium">Your imported listings stay in sync.</p>
+                          <p className="mt-1 leading-relaxed text-muted-foreground">
+                            Bluebird checks the source platform for price and description changes
+                            and sold listings. You can edit your listings on Bluebird; conflicting
+                            sync updates will be held for review instead of overwriting your edits.
+                          </p>
+                        </div>
                         <button
                           onClick={() => void claim()}
                           className="inline-flex min-h-11 items-center justify-center rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 w-full"
