@@ -37,6 +37,17 @@ function ClaimSeller() {
   }, [location.hash]);
   useEffect(() => {
     const returned = parseSellerClaimFragment(window.location.hash);
+    if (returned.authError) {
+      setNotice(
+        "This verification link is expired or unavailable. Sign in, or request a new verification email.",
+      );
+      window.history.replaceState(
+        null,
+        "",
+        `/claim-seller${returned.token ? `#token=${returned.token}` : ""}`,
+      );
+      return;
+    }
     if (!returned.accessToken || !returned.refreshToken) return;
     // Remove authentication credentials immediately; the private claim remains.
     window.history.replaceState(
@@ -195,6 +206,24 @@ function ClaimSeller() {
       setBusy(false);
     }
   }
+  async function googleSignIn() {
+    if (lock.current) return;
+    lock.current = true;
+    setBusy(true);
+    setError("");
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo: getAuthRedirectUrl(`/claim-seller#token=${token}`) },
+      });
+      if (error) throw error;
+    } catch {
+      setError("Google sign-in did not finish. Please try again.");
+    } finally {
+      lock.current = false;
+      setBusy(false);
+    }
+  }
   const unavailable = details && details.status !== "Unclaimed";
   return (
     <main className="mx-auto max-w-[540px] px-5 py-6 sm:py-10">
@@ -224,14 +253,14 @@ function ClaimSeller() {
               <Link
                 to="/account"
                 search={{ section: "listings" }}
-                className="btn-primary text-center"
+                className="inline-flex min-h-11 items-center justify-center rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 text-center"
               >
                 View my listings
               </Link>
               <Link
                 to="/account"
                 search={{ section: "messages" }}
-                className="btn-secondary text-center"
+                className="inline-flex min-h-11 items-center justify-center rounded-full border border-border bg-background px-5 py-3 text-sm font-semibold hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 text-center"
               >
                 View buyer messages
               </Link>
@@ -316,19 +345,21 @@ function ClaimSeller() {
                     ) : (
                       <form onSubmit={authenticate} className="space-y-3">
                         <div className="flex gap-5 text-sm">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setMode("signup");
-                              setError("");
-                            }}
-                            aria-pressed={mode === "signup"}
-                            className={
-                              mode === "signup" ? "font-bold underline" : "text-muted-foreground"
-                            }
-                          >
-                            Create account
-                          </button>
+                          {!details.existingAccount && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setMode("signup");
+                                setError("");
+                              }}
+                              aria-pressed={mode === "signup"}
+                              className={
+                                mode === "signup" ? "font-bold underline" : "text-muted-foreground"
+                              }
+                            >
+                              Create account
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => {
@@ -343,10 +374,26 @@ function ClaimSeller() {
                             Already have an account? Sign in
                           </button>
                         </div>
+                        {details.existingAccount && (
+                          <p className="text-sm text-muted-foreground">
+                            These listings are already linked to a Bluebird account. Sign in to that
+                            account to continue.
+                          </p>
+                        )}
+                        {mode === "signin" && (
+                          <button
+                            type="button"
+                            disabled={busy}
+                            onClick={() => void googleSignIn()}
+                            className="w-full rounded-full border border-border bg-background px-4 py-3 text-sm font-semibold"
+                          >
+                            Continue with Google
+                          </button>
+                        )}
                         <label className="block text-sm">
                           Email
                           <input
-                            className="field mt-1 w-full"
+                            className="mt-1 h-11 w-full rounded-xl border border-input bg-background px-3 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             type="email"
                             autoComplete="email"
                             value={email}
@@ -357,7 +404,7 @@ function ClaimSeller() {
                         <label className="block text-sm">
                           Password
                           <input
-                            className="field mt-1 w-full"
+                            className="mt-1 h-11 w-full rounded-xl border border-input bg-background px-3 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring"
                             type="password"
                             autoComplete={mode === "signup" ? "new-password" : "current-password"}
                             minLength={8}
@@ -370,7 +417,7 @@ function ClaimSeller() {
                           <label className="block text-sm">
                             Confirm password
                             <input
-                              className="field mt-1 w-full"
+                              className="mt-1 h-11 w-full rounded-xl border border-input bg-background px-3 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring"
                               type="password"
                               autoComplete="new-password"
                               minLength={8}
@@ -402,7 +449,10 @@ function ClaimSeller() {
                             </span>
                           </label>
                         )}
-                        <button className="btn-primary w-full" disabled={busy || !details}>
+                        <button
+                          className="inline-flex min-h-11 items-center justify-center rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 w-full"
+                          disabled={busy || !details}
+                        >
                           {busy ? "Working…" : mode === "signup" ? "Create my account" : "Sign in"}
                         </button>
                         {mode === "signin" && (
@@ -420,7 +470,7 @@ function ClaimSeller() {
                       <div className="mt-4 text-sm">
                         <p>Verify your email before claiming these listings.</p>
                         <button
-                          className="btn-secondary mt-3"
+                          className="inline-flex min-h-11 items-center justify-center rounded-full border border-border bg-background px-5 py-3 text-sm font-semibold hover:bg-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 mt-3"
                           onClick={() => void resend()}
                           disabled={busy}
                         >
@@ -466,7 +516,7 @@ function ClaimSeller() {
                         </label>
                         <button
                           onClick={() => void claim()}
-                          className="btn-primary w-full"
+                          className="inline-flex min-h-11 items-center justify-center rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 w-full"
                           disabled={busy || !terms}
                         >
                           {busy ? "Transferring your listings…" : "Claim my listings"}

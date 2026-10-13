@@ -73,6 +73,7 @@ BEGIN
  IF NOT EXISTS(SELECT 1 FROM public.conversation_participants WHERE conversation_id=c AND user_id=claimant AND role='seller') THEN RAISE EXCEPTION 'Seller missing from conversation';END IF;
  IF (SELECT sender_id FROM public.conversation_messages WHERE id=msg)<>actor THEN RAISE EXCEPTION 'Historical sender rewritten';END IF;
  IF NOT EXISTS(SELECT 1 FROM public.seller_profiles WHERE user_id=claimant AND terms_version='seller-v1' AND terms_accepted_at IS NOT NULL) THEN RAISE EXCEPTION 'Actual agreement not recorded';END IF;
+ IF NOT EXISTS(SELECT 1 FROM public.profiles WHERE id=claimant AND display_name='QA managed seller') THEN RAISE EXCEPTION 'Claim did not create public seller identity';END IF;
  failed:=false;BEGIN PERFORM public.reply_managed_import_conversation(c,actor,'Must not be allowed after claim');EXCEPTION WHEN OTHERS THEN failed:=true;END;
  IF NOT failed THEN RAISE EXCEPTION 'Routine admin inbox retained after claim';END IF;
  failed:=false;BEGIN PERFORM public.prepare_seller_claim(token,outsider);EXCEPTION WHEN OTHERS THEN failed:=true;END;
@@ -92,6 +93,10 @@ BEGIN
  IF result IS NOT NULL OR (SELECT price_cents FROM public.asks WHERE id=listing)<>4300 OR NOT EXISTS(SELECT 1 FROM public.fb_marketplace_import_items WHERE id=item AND sync_conflict IS NOT NULL) THEN RAISE EXCEPTION 'Seller edit was overwritten';END IF;
  PERFORM public.keep_bluebird_import_version(item,actor);
  IF (SELECT price_cents FROM public.asks WHERE id=listing)<>4300 THEN RAISE EXCEPTION 'Keeping Bluebird changed listing';END IF;
+ UPDATE public.asks SET status='cancelled' WHERE id=listing;
+ UPDATE public.fb_marketplace_import_items SET status='needs_update',price_cents=4400 WHERE id=item;
+ result:=public.apply_managed_import_item(item,actor);
+ IF result IS NOT NULL OR (SELECT status FROM public.asks WHERE id=listing)<>'cancelled' THEN RAISE EXCEPTION 'Sync revived a removed listing';END IF;
  IF has_function_privilege('authenticated','public.finish_seller_claim(uuid,uuid,boolean,boolean)','EXECUTE') OR has_function_privilege('anon','public.rotate_seller_claim(uuid,text,uuid,boolean)','EXECUTE') THEN RAISE EXCEPTION 'Claim RPC is publicly accessible';END IF;
  IF EXISTS(SELECT 1 FROM pg_class WHERE relname IN ('managed_import_sellers','seller_claim_tokens','seller_claim_transfers','import_seller_audit') AND NOT relrowsecurity) THEN RAISE EXCEPTION 'Missing RLS';END IF;
  -- Existing linked profiles can only be claimed by the existing owner.
@@ -106,6 +111,11 @@ BEGIN
  UPDATE public.seller_claim_tokens SET expires_at=now()-interval '1 second' WHERE token_hash=repeat('c',64);
  failed:=false;BEGIN PERFORM public.prepare_seller_claim(repeat('c',64),claimant);EXCEPTION WHEN OTHERS THEN failed:=true;END;
  IF NOT failed THEN RAISE EXCEPTION 'Expired token was accepted';END IF;
+ UPDATE public.profiles SET display_name='Existing professional name' WHERE id=claimant;
+ PERFORM public.rotate_seller_claim(legacy.id,repeat('d',64),actor);
+ transfer:=public.prepare_seller_claim(repeat('d',64),claimant);
+ PERFORM public.finish_seller_claim((transfer->>'transferId')::uuid,claimant,true,true);
+ IF (SELECT display_name FROM public.profiles WHERE id=claimant)<>'Existing professional name' THEN RAISE EXCEPTION 'Claim overwrote an existing account name';END IF;
  RAISE NOTICE 'Managed seller integration checks passed; fixtures will be rolled back.';
 END $$;
 ROLLBACK;
