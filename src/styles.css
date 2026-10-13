@@ -232,6 +232,27 @@
   border-bottom: 1px solid var(--color-border);
 }
 
+/*
+ * Native <select> controls draw their own arrow flush against the right edge.
+ * They opt out of that arrow and use the same inset chevron as the custom
+ * dropdowns (14px, 12px off the border, muted ink).
+ */
+@layer base {
+  :root {
+    --select-chevron-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%2355626e' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m4 6.5 4 4 4-4'/%3E%3C/svg%3E");
+  }
+}
+
+@utility select-chevron {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: var(--select-chevron-image);
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 0.875rem 0.875rem;
+  padding-inline-end: 2rem;
+}
+
 @utility filter-input {
   height: 2.75rem;
   width: 100%;
@@ -241,6 +262,16 @@
   padding-inline: 0.625rem;
   font-size: 0.75rem;
   color: var(--color-foreground);
+
+  &:is(select) {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image: var(--select-chevron-image);
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 0.875rem 0.875rem;
+    padding-inline-end: 2rem;
+  }
 }
 
 @layer components {

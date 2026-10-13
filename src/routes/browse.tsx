@@ -2368,7 +2368,7 @@ function Browse() {
                         search: scoped({ sort: event.target.value as Sort }),
                       })
                     }
-                    className="h-11 rounded-full border border-input bg-card px-4 text-[13px] font-medium shadow-sm"
+                    className="select-chevron h-11 rounded-full border border-input bg-card pl-4 pr-8 text-[13px] font-medium shadow-sm"
                   >
                     {sortOptions.map((option) => (
                       <option key={option.value} value={option.value}>
