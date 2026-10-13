@@ -44,6 +44,8 @@ BEGIN
  PERFORM set_config('request.jwt.claims','{"role":"service_role"}',true);
  -- Storefront/public metadata and inquiries before claim.
  IF NOT (public.managed_seller_public_status(owner)->>'managed')::boolean THEN RAISE EXCEPTION 'Managed identity not labeled';END IF;
+ IF NOT (public.managed_seller_public_status(owner,listing)->>'managed')::boolean THEN RAISE EXCEPTION 'Imported listing not labeled';END IF;
+ IF (public.managed_seller_public_status(owner,gen_random_uuid())->>'managed')::boolean THEN RAISE EXCEPTION 'Unrelated listing labeled as imported';END IF;
  INSERT INTO public.conversations(listing_id,buyer_id,seller_id) VALUES(listing,buyer,owner) RETURNING id INTO c;
  INSERT INTO public.conversation_participants(conversation_id,user_id,role) VALUES(c,buyer,'buyer'),(c,owner,'seller');
  INSERT INTO public.conversation_messages(conversation_id,sender_id,body) VALUES(c,buyer,'Buyer asks about the test ring.');
@@ -108,6 +110,7 @@ BEGIN
  VALUES(batch,claimant,'https://www.facebook.com/marketplace/profile/legacy-'||owner||'/','https://www.facebook.com/marketplace/item/legacy-'||owner||'/','QA legacy item',4000,'general') RETURNING id INTO legacy_item;
  SELECT * INTO legacy FROM public.register_managed_import_seller('https://www.facebook.com/marketplace/profile/legacy-'||owner||'/','QA existing seller',claimant,actor);
  IF legacy.required_claimant_id<>claimant THEN RAISE EXCEPTION 'Legacy owner not protected';END IF;
+ IF (public.managed_seller_public_status(claimant)->>'managed')::boolean THEN RAISE EXCEPTION 'Legacy preparation relabeled a real storefront';END IF;
  PERFORM public.rotate_seller_claim(legacy.id,repeat('c',64),actor);
  failed:=false;BEGIN PERFORM public.prepare_seller_claim(repeat('c',64),outsider);EXCEPTION WHEN OTHERS THEN failed:=true;END;
  IF NOT failed THEN RAISE EXCEPTION 'Different account claimed existing seller';END IF;

@@ -2086,7 +2086,10 @@ async function buildClassifiedDetail(
       : Promise.resolve(sellerId ? noContact : { ...noContact, allowInternalMessages: true }),
   ]);
   const { data: managed } = sellerId
-    ? await (client as any).rpc("managed_seller_public_status", { _user: sellerId })
+    ? await (client as any).rpc("managed_seller_public_status", {
+        _user: sellerId,
+        _listing: record["id"],
+      })
     : { data: null };
   const isManaged = managed?.managed === true;
   const card = toCard(record, urlByPath);
