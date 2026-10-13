@@ -1205,7 +1205,10 @@ export type Database = {
           conversation_id: string
           created_at: string
           id: string
+          managed_seller_id: string | null
           sender_id: string
+          sender_label: string | null
+          source_inquiry_id: string | null
         }
         Insert: {
           attachment_content_type?: string | null
@@ -1215,7 +1218,10 @@ export type Database = {
           conversation_id: string
           created_at?: string
           id?: string
+          managed_seller_id?: string | null
           sender_id: string
+          sender_label?: string | null
+          source_inquiry_id?: string | null
         }
         Update: {
           attachment_content_type?: string | null
@@ -1225,7 +1231,10 @@ export type Database = {
           conversation_id?: string
           created_at?: string
           id?: string
+          managed_seller_id?: string | null
           sender_id?: string
+          sender_label?: string | null
+          source_inquiry_id?: string | null
         }
         Relationships: [
           {
@@ -1233,6 +1242,20 @@ export type Database = {
             columns: ["conversation_id"]
             isOneToOne: false
             referencedRelation: "conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_messages_managed_seller_id_fkey"
+            columns: ["managed_seller_id"]
+            isOneToOne: false
+            referencedRelation: "managed_import_sellers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_messages_source_inquiry_id_fkey"
+            columns: ["source_inquiry_id"]
+            isOneToOne: true
+            referencedRelation: "listing_inquiries"
             referencedColumns: ["id"]
           },
         ]
@@ -1916,6 +1939,7 @@ export type Database = {
           evidence_paths: string[]
           fulfillment_mode: string
           id: string
+          last_applied_snapshot: Json | null
           listing_id: string | null
           previous_description: string | null
           previous_price_cents: number | null
@@ -1923,11 +1947,13 @@ export type Database = {
           public_paths: string[]
           region: string
           removed_reason: string | null
+          seller_edited: boolean
           seller_id: string | null
           source_profile_url: string
           source_url: string
           state: string
           status: string
+          sync_conflict: string | null
           title: string
           updated_at: string
         }
@@ -1941,6 +1967,7 @@ export type Database = {
           evidence_paths?: string[]
           fulfillment_mode?: string
           id?: string
+          last_applied_snapshot?: Json | null
           listing_id?: string | null
           previous_description?: string | null
           previous_price_cents?: number | null
@@ -1948,11 +1975,13 @@ export type Database = {
           public_paths?: string[]
           region?: string
           removed_reason?: string | null
+          seller_edited?: boolean
           seller_id?: string | null
           source_profile_url?: string
           source_url: string
           state?: string
           status?: string
+          sync_conflict?: string | null
           title: string
           updated_at?: string
         }
@@ -1966,6 +1995,7 @@ export type Database = {
           evidence_paths?: string[]
           fulfillment_mode?: string
           id?: string
+          last_applied_snapshot?: Json | null
           listing_id?: string | null
           previous_description?: string | null
           previous_price_cents?: number | null
@@ -1973,11 +2003,13 @@ export type Database = {
           public_paths?: string[]
           region?: string
           removed_reason?: string | null
+          seller_edited?: boolean
           seller_id?: string | null
           source_profile_url?: string
           source_url?: string
           state?: string
           status?: string
+          sync_conflict?: string | null
           title?: string
           updated_at?: string
         }
@@ -2061,6 +2093,44 @@ export type Database = {
             columns: ["resort_id"]
             isOneToOne: false
             referencedRelation: "resorts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      import_seller_audit: {
+        Row: {
+          action: string
+          actor_id: string
+          created_at: string
+          details: Json
+          id: string
+          managed_seller_id: string
+          target_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_id: string
+          created_at?: string
+          details?: Json
+          id?: string
+          managed_seller_id: string
+          target_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string
+          created_at?: string
+          details?: Json
+          id?: string
+          managed_seller_id?: string
+          target_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "import_seller_audit_managed_seller_id_fkey"
+            columns: ["managed_seller_id"]
+            isOneToOne: false
+            referencedRelation: "managed_import_sellers"
             referencedColumns: ["id"]
           },
         ]
@@ -2511,6 +2581,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      managed_import_sellers: {
+        Row: {
+          authorized_at: string
+          claimed_at: string | null
+          created_at: string
+          display_name: string
+          id: string
+          imported_by: string
+          original_user_id: string
+          owner_user_id: string
+          required_claimant_id: string | null
+          source_profile_url: string
+          sync_enabled: boolean
+        }
+        Insert: {
+          authorized_at?: string
+          claimed_at?: string | null
+          created_at?: string
+          display_name: string
+          id?: string
+          imported_by: string
+          original_user_id: string
+          owner_user_id: string
+          required_claimant_id?: string | null
+          source_profile_url: string
+          sync_enabled?: boolean
+        }
+        Update: {
+          authorized_at?: string
+          claimed_at?: string | null
+          created_at?: string
+          display_name?: string
+          id?: string
+          imported_by?: string
+          original_user_id?: string
+          owner_user_id?: string
+          required_claimant_id?: string | null
+          source_profile_url?: string
+          sync_enabled?: boolean
+        }
+        Relationships: []
       }
       market_match_events: {
         Row: {
@@ -4203,6 +4315,88 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      seller_claim_tokens: {
+        Row: {
+          consumed_at: string | null
+          created_at: string
+          created_by: string
+          expires_at: string
+          id: string
+          managed_seller_id: string
+          revoked_at: string | null
+          token_hash: string
+        }
+        Insert: {
+          consumed_at?: string | null
+          created_at?: string
+          created_by: string
+          expires_at?: string
+          id?: string
+          managed_seller_id: string
+          revoked_at?: string | null
+          token_hash: string
+        }
+        Update: {
+          consumed_at?: string | null
+          created_at?: string
+          created_by?: string
+          expires_at?: string
+          id?: string
+          managed_seller_id?: string
+          revoked_at?: string | null
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seller_claim_tokens_managed_seller_id_fkey"
+            columns: ["managed_seller_id"]
+            isOneToOne: false
+            referencedRelation: "managed_import_sellers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      seller_claim_transfers: {
+        Row: {
+          claim_token_id: string
+          claimant_id: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          lease_until: string
+          manifest: Json
+          status: string
+        }
+        Insert: {
+          claim_token_id: string
+          claimant_id: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          lease_until?: string
+          manifest?: Json
+          status?: string
+        }
+        Update: {
+          claim_token_id?: string
+          claimant_id?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          lease_until?: string
+          manifest?: Json
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seller_claim_transfers_claim_token_id_fkey"
+            columns: ["claim_token_id"]
+            isOneToOne: false
+            referencedRelation: "seller_claim_tokens"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       seller_listing_requests: {
         Row: {
@@ -6105,10 +6299,15 @@ export type Database = {
         }
         Returns: string
       }
+      apply_managed_import_item: {
+        Args: { _actor: string; _item: string; _paths?: string[] }
+        Returns: string
+      }
       approve_revised_max: {
         Args: { _new_max_cents: number; _order_id: string }
         Returns: undefined
       }
+      assert_import_operator: { Args: { _actor: string }; Returns: undefined }
       begin_listing_offer_checkout: {
         Args: { _offer_id: string }
         Returns: string
@@ -6323,6 +6522,30 @@ export type Database = {
         }
         Returns: string
       }
+      create_import_listing: {
+        Args: {
+          _category_id: string
+          _city: string
+          _description: string
+          _evidence_paths: string[]
+          _fulfillment_mode: string
+          _import_actor: string
+          _import_owner: string
+          _item_condition: Database["public"]["Enums"]["item_condition"]
+          _parcel_height_in: number
+          _parcel_length_in: number
+          _parcel_weight_lb: number
+          _parcel_width_in: number
+          _postal_code: string
+          _price_cents: number
+          _public_media_paths: string[]
+          _region: string
+          _seller_note: string
+          _title: string
+          _vehicle?: Json
+        }
+        Returns: string
+      }
       create_listing_inquiry: {
         Args: { _listing_id: string; _message: string }
         Returns: string
@@ -6443,6 +6666,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      finish_seller_claim: {
+        Args: {
+          _accept_terms: boolean
+          _claimant: string
+          _sync: boolean
+          _transfer: string
+        }
+        Returns: undefined
+      }
       flag_seller_review: {
         Args: { _reason?: string; _review_id: string }
         Returns: undefined
@@ -6467,10 +6699,15 @@ export type Database = {
       }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
       is_trusted_operation: { Args: never; Returns: boolean }
+      keep_bluebird_import_version: {
+        Args: { _actor: string; _item: string }
+        Returns: undefined
+      }
       make_listing_offer: {
         Args: { _amount_cents: number; _ask_id: string }
         Returns: string
       }
+      managed_seller_public_status: { Args: { _user: string }; Returns: Json }
       mark_ask_sold: { Args: { _ask_id: string }; Returns: undefined }
       mark_conversation_read: {
         Args: { _conversation_id: string }
@@ -6534,6 +6771,10 @@ export type Database = {
           _variant_id: string
         }
         Returns: string
+      }
+      prepare_seller_claim: {
+        Args: { _claimant: string; _hash: string }
+        Returns: Json
       }
       prepare_sourcing_balance_checkout: {
         Args: {
@@ -6629,6 +6870,34 @@ export type Database = {
         }
         Returns: undefined
       }
+      register_managed_import_seller: {
+        Args: {
+          _actor: string
+          _candidate: string
+          _linked?: boolean
+          _name: string
+          _profile: string
+        }
+        Returns: {
+          authorized_at: string
+          claimed_at: string | null
+          created_at: string
+          display_name: string
+          id: string
+          imported_by: string
+          original_user_id: string
+          owner_user_id: string
+          required_claimant_id: string | null
+          source_profile_url: string
+          sync_enabled: boolean
+        }
+        SetofOptions: {
+          from: "*"
+          to: "managed_import_sellers"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       release_authorized_offer_capture_reservation: {
         Args: {
           _authorization_still_valid: boolean
@@ -6652,6 +6921,14 @@ export type Database = {
       replace_listing_media: {
         Args: { _ask_id: string; _paths: string[] }
         Returns: undefined
+      }
+      reply_managed_import_conversation: {
+        Args: { _actor: string; _body: string; _conversation: string }
+        Returns: string
+      }
+      reply_managed_import_inquiry: {
+        Args: { _actor: string; _body: string; _inquiry: string }
+        Returns: string
       }
       report_conversation: {
         Args: { _conversation_id: string; _reason: string }
@@ -6714,6 +6991,15 @@ export type Database = {
       review_shopper_application: {
         Args: { _application_id: string; _approve: boolean; _note?: string }
         Returns: undefined
+      }
+      rotate_seller_claim: {
+        Args: {
+          _actor: string
+          _hash: string
+          _revoke?: boolean
+          _seller: string
+        }
+        Returns: string
       }
       save_seller_profile: {
         Args: {
@@ -6784,6 +7070,10 @@ export type Database = {
           _conversation_id: string
         }
         Returns: string
+      }
+      set_import_sync: {
+        Args: { _enabled: boolean; _seller: string; _user: string }
+        Returns: undefined
       }
       set_shopper_availability: {
         Args: { _available: boolean; _hours?: number }
