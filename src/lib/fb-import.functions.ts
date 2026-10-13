@@ -105,17 +105,8 @@ async function claimPhotosForSeller(
   sellerId: string,
   stagingPaths: string[],
 ): Promise<string[]> {
-  const claimed: string[] = [];
-  for (const stagingPath of stagingPaths) {
-    const ext = stagingPath.split(".").pop() || "jpg";
-    const newPath = `${sellerId}/${crypto.randomUUID()}.${ext}`;
-    const evidenceCopy = await admin.storage.from("ask-evidence").copy(stagingPath, newPath);
-    if (evidenceCopy.error) throw new Error(`Could not claim photo: ${evidenceCopy.error.message}`);
-    const publicCopy = await admin.storage.from("listing-media").copy(stagingPath, newPath);
-    if (publicCopy.error) throw new Error(`Could not claim photo: ${publicCopy.error.message}`);
-    claimed.push(newPath);
-  }
-  return claimed;
+  const { prepareImportPhotos } = await import("./fb-import-photos.server");
+  return prepareImportPhotos(admin, sellerId, stagingPaths);
 }
 
 type RemovedReason = "sold" | "unavailable" | "missing";
@@ -687,6 +678,33 @@ export const publishFacebookImportItems = createServerFn({ method: "POST" })
         context.userId,
         data.mode === "linked",
       );
+      if (data.mode === "managed" && seller.claimed_at)
+        throw new Error(
+          "This seller already claimed their account. Choose Existing linked seller.",
+        );
+      if (data.mode === "linked") {
+        const [{ data: owner }, { data: setup }] = await Promise.all([
+          admin.auth.admin.getUserById(seller.owner_user_id),
+          admin
+            .from("seller_profiles")
+            .select("terms_accepted_at,status")
+            .eq("user_id", seller.owner_user_id)
+            .maybeSingle(),
+        ]);
+        if (owner?.user?.app_metadata?.managed_import === true)
+          throw new Error(
+            "This seller has not claimed an account yet. Choose New seller — create claim link.",
+          );
+        if (
+          !owner?.user?.email_confirmed_at ||
+          (owner.user.banned_until && Date.parse(owner.user.banned_until) > Date.now()) ||
+          !setup?.terms_accepted_at ||
+          setup.status !== "active"
+        )
+          throw new Error(
+            "The linked seller must verify their email and complete seller setup first.",
+          );
+      }
       let created = 0,
         updated = 0,
         removed = 0;
