@@ -10,6 +10,11 @@
 - [x] Retain category listing sections and show the homepage getting-started card.
 - [x] Verify category homepages and resolve existing page-check errors.
 
+## Vehicles navigation label
+- [x] Rename the header, mobile menu and homepage chip from Cars to Vehicles.
+- [x] Route that link to the whole motors group (cars, trucks, motorcycles, RVs, powersports, trailers) instead of cars only.
+- [x] Match the vehicles landing heading, filter pill and page title; keep the honest empty state.
+
 ## Phase 1 — Foundation (done)
 - [x] Brand config, colors, Sora/Manrope fonts, Gem State mark
 - [x] Classifieds taxonomy + Idaho regions + listing contracts
