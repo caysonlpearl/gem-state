@@ -417,28 +417,30 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
               </span>
             )}
           </div>
-          {(seller.memberSince || seller.sellerType) && (
-            <div className="mt-3 space-y-1 text-[12px]">
+          <div className="mt-3 space-y-1 text-[12px]">
+            <p>
+              <span className="font-semibold">City:</span> {listing.city}
+              {listing.state ? `, ${listing.state}` : ""}
+            </p>
+            {seller.memberSince && (
               <p>
-                <span className="font-semibold">City:</span> {listing.city}
-              </p>
-              {seller.memberSince && (
-                <p>
-                  <span className="font-semibold">Member since:</span> {seller.memberSince}
+                <span className="font-semibold">Member since:</span> {seller.memberSince}
+                {new Date().getFullYear() - seller.memberSince > 0 && (
                   <span className="ml-1 rounded-full bg-brand-warm/20 px-1.5 py-0.5 text-[10px] font-bold text-brand-warm">
                     {new Date().getFullYear() - seller.memberSince} yrs
                   </span>
-                </p>
-              )}
-              {seller.sellerType && (
-                <p>
-                  <span className="font-semibold">Seller type:</span> {seller.sellerType}
-                </p>
-              )}
-            </div>
-          )}
+                )}
+              </p>
+            )}
+            {seller.sellerType && (
+              <p>
+                <span className="font-semibold">Seller type:</span> {seller.sellerType}
+              </p>
+            )}
+          </div>
         </div>
       </div>
+      <ProfileStrength seller={seller} />
       {listing.dealer ? (
         <div className="mt-4 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-[12px]">
           <p className="font-semibold text-primary">
@@ -452,6 +454,14 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
           </p>
         </div>
       ) : null}
+      {listing.dealer?.address && (
+        <p className="mt-3 flex items-start gap-1.5 text-[12px] leading-relaxed text-primary">
+          <MapPin size={14} weight="fill" className="mt-0.5 shrink-0" />
+          {[listing.dealer.address, listing.dealer.city, listing.dealer.state, listing.dealer.postalCode]
+            .filter(Boolean)
+            .join(", ")}
+        </p>
+      )}
       {listing.service?.businessAddress && (
         <p className="mt-3 flex items-start gap-1.5 text-[12px] leading-relaxed text-primary">
           <MapPin size={14} weight="fill" className="mt-0.5 shrink-0" />
@@ -509,6 +519,20 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Contact seller
           </p>
+          {seller.allowInternalMessages !== false && !listing.job ? (
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new Event(OPEN_CONTACT_EVENT))}
+              className="mt-2 block w-full rounded-xl border border-border bg-secondary/40 p-3 text-left transition-colors hover:border-primary"
+            >
+              <span className="block text-[12.5px] italic text-muted-foreground">
+                “Hi, is this still available? I would love to learn more.”
+              </span>
+              <span className="mt-2 flex h-9 items-center justify-center gap-1.5 rounded-md bg-primary text-[12.5px] font-semibold text-primary-foreground">
+                <ChatCircle size={15} aria-hidden="true" /> Message seller
+              </span>
+            </button>
+          ) : null}
           <div className="mt-2 grid grid-cols-2 gap-2">
             {seller.contactTextPhone ? (
               <a
@@ -537,6 +561,16 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
                 <EnvelopeSimple size={15} aria-hidden="true" /> Email
               </a>
             ) : null}
+            {listing.dealer?.website ? (
+              <a
+                href={/^https?:\/\//i.test(listing.dealer.website) ? listing.dealer.website : `https://${listing.dealer.website}`}
+                target="_blank"
+                rel="noreferrer"
+                className={contactLinkClass}
+              >
+                <Globe size={15} aria-hidden="true" /> Website
+              </a>
+            ) : null}
           </div>
           {seller.contactTextPhone || seller.contactPhone || seller.contactEmail ? (
             <p className="mt-2 text-[10.5px] leading-relaxed text-muted-foreground">
@@ -563,6 +597,34 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
         <CaretRight size={15} />
       </Link>
     </section>
+  );
+}
+
+function ProfileStrength({ seller }: { seller: NonNullable<ClassifiedDetail["seller"]> }) {
+  const checks = [
+    Boolean(seller.avatarUrl),
+    Boolean(seller.bio),
+    seller.payoutVerified,
+    seller.reviewCount > 0,
+    Boolean(seller.memberSince && new Date().getFullYear() - seller.memberSince >= 1),
+  ];
+  const score = checks.filter(Boolean).length;
+  const label = score >= 4 ? "Strong" : score >= 2 ? "Good" : "New";
+  return (
+    <div className="mt-4">
+      <div className="flex items-center justify-between text-[12px]">
+        <span className="font-semibold">Profile strength</span>
+        <span className="font-semibold text-primary">{label}</span>
+      </div>
+      <div className="mt-1.5 grid grid-cols-5 gap-1" aria-hidden="true">
+        {checks.map((_, index) => (
+          <span
+            key={index}
+            className={`h-1.5 rounded-full ${index < score ? "bg-primary" : "bg-secondary"}`}
+          />
+        ))}
+      </div>
+    </div>
   );
 }
 
