@@ -32,9 +32,21 @@ BEGIN
  INSERT INTO public.fb_marketplace_import_batches(imported_by,source_profile_url,seller_name) VALUES(actor,seller.source_profile_url,'QA managed seller') RETURNING id INTO batch;
  path:=owner::text||'/qa.jpg';
  INSERT INTO public.fb_marketplace_import_items(batch_id,seller_id,source_profile_url,source_url,title,description,price_cents,condition,category_slug,city,state,region,evidence_paths,public_paths)
- VALUES(batch,owner,seller.source_profile_url,'https://www.facebook.com/marketplace/item/qa-'||owner||'/','QA ring for claim test','A clearly labeled disposable test ring for claim integration testing.',4000,'used_excellent','jewelry-watches','Boise','ID','Treasure Valley',ARRAY[path],ARRAY[path]) RETURNING id INTO item;
+ VALUES(batch,owner,seller.source_profile_url,'https://www.facebook.com/marketplace/item/qa-'||owner||'/','QA ring for claim test','A clearly labeled disposable test ring for claim integration testing.',4000,'used_excellent','jewelry-watches','Boise','ID','',ARRAY[path],ARRAY[path]) RETURNING id INTO item;
+ -- Location failures leave the staged row intact, and non-admins cannot publish.
+ failed:=false;BEGIN PERFORM public.apply_managed_import_item(item,outsider,ARRAY[path]);EXCEPTION WHEN OTHERS THEN failed:=true;END;
+ IF NOT failed THEN RAISE EXCEPTION 'Non-admin publication succeeded';END IF;
+ UPDATE public.fb_marketplace_import_items SET city='' WHERE id=item;
+ failed:=false;BEGIN PERFORM public.apply_managed_import_item(item,actor,ARRAY[path]);EXCEPTION WHEN OTHERS THEN failed:=true;END;
+ IF NOT failed OR (SELECT listing_id FROM public.fb_marketplace_import_items WHERE id=item) IS NOT NULL THEN RAISE EXCEPTION 'Missing-city validation created a listing';END IF;
+ UPDATE public.fb_marketplace_import_items SET city='Boise',state='' WHERE id=item;
+ failed:=false;BEGIN PERFORM public.apply_managed_import_item(item,actor,ARRAY[path]);EXCEPTION WHEN OTHERS THEN failed:=true;END;
+ IF NOT failed THEN RAISE EXCEPTION 'Missing-state validation passed';END IF;
+ UPDATE public.fb_marketplace_import_items SET state='ID' WHERE id=item;
  listing:=public.apply_managed_import_item(item,actor,ARRAY[path]);
- IF (SELECT approved_at FROM public.asks WHERE id=listing) IS NOT NULL THEN RAISE EXCEPTION 'Import bypassed moderation';END IF;
+ IF NOT EXISTS(SELECT 1 FROM public.asks a JOIN public.products p ON p.id=a.product_id WHERE a.id=listing AND a.approved_at IS NOT NULL AND a.approved_by=actor AND p.status='published') THEN RAISE EXCEPTION 'Admin publication did not go live';END IF;
+ IF NOT EXISTS(SELECT 1 FROM public.classified_listing_details WHERE listing_id=listing AND city='Boise' AND state='ID' AND region='ID') THEN RAISE EXCEPTION 'Optional region lost city/state';END IF;
+ IF NOT EXISTS(SELECT 1 FROM public.import_seller_audit WHERE target_id=listing AND action='item_approved' AND actor_id=actor) THEN RAISE EXCEPTION 'Admin approval audit missing';END IF;
  IF (SELECT seller_id FROM public.asks WHERE id=listing)<>owner THEN RAISE EXCEPTION 'Incorrect provisional owner';END IF;
  result:=public.apply_managed_import_item(item,actor,ARRAY[path]);IF result<>listing THEN RAISE EXCEPTION 'Repeated apply duplicated listing';END IF;
  -- Normal seller gate still applies to the provisional identity.

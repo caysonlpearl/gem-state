@@ -597,6 +597,7 @@ export const publishFacebookImportItems = createServerFn({ method: "POST" })
       removed: number;
       errors: number;
       failures: string[];
+      itemFailures: { itemId: string; message: string }[];
       claimUrl?: string;
       expiresAt?: string;
     }> => {
@@ -709,6 +710,7 @@ export const publishFacebookImportItems = createServerFn({ method: "POST" })
         updated = 0,
         removed = 0;
       const failures: string[] = [];
+      const itemFailures: { itemId: string; message: string }[] = [];
       for (const item of items) {
         try {
           if (item.status === "discarded") throw new Error("This listing was discarded.");
@@ -730,13 +732,13 @@ export const publishFacebookImportItems = createServerFn({ method: "POST" })
           else if (item.status === "needs_update") updated++;
           else if (item.status === "possibly_removed") removed++;
         } catch (error) {
-          failures.push(
-            `${item.title}: ${error instanceof Error ? error.message : "Import failed; retry."}`,
-          );
+          const message = error instanceof Error ? error.message : "Import failed; retry.";
+          failures.push(`${item.title}: ${message}`);
+          itemFailures.push({ itemId: item.id, message });
         }
       }
       let link: { url: string; expiresAt: string } | undefined;
-      if (data.mode === "managed" && !seller.claimed_at)
+      if (data.mode === "managed" && !seller.claimed_at && created + updated + removed > 0)
         link = await issueSellerClaimLink(seller.id, context.userId);
       return {
         created,
@@ -744,6 +746,7 @@ export const publishFacebookImportItems = createServerFn({ method: "POST" })
         removed,
         errors: failures.length,
         failures,
+        itemFailures,
         claimUrl: link?.url,
         expiresAt: link?.expiresAt,
       };

@@ -4,7 +4,7 @@ import {
   PrepareSellerClaimButton,
   ClaimLinkResult,
 } from "@/components/seller/ManagedSellerOperations";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -251,7 +251,7 @@ function ImportedSellers() {
                   {profile.sellerName || profile.sourceProfileUrl}
                 </p>
                 <p className="text-[11px] text-muted-foreground">
-                  {profile.publishedCount} published · {profile.openCount} awaiting review · last
+                  {profile.publishedCount} published · {profile.openCount} ready to publish · last
                   refreshed {days === 0 ? "today" : `${days} day${days === 1 ? "" : "s"} ago`}
                 </p>
               </div>
@@ -467,10 +467,14 @@ function ReviewRow({
   item,
   selected,
   onToggleSelected,
+  onDirtyChange,
+  publishError,
 }: {
   item: FbImportItem;
   selected: boolean;
   onToggleSelected: (checked: boolean) => void;
+  onDirtyChange: (id: string, dirty: boolean) => void;
+  publishError?: string;
 }) {
   const queryClient = useQueryClient();
   const keep = useServerFn(keepBluebirdImportVersion);
@@ -494,6 +498,9 @@ function ReviewRow({
   const [state, setState] = useState(item.state);
   const [region, setRegion] = useState(item.region);
   const [dirty, setDirty] = useState(false);
+  useEffect(() => {
+    onDirtyChange(item.id, dirty);
+  }, [dirty, item.id, onDirtyChange]);
 
   const saveMutation = useMutation({
     mutationFn: () =>
@@ -656,7 +663,7 @@ function ReviewRow({
               />
             </label>
             <label className="text-[11px] font-medium sm:col-span-2">
-              Region / area
+              Region / area (optional)
               <input
                 value={region}
                 onChange={(e) => {
@@ -680,6 +687,14 @@ function ReviewRow({
               />
             </label>
           </div>
+          {publishError && (
+            <p
+              role="alert"
+              className="mt-3 rounded-md bg-destructive/10 p-3 text-sm text-destructive"
+            >
+              {publishError}
+            </p>
+          )}
           {item.syncConflict && (
             <div role="alert" className="mt-3 rounded-xl bg-secondary p-3 text-sm">
               <p>{item.syncConflict}</p>
@@ -733,6 +748,18 @@ function FbImportPage() {
   const [authorized, setAuthorized] = useState(false);
   const [claimUrl, setClaimUrl] = useState("");
   const [sellerDisplayName, setSellerDisplayName] = useState("");
+  const [dirtyIds, setDirtyIds] = useState<Set<string>>(new Set());
+  const [publishErrors, setPublishErrors] = useState<Record<string, string>>({});
+  const onDirtyChange = useCallback((id: string, dirty: boolean) => {
+    setDirtyIds((current) => {
+      if (current.has(id) === dirty) return current;
+      const next = new Set(current);
+      if (dirty) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }, []);
+  const hasUnsavedSelection = Array.from(selectedIds).some((id) => dirtyIds.has(id));
 
   // New items default to selected; items that have since been discarded or
   // published drop out of `data` and should drop out of the selection too.
@@ -771,14 +798,24 @@ function FbImportPage() {
       }),
     onSuccess: async (result) => {
       if (result.claimUrl) setClaimUrl(result.claimUrl);
-      if (result.failures?.length) toast.error(result.failures.join("\n"), { duration: 12000 });
+      setPublishErrors(
+        Object.fromEntries(
+          (result.itemFailures ?? []).map((failure) => [failure.itemId, failure.message]),
+        ),
+      );
       await queryClient.invalidateQueries({ queryKey: ["managed-import-sellers"] });
       await queryClient.invalidateQueries({ queryKey: ["fb-import-items"] });
       await queryClient.invalidateQueries({ queryKey: ["fb-import-profiles"] });
-      setSelectedIds(new Set());
-      toast.success(
-        `Created ${result.created}, updated ${result.updated}, removed ${result.removed}. ${result.errors} failed.`,
-      );
+      setSelectedIds(new Set((result.itemFailures ?? []).map((failure) => failure.itemId)));
+      const applied = result.created + result.updated + result.removed;
+      if (result.errors)
+        toast.error(
+          `${result.errors} listing(s) could not publish. Errors appear beside each listing.`,
+        );
+      if (applied)
+        toast.success(
+          `Published ${result.created}, updated ${result.updated}, removed ${result.removed}.`,
+        );
     },
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "Could not publish selected items."),
@@ -819,7 +856,7 @@ function FbImportPage() {
       <section className="rounded-lg border border-border bg-card">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
           <h2 className="text-[13px] font-semibold">
-            Awaiting review{" "}
+            Ready to publish{" "}
             <span className="numeric text-muted-foreground">{data?.length ?? 0}</span>
           </h2>
           <div className="flex flex-wrap items-center gap-2">
@@ -859,7 +896,9 @@ function FbImportPage() {
             <button
               type="button"
               onClick={() => publishMutation.mutate()}
-              disabled={publishMutation.isPending || !selectedIds.size || !authorized}
+              disabled={
+                publishMutation.isPending || !selectedIds.size || !authorized || hasUnsavedSelection
+              }
               className="h-9 rounded-md bg-primary px-3 text-[12px] font-semibold text-primary-foreground disabled:opacity-50"
             >
               {publishMutation.isPending
@@ -887,6 +926,14 @@ function FbImportPage() {
             </button>
           </div>
         </div>
+        <p className="px-4 pt-3 text-xs text-muted-foreground">
+          Admin publishing approves listings and makes them live immediately.
+        </p>
+        {hasUnsavedSelection && (
+          <p role="status" className="px-4 py-3 text-sm text-primary">
+            Save changes on the edited listings before publishing.
+          </p>
+        )}
         {isLoading ? (
           <p className="px-4 py-8 text-[12.5px] text-muted-foreground">Loading…</p>
         ) : !data?.length ? (
@@ -901,6 +948,8 @@ function FbImportPage() {
                 item={item}
                 selected={selectedIds.has(item.id)}
                 onToggleSelected={(checked) => toggleSelected(item.id, checked)}
+                onDirtyChange={onDirtyChange}
+                publishError={publishErrors[item.id]}
               />
             ))}
           </ul>
