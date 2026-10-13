@@ -673,9 +673,9 @@ function TrustSafetyCard({ listing }: { listing: ClassifiedDetail }) {
       <FlagListingDialog listingId={listing.id} isMock={listing.isMock === true} />
       {listing.seller?.payoutVerified && (
         <p className="mt-3 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-          <CheckCircle size={13} weight="fill" className="text-primary" /> Seller account payout
-          identity verified through Bluebird’s payment provider. This does not verify the listing,
-          item condition, ownership, or transaction.
+          <CheckCircle size={13} weight="fill" className="text-primary" /> Payout identity verified
+          through Bluebird’s payment provider. This does not verify the listing, item condition,
+          ownership, or transaction.
         </p>
       )}
       {isVehicle && (
@@ -1138,8 +1138,8 @@ function ListingDetailContent() {
               {vehicle &&
                 !listing.title.toLowerCase().includes(title.toLowerCase()) &&
                 !title.toLowerCase().includes(listing.title.toLowerCase()) && (
-                <p className="mt-1 text-[14px] text-muted-foreground">{listing.title}</p>
-              )}
+                  <p className="mt-1 text-[14px] text-muted-foreground">{listing.title}</p>
+                )}
             </div>
             <div className="flex items-center gap-2">
               <WatchHeartButton
@@ -1189,7 +1189,6 @@ function ListingDetailContent() {
         </header>
 
         <div className="min-w-0 space-y-7 lg:col-start-1 lg:row-start-3">
-
           <section
             className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4"
             aria-label="Key vehicle facts"
@@ -1947,7 +1946,6 @@ function JobListingDetail({
         </header>
 
         <div className="min-w-0 space-y-7 lg:col-start-1 lg:row-start-3">
-
           <section className="soft-card overflow-hidden">
             <div className={listingTabListClass} role="tablist" aria-label="Job information">
               {(["description", "specifications", "map"] as const).map((tab) => (
@@ -2223,7 +2221,6 @@ function ServiceListingDetail({
         </header>
 
         <div className="min-w-0 space-y-7 lg:col-start-1 lg:row-start-3">
-
           <section className="soft-card overflow-hidden">
             <div className={listingTabListClass} role="tablist" aria-label="Service information">
               {(["description", "reviews", "map"] as const).map((tab) => (
@@ -2489,7 +2486,6 @@ function GeneralListingDetail({
         </header>
 
         <div className="min-w-0 space-y-7 lg:col-start-2 lg:row-start-3">
-
           <section className="soft-card overflow-hidden">
             <div className={listingTabListClass} role="tablist" aria-label="Listing information">
               {(["description", "location"] as const).map((tab) => (
