@@ -48,3 +48,6 @@
 - [ ] Restore schema + data + storage into the new project
 - [ ] Re-wire secrets (Stripe, Shippo, webhook secrets, site URL), auth providers, email templates/domains
 - [ ] Verify checkout, sign-in, listing flows end-to-end on the new backend
+
+## Account menu redesign
+- Dropdown: "Signed in as" identity header (avatar/name/email, links to /account), Marketplace group with aligned icons (Selling, Saved, Messages, Notifications) and unread count badges, Account settings row, Sign out action (global sign-out + cache clear) at the bottom. 244px wide, rounded-xl, shared query keys with AccountCenter/NotificationBell.
