@@ -4,7 +4,26 @@ import {
   canonicalFacebookProfile,
   validClaimToken,
   claimLinkStatus,
+  parseSellerClaimFragment,
 } from "../src/lib/seller-claims.ts";
+test("email verification returns retain the private claim alongside provider authentication", () => {
+  const token = "b".repeat(64);
+  for (const marker of ["&", "#", "%23"]) {
+    const value = parseSellerClaimFragment(
+      `#token=${token}${marker}access_token=example-access&refresh_token=example-refresh&type=signup`,
+    );
+    assert.equal(value.token, token);
+    assert.equal(value.accessToken, "example-access");
+    assert.equal(value.refreshToken, "example-refresh");
+  }
+  assert.equal(parseSellerClaimFragment(`#token=${token}`).token, token);
+  assert.equal(parseSellerClaimFragment("#token=bad").token, "");
+  assert.equal(parseSellerClaimFragment("#access_token=example").token, null);
+  assert.equal(
+    parseSellerClaimFragment(`#token=${token}#error=access_denied`).authError,
+    "access_denied",
+  );
+});
 test("seller profiles canonicalize independently of host, trailing slash and tracking", () => {
   for (const url of [
     "https://facebook.com/marketplace/profile/123?ref=foo",

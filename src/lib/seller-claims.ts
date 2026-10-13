@@ -25,3 +25,17 @@ export function claimLinkStatus(
   if (Date.parse(token.expires_at) <= now) return "Expired";
   return "Unclaimed";
 }
+/** Supabase's implicit email return appends a second fragment marker when
+ * redirect_to already carries a private claim token. Keep both secrets out of
+ * query strings while recognizing this actual provider return format. */
+export function parseSellerClaimFragment(hash: string) {
+  const normalized = hash.replace(/^#/, "").replace(/(?:#|%23)(?=access_token=|error=)/g, "&");
+  const params = new URLSearchParams(normalized);
+  const token = params.get("token");
+  return {
+    token: token === null ? null : /^[a-f0-9]{64}$/.test(token) ? token : "",
+    accessToken: params.get("access_token"),
+    refreshToken: params.get("refresh_token"),
+    authError: params.get("error"),
+  };
+}

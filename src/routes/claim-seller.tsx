@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
 import { completeSellerClaim, inspectSellerClaim } from "@/lib/seller-claims.functions";
 import { getAuthRedirectUrl } from "@/lib/auth-redirect";
+import { parseSellerClaimFragment } from "@/lib/seller-claims";
 
 export const Route = createFileRoute("/claim-seller")({
   head: () => ({
@@ -19,9 +20,8 @@ export const Route = createFileRoute("/claim-seller")({
 const KEY = "bluebird_pending_seller_claim";
 function readToken() {
   if (typeof window === "undefined") return "";
-  const fragment = new URLSearchParams(window.location.hash.slice(1));
-  const value = fragment.get("token");
-  if (value !== null && !/^[a-f0-9]{64}$/.test(value)) return "";
+  const { token: value } = parseSellerClaimFragment(window.location.hash);
+  if (value === "") return "";
   if (value && /^[a-f0-9]{64}$/.test(value)) {
     sessionStorage.setItem(KEY, value);
     return value;
@@ -34,6 +34,27 @@ function ClaimSeller() {
   const [token, setToken] = useState(readToken);
   useEffect(() => {
     setToken(readToken());
+  }, [location.hash]);
+  useEffect(() => {
+    const returned = parseSellerClaimFragment(window.location.hash);
+    if (!returned.accessToken || !returned.refreshToken) return;
+    // Remove authentication credentials immediately; the private claim remains.
+    window.history.replaceState(
+      null,
+      "",
+      `/claim-seller${returned.token ? `#token=${returned.token}` : ""}`,
+    );
+    void supabase.auth
+      .setSession({
+        access_token: returned.accessToken,
+        refresh_token: returned.refreshToken,
+      })
+      .then(({ error }) => {
+        if (error)
+          setError(
+            "Your email was verified, but sign-in did not finish. Sign in below to continue.",
+          );
+      });
   }, [location.hash]);
   const inspect = useServerFn(inspectSellerClaim);
   const complete = useServerFn(completeSellerClaim);
