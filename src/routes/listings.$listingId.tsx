@@ -28,6 +28,8 @@ import {
   ShieldCheck,
   Star,
   Truck,
+  ChatCircle,
+  Globe,
   Wrench,
 } from "@phosphor-icons/react";
 
@@ -36,6 +38,7 @@ import { formatUsd } from "@/config/fees";
 import { BluebirdEmptyState } from "@/components/layout/BluebirdEmptyState";
 import { ListingActions } from "@/components/classifieds/ListingActions";
 import { MobileContactBar } from "@/components/classifieds/MobileContactBar";
+import { OPEN_CONTACT_EVENT } from "@/components/classifieds/ContactSignInSheet";
 import { listingIdFromParam, listingParam, listingPath } from "@/lib/listing-url";
 import { trackEvent, trackSellerContact } from "@/lib/analytics";
 import { PUBLIC_PAGE_STALE_MS } from "@/lib/query-freshness";
