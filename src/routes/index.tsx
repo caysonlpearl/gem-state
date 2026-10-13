@@ -75,8 +75,6 @@ const seeAll =
   "inline-flex min-h-11 shrink-0 items-center gap-1 text-[12.5px] font-semibold text-primary hover:underline";
 
 const HOMEPAGE_ROW_SIZE = 4;
-const HOMEPAGE_MIN_ROW = 3;
-const HOMEPAGE_THIN_INVENTORY = 12;
 
 const homepageCategoryHighlights = [
   { slug: "all", name: "All items" },
@@ -601,24 +599,21 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
   );
 
   // Every row below draws from the same small pool, so without this the same
-  // few listings repeat row after row and the site reads as empty. Each
-  // listing appears at most once on the page, and a row too thin to look
-  // intentional is hidden. Rows claim listings in the order they render.
+  // few listings repeat row after row. Each listing appears at most once on
+  // the page; rows claim up to four listings in the order they render, and a
+  // row with nothing left shows the "just getting started" card instead.
   const allLocalListings = [...localRecent];
   for (const listing of localMotors) {
     if (!allLocalListings.some((existing) => existing.id === listing.id)) {
       allLocalListings.push(listing);
     }
   }
-  const thinInventory = allLocalListings.length < HOMEPAGE_THIN_INVENTORY;
   const leadMotors = localMotors.slice(0, HOMEPAGE_ROW_SIZE);
-  const shownIds = new Set<string>(thinInventory ? [] : leadMotors.map((listing) => listing.id));
+  const shownIds = new Set<string>(leadMotors.map((listing) => listing.id));
   const pick = (candidates: ClassifiedsHome["recent"]) => {
-    if (thinInventory) return [];
     const unseen = candidates
       .filter((listing) => !shownIds.has(listing.id))
       .slice(0, HOMEPAGE_ROW_SIZE);
-    if (unseen.length < HOMEPAGE_MIN_ROW) return [];
     for (const listing of unseen) shownIds.add(listing.id);
     return unseen;
   };
@@ -656,39 +651,10 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
   );
   const valueFinds = pick(generalSource.filter((listing) => listing.priceCents <= 10_000));
   const localSellerPicks = pick(localRecent);
-  const feedStart = thinInventory
-    ? []
-    : allLocalListings.filter((listing) => !shownIds.has(listing.id));
+  const feedStart = allLocalListings.filter((listing) => !shownIds.has(listing.id));
 
   return (
     <>
-      {thinInventory ? (
-        <section className="mt-12" aria-labelledby="newest-listings-heading">
-          <div className="flex items-end justify-between gap-4 border-b border-border pb-3">
-            <h2 id="newest-listings-heading" className="text-[26px] font-bold tracking-tight">
-              Newest listings
-            </h2>
-            {allLocalListings.length ? (
-              <Link to="/browse" search={withLocation({ allCategories: true })} className={seeAll}>
-                See all <ArrowRight size={12} />
-              </Link>
-            ) : null}
-          </div>
-          {allLocalListings.length ? (
-            <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
-              {allLocalListings.map((listing) => (
-                <ListingCard key={listing.id} listing={listing} />
-              ))}
-            </div>
-          ) : (
-            <EmptyState
-              title="Bluebird is just getting started."
-              body="New listings from Idaho sellers show up here as soon as they're posted. Have something to sell? Be one of the first."
-            />
-          )}
-        </section>
-      ) : null}
-
       {/* Motors lead */}
       <section className="mt-14">
         <div className="flex items-end justify-between gap-4">
@@ -721,7 +687,7 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
             </Link>
           ))}
         </div>
-        {thinInventory ? null : leadMotors.length > 0 ? (
+        {leadMotors.length > 0 ? (
           <div className="no-scrollbar mt-5 flex gap-4 overflow-x-auto pb-2 lg:grid lg:grid-cols-4 lg:overflow-visible">
             {leadMotors.map((listing) => (
               <div key={listing.id} className="min-w-[235px] lg:min-w-0">
@@ -731,8 +697,8 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
           </div>
         ) : (
           <EmptyState
-            title="No vehicles are listed yet."
-            body="Vehicle listings appear here as soon as Idaho sellers post them and they pass review."
+            title={EMPTY_ROW_TITLE}
+            body="Vehicle listings show up here as soon as Idaho sellers post them. Have one to sell? Be one of the first."
           />
         )}
       </section>
@@ -921,15 +887,13 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
         action="See more local listings"
       />
 
-      {thinInventory ? null : (
-        <HomeFeed
-          key={JSON.stringify(feedLocation)}
-          initial={feedStart}
-          shownIds={shownIds}
-          hasMore={home.totalActive > home.recent.length}
-          location={feedLocation}
-        />
-      )}
+      <HomeFeed
+        key={JSON.stringify(feedLocation)}
+        initial={feedStart}
+        shownIds={shownIds}
+        hasMore={home.totalActive > home.recent.length}
+        location={feedLocation}
+      />
 
       <section className="soft-card mt-16 px-6 py-8 sm:px-8">
         <h2 className="text-[20px] font-bold tracking-tight">Have something to sell?</h2>
@@ -961,8 +925,6 @@ function HomepageListingRow({
   search: HomepageBrowseSearch;
   action: string;
 }) {
-  if (listings.length === 0) return null;
-
   return (
     <section
       className="mt-16"
@@ -982,13 +944,17 @@ function HomepageListingRow({
           {action} <ArrowRight size={12} />
         </Link>
       </div>
-      <div className="no-scrollbar mt-5 flex gap-4 overflow-x-auto pb-2 lg:grid lg:grid-cols-4 lg:overflow-visible">
-        {listings.slice(0, HOMEPAGE_ROW_SIZE).map((listing) => (
-          <div key={listing.id} className="min-w-[235px] lg:min-w-0">
-            <ListingCard listing={listing} />
-          </div>
-        ))}
-      </div>
+      {listings.length > 0 ? (
+        <div className="no-scrollbar mt-5 flex gap-4 overflow-x-auto pb-2 lg:grid lg:grid-cols-4 lg:overflow-visible">
+          {listings.slice(0, HOMEPAGE_ROW_SIZE).map((listing) => (
+            <div key={listing.id} className="min-w-[235px] lg:min-w-0">
+              <ListingCard listing={listing} />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <EmptyState title={EMPTY_ROW_TITLE} body={EMPTY_ROW_BODY} />
+      )}
     </section>
   );
 }
@@ -1103,6 +1069,10 @@ function HomepageInfoBand({
     </section>
   );
 }
+
+const EMPTY_ROW_TITLE = "Bluebird is just getting started.";
+const EMPTY_ROW_BODY =
+  "New listings from Idaho sellers show up here as soon as they're posted. Have something to sell? Be one of the first.";
 
 function EmptyState({ title, body }: { title: string; body: string }) {
   return <BluebirdEmptyState className="mt-5" title={title} description={body} />;
