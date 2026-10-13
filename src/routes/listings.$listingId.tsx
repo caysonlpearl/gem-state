@@ -33,6 +33,7 @@ import {
 
 import { brand } from "@/config/brand";
 import { formatUsd } from "@/config/fees";
+import { BluebirdEmptyState } from "@/components/layout/BluebirdEmptyState";
 import { ListingActions } from "@/components/classifieds/ListingActions";
 import { MobileContactBar } from "@/components/classifieds/MobileContactBar";
 import { listingIdFromParam, listingParam, listingPath } from "@/lib/listing-url";
@@ -208,18 +209,19 @@ export const Route = createFileRoute("/listings/$listingId")({
 
 function ListingMissing() {
   return (
-    <main className="mx-auto max-w-[720px] px-4 py-16 text-center sm:px-6">
-      <h1 className="text-[21px] font-semibold tracking-tight">This listing is no longer live</h1>
-      <p className="mx-auto mt-2 max-w-[46ch] text-[13px] leading-relaxed text-muted-foreground">
-        It may have sold, expired, or been removed by the seller.
-      </p>
-      <Link
-        to="/browse"
-        search={{}}
-        className="mt-5 inline-flex h-10 items-center rounded-md bg-primary px-4 text-[13px] font-semibold text-primary-foreground"
+    <main className="mx-auto max-w-[760px] px-4 py-14 sm:px-6">
+      <BluebirdEmptyState
+        title="This listing is no longer live"
+        description="It may have sold, expired, or been removed by the seller."
       >
-        Browse all listings
-      </Link>
+        <Link
+          to="/browse"
+          search={{}}
+          className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-[13px] font-semibold text-primary-foreground"
+        >
+          Browse all listings
+        </Link>
+      </BluebirdEmptyState>
     </main>
   );
 }
@@ -671,9 +673,9 @@ function TrustSafetyCard({ listing }: { listing: ClassifiedDetail }) {
       <FlagListingDialog listingId={listing.id} isMock={listing.isMock === true} />
       {listing.seller?.payoutVerified && (
         <p className="mt-3 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-          <CheckCircle size={13} weight="fill" className="text-primary" /> Seller account
-          payout identity verified through Bluebird’s payment provider. This does not verify the
-          listing, item condition, ownership, or transaction.
+          <CheckCircle size={13} weight="fill" className="text-primary" /> Seller account payout
+          identity verified through Bluebird’s payment provider. This does not verify the listing,
+          item condition, ownership, or transaction.
         </p>
       )}
       {isVehicle && (

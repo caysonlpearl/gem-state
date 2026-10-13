@@ -18,6 +18,7 @@ import {
   submitSellerReview,
 } from "@/lib/seller.functions";
 import { SellerListingGrid } from "@/components/market/SellerListingGrid";
+import { BluebirdEmptyState } from "@/components/layout/BluebirdEmptyState";
 import { useAuth } from "@/hooks/useAuth";
 
 const sellerQuery = (slug: string) =>
@@ -50,11 +51,15 @@ export const Route = createFileRoute("/sellers/$slug")({
     ],
   }),
   notFoundComponent: () => (
-    <main className="mx-auto max-w-[720px] px-4 py-20 text-center">
-      <h1 className="font-editorial text-[34px]">Seller not found</h1>
-      <Link to="/browse" search={{}} className="mt-4 inline-block underline">
-        Browse listings
-      </Link>
+    <main className="mx-auto max-w-[760px] px-4 py-14">
+      <BluebirdEmptyState
+        title="Seller not found"
+        description="This seller profile is unavailable or the link is out of date."
+      >
+        <Link to="/browse" search={{}} className="inline-flex h-10 items-center underline">
+          Browse listings
+        </Link>
+      </BluebirdEmptyState>
     </main>
   ),
 });

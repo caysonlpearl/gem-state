@@ -12,6 +12,7 @@ import {
 import type { PublicListing } from "@/lib/seller.functions";
 import { useAuth } from "@/hooks/useAuth";
 import { ParkVaultCheckoutFlow } from "@/components/market/ParkVaultCheckoutFlow";
+import { BluebirdEmptyState } from "@/components/layout/BluebirdEmptyState";
 
 const conditions: Record<string, string> = {
   new_with_tags: "New with tags",
@@ -30,7 +31,13 @@ export function SellerListingGrid({
   const [selected, setSelected] = useState<PublicListing | null>(null);
 
   if (listings.length === 0) {
-    return <p className="text-[12.5px] text-muted-foreground">No active seller listings yet.</p>;
+    return (
+      <BluebirdEmptyState
+        title="No active seller listings yet."
+        description="This seller will appear here as soon as an approved listing is available."
+        className="max-w-2xl"
+      />
+    );
   }
   return (
     <>

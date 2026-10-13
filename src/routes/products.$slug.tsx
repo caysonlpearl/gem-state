@@ -21,6 +21,7 @@ import { WatchButton } from "@/components/community/WatchButton";
 import { WatcherCount } from "@/components/community/WatcherCount";
 import { ProductGallery } from "@/components/catalog/ProductGallery";
 import { TrustBadges } from "@/components/catalog/TrustBadges";
+import { BluebirdEmptyState } from "@/components/layout/BluebirdEmptyState";
 
 const productQuery = (slug: string) =>
   queryOptions({
@@ -114,18 +115,19 @@ export const Route = createFileRoute("/products/$slug")({
   },
   component: ProductPage,
   notFoundComponent: () => (
-    <div className="mx-auto max-w-[720px] px-4 py-20 text-center sm:px-6">
-      <h1 className="text-[20px] font-semibold tracking-tight">Product not found</h1>
-      <p className="mt-2 text-[13.5px] text-muted-foreground">
-        This product is not published, or the link is out of date.
-      </p>
-      <Link
-        to="/browse"
-        className="mt-5 inline-flex h-10 items-center rounded-md bg-primary px-4 text-[13.5px] font-medium text-primary-foreground"
+    <main className="mx-auto max-w-[760px] px-4 py-14 sm:px-6">
+      <BluebirdEmptyState
+        title="Product not found"
+        description="This product is not published, or the link is out of date."
       >
-        Back to the catalog
-      </Link>
-    </div>
+        <Link
+          to="/browse"
+          className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-[13.5px] font-medium text-primary-foreground"
+        >
+          Back to the catalog
+        </Link>
+      </BluebirdEmptyState>
+    </main>
   ),
 });
 
@@ -181,18 +183,19 @@ function ProductPage() {
 
   if (!product) {
     return (
-      <main className="mx-auto max-w-[720px] px-4 py-20 text-center sm:px-6">
-        <h1 className="text-[20px] font-semibold tracking-tight">Product not found</h1>
-        <p className="mt-2 text-[13.5px] text-muted-foreground">
-          This product is not published, or the link is out of date.
-        </p>
-        <Link
-          to="/browse"
-          search={{}}
-          className="mt-5 inline-flex h-10 items-center rounded-md bg-primary px-4 text-[13.5px] font-medium text-primary-foreground"
+      <main className="mx-auto max-w-[760px] px-4 py-14 sm:px-6">
+        <BluebirdEmptyState
+          title="Product not found"
+          description="This product is not published, or the link is out of date."
         >
-          Back to the catalog
-        </Link>
+          <Link
+            to="/browse"
+            search={{}}
+            className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-[13.5px] font-medium text-primary-foreground"
+          >
+            Back to the catalog
+          </Link>
+        </BluebirdEmptyState>
       </main>
     );
   }

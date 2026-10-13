@@ -6,6 +6,7 @@ import { ArrowRight, Star } from "@phosphor-icons/react";
 import { toast } from "sonner";
 
 import { SellerCenterNav } from "@/components/seller/SellerCenterNav";
+import { BluebirdEmptyState } from "@/components/layout/BluebirdEmptyState";
 import { formatUsd } from "@/config/fees";
 import { trackEvent } from "@/lib/analytics";
 import { getSellerListingInquiries } from "@/lib/classified-inquiry.functions";
@@ -154,8 +155,7 @@ function SellingPage() {
       toast.error(error instanceof Error ? error.message : "Could not update the status."),
   });
   const viewResumeMutation = useMutation({
-    mutationFn: (applicationId: string) =>
-      fetchApplicationResumeUrl({ data: { applicationId } }),
+    mutationFn: (applicationId: string) => fetchApplicationResumeUrl({ data: { applicationId } }),
     onSuccess: (result) => window.open(result.url, "_blank", "noopener,noreferrer"),
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "Could not open the resume."),
@@ -432,18 +432,18 @@ function SellingPage() {
         !missingRequests.isLoading &&
         asks.length === 0 &&
         heldRequests.length === 0 ? (
-          <div className="border-b border-border py-8">
-            <p className="text-[13px] font-semibold">No listings yet</p>
-            <p className="mt-1 text-[12px] text-muted-foreground">
-              Create one listing for the specific item you want to sell.
-            </p>
+          <BluebirdEmptyState
+            className="mt-5 max-w-3xl"
+            title="No listings yet"
+            description="Create one listing for the specific item you want to sell."
+          >
             <Link
               to="/create-listing"
-              className="mt-4 inline-flex h-10 items-center gap-2 border border-foreground px-4 text-[12px] font-medium"
+              className="inline-flex h-10 items-center gap-2 border border-foreground px-4 text-[12px] font-medium"
             >
               Create your first listing <ArrowRight size={14} />
             </Link>
-          </div>
+          </BluebirdEmptyState>
         ) : null}
 
         {tabListings.length > 0 ? (

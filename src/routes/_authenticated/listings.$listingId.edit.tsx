@@ -7,6 +7,7 @@ import {
   ListingFormBackLink,
 } from "@/components/classifieds/listing-form/ListingForm";
 import { getClassifiedListingEditor } from "@/lib/classifieds.functions";
+import { BluebirdEmptyState } from "@/components/layout/BluebirdEmptyState";
 
 export const Route = createFileRoute("/_authenticated/listings/$listingId/edit")({
   component: ListingEditorPage,
@@ -30,8 +31,11 @@ function ListingEditorPage() {
     );
   if (!listing.data)
     return (
-      <main className="mx-auto max-w-[760px] px-4 py-12">
-        <h1 className="text-[20px] font-semibold">Listing not found</h1>
+      <main className="mx-auto max-w-[760px] px-4 py-14">
+        <BluebirdEmptyState
+          title="Listing not found"
+          description="This listing may have been removed or you may not have access to it."
+        />
       </main>
     );
 

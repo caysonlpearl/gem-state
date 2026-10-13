@@ -38,7 +38,10 @@ import { fieldsForClassifiedItem } from "@/config/classified-item-fields";
 import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { AllCategoriesPopover } from "@/components/classifieds/AllCategoriesPopover";
 import { ListingCard, ListingRow } from "@/components/classifieds/ListingCard";
-import { LocationRadiusPicker, type LocationPoint } from "@/components/classifieds/LocationRadiusPicker";
+import {
+  LocationRadiusPicker,
+  type LocationPoint,
+} from "@/components/classifieds/LocationRadiusPicker";
 import {
   conditionLabels,
   formatSavedSearchFilter,
@@ -52,6 +55,7 @@ import {
 import { trackEvent, traceMutation } from "@/lib/analytics";
 import { createSavedSearch, updateSavedSearch } from "@/lib/account-center.functions";
 import { SavedSearchNameDialog } from "@/components/classifieds/SavedSearchNameDialog";
+import { BluebirdEmptyState } from "@/components/layout/BluebirdEmptyState";
 import { toast } from "sonner";
 import {
   comparableJobPay,
@@ -455,9 +459,12 @@ const mileageBandOptions = [
 ] as const;
 const splitVehicleFilter = (value: string | undefined) => value?.split("||").filter(Boolean) ?? [];
 const normalizeMultiSelect = (value: string | undefined) =>
-  value?.split(/\|\||,/).map((item) => item.trim()).filter(Boolean).join("||") ?? "";
-const hasSearchValue = (value: unknown) =>
-  value !== undefined && value !== null && value !== "";
+  value
+    ?.split(/\|\||,/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .join("||") ?? "";
+const hasSearchValue = (value: unknown) => value !== undefined && value !== null && value !== "";
 const modelsForMakes = (makes: readonly string[]) =>
   [...new Set(makes.flatMap((make) => vehicleModelsByMake[make] ?? []))].sort();
 const vehicleConditionOptions = [
@@ -1818,9 +1825,10 @@ export const Route = createFileRoute("/browse")({
       jobCategory: stringParam(search, "jobCategory", 60),
       jobEmployer: stringParam(search, "jobEmployer", 120),
       jobEmploymentType: undefined,
-      jobType: normalizeMultiSelect(
-        stringParam(search, "jobType", 40) ?? stringParam(search, "jobEmploymentType", 40),
-      ) || undefined,
+      jobType:
+        normalizeMultiSelect(
+          stringParam(search, "jobType", 40) ?? stringParam(search, "jobEmploymentType", 40),
+        ) || undefined,
       jobPayType: stringParam(search, "jobPayType", 30),
       jobPayMin: numberParam(search, "jobPayMin"),
       jobPayMax: numberParam(search, "jobPayMax"),
@@ -1902,18 +1910,19 @@ export const Route = createFileRoute("/browse")({
   },
   component: Browse,
   errorComponent: ({ reset }) => (
-    <main className="mx-auto max-w-[720px] px-4 py-16 text-center sm:px-6">
-      <h1 className="text-[20px] font-semibold tracking-tight">The classifieds did not load</h1>
-      <p className="mx-auto mt-2 max-w-[46ch] text-[13px] leading-relaxed text-muted-foreground">
-        The connection dropped before the listings finished loading. Nothing was lost — try again.
-      </p>
-      <button
-        type="button"
-        onClick={reset}
-        className="mt-5 inline-flex h-10 items-center rounded-md border border-input px-4 text-[13px] font-semibold hover:bg-secondary"
+    <main className="mx-auto max-w-[760px] px-4 py-14 sm:px-6">
+      <BluebirdEmptyState
+        title="The classifieds did not load"
+        description="The connection dropped before the listings finished loading. Nothing was lost — try again."
       >
-        Retry
-      </button>
+        <button
+          type="button"
+          onClick={reset}
+          className="inline-flex h-10 items-center rounded-md border border-input px-4 text-[13px] font-semibold hover:bg-secondary"
+        >
+          Retry
+        </button>
+      </BluebirdEmptyState>
     </main>
   ),
 });
@@ -3132,19 +3141,19 @@ function Browse() {
             </div>
 
             {result.listings.length === 0 ? (
-              <div className="soft-card mt-5 px-5 py-12 text-center">
-                <p className="text-[14px] font-medium">No listings match these filters.</p>
-                <p className="mx-auto mt-1.5 max-w-md text-[13px] leading-relaxed text-muted-foreground">
-                  {noResultsHint}
-                </p>
+              <BluebirdEmptyState
+                className="mt-5"
+                title="No listings match these filters."
+                description={noResultsHint}
+              >
                 <Link
                   to="/browse"
                   search={clearSearch()}
-                  className="mt-4 inline-flex h-9 items-center rounded-md border border-input px-3 text-[12px] font-semibold hover:bg-secondary"
+                  className="inline-flex h-9 items-center rounded-md border border-input px-3 text-[12px] font-semibold hover:bg-secondary"
                 >
                   Clear filters
                 </Link>
-              </div>
+              </BluebirdEmptyState>
             ) : search.view === "list" ? (
               <ul className="mt-5 space-y-4">
                 {shownListings.map((listing) => (
@@ -6132,7 +6141,12 @@ function SponsoredHeroBadge() {
       <span className="min-w-0 flex-1 whitespace-normal text-[9px] font-bold uppercase leading-snug tracking-[0.1em] text-accent sm:text-[10px] sm:tracking-[0.12em]">
         Sponsored by Bluebird Marketplace
       </span>
-      <ArrowRight size={15} weight="bold" className="ml-1 shrink-0 text-accent" aria-hidden="true" />
+      <ArrowRight
+        size={15}
+        weight="bold"
+        className="ml-1 shrink-0 text-accent"
+        aria-hidden="true"
+      />
     </Link>
   );
 }
@@ -6850,19 +6864,19 @@ function ServicesFilterPage({
             </label>
           </div>
           {sortedListings.length === 0 ? (
-            <div className="soft-card mt-5 px-5 py-12 text-center">
-              <p className="text-[14px] font-medium">No services match these filters.</p>
-              <p className="mx-auto mt-1.5 max-w-md text-[13px] leading-relaxed text-muted-foreground">
-                Try widening your subcategory, price range, or search terms.
-              </p>
+            <BluebirdEmptyState
+              className="mt-5"
+              title="No services match these filters."
+              description="Try widening your subcategory, price range, or search terms."
+            >
               <button
                 type="button"
                 onClick={onClear}
-                className="mt-4 inline-flex h-9 items-center rounded-md border border-input px-3 text-[12px] font-semibold hover:bg-secondary"
+                className="inline-flex h-9 items-center rounded-md border border-input px-3 text-[12px] font-semibold hover:bg-secondary"
               >
                 Clear filters
               </button>
-            </div>
+            </BluebirdEmptyState>
           ) : (
             <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
               {sortedListings.map((listing) => (
@@ -7424,19 +7438,19 @@ function JobsFilterPage({
             </label>
           </div>
           {sortedListings.length === 0 ? (
-            <div className="soft-card mt-5 px-5 py-12 text-center">
-              <p className="text-[14px] font-medium">No jobs match these filters.</p>
-              <p className="mx-auto mt-1.5 max-w-md text-[13px] leading-relaxed text-muted-foreground">
-                Try widening your job type, pay range, or search terms.
-              </p>
+            <BluebirdEmptyState
+              className="mt-5"
+              title="No jobs match these filters."
+              description="Try widening your job type, pay range, or search terms."
+            >
               <button
                 type="button"
                 onClick={onClear}
-                className="mt-4 inline-flex h-9 items-center rounded-md border border-input px-3 text-[12px] font-semibold hover:bg-secondary"
+                className="inline-flex h-9 items-center rounded-md border border-input px-3 text-[12px] font-semibold hover:bg-secondary"
               >
                 Clear filters
               </button>
-            </div>
+            </BluebirdEmptyState>
           ) : (
             <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {sortedListings.map((listing) => (
@@ -8310,7 +8324,11 @@ function VehicleResultsPage({
       state: state || undefined,
       city: isPostalCode(city) ? undefined : city.trim() || undefined,
       postalCode: isPostalCode(city) ? city.trim() : undefined,
-      radiusMiles: isPostalCode(city) ? undefined : city.trim() || mapPoint ? radiusMiles : undefined,
+      radiusMiles: isPostalCode(city)
+        ? undefined
+        : city.trim() || mapPoint
+          ? radiusMiles
+          : undefined,
       latitude: mapPoint?.latitude,
       longitude: mapPoint?.longitude,
     };
@@ -8584,7 +8602,8 @@ function VehicleResultsPage({
             </VehicleFilterGroup>
             <VehicleFilterGroup title="Location">
               <p className="text-[11px] leading-relaxed text-muted-foreground">
-                Start with a city or ZIP code. Region and state are optional broader browsing controls.
+                Start with a city or ZIP code. Region and state are optional broader browsing
+                controls.
               </p>
               <select
                 aria-label="Region"
@@ -8642,7 +8661,8 @@ function VehicleResultsPage({
                 />
               ) : null}
               <label className="block text-[11px] font-medium text-muted-foreground">
-                Distance radius: <span className="font-semibold text-foreground">{radiusMiles} miles</span>
+                Distance radius:{" "}
+                <span className="font-semibold text-foreground">{radiusMiles} miles</span>
                 <input
                   type="range"
                   min="5"
@@ -8654,7 +8674,9 @@ function VehicleResultsPage({
                   disabled={(!city.trim() && !mapPoint) || isPostalCode(city)}
                 />
                 {isPostalCode(city) ? (
-                  <span className="mt-1 block font-normal">ZIP searches match that ZIP; use a city for distance.</span>
+                  <span className="mt-1 block font-normal">
+                    ZIP searches match that ZIP; use a city for distance.
+                  </span>
                 ) : null}
               </label>
             </VehicleFilterGroup>
@@ -8687,12 +8709,11 @@ function VehicleResultsPage({
             </label>
           </div>
           {result.listings.length === 0 ? (
-            <div className="soft-card mt-5 px-5 py-12 text-center">
-              <p className="text-[14px] font-medium">No cars match these filters.</p>
-              <p className="mt-1.5 text-[13px] text-muted-foreground">
-                Try widening your year, price, make, model, or location choices.
-              </p>
-            </div>
+            <BluebirdEmptyState
+              className="mt-5"
+              title="No cars match these filters."
+              description="Try widening your year, price, make, model, or location choices."
+            />
           ) : (
             <ul className="mt-5 grid grid-cols-2 gap-x-4 gap-y-9 md:grid-cols-3 xl:grid-cols-4">
               {result.listings.map((listing) => (
@@ -9605,7 +9626,8 @@ function InlineLocationFilter({
       ) : null}
       {isPostalCode(city) ? (
         <p className="rounded-xl bg-secondary px-3 py-2 text-[11px] text-muted-foreground">
-          ZIP searches match <strong className="text-foreground">{city.trim()}</strong>. Use a city when you want a distance radius.
+          ZIP searches match <strong className="text-foreground">{city.trim()}</strong>. Use a city
+          when you want a distance radius.
         </p>
       ) : null}
       <label className="block text-[11px] font-medium text-muted-foreground">
@@ -9628,7 +9650,11 @@ function InlineLocationFilter({
             state: state || undefined,
             city: isPostalCode(city) ? undefined : city.trim() || undefined,
             postalCode: isPostalCode(city) ? city.trim() : undefined,
-            radiusMiles: isPostalCode(city) ? undefined : city.trim() || mapPoint ? radiusMiles : undefined,
+            radiusMiles: isPostalCode(city)
+              ? undefined
+              : city.trim() || mapPoint
+                ? radiusMiles
+                : undefined,
             latitude: mapPoint?.latitude,
             longitude: mapPoint?.longitude,
           })
@@ -9719,7 +9745,8 @@ function BrowseLocationFields({ search }: { search: Search }) {
       ) : null}
       {isPostalCode(city) ? (
         <p className="rounded-xl bg-secondary px-3 py-2 text-[11px] text-muted-foreground">
-          ZIP searches match <strong className="text-foreground">{city.trim()}</strong>. Use a city when you want a distance radius.
+          ZIP searches match <strong className="text-foreground">{city.trim()}</strong>. Use a city
+          when you want a distance radius.
         </p>
       ) : null}
       <label className="block text-[11px] font-medium text-muted-foreground">
@@ -9820,9 +9847,7 @@ function activeFilterLabels(search: Search, motors: boolean, pets: boolean) {
   }
   if (search.latitude != null && search.longitude != null && search.radiusMiles != null) {
     const nearest = nearestClassifiedCity(search.latitude, search.longitude);
-    labels.push(
-      `${nearest?.city ?? "Map point"} · within ${search.radiusMiles} miles`,
-    );
+    labels.push(`${nearest?.city ?? "Map point"} · within ${search.radiusMiles} miles`);
   } else if (search.city && search.radiusMiles != null)
     labels.push(`${search.city} · within ${search.radiusMiles} miles`);
   else if (search.city) labels.push(`City · ${search.city}`);
@@ -9843,12 +9868,10 @@ function activeFilterLabels(search: Search, motors: boolean, pets: boolean) {
     if (search.yearMin != null || search.yearMax != null)
       labels.push(`${search.yearMin ?? "Any"}–${search.yearMax ?? "Any"}`);
     if (search.bodyStyle) labels.push(formatSavedSearchFilter("bodyStyle", search.bodyStyle));
-    if (search.titleStatus)
-      labels.push(formatSavedSearchFilter("titleStatus", search.titleStatus));
+    if (search.titleStatus) labels.push(formatSavedSearchFilter("titleStatus", search.titleStatus));
     if (search.transmission)
       labels.push(formatSavedSearchFilter("transmission", search.transmission));
-    if (search.drivetrain)
-      labels.push(formatSavedSearchFilter("drivetrain", search.drivetrain));
+    if (search.drivetrain) labels.push(formatSavedSearchFilter("drivetrain", search.drivetrain));
     if (search.fuelType) labels.push(formatSavedSearchFilter("fuelType", search.fuelType));
     if (search.exteriorColor)
       labels.push(formatSavedSearchFilter("exteriorColor", search.exteriorColor));

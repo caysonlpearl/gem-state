@@ -2,6 +2,7 @@ import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 
 import { ListingCard } from "@/components/classifieds/ListingCard";
+import { BluebirdEmptyState } from "@/components/layout/BluebirdEmptyState";
 import { getPublicDealer } from "@/lib/dealer.functions";
 
 const dealerQuery = (slug: string) =>
@@ -33,14 +34,15 @@ export const Route = createFileRoute("/dealers/$slug")({
   }),
   component: DealerPage,
   notFoundComponent: () => (
-    <main className="mx-auto max-w-[760px] px-4 py-20 text-center">
-      <h1 className="font-editorial text-[34px]">Dealership not found</h1>
-      <p className="mt-2 text-sm text-muted-foreground">
-        This storefront is unavailable or still being verified.
-      </p>
-      <Link to="/browse" search={{}} className="mt-5 inline-block underline">
-        Browse listings
-      </Link>
+    <main className="mx-auto max-w-[760px] px-4 py-14">
+      <BluebirdEmptyState
+        title="Dealership not found"
+        description="This storefront is unavailable or still being verified."
+      >
+        <Link to="/browse" search={{}} className="inline-flex h-10 items-center underline">
+          Browse listings
+        </Link>
+      </BluebirdEmptyState>
     </main>
   ),
 });
@@ -123,9 +125,11 @@ function DealerPage() {
             ))}
           </div>
         ) : (
-          <p className="border border-dashed border-input bg-card p-5 text-[13px] text-muted-foreground">
-            This dealership has no active inventory right now.
-          </p>
+          <BluebirdEmptyState
+            title="No active inventory right now"
+            description="This dealership will show vehicles here as soon as inventory is approved."
+            className="max-w-3xl"
+          />
         )}
       </section>
     </main>

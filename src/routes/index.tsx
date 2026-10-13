@@ -15,6 +15,7 @@ import {
 } from "@/config/classifieds";
 import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { ListingCard } from "@/components/classifieds/ListingCard";
+import { BluebirdEmptyState } from "@/components/layout/BluebirdEmptyState";
 import type { LocationPoint } from "@/components/classifieds/LocationRadiusPicker";
 import {
   browseClassifieds,
@@ -1102,12 +1103,5 @@ function HomepageInfoBand({
 }
 
 function EmptyState({ title, body }: { title: string; body: string }) {
-  return (
-    <div className="soft-card mt-5 px-5 py-12 text-center">
-      <p className="text-[14px] font-semibold">{title}</p>
-      <p className="mx-auto mt-1.5 max-w-[52ch] text-[12.5px] leading-relaxed text-muted-foreground">
-        {body}
-      </p>
-    </div>
-  );
+  return <BluebirdEmptyState className="mt-5" title={title} description={body} />;
 }

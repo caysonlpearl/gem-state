@@ -4,6 +4,7 @@ import { Star } from "@phosphor-icons/react";
 
 import { formatUsd } from "@/config/fees";
 import { getPublicShopper } from "@/lib/shopper.functions";
+import { BluebirdEmptyState } from "@/components/layout/BluebirdEmptyState";
 
 const shopperQuery = (slug: string) =>
   queryOptions({
@@ -36,19 +37,27 @@ export const Route = createFileRoute("/shoppers/$slug")({
     ],
   }),
   errorComponent: () => (
-    <main className="mx-auto max-w-[720px] px-4 py-20 text-center">
-      <h1 className="font-editorial text-[32px]">This shopper profile could not be loaded</h1>
-      <Link to="/browse" search={{}} className="mt-4 inline-block underline">
-        Browse products
-      </Link>
+    <main className="mx-auto max-w-[760px] px-4 py-14">
+      <BluebirdEmptyState
+        title="This shopper profile could not be loaded"
+        description="Something went wrong while loading this profile. Please try again or browse products."
+      >
+        <Link to="/browse" search={{}} className="inline-flex h-10 items-center underline">
+          Browse products
+        </Link>
+      </BluebirdEmptyState>
     </main>
   ),
   notFoundComponent: () => (
-    <main className="mx-auto max-w-[720px] px-4 py-20 text-center">
-      <h1 className="font-editorial text-[34px]">Shopper not found</h1>
-      <Link to="/browse" search={{}} className="mt-4 inline-block underline">
-        Browse products
-      </Link>
+    <main className="mx-auto max-w-[760px] px-4 py-14">
+      <BluebirdEmptyState
+        title="Shopper not found"
+        description="This profile is unavailable or the link is out of date."
+      >
+        <Link to="/browse" search={{}} className="inline-flex h-10 items-center underline">
+          Browse products
+        </Link>
+      </BluebirdEmptyState>
     </main>
   ),
 });
