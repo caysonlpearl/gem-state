@@ -33,6 +33,7 @@ import { formatUsd } from "@/config/fees";
 import { SavedSearchNameDialog } from "@/components/classifieds/SavedSearchNameDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { trackEvent } from "@/lib/analytics";
+import { getAuthRedirectUrl } from "@/lib/auth-redirect";
 import { formatSavedSearchFilter, formatSavedSearchScope } from "@/lib/classifieds-display";
 import {
   getMyAccount,
@@ -1287,7 +1288,7 @@ function SettingsSection({
     }
     const redirect = `${window.location.origin}/account?section=settings`;
     const { error } = await supabase.auth.resetPasswordForEmail(account.email, {
-      redirectTo: `${window.location.origin}/auth?mode=reset&redirect=${encodeURIComponent(redirect)}`,
+      redirectTo: getAuthRedirectUrl(`/auth?mode=reset&redirect=${encodeURIComponent(redirect)}`),
     });
     if (error) {
       toast.error(error.message);

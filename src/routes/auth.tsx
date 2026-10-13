@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { brand } from "@/config/brand";
 import { supabase } from "@/integrations/supabase/client";
+import { getAuthRedirectUrl } from "@/lib/auth-redirect";
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (search: Record<string, unknown>): AuthSearch => {
@@ -166,7 +167,7 @@ function AuthPage() {
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/auth?redirect=${encodeURIComponent(redirect)}`,
+            emailRedirectTo: getAuthRedirectUrl(`/auth?redirect=${encodeURIComponent(redirect)}`),
             data: { display_name: displayName || email.split("@")[0] },
           },
         });
@@ -194,7 +195,7 @@ function AuthPage() {
     setBusy(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth?mode=reset&redirect=${encodeURIComponent(redirect)}`,
+        redirectTo: getAuthRedirectUrl(`/auth?mode=reset&redirect=${encodeURIComponent(redirect)}`),
       });
       if (error) throw error;
       toast.success("Password reset email sent. Check your inbox.");
@@ -234,7 +235,7 @@ function AuthPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${window.location.origin}/auth?redirect=${encodeURIComponent(redirect)}`,
+          redirectTo: getAuthRedirectUrl(`/auth?redirect=${encodeURIComponent(redirect)}`),
         },
       });
       if (error) {

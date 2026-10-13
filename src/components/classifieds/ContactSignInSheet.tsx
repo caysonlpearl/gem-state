@@ -9,6 +9,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { supabase } from "@/integrations/supabase/client";
+import { getAuthRedirectUrl } from "@/lib/auth-redirect";
 
 /** Fired by the mobile contact bar; ListingActions opens the message form. */
 export const OPEN_CONTACT_EVENT = "bluebird:open-contact";
@@ -78,7 +79,9 @@ export function ContactSignInSheet({
     try {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: `${window.location.origin}/auth?redirect=${returnTo}` },
+        options: {
+          redirectTo: getAuthRedirectUrl(`/auth?redirect=${returnTo}`),
+        },
       });
       if (error) toast.error("Google sign-in failed. Try email instead.");
     } finally {
