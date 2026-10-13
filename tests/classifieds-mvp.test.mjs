@@ -994,8 +994,8 @@ test("mobile menu trigger uses a visible Bluebird brand treatment", () => {
   );
 });
 
-test("site favicon uses the intentional Bluebird bird badge", () => {
-  assert.match(rootSource, /rel: "icon", href: "\/images\/brand\/bluebird-favicon\.png", type: "image\/png"/);
+test("site favicon uses the enlarged transparent Bluebird bird", () => {
+  assert.match(rootSource, /rel: "icon", href: "\/images\/brand\/bluebird-favicon-transparent\.png", type: "image\/png"/);
 });
 
 test("classified cards use category-aware price and fulfillment language", () => {

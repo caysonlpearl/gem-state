@@ -97,7 +97,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: "/images/brand/bluebird-favicon.png", type: "image/png" },
+      { rel: "icon", href: "/images/brand/bluebird-favicon-transparent.png", type: "image/png" },
       // The two fonts nearly every page paints first, fetched alongside the CSS.
       {
         rel: "preload",
