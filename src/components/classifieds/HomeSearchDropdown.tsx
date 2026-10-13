@@ -63,7 +63,7 @@ export function HomeSearchDropdown({ value, onChange, options, label, placeholde
           </PopoverTrigger>}
         </div>
       </PopoverAnchor>
-      <PopoverContent align="start" sideOffset={8} className="w-[var(--radix-popover-trigger-width)] min-w-[var(--radix-popover-anchor-width)] p-1" onOpenAutoFocus={(event) => {
+      <PopoverContent align="start" sideOffset={8} className="w-72 max-w-[calc(100vw-2rem)] p-1" onOpenAutoFocus={(event) => {
         event.preventDefault();
         if (!editable) menuRef.current?.querySelector<HTMLButtonElement>("[role=option]")?.focus();
       }} onCloseAutoFocus={(event) => { if (editable) event.preventDefault(); }}>
