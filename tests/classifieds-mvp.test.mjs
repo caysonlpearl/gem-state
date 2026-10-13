@@ -922,7 +922,8 @@ test("browse heroes surface the Bluebird sponsorship opportunity", () => {
   assert.doesNotMatch(browseSource, /eyebrow\.replace\("GemList ", ""\)/);
   assert.match(browseSource, /to="\/advertise"/);
   assert.match(browseSource, /min-h-\[430px\]/);
-  assert.match(browseSource, /min-h-\[500px\]/);
+  // The classifieds hero hugs its content — no fixed 500px floor leaves dead space.
+  assert.doesNotMatch(browseSource, /min-h-\[500px\]/);
   assert.match(browseSource, /Bluebird Marketplace Classifieds/);
   assert.match(browseSource, /Bluebird Marketplace Homes/);
   assert.match(browseSource, /Bluebird Marketplace Services/);
@@ -967,9 +968,13 @@ test("shared category icons and no-photo cards have deterministic presentation",
 
 test("header categories show four primary destinations and an All items control", () => {
   assert.match(headerSource, /featuredHeaderCategories = \[/);
-  for (const label of ["Cars", "Homes", "Jobs", "Services"]) {
+  for (const label of ["Vehicles", "Homes", "Jobs", "Services"]) {
     assert.match(headerSource, new RegExp(`name: "${label.replace(/&/g, "\\&")}"`));
   }
+  // The Vehicles pill covers the whole motors group, not just cars & trucks.
+  assert.match(headerSource, /slug: "cars-trucks", name: "Vehicles", group: "motors"/);
+  assert.match(headerSource, /\{ group: c\.group \}/);
+  assert.match(browseSource, /search\.group === "motors" \? "Vehicles"/);
   assert.match(headerSource, /aria-label="All items"/);
   assert.match(headerSource, /<span>All items<\/span>/);
   assert.doesNotMatch(headerSource, /Scroll categories left/);
