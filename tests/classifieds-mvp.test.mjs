@@ -922,7 +922,8 @@ test("browse heroes surface the Bluebird sponsorship opportunity", () => {
   assert.doesNotMatch(browseSource, /eyebrow\.replace\("GemList ", ""\)/);
   assert.match(browseSource, /to="\/advertise"/);
   assert.match(browseSource, /min-h-\[430px\]/);
-  assert.match(browseSource, /min-h-\[500px\]/);
+  // The classifieds hero hugs its content — no fixed 500px floor leaves dead space.
+  assert.doesNotMatch(browseSource, /min-h-\[500px\]/);
   assert.match(browseSource, /Bluebird Marketplace Classifieds/);
   assert.match(browseSource, /Bluebird Marketplace Homes/);
   assert.match(browseSource, /Bluebird Marketplace Services/);
