@@ -38,7 +38,10 @@ export const Route = createFileRoute("/_authenticated/admin/fb-import")({
 const conditions = [
   ["new_with_tags", "New"],
   ["new_without_tags", "New, no tags"],
-  ["used_excellent", "Used — excellent"],
+  // Facebook calls this grade "Used - Like New"; it maps to Bluebird's
+  // existing used_excellent enum without changing the marketplace-wide
+  // condition taxonomy.
+  ["used_excellent", "Used — like new"],
   ["used_good", "Used — good"],
 ] as const;
 
