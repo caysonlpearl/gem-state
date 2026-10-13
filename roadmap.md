@@ -1,5 +1,10 @@
 # Gem State Classifieds conversion
 
+## Current category homepage cleanup
+- [ ] Remove fabricated category listing cards without deleting database rows.
+- [ ] Retain category listing sections and show the homepage getting-started card.
+- [ ] Verify category homepages and resolve existing page-check errors.
+
 ## Phase 1 — Foundation (done)
 - [x] Brand config, colors, Sora/Manrope fonts, Gem State mark
 - [x] Classifieds taxonomy + Idaho regions + listing contracts
