@@ -1922,6 +1922,7 @@ export type Database = {
           price_cents: number
           public_paths: string[]
           region: string
+          removed_reason: string | null
           seller_id: string | null
           source_profile_url: string
           source_url: string
@@ -1946,6 +1947,7 @@ export type Database = {
           price_cents: number
           public_paths?: string[]
           region?: string
+          removed_reason?: string | null
           seller_id?: string | null
           source_profile_url?: string
           source_url: string
@@ -1970,6 +1972,7 @@ export type Database = {
           price_cents?: number
           public_paths?: string[]
           region?: string
+          removed_reason?: string | null
           seller_id?: string | null
           source_profile_url?: string
           source_url?: string
@@ -6455,7 +6458,6 @@ export type Database = {
           primary_intent: string
         }[]
       }
-      mark_ask_sold: { Args: { _ask_id: string }; Returns: undefined }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -6469,6 +6471,7 @@ export type Database = {
         Args: { _amount_cents: number; _ask_id: string }
         Returns: string
       }
+      mark_ask_sold: { Args: { _ask_id: string }; Returns: undefined }
       mark_conversation_read: {
         Args: { _conversation_id: string }
         Returns: undefined
