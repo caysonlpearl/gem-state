@@ -2,7 +2,7 @@
 BEGIN;
 DO $$
 DECLARE
- legacy public.managed_import_sellers; legacy_item uuid;
+ legacy public.managed_import_sellers; legacy_item uuid; staged_item uuid;
  actor uuid; owner uuid:=gen_random_uuid(); buyer uuid:=gen_random_uuid(); claimant uuid:=gen_random_uuid(); outsider uuid:=gen_random_uuid();
  seller public.managed_import_sellers; token text:=repeat('a',64); item uuid; batch uuid; listing uuid; category uuid;
  c uuid; msg uuid; transfer jsonb; snapshot jsonb; before_count integer; result uuid; failed boolean; path text;
@@ -54,6 +54,8 @@ BEGIN
  failed:=false;BEGIN PERFORM public.prepare_seller_claim(token,outsider);EXCEPTION WHEN OTHERS THEN failed:=true;END;
  IF NOT failed THEN RAISE EXCEPTION 'Unverified email claimed listings';END IF;
  UPDATE auth.users SET email_confirmed_at=now() WHERE id=outsider;
+ INSERT INTO public.fb_marketplace_import_items(batch_id,seller_id,source_profile_url,source_url,title,price_cents,category_slug,evidence_paths,public_paths)
+ VALUES(batch,owner,seller.source_profile_url,'https://www.facebook.com/marketplace/item/staged-'||owner||'/','QA staged claim item',1000,'general',ARRAY['_staging/'||owner||'/qa.jpg'],ARRAY['_staging/'||owner||'/qa.jpg']) RETURNING id INTO staged_item;
  transfer:=public.prepare_seller_claim(token,claimant);
  failed:=false;BEGIN INSERT INTO public.fb_marketplace_import_batches(imported_by,source_profile_url) VALUES(actor,seller.source_profile_url);EXCEPTION WHEN OTHERS THEN failed:=true;END;
  IF NOT failed THEN RAISE EXCEPTION 'Staging bypassed claim lease';END IF;
@@ -74,6 +76,7 @@ BEGIN
  IF (SELECT sender_id FROM public.conversation_messages WHERE id=msg)<>actor THEN RAISE EXCEPTION 'Historical sender rewritten';END IF;
  IF NOT EXISTS(SELECT 1 FROM public.seller_profiles WHERE user_id=claimant AND terms_version='seller-v1' AND terms_accepted_at IS NOT NULL) THEN RAISE EXCEPTION 'Actual agreement not recorded';END IF;
  IF NOT EXISTS(SELECT 1 FROM public.profiles WHERE id=claimant AND display_name='QA managed seller') THEN RAISE EXCEPTION 'Claim did not create public seller identity';END IF;
+ IF NOT EXISTS(SELECT 1 FROM public.fb_marketplace_import_items WHERE id=staged_item AND seller_id=claimant AND split_part(evidence_paths[1],'/',1)=claimant::text AND split_part(public_paths[1],'/',1)=claimant::text) THEN RAISE EXCEPTION 'Staged photo ownership did not transfer';END IF;
  failed:=false;BEGIN PERFORM public.reply_managed_import_conversation(c,actor,'Must not be allowed after claim');EXCEPTION WHEN OTHERS THEN failed:=true;END;
  IF NOT failed THEN RAISE EXCEPTION 'Routine admin inbox retained after claim';END IF;
  failed:=false;BEGIN PERFORM public.prepare_seller_claim(token,outsider);EXCEPTION WHEN OTHERS THEN failed:=true;END;
