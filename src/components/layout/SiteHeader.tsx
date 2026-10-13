@@ -151,6 +151,16 @@ export function SiteHeader() {
     void navigate({ to: "/browse", search: { q: term.trim() || undefined } });
   }
 
+  async function signOut() {
+    setAccountMenuOpen(false);
+    await queryClient.cancelQueries();
+    queryClient.clear();
+    const supabase = await loadSupabase();
+    await supabase.auth.signOut({ scope: "global" });
+    await navigate({ to: "/", replace: true });
+  }
+
+
   return (
     <header className="sticky top-0 z-40 overflow-visible border-0 bg-card/95 backdrop-blur">
       <a
