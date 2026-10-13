@@ -3,6 +3,7 @@ import { ArrowRight } from "@phosphor-icons/react";
 
 import { brand } from "@/config/brand";
 import { guides } from "@/content/guides";
+import { GUIDE_COVER_IMAGE } from "@/lib/structured-data";
 
 const title = `Idaho buying and selling guides — ${brand.name}`;
 const description =
@@ -16,6 +17,8 @@ export const Route = createFileRoute("/guides/")({
       { property: "og:title", content: title },
       { property: "og:description", content: description },
       { property: "og:type", content: "website" },
+      { property: "og:image", content: `${brand.urls.siteUrl}${GUIDE_COVER_IMAGE}` },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: GuidesIndex,

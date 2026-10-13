@@ -353,6 +353,8 @@ function escapeHtml(text: string) {
     .replace(/"/g, "&quot;");
 }
 
+export const GUIDE_COVER_IMAGE = "/images/guides/guides-cover.jpg";
+
 /** Article, FAQ and breadcrumbs for an Idaho guide. */
 export function guideStructuredData(guide: {
   slug: string;
@@ -377,8 +379,10 @@ export function guideStructuredData(guide: {
       description: guide.description,
       url: absolute(path),
       mainEntityOfPage: absolute(path),
-      datePublished: guide.published,
-      dateModified: guide.reviewed,
+      // Dates carry Idaho's (Mountain) time zone, as Google recommends.
+      datePublished: `${guide.published}T09:00:00-06:00`,
+      dateModified: `${guide.reviewed}T09:00:00-06:00`,
+      image: [absolute(GUIDE_COVER_IMAGE)],
       author: organization,
       publisher: {
         ...organization,
