@@ -34,7 +34,7 @@ import {
   normalizePetSpecies,
   normalizePetSubcategory,
 } from "@/config/pets";
-import { fieldsForClassifiedItem } from "@/config/classified-item-fields";
+import { fieldsForClassifiedItem, industrialSubcategories } from "@/config/classified-item-fields";
 import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { AllCategoriesPopover } from "@/components/classifieds/AllCategoriesPopover";
 import { ListingCard, ListingRow } from "@/components/classifieds/ListingCard";
@@ -2047,6 +2047,23 @@ function Browse() {
 
                       {search.category && itemCategorySlugs.has(search.category) && (
                         <FilterSection title="Category details">
+                          {search.category === "industrial" ? (
+                            <>
+                              <input type="hidden" name="itemDetailKey" value="itemType" />
+                              <select
+                                name="itemDetailValue"
+                                aria-label="Industrial subcategory"
+                                defaultValue={search.itemDetailValue ?? ""}
+                                className="filter-input"
+                              >
+                                <option value="">All Industrial subcategories</option>
+                                {industrialSubcategories.map((subcategory) => (
+                                  <option key={subcategory} value={subcategory}>{subcategory}</option>
+                                ))}
+                              </select>
+                            </>
+                          ) : (
+                            <>
                           <select
                             name="itemDetailKey"
                             defaultValue={search.itemDetailKey ?? ""}
@@ -2066,6 +2083,8 @@ function Browse() {
                             className="filter-input"
                             maxLength={200}
                           />
+                            </>
+                          )}
                         </FilterSection>
                       )}
 

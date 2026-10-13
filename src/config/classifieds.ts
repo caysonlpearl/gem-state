@@ -674,6 +674,7 @@ export const classifiedCategories = [
   { slug: "office-business", name: "Office & Business", group: "classifieds" },
   { slug: "tickets-events", name: "Tickets & Events", group: "classifieds" },
   { slug: "tools-equipment", name: "Tools & Equipment", group: "classifieds" },
+  { slug: "industrial", name: "Industrial", group: "classifieds" },
   { slug: "outdoor-sporting", name: "Outdoor & Sporting", group: "classifieds" },
   { slug: "farm-garden", name: "Farm & Garden", group: "classifieds" },
   { slug: "general", name: "General", group: "classifieds" },

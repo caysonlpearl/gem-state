@@ -1,5 +1,10 @@
 # Gem State Classifieds conversion
 
+## Industrial category
+- [x] Add Industrial to every category selector and register it for listing creation.
+- [x] Add the 22 supplied subcategories to create/edit/display and browse filtering.
+- [x] Verify category navigation and existing marketplace tests (93 passing); authenticated submission unavailable on external Supabase.
+
 ## Current category homepage cleanup
 - [x] Remove fabricated category listing cards without deleting database rows.
 - [x] Retain category listing sections and show the homepage getting-started card.
