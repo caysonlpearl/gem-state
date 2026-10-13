@@ -402,7 +402,7 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
             {seller.payoutVerified && (
               <span
                 className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary"
-                title="Bluebird verified this seller's payout identity with its payment provider. This does not verify the listing, item condition, ownership, or transaction."
+                title="Payout identity verified through Bluebird’s payment provider. This does not verify the listing, item condition, ownership, or transaction."
               >
                 <CheckCircle size={12} weight="fill" /> Verified seller
               </span>
