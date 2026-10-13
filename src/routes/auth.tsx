@@ -455,11 +455,11 @@ function AuthPage() {
               </button>
             </form>
 
-            <div className="mt-3 flex flex-wrap items-center justify-center gap-x-5 gap-y-1">
+            <div className="mt-3 flex flex-wrap items-stretch justify-center gap-2.5">
               <button
                 type="button"
                 onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-                className="text-[12px] text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                className="inline-flex h-11 min-w-0 flex-1 items-center justify-center rounded-full border border-input bg-card px-4 text-[12.5px] font-medium transition-colors hover:bg-secondary"
               >
                 {mode === "signin"
                   ? "Need an account? Create one"
@@ -469,7 +469,7 @@ function AuthPage() {
                 <button
                   type="button"
                   onClick={() => setMode("forgot")}
-                  className="text-[12px] text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                  className="inline-flex h-11 min-w-0 flex-1 items-center justify-center rounded-full border border-input bg-card px-4 text-[12.5px] font-medium transition-colors hover:bg-secondary"
                 >
                   Forgot password?
                 </button>
