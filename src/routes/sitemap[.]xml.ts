@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { brand } from "@/config/brand";
+import { guides } from "@/content/guides";
 import { idahoCities, idahoRegions } from "@/config/classifieds";
 import { listingPath } from "@/lib/listing-url";
 import {
@@ -16,6 +17,7 @@ const STATIC_PATHS: { path: string; changefreq: string; priority: string }[] = [
   { path: "/sell", changefreq: "monthly", priority: "0.6" },
   { path: "/safety", changefreq: "monthly", priority: "0.5" },
   { path: "/glossary", changefreq: "monthly", priority: "0.5" },
+  { path: "/guides", changefreq: "weekly", priority: "0.6" },
   { path: "/policies", changefreq: "monthly", priority: "0.3" },
   { path: "/contact", changefreq: "yearly", priority: "0.3" },
 ];
@@ -134,6 +136,9 @@ export const Route = createFileRoute("/sitemap.xml")({
         const entries = [
           ...STATIC_PATHS.map(({ path, changefreq, priority }) =>
             urlEntry(path, { changefreq, priority }),
+          ),
+          ...guides.map((guide) =>
+            urlEntry(`/guides/${guide.slug}`, { lastmod: guide.reviewed, priority: "0.7" }),
           ),
           ...pages
             .passing()

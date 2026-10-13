@@ -38,6 +38,8 @@ import { Route as AuthenticatedShopperPayoutsRouteImport } from './routes/_authe
 import { Route as AuthenticatedSuggestRouteImport } from './routes/_authenticated/suggest'
 import { Route as AuthenticatedWatchlistRouteImport } from './routes/_authenticated/watchlist'
 import { Route as DealersSlugRouteImport } from './routes/dealers.$slug'
+import { Route as GuidesIndexRouteImport } from './routes/guides.index'
+import { Route as GuidesSlugRouteImport } from './routes/guides.$slug'
 import { Route as ListingsListingIdRouteImport } from './routes/listings.$listingId'
 import { Route as ProductsSlugRouteImport } from './routes/products.$slug'
 import { Route as SellersSlugRouteImport } from './routes/sellers.$slug'
@@ -214,6 +216,16 @@ const AuthenticatedWatchlistRoute = AuthenticatedWatchlistRouteImport.update({
 const DealersSlugRoute = DealersSlugRouteImport.update({
   id: '/dealers/$slug',
   path: '/dealers/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuidesIndexRoute = GuidesIndexRouteImport.update({
+  id: '/guides/',
+  path: '/guides/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuidesSlugRoute = GuidesSlugRouteImport.update({
+  id: '/guides/$slug',
+  path: '/guides/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ListingsListingIdRoute = ListingsListingIdRouteImport.update({
@@ -399,10 +411,12 @@ export interface FileRoutesByFullPath {
   '/suggest': typeof AuthenticatedSuggestRoute
   '/watchlist': typeof AuthenticatedWatchlistRoute
   '/dealers/$slug': typeof DealersSlugRoute
+  '/guides/$slug': typeof GuidesSlugRoute
   '/listings/$listingId': typeof ListingsListingIdRoute
   '/products/$slug': typeof ProductsSlugRoute
   '/sellers/$slug': typeof SellersSlugRoute
   '/shoppers/$slug': typeof ShoppersSlugRoute
+  '/guides/': typeof GuidesIndexRoute
   '/admin/catalog': typeof AuthenticatedAdminCatalogRoute
   '/admin/classifieds': typeof AuthenticatedAdminClassifiedsRoute
   '/admin/conversation-reports': typeof AuthenticatedAdminConversationReportsRoute
@@ -455,10 +469,12 @@ export interface FileRoutesByTo {
   '/suggest': typeof AuthenticatedSuggestRoute
   '/watchlist': typeof AuthenticatedWatchlistRoute
   '/dealers/$slug': typeof DealersSlugRoute
+  '/guides/$slug': typeof GuidesSlugRoute
   '/listings/$listingId': typeof ListingsListingIdRoute
   '/products/$slug': typeof ProductsSlugRoute
   '/sellers/$slug': typeof SellersSlugRoute
   '/shoppers/$slug': typeof ShoppersSlugRoute
+  '/guides': typeof GuidesIndexRoute
   '/admin/catalog': typeof AuthenticatedAdminCatalogRoute
   '/admin/classifieds': typeof AuthenticatedAdminClassifiedsRoute
   '/admin/conversation-reports': typeof AuthenticatedAdminConversationReportsRoute
@@ -514,10 +530,12 @@ export interface FileRoutesById {
   '/_authenticated/suggest': typeof AuthenticatedSuggestRoute
   '/_authenticated/watchlist': typeof AuthenticatedWatchlistRoute
   '/dealers/$slug': typeof DealersSlugRoute
+  '/guides/$slug': typeof GuidesSlugRoute
   '/listings/$listingId': typeof ListingsListingIdRoute
   '/products/$slug': typeof ProductsSlugRoute
   '/sellers/$slug': typeof SellersSlugRoute
   '/shoppers/$slug': typeof ShoppersSlugRoute
+  '/guides/': typeof GuidesIndexRoute
   '/_authenticated/admin/catalog': typeof AuthenticatedAdminCatalogRoute
   '/_authenticated/admin/classifieds': typeof AuthenticatedAdminClassifiedsRoute
   '/_authenticated/admin/conversation-reports': typeof AuthenticatedAdminConversationReportsRoute
@@ -573,10 +591,12 @@ export interface FileRouteTypes {
     | '/suggest'
     | '/watchlist'
     | '/dealers/$slug'
+    | '/guides/$slug'
     | '/listings/$listingId'
     | '/products/$slug'
     | '/sellers/$slug'
     | '/shoppers/$slug'
+    | '/guides/'
     | '/admin/catalog'
     | '/admin/classifieds'
     | '/admin/conversation-reports'
@@ -629,10 +649,12 @@ export interface FileRouteTypes {
     | '/suggest'
     | '/watchlist'
     | '/dealers/$slug'
+    | '/guides/$slug'
     | '/listings/$listingId'
     | '/products/$slug'
     | '/sellers/$slug'
     | '/shoppers/$slug'
+    | '/guides'
     | '/admin/catalog'
     | '/admin/classifieds'
     | '/admin/conversation-reports'
@@ -687,10 +709,12 @@ export interface FileRouteTypes {
     | '/_authenticated/suggest'
     | '/_authenticated/watchlist'
     | '/dealers/$slug'
+    | '/guides/$slug'
     | '/listings/$listingId'
     | '/products/$slug'
     | '/sellers/$slug'
     | '/shoppers/$slug'
+    | '/guides/'
     | '/_authenticated/admin/catalog'
     | '/_authenticated/admin/classifieds'
     | '/_authenticated/admin/conversation-reports'
@@ -732,10 +756,12 @@ export interface RootRouteChildren {
   SellRoute: typeof SellRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   DealersSlugRoute: typeof DealersSlugRoute
+  GuidesSlugRoute: typeof GuidesSlugRoute
   ListingsListingIdRoute: typeof ListingsListingIdRoute
   ProductsSlugRoute: typeof ProductsSlugRoute
   SellersSlugRoute: typeof SellersSlugRoute
   ShoppersSlugRoute: typeof ShoppersSlugRoute
+  GuidesIndexRoute: typeof GuidesIndexRoute
   ApiInternalDealerInventoryRoute: typeof ApiInternalDealerInventoryRoute
   ApiInternalSavedSearchesRoute: typeof ApiInternalSavedSearchesRoute
   IdahoPlaceCategoryRoute: typeof IdahoPlaceCategoryRoute
@@ -950,6 +976,20 @@ declare module '@tanstack/react-router' {
       path: '/dealers/$slug'
       fullPath: '/dealers/$slug'
       preLoaderRoute: typeof DealersSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guides/': {
+      id: '/guides/'
+      path: '/guides'
+      fullPath: '/guides/'
+      preLoaderRoute: typeof GuidesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guides/$slug': {
+      id: '/guides/$slug'
+      path: '/guides/$slug'
+      fullPath: '/guides/$slug'
+      preLoaderRoute: typeof GuidesSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/listings/$listingId': {
@@ -1238,10 +1278,12 @@ const rootRouteChildren: RootRouteChildren = {
   SellRoute: SellRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   DealersSlugRoute: DealersSlugRoute,
+  GuidesSlugRoute: GuidesSlugRoute,
   ListingsListingIdRoute: ListingsListingIdRoute,
   ProductsSlugRoute: ProductsSlugRoute,
   SellersSlugRoute: SellersSlugRoute,
   ShoppersSlugRoute: ShoppersSlugRoute,
+  GuidesIndexRoute: GuidesIndexRoute,
   ApiInternalDealerInventoryRoute: ApiInternalDealerInventoryRoute,
   ApiInternalSavedSearchesRoute: ApiInternalSavedSearchesRoute,
   IdahoPlaceCategoryRoute: IdahoPlaceCategoryRoute,

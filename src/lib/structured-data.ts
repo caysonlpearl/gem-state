@@ -352,3 +352,55 @@ function escapeHtml(text: string) {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 }
+
+/** Article, FAQ and breadcrumbs for an Idaho guide. */
+export function guideStructuredData(guide: {
+  slug: string;
+  title: string;
+  description: string;
+  published: string;
+  reviewed: string;
+  faqs: { question: string; answer: string }[];
+}): JsonLd[] {
+  const path = `/guides/${guide.slug}`;
+  const organization = {
+    "@type": "Organization",
+    "@id": `${absolute("/")}#organization`,
+    name: brand.name,
+    url: absolute("/"),
+  };
+  const data: JsonLd[] = [
+    {
+      "@context": "https://schema.org",
+      "@type": "Article",
+      headline: guide.title,
+      description: guide.description,
+      url: absolute(path),
+      mainEntityOfPage: absolute(path),
+      datePublished: guide.published,
+      dateModified: guide.reviewed,
+      author: organization,
+      publisher: {
+        ...organization,
+        logo: absolute("/images/brand/bluebird-marketplace-logo.png"),
+      },
+      inLanguage: "en-US",
+    },
+    breadcrumbs([
+      { name: "Guides", path: "/guides" },
+      { name: guide.title, path },
+    ]),
+  ];
+  if (guide.faqs.length) {
+    data.push({
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: guide.faqs.map((faq) => ({
+        "@type": "Question",
+        name: faq.question,
+        acceptedAnswer: { "@type": "Answer", text: faq.answer },
+      })),
+    });
+  }
+  return data;
+}

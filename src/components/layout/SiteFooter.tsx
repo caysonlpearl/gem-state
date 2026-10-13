@@ -120,6 +120,11 @@ export function SiteFooter() {
                   Safety center
                 </Link>
               </li>
+              <li>
+                <Link to="/guides" className={linkClass} {...pinned}>
+                  Buying and selling guides
+                </Link>
+              </li>
               {policyTopics.map((topic) => (
                 <li key={topic.slug}>
                   <Link to="/policies" hash={topic.slug} className={linkClass} {...pinned}>

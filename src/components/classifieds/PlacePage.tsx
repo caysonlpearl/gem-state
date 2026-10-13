@@ -2,6 +2,7 @@ import { queryOptions } from "@tanstack/react-query";
 import { ArrowRight, CaretRight } from "@phosphor-icons/react";
 
 import { ListingCard } from "@/components/classifieds/ListingCard";
+import { guidesForCategory } from "@/content/guides";
 import { getPlacePage, type PlacePageData } from "@/lib/place-pages.functions";
 import { jsonLdScript, placePageStructuredData } from "@/lib/structured-data";
 import { PUBLIC_PAGE_STALE_MS } from "@/lib/query-freshness";
@@ -60,6 +61,28 @@ function LinkChips({ heading, links }: { heading: string; links: PlacePageData["
             >
               {link.label}
               <span className="numeric text-muted-foreground">{link.count}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function GuideLinks({ categorySlug }: { categorySlug: string }) {
+  const related = guidesForCategory(categorySlug);
+  if (!related.length) return null;
+  return (
+    <section className="border-t border-border/70 pt-8">
+      <h2 className="text-[20px] font-bold tracking-tight">Buying or selling? Read first</h2>
+      <ul className="mt-4 space-y-2">
+        {related.map((guide) => (
+          <li key={guide.slug}>
+            <a
+              href={`/guides/${guide.slug}`}
+              className="inline-flex min-h-11 items-center gap-1 text-[14px] font-semibold text-primary hover:underline"
+            >
+              {guide.title} <ArrowRight size={13} />
             </a>
           </li>
         ))}
@@ -129,6 +152,7 @@ export function PlacePage({ data }: { data: PlacePageData }) {
 
       <LinkChips heading="Browse by category" links={data.relatedCategories} />
       <LinkChips heading={data.relatedPlacesHeading} links={data.relatedPlaces} />
+      <GuideLinks categorySlug={String(data.browseSearch["category"] ?? "")} />
     </main>
   );
 }
