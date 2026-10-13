@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as AdvertiseRouteImport } from './routes/advertise'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as BrowseRouteImport } from './routes/browse'
+import { Route as ClaimSellerRouteImport } from './routes/claim-seller'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as GlossaryRouteImport } from './routes/glossary'
 import { Route as MessagesRouteImport } from './routes/messages'
@@ -87,6 +88,11 @@ const AuthRoute = AuthRouteImport.update({
 const BrowseRoute = BrowseRouteImport.update({
   id: '/browse',
   path: '/browse',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ClaimSellerRoute = ClaimSellerRouteImport.update({
+  id: '/claim-seller',
+  path: '/claim-seller',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ContactRoute = ContactRouteImport.update({
@@ -369,6 +375,7 @@ export interface FileRoutesByFullPath {
   '/advertise': typeof AdvertiseRoute
   '/auth': typeof AuthRoute
   '/browse': typeof BrowseRoute
+  '/claim-seller': typeof ClaimSellerRoute
   '/contact': typeof ContactRoute
   '/glossary': typeof GlossaryRoute
   '/messages': typeof MessagesRoute
@@ -425,6 +432,7 @@ export interface FileRoutesByTo {
   '/advertise': typeof AdvertiseRoute
   '/auth': typeof AuthRoute
   '/browse': typeof BrowseRoute
+  '/claim-seller': typeof ClaimSellerRoute
   '/contact': typeof ContactRoute
   '/glossary': typeof GlossaryRoute
   '/messages': typeof MessagesRoute
@@ -482,6 +490,7 @@ export interface FileRoutesById {
   '/advertise': typeof AdvertiseRoute
   '/auth': typeof AuthRoute
   '/browse': typeof BrowseRoute
+  '/claim-seller': typeof ClaimSellerRoute
   '/contact': typeof ContactRoute
   '/glossary': typeof GlossaryRoute
   '/messages': typeof MessagesRoute
@@ -540,6 +549,7 @@ export interface FileRouteTypes {
     | '/advertise'
     | '/auth'
     | '/browse'
+    | '/claim-seller'
     | '/contact'
     | '/glossary'
     | '/messages'
@@ -596,6 +606,7 @@ export interface FileRouteTypes {
     | '/advertise'
     | '/auth'
     | '/browse'
+    | '/claim-seller'
     | '/contact'
     | '/glossary'
     | '/messages'
@@ -652,6 +663,7 @@ export interface FileRouteTypes {
     | '/advertise'
     | '/auth'
     | '/browse'
+    | '/claim-seller'
     | '/contact'
     | '/glossary'
     | '/messages'
@@ -710,6 +722,7 @@ export interface RootRouteChildren {
   AdvertiseRoute: typeof AdvertiseRoute
   AuthRoute: typeof AuthRoute
   BrowseRoute: typeof BrowseRoute
+  ClaimSellerRoute: typeof ClaimSellerRoute
   ContactRoute: typeof ContactRoute
   GlossaryRoute: typeof GlossaryRoute
   MessagesRoute: typeof MessagesRoute
@@ -769,6 +782,13 @@ declare module '@tanstack/react-router' {
       path: '/browse'
       fullPath: '/browse'
       preLoaderRoute: typeof BrowseRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/claim-seller': {
+      id: '/claim-seller'
+      path: '/claim-seller'
+      fullPath: '/claim-seller'
+      preLoaderRoute: typeof ClaimSellerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/contact': {
@@ -1208,6 +1228,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdvertiseRoute: AdvertiseRoute,
   AuthRoute: AuthRoute,
   BrowseRoute: BrowseRoute,
+  ClaimSellerRoute: ClaimSellerRoute,
   ContactRoute: ContactRoute,
   GlossaryRoute: GlossaryRoute,
   MessagesRoute: MessagesRoute,

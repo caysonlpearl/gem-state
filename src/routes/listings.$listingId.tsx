@@ -402,6 +402,11 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-[15px] font-bold">{seller.displayName}</h2>
+            {seller.managedByBluebird && (
+              <span className="rounded-full bg-secondary px-2 py-1 text-[10px] font-semibold">
+                Managed by Bluebird
+              </span>
+            )}
             {seller.payoutVerified && (
               <span
                 className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary"

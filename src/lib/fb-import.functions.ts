@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- generated Supabase types lag newly applied tables until the next type generation */
-import { createClient } from "@supabase/supabase-js";
 import { createServerFn } from "@tanstack/react-start";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -7,6 +6,8 @@ import {
   inferFacebookCategorySlug,
   normalizeFacebookCondition,
 } from "@/lib/fb-import-normalization";
+
+import { canonicalFacebookProfile } from "./seller-claims";
 
 const MAX_PHOTO_BYTES = 12 * 1024 * 1024;
 
@@ -17,103 +18,6 @@ async function requireAdmin(context: { supabase: unknown; userId: string }) {
   });
   if (error) throw new Error(error.message);
   if (!data) throw new Error("Administrator access required.");
-}
-
-function supabaseUrl(): string {
-  const url = process.env["GEM_STATE_SUPABASE_URL"] || process.env["SUPABASE_URL"];
-  if (!url) throw new Error("Missing SUPABASE_URL.");
-  return url;
-}
-
-function supabasePublishableKey(): string {
-  const key =
-    process.env["GEM_STATE_SUPABASE_PUBLISHABLE_KEY"] || process.env["SUPABASE_PUBLISHABLE_KEY"];
-  if (!key) throw new Error("Missing SUPABASE_PUBLISHABLE_KEY.");
-  return key;
-}
-
-/**
- * Finds the auth user for an email, creating one if they don't have a GemList
- * account yet. This onboards a real, consenting seller -- never a bypass of
- * the normal "must be signed in to sell" rule.
- */
-async function findOrCreateAuthUser(admin: any, email: string): Promise<string> {
-  const { data: created, error: createError } = await admin.auth.admin.createUser({
-    email,
-    email_confirm: true,
-  });
-  if (!createError && created?.user) return created.user.id;
-
-  for (let page = 1; ; page += 1) {
-    const { data, error } = await admin.auth.admin.listUsers({ page, perPage: 200 });
-    if (error) throw new Error(error.message);
-    const match = data.users.find((u: any) => u.email?.toLowerCase() === email.toLowerCase());
-    if (match) return match.id;
-    if (data.users.length < 200) break;
-  }
-  throw new Error(`Could not find or create an account for ${email}.`);
-}
-
-function slugCandidate(displayName: string, email: string, suffix: number): string {
-  const source = displayName.trim() || email.split("@")[0] || "seller";
-  const base =
-    source
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 24) || "seller";
-  return suffix === 0 ? base : `${base}-${suffix}`;
-}
-
-async function ensureUniqueSlug(admin: any, displayName: string, email: string): Promise<string> {
-  for (let suffix = 0; suffix < 50; suffix += 1) {
-    const candidate = slugCandidate(displayName, email, suffix);
-    const { data, error } = await admin
-      .from("seller_profiles")
-      .select("user_id")
-      .eq("slug", candidate)
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (!data) return candidate;
-  }
-  throw new Error("Could not generate a unique seller handle.");
-}
-
-/**
- * Resolves (or creates, with a real seller profile) the GemList account that
- * imported listings get published under. Called once per publish, when an
- * admin finally supplies the seller's email -- staging itself never needs
- * one, since Facebook doesn't expose a seller's email address at all.
- */
-async function resolveImportSellerAccount(
-  admin: any,
-  email: string,
-  displayName: string,
-): Promise<{ sellerId: string; slug: string }> {
-  const userId = await findOrCreateAuthUser(admin, email);
-
-  await admin
-    .from("profiles")
-    .upsert({ id: userId, display_name: displayName }, { onConflict: "id" });
-
-  const { data: existing, error: existingError } = await admin
-    .from("seller_profiles")
-    .select("slug")
-    .eq("user_id", userId)
-    .maybeSingle();
-  if (existingError) throw new Error(existingError.message);
-  if (existing) return { sellerId: userId, slug: existing.slug };
-
-  const slug = await ensureUniqueSlug(admin, displayName, email);
-  const { error: insertError } = await admin.from("seller_profiles").insert({
-    user_id: userId,
-    slug,
-    status: "active",
-    terms_version: "seller-v1",
-    terms_accepted_at: new Date().toISOString(),
-  });
-  if (insertError) throw new Error(insertError.message);
-  return { sellerId: userId, slug };
 }
 
 export type FbImportItemInput = {
@@ -147,6 +51,7 @@ export type FbImportItem = {
   publicPaths: string[];
   photoUrls: string[];
   status: "draft" | "needs_update" | "possibly_removed" | "published" | "discarded";
+  syncConflict?: string | null;
   previousPriceCents: number | null;
   previousDescription: string | null;
   listingId: string | null;
@@ -231,15 +136,6 @@ async function recordRemovedReason(
   if (error) console.warn("Could not record why an import was flagged", error.message);
 }
 
-async function removedReason(admin: any, itemId: string): Promise<RemovedReason | null> {
-  const { data, error } = await admin
-    .from("fb_marketplace_import_items")
-    .select("removed_reason")
-    .eq("id", itemId)
-    .maybeSingle();
-  return error ? null : ((data?.removed_reason as RemovedReason | null) ?? null);
-}
-
 export const stageFacebookImportBatch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator(
@@ -249,7 +145,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
       mode?: "refresh" | undefined;
       items: FbImportItemInput[];
     }) => {
-      const sourceProfileUrl = String(input.sourceProfileUrl ?? "").trim();
+      const sourceProfileUrl = canonicalFacebookProfile(String(input.sourceProfileUrl ?? ""));
       if (!sourceProfileUrl) throw new Error("Enter the Facebook Marketplace profile URL.");
       const sellerName =
         String(input.sellerName ?? "")
@@ -308,6 +204,12 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
         .eq("source_profile_url", data.sourceProfileUrl)
         .in("status", ["draft", "needs_update", "possibly_removed", "published"]);
       if (priorError) throw new Error(priorError.message);
+      const { data: managed } = await admin
+        .from("managed_import_sellers")
+        .select("sync_enabled,owner_user_id")
+        .eq("source_profile_url", data.sourceProfileUrl)
+        .maybeSingle();
+      if (managed?.sync_enabled === false) throw new Error("This seller paused Facebook sync.");
       const priorByUrl = new Map<string, any>(
         (priorItems ?? []).map((row: any) => [row.source_url, row]),
       );
@@ -399,6 +301,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
             {
               batch_id: batch.id,
               source_profile_url: data.sourceProfileUrl,
+              seller_id: managed?.owner_user_id ?? prior?.seller_id ?? null,
               source_url: item.sourceUrl,
               title: item.title,
               description: item.description,
@@ -451,7 +354,7 @@ export const getFacebookImportItems = createServerFn({ method: "GET" })
     const { data, error } = await admin
       .from("fb_marketplace_import_items")
       .select(
-        "id,batch_id,source_profile_url,source_url,title,description,price_cents,condition,category_slug,city,state,region,public_paths,status,previous_price_cents,previous_description,listing_id,created_at",
+        "id,batch_id,source_profile_url,source_url,title,description,price_cents,condition,category_slug,city,state,region,public_paths,status,previous_price_cents,previous_description,listing_id,created_at,sync_conflict",
       )
       .in("status", ["draft", "needs_update", "possibly_removed"])
       .order("created_at", { ascending: false });
@@ -465,6 +368,7 @@ export const getFacebookImportItems = createServerFn({ method: "GET" })
         id: row.id,
         batchId: row.batch_id,
         sourceProfileUrl: row.source_profile_url,
+        syncConflict: row.sync_conflict,
         sourceUrl: row.source_url,
         title: row.title,
         description: row.description,
@@ -568,12 +472,20 @@ export const getFacebookRefreshTargets = createServerFn({ method: "GET" })
       .select("source_profile_url, source_url, title, price_cents")
       .eq("status", "published");
     if (error) throw new Error(error.message);
-    return (data ?? []).map((row: any) => ({
-      sourceProfileUrl: row.source_profile_url,
-      sourceUrl: row.source_url,
-      title: row.title,
-      priceCents: Number(row.price_cents),
-    }));
+    const { data: paused, error: pauseError } = await (supabaseAdmin as any)
+      .from("managed_import_sellers")
+      .select("source_profile_url")
+      .eq("sync_enabled", false);
+    if (pauseError) throw new Error(pauseError.message);
+    const pausedProfiles = new Set((paused ?? []).map((p: any) => p.source_profile_url));
+    return (data ?? [])
+      .filter((row: any) => !pausedProfiles.has(row.source_profile_url))
+      .map((row: any) => ({
+        sourceProfileUrl: row.source_profile_url,
+        sourceUrl: row.source_url,
+        title: row.title,
+        priceCents: Number(row.price_cents),
+      }));
   });
 
 export const updateFacebookImportItem = createServerFn({ method: "POST" })
@@ -658,55 +570,27 @@ export const discardAllFacebookImportItems = createServerFn({ method: "POST" })
     return { cleared: (data ?? []).length };
   });
 
-/**
- * Mints a real session for the seller's own account, the same way a "sign-in
- * link" email works, just completed in one step with the service role key's
- * admin privileges. No password is ever touched. This exists only so a
- * consenting seller's imported listings are created/updated/removed through
- * their own account and the exact same RPCs a real seller action uses --
- * never as a general "sign in as anyone" primitive.
- */
-async function createActingAsSellerSession(admin: any, sellerId: string) {
-  const { data: userResult, error: userError } = await admin.auth.admin.getUserById(sellerId);
-  if (userError || !userResult?.user?.email) throw new Error("Seller account has no email.");
-  const { data: linkData, error: linkError } = await admin.auth.admin.generateLink({
-    type: "magiclink",
-    email: userResult.user.email,
-  });
-  if (linkError) throw new Error(`Could not start a session for the seller: ${linkError.message}`);
-  const tokenHash = (linkData as any)?.properties?.hashed_token as string | undefined;
-  if (!tokenHash) throw new Error("Could not generate a session token for the seller.");
-
-  const actingClient = createClient(supabaseUrl(), supabasePublishableKey(), {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
-  const { data: sessionData, error: verifyError } = await actingClient.auth.verifyOtp({
-    token_hash: tokenHash,
-    type: "magiclink",
-  });
-  if (verifyError || !sessionData.session) {
-    throw new Error(
-      `Could not establish a seller session: ${verifyError?.message ?? "unknown error"}`,
-    );
-  }
-  return actingClient as any;
-}
-
 export const publishFacebookImportItems = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator(
-    (input: { itemIds: string[]; sellerEmail: string; sellerDisplayName?: string | undefined }) => {
-      const itemIds = (input.itemIds ?? []).map(String).filter(Boolean);
-      const sellerEmail = String(input.sellerEmail ?? "")
-        .trim()
-        .toLowerCase();
-      if (itemIds.length && (!sellerEmail || !sellerEmail.includes("@"))) {
-        throw new Error("Enter the seller's email to publish under their account.");
-      }
+    (input: {
+      itemIds: string[];
+      sellerEmail?: string;
+      sellerDisplayName?: string;
+      mode?: "managed" | "linked";
+      authorized: boolean;
+    }) => {
+      if (input.authorized !== true)
+        throw new Error(
+          "Confirm that the seller authorized importing and managing these listings.",
+        );
       return {
-        itemIds,
-        sellerEmail,
+        itemIds: [...new Set((input.itemIds ?? []).map(String))],
+        sellerEmail: String(input.sellerEmail ?? "")
+          .trim()
+          .toLowerCase(),
         sellerDisplayName: String(input.sellerDisplayName ?? "").trim(),
+        mode: input.mode ?? "managed",
       };
     },
   )
@@ -714,179 +598,134 @@ export const publishFacebookImportItems = createServerFn({ method: "POST" })
     async ({
       data,
       context,
-    }): Promise<{ created: number; updated: number; removed: number; errors: number }> => {
+    }): Promise<{
+      created: number;
+      updated: number;
+      removed: number;
+      errors: number;
+      failures: string[];
+      claimUrl?: string;
+      expiresAt?: string;
+    }> => {
       await requireAdmin(context);
-      if (!data.itemIds.length) return { created: 0, updated: 0, removed: 0, errors: 0 };
+      if (!data.itemIds.length) throw new Error("Select at least one listing.");
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const admin = supabaseAdmin as any;
-
       const { data: items, error } = await admin
         .from("fb_marketplace_import_items")
-        .select(
-          "id,source_profile_url,title,description,price_cents,condition,category_slug,city,state,region,public_paths,evidence_paths,status,listing_id",
-        )
+        .select("*")
         .in("id", data.itemIds);
       if (error) throw new Error(error.message);
-      if (!items?.length) return { created: 0, updated: 0, removed: 0, errors: 0 };
-
-      // Apply the same defensive normalization at publish time. This covers
-      // rows staged by an older extension/bookmarklet bundle and ensures a
-      // corrected review value cannot be lost between the form and the RPC.
-      for (const item of items) {
-        item.condition = normalizeFacebookCondition(item.condition);
-        item.category_slug = inferFacebookCategorySlug(
-          item.category_slug,
-          item.title,
-          item.description,
-        );
-      }
-
-      // One publish click is one seller: resolve/create their GemList account
-      // once, then attribute every item in this call -- and every other
-      // still-open item from the same Facebook profile, so a later re-stage
-      // of that profile correctly diffs against this now-known seller
-      // instead of treating everything as brand new again.
-      const { data: batchInfo } = await admin
+      if (items?.length !== data.itemIds.length)
+        throw new Error("Some selected items are no longer available. Refresh and retry.");
+      const profiles = new Set(
+        items.map((i: any) => canonicalFacebookProfile(i.source_profile_url)),
+      );
+      if (profiles.size !== 1)
+        throw new Error("Select listings from one Facebook seller at a time.");
+      const profile = canonicalFacebookProfile(items[0].source_profile_url);
+      const { data: batch } = await admin
         .from("fb_marketplace_import_batches")
         .select("seller_name")
-        .eq("source_profile_url", items[0].source_profile_url)
+        .eq("source_profile_url", profile)
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-      const displayName =
-        data.sellerDisplayName ||
-        batchInfo?.seller_name ||
-        data.sellerEmail.split("@")[0] ||
-        "Seller";
-      const seller = await resolveImportSellerAccount(admin, data.sellerEmail, displayName);
-      await admin
-        .from("fb_marketplace_import_items")
-        .update({ seller_id: seller.sellerId })
-        .eq("source_profile_url", items[0].source_profile_url)
-        .is("seller_id", null);
-      const acting = await createActingAsSellerSession(admin, seller.sellerId);
-
-      let created = 0;
-      let updated = 0;
-      let removed = 0;
-      let errors = 0;
-
-      for (const item of items) {
-        try {
-          if (item.status === "possibly_removed") {
-            if (!item.listing_id) throw new Error("No linked listing to remove.");
-            // Sold on Facebook -> sold on Bluebird (its page keeps a Sold
-            // banner for a while). Anything else is a plain take-down, which
-            // is also the fallback if marking sold isn't available.
-            const soldOnFacebook =
-              (await removedReason(admin, item.id)) === "sold" &&
-              !(await acting.rpc("mark_ask_sold", { _ask_id: item.listing_id })).error;
-            if (!soldOnFacebook) {
-              const { error: cancelError } = await acting.rpc("cancel_ask", {
-                _ask_id: item.listing_id,
-              });
-              if (cancelError) throw new Error(cancelError.message);
-            }
-            const { pingIndexNow } = await import("./indexnow.server");
-            void pingIndexNow([`/listings/${item.listing_id}`]);
-            await admin
-              .from("fb_marketplace_import_items")
-              .update({ status: "published" })
-              .eq("id", item.id);
-            removed += 1;
-            continue;
+      const name = data.sellerDisplayName || batch?.seller_name || "Seller";
+      const { ensureManagedImportSeller, issueSellerClaimLink } =
+        await import("./seller-claims.server");
+      // Existing-account publication resolves only a real account. It never creates
+      // an account, confirms email, resets credentials, or accepts seller terms.
+      if (data.mode === "linked") {
+        const { data: managed } = await admin
+          .from("managed_import_sellers")
+          .select("id")
+          .eq("source_profile_url", profile)
+          .maybeSingle();
+        if (!managed) {
+          if (!data.sellerEmail) throw new Error("Enter the existing seller's account email.");
+          let user: any = null;
+          for (let page = 1; !user; page++) {
+            const { data: users, error } = await admin.auth.admin.listUsers({ page, perPage: 200 });
+            if (error) throw new Error(error.message);
+            user = users.users.find((u: any) => u.email?.toLowerCase() === data.sellerEmail);
+            if (user || users.users.length < 200) break;
           }
-
-          if (!item.city || !item.state || !item.region) {
-            throw new Error("City, state, and region must be filled in before publishing.");
-          }
-
-          const { data: category, error: categoryError } = await admin
-            .from("categories")
-            .select("id")
-            .eq("slug", item.category_slug)
+          if (!user?.email_confirmed_at)
+            throw new Error(
+              "The seller needs an existing verified account. Use a claim link for a new seller.",
+            );
+          const { data: setup } = await admin
+            .from("seller_profiles")
+            .select("terms_accepted_at,status")
+            .eq("user_id", user.id)
             .maybeSingle();
-          if (categoryError) throw new Error(categoryError.message);
-          if (!category?.id) throw new Error(`Unknown category: ${item.category_slug}`);
-
-          if (item.status === "needs_update") {
-            if (!item.listing_id) throw new Error("No linked listing to update.");
-            const { error: updateError } = await acting.rpc("update_classified_listing", {
-              _listing_id: item.listing_id,
-              _title: item.title,
-              _description: item.description || item.title,
-              _category_id: category.id,
-              _price_cents: item.price_cents,
-              _item_condition: item.condition || "used_good",
-              _seller_note: null,
-              _region: item.region,
-              _city: item.city,
-              _state: item.state,
-              _postal_code: null,
-              _fulfillment_mode: "local_pickup",
-              _parcel_length_in: null,
-              _parcel_width_in: null,
-              _parcel_height_in: null,
-              _parcel_weight_lb: null,
-              _vehicle: {},
-              _home: {},
-              _job: {},
-              _service: {},
-              _pet: {},
-            });
-            if (updateError) throw new Error(updateError.message);
-            await admin
-              .from("fb_marketplace_import_items")
-              .update({ status: "published" })
-              .eq("id", item.id);
-            updated += 1;
-            continue;
-          }
-
-          const claimedPaths = await claimPhotosForSeller(
-            admin,
-            seller.sellerId,
-            item.evidence_paths,
-          );
-
-          const { data: listingId, error: createError } = await acting.rpc(
-            "create_classified_listing",
-            {
-              _title: item.title,
-              _description: item.description || item.title,
-              _category_id: category.id,
-              _price_cents: item.price_cents,
-              _item_condition: item.condition || "used_good",
-              _seller_note: null,
-              _region: item.region,
-              _city: item.city,
-              _state: item.state,
-              _postal_code: null,
-              _fulfillment_mode: "local_pickup",
-              _parcel_length_in: null,
-              _parcel_width_in: null,
-              _parcel_height_in: null,
-              _parcel_weight_lb: null,
-              _evidence_paths: claimedPaths,
-              _public_media_paths: claimedPaths,
-              _vehicle: {},
-              _home: {},
-              _job: {},
-              _service: {},
-              _pet: {},
-            },
-          );
-          if (createError) throw new Error(createError.message);
-          await admin
+          if (!setup?.terms_accepted_at || setup.status !== "active")
+            throw new Error("The existing seller must finish seller setup first.");
+          const { data: prior } = await admin
             .from("fb_marketplace_import_items")
-            .update({ status: "published", listing_id: listingId })
-            .eq("id", item.id);
-          created += 1;
-        } catch {
-          errors += 1;
+            .select("seller_id")
+            .eq("source_profile_url", profile)
+            .not("seller_id", "is", null);
+          if (prior?.some((i: any) => i.seller_id !== user.id))
+            throw new Error("This imported profile is already linked to another account.");
+          const { error: registerError } = await admin.rpc("register_managed_import_seller", {
+            _profile: profile,
+            _name: name,
+            _candidate: user.id,
+            _actor: context.userId,
+            _linked: true,
+          });
+          if (registerError) throw new Error(registerError.message);
         }
       }
-
-      return { created, updated, removed, errors };
+      const seller = await ensureManagedImportSeller(
+        profile,
+        name,
+        context.userId,
+        data.mode === "linked",
+      );
+      let created = 0,
+        updated = 0,
+        removed = 0;
+      const failures: string[] = [];
+      for (const item of items) {
+        try {
+          if (item.status === "discarded") throw new Error("This listing was discarded.");
+          // Managed application locks and revalidates the row inside the database.
+          const paths =
+            item.status === "draft" && !item.listing_id
+              ? await claimPhotosForSeller(admin, seller.owner_user_id, item.evidence_paths)
+              : null;
+          const { data: listingId, error: applyError } = await admin.rpc(
+            "apply_managed_import_item",
+            { _item: item.id, _actor: context.userId, _paths: paths },
+          );
+          if (applyError) throw new Error(applyError.message);
+          if (!listingId)
+            throw new Error(
+              "Bluebird changes conflict with this sync. Keep the Bluebird version or review the listing.",
+            );
+          if (item.status === "draft") created++;
+          else if (item.status === "needs_update") updated++;
+          else if (item.status === "possibly_removed") removed++;
+        } catch (error) {
+          failures.push(
+            `${item.title}: ${error instanceof Error ? error.message : "Import failed; retry."}`,
+          );
+        }
+      }
+      let link: { url: string; expiresAt: string } | undefined;
+      if (data.mode === "managed" && !seller.claimed_at)
+        link = await issueSellerClaimLink(seller.id, context.userId);
+      return {
+        created,
+        updated,
+        removed,
+        errors: failures.length,
+        failures,
+        claimUrl: link?.url,
+        expiresAt: link?.expiresAt,
+      };
     },
   );

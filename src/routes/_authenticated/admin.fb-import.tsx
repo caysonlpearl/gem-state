@@ -1,3 +1,9 @@
+import { keepBluebirdImportVersion } from "@/lib/seller-claims.functions";
+import {
+  ManagedSellerOperations,
+  PrepareSellerClaimButton,
+  ClaimLinkResult,
+} from "@/components/seller/ManagedSellerOperations";
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -249,6 +255,10 @@ function ImportedSellers() {
                   refreshed {days === 0 ? "today" : `${days} day${days === 1 ? "" : "s"} ago`}
                 </p>
               </div>
+              <PrepareSellerClaimButton
+                profile={profile.sourceProfileUrl}
+                name={profile.sellerName || "Seller"}
+              />
               {due ? (
                 <span className="rounded-full border border-amber-500/50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-600">
                   Due for refresh
@@ -463,6 +473,15 @@ function ReviewRow({
   onToggleSelected: (checked: boolean) => void;
 }) {
   const queryClient = useQueryClient();
+  const keep = useServerFn(keepBluebirdImportVersion);
+  const keepMutation = useMutation({
+    mutationFn: () => keep({ data: { itemId: item.id } }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["fb-import-items"] });
+    },
+    onError: (e) => toast.error(e.message),
+  });
+
   const updateItem = useServerFn(updateFacebookImportItem);
   const discardItem = useServerFn(discardFacebookImportItem);
 
@@ -661,6 +680,19 @@ function ReviewRow({
               />
             </label>
           </div>
+          {item.syncConflict && (
+            <div role="alert" className="mt-3 rounded-xl bg-secondary p-3 text-sm">
+              <p>{item.syncConflict}</p>
+              <button
+                type="button"
+                className="mt-2 underline"
+                disabled={keepMutation.isPending}
+                onClick={() => keepMutation.mutate()}
+              >
+                Keep Bluebird version and clear this sync change
+              </button>
+            </div>
+          )}
           <div className="mt-2 flex gap-2">
             {dirty ? (
               <button
@@ -697,6 +729,9 @@ function FbImportPage() {
   });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [sellerEmail, setSellerEmail] = useState("");
+  const [publishMode, setPublishMode] = useState<"managed" | "linked">("managed");
+  const [authorized, setAuthorized] = useState(false);
+  const [claimUrl, setClaimUrl] = useState("");
   const [sellerDisplayName, setSellerDisplayName] = useState("");
 
   // New items default to selected; items that have since been discarded or
@@ -729,10 +764,15 @@ function FbImportPage() {
         data: {
           itemIds: Array.from(selectedIds),
           sellerEmail,
+          mode: publishMode,
+          authorized,
           sellerDisplayName: sellerDisplayName || undefined,
         },
       }),
     onSuccess: async (result) => {
+      if (result.claimUrl) setClaimUrl(result.claimUrl);
+      if (result.failures?.length) toast.error(result.failures.join("\n"), { duration: 12000 });
+      await queryClient.invalidateQueries({ queryKey: ["managed-import-sellers"] });
       await queryClient.invalidateQueries({ queryKey: ["fb-import-items"] });
       await queryClient.invalidateQueries({ queryKey: ["fb-import-profiles"] });
       setSelectedIds(new Set());
@@ -773,6 +813,8 @@ function FbImportPage() {
       <StageForm />
 
       <ImportedSellers />
+      {claimUrl && <ClaimLinkResult url={claimUrl} onClose={() => setClaimUrl("")} />}
+      <ManagedSellerOperations />
 
       <section className="rounded-lg border border-border bg-card">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
@@ -781,27 +823,50 @@ function FbImportPage() {
             <span className="numeric text-muted-foreground">{data?.length ?? 0}</span>
           </h2>
           <div className="flex flex-wrap items-center gap-2">
-            <input
-              type="email"
-              value={sellerEmail}
-              onChange={(e) => setSellerEmail(e.target.value)}
-              placeholder="Seller's email"
-              title="The seller's GemList account email -- only needed once, right before publishing"
-              className="h-9 w-[180px] rounded-md border border-input bg-background px-2 text-[12px]"
-            />
+            <select
+              aria-label="Publishing destination"
+              value={publishMode}
+              onChange={(e) => setPublishMode(e.target.value as "managed" | "linked")}
+              className="field text-sm"
+            >
+              <option value="managed">New seller — create claim link</option>
+              <option value="linked">Existing linked seller</option>
+            </select>
+            {publishMode === "linked" && (
+              <input
+                type="email"
+                value={sellerEmail}
+                onChange={(e) => setSellerEmail(e.target.value)}
+                placeholder="Seller's email"
+                title="Existing seller account email; not needed for an already linked imported profile"
+                className="h-9 w-[180px] rounded-md border border-input bg-background px-2 text-[12px]"
+              />
+            )}
             <input
               value={sellerDisplayName}
               onChange={(e) => setSellerDisplayName(e.target.value)}
               placeholder="Display name (optional)"
               className="h-9 w-[180px] rounded-md border border-input bg-background px-2 text-[12px]"
             />
+            <label className="flex max-w-[280px] items-start gap-2 text-xs">
+              <input
+                type="checkbox"
+                checked={authorized}
+                onChange={(e) => setAuthorized(e.target.checked)}
+              />
+              The seller authorized Bluebird to import and manage these listings.
+            </label>
             <button
               type="button"
               onClick={() => publishMutation.mutate()}
-              disabled={publishMutation.isPending || !data?.length || !sellerEmail}
+              disabled={publishMutation.isPending || !selectedIds.size || !authorized}
               className="h-9 rounded-md bg-primary px-3 text-[12px] font-semibold text-primary-foreground disabled:opacity-50"
             >
-              {publishMutation.isPending ? "Applying…" : "Apply selected"}
+              {publishMutation.isPending
+                ? "Applying…"
+                : publishMode === "managed"
+                  ? "Publish and create claim link"
+                  : "Publish for linked seller"}
             </button>
             <button
               type="button"

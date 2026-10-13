@@ -22,6 +22,7 @@ export type ConversationMessage = {
   id: string;
   conversationId: string;
   senderId: string;
+  senderLabel?: string | null;
   body: string;
   attachmentPath: string | null;
   attachmentContentType: string | null;
@@ -115,7 +116,7 @@ export const getConversation = createServerFn({ method: "GET" })
     const { data: messages, error: messageError } = await client
       .from("conversation_messages")
       .select(
-        "id,conversation_id,sender_id,body,attachment_path,attachment_content_type,attachment_size,created_at",
+        "id,conversation_id,sender_id,body,attachment_path,attachment_content_type,attachment_size,sender_label,created_at",
       )
       .eq("conversation_id", data.id)
       .order("created_at", { ascending: true })
@@ -150,6 +151,7 @@ export const getConversation = createServerFn({ method: "GET" })
         id: message.id,
         conversationId: message.conversation_id,
         senderId: message.sender_id,
+        senderLabel: message.sender_label ?? null,
         body: message.body,
         attachmentPath: message.attachment_path ?? null,
         attachmentContentType: message.attachment_content_type ?? null,

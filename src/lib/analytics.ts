@@ -117,7 +117,7 @@ export async function trackEvent(
   props: Props = {},
   options: { isDemo?: boolean } = {},
 ): Promise<void> {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined" || window.location.pathname === "/claim-seller") return;
   try {
     const supabase = await loadSupabase();
     const { data } = await supabase.auth.getSession();

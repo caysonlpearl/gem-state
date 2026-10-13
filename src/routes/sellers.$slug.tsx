@@ -92,6 +92,11 @@ function SellerPage() {
           <div className="min-w-0">
             <h1 className="flex flex-wrap items-center gap-2 font-editorial text-[38px] font-normal tracking-[-0.035em]">
               {seller.displayName}
+              {seller.managedByBluebird && (
+                <span className="rounded-full bg-secondary px-2 py-1 text-xs font-semibold">
+                  Managed by Bluebird
+                </span>
+              )}
               {seller.payoutVerified ? (
                 <CheckCircle
                   size={21}

@@ -108,6 +108,7 @@ export type ClassifiedDetail = ClassifiedCard & {
     bio: string | null;
     avatarUrl: string | null;
     payoutVerified: boolean;
+    managedByBluebird?: boolean;
     ratingAverage: number | null;
     reviewCount: number;
     contactPhone?: string | null;
@@ -832,8 +833,7 @@ function jobOf(details: Record<string, unknown>, description: string): Classifie
     responsibilities: (details["job_responsibilities"] as string[] | null) ?? [],
     ...(qualifications ? { qualifications } : {}),
     applicationMethod:
-      ((details["job_application_method"] as string | null) as "gemlist" | "external") ??
-      "gemlist",
+      (details["job_application_method"] as string | null as "gemlist" | "external") ?? "gemlist",
     applicationExternalContact:
       (details["job_application_external_contact"] as string | null) ?? null,
   };
@@ -1113,7 +1113,12 @@ function mockMatches(
   }
   if (data.state && data.state !== listing.state) return false;
   if (data.postalCode && !listing.postalCode.startsWith(data.postalCode)) return false;
-  if (data.city && !data.radiusMiles && !listing.city.toLowerCase().includes(data.city.toLowerCase())) return false;
+  if (
+    data.city &&
+    !data.radiusMiles &&
+    !listing.city.toLowerCase().includes(data.city.toLowerCase())
+  )
+    return false;
   if (
     (data.city || (data.latitude != null && data.longitude != null)) &&
     data.radiusMiles != null &&
@@ -1824,9 +1829,10 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     // preview records so the selected sort is truthful for real listings too.
     const unitAwareJobSort =
       data.category === "jobs" && (data.sort === "price_low" || data.sort === "price_high");
-    const resultRange = unitAwareJobSort || data.radiusMiles != null
-      ? { from: 0, to: Math.max(4_999, from + PAGE_SIZE - 1) }
-      : { from, to: from + PAGE_SIZE - 1 };
+    const resultRange =
+      unitAwareJobSort || data.radiusMiles != null
+        ? { from: 0, to: Math.max(4_999, from + PAGE_SIZE - 1) }
+        : { from, to: from + PAGE_SIZE - 1 };
     const {
       data: rows,
       count,
@@ -1905,9 +1911,10 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
         ? Math.max(PAGE_SIZE, mockSource.length)
         : PAGE_SIZE;
     const orderedListings = [...featuredListings, ...standardListings];
-    const combinedListings = unitAwareJobSort || data.radiusMiles != null
-      ? orderedListings.slice(from, from + resultLimit)
-      : orderedListings.slice(0, resultLimit);
+    const combinedListings =
+      unitAwareJobSort || data.radiusMiles != null
+        ? orderedListings.slice(from, from + resultLimit)
+        : orderedListings.slice(0, resultLimit);
     if (listings.length > 0) {
       void import("@/integrations/supabase/client.server")
         .then(({ supabaseAdmin }) =>
@@ -1919,7 +1926,9 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     }
     return {
       listings: combinedListings,
-      total: (data.radiusMiles != null ? listings.length : count ?? listings.length) + mockListings.length,
+      total:
+        (data.radiusMiles != null ? listings.length : (count ?? listings.length)) +
+        mockListings.length,
       page,
       pageSize: PAGE_SIZE,
     };
@@ -2073,6 +2082,10 @@ async function buildClassifiedDetail(
         })()
       : Promise.resolve(sellerId ? noContact : { ...noContact, allowInternalMessages: true }),
   ]);
+  const { data: managed } = sellerId
+    ? await (client as any).rpc("managed_seller_public_status", { _user: sellerId })
+    : { data: null };
+  const isManaged = managed?.managed === true;
   const card = toCard(record, urlByPath);
 
   return {
@@ -2089,12 +2102,13 @@ async function buildClassifiedDetail(
           displayName: sellerRow.display_name ?? "Seller",
           bio: sellerRow.bio ?? null,
           avatarUrl: sellerRow.avatar_url ?? null,
-          payoutVerified: sellerRow.payout_verified === true,
+          payoutVerified: !isManaged && sellerRow.payout_verified === true,
+          managedByBluebird: isManaged,
           ratingAverage: sellerRow.rating_average == null ? null : Number(sellerRow.rating_average),
           reviewCount: Number(sellerRow.review_count ?? 0),
-          contactPhone: sellerContact.phone,
-          contactTextPhone: sellerContact.textPhone,
-          contactEmail: sellerContact.email,
+          contactPhone: isManaged ? null : sellerContact.phone,
+          contactTextPhone: isManaged ? null : sellerContact.textPhone,
+          contactEmail: isManaged ? null : sellerContact.email,
           allowInternalMessages: sellerContact.allowInternalMessages,
         }
       : null,
@@ -2137,7 +2151,10 @@ export const getRelatedClassifieds = createServerFn({ method: "GET" })
       .slice(0, 8);
 
     if (!data.category) return { fromSeller, similar: [] };
-    const exclude = new Set([data.excludeId, ...(fromSellerResult?.listings ?? []).map((row) => row.id)]);
+    const exclude = new Set([
+      data.excludeId,
+      ...(fromSellerResult?.listings ?? []).map((row) => row.id),
+    ]);
     const similarIn = async (place: { region?: string; state?: string }) => {
       const result = await browseClassifieds({
         data: { category: data.category, ...place, sort: "newest", page: 1 },

@@ -36,8 +36,11 @@ async function memberEmail(userId: string | null | undefined): Promise<string | 
     const client = await admin();
     const { data, error } = await client.auth.admin.getUserById(userId);
     if (error) return null;
+    if (data?.user?.app_metadata?.managed_import === true) return null;
     const email = data?.user?.email;
-    return typeof email === "string" && email.includes("@") ? email : null;
+    return typeof email === "string" && email.includes("@") && !email.endsWith(".invalid")
+      ? email
+      : null;
   } catch {
     return null;
   }

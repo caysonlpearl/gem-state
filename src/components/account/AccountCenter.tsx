@@ -1,3 +1,4 @@
+import { ImportSyncPanel } from "@/components/seller/ImportSyncPanel";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -2209,6 +2210,9 @@ function MessagesSection({
                     key={message.id}
                     className={`max-w-[82%] rounded-2xl px-3.5 py-2.5 text-[12.5px] leading-relaxed ${message.senderId === detail.buyerId ? "bg-secondary" : "ml-auto bg-primary text-primary-foreground"}`}
                   >
+                    {message.senderLabel && (
+                      <p className="mb-1 text-[10px] font-semibold">{message.senderLabel}</p>
+                    )}
                     <p>{message.body}</p>
                     {message.attachmentUrl && (
                       <a
@@ -2621,6 +2625,7 @@ function ListingsSection({
           </Link>
         }
       />
+      <ImportSyncPanel />
       {!sellerSetup?.exists && (
         <div className="rounded-2xl border border-primary/25 bg-primary/5 p-5">
           <p className="text-[14px] font-semibold">Become a Bluebird seller</p>

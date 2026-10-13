@@ -8,6 +8,7 @@ import { getAuthRedirectUrl } from "@/lib/auth-redirect";
 export const Route = createFileRoute("/auth")({
   validateSearch: (search: Record<string, unknown>): AuthSearch => {
     const allowedRedirects = [
+      "/claim-seller",
       "/account",
       "/selling",
       "/seller-setup",
@@ -62,6 +63,7 @@ const LISTING_REDIRECT = /^\/listings\/[0-9a-f-]{36}$/i;
 type ListingRedirect = `/listings/${string}`;
 type AuthRedirect = StaticRedirect | ListingRedirect;
 type StaticRedirect =
+  | "/claim-seller"
   | "/account"
   | "/selling"
   | "/seller-setup"

@@ -11,7 +11,7 @@ import { ReauthenticationEmail } from "@/lib/email-templates/reauthentication";
 // Configuration
 const SITE_NAME = "Bluebird Marketplace";
 const SENDER_DOMAIN = "notify.gemstateclassifieds.com";
-const ROOT_DOMAIN = "gemstateclassifieds.com";
+const ROOT_DOMAIN = "onbluebird.com";
 const FROM_DOMAIN = "gemstateclassifieds.com";
 const SITE_URL = `https://${ROOT_DOMAIN}`;
 

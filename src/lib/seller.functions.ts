@@ -74,6 +74,7 @@ export type PublicListing = {
 };
 
 export type PublicSeller = {
+  managedByBluebird?: boolean;
   userId: string;
   slug: string;
   displayName: string;
@@ -869,6 +870,10 @@ export const getPublicSeller = createServerFn({ method: "GET" })
     if (error || !seller) return null;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
+    const { data: managed } = await client.rpc("managed_seller_public_status", {
+      _user: seller.user_id,
+    });
+    const isManaged = managed?.managed === true;
     const [{ data: askRows }, { data: reviewRows }, { data: allRatings }] = await Promise.all([
       admin
         .from("asks")
@@ -918,7 +923,7 @@ export const getPublicSeller = createServerFn({ method: "GET" })
         note: row.seller_note,
         sellerSlug: seller.slug,
         sellerDisplayName: seller.display_name ?? seller.slug,
-        payoutVerified: seller.payout_verified === true,
+        payoutVerified: !isManaged && seller.payout_verified === true,
         sellerRating: ratingAverage,
         imageUrls: await signedListingUrls(
           [...(row.listing_media ?? [])]
@@ -934,13 +939,14 @@ export const getPublicSeller = createServerFn({ method: "GET" })
       })),
     );
     return {
+      managedByBluebird: isManaged,
       userId: seller.user_id,
       slug: seller.slug,
       displayName: seller.display_name ?? seller.slug,
       avatarUrl: seller.avatar_url,
       bio: seller.bio,
       memberSince: seller.member_since,
-      payoutVerified: seller.payout_verified === true,
+      payoutVerified: !isManaged && seller.payout_verified === true,
       completedSalesCount: Number(seller.completed_sales_count ?? 0),
       reviewCount,
       ratingAverage,
