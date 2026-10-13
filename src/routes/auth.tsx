@@ -455,24 +455,26 @@ function AuthPage() {
               </button>
             </form>
 
-            <button
-              type="button"
-              onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
-              className="mt-3 text-[12px] text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-            >
-              {mode === "signin"
-                ? "Need an account? Create one"
-                : "Already have an account? Sign in"}
-            </button>
-            {mode === "signin" && (
+            <div className="mt-3 flex flex-wrap items-center justify-center gap-x-5 gap-y-1">
               <button
                 type="button"
-                onClick={() => setMode("forgot")}
-                className="mt-2 w-full text-[12px] text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                onClick={() => setMode(mode === "signin" ? "signup" : "signin")}
+                className="text-[12px] text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
               >
-                Forgot password?
+                {mode === "signin"
+                  ? "Need an account? Create one"
+                  : "Already have an account? Sign in"}
               </button>
-            )}
+              {mode === "signin" && (
+                <button
+                  type="button"
+                  onClick={() => setMode("forgot")}
+                  className="text-[12px] text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                >
+                  Forgot password?
+                </button>
+              )}
+            </div>
           </>
         )}
       </div>
