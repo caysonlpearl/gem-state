@@ -220,6 +220,663 @@ export const guides: Guide[] = [
     ],
     categories: ["cars-trucks", "motorcycles", "rvs-campers", "powersports", "trailers"],
   },
+  {
+    slug: "safe-places-to-meet-for-a-local-sale-in-idaho",
+    title: "Safe places to meet for a local sale in Idaho",
+    description:
+      "Where to meet a buyer or seller in Idaho, which police departments have offered exchange spots, and how to handle cash, big items and test drives safely.",
+    answer:
+      "Meet in a busy, well-lit public place during the day, ideally a police department's lobby or parking lot where cameras are running, or a bank lobby if cash is changing hands. Meridian and Nampa police both announced exchange spots at their stations in 2016, but neither city's police page mentions them today, so call the department's non-emergency line before you go. Bring someone with you, and don't invite strangers to your home for anything you can carry.",
+    published: "2026-10-13",
+    reviewed: "2026-10-13",
+    sections: [
+      {
+        heading: "Pick the right spot",
+        blocks: [
+          {
+            kind: "list",
+            items: [
+              "**A police department lobby or parking lot.** Cameras, lighting and officers coming and going make it the least attractive place for anyone planning a scam or a robbery.",
+              "**A bank lobby during business hours** when real money changes hands. A teller can count and check cash, and you can deposit it on the spot.",
+              "**The entrance of a busy store** for small, low-value items.",
+              "**Avoid** empty parking lots, meeting after dark, and anywhere the other person picks at the last minute. If someone refuses to meet in a public place, walk away.",
+            ],
+          },
+        ],
+      },
+      {
+        heading: "Exchange spots Idaho police have announced",
+        blocks: [
+          {
+            kind: "list",
+            items: [
+              "**Meridian Police Department** announced a safe internet purchase and exchange spot in its parking lot in April 2016, with 24-hour video surveillance. The department's administration building is at 1401 E. Watertower St.",
+              "**Nampa Police Department** set aside two parking spaces in its station's front lot for online-sale exchanges in 2016, also under 24-hour video surveillance, and recommended meeting during the day.",
+            ],
+          },
+          {
+            kind: "note",
+            text: "We couldn't find either program on the cities' current police pages, and we couldn't find an official exchange spot for any other Idaho city. Programs change, so call ahead. If your city isn't listed, ask anyway: many departments will tell you whether you're welcome to meet in their lobby or lot.",
+          },
+        ],
+      },
+      {
+        heading: "Find your local police department",
+        blocks: [
+          {
+            kind: "p",
+            text: "Call the non-emergency number on your department's site (not 911) to ask about meeting there. Eagle and Kuna are policed by the Ada County Sheriff's Office under contract; Hayden is covered by the Kootenai County Sheriff's Office and Ammon by the Bonneville County Sheriff's Office.",
+          },
+          {
+            kind: "list",
+            items: [
+              "Treasure Valley: [Boise](https://www.cityofboise.org/departments/police/), [Meridian](https://meridiancity.org/police/), [Nampa](https://www.cityofnampa.us/1451/Police), [Caldwell](https://www.cityofcaldwell.org/Departments/Police), [Eagle](https://www.cityofeagle.org/444/Eagle-Police), [Kuna](https://kunacity.id.gov/654/Kuna-City-Police-Department), [Ada County Sheriff](https://adacounty.id.gov/sheriff/), [Canyon County Sheriff](https://www.canyoncounty.id.gov/elected-officials/sheriff/), [Mountain Home](https://www.mountain-home.us/170/Police-Department)",
+              "Eastern Idaho: [Idaho Falls](https://www.idahofallsidaho.gov/1739/Police-Department), [Ammon (Bonneville County Sheriff)](https://www.bonnevillecountyidaho.gov/administration/sheriff), [Pocatello](https://pocatello.gov/370/Police), [Chubbuck](https://cityofchubbuck.us/police_dept/), [Rexburg](https://www.rexburg.org/o/police), [Blackfoot](http://blackfootpolice.org/)",
+              "Magic Valley: [Twin Falls](https://www.tfid.org/186/Police), [Jerome](https://www.ci.jerome.id.us/175/Police-Department)",
+              "North Idaho: [Coeur d'Alene](https://www.cdaid.org/police), [Post Falls](https://www.postfallspolice.gov/), [Hayden (Kootenai County Sheriff)](https://www.kcsheriff.com/), [Lewiston](https://www.cityoflewiston.org/292/Police-Department), [Moscow](https://www.ci.moscow.id.us/234/Police)",
+            ],
+          },
+        ],
+      },
+      {
+        heading: "When the item is too big to bring",
+        blocks: [
+          {
+            kind: "list",
+            items: [
+              "Move furniture or appliances into the garage or driveway before the buyer arrives, so nobody needs to walk through your home.",
+              "Have another adult there, and let someone else know when the buyer is coming.",
+              "Keep valuables, mail and anything with your address or schedule out of sight.",
+              "Send extra photos or a video instead of offering an in-person look before someone has committed to buy.",
+            ],
+          },
+        ],
+      },
+      {
+        heading: "Vehicles, test drives and payment",
+        blocks: [
+          {
+            kind: "list",
+            items: [
+              "Before a test drive, look at the driver's license, take a photo of it and ride along. Keep the keys and title with you when the buyer isn't driving. The full process is in [how to sell a car in Idaho](/guides/how-to-sell-a-car-in-idaho).",
+              "Count cash at a bank. Never take a check for more than the price, and never send money back to a buyer who says they overpaid.",
+              "Don't accept payment-app payments from strangers, and never share a verification code sent to your phone. More in [marketplace scams to watch for](/guides/marketplace-scams-to-watch-for).",
+            ],
+          },
+        ],
+      },
+    ],
+    faqs: [
+      {
+        question: "Does Boise have a police safe exchange zone?",
+        answer:
+          "We couldn't find an official exchange spot listed by the Boise Police Department as of October 2026. Call its non-emergency line to ask whether you can meet in its lobby or lot, or meet in a bank lobby during business hours.",
+      },
+      {
+        question: "Is the Meridian police exchange zone still open?",
+        answer:
+          "Meridian police announced the spot in their parking lot in 2016, but it isn't mentioned on the department's current website. Call the department before you rely on it.",
+      },
+      {
+        question: "Should I let a buyer come to my house?",
+        answer:
+          "For anything you can carry, no: meet in public. For furniture and appliances, move the item to your garage or driveway, have another adult home, and keep the visit short.",
+      },
+    ],
+    sources: [
+      {
+        label:
+          "Idaho News 6: Meridian Police Dept. offers safe online purchase and exchange zone (April 2016)",
+        url: "https://idahonews.com/news/local/meridian-police-dept-offers-safe-online-purchase-and-exchange-zone",
+      },
+      {
+        label: "KIVI: Nampa PD unveils Craigslist safe zone at station (2016)",
+        url: "https://www.kivitv.com/news/nampa-pd-unveils-craigslist-safe-zone-purchase-area",
+      },
+      {
+        label: "Idaho State Police: Idaho law enforcement agencies",
+        url: "https://isp.idaho.gov/citizen-resources/idaho-le-agencies/",
+      },
+      {
+        label: "City of Eagle: Eagle Police (Ada County Sheriff contract)",
+        url: "https://www.cityofeagle.org/444/Eagle-Police",
+      },
+      {
+        label: "FTC: Selling stuff online? Here's how to avoid a scam",
+        url: "https://consumer.ftc.gov/consumer-alerts/2022/07/selling-stuff-online-heres-how-avoid-scam",
+      },
+    ],
+    related: [
+      { label: "How to sell a car in Idaho", path: "/guides/how-to-sell-a-car-in-idaho" },
+      { label: "Marketplace scams to watch for", path: "/guides/marketplace-scams-to-watch-for" },
+      { label: "Browse listings near you", path: "/browse" },
+    ],
+    categories: [
+      "furniture",
+      "electronics",
+      "appliances",
+      "tools-equipment",
+      "home-garden",
+      "outdoor-sporting",
+      "computers",
+      "fitness-equipment",
+      "cycling",
+      "musical-instruments",
+      "collectibles",
+      "toys",
+      "general",
+    ],
+  },
+  {
+    slug: "how-to-buy-a-used-car-in-idaho",
+    title: "How to buy a used car in Idaho without getting burned",
+    description:
+      "Buying a used car from a private seller in Idaho: checking the title and brands, running the VIN, paying safely, and titling it within 30 days with the 6% sales tax.",
+    answer:
+      "Before you pay for a used car in Idaho, see the paper title and make sure the seller's name is on it, check the title and a vehicle history report for brands like Rebuilt Salvage, look up open recalls by VIN, and have a mechanic inspect it. At the sale, get the signed title and a bill of sale with the real price. You then have 30 days to title it at a county assessor's motor vehicle office, where you pay 6% sales tax on the price, a $14 title fee and a county fee. Idaho no longer requires emissions testing.",
+    published: "2026-10-13",
+    reviewed: "2026-10-13",
+    sections: [
+      {
+        heading: "Check the title before anything else",
+        blocks: [
+          {
+            kind: "list",
+            items: [
+              "**No title, no deal.** The Idaho Transportation Department's advice is simply not to buy a vehicle without one. Without it you may not be able to title or register the car in your name.",
+              "**The seller's name has to be on it.** Check it against their ID. A seller who isn't the titled owner (or a legally appointed agent) can't transfer it.",
+              '**Be wary of "I lost the title."** Only the titled owner or the lienholder can get a duplicate, so the seller can order one before the sale.',
+              "**Look for a lienholder.** If a lender is listed, the lien has to be released before the title can be transferred to you.",
+              '**Read the brands.** Idaho prints brands such as Rebuilt Salvage in the title\'s "Other Pertinent Data" section, and the brand stays with the vehicle for life. A rebuilt salvage car was once declared a total loss, which usually means a lower value.',
+            ],
+          },
+        ],
+      },
+      {
+        heading: "Run the VIN",
+        blocks: [
+          {
+            kind: "list",
+            items: [
+              "Match the VIN on the dashboard, the driver's door jamb and the title. A mismatch is a reason to walk away.",
+              "Get a history report from a provider approved by the federal [National Motor Vehicle Title Information System](https://vehiclehistory.bja.ojp.gov/), which collects title brands, odometer readings and total-loss records from states and insurers.",
+              "Check for open safety recalls by VIN on [NHTSA's recall lookup](https://www.nhtsa.gov/recalls). Recall repairs are free at a dealer.",
+            ],
+          },
+        ],
+      },
+      {
+        heading: "Inspect it and test drive it",
+        blocks: [
+          {
+            kind: "list",
+            items: [
+              "Pay an independent mechanic for a pre-purchase inspection. It's the best money you'll spend, and a seller who won't allow one is telling you something.",
+              "Start the car cold if you can, and drive it at highway speed, over rough pavement and through some stop-and-go.",
+              "Meet somewhere public. See [safe places to meet in Idaho](/guides/safe-places-to-meet-for-a-local-sale-in-idaho).",
+            ],
+          },
+        ],
+      },
+      {
+        heading: "Paying safely",
+        blocks: [
+          {
+            kind: "list",
+            items: [
+              "Don't send a deposit for a car you haven't seen in person, and never pay with gift cards, wire transfers or cryptocurrency: those are signs of a scam.",
+              "Pay with a cashier's check made out to the titled owner, or do the deal at your bank so the seller can see the money is real.",
+              "If the price is far below similar cars, the seller is in a hurry and can't meet in person, assume it's a fake listing. Compare against [cars and trucks for sale in Idaho](/idaho/cars-trucks).",
+            ],
+          },
+        ],
+      },
+      {
+        heading: "The paperwork at the sale",
+        blocks: [
+          {
+            kind: "steps",
+            items: [
+              "**Get the title signed over to you,** with the real sale price and the odometer reading (required for vehicles newer than model year 2010 that weigh under 16,000 pounds).",
+              "**Get a bill of sale signed by both of you.** You'll need the original to prove the price when you pay sales tax; the Idaho State Tax Commission won't accept a canceled check instead. ITD's form 3738 works.",
+              "**Plan how you'll get it home.** In Idaho the seller keeps the license plates, so the car won't have plates when you buy it. Ask your county motor vehicle office about registering it before you drive it on public roads.",
+            ],
+          },
+        ],
+      },
+      {
+        heading: "Titling it in your name",
+        blocks: [
+          {
+            kind: "list",
+            items: [
+              "**Deadline:** apply for the title at a county assessor's motor vehicle office within 30 days of the sale, or pay a $20 late-filing penalty.",
+              "**Fees:** the state title fee is $14, plus a county administrative fee that varies by county.",
+              "**Sales tax:** 6% of the price you paid, collected when you title it. A sale between a parent, child, grandparent, grandchild, brother or sister is exempt only if the family member paid sales tax when they bought it (form ST-133).",
+              "**Out-of-state title?** A vehicle that has never been titled in Idaho needs a VIN inspection, done by the DMV, a law enforcement officer or an Idaho dealer.",
+              "**Emissions testing:** not required. Idaho repealed vehicle emissions testing effective July 1, 2023, and the EPA approved removing the Ada County program.",
+            ],
+          },
+        ],
+      },
+    ],
+    faqs: [
+      {
+        question: "Can I buy a car without a title in Idaho?",
+        answer:
+          "Don't. The Idaho Transportation Department warns against it: without a properly signed title you may not be able to title or register the car. If the seller lost it, they can order a duplicate first.",
+      },
+      {
+        question: "How long do I have to title a car after buying it in Idaho?",
+        answer:
+          "Thirty days from the sale. After that, the county charges a $20 late-filing penalty.",
+      },
+      {
+        question: "Does Idaho require emissions testing?",
+        answer:
+          "No. Idaho repealed its vehicle emissions testing requirement effective July 1, 2023, and the EPA approved removing the Ada County program that year.",
+      },
+      {
+        question: "What does Rebuilt Salvage mean on an Idaho title?",
+        answer:
+          "The vehicle was once declared salvage (usually a total loss) and was later repaired to meet Idaho's equipment requirements. The brand stays on the title for the life of the vehicle.",
+      },
+    ],
+    sources: [
+      {
+        label: "Idaho Transportation Department: Vehicle Titles",
+        url: "https://itd.idaho.gov/dmv/registrations-plates-titles/vehicle-titles/",
+      },
+      {
+        label: "Idaho Transportation Department: Salvage Vehicles",
+        url: "https://itd.idaho.gov/dmv/registrations-plates-titles/salvage-vehicles/",
+      },
+      {
+        label: "ITD: Avoid the problems, never buy a vehicle without a title",
+        url: "https://apps.itd.idaho.gov/apps/MediaManagerMVC/transporter/2014/030714_Trans/030714_TitleMistakes.html",
+      },
+      {
+        label: "Idaho State Tax Commission: Motor vehicle sales between individuals",
+        url: "https://tax.idaho.gov/taxes/sales-use/transportation/motor-vehicles/nondealers/types-of-sales/",
+      },
+      {
+        label: "Idaho DEQ: Vehicle Emissions",
+        url: "https://www.deq.idaho.gov/air-quality/improving-air-quality/vehicle-emissions/",
+      },
+      {
+        label: "National Motor Vehicle Title Information System (U.S. Department of Justice)",
+        url: "https://vehiclehistory.bja.ojp.gov/",
+      },
+      { label: "NHTSA: Safety recalls by VIN", url: "https://www.nhtsa.gov/recalls" },
+    ],
+    related: [
+      { label: "Cars and trucks for sale in Idaho", path: "/idaho/cars-trucks" },
+      { label: "How to sell a car in Idaho", path: "/guides/how-to-sell-a-car-in-idaho" },
+      { label: "Marketplace scams to watch for", path: "/guides/marketplace-scams-to-watch-for" },
+    ],
+    categories: ["cars-trucks", "motorcycles", "powersports"],
+  },
+  {
+    slug: "selling-an-rv-trailer-or-boat-in-idaho",
+    title: "Selling an RV, trailer or boat in Idaho: titles and registration",
+    description:
+      "Which RVs, trailers and boats need a title in Idaho, who registers them (ITD or Idaho Parks and Recreation), and what the buyer pays.",
+    answer:
+      "Motorhomes, travel trailers, fifth wheels and most trailers are titled through the Idaho Transportation Department, so you sell them like a car: sign the title over with the real price and fill out a bill of sale. The exception is a utility trailer that weighs under 2,000 pounds empty, which is registered but not titled. Boats are registered through Idaho Parks and Recreation, and a boat needs a title only if it's model year 2000 or newer and has a permanently attached motor or sail, or is longer than 12 feet; canoes, kayaks, drift boats and rafts are exempt.",
+    published: "2026-10-13",
+    reviewed: "2026-10-13",
+    sections: [
+      {
+        heading: "Which ones need a title",
+        blocks: [
+          {
+            kind: "list",
+            items: [
+              "**Motorhomes, travel trailers and fifth wheels:** titled, like cars.",
+              "**Utility trailers:** titled if they weigh 2,000 pounds or more unladen (empty). Under 2,000 pounds they're exempt from titling under Idaho Code 49-501 and are registered only.",
+              "**Truck campers:** titling is optional for campers acquired before January 1, 2009.",
+              "**ATVs, UTVs, motorbikes and snowmobiles:** titled unless the engine is under 50cc.",
+              "**Boats:** see the boat section below.",
+            ],
+          },
+        ],
+      },
+      {
+        heading: "Selling a titled RV or trailer",
+        blocks: [
+          {
+            kind: "steps",
+            items: [
+              "**Sign the title over** with the buyer's name, the date and the real sale price. Idaho law makes it a felony to put a false price on a title or bill of sale.",
+              "**Fill out a bill of sale** that you both sign, and keep a copy. The buyer needs the original to prove the price for sales tax.",
+              "**For a motorhome, file a release of liability** within 5 days ($3.50, online at the [Idaho DMV online services site](https://dmvonline.itd.idaho.gov/) or at a county DMV office), exactly as for a car. For trailers, ask your county office whether one applies.",
+              "**The buyer titles it within 30 days** at a county assessor's motor vehicle office ($14 title fee plus a county fee, or a $20 late penalty after 30 days) and pays 6% sales tax on the price.",
+            ],
+          },
+        ],
+      },
+      {
+        heading: "Selling a small utility trailer (under 2,000 pounds)",
+        blocks: [
+          {
+            kind: "p",
+            text: "With no title, the bill of sale is the buyer's proof of ownership, so make it complete: the trailer's VIN or serial number, its empty weight, the price, the date, and both of your names, addresses and signatures. Give the buyer the current registration too. The buyer registers it at a county office: $5 a year, $20 for five years or $30 for ten.",
+          },
+        ],
+      },
+      {
+        heading: "What an RV buyer pays to register it",
+        blocks: [
+          {
+            kind: "p",
+            text: "Idaho charges RV fees based on market value: $8.50 for the first $1,000 of value plus $5 for each additional $1,000. Camp trailers, tent trailers and fifth wheels also pay a $4 registration fee, and every RV registration expires December 31. Telling a buyer this up front avoids surprises at the DMV counter.",
+          },
+        ],
+      },
+      {
+        heading: "Selling a boat",
+        blocks: [
+          {
+            kind: "list",
+            items: [
+              "**Title:** required for a boat that's model year 2000 or newer with a permanently attached means of propulsion (an inboard or inboard/outboard motor, a sail, a personal watercraft) and for any non-exempt boat over 12 feet. Drift boats, canoes, kayaks, inflatables, rafts, paddle boats and documented vessels are exempt (Idaho Code 67-7040). Older boats can be titled optionally. Titled boats transfer through the county DMV just like a car.",
+              "**Registration:** boats, ATVs, UTVs, motorbikes and snowmobiles are registered through [Idaho Parks and Recreation](https://parksandrecreation.idaho.gov/registration-permits/), not the DMV: online, by phone at 1-888-922-6743, or at one of more than 200 vendors around the state. The buyer registers in their own name; the emailed receipt works as temporary proof for 60 days.",
+              "**Trailer included?** A boat trailer is a separate vehicle with its own title or registration. List both in the bill of sale.",
+            ],
+          },
+        ],
+      },
+    ],
+    faqs: [
+      {
+        question: "Does a utility trailer need a title in Idaho?",
+        answer:
+          "Only if it weighs 2,000 pounds or more empty. Utility trailers under 2,000 pounds are exempt from titling (Idaho Code 49-501) and are registered only: $5 a year, $20 for five years or $30 for ten.",
+      },
+      {
+        question: "Where do I register a boat in Idaho?",
+        answer:
+          "Through Idaho Parks and Recreation, not the DMV: online, by phone at 1-888-922-6743, or at a registration vendor. Titles for boats that need one are handled by the county DMV.",
+      },
+      {
+        question: "Do kayaks and canoes need a title in Idaho?",
+        answer:
+          "No. Canoes, kayaks, drift boats, inflatables, rafts and other non-motorized paddle vessels are exempt from Idaho's vessel titling act.",
+      },
+      {
+        question: "How are RV registration fees calculated in Idaho?",
+        answer:
+          "On market value: $8.50 for the first $1,000 plus $5 for each additional $1,000. Camp trailers, tent trailers and fifth wheels add a $4 registration fee, and all RV registrations expire December 31.",
+      },
+    ],
+    sources: [
+      {
+        label: "Idaho Code § 49-501: Titling requirements and exemptions",
+        url: "https://legislature.idaho.gov/statutesrules/idstat/title49/t49ch5/sect49-501/",
+      },
+      {
+        label: "Idaho Code § 67-7040: Vessel titling, application to certain vessels",
+        url: "https://legislature.idaho.gov/statutesrules/idstat/Title67/T67CH70/SECT67-7040/",
+      },
+      {
+        label: "Idaho Transportation Department: Vehicle Registrations (trailer and RV fees)",
+        url: "https://itd.idaho.gov/dmv/registrations-plates-titles/vehicle-registrations/",
+      },
+      {
+        label: "Idaho Transportation Department: Vehicle Titles",
+        url: "https://itd.idaho.gov/dmv/registrations-plates-titles/vehicle-titles/",
+      },
+      {
+        label: "Idaho Parks and Recreation: Registration and permits",
+        url: "https://parksandrecreation.idaho.gov/registration-permits/",
+      },
+      {
+        label: "Idaho Code § 49-526: Release of liability upon sale of vehicle",
+        url: "https://legislature.idaho.gov/statutesrules/idstat/title49/t49ch5/sect49-526/",
+      },
+    ],
+    related: [
+      { label: "RVs and campers for sale in Idaho", path: "/idaho/rvs-campers" },
+      { label: "Trailers for sale in Idaho", path: "/idaho/trailers" },
+      { label: "How to sell a car in Idaho", path: "/guides/how-to-sell-a-car-in-idaho" },
+    ],
+    categories: ["rvs-campers", "trailers", "water-sports", "powersports", "winter-sports"],
+  },
+  {
+    slug: "marketplace-scams-to-watch-for",
+    title: "Marketplace scams to watch for in Idaho, and what to do if you're hit",
+    description:
+      "The overpayment, fake payment, verification code, fake car and rental scams aimed at local buyers and sellers, how to spot them, and where Idahoans report them.",
+    answer:
+      "The scams that hit local sellers most are overpayment checks (a buyer \"accidentally\" sends too much and wants the difference back), fake payment-app notifications, and requests for a verification code sent to your phone. Buyers mostly run into listings for things the seller doesn't own: cheap cars the seller can't show, and rentals you can't tour before paying. Deal locally and in person, never send money back to anyone, and never pay with gift cards, wire transfers or crypto. If it happens, report it to the FTC at ReportFraud.ftc.gov and to the Idaho Attorney General's consumer protection division.",
+    published: "2026-10-13",
+    reviewed: "2026-10-13",
+    sections: [
+      {
+        heading: "Scams aimed at sellers",
+        blocks: [
+          {
+            kind: "list",
+            items: [
+              "**The overpayment check.** A buyer who can't come see the item sends a check for more than the price, then asks you to send back the difference. The money may even show up in your account, but it can take the bank weeks to discover the check is fake, and then the bank takes it back. Never deposit a check for more than the price, and never send money back.",
+              "**The fake payment notification.** The buyer \"pays\" through a payment app and sends a convincing but fake confirmation, or claims they paid twice and asks for a refund. Don't accept payment-app payments from people you don't know, and check your actual account, not an email or text.",
+              "**The verification code.** A buyer asks you to read back a code sent to your phone \"to prove you're real.\" It's usually a code to set up a phone number (such as Google Voice) in your name. Never share a verification code.",
+              "**The shipping story.** A buyer who's out of town, sending a courier, and paying extra for your trouble is almost always a scammer. Sell locally to people you can meet.",
+            ],
+          },
+        ],
+      },
+      {
+        heading: "Scams aimed at buyers",
+        blocks: [
+          {
+            kind: "list",
+            items: [
+              "**The too-cheap car.** A low price, a seller who's in a hurry and can't meet or let you inspect the car, a VIN that doesn't match, a request for a deposit, or new \"shipping\" fees after you pay. See [how to buy a used car in Idaho](/guides/how-to-buy-a-used-car-in-idaho).",
+              "**The rental you can't see.** Rent far below the area, an owner who's \"out of the country\", pressure to pay a deposit or application fee before a tour, and requests for your Social Security number up front. Look up who owns the property in your county assessor's records and make sure the name matches the person you're dealing with.",
+              "**The payment method.** Nobody legitimate insists on gift cards, wire transfers or cryptocurrency. If that's the only way they'll take money, it's a scam.",
+            ],
+          },
+        ],
+      },
+      {
+        heading: "Red flags in one list",
+        blocks: [
+          {
+            kind: "list",
+            items: [
+              "They won't meet in person, or won't let you see the item.",
+              "They're in a hurry, or the price is far below similar listings.",
+              'They want to move the conversation off the site right away, or send a link to "confirm" something.',
+              "They want a code from your phone, your personal information, or payment in gift cards, wire transfers or crypto.",
+              "The story keeps changing: a relative is picking it up, a shipper is coming, the check is from their employer.",
+            ],
+          },
+        ],
+      },
+      {
+        heading: "If you've been scammed",
+        blocks: [
+          {
+            kind: "steps",
+            items: [
+              "**Call your bank or card issuer right away** and ask them to stop or reverse the payment. If you paid with a gift card, contact the card's company immediately.",
+              "**Report it to the FTC** at [ReportFraud.ftc.gov](https://reportfraud.ftc.gov/).",
+              "**Report it to the Idaho Attorney General's Consumer Protection Division** using its [online complaint form](https://www.ag.idaho.gov/consumer-protection/consumer-complaints/), or call 208-334-2424 (toll-free: 800-432-3545).",
+              "**Report the listing or the account** to the site where you found it. On Bluebird, use the report option on the listing; see the [Bluebird safety center](/safety).",
+              "**If you were threatened or met someone in person,** call your local police.",
+            ],
+          },
+        ],
+      },
+    ],
+    faqs: [
+      {
+        question: "Is it a scam if a buyer sends a check for more than my asking price?",
+        answer:
+          "Yes. The overpayment is the scam: the check bounces after you've sent the \"extra\" back, and the bank takes the money out of your account. Don't deposit it, and don't send anything back.",
+      },
+      {
+        question: "Why does a buyer want the code that was texted to me?",
+        answer:
+          "Usually to set up a phone number, such as a Google Voice number, tied to your phone so they can run other scams under it. Never share a verification code with someone you don't know.",
+      },
+      {
+        question: "Where do I report a marketplace scam in Idaho?",
+        answer:
+          "To the FTC at ReportFraud.ftc.gov and to the Idaho Attorney General's Consumer Protection Division (208-334-2424, or toll-free 800-432-3545). Also call your bank right away and report the listing to the site.",
+      },
+    ],
+    sources: [
+      {
+        label: "FTC: Fake check scam targets online car sellers (February 2025)",
+        url: "https://consumer.ftc.gov/consumer-alerts/2025/02/fake-check-scam-targets-online-car-sellers",
+      },
+      {
+        label: "FTC: Selling stuff online? Here's how to avoid a scam (July 2022)",
+        url: "https://consumer.ftc.gov/consumer-alerts/2022/07/selling-stuff-online-heres-how-avoid-scam",
+      },
+      {
+        label: "FTC: Avoiding rental listing scams (July 2024)",
+        url: "https://consumer.ftc.gov/consumer-alerts/2024/07/avoiding-rental-listing-scams",
+      },
+      { label: "FTC: ReportFraud.ftc.gov", url: "https://reportfraud.ftc.gov/" },
+      {
+        label: "Idaho Office of the Attorney General: Report Scams Idaho",
+        url: "https://www.ag.idaho.gov/consumer-protection/report-scams-idaho/",
+      },
+      {
+        label: "Idaho Office of the Attorney General: Consumer complaints",
+        url: "https://www.ag.idaho.gov/consumer-protection/consumer-complaints/",
+      },
+    ],
+    related: [
+      { label: "Bluebird safety center", path: "/safety" },
+      {
+        label: "Safe places to meet in Idaho",
+        path: "/guides/safe-places-to-meet-for-a-local-sale-in-idaho",
+      },
+      { label: "Homes and rentals in Idaho", path: "/idaho/homes" },
+    ],
+    categories: [
+      "other-real-estate",
+      "electronics",
+      "computers",
+      "general",
+      "tickets",
+      "tickets-events",
+    ],
+  },
+  {
+    slug: "new-to-idaho-title-and-register-your-vehicle",
+    title: "New to Idaho? How to title and register your vehicle",
+    description:
+      "Moved to Idaho? You have 30 days to title and register your vehicle and get an Idaho driver's license. What to bring, the VIN inspection, and what's not required.",
+    answer:
+      "If you've moved to Idaho, you have 30 days to title and register your vehicle here, even if your old state's registration hasn't expired, and 30 days to get an Idaho driver's license or ID card. Take the vehicle, its current title and registration, and your ID to a county assessor's motor vehicle office, where an employee will inspect the VIN. Fees depend on the vehicle and your county. Idaho doesn't require emissions testing.",
+    published: "2026-10-13",
+    reviewed: "2026-10-13",
+    sections: [
+      {
+        heading: "The deadline",
+        blocks: [
+          {
+            kind: "p",
+            text: "The Idaho Transportation Department's guide for new residents says you must title and register your vehicle within 30 days of moving to Idaho, whether or not your out-of-state registration has expired. Some older ITD documents mention 90 days; go by the current 30-day rule.",
+          },
+        ],
+      },
+      {
+        heading: "What to bring to the county motor vehicle office",
+        blocks: [
+          {
+            kind: "list",
+            items: [
+              "**The vehicle itself,** for the VIN inspection (required for any vehicle not already titled in Idaho).",
+              "**Its current title and registration.** If a lender holds the title, bring the lender's name and address.",
+              "**Your ID.**",
+              "**If the title isn't in your name,** it must be signed over to you, and you'll need a bill of sale if the price isn't on the title.",
+              "**A way to pay:** cash, check or card. Fees and taxes depend on the vehicle type, its age, the purchase price and your county.",
+            ],
+          },
+        ],
+      },
+      {
+        heading: "Your Idaho driver's license",
+        blocks: [
+          {
+            kind: "p",
+            text: "You also have 30 days to get an Idaho driver's license or ID card. Bring proof of U.S. citizenship or lawful presence, identity, Idaho residency and your name; ITD recommends a second, different proof of residency too. College students attending Idaho schools and active-duty military members and their dependents can keep a valid out-of-state license.",
+          },
+        ],
+      },
+      {
+        heading: "Things you don't need to worry about",
+        blocks: [
+          {
+            kind: "list",
+            items: [
+              "**Emissions testing:** Idaho repealed it effective July 1, 2023, and the EPA approved removing the Ada County program.",
+              "**Your old state's brands carry over:** if your vehicle has a salvage or rebuilt brand from another state, Idaho carries it forward on the new title.",
+            ],
+          },
+        ],
+      },
+      {
+        heading: "Boats, ATVs and snowmobiles",
+        blocks: [
+          {
+            kind: "p",
+            text: "These are registered through [Idaho Parks and Recreation](https://parksandrecreation.idaho.gov/registration-permits/), not the DMV: online, by phone at 1-888-922-6743, or through registration vendors around the state. Titles for boats and off-road vehicles that need one go through the county DMV. See [selling an RV, trailer or boat in Idaho](/guides/selling-an-rv-trailer-or-boat-in-idaho) for which ones need a title.",
+          },
+        ],
+      },
+    ],
+    faqs: [
+      {
+        question: "How long do I have to register my car after moving to Idaho?",
+        answer:
+          "Thirty days, according to the Idaho Transportation Department, even if your out-of-state registration hasn't expired.",
+      },
+      {
+        question: "Do I need a VIN inspection in Idaho?",
+        answer:
+          "Yes, for any vehicle that hasn't been titled in Idaho before. A DMV employee does it when you bring the vehicle to the county motor vehicle office; law enforcement officers and Idaho dealers can also do it.",
+      },
+      {
+        question: "Does Idaho require a smog check or emissions test?",
+        answer: "No. Idaho repealed vehicle emissions testing effective July 1, 2023.",
+      },
+    ],
+    sources: [
+      {
+        label: "Idaho Transportation Department: New to Idaho",
+        url: "https://itd.idaho.gov/guide/new-to-idaho/",
+      },
+      {
+        label: "Idaho Transportation Department: Vehicle Titles (VIN inspection)",
+        url: "https://itd.idaho.gov/dmv/registrations-plates-titles/vehicle-titles/",
+      },
+      {
+        label: "Idaho Transportation Department: Salvage Vehicles",
+        url: "https://itd.idaho.gov/dmv/registrations-plates-titles/salvage-vehicles/",
+      },
+      {
+        label: "Idaho DEQ: Vehicle Emissions",
+        url: "https://www.deq.idaho.gov/air-quality/improving-air-quality/vehicle-emissions/",
+      },
+      {
+        label: "Idaho Parks and Recreation: Registration and permits",
+        url: "https://parksandrecreation.idaho.gov/registration-permits/",
+      },
+    ],
+    related: [
+      { label: "Homes and rentals in Idaho", path: "/idaho/homes" },
+      { label: "How to buy a used car in Idaho", path: "/guides/how-to-buy-a-used-car-in-idaho" },
+      { label: "Furniture for sale in Idaho", path: "/idaho/furniture" },
+    ],
+    categories: ["cars-trucks", "other-real-estate"],
+  },
 ];
 
 export function guidesForCategory(categorySlug: string | undefined) {

@@ -70,7 +70,7 @@ function LinkChips({ heading, links }: { heading: string; links: PlacePageData["
 }
 
 function GuideLinks({ categorySlug }: { categorySlug: string }) {
-  const related = guidesForCategory(categorySlug);
+  const related = guidesForCategory(categorySlug).slice(0, 3);
   if (!related.length) return null;
   return (
     <section className="border-t border-border/70 pt-8">
