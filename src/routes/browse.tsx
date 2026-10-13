@@ -6200,7 +6200,7 @@ function VehicleBrowseHero({
   }
 
   return (
-    <section className="floating-card relative min-h-[500px] overflow-visible bg-surface px-5 py-12 sm:min-h-[590px] sm:px-8 sm:py-14">
+    <section className="floating-card relative bg-surface px-5 py-12 sm:px-8 sm:py-14">
       <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]">
         <div className="absolute -right-24 -top-32 h-72 w-72 rounded-full bg-brand-warm/35" />
         <div className="absolute -bottom-36 left-1/3 h-64 w-64 rounded-full bg-primary/5" />
