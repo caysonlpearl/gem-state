@@ -46,6 +46,45 @@ function isH3SwallowedErrorBody(body: string): boolean {
   }
 }
 
+// Pages are fully server-rendered, so the ~50 module preloads only need to
+// arrive in time to make the page interactive. At their default high
+// priority they compete with the CSS and fonts the first paint needs, which
+// on slow phones delays it by about a second. Marking them low priority lets
+// the page paint first and hydrate right after.
+const MODULE_PRELOAD = '<link rel="modulepreload"';
+const MODULE_PRELOAD_LOW = '<link rel="modulepreload" fetchpriority="low"';
+
+function lowerModulePreloadPriority(response: Response): Response {
+  const contentType = response.headers.get("content-type") ?? "";
+  if (!response.body || !contentType.includes("text/html")) return response;
+
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+  // A tag can be split across chunks; hold back a tail shorter than the
+  // pattern so it is matched once the next chunk arrives.
+  let carry = "";
+  const keep = MODULE_PRELOAD.length - 1;
+  const body = response.body.pipeThrough(
+    new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, controller) {
+        const text = (carry + decoder.decode(chunk, { stream: true })).replaceAll(
+          MODULE_PRELOAD,
+          MODULE_PRELOAD_LOW,
+        );
+        carry = text.slice(-keep);
+        controller.enqueue(encoder.encode(text.slice(0, -keep)));
+      },
+      flush(controller) {
+        const text = (carry + decoder.decode()).replaceAll(MODULE_PRELOAD, MODULE_PRELOAD_LOW);
+        controller.enqueue(encoder.encode(text));
+      },
+    }),
+  );
+  const headers = new Headers(response.headers);
+  headers.delete("content-length");
+  return new Response(body, { status: response.status, statusText: response.statusText, headers });
+}
+
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
@@ -57,7 +96,7 @@ export default {
       }
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return await normalizeCatastrophicSsrResponse(response);
+      return lowerModulePreloadPriority(await normalizeCatastrophicSsrResponse(response));
     } catch (error) {
       console.error(error);
       return new Response(renderErrorPage(), {
