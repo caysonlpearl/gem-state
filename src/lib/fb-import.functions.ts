@@ -3,6 +3,10 @@ import { createClient } from "@supabase/supabase-js";
 import { createServerFn } from "@tanstack/react-start";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import {
+  inferFacebookCategorySlug,
+  normalizeFacebookCondition,
+} from "@/lib/fb-import-normalization";
 
 const MAX_PHOTO_BYTES = 12 * 1024 * 1024;
 
@@ -258,8 +262,8 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
           .slice(0, 120),
         description: item.description ? String(item.description).trim().slice(0, 5000) : null,
         priceCents: Math.max(0, Math.round(Number(item.priceCents) || 0)),
-        condition: item.condition ? String(item.condition).trim() : null,
-        categorySlug: String(item.categorySlug ?? "general"),
+        condition: normalizeFacebookCondition(item.condition),
+        categorySlug: inferFacebookCategorySlug(item.categorySlug, item.title, item.description),
         city: item.city ? String(item.city).trim().slice(0, 80) : "",
         state: item.state ? String(item.state).trim().slice(0, 80) : "",
         photoUrls: (item.photoUrls ?? []).filter(Boolean).slice(0, 8),
@@ -465,8 +469,12 @@ export const getFacebookImportItems = createServerFn({ method: "GET" })
         title: row.title,
         description: row.description,
         priceCents: Number(row.price_cents),
-        condition: row.condition,
-        categorySlug: row.category_slug,
+        // Older staged rows were saved before Facebook category/condition
+        // normalization existed. Present the same normalized values used by
+        // new imports so the review form does not force an admin to repair
+        // every row by hand.
+        condition: normalizeFacebookCondition(row.condition),
+        categorySlug: inferFacebookCategorySlug(row.category_slug, row.title, row.description),
         city: row.city ?? "",
         state: row.state ?? "",
         region: row.region ?? "",
@@ -720,6 +728,18 @@ export const publishFacebookImportItems = createServerFn({ method: "POST" })
         .in("id", data.itemIds);
       if (error) throw new Error(error.message);
       if (!items?.length) return { created: 0, updated: 0, removed: 0, errors: 0 };
+
+      // Apply the same defensive normalization at publish time. This covers
+      // rows staged by an older extension/bookmarklet bundle and ensures a
+      // corrected review value cannot be lost between the form and the RPC.
+      for (const item of items) {
+        item.condition = normalizeFacebookCondition(item.condition);
+        item.category_slug = inferFacebookCategorySlug(
+          item.category_slug,
+          item.title,
+          item.description,
+        );
+      }
 
       // One publish click is one seller: resolve/create their GemList account
       // once, then attribute every item in this call -- and every other

@@ -134,7 +134,9 @@
       node = node.parentElement;
     }
     const scope =
-      (listingsSection && listingsSection.parentElement && listingsSection.parentElement.parentElement) ||
+      (listingsSection &&
+        listingsSection.parentElement &&
+        listingsSection.parentElement.parentElement) ||
       document.querySelector('[role="dialog"]') ||
       document.body;
     const walker = document.createTreeWalker(scope, NodeFilter.SHOW_TEXT);
@@ -165,6 +167,28 @@
     // "with tags" from "no tags" -- require the actual phrase.
     if (t.includes("new")) return /with\s*tags?/.test(t) ? "new_with_tags" : "new_without_tags";
     return "used_good";
+  }
+
+  function inferCategory(title, description) {
+    const text = `${title || ""} ${description || ""}`.toLowerCase();
+    if (
+      !/doorbell|ring camera/.test(text) &&
+      /\b(jewelry|jewellery|watch(?:es)?|ring|rings|necklace|bracelet|earrings?|pendant|brooch|anklet|tiara|gemstone|diamond|moissanite|sterling silver|(?:14|18|24)k\s*(?:gold)?|925\s+sterling)\b/.test(
+        text,
+      )
+    )
+      return "jewelry-watches";
+    if (/\b(sofa|couch|dresser|nightstand|dining table|bookshelf|furniture)\b/.test(text))
+      return "furniture";
+    if (
+      /\b(laptop|iphone|ipad|android|television|tv|camera|headphones|computer|monitor)\b/.test(text)
+    )
+      return "electronics";
+    if (/\b(dress|shirt|jeans|shoes|boots|jacket|purse|handbag|clothing)\b/.test(text))
+      return "apparel-accessories";
+    if (/\b(guitar|drums?|piano|keyboard|amplifier|music\s+instrument)\b/.test(text))
+      return "musical-instruments";
+    return "general";
   }
 
   // A listing's full description/condition/photos are rendered client-side
@@ -199,7 +223,9 @@
       .split("\n")
       .map((s) => s.trim())
       .filter(Boolean);
-    const conditionIdx = lines.findIndex((l) => l === "Condition");
+    const inlineCondition = lines.find((line) => /^condition\s*:/i.test(line));
+    if (inlineCondition) return inlineCondition.replace(/^condition\s*:\s*/i, "").trim();
+    const conditionIdx = lines.findIndex((l) => /^condition\s*:?$/i.test(l));
     return conditionIdx >= 0 ? lines[conditionIdx + 1] : null;
   }
 
@@ -324,12 +350,22 @@
       .split("\n")
       .map((s) => s.trim())
       .filter(Boolean);
-    const conditionIdx = lines.findIndex((l) => l === "Condition");
-    const condition = conditionIdx >= 0 ? lines[conditionIdx + 1] : "";
+    const inlineCondition = lines.find((line) => /^condition\s*:/i.test(line));
+    const conditionIdx = lines.findIndex((l) => /^condition\s*:?$/i.test(l));
+    const conditionLineIdx =
+      conditionIdx >= 0 ? conditionIdx : lines.findIndex((line) => /^condition\s*:/i.test(line));
+    const condition = inlineCondition
+      ? inlineCondition.replace(/^condition\s*:\s*/i, "").trim()
+      : conditionIdx >= 0
+        ? lines[conditionIdx + 1]
+        : "";
     const locationIdx = lines.findIndex((l) => /Location is approximate/i.test(l));
     const descLines =
-      conditionIdx >= 0
-        ? lines.slice(conditionIdx + 2, locationIdx >= 0 ? locationIdx : lines.length)
+      conditionLineIdx >= 0
+        ? lines.slice(
+            conditionLineIdx + (inlineCondition ? 1 : 2),
+            locationIdx >= 0 ? locationIdx : lines.length,
+          )
         : [];
     const description = descLines.join("\n\n").trim();
     const photoUrls = await collectCarouselPhotos(doc);
@@ -390,7 +426,9 @@
 
   async function main() {
     if (!/\/marketplace\/profile\//.test(location.href)) {
-      alert("Open the seller's Facebook Marketplace profile page first, then click this bookmarklet.");
+      alert(
+        "Open the seller's Facebook Marketplace profile page first, then click this bookmarklet.",
+      );
       return;
     }
 
@@ -449,7 +487,7 @@
               description: item.description || "",
               priceCents: item.priceCents,
               condition: item.condition || "used_good",
-              categorySlug: "general",
+              categorySlug: inferCategory(item.title, item.description),
               city: item.city || "",
               state: item.state || "",
               photoUrls: item.photoUrls || [],

@@ -60,10 +60,12 @@ function overlay(tabId, html) {
 }
 
 function countOwnListings(tabId) {
-  return exec(tabId, () =>
-    Array.from(document.querySelectorAll('a[href*="/marketplace/item/"]')).filter((a) =>
-      /[?&]ref=marketplace_profile\b/.test(a.getAttribute("href") || ""),
-    ).length,
+  return exec(
+    tabId,
+    () =>
+      Array.from(document.querySelectorAll('a[href*="/marketplace/item/"]')).filter((a) =>
+        /[?&]ref=marketplace_profile\b/.test(a.getAttribute("href") || ""),
+      ).length,
   );
 }
 
@@ -117,7 +119,9 @@ function collectListingsFromPage() {
     };
   }
   function findSellerName() {
-    const ownLink = Array.from(document.querySelectorAll('a[href*="/marketplace/item/"]')).find(isOwn);
+    const ownLink = Array.from(document.querySelectorAll('a[href*="/marketplace/item/"]')).find(
+      isOwn,
+    );
     let node = ownLink || null;
     let listingsSection = null;
     while (node && node !== document.body) {
@@ -150,7 +154,9 @@ function collectListingsFromPage() {
     }
     return best;
   }
-  const links = Array.from(document.querySelectorAll('a[href*="/marketplace/item/"]')).filter(isOwn);
+  const links = Array.from(document.querySelectorAll('a[href*="/marketplace/item/"]')).filter(
+    isOwn,
+  );
   const byId = new Map();
   for (const a of links) {
     const parsed = parseLink(a);
@@ -188,7 +194,9 @@ async function extractListingDetailsInPage(withPhotos = true) {
       .split("\n")
       .map((s) => s.trim())
       .filter(Boolean);
-    const idx = lines.findIndex((l) => l === "Condition");
+    const inline = lines.find((line) => /^condition\s*:/i.test(line));
+    if (inline) return inline.replace(/^condition\s*:\s*/i, "").trim();
+    const idx = lines.findIndex((l) => /^condition\s*:?$/i.test(l));
     return idx >= 0 ? lines[idx + 1] : null;
   }
 
@@ -212,12 +220,22 @@ async function extractListingDetailsInPage(withPhotos = true) {
     .split("\n")
     .map((s) => s.trim())
     .filter(Boolean);
-  const conditionIdx = lines.findIndex((l) => l === "Condition");
-  const condition = conditionIdx >= 0 ? lines[conditionIdx + 1] : "";
+  const inlineCondition = lines.find((line) => /^condition\s*:/i.test(line));
+  const conditionIdx = lines.findIndex((l) => /^condition\s*:?$/i.test(l));
+  const conditionLineIdx =
+    conditionIdx >= 0 ? conditionIdx : lines.findIndex((line) => /^condition\s*:/i.test(line));
+  const condition = inlineCondition
+    ? inlineCondition.replace(/^condition\s*:\s*/i, "").trim()
+    : conditionIdx >= 0
+      ? lines[conditionIdx + 1]
+      : "";
   const locationIdx = lines.findIndex((l) => /Location is approximate/i.test(l));
   const descLines =
-    conditionIdx >= 0
-      ? lines.slice(conditionIdx + 2, locationIdx >= 0 ? locationIdx : lines.length)
+    conditionLineIdx >= 0
+      ? lines.slice(
+          conditionLineIdx + (inlineCondition ? 1 : 2),
+          locationIdx >= 0 ? locationIdx : lines.length,
+        )
       : [];
   const description = descLines.join("\n\n").trim();
 
@@ -292,7 +310,10 @@ async function extractListingDetailsInPage(withPhotos = true) {
       btn.click();
       let img = mainPhoto();
       const clickStart = Date.now();
-      while ((!img || img.src === photoUrls[photoUrls.length - 1]) && Date.now() - clickStart < 8000) {
+      while (
+        (!img || img.src === photoUrls[photoUrls.length - 1]) &&
+        Date.now() - clickStart < 8000
+      ) {
         await sleep(250);
         img = mainPhoto();
       }
@@ -306,6 +327,28 @@ async function extractListingDetailsInPage(withPhotos = true) {
     if (t.includes("used")) return "used_good";
     if (t.includes("new")) return /with\s*tags?/.test(t) ? "new_with_tags" : "new_without_tags";
     return "used_good";
+  }
+
+  function inferCategory(title, description) {
+    const text = `${title || ""} ${description || ""}`.toLowerCase();
+    if (
+      !/doorbell|ring camera/.test(text) &&
+      /\b(jewelry|jewellery|watch(?:es)?|ring|rings|necklace|bracelet|earrings?|pendant|brooch|anklet|tiara|gemstone|diamond|moissanite|sterling silver|(?:14|18|24)k\s*(?:gold)?|925\s+sterling)\b/.test(
+        text,
+      )
+    )
+      return "jewelry-watches";
+    if (/\b(sofa|couch|dresser|nightstand|dining table|bookshelf|furniture)\b/.test(text))
+      return "furniture";
+    if (
+      /\b(laptop|iphone|ipad|android|television|tv|camera|headphones|computer|monitor)\b/.test(text)
+    )
+      return "electronics";
+    if (/\b(dress|shirt|jeans|shoes|boots|jacket|purse|handbag|clothing)\b/.test(text))
+      return "apparel-accessories";
+    if (/\b(guitar|drums?|piano|keyboard|amplifier|music\s+instrument)\b/.test(text))
+      return "musical-instruments";
+    return "general";
   }
 
   return {
@@ -455,9 +498,7 @@ async function refreshListings(adminTabId, requestId, targets) {
     send({ type: "gemlist-fb-refresh-progress", requestId, done, total });
   };
   const workerCount = Math.min(DETAIL_FETCH_CONCURRENCY, queue.length) || 1;
-  await Promise.all(
-    Array.from({ length: workerCount }, () => runWorker(queue, onItemDone, false)),
-  );
+  await Promise.all(Array.from({ length: workerCount }, () => runWorker(queue, onItemDone, false)));
   send({
     type: "gemlist-fb-refresh-result",
     requestId,
@@ -490,7 +531,10 @@ async function run(tabId) {
     "<strong>GemList import</strong><div style='margin-top:6px'>Scrolling to load every listing…</div>",
   );
   await autoScroll(tabId, (count) => {
-    overlay(tabId, `<strong>GemList import</strong><div style="margin-top:6px">Scrolling… ${count} found</div>`);
+    overlay(
+      tabId,
+      `<strong>GemList import</strong><div style="margin-top:6px">Scrolling… ${count} found</div>`,
+    );
   });
 
   const { sellerName, sourceProfileUrl, items } = await exec(tabId, collectListingsFromPage);
@@ -519,7 +563,7 @@ async function run(tabId) {
       description: item.description || "",
       priceCents: item.priceCents,
       condition: item.condition || "used_good",
-      categorySlug: "general",
+      categorySlug: inferCategory(item.title, item.description),
       city: item.city || "",
       state: item.state || "",
       photoUrls: item.photoUrls || [],
