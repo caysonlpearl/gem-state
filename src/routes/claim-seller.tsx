@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { useServerFn } from "@tanstack/react-start";
@@ -21,6 +21,7 @@ function readToken() {
   if (typeof window === "undefined") return "";
   const fragment = new URLSearchParams(window.location.hash.slice(1));
   const value = fragment.get("token");
+  if (value !== null && !/^[a-f0-9]{64}$/.test(value)) return "";
   if (value && /^[a-f0-9]{64}$/.test(value)) {
     sessionStorage.setItem(KEY, value);
     return value;
@@ -29,7 +30,9 @@ function readToken() {
 }
 function ClaimSeller() {
   const navigate = useNavigate();
-  const [token] = useState(readToken);
+  const location = useLocation();
+  const [token, setToken] = useState(readToken);
+  useEffect(() => { setToken(readToken()); }, [location.hash]);
   const inspect = useServerFn(inspectSellerClaim);
   const complete = useServerFn(completeSellerClaim);
   const [details, setDetails] = useState<Awaited<ReturnType<typeof inspect>> | null>(null);
@@ -50,6 +53,8 @@ function ClaimSeller() {
   const [done, setDone] = useState(false);
   const lock = useRef(false);
   useEffect(() => {
+    setDetails(null);
+    setError("");
     if (!token) {
       setError("This link is incomplete. Ask Bluebird for a new claim link.");
       return;
