@@ -3014,7 +3014,7 @@ function ClassifiedsLandingHero({
   return (
     <section
       aria-label="Bluebird Marketplace all classifieds"
-      className="classifieds-hero-shell relative isolate min-h-[430px] overflow-hidden rounded-[32px] border border-brand-blue/20 bg-secondary px-5 pb-14 pt-24 shadow-xl sm:min-h-[500px] sm:px-10 sm:py-20"
+      className="classifieds-hero-shell relative isolate flex min-h-[430px] flex-col justify-center overflow-hidden rounded-[32px] border border-brand-blue/20 bg-secondary px-5 pb-8 pt-20 shadow-xl sm:px-10 sm:pb-12 sm:pt-20"
     >
       <span
         className="classifieds-hero-orb classifieds-hero-orb--blue absolute -right-20 -top-24 h-72 w-72 rounded-full bg-brand-blue/12"
@@ -3028,10 +3028,10 @@ function ClassifiedsLandingHero({
         className="classifieds-hero-sheen pointer-events-none absolute inset-y-0 -left-1/3 z-0 w-1/3 skew-x-[-18deg] bg-white/20"
         aria-hidden="true"
       />
-      <div className="relative z-10 mx-auto max-w-[920px] translate-y-[67px] text-center sm:translate-y-[83px]">
-        <div className="relative z-20 mb-5 flex justify-end sm:mb-6">
-          <SponsoredHeroBadge />
-        </div>
+      <div className="absolute right-5 top-5 z-20 sm:right-10 sm:top-6">
+        <SponsoredHeroBadge />
+      </div>
+      <div className="relative z-10 mx-auto w-full max-w-[920px] text-center">
         <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">
           Bluebird Marketplace Classifieds
         </p>

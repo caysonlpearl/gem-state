@@ -6707,7 +6707,9 @@ export type Database = {
         Args: { _amount_cents: number; _ask_id: string }
         Returns: string
       }
-      managed_seller_public_status: { Args: { _user: string }; Returns: Json }
+      managed_seller_public_status:
+        | { Args: { _user: string }; Returns: Json }
+        | { Args: { _listing: string; _user: string }; Returns: Json }
       mark_ask_sold: { Args: { _ask_id: string }; Returns: undefined }
       mark_conversation_read: {
         Args: { _conversation_id: string }
