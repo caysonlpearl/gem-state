@@ -301,7 +301,7 @@ function Home() {
 
   return (
     <main className="mx-auto max-w-[1360px] px-4 pb-16 sm:px-6">
-      <section className="classifieds-hero-shell homepage-hero-shell relative mt-8 overflow-hidden rounded-[28px] border border-brand-blue/20 bg-secondary px-5 py-9 shadow-lg sm:px-10 sm:py-12">
+      <section className="classifieds-hero-shell homepage-hero-shell relative mt-6 overflow-hidden rounded-[28px] border border-brand-blue/20 bg-secondary px-5 py-6 shadow-lg sm:px-10 sm:py-8">
         <span
           className="classifieds-hero-orb classifieds-hero-orb--blue absolute -right-20 -top-24 h-64 w-64 rounded-full bg-brand-blue/12"
           aria-hidden="true"
@@ -318,7 +318,7 @@ function Home() {
           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
             Bluebird classifieds
           </p>
-          <h1 className="homepage-hero-headline mt-3 max-w-[34ch] text-[34px] font-bold leading-[1.08] tracking-tight sm:text-[48px]">
+          <h1 className="homepage-hero-headline mt-2 max-w-[34ch] text-[34px] font-bold leading-[1.08] tracking-tight sm:text-[48px]">
             <span className="block">
               Find{" "}
               <span
@@ -334,11 +334,11 @@ function Home() {
               {headlineItems[2]} to {headlineItems[3]}.
             </span>
           </h1>
-          <p className="mt-4 max-w-[56ch] text-[15px] leading-relaxed text-muted-foreground">
+          <p className="mt-1.5 max-w-[56ch] text-[15px] leading-relaxed text-muted-foreground">
             And so much more across Idaho and surrounding states.
           </p>
           <div
-            className="classifieds-hero-accent mt-4 flex items-center gap-1.5"
+            className="classifieds-hero-accent mt-3 flex items-center gap-1.5"
             aria-hidden="true"
           >
             <span className="classifieds-hero-accent-bar h-1.5 w-9 rounded-full bg-brand-blue" />
@@ -347,7 +347,7 @@ function Home() {
           </div>
 
           <form
-            className="floating-card mt-7 grid gap-2 border border-brand-blue/15 ring-1 ring-brand-warm/10 p-2 sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:p-3"
+            className="floating-card mt-5 grid gap-2 border border-brand-blue/15 ring-1 ring-brand-warm/10 p-2 sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:p-3"
             onSubmit={(event) => {
               event.preventDefault();
               const locationSearch = parseLocationSearch(location);
