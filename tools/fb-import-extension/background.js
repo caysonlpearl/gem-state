@@ -25,9 +25,12 @@
 
 const PROFILE_RE = /\/marketplace\/profile\//;
 
-// KSL Classifieds reader (runKsl, kslRefresh, KSL_MEMBER_RE, KSL_LISTING_RE).
+// Paced readers for KSL, Vinted and Whatnot (runKsl/kslRefresh, runVinted/
+// vintedRefresh, runWhatnot/whatnotRefresh and their URL patterns).
 // Guarded so tests can load this file outside a service worker.
-if (typeof importScripts === "function") importScripts("ksl.js");
+if (typeof importScripts === "function") {
+  importScripts("paced-reader.js", "ksl.js", "vinted.js", "whatnot.js");
+}
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -631,8 +634,10 @@ async function refreshListings(adminTabId, requestId, targets) {
   }));
   const items = all.filter((t) => LISTING_URL_RE.test(t.sourceUrl));
   const kslItems = all.filter((t) => KSL_LISTING_RE.test(t.sourceUrl));
+  const vintedItems = all.filter((t) => VINTED_ITEM_RE.test(t.sourceUrl));
+  const whatnotItems = all.filter((t) => WHATNOT_LISTING_RE.test(t.sourceUrl));
   const queue = items.slice();
-  const total = items.length + kslItems.length;
+  const total = items.length + kslItems.length + vintedItems.length + whatnotItems.length;
   let done = 0;
   const onItemDone = () => {
     done += 1;
@@ -641,6 +646,8 @@ async function refreshListings(adminTabId, requestId, targets) {
   const workerCount = Math.min(DETAIL_FETCH_CONCURRENCY, queue.length) || 1;
   await Promise.all(Array.from({ length: workerCount }, () => runWorker(queue, onItemDone, false)));
   const kslResults = kslItems.length ? await kslRefresh(kslItems, onItemDone) : [];
+  const vintedResults = vintedItems.length ? await vintedRefresh(vintedItems, onItemDone) : [];
+  const whatnotResults = whatnotItems.length ? await whatnotRefresh(whatnotItems, onItemDone) : [];
   send({
     type: "gemlist-fb-refresh-result",
     requestId,
@@ -653,7 +660,7 @@ async function refreshListings(adminTabId, requestId, targets) {
         unavailable: item.unavailable === true,
         sold: item.sold === true,
       }))
-      .concat(kslResults),
+      .concat(kslResults, vintedResults, whatnotResults),
   });
 }
 
@@ -730,13 +737,22 @@ async function run(tabId) {
 
 chrome.action.onClicked.addListener(async (tab) => {
   if (!tab.id) return;
-  if (tab.url && KSL_MEMBER_RE.test(tab.url)) {
+  const paced = tab.url
+    ? KSL_MEMBER_RE.test(tab.url)
+      ? ["KSL", () => runKsl(tab.id)]
+      : VINTED_MEMBER_RE.test(tab.url)
+        ? ["Vinted", () => runVinted(tab.id)]
+        : WHATNOT_USER_RE.test(tab.url)
+          ? ["Whatnot", () => runWhatnot(tab.id, tab.url)]
+          : null
+    : null;
+  if (paced) {
     try {
-      await runKsl(tab.id);
+      await paced[1]();
     } catch (e) {
       await overlay(
         tab.id,
-        `<strong>Bluebird import · KSL</strong><div style="margin-top:6px;color:#f87171">Failed: ${String((e && e.message) || e)}</div>`,
+        `<strong>Bluebird import · ${paced[0]}</strong><div style="margin-top:6px;color:#f87171">Failed: ${String((e && e.message) || e)}</div>`,
       );
     }
     return;
@@ -746,7 +762,7 @@ chrome.action.onClicked.addListener(async (tab) => {
       target: { tabId: tab.id },
       func: () =>
         alert(
-          "Open the seller's Facebook Marketplace profile or KSL listings page (classifieds.ksl.com/search/member/...) first, then click this extension's icon.",
+          "Open the seller's Facebook Marketplace profile, KSL listings page (classifieds.ksl.com/search/member/...), Vinted profile (vinted.com/member/...) or Whatnot profile (whatnot.com/user/...) first, then click this extension's icon.",
         ),
     });
     return;

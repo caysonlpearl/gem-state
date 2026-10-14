@@ -409,8 +409,8 @@ function StageForm() {
     <section className="rounded-lg border border-border bg-card p-5">
       <h2 className="text-[14px] font-semibold">Stage a batch</h2>
       <p className="mt-1 max-w-[700px] text-[12.5px] leading-relaxed text-muted-foreground">
-        With a live browser session, walk the seller's Facebook Marketplace profile or KSL
-        Classifieds listings page and every listing's detail page, then hand the extracted data to
+        With a live browser session, walk the seller's Facebook Marketplace profile, KSL listings page, Vinted
+        profile or Whatnot shop and every listing's detail page, then hand the extracted data to
         Bluebird below.
       </p>
       <div className="mt-3 rounded-md border border-dashed border-border bg-secondary/40 p-3">
@@ -424,13 +424,13 @@ function StageForm() {
           One-time setup, in your own Chrome: open <code>chrome://extensions</code>, turn on{" "}
           <strong>Developer mode</strong> (top right), click <strong>Load unpacked</strong>, and
           select the <code>tools/fb-import-extension</code> folder from your local copy of this
-          repo. Then, on a seller's Facebook Marketplace profile page or KSL listings page
-          (classifieds.ksl.com/search/member/...), click the extension's icon in
+          repo. Then, on a seller's Facebook Marketplace profile, KSL listings page
+          (classifieds.ksl.com/search/member/...), Vinted profile or Whatnot profile, click the extension's icon in
           your toolbar -- it scrolls, fetches every listing's details, and copies the result to your
           clipboard on its own. (Facebook's grid ignores a script-faked scroll, so the extension
           uses Chrome's own debugger API to send a real one -- you'll see a brief "started debugging
-          this browser" notice each run; that's expected. On KSL it opens one listing at a time in
-          a small window; if KSL asks you to verify you're human, complete the check there and the
+          this browser" notice each run; that's expected. On KSL, Vinted and Whatnot it opens one listing at
+          a time in a small window; if a site asks you to verify you're human, complete the check there and the
           import carries on.)
         </p>
       </div>
@@ -465,7 +465,7 @@ function StageForm() {
         }}
       >
         <label className="text-[12px] font-medium sm:col-span-2">
-          Seller's Facebook Marketplace profile or KSL listings page URL
+          Seller's Facebook, KSL, Vinted or Whatnot page URL
           <input
             required
             value={profileUrl}
@@ -608,7 +608,14 @@ function ReviewRow({
               rel="noreferrer"
               className="text-[11px] text-primary hover:underline"
             >
-              {item.sourceUrl.includes("ksl.com") ? "View on KSL" : "View on Facebook"}
+              View on{" "}
+              {item.sourceUrl.includes("ksl.com")
+                ? "KSL"
+                : item.sourceUrl.includes("vinted.com")
+                  ? "Vinted"
+                  : item.sourceUrl.includes("whatnot.com")
+                    ? "Whatnot"
+                    : "Facebook"}
             </a>
           </div>
           {item.status === "needs_update" && item.previousPriceCents != null ? (
@@ -695,6 +702,11 @@ function ReviewRow({
                   }}
                   className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-[12.5px]"
                 />
+              )}
+              {!city.trim() && (
+                <span className="mt-1 block font-normal text-destructive">
+                  Choose this listing&apos;s city before publishing.
+                </span>
               )}
               {unknownIdahoCity && (
                 <span className="mt-1 block font-normal text-destructive">

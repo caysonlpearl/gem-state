@@ -5,7 +5,13 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
 const sourceName = (profileUrl: string) =>
-  profileUrl.includes("classifieds.ksl.com") ? "KSL" : "Facebook";
+  profileUrl.includes("classifieds.ksl.com")
+    ? "KSL"
+    : profileUrl.includes("vinted.com")
+      ? "Vinted"
+      : profileUrl.includes("whatnot.com")
+        ? "Whatnot"
+        : "Facebook";
 
 export function ImportSyncPanel() {
   const get = useServerFn(getMyImportSync);

@@ -1,14 +1,25 @@
 /** A claim is a bearer secret: never put it in query strings or telemetry. */
 /** The seller page an import came from, in one canonical form per seller:
- * a Facebook Marketplace profile or a KSL Classifieds member page. */
+ * a Facebook Marketplace profile, KSL member page, Vinted member page or
+ * Whatnot user page. */
 export function canonicalSellerSourceProfile(value: string): string {
-  const error = "Enter a Facebook Marketplace profile or KSL seller page URL.";
+  const error = "Enter a Facebook Marketplace, KSL, Vinted or Whatnot seller page URL.";
   const url = new URL(value);
   const host = url.hostname.toLowerCase();
   if (host === "classifieds.ksl.com") {
     const ksl = url.pathname.match(/^\/search\/member\/(\d+)\/?$/);
     if (!ksl) throw new Error(error);
     return `https://classifieds.ksl.com/search/member/${ksl[1]}`;
+  }
+  if (host === "vinted.com" || host === "www.vinted.com") {
+    const vinted = url.pathname.match(/^\/member\/(\d+)(?:-[^/]*)?\/?$/);
+    if (!vinted) throw new Error(error);
+    return `https://www.vinted.com/member/${vinted[1]}`;
+  }
+  if (host === "whatnot.com" || host === "www.whatnot.com") {
+    const whatnot = url.pathname.match(/^\/user\/([a-zA-Z0-9._-]+)(?:\/shop)?\/?$/);
+    if (!whatnot) throw new Error(error);
+    return `https://www.whatnot.com/user/${whatnot[1].toLowerCase()}`;
   }
   if (!["facebook.com", "www.facebook.com", "m.facebook.com"].includes(host))
     throw new Error(error);

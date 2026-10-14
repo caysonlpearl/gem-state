@@ -42,11 +42,18 @@ test("seller profiles canonicalize independently of host, trailing slash and tra
       canonicalSellerSourceProfile(url),
       "https://classifieds.ksl.com/search/member/5162572",
     );
+  for (const [url, canonical] of [
+    ["https://vinted.com/member/3164840912-stephlaugh25?tab=items", "https://www.vinted.com/member/3164840912"],
+    ["https://www.whatnot.com/user/StewsShoes/shop", "https://www.whatnot.com/user/stewsshoes"],
+  ])
+    assert.equal(canonicalSellerSourceProfile(url), canonical);
   for (const url of [
     "https://evil.com/marketplace/profile/123",
     "https://facebook.com/marketplace/item/123",
     "https://facebook.com/marketplace/profile/",
     "https://classifieds.ksl.com/listing/82308885",
+    "https://www.vinted.com/items/10381217076",
+    "https://www.whatnot.com/listing/TGlzdGluZ05vZGU6MjQzOTM5NTA0MQ==",
     "https://ksl.com.evil.com/search/member/5162572",
     "not a url",
   ])

@@ -654,6 +654,17 @@ export const publishFacebookImportItems = createServerFn({ method: "POST" })
       );
       if (profiles.size !== 1)
         throw new Error("Select listings from one seller at a time.");
+      // Whatnot doesn't show where a seller is; every listing needs a city.
+      const noCity = items.filter(
+        (i: any) => i.status !== "possibly_removed" && !String(i.city ?? "").trim(),
+      );
+      if (noCity.length)
+        throw new Error(
+          `Set a city before publishing: ${noCity
+            .slice(0, 3)
+            .map((i: any) => i.title)
+            .join("; ")}${noCity.length > 3 ? ` and ${noCity.length - 3} more` : ""}.`,
+        );
       const profile = canonicalSellerSourceProfile(items[0].source_profile_url);
       const { data: batch } = await admin
         .from("fb_marketplace_import_batches")

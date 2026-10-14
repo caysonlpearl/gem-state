@@ -7,7 +7,7 @@
  * listing one at a time, slowly, to read its description, photos, condition
  * and status. If KSL asks you to verify you're human, the extension brings
  * that window forward and waits for you; it never tries to get past the check
- * itself.
+ * itself (see paced-reader.js).
  *
  * Loaded into the service worker with importScripts() from background.js.
  * Functions passed to chrome.scripting.executeScript run inside the KSL page
@@ -16,11 +16,6 @@
 
 const KSL_MEMBER_RE = /^https:\/\/classifieds\.ksl\.com\/search\/member\/(\d+)/;
 const KSL_LISTING_RE = /^https:\/\/classifieds\.ksl\.com\/listing\/(\d+)/;
-
-// Polite pacing between listing pages, and how long to wait for you to
-// finish a KSL verification check before giving up on a listing.
-const KSL_PAUSE_MS = [1500, 3500];
-const KSL_CHALLENGE_WAIT_MS = 5 * 60 * 1000;
 
 function kslListingId(url) {
   const match = (url || "").match(KSL_LISTING_RE);
@@ -117,16 +112,6 @@ function kslCollectFromMemberPage() {
 }
 
 // --- In-page: one listing --------------------------------------------------
-
-// A KSL bot check replaces the whole page; detected by its title or prompt.
-function kslIsChallengePage() {
-  const title = document.title || "";
-  const text = document.body ? document.body.innerText.slice(0, 1500) : "";
-  return (
-    /access to this page has been denied/i.test(title) ||
-    /press\s*&\s*hold|verify you are (a )?human|are you a robot/i.test(text)
-  );
-}
 
 function kslExtractListingInPage(withPhotos) {
   const title = document.title || "";
@@ -306,98 +291,16 @@ function kslMapCategory(category, subCategory, title, description) {
 
 // --- Driving the browser -----------------------------------------------------
 
-function kslWaitForListing(tabId, expectedUrl, timeoutMs) {
-  const expectedId = kslListingId(expectedUrl);
-  return new Promise((resolve) => {
-    let settled = false;
-    const timer = setTimeout(finish, timeoutMs || 25000);
-    function check() {
-      if (settled) return;
-      chrome.tabs.get(tabId, (t) => {
-        if (settled || !t) return;
-        if (t.status === "complete" && (!expectedId || kslListingId(t.url) === expectedId)) {
-          // Give client-rendered parts (the description tab) a moment.
-          setTimeout(finish, 1200);
-        }
-      });
-    }
-    function listener(id, info) {
-      if (id === tabId && info.status === "complete") check();
-    }
-    function finish() {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      chrome.tabs.onUpdated.removeListener(listener);
-      resolve();
-    }
-    chrome.tabs.onUpdated.addListener(listener);
-    check();
+// One window, one listing at a time (see paced-reader.js).
+function kslReadListings(items, { withPhotos, onItemDone, notify }) {
+  return readListingsPaced(items, {
+    siteName: "KSL",
+    extract: kslExtractListingInPage,
+    idOf: kslListingId,
+    withPhotos,
+    onItemDone,
+    notify,
   });
-}
-
-// Waits for you to finish a KSL verification check in the worker window.
-async function kslWaitForHuman(win, tabId, notify) {
-  await chrome.windows
-    .update(win.id, { focused: true, width: 1000, height: 900 })
-    .catch(() => {});
-  notify &&
-    notify(
-      "KSL asked to verify you're human. Complete the check in the window that just opened; the import continues on its own.",
-    );
-  const deadline = Date.now() + KSL_CHALLENGE_WAIT_MS;
-  while (Date.now() < deadline) {
-    await sleep(2000);
-    const stillChallenged = await exec(tabId, kslIsChallengePage).catch(() => true);
-    if (!stillChallenged) return true;
-  }
-  return false;
-}
-
-// One window, one listing at a time, with a pause between pages.
-async function kslReadListings(items, { withPhotos, onItemDone, notify }) {
-  const win = await chrome.windows.create({
-    url: "about:blank",
-    focused: false,
-    type: "popup",
-    width: 900,
-    height: 1000,
-  });
-  const tabId = win.tabs[0].id;
-  try {
-    for (const item of items) {
-      try {
-        await chrome.tabs.update(tabId, { url: item.sourceUrl });
-        await kslWaitForListing(tabId, item.sourceUrl, 25000);
-        let details = await exec(tabId, kslExtractListingInPage, [withPhotos]);
-        if (details && details.challenge) {
-          const cleared = await kslWaitForHuman(win, tabId, notify);
-          if (cleared) {
-            await chrome.tabs.update(tabId, { url: item.sourceUrl });
-            await kslWaitForListing(tabId, item.sourceUrl, 25000);
-            details = await exec(tabId, kslExtractListingInPage, [withPhotos]);
-          }
-        }
-        if (details && !details.challenge) {
-          for (const [key, value] of Object.entries(details)) {
-            // Keep the seller page's data where the listing page had none.
-            if (value !== "" && value !== null && !(Array.isArray(value) && !value.length)) {
-              item[key] = value;
-            }
-          }
-        } else if (details && details.challenge) {
-          item.unreadable = true;
-        }
-      } catch {
-        item.unreadable = true;
-      }
-      onItemDone && onItemDone();
-      const [min, max] = KSL_PAUSE_MS;
-      await sleep(min + Math.random() * (max - min));
-    }
-  } finally {
-    await chrome.windows.remove(win.id).catch(() => {});
-  }
 }
 
 function kslToImportItem(item) {
@@ -449,24 +352,21 @@ async function runKsl(tabId) {
   });
 
   const usable = items.filter((item) => !item.unavailable);
-  const payload = {
-    sourceProfileUrl: first.sourceProfileUrl,
-    sellerName: first.sellerName || undefined,
-    items: usable.map(kslToImportItem),
-  };
-  const json = JSON.stringify(payload);
-  await exec(tabId, (text) => navigator.clipboard.writeText(text), [json]).catch(() => {});
-  const handedOff = await handoffToAdmin(json).catch(() => false);
   const skipped = items.length - usable.length;
   const unreadable = items.filter((item) => item.unreadable).length;
-  await say(
-    `${seller}Done — ${usable.length} listing(s)${skipped ? `, ${skipped} no longer active` : ""}.` +
-      (unreadable ? `<br/>${unreadable} couldn't be fully read; check their photos and description before publishing.` : "") +
-      `<div style="margin-top:6px;opacity:.85">${
-        handedOff
-          ? "Sent to the Bluebird admin import page."
-          : "Copied to clipboard. Open the Bluebird admin import page and use Paste from clipboard."
-      }</div>`,
+  await deliverImport(
+    tabId,
+    say,
+    seller,
+    {
+      sourceProfileUrl: first.sourceProfileUrl,
+      sellerName: first.sellerName || undefined,
+      items: usable.map(kslToImportItem),
+    },
+    [
+      ...(skipped ? [`${skipped} no longer active`] : []),
+      ...(unreadable ? [`${unreadable} couldn't be fully read (check photos and description)`] : []),
+    ],
   );
 }
 
@@ -475,7 +375,9 @@ async function runKsl(tabId) {
 async function kslRefresh(targets, onItemDone) {
   const items = targets.map((t) => ({ sourceUrl: t.sourceUrl }));
   await kslReadListings(items, { withPhotos: false, onItemDone });
-  return items.map((item) => ({
+  return items
+    .filter((item) => !item.unreadable)
+    .map((item) => ({
     sourceUrl: item.sourceUrl,
     title: item.title ? kslCleanTitle(item.title, item.city) : undefined,
     priceCents: item.priceCents,
