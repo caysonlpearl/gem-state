@@ -6,7 +6,8 @@ import { ArrowLeft, ArrowRight, Camera, CheckCircle } from "@phosphor-icons/reac
 import { toast } from "sonner";
 
 import { classifiedCategories, idahoRegions, usStates } from "@/config/classifieds";
-import { findIdahoPlace, idahoPlaces } from "@/config/idaho-places";
+import { findIdahoPlace } from "@/config/idaho-places";
+import { IdahoCityPicker } from "@/components/classifieds/IdahoCityPicker";
 import { supabase } from "@/integrations/supabase/client";
 import { traceMutation, trackEvent } from "@/lib/analytics";
 import {
@@ -188,6 +189,7 @@ export function ListingForm(props: ListingFormProps) {
   const isIdaho = form.state === "ID";
   const unknownIdahoCity = isIdaho && form.city.trim().length >= 2 && !findIdahoPlace(form.city);
   const cityInput = useRef<HTMLInputElement>(null);
+  const [cityLeft, setCityLeft] = useState(false);
   useEffect(() => {
     cityInput.current?.setCustomValidity(
       unknownIdahoCity ? "Pick your city from the list of Idaho cities and towns." : "",
@@ -603,32 +605,30 @@ export function ListingForm(props: ListingFormProps) {
           </label>
           <label className="text-[12px] font-medium">
             City
-            <input
-              ref={cityInput}
-              required
-              minLength={2}
-              maxLength={80}
-              list={isIdaho ? "idaho-places" : undefined}
-              autoComplete="address-level2"
-              value={form.city}
-              onChange={(event) => setCity(event.target.value)}
-              onBlur={() => {
-                // Settle on the listed spelling once they leave the field.
-                const place = isIdaho ? findIdahoPlace(form.city) : undefined;
-                if (place && place[0] !== form.city) setCity(place[0]);
-              }}
-              aria-invalid={unknownIdahoCity || undefined}
-              placeholder={isIdaho ? "Start typing, then pick your city" : "City"}
-              className={fieldClass}
-            />
-            {isIdaho && (
-              <datalist id="idaho-places">
-                {idahoPlaces.map(([name]) => (
-                  <option key={name} value={name} />
-                ))}
-              </datalist>
+            {isIdaho ? (
+              <IdahoCityPicker
+                ref={cityInput}
+                required
+                value={form.city}
+                onChange={setCity}
+                invalid={unknownIdahoCity && cityLeft}
+                onBlur={() => setCityLeft(true)}
+                placeholder="Choose or type your city"
+                className={fieldClass}
+              />
+            ) : (
+              <input
+                required
+                minLength={2}
+                maxLength={80}
+                autoComplete="address-level2"
+                value={form.city}
+                onChange={(event) => setCity(event.target.value)}
+                placeholder="City"
+                className={fieldClass}
+              />
             )}
-            {unknownIdahoCity && (
+            {unknownIdahoCity && cityLeft && (
               <span className="mt-1 block text-[11px] font-normal text-destructive">
                 Pick your city from the list. If your town isn&apos;t listed, choose the nearest
                 one.

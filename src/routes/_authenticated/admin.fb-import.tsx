@@ -11,7 +11,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 
 import { classifiedCategories } from "@/config/classifieds";
-import { findIdahoPlace, idahoPlaces } from "@/config/idaho-places";
+import { findIdahoPlace } from "@/config/idaho-places";
+import { IdahoCityPicker } from "@/components/classifieds/IdahoCityPicker";
 import {
   discardAllFacebookImportItems,
   discardFacebookImportItem,
@@ -675,16 +676,26 @@ function ReviewRow({
             </label>
             <label className="text-[11px] font-medium">
               City
-              <input
-                value={city}
-                list={state === "ID" ? "idaho-places" : undefined}
-                onChange={(e) => {
-                  setCity(e.target.value);
-                  setDirty(true);
-                }}
-                aria-invalid={unknownIdahoCity || undefined}
-                className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-[12.5px]"
-              />
+              {state === "ID" ? (
+                <IdahoCityPicker
+                  value={city}
+                  onChange={(next) => {
+                    setCity(next);
+                    setDirty(true);
+                  }}
+                  invalid={unknownIdahoCity}
+                  className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-[12.5px]"
+                />
+              ) : (
+                <input
+                  value={city}
+                  onChange={(e) => {
+                    setCity(e.target.value);
+                    setDirty(true);
+                  }}
+                  className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-[12.5px]"
+                />
+              )}
               {unknownIdahoCity && (
                 <span className="mt-1 block font-normal text-destructive">
                   Not a listed Idaho city; pick the nearest one so distance search finds it.
@@ -876,11 +887,6 @@ function FbImportPage() {
 
   return (
     <main className="mx-auto max-w-[1000px] space-y-6 px-4 py-10 sm:px-6">
-      <datalist id="idaho-places">
-        {idahoPlaces.map(([name]) => (
-          <option key={name} value={name} />
-        ))}
-      </datalist>
       <div>
         <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-primary">
           Gem State operations
