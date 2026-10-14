@@ -155,7 +155,7 @@ function PriceTables({ tables }: { tables: PlacePageData["priceTables"] }) {
 function RegionGroups({ groups }: { groups: PlacePageData["regionGroups"] }) {
   return (
     <div className="space-y-10">
-      {groups.map((group) => (
+      {groups.map((group, groupIndex) => (
         <section key={group.region} aria-labelledby={`region-${group.path}`}>
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 id={`region-${group.path}`} className="text-[20px] font-bold tracking-tight">
@@ -169,9 +169,9 @@ function RegionGroups({ groups }: { groups: PlacePageData["regionGroups"] }) {
             </p>
           </div>
           <ul className="mt-4 grid grid-cols-2 gap-x-4 gap-y-9 md:grid-cols-3 xl:grid-cols-4">
-            {group.listings.map((listing) => (
+            {group.listings.map((listing, index) => (
               <li key={listing.id}>
-                <ListingCard listing={listing} />
+                <ListingCard listing={listing} priority={groupIndex === 0 && index < 2} />
               </li>
             ))}
           </ul>
@@ -273,9 +273,9 @@ export function PlacePage({ data }: { data: PlacePageData }) {
       ) : (
         <section aria-label="Listings">
           <ul className="grid grid-cols-2 gap-x-4 gap-y-9 md:grid-cols-3 xl:grid-cols-4">
-            {data.listings.map((listing) => (
+            {data.listings.map((listing, index) => (
               <li key={listing.id}>
-                <ListingCard listing={listing} />
+                <ListingCard listing={listing} priority={index < 2} />
               </li>
             ))}
           </ul>

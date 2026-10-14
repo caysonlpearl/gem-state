@@ -23,7 +23,15 @@ function FeaturedBadge() {
   );
 }
 
-function Photo({ listing, tall }: { listing: ClassifiedCard; tall?: boolean }) {
+function Photo({
+  listing,
+  tall,
+  priority,
+}: {
+  listing: ClassifiedCard;
+  tall?: boolean;
+  priority?: boolean;
+}) {
   const ratio = tall ? "aspect-[4/3]" : "aspect-[4/3]";
   if (!listing.imageUrl) {
     return (
@@ -48,7 +56,10 @@ function Photo({ listing, tall }: { listing: ClassifiedCard; tall?: boolean }) {
       <img
         src={listing.imageUrl}
         alt={listing.title}
-        loading="lazy"
+        // The first cards on a landing page are its largest paint; load them
+        // right away instead of waiting for layout to decide they're visible.
+        loading={priority ? "eager" : "lazy"}
+        fetchPriority={priority ? "high" : undefined}
         className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
       />
       {listing.isFeatured ? (
@@ -143,12 +154,21 @@ function cardActionLabel(listing: ClassifiedCard) {
 }
 
 /** soldAt marks a card in a Recently sold section: a Sold tag, the last asking price, no save button. */
-export function ListingCard({ listing, soldAt }: { listing: ClassifiedCard; soldAt?: string }) {
+export function ListingCard({
+  listing,
+  soldAt,
+  priority,
+}: {
+  listing: ClassifiedCard;
+  soldAt?: string;
+  /** Load this card's photo eagerly at high priority (the first cards above the fold). */
+  priority?: boolean;
+}) {
   return (
     <article className="group relative min-w-0 overflow-hidden rounded-2xl border border-transparent bg-card shadow-sm transition-shadow hover:shadow-md">
       <div className="relative">
         <Link to="/listings/$listingId" params={{ listingId: listingParam(listing) }} className="block">
-          <Photo listing={listing} />
+          <Photo listing={listing} priority={priority} />
         </Link>
         {soldAt ? (
           <span className="absolute left-2 top-2 z-10 inline-flex rounded-full bg-foreground px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-background shadow-sm">
