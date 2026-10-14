@@ -779,6 +779,8 @@ export const publishFacebookImportItems = createServerFn({ method: "POST" })
           if (item.status === "draft") created++;
           else if (item.status === "needs_update") updated++;
           else if (item.status === "possibly_removed") removed++;
+          const { pingListingChange } = await import("./landing-pages.server");
+          void pingListingChange(String(listingId));
         } catch (error) {
           const message = error instanceof Error ? error.message : "Import failed; retry.";
           failures.push(`${item.title}: ${message}`);

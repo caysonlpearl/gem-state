@@ -1,0 +1,159 @@
+import {
+  MAKE_PAGE_MIN_LISTINGS,
+  MODEL_PAGE_MIN_LISTINGS,
+  PLACE_PAGE_FRESH_DAYS,
+  PLACE_PAGE_MIN_LISTINGS,
+  canonicalMake,
+  canonicalModel,
+  categoryPagePath,
+  placePath,
+  vehiclePagePath,
+} from "@/lib/place-pages";
+import { idahoCities } from "@/config/classifieds";
+import { listingPath } from "@/lib/listing-url";
+import { regionOfListing } from "@/lib/market-stats";
+
+/**
+ * Which landing pages (city, region, category, make and model) each live
+ * listing counts toward, and which pages have enough listings to be offered
+ * to search engines. Shared by the sitemap and the IndexNow pings.
+ */
+
+export type LiveListingRow = {
+  id: string;
+  seller_id: string;
+  created_at: string;
+  updated_at: string;
+  products: { name: string; categories: { slug: string } | null } | null;
+  classified_listing_details: ListingPlace | ListingPlace[] | null;
+};
+
+type ListingPlace = {
+  city: string | null;
+  region: string | null;
+  state: string | null;
+  vehicle_make: string | null;
+  vehicle_model: string | null;
+};
+
+/**
+ * Tallies live listings per landing page. A page only enters the sitemap
+ * once it passes the same inventory gate the page itself checks (enough
+ * listings, one of them recent); counts here use exact city matches, which
+ * never exceed the page's own radius-based count, so a page listed here
+ * always passes its gate.
+ */
+export class PageTally {
+  private pages = new Map<
+    string,
+    { count: number; minimum: number; newest: string; lastmod: string }
+  >();
+
+  add(path: string, createdAt: string, updatedAt: string, minimum = PLACE_PAGE_MIN_LISTINGS) {
+    const current = this.pages.get(path);
+    this.pages.set(path, {
+      minimum,
+      count: (current?.count ?? 0) + 1,
+      newest: current && current.newest > createdAt ? current.newest : createdAt,
+      lastmod: current && current.lastmod > updatedAt ? current.lastmod : updatedAt,
+    });
+  }
+
+  passing() {
+    const freshAfter = Date.now() - PLACE_PAGE_FRESH_DAYS * 86_400_000;
+    return Array.from(this.pages.entries()).filter(
+      ([, info]) => info.count >= info.minimum && Date.parse(info.newest) >= freshAfter,
+    );
+  }
+}
+
+
+/** Live listings under the same visibility rules as the public browse pages. */
+export async function fetchLiveListings(admin: any): Promise<LiveListingRow[] | null> {
+  const { data, error } = await admin
+    .from("asks")
+    .select(
+      "id, seller_id, created_at, updated_at, products!inner(name, status, categories!inner(slug)), classified_listing_details!inner(listing_id, city, region, state, vehicle_make, vehicle_model)",
+    )
+    .eq("status", "active")
+    .eq("is_demo", false)
+    .not("approved_at", "is", null)
+    .gt("expires_at", new Date().toISOString())
+    .eq("products.status", "published")
+    .order("updated_at", { ascending: false })
+    .limit(45_000);
+  if (error) return null;
+  return (data ?? []) as LiveListingRow[];
+}
+
+/** The landing pages one listing appears on, with each page's listing minimum. */
+export function landingPathsFor(
+  categorySlug: string | null | undefined,
+  details: ListingPlace | null | undefined,
+): { path: string; minimum: number }[] {
+  const paths: { path: string; minimum: number }[] = [];
+  const add = (path: string, minimum = PLACE_PAGE_MIN_LISTINGS) => paths.push({ path, minimum });
+  const city = idahoCities.find((name) => name === details?.city);
+  // Same region the landing pages use: saved, else the city's.
+  const region = details ? regionOfListing(details) : undefined;
+  if (categorySlug) add(categoryPagePath(categorySlug));
+  if (city) add(placePath(city));
+  if (city && categorySlug) add(placePath(city, categorySlug));
+  if (region) add(placePath(region));
+  if (region && categorySlug) add(placePath(region, categorySlug));
+  const make = categorySlug === "cars-trucks" ? canonicalMake(details?.vehicle_make) : null;
+  const model = make ? canonicalModel(make, details?.vehicle_model) : null;
+  if (make) add(vehiclePagePath(make), MAKE_PAGE_MIN_LISTINGS);
+  if (make && model) add(vehiclePagePath(make, model), MODEL_PAGE_MIN_LISTINGS);
+  return paths;
+}
+
+export function tallyLandingPages(listings: LiveListingRow[]) {
+  const pages = new PageTally();
+  for (const row of listings) {
+    const details = Array.isArray(row.classified_listing_details)
+      ? row.classified_listing_details[0]
+      : row.classified_listing_details;
+    for (const { path, minimum } of landingPathsFor(row.products?.categories?.slug, details)) {
+      pages.add(path, row.created_at, row.updated_at, minimum);
+    }
+  }
+  return pages;
+}
+
+/**
+ * Tells Bing (IndexNow) that a listing changed: its own page, plus the
+ * landing pages it appears on that have enough listings to be indexed. Runs
+ * after a listing is approved, taken down or marked sold; never blocks it.
+ */
+export async function pingListingChange(askId: string) {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = supabaseAdmin as any;
+    const { data: row } = await admin
+      .from("asks")
+      .select(
+        "id, products(name, categories(slug)), classified_listing_details(city, region, state, vehicle_make, vehicle_model)",
+      )
+      .eq("id", askId)
+      .maybeSingle();
+    if (!row) return;
+    const details = Array.isArray(row.classified_listing_details)
+      ? row.classified_listing_details[0]
+      : row.classified_listing_details;
+    const live = await fetchLiveListings(admin);
+    const passing = new Set(
+      live ? tallyLandingPages(live).passing().map(([path]) => path) : [],
+    );
+    const paths = [
+      listingPath({ id: row.id, title: row.products?.name ?? "", city: details?.city }),
+      ...landingPathsFor(row.products?.categories?.slug, details)
+        .map(({ path }) => path)
+        .filter((path) => passing.has(path)),
+    ];
+    const { pingIndexNow } = await import("./indexnow.server");
+    await pingIndexNow(paths);
+  } catch (error) {
+    console.warn("IndexNow listing ping skipped", error);
+  }
+}

@@ -2,20 +2,9 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { brand } from "@/config/brand";
 import { guides } from "@/content/guides";
-import { idahoCities, idahoRegions } from "@/config/classifieds";
 import { listingPath } from "@/lib/listing-url";
-import {
-  MAKE_PAGE_MIN_LISTINGS,
-  MODEL_PAGE_MIN_LISTINGS,
-  PLACE_PAGE_FRESH_DAYS,
-  PLACE_PAGE_MIN_LISTINGS,
-  canonicalMake,
-  canonicalModel,
-  categoryPagePath,
-  placePath,
-  vehiclePagePath,
-} from "@/lib/place-pages";
-import { regionOfListing, reportMonthOf } from "@/lib/market-stats";
+import { fetchLiveListings, tallyLandingPages } from "@/lib/landing-pages.server";
+import { reportMonthOf } from "@/lib/market-stats";
 import { MARKET_REPORT_MIN_LISTINGS } from "@/lib/market-report.functions";
 
 const STATIC_PATHS: { path: string; changefreq: string; priority: string }[] = [
@@ -48,54 +37,6 @@ function urlEntry(
   return `  <url>${parts.join("")}</url>`;
 }
 
-type LiveListingRow = {
-  id: string;
-  seller_id: string;
-  created_at: string;
-  updated_at: string;
-  products: { name: string; categories: { slug: string } | null } | null;
-  classified_listing_details: ListingPlace | ListingPlace[] | null;
-};
-
-type ListingPlace = {
-  city: string | null;
-  region: string | null;
-  state: string | null;
-  vehicle_make: string | null;
-  vehicle_model: string | null;
-};
-
-/**
- * Tallies live listings per landing page. A page only enters the sitemap
- * once it passes the same inventory gate the page itself checks (enough
- * listings, one of them recent); counts here use exact city matches, which
- * never exceed the page's own radius-based count, so a page listed here
- * always passes its gate.
- */
-class PageTally {
-  private pages = new Map<
-    string,
-    { count: number; minimum: number; newest: string; lastmod: string }
-  >();
-
-  add(path: string, createdAt: string, updatedAt: string, minimum = PLACE_PAGE_MIN_LISTINGS) {
-    const current = this.pages.get(path);
-    this.pages.set(path, {
-      minimum,
-      count: (current?.count ?? 0) + 1,
-      newest: current && current.newest > createdAt ? current.newest : createdAt,
-      lastmod: current && current.lastmod > updatedAt ? current.lastmod : updatedAt,
-    });
-  }
-
-  passing() {
-    const freshAfter = Date.now() - PLACE_PAGE_FRESH_DAYS * 86_400_000;
-    return Array.from(this.pages.entries()).filter(
-      ([, info]) => info.count >= info.minimum && Date.parse(info.newest) >= freshAfter,
-    );
-  }
-}
-
 /** Generated from live inventory on every request (cached for an hour). */
 export const Route = createFileRoute("/sitemap.xml")({
   server: {
@@ -104,43 +45,13 @@ export const Route = createFileRoute("/sitemap.xml")({
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         const nowIso = new Date().toISOString();
 
-        // Same visibility rules as the public browse pages.
-        const { data: listingRows, error } = await supabaseAdmin
-          .from("asks")
-          .select(
-            "id, seller_id, created_at, updated_at, products!inner(name, status, categories!inner(slug)), classified_listing_details!inner(listing_id, city, region, state, vehicle_make, vehicle_model)",
-          )
-          .eq("status", "active")
-          .eq("is_demo", false)
-          .not("approved_at", "is", null)
-          .gt("expires_at", nowIso)
-          .eq("products.status", "published")
-          .order("updated_at", { ascending: false })
-          .limit(45_000);
-        if (error) return new Response("Sitemap unavailable", { status: 503 });
-        const listings = (listingRows ?? []) as unknown as LiveListingRow[];
+        const live = await fetchLiveListings(supabaseAdmin);
+        if (!live) return new Response("Sitemap unavailable", { status: 503 });
+        const listings = live;
 
-        const pages = new PageTally();
+        const pages = tallyLandingPages(listings);
         const sellerLastmod = new Map<string, string>();
         for (const row of listings) {
-          const details = Array.isArray(row.classified_listing_details)
-            ? row.classified_listing_details[0]
-            : row.classified_listing_details;
-          const category = row.products?.categories?.slug;
-          const city = idahoCities.find((name) => name === details?.city);
-          // Same region the landing pages use: saved, else the city's.
-          const region = details ? regionOfListing(details) : undefined;
-          const add = (path: string, minimum?: number) =>
-            pages.add(path, row.created_at, row.updated_at, minimum);
-          if (category) add(categoryPagePath(category));
-          if (city) add(placePath(city));
-          if (city && category) add(placePath(city, category));
-          if (region) add(placePath(region));
-          if (region && category) add(placePath(region, category));
-          const make = category === "cars-trucks" ? canonicalMake(details?.vehicle_make) : null;
-          const model = make ? canonicalModel(make, details?.vehicle_model) : null;
-          if (make) add(vehiclePagePath(make), MAKE_PAGE_MIN_LISTINGS);
-          if (make && model) add(vehiclePagePath(make, model), MODEL_PAGE_MIN_LISTINGS);
           if (!sellerLastmod.has(row.seller_id)) sellerLastmod.set(row.seller_id, row.updated_at);
         }
 

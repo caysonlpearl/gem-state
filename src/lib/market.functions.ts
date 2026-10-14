@@ -342,8 +342,8 @@ export const cancelListing = createServerFn({ method: "POST" })
     );
     if (error) throw new Error(error.message);
     if (data.kind === "ask") {
-      const { pingIndexNow } = await import("./indexnow.server");
-      void pingIndexNow([`/listings/${data.id}`]);
+      const { pingListingChange } = await import("./landing-pages.server");
+      void pingListingChange(data.id);
     }
     return { ok: true as const };
   });
@@ -588,8 +588,8 @@ export const markListingSold = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { error } = await context.supabase.rpc("mark_ask_sold", { _ask_id: data.id });
     if (error) throw new Error(error.message);
-    const { pingIndexNow } = await import("./indexnow.server");
-    void pingIndexNow([`/listings/${data.id}`]);
+    const { pingListingChange } = await import("./landing-pages.server");
+    void pingListingChange(data.id);
     return { ok: true as const };
   });
 
