@@ -20,6 +20,8 @@ import {
 import { SellerListingGrid } from "@/components/market/SellerListingGrid";
 import { BluebirdEmptyState } from "@/components/layout/BluebirdEmptyState";
 import { useAuth } from "@/hooks/useAuth";
+import { SELLER_SHARE_IMAGE } from "@/lib/seller-share";
+import { brand } from "@/config/brand";
 
 const sellerQuery = (slug: string) =>
   queryOptions({ queryKey: ["seller", slug], queryFn: () => getPublicSeller({ data: { slug } }) });
@@ -34,22 +36,39 @@ export const Route = createFileRoute("/sellers/$slug")({
     return { seller };
   },
   component: SellerPage,
-  head: ({ loaderData }) => ({
-    meta: [
-      {
-        title: loaderData?.seller
-          ? `${loaderData.seller.displayName} — Seller on Bluebird Marketplace`
-          : `Seller profile — Bluebird Marketplace`,
-      },
-      {
-        name: "description",
-        content: loaderData?.seller
-          ? `${loaderData.seller.displayName}'s active listings on Bluebird Marketplace.`
-          : "Seller profile on Bluebird Marketplace.",
-      },
-      { name: "robots", content: "noindex" },
-    ],
-  }),
+  head: ({ loaderData }) => {
+    const seller = loaderData?.seller;
+    if (!seller) {
+      return {
+        meta: [
+          { title: `Seller profile — Bluebird Marketplace` },
+          { name: "robots", content: "noindex" },
+        ],
+      };
+    }
+    const title = `${seller.displayName} — Seller on Bluebird Marketplace`;
+    const description =
+      seller.activeListingCount > 0
+        ? `Shop ${seller.activeListingCount} listing${seller.activeListingCount === 1 ? "" : "s"} from ${seller.displayName} on Bluebird Marketplace, Idaho's local marketplace. Message the seller directly.`
+        : `${seller.displayName}'s seller profile on Bluebird Marketplace.`;
+    return {
+      meta: [
+        { title },
+        { name: "description", content: description },
+        // A storefront is worth indexing once it has something for sale (the
+        // sitemap lists the same ones); an empty one stays out of search.
+        ...(seller.activeListingCount > 0 ? [] : [{ name: "robots", content: "noindex, follow" }]),
+        // What shows when a seller shares their link on Facebook and elsewhere.
+        { property: "og:title", content: `Shop ${seller.displayName}'s listings on Bluebird` },
+        { property: "og:description", content: description },
+        { property: "og:type", content: "profile" },
+        { property: "og:image", content: `${brand.urls.siteUrl}${SELLER_SHARE_IMAGE}` },
+        { property: "og:image:width", content: "1200" },
+        { property: "og:image:height", content: "630" },
+        { name: "twitter:card", content: "summary_large_image" },
+      ],
+    };
+  },
   notFoundComponent: () => (
     <main className="mx-auto max-w-[760px] px-4 py-14">
       <BluebirdEmptyState

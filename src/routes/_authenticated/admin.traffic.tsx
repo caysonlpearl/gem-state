@@ -24,6 +24,7 @@ const CHANNEL_LABELS: Record<string, string> = {
   email: "Email",
   paid: "Paid ads",
   campaign: "Tagged campaign links",
+  share: "Seller share links",
   unknown: "Before tracking started",
 };
 

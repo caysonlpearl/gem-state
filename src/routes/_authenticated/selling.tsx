@@ -34,6 +34,7 @@ import {
 } from "@/lib/seller.functions";
 import { listingStatusLabels, originLabels, sellerStatusLabels } from "@/lib/market-labels";
 import { acceptSecuredListingOffer } from "@/lib/stripe-marketplace.functions";
+import { ShareStorefront } from "@/components/seller/ShareStorefront";
 
 export const Route = createFileRoute("/_authenticated/selling")({ component: SellingPage });
 
@@ -385,6 +386,14 @@ function SellingPage() {
         <Metric label="Buyer inquiries" value={String(listingInquiries.data?.length ?? 0)} />
         <Metric label="Completed sales" value={String(summary.data?.completedSalesCount ?? 0)} />
       </section>
+
+      {sellerSetup.data?.slug ? (
+        <ShareStorefront
+          slug={sellerSetup.data.slug}
+          displayName={sellerSetup.data.displayName}
+          activeListingCount={activeAsks.length}
+        />
+      ) : null}
 
       <section id="listings" className="mt-9 scroll-mt-28">
         <div className="flex items-center justify-between gap-3 border-b border-border pb-3">

@@ -24,6 +24,7 @@ import {
   type FbImportItemInput,
 } from "@/lib/fb-import.functions";
 import bookmarkletSource from "../../../tools/facebook-import-bookmarklet.js?raw";
+import { sellerShareUrl } from "@/lib/seller-share";
 
 const bookmarkletHref = `javascript:${encodeURIComponent(bookmarkletSource)}`;
 
@@ -272,6 +273,32 @@ function ImportedSellers() {
               >
                 Refresh
               </button>
+              {profile.sellerSlug ? (
+                <>
+                  {/* For sending the seller their own share link, before they've claimed
+                      their account and can get it from the seller dashboard. */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      void navigator.clipboard
+                        .writeText(sellerShareUrl(profile.sellerSlug!))
+                        .then(() => toast.success("Share link copied."))
+                        .catch(() => toast.error("Couldn't copy the link."));
+                    }}
+                    className="h-8 rounded-md border border-input px-3 text-[11.5px] font-medium hover:bg-secondary"
+                  >
+                    Copy share link
+                  </button>
+                  <a
+                    href={`/sellers/${profile.sellerSlug}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[11.5px] text-primary hover:underline"
+                  >
+                    Storefront
+                  </a>
+                </>
+              ) : null}
               <a
                 href={profile.sourceProfileUrl}
                 target="_blank"

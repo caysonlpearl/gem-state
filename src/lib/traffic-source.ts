@@ -5,7 +5,7 @@
  */
 
 export type TrafficChannel =
-  "search" | "ai" | "social" | "email" | "paid" | "campaign" | "referral" | "direct";
+  "search" | "ai" | "social" | "email" | "paid" | "campaign" | "share" | "referral" | "direct";
 
 export type TrafficSource = { source: string; channel: TrafficChannel };
 
@@ -57,14 +57,23 @@ function clean(value: string) {
 /**
  * Classify a visit. `referrer` is document.referrer, `search` the landing
  * URL's query string, `ownHost` this site's host (a referrer from our own
- * site means the visit started earlier, so it's treated as direct).
+ * site means the visit started earlier, so it's treated as direct), and
+ * `pathname` the landing path.
  */
 export function classifyTrafficSource(
   referrer: string,
   search: string,
   ownHost: string,
+  pathname = "",
 ): TrafficSource {
   const params = new URLSearchParams(search);
+  // A seller's own share link (?ref=share) or website badge (?ref=badge) on
+  // their storefront; the source is the seller, taken from the path.
+  const ref = params.get("ref");
+  const sellerSlug = /^\/sellers\/([^/]+)/.exec(pathname)?.[1];
+  if ((ref === "share" || ref === "badge") && sellerSlug) {
+    return { source: clean(decodeURIComponent(sellerSlug)), channel: "share" };
+  }
   const utmSource = params.get("utm_source");
   if (utmSource) {
     const source = clean(utmSource);

@@ -86,7 +86,8 @@ export type AnalyticsEventName =
   | "unhandled_rejection"
   | "visit_started"
   | "listing_viewed"
-  | "seller_contacted";
+  | "seller_contacted"
+  | "storefront_share";
 
 type Props = Record<string, string | number | boolean | null>;
 
@@ -140,6 +141,7 @@ export function ensureVisit(): Visit | null {
     document.referrer,
     window.location.search,
     window.location.host,
+    window.location.pathname,
   );
   currentVisit = {
     id:

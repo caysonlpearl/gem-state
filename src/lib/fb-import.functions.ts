@@ -393,6 +393,8 @@ export type FbImportProfile = {
   lastStagedAt: string;
   openCount: number;
   publishedCount: number;
+  /** The seller's storefront slug once a listing has been published for them. */
+  sellerSlug: string | null;
 };
 
 /** One row per Facebook profile that's been imported, with when it was last
@@ -413,12 +415,16 @@ export const getFacebookImportProfiles = createServerFn({ method: "GET" })
 
     const { data: items, error: itemError } = await admin
       .from("fb_marketplace_import_items")
-      .select("source_profile_url, status")
+      .select("source_profile_url, status, seller_id")
       .neq("status", "discarded");
     if (itemError) throw new Error(itemError.message);
 
     const counts = new Map<string, { open: number; published: number }>();
+    const sellerByProfile = new Map<string, string>();
     for (const row of items ?? []) {
+      if (row.seller_id && !sellerByProfile.has(row.source_profile_url)) {
+        sellerByProfile.set(row.source_profile_url, row.seller_id);
+      }
       const entry = counts.get(row.source_profile_url) ?? { open: 0, published: 0 };
       if (row.status === "published") entry.published += 1;
       else entry.open += 1;
@@ -432,6 +438,14 @@ export const getFacebookImportProfiles = createServerFn({ method: "GET" })
       }
     }
 
+    const sellerIds = [...new Set(sellerByProfile.values())];
+    const { data: sellerRows } = sellerIds.length
+      ? await admin.from("seller_profiles").select("user_id, slug").in("user_id", sellerIds)
+      : { data: [] };
+    const slugBySeller = new Map<string, string>(
+      (sellerRows ?? []).map((row: { user_id: string; slug: string }) => [row.user_id, row.slug]),
+    );
+
     const profiles = new Map<string, FbImportProfile>();
     for (const batch of batches ?? []) {
       if (profiles.has(batch.source_profile_url)) continue;
@@ -442,6 +456,7 @@ export const getFacebookImportProfiles = createServerFn({ method: "GET" })
         lastStagedAt: batch.created_at,
         openCount: entry.open,
         publishedCount: entry.published,
+        sellerSlug: slugBySeller.get(sellerByProfile.get(batch.source_profile_url) ?? "") ?? null,
       });
     }
     return Array.from(profiles.values());

@@ -54,4 +54,14 @@ test("utm tags win over the referrer", () => {
     channel: "social",
   });
   assert.deepEqual(from("", "?utm_source=flyer"), { source: "flyer", channel: "campaign" });
+  assert.deepEqual(
+    classifyTrafficSource("https://l.facebook.com/", "?ref=share", own, "/sellers/delia-cook"),
+    { source: "delia-cook", channel: "share" },
+  );
+  assert.deepEqual(
+    classifyTrafficSource("https://example.com/", "?ref=badge", own, "/sellers/delia-cook"),
+    { source: "delia-cook", channel: "share" },
+  );
+  // ref=share anywhere else is just an ordinary visit.
+  assert.equal(classifyTrafficSource("", "?ref=share", own, "/browse").channel, "direct");
 });

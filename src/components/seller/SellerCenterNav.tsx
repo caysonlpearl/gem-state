@@ -1,5 +1,13 @@
 import { Link } from "@tanstack/react-router";
-import { Briefcase, Buildings, Plus, Storefront, UserCircle, Star } from "@phosphor-icons/react";
+import {
+  Briefcase,
+  Buildings,
+  Plus,
+  ShareNetwork,
+  Storefront,
+  UserCircle,
+  Star,
+} from "@phosphor-icons/react";
 
 const itemClass =
   "inline-flex min-h-10 items-center gap-1.5 whitespace-nowrap border border-border bg-card px-3 text-[12px] font-medium transition-colors hover:border-foreground hover:bg-secondary";
@@ -37,9 +45,15 @@ export function SellerCenterNav({
           Dealership setup
         </Link>
         {storefrontSlug ? (
-          <Link to="/sellers/$slug" params={{ slug: storefrontSlug }} className={itemClass}>
-            View storefront
-          </Link>
+          <>
+            <Link to="/selling" hash="share" className={itemClass}>
+              <ShareNetwork size={15} />
+              Share
+            </Link>
+            <Link to="/sellers/$slug" params={{ slug: storefrontSlug }} className={itemClass}>
+              View storefront
+            </Link>
+          </>
         ) : null}
       </div>
     </nav>
