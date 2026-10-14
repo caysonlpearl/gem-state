@@ -98,8 +98,9 @@ export const getMarketReport = createServerFn({ method: "GET" })
     month: /^\d{4}-(0[1-9]|1[0-2])$/.test(String(input?.month ?? "")) ? String(input.month) : "",
   }))
   .handler(async ({ data }): Promise<MarketReportPage | null> => {
-    const { shortCache, PUBLIC_PAGE_CACHE_MS } = await import("./short-cache.server");
-    return shortCache(`market-report:${data.month}`, PUBLIC_PAGE_CACHE_MS, async () => {
+    const { shortCache } = await import("./short-cache.server");
+    // A monthly report doesn't need minute-by-minute freshness.
+    return shortCache(`market-report:${data.month}`, 15 * 60_000, async () => {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const admin = supabaseAdmin as any;
       const currentMonth = reportMonthOf(new Date());
@@ -115,6 +116,8 @@ export const getMarketReport = createServerFn({ method: "GET" })
       const current = !data.month || data.month === currentMonth;
       if (current) {
         report = await buildCurrentReport(admin);
+        // Awaited: a serverless host may stop background work once the
+        // response is sent, and this save is what keeps the month's numbers.
         const { error } = await admin
           .from("market_report_snapshots")
           .upsert({ month: report.month, report, updated_at: new Date().toISOString() });

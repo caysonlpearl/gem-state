@@ -173,18 +173,29 @@ export const getPlacePage = createServerFn({ method: "GET" })
           return null;
         }
 
-        const main = await fetchListings(filtersFor(place, category?.slug ?? null));
+        // The page's listings, the wider sets its related links count from
+        // (other categories here, other cities for this category) and recent
+        // sales don't depend on each other, so they load together.
+        const mainRequest = fetchListings(filtersFor(place, category?.slug ?? null));
+        const [main, placeWide, categoryWide, recentlySold] = await Promise.all([
+          mainRequest,
+          place && category ? fetchListings(filtersFor(place, null)) : mainRequest,
+          category
+            ? place
+              ? fetchListings(filtersFor(null, category.slug))
+              : mainRequest
+            : fetchListings(filtersFor(null, null)),
+          getRecentlySoldListings({
+            data: {
+              ...(category ? { category: category.slug } : {}),
+              ...(place?.kind === "city" ? { city: place.name, radiusMiles: 25 } : {}),
+              ...(place?.kind === "region" ? { region: place.name } : {}),
+              limit: 8,
+            },
+          }),
+        ]);
         const phrase = category ? categoryPhrase(category.slug, category.name) : null;
         const where = whereText(place);
-
-        // Related links: other categories for this place, other cities for this
-        // category. Each count comes from the same live listings.
-        const placeWide = place && category ? await fetchListings(filtersFor(place, null)) : main;
-        const categoryWide = category
-          ? place
-            ? await fetchListings(filtersFor(null, category.slug))
-            : main
-          : await fetchListings(filtersFor(null, null));
 
         const categoryCounts = countBy(placeWide.listings, (listing) => listing.categorySlug);
         const relatedCategories: PlacePageLink[] = classifiedCategories
@@ -303,15 +314,6 @@ export const getPlacePage = createServerFn({ method: "GET" })
         const topMakes = Array.from(makeCounts.entries())
           .map(([make, count]) => ({ label: make, path: vehiclePagePath(make), count }))
           .sort((a, b) => b.count - a.count);
-
-        const recentlySold = await getRecentlySoldListings({
-          data: {
-            ...(category ? { category: category.slug } : {}),
-            ...(place?.kind === "city" ? { city: place.name, radiusMiles: 25 } : {}),
-            ...(place?.kind === "region" ? { region: place.name } : {}),
-            limit: 8,
-          },
-        });
 
         const stats: PlacePageStat[] = [];
         if (main.total > 0) {
@@ -433,12 +435,21 @@ export const getVehiclePage = createServerFn({ method: "GET" })
 
     const { shortCache, PUBLIC_PAGE_CACHE_MS } = await import("./short-cache.server");
     return shortCache(`vehicle-page:${make}:${model ?? ""}`, PUBLIC_PAGE_CACHE_MS, async () => {
-      const main = await fetchListings({
+      // This make (and model), the whole make for sibling links, and recent
+      // sales load together.
+      const mainRequest = fetchListings({
         category: "cars-trucks",
         state: "ID",
         make,
         ...(model ? { model } : {}),
       });
+      const [main, makeWide, recentlySold] = await Promise.all([
+        mainRequest,
+        model ? fetchListings({ category: "cars-trucks", state: "ID", make }) : mainRequest,
+        getRecentlySoldListings({
+          data: { category: "cars-trucks", make, ...(model ? { model } : {}), limit: 8 },
+        }),
+      ]);
       const name = model ? `${make} ${model}` : make;
       const noun = model ? pluralModel(name) : `${make} cars and trucks`;
       const where = "in Idaho";
@@ -462,7 +473,6 @@ export const getVehiclePage = createServerFn({ method: "GET" })
         .slice(0, 10);
 
       // The make page links to each model listed; a model page to its siblings.
-      const makeWide = model ? await fetchListings({ category: "cars-trucks", state: "ID", make }) : main;
       const modelCounts = countBy(makeWide.listings, (listing) =>
         canonicalModel(make, listing.vehicle?.model),
       );
@@ -475,10 +485,6 @@ export const getVehiclePage = createServerFn({ method: "GET" })
       const years = main.listings
         .map((listing) => listing.vehicle?.year)
         .filter((year): year is number => typeof year === "number");
-
-      const recentlySold = await getRecentlySoldListings({
-        data: { category: "cars-trucks", make, ...(model ? { model } : {}), limit: 8 },
-      });
 
       const heading = `${name} for sale in Idaho`;
       const lead =
