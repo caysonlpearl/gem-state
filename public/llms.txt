@@ -10,6 +10,8 @@ Listings are reviewed before they appear publicly, and they expire unless renewe
 - City pages: `https://onbluebird.com/idaho/{city}`, for example [Boise](https://onbluebird.com/idaho/boise)
 - Category pages across Idaho: `https://onbluebird.com/idaho/{category}`, for example [cars and trucks](https://onbluebird.com/idaho/cars-trucks)
 - One category in one city or region: `https://onbluebird.com/idaho/{city-or-region}/{category}`, for example [trailers in Boise](https://onbluebird.com/idaho/boise/trailers)
+- Cars and trucks by make and model: `https://onbluebird.com/cars/{make}/{model}`, for example [Toyota Tacoma](https://onbluebird.com/cars/toyota/tacoma), with median asking price by model year and mileage
+- Landing pages state live listing counts, median and typical asking prices, and recent sales, computed from Bluebird's own listings
 - Listing pages: `https://onbluebird.com/listings/{title-and-city}-{id}`
 - Seller profiles: `https://onbluebird.com/sellers/{seller}`
 - [Sitemap](https://onbluebird.com/sitemap.xml): every live listing, seller, and city or category page with enough listings to be useful

@@ -60,7 +60,12 @@ import {
   getEndedClassifiedListing,
   getRelatedClassifieds,
 } from "@/lib/classifieds.functions";
-import { nearbyPagePath } from "@/lib/place-pages";
+import {
+  canonicalMake,
+  canonicalModel,
+  nearbyPagePath,
+  vehiclePagePath,
+} from "@/lib/place-pages";
 import { jsonLdScript, listingStructuredData } from "@/lib/structured-data";
 import { getRemovedListingRedirect } from "@/lib/place-pages.functions";
 import type { ClassifiedCard, ClassifiedDetail } from "@/lib/classifieds.functions";
@@ -1085,6 +1090,15 @@ function ListingDetailContent() {
 
   const vehicle = listing.vehicle;
   const isVehicle = Boolean(vehicle);
+  // Cars and trucks link to their make and model page.
+  const pageMake = listing.categorySlug === "cars-trucks" ? canonicalMake(vehicle?.make) : null;
+  const pageModel = pageMake ? canonicalModel(pageMake, vehicle?.model) : null;
+  const modelPage = pageMake
+    ? {
+        path: vehiclePagePath(pageMake, pageModel),
+        label: pageModel ? `${pageMake} ${pageModel}` : pageMake,
+      }
+    : null;
   // "Not applicable" (animals, homes, jobs, services) isn't worth a line.
   const condition =
     listing.condition === "not_applicable"
@@ -1220,6 +1234,14 @@ function ListingDetailContent() {
             <CaretRight size={13} />
           </>
         )}
+        {modelPage ? (
+          <>
+            <a href={modelPage.path} className="hover:text-foreground">
+              {modelPage.label}
+            </a>
+            <CaretRight size={13} />
+          </>
+        ) : null}
         <span className="text-foreground">
           {listing.city}, {listing.state}
         </span>

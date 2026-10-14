@@ -2,8 +2,9 @@ import { queryOptions } from "@tanstack/react-query";
 import { ArrowRight, CaretRight } from "@phosphor-icons/react";
 
 import { ListingCard } from "@/components/classifieds/ListingCard";
+import { BluebirdEmptyState } from "@/components/layout/BluebirdEmptyState";
 import { guidesForCategory } from "@/content/guides";
-import { getPlacePage, type PlacePageData } from "@/lib/place-pages.functions";
+import { getPlacePage, getVehiclePage, type PlacePageData } from "@/lib/place-pages.functions";
 import { jsonLdScript, placePageStructuredData } from "@/lib/structured-data";
 import { PUBLIC_PAGE_STALE_MS } from "@/lib/query-freshness";
 
@@ -12,6 +13,13 @@ export const placePageQuery = (place: string, category?: string) =>
     queryKey: ["place-page", place, category ?? null],
     staleTime: PUBLIC_PAGE_STALE_MS,
     queryFn: () => getPlacePage({ data: { place, ...(category ? { category } : {}) } }),
+  });
+
+export const vehiclePageQuery = (make: string, model?: string) =>
+  queryOptions({
+    queryKey: ["vehicle-page", make, model ?? null],
+    staleTime: PUBLIC_PAGE_STALE_MS,
+    queryFn: () => getVehiclePage({ data: { make, ...(model ? { model } : {}) } }),
   });
 
 export function placePageHead(data: PlacePageData | null | undefined) {
@@ -34,6 +42,7 @@ export function placePageHead(data: PlacePageData | null | undefined) {
           path: data.breadcrumbs.at(-1)?.path ?? "/browse",
           breadcrumbs: data.breadcrumbs,
           listings: data.listings,
+          faq: data.faq,
         }),
       ),
     ],
@@ -91,6 +100,131 @@ function GuideLinks({ categorySlug }: { categorySlug: string }) {
   );
 }
 
+function Stats({ stats }: { stats: PlacePageData["stats"] }) {
+  if (!stats.length) return null;
+  return (
+    <dl className="mt-5 grid max-w-[880px] grid-cols-2 gap-3 sm:grid-cols-4">
+      {stats.map((stat) => (
+        <div key={stat.label} className="rounded-xl border border-border bg-card px-4 py-3">
+          <dt className="text-[11.5px] text-muted-foreground">{stat.label}</dt>
+          <dd className="numeric mt-1 text-[17px] font-bold">{stat.value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+function PriceTables({ tables }: { tables: PlacePageData["priceTables"] }) {
+  if (!tables.length) return null;
+  return (
+    <section className="border-t border-border/70 pt-8">
+      <h2 className="text-[20px] font-bold tracking-tight">Asking prices</h2>
+      <div className="mt-4 grid gap-6 lg:grid-cols-2">
+        {tables.map((table) => (
+          <div key={table.heading}>
+            <h3 className="text-[14px] font-semibold">{table.heading}</h3>
+            <table className="mt-2 w-full text-left text-[13.5px]">
+              <thead className="text-[11.5px] uppercase tracking-[0.06em] text-muted-foreground">
+                <tr>
+                  <th className="py-2 font-semibold">{table.heading.includes("year") ? "Model year" : "Mileage"}</th>
+                  <th className="py-2 text-right font-semibold">Listings</th>
+                  <th className="py-2 text-right font-semibold">Median</th>
+                </tr>
+              </thead>
+              <tbody>
+                {table.rows.map((row) => (
+                  <tr key={row.label} className="border-t border-border">
+                    <td className="py-2">{row.label}</td>
+                    <td className="numeric py-2 text-right">{row.count}</td>
+                    <td className="numeric py-2 text-right font-semibold">{row.median}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))}
+      </div>
+      <p className="mt-3 text-[12px] text-muted-foreground">
+        From the asking prices of live Bluebird listings; final prices are agreed between buyer and
+        seller.
+      </p>
+    </section>
+  );
+}
+
+function RegionGroups({ groups }: { groups: PlacePageData["regionGroups"] }) {
+  return (
+    <div className="space-y-10">
+      {groups.map((group) => (
+        <section key={group.region} aria-labelledby={`region-${group.path}`}>
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2 id={`region-${group.path}`} className="text-[20px] font-bold tracking-tight">
+              <a href={group.path} className="hover:text-primary">
+                {group.region}
+              </a>
+            </h2>
+            <p className="text-[13px] text-muted-foreground">
+              {group.count} {group.count === 1 ? "listing" : "listings"}
+              {group.median ? ` · median ${group.median}` : ""}
+            </p>
+          </div>
+          <ul className="mt-4 grid grid-cols-2 gap-x-4 gap-y-9 md:grid-cols-3 xl:grid-cols-4">
+            {group.listings.map((listing) => (
+              <li key={listing.id}>
+                <ListingCard listing={listing} />
+              </li>
+            ))}
+          </ul>
+          {group.count > group.listings.length ? (
+            <a
+              href={group.path}
+              className="mt-4 inline-flex min-h-11 items-center gap-1 text-[13.5px] font-semibold text-primary hover:underline"
+            >
+              See all {group.count} in {group.region} <ArrowRight size={13} />
+            </a>
+          ) : null}
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function RecentlySold({ listings }: { listings: PlacePageData["recentlySold"] }) {
+  if (!listings.length) return null;
+  return (
+    <section className="border-t border-border/70 pt-8">
+      <h2 className="text-[20px] font-bold tracking-tight">Recently sold</h2>
+      <p className="mt-1 text-[13px] text-muted-foreground">
+        Sold on Bluebird in the last 60 days, with the last asking price.
+      </p>
+      <ul className="mt-4 grid grid-cols-2 gap-x-4 gap-y-9 md:grid-cols-3 xl:grid-cols-4">
+        {listings.map((listing) => (
+          <li key={listing.id}>
+            <ListingCard listing={listing} soldAt={listing.soldAt} />
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function Faq({ faq }: { faq: PlacePageData["faq"] }) {
+  if (!faq.length) return null;
+  return (
+    <section className="border-t border-border/70 pt-8">
+      <h2 className="text-[20px] font-bold tracking-tight">Questions</h2>
+      <div className="mt-4 max-w-[75ch] space-y-5">
+        {faq.map((entry) => (
+          <div key={entry.question}>
+            <h3 className="text-[15px] font-semibold">{entry.question}</h3>
+            <p className="mt-1 text-[14px] leading-relaxed text-muted-foreground">{entry.answer}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 /** Landing page for a city, region, category, or city/region + category. */
 export function PlacePage({ data }: { data: PlacePageData }) {
   const seeAll = browseHref(data.browseSearch);
@@ -126,9 +260,17 @@ export function PlacePage({ data }: { data: PlacePageData }) {
         >
           Search and filter these listings <ArrowRight size={13} />
         </a>
+        <Stats stats={data.stats} />
       </div>
 
-      {data.listings.length > 0 ? (
+      {data.listings.length === 0 ? (
+        <BluebirdEmptyState
+          title="Nothing listed here yet"
+          description="New listings show up on this page as soon as they're posted. Try nearby cities or other categories below."
+        />
+      ) : data.regionGroups.length > 0 ? (
+        <RegionGroups groups={data.regionGroups} />
+      ) : (
         <section aria-label="Listings">
           <ul className="grid grid-cols-2 gap-x-4 gap-y-9 md:grid-cols-3 xl:grid-cols-4">
             {data.listings.map((listing) => (
@@ -148,10 +290,16 @@ export function PlacePage({ data }: { data: PlacePageData }) {
             </div>
           ) : null}
         </section>
-      ) : null}
+      )}
 
+      <PriceTables tables={data.priceTables} />
+      <RecentlySold listings={data.recentlySold} />
+      {data.extraLinks.map((row) => (
+        <LinkChips key={row.heading} heading={row.heading} links={row.links} />
+      ))}
       <LinkChips heading="Browse by category" links={data.relatedCategories} />
       <LinkChips heading={data.relatedPlacesHeading} links={data.relatedPlaces} />
+      <Faq faq={data.faq} />
       <GuideLinks categorySlug={String(data.browseSearch["category"] ?? "")} />
     </main>
   );

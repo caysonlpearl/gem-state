@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { classifiedCategories, vehicleOptions } from "@/config/classifieds";
+import { classifiedCategories, vehicleModelsByMake, vehicleOptions } from "@/config/classifieds";
 import { petOfferedBy, petPlacementTypes, petSexes } from "@/config/pets";
 import { fieldsForClassifiedItem } from "@/config/classified-item-fields";
 import { findIdahoPlace } from "@/config/idaho-places";
@@ -251,7 +251,23 @@ export const classifiedListingSchema = z
   // region, so city pages, region pages and distance search all find them.
   .transform((listing) => {
     const place = listing.state === "ID" ? findIdahoPlace(listing.city) : undefined;
-    return place ? { ...listing, city: place[0], region: place[1] } : listing;
+    const located = place ? { ...listing, city: place[0], region: place[1] } : listing;
+    // Makes and models typed in any case are saved with the catalog's
+    // spelling, so "toyota tacoma" lands on the Toyota Tacoma page.
+    if (!located.vehicle) return located;
+    const key = (value: string) => value.trim().toLowerCase();
+    const make = vehicleOptions.makes.find((name) => key(name) === key(located.vehicle!.make));
+    const model = make
+      ? (vehicleModelsByMake[make] ?? []).find((name) => key(name) === key(located.vehicle!.model))
+      : undefined;
+    return {
+      ...located,
+      vehicle: {
+        ...located.vehicle,
+        ...(make ? { make } : {}),
+        ...(model ? { model } : {}),
+      },
+    };
   });
 
 export type ClassifiedListingInput = z.infer<typeof classifiedListingSchema>;

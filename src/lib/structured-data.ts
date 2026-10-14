@@ -1,7 +1,13 @@
 import { brand } from "@/config/brand";
 import type { ClassifiedCard, ClassifiedDetail } from "@/lib/classifieds.functions";
 import { listingPath } from "@/lib/listing-url";
-import { categoryPagePath, nearbyPagePath } from "@/lib/place-pages";
+import {
+  canonicalMake,
+  canonicalModel,
+  categoryPagePath,
+  nearbyPagePath,
+  vehiclePagePath,
+} from "@/lib/place-pages";
 
 /**
  * schema.org structured data (JSON-LD) for search engines and AI assistants.
@@ -263,8 +269,15 @@ export function listingStructuredData(listing: ClassifiedDetail): JsonLd[] {
       name: listing.categoryName ?? "Listings",
       path: categoryPagePath(listing.categorySlug),
     });
+    const make =
+      listing.categorySlug === "cars-trucks" ? canonicalMake(listing.vehicle?.make) : null;
+    const model = make ? canonicalModel(make, listing.vehicle?.model) : null;
     const nearby = nearbyPagePath(listing.categorySlug, listing.city);
-    if (nearby !== categoryPagePath(listing.categorySlug)) {
+    if (make) {
+      // Cars and trucks: Idaho › Cars & Trucks › Toyota › Tacoma.
+      trail.push({ name: make, path: vehiclePagePath(make) });
+      if (model) trail.push({ name: model, path: vehiclePagePath(make, model) });
+    } else if (nearby !== categoryPagePath(listing.categorySlug)) {
       trail.push({
         name: `${listing.categoryName ?? "Listings"} in ${listing.city}`,
         path: nearby,
@@ -294,10 +307,22 @@ export function placePageStructuredData(page: {
   path: string;
   breadcrumbs: { label: string; path: string }[];
   listings: Pick<ClassifiedCard, "id" | "title" | "city">[];
+  faq?: { question: string; answer: string }[];
 }): JsonLd[] {
   const data: JsonLd[] = [
     breadcrumbs(page.breadcrumbs.map((crumb) => ({ name: crumb.label, path: crumb.path }))),
   ];
+  if (page.faq?.length) {
+    data.push({
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: page.faq.map((entry) => ({
+        "@type": "Question",
+        name: entry.question,
+        acceptedAnswer: { "@type": "Answer", text: entry.answer },
+      })),
+    });
+  }
   if (page.listings.length) {
     data.push({
       "@context": "https://schema.org",

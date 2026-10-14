@@ -59,6 +59,8 @@ import { Route as AuthenticatedAdminValidationRouteImport } from './routes/_auth
 import { Route as AuthenticatedOrdersOrderIdRouteImport } from './routes/_authenticated/orders.$orderId'
 import { Route as ApiInternalDealerInventoryRouteImport } from './routes/api/internal/dealer-inventory'
 import { Route as ApiInternalSavedSearchesRouteImport } from './routes/api/internal/saved-searches'
+import { Route as CarsMakeIndexRouteImport } from './routes/cars.$make.index'
+import { Route as CarsMakeModelRouteImport } from './routes/cars.$make.$model'
 import { Route as IdahoPlaceIndexRouteImport } from './routes/idaho.$place.index'
 import { Route as IdahoPlaceCategoryRouteImport } from './routes/idaho.$place.$category'
 import { Route as AuthenticatedAdminOrdersOrderIdRouteImport } from './routes/_authenticated/admin.orders.$orderId'
@@ -338,6 +340,16 @@ const ApiInternalSavedSearchesRoute =
     path: '/api/internal/saved-searches',
     getParentRoute: () => rootRouteImport,
   } as any)
+const CarsMakeIndexRoute = CarsMakeIndexRouteImport.update({
+  id: '/cars/$make/',
+  path: '/cars/$make/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CarsMakeModelRoute = CarsMakeModelRouteImport.update({
+  id: '/cars/$make/$model',
+  path: '/cars/$make/$model',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IdahoPlaceIndexRoute = IdahoPlaceIndexRouteImport.update({
   id: '/idaho/$place/',
   path: '/idaho/$place/',
@@ -438,8 +450,10 @@ export interface FileRoutesByFullPath {
   '/orders/$orderId': typeof AuthenticatedOrdersOrderIdRoute
   '/api/internal/dealer-inventory': typeof ApiInternalDealerInventoryRoute
   '/api/internal/saved-searches': typeof ApiInternalSavedSearchesRoute
+  '/cars/$make/$model': typeof CarsMakeModelRoute
   '/idaho/$place/$category': typeof IdahoPlaceCategoryRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
+  '/cars/$make/': typeof CarsMakeIndexRoute
   '/idaho/$place/': typeof IdahoPlaceIndexRoute
   '/admin/orders/$orderId': typeof AuthenticatedAdminOrdersOrderIdRoute
   '/listings/$listingId/edit': typeof AuthenticatedListingsListingIdEditRoute
@@ -497,8 +511,10 @@ export interface FileRoutesByTo {
   '/orders/$orderId': typeof AuthenticatedOrdersOrderIdRoute
   '/api/internal/dealer-inventory': typeof ApiInternalDealerInventoryRoute
   '/api/internal/saved-searches': typeof ApiInternalSavedSearchesRoute
+  '/cars/$make/$model': typeof CarsMakeModelRoute
   '/idaho/$place/$category': typeof IdahoPlaceCategoryRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
+  '/cars/$make': typeof CarsMakeIndexRoute
   '/idaho/$place': typeof IdahoPlaceIndexRoute
   '/admin/orders/$orderId': typeof AuthenticatedAdminOrdersOrderIdRoute
   '/listings/$listingId/edit': typeof AuthenticatedListingsListingIdEditRoute
@@ -559,8 +575,10 @@ export interface FileRoutesById {
   '/_authenticated/orders/$orderId': typeof AuthenticatedOrdersOrderIdRoute
   '/api/internal/dealer-inventory': typeof ApiInternalDealerInventoryRoute
   '/api/internal/saved-searches': typeof ApiInternalSavedSearchesRoute
+  '/cars/$make/$model': typeof CarsMakeModelRoute
   '/idaho/$place/$category': typeof IdahoPlaceCategoryRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
+  '/cars/$make/': typeof CarsMakeIndexRoute
   '/idaho/$place/': typeof IdahoPlaceIndexRoute
   '/_authenticated/admin/orders/$orderId': typeof AuthenticatedAdminOrdersOrderIdRoute
   '/_authenticated/listings/$listingId/edit': typeof AuthenticatedListingsListingIdEditRoute
@@ -621,8 +639,10 @@ export interface FileRouteTypes {
     | '/orders/$orderId'
     | '/api/internal/dealer-inventory'
     | '/api/internal/saved-searches'
+    | '/cars/$make/$model'
     | '/idaho/$place/$category'
     | '/admin/'
+    | '/cars/$make/'
     | '/idaho/$place/'
     | '/admin/orders/$orderId'
     | '/listings/$listingId/edit'
@@ -680,8 +700,10 @@ export interface FileRouteTypes {
     | '/orders/$orderId'
     | '/api/internal/dealer-inventory'
     | '/api/internal/saved-searches'
+    | '/cars/$make/$model'
     | '/idaho/$place/$category'
     | '/admin'
+    | '/cars/$make'
     | '/idaho/$place'
     | '/admin/orders/$orderId'
     | '/listings/$listingId/edit'
@@ -741,8 +763,10 @@ export interface FileRouteTypes {
     | '/_authenticated/orders/$orderId'
     | '/api/internal/dealer-inventory'
     | '/api/internal/saved-searches'
+    | '/cars/$make/$model'
     | '/idaho/$place/$category'
     | '/_authenticated/admin/'
+    | '/cars/$make/'
     | '/idaho/$place/'
     | '/_authenticated/admin/orders/$orderId'
     | '/_authenticated/listings/$listingId/edit'
@@ -777,7 +801,9 @@ export interface RootRouteChildren {
   GuidesIndexRoute: typeof GuidesIndexRoute
   ApiInternalDealerInventoryRoute: typeof ApiInternalDealerInventoryRoute
   ApiInternalSavedSearchesRoute: typeof ApiInternalSavedSearchesRoute
+  CarsMakeModelRoute: typeof CarsMakeModelRoute
   IdahoPlaceCategoryRoute: typeof IdahoPlaceCategoryRoute
+  CarsMakeIndexRoute: typeof CarsMakeIndexRoute
   IdahoPlaceIndexRoute: typeof IdahoPlaceIndexRoute
   ApiPublicCatalogMediaSplatRoute: typeof ApiPublicCatalogMediaSplatRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
@@ -1138,6 +1164,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiInternalSavedSearchesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/cars/$make/': {
+      id: '/cars/$make/'
+      path: '/cars/$make'
+      fullPath: '/cars/$make/'
+      preLoaderRoute: typeof CarsMakeIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cars/$make/$model': {
+      id: '/cars/$make/$model'
+      path: '/cars/$make/$model'
+      fullPath: '/cars/$make/$model'
+      preLoaderRoute: typeof CarsMakeModelRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/idaho/$place/': {
       id: '/idaho/$place/'
       path: '/idaho/$place'
@@ -1308,7 +1348,9 @@ const rootRouteChildren: RootRouteChildren = {
   GuidesIndexRoute: GuidesIndexRoute,
   ApiInternalDealerInventoryRoute: ApiInternalDealerInventoryRoute,
   ApiInternalSavedSearchesRoute: ApiInternalSavedSearchesRoute,
+  CarsMakeModelRoute: CarsMakeModelRoute,
   IdahoPlaceCategoryRoute: IdahoPlaceCategoryRoute,
+  CarsMakeIndexRoute: CarsMakeIndexRoute,
   IdahoPlaceIndexRoute: IdahoPlaceIndexRoute,
   ApiPublicCatalogMediaSplatRoute: ApiPublicCatalogMediaSplatRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,

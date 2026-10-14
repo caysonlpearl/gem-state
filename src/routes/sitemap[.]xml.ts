@@ -5,11 +5,17 @@ import { guides } from "@/content/guides";
 import { idahoCities, idahoRegions } from "@/config/classifieds";
 import { listingPath } from "@/lib/listing-url";
 import {
+  MAKE_PAGE_MIN_LISTINGS,
+  MODEL_PAGE_MIN_LISTINGS,
   PLACE_PAGE_FRESH_DAYS,
   PLACE_PAGE_MIN_LISTINGS,
+  canonicalMake,
+  canonicalModel,
   categoryPagePath,
   placePath,
+  vehiclePagePath,
 } from "@/lib/place-pages";
+import { regionOfListing } from "@/lib/market-stats";
 
 const STATIC_PATHS: { path: string; changefreq: string; priority: string }[] = [
   { path: "/", changefreq: "daily", priority: "1.0" },
@@ -47,10 +53,15 @@ type LiveListingRow = {
   created_at: string;
   updated_at: string;
   products: { name: string; categories: { slug: string } | null } | null;
-  classified_listing_details:
-    | { city: string | null; region: string | null }
-    | { city: string | null; region: string | null }[]
-    | null;
+  classified_listing_details: ListingPlace | ListingPlace[] | null;
+};
+
+type ListingPlace = {
+  city: string | null;
+  region: string | null;
+  state: string | null;
+  vehicle_make: string | null;
+  vehicle_model: string | null;
 };
 
 /**
@@ -61,11 +72,15 @@ type LiveListingRow = {
  * always passes its gate.
  */
 class PageTally {
-  private pages = new Map<string, { count: number; newest: string; lastmod: string }>();
+  private pages = new Map<
+    string,
+    { count: number; minimum: number; newest: string; lastmod: string }
+  >();
 
-  add(path: string, createdAt: string, updatedAt: string) {
+  add(path: string, createdAt: string, updatedAt: string, minimum = PLACE_PAGE_MIN_LISTINGS) {
     const current = this.pages.get(path);
     this.pages.set(path, {
+      minimum,
       count: (current?.count ?? 0) + 1,
       newest: current && current.newest > createdAt ? current.newest : createdAt,
       lastmod: current && current.lastmod > updatedAt ? current.lastmod : updatedAt,
@@ -75,7 +90,7 @@ class PageTally {
   passing() {
     const freshAfter = Date.now() - PLACE_PAGE_FRESH_DAYS * 86_400_000;
     return Array.from(this.pages.entries()).filter(
-      ([, info]) => info.count >= PLACE_PAGE_MIN_LISTINGS && Date.parse(info.newest) >= freshAfter,
+      ([, info]) => info.count >= info.minimum && Date.parse(info.newest) >= freshAfter,
     );
   }
 }
@@ -92,7 +107,7 @@ export const Route = createFileRoute("/sitemap.xml")({
         const { data: listingRows, error } = await supabaseAdmin
           .from("asks")
           .select(
-            "id, seller_id, created_at, updated_at, products!inner(name, status, categories!inner(slug)), classified_listing_details!inner(listing_id, city, region)",
+            "id, seller_id, created_at, updated_at, products!inner(name, status, categories!inner(slug)), classified_listing_details!inner(listing_id, city, region, state, vehicle_make, vehicle_model)",
           )
           .eq("status", "active")
           .eq("is_demo", false)
@@ -112,13 +127,19 @@ export const Route = createFileRoute("/sitemap.xml")({
             : row.classified_listing_details;
           const category = row.products?.categories?.slug;
           const city = idahoCities.find((name) => name === details?.city);
-          const region = idahoRegions.find((name) => name === details?.region);
-          const add = (path: string) => pages.add(path, row.created_at, row.updated_at);
+          // Same region the landing pages use: saved, else the city's.
+          const region = details ? regionOfListing(details) : undefined;
+          const add = (path: string, minimum?: number) =>
+            pages.add(path, row.created_at, row.updated_at, minimum);
           if (category) add(categoryPagePath(category));
           if (city) add(placePath(city));
           if (city && category) add(placePath(city, category));
           if (region) add(placePath(region));
           if (region && category) add(placePath(region, category));
+          const make = category === "cars-trucks" ? canonicalMake(details?.vehicle_make) : null;
+          const model = make ? canonicalModel(make, details?.vehicle_model) : null;
+          if (make) add(vehiclePagePath(make), MAKE_PAGE_MIN_LISTINGS);
+          if (make && model) add(vehiclePagePath(make, model), MODEL_PAGE_MIN_LISTINGS);
           if (!sellerLastmod.has(row.seller_id)) sellerLastmod.set(row.seller_id, row.updated_at);
         }
 

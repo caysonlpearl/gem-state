@@ -5,6 +5,7 @@ import { publicServerClient } from "./supabase-public.server";
 import { classifiedCategories, isWithinClassifiedRadius } from "@/config/classifieds";
 import { normalizePetSpecies, normalizePetSubcategory } from "@/config/pets";
 import { normalizeClassifiedItemDetails } from "@/config/classified-item-fields";
+import { regionOfListing } from "@/lib/market-stats";
 import { formatUsd } from "@/config/fees";
 import {
   mockClassifiedListings,
@@ -1614,7 +1615,10 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
         referencedTable: "products",
       });
     }
-    if (data.region) query = query.eq("classified_listing_details.region", data.region);
+    // Regions match the way the landing pages derive them (saved region, else
+    // the Idaho city's), so older listings saved as "ID" still count; like
+    // radius search, that filter runs after the fetch.
+    if (data.region) query = query.eq("classified_listing_details.state", "ID");
     if (data.state) query = query.eq("classified_listing_details.state", data.state);
     if (data.city && data.radiusMiles == null)
       query = query.ilike("classified_listing_details.city", `%${escapeLikeValue(data.city)}%`);
@@ -1840,7 +1844,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     const unitAwareJobSort =
       data.category === "jobs" && (data.sort === "price_low" || data.sort === "price_high");
     const resultRange =
-      unitAwareJobSort || data.radiusMiles != null
+      unitAwareJobSort || data.radiusMiles != null || data.region
         ? { from: 0, to: Math.max(4_999, from + PAGE_SIZE - 1) }
         : { from, to: from + PAGE_SIZE - 1 };
     const {
@@ -1870,7 +1874,8 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
           longitude: data.longitude,
           radiusMiles: data.radiusMiles,
         }),
-      );
+      )
+      .filter((listing) => !data.region || regionOfListing(listing) === data.region);
     const motorCategory = data.category
       ? classifiedCategories.find((category) => category.slug === data.category)?.group === "motors"
       : false;
@@ -1922,7 +1927,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
         : PAGE_SIZE;
     const orderedListings = [...featuredListings, ...standardListings];
     const combinedListings =
-      unitAwareJobSort || data.radiusMiles != null
+      unitAwareJobSort || data.radiusMiles != null || data.region
         ? orderedListings.slice(from, from + resultLimit)
         : orderedListings.slice(0, resultLimit);
     if (listings.length > 0) {
@@ -1937,7 +1942,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     return {
       listings: combinedListings,
       total:
-        (data.radiusMiles != null ? listings.length : (count ?? listings.length)) +
+        (data.radiusMiles != null || data.region ? listings.length : (count ?? listings.length)) +
         mockListings.length,
       page,
       pageSize: PAGE_SIZE,
@@ -2036,6 +2041,86 @@ export const getEndedClassifiedListing = createServerFn({ method: "GET" })
       includeContact: false,
     });
     return { ...detail, ended };
+  });
+
+export type SoldCard = ClassifiedCard & { soldAt: string };
+
+/**
+ * Listings their sellers marked sold in the last ENDED_LISTING_RETENTION_DAYS
+ * days, newest sale first, for the landing pages' Recently sold section.
+ * Only seller-marked sales count: never take-downs, and not the old
+ * "matched" checkout state, which Bluebird's direct-contact sales never use.
+ */
+export const getRecentlySoldListings = createServerFn({ method: "GET" })
+  .validator(
+    (input: {
+      category?: string;
+      city?: string;
+      region?: string;
+      radiusMiles?: number;
+      make?: string;
+      model?: string;
+      limit?: number;
+    }) => ({
+      category: input?.category ? String(input.category).slice(0, 60) : undefined,
+      city: input?.city ? String(input.city).slice(0, 80) : undefined,
+      region: input?.region ? String(input.region).slice(0, 80) : undefined,
+      radiusMiles:
+        input?.radiusMiles != null ? Math.min(250, Math.max(0, Number(input.radiusMiles))) : undefined,
+      make: input?.make ? String(input.make).slice(0, 60) : undefined,
+      model: input?.model ? String(input.model).slice(0, 80) : undefined,
+      limit: Math.min(24, Math.max(1, Number(input?.limit ?? 8))),
+    }),
+  )
+  .handler(async ({ data }): Promise<SoldCard[]> => {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const cutoff = new Date(
+      Date.now() - ENDED_LISTING_RETENTION_DAYS * 86_400_000,
+    ).toISOString();
+    const { data: rows, error } = await (supabaseAdmin as any)
+      .from("asks")
+      .select(`${LISTING_SELECT}, status, updated_at, sold_at`)
+      .eq("status", "cancelled")
+      .gte("sold_at", cutoff)
+      .eq("is_demo", false)
+      .not("approved_at", "is", null)
+      .eq("products.status", "published")
+      .order("sold_at", { ascending: false })
+      .limit(300);
+    if (error) {
+      console.error("getRecentlySoldListings failed", error.message);
+      return [];
+    }
+    const lower = (value: string | null | undefined) => (value ?? "").trim().toLowerCase();
+    const matching = ((rows ?? []) as Record<string, unknown>[])
+      .filter((row) => !isReleaseQaListing(row))
+      .map((row) => ({
+        row,
+        card: toCard(row, new Map()),
+        soldAt: row["sold_at"] as string,
+      }))
+      .filter(({ card }) => {
+        if (data.category && card.categorySlug !== data.category) return false;
+        if (data.region && regionOfListing(card) !== data.region) return false;
+        if (data.make && lower(card.vehicle?.make) !== lower(data.make)) return false;
+        if (data.model && lower(card.vehicle?.model) !== lower(data.model)) return false;
+        if (
+          data.city &&
+          !isWithinClassifiedRadius({
+            city: data.city,
+            listingCity: card.city,
+            radiusMiles: data.radiusMiles ?? 25,
+          })
+        )
+          return false;
+        return true;
+      })
+      .sort((a, b) => b.soldAt.localeCompare(a.soldAt))
+      .slice(0, data.limit);
+    const urlByPath = await signListingMedia(
+      matching.flatMap(({ row }) => sortedMedia(row).slice(0, 1)),
+    );
+    return matching.map(({ row, soldAt }) => ({ ...toCard(row, urlByPath), soldAt }));
   });
 
 /** Turns a listing row into the detail page's data: photos, seller and contact options. */

@@ -1,4 +1,10 @@
-import { classifiedCategories, idahoCities, idahoRegions } from "@/config/classifieds";
+import {
+  classifiedCategories,
+  idahoCities,
+  idahoRegions,
+  vehicleModelsByMake,
+  vehicleOptions,
+} from "@/config/classifieds";
 
 /**
  * URL shapes for the search landing pages:
@@ -69,3 +75,34 @@ export function categoryPhrase(slug: string, name: string) {
 /** A page is only offered to search engines once it's worth landing on. */
 export const PLACE_PAGE_MIN_LISTINGS = 5;
 export const PLACE_PAGE_FRESH_DAYS = 30;
+/** Make pages use the same bar; a single model needs fewer to be useful. */
+export const MAKE_PAGE_MIN_LISTINGS = 5;
+export const MODEL_PAGE_MIN_LISTINGS = 3;
+
+/**
+ * Vehicle make and model pages: /cars/toyota and /cars/toyota/tacoma, for
+ * cars and trucks. Makes and models come from the vehicle catalog the
+ * listing form uses, so every page name is spelled the catalog's way.
+ */
+export function canonicalMake(value: string | null | undefined) {
+  const key = String(value ?? "").trim().toLowerCase();
+  return key ? (vehicleOptions.makes.find((make) => make.toLowerCase() === key) ?? null) : null;
+}
+
+export function canonicalModel(make: string, value: string | null | undefined) {
+  const key = String(value ?? "").trim().toLowerCase();
+  if (!key) return null;
+  return (vehicleModelsByMake[make] ?? []).find((model) => model.toLowerCase() === key) ?? null;
+}
+
+export function vehiclePagePath(make: string, model?: string | null) {
+  return model ? `/cars/${placeSlug(make)}/${placeSlug(model)}` : `/cars/${placeSlug(make)}`;
+}
+
+export function makeFromSlug(slug: string) {
+  return vehicleOptions.makes.find((make) => placeSlug(make) === slug) ?? null;
+}
+
+export function modelFromSlug(make: string, slug: string) {
+  return (vehicleModelsByMake[make] ?? []).find((model) => placeSlug(model) === slug) ?? null;
+}

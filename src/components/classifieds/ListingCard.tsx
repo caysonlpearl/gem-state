@@ -142,21 +142,28 @@ function cardActionLabel(listing: ClassifiedCard) {
   return formatFulfillmentLabel(listing.fulfillmentMode, Boolean(listing.vehicle));
 }
 
-export function ListingCard({ listing }: { listing: ClassifiedCard }) {
+/** soldAt marks a card in a Recently sold section: a Sold tag, the last asking price, no save button. */
+export function ListingCard({ listing, soldAt }: { listing: ClassifiedCard; soldAt?: string }) {
   return (
     <article className="group relative min-w-0 overflow-hidden rounded-2xl border border-transparent bg-card shadow-sm transition-shadow hover:shadow-md">
       <div className="relative">
         <Link to="/listings/$listingId" params={{ listingId: listingParam(listing) }} className="block">
           <Photo listing={listing} />
         </Link>
-        <div className="absolute right-2 top-2 z-10">
-          <WatchHeartButton
-            productId={listing.productId}
-            productSlug={listing.productSlug}
-            productName={listing.title}
-            isDemo={listing.isMock === true}
-          />
-        </div>
+        {soldAt ? (
+          <span className="absolute left-2 top-2 z-10 inline-flex rounded-full bg-foreground px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-background shadow-sm">
+            Sold
+          </span>
+        ) : (
+          <div className="absolute right-2 top-2 z-10">
+            <WatchHeartButton
+              productId={listing.productId}
+              productSlug={listing.productSlug}
+              productName={listing.title}
+              isDemo={listing.isMock === true}
+            />
+          </div>
+        )}
       </div>
       <Link
         to="/listings/$listingId"
@@ -164,6 +171,9 @@ export function ListingCard({ listing }: { listing: ClassifiedCard }) {
         className="block px-3.5 pb-4 pt-3.5"
       >
         <p className="numeric text-[17px] font-bold leading-none text-foreground">
+          {soldAt ? (
+            <span className="mr-1 text-[11px] font-semibold text-muted-foreground">Asked</span>
+          ) : null}
           <Price listing={listing} />
         </p>
         <h3 className="mt-1.5 line-clamp-2 min-h-[34px] text-[13px] font-semibold leading-[1.3] group-hover:text-primary">
@@ -180,8 +190,8 @@ export function ListingCard({ listing }: { listing: ClassifiedCard }) {
           {listing.city}, {listing.state}
         </p>
         <div className="mt-2 flex items-center justify-between gap-2 text-[10.5px] text-muted-foreground">
-          <span className="truncate">{cardActionLabel(listing)}</span>
-          <span className="shrink-0">{postedAge(listing.createdAt)}</span>
+          <span className="truncate">{soldAt ? "Sold" : cardActionLabel(listing)}</span>
+          <span className="shrink-0">{postedAge(soldAt ?? listing.createdAt)}</span>
         </div>
       </Link>
     </article>
