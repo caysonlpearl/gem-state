@@ -15,7 +15,8 @@ import {
   placePath,
   vehiclePagePath,
 } from "@/lib/place-pages";
-import { regionOfListing } from "@/lib/market-stats";
+import { regionOfListing, reportMonthOf } from "@/lib/market-stats";
+import { MARKET_REPORT_MIN_LISTINGS } from "@/lib/market-report.functions";
 
 const STATIC_PATHS: { path: string; changefreq: string; priority: string }[] = [
   { path: "/", changefreq: "daily", priority: "1.0" },
@@ -154,9 +155,28 @@ export const Route = createFileRoute("/sitemap.xml")({
           for (const seller of sellers ?? []) sellerSlugs.set(seller.user_id, seller.slug);
         }
 
+        // Monthly market reports: this month's once enough listings are live,
+        // and past months whose saved report passed the same bar.
+        const reportMonths: { month: string; lastmod: string }[] = [];
+        const currentMonth = reportMonthOf(new Date());
+        if (listings.length >= MARKET_REPORT_MIN_LISTINGS)
+          reportMonths.push({ month: currentMonth, lastmod: nowIso });
+        const { data: savedReports } = await (supabaseAdmin as any)
+          .from("market_report_snapshots")
+          .select("month, updated_at, report->totals->live")
+          .neq("month", currentMonth)
+          .limit(120);
+        for (const saved of (savedReports ?? []) as { month: string; updated_at: string; live: number }[]) {
+          if (Number(saved.live) >= MARKET_REPORT_MIN_LISTINGS)
+            reportMonths.push({ month: saved.month, lastmod: saved.updated_at });
+        }
+
         const entries = [
           ...STATIC_PATHS.map(({ path, changefreq, priority }) =>
             urlEntry(path, { changefreq, priority }),
+          ),
+          ...reportMonths.map(({ month, lastmod }) =>
+            urlEntry(`/idaho/market-report/${month}`, { lastmod, changefreq: "weekly", priority: "0.7" }),
           ),
           ...guides.map((guide) =>
             urlEntry(`/guides/${guide.slug}`, { lastmod: guide.reviewed, priority: "0.7" }),

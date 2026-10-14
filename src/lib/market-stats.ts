@@ -207,3 +207,161 @@ export function landingFaq(input: {
   }
   return faq.slice(0, 5);
 }
+
+// --- Monthly Idaho market report ---------------------------------------------
+
+/** A live listing, reduced to what the market report counts. */
+export type ReportListing = {
+  priceCents: number;
+  createdAt: string;
+  categorySlug: string | null;
+  categoryName: string | null;
+  city: string | null;
+  region: string | null;
+  state: string | null;
+  /** Catalog spelling, cars and trucks only; null otherwise. */
+  make: string | null;
+  model: string | null;
+};
+
+/** A listing its seller marked sold. */
+export type ReportSale = { categorySlug: string | null; createdAt: string; soldAt: string };
+
+export type MarketReport = {
+  /** "2026-10" */
+  month: string;
+  /** "October 2026" */
+  label: string;
+  generatedAt: string;
+  totals: { live: number; newThisMonth: number; soldThisMonth: number };
+  categories: {
+    slug: string;
+    name: string;
+    count: number;
+    medianCents: number | null;
+    lowCents: number | null;
+    highCents: number | null;
+  }[];
+  regions: { region: string; count: number; topCategories: string[] }[];
+  vehicles: { make: string; model: string; count: number; medianCents: number | null }[];
+  daysToSell: { medianDays: number; sales: number } | null;
+};
+
+/**
+ * Categories whose prices don't make one honest median: pay, quotes, rent
+ * mixed with sale prices, and pets (a $50 rehoming fee beside a $7,000 horse).
+ */
+export const REPORT_NO_PRICE = new Set(["jobs", "services", "other-real-estate", "pets"]);
+
+/** "2026-10" for a date, in Idaho time. */
+export function reportMonthOf(value: Date | string) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Boise",
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(typeof value === "string" ? new Date(value) : value);
+  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
+  return `${get("year")}-${get("month")}`;
+}
+
+export function reportMonthLabel(month: string) {
+  const [year, monthNumber] = month.split("-").map(Number);
+  return new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric", timeZone: "UTC" }).format(
+    new Date(Date.UTC(year!, monthNumber! - 1, 15)),
+  );
+}
+
+/**
+ * The month's report from the listings live right now and the sales marked
+ * this month. Every figure is a count or a median of Bluebird's own data;
+ * sections with too little data come back empty rather than estimated.
+ */
+export function buildMarketReport(
+  listings: ReportListing[],
+  sales: ReportSale[],
+  now = new Date(),
+): MarketReport {
+  const month = reportMonthOf(now);
+  const inMonth = (iso: string) => reportMonthOf(iso) === month;
+
+  const byCategory = new Map<string, { name: string; items: ReportListing[] }>();
+  for (const listing of listings) {
+    if (!listing.categorySlug) continue;
+    const entry = byCategory.get(listing.categorySlug) ?? {
+      name: listing.categoryName ?? listing.categorySlug,
+      items: [],
+    };
+    entry.items.push(listing);
+    byCategory.set(listing.categorySlug, entry);
+  }
+  const categories = Array.from(byCategory.entries())
+    .map(([slug, { name, items }]) => {
+      const price = REPORT_NO_PRICE.has(slug) ? null : priceSummary(items.map((item) => item.priceCents));
+      return {
+        slug,
+        name,
+        count: items.length,
+        medianCents: price?.medianCents ?? null,
+        lowCents: price?.lowCents ?? null,
+        highCents: price?.highCents ?? null,
+      };
+    })
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+
+  const regions = idahoRegions
+    .map((region) => {
+      const items = listings.filter((listing) => regionOfListing(listing) === region);
+      const counts = new Map<string, number>();
+      for (const item of items) {
+        if (item.categoryName) counts.set(item.categoryName, (counts.get(item.categoryName) ?? 0) + 1);
+      }
+      const topCategories = Array.from(counts.entries())
+        .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+        .slice(0, 3)
+        .map(([name]) => name);
+      return { region: region as string, count: items.length, topCategories };
+    })
+    .filter((row) => row.count > 0)
+    .sort((a, b) => b.count - a.count);
+
+  const byModel = new Map<string, ReportListing[]>();
+  for (const listing of listings) {
+    if (!listing.make || !listing.model) continue;
+    const key = `${listing.make}\u0000${listing.model}`;
+    byModel.set(key, [...(byModel.get(key) ?? []), listing]);
+  }
+  const vehicles = Array.from(byModel.entries())
+    .map(([key, items]) => {
+      const [make, model] = key.split("\u0000") as [string, string];
+      return {
+        make,
+        model,
+        count: items.length,
+        medianCents: priceSummary(items.map((item) => item.priceCents))?.medianCents ?? null,
+      };
+    })
+    .sort((a, b) => b.count - a.count || a.make.localeCompare(b.make))
+    .slice(0, 10);
+
+  const monthSales = sales.filter((sale) => inMonth(sale.soldAt));
+  const days = monthSales
+    .map((sale) => (Date.parse(sale.soldAt) - Date.parse(sale.createdAt)) / 86_400_000)
+    .filter((value) => Number.isFinite(value) && value >= 0);
+
+  return {
+    month,
+    label: reportMonthLabel(month),
+    generatedAt: now.toISOString(),
+    totals: {
+      live: listings.length,
+      newThisMonth: listings.filter((listing) => inMonth(listing.createdAt)).length,
+      soldThisMonth: monthSales.length,
+    },
+    categories,
+    regions,
+    vehicles,
+    // Half the listings that sold this month sold within this many days.
+    daysToSell:
+      days.length >= 5 ? { medianDays: medianCents(days), sales: days.length } : null,
+  };
+}

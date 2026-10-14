@@ -63,6 +63,8 @@ import { Route as CarsMakeIndexRouteImport } from './routes/cars.$make.index'
 import { Route as CarsMakeModelRouteImport } from './routes/cars.$make.$model'
 import { Route as IdahoPlaceIndexRouteImport } from './routes/idaho.$place.index'
 import { Route as IdahoPlaceCategoryRouteImport } from './routes/idaho.$place.$category'
+import { Route as IdahoMarketReportIndexRouteImport } from './routes/idaho.market-report.index'
+import { Route as IdahoMarketReportMonthRouteImport } from './routes/idaho.market-report.$month'
 import { Route as AuthenticatedAdminOrdersOrderIdRouteImport } from './routes/_authenticated/admin.orders.$orderId'
 import { Route as AuthenticatedListingsListingIdEditRouteImport } from './routes/_authenticated/listings.$listingId.edit'
 import { Route as ApiPublicCatalogMediaSplatRouteImport } from './routes/api/public/catalog-media.$'
@@ -360,6 +362,16 @@ const IdahoPlaceCategoryRoute = IdahoPlaceCategoryRouteImport.update({
   path: '/idaho/$place/$category',
   getParentRoute: () => rootRouteImport,
 } as any)
+const IdahoMarketReportIndexRoute = IdahoMarketReportIndexRouteImport.update({
+  id: '/idaho/market-report/',
+  path: '/idaho/market-report/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const IdahoMarketReportMonthRoute = IdahoMarketReportMonthRouteImport.update({
+  id: '/idaho/market-report/$month',
+  path: '/idaho/market-report/$month',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedAdminOrdersOrderIdRoute =
   AuthenticatedAdminOrdersOrderIdRouteImport.update({
     id: '/orders/$orderId',
@@ -452,9 +464,11 @@ export interface FileRoutesByFullPath {
   '/api/internal/saved-searches': typeof ApiInternalSavedSearchesRoute
   '/cars/$make/$model': typeof CarsMakeModelRoute
   '/idaho/$place/$category': typeof IdahoPlaceCategoryRoute
+  '/idaho/market-report/$month': typeof IdahoMarketReportMonthRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/cars/$make/': typeof CarsMakeIndexRoute
   '/idaho/$place/': typeof IdahoPlaceIndexRoute
+  '/idaho/market-report/': typeof IdahoMarketReportIndexRoute
   '/admin/orders/$orderId': typeof AuthenticatedAdminOrdersOrderIdRoute
   '/listings/$listingId/edit': typeof AuthenticatedListingsListingIdEditRoute
   '/api/public/catalog-media/$': typeof ApiPublicCatalogMediaSplatRoute
@@ -513,9 +527,11 @@ export interface FileRoutesByTo {
   '/api/internal/saved-searches': typeof ApiInternalSavedSearchesRoute
   '/cars/$make/$model': typeof CarsMakeModelRoute
   '/idaho/$place/$category': typeof IdahoPlaceCategoryRoute
+  '/idaho/market-report/$month': typeof IdahoMarketReportMonthRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/cars/$make': typeof CarsMakeIndexRoute
   '/idaho/$place': typeof IdahoPlaceIndexRoute
+  '/idaho/market-report': typeof IdahoMarketReportIndexRoute
   '/admin/orders/$orderId': typeof AuthenticatedAdminOrdersOrderIdRoute
   '/listings/$listingId/edit': typeof AuthenticatedListingsListingIdEditRoute
   '/api/public/catalog-media/$': typeof ApiPublicCatalogMediaSplatRoute
@@ -577,9 +593,11 @@ export interface FileRoutesById {
   '/api/internal/saved-searches': typeof ApiInternalSavedSearchesRoute
   '/cars/$make/$model': typeof CarsMakeModelRoute
   '/idaho/$place/$category': typeof IdahoPlaceCategoryRoute
+  '/idaho/market-report/$month': typeof IdahoMarketReportMonthRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/cars/$make/': typeof CarsMakeIndexRoute
   '/idaho/$place/': typeof IdahoPlaceIndexRoute
+  '/idaho/market-report/': typeof IdahoMarketReportIndexRoute
   '/_authenticated/admin/orders/$orderId': typeof AuthenticatedAdminOrdersOrderIdRoute
   '/_authenticated/listings/$listingId/edit': typeof AuthenticatedListingsListingIdEditRoute
   '/api/public/catalog-media/$': typeof ApiPublicCatalogMediaSplatRoute
@@ -641,9 +659,11 @@ export interface FileRouteTypes {
     | '/api/internal/saved-searches'
     | '/cars/$make/$model'
     | '/idaho/$place/$category'
+    | '/idaho/market-report/$month'
     | '/admin/'
     | '/cars/$make/'
     | '/idaho/$place/'
+    | '/idaho/market-report/'
     | '/admin/orders/$orderId'
     | '/listings/$listingId/edit'
     | '/api/public/catalog-media/$'
@@ -702,9 +722,11 @@ export interface FileRouteTypes {
     | '/api/internal/saved-searches'
     | '/cars/$make/$model'
     | '/idaho/$place/$category'
+    | '/idaho/market-report/$month'
     | '/admin'
     | '/cars/$make'
     | '/idaho/$place'
+    | '/idaho/market-report'
     | '/admin/orders/$orderId'
     | '/listings/$listingId/edit'
     | '/api/public/catalog-media/$'
@@ -765,9 +787,11 @@ export interface FileRouteTypes {
     | '/api/internal/saved-searches'
     | '/cars/$make/$model'
     | '/idaho/$place/$category'
+    | '/idaho/market-report/$month'
     | '/_authenticated/admin/'
     | '/cars/$make/'
     | '/idaho/$place/'
+    | '/idaho/market-report/'
     | '/_authenticated/admin/orders/$orderId'
     | '/_authenticated/listings/$listingId/edit'
     | '/api/public/catalog-media/$'
@@ -803,8 +827,10 @@ export interface RootRouteChildren {
   ApiInternalSavedSearchesRoute: typeof ApiInternalSavedSearchesRoute
   CarsMakeModelRoute: typeof CarsMakeModelRoute
   IdahoPlaceCategoryRoute: typeof IdahoPlaceCategoryRoute
+  IdahoMarketReportMonthRoute: typeof IdahoMarketReportMonthRoute
   CarsMakeIndexRoute: typeof CarsMakeIndexRoute
   IdahoPlaceIndexRoute: typeof IdahoPlaceIndexRoute
+  IdahoMarketReportIndexRoute: typeof IdahoMarketReportIndexRoute
   ApiPublicCatalogMediaSplatRoute: typeof ApiPublicCatalogMediaSplatRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
   LovableEmailAuthWebhookRoute: typeof LovableEmailAuthWebhookRoute
@@ -1192,6 +1218,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IdahoPlaceCategoryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/idaho/market-report/': {
+      id: '/idaho/market-report/'
+      path: '/idaho/market-report'
+      fullPath: '/idaho/market-report/'
+      preLoaderRoute: typeof IdahoMarketReportIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/idaho/market-report/$month': {
+      id: '/idaho/market-report/$month'
+      path: '/idaho/market-report/$month'
+      fullPath: '/idaho/market-report/$month'
+      preLoaderRoute: typeof IdahoMarketReportMonthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/admin/orders/$orderId': {
       id: '/_authenticated/admin/orders/$orderId'
       path: '/orders/$orderId'
@@ -1350,8 +1390,10 @@ const rootRouteChildren: RootRouteChildren = {
   ApiInternalSavedSearchesRoute: ApiInternalSavedSearchesRoute,
   CarsMakeModelRoute: CarsMakeModelRoute,
   IdahoPlaceCategoryRoute: IdahoPlaceCategoryRoute,
+  IdahoMarketReportMonthRoute: IdahoMarketReportMonthRoute,
   CarsMakeIndexRoute: CarsMakeIndexRoute,
   IdahoPlaceIndexRoute: IdahoPlaceIndexRoute,
+  IdahoMarketReportIndexRoute: IdahoMarketReportIndexRoute,
   ApiPublicCatalogMediaSplatRoute: ApiPublicCatalogMediaSplatRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
   LovableEmailAuthWebhookRoute: LovableEmailAuthWebhookRoute,

@@ -87,3 +87,52 @@ test("FAQ answers come from the numbers and skip what has no data", () => {
   );
   assert.equal(faq[2].answer, "Elsewhere in Idaho, the most listings are in Nampa (4) and Meridian (2).");
 });
+
+test("the monthly report counts, prices and groups only what the listings support", async () => {
+  const { buildMarketReport, reportMonthLabel, reportMonthOf } = await import("../src/lib/market-stats.ts");
+  const now = new Date("2026-10-20T18:00:00Z");
+  const listing = (extra) => ({
+    priceCents: 10_000,
+    createdAt: "2026-10-05T12:00:00Z",
+    categorySlug: "furniture",
+    categoryName: "Furniture",
+    city: "Boise",
+    region: "Treasure Valley",
+    state: "ID",
+    make: null,
+    model: null,
+    ...extra,
+  });
+  const listings = [
+    listing({ priceCents: 10_000 }),
+    listing({ priceCents: 20_000, createdAt: "2026-09-02T12:00:00Z" }),
+    listing({ priceCents: 30_000, city: "Oakley", region: "ID" }),
+    listing({ categorySlug: "jobs", categoryName: "Jobs", priceCents: 0 }),
+    listing({ categorySlug: "cars-trucks", categoryName: "Cars & Trucks", make: "Toyota", model: "Tacoma", priceCents: 2_500_000 }),
+  ];
+  const sales = [1, 2, 3, 4, 5].map((days) => ({
+    categorySlug: "furniture",
+    createdAt: "2026-10-01T12:00:00Z",
+    soldAt: new Date(Date.parse("2026-10-01T12:00:00Z") + days * 86_400_000).toISOString(),
+  }));
+  sales.push({ categorySlug: "furniture", createdAt: "2026-08-01T12:00:00Z", soldAt: "2026-09-10T12:00:00Z" });
+
+  const report = buildMarketReport(listings, sales, now);
+  assert.equal(report.month, "2026-10");
+  assert.equal(report.label, "October 2026");
+  assert.deepEqual(report.totals, { live: 5, newThisMonth: 4, soldThisMonth: 5 });
+  const furniture = report.categories.find((row) => row.slug === "furniture");
+  assert.equal(furniture.count, 3);
+  assert.equal(furniture.medianCents, 20_000);
+  const jobs = report.categories.find((row) => row.slug === "jobs");
+  assert.equal(jobs.medianCents, null, "jobs are counted, never priced");
+  // Oakley's saved region was "ID"; its city puts it in the Magic Valley.
+  assert.deepEqual(
+    report.regions.map((row) => [row.region, row.count]),
+    [["Treasure Valley", 4], ["Magic Valley", 1]],
+  );
+  assert.deepEqual(report.vehicles, [{ make: "Toyota", model: "Tacoma", count: 1, medianCents: null }]);
+  assert.deepEqual(report.daysToSell, { medianDays: 3, sales: 5 });
+  assert.equal(reportMonthOf("2026-11-01T05:00:00Z"), "2026-10", "Idaho time, not UTC");
+  assert.equal(reportMonthLabel("2027-01"), "January 2027");
+});

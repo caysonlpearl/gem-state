@@ -16,6 +16,7 @@ import {
   priceByYear,
   priceSummary,
   regionOfListing,
+  REPORT_NO_PRICE,
   wholeDollars,
   type FaqEntry,
   type PriceBand,
@@ -85,9 +86,9 @@ export type PlacePageData = {
 const MAX_PAGES = 8;
 const SHOWN_LISTINGS = 24;
 const FOR_SALE_EXCEPTIONS = new Set(["jobs", "services", "other-real-estate", "pets"]);
-// Pay, quotes, and homes that mix sale prices with monthly rent don't make
-// an honest single median.
-const NO_PRICE_STATS = new Set(["jobs", "services", "other-real-estate"]);
+// Pay, quotes, homes that mix sale prices with monthly rent, and pets (fees
+// and livestock side by side) don't make an honest single median.
+const NO_PRICE_STATS = REPORT_NO_PRICE;
 const VEHICLE_TABLE_CATEGORIES = new Set(["cars-trucks", "motorcycles", "rvs-campers", "powersports"]);
 const REGION_GROUP_LISTINGS = 4;
 
