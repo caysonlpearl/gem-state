@@ -25,6 +25,10 @@
 
 const PROFILE_RE = /\/marketplace\/profile\//;
 
+// KSL Classifieds reader (runKsl, kslRefresh, KSL_MEMBER_RE, KSL_LISTING_RE).
+// Guarded so tests can load this file outside a service worker.
+if (typeof importScripts === "function") importScripts("ksl.js");
+
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -622,11 +626,13 @@ const LISTING_URL_RE = /^https:\/\/www\.facebook\.com\/marketplace\/item\/\d+/;
 async function refreshListings(adminTabId, requestId, targets) {
   const send = (payload) =>
     chrome.tabs.sendMessage(adminTabId, { type: "gemlist-ext-event", payload }).catch(() => {});
-  const items = (Array.isArray(targets) ? targets : [])
-    .map((t) => ({ sourceUrl: String(t && t.sourceUrl) }))
-    .filter((t) => LISTING_URL_RE.test(t.sourceUrl));
+  const all = (Array.isArray(targets) ? targets : []).map((t) => ({
+    sourceUrl: String(t && t.sourceUrl),
+  }));
+  const items = all.filter((t) => LISTING_URL_RE.test(t.sourceUrl));
+  const kslItems = all.filter((t) => KSL_LISTING_RE.test(t.sourceUrl));
   const queue = items.slice();
-  const total = items.length;
+  const total = items.length + kslItems.length;
   let done = 0;
   const onItemDone = () => {
     done += 1;
@@ -634,17 +640,20 @@ async function refreshListings(adminTabId, requestId, targets) {
   };
   const workerCount = Math.min(DETAIL_FETCH_CONCURRENCY, queue.length) || 1;
   await Promise.all(Array.from({ length: workerCount }, () => runWorker(queue, onItemDone, false)));
+  const kslResults = kslItems.length ? await kslRefresh(kslItems, onItemDone) : [];
   send({
     type: "gemlist-fb-refresh-result",
     requestId,
-    results: items.map((item) => ({
-      sourceUrl: item.sourceUrl,
-      title: item.title,
-      priceCents: item.priceCents,
-      description: item.description,
-      unavailable: item.unavailable === true,
-      sold: item.sold === true,
-    })),
+    results: items
+      .map((item) => ({
+        sourceUrl: item.sourceUrl,
+        title: item.title,
+        priceCents: item.priceCents,
+        description: item.description,
+        unavailable: item.unavailable === true,
+        sold: item.sold === true,
+      }))
+      .concat(kslResults),
   });
 }
 
@@ -721,12 +730,23 @@ async function run(tabId) {
 
 chrome.action.onClicked.addListener(async (tab) => {
   if (!tab.id) return;
+  if (tab.url && KSL_MEMBER_RE.test(tab.url)) {
+    try {
+      await runKsl(tab.id);
+    } catch (e) {
+      await overlay(
+        tab.id,
+        `<strong>Bluebird import · KSL</strong><div style="margin-top:6px;color:#f87171">Failed: ${String((e && e.message) || e)}</div>`,
+      );
+    }
+    return;
+  }
   if (!tab.url || !PROFILE_RE.test(tab.url)) {
     chrome.scripting.executeScript({
       target: { tabId: tab.id },
       func: () =>
         alert(
-          "Open the seller's Facebook Marketplace profile page first, then click this extension's icon.",
+          "Open the seller's Facebook Marketplace profile or KSL listings page (classifieds.ksl.com/search/member/...) first, then click this extension's icon.",
         ),
     });
     return;

@@ -55,7 +55,7 @@ const conditions = [
 const statusLabels: Record<string, string> = {
   draft: "New",
   needs_update: "Needs update",
-  possibly_removed: "Sold or removed on Facebook",
+  possibly_removed: "Sold or removed at the source",
 };
 
 // React sanitizes any href prop that starts with "javascript:" (replacing it
@@ -406,8 +406,9 @@ function StageForm() {
     <section className="rounded-lg border border-border bg-card p-5">
       <h2 className="text-[14px] font-semibold">Stage a batch</h2>
       <p className="mt-1 max-w-[700px] text-[12.5px] leading-relaxed text-muted-foreground">
-        With a live, logged-in browser session, walk the seller's Facebook Marketplace profile and
-        every listing's detail page, then hand the extracted data to GemList below.
+        With a live browser session, walk the seller's Facebook Marketplace profile or KSL
+        Classifieds listings page and every listing's detail page, then hand the extracted data to
+        Bluebird below.
       </p>
       <div className="mt-3 rounded-md border border-dashed border-border bg-secondary/40 p-3">
         <p className="text-[12px] font-semibold">
@@ -420,11 +421,14 @@ function StageForm() {
           One-time setup, in your own Chrome: open <code>chrome://extensions</code>, turn on{" "}
           <strong>Developer mode</strong> (top right), click <strong>Load unpacked</strong>, and
           select the <code>tools/fb-import-extension</code> folder from your local copy of this
-          repo. Then, on a seller's Facebook Marketplace profile page, click the extension's icon in
+          repo. Then, on a seller's Facebook Marketplace profile page or KSL listings page
+          (classifieds.ksl.com/search/member/...), click the extension's icon in
           your toolbar -- it scrolls, fetches every listing's details, and copies the result to your
           clipboard on its own. (Facebook's grid ignores a script-faked scroll, so the extension
           uses Chrome's own debugger API to send a real one -- you'll see a brief "started debugging
-          this browser" notice each run; that's expected.)
+          this browser" notice each run; that's expected. On KSL it opens one listing at a time in
+          a small window; if KSL asks you to verify you're human, complete the check there and the
+          import carries on.)
         </p>
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-3 rounded-md border border-dashed border-border bg-secondary/40 p-3">
@@ -458,7 +462,7 @@ function StageForm() {
         }}
       >
         <label className="text-[12px] font-medium sm:col-span-2">
-          Seller's Facebook Marketplace profile URL
+          Seller's Facebook Marketplace profile or KSL listings page URL
           <input
             required
             value={profileUrl}
@@ -600,7 +604,7 @@ function ReviewRow({
               rel="noreferrer"
               className="text-[11px] text-primary hover:underline"
             >
-              View on Facebook
+              {item.sourceUrl.includes("ksl.com") ? "View on KSL" : "View on Facebook"}
             </a>
           </div>
           {item.status === "needs_update" && item.previousPriceCents != null ? (

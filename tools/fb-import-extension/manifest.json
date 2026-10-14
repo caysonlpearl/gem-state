@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Bluebird Facebook Import",
-  "version": "1.1.0",
-  "description": "With a seller's permission, extracts their Facebook Marketplace listings for Bluebird's admin import tool. Only runs when you click it, in your own signed-in browser -- nothing is stored or scheduled.",
+  "name": "Bluebird Listing Import",
+  "version": "1.2.0",
+  "description": "With a seller's permission, reads their Facebook Marketplace or KSL Classifieds listings for Bluebird's admin import tool. Only runs when you click it, in your own browser -- nothing is stored or scheduled.",
   "permissions": [
     "debugger",
     "scripting",
@@ -11,11 +11,13 @@
   ],
   "host_permissions": [
     "https://www.facebook.com/*",
+    "https://classifieds.ksl.com/*",
+    "https://image.ksldigital.com/*",
     "https://onbluebird.com/*",
     "https://gemstateclassifieds.lovable.app/*"
   ],
   "action": {
-    "default_title": "Import this seller's Facebook listings to Bluebird"
+    "default_title": "Import this seller's listings to Bluebird"
   },
   "background": {
     "service_worker": "background.js"
