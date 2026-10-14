@@ -7,7 +7,7 @@ import {
   normalizeFacebookCondition,
 } from "@/lib/fb-import-normalization";
 
-import { canonicalFacebookProfile } from "./seller-claims";
+import { canonicalSellerSourceProfile } from "./seller-claims";
 
 const MAX_PHOTO_BYTES = 12 * 1024 * 1024;
 
@@ -136,7 +136,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
       mode?: "refresh" | undefined;
       items: FbImportItemInput[];
     }) => {
-      const sourceProfileUrl = canonicalFacebookProfile(String(input.sourceProfileUrl ?? ""));
+      const sourceProfileUrl = canonicalSellerSourceProfile(String(input.sourceProfileUrl ?? ""));
       if (!sourceProfileUrl) throw new Error("Enter the Facebook Marketplace profile URL.");
       const sellerName =
         String(input.sellerName ?? "")
@@ -628,11 +628,11 @@ export const publishFacebookImportItems = createServerFn({ method: "POST" })
       if (items?.length !== data.itemIds.length)
         throw new Error("Some selected items are no longer available. Refresh and retry.");
       const profiles = new Set(
-        items.map((i: any) => canonicalFacebookProfile(i.source_profile_url)),
+        items.map((i: any) => canonicalSellerSourceProfile(i.source_profile_url)),
       );
       if (profiles.size !== 1)
-        throw new Error("Select listings from one Facebook seller at a time.");
-      const profile = canonicalFacebookProfile(items[0].source_profile_url);
+        throw new Error("Select listings from one seller at a time.");
+      const profile = canonicalSellerSourceProfile(items[0].source_profile_url);
       const { data: batch } = await admin
         .from("fb_marketplace_import_batches")
         .select("seller_name")

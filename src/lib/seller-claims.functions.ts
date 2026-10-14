@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- newly added migration */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { canonicalFacebookProfile, validClaimToken, claimLinkStatus } from "./seller-claims";
+import { canonicalSellerSourceProfile, validClaimToken, claimLinkStatus } from "./seller-claims";
 
 async function operator(context: any) {
   const { data, error } = await context.supabase.rpc("has_role", {
@@ -117,7 +117,7 @@ export const createSellerClaimLink = createServerFn({ method: "POST" })
   .validator((input: { profile: string; displayName: string; authorized: boolean }) => {
     if (input.authorized !== true) throw new Error("Confirm the seller authorized this import.");
     return {
-      profile: canonicalFacebookProfile(input.profile),
+      profile: canonicalSellerSourceProfile(input.profile),
       displayName:
         String(input.displayName ?? "Seller")
           .trim()

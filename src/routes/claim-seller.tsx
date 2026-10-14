@@ -268,7 +268,7 @@ function ClaimSeller() {
                 search={{ section: "listings" }}
                 className="text-center text-sm underline"
               >
-                Manage Facebook sync
+                Manage listing sync
               </Link>
             </div>
           </>

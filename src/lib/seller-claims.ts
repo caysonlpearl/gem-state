@@ -1,11 +1,19 @@
 /** A claim is a bearer secret: never put it in query strings or telemetry. */
-export function canonicalFacebookProfile(value: string): string {
+/** The seller page an import came from, in one canonical form per seller:
+ * a Facebook Marketplace profile or a KSL Classifieds member page. */
+export function canonicalSellerSourceProfile(value: string): string {
+  const error = "Enter a Facebook Marketplace profile or KSL seller page URL.";
   const url = new URL(value);
-  if (!["facebook.com", "www.facebook.com", "m.facebook.com"].includes(url.hostname.toLowerCase()))
-    throw new Error("Enter a Facebook Marketplace seller profile URL.");
+  const host = url.hostname.toLowerCase();
+  if (host === "classifieds.ksl.com") {
+    const ksl = url.pathname.match(/^\/search\/member\/(\d+)\/?$/);
+    if (!ksl) throw new Error(error);
+    return `https://classifieds.ksl.com/search/member/${ksl[1]}`;
+  }
+  if (!["facebook.com", "www.facebook.com", "m.facebook.com"].includes(host))
+    throw new Error(error);
   const match = url.pathname.match(/^\/marketplace\/profile\/([^/]+)\/?$/);
-  if (!match || !/^[a-zA-Z0-9._-]+$/.test(match[1]))
-    throw new Error("Enter a Facebook Marketplace seller profile URL.");
+  if (!match || !/^[a-zA-Z0-9._-]+$/.test(match[1])) throw new Error(error);
   return `https://www.facebook.com/marketplace/profile/${match[1]}/`;
 }
 export function validClaimToken(value: unknown): string {

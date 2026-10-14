@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
-  canonicalFacebookProfile,
+  canonicalSellerSourceProfile,
   validClaimToken,
   claimLinkStatus,
   parseSellerClaimFragment,
@@ -31,16 +31,26 @@ test("seller profiles canonicalize independently of host, trailing slash and tra
     "https://www.facebook.com/marketplace/profile/123/",
   ])
     assert.equal(
-      canonicalFacebookProfile(url),
+      canonicalSellerSourceProfile(url),
       "https://www.facebook.com/marketplace/profile/123/",
+    );
+  for (const url of [
+    "https://classifieds.ksl.com/search/member/5162572",
+    "https://classifieds.ksl.com/search/member/5162572/?page=2",
+  ])
+    assert.equal(
+      canonicalSellerSourceProfile(url),
+      "https://classifieds.ksl.com/search/member/5162572",
     );
   for (const url of [
     "https://evil.com/marketplace/profile/123",
     "https://facebook.com/marketplace/item/123",
     "https://facebook.com/marketplace/profile/",
+    "https://classifieds.ksl.com/listing/82308885",
+    "https://ksl.com.evil.com/search/member/5162572",
     "not a url",
   ])
-    assert.throws(() => canonicalFacebookProfile(url));
+    assert.throws(() => canonicalSellerSourceProfile(url));
 });
 test("claim tokens reject malformed inputs without reflecting secret values", () => {
   assert.equal(validClaimToken("f".repeat(64)), "f".repeat(64));

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- new migration types */
 import { createHash, randomBytes } from "node:crypto";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
-import { canonicalFacebookProfile } from "./seller-claims";
+import { canonicalSellerSourceProfile } from "./seller-claims";
 
 export const claimHash = (token: string) => createHash("sha256").update(token).digest("hex");
 export async function ensureManagedImportSeller(
@@ -11,7 +11,7 @@ export async function ensureManagedImportSeller(
   existingOnly = false,
 ) {
   const admin = supabaseAdmin as any;
-  const canonical = canonicalFacebookProfile(profile);
+  const canonical = canonicalSellerSourceProfile(profile);
   const { data: present, error: readError } = await admin
     .from("managed_import_sellers")
     .select("*")
