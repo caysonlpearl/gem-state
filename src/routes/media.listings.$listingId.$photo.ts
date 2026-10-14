@@ -28,7 +28,7 @@ export const Route = createFileRoute("/media/listings/$listingId/$photo")({
             "id, status, expires_at, updated_at, products!inner(status), listing_media(storage_path, position)",
           )
           .eq("id", params.listingId)
-          .in("status", ["active", "expired", "matched", "cancelled"])
+          .in("status", ["active", "expired", "cancelled"])
           .eq("is_demo", false)
           .not("approved_at", "is", null)
           .eq("products.status", "published")
@@ -44,8 +44,7 @@ export const Route = createFileRoute("/media/listings/$listingId/$photo")({
         };
         const retentionMs = ENDED_LISTING_RETENTION_DAYS * 86_400_000;
         let endedAt: string | null = null;
-        if (record.status === "matched") endedAt = record.updated_at;
-        else if (record.status === "expired" || Date.parse(record.expires_at) <= Date.now())
+        if (record.status === "expired" || Date.parse(record.expires_at) <= Date.now())
           endedAt = record.expires_at;
         if (record.status === "cancelled") {
           // Only a listing its seller marked sold stays visible; a take-down doesn't.

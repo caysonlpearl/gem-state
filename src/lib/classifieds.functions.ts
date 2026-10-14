@@ -2002,7 +2002,9 @@ export const getEndedClassifiedListing = createServerFn({ method: "GET" })
       .from("asks")
       .select(`${LISTING_SELECT}, status, updated_at`)
       .eq("id", data.id)
-      .in("status", ["active", "expired", "matched", "cancelled"])
+      // "matched" is an old checkout state Bluebird's direct-contact sales
+      // never reach; those rows are test data, so they redirect like take-downs.
+      .in("status", ["active", "expired", "cancelled"])
       .eq("is_demo", false)
       .not("approved_at", "is", null)
       .eq("products.status", "published")
@@ -2025,14 +2027,11 @@ export const getEndedClassifiedListing = createServerFn({ method: "GET" })
         .maybeSingle();
       soldAt = soldRow?.sold_at ?? null;
     }
-    const ended =
-      status === "matched"
-        ? { reason: "sold" as const, endedAt: record["updated_at"] as string }
-        : soldAt
-          ? { reason: "sold" as const, endedAt: soldAt }
-          : status !== "cancelled" && (status === "expired" || Date.parse(expiresAt) <= Date.now())
-            ? { reason: "expired" as const, endedAt: expiresAt }
-            : null;
+    const ended = soldAt
+      ? { reason: "sold" as const, endedAt: soldAt }
+      : status !== "cancelled" && (status === "expired" || Date.parse(expiresAt) <= Date.now())
+        ? { reason: "expired" as const, endedAt: expiresAt }
+        : null;
     if (!ended) return null;
     const retainedUntil = Date.parse(ended.endedAt) + ENDED_LISTING_RETENTION_DAYS * 86_400_000;
     if (!(retainedUntil > Date.now())) return null;
