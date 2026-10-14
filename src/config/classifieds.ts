@@ -1,3 +1,5 @@
+import { idahoPlaces } from "./idaho-places.ts";
+
 export const idahoRegions = [
   "Treasure Valley",
   "Southwest Idaho",
@@ -527,10 +529,14 @@ export const classifiedCityCenters: Record<string, [number, number]> = {
   woodinville: [47.7543, -122.1635],
 };
 
+// Every other Idaho town gets a center too, so a listing in Oakley still
+// shows up in a "within 25 miles of Burley" search.
+for (const [name, , latitude, longitude] of idahoPlaces) {
+  classifiedCityCenters[name.toLowerCase()] ??= [latitude, longitude];
+}
+
 const classifiedCityNamesByKey = new Map(
-  [
-    ...marketplaceCities,
-  ].map((city) => [
+  [...idahoPlaces.map(([name]) => name), ...marketplaceCities].map((city) => [
     city.trim().toLowerCase(),
     city,
   ]),

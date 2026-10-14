@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -6,6 +6,7 @@ import { ArrowLeft, ArrowRight, Camera, CheckCircle } from "@phosphor-icons/reac
 import { toast } from "sonner";
 
 import { classifiedCategories, idahoRegions, usStates } from "@/config/classifieds";
+import { findIdahoPlace, idahoPlaces } from "@/config/idaho-places";
 import { supabase } from "@/integrations/supabase/client";
 import { traceMutation, trackEvent } from "@/lib/analytics";
 import {
@@ -45,6 +46,7 @@ const conditions = [
   ["new_without_tags", "New, no tags"],
   ["used_excellent", "Used — excellent"],
   ["used_good", "Used — good"],
+  ["not_applicable", "Not applicable"],
 ] as const;
 const fulfillmentModes = [
   ["local_pickup", "Local pickup"],
@@ -181,6 +183,23 @@ export function ListingForm(props: ListingFormProps) {
   const set = (key: keyof ListingFormState, value: string | Record<string, string>) =>
     setForm((current) => ({ ...current, [key]: value }) as ListingFormState);
 
+  // Idaho sellers pick their city from the full list of Idaho places; the
+  // region follows from it. Other states keep free-text city and area.
+  const isIdaho = form.state === "ID";
+  const unknownIdahoCity = isIdaho && form.city.trim().length >= 2 && !findIdahoPlace(form.city);
+  const cityInput = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    cityInput.current?.setCustomValidity(
+      unknownIdahoCity ? "Pick your city from the list of Idaho cities and towns." : "",
+    );
+  }, [unknownIdahoCity]);
+  function setCity(city: string) {
+    setForm((current) => {
+      const place = current.state === "ID" ? findIdahoPlace(city) : undefined;
+      return { ...current, city, ...(place ? { region: place[1] } : {}) };
+    });
+  }
+
   function selectKind(next: ListingKind) {
     setKind(next);
     if (next === "home") set("category", "other-real-estate");
@@ -201,7 +220,8 @@ export function ListingForm(props: ListingFormProps) {
   const isPet = kind === "pet" || isPetCategory(form.category);
   const hasSpecialDetails = isVehicle || isHome || isJob || isService || isPet;
   const formCopy = listingTypeCopy[kind];
-  const hidesCondition = isHome || isJob || isService;
+  // Animals, homes, jobs and services have no item condition.
+  const hidesCondition = isHome || isJob || isService || isPet;
   const hidesFulfillment = isHome || isJob || isService;
   const hidesPrice = isJob;
   const serviceIsQuote = isService && form.servicePricingType === "quote";
@@ -270,7 +290,7 @@ export function ListingForm(props: ListingFormProps) {
           const pet = buildPet(form);
           const priceCents = priceCentsFor(form);
           const condition = (
-            hidesCondition ? "used_good" : form.condition
+            hidesCondition ? "not_applicable" : form.condition
           ) as ClassifiedListingInput["condition"];
           const fulfillmentMode = (
             hidesFulfillment ? "local_pickup" : form.fulfillmentMode
@@ -584,26 +604,66 @@ export function ListingForm(props: ListingFormProps) {
           <label className="text-[12px] font-medium">
             City
             <input
+              ref={cityInput}
               required
               minLength={2}
               maxLength={80}
+              list={isIdaho ? "idaho-places" : undefined}
+              autoComplete="address-level2"
               value={form.city}
-              onChange={(event) => set("city", event.target.value)}
-              placeholder="Boise"
+              onChange={(event) => setCity(event.target.value)}
+              onBlur={() => {
+                // Settle on the listed spelling once they leave the field.
+                const place = isIdaho ? findIdahoPlace(form.city) : undefined;
+                if (place && place[0] !== form.city) setCity(place[0]);
+              }}
+              aria-invalid={unknownIdahoCity || undefined}
+              placeholder={isIdaho ? "Start typing, then pick your city" : "City"}
               className={fieldClass}
             />
+            {isIdaho && (
+              <datalist id="idaho-places">
+                {idahoPlaces.map(([name]) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
+            )}
+            {unknownIdahoCity && (
+              <span className="mt-1 block text-[11px] font-normal text-destructive">
+                Pick your city from the list. If your town isn&apos;t listed, choose the nearest
+                one.
+              </span>
+            )}
           </label>
           <label className="text-[12px] font-medium">
             Region / area
-            <input
-              required
-              minLength={2}
-              maxLength={80}
-              value={form.region}
-              onChange={(event) => set("region", event.target.value)}
-              placeholder="Treasure Valley or local area"
-              className={fieldClass}
-            />
+            {isIdaho ? (
+              <select
+                required
+                value={form.region}
+                onChange={(event) => set("region", event.target.value)}
+                className={fieldClass}
+              >
+                {!idahoRegions.some((region) => region === form.region) && (
+                  <option value={form.region}>{form.region || "Choose a region"}</option>
+                )}
+                {idahoRegions.map((region) => (
+                  <option key={region} value={region}>
+                    {region}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                required
+                minLength={2}
+                maxLength={80}
+                value={form.region}
+                onChange={(event) => set("region", event.target.value)}
+                placeholder="Local area"
+                className={fieldClass}
+              />
+            )}
           </label>
           <label className="text-[12px] font-medium">
             ZIP code <span className="font-normal text-muted-foreground">(optional)</span>
@@ -634,9 +694,9 @@ export function ListingForm(props: ListingFormProps) {
             </label>
           )}
         </div>
-        {form.state === "ID" && (
+        {isIdaho && (
           <p className="mt-3 text-[11px] text-muted-foreground">
-            Idaho region examples: {idahoRegions.join(", ")}.
+            The region fills in from your city.
           </p>
         )}
       </section>

@@ -45,6 +45,7 @@ function address(listing: Pick<ClassifiedCard, "city" | "state" | "postalCode">)
 }
 
 function itemCondition(condition: string) {
+  if (condition === "not_applicable") return undefined;
   if (condition.startsWith("new")) return "https://schema.org/NewCondition";
   if (condition === "broken_needs_repairs") return "https://schema.org/DamagedCondition";
   return "https://schema.org/UsedCondition";

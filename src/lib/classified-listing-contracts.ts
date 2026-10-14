@@ -3,6 +3,7 @@ import { z } from "zod";
 import { classifiedCategories, vehicleOptions } from "@/config/classifieds";
 import { petOfferedBy, petPlacementTypes, petSexes } from "@/config/pets";
 import { fieldsForClassifiedItem } from "@/config/classified-item-fields";
+import { findIdahoPlace } from "@/config/idaho-places";
 
 type NonEmpty = [string, ...string[]];
 const categorySlugs = classifiedCategories.map((category) => category.slug) as NonEmpty;
@@ -23,7 +24,13 @@ export const classifiedListingSchema = z
     title: z.string().trim().min(3).max(120),
     description: z.string().trim().min(20).max(5000),
     category: z.enum(categorySlugs),
-    condition: z.enum(["new_with_tags", "new_without_tags", "used_excellent", "used_good"]),
+    condition: z.enum([
+      "new_with_tags",
+      "new_without_tags",
+      "used_excellent",
+      "used_good",
+      "not_applicable",
+    ]),
     priceCents: z.number().int().min(0).max(1_000_000_000),
     state: z
       .string()
@@ -148,6 +155,13 @@ export const classifiedListingSchema = z
       .optional(),
   })
   .superRefine((listing, context) => {
+    if (listing.state === "ID" && !findIdahoPlace(listing.city)) {
+      context.addIssue({
+        code: "custom",
+        path: ["city"],
+        message: "Choose your city from the list of Idaho cities and towns.",
+      });
+    }
     const quoteService =
       listing.category === "services" && listing.service?.pricingType === "quote";
     if (listing.priceCents === 0 && listing.category !== "pets" && !quoteService) {
@@ -232,6 +246,12 @@ export const classifiedListingSchema = z
         }
       }
     }
+  })
+  // Idaho listings use the listed spelling of their city and that city's
+  // region, so city pages, region pages and distance search all find them.
+  .transform((listing) => {
+    const place = listing.state === "ID" ? findIdahoPlace(listing.city) : undefined;
+    return place ? { ...listing, city: place[0], region: place[1] } : listing;
   });
 
 export type ClassifiedListingInput = z.infer<typeof classifiedListingSchema>;

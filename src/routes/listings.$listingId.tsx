@@ -1085,7 +1085,11 @@ function ListingDetailContent() {
 
   const vehicle = listing.vehicle;
   const isVehicle = Boolean(vehicle);
-  const condition = conditionLabels[listing.condition] ?? listing.condition;
+  // "Not applicable" (animals, homes, jobs, services) isn't worth a line.
+  const condition =
+    listing.condition === "not_applicable"
+      ? ""
+      : (conditionLabels[listing.condition] ?? listing.condition);
   const specRows: [string, string][] = vehicle
     ? ([
         ["Body style", vehicle.bodyStyle],
@@ -1313,11 +1317,13 @@ function ListingDetailContent() {
                 icon={<GearSix size={16} className="text-primary" />}
               />
             )}
-            <QuickFact
-              label="Condition"
-              value={condition}
-              icon={<ShieldCheck size={16} className="text-primary" />}
-            />
+            {condition && (
+              <QuickFact
+                label="Condition"
+                value={condition}
+                icon={<ShieldCheck size={16} className="text-primary" />}
+              />
+            )}
           </section>
 
           <section className="soft-card overflow-hidden">
@@ -2611,12 +2617,14 @@ function GeneralListingDetail({
                     }
                   >
                     <h2 className="text-[21px] font-bold">Description</h2>
-                    <div className="mt-5">
-                      <p className="text-[13px] font-semibold">Condition</p>
-                      <span className="mt-2 inline-flex rounded-xl bg-secondary px-4 py-2 text-[13px] font-semibold shadow-sm">
-                        {condition}
-                      </span>
-                    </div>
+                    {condition && (
+                      <div className="mt-5">
+                        <p className="text-[13px] font-semibold">Condition</p>
+                        <span className="mt-2 inline-flex rounded-xl bg-secondary px-4 py-2 text-[13px] font-semibold shadow-sm">
+                          {condition}
+                        </span>
+                      </div>
+                    )}
                     {Object.keys(itemDetails).length > 0 && (
                       <div className="mt-5 grid gap-3 sm:grid-cols-2">
                         {Object.entries(itemDetails).map(([key, value]) => (

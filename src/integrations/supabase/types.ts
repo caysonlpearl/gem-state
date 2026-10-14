@@ -7391,6 +7391,7 @@ export type Database = {
         | "new_without_tags"
         | "used_excellent"
         | "used_good"
+        | "not_applicable"
       listing_event_type:
         | "created"
         | "price_changed"
@@ -7645,6 +7646,7 @@ export const Constants = {
         "new_without_tags",
         "used_excellent",
         "used_good",
+        "not_applicable",
       ],
       listing_event_type: [
         "created",

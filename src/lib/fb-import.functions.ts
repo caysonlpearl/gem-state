@@ -8,6 +8,7 @@ import {
 } from "@/lib/fb-import-normalization";
 
 import { canonicalSellerSourceProfile } from "./seller-claims";
+import { findIdahoPlace } from "@/config/idaho-places";
 
 const MAX_PHOTO_BYTES = 12 * 1024 * 1024;
 
@@ -142,21 +143,35 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
         String(input.sellerName ?? "")
           .trim()
           .slice(0, 120) || null;
-      const items = (input.items ?? []).map((item) => ({
+      const items = (input.items ?? []).map((item) => {
+        const categorySlug = inferFacebookCategorySlug(
+          item.categorySlug,
+          item.title,
+          item.description,
+        );
+        const state = item.state ? String(item.state).trim().slice(0, 80) : "";
+        const city = item.city ? String(item.city).trim().slice(0, 80) : "";
+        // Idaho cities use the listed spelling, and that city's region.
+        const place = /^(id|idaho)$/i.test(state) ? findIdahoPlace(city) : undefined;
+        return {
         sourceUrl: String(item.sourceUrl ?? "").trim(),
         title: String(item.title ?? "")
           .trim()
           .slice(0, 120),
         description: item.description ? String(item.description).trim().slice(0, 5000) : null,
         priceCents: Math.max(0, Math.round(Number(item.priceCents) || 0)),
-        condition: normalizeFacebookCondition(item.condition),
-        categorySlug: inferFacebookCategorySlug(item.categorySlug, item.title, item.description),
-        city: item.city ? String(item.city).trim().slice(0, 80) : "",
-        state: item.state ? String(item.state).trim().slice(0, 80) : "",
+        // Animals have no item condition.
+        condition:
+          categorySlug === "pets" ? "not_applicable" : normalizeFacebookCondition(item.condition),
+        categorySlug,
+        city: place ? place[0] : city,
+        state: place ? "ID" : state,
+        region: place ? place[1] : "",
         photoUrls: (item.photoUrls ?? []).filter(Boolean).slice(0, 8),
         unavailable: item.unavailable === true,
         sold: item.sold === true,
-      }));
+        };
+      });
       if (!items.length) throw new Error("No listings were provided.");
       if (items.some((item) => !item.sourceUrl || !item.title))
         throw new Error("Every listing needs a source URL and a title.");
@@ -303,6 +318,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
               category_slug: item.categorySlug,
               city: item.city,
               state: item.state,
+              region: item.region,
               evidence_paths: stagingPaths,
               public_paths: stagingPaths,
               status: "draft",
@@ -531,6 +547,12 @@ export const updateFacebookImportItem = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     await requireAdmin(context);
+    // Idaho items use the listed city spelling and that city's region.
+    if (data.state.toUpperCase() === "ID") {
+      const place = findIdahoPlace(data.city);
+      if (!place) throw new Error("Choose a city from the list of Idaho cities and towns.");
+      Object.assign(data, { city: place[0], state: "ID", region: place[1] });
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await (supabaseAdmin as any)
       .from("fb_marketplace_import_items")

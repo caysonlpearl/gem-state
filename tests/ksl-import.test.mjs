@@ -63,7 +63,7 @@ test("builds a local-pickup import item from a read KSL listing", () => {
     title: "Half Draft Gelding",
     description: "Meet Chief!",
     priceCents: 700000,
-    condition: "used_good",
+    condition: "not_applicable",
     categorySlug: "pets",
     city: "Oakley",
     state: "ID",

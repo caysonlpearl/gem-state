@@ -254,6 +254,7 @@ function kslCleanTitle(title, city) {
 
 function kslMapCondition(text) {
   const value = String(text || "").toLowerCase();
+  if (/not applicable|^n\/?a$/.test(value)) return "not_applicable";
   if (/^new\b|brand new|new with/.test(value)) return "new_without_tags";
   if (/like new|excellent|mint/.test(value)) return "used_excellent";
   if (/parts|repair|broken|not working|poor/.test(value)) return "broken_needs_repairs";

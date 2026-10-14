@@ -667,6 +667,7 @@ const conditionValues = [
   "used_excellent",
   "used_good",
   "broken_needs_repairs",
+  "not_applicable",
 ] as const;
 
 const LISTING_SELECT =

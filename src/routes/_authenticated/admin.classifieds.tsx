@@ -35,6 +35,7 @@ const conditionLabels: Record<string, string> = {
   new_without_tags: "New, no tags",
   used_excellent: "Used — excellent",
   used_good: "Used — good",
+  not_applicable: "Not applicable",
 };
 
 function vehicleSummary(vehicle: AdminClassifiedRow["vehicle"]) {

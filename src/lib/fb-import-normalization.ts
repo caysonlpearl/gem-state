@@ -6,9 +6,14 @@ const knownCategorySlugs = new Set<string>(classifiedCategories.map((category) =
 export function normalizeFacebookCondition(value: string | null | undefined): string {
   const raw = String(value ?? "").trim();
   const normalized = raw.toLowerCase().replace(/[–—]/g, "-").replace(/\s+/g, " ");
-  if (["new_with_tags", "new_without_tags", "used_excellent", "used_good"].includes(raw)) {
+  if (
+    ["new_with_tags", "new_without_tags", "used_excellent", "used_good", "not_applicable"].includes(
+      raw,
+    )
+  ) {
     return raw;
   }
+  if (/^(not applicable|n\/a|none)$/i.test(normalized)) return "not_applicable";
   if (/(like\s*new|excellent|barely used|gently used)/i.test(normalized)) return "used_excellent";
   if (/\bused\b/i.test(normalized)) return "used_good";
   if (/new\s*(?:,|-)?\s*(?:with|has)\s*tags?/i.test(normalized)) return "new_with_tags";
