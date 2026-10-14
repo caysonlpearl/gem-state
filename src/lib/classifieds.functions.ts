@@ -919,6 +919,39 @@ function sortedMedia(row: Record<string, unknown>): string[] {
     .map((item) => item.storage_path);
 }
 
+/** Card photos are shown at most ~330 CSS px wide; 640 covers 2x screens. */
+const CARD_PHOTO_WIDTH = 640;
+
+/**
+ * Signed links to resized copies of listing photos, for listing cards:
+ * Supabase's image transformer serves them at CARD_PHOTO_WIDTH (and as WebP
+ * where the browser accepts it) instead of the full upload. Each link is
+ * signed with its size, so they're signed one by one, in parallel. Any photo
+ * that can't be signed this way falls back to the full-size link.
+ */
+async function signListingThumbnails(paths: string[]): Promise<Map<string, string>> {
+  const unique = [...new Set(paths)];
+  if (unique.length === 0) return new Map();
+  const resized = new Map<string, string>();
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const bucket = supabaseAdmin.storage.from("listing-media");
+    await Promise.all(
+      unique.map(async (path) => {
+        const { data } = await bucket.createSignedUrl(path, 60 * 60, {
+          transform: { width: CARD_PHOTO_WIDTH, quality: 70 },
+        });
+        if (data?.signedUrl) resized.set(path, data.signedUrl);
+      }),
+    );
+  } catch (error) {
+    console.error("Could not sign resized listing photos", error);
+  }
+  const missing = unique.filter((path) => !resized.has(path));
+  if (missing.length) for (const [path, url] of await signListingMedia(missing)) resized.set(path, url);
+  return resized;
+}
+
 // Signing requires the service-role client -- the anon/authenticated clients
 // can't call storage's createSignedUrls even for objects their own RLS
 // policies would let them read. Every caller has already scoped which rows
@@ -1859,13 +1892,16 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     const visibleRows = (rows ?? []).filter(
       (row) => !isReleaseQaListing(row as unknown as Record<string, unknown>),
     );
-    const urlByPath = await signListingMedia(
-      visibleRows.flatMap((row) =>
-        sortedMedia(row as unknown as Record<string, unknown>).slice(0, 1),
-      ),
+    // Photos are signed after filtering and paging, for the returned cards
+    // only (distance and region searches read up to 5,000 rows).
+    const coverPathById = new Map(
+      visibleRows.map((row) => {
+        const record = row as unknown as Record<string, unknown>;
+        return [record["id"] as string, sortedMedia(record)[0]] as const;
+      }),
     );
     const listings = visibleRows
-      .map((row) => toCard(row as unknown as Record<string, unknown>, urlByPath))
+      .map((row) => toCard(row as unknown as Record<string, unknown>, new Map()))
       .filter((listing) =>
         isWithinClassifiedRadius({
           city: data.city,
@@ -1926,10 +1962,20 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
         ? Math.max(PAGE_SIZE, mockSource.length)
         : PAGE_SIZE;
     const orderedListings = [...featuredListings, ...standardListings];
-    const combinedListings =
+    const pageListings =
       unitAwareJobSort || data.radiusMiles != null || data.region
         ? orderedListings.slice(from, from + resultLimit)
         : orderedListings.slice(0, resultLimit);
+    const urlByPath = await signListingThumbnails(
+      pageListings.flatMap((listing) => {
+        const cover = coverPathById.get(listing.id);
+        return cover ? [cover] : [];
+      }),
+    );
+    const combinedListings = pageListings.map((listing) => {
+      const cover = coverPathById.get(listing.id);
+      return cover ? { ...listing, imageUrl: urlByPath.get(cover) ?? null } : listing;
+    });
     if (listings.length > 0) {
       void import("@/integrations/supabase/client.server")
         .then(({ supabaseAdmin }) =>
@@ -2116,7 +2162,7 @@ export const getRecentlySoldListings = createServerFn({ method: "GET" })
       })
       .sort((a, b) => b.soldAt.localeCompare(a.soldAt))
       .slice(0, data.limit);
-    const urlByPath = await signListingMedia(
+    const urlByPath = await signListingThumbnails(
       matching.flatMap(({ row }) => sortedMedia(row).slice(0, 1)),
     );
     return matching.map(({ row, soldAt }) => ({ ...toCard(row, urlByPath), soldAt }));
