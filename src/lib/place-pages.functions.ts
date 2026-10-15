@@ -1,6 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 
 import { brand } from "@/config/brand";
+import {
+  isIndexablePlaceInventory,
+  placeInventoryFilters,
+  SEO_CITY_RADIUS_MILES,
+} from "@/lib/seo-policy";
 import { classifiedCategories, idahoCities, idahoRegions } from "@/config/classifieds";
 import {
   browseClassifieds,
@@ -25,8 +30,6 @@ import {
 import {
   MAKE_PAGE_MIN_LISTINGS,
   MODEL_PAGE_MIN_LISTINGS,
-  PLACE_PAGE_FRESH_DAYS,
-  PLACE_PAGE_MIN_LISTINGS,
   canonicalMake,
   canonicalModel,
   makeFromSlug,
@@ -89,7 +92,12 @@ const FOR_SALE_EXCEPTIONS = new Set(["jobs", "services", "other-real-estate", "p
 // Pay, quotes, homes that mix sale prices with monthly rent, and pets (fees
 // and livestock side by side) don't make an honest single median.
 const NO_PRICE_STATS = REPORT_NO_PRICE;
-const VEHICLE_TABLE_CATEGORIES = new Set(["cars-trucks", "motorcycles", "rvs-campers", "powersports"]);
+const VEHICLE_TABLE_CATEGORIES = new Set([
+  "cars-trucks",
+  "motorcycles",
+  "rvs-campers",
+  "powersports",
+]);
 const REGION_GROUP_LISTINGS = 4;
 
 type Filters = {
@@ -103,12 +111,7 @@ type Filters = {
 };
 
 function filtersFor(place: ResolvedPlace | null, categorySlug: string | null): Filters {
-  const location: Filters = !place
-    ? { state: "ID" }
-    : place.kind === "city"
-      ? { city: place.name, state: "ID", radiusMiles: 25 }
-      : { region: place.name };
-  return categorySlug ? { ...location, category: categorySlug } : location;
+  return placeInventoryFilters(place, categorySlug);
 }
 
 async function fetchListings(filters: Filters) {
@@ -188,7 +191,9 @@ export const getPlacePage = createServerFn({ method: "GET" })
           getRecentlySoldListings({
             data: {
               ...(category ? { category: category.slug } : {}),
-              ...(place?.kind === "city" ? { city: place.name, radiusMiles: 25 } : {}),
+              ...(place?.kind === "city"
+                ? { city: place.name, radiusMiles: SEO_CITY_RADIUS_MILES }
+                : {}),
               ...(place?.kind === "region" ? { region: place.name } : {}),
               limit: 8,
             },
@@ -229,9 +234,7 @@ export const getPlacePage = createServerFn({ method: "GET" })
           (latest, listing) => (listing.createdAt > latest ? listing.createdAt : latest),
           "",
         );
-        const fresh =
-          Boolean(newest) && Date.now() - Date.parse(newest) < PLACE_PAGE_FRESH_DAYS * 86_400_000;
-        const indexable = main.total >= PLACE_PAGE_MIN_LISTINGS && fresh;
+        const indexable = isIndexablePlaceInventory(main.total, newest);
 
         let heading: string;
         if (place && phrase && category) {
@@ -269,7 +272,9 @@ export const getPlacePage = createServerFn({ method: "GET" })
 
         const browseSearch: Record<string, string | number> = {
           ...(category ? { category: category.slug } : { allCategories: "true" }),
-          ...(place?.kind === "city" ? { city: place.name, state: "ID", radiusMiles: 25 } : {}),
+          ...(place?.kind === "city"
+            ? { city: place.name, state: "ID", radiusMiles: SEO_CITY_RADIUS_MILES }
+            : {}),
           ...(place?.kind === "region" ? { region: place.name } : {}),
           ...(!place ? { state: "ID" } : {}),
         };
@@ -374,12 +379,17 @@ export const getPlacePage = createServerFn({ method: "GET" })
 /** Median price by model year and by mileage, as display rows. */
 export function vehiclePriceTables(listings: ClassifiedCard[]): PlacePriceTable[] {
   const format = (rows: PriceBand[]) =>
-    rows.map((row) => ({ label: row.label, count: row.count, median: wholeDollars(row.medianCents) }));
+    rows.map((row) => ({
+      label: row.label,
+      count: row.count,
+      median: wholeDollars(row.medianCents),
+    }));
   const tables: PlacePriceTable[] = [];
   const byYear = priceByYear(listings);
   if (byYear.length) tables.push({ heading: "Median price by model year", rows: format(byYear) });
   const byMileage = priceByMileage(listings);
-  if (byMileage.length) tables.push({ heading: "Median price by mileage", rows: format(byMileage) });
+  if (byMileage.length)
+    tables.push({ heading: "Median price by mileage", rows: format(byMileage) });
   return tables;
 }
 
@@ -459,10 +469,8 @@ export const getVehiclePage = createServerFn({ method: "GET" })
         (latest, listing) => (listing.createdAt > latest ? listing.createdAt : latest),
         "",
       );
-      const fresh =
-        Boolean(newest) && Date.now() - Date.parse(newest) < PLACE_PAGE_FRESH_DAYS * 86_400_000;
       const minimum = model ? MODEL_PAGE_MIN_LISTINGS : MAKE_PAGE_MIN_LISTINGS;
-      const indexable = main.total >= minimum && fresh;
+      const indexable = isIndexablePlaceInventory(main.total, newest, Date.now(), minimum);
 
       const cityCounts = countBy(main.listings, (listing) =>
         idahoCities.find((city) => city === listing.city),
@@ -509,7 +517,10 @@ export const getVehiclePage = createServerFn({ method: "GET" })
         if (years.length) {
           const low = Math.min(...years);
           const high = Math.max(...years);
-          stats.push({ label: "Model years", value: low === high ? String(low) : `${low}–${high}` });
+          stats.push({
+            label: "Model years",
+            value: low === high ? String(low) : `${low}–${high}`,
+          });
         }
       }
 

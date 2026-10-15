@@ -1,6 +1,7 @@
 import { loadSupabase } from "@/integrations/supabase/lazy-client";
 import { classifyLatency, sanitizeTelemetryText } from "@/lib/release-gate";
 import { classifyTrafficSource } from "@/lib/traffic-source";
+import { isInternalAnalyticsQuery, isKnownAutomatedAgent } from "@/lib/analytics-policy";
 
 /**
  * Validation analytics. Instrumented from the foundation phase onward: every
@@ -87,7 +88,9 @@ export type AnalyticsEventName =
   | "visit_started"
   | "listing_viewed"
   | "seller_contacted"
-  | "storefront_share";
+  | "storefront_share"
+  | "inquiry_completed"
+  | "web_vital";
 
 type Props = Record<string, string | number | boolean | null>;
 
@@ -191,7 +194,14 @@ export async function trackEvent(
     const { data } = await supabase.auth.getSession();
     const userId = data.session?.user.id ?? null;
     const visit = ensureVisit();
-    await supabase.from("analytics_events").insert({
+    let internal = isInternalAnalyticsQuery(window.location.search);
+    try {
+      if (internal) window.sessionStorage.setItem("bb_internal_traffic", "1");
+      internal ||= window.sessionStorage.getItem("bb_internal_traffic") === "1";
+    } catch {
+      /* Optional QA exclusion must not block user actions. */
+    }
+    const { error } = await supabase.from("analytics_events").insert({
       name,
       props: visit
         ? {
@@ -201,16 +211,37 @@ export async function trackEvent(
             traffic_visit: visit.id,
             // Lets reports drop events from dev servers and preview builds.
             site_host: window.location.hostname,
+            is_internal: internal,
+            is_bot: isKnownAutomatedAgent(navigator.userAgent),
           }
         : props,
       is_demo: options.isDemo ?? false,
       session_id: sessionId(),
       user_id: userId,
     });
+    if (error) console.warn("analytics event dropped", name, error.code);
   } catch (error) {
     // Analytics must never break a user flow.
     console.warn("analytics event dropped", name, error);
   }
+}
+
+/** Server acknowledged a message/application; opening a form is not a conversion. */
+export function trackCompletedInquiry(
+  method: "message" | "apply",
+  recordId: string,
+  listing: { id: string; categorySlug?: string | null; isMock?: boolean },
+) {
+  void trackEvent(
+    "inquiry_completed",
+    {
+      method,
+      listing_id: listing.id,
+      category: listing.categorySlug ?? null,
+      event_id: `${method}:${recordId}`,
+    },
+    { isDemo: listing.isMock === true },
+  );
 }
 
 function telemetryError(error: unknown): Props {

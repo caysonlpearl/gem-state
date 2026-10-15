@@ -692,7 +692,7 @@ const RELEASE_QA_LISTING_NAMES = new Set([
   "qa pet listing - do not contact",
 ]);
 
-function isReleaseQaListing(row: Record<string, unknown>) {
+export function isReleaseQaListing(row: Record<string, unknown>) {
   const product = row["products"] as { name?: unknown } | null;
   return RELEASE_QA_LISTING_NAMES.has(
     String(product?.name ?? "")
@@ -1001,7 +1001,8 @@ async function signListingThumbnails(paths: string[]): Promise<Map<string, strin
     }
   }
   const missing = unique.filter((path) => !resized.has(path));
-  if (missing.length) for (const [path, url] of await signListingMedia(missing)) resized.set(path, url);
+  if (missing.length)
+    for (const [path, url] of await signListingMedia(missing)) resized.set(path, url);
   return resized;
 }
 
@@ -2164,7 +2165,9 @@ export const getRecentlySoldListings = createServerFn({ method: "GET" })
       city: input?.city ? String(input.city).slice(0, 80) : undefined,
       region: input?.region ? String(input.region).slice(0, 80) : undefined,
       radiusMiles:
-        input?.radiusMiles != null ? Math.min(250, Math.max(0, Number(input.radiusMiles))) : undefined,
+        input?.radiusMiles != null
+          ? Math.min(250, Math.max(0, Number(input.radiusMiles)))
+          : undefined,
       make: input?.make ? String(input.make).slice(0, 60) : undefined,
       model: input?.model ? String(input.model).slice(0, 80) : undefined,
       limit: Math.min(24, Math.max(1, Number(input?.limit ?? 8))),
@@ -2172,9 +2175,7 @@ export const getRecentlySoldListings = createServerFn({ method: "GET" })
   )
   .handler(async ({ data }): Promise<SoldCard[]> => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const cutoff = new Date(
-      Date.now() - ENDED_LISTING_RETENTION_DAYS * 86_400_000,
-    ).toISOString();
+    const cutoff = new Date(Date.now() - ENDED_LISTING_RETENTION_DAYS * 86_400_000).toISOString();
     const { data: rows, error } = await (supabaseAdmin as any)
       .from("asks")
       .select(`${LISTING_SELECT}, status, updated_at, sold_at`)
@@ -2238,7 +2239,9 @@ async function buildClassifiedDetail(
     sellerId
       ? client
           .from("seller_storefronts")
-          .select("slug,display_name,bio,avatar_url,payout_verified,rating_average,review_count,member_since")
+          .select(
+            "slug,display_name,bio,avatar_url,payout_verified,rating_average,review_count,member_since",
+          )
           .eq("user_id", sellerId)
           .maybeSingle()
       : Promise.resolve({ data: null }),

@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { brand } from "@/config/brand";
+import { isSitemapAllowedPath } from "@/lib/seo-policy";
 import { guides } from "@/content/guides";
 import { listingPath } from "@/lib/listing-url";
 import { fetchLiveListings, tallyLandingPages } from "@/lib/landing-pages.server";
@@ -77,17 +78,25 @@ export const Route = createFileRoute("/sitemap.xml")({
           .select("month, updated_at, report->totals->live")
           .neq("month", currentMonth)
           .limit(120);
-        for (const saved of (savedReports ?? []) as { month: string; updated_at: string; live: number }[]) {
+        for (const saved of (savedReports ?? []) as {
+          month: string;
+          updated_at: string;
+          live: number;
+        }[]) {
           if (Number(saved.live) >= MARKET_REPORT_MIN_LISTINGS)
             reportMonths.push({ month: saved.month, lastmod: saved.updated_at });
         }
 
         const entries = [
-          ...STATIC_PATHS.map(({ path, changefreq, priority }) =>
-            urlEntry(path, { changefreq, priority }),
+          ...STATIC_PATHS.filter(({ path }) => isSitemapAllowedPath(path)).map(
+            ({ path, changefreq, priority }) => urlEntry(path, { changefreq, priority }),
           ),
           ...reportMonths.map(({ month, lastmod }) =>
-            urlEntry(`/idaho/market-report/${month}`, { lastmod, changefreq: "weekly", priority: "0.7" }),
+            urlEntry(`/idaho/market-report/${month}`, {
+              lastmod,
+              changefreq: "weekly",
+              priority: "0.7",
+            }),
           ),
           ...guides.map((guide) =>
             urlEntry(`/guides/${guide.slug}`, { lastmod: guide.reviewed, priority: "0.7" }),

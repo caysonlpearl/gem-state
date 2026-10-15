@@ -57,7 +57,7 @@ function TrafficTable({ rows, label }: { rows: TrafficRow[]; label: "channel" | 
             </th>
             <th className="px-3 py-2 text-right font-semibold">Visits</th>
             <th className="px-3 py-2 text-right font-semibold">Listing views</th>
-            <th className="px-3 py-2 text-right font-semibold">Contacts</th>
+            <th className="px-3 py-2 text-right font-semibold">Contact actions</th>
             <th className="px-3 py-2 text-right font-semibold">Visits that contacted</th>
             <th className="px-3 py-2 text-right font-semibold">Contact rate</th>
           </tr>
@@ -101,6 +101,20 @@ function TrafficPage() {
   });
   const data = summary.data;
 
+  function downloadReport() {
+    if (!data?.isAdmin) return;
+    const url = URL.createObjectURL(
+      new Blob([JSON.stringify({ capturedAt: new Date().toISOString(), ...data }, null, 2)], {
+        type: "application/json",
+      }),
+    );
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `bluebird-traffic-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
   return (
     <main className="mx-auto max-w-[1120px] px-4 py-10 sm:px-8">
       <Link to="/admin" className="text-[12px] text-muted-foreground hover:text-foreground">
@@ -110,7 +124,7 @@ function TrafficPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Traffic and contacts</h1>
           <p className="mt-1 max-w-[70ch] text-[13px] text-muted-foreground">
-            Where visits come from, and how many of them view a listing or contact a seller.
+            Where visits come from, what buyers do, and how public pages perform.
           </p>
         </div>
         <div className="flex gap-1 rounded-full border border-border p-1" role="group">
@@ -142,7 +156,7 @@ function TrafficPage() {
             {[
               ["Visits", data.totals.visits],
               ["Listing views", data.totals.listingViews],
-              ["Contacts", data.totals.contacts],
+              ["Contact actions", data.totals.contacts],
               [
                 "Visits that contacted",
                 `${data.totals.contactingVisits} (${rate(data.totals.contactingVisits, data.totals.visits)})`,
@@ -154,6 +168,100 @@ function TrafficPage() {
               </div>
             ))}
           </dl>
+
+          <section className="mt-8">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-[17px] font-semibold">Completed actions</h2>
+              <button
+                type="button"
+                onClick={downloadReport}
+                className="min-h-10 rounded-full border border-input px-4 text-sm"
+              >
+                Download report
+              </button>
+            </div>
+            <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
+              {[
+                ["Inquiries sent", data.conversions.inquiriesSent],
+                ["Listings saved", data.conversions.saveActions],
+                ["Listings submitted", data.conversions.listingsSubmitted],
+                ["Listing records approved", data.operations.approvedListings ?? "Unavailable"],
+                ["Seller agreements completed", data.operations.sellerSetups ?? "Unavailable"],
+                ["Sellers claimed", data.operations.claimedSellers ?? "Unavailable"],
+              ].map(([label, value]) => (
+                <div key={label} className="rounded-lg border border-border px-4 py-3">
+                  <dt className="text-xs text-muted-foreground">{label}</dt>
+                  <dd className="mt-1 text-xl font-semibold">{value}</dd>
+                </div>
+              ))}
+            </dl>
+            <p className="mt-3 max-w-[85ch] text-xs leading-relaxed text-muted-foreground">
+              A sent inquiry is a message or application acknowledged by Bluebird. Call, text,
+              email, and external application buttons record contact actions; they cannot confirm
+              delivery. Inquiry tracking starts with this release. Approval, agreement, and claim
+              counts come from saved marketplace records in this period and include
+              operator-assisted activity.
+            </p>
+          </section>
+
+          <section className="mt-10">
+            <h2 className="text-[17px] font-semibold">Real-user page performance</h2>
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              First-party measurements at the 75th percentile, grouped by the template where a full
+              page load began and its screen size. These are separate from Google’s Core Web Vitals
+              report. Small samples remain provisional.
+            </p>
+            {data.vitals.length ? (
+              <div className="mt-3 overflow-x-auto rounded-lg border border-border">
+                <table className="w-full min-w-[620px] text-left text-sm">
+                  <thead className="bg-secondary/60">
+                    <tr>
+                      {[
+                        "Page template",
+                        "Screen",
+                        "Metric",
+                        "75th percentile",
+                        "Samples",
+                        "Assessment",
+                      ].map((label) => (
+                        <th key={label} className="px-3 py-2 font-semibold">
+                          {label}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.vitals.map((metric) => (
+                      <tr
+                        key={`${metric.template}-${metric.device}-${metric.metric}`}
+                        className="border-t border-border"
+                      >
+                        <td className="px-3 py-2">{metric.template}</td>
+                        <td className="px-3 py-2">{metric.device}</td>
+                        <td className="px-3 py-2">{metric.metric}</td>
+                        <td className="numeric px-3 py-2">
+                          {metric.unit === "score"
+                            ? metric.p75.toFixed(3)
+                            : `${Math.round(metric.p75)} ms`}
+                        </td>
+                        <td className="numeric px-3 py-2">{metric.samples}</td>
+                        <td className="px-3 py-2">
+                          {metric.samples < 20
+                            ? "Early sample"
+                            : metric.rating.replaceAll("-", " ")}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="mt-3 text-sm text-muted-foreground">
+                Collecting measurements from public page visits. No real-user sample is available
+                yet.
+              </p>
+            )}
+          </section>
 
           <section className="mt-10">
             <h2 className="text-[17px] font-semibold">By channel</h2>
@@ -203,9 +311,10 @@ function TrafficPage() {
           <p className="mt-10 text-[12px] leading-relaxed text-muted-foreground">
             A visit is one browser tab session, classified on its first page from the referring site
             or utm_ tags; only the referring domain is stored. Demo listings and signed-in staff
-            accounts are excluded, but staff browsing while signed out can&apos;t be told apart.
-            Some apps and browsers hide the referrer, so part of &ldquo;Direct&rdquo; is really from
-            elsewhere.
+            accounts, marked QA visits, and recognized automated browsers are excluded. Anonymous
+            events in a visit that later signs in as staff are excluded too; unmarked signed-out
+            staff browsing can still be counted. Some apps and browsers hide the referrer, so part
+            of &ldquo;Direct&rdquo; is really from elsewhere.
           </p>
         </>
       )}

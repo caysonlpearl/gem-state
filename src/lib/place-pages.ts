@@ -73,8 +73,10 @@ export function categoryPhrase(slug: string, name: string) {
 }
 
 /** A page is only offered to search engines once it's worth landing on. */
-export const PLACE_PAGE_MIN_LISTINGS = 5;
-export const PLACE_PAGE_FRESH_DAYS = 30;
+export {
+  SEO_MIN_LISTINGS as PLACE_PAGE_MIN_LISTINGS,
+  SEO_FRESH_DAYS as PLACE_PAGE_FRESH_DAYS,
+} from "@/lib/seo-policy";
 /** Make pages use the same bar; a single model needs fewer to be useful. */
 export const MAKE_PAGE_MIN_LISTINGS = 5;
 export const MODEL_PAGE_MIN_LISTINGS = 3;
@@ -85,12 +87,16 @@ export const MODEL_PAGE_MIN_LISTINGS = 3;
  * listing form uses, so every page name is spelled the catalog's way.
  */
 export function canonicalMake(value: string | null | undefined) {
-  const key = String(value ?? "").trim().toLowerCase();
+  const key = String(value ?? "")
+    .trim()
+    .toLowerCase();
   return key ? (vehicleOptions.makes.find((make) => make.toLowerCase() === key) ?? null) : null;
 }
 
 export function canonicalModel(make: string, value: string | null | undefined) {
-  const key = String(value ?? "").trim().toLowerCase();
+  const key = String(value ?? "")
+    .trim()
+    .toLowerCase();
   if (!key) return null;
   return (vehicleModelsByMake[make] ?? []).find((model) => model.toLowerCase() === key) ?? null;
 }

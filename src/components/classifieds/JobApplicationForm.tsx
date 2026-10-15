@@ -8,7 +8,7 @@ import {
   getMyJobApplicationForListing,
   submitJobApplication,
 } from "@/lib/job-applications.functions";
-import { trackSellerContact } from "@/lib/analytics";
+import { trackSellerContact, trackCompletedInquiry } from "@/lib/analytics";
 
 const ALLOWED_TYPES = [
   "application/pdf",
@@ -70,8 +70,9 @@ export function JobApplicationForm({ listingId }: { listingId: string }) {
       if (!resumePath) throw new Error("Attach a resume to apply.");
       return submit({ data: { listingId, resumePath, coverLetter: coverLetter || null } });
     },
-    onSuccess: async () => {
+    onSuccess: async (result) => {
       trackSellerContact("apply", { id: listingId, categorySlug: "jobs" });
+      trackCompletedInquiry("apply", result.applicationId, { id: listingId, categorySlug: "jobs" });
       setEditing(false);
       setResume(null);
       await queryClient.invalidateQueries({ queryKey: ["my-job-application", listingId] });

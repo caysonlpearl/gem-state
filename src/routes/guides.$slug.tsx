@@ -4,6 +4,7 @@ import { brand } from "@/config/brand";
 import { GuideArticle } from "@/components/guides/GuideArticle";
 import { guideBySlug } from "@/content/guides";
 import { GUIDE_COVER_IMAGE, guideStructuredData, jsonLdScript } from "@/lib/structured-data";
+import { socialImageMeta } from "@/lib/seo-policy";
 
 export const Route = createFileRoute("/guides/$slug")({
   loader: ({ params }) => {
@@ -21,8 +22,7 @@ export const Route = createFileRoute("/guides/$slug")({
             { property: "og:description", content: loaderData.description },
             { property: "og:type", content: "article" },
             { property: "article:modified_time", content: loaderData.reviewed },
-            { property: "og:image", content: `${brand.urls.siteUrl}${GUIDE_COVER_IMAGE}` },
-            { name: "twitter:card", content: "summary_large_image" },
+            ...socialImageMeta(brand.urls.siteUrl, GUIDE_COVER_IMAGE, loaderData.title),
           ],
           scripts: [jsonLdScript(guideStructuredData(loaderData))],
         }

@@ -18,7 +18,8 @@ export const submitJobApplication = createServerFn({ method: "POST" })
   .inputValidator(
     (input: { listingId: string; resumePath: string; coverLetter?: string | null }) => {
       const coverLetter = String(input.coverLetter ?? "").trim();
-      if (coverLetter.length > 4000) throw new Error("Keep your cover letter under 4000 characters.");
+      if (coverLetter.length > 4000)
+        throw new Error("Keep your cover letter under 4000 characters.");
       return {
         listingId: String(input.listingId),
         resumePath: String(input.resumePath),
@@ -36,7 +37,7 @@ export const submitJobApplication = createServerFn({ method: "POST" })
     if (error) throw new Error(error.message);
     const { emailJobApplicationReceived } = await import("./email-notifications.server");
     await emailJobApplicationReceived(applicationId as string);
-    return { ok: true as const };
+    return { ok: true as const, applicationId: String(applicationId) };
   });
 
 export const getMyJobApplicationForListing = createServerFn({ method: "GET" })

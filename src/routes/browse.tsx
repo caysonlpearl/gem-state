@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
 import { queryOptions, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
@@ -15,6 +15,7 @@ import {
 } from "@phosphor-icons/react";
 
 import { brand } from "@/config/brand";
+import { isIndexableCollection, isOutOfRangePage } from "@/lib/seo-policy";
 import {
   classifiedCategories,
   marketplaceCities,
@@ -1040,32 +1041,19 @@ function normalizeBrowseSearch(search: Search): Search {
   return next;
 }
 
-// Keys that don't change which listings a page shows: sort order, layout and
-// paging are handled by the canonical tag alone, not by noindex.
-const BROWSE_IDENTITY_KEYS = new Set([
-  "category",
-  "group",
-  "allCategories",
-  "sort",
-  "view",
-  "page",
-]);
-
-function isIndexableBrowse(search: Search) {
-  return Object.entries(search).every(
-    ([key, value]) =>
-      BROWSE_IDENTITY_KEYS.has(key) || value === undefined || value === false || value === "",
-  );
-}
-
 function browseHeadHeading(search: Search) {
   const category = classifiedCategories.find((option) => option.slug === search.category);
-  if (category?.slug === "jobs") return "Jobs in Idaho";
-  if (category?.slug === "services") return "Local services in Idaho";
-  if (category?.slug === "other-real-estate") return "Homes for sale and rent in Idaho";
-  if (category?.slug === "pets") return "Pets in Idaho";
-  if (category) return `${category.name} for sale in Idaho`;
-  if (search.group === "motors") return "Vehicles for sale in Idaho";
+  if (category?.slug === "jobs") return "Local jobs";
+  if (category?.slug === "services") return "Local services";
+  if (category?.slug === "other-real-estate")
+    return search.homeTab === "rent"
+      ? "Homes for rent"
+      : search.homeTab === "build"
+        ? "New construction homes"
+        : "Homes for sale and rent";
+  if (category?.slug === "pets") return "Pets";
+  if (category) return `${category.name} for sale`;
+  if (search.group === "motors") return "Vehicles for sale";
   return null;
 }
 
@@ -1202,32 +1190,38 @@ export const Route = createFileRoute("/browse")({
     };
     return normalizeBrowseSearch(parsed);
   },
-  head: ({ match }) => {
+  loaderDeps: ({ search }) => search,
+  loader: async ({ context, deps }) => {
+    const result = await context.queryClient.ensureQueryData(
+      classifiedQuery(inputFromSearch(deps)),
+    );
+    if (isOutOfRangePage(deps.page ?? 1, result.total, result.pageSize)) throw notFound();
+    return { total: result.total };
+  },
+  head: ({ match, loaderData }) => {
     const search = match.search as Search;
     const heading = browseHeadHeading(search);
     const title = heading
       ? `${heading} — ${brand.name}`
-      : `Browse Idaho classifieds — ${brand.name}`;
+      : `Browse local classifieds — ${brand.name}`;
     const description = heading
-      ? `${heading}: browse listings from local sellers across Idaho and contact them directly on ${brand.name}.`
-      : "Search Idaho classifieds by category, region, price, condition, and detailed vehicle filters including make, model, year, mileage, drivetrain, fuel type, and title status.";
+      ? `${heading}: browse listings from sellers across Idaho, Utah, Oregon, and Washington and contact them directly on ${brand.name}.`
+      : "Search local classifieds across Idaho, Utah, Oregon, and Washington by category, city, distance, price, and condition.";
     return {
       meta: [
         { title },
         { name: "description", content: description },
         // Category pages are indexable; keyword searches, filter combinations
         // and saved-search views are not (followed, never indexed).
-        ...(isIndexableBrowse(search) ? [] : [{ name: "robots", content: "noindex, follow" }]),
+        ...(isIndexableCollection(search, loaderData?.total ?? 0)
+          ? []
+          : [{ name: "robots", content: "noindex, follow" }]),
         { property: "og:title", content: title },
         { property: "og:description", content: description },
         { property: "og:type", content: "website" },
         { name: "twitter:card", content: "summary_large_image" },
       ],
     };
-  },
-  loaderDeps: ({ search }) => search,
-  loader: async ({ context, deps }) => {
-    await context.queryClient.ensureQueryData(classifiedQuery(inputFromSearch(deps)));
   },
   component: Browse,
   errorComponent: ({ reset }) => (
@@ -2477,14 +2471,35 @@ function Browse() {
                     {result.total.toLocaleString()}
                   </p>
                   {canLoadMore ? (
-                    <button
-                      type="button"
-                      onClick={() => void loadMore()}
-                      disabled={loadingMore}
+                    <Link
+                      to="/browse"
+                      search={{ ...search, page: loadedThroughPage + 1 }}
+                      onClick={(event) => {
+                        if (
+                          event.button !== 0 ||
+                          event.metaKey ||
+                          event.ctrlKey ||
+                          event.shiftKey ||
+                          event.altKey
+                        )
+                          return;
+                        event.preventDefault();
+                        if (!loadingMore) void loadMore();
+                      }}
+                      aria-disabled={loadingMore}
                       className="inline-flex h-11 items-center rounded-full border border-input bg-card px-6 text-[13.5px] font-semibold shadow-sm disabled:opacity-60"
                     >
                       {loadingMore ? "Loading…" : "Load more"}
-                    </button>
+                    </Link>
+                  ) : null}
+                  {page > 1 ? (
+                    <Link
+                      to="/browse"
+                      search={{ ...search, page: page - 1 }}
+                      className="text-sm underline"
+                    >
+                      Previous page
+                    </Link>
                   ) : null}
                 </div>
               )}

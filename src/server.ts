@@ -4,6 +4,7 @@ import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 import { registerRuntimeBindings } from "./lib/runtime-env.server";
 import { handleStripeWebhook } from "./lib/stripe-marketplace.server";
+import { seoHostPolicy } from "./lib/seo-policy";
 
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
@@ -90,13 +91,21 @@ export default {
     try {
       registerRuntimeBindings(env);
       const url = new URL(request.url);
+      const hostPolicy = seoHostPolicy(url);
+      if (hostPolicy.redirect && ["GET", "HEAD"].includes(request.method)) {
+        return Response.redirect(hostPolicy.redirect, 301);
+      }
       if (url.pathname === "/api/stripe/webhook") {
         if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
         return await handleStripeWebhook(request, env);
       }
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
-      return lowerModulePreloadPriority(await normalizeCatastrophicSsrResponse(response));
+      const normalized = lowerModulePreloadPriority(
+        await normalizeCatastrophicSsrResponse(response),
+      );
+      if (hostPolicy.preview) normalized.headers.set("X-Robots-Tag", "noindex, nofollow");
+      return normalized;
     } catch (error) {
       console.error(error);
       return new Response(renderErrorPage(), {

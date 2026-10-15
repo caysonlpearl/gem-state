@@ -1,7 +1,6 @@
 import {
   MAKE_PAGE_MIN_LISTINGS,
   MODEL_PAGE_MIN_LISTINGS,
-  PLACE_PAGE_FRESH_DAYS,
   PLACE_PAGE_MIN_LISTINGS,
   canonicalMake,
   canonicalModel,
@@ -9,7 +8,9 @@ import {
   placePath,
   vehiclePagePath,
 } from "@/lib/place-pages";
-import { idahoCities } from "@/config/classifieds";
+import { idahoCities, isWithinClassifiedCityRadius } from "@/config/classifieds";
+import { isReleaseQaListing } from "@/lib/classifieds.functions";
+import { isIndexablePlaceInventory, matchesSeoPlace } from "@/lib/seo-policy";
 import { listingPath } from "@/lib/listing-url";
 import { regionOfListing } from "@/lib/market-stats";
 
@@ -39,9 +40,7 @@ type ListingPlace = {
 /**
  * Tallies live listings per landing page. A page only enters the sitemap
  * once it passes the same inventory gate the page itself checks (enough
- * listings, one of them recent); counts here use exact city matches, which
- * never exceed the page's own radius-based count, so a page listed here
- * always passes its gate.
+ * listings, one of them recent); counts use the same state and city-radius scope as the rendered page.
  */
 export class PageTally {
   private pages = new Map<
@@ -60,30 +59,36 @@ export class PageTally {
   }
 
   passing() {
-    const freshAfter = Date.now() - PLACE_PAGE_FRESH_DAYS * 86_400_000;
-    return Array.from(this.pages.entries()).filter(
-      ([, info]) => info.count >= info.minimum && Date.parse(info.newest) >= freshAfter,
+    return Array.from(this.pages.entries()).filter(([, info]) =>
+      isIndexablePlaceInventory(info.count, info.newest, Date.now(), info.minimum),
     );
   }
 }
 
-
 /** Live listings under the same visibility rules as the public browse pages. */
 export async function fetchLiveListings(admin: any): Promise<LiveListingRow[] | null> {
-  const { data, error } = await admin
-    .from("asks")
-    .select(
-      "id, seller_id, created_at, updated_at, products!inner(name, status, categories!inner(slug)), classified_listing_details!inner(listing_id, city, region, state, vehicle_make, vehicle_model)",
-    )
-    .eq("status", "active")
-    .eq("is_demo", false)
-    .not("approved_at", "is", null)
-    .gt("expires_at", new Date().toISOString())
-    .eq("products.status", "published")
-    .order("updated_at", { ascending: false })
-    .limit(45_000);
-  if (error) return null;
-  return (data ?? []) as LiveListingRow[];
+  const rows: LiveListingRow[] = [];
+  for (let offset = 0; ; offset += 500) {
+    const { data, error } = await admin
+      .from("asks")
+      .select(
+        "id, seller_id, created_at, updated_at, products!inner(name, status, categories!inner(slug)), classified_listing_details!inner(listing_id, city, region, state, vehicle_make, vehicle_model)",
+      )
+      .eq("status", "active")
+      .eq("is_demo", false)
+      .not("approved_at", "is", null)
+      .gt("expires_at", new Date().toISOString())
+      .eq("products.status", "published")
+      .order("id", { ascending: true })
+      .range(offset, offset + 499);
+    if (error) return null;
+    const batch = (data ?? []) as LiveListingRow[];
+    rows.push(
+      ...batch.filter((row) => !isReleaseQaListing(row as unknown as Record<string, unknown>)),
+    );
+    if (batch.length < 500) break;
+  }
+  return rows.sort((a, b) => b.updated_at.localeCompare(a.updated_at));
 }
 
 /** The landing pages one listing appears on, with each page's listing minimum. */
@@ -93,12 +98,21 @@ export function landingPathsFor(
 ): { path: string; minimum: number }[] {
   const paths: { path: string; minimum: number }[] = [];
   const add = (path: string, minimum = PLACE_PAGE_MIN_LISTINGS) => paths.push({ path, minimum });
-  const city = idahoCities.find((name) => name === details?.city);
+  const geography = {
+    city: details?.city ?? "",
+    region: details?.region ?? "",
+    state: details?.state ?? "",
+  };
+  if (!matchesSeoPlace(null, geography, isWithinClassifiedCityRadius)) return paths;
   // Same region the landing pages use: saved, else the city's.
   const region = details ? regionOfListing(details) : undefined;
   if (categorySlug) add(categoryPagePath(categorySlug));
-  if (city) add(placePath(city));
-  if (city && categorySlug) add(placePath(city, categorySlug));
+  for (const city of idahoCities) {
+    if (!matchesSeoPlace({ kind: "city", name: city }, geography, isWithinClassifiedCityRadius))
+      continue;
+    add(placePath(city));
+    if (categorySlug) add(placePath(city, categorySlug));
+  }
   if (region) add(placePath(region));
   if (region && categorySlug) add(placePath(region, categorySlug));
   const make = categorySlug === "cars-trucks" ? canonicalMake(details?.vehicle_make) : null;
@@ -143,7 +157,11 @@ export async function pingListingChange(askId: string) {
       : row.classified_listing_details;
     const live = await fetchLiveListings(admin);
     const passing = new Set(
-      live ? tallyLandingPages(live).passing().map(([path]) => path) : [],
+      live
+        ? tallyLandingPages(live)
+            .passing()
+            .map(([path]) => path)
+        : [],
     );
     const paths = [
       listingPath({ id: row.id, title: row.products?.name ?? "", city: details?.city }),

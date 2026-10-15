@@ -207,6 +207,8 @@ export function CategoryArtwork({
   return (
     <img
       src={artwork.src}
+      srcSet={`${artwork.src.replace(".webp", "-96.webp")} 96w, ${artwork.src.replace(".webp", "-160.webp")} 160w, ${artwork.src} 256w`}
+      sizes={`${size}px`}
       alt=""
       aria-hidden="true"
       width={size}

@@ -15,8 +15,7 @@ import appCss from "../styles.css?url";
 import manropeLatin from "@fontsource-variable/manrope/files/manrope-latin-wght-normal.woff2?url";
 import soraLatin from "@fontsource-variable/sora/files/sora-latin-wght-normal.woff2?url";
 import { brand } from "@/config/brand";
-import { classifiedCategories } from "@/config/classifieds";
-import { categoryPagePath } from "@/lib/place-pages";
+import { canonicalPagePath, isPrivateSeoPath, socialImageMeta } from "@/lib/seo-policy";
 import { loadSupabase } from "@/integrations/supabase/lazy-client";
 import { SiteHeader } from "@/components/layout/SiteHeader";
 import { SiteFooter } from "@/components/layout/SiteFooter";
@@ -25,6 +24,7 @@ import { PilotBanner } from "@/components/layout/PilotBanner";
 import { BluebirdEmptyState } from "@/components/layout/BluebirdEmptyState";
 import { Toaster } from "@/components/ui/sonner";
 import { trackBrowserError, ensureVisit } from "@/lib/analytics";
+import { startWebVitals } from "@/lib/web-vitals";
 
 function NotFoundComponent() {
   return (
@@ -87,7 +87,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:title", content: `${brand.name} — Idaho's local marketplace` },
       { property: "og:description", content: brand.description },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
+      ...socialImageMeta(brand.urls.siteUrl),
       {
         name: "google-site-verification",
         content: "reUnGwKD13ZcD2_HabKHN62Mud06ux9CfdPfOrWd9GY",
@@ -120,23 +120,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   errorComponent: ErrorComponent as never,
 });
 
-// Every page points search engines at one clean URL on the live domain:
-// sort, view, page, filter and tracking parameters are dropped. A browse view
-// of a single category points at that category's landing page, and the
-// vehicles group keeps its one identifying parameter.
-function canonicalPath(pathname: string, search: Record<string, unknown>) {
-  if (pathname === "/browse") {
-    const category = classifiedCategories.find((option) => option.slug === search["category"]);
-    if (category) return categoryPagePath(category.slug);
-    if (search["group"] === "motors") return "/browse?group=motors";
-    return "/browse";
-  }
-  return pathname === "/" ? "/" : pathname.replace(/\/+$/, "");
-}
-
 function CanonicalTags() {
   const location = useRouterState({ select: (s) => s.location });
-  const href = `${brand.urls.siteUrl}${canonicalPath(
+  const href = `${brand.urls.siteUrl}${canonicalPagePath(
     location.pathname,
     location.search as Record<string, unknown>,
   )}`;
@@ -144,6 +130,9 @@ function CanonicalTags() {
     <>
       <link rel="canonical" href={href} />
       <meta property="og:url" content={href} />
+      {isPrivateSeoPath(location.pathname) ? (
+        <meta name="robots" content="noindex, nofollow" />
+      ) : null}
     </>
   );
 }
@@ -171,6 +160,7 @@ function RootComponent() {
   // assistant, social, another site or direct).
   useEffect(() => {
     ensureVisit();
+    startWebVitals();
   }, []);
 
   useEffect(() => {

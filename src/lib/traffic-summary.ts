@@ -20,12 +20,46 @@ export type TrafficSummary = {
   bySource: TrafficRow[];
   contactMethods: { method: string; count: number }[];
   topLandingPages: { path: string; visits: number; fromSearchOrAi: number }[];
+  conversions: { inquiriesSent: number; saveActions: number; listingsSubmitted: number };
 };
 
 export type TrafficEvent = { name: string; props: unknown; user_id: string | null };
 
 function emptyRow(channel: string, source: string): TrafficRow {
   return { channel, source, visits: 0, listingViews: 0, contacts: 0, contactingVisits: 0 };
+}
+
+/** Exclude the whole staff/QA visit, including its anonymous pre-login events. */
+export function eligibleTrafficEvents(
+  events: TrafficEvent[],
+  options: { staffIds: Set<string>; domain: string },
+) {
+  const excludedVisits = new Set<string>();
+  const excluded = (event: TrafficEvent) => {
+    const props = (event.props ?? {}) as Record<string, unknown>;
+    const host = String(props.site_host ?? "").replace(/^www\./, "");
+    return (
+      Boolean(event.user_id && options.staffIds.has(event.user_id)) ||
+      props.is_internal === true ||
+      props.is_bot === true ||
+      Boolean(host && host !== options.domain)
+    );
+  };
+  for (const event of events) {
+    const props = (event.props ?? {}) as Record<string, unknown>;
+    if (excluded(event) && props.traffic_visit) excludedVisits.add(String(props.traffic_visit));
+  }
+  const seen = new Set<string>();
+  return events.filter((event) => {
+    const props = (event.props ?? {}) as Record<string, unknown>;
+    if (excluded(event) || excludedVisits.has(String(props.traffic_visit))) return false;
+    const id = props.event_id ?? (event.name === "visit_started" ? props.traffic_visit : undefined);
+    if (!id) return true;
+    const key = `${event.name}:${id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 export function summarizeTraffic(
@@ -40,6 +74,7 @@ export function summarizeTraffic(
     bySource: [],
     contactMethods: [],
     topLandingPages: [],
+    conversions: { inquiriesSent: 0, saveActions: 0, listingsSubmitted: 0 },
   };
   const channels = new Map<string, TrafficRow>();
   const sources = new Map<string, TrafficRow>();
@@ -51,7 +86,12 @@ export function summarizeTraffic(
   const methods = new Map<string, number>();
   const landings = new Map<string, { visits: number; fromSearchOrAi: number }>();
 
-  for (const event of events) {
+  for (const event of eligibleTrafficEvents(events, options)) {
+    if (event.name === "inquiry_completed") summary.conversions.inquiriesSent += 1;
+    if (event.name === "watchlist_added") summary.conversions.saveActions += 1;
+    if (event.name === "classified_listing_submit_succeeded")
+      summary.conversions.listingsSubmitted += 1;
+    if (!["visit_started", "listing_viewed", "seller_contacted"].includes(event.name)) continue;
     if (event.user_id && staffIds.has(event.user_id)) continue;
     const props = (event.props ?? {}) as Record<string, unknown>;
     const host = props["site_host"] ? String(props["site_host"]).replace(/^www\./, "") : null;

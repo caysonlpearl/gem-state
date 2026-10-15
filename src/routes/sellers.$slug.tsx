@@ -22,6 +22,7 @@ import { BluebirdEmptyState } from "@/components/layout/BluebirdEmptyState";
 import { useAuth } from "@/hooks/useAuth";
 import { SELLER_SHARE_IMAGE } from "@/lib/seller-share";
 import { brand } from "@/config/brand";
+import { isIndexableStorefront } from "@/lib/seo-policy";
 
 const sellerQuery = (slug: string) =>
   queryOptions({ queryKey: ["seller", slug], queryFn: () => getPublicSeller({ data: { slug } }) });
@@ -57,7 +58,9 @@ export const Route = createFileRoute("/sellers/$slug")({
         { name: "description", content: description },
         // A storefront is worth indexing once it has something for sale (the
         // sitemap lists the same ones); an empty one stays out of search.
-        ...(seller.activeListingCount > 0 ? [] : [{ name: "robots", content: "noindex, follow" }]),
+        ...(isIndexableStorefront(seller.activeListingCount)
+          ? []
+          : [{ name: "robots", content: "noindex, follow" }]),
         // What shows when a seller shares their link on Facebook and elsewhere.
         { property: "og:title", content: `Shop ${seller.displayName}'s listings on Bluebird` },
         { property: "og:description", content: description },

@@ -8,7 +8,7 @@ import { formatUsd } from "@/config/fees";
 import { useAuth } from "@/hooks/useAuth";
 import type { ClassifiedDetail } from "@/lib/classifieds.functions";
 import { formatClassifiedPrice } from "@/lib/classifieds-display";
-import { trackSellerContact } from "@/lib/analytics";
+import { trackSellerContact, trackCompletedInquiry } from "@/lib/analytics";
 import { startConversation } from "@/lib/conversation.functions";
 import { nearbyPagePath } from "@/lib/place-pages";
 import { ContactSignInSheet, OPEN_CONTACT_EVENT, consumeContactIntent } from "./ContactSignInSheet";
@@ -146,8 +146,9 @@ function LiveListingActions({
 
   const inquiryMutation = useMutation({
     mutationFn: () => start({ data: { listingId: listing.id, body: message } }),
-    onSuccess: () => {
+    onSuccess: (result) => {
       trackSellerContact("message", listing);
+      trackCompletedInquiry("message", result.conversationId, listing);
       toast.success("Message sent to the seller.");
       setMessage(DEFAULT_MESSAGE);
       setContactOpen(false);

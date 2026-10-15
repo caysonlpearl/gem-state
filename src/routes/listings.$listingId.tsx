@@ -60,13 +60,9 @@ import {
   getEndedClassifiedListing,
   getRelatedClassifieds,
 } from "@/lib/classifieds.functions";
-import {
-  canonicalMake,
-  canonicalModel,
-  nearbyPagePath,
-  vehiclePagePath,
-} from "@/lib/place-pages";
+import { canonicalMake, canonicalModel, nearbyPagePath, vehiclePagePath } from "@/lib/place-pages";
 import { jsonLdScript, listingStructuredData } from "@/lib/structured-data";
+import { socialImageMeta } from "@/lib/seo-policy";
 import { getRemovedListingRedirect } from "@/lib/place-pages.functions";
 import type { ClassifiedCard, ClassifiedDetail } from "@/lib/classifieds.functions";
 import {
@@ -183,6 +179,7 @@ export const Route = createFileRoute("/listings/$listingId")({
       city: listing.city,
       state: listing.state,
       ended: listing.ended?.reason ?? null,
+      shareImage: listing.images.length ? `/media/listings/${listing.id}/0` : undefined,
       structuredData: listingStructuredData(listing),
     };
   },
@@ -210,7 +207,7 @@ export const Route = createFileRoute("/listings/$listingId")({
         { property: "og:title", content: title },
         { property: "og:description", content: description },
         { property: "og:type", content: "website" },
-        { name: "twitter:card", content: "summary_large_image" },
+        ...socialImageMeta(brand.urls.siteUrl, loaderData.shareImage, loaderData.title),
       ],
       scripts: [jsonLdScript(loaderData.structuredData)],
     };
@@ -465,7 +462,12 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
       {listing.dealer?.address && (
         <p className="mt-3 flex items-start gap-1.5 text-[12px] leading-relaxed text-primary">
           <MapPin size={14} weight="fill" className="mt-0.5 shrink-0" />
-          {[listing.dealer.address, listing.dealer.city, listing.dealer.state, listing.dealer.postalCode]
+          {[
+            listing.dealer.address,
+            listing.dealer.city,
+            listing.dealer.state,
+            listing.dealer.postalCode,
+          ]
             .filter(Boolean)
             .join(", ")}
         </p>
@@ -571,7 +573,11 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
             ) : null}
             {listing.dealer?.website ? (
               <a
-                href={/^https?:\/\//i.test(listing.dealer.website) ? listing.dealer.website : `https://${listing.dealer.website}`}
+                href={
+                  /^https?:\/\//i.test(listing.dealer.website)
+                    ? listing.dealer.website
+                    : `https://${listing.dealer.website}`
+                }
                 target="_blank"
                 rel="noreferrer"
                 className={contactLinkClass}

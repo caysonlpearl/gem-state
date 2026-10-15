@@ -72,11 +72,17 @@ export function classifyTrafficSource(
   const ref = params.get("ref");
   const sellerSlug = /^\/sellers\/([^/]+)/.exec(pathname)?.[1];
   if ((ref === "share" || ref === "badge") && sellerSlug) {
-    return { source: clean(decodeURIComponent(sellerSlug)), channel: "share" };
+    let decoded = sellerSlug;
+    try {
+      decoded = decodeURIComponent(sellerSlug);
+    } catch {
+      /* Keep a malformed public slug bounded. */
+    }
+    return { source: clean(decoded), channel: "share" };
   }
   const utmSource = params.get("utm_source");
   if (utmSource) {
-    const source = clean(utmSource);
+    const source = /@|[a-f0-9]{32,}/i.test(utmSource) ? "tagged-campaign" : clean(utmSource);
     const medium = clean(params.get("utm_medium") ?? "");
     // ChatGPT and some other assistants tag their outbound links this way.
     const asHost = source.includes(".") ? source : `${source}.com`;
@@ -84,6 +90,8 @@ export function classifyTrafficSource(
     if (/^(cpc|ppc|paid|paidsearch|paid-search|display)$/.test(medium))
       return { source, channel: "paid" };
     if (medium === "email" || medium === "newsletter") return { source, channel: "email" };
+    if (medium === "organic" && match(asHost, SEARCH_HOSTS))
+      return { source: match(asHost, SEARCH_HOSTS)!, channel: "search" };
     if (medium === "social" || match(asHost, SOCIAL_HOSTS))
       return { source: match(asHost, SOCIAL_HOSTS) ?? source, channel: "social" };
     return { source, channel: "campaign" };
@@ -97,6 +105,20 @@ export function classifyTrafficSource(
   }
   const own = ownHost.toLowerCase().replace(/^www\./, "");
   if (!host || host === own) return { source: "direct", channel: "direct" };
+  // A login/payment round trip is not an acquisition source. An existing
+  // tab visit retains its original source; a new tab has no provable source.
+  if (
+    [
+      "accounts.google.com",
+      "accounts.youtube.com",
+      "login.microsoftonline.com",
+      "login.live.com",
+      "checkout.stripe.com",
+      "connect.stripe.com",
+    ].includes(host) ||
+    host.endsWith(".supabase.co")
+  )
+    return { source: "direct", channel: "direct" };
 
   // Order matters: gemini.google.com is AI and mail.google.com is email,
   // though both would also match Google search.
