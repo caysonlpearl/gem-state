@@ -18,11 +18,23 @@ import { isWithinClassifiedCityRadius } from "../src/config/classifieds.ts";
 import {
   isInternalAnalyticsQuery,
   isKnownAutomatedAgent,
+  isOperationalTestRecord,
   performancePageTemplate,
   summarizeVitals,
 } from "../src/lib/analytics-policy.ts";
 import { eligibleTrafficEvents, summarizeTraffic } from "../src/lib/traffic-summary.ts";
 import { classifyTrafficSource } from "../src/lib/traffic-source.ts";
+
+test("operational totals exclude explicit QA fixtures without rejecting normal names", () => {
+  for (const label of [
+    "QA SEO inquiry verification — do not buy",
+    "audit-ordinary-0930",
+    "SEO test seller",
+  ])
+    assert.equal(isOperationalTestRecord(label), true);
+  for (const label of ["Quality vintage ring", "Gianna De Bie", "aquarium", null])
+    assert.equal(isOperationalTestRecord(label), false);
+});
 
 test("pagination keeps category, results mode, rental mode and distinct page canonicals", () => {
   assert.equal(

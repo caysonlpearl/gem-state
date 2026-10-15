@@ -19,6 +19,13 @@ export function isKnownAutomatedAgent(agent: string) {
   return /bot\b|spider|crawler|HeadlessChrome|Lighthouse|Google Page Speed/i.test(agent);
 }
 
+/** Explicit disposable fixtures only; a normal name containing "qa" is legitimate. */
+export function isOperationalTestRecord(label: unknown) {
+  return (
+    typeof label === "string" && /^(?:qa|audit)(?:\b|[-_])|^seo[-_ ](?:qa|test)\b/i.test(label)
+  );
+}
+
 export type VitalSample = {
   metric: "LCP" | "INP" | "CLS";
   template: string;

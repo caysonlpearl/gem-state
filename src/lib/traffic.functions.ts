@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { brand } from "@/config/brand";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { eligibleTrafficEvents, summarizeTraffic, type TrafficEvent } from "@/lib/traffic-summary";
-import { summarizeVitals } from "@/lib/analytics-policy";
+import { isOperationalTestRecord, summarizeVitals } from "@/lib/analytics-policy";
 
 export type { TrafficRow, TrafficSummary } from "@/lib/traffic-summary";
 
@@ -75,33 +75,69 @@ export const getTrafficSummary = createServerFn({ method: "GET" })
     // Operational milestones come from saved records, not a click or a signup attempt.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as unknown as SupabaseClient;
+    const readAll = async (
+      query: (offset: number) => PromiseLike<{
+        data: unknown[] | null;
+        error: unknown;
+      }>,
+    ) => {
+      const rows: Record<string, unknown>[] = [];
+      for (let offset = 0; ; offset += 500) {
+        const result = await query(offset);
+        if (result.error) return null;
+        rows.push(...((result.data ?? []) as Record<string, unknown>[]));
+        if ((result.data?.length ?? 0) < 500) return rows;
+      }
+    };
     const [approved, setups, claimed] = await Promise.all([
-      admin
-        .from("asks")
-        .select("id", { count: "exact", head: true })
-        .eq("is_demo", false)
-        .gte("approved_at", since)
-        .lt("approved_at", until),
-      admin
-        .from("seller_profiles")
-        .select("user_id", { count: "exact", head: true })
-        .gte("terms_accepted_at", since)
-        .lt("terms_accepted_at", until),
-      admin
-        .from("managed_import_sellers")
-        .select("id", { count: "exact", head: true })
-        .gte("claimed_at", since)
-        .lt("claimed_at", until),
+      readAll((offset) =>
+        admin
+          .from("asks")
+          .select("id,seller_id,products!inner(name)")
+          .eq("is_demo", false)
+          .gte("approved_at", since)
+          .lt("approved_at", until)
+          .order("id")
+          .range(offset, offset + 499),
+      ),
+      readAll((offset) =>
+        admin
+          .from("seller_profiles")
+          .select("user_id,slug")
+          .gte("terms_accepted_at", since)
+          .lt("terms_accepted_at", until)
+          .order("user_id")
+          .range(offset, offset + 499),
+      ),
+      readAll((offset) =>
+        admin
+          .from("managed_import_sellers")
+          .select("id,owner_user_id,display_name")
+          .gte("claimed_at", since)
+          .lt("claimed_at", until)
+          .order("id")
+          .range(offset, offset + 499),
+      ),
     ]);
+    const realSeller = (id: unknown) => !staffIds.has(String(id));
     const options = { staffIds, domain: brand.domain, windowDays: data.windowDays };
     return {
       isAdmin: true,
       ...summarizeTraffic(events, options),
       vitals: summarizeVitals(eligibleTrafficEvents(events, options)),
       operations: {
-        approvedListings: approved.error ? null : approved.count,
-        sellerSetups: setups.error ? null : setups.count,
-        claimedSellers: claimed.error ? null : claimed.count,
+        approvedListings:
+          approved?.filter((row) => {
+            const product = row.products as { name?: string } | null;
+            return realSeller(row.seller_id) && !isOperationalTestRecord(product?.name);
+          }).length ?? null,
+        sellerSetups:
+          setups?.filter((row) => realSeller(row.user_id) && !isOperationalTestRecord(row.slug))
+            .length ?? null,
+        claimedSellers:
+          claimed?.filter(
+            (row) => realSeller(row.owner_user_id) && !isOperationalTestRecord(row.display_name),
+          ).length ?? null,
       },
     };
   });

@@ -22,7 +22,7 @@ import { BluebirdEmptyState } from "@/components/layout/BluebirdEmptyState";
 import { useAuth } from "@/hooks/useAuth";
 import { SELLER_SHARE_IMAGE } from "@/lib/seller-share";
 import { brand } from "@/config/brand";
-import { isIndexableStorefront } from "@/lib/seo-policy";
+import { isIndexableStorefront, socialImageMeta } from "@/lib/seo-policy";
 
 const sellerQuery = (slug: string) =>
   queryOptions({ queryKey: ["seller", slug], queryFn: () => getPublicSeller({ data: { slug } }) });
@@ -65,11 +65,22 @@ export const Route = createFileRoute("/sellers/$slug")({
         { property: "og:title", content: `Shop ${seller.displayName}'s listings on Bluebird` },
         { property: "og:description", content: description },
         { property: "og:type", content: "profile" },
-        { property: "og:image", content: `${brand.urls.siteUrl}${SELLER_SHARE_IMAGE}` },
-        { property: "og:image:width", content: "1200" },
-        { property: "og:image:height", content: "630" },
-        { name: "twitter:card", content: "summary_large_image" },
+        ...socialImageMeta(
+          brand.urls.siteUrl,
+          SELLER_SHARE_IMAGE,
+          `${seller.displayName}'s Bluebird storefront`,
+        ),
       ],
+      links: seller.listings[0]?.thumbnailUrl
+        ? [
+            {
+              rel: "preload",
+              as: "image",
+              href: seller.listings[0].thumbnailUrl,
+              fetchPriority: "high",
+            },
+          ]
+        : [],
     };
   },
   notFoundComponent: () => (

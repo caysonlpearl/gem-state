@@ -180,6 +180,7 @@ export const Route = createFileRoute("/listings/$listingId")({
       state: listing.state,
       ended: listing.ended?.reason ?? null,
       shareImage: listing.images.length ? `/media/listings/${listing.id}/0` : undefined,
+      leadImage: listing.images[0]?.url,
       structuredData: listingStructuredData(listing),
     };
   },
@@ -213,6 +214,10 @@ export const Route = createFileRoute("/listings/$listingId")({
         ...socialImageMeta(brand.urls.siteUrl, loaderData.shareImage, loaderData.title),
       ],
       scripts: [jsonLdScript(loaderData.structuredData)],
+      // Discover the exact gallery resource before hydration, without a second photo URL.
+      links: loaderData.leadImage
+        ? [{ rel: "preload", as: "image", href: loaderData.leadImage, fetchPriority: "high" }]
+        : [],
     };
   },
   component: ListingDetail,
