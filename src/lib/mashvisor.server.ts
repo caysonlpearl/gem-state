@@ -1,13 +1,13 @@
 import { createClient } from "@supabase/supabase-js";
 import { serverEnv } from "./runtime-env.server";
 import {
-  normalizeMashvisorProperty,
   normalizeMashvisorResult,
-  type MashvisorPropertyExtra,
   type MashvisorResult,
 } from "./mashvisor-contract";
 
-const CACHE_MS = 6 * 60 * 60 * 1000;
+// Free plan: 30 requests/month. Results are kept a week; stale copies are
+// shown when the monthly budget is used up.
+const CACHE_MS = 7 * 24 * 60 * 60 * 1000;
 
 function cacheDb() {
   const dbUrl = serverEnv("GEM_STATE_SUPABASE_URL") || serverEnv("SUPABASE_URL");
@@ -43,7 +43,14 @@ async function cachedCall<T>(
     });
     if (error || !reservation) return { ok: false, status: "unavailable" };
     if (reservation.cached) return { ok: true, value: reservation.payload as T };
-    if (!reservation.allowed) return { ok: false, status: "limited" };
+    if (!reservation.allowed) {
+      const { data: stale } = await db
+        .from("mashvisor_search_cache")
+        .select("payload")
+        .eq("query_key", key)
+        .maybeSingle();
+      return stale ? { ok: true, value: stale.payload as T } : { ok: false, status: "limited" };
+    }
     const response = await fetch(`https://api.mashvisor.com/v1.1/client/${path}`, {
       headers: { Accept: "application/json", "x-api-key": apiKey },
       signal: AbortSignal.timeout(12000),
@@ -71,19 +78,6 @@ export async function searchHomesForSale(state: string, city: string): Promise<M
     normalizeMashvisorResult,
   );
   return result.ok ? result.value : { status: result.status, homes: [] };
-}
-
-export async function homeExtras(
-  state: string,
-  id: string,
-): Promise<MashvisorPropertyExtra | null> {
-  const key = JSON.stringify({ v: 1, kind: "property", state, id });
-  const result = await cachedCall(
-    key,
-    `property?state=${encodeURIComponent(state)}&id=${encodeURIComponent(id)}`,
-    normalizeMashvisorProperty,
-  );
-  return result.ok ? result.value : null;
 }
 
 /** A home from any recent cached city search (for its listing page). */
