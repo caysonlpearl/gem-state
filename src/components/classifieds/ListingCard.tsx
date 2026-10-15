@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { MapPin } from "@phosphor-icons/react";
 import { listingParam } from "@/lib/listing-url";
@@ -56,6 +56,12 @@ export function PartnerJobsCredit({ listings }: { listings: readonly ClassifiedC
       >
         Adzuna
       </a>
+      {listings.some((listing) => listing.externalJob?.logoUrl) ? (
+        <>
+          <br />
+          <LogoDevCredit />
+        </>
+      ) : null}
     </p>
   );
 }
@@ -78,10 +84,48 @@ function initialsOf(name: string) {
 }
 
 /**
- * An employer's logo when there's one, otherwise their initials on a soft
- * colored tile (partner feeds like Adzuna don't include logos). Used in the
- * apply box on partner job pages.
+ * An employer's logo when there's one (logo.dev, for partner jobs), otherwise
+ * their initials on a soft colored tile. Used in the apply box on partner
+ * job pages.
  */
+/** logo.dev's free plan asks for this link wherever its logos show. */
+export function LogoDevCredit() {
+  return (
+    <a
+      href="https://logo.dev"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-[10px] text-muted-foreground hover:underline"
+    >
+      Logos provided by Logo.dev
+    </a>
+  );
+}
+
+/**
+ * A logo that reports when it can't load (logo.dev answers 404 when it has
+ * none). Also catches a failure that happened before hydration, which
+ * React's onError never sees.
+ */
+function LogoImage({
+  src,
+  className,
+  onMissing,
+}: {
+  src: string;
+  className: string;
+  onMissing: () => void;
+}) {
+  const ref = useRef<HTMLImageElement>(null);
+  useEffect(() => {
+    const img = ref.current;
+    if (img?.complete && img.naturalWidth === 0) onMissing();
+  }, [onMissing]);
+  return (
+    <img ref={ref} src={src} alt="" loading="lazy" onError={onMissing} className={className} />
+  );
+}
+
 export function EmployerTile({
   name,
   imageUrl,
@@ -91,12 +135,17 @@ export function EmployerTile({
   imageUrl?: string | null;
   size?: "md" | "lg";
 }) {
+  const [missing, setMissing] = useState(false);
   const box =
     size === "lg" ? "h-16 w-16 rounded-2xl text-[20px]" : "h-12 w-12 rounded-xl text-[15px]";
-  if (imageUrl) {
+  if (imageUrl && !missing) {
     return (
-      <span className={`${box} shrink-0 overflow-hidden border border-border bg-card`}>
-        <img src={imageUrl} alt="" loading="lazy" className="h-full w-full object-contain" />
+      <span className={`${box} shrink-0 overflow-hidden border border-border bg-white p-1.5`}>
+        <LogoImage
+          src={imageUrl}
+          onMissing={() => setMissing(true)}
+          className="h-full w-full object-contain"
+        />
       </span>
     );
   }
@@ -116,6 +165,37 @@ function FeaturedBadge() {
   return (
     <span className="inline-flex rounded-full bg-accent px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-accent-foreground shadow-sm">
       Featured
+    </span>
+  );
+}
+
+/**
+ * The center of a photo-less card or listing gallery: the employer's logo
+ * for a partner job when there is one, else the category art.
+ */
+export function PlaceholderMark({ listing, large }: { listing: ClassifiedCard; large?: boolean }) {
+  const [missing, setMissing] = useState(false);
+  const logoUrl = listing.externalJob?.logoUrl;
+  if (logoUrl && !missing) {
+    return (
+      <span
+        className={`relative grid place-items-center overflow-hidden bg-white shadow-sm ${large ? "h-28 w-28 rounded-3xl p-4" : "h-20 w-20 rounded-2xl p-2.5"}`}
+      >
+        <LogoImage
+          src={logoUrl}
+          onMissing={() => setMissing(true)}
+          className="h-full w-full object-contain"
+        />
+      </span>
+    );
+  }
+  return large ? (
+    <span className="grid h-20 w-20 place-items-center rounded-3xl bg-card text-primary">
+      <CategoryArtwork slug={listing.categorySlug ?? "general"} size={110} />
+    </span>
+  ) : (
+    <span className="relative grid h-14 w-14 place-items-center rounded-2xl bg-card/75 text-primary shadow-sm backdrop-blur">
+      <CategoryArtwork slug={listing.categorySlug ?? "general"} size={84} />
     </span>
   );
 }
@@ -142,9 +222,7 @@ function Photo({
             <FeaturedBadge />
           </span>
         ) : null}
-        <span className="relative grid h-14 w-14 place-items-center rounded-2xl bg-card/75 text-primary shadow-sm backdrop-blur">
-          <CategoryArtwork slug={listing.categorySlug ?? "general"} size={84} />
-        </span>
+        <PlaceholderMark listing={listing} />
       </div>
     );
   }

@@ -43,7 +43,12 @@ import { OPEN_CONTACT_EVENT } from "@/components/classifieds/ContactSignInSheet"
 import { listingIdFromParam, listingParam, listingPath } from "@/lib/listing-url";
 import { trackEvent, trackSellerContact } from "@/lib/analytics";
 import { PUBLIC_PAGE_STALE_MS } from "@/lib/query-freshness";
-import { EmployerTile, ListingCard } from "@/components/classifieds/ListingCard";
+import {
+  EmployerTile,
+  ListingCard,
+  LogoDevCredit,
+  PlaceholderMark,
+} from "@/components/classifieds/ListingCard";
 import { PartnerJobHeartButton } from "@/components/community/PartnerJobHeartButton";
 import { WatchHeartButton } from "@/components/community/WatchHeartButton";
 import {
@@ -75,7 +80,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { useAuth } from "@/hooks/useAuth";
 import { reportClassifiedListing } from "@/lib/classifieds.functions";
 
@@ -310,9 +314,7 @@ function Gallery({ listing }: { listing: ClassifiedDetail }) {
   if (images.length === 0) {
     return (
       <div className="flex min-h-[360px] flex-col items-center justify-center rounded-[28px] border border-border/70 bg-secondary/55 text-[12px] text-muted-foreground sm:min-h-[520px]">
-        <span className="grid h-20 w-20 place-items-center rounded-3xl bg-card text-primary">
-          <CategoryArtwork slug={listing.categorySlug ?? "general"} size={110} />
-        </span>
+        <PlaceholderMark listing={listing} large />
         <span className="mt-4">
           {listing.externalJob
             ? "This job posting has no photos."
@@ -2311,7 +2313,10 @@ function ExternalJobApplyCard({
   return (
     <section className="soft-card p-5">
       <div className="flex items-center gap-3">
-        <EmployerTile name={employerName || listing.title} />
+        <EmployerTile
+          name={employerName || listing.title}
+          imageUrl={listing.externalJob?.logoUrl}
+        />
         <div className="min-w-0">
           <p className="text-[11.5px] text-muted-foreground">Employer</p>
           <p className="truncate text-[15px] font-semibold">{employerName}</p>
@@ -2339,6 +2344,11 @@ function ExternalJobApplyCard({
           Adzuna
         </a>
       </p>
+      {listing.externalJob?.logoUrl ? (
+        <p className="mt-1">
+          <LogoDevCredit />
+        </p>
+      ) : null}
     </section>
   );
 }

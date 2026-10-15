@@ -91,7 +91,7 @@ export async function adzunaCards(data: ClassifiedBrowseInput): Promise<Classifi
   const ageHours = data.postedWithin
     ? { hour: 1, day: 24, week: 168, month: 720 }[data.postedWithin]
     : undefined;
-  return result.jobs
+  const cards = result.jobs
     .filter(
       (job) =>
         (!state || job.state === state[0]) &&
@@ -112,6 +112,8 @@ export async function adzunaCards(data: ClassifiedBrowseInput): Promise<Classifi
         (!ageHours || Date.parse(job.createdAt) >= Date.now() - ageHours * 3600000),
     )
     .map(adzunaCard);
+  const { withEmployerLogos } = await import("./employer-logos.server");
+  return withEmployerLogos(cards);
 }
 
 /** An Adzuna job as a Bluebird listing card (id "adzuna-<adzuna id>"). */
@@ -179,8 +181,10 @@ export async function adzunaDetail(listingId: string): Promise<ClassifiedDetail 
     salaryMax: found.salaryMax ?? null,
     salaryIsEstimate: Boolean(found.salaryIsEstimate),
   };
+  const { withEmployerLogos } = await import("./employer-logos.server");
+  const [card] = await withEmployerLogos([adzunaCard(job)]);
   return {
-    ...adzunaCard(job),
+    ...card!,
     description: job.description,
     postalCode: null,
     expiresAt: null,
