@@ -42,7 +42,7 @@ export function SellerListingGrid({
   return (
     <>
       <div className="grid grid-cols-2 gap-x-3 gap-y-7 sm:grid-cols-3 xl:grid-cols-4">
-        {listings.map((listing) => (
+        {listings.map((listing, index) => (
           <article key={listing.id} className="group min-w-0">
             <button
               type="button"
@@ -53,7 +53,11 @@ export function SellerListingGrid({
               <span className="relative block aspect-square overflow-hidden bg-secondary/50">
                 {listing.imageUrls[0] ? (
                   <img
-                    src={listing.imageUrls[0]}
+                    src={listing.thumbnailUrl ?? listing.imageUrls[0]}
+                    width={640}
+                    height={640}
+                    loading={index < 2 ? "eager" : "lazy"}
+                    fetchPriority={index === 0 ? "high" : undefined}
                     alt={listing.productName ?? "Seller listing"}
                     className="h-full w-full object-contain p-3 transition-transform duration-200 group-hover:scale-[1.025]"
                   />

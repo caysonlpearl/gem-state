@@ -65,6 +65,7 @@ export type PublicListing = {
   payoutVerified: boolean;
   sellerRating: number | null;
   imageUrls: string[];
+  thumbnailUrl?: string;
   createdAt: string;
   shipFromCity: string;
   shipFromRegion: string;
@@ -909,6 +910,11 @@ export const getPublicSeller = createServerFn({ method: "GET" })
           .in("id", reviewerIds)
       : { data: [] as any[] };
     const reviewerById = new Map<string, any>((reviewerProfiles ?? []).map((p: any) => [p.id, p]));
+    const { signListingThumbnails } = await import("./classifieds.functions");
+    const coverPaths = (askRows ?? []).map((row: any) =>
+      [...(row.listing_media ?? [])].sort((a: any, b: any) => a.position - b.position)[0]?.storage_path,
+    ).filter((path: unknown): path is string => typeof path === "string");
+    const thumbnails = await signListingThumbnails(coverPaths);
     const listings: PublicListing[] = await Promise.all(
       (askRows ?? []).map(async (row: any) => ({
         id: row.id,
@@ -925,6 +931,9 @@ export const getPublicSeller = createServerFn({ method: "GET" })
         sellerDisplayName: seller.display_name ?? seller.slug,
         payoutVerified: !isManaged && seller.payout_verified === true,
         sellerRating: ratingAverage,
+        thumbnailUrl: thumbnails.get(
+          [...(row.listing_media ?? [])].sort((a: any, b: any) => a.position - b.position)[0]?.storage_path,
+        ),
         imageUrls: await signedListingUrls(
           [...(row.listing_media ?? [])]
             .sort((a: any, b: any) => a.position - b.position)

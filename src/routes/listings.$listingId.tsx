@@ -1,5 +1,5 @@
 import { createFileRoute, Link, notFound, redirect } from "@tanstack/react-router";
-import { queryOptions, useMutation, useSuspenseQuery } from "@tanstack/react-query";
+import { queryOptions, useMutation, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -310,13 +310,15 @@ function Gallery({ listing }: { listing: ClassifiedDetail }) {
     <Dialog>
       <div className="overflow-hidden rounded-[28px] border border-border/70 bg-foreground">
         <div
-          className="group relative flex min-h-[360px] items-center justify-center overflow-hidden sm:min-h-[560px]"
+          className="group relative flex h-[360px] items-center justify-center overflow-hidden sm:h-[560px]"
           data-reference-layout="row-span-2"
         >
           <img
             src={images[activeImage]?.url}
             alt={images[activeImage]?.alt ?? ""}
-            className="max-h-[560px] w-full object-contain"
+            width={1120}
+            height={1120}
+            className="h-full w-full object-contain"
             fetchPriority="high"
           />
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/55 to-transparent" />
@@ -948,7 +950,8 @@ function ListingDetail() {
       { isDemo: listing.isMock === true },
     );
   }, [listing?.id]);
-  const relatedQuery = useSuspenseQuery(
+  // Related suggestions must not suspend the primary listing during hydration.
+  const relatedQuery = useQuery(
     queryOptions({
       staleTime: PUBLIC_PAGE_STALE_MS,
       queryKey: [
@@ -977,8 +980,8 @@ function ListingDetail() {
       {listing ? (
         <RelatedRails
           listing={listing}
-          fromSeller={relatedQuery.data.fromSeller}
-          similar={relatedQuery.data.similar}
+          fromSeller={relatedQuery.data?.fromSeller ?? []}
+          similar={relatedQuery.data?.similar ?? []}
         />
       ) : null}
       {listing ? <MobileContactBar listing={listing} /> : null}

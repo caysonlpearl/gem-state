@@ -942,7 +942,7 @@ const thumbnailLinks = new Map<string, { url: string; reuseUntil: number }>();
  * signed with its size, so they're signed one by one, in parallel. Any photo
  * that can't be signed this way falls back to the full-size link.
  */
-async function signListingThumbnails(paths: string[]): Promise<Map<string, string>> {
+export async function signListingThumbnails(paths: string[]): Promise<Map<string, string>> {
   const unique = [...new Set(paths)];
   if (unique.length === 0) return new Map();
   const now = Date.now();

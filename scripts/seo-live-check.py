@@ -53,6 +53,16 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
         return None
 
 
+def safe_url(url):
+    # Photo redirects may contain short-lived signed storage capabilities.
+    parts = urllib.parse.urlsplit(url)
+    query = urllib.parse.parse_qsl(parts.query, keep_blank_values=True)
+    return urllib.parse.urlunsplit(parts._replace(query=urllib.parse.urlencode([
+        (key, "[redacted]" if key.lower() in {"token", "access_token", "signature"} else value)
+        for key, value in query
+    ])))
+
+
 def fetch(url, follow=True):
     start = time.monotonic()
     opener = urllib.request.build_opener() if follow else urllib.request.build_opener(NoRedirect)
@@ -64,7 +74,7 @@ def fetch(url, follow=True):
         return {"url": url, "error": str(error)}
     with response:
         body = response.read().decode("utf-8", errors="replace")
-        result = {"url": url, "status": response.code, "destination": response.url, "location": response.headers.get("location"), "robots_header": response.headers.get("x-robots-tag"), "milliseconds": round((time.monotonic() - start) * 1000), "body": body}
+        result = {"url": url, "status": response.code, "destination": safe_url(response.url), "location": response.headers.get("location"), "robots_header": response.headers.get("x-robots-tag"), "milliseconds": round((time.monotonic() - start) * 1000), "body": body}
     return result
 
 
