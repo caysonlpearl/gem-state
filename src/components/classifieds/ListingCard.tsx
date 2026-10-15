@@ -66,6 +66,24 @@ export function PartnerJobsCredit({ listings }: { listings: readonly ClassifiedC
   );
 }
 
+/** "Listing data from Mashvisor" once under a group that includes feed homes. */
+export function PartnerHomesCredit({ listings }: { listings: readonly ClassifiedCard[] }) {
+  if (!listings.some((listing) => listing.externalHome)) return null;
+  return (
+    <p className="mt-3 text-right text-[11px] text-muted-foreground">
+      Some home listing data from{" "}
+      <a
+        href="https://www.mashvisor.com"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="font-semibold text-primary"
+      >
+        Mashvisor
+      </a>
+    </p>
+  );
+}
+
 const TILE_COLORS = [
   "bg-primary/10 text-primary",
   "bg-accent/30 text-accent-foreground",

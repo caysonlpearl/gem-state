@@ -158,6 +158,10 @@ export const Route = createFileRoute("/listings/$listingId")({
   loader: async ({ context, params }) => {
     const listingId = listingIdFromParam(params.listingId);
     const listing = await context.queryClient.ensureQueryData(listingQuery(listingId));
+    if (!listing && listingId.startsWith("mashvisor-")) {
+      // Feed homes come and go with the weekly refresh.
+      throw redirect({ href: "/browse?category=other-real-estate", statusCode: 302 });
+    }
     if (!listing && listingId.startsWith("adzuna-")) {
       // Partner job postings come and go; an old link goes to today's jobs.
       throw redirect({ href: "/browse?category=jobs", statusCode: 302 });
@@ -2006,14 +2010,20 @@ function HomeListingDetail({
         </div>
 
         <aside className="min-w-0 space-y-5 lg:sticky lg:top-24 lg:col-start-2 lg:row-start-2 lg:row-span-2">
-          <SellerCard listing={listing} />
-          <ListingActions
-            listing={listing}
-            showPaymentCalculator={!details.isRental}
-            calculatorVariant="mortgage"
-            showPriceHeader={false}
-          />
-          <PageStatsCard listing={listing} />
+          {listing.externalHome ? (
+            <MashvisorHomeCard listing={listing} />
+          ) : (
+            <>
+              <SellerCard listing={listing} />
+              <ListingActions
+                listing={listing}
+                showPaymentCalculator={!details.isRental}
+                calculatorVariant="mortgage"
+                showPriceHeader={false}
+              />
+              <PageStatsCard listing={listing} />
+            </>
+          )}
         </aside>
       </div>
 
@@ -3058,6 +3068,36 @@ function PetDetails({ pet }: { pet: NonNullable<ClassifiedDetail["pet"]> }) {
       <p className="mt-4 border-t border-border/70 pt-4 text-[12px] leading-5 text-muted-foreground">
         Meet in person, verify records, and avoid deposits, wire transfers, or gift cards before you
         have confirmed the pet and seller.
+      </p>
+    </section>
+  );
+}
+
+/**
+ * In the seller card's place for a Mashvisor feed home: where the listing
+ * comes from and how to reach the agent, with no Bluebird buy/offer/message.
+ */
+function MashvisorHomeCard({ listing }: { listing: ClassifiedDetail }) {
+  const search = `${listing.title}, ${listing.city}, ${listing.state} ${listing.postalCode ?? ""}`.trim();
+  return (
+    <section className="rounded-[24px] border border-border/70 bg-card p-5">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        Listing data from Mashvisor
+      </p>
+      <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
+        This home is listed for sale through the MLS, not by a Bluebird seller. Contact the
+        listing agent to ask questions or schedule a showing.
+      </p>
+      <a
+        href={`https://www.google.com/search?q=${encodeURIComponent(search)}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-full bg-primary text-[14px] font-semibold text-primary-foreground transition hover:bg-primary/90"
+      >
+        Find the original listing
+      </a>
+      <p className="mt-3 text-[11px] text-muted-foreground">
+        Details may be out of date. Price and availability are confirmed by the listing agent.
       </p>
     </section>
   );

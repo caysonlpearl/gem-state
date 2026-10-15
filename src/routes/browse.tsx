@@ -43,6 +43,7 @@ import {
   ListingRow,
   LogoDevCredit,
   PartnerJobsCredit,
+  PartnerHomesCredit,
 } from "@/components/classifieds/ListingCard";
 import {
   LocationRadiusPicker,
@@ -4625,6 +4626,7 @@ function JobsFilterPage({
                 ))}
               </div>
               <PartnerJobsCredit listings={sortedListings} />
+              <PartnerHomesCredit listings={sortedListings} />
             </>
           )}
         </section>
