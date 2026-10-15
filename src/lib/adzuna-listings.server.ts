@@ -1,4 +1,5 @@
 import type { AdzunaJob } from "./adzuna-contract";
+import { employerKey } from "./employer-logo-match.ts";
 import type {
   ClassifiedBrowseInput,
   ClassifiedCard,
@@ -112,6 +113,7 @@ export async function adzunaCards(data: ClassifiedBrowseInput): Promise<Classifi
         (!ageHours || Date.parse(job.createdAt) >= Date.now() - ageHours * 3600000),
     )
     .map(adzunaCard);
+  await notePartnerEmployers(cards.map((card) => card.job?.employerName ?? ""));
   const removed = await removedPartnerJobIds(cards.map((card) => card.id));
   const { withEmployerLogos } = await import("./employer-logos.server");
   return withEmployerLogos(cards.filter((card) => !removed.has(card.id)));
@@ -196,7 +198,11 @@ export async function adzunaDetail(listingId: string): Promise<ClassifiedDetail 
       }),
     );
   const { withEmployerLogos } = await import("./employer-logos.server");
-  const [card, ...employerListings] = await withEmployerLogos([adzunaCard(job), ...sameEmployer]);
+  const [[card, ...employerListings], employerSince] = await Promise.all([
+    withEmployerLogos([adzunaCard(job), ...sameEmployer]),
+    partnerEmployerSince(job.company),
+  ]);
+  if (card?.externalJob && employerSince) card.externalJob.employerSince = employerSince;
   return {
     ...card!,
     listingNumber: job.id,
@@ -229,4 +235,36 @@ export async function removedPartnerJobIds(listingIds: string[]): Promise<Set<st
 
 async function isPartnerJobRemoved(listingId: string) {
   return (await removedPartnerJobIds([listingId])).has(listingId);
+}
+
+/** Remembers when Bluebird first listed a job from each partner employer. */
+async function notePartnerEmployers(names: string[]) {
+  const keys = [...new Set(names.map(employerKey).filter((key) => key.length >= 3))];
+  if (!keys.length) return;
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await (supabaseAdmin as any).from("partner_employers").upsert(
+      keys.map((name_key) => ({ name_key })),
+      { onConflict: "name_key", ignoreDuplicates: true },
+    );
+  } catch {
+    // Only feeds "On Bluebird since"; never block a search over it.
+  }
+}
+
+async function partnerEmployerSince(name: string): Promise<string | null> {
+  const key = employerKey(name);
+  if (key.length < 3) return null;
+  await notePartnerEmployers([name]);
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await (supabaseAdmin as any)
+      .from("partner_employers")
+      .select("first_seen_at")
+      .eq("name_key", key)
+      .maybeSingle();
+    return data?.first_seen_at ?? null;
+  } catch {
+    return null;
+  }
 }

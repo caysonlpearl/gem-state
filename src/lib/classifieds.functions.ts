@@ -64,7 +64,7 @@ export type ClassifiedPet = ClassifiedPetDetails;
 export type ClassifiedCard = {
   id: string;
   title: string;
-  externalJob?: { source: "Adzuna"; url: string; logoUrl?: string };
+  externalJob?: { source: "Adzuna"; url: string; logoUrl?: string; employerSince?: string };
   productId: string;
   productSlug: string;
   priceCents: number;

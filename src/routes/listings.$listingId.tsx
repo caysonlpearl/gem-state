@@ -43,6 +43,7 @@ import { OPEN_CONTACT_EVENT } from "@/components/classifieds/ContactSignInSheet"
 import { listingIdFromParam, listingParam, listingPath } from "@/lib/listing-url";
 import { trackEvent, trackSellerContact } from "@/lib/analytics";
 import { PUBLIC_PAGE_STALE_MS } from "@/lib/query-freshness";
+import { recordListingView } from "@/lib/listing-stats.functions";
 import {
   EmployerTile,
   ListingCard,
@@ -676,13 +677,20 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
 }
 
 function ProfileStrength({ seller }: { seller: NonNullable<ClassifiedDetail["seller"]> }) {
-  const checks = [
-    Boolean(seller.avatarUrl),
-    Boolean(seller.bio),
-    seller.payoutVerified,
-    seller.reviewCount > 0,
-    Boolean(seller.memberSince && new Date().getFullYear() - seller.memberSince >= 1),
-  ];
+  return (
+    <StrengthMeter
+      checks={[
+        Boolean(seller.avatarUrl),
+        Boolean(seller.bio),
+        seller.payoutVerified,
+        seller.reviewCount > 0,
+        Boolean(seller.memberSince && new Date().getFullYear() - seller.memberSince >= 1),
+      ]}
+    />
+  );
+}
+
+function StrengthMeter({ checks }: { checks: boolean[] }) {
   const score = checks.filter(Boolean).length;
   const label = score >= 4 ? "Strong" : score >= 2 ? "Good" : "New";
   return (
@@ -744,7 +752,46 @@ function VehicleHistoryCard({ vehicle }: { vehicle: ClassifiedDetail["vehicle"] 
   );
 }
 
+const STATS_LISTING_ID =
+  /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|adzuna-\d{1,20})$/;
+
+/** Records this page view and returns views and saves; one request per page. */
+function useListingStats(listing: ClassifiedDetail) {
+  const record = useServerFn(recordListingView);
+  return useQuery({
+    queryKey: ["listing-stats", listing.id],
+    queryFn: () => record({ data: { listingId: listing.id } }),
+    enabled: !listing.isMock && STATS_LISTING_ID.test(listing.id),
+    staleTime: 60_000,
+  });
+}
+
+/** Views and saves beside the header buttons, like KSL's "44 👁 2 ♡". */
+function ListingStatsInline({ listing }: { listing: ClassifiedDetail }) {
+  const stats = useListingStats(listing).data;
+  if (!stats) return null;
+  return (
+    <div className="mr-1 flex items-center gap-3 text-[12.5px] font-medium text-muted-foreground">
+      <span
+        className="inline-flex items-center gap-1"
+        title={`${stats.views} page view${stats.views === 1 ? "" : "s"}`}
+      >
+        <span className="numeric">{stats.views}</span> <Eye size={16} aria-hidden="true" />
+        <span className="sr-only">views</span>
+      </span>
+      <span
+        className="inline-flex items-center gap-1"
+        title={`Saved by ${stats.favorites} member${stats.favorites === 1 ? "" : "s"}`}
+      >
+        <span className="numeric">{stats.favorites}</span> <Heart size={16} aria-hidden="true" />
+        <span className="sr-only">saves</span>
+      </span>
+    </div>
+  );
+}
+
 function PageStatsCard({ listing }: { listing: ClassifiedDetail }) {
+  const stats = useListingStats(listing).data;
   const formatDate = (value: string) =>
     new Date(value).toLocaleDateString("en-US", {
       month: "short",
@@ -788,11 +835,11 @@ function PageStatsCard({ listing }: { listing: ClassifiedDetail }) {
         )}
         <div className="flex items-center justify-between gap-4 py-2">
           <dt className="text-muted-foreground">Page views</dt>
-          <dd className="text-right font-medium text-muted-foreground">Not tracked yet</dd>
+          <dd className="numeric text-right font-medium">{stats ? stats.views : "—"}</dd>
         </div>
         <div className="flex items-center justify-between gap-4 py-2">
           <dt className="text-muted-foreground">Favorited</dt>
-          <dd className="text-right font-medium text-muted-foreground">Not tracked yet</dd>
+          <dd className="numeric text-right font-medium">{stats ? stats.favorites : "—"}</dd>
         </div>
         <div className="flex items-center justify-between gap-4 py-2 last:pb-0">
           <dt className="text-muted-foreground">Status</dt>
@@ -1335,6 +1382,7 @@ function ListingDetailContent() {
                 )}
             </div>
             <div className="flex items-center gap-2">
+              <ListingStatsInline listing={listing} />
               <WatchHeartButton
                 productId={listing.productId}
                 productSlug={listing.productSlug}
@@ -1906,6 +1954,7 @@ function HomeListingDetail({
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <ListingStatsInline listing={listing} />
               <WatchHeartButton
                 productId={listing.productId}
                 productSlug={listing.productSlug}
@@ -2099,6 +2148,7 @@ function JobListingDetail({
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <ListingStatsInline listing={listing} />
               {listing.externalJob ? (
                 <PartnerJobHeartButton
                   listingId={listing.id}
@@ -2355,6 +2405,8 @@ function PartnerEmployerCard({
   employerName: string;
 }) {
   const name = employerName || listing.title;
+  const since = listing.externalJob?.employerSince;
+  const sinceYear = since ? new Date(since).getFullYear() : null;
   return (
     <section className="soft-card p-5 sm:p-6">
       <div className="flex items-start gap-3">
@@ -2379,12 +2431,32 @@ function PartnerEmployerCard({
                 year: "numeric",
               })}
             </p>
+            {sinceYear ? (
+              <p>
+                <span className="font-semibold">On Bluebird since:</span> {sinceYear}
+                {new Date().getFullYear() - sinceYear > 0 && (
+                  <span className="ml-1 rounded-full bg-brand-warm/20 px-1.5 py-0.5 text-[10px] font-bold text-brand-warm">
+                    {new Date().getFullYear() - sinceYear} yrs
+                  </span>
+                )}
+              </p>
+            ) : null}
             <p>
               <span className="font-semibold">Source:</span> Adzuna job feed
             </p>
           </div>
         </div>
       </div>
+      {/* How complete this employer's posting is: what Adzuna gave us. */}
+      <StrengthMeter
+        checks={[
+          Boolean(listing.externalJob?.logoUrl),
+          Boolean(listing.job?.payMin),
+          Boolean(listing.job?.employmentType && listing.job.employmentType !== "Not specified"),
+          Boolean(listing.job?.category),
+          Boolean(listing.employerListings?.length),
+        ]}
+      />
       <div className="mt-4 border-t border-border/70 pt-4">
         <p className="text-[13px] font-semibold">{name}</p>
         <p className="mt-1 flex items-start gap-1.5 text-[12px] text-primary">
@@ -2511,6 +2583,7 @@ function ServiceListingDetail({
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <ListingStatsInline listing={listing} />
               {listing.isMock ? (
                 <button
                   type="button"
@@ -2776,6 +2849,7 @@ function GeneralListingDetail({
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <ListingStatsInline listing={listing} />
               {listing.isMock ? (
                 <button
                   type="button"

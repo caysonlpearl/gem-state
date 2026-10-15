@@ -43,6 +43,7 @@ export function PartnerJobHeartButton({
       });
       await queryClient.invalidateQueries({ queryKey: ["partner-job-saved", listingId] });
       await queryClient.invalidateQueries({ queryKey: ["my-saved-partner-jobs"] });
+      await queryClient.invalidateQueries({ queryKey: ["listing-stats"] });
       toast.success(result.saved ? `Saved ${title}.` : `Removed ${title} from your saved jobs.`);
     },
     onError: (error) =>

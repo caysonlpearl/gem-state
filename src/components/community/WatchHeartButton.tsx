@@ -48,6 +48,7 @@ export function WatchHeartButton({
       await queryClient.invalidateQueries({ queryKey: ["product-watch-state", productId] });
       await queryClient.invalidateQueries({ queryKey: ["watch-state", result.variantId] });
       await queryClient.invalidateQueries({ queryKey: ["my-watchlist"] });
+      await queryClient.invalidateQueries({ queryKey: ["listing-stats"] });
       await queryClient.invalidateQueries({ queryKey: ["watcher-count", result.variantId] });
       toast.success(
         result.watching
