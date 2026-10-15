@@ -161,6 +161,42 @@ export type Database = {
         }
         Relationships: []
       }
+      adzuna_api_requests: {
+        Row: {
+          created_at: string
+          id: number
+          query_key: string
+        }
+        Insert: {
+          created_at?: string
+          id?: never
+          query_key: string
+        }
+        Update: {
+          created_at?: string
+          id?: never
+          query_key?: string
+        }
+        Relationships: []
+      }
+      adzuna_search_cache: {
+        Row: {
+          expires_at: string
+          payload: Json
+          query_key: string
+        }
+        Insert: {
+          expires_at: string
+          payload: Json
+          query_key: string
+        }
+        Update: {
+          expires_at?: string
+          payload?: Json
+          query_key?: string
+        }
+        Relationships: []
+      }
       analytics_events: {
         Row: {
           id: string
@@ -1901,6 +1937,24 @@ export type Database = {
         }
         Relationships: []
       }
+      employer_logo_matches: {
+        Row: {
+          checked_at: string
+          domain: string | null
+          name_key: string
+        }
+        Insert: {
+          checked_at?: string
+          domain?: string | null
+          name_key: string
+        }
+        Update: {
+          checked_at?: string
+          domain?: string | null
+          name_key?: string
+        }
+        Relationships: []
+      }
       fb_marketplace_import_batches: {
         Row: {
           created_at: string
@@ -2425,6 +2479,27 @@ export type Database = {
           },
         ]
       }
+      listing_thumbnail_links: {
+        Row: {
+          path: string
+          reuse_until: string
+          updated_at: string
+          url: string
+        }
+        Insert: {
+          path: string
+          reuse_until: string
+          updated_at?: string
+          url: string
+        }
+        Update: {
+          path?: string
+          reuse_until?: string
+          updated_at?: string
+          url?: string
+        }
+        Relationships: []
+      }
       listing_upgrade_catalog: {
         Row: {
           active: boolean
@@ -2534,6 +2609,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      listing_view_counts: {
+        Row: {
+          listing_id: string
+          updated_at: string
+          views: number
+        }
+        Insert: {
+          listing_id: string
+          updated_at?: string
+          views?: number
+        }
+        Update: {
+          listing_id?: string
+          updated_at?: string
+          views?: number
+        }
+        Relationships: []
+      }
+      listing_view_visitors: {
+        Row: {
+          listing_id: string
+          seen_on: string
+          visitor_hash: string
+        }
+        Insert: {
+          listing_id: string
+          seen_on?: string
+          visitor_hash: string
+        }
+        Update: {
+          listing_id?: string
+          seen_on?: string
+          visitor_hash?: string
+        }
+        Relationships: []
       }
       locations: {
         Row: {
@@ -2766,6 +2877,24 @@ export type Database = {
             referencedColumns: ["variant_id"]
           },
         ]
+      }
+      market_report_snapshots: {
+        Row: {
+          month: string
+          report: Json
+          updated_at: string
+        }
+        Insert: {
+          month: string
+          report: Json
+          updated_at?: string
+        }
+        Update: {
+          month?: string
+          report?: Json
+          updated_at?: string
+        }
+        Relationships: []
       }
       market_settings: {
         Row: {
@@ -3498,6 +3627,57 @@ export type Database = {
           },
         ]
       }
+      partner_employers: {
+        Row: {
+          first_seen_at: string
+          name_key: string
+        }
+        Insert: {
+          first_seen_at?: string
+          name_key: string
+        }
+        Update: {
+          first_seen_at?: string
+          name_key?: string
+        }
+        Relationships: []
+      }
+      partner_job_reports: {
+        Row: {
+          created_at: string
+          details: string | null
+          id: string
+          listing_id: string
+          reason: string
+          reporter_id: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          details?: string | null
+          id?: string
+          listing_id: string
+          reason: string
+          reporter_id: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          details?: string | null
+          id?: string
+          listing_id?: string
+          reason?: string
+          reporter_id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       platform_notices: {
         Row: {
           body: string
@@ -4224,6 +4404,27 @@ export type Database = {
           position?: number
           slug?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      saved_partner_jobs: {
+        Row: {
+          created_at: string
+          listing_id: string
+          snapshot: Json
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          listing_id: string
+          snapshot: Json
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          listing_id?: string
+          snapshot?: Json
+          user_id?: string
         }
         Relationships: []
       }
@@ -6834,6 +7035,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      record_listing_view: {
+        Args: { _listing_id: string; _visitor_hash: string }
+        Returns: number
+      }
       record_provider_shipment: {
         Args: {
           _carrier: string
@@ -6950,6 +7155,7 @@ export type Database = {
       request_exact_ask: { Args: { _ask_id: string }; Returns: string }
       request_sourcing_ask: { Args: { _ask_id: string }; Returns: string }
       reservation_window: { Args: never; Returns: string }
+      reserve_adzuna_search: { Args: { p_query_key: string }; Returns: Json }
       reserve_authorized_offer_for_capture: {
         Args: { _offer_id: string; _seller_id: string }
         Returns: Json
