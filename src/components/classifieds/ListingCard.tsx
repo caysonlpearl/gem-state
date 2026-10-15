@@ -200,6 +200,48 @@ export function PlaceholderMark({ listing, large }: { listing: ClassifiedCard; l
   );
 }
 
+/** A photo-less listing: category art on a soft gradient. */
+function PlaceholderPhoto({ listing, ratio }: { listing: ClassifiedCard; ratio: string }) {
+  return (
+    <div
+      className={`relative flex ${ratio} items-center justify-center overflow-hidden bg-gradient-to-br from-secondary via-card to-accent/25 text-muted-foreground`}
+    >
+      <span className="absolute -right-6 -top-8 h-28 w-28 rounded-full bg-primary/5" />
+      <span className="absolute -bottom-10 -left-5 h-28 w-28 rounded-full bg-brand-warm/10" />
+      {listing.isFeatured ? (
+        <span className="absolute left-2 top-2 z-10">
+          <FeaturedBadge />
+        </span>
+      ) : null}
+      <PlaceholderMark listing={listing} />
+    </div>
+  );
+}
+
+/** A partner job's employer logo filling the photo area, on white. */
+function LogoPhoto({
+  listing,
+  logoUrl,
+  ratio,
+}: {
+  listing: ClassifiedCard;
+  logoUrl: string;
+  ratio: string;
+}) {
+  const [missing, setMissing] = useState(false);
+  if (missing)
+    return <PlaceholderPhoto listing={{ ...listing, externalJob: undefined }} ratio={ratio} />;
+  return (
+    <div className={`relative ${ratio} overflow-hidden border-b border-border/60 bg-white p-3`}>
+      <LogoImage
+        src={logoUrl}
+        onMissing={() => setMissing(true)}
+        className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.03]"
+      />
+    </div>
+  );
+}
+
 function Photo({
   listing,
   tall,
@@ -210,21 +252,11 @@ function Photo({
   priority?: boolean;
 }) {
   const ratio = tall ? "aspect-[4/3]" : "aspect-[4/3]";
+  if (!listing.imageUrl && listing.externalJob?.logoUrl) {
+    return <LogoPhoto listing={listing} logoUrl={listing.externalJob.logoUrl} ratio={ratio} />;
+  }
   if (!listing.imageUrl) {
-    return (
-      <div
-        className={`relative flex ${ratio} items-center justify-center overflow-hidden bg-gradient-to-br from-secondary via-card to-accent/25 text-muted-foreground`}
-      >
-        <span className="absolute -right-6 -top-8 h-28 w-28 rounded-full bg-primary/5" />
-        <span className="absolute -bottom-10 -left-5 h-28 w-28 rounded-full bg-brand-warm/10" />
-        {listing.isFeatured ? (
-          <span className="absolute left-2 top-2 z-10">
-            <FeaturedBadge />
-          </span>
-        ) : null}
-        <PlaceholderMark listing={listing} />
-      </div>
-    );
+    return <PlaceholderPhoto listing={listing} ratio={ratio} />;
   }
   return (
     <div className={`relative ${ratio} overflow-hidden bg-secondary`}>

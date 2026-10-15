@@ -2186,6 +2186,7 @@ function Browse() {
             action="Browse all jobs"
             browseSearch={{ category: "jobs", jobMode: "results" }}
             listings={result.listings}
+            compact
           />
           <HomepageShowcaseRows
             eyebrow="Bluebird Marketplace Jobs"
@@ -3183,16 +3184,18 @@ function LandingListingsShowcase({
   action,
   browseSearch,
   listings,
+  compact,
 }: {
   eyebrow: string;
   title: string;
   action: string;
   browseSearch: Search;
   listings: ClassifiedBrowseResult["listings"];
+  compact?: boolean;
 }) {
   // This showcase is a single curated row. Keep it to the desktop row width
   // so a short second row can never appear beneath it.
-  const visibleListings = listings.slice(0, 4);
+  const visibleListings = listings.slice(0, compact ? 5 : 4);
 
   return (
     <section
@@ -3220,9 +3223,19 @@ function LandingListingsShowcase({
       </div>
 
       {visibleListings.length > 0 ? (
-        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {visibleListings.map((listing) => (
-            <li key={listing.id} className="min-w-0">
+        <ul
+          className={
+            compact
+              ? "grid grid-cols-2 gap-3 lg:grid-cols-5"
+              : "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+          }
+        >
+          {visibleListings.map((listing, index) => (
+            // Compact rows show four (2 × 2) below desktop, five across on it.
+            <li
+              key={listing.id}
+              className={`min-w-0 ${compact && index === 4 ? "hidden lg:block" : ""}`}
+            >
               <ListingCard listing={listing} />
             </li>
           ))}
@@ -3242,9 +3255,11 @@ function JobShowcaseCards({ row, search }: { row: HomepagePreviewRow; search: Se
   if (query.isPending) return <p className="py-8 text-sm text-muted-foreground">Loading jobs…</p>;
   if (!query.data?.listings.length) return <CategoryGettingStarted />;
   return (
-    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-      {query.data.listings.slice(0, 4).map((listing) => (
-        <ListingCard key={listing.id} listing={listing} />
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+      {query.data.listings.slice(0, 5).map((listing, index) => (
+        <div key={listing.id} className={index === 4 ? "hidden min-w-0 lg:block" : "min-w-0"}>
+          <ListingCard listing={listing} />
+        </div>
       ))}
     </div>
   );
@@ -4604,7 +4619,7 @@ function JobsFilterPage({
             </BluebirdEmptyState>
           ) : (
             <>
-              <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
                 {sortedListings.map((listing) => (
                   <ListingCard key={listing.id} listing={listing} />
                 ))}

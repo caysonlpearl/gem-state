@@ -60,7 +60,8 @@ export function pickLogoDomain(
 export function logoImageUrl(domain: string, publishableKey: string): string {
   const params = new URLSearchParams({
     token: publishableKey,
-    size: "128",
+    // Fills a card photo area on high-density screens.
+    size: "400",
     format: "webp",
     // A 404 lets the page fall back to the employer's initials.
     fallback: "404",
