@@ -65,6 +65,8 @@ export type ClassifiedCard = {
   id: string;
   title: string;
   externalJob?: { source: "Adzuna"; url: string; logoUrl?: string; employerSince?: string };
+  /** Homes from the Mashvisor feed: shown with attribution, never stored or sold here. */
+  externalHome?: { source: "Mashvisor" };
   productId: string;
   productSlug: string;
   priceCents: number;
@@ -1975,6 +1977,13 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
           (listing) => !data.region || regionOfListing(listing) === data.region,
         )
       : [];
+    const { canIncludeMashvisor, mashvisorCards } = await import("./mashvisor-listings.server");
+    const includeMashvisor = canIncludeMashvisor(data);
+    const externalHomes = includeMashvisor
+      ? (await mashvisorCards(data)).filter(
+          (listing) => !data.region || regionOfListing(listing) === data.region,
+        )
+      : [];
     const from = (page - 1) * PAGE_SIZE;
     // Pay units are deliberately normalized in `comparableJobPay` (hourly
     // annualized, salary/commission/contract kept in their stated units).
@@ -1985,7 +1994,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     const unitAwareJobSort =
       data.category === "jobs" && (data.sort === "price_low" || data.sort === "price_high");
     const resultRange =
-      includeAdzuna || unitAwareJobSort || data.radiusMiles != null || data.region
+      includeAdzuna || includeMashvisor || unitAwareJobSort || data.radiusMiles != null || data.region
         ? { from: 0, to: Math.max(4_999, from + PAGE_SIZE - 1) }
         : { from, to: from + PAGE_SIZE - 1 };
     const {
@@ -2066,6 +2075,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
       ...listings.filter((listing) => !listing.isFeatured),
       ...mockListings,
       ...externalJobs,
+      ...externalHomes,
     ].sort(compareListings);
     const resultLimit =
       data.includeAllMocks && SHOW_PUBLIC_PREVIEW_FIXTURES
@@ -2073,7 +2083,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
         : PAGE_SIZE;
     const orderedListings = [...featuredListings, ...standardListings];
     const pageListings =
-      includeAdzuna || unitAwareJobSort || data.radiusMiles != null || data.region
+      includeAdzuna || includeMashvisor || unitAwareJobSort || data.radiusMiles != null || data.region
         ? orderedListings.slice(from, from + resultLimit)
         : orderedListings.slice(0, resultLimit);
     const urlByPath = await signListingThumbnails(
@@ -2087,7 +2097,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
       return cover ? { ...listing, imageUrl: urlByPath.get(cover) ?? null } : listing;
     });
     const nativePageIds = combinedListings
-      .filter((listing) => !listing.externalJob)
+      .filter((listing) => !listing.externalJob && !listing.externalHome)
       .map((listing) => listing.id);
     if (nativePageIds.length > 0) {
       void import("@/integrations/supabase/client.server")
@@ -2103,7 +2113,8 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
       total:
         (data.radiusMiles != null || data.region ? listings.length : (count ?? listings.length)) +
         mockListings.length +
-        externalJobs.length,
+        externalJobs.length +
+        externalHomes.length,
       page,
       pageSize: PAGE_SIZE,
     };
@@ -2117,6 +2128,10 @@ export const getClassifiedListing = createServerFn({ method: "GET" })
     if (data.id.startsWith("adzuna-")) {
       const { adzunaDetail } = await import("./adzuna-listings.server");
       return adzunaDetail(data.id);
+    }
+    if (data.id.startsWith("mashvisor-")) {
+      const { mashvisorDetail } = await import("./mashvisor-listings.server");
+      return mashvisorDetail(data.id);
     }
     const mockListing = [...mockClassifiedListings, ...mockVehicleListings].find(
       (listing) => listing.id === data.id,
