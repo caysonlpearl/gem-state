@@ -112,8 +112,9 @@ export async function adzunaCards(data: ClassifiedBrowseInput): Promise<Classifi
         (!ageHours || Date.parse(job.createdAt) >= Date.now() - ageHours * 3600000),
     )
     .map(adzunaCard);
+  const removed = await removedPartnerJobIds(cards.map((card) => card.id));
   const { withEmployerLogos } = await import("./employer-logos.server");
-  return withEmployerLogos(cards);
+  return withEmployerLogos(cards.filter((card) => !removed.has(card.id)));
 }
 
 /** An Adzuna job as a Bluebird listing card (id "adzuna-<adzuna id>"). */
@@ -172,8 +173,10 @@ export async function adzunaDetail(listingId: string): Promise<ClassifiedDetail 
     .contains("payload", { jobs: [{ id }] })
     .order("expires_at", { ascending: false })
     .limit(1);
-  const found = ((rows?.[0]?.payload?.jobs ?? []) as AdzunaJob[]).find((job) => job.id === id);
+  const cached = (rows?.[0]?.payload?.jobs ?? []) as AdzunaJob[];
+  const found = cached.find((job) => job.id === id);
   if (!found) return null;
+  if (await isPartnerJobRemoved(listingId)) return null;
   // Entries cached before salaries were kept have none.
   const job: AdzunaJob = {
     ...found,
@@ -181,10 +184,23 @@ export async function adzunaDetail(listingId: string): Promise<ClassifiedDetail 
     salaryMax: found.salaryMax ?? null,
     salaryIsEstimate: Boolean(found.salaryIsEstimate),
   };
+  // Other openings from the same employer in the same search, for "More jobs from".
+  const sameEmployer = cached
+    .filter((other) => other.id !== job.id && other.company && other.company === job.company)
+    .slice(0, 8)
+    .map((other) =>
+      adzunaCard({
+        ...other,
+        salaryMin: other.salaryMin ?? null,
+        salaryMax: other.salaryMax ?? null,
+      }),
+    );
   const { withEmployerLogos } = await import("./employer-logos.server");
-  const [card] = await withEmployerLogos([adzunaCard(job)]);
+  const [card, ...employerListings] = await withEmployerLogos([adzunaCard(job), ...sameEmployer]);
   return {
     ...card!,
+    listingNumber: job.id,
+    employerListings,
     description: job.description,
     postalCode: null,
     expiresAt: null,
@@ -193,4 +209,24 @@ export async function adzunaDetail(listingId: string): Promise<ClassifiedDetail 
     seller: null,
     images: [],
   };
+}
+
+/** Partner jobs a moderator removed after a member's report (status "reviewed"). */
+export async function removedPartnerJobIds(listingIds: string[]): Promise<Set<string>> {
+  if (!listingIds.length) return new Set();
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data } = await (supabaseAdmin as any)
+      .from("partner_job_reports")
+      .select("listing_id")
+      .eq("status", "reviewed")
+      .in("listing_id", listingIds);
+    return new Set(((data ?? []) as { listing_id: string }[]).map((row) => row.listing_id));
+  } catch {
+    return new Set();
+  }
+}
+
+async function isPartnerJobRemoved(listingId: string) {
+  return (await removedPartnerJobIds([listingId])).has(listingId);
 }

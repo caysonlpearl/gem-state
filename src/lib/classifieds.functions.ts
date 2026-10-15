@@ -158,7 +158,10 @@ export const reportClassifiedListing = createServerFn({ method: "POST" })
     const reason = String(input.reason ?? "").trim();
     const details = input.details == null ? null : String(input.details).trim();
     if (
-      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(listingId)
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        listingId,
+      ) &&
+      !/^adzuna-\d{1,20}$/.test(listingId)
     ) {
       throw new Error("Listing not found.");
     }
@@ -168,6 +171,20 @@ export const reportClassifiedListing = createServerFn({ method: "POST" })
   })
   .handler(async ({ data, context }) => {
     const client = context.supabase as any;
+    if (data.listingId.startsWith("adzuna-")) {
+      const { adzunaDetail } = await import("./adzuna-listings.server");
+      if (!(await adzunaDetail(data.listingId)))
+        throw new Error("That listing is no longer available.");
+      const { error } = await client.from("partner_job_reports").insert({
+        listing_id: data.listingId,
+        reporter_id: context.userId,
+        reason: data.reason,
+        details: data.details,
+      });
+      if (error?.code === "23505") return { alreadyReported: true as const };
+      if (error) throw new Error(error.message);
+      return { alreadyReported: false as const };
+    }
     const { data: listing, error: listingError } = await client
       .from("asks")
       .select("id")
@@ -201,6 +218,8 @@ export type AdminClassifiedReport = {
   resolvedAt: string | null;
 };
 
+const PARTNER_REPORT_PREFIX = "partner:";
+
 export const getAdminClassifiedReports = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<{ isAdmin: boolean; reports: AdminClassifiedReport[] }> => {
@@ -217,17 +236,28 @@ export const getAdminClassifiedReports = createServerFn({ method: "GET" })
       .in("status", ["open", "under_review"])
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
+    // Partner (Adzuna) job reports share the queue; their ids carry a prefix
+    // so resolving one goes to the right table.
+    const { data: partner } = await client
+      .from("partner_job_reports")
+      .select("id,listing_id,reason,details,status,created_at")
+      .in("status", ["open", "under_review"])
+      .order("created_at", { ascending: false });
+    const toReport = (row: any, idPrefix: string): AdminClassifiedReport => ({
+      id: `${idPrefix}${row.id}`,
+      listingId: row.listing_id,
+      reason: row.reason,
+      details: row.details ?? null,
+      status: row.status,
+      createdAt: row.created_at,
+      resolvedAt: row.resolved_at ?? null,
+    });
     return {
       isAdmin: true,
-      reports: (data ?? []).map((row: any) => ({
-        id: row.id,
-        listingId: row.listing_id,
-        reason: row.reason,
-        details: row.details ?? null,
-        status: row.status,
-        createdAt: row.created_at,
-        resolvedAt: row.resolved_at ?? null,
-      })),
+      reports: [
+        ...(data ?? []).map((row: any) => toReport(row, "")),
+        ...(partner ?? []).map((row: any) => toReport(row, PARTNER_REPORT_PREFIX)),
+      ].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     };
   });
 
@@ -247,6 +277,22 @@ export const resolveAdminClassifiedReport = createServerFn({ method: "POST" })
     },
   )
   .handler(async ({ data, context }) => {
+    if (data.reportId.startsWith(PARTNER_REPORT_PREFIX)) {
+      // RLS limits these updates to admins.
+      const resolved = data.action !== "assign";
+      const { data: updated, error } = await (context.supabase as any)
+        .from("partner_job_reports")
+        .update({
+          status: resolved ? data.action : "under_review",
+          resolved_at: resolved ? new Date().toISOString() : null,
+          resolved_by: resolved ? context.userId : null,
+        })
+        .eq("id", data.reportId.slice(PARTNER_REPORT_PREFIX.length))
+        .select("id");
+      if (error) throw new Error(error.message);
+      if (!updated?.length) throw new Error("Listing report not found");
+      return { ok: true as const };
+    }
     const { error } = await (context.supabase as any).rpc(
       "admin_update_classified_listing_report",
       {

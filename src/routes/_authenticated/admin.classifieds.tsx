@@ -298,6 +298,7 @@ function ClassifiedReportRow({ report }: { report: AdminClassifiedReport }) {
       toast.error(error instanceof Error ? error.message : "Could not update the listing report."),
   });
   const active = report.status === "open" || report.status === "under_review";
+  const isPartnerJob = report.id.startsWith("partner:");
   const statusLabel: Record<string, string> = {
     open: "Open",
     under_review: "Under review",
@@ -308,7 +309,8 @@ function ClassifiedReportRow({ report }: { report: AdminClassifiedReport }) {
     <li className="border-b border-border p-4 last:border-b-0">
       <p className="text-[12.5px] font-semibold">{report.reason}</p>
       <p className="mt-1 text-[11.5px] text-muted-foreground">
-        Listing {report.listingId} · {new Date(report.createdAt).toLocaleString()}
+        {isPartnerJob ? "Adzuna job" : "Listing"} {report.listingId} ·{" "}
+        {new Date(report.createdAt).toLocaleString()}
       </p>
       <Link
         to="/listings/$listingId"
@@ -347,7 +349,8 @@ function ClassifiedReportRow({ report }: { report: AdminClassifiedReport }) {
           disabled={mutation.isPending || !active}
           className="h-8 rounded-md bg-primary px-2.5 text-[11.5px] font-semibold text-primary-foreground disabled:opacity-50"
         >
-          Mark reviewed
+          {/* For a partner (Adzuna) job, "reviewed" takes it off Bluebird. */}
+          {isPartnerJob ? "Remove this job" : "Mark reviewed"}
         </button>
         <button
           type="button"

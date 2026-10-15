@@ -2294,7 +2294,16 @@ function JobListingDetail({
 
         <aside className="min-w-0 space-y-5 lg:sticky lg:top-24 lg:col-start-2 lg:row-start-2 lg:row-span-2">
           {listing.externalJob ? (
-            <ExternalJobApplyCard listing={listing} employerName={details.employerName} />
+            <>
+              <PartnerEmployerCard listing={listing} employerName={details.employerName} />
+              <ListingActions
+                listing={listing}
+                showPaymentCalculator={false}
+                showPriceHeader={false}
+                ctaVerb="apply"
+              />
+              <PageStatsCard listing={listing} />
+            </>
           ) : (
             <>
               <SellerCard listing={listing} />
@@ -2333,41 +2342,66 @@ function JobListingDetail({
 }
 
 /**
- * The apply box for a partner (Adzuna) job: the employer, and the one link
- * that leaves Bluebird, to the posting through Adzuna (their terms require
- * their link and the "Jobs by Adzuna" credit).
+ * The profile card for a partner (Adzuna) job, in the seller card's place:
+ * the employer (logo, city, where the posting came from) and a link to their
+ * other jobs. Applying happens through ListingActions like any external-apply
+ * job; Adzuna's terms require the "Jobs by Adzuna" credit linking to them.
  */
-function ExternalJobApplyCard({
+function PartnerEmployerCard({
   listing,
   employerName,
 }: {
   listing: ClassifiedDetail;
   employerName: string;
 }) {
+  const name = employerName || listing.title;
   return (
-    <section className="soft-card p-5">
-      <div className="flex items-center gap-3">
-        <EmployerTile
-          name={employerName || listing.title}
-          imageUrl={listing.externalJob?.logoUrl}
-        />
+    <section className="soft-card p-5 sm:p-6">
+      <div className="flex items-start gap-3">
+        <EmployerTile name={name} imageUrl={listing.externalJob?.logoUrl} />
         <div className="min-w-0">
-          <p className="text-[11.5px] text-muted-foreground">Employer</p>
-          <p className="truncate text-[15px] font-semibold">{employerName}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-[15px] font-bold">{name}</h2>
+            <span className="rounded-full bg-secondary px-2 py-1 text-[10px] font-semibold">
+              Via Adzuna
+            </span>
+          </div>
+          <div className="mt-3 space-y-1 text-[12px]">
+            <p>
+              <span className="font-semibold">City:</span> {listing.city}
+              {listing.state ? `, ${listing.state}` : ""}
+            </p>
+            <p>
+              <span className="font-semibold">Posted:</span>{" "}
+              {new Date(listing.createdAt).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })}
+            </p>
+            <p>
+              <span className="font-semibold">Source:</span> Adzuna job feed
+            </p>
+          </div>
         </div>
       </div>
-      <a
-        href={listing.externalJob!.url}
-        target="_blank"
-        rel="noopener noreferrer nofollow sponsored"
-        className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 text-[14px] font-bold text-primary-foreground hover:opacity-90"
-      >
-        Apply on the employer&apos;s site <ArrowSquareOut size={16} aria-hidden="true" />
-      </a>
-      <p className="mt-2 text-center text-[12px] text-muted-foreground">
-        Opens the full posting through Adzuna.
-      </p>
-      <p className="mt-4 border-t border-border/70 pt-3 text-[11px] text-muted-foreground">
+      <div className="mt-4 border-t border-border/70 pt-4">
+        <p className="text-[13px] font-semibold">{name}</p>
+        <p className="mt-1 flex items-start gap-1.5 text-[12px] text-primary">
+          <MapPin size={14} weight="fill" className="mt-0.5 shrink-0" />
+          {listing.city}, {listing.state}
+        </p>
+      </div>
+      {employerName ? (
+        <Link
+          to="/browse"
+          search={{ category: "jobs", jobMode: "results", jobEmployer: employerName }}
+          className="mt-4 flex items-center justify-center gap-1 border-t border-border/70 pt-4 text-[12.5px] font-semibold text-primary hover:underline"
+        >
+          All jobs from {employerName} <CaretRight size={13} />
+        </Link>
+      ) : null}
+      <div className="mt-4 border-t border-border/70 pt-3 text-[11px] text-muted-foreground">
         Jobs by{" "}
         <a
           href="https://www.adzuna.com"
@@ -2377,12 +2411,12 @@ function ExternalJobApplyCard({
         >
           Adzuna
         </a>
-      </p>
-      {listing.externalJob?.logoUrl ? (
-        <p className="mt-1">
-          <LogoDevCredit />
-        </p>
-      ) : null}
+        {listing.externalJob?.logoUrl ? (
+          <p className="mt-1">
+            <LogoDevCredit />
+          </p>
+        ) : null}
+      </div>
     </section>
   );
 }
