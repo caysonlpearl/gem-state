@@ -2234,7 +2234,7 @@ async function buildClassifiedDetail(
   const sellerId = record["seller_id"] as string | null;
   const noContact = { phone: null, textPhone: null, email: null, allowInternalMessages: false };
   // Photo signing and the seller lookups don't depend on each other.
-  const [urlByPath, { data: sellerRow }, sellerContact] = await Promise.all([
+  const [urlByPath, { data: sellerRow }, sellerContact, { data: managed }] = await Promise.all([
     signListingMedia(paths),
     sellerId
       ? client
@@ -2277,13 +2277,13 @@ async function buildClassifiedDetail(
           };
         })()
       : Promise.resolve(sellerId ? noContact : { ...noContact, allowInternalMessages: true }),
+    sellerId
+      ? (client as any).rpc("managed_seller_public_status", {
+          _user: sellerId,
+          _listing: record["id"],
+        })
+      : Promise.resolve({ data: null }),
   ]);
-  const { data: managed } = sellerId
-    ? await (client as any).rpc("managed_seller_public_status", {
-        _user: sellerId,
-        _listing: record["id"],
-      })
-    : { data: null };
   const isManaged = managed?.managed === true;
   const card = toCard(record, urlByPath);
 

@@ -871,11 +871,13 @@ export const getPublicSeller = createServerFn({ method: "GET" })
     if (error || !seller) return null;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
-    const { data: managed } = await client.rpc("managed_seller_public_status", {
-      _user: seller.user_id,
-    });
-    const isManaged = managed?.managed === true;
-    const [{ data: askRows }, { data: reviewRows }, { data: allRatings }] = await Promise.all([
+    const [
+      { data: managed },
+      { data: askRows },
+      { data: reviewRows },
+      { data: allRatings },
+    ] = await Promise.all([
+      client.rpc("managed_seller_public_status", { _user: seller.user_id }),
       admin
         .from("asks")
         .select(
@@ -895,6 +897,7 @@ export const getPublicSeller = createServerFn({ method: "GET" })
         .limit(20),
       client.from("seller_reviews").select("rating").eq("seller_id", seller.user_id),
     ]);
+    const isManaged = managed?.managed === true;
     const reviewCount = allRatings?.length ?? 0;
     const ratingAverage = reviewCount
       ? allRatings!.reduce((sum: number, row: any) => sum + Number(row.rating), 0) / reviewCount
