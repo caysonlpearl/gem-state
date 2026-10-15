@@ -117,7 +117,8 @@ export type ClassifiedJobDetails = {
   payType: "Hourly" | "Salary" | "Commission" | "Contract";
   payMin: number;
   payMax: number;
-  employmentType: "Full-time" | "Part-time" | "Seasonal" | "Contract" | "Temporary";
+  employmentType:
+    "Full-time" | "Part-time" | "Seasonal" | "Contract" | "Temporary" | "Not specified";
   experienceRequired?: string | null;
   educationLevel?: string | null;
   jobSummary: string;

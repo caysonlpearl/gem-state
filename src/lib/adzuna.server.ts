@@ -25,6 +25,9 @@ export async function searchJobs(input: AdzunaSearch): Promise<AdzunaResult> {
     },
   });
   const query = {
+    version: 2,
+    category: input.category,
+    employment: input.employment,
     what: input.what.toLowerCase(),
     where: input.where.toLowerCase(),
     page: input.page,
@@ -44,8 +47,10 @@ export async function searchJobs(input: AdzunaSearch): Promise<AdzunaResult> {
       app_key: appKey,
       what: query.what,
       where: query.where,
-      results_per_page: "20",
+      results_per_page: "50",
       sort_by: "date",
+      ...(query.category ? { category: query.category } : {}),
+      ...(query.employment ? { [query.employment]: "1" } : {}),
       "content-type": "application/json",
     }).toString();
     const response = await fetch(url, {

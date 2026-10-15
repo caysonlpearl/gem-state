@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { MapPin } from "@phosphor-icons/react";
 import { listingParam } from "@/lib/listing-url";
@@ -14,6 +15,50 @@ import {
   postedAge,
 } from "@/lib/classifieds-display";
 import type { ClassifiedCard } from "@/lib/classifieds.functions";
+
+function ListingLink({
+  listing,
+  className,
+  children,
+}: {
+  listing: ClassifiedCard;
+  className: string;
+  children: ReactNode;
+}) {
+  return listing.externalJob ? (
+    <a
+      href={listing.externalJob.url}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={className}
+    >
+      {children}
+    </a>
+  ) : (
+    <Link
+      to="/listings/$listingId"
+      params={{ listingId: listingParam(listing) }}
+      className={className}
+    >
+      {children}
+    </Link>
+  );
+}
+function Attribution({ listing }: { listing: ClassifiedCard }) {
+  return listing.externalJob ? (
+    <div className="px-3.5 pb-3 text-[10px] text-muted-foreground">
+      Jobs by{" "}
+      <a
+        href="https://www.adzuna.com"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="inline-flex min-h-[23px] min-w-[116px] items-center text-[23px] font-bold leading-none text-primary"
+      >
+        Adzuna
+      </a>
+    </div>
+  ) : null;
+}
 
 function FeaturedBadge() {
   return (
@@ -75,7 +120,12 @@ function Facts({ listing }: { listing: ClassifiedCard }) {
   if (listing.job) {
     return (
       <p className="mt-1 truncate text-[11.5px] text-muted-foreground">
-        {listing.job.employerName} · {listing.job.employmentType}
+        {[
+          listing.job.employerName,
+          listing.job.employmentType === "Not specified" ? null : listing.job.employmentType,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
       </p>
     );
   }
@@ -129,13 +179,15 @@ function Facts({ listing }: { listing: ClassifiedCard }) {
 function Price({ listing }: { listing: ClassifiedCard }) {
   return (
     <>
-      {listing.job
-        ? formatJobPay(listing.job)
-        : (listing.service?.pricing ??
-          formatClassifiedPrice(listing.priceCents, {
-            wholeDollars: Boolean(listing.vehicle || listing.home),
-            monthly: listing.home?.mode === "rent",
-          }))}
+      {listing.externalJob
+        ? "See pay details"
+        : listing.job
+          ? formatJobPay(listing.job)
+          : (listing.service?.pricing ??
+            formatClassifiedPrice(listing.priceCents, {
+              wholeDollars: Boolean(listing.vehicle || listing.home),
+              monthly: listing.home?.mode === "rent",
+            }))}
     </>
   );
 }
@@ -167,14 +219,14 @@ export function ListingCard({
   return (
     <article className="group relative min-w-0 overflow-hidden rounded-2xl border border-transparent bg-card shadow-sm transition-shadow hover:shadow-md">
       <div className="relative">
-        <Link to="/listings/$listingId" params={{ listingId: listingParam(listing) }} className="block">
+        <ListingLink listing={listing} className="block">
           <Photo listing={listing} priority={priority} />
-        </Link>
+        </ListingLink>
         {soldAt ? (
           <span className="absolute left-2 top-2 z-10 inline-flex rounded-full bg-foreground px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-background shadow-sm">
             Sold
           </span>
-        ) : (
+        ) : !listing.externalJob ? (
           <div className="absolute right-2 top-2 z-10">
             <WatchHeartButton
               productId={listing.productId}
@@ -183,13 +235,9 @@ export function ListingCard({
               isDemo={listing.isMock === true}
             />
           </div>
-        )}
+        ) : null}
       </div>
-      <Link
-        to="/listings/$listingId"
-        params={{ listingId: listingParam(listing) }}
-        className="block px-3.5 pb-4 pt-3.5"
-      >
+      <ListingLink listing={listing} className="block px-3.5 pb-4 pt-3.5">
         <p className="numeric text-[17px] font-bold leading-none text-foreground">
           {soldAt ? (
             <span className="mr-1 text-[11px] font-semibold text-muted-foreground">Asked</span>
@@ -213,7 +261,8 @@ export function ListingCard({
           <span className="truncate">{soldAt ? "Sold" : cardActionLabel(listing)}</span>
           <span className="shrink-0">{postedAge(soldAt ?? listing.createdAt)}</span>
         </div>
-      </Link>
+      </ListingLink>
+      <Attribution listing={listing} />
     </article>
   );
 }
@@ -221,9 +270,8 @@ export function ListingCard({
 export function ListingRow({ listing }: { listing: ClassifiedCard }) {
   return (
     <article className="group relative overflow-hidden rounded-2xl border border-transparent bg-card shadow-sm transition-shadow hover:shadow-md">
-      <Link
-        to="/listings/$listingId"
-        params={{ listingId: listingParam(listing) }}
+      <ListingLink
+        listing={listing}
         className="grid grid-cols-[130px_minmax(0,1fr)] gap-3 sm:grid-cols-[210px_minmax(0,1fr)]"
       >
         <Photo listing={listing} />
@@ -264,7 +312,8 @@ export function ListingRow({ listing }: { listing: ClassifiedCard }) {
           </p>
           <p className="mt-1 text-[10.5px] text-muted-foreground">{postedAge(listing.createdAt)}</p>
         </div>
-      </Link>
+      </ListingLink>
+      <Attribution listing={listing} />
     </article>
   );
 }

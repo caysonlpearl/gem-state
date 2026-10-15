@@ -1,12 +1,24 @@
 # Adzuna job search
 
-Adzuna results appear in a separate section on the Jobs browse/landing page.
-Existing Bluebird listings and filters remain independent. External results have
-keyword/location search, 20 results per page, up to five pages, and an Adzuna
-attribution link on every card. Application buttons use the provider redirect URL.
-No external jobs are inserted into marketplace products, sold, or enrolled in
-Bluebird saved-search alerts. Description snippets are rendered as text. Salaries
-are omitted rather than presenting provider estimates as employer-posted pay.
+Adzuna jobs join the normal Bluebird Jobs results, job landing rows, homepage
+job rows, and unscoped marketplace browse. They use ListingCard / ListingRow,
+including the normal Jobs artwork when the provider has no photo. Every external
+card retains Adzuna attribution and opens the provider application URL. No
+external inventory is added to a seller's or dealership's storefront.
+
+The shared keyword/location search requests up to 50 recent provider jobs and
+merges that bounded snapshot with native inventory before sorting and paging.
+Counts reflect the loaded, eligible snapshot, not all jobs advertised upstream.
+Category and supported employment filters are sent upstream and checked locally.
+Filters the provider cannot substantiate (photos, pay, education, experience)
+exclude external results. Unknown pay reads “See pay details”; unknown employment
+is omitted. No salaries, photos, cities, or dates are invented. Locations are
+normalized from the provider hierarchy to city plus US state abbreviation;
+county-only and otherwise unresolved locations are excluded. Cache version 2
+prevents earlier display-name-only payloads from leaking into the new cards.
+
+No external jobs are inserted into marketplace products, sold, saved to watchlists,
+or enrolled in Bluebird saved-search alerts. Description snippets render as text.
 
 ## Setup
 
@@ -31,6 +43,7 @@ key are not included in the integration's accounting. The account's actual limit
 may differ. No automatic provider retries. Provider errors/URLs are never logged.
 
 Official references:
+
 - https://developer.adzuna.com/overview
 - https://developer.adzuna.com/docs/search
 - https://developer.adzuna.com/docs/terms_of_service

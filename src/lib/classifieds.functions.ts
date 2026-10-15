@@ -64,6 +64,7 @@ export type ClassifiedPet = ClassifiedPetDetails;
 export type ClassifiedCard = {
   id: string;
   title: string;
+  externalJob?: { source: "Adzuna"; url: string };
   productId: string;
   productSlug: string;
   priceCents: number;
@@ -1921,6 +1922,13 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     // Deterministic tiebreaker so paging never repeats or skips a listing.
     query = query.order("id", { ascending: true });
 
+    const { canIncludeAdzuna, adzunaCards } = await import("./adzuna-listings.server");
+    const includeAdzuna = canIncludeAdzuna(data);
+    const externalJobs = includeAdzuna
+      ? (await adzunaCards(data)).filter(
+          (listing) => !data.region || regionOfListing(listing) === data.region,
+        )
+      : [];
     const from = (page - 1) * PAGE_SIZE;
     // Pay units are deliberately normalized in `comparableJobPay` (hourly
     // annualized, salary/commission/contract kept in their stated units).
@@ -1931,7 +1939,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     const unitAwareJobSort =
       data.category === "jobs" && (data.sort === "price_low" || data.sort === "price_high");
     const resultRange =
-      unitAwareJobSort || data.radiusMiles != null || data.region
+      includeAdzuna || unitAwareJobSort || data.radiusMiles != null || data.region
         ? { from: 0, to: Math.max(4_999, from + PAGE_SIZE - 1) }
         : { from, to: from + PAGE_SIZE - 1 };
     const {
@@ -1991,6 +1999,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
         : [];
     const compareListings = (a: ClassifiedCard, b: ClassifiedCard) => {
       if (data.sort === "price_low" || data.sort === "price_high") {
+        if (Boolean(a.externalJob) !== Boolean(b.externalJob)) return a.externalJob ? 1 : -1;
         const aValue = a.job ? comparableJobPay(a.job.payType, a.job.payMin) : a.priceCents;
         const bValue = b.job ? comparableJobPay(b.job.payType, b.job.payMin) : b.priceCents;
         const difference = data.sort === "price_low" ? aValue - bValue : bValue - aValue;
@@ -2010,6 +2019,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     const standardListings = [
       ...listings.filter((listing) => !listing.isFeatured),
       ...mockListings,
+      ...externalJobs,
     ].sort(compareListings);
     const resultLimit =
       data.includeAllMocks && SHOW_PUBLIC_PREVIEW_FIXTURES
@@ -2017,7 +2027,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
         : PAGE_SIZE;
     const orderedListings = [...featuredListings, ...standardListings];
     const pageListings =
-      unitAwareJobSort || data.radiusMiles != null || data.region
+      includeAdzuna || unitAwareJobSort || data.radiusMiles != null || data.region
         ? orderedListings.slice(from, from + resultLimit)
         : orderedListings.slice(0, resultLimit);
     const urlByPath = await signListingThumbnails(
@@ -2030,11 +2040,14 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
       const cover = coverPathById.get(listing.id);
       return cover ? { ...listing, imageUrl: urlByPath.get(cover) ?? null } : listing;
     });
-    if (listings.length > 0) {
+    const nativePageIds = combinedListings
+      .filter((listing) => !listing.externalJob)
+      .map((listing) => listing.id);
+    if (nativePageIds.length > 0) {
       void import("@/integrations/supabase/client.server")
         .then(({ supabaseAdmin }) =>
           (supabaseAdmin as any).rpc("record_classified_listing_impressions", {
-            _listing_ids: listings.map((listing) => listing.id),
+            _listing_ids: nativePageIds,
           }),
         )
         .catch(() => undefined);
@@ -2043,7 +2056,8 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
       listings: combinedListings,
       total:
         (data.radiusMiles != null || data.region ? listings.length : (count ?? listings.length)) +
-        mockListings.length,
+        mockListings.length +
+        externalJobs.length,
       page,
       pageSize: PAGE_SIZE,
     };
@@ -2383,7 +2397,7 @@ export const getClassifiedsHome = createServerFn({ method: "GET" }).handler(
       const client = publicServerClient();
       const nowIso = new Date().toISOString();
 
-      const [{ data: categoryRows }, motors, recent] = await Promise.all([
+      const [{ data: categoryRows }, motors, recent, jobs, flexibleJobs] = await Promise.all([
         client
           .from("asks")
           .select(
@@ -2397,6 +2411,13 @@ export const getClassifiedsHome = createServerFn({ method: "GET" }).handler(
           .limit(1000),
         runBrowseClassifieds({ group: "motors", sort: "newest", page: 1 }),
         runBrowseClassifieds({ sort: "newest", page: 1, includeAllMocks: true }),
+        runBrowseClassifieds({ category: "jobs", sort: "newest", page: 1 }),
+        runBrowseClassifieds({
+          category: "jobs",
+          jobEmploymentType: "Part-time",
+          sort: "newest",
+          page: 1,
+        }),
       ]);
 
       const categoryCounts: Record<string, number> = {};
@@ -2406,13 +2427,22 @@ export const getClassifiedsHome = createServerFn({ method: "GET" }).handler(
         categoryCounts[slug] = (categoryCounts[slug] ?? 0) + 1;
       }
 
+      const additionalJobs = Math.max(0, jobs.total - (categoryCounts.jobs ?? 0));
+      categoryCounts.jobs = jobs.total;
       return {
-        totalActive: (categoryRows ?? []).length,
+        totalActive: (categoryRows ?? []).length + additionalJobs,
         categoryCounts,
         motors: motors.listings.slice(0, 8),
         // Keep enough of the first page available for the homepage to build
         // several useful, non-identical curated rows without another round trip.
-        recent: recent.listings.slice(0, Math.max(24, mockClassifiedListings.length)),
+        recent: [
+          ...new Map(
+            [...recent.listings, ...jobs.listings, ...flexibleJobs.listings].map((listing) => [
+              listing.id,
+              listing,
+            ]),
+          ).values(),
+        ],
       };
     });
   },

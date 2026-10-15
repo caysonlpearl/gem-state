@@ -1,5 +1,5 @@
 import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
-import { queryOptions, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -39,7 +39,6 @@ import { fieldsForClassifiedItem, industrialSubcategories } from "@/config/class
 import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { AllCategoriesPopover } from "@/components/classifieds/AllCategoriesPopover";
 import { ListingCard, ListingRow } from "@/components/classifieds/ListingCard";
-import { AdzunaJobs } from "@/components/classifieds/AdzunaJobs";
 import {
   LocationRadiusPicker,
   type LocationPoint,
@@ -2174,18 +2173,20 @@ function Browse() {
         />
       )}
 
-      {jobs && <AdzunaJobs />}
-
       {jobs && jobLanding && (
         <>
           <LandingListingsShowcase
             eyebrow="Bluebird Marketplace Jobs"
-            title="Latest jobs posted on Bluebird"
+            title="Latest local jobs"
             action="Browse all jobs"
             browseSearch={{ category: "jobs", jobMode: "results" }}
             listings={result.listings}
           />
-          <HomepageShowcaseRows eyebrow="Bluebird Marketplace Jobs" rows={jobsShowcaseRows} />
+          <HomepageShowcaseRows
+            eyebrow="Bluebird Marketplace Jobs"
+            rows={jobsShowcaseRows}
+            jobSearch={search}
+          />
         </>
       )}
 
@@ -2871,7 +2872,7 @@ const jobsShowcaseRows: HomepagePreviewRow[] = [
   showcaseRow(
     "Remote-friendly roles",
     "Find flexible remote work",
-    "/browse?category=jobs&jobMode=results",
+    "/browse?category=jobs&jobMode=results&q=remote",
     [],
   ),
   showcaseRow(
@@ -2889,7 +2890,7 @@ const jobsShowcaseRows: HomepagePreviewRow[] = [
   showcaseRow(
     "Transportation & delivery",
     "Find driving jobs",
-    "/browse?category=jobs&jobMode=results",
+    "/browse?category=jobs&jobMode=results&q=driver",
     [],
   ),
   showcaseRow(
@@ -3223,12 +3224,30 @@ function LandingListingsShowcase({
   );
 }
 
+function JobShowcaseCards({ row, search }: { row: HomepagePreviewRow; search: Search }) {
+  const params = Object.fromEntries(new URL(row.href, "https://onbluebird.com").searchParams);
+  const query = useQuery(
+    classifiedQuery(inputFromSearch({ ...search, ...params, page: 1 } as Search)),
+  );
+  if (query.isPending) return <p className="py-8 text-sm text-muted-foreground">Loading jobs…</p>;
+  if (!query.data?.listings.length) return <CategoryGettingStarted />;
+  return (
+    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      {query.data.listings.slice(0, 4).map((listing) => (
+        <ListingCard key={listing.id} listing={listing} />
+      ))}
+    </div>
+  );
+}
+
 function HomepageShowcaseRows({
   eyebrow,
   rows,
+  jobSearch,
 }: {
   eyebrow: string;
   rows: readonly HomepagePreviewRow[];
+  jobSearch?: Search;
 }) {
   return (
     <div className="mt-10 space-y-12 sm:mt-14 sm:space-y-16">
@@ -3254,7 +3273,11 @@ function HomepageShowcaseRows({
               <ArrowRight size={14} aria-hidden="true" />
             </a>
           </div>
-          <CategoryGettingStarted />
+          {jobSearch ? (
+            <JobShowcaseCards row={row} search={jobSearch} />
+          ) : (
+            <CategoryGettingStarted />
+          )}
         </section>
       ))}
     </div>
@@ -3760,6 +3783,7 @@ function ServicesFilterPage({
   const filteredListings = listings;
   const sortedListings = [...filteredListings].sort((a, b) => {
     if (search.sort === "price_high" || search.sort === "price_low") {
+      if (Boolean(a.externalJob) !== Boolean(b.externalJob)) return a.externalJob ? 1 : -1;
       const aValue = a.job ? comparableJobPay(a.job.payType, a.job.payMin) : a.priceCents;
       const bValue = b.job ? comparableJobPay(b.job.payType, b.job.payMin) : b.priceCents;
       return search.sort === "price_low" ? aValue - bValue : bValue - aValue;
@@ -4319,6 +4343,7 @@ function JobsFilterPage({
   const filteredListings = listings;
   const sortedListings = [...filteredListings].sort((a, b) => {
     if (search.sort === "price_high" || search.sort === "price_low") {
+      if (Boolean(a.externalJob) !== Boolean(b.externalJob)) return a.externalJob ? 1 : -1;
       const aValue = a.job ? comparableJobPay(a.job.payType, a.job.payMin) : a.priceCents;
       const bValue = b.job ? comparableJobPay(b.job.payType, b.job.payMin) : b.priceCents;
       return search.sort === "price_low" ? aValue - bValue : bValue - aValue;
@@ -4498,7 +4523,8 @@ function JobsFilterPage({
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border pb-4">
             <p className="text-[13px] text-muted-foreground">
               <strong className="numeric text-foreground">{total}</strong>{" "}
-              {total === 1 ? "job" : "jobs"} in Idaho
+              {total === 1 ? "job" : "jobs"} in{" "}
+              {[search.city, search.state ?? "Idaho"].filter(Boolean).join(", ")}
             </p>
             <label className="flex items-center gap-2 text-[12px] text-muted-foreground">
               Sort by
