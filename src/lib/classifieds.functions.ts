@@ -927,6 +927,9 @@ const CARD_PHOTO_WIDTH = 640;
  * fresh on every render missed that cache each time (about 0.4-0.7 s to
  * resize again vs 0.15 s cached). The trade-off: a taken-down listing's card
  * photo stays reachable for up to a day by someone who already has its link.
+ * Links are kept in the listing_thumbnail_links table so every server
+ * instance reuses them (the host runs requests on fresh instances, so memory
+ * alone rarely hits); without that table, only the in-memory copy is used.
  */
 const THUMBNAIL_LINK_SECONDS = 24 * 60 * 60;
 const THUMBNAIL_REUSE_MS = (THUMBNAIL_LINK_SECONDS - 60 * 60) * 1000;
@@ -948,11 +951,24 @@ async function signListingThumbnails(paths: string[]): Promise<Map<string, strin
     const cached = thumbnailLinks.get(path);
     if (cached && cached.reuseUntil > now) resized.set(path, cached.url);
   }
-  const toSign = unique.filter((path) => !resized.has(path));
+  let toSign = unique.filter((path) => !resized.has(path));
   if (toSign.length) {
     try {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const links = (supabaseAdmin as any).from("listing_thumbnail_links");
+      // Links another server instance already signed.
+      const { data: stored } = await links
+        .select("path, url, reuse_until")
+        .in("path", toSign)
+        .gt("reuse_until", new Date(now).toISOString());
+      for (const row of (stored ?? []) as { path: string; url: string; reuse_until: string }[]) {
+        resized.set(row.path, row.url);
+        thumbnailLinks.set(row.path, { url: row.url, reuseUntil: Date.parse(row.reuse_until) });
+      }
+      toSign = toSign.filter((path) => !resized.has(path));
+
       const bucket = supabaseAdmin.storage.from("listing-media");
+      const signed: { path: string; url: string; reuse_until: string }[] = [];
       await Promise.all(
         toSign.map(async (path) => {
           const { data } = await bucket.createSignedUrl(path, THUMBNAIL_LINK_SECONDS, {
@@ -961,8 +977,19 @@ async function signListingThumbnails(paths: string[]): Promise<Map<string, strin
           if (!data?.signedUrl) return;
           resized.set(path, data.signedUrl);
           thumbnailLinks.set(path, { url: data.signedUrl, reuseUntil: now + THUMBNAIL_REUSE_MS });
+          signed.push({
+            path,
+            url: data.signedUrl,
+            reuse_until: new Date(now + THUMBNAIL_REUSE_MS).toISOString(),
+          });
         }),
       );
+      if (signed.length) {
+        // Missing table or a failed write only means the next render signs again.
+        const { error } = await links.upsert(signed);
+        if (error && !/listing_thumbnail_links/.test(error.message))
+          console.warn("Thumbnail links not stored", error.message);
+      }
     } catch (error) {
       console.error("Could not sign resized listing photos", error);
     }
