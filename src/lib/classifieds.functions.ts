@@ -2067,6 +2067,11 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
 export const getClassifiedListing = createServerFn({ method: "GET" })
   .validator((input: { id: string }) => ({ id: String(input.id).slice(0, 64) }))
   .handler(async ({ data }): Promise<ClassifiedDetail | null> => {
+    // Partner jobs (Adzuna) open on the same job page design as Bluebird jobs.
+    if (data.id.startsWith("adzuna-")) {
+      const { adzunaDetail } = await import("./adzuna-listings.server");
+      return adzunaDetail(data.id);
+    }
     const mockListing = [...mockClassifiedListings, ...mockVehicleListings].find(
       (listing) => listing.id === data.id,
     );

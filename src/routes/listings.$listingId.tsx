@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
   ArrowLeft,
+  ArrowSquareOut,
   ArrowRight,
   CaretDown,
   CaretRight,
@@ -42,7 +43,7 @@ import { OPEN_CONTACT_EVENT } from "@/components/classifieds/ContactSignInSheet"
 import { listingIdFromParam, listingParam, listingPath } from "@/lib/listing-url";
 import { trackEvent, trackSellerContact } from "@/lib/analytics";
 import { PUBLIC_PAGE_STALE_MS } from "@/lib/query-freshness";
-import { ListingCard } from "@/components/classifieds/ListingCard";
+import { EmployerTile, ListingCard } from "@/components/classifieds/ListingCard";
 import { WatchHeartButton } from "@/components/community/WatchHeartButton";
 import {
   conditionLabels,
@@ -151,6 +152,10 @@ export const Route = createFileRoute("/listings/$listingId")({
   loader: async ({ context, params }) => {
     const listingId = listingIdFromParam(params.listingId);
     const listing = await context.queryClient.ensureQueryData(listingQuery(listingId));
+    if (!listing && listingId.startsWith("adzuna-")) {
+      // Partner job postings come and go; an old link goes to today's jobs.
+      throw redirect({ href: "/browse?category=jobs", statusCode: 302 });
+    }
     if (!listing) {
       // A removed or expired listing sends its visitors (and whatever search
       // value it earned) to the closest live page instead of a dead end.
@@ -181,7 +186,10 @@ export const Route = createFileRoute("/listings/$listingId")({
       ended: listing.ended?.reason ?? null,
       shareImage: listing.images.length ? `/media/listings/${listing.id}/0` : undefined,
       leadImage: listing.images[0]?.url,
-      structuredData: listingStructuredData(listing),
+      // Partner (Adzuna) jobs aren't Bluebird's postings: no job markup for
+      // Google, and the page stays out of search results.
+      external: Boolean(listing.externalJob),
+      structuredData: listing.externalJob ? [] : listingStructuredData(listing),
     };
   },
   head: ({ loaderData }) => {
@@ -207,13 +215,15 @@ export const Route = createFileRoute("/listings/$listingId")({
         { name: "description", content: description },
         ...(isSeoTestListing(loaderData.title)
           ? [{ name: "robots", content: "noindex, nofollow" }]
-          : []),
+          : loaderData.external
+            ? [{ name: "robots", content: "noindex, follow" }]
+            : []),
         { property: "og:title", content: title },
         { property: "og:description", content: description },
         { property: "og:type", content: "website" },
         ...socialImageMeta(brand.urls.siteUrl, loaderData.shareImage, loaderData.title),
       ],
-      scripts: [jsonLdScript(loaderData.structuredData)],
+      scripts: loaderData.structuredData.length ? [jsonLdScript(loaderData.structuredData)] : [],
       // Discover the exact gallery resource before hydration, without a second photo URL.
       links: loaderData.leadImage
         ? [{ rel: "preload", as: "image", href: loaderData.leadImage, fetchPriority: "high" }]
@@ -302,7 +312,11 @@ function Gallery({ listing }: { listing: ClassifiedDetail }) {
         <span className="grid h-20 w-20 place-items-center rounded-3xl bg-card text-primary">
           <CategoryArtwork slug={listing.categorySlug ?? "general"} size={110} />
         </span>
-        <span className="mt-4">This seller has not added photos yet.</span>
+        <span className="mt-4">
+          {listing.externalJob
+            ? "This job posting has no photos."
+            : "This seller has not added photos yet."}
+        </span>
       </div>
     );
   }
@@ -2043,12 +2057,12 @@ function JobListingDetail({
                   <Clock size={15} /> Posted {postedAge(listing.createdAt).toLowerCase()}
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <Eye size={15} /> Local listing
+                  <Eye size={15} /> {listing.externalJob ? "Via Adzuna" : "Local listing"}
                 </span>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {listing.isMock ? (
+              {listing.externalJob ? null : listing.isMock ? (
                 <button
                   type="button"
                   aria-label="Save listing"
@@ -2200,14 +2214,20 @@ function JobListingDetail({
         </div>
 
         <aside className="min-w-0 space-y-5 lg:sticky lg:top-24 lg:col-start-2 lg:row-start-2 lg:row-span-2">
-          <SellerCard listing={listing} />
-          <ListingActions
-            listing={listing}
-            showPaymentCalculator={false}
-            showPriceHeader={false}
-            ctaVerb="apply"
-          />
-          <PageStatsCard listing={listing} />
+          {listing.externalJob ? (
+            <ExternalJobApplyCard listing={listing} employerName={details.employerName} />
+          ) : (
+            <>
+              <SellerCard listing={listing} />
+              <ListingActions
+                listing={listing}
+                showPaymentCalculator={false}
+                showPriceHeader={false}
+                ctaVerb="apply"
+              />
+              <PageStatsCard listing={listing} />
+            </>
+          )}
           <TrustSafetyCard listing={listing} />
         </aside>
       </div>
@@ -2230,6 +2250,53 @@ function JobListingDetail({
         </section>
       )}
     </main>
+  );
+}
+
+/**
+ * The apply box for a partner (Adzuna) job: the employer, and the one link
+ * that leaves Bluebird, to the posting through Adzuna (their terms require
+ * their link and the "Jobs by Adzuna" credit).
+ */
+function ExternalJobApplyCard({
+  listing,
+  employerName,
+}: {
+  listing: ClassifiedDetail;
+  employerName: string;
+}) {
+  return (
+    <section className="soft-card p-5">
+      <div className="flex items-center gap-3">
+        <EmployerTile name={employerName || listing.title} />
+        <div className="min-w-0">
+          <p className="text-[11.5px] text-muted-foreground">Employer</p>
+          <p className="truncate text-[15px] font-semibold">{employerName}</p>
+        </div>
+      </div>
+      <a
+        href={listing.externalJob!.url}
+        target="_blank"
+        rel="noopener noreferrer nofollow sponsored"
+        className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 text-[14px] font-bold text-primary-foreground hover:opacity-90"
+      >
+        Apply on the employer&apos;s site <ArrowSquareOut size={16} aria-hidden="true" />
+      </a>
+      <p className="mt-2 text-center text-[12px] text-muted-foreground">
+        Opens the full posting through Adzuna.
+      </p>
+      <p className="mt-4 border-t border-border/70 pt-3 text-[11px] text-muted-foreground">
+        Jobs by{" "}
+        <a
+          href="https://www.adzuna.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex min-h-[23px] min-w-[116px] items-center text-[23px] font-bold leading-none text-primary"
+        >
+          Adzuna
+        </a>
+      </p>
+    </section>
   );
 }
 

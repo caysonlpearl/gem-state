@@ -25,17 +25,9 @@ function ListingLink({
   className: string;
   children: ReactNode;
 }) {
-  // Partner jobs open their Bluebird page first; the visitor leaves for
-  // Adzuna only from that page's Apply button.
-  return listing.externalJob ? (
-    <Link
-      to="/jobs/adzuna/$jobId"
-      params={{ jobId: listing.id.replace(/^adzuna:/, "") }}
-      className={className}
-    >
-      {children}
-    </Link>
-  ) : (
+  // Partner (Adzuna) jobs open on Bluebird's own job page like any listing;
+  // the visitor leaves for Adzuna only from that page's Apply button.
+  return (
     <Link
       to="/listings/$listingId"
       params={{ listingId: listingParam(listing) }}
@@ -79,9 +71,9 @@ function initialsOf(name: string) {
 }
 
 /**
- * An employer's logo when the listing has one (a Bluebird employer's own
- * photo), otherwise their initials on a soft colored tile. Partner feeds
- * like Adzuna don't include logos.
+ * An employer's logo when there's one, otherwise their initials on a soft
+ * colored tile (partner feeds like Adzuna don't include logos). Used in the
+ * apply box on partner job pages.
  */
 export function EmployerTile({
   name,
@@ -256,56 +248,6 @@ function cardActionLabel(listing: ClassifiedCard) {
   return formatFulfillmentLabel(listing.fulfillmentMode, Boolean(listing.vehicle));
 }
 
-/**
- * Jobs have no product photos, so their card is compact: the employer's
- * logo or initials beside the pay, title and employer, instead of a large
- * empty photo area.
- */
-function JobCard({ listing }: { listing: ClassifiedCard }) {
-  const job = listing.job!;
-  return (
-    <article className="group relative min-w-0 overflow-hidden rounded-2xl border border-transparent bg-card shadow-sm transition-shadow hover:shadow-md">
-      <ListingLink listing={listing} className="block p-3.5 pr-11">
-        <div className="flex items-start gap-3">
-          <EmployerTile name={job.employerName || listing.title} imageUrl={listing.imageUrl} />
-          <div className="min-w-0">
-            <p className="numeric text-[15px] font-bold leading-tight text-foreground">
-              <Price listing={listing} />
-            </p>
-            <h3 className="mt-1 line-clamp-2 text-[13px] font-semibold leading-[1.3] group-hover:text-primary">
-              {listing.isFeatured ? (
-                <span className="mr-1.5 inline-flex align-middle">
-                  <FeaturedBadge />
-                </span>
-              ) : null}
-              {listing.title}
-            </h3>
-            <Facts listing={listing} />
-          </div>
-        </div>
-        <div className="mt-3 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
-          <span className="flex min-w-0 items-center gap-1 truncate">
-            <MapPin size={12} weight="fill" className="shrink-0 text-primary" />
-            {listing.city}, {listing.state}
-          </span>
-          <span className="shrink-0">{postedAge(listing.createdAt)}</span>
-        </div>
-      </ListingLink>
-      {!listing.externalJob ? (
-        <div className="absolute right-2 top-2 z-10">
-          <WatchHeartButton
-            productId={listing.productId}
-            productSlug={listing.productSlug}
-            productName={listing.title}
-            isDemo={listing.isMock === true}
-          />
-        </div>
-      ) : null}
-      <Attribution listing={listing} />
-    </article>
-  );
-}
-
 /** soldAt marks a card in a Recently sold section: a Sold tag, the last asking price, no save button. */
 export function ListingCard({
   listing,
@@ -317,7 +259,6 @@ export function ListingCard({
   /** Load this card's photo eagerly at high priority (the first cards above the fold). */
   priority?: boolean;
 }) {
-  if (listing.job && !soldAt) return <JobCard listing={listing} />;
   return (
     <article className="group relative min-w-0 overflow-hidden rounded-2xl border border-transparent bg-card shadow-sm transition-shadow hover:shadow-md">
       <div className="relative">
@@ -374,20 +315,9 @@ export function ListingRow({ listing }: { listing: ClassifiedCard }) {
     <article className="group relative overflow-hidden rounded-2xl border border-transparent bg-card shadow-sm transition-shadow hover:shadow-md">
       <ListingLink
         listing={listing}
-        className={
-          listing.job
-            ? "grid grid-cols-[48px_minmax(0,1fr)] gap-3 p-3"
-            : "grid grid-cols-[130px_minmax(0,1fr)] gap-3 sm:grid-cols-[210px_minmax(0,1fr)]"
-        }
+        className="grid grid-cols-[130px_minmax(0,1fr)] gap-3 sm:grid-cols-[210px_minmax(0,1fr)]"
       >
-        {listing.job ? (
-          <EmployerTile
-            name={listing.job.employerName || listing.title}
-            imageUrl={listing.imageUrl}
-          />
-        ) : (
-          <Photo listing={listing} />
-        )}
+        <Photo listing={listing} />
         <div className="min-w-0 py-3 pr-3">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3">
             <h3 className="min-w-0 flex-1 truncate text-[14px] font-semibold group-hover:text-primary">

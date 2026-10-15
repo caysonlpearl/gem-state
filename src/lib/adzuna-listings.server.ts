@@ -1,4 +1,9 @@
-import type { ClassifiedBrowseInput, ClassifiedCard } from "./classifieds.functions";
+import type { AdzunaJob } from "./adzuna-contract";
+import type {
+  ClassifiedBrowseInput,
+  ClassifiedCard,
+  ClassifiedDetail,
+} from "./classifieds.functions";
 import { isWithinClassifiedRadius, usStates } from "../config/classifieds.ts";
 
 const categories: Record<string, string> = {
@@ -106,39 +111,81 @@ export async function adzunaCards(data: ClassifiedBrowseInput): Promise<Classifi
         (!data.jobEmployer || job.company.toLowerCase().includes(data.jobEmployer.toLowerCase())) &&
         (!ageHours || Date.parse(job.createdAt) >= Date.now() - ageHours * 3600000),
     )
-    .map((job) => ({
-      id: `adzuna:${job.id}`,
-      productId: `adzuna:${job.id}`,
-      productSlug: "",
-      title: job.title,
-      city: job.city,
-      state: job.state,
-      region: "",
-      priceCents: 0,
-      currency: "USD",
-      categorySlug: "jobs",
-      categoryName: "Jobs",
-      condition: "",
-      fulfillmentMode: "",
-      createdAt: job.createdAt,
-      isFeatured: false,
-      imageUrl: null,
-      vehicle: null,
-      externalJob: { source: "Adzuna", url: job.url },
-      job: {
-        employerName: job.company,
-        employmentType: job.employmentType,
-        category:
-          Object.keys(categories).find((category) => categories[category] === job.category) ?? null,
-        // Adzuna salaries are annual; 0/0 means none was given.
-        payType: "Salary",
-        payMin: job.salaryMin ?? 0,
-        payMax: job.salaryMax ?? 0,
-        payEstimated: Boolean(job.salaryMin && job.salaryIsEstimate),
-        jobSummary: job.description,
-        responsibilities: [],
-        applicationMethod: "external",
-        applicationExternalContact: job.url,
-      },
-    }));
+    .map(adzunaCard);
+}
+
+/** An Adzuna job as a Bluebird listing card (id "adzuna-<adzuna id>"). */
+export function adzunaCard(job: AdzunaJob): ClassifiedCard {
+  return {
+    id: `adzuna-${job.id}`,
+    productId: `adzuna-${job.id}`,
+    productSlug: "",
+    title: job.title,
+    city: job.city,
+    state: job.state,
+    region: "",
+    priceCents: 0,
+    currency: "USD",
+    categorySlug: "jobs",
+    categoryName: "Jobs",
+    condition: "",
+    fulfillmentMode: "",
+    createdAt: job.createdAt,
+    isFeatured: false,
+    imageUrl: null,
+    vehicle: null,
+    externalJob: { source: "Adzuna", url: job.url },
+    job: {
+      employerName: job.company,
+      employmentType: job.employmentType,
+      category:
+        Object.keys(categories).find((category) => categories[category] === job.category) ?? null,
+      // Adzuna salaries are annual; 0/0 means none was given.
+      payType: "Salary",
+      payMin: job.salaryMin ?? 0,
+      payMax: job.salaryMax ?? 0,
+      payEstimated: Boolean(job.salaryMin && job.salaryIsEstimate),
+      jobSummary: job.description,
+      responsibilities: [],
+      applicationMethod: "external",
+      applicationExternalContact: job.url,
+    },
+  };
+}
+
+/**
+ * One Adzuna job as a listing page. Adzuna has no fetch-by-id endpoint, so
+ * the job comes from the shared search cache, where it was saved when the
+ * search that showed it ran. Cache entries last six hours; an older link
+ * finds nothing and the listing page treats it as gone.
+ */
+export async function adzunaDetail(listingId: string): Promise<ClassifiedDetail | null> {
+  const id = listingId.match(/^adzuna-(\d{1,20})$/)?.[1];
+  if (!id) return null;
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: rows } = await (supabaseAdmin as any)
+    .from("adzuna_search_cache")
+    .select("payload")
+    .contains("payload", { jobs: [{ id }] })
+    .order("expires_at", { ascending: false })
+    .limit(1);
+  const found = ((rows?.[0]?.payload?.jobs ?? []) as AdzunaJob[]).find((job) => job.id === id);
+  if (!found) return null;
+  // Entries cached before salaries were kept have none.
+  const job: AdzunaJob = {
+    ...found,
+    salaryMin: found.salaryMin ?? null,
+    salaryMax: found.salaryMax ?? null,
+    salaryIsEstimate: Boolean(found.salaryIsEstimate),
+  };
+  return {
+    ...adzunaCard(job),
+    description: job.description,
+    postalCode: null,
+    expiresAt: null,
+    sellerNote: null,
+    variantId: `adzuna-${job.id}`,
+    seller: null,
+    images: [],
+  };
 }
