@@ -1,3 +1,4 @@
+import { classifiedCategories } from "@/config/classifieds";
 /* eslint-disable @typescript-eslint/no-explicit-any -- generated Supabase types lag newly applied tables until the next type generation */
 import { createServerFn } from "@tanstack/react-start";
 
@@ -9,6 +10,16 @@ import {
 
 import { canonicalSellerSourceProfile } from "./seller-claims";
 import { findIdahoPlace } from "@/config/idaho-places";
+
+/**
+ * Only Facebook descriptions are a reliable category hint. On KSL, Vinted
+ * and Whatnot the readers already pick a category, and descriptions there
+ * are often blurbs (a novel's back cover mentions cars and babies), which
+ * sent books to Cars & Trucks when guessed from.
+ */
+function categoryHintFrom(sourceProfileUrl: string | null | undefined, description: unknown) {
+  return /facebook\.com/.test(String(sourceProfileUrl ?? "")) ? (description as string | null) : null;
+}
 
 const MAX_PHOTO_BYTES = 12 * 1024 * 1024;
 
@@ -147,7 +158,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
         const categorySlug = inferFacebookCategorySlug(
           item.categorySlug,
           item.title,
-          item.description,
+          categoryHintFrom(sourceProfileUrl, item.description),
         );
         const state = item.state ? String(item.state).trim().slice(0, 80) : "";
         const city = item.city ? String(item.city).trim().slice(0, 80) : "";
@@ -387,7 +398,11 @@ export const getFacebookImportItems = createServerFn({ method: "GET" })
         // new imports so the review form does not force an admin to repair
         // every row by hand.
         condition: normalizeFacebookCondition(row.condition),
-        categorySlug: inferFacebookCategorySlug(row.category_slug, row.title, row.description),
+        categorySlug: inferFacebookCategorySlug(
+          row.category_slug,
+          row.title,
+          categoryHintFrom(row.source_profile_url, row.description),
+        ),
         city: row.city ?? "",
         state: row.state ?? "",
         region: row.region ?? "",
@@ -583,6 +598,63 @@ export const discardFacebookImportItem = createServerFn({ method: "POST" })
       .eq("id", data.itemId);
     if (error) throw new Error(error.message);
     return { ok: true as const };
+  });
+
+/**
+ * Sets one category on several import items at once, and on the live
+ * listing of any that are already published, so a batch the readers sorted
+ * badly can be fixed in one step instead of item by item.
+ */
+export const setFacebookImportItemsCategory = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: { itemIds: string[]; categorySlug: string }) => {
+    const itemIds = (Array.isArray(input?.itemIds) ? input.itemIds : [])
+      .map((id) => String(id))
+      .filter((id) => /^[0-9a-f-]{36}$/i.test(id))
+      .slice(0, 500);
+    const categorySlug = String(input?.categorySlug ?? "");
+    if (!classifiedCategories.some((category) => category.slug === categorySlug))
+      throw new Error("Choose a category.");
+    if (!itemIds.length) throw new Error("Select at least one listing.");
+    return { itemIds, categorySlug };
+  })
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const admin = supabaseAdmin as any;
+    const { data: category, error: categoryError } = await admin
+      .from("categories")
+      .select("id")
+      .eq("slug", data.categorySlug)
+      .maybeSingle();
+    if (categoryError || !category) throw new Error("That category isn't set up.");
+    const { data: items, error } = await admin
+      .from("fb_marketplace_import_items")
+      .update({ category_slug: data.categorySlug })
+      .in("id", data.itemIds)
+      .select("listing_id");
+    if (error) throw new Error(error.message);
+    const listingIds = ((items ?? []) as { listing_id: string | null }[])
+      .map((item) => item.listing_id)
+      .filter(Boolean) as string[];
+    let listingsUpdated = 0;
+    if (listingIds.length) {
+      const { data: asks, error: askError } = await admin
+        .from("asks")
+        .select("product_id")
+        .in("id", listingIds);
+      if (askError) throw new Error(askError.message);
+      const productIds = ((asks ?? []) as { product_id: string }[]).map((ask) => ask.product_id);
+      if (productIds.length) {
+        const { error: productError } = await admin
+          .from("products")
+          .update({ category_id: category.id })
+          .in("id", productIds);
+        if (productError) throw new Error(productError.message);
+        listingsUpdated = productIds.length;
+      }
+    }
+    return { items: (items ?? []).length, listingsUpdated };
   });
 
 export const discardAllFacebookImportItems = createServerFn({ method: "POST" })

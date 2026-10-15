@@ -15,6 +15,7 @@ import { findIdahoPlace } from "@/config/idaho-places";
 import { IdahoCityPicker } from "@/components/classifieds/IdahoCityPicker";
 import {
   discardAllFacebookImportItems,
+  setFacebookImportItemsCategory,
   discardFacebookImportItem,
   getFacebookImportItems,
   getFacebookImportProfiles,
@@ -885,6 +886,19 @@ function FbImportPage() {
       toast.error(error instanceof Error ? error.message : "Could not publish selected items."),
   });
 
+  const setCategory = useServerFn(setFacebookImportItemsCategory);
+  const [bulkCategory, setBulkCategory] = useState("");
+  const bulkCategoryMutation = useMutation({
+    mutationFn: () =>
+      setCategory({ data: { itemIds: Array.from(selectedIds), categorySlug: bulkCategory } }),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ["fb-import-items"] });
+      toast.success(`Set the category on ${result.items} listing(s).`);
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Could not set the category."),
+  });
+
   const clearAll = useServerFn(discardAllFacebookImportItems);
   const clearAllMutation = useMutation({
     mutationFn: () => clearAll(),
@@ -993,6 +1007,35 @@ function FbImportPage() {
         <p className="px-4 pt-3 text-xs text-muted-foreground">
           Admin publishing approves listings and makes them live immediately.
         </p>
+        <div className="flex flex-wrap items-center gap-2 px-4 pt-3">
+          <span className="text-[12px] font-medium">Set category for selected</span>
+          <select
+            aria-label="Category for selected listings"
+            value={bulkCategory}
+            onChange={(e) => setBulkCategory(e.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-2 text-[12px]"
+          >
+            <option value="">Choose a category</option>
+            {classifiedCategories.map((category) => (
+              <option key={category.slug} value={category.slug}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => bulkCategoryMutation.mutate()}
+            disabled={
+              !bulkCategory ||
+              !selectedIds.size ||
+              hasUnsavedSelection ||
+              bulkCategoryMutation.isPending
+            }
+            className="h-9 rounded-md border border-input px-3 text-[12px] font-medium hover:bg-secondary disabled:opacity-50"
+          >
+            {bulkCategoryMutation.isPending ? "Applying…" : `Apply to ${selectedIds.size} selected`}
+          </button>
+        </div>
         {hasUnsavedSelection && (
           <p role="status" className="px-4 py-3 text-sm text-primary">
             Save changes on the edited listings before publishing.
@@ -1008,7 +1051,9 @@ function FbImportPage() {
           <ul>
             {data.map((item) => (
               <ReviewRow
-                key={item.id}
+                // Remount when the category changes elsewhere (bulk set) so
+                // the row's own form shows the new value.
+                key={`${item.id}:${item.categorySlug}`}
                 item={item}
                 selected={selectedIds.has(item.id)}
                 onToggleSelected={(checked) => toggleSelected(item.id, checked)}

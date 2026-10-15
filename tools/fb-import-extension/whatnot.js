@@ -122,6 +122,47 @@ function whatnotMapCondition(text) {
   return "used_good";
 }
 
+// Whatnot doesn't expose its own category on public pages, so the category
+// comes from the title, checked in this order. Descriptions are only used
+// for book signals: book blurbs mention cars, babies and watches, and
+// scanning them for everything put novels in Cars & Trucks.
+const WHATNOT_TITLE_RULES = [
+  [/\b(blind ?box|pop ?mart|labubu|nanci|maymei|cry ?baby|crybaby|sanrio|hippers|miniso|funko|vinyl figures?|figures?|figurines?|confirmed|chase|ron english|mindstyle|popland|smiski|sonny angel|key ?chains?|keychains?|charms?|trading cards?|pok[eé]mon|sports cards?|psa ?\d|bgs ?\d|graded|slab|hot wheels|diecast|collectibles?)\b/, "collectibles"],
+  // Strong book markers beat clothing words ("In Her Shoes (Paperback)").
+  [/\b(paperback|hardcover|hard cover|novels?|sprayed edges?|duology|trilogy|series ?#\d*|collector'?s edition|reprint)\b/, "books-media"],
+  [/\b(bags?|backpacks?|purses?|pouch|totes?|wallets?|clutch|crossbody|handbags?|sandals|shoes|sneakers|boots|heels|slippers|dress(es)?|shirts?|tees?|t-shirts?|hoodies?|sweaters?|cardigans?|jackets?|coats?|jeans|leggings|skirts?|shorts|pajamas|scarf|hats?|beanies?|sunglasses)\b/, "apparel-accessories"],
+  [/\b(squish(y|ies)|plush(ies)?|stuffed animals?|toys?|lego|dolls?|barbie|erasers?|pencils?|notebooks?|stickers?|crayons|coloring)\b/, "baby-kids"],
+  [/\b(jewelry|necklaces?|bracelets?|earrings?|rings?|pendants?|watch(es)?|sterling silver|925)\b/, "jewelry-watches"],
+  [/\b(paperback|hardcover|hard cover|novels?|books?|series ?#|edition|sprayed edges?|duology|trilogy|omnibus|manga|comics?|graphic novel|vinyl records?|\blps?\b|dvds?|blu-?ray)\b/, "books-media"],
+];
+const WHATNOT_BOOK_WORDS =
+  /\b(novels?|paperback|hardcover|books?|authors?|bestsell(ing|er)|edition|chapters?|romance|thriller|mystery|fantasy|memoir|heroine|tale|saga|fiction|series)\b/;
+
+function whatnotMapCategory(title, description) {
+  const name = String(title || "").toLowerCase();
+  for (const [pattern, slug] of WHATNOT_TITLE_RULES) if (pattern.test(name)) return slug;
+  if (WHATNOT_BOOK_WORDS.test(String(description || "").toLowerCase())) return "books-media";
+  // Last, the shared title-only guess (never the description).
+  const guess = typeof inferCategory === "function" ? inferCategory(title, "") : "general";
+  return guess || "general";
+}
+
+/**
+ * Whatnot sellers usually stick to one kind of thing. When most of a
+ * seller's items clearly share a category, items with nothing to go on
+ * (a bare title like "Verity", "No description found") take that one
+ * instead of General; anything else is still set in review.
+ */
+function whatnotFillFromMajority(items) {
+  const counts = new Map();
+  for (const item of items) {
+    if (item.categorySlug !== "general") counts.set(item.categorySlug, (counts.get(item.categorySlug) || 0) + 1);
+  }
+  const [top, topCount] = [...counts.entries()].sort((a, b) => b[1] - a[1])[0] || [];
+  if (!top || topCount < items.length * 0.5) return items;
+  return items.map((item) => (item.categorySlug === "general" ? { ...item, categorySlug: top } : item));
+}
+
 function whatnotToImportItem(item) {
   return {
     sourceUrl: item.sourceUrl,
@@ -129,7 +170,7 @@ function whatnotToImportItem(item) {
     description: item.description || "",
     priceCents: item.priceCents == null ? 0 : item.priceCents,
     condition: whatnotMapCondition(item.whatnotCondition),
-    categorySlug: typeof inferCategory === "function" ? inferCategory(item.title, item.description) : "general",
+    categorySlug: whatnotMapCategory(item.title, item.description),
     // Whatnot doesn't show a seller's location; set the city during review.
     city: "",
     state: "ID",
@@ -190,7 +231,7 @@ async function runWhatnot(tabId, url) {
     {
       sourceProfileUrl: shop.sourceProfileUrl,
       sellerName: shop.sellerName || undefined,
-      items: usable.map(whatnotToImportItem),
+      items: whatnotFillFromMajority(usable.map(whatnotToImportItem)),
     },
     [
       ...(auctions ? [`${auctions} auction lot(s) skipped (no fixed price)`] : []),

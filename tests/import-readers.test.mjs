@@ -73,3 +73,46 @@ test("Whatnot items need their city set in review", () => {
   assert.equal(item.city, "");
   assert.equal(item.state, "ID");
 });
+
+test("Whatnot items sort by title, not by words in a book's blurb", () => {
+  // Real titles from a Whatnot seller whose books landed in Cars & Trucks,
+  // Baby & Kids and Jobs because their blurbs mentioned cars and babies.
+  const cases = [
+    ["Pop Mart Labubu the Monsters Coca-Cola Vinyl Figures Series Blind Box Authentic", "", "collectibles"],
+    ["Baby Nanci Cute and Sweet Fruits - confirmed - Apple", "", "collectibles"],
+    ["Cry Baby Crying For Love - Confirmed - Sweet", "", "collectibles"],
+    ["Big into Energy Phone Charm- luck", "", "collectibles"],
+    ["Capybara key chains", "", "collectibles"],
+    ["Jennifer Weiner In Her Shoes - By (Paperback)", "", "books-media"],
+    ["Nicholas Sparks The Return - By (Paperback)", "", "books-media"],
+    ["Dream Girl Drama- sprayed edges", "", "books-media"],
+    ["Icebreaker: Novel (The Maple Hills Series #1)", "", "books-media"],
+    ["Pink art class hip bag", "New with tags", "apparel-accessories"],
+    ["Women’s sandals", "New with tags", "apparel-accessories"],
+    ["Mooyius 2 peice dress set", "New with tags", "apparel-accessories"],
+    ["Squishy Butter!", "You get 3 butters!!", "baby-kids"],
+    ["Love In Translation", "A stressed-out translator on the brink of a meltdown and a romance", "books-media"],
+    ["The Rescue", "A thriller about a rescue at sea; he drove his truck to the coast", "books-media"],
+  ];
+  for (const [title, description, expected] of cases) {
+    assert.equal(run(`whatnotMapCategory(${JSON.stringify(title)}, ${JSON.stringify(description)})`), expected, title);
+  }
+});
+
+test("bare titles take the seller's main category when most items share one", () => {
+  const items = [
+    ...Array.from({ length: 6 }, (_, i) => ({ title: `Novel ${i}`, categorySlug: "books-media" })),
+    { title: "Verity", categorySlug: "general" },
+    { title: "Labubu", categorySlug: "collectibles" },
+  ];
+  const filled = run(`whatnotFillFromMajority(${JSON.stringify(items)})`);
+  assert.equal(filled.find((item) => item.title === "Verity").categorySlug, "books-media");
+  assert.equal(filled.find((item) => item.title === "Labubu").categorySlug, "collectibles");
+  // No clear majority: leave General for review.
+  const mixed = run(`whatnotFillFromMajority(${JSON.stringify([
+    { title: "A", categorySlug: "books-media" },
+    { title: "B", categorySlug: "collectibles" },
+    { title: "C", categorySlug: "general" },
+  ])})`);
+  assert.equal(mixed.find((item) => item.title === "C").categorySlug, "general");
+});
