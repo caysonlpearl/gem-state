@@ -306,24 +306,58 @@ function QuickFact({ label, value, icon }: { label: string; value: string; icon:
   );
 }
 
+/** A listing with no photos: category art (or a partner employer's logo tile). */
+function GalleryPlaceholder({ listing }: { listing: ClassifiedDetail }) {
+  return (
+    <div className="flex min-h-[360px] flex-col items-center justify-center rounded-[28px] border border-border/70 bg-secondary/55 text-[12px] text-muted-foreground sm:min-h-[520px]">
+      <PlaceholderMark listing={listing} large />
+      <span className="mt-4">
+        {listing.externalJob
+          ? "This job posting has no photos."
+          : "This seller has not added photos yet."}
+      </span>
+    </div>
+  );
+}
+
+/** A partner job's employer logo filling the gallery, on white. */
+function GalleryLogo({ listing, logoUrl }: { listing: ClassifiedDetail; logoUrl: string }) {
+  const [missing, setMissing] = useState(false);
+  const ref = useRef<HTMLImageElement>(null);
+  useEffect(() => {
+    // A failure before hydration never reaches onError.
+    const img = ref.current;
+    if (img?.complete && img.naturalWidth === 0) setMissing(true);
+  }, []);
+  if (missing) {
+    return <GalleryPlaceholder listing={{ ...listing, externalJob: undefined }} />;
+  }
+  return (
+    <div className="flex h-[300px] items-center justify-center overflow-hidden rounded-[28px] border border-border/70 bg-white p-8 sm:h-[460px] sm:p-14">
+      <img
+        ref={ref}
+        // The gallery is several times a card's size; ask for a sharper copy.
+        src={logoUrl.replace(/([?&])size=\d+/, "$1size=800")}
+        alt={`${listing.job?.employerName ?? "Employer"} logo`}
+        onError={() => setMissing(true)}
+        className="h-full w-full object-contain"
+        fetchPriority="high"
+      />
+    </div>
+  );
+}
+
 function Gallery({ listing }: { listing: ClassifiedDetail }) {
   const [activeImage, setActiveImage] = useState(0);
   const images = listing.images;
   const subject = listing.vehicle ? "vehicle" : "listing";
 
-  if (images.length === 0) {
-    return (
-      <div className="flex min-h-[360px] flex-col items-center justify-center rounded-[28px] border border-border/70 bg-secondary/55 text-[12px] text-muted-foreground sm:min-h-[520px]">
-        <PlaceholderMark listing={listing} large />
-        <span className="mt-4">
-          {listing.externalJob
-            ? "This job posting has no photos."
-            : "This seller has not added photos yet."}
-        </span>
-      </div>
-    );
+  if (images.length === 0 && listing.externalJob?.logoUrl) {
+    return <GalleryLogo listing={listing} logoUrl={listing.externalJob.logoUrl} />;
   }
-
+  if (images.length === 0) {
+    return <GalleryPlaceholder listing={listing} />;
+  }
   const goToImage = (next: number) => {
     setActiveImage((next + images.length) % images.length);
   };
