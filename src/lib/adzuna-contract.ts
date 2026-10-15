@@ -21,6 +21,11 @@ export type AdzunaJob = {
   employmentType: "Full-time" | "Part-time" | "Contract" | "Not specified";
   description: string;
   url: string;
+  /** Annual salary range in whole dollars; null when Adzuna has none. */
+  salaryMin: number | null;
+  salaryMax: number | null;
+  /** True when the range is Adzuna's estimate rather than the employer's figure. */
+  salaryIsEstimate: boolean;
 };
 export type AdzunaResult = {
   status: "ok" | "unavailable" | "limited";
@@ -31,7 +36,33 @@ export type AdzunaResult = {
 // Treat all provider content as untrusted. Render plain text and accept only
 // Adzuna application destinations; never pass through HTML or arbitrary URLs.
 const plain = (value: unknown, max = 1000) =>
-  typeof value === "string" ? value.replace(/<[^>]*>/g, "").slice(0, max) : "";
+  typeof value === "string"
+    ? value
+        .replace(/<[^>]*>/g, "")
+        // Adzuna snippets carry escaped line breaks ("\\n") as literal text.
+        .replace(/\\[nr]/g, "\n")
+        .replace(/[ \t]*\n[\s]*/g, "\n")
+        .trim()
+        .slice(0, max)
+    : "";
+
+const dollars = (value: unknown) => {
+  const amount = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(amount) && amount > 0 && amount < 10_000_000 ? Math.round(amount) : null;
+};
+
+/** Adzuna's annual salary fields; a lone min or max stands for both ends. */
+function salaryOf(row: Record<string, any>) {
+  const min = dollars(row.salary_min);
+  const max = dollars(row.salary_max);
+  const low = min ?? max;
+  const high = max ?? min;
+  return {
+    salaryMin: low != null && high != null ? Math.min(low, high) : null,
+    salaryMax: low != null && high != null ? Math.max(low, high) : null,
+    salaryIsEstimate: String(row.salary_is_predicted ?? "0") === "1",
+  };
+}
 
 export function normalizeAdzunaResult(value: unknown): AdzunaResult {
   const source = value as { results?: unknown; count?: unknown } | null;
@@ -96,6 +127,7 @@ export function normalizeAdzunaResult(value: unknown): AdzunaResult {
               : "Not specified",
       description: plain(row.description),
       url: url.toString(),
+      ...salaryOf(row),
     });
   }
   return {

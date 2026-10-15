@@ -25,15 +25,16 @@ function ListingLink({
   className: string;
   children: ReactNode;
 }) {
+  // Partner jobs open their Bluebird page first; the visitor leaves for
+  // Adzuna only from that page's Apply button.
   return listing.externalJob ? (
-    <a
-      href={listing.externalJob.url}
-      target="_blank"
-      rel="noopener noreferrer"
+    <Link
+      to="/jobs/adzuna/$jobId"
+      params={{ jobId: listing.id.replace(/^adzuna:/, "") }}
       className={className}
     >
       {children}
-    </a>
+    </Link>
   ) : (
     <Link
       to="/listings/$listingId"
@@ -58,6 +59,58 @@ function Attribution({ listing }: { listing: ClassifiedCard }) {
       </a>
     </div>
   ) : null;
+}
+
+const TILE_COLORS = [
+  "bg-primary/10 text-primary",
+  "bg-accent/30 text-accent-foreground",
+  "bg-brand-warm/15 text-foreground",
+  "bg-secondary text-foreground",
+];
+
+function initialsOf(name: string) {
+  const words = name
+    .replace(/[^A-Za-z0-9& ]+/g, " ")
+    .split(/\s+/)
+    .filter((word) => word && !/^(the|of|and|inc|llc|co|corp|ltd)$/i.test(word));
+  return (
+    words.length > 1 ? words[0]![0]! + words[1]![0]! : (words[0] ?? "?").slice(0, 2)
+  ).toUpperCase();
+}
+
+/**
+ * An employer's logo when the listing has one (a Bluebird employer's own
+ * photo), otherwise their initials on a soft colored tile. Partner feeds
+ * like Adzuna don't include logos.
+ */
+export function EmployerTile({
+  name,
+  imageUrl,
+  size = "md",
+}: {
+  name: string;
+  imageUrl?: string | null;
+  size?: "md" | "lg";
+}) {
+  const box =
+    size === "lg" ? "h-16 w-16 rounded-2xl text-[20px]" : "h-12 w-12 rounded-xl text-[15px]";
+  if (imageUrl) {
+    return (
+      <span className={`${box} shrink-0 overflow-hidden border border-border bg-card`}>
+        <img src={imageUrl} alt="" loading="lazy" className="h-full w-full object-contain" />
+      </span>
+    );
+  }
+  const color =
+    TILE_COLORS[[...name].reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % TILE_COLORS.length];
+  return (
+    <span
+      aria-hidden="true"
+      className={`${box} ${color} grid shrink-0 place-items-center font-display font-bold tracking-tight`}
+    >
+      {initialsOf(name)}
+    </span>
+  );
 }
 
 function FeaturedBadge() {
@@ -179,15 +232,13 @@ function Facts({ listing }: { listing: ClassifiedCard }) {
 function Price({ listing }: { listing: ClassifiedCard }) {
   return (
     <>
-      {listing.externalJob
-        ? "See pay details"
-        : listing.job
-          ? formatJobPay(listing.job)
-          : (listing.service?.pricing ??
-            formatClassifiedPrice(listing.priceCents, {
-              wholeDollars: Boolean(listing.vehicle || listing.home),
-              monthly: listing.home?.mode === "rent",
-            }))}
+      {listing.job
+        ? formatJobPay(listing.job)
+        : (listing.service?.pricing ??
+          formatClassifiedPrice(listing.priceCents, {
+            wholeDollars: Boolean(listing.vehicle || listing.home),
+            monthly: listing.home?.mode === "rent",
+          }))}
     </>
   );
 }
@@ -205,6 +256,56 @@ function cardActionLabel(listing: ClassifiedCard) {
   return formatFulfillmentLabel(listing.fulfillmentMode, Boolean(listing.vehicle));
 }
 
+/**
+ * Jobs have no product photos, so their card is compact: the employer's
+ * logo or initials beside the pay, title and employer, instead of a large
+ * empty photo area.
+ */
+function JobCard({ listing }: { listing: ClassifiedCard }) {
+  const job = listing.job!;
+  return (
+    <article className="group relative min-w-0 overflow-hidden rounded-2xl border border-transparent bg-card shadow-sm transition-shadow hover:shadow-md">
+      <ListingLink listing={listing} className="block p-3.5 pr-11">
+        <div className="flex items-start gap-3">
+          <EmployerTile name={job.employerName || listing.title} imageUrl={listing.imageUrl} />
+          <div className="min-w-0">
+            <p className="numeric text-[15px] font-bold leading-tight text-foreground">
+              <Price listing={listing} />
+            </p>
+            <h3 className="mt-1 line-clamp-2 text-[13px] font-semibold leading-[1.3] group-hover:text-primary">
+              {listing.isFeatured ? (
+                <span className="mr-1.5 inline-flex align-middle">
+                  <FeaturedBadge />
+                </span>
+              ) : null}
+              {listing.title}
+            </h3>
+            <Facts listing={listing} />
+          </div>
+        </div>
+        <div className="mt-3 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
+          <span className="flex min-w-0 items-center gap-1 truncate">
+            <MapPin size={12} weight="fill" className="shrink-0 text-primary" />
+            {listing.city}, {listing.state}
+          </span>
+          <span className="shrink-0">{postedAge(listing.createdAt)}</span>
+        </div>
+      </ListingLink>
+      {!listing.externalJob ? (
+        <div className="absolute right-2 top-2 z-10">
+          <WatchHeartButton
+            productId={listing.productId}
+            productSlug={listing.productSlug}
+            productName={listing.title}
+            isDemo={listing.isMock === true}
+          />
+        </div>
+      ) : null}
+      <Attribution listing={listing} />
+    </article>
+  );
+}
+
 /** soldAt marks a card in a Recently sold section: a Sold tag, the last asking price, no save button. */
 export function ListingCard({
   listing,
@@ -216,6 +317,7 @@ export function ListingCard({
   /** Load this card's photo eagerly at high priority (the first cards above the fold). */
   priority?: boolean;
 }) {
+  if (listing.job && !soldAt) return <JobCard listing={listing} />;
   return (
     <article className="group relative min-w-0 overflow-hidden rounded-2xl border border-transparent bg-card shadow-sm transition-shadow hover:shadow-md">
       <div className="relative">
@@ -272,9 +374,20 @@ export function ListingRow({ listing }: { listing: ClassifiedCard }) {
     <article className="group relative overflow-hidden rounded-2xl border border-transparent bg-card shadow-sm transition-shadow hover:shadow-md">
       <ListingLink
         listing={listing}
-        className="grid grid-cols-[130px_minmax(0,1fr)] gap-3 sm:grid-cols-[210px_minmax(0,1fr)]"
+        className={
+          listing.job
+            ? "grid grid-cols-[48px_minmax(0,1fr)] gap-3 p-3"
+            : "grid grid-cols-[130px_minmax(0,1fr)] gap-3 sm:grid-cols-[210px_minmax(0,1fr)]"
+        }
       >
-        <Photo listing={listing} />
+        {listing.job ? (
+          <EmployerTile
+            name={listing.job.employerName || listing.title}
+            imageUrl={listing.imageUrl}
+          />
+        ) : (
+          <Photo listing={listing} />
+        )}
         <div className="min-w-0 py-3 pr-3">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3">
             <h3 className="min-w-0 flex-1 truncate text-[14px] font-semibold group-hover:text-primary">

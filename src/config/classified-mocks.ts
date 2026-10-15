@@ -117,6 +117,8 @@ export type ClassifiedJobDetails = {
   payType: "Hourly" | "Salary" | "Commission" | "Contract";
   payMin: number;
   payMax: number;
+  /** Pay is an outside estimate (Adzuna's), not the employer's figure. */
+  payEstimated?: boolean;
   employmentType:
     "Full-time" | "Part-time" | "Seasonal" | "Contract" | "Temporary" | "Not specified";
   experienceRequired?: string | null;

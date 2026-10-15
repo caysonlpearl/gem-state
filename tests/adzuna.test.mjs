@@ -93,3 +93,29 @@ test("external inventory participates in jobs and general browse but never owner
     assert.equal(canIncludeAdzuna({ category: "jobs", ...scope }), false);
   }
 });
+
+test("keeps Adzuna salary ranges and flags estimates", () => {
+  const [listed] = normalizeAdzunaResult({
+    results: [{ ...job, salary_min: 52000, salary_max: 61000.4, salary_is_predicted: "0" }],
+  }).jobs;
+  assert.deepEqual(
+    [listed.salaryMin, listed.salaryMax, listed.salaryIsEstimate],
+    [52000, 61000, false],
+  );
+  const [predicted] = normalizeAdzunaResult({
+    results: [{ ...job, salary_min: 48000, salary_is_predicted: "1" }],
+  }).jobs;
+  assert.deepEqual(
+    [predicted.salaryMin, predicted.salaryMax, predicted.salaryIsEstimate],
+    [48000, 48000, true],
+  );
+  const [none] = normalizeAdzunaResult({ results: [job] }).jobs;
+  assert.equal(none.salaryMin, null);
+});
+
+test("Adzuna's escaped line breaks become real ones", () => {
+  const [item] = normalizeAdzunaResult({
+    results: [{ ...job, description: "Job Description \\n Requirements \\n\\n \\n Apply today" }],
+  }).jobs;
+  assert.equal(item.description, "Job Description\nRequirements\nApply today");
+});

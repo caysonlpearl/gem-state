@@ -4132,135 +4132,142 @@ function JobsLandingHero({
   return (
     <section
       aria-label="Bluebird Marketplace Jobs"
-      className="relative isolate min-h-[590px] overflow-hidden rounded-[32px] bg-primary bg-cover bg-center shadow-xl sm:min-h-[670px]"
+      className="relative isolate overflow-hidden rounded-[32px] bg-primary bg-cover bg-center shadow-xl"
       style={{
         backgroundImage:
           "linear-gradient(90deg, rgb(11 26 38 / 78%), rgb(11 26 38 / 42%) 55%, rgb(11 26 38 / 18%)), url(https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=2200&q=85)",
       }}
     >
       <div className="absolute inset-0 bg-gradient-to-t from-primary/60 via-transparent to-primary/10" />
-      <div className="absolute right-5 top-5 z-20 sm:right-7 sm:top-7">
-        <SponsoredHeroBadge />
-      </div>
-      <div className="relative flex min-h-[590px] items-center justify-center px-4 pb-12 pt-24 sm:min-h-[670px] sm:px-8 sm:pb-12 sm:pt-16">
-        <div className="w-full max-w-[720px] rounded-[28px] border border-white/20 bg-primary/80 p-5 text-primary-foreground shadow-2xl backdrop-blur-md sm:p-8">
-          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">
-            Bluebird Marketplace Jobs
-          </p>
-          <h1 className="mt-3 text-center font-display text-[34px] font-bold leading-[1.05] tracking-tight sm:text-[54px]">
-            Find <span className="text-accent">local</span> work that fits your life.
-          </h1>
-          <p className="mx-auto mt-4 max-w-[46ch] text-center text-[14px] leading-relaxed text-white/80 sm:text-[15px]">
-            Search jobs from local employers across Idaho and surrounding states — or post your next
-            opportunity.
-          </p>
+      {/* The badge gets its own row above the card, so the two never overlap. */}
+      <div className="relative flex min-h-[480px] flex-col px-4 pb-8 pt-4 sm:min-h-[520px] sm:px-8 sm:pb-10 sm:pt-6">
+        <div className="relative z-20 flex justify-end">
+          <SponsoredHeroBadge />
+        </div>
+        <div className="flex flex-1 items-center justify-center pt-4">
+          <div className="w-full max-w-[640px] rounded-[24px] border border-white/20 bg-primary/80 p-5 text-primary-foreground shadow-2xl backdrop-blur-md sm:p-7">
+            <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">
+              Bluebird Marketplace Jobs
+            </p>
+            <h1 className="mt-2 text-center font-display text-[30px] font-bold leading-[1.05] tracking-tight sm:text-[44px]">
+              Find <span className="text-accent">local</span> work that fits your life.
+            </h1>
+            <p className="mx-auto mt-3 max-w-[46ch] text-center text-[13.5px] leading-relaxed text-white/80 sm:text-[14.5px]">
+              Search jobs from local employers across Idaho and surrounding states — or post your
+              next opportunity.
+            </p>
 
-          <div className="mt-7 grid grid-cols-2 rounded-2xl bg-white/10 p-1.5 ring-1 ring-white/20">
-            <button
-              type="button"
-              aria-pressed={mode === "search"}
-              onClick={() => setMode("search")}
-              className={`rounded-xl px-2 py-3 text-[13px] font-bold transition-colors sm:text-[15px] ${mode === "search" ? "bg-accent text-accent-foreground shadow-sm" : "text-white/85 hover:bg-white/10"}`}
-            >
-              Search Jobs
-            </button>
-            <button
-              type="button"
-              aria-pressed={mode === "post"}
-              onClick={() => setMode("post")}
-              className={`rounded-xl px-2 py-3 text-[13px] font-bold transition-colors sm:text-[15px] ${mode === "post" ? "bg-accent text-accent-foreground shadow-sm" : "text-white/85 hover:bg-white/10"}`}
-            >
-              Post a Job
-            </button>
-          </div>
-
-          {mode === "search" ? (
-            <>
-              <form
-                className="mt-3 flex flex-col gap-2 rounded-2xl bg-card p-2 text-foreground"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  onSearch({
-                    q: draft.trim() || undefined,
-                    jobCategory: category || undefined,
-                    jobType: jobType && !jobType.startsWith("Any ") ? jobType : undefined,
-                    jobPayType: payType && !payType.startsWith("Any ") ? payType : undefined,
-                  });
-                }}
+            <div className="mt-5 grid grid-cols-2 rounded-2xl bg-white/10 p-1.5 ring-1 ring-white/20">
+              <button
+                type="button"
+                aria-pressed={mode === "search"}
+                onClick={() => setMode("search")}
+                className={`rounded-xl px-2 py-2.5 text-[13px] font-bold transition-colors sm:text-[14px] ${mode === "search" ? "bg-accent text-accent-foreground shadow-sm" : "text-white/85 hover:bg-white/10"}`}
               >
-                <label className="flex min-w-0 items-center gap-2 px-3">
-                  <MagnifyingGlass size={19} className="shrink-0 text-primary" aria-hidden="true" />
-                  <span className="sr-only">Search jobs</span>
-                  <input
-                    type="search"
-                    value={draft}
-                    onChange={(event) => setDraft(event.target.value)}
-                    placeholder="What job are you looking for?"
-                    aria-label="Search jobs"
-                    className="h-12 min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground"
-                  />
-                  <button
-                    type="submit"
-                    className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-[13px] font-bold text-primary-foreground hover:opacity-90"
-                  >
-                    Search
-                  </button>
-                </label>
-              </form>
-              <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                <JobSelect
-                  label="Category"
-                  options={jobCategoryOptions}
-                  value={category}
-                  onChange={setCategory}
-                />
-                <JobChecklist
-                  label="Job type"
-                  options={jobTypeOptions}
-                  value={jobType}
-                  onChange={setJobType}
-                />
-                <JobSelect
-                  label="Job pay range"
-                  options={jobPayTypeOptions}
-                  value={payType}
-                  onChange={setPayType}
-                />
-              </div>
-              <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-[12px]">
-                <span className="text-white/70">
-                  {resultCount.toLocaleString()} local jobs to explore
-                </span>
-                <button
-                  type="button"
-                  onClick={() =>
-                    onMoreFilters({
+                Search Jobs
+              </button>
+              <button
+                type="button"
+                aria-pressed={mode === "post"}
+                onClick={() => setMode("post")}
+                className={`rounded-xl px-2 py-2.5 text-[13px] font-bold transition-colors sm:text-[14px] ${mode === "post" ? "bg-accent text-accent-foreground shadow-sm" : "text-white/85 hover:bg-white/10"}`}
+              >
+                Post a Job
+              </button>
+            </div>
+
+            {mode === "search" ? (
+              <>
+                <form
+                  className="mt-3 flex flex-col gap-2 rounded-2xl bg-card p-2 text-foreground"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    onSearch({
+                      q: draft.trim() || undefined,
                       jobCategory: category || undefined,
                       jobType: jobType && !jobType.startsWith("Any ") ? jobType : undefined,
                       jobPayType: payType && !payType.startsWith("Any ") ? payType : undefined,
-                    })
-                  }
-                  className="inline-flex items-center gap-1.5 rounded-full border border-accent/70 px-4 py-2 font-bold text-accent transition-colors hover:bg-accent hover:text-accent-foreground"
+                    });
+                  }}
                 >
-                  More filters <ArrowRight size={14} aria-hidden="true" />
+                  <label className="flex min-w-0 items-center gap-2 px-3">
+                    <MagnifyingGlass
+                      size={19}
+                      className="shrink-0 text-primary"
+                      aria-hidden="true"
+                    />
+                    <span className="sr-only">Search jobs</span>
+                    <input
+                      type="search"
+                      value={draft}
+                      onChange={(event) => setDraft(event.target.value)}
+                      placeholder="What job are you looking for?"
+                      aria-label="Search jobs"
+                      className="h-12 min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground"
+                    />
+                    <button
+                      type="submit"
+                      className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-[13px] font-bold text-primary-foreground hover:opacity-90"
+                    >
+                      Search
+                    </button>
+                  </label>
+                </form>
+                <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                  <JobSelect
+                    label="Category"
+                    options={jobCategoryOptions}
+                    value={category}
+                    onChange={setCategory}
+                  />
+                  <JobChecklist
+                    label="Job type"
+                    options={jobTypeOptions}
+                    value={jobType}
+                    onChange={setJobType}
+                  />
+                  <JobSelect
+                    label="Job pay range"
+                    options={jobPayTypeOptions}
+                    value={payType}
+                    onChange={setPayType}
+                  />
+                </div>
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-[12px]">
+                  <span className="text-white/70">
+                    {resultCount.toLocaleString()} local jobs to explore
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onMoreFilters({
+                        jobCategory: category || undefined,
+                        jobType: jobType && !jobType.startsWith("Any ") ? jobType : undefined,
+                        jobPayType: payType && !payType.startsWith("Any ") ? payType : undefined,
+                      })
+                    }
+                    className="inline-flex items-center gap-1.5 rounded-full border border-accent/70 px-4 py-2 font-bold text-accent transition-colors hover:bg-accent hover:text-accent-foreground"
+                  >
+                    More filters <ArrowRight size={14} aria-hidden="true" />
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="mt-3 rounded-2xl bg-card p-6 text-center text-foreground sm:p-8">
+                <p className="text-[18px] font-bold">Have a great opportunity?</p>
+                <p className="mx-auto mt-2 max-w-[40ch] text-[13px] leading-relaxed text-muted-foreground">
+                  Reach local candidates and share the details that make your team worth joining.
+                </p>
+                <button
+                  type="button"
+                  onClick={onPost}
+                  className="mt-5 inline-flex h-12 items-center justify-center rounded-xl bg-primary px-6 text-[13px] font-bold text-primary-foreground hover:opacity-90"
+                >
+                  Post a Job Listing
                 </button>
               </div>
-            </>
-          ) : (
-            <div className="mt-3 rounded-2xl bg-card p-6 text-center text-foreground sm:p-8">
-              <p className="text-[18px] font-bold">Have a great opportunity?</p>
-              <p className="mx-auto mt-2 max-w-[40ch] text-[13px] leading-relaxed text-muted-foreground">
-                Reach local candidates and share the details that make your team worth joining.
-              </p>
-              <button
-                type="button"
-                onClick={onPost}
-                className="mt-5 inline-flex h-12 items-center justify-center rounded-xl bg-primary px-6 text-[13px] font-bold text-primary-foreground hover:opacity-90"
-              >
-                Post a Job Listing
-              </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </section>

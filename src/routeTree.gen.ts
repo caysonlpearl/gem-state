@@ -65,6 +65,7 @@ import { Route as IdahoPlaceIndexRouteImport } from './routes/idaho.$place.index
 import { Route as IdahoPlaceCategoryRouteImport } from './routes/idaho.$place.$category'
 import { Route as IdahoMarketReportIndexRouteImport } from './routes/idaho.market-report.index'
 import { Route as IdahoMarketReportMonthRouteImport } from './routes/idaho.market-report.$month'
+import { Route as JobsAdzunaJobIdRouteImport } from './routes/jobs.adzuna.$jobId'
 import { Route as AuthenticatedAdminOrdersOrderIdRouteImport } from './routes/_authenticated/admin.orders.$orderId'
 import { Route as AuthenticatedListingsListingIdEditRouteImport } from './routes/_authenticated/listings.$listingId.edit'
 import { Route as ApiPublicCatalogMediaSplatRouteImport } from './routes/api/public/catalog-media.$'
@@ -372,6 +373,11 @@ const IdahoMarketReportMonthRoute = IdahoMarketReportMonthRouteImport.update({
   path: '/idaho/market-report/$month',
   getParentRoute: () => rootRouteImport,
 } as any)
+const JobsAdzunaJobIdRoute = JobsAdzunaJobIdRouteImport.update({
+  id: '/jobs/adzuna/$jobId',
+  path: '/jobs/adzuna/$jobId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedAdminOrdersOrderIdRoute =
   AuthenticatedAdminOrdersOrderIdRouteImport.update({
     id: '/orders/$orderId',
@@ -465,6 +471,7 @@ export interface FileRoutesByFullPath {
   '/cars/$make/$model': typeof CarsMakeModelRoute
   '/idaho/$place/$category': typeof IdahoPlaceCategoryRoute
   '/idaho/market-report/$month': typeof IdahoMarketReportMonthRoute
+  '/jobs/adzuna/$jobId': typeof JobsAdzunaJobIdRoute
   '/admin/': typeof AuthenticatedAdminIndexRoute
   '/cars/$make/': typeof CarsMakeIndexRoute
   '/idaho/$place/': typeof IdahoPlaceIndexRoute
@@ -528,6 +535,7 @@ export interface FileRoutesByTo {
   '/cars/$make/$model': typeof CarsMakeModelRoute
   '/idaho/$place/$category': typeof IdahoPlaceCategoryRoute
   '/idaho/market-report/$month': typeof IdahoMarketReportMonthRoute
+  '/jobs/adzuna/$jobId': typeof JobsAdzunaJobIdRoute
   '/admin': typeof AuthenticatedAdminIndexRoute
   '/cars/$make': typeof CarsMakeIndexRoute
   '/idaho/$place': typeof IdahoPlaceIndexRoute
@@ -594,6 +602,7 @@ export interface FileRoutesById {
   '/cars/$make/$model': typeof CarsMakeModelRoute
   '/idaho/$place/$category': typeof IdahoPlaceCategoryRoute
   '/idaho/market-report/$month': typeof IdahoMarketReportMonthRoute
+  '/jobs/adzuna/$jobId': typeof JobsAdzunaJobIdRoute
   '/_authenticated/admin/': typeof AuthenticatedAdminIndexRoute
   '/cars/$make/': typeof CarsMakeIndexRoute
   '/idaho/$place/': typeof IdahoPlaceIndexRoute
@@ -660,6 +669,7 @@ export interface FileRouteTypes {
     | '/cars/$make/$model'
     | '/idaho/$place/$category'
     | '/idaho/market-report/$month'
+    | '/jobs/adzuna/$jobId'
     | '/admin/'
     | '/cars/$make/'
     | '/idaho/$place/'
@@ -723,6 +733,7 @@ export interface FileRouteTypes {
     | '/cars/$make/$model'
     | '/idaho/$place/$category'
     | '/idaho/market-report/$month'
+    | '/jobs/adzuna/$jobId'
     | '/admin'
     | '/cars/$make'
     | '/idaho/$place'
@@ -788,6 +799,7 @@ export interface FileRouteTypes {
     | '/cars/$make/$model'
     | '/idaho/$place/$category'
     | '/idaho/market-report/$month'
+    | '/jobs/adzuna/$jobId'
     | '/_authenticated/admin/'
     | '/cars/$make/'
     | '/idaho/$place/'
@@ -828,6 +840,7 @@ export interface RootRouteChildren {
   CarsMakeModelRoute: typeof CarsMakeModelRoute
   IdahoPlaceCategoryRoute: typeof IdahoPlaceCategoryRoute
   IdahoMarketReportMonthRoute: typeof IdahoMarketReportMonthRoute
+  JobsAdzunaJobIdRoute: typeof JobsAdzunaJobIdRoute
   CarsMakeIndexRoute: typeof CarsMakeIndexRoute
   IdahoPlaceIndexRoute: typeof IdahoPlaceIndexRoute
   IdahoMarketReportIndexRoute: typeof IdahoMarketReportIndexRoute
@@ -1232,6 +1245,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IdahoMarketReportMonthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/jobs/adzuna/$jobId': {
+      id: '/jobs/adzuna/$jobId'
+      path: '/jobs/adzuna/$jobId'
+      fullPath: '/jobs/adzuna/$jobId'
+      preLoaderRoute: typeof JobsAdzunaJobIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/admin/orders/$orderId': {
       id: '/_authenticated/admin/orders/$orderId'
       path: '/orders/$orderId'
@@ -1391,6 +1411,7 @@ const rootRouteChildren: RootRouteChildren = {
   CarsMakeModelRoute: CarsMakeModelRoute,
   IdahoPlaceCategoryRoute: IdahoPlaceCategoryRoute,
   IdahoMarketReportMonthRoute: IdahoMarketReportMonthRoute,
+  JobsAdzunaJobIdRoute: JobsAdzunaJobIdRoute,
   CarsMakeIndexRoute: CarsMakeIndexRoute,
   IdahoPlaceIndexRoute: IdahoPlaceIndexRoute,
   IdahoMarketReportIndexRoute: IdahoMarketReportIndexRoute,

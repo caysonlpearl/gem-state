@@ -130,9 +130,11 @@ export async function adzunaCards(data: ClassifiedBrowseInput): Promise<Classifi
         employmentType: job.employmentType,
         category:
           Object.keys(categories).find((category) => categories[category] === job.category) ?? null,
+        // Adzuna salaries are annual; 0/0 means none was given.
         payType: "Salary",
-        payMin: 0,
-        payMax: 0,
+        payMin: job.salaryMin ?? 0,
+        payMax: job.salaryMax ?? 0,
+        payEstimated: Boolean(job.salaryMin && job.salaryIsEstimate),
         jobSummary: job.description,
         responsibilities: [],
         applicationMethod: "external",
