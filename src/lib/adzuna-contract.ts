@@ -18,6 +18,8 @@ export type AdzunaJob = {
   state: string;
   createdAt: string;
   category: string;
+  /** Adzuna's own category name, e.g. "Healthcare & Nursing Jobs". */
+  categoryLabel?: string;
   employmentType: "Full-time" | "Part-time" | "Contract" | "Not specified";
   description: string;
   url: string;
@@ -117,6 +119,7 @@ export function normalizeAdzunaResult(value: unknown): AdzunaResult {
       state,
       createdAt: new Date(row.created).toISOString(),
       category: plain(row.category?.tag, 80),
+      categoryLabel: plain(row.category?.label, 80),
       employmentType:
         row.contract_type === "contract"
           ? "Contract"

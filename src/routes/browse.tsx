@@ -38,7 +38,7 @@ import {
 import { fieldsForClassifiedItem, industrialSubcategories } from "@/config/classified-item-fields";
 import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { AllCategoriesPopover } from "@/components/classifieds/AllCategoriesPopover";
-import { ListingCard, ListingRow } from "@/components/classifieds/ListingCard";
+import { ListingCard, ListingRow, PartnerJobsCredit } from "@/components/classifieds/ListingCard";
 import {
   LocationRadiusPicker,
   type LocationPoint,
@@ -3220,6 +3220,7 @@ function LandingListingsShowcase({
       ) : (
         <CategoryGettingStarted />
       )}
+      <PartnerJobsCredit listings={visibleListings} />
     </section>
   );
 }
@@ -3232,11 +3233,14 @@ function JobShowcaseCards({ row, search }: { row: HomepagePreviewRow; search: Se
   if (query.isPending) return <p className="py-8 text-sm text-muted-foreground">Loading jobs…</p>;
   if (!query.data?.listings.length) return <CategoryGettingStarted />;
   return (
-    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-      {query.data.listings.slice(0, 4).map((listing) => (
-        <ListingCard key={listing.id} listing={listing} />
-      ))}
-    </div>
+    <>
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {query.data.listings.slice(0, 4).map((listing) => (
+          <ListingCard key={listing.id} listing={listing} />
+        ))}
+      </div>
+      <PartnerJobsCredit listings={query.data.listings.slice(0, 4)} />
+    </>
   );
 }
 
@@ -4117,17 +4121,24 @@ function JobsLandingHero({
   const [mode, setMode] = useState<"search" | "post">("search");
   const [draft, setDraft] = useState(search.q ?? "");
   const [category, setCategory] = useState(search.jobCategory ?? "");
-  const [jobType, setJobType] = useState(
-    normalizeMultiSelect(search.jobType ?? search.jobEmploymentType),
-  );
+  const [location, setLocation] = useState(search.city ?? search.postalCode ?? "");
   const [payType, setPayType] = useState(search.jobPayType ?? "");
 
   useEffect(() => {
     setDraft(search.q ?? "");
     setCategory(search.jobCategory ?? "");
-    setJobType(normalizeMultiSelect(search.jobType ?? search.jobEmploymentType));
+    setLocation(search.city ?? search.postalCode ?? "");
     setPayType(search.jobPayType ?? "");
-  }, [search.q, search.jobCategory, search.jobType, search.jobEmploymentType, search.jobPayType]);
+  }, [search.q, search.jobCategory, search.city, search.postalCode, search.jobPayType]);
+
+  // A city searches within 25 miles of it; a ZIP code matches that ZIP.
+  const locationPatch = (): Partial<Search> => {
+    const place = location.trim();
+    if (!place) return { city: undefined, postalCode: undefined, radiusMiles: undefined };
+    if (/^\d{5}$/.test(place))
+      return { postalCode: place, city: undefined, radiusMiles: undefined };
+    return { city: place, postalCode: undefined, radiusMiles: search.radiusMiles ?? 25 };
+  };
 
   return (
     <section
@@ -4185,7 +4196,7 @@ function JobsLandingHero({
                     onSearch({
                       q: draft.trim() || undefined,
                       jobCategory: category || undefined,
-                      jobType: jobType && !jobType.startsWith("Any ") ? jobType : undefined,
+                      ...locationPatch(),
                       jobPayType: payType && !payType.startsWith("Any ") ? payType : undefined,
                     });
                   }}
@@ -4214,17 +4225,35 @@ function JobsLandingHero({
                   </label>
                 </form>
                 <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                  <label className="relative block min-w-0">
+                    <span className="sr-only">City or ZIP code</span>
+                    <MapPin
+                      size={16}
+                      weight="fill"
+                      aria-hidden="true"
+                      className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-primary"
+                    />
+                    <input
+                      type="text"
+                      list="jobs-hero-locations"
+                      value={location}
+                      onChange={(event) => setLocation(event.target.value)}
+                      placeholder="City or ZIP code"
+                      aria-label="City or ZIP code"
+                      autoComplete="address-level2"
+                      className="h-12 w-full rounded-xl border border-input bg-card pl-9 pr-3 text-[12px] text-foreground outline-none placeholder:text-muted-foreground focus:border-primary"
+                    />
+                    <datalist id="jobs-hero-locations">
+                      {marketplaceCities.map((city) => (
+                        <option key={city} value={city} />
+                      ))}
+                    </datalist>
+                  </label>
                   <JobSelect
                     label="Category"
                     options={jobCategoryOptions}
                     value={category}
                     onChange={setCategory}
-                  />
-                  <JobChecklist
-                    label="Job type"
-                    options={jobTypeOptions}
-                    value={jobType}
-                    onChange={setJobType}
                   />
                   <JobSelect
                     label="Job pay range"
@@ -4242,7 +4271,7 @@ function JobsLandingHero({
                     onClick={() =>
                       onMoreFilters({
                         jobCategory: category || undefined,
-                        jobType: jobType && !jobType.startsWith("Any ") ? jobType : undefined,
+                        ...locationPatch(),
                         jobPayType: payType && !payType.startsWith("Any ") ? payType : undefined,
                       })
                     }
@@ -4568,11 +4597,14 @@ function JobsFilterPage({
               </button>
             </BluebirdEmptyState>
           ) : (
-            <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {sortedListings.map((listing) => (
-                <ListingCard key={listing.id} listing={listing} />
-              ))}
-            </div>
+            <>
+              <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {sortedListings.map((listing) => (
+                  <ListingCard key={listing.id} listing={listing} />
+                ))}
+              </div>
+              <PartnerJobsCredit listings={sortedListings} />
+            </>
           )}
         </section>
       </div>

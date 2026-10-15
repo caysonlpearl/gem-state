@@ -139,7 +139,8 @@ export function adzunaCard(job: AdzunaJob): ClassifiedCard {
       employerName: job.company,
       employmentType: job.employmentType,
       category:
-        Object.keys(categories).find((category) => categories[category] === job.category) ?? null,
+        Object.keys(categories).find((category) => categories[category] === job.category) ??
+        (job.categoryLabel?.replace(/\s+Jobs$/i, "") || null),
       // Adzuna salaries are annual; 0/0 means none was given.
       payType: "Salary",
       payMin: job.salaryMin ?? 0,

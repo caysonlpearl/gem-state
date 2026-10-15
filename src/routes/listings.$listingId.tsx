@@ -44,6 +44,7 @@ import { listingIdFromParam, listingParam, listingPath } from "@/lib/listing-url
 import { trackEvent, trackSellerContact } from "@/lib/analytics";
 import { PUBLIC_PAGE_STALE_MS } from "@/lib/query-freshness";
 import { EmployerTile, ListingCard } from "@/components/classifieds/ListingCard";
+import { PartnerJobHeartButton } from "@/components/community/PartnerJobHeartButton";
 import { WatchHeartButton } from "@/components/community/WatchHeartButton";
 import {
   conditionLabels,
@@ -2062,7 +2063,13 @@ function JobListingDetail({
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {listing.externalJob ? null : listing.isMock ? (
+              {listing.externalJob ? (
+                <PartnerJobHeartButton
+                  listingId={listing.id}
+                  title={title}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+                />
+              ) : listing.isMock ? (
                 <button
                   type="button"
                   aria-label="Save listing"
@@ -2130,6 +2137,18 @@ function JobListingDetail({
                   <p className="mt-5 whitespace-pre-line text-[14px] leading-7 text-muted-foreground">
                     {details.jobSummary || "The employer has not added a description yet."}
                   </p>
+                  {listing.externalJob ? (
+                    // Adzuna only shares the first few hundred characters.
+                    <a
+                      href={listing.externalJob.url}
+                      target="_blank"
+                      rel="noopener noreferrer nofollow sponsored"
+                      className="mt-3 inline-flex items-center gap-1 text-[13px] font-semibold text-primary hover:underline"
+                    >
+                      Read the full description on the employer&apos;s posting
+                      <ArrowSquareOut size={14} aria-hidden="true" />
+                    </a>
+                  ) : null}
                   {details.responsibilities.length > 0 && (
                     <div className="mt-8 border-t border-border/70 pt-6">
                       <h3 className="text-[18px] font-bold">Key responsibilities</h3>
@@ -2170,13 +2189,37 @@ function JobListingDetail({
                 <div>
                   <h2 className="text-[21px] font-bold">Job specifications</h2>
                   <dl className="mt-5 divide-y divide-border/70 text-[13px]">
-                    {[
-                      ["Pay range", details.payRange],
-                      ["Pay type", details.payType],
-                      ["Employment type", details.employmentType],
-                      ["Years of experience", details.experienceRequired],
-                      ["Education level", details.educationLevel],
-                    ].map(([label, value]) => (
+                    {(listing.externalJob
+                      ? // Partner jobs: only what Adzuna actually provides.
+                        [
+                          ["Pay range", details.payRange],
+                          [
+                            "Pay type",
+                            listing.job?.payMin
+                              ? listing.job.payEstimated
+                                ? "Annual salary (Adzuna estimate)"
+                                : "Annual salary"
+                              : "Not listed",
+                          ],
+                          [
+                            "Employment type",
+                            details.employmentType === "Not specified"
+                              ? "Not listed"
+                              : details.employmentType,
+                          ],
+                          ["Category", listing.job?.category || "Not listed"],
+                          ["Employer", details.employerName || "Not listed"],
+                          ["Location", `${listing.city}, ${listing.state}`],
+                          ["Posted", postedAge(listing.createdAt)],
+                        ]
+                      : [
+                          ["Pay range", details.payRange],
+                          ["Pay type", details.payType],
+                          ["Employment type", details.employmentType],
+                          ["Years of experience", details.experienceRequired],
+                          ["Education level", details.educationLevel],
+                        ]
+                    ).map(([label, value]) => (
                       <div key={label} className="flex items-center justify-between gap-4 py-3">
                         <dt>{label}</dt>
                         <dd className="text-right font-semibold text-muted-foreground">{value}</dd>

@@ -4,6 +4,7 @@ import { MapPin } from "@phosphor-icons/react";
 import { listingParam } from "@/lib/listing-url";
 
 import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
+import { PartnerJobHeartButton } from "@/components/community/PartnerJobHeartButton";
 import { WatchHeartButton } from "@/components/community/WatchHeartButton";
 import {
   conditionLabels,
@@ -37,20 +38,26 @@ function ListingLink({
     </Link>
   );
 }
-function Attribution({ listing }: { listing: ClassifiedCard }) {
-  return listing.externalJob ? (
-    <div className="px-3.5 pb-3 text-[10px] text-muted-foreground">
+/**
+ * "Jobs by Adzuna" once under a group of cards that includes Adzuna jobs.
+ * Adzuna's terms ask for it on pages showing their results; once per group
+ * keeps the cards themselves clean. Job pages carry their own.
+ */
+export function PartnerJobsCredit({ listings }: { listings: readonly ClassifiedCard[] }) {
+  if (!listings.some((listing) => listing.externalJob)) return null;
+  return (
+    <p className="mt-3 text-right text-[10px] text-muted-foreground">
       Jobs by{" "}
       <a
         href="https://www.adzuna.com"
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex min-h-[23px] min-w-[116px] items-center text-[23px] font-bold leading-none text-primary"
+        className="inline-flex min-h-[23px] min-w-[116px] items-center justify-end text-[23px] font-bold leading-none text-primary"
       >
         Adzuna
       </a>
-    </div>
-  ) : null;
+    </p>
+  );
 }
 
 const TILE_COLORS = [
@@ -269,16 +276,20 @@ export function ListingCard({
           <span className="absolute left-2 top-2 z-10 inline-flex rounded-full bg-foreground px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-background shadow-sm">
             Sold
           </span>
-        ) : !listing.externalJob ? (
+        ) : (
           <div className="absolute right-2 top-2 z-10">
-            <WatchHeartButton
-              productId={listing.productId}
-              productSlug={listing.productSlug}
-              productName={listing.title}
-              isDemo={listing.isMock === true}
-            />
+            {listing.externalJob ? (
+              <PartnerJobHeartButton listingId={listing.id} title={listing.title} />
+            ) : (
+              <WatchHeartButton
+                productId={listing.productId}
+                productSlug={listing.productSlug}
+                productName={listing.title}
+                isDemo={listing.isMock === true}
+              />
+            )}
           </div>
-        ) : null}
+        )}
       </div>
       <ListingLink listing={listing} className="block px-3.5 pb-4 pt-3.5">
         <p className="numeric text-[17px] font-bold leading-none text-foreground">
@@ -305,7 +316,6 @@ export function ListingCard({
           <span className="shrink-0">{postedAge(soldAt ?? listing.createdAt)}</span>
         </div>
       </ListingLink>
-      <Attribution listing={listing} />
     </article>
   );
 }
@@ -356,7 +366,6 @@ export function ListingRow({ listing }: { listing: ClassifiedCard }) {
           <p className="mt-1 text-[10.5px] text-muted-foreground">{postedAge(listing.createdAt)}</p>
         </div>
       </ListingLink>
-      <Attribution listing={listing} />
     </article>
   );
 }
