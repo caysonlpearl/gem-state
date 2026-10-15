@@ -87,6 +87,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:title", content: `${brand.name} — Idaho's local marketplace` },
       { property: "og:description", content: brand.description },
       { property: "og:type", content: "website" },
+      { property: "og:site_name", content: brand.name },
       ...socialImageMeta(brand.urls.siteUrl),
       {
         name: "google-site-verification",
