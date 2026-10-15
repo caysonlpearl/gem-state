@@ -51,3 +51,6 @@
 
 ## Account menu redesign
 - Dropdown: "Signed in as" identity header (avatar/name/email, links to /account), Marketplace group with aligned icons (Selling, Saved, Messages, Notifications) and unread count badges, Account settings row, Sign out action (global sign-out + cache clear) at the bottom. 244px wide, rounded-xl, shared query keys with AccountCenter/NotificationBell.
+
+## Mashvisor homes feed
+- [x] Homes for sale from Mashvisor in Homes browse + listing page, within the 30 requests/month free plan (cap ~20/month, 7-day cache)
