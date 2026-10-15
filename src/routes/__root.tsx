@@ -1,3 +1,4 @@
+import { PUBLIC_SUPABASE_URL } from "@/config/supabase-public";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -98,6 +99,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         href: appCss,
       },
       { rel: "icon", href: "/images/brand/bluebird-favicon-transparent.png", type: "image/png" },
+      // Listing photos come from Supabase storage; open that connection while
+      // the page's HTML is still arriving instead of when the first <img> is
+      // reached (worth about a second on slow mobile connections).
+      { rel: "preconnect", href: PUBLIC_SUPABASE_URL },
       // The two fonts nearly every page paints first, fetched alongside the CSS.
       {
         rel: "preload",
