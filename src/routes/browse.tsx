@@ -39,6 +39,7 @@ import { fieldsForClassifiedItem, industrialSubcategories } from "@/config/class
 import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { AllCategoriesPopover } from "@/components/classifieds/AllCategoriesPopover";
 import { ListingCard, ListingRow } from "@/components/classifieds/ListingCard";
+import { AdzunaJobs } from "@/components/classifieds/AdzunaJobs";
 import {
   LocationRadiusPicker,
   type LocationPoint,
@@ -2173,11 +2174,13 @@ function Browse() {
         />
       )}
 
+      {jobs && <AdzunaJobs />}
+
       {jobs && jobLanding && (
         <>
           <LandingListingsShowcase
             eyebrow="Bluebird Marketplace Jobs"
-            title="Latest local jobs"
+            title="Latest jobs posted on Bluebird"
             action="Browse all jobs"
             browseSearch={{ category: "jobs", jobMode: "results" }}
             listings={result.listings}
