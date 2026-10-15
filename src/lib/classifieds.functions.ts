@@ -921,6 +921,16 @@ function sortedMedia(row: Record<string, unknown>): string[] {
 
 /** Card photos are shown at most ~330 CSS px wide; 640 covers 2x screens. */
 const CARD_PHOTO_WIDTH = 640;
+/**
+ * Thumbnail links last a day and are reused until an hour before they
+ * expire. Supabase's CDN caches a resized photo per link, so a link signed
+ * fresh on every render missed that cache each time (about 0.4-0.7 s to
+ * resize again vs 0.15 s cached). The trade-off: a taken-down listing's card
+ * photo stays reachable for up to a day by someone who already has its link.
+ */
+const THUMBNAIL_LINK_SECONDS = 24 * 60 * 60;
+const THUMBNAIL_REUSE_MS = (THUMBNAIL_LINK_SECONDS - 60 * 60) * 1000;
+const thumbnailLinks = new Map<string, { url: string; reuseUntil: number }>();
 
 /**
  * Signed links to resized copies of listing photos, for listing cards:
@@ -932,20 +942,36 @@ const CARD_PHOTO_WIDTH = 640;
 async function signListingThumbnails(paths: string[]): Promise<Map<string, string>> {
   const unique = [...new Set(paths)];
   if (unique.length === 0) return new Map();
+  const now = Date.now();
   const resized = new Map<string, string>();
-  try {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const bucket = supabaseAdmin.storage.from("listing-media");
-    await Promise.all(
-      unique.map(async (path) => {
-        const { data } = await bucket.createSignedUrl(path, 60 * 60, {
-          transform: { width: CARD_PHOTO_WIDTH, quality: 70 },
-        });
-        if (data?.signedUrl) resized.set(path, data.signedUrl);
-      }),
-    );
-  } catch (error) {
-    console.error("Could not sign resized listing photos", error);
+  for (const path of unique) {
+    const cached = thumbnailLinks.get(path);
+    if (cached && cached.reuseUntil > now) resized.set(path, cached.url);
+  }
+  const toSign = unique.filter((path) => !resized.has(path));
+  if (toSign.length) {
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const bucket = supabaseAdmin.storage.from("listing-media");
+      await Promise.all(
+        toSign.map(async (path) => {
+          const { data } = await bucket.createSignedUrl(path, THUMBNAIL_LINK_SECONDS, {
+            transform: { width: CARD_PHOTO_WIDTH, quality: 70 },
+          });
+          if (!data?.signedUrl) return;
+          resized.set(path, data.signedUrl);
+          thumbnailLinks.set(path, { url: data.signedUrl, reuseUntil: now + THUMBNAIL_REUSE_MS });
+        }),
+      );
+    } catch (error) {
+      console.error("Could not sign resized listing photos", error);
+    }
+    // Keep the reuse cache bounded on long-lived server instances.
+    if (thumbnailLinks.size > 5000) {
+      for (const [path, entry] of thumbnailLinks) {
+        if (entry.reuseUntil <= now || thumbnailLinks.size > 4000) thumbnailLinks.delete(path);
+      }
+    }
   }
   const missing = unique.filter((path) => !resized.has(path));
   if (missing.length) for (const [path, url] of await signListingMedia(missing)) resized.set(path, url);
