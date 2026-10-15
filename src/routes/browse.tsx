@@ -38,7 +38,12 @@ import {
 import { fieldsForClassifiedItem, industrialSubcategories } from "@/config/classified-item-fields";
 import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { AllCategoriesPopover } from "@/components/classifieds/AllCategoriesPopover";
-import { ListingCard, ListingRow, PartnerJobsCredit } from "@/components/classifieds/ListingCard";
+import {
+  ListingCard,
+  ListingRow,
+  LogoDevCredit,
+  PartnerJobsCredit,
+} from "@/components/classifieds/ListingCard";
 import {
   LocationRadiusPicker,
   type LocationPoint,
@@ -2187,6 +2192,11 @@ function Browse() {
             rows={jobsShowcaseRows}
             jobSearch={search}
           />
+          {/* Partner job credits live on each job's own page; logo.dev's
+              free plan asks for one visible link where its logos show. */}
+          <p className="mt-12 text-center">
+            <LogoDevCredit />
+          </p>
         </>
       )}
 
@@ -3220,7 +3230,6 @@ function LandingListingsShowcase({
       ) : (
         <CategoryGettingStarted />
       )}
-      <PartnerJobsCredit listings={visibleListings} />
     </section>
   );
 }
@@ -3233,14 +3242,11 @@ function JobShowcaseCards({ row, search }: { row: HomepagePreviewRow; search: Se
   if (query.isPending) return <p className="py-8 text-sm text-muted-foreground">Loading jobs…</p>;
   if (!query.data?.listings.length) return <CategoryGettingStarted />;
   return (
-    <>
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {query.data.listings.slice(0, 4).map((listing) => (
-          <ListingCard key={listing.id} listing={listing} />
-        ))}
-      </div>
-      <PartnerJobsCredit listings={query.data.listings.slice(0, 4)} />
-    </>
+    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      {query.data.listings.slice(0, 4).map((listing) => (
+        <ListingCard key={listing.id} listing={listing} />
+      ))}
+    </div>
   );
 }
 
