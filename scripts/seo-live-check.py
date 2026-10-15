@@ -97,7 +97,7 @@ def main():
             reasons.append("cross-domain")
         if reasons:
             errors.append({"url": page["url"], "reasons": reasons})
-    checks = ["/browse?allCategories=true&page=2", "/browse?allCategories=true&page=99999", "/browse?category=jewelry-watches&minPrice=0&maxPrice=50", "/claim-seller", "/auth", "/account", "/not-a-real-bluebird-page"]
+    checks = ["/browse?allCategories=true&page=2", "/browse?allCategories=true&page=99999", "/browse?category=jewelry-watches&priceMin=0&priceMax=50", "/claim-seller", "/auth", "/account", "/not-a-real-bluebird-page"]
     extras = [inspect(ORIGIN + path) for path in checks]
     aliases = [fetch(url, follow=False) for url in ["http://onbluebird.com/browse?page=2", "https://www.onbluebird.com/browse?page=2", "https://gemstateclassifieds.lovable.app/browse?page=2", "https://onbluebird.com/idaho/eagle/"]]
     for row in aliases:

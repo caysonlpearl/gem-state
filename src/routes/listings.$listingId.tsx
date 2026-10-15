@@ -62,7 +62,7 @@ import {
 } from "@/lib/classifieds.functions";
 import { canonicalMake, canonicalModel, nearbyPagePath, vehiclePagePath } from "@/lib/place-pages";
 import { jsonLdScript, listingStructuredData } from "@/lib/structured-data";
-import { socialImageMeta } from "@/lib/seo-policy";
+import { isSeoTestListing, socialImageMeta } from "@/lib/seo-policy";
 import { getRemovedListingRedirect } from "@/lib/place-pages.functions";
 import type { ClassifiedCard, ClassifiedDetail } from "@/lib/classifieds.functions";
 import {
@@ -204,6 +204,9 @@ export const Route = createFileRoute("/listings/$listingId")({
       meta: [
         { title },
         { name: "description", content: description },
+        ...(isSeoTestListing(loaderData.title)
+          ? [{ name: "robots", content: "noindex, nofollow" }]
+          : []),
         { property: "og:title", content: title },
         { property: "og:description", content: description },
         { property: "og:type", content: "website" },

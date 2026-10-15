@@ -3,6 +3,11 @@ export const SEO_MIN_LISTINGS = 5;
 export const SEO_FRESH_DAYS = 30;
 export const SEO_CITY_RADIUS_MILES = 25;
 
+/** Explicitly marked disposable records must never become search landing pages. */
+export function isSeoTestListing(title: string) {
+  return /^qa\b.*\bdo not (buy|contact)\b/i.test(title.trim());
+}
+
 type SeoPlace = { kind: "city" | "region"; name: string } | null;
 
 export function placeInventoryFilters(place: SeoPlace, category?: string | null) {

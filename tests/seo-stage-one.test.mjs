@@ -7,6 +7,7 @@ import {
   isIndexableStorefront,
   isOutOfRangePage,
   isPrivateSeoPath,
+  isSeoTestListing,
   isSitemapAllowedPath,
   matchesSeoPlace,
   placeInventoryFilters,
@@ -57,6 +58,9 @@ test("pagination keeps category, results mode, rental mode and distinct page can
 });
 
 test("thin collections and all noncurated filter permutations are noindex", () => {
+  assert.equal(isSeoTestListing("QA seller claim test — do not buy"), true);
+  assert.equal(isSeoTestListing("QA additional synced listing — do not buy"), true);
+  assert.equal(isSeoTestListing("Quality vintage ring"), false);
   assert.equal(isIndexableCollection({ category: "pets", petMode: "results", page: 2 }, 5), true);
   assert.equal(isIndexableCollection({ category: "pets" }, 4), false);
   for (const [key, value] of Object.entries({

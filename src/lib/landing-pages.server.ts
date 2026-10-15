@@ -10,7 +10,7 @@ import {
 } from "@/lib/place-pages";
 import { idahoCities, isWithinClassifiedCityRadius } from "@/config/classifieds";
 import { isReleaseQaListing } from "@/lib/classifieds.functions";
-import { isIndexablePlaceInventory, matchesSeoPlace } from "@/lib/seo-policy";
+import { isIndexablePlaceInventory, isSeoTestListing, matchesSeoPlace } from "@/lib/seo-policy";
 import { listingPath } from "@/lib/listing-url";
 import { regionOfListing } from "@/lib/market-stats";
 
@@ -84,7 +84,11 @@ export async function fetchLiveListings(admin: any): Promise<LiveListingRow[] | 
     if (error) return null;
     const batch = (data ?? []) as LiveListingRow[];
     rows.push(
-      ...batch.filter((row) => !isReleaseQaListing(row as unknown as Record<string, unknown>)),
+      ...batch.filter(
+        (row) =>
+          !isReleaseQaListing(row as unknown as Record<string, unknown>) &&
+          !isSeoTestListing(row.products?.name ?? ""),
+      ),
     );
     if (batch.length < 500) break;
   }
@@ -152,6 +156,7 @@ export async function pingListingChange(askId: string) {
       .eq("id", askId)
       .maybeSingle();
     if (!row) return;
+    if (isSeoTestListing(row.products?.name ?? "")) return;
     const details = Array.isArray(row.classified_listing_details)
       ? row.classified_listing_details[0]
       : row.classified_listing_details;
