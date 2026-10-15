@@ -2932,6 +2932,42 @@ export type Database = {
         }
         Relationships: []
       }
+      mashvisor_api_requests: {
+        Row: {
+          created_at: string
+          id: number
+          query_key: string
+        }
+        Insert: {
+          created_at?: string
+          id?: never
+          query_key: string
+        }
+        Update: {
+          created_at?: string
+          id?: never
+          query_key?: string
+        }
+        Relationships: []
+      }
+      mashvisor_search_cache: {
+        Row: {
+          expires_at: string
+          payload: Json
+          query_key: string
+        }
+        Insert: {
+          expires_at: string
+          payload: Json
+          query_key: string
+        }
+        Update: {
+          expires_at?: string
+          payload?: Json
+          query_key?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           body: string
@@ -7172,6 +7208,7 @@ export type Database = {
         }
         Returns: string
       }
+      reserve_mashvisor_search: { Args: { p_query_key: string }; Returns: Json }
       reserve_shipping_label_purchase: {
         Args: { _quote_id: string; _rate_cents: number; _rate_id: string }
         Returns: Json
