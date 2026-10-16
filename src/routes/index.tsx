@@ -211,6 +211,26 @@ function Home() {
   // page's largest text, so swapping it on load delays LCP); the entrance
   // animation only plays on later rotations.
   const [headlineRotated, setHeadlineRotated] = useState(false);
+  const headlineRef = useRef<HTMLHeadingElement>(null);
+  // Phones hold the headline to exactly three lines: shrink the words (not the
+  // box) until the longest rotation fits.
+  useEffect(() => {
+    const h = headlineRef.current;
+    if (!h) return;
+    const fit = () => {
+      const spans = Array.from(h.children) as HTMLElement[];
+      spans.forEach((span) => (span.style.fontSize = ""));
+      if (window.innerWidth >= 640) return;
+      let size = 1;
+      while (h.scrollHeight > h.clientHeight + 1 && size > 0.8) {
+        size -= 0.04;
+        spans.forEach((span) => (span.style.fontSize = `${size}em`));
+      }
+    };
+    fit();
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, [headlineItems]);
   const [term, setTerm] = useState("");
   const [category, setCategory] = useState("");
   const [location, setLocation] = useState("");
@@ -317,7 +337,7 @@ function Home() {
           <p className="hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-primary sm:block">
             Bluebird classifieds
           </p>
-          <h1 className="homepage-hero-headline max-w-[34ch] text-[22px] sm:mt-2 font-bold leading-[1.08] tracking-tight sm:text-[48px]">
+          <h1 ref={headlineRef} className="homepage-hero-headline flex max-w-[34ch] flex-col justify-end text-[22px] sm:mt-2 font-bold leading-[1.08] tracking-tight sm:text-[48px]">
             <span className="block">
               Find{" "}
               <span
@@ -333,7 +353,7 @@ function Home() {
               {headlineItems[2]} to {headlineItems[3]}.
             </span>
           </h1>
-          <p className="mt-1 max-w-[56ch] text-[12.5px] leading-snug sm:mt-1.5 sm:text-[15px] leading-relaxed text-muted-foreground">
+          <p className="mt-1 max-w-[56ch] whitespace-nowrap text-[clamp(10.5px,3.1vw,12.5px)] leading-snug sm:mt-1.5 sm:text-[15px] leading-relaxed text-muted-foreground">
             And so much more across Idaho and surrounding states.
           </p>
           <div
@@ -628,27 +648,27 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
   return (
     <>
       {/* Motors lead */}
-      <section className="mt-14">
-        <div className="flex items-end justify-between gap-4">
-          <div>
+      <section className="mt-6 sm:mt-14">
+        <div className="flex items-end justify-between gap-3">
+          <div className="min-w-0">
             <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">
               <Car size={14} weight="fill" /> Cars &amp; motors
             </p>
-            <h2 className="mt-1 text-[26px] font-bold tracking-tight">
+            <h2 className="mt-1 whitespace-nowrap text-[19px] font-bold tracking-tight sm:text-[26px]">
               Vehicles for sale in Idaho
             </h2>
           </div>
-          <Link to="/browse" search={withLocation({ group: "motors" })} className={seeAll}>
+          <Link to="/browse" search={withLocation({ group: "motors" })} className={`${seeAll} shrink-0`}>
             All vehicles <ArrowRight size={12} />
           </Link>
         </div>
-        <div className="mt-4 flex flex-wrap gap-2">
+        <div className="no-scrollbar -mx-4 mt-3 flex flex-nowrap gap-2 overflow-x-auto px-4 sm:mx-0 sm:mt-4 sm:flex-wrap sm:px-0">
           {motorCategories.map((option) => (
             <Link
               key={option.slug}
               to="/browse"
               search={withLocation({ category: option.slug })}
-              className="inline-flex min-h-11 items-center rounded-full border border-input bg-card px-4 text-[12.5px] transition-colors hover:border-primary hover:bg-secondary"
+              className="inline-flex min-h-9 shrink-0 items-center whitespace-nowrap rounded-full border border-input bg-card px-3.5 text-[12px] sm:min-h-11 sm:px-4 sm:text-[12.5px] transition-colors hover:border-primary hover:bg-secondary"
             >
               {option.name}
               {home.categoryCounts[option.slug] ? (
