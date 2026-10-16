@@ -68,6 +68,44 @@ const lower = (value: unknown) =>
     .trim()
     .toLowerCase();
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+/**
+ * Cache rows contain normalized provider objects. Re-normalize the raw
+ * payload when available so schema fixes also apply to rows written before a
+ * deployment (for example, the FSBO dealer-field fix).
+ */
+function repairCachedListing(
+  payload: unknown,
+  sourceKind: MarketCheckSourceKind,
+): MarketCheckListing | null {
+  const record = isRecord(payload) ? payload : {};
+  const raw = isRecord(record.raw) ? record.raw : payload;
+  const repaired = normalizeMarketCheckListing(raw, sourceKind);
+  if (repaired) return repaired;
+  if (sourceKind !== "fsbo" || !isRecord(payload)) return null;
+  return {
+    ...(payload as MarketCheckListing),
+    dealer: null,
+    sellerType: "Private seller",
+  };
+}
+
+function repairCachedSearch(payload: unknown, sourceKind: MarketCheckSourceKind) {
+  if (!isRecord(payload) || !Array.isArray(payload.listings))
+    return normalizeMarketCheckSearch(payload, sourceKind);
+  const listings = payload.listings
+    .map((listing) => repairCachedListing(listing, sourceKind))
+    .filter((listing): listing is MarketCheckListing => Boolean(listing));
+  return {
+    numFound: Number(payload.numFound ?? listings.length),
+    listings,
+    raw: isRecord(payload.raw) ? payload.raw : {},
+  };
+}
+
 function stateCode(value: string | undefined) {
   const found = usStates.find(
     ([code, name]) => code === value || name.toLowerCase() === lower(value),
@@ -307,7 +345,7 @@ async function searchPage(
   const result = await cachedCall(
     key,
     `${sourceEndpoint(kind)}?${params.toString()}`,
-    (payload) => normalizeMarketCheckSearch(payload, kind),
+    (payload) => repairCachedSearch(payload, kind),
     { forceRefresh },
   );
   return result.ok ? result.value : { numFound: 0, listings: [], raw: {} };
@@ -347,7 +385,7 @@ async function cachedSearchListing(
     if (cacheKind !== sourceKind) continue;
     const listings = (row?.payload?.listings ?? []) as MarketCheckListing[];
     const match = listings.find((listing) => listing.providerId === providerId);
-    if (match) return match;
+    if (match) return repairCachedListing(match, sourceKind);
   }
   return null;
 }
