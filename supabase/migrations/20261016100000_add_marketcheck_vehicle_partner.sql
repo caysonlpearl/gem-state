@@ -99,6 +99,6 @@ alter table public.listing_view_counts
   drop constraint if exists listing_view_counts_listing_id_check;
 alter table public.listing_view_counts
   add constraint listing_view_counts_listing_id_check
-  check (listing_id ~ '^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|adzuna-[0-9]{1,20}|mashvisor-[0-9]{1,15}|openwebninja-[0-9]{1,20}|marketcheck-(dealer|fsbo)-[A-Za-z0-9._:-]{1,160})$');
+  check (listing_id ~ '^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|adzuna-[0-9]{1,20}|mashvisor-[0-9]{1,15}|openwebninja-[0-9]{1,20}|fsq-[A-Za-z0-9._:-]{1,160}|marketcheck-(dealer|fsbo)-[A-Za-z0-9._:-]{1,160})$');
 
 commit;
