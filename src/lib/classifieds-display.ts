@@ -213,3 +213,13 @@ export function placeLabel(city: string | null | undefined, state: string | null
   if (town) return st ? `${town}, ${st}` : town;
   return STATE_NAMES[st.toUpperCase()] ?? st;
 }
+
+/** A pet up for adoption with no fee reads "Up for Adoption" instead of $0.00. */
+export function adoptionPriceLabel(listing: {
+  priceCents: number;
+  pet?: { placementType?: string | null } | null;
+}) {
+  return listing.pet?.placementType === "adoption" && listing.priceCents <= 0
+    ? "Up for Adoption"
+    : null;
+}

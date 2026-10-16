@@ -3,7 +3,7 @@ import { DeviceMobile, Phone } from "@phosphor-icons/react";
 
 import { useAuth } from "@/hooks/useAuth";
 import type { ClassifiedDetail } from "@/lib/classifieds.functions";
-import { formatClassifiedPrice } from "@/lib/classifieds-display";
+import { adoptionPriceLabel, formatClassifiedPrice } from "@/lib/classifieds-display";
 import { OPEN_CONTACT_EVENT } from "./ContactSignInSheet";
 import { trackSellerContact } from "@/lib/analytics";
 
@@ -56,7 +56,7 @@ export function MobileContactBar({ listing }: { listing: ClassifiedDetail }) {
           wholeDollars: Boolean(listing.vehicle || listing.home),
           monthly: listing.home?.mode === "rent",
         })
-      : null;
+      : adoptionPriceLabel(listing);
   const iconButton =
     "flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-input bg-background text-foreground";
   const primaryButton =

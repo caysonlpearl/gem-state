@@ -72,6 +72,7 @@ import { WatchHeartButton } from "@/components/community/WatchHeartButton";
 import {
   conditionLabels,
   formatClassifiedPrice,
+  adoptionPriceLabel,
   formatFulfillmentLabel,
   formatJobPay,
   formatMileage,
@@ -216,6 +217,7 @@ export const Route = createFileRoute("/listings/$listingId")({
         : listing.job
           ? formatJobPay(listing.job)
           : (listing.service?.pricing ??
+            adoptionPriceLabel(listing) ??
             formatClassifiedPrice(listing.priceCents, {
               wholeDollars: Boolean(listing.vehicle || listing.home),
               monthly: listing.home?.mode === "rent",
@@ -3938,7 +3940,8 @@ function GeneralListingDetail({
             </div>
           </div>
           <p className="numeric mt-4 text-[30px] font-bold leading-none text-primary sm:text-[34px]">
-            {formatClassifiedPrice(listing.priceCents, { wholeDollars: true })}
+            {adoptionPriceLabel(listing) ??
+              formatClassifiedPrice(listing.priceCents, { wholeDollars: true })}
           </p>
         </header>
 

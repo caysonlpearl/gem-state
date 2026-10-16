@@ -11,6 +11,7 @@ import { WatchHeartButton } from "@/components/community/WatchHeartButton";
 import {
   conditionLabels,
   formatClassifiedPrice,
+  adoptionPriceLabel,
   formatFulfillmentLabel,
   formatJobPay,
   homeStatusLabel,
@@ -432,6 +433,7 @@ function Price({ listing }: { listing: ClassifiedCard }) {
       {listing.job
         ? formatJobPay(listing.job)
         : (listing.service?.pricing ??
+          adoptionPriceLabel(listing) ??
           formatClassifiedPrice(listing.priceCents, {
             wholeDollars: Boolean(listing.vehicle || listing.home),
             monthly: listing.home?.mode === "rent",
