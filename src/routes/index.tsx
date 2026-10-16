@@ -302,41 +302,57 @@ function Home() {
   // animation only plays on later rotations.
   const [headlineRotated, setHeadlineRotated] = useState(false);
   const headlineRef = useRef<HTMLHeadingElement>(null);
-  // Phones hold the headline to exactly three lines: grow short rotations to
-  // fill the third line and shrink long ones until they fit, so the headline
-  // never changes shape between rotations.
+  // Phones hold the headline to exactly three measured lines: the words are
+  // split into the three narrowest possible rows (and scaled down only if the
+  // longest rotation still overflows), so every rotation keeps the same shape.
+  const [headlineGroups, setHeadlineGroups] = useState<HeadlineToken[][]>(() =>
+    headlineDesktopGroups(headlineItems),
+  );
+  const [headlineScale, setHeadlineScale] = useState(1);
+  const [headlineFontPx, setHeadlineFontPx] = useState(22);
   useEffect(() => {
     const h = headlineRef.current;
     if (!h) return;
-    const fit = () => {
-      const spans = Array.from(h.children) as HTMLElement[];
-      spans.forEach((span) => (span.style.fontSize = ""));
-      if (window.innerWidth >= 640) return;
-      const lineCount = () =>
-        spans.reduce((total, span) => total + span.getClientRects().length, 0);
-      let size = 1;
-      let lines = lineCount();
-      if (lines > 3) {
-        while (lines > 3 && size > 0.8) {
-          size -= 0.04;
-          spans.forEach((span) => (span.style.fontSize = `${size}em`));
-          lines = lineCount();
-        }
-      } else {
-        while (lines < 3 && size < 1.36) {
-          const next = size + 0.04;
-          spans.forEach((span) => (span.style.fontSize = `${next}em`));
-          const nextLines = lineCount();
-          if (nextLines > 3) break;
-          size = next;
-          lines = nextLines;
+    const apply = () => {
+      h.style.fontSize = "";
+      if (window.innerWidth >= 640) {
+        setHeadlineGroups(headlineDesktopGroups(headlineItems));
+        setHeadlineScale(1);
+        return;
+      }
+      const style = getComputedStyle(h);
+      const fontPx = parseFloat(style.fontSize) || 22;
+      setHeadlineFontPx(fontPx);
+      for (let scale = 1; scale >= 0.7; scale -= 0.04) {
+        const groups = splitHeadlineIntoThreeLines(
+          headlineTokensFor(headlineItems),
+          h.clientWidth - 4,
+          `${style.fontWeight} ${fontPx * scale}px ${style.fontFamily}`,
+          style.letterSpacing,
+        );
+        if (groups) {
+          setHeadlineGroups(groups);
+          setHeadlineScale(scale);
+          return;
         }
       }
+      setHeadlineGroups(headlineDefaultGroups(headlineItems));
+      setHeadlineScale(0.7);
     };
-    fit();
-    window.addEventListener("resize", fit);
-    return () => window.removeEventListener("resize", fit);
+    apply();
+    window.addEventListener("resize", apply);
+    return () => window.removeEventListener("resize", apply);
   }, [headlineItems]);
+  // Safety net: canvas measurement can be a pixel off, so verify the rendered
+  // lines really fit and nudge the scale down if one overflows.
+  useEffect(() => {
+    const h = headlineRef.current;
+    if (!h || headlineGroups.length !== 3 || window.innerWidth >= 640) return;
+    const fits = Array.from(h.children).every(
+      (line) => (line as HTMLElement).scrollWidth <= h.clientWidth + 1,
+    );
+    if (!fits && headlineScale > 0.7) setHeadlineScale((s) => Math.max(0.7, s - 0.04));
+  }, [headlineGroups, headlineScale]);
   const [term, setTerm] = useState("");
   const [category, setCategory] = useState("");
   const [location, setLocation] = useState("");
