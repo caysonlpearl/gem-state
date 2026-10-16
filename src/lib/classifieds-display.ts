@@ -174,3 +174,24 @@ export function homeStatusLabel(home: { mode: string; propertyType?: string | nu
   if (home.mode === "build") return "New construction";
   return `${homeTypeNoun(home.propertyType)} for ${home.mode === "rent" ? "rent" : "sale"}`;
 }
+
+/** The business or employer logo shown in place of photos, when there is one. */
+export function listingLogoUrl(listing: {
+  externalJob?: { logoUrl?: string } | undefined;
+  directory?: { logoUrl: string | null } | undefined;
+}) {
+  return listing.externalJob?.logoUrl ?? listing.directory?.logoUrl ?? undefined;
+}
+
+/** A listing with its logo removed, for falling back to category art. */
+export function withoutLogo<T extends { externalJob?: unknown; directory?: unknown }>(
+  listing: T,
+): T {
+  return {
+    ...listing,
+    externalJob: undefined,
+    directory: listing.directory
+      ? { ...(listing.directory as Record<string, unknown>), logoUrl: null }
+      : undefined,
+  };
+}

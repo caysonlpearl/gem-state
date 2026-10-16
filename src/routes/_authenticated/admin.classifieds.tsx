@@ -13,6 +13,11 @@ import {
   type AdminClassifiedRow,
 } from "@/lib/classifieds.functions";
 import { adminReviewAsk } from "@/lib/admin-catalog.functions";
+import {
+  getAdminServiceClaims,
+  reviewServiceClaim,
+  type AdminServiceClaim,
+} from "@/lib/service-claims.functions";
 import { RelativeTime } from "@/components/ui/relative-time";
 
 export const Route = createFileRoute("/_authenticated/admin/classifieds")({
@@ -258,6 +263,7 @@ function ClassifiedModerationPage() {
           </ul>
         )}
       </section>
+      <ServiceClaimsSection />
       {reports.data?.isAdmin && (
         <section className="rounded-lg border border-border bg-card">
           <div className="border-b border-border px-4 py-3">
@@ -299,6 +305,7 @@ function ClassifiedReportRow({ report }: { report: AdminClassifiedReport }) {
   });
   const active = report.status === "open" || report.status === "under_review";
   const isPartnerJob = report.id.startsWith("partner:");
+  const isDirectory = report.listingId.startsWith("fsq-");
   const statusLabel: Record<string, string> = {
     open: "Open",
     under_review: "Under review",
@@ -309,8 +316,8 @@ function ClassifiedReportRow({ report }: { report: AdminClassifiedReport }) {
     <li className="border-b border-border p-4 last:border-b-0">
       <p className="text-[12.5px] font-semibold">{report.reason}</p>
       <p className="mt-1 text-[11.5px] text-muted-foreground">
-        {isPartnerJob ? "Adzuna job" : "Listing"} {report.listingId} ·{" "}
-        {new Date(report.createdAt).toLocaleString()}
+        {isDirectory ? "Directory business" : isPartnerJob ? "Adzuna job" : "Listing"}{" "}
+        {report.listingId} · {new Date(report.createdAt).toLocaleString()}
       </p>
       <Link
         to="/listings/$listingId"
@@ -350,7 +357,7 @@ function ClassifiedReportRow({ report }: { report: AdminClassifiedReport }) {
           className="h-8 rounded-md bg-primary px-2.5 text-[11.5px] font-semibold text-primary-foreground disabled:opacity-50"
         >
           {/* For a partner (Adzuna) job, "reviewed" takes it off Bluebird. */}
-          {isPartnerJob ? "Remove this job" : "Mark reviewed"}
+          {isDirectory ? "Hide this business" : isPartnerJob ? "Remove this job" : "Mark reviewed"}
         </button>
         <button
           type="button"
@@ -359,6 +366,97 @@ function ClassifiedReportRow({ report }: { report: AdminClassifiedReport }) {
           className="h-8 rounded-md border border-input px-2.5 text-[11.5px] font-medium disabled:opacity-50"
         >
           Dismiss
+        </button>
+      </div>
+    </li>
+  );
+}
+
+/**
+ * Owners asking to take over their business's Services directory entry.
+ * Verify by calling the business number on file (not only the contact in
+ * the claim) or emailing the business address before approving.
+ */
+function ServiceClaimsSection() {
+  const fetchClaims = useServerFn(getAdminServiceClaims);
+  const claims = useQuery({ queryKey: ["admin-service-claims"], queryFn: () => fetchClaims() });
+  return (
+    <section className="rounded-lg border border-border bg-card">
+      <div className="border-b border-border px-4 py-3">
+        <h2 className="text-[13px] font-semibold">
+          Business claims{" "}
+          <span className="numeric text-muted-foreground">{claims.data?.length ?? 0}</span>
+        </h2>
+        <p className="mt-0.5 text-[11.5px] text-muted-foreground">
+          Verify with the business phone or email on file before approving.
+        </p>
+      </div>
+      {claims.isLoading ? (
+        <p className="px-4 py-8 text-[12.5px] text-muted-foreground">Loading business claims…</p>
+      ) : !claims.data?.length ? (
+        <p className="px-4 py-8 text-[12.5px] text-muted-foreground">No business claims waiting.</p>
+      ) : (
+        <ul>
+          {claims.data.map((claim) => (
+            <ServiceClaimRow key={claim.id} claim={claim} />
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function ServiceClaimRow({ claim }: { claim: AdminServiceClaim }) {
+  const queryClient = useQueryClient();
+  const review = useServerFn(reviewServiceClaim);
+  const mutation = useMutation({
+    mutationFn: (approve: boolean) => review({ data: { claimId: claim.id, approve } }),
+    onSuccess: async (_, approve) => {
+      await queryClient.invalidateQueries({ queryKey: ["admin-service-claims"] });
+      toast.success(approve ? "Claim approved." : "Claim rejected.");
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Could not update the claim."),
+  });
+  return (
+    <li className="border-b border-border p-4 text-[12px] last:border-b-0">
+      <p className="text-[13px] font-semibold">
+        {claim.businessName}
+        <span className="font-normal text-muted-foreground"> · {claim.businessCity}</span>
+      </p>
+      <p className="mt-1 text-muted-foreground">
+        On file: {claim.businessPhone ?? "no phone"}
+        {claim.businessEmail ? ` · ${claim.businessEmail}` : ""}
+        {claim.businessWebsite ? ` · ${claim.businessWebsite}` : ""}
+      </p>
+      <p className="mt-2">
+        <span className="font-semibold">{claim.role}</span> ·{" "}
+        {claim.claimantEmail ?? "unknown account"} · verify at {claim.contact}
+      </p>
+      {claim.note ? <p className="mt-1 text-muted-foreground">“{claim.note}”</p> : null}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Link
+          to="/listings/$listingId"
+          params={{ listingId: claim.directoryId }}
+          className="text-[11.5px] font-semibold text-primary hover:underline"
+        >
+          Open business page
+        </Link>
+        <button
+          type="button"
+          onClick={() => mutation.mutate(true)}
+          disabled={mutation.isPending}
+          className="h-8 rounded-md bg-primary px-2.5 text-[11.5px] font-semibold text-primary-foreground disabled:opacity-50"
+        >
+          Approve claim
+        </button>
+        <button
+          type="button"
+          onClick={() => mutation.mutate(false)}
+          disabled={mutation.isPending}
+          className="h-8 rounded-md border border-input px-2.5 text-[11.5px] font-medium disabled:opacity-50"
+        >
+          Reject
         </button>
       </div>
     </li>

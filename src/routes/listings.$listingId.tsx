@@ -1,5 +1,11 @@
 import { createFileRoute, Link, notFound, redirect } from "@tanstack/react-router";
-import { queryOptions, useMutation, useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import {
+  queryOptions,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -52,6 +58,7 @@ import { listingIdFromParam, listingParam, listingPath } from "@/lib/listing-url
 import { trackEvent, trackSellerContact } from "@/lib/analytics";
 import { PUBLIC_PAGE_STALE_MS } from "@/lib/query-freshness";
 import { recordListingView } from "@/lib/listing-stats.functions";
+import { claimServiceBusiness, getMyServiceClaim } from "@/lib/service-claims.functions";
 import {
   EmployerTile,
   ListingCard,
@@ -71,6 +78,8 @@ import {
   fulfillmentLabels,
   homeStatusLabel,
   homeTypeNoun,
+  listingLogoUrl,
+  withoutLogo,
   petPlacementLabels,
   postedAge,
   vehicleHeadline,
@@ -174,6 +183,10 @@ export const Route = createFileRoute("/listings/$listingId")({
       // Feed homes come and go with the weekly refresh.
       throw redirect({ href: "/browse?category=other-real-estate", statusCode: 302 });
     }
+    if (!listing && listingId.startsWith("fsq-")) {
+      // Hidden (closed or removed) directory businesses go to Services.
+      throw redirect({ href: "/browse?category=services", statusCode: 302 });
+    }
     if (!listing && listingId.startsWith("adzuna-")) {
       // Partner job postings come and go; an old link goes to today's jobs.
       throw redirect({ href: "/browse?category=jobs", statusCode: 302 });
@@ -196,22 +209,26 @@ export const Route = createFileRoute("/listings/$listingId")({
     }
     return {
       title: listing.title,
-      priceLabel: listing.job
-        ? formatJobPay(listing.job)
-        : (listing.service?.pricing ??
-          formatClassifiedPrice(listing.priceCents, {
-            wholeDollars: Boolean(listing.vehicle || listing.home),
-            monthly: listing.home?.mode === "rent",
-          })),
+      // Directory businesses read "Knight Plumbing — Plumbers in Nampa".
+      priceLabel: listing.directory
+        ? (listing.service?.subcategory ?? "Local business")
+        : listing.job
+          ? formatJobPay(listing.job)
+          : (listing.service?.pricing ??
+            formatClassifiedPrice(listing.priceCents, {
+              wholeDollars: Boolean(listing.vehicle || listing.home),
+              monthly: listing.home?.mode === "rent",
+            })),
       city: listing.city,
       state: listing.state,
       ended: listing.ended?.reason ?? null,
       shareImage: listing.images.length ? `/media/listings/${listing.id}/0` : undefined,
       leadImage: listing.images[0]?.url,
-      // Partner (Adzuna) jobs aren't Bluebird's postings: no job markup for
-      // Google, and the page stays out of search results.
-      external: Boolean(listing.externalJob),
-      structuredData: listing.externalJob ? [] : listingStructuredData(listing),
+      // Partner jobs and unclaimed directory businesses aren't Bluebird
+      // content: followed, never indexed, no listing markup.
+      external: Boolean(listing.externalJob || listing.directory),
+      structuredData:
+        listing.externalJob || listing.directory ? [] : listingStructuredData(listing),
     };
   },
   head: ({ loaderData }) => {
@@ -331,7 +348,9 @@ function GalleryPlaceholder({ listing }: { listing: ClassifiedDetail }) {
       <span className="mt-4">
         {listing.externalJob
           ? "This job posting has no photos."
-          : "This seller has not added photos yet."}
+          : listing.directory
+            ? "This business hasn't added photos yet."
+            : "This seller has not added photos yet."}
       </span>
     </div>
   );
@@ -347,7 +366,7 @@ function GalleryLogo({ listing, logoUrl }: { listing: ClassifiedDetail; logoUrl:
     if (img?.complete && img.naturalWidth === 0) setMissing(true);
   }, []);
   if (missing) {
-    return <GalleryPlaceholder listing={{ ...listing, externalJob: undefined }} />;
+    return <GalleryPlaceholder listing={withoutLogo(listing)} />;
   }
   return (
     <div className="flex h-[300px] items-center justify-center overflow-hidden rounded-[28px] border border-border/70 bg-white p-8 sm:h-[460px] sm:p-14">
@@ -369,8 +388,9 @@ function Gallery({ listing }: { listing: ClassifiedDetail }) {
   const images = listing.images;
   const subject = listing.vehicle ? "vehicle" : "listing";
 
-  if (images.length === 0 && listing.externalJob?.logoUrl) {
-    return <GalleryLogo listing={listing} logoUrl={listing.externalJob.logoUrl} />;
+  const logoUrl = listingLogoUrl(listing);
+  if (images.length === 0 && logoUrl) {
+    return <GalleryLogo listing={listing} logoUrl={logoUrl} />;
   }
   if (images.length === 0) {
     return <GalleryPlaceholder listing={listing} />;
@@ -997,7 +1017,7 @@ function MarketCheckSourceCredit({ listing }: { listing: ClassifiedDetail }) {
 }
 
 const STATS_LISTING_ID =
-  /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|adzuna-\d{1,20}|mashvisor-\d{1,15}|openwebninja-\d{1,20}|marketcheck-(?:dealer|fsbo)-[A-Za-z0-9._:-]{1,160})$/;
+  /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|adzuna-\d{1,20}|mashvisor-\d{1,15}|openwebninja-\d{1,20}|marketcheck-(?:dealer|fsbo)-[A-Za-z0-9._:-]{1,160}|fsq-[0-9a-f]{24})$/;
 
 /** Records this page view and returns views and saves; one request per page. */
 function useListingStats(listing: ClassifiedDetail) {
@@ -3224,6 +3244,274 @@ function StarRating({ rating }: { rating: number }) {
   );
 }
 
+/**
+ * The seller card's place on a directory business's page: the business, how
+ * to reach it, its Google rating and hours when we've looked them up, and a
+ * way for the owner to claim it.
+ */
+function DirectoryBusinessCard({ listing }: { listing: ClassifiedDetail }) {
+  const business = listing.directory!;
+  const phone = business.phone;
+  const contactLinkClass =
+    "inline-flex h-10 items-center justify-center gap-1.5 rounded-xl border border-border text-[12.5px] font-semibold transition-colors hover:border-primary hover:bg-primary/5 hover:text-primary";
+  return (
+    <section className="soft-card p-5 sm:p-6">
+      <div className="flex items-start gap-3">
+        <EmployerTile name={listing.title} imageUrl={business.logoUrl} />
+        <div className="min-w-0">
+          <h2 className="text-[15px] font-bold leading-snug">{listing.title}</h2>
+          <p className="mt-0.5 text-[12px] text-muted-foreground">
+            {business.trades.slice(0, 3).join(" · ")}
+          </p>
+          <span
+            className={`mt-2 inline-flex rounded-full px-2 py-1 text-[10px] font-semibold ${business.claimed ? "bg-primary/10 text-primary" : "bg-secondary"}`}
+          >
+            {business.claimed ? "Owner verified" : "Unclaimed business"}
+          </span>
+        </div>
+      </div>
+      {business.rating != null ? (
+        <a
+          href={business.googleUrl ?? undefined}
+          target="_blank"
+          rel="noopener noreferrer nofollow"
+          className="mt-4 flex items-center gap-2 rounded-xl bg-secondary/50 px-3 py-2.5 text-[12.5px] hover:bg-secondary"
+        >
+          <StarRating rating={business.rating} />
+          <span className="font-semibold">{business.rating.toFixed(1)}</span>
+          <span className="text-muted-foreground">
+            {business.reviewCount != null ? `${business.reviewCount} reviews ` : ""}on Google
+          </span>
+        </a>
+      ) : null}
+      {listing.service?.businessAddress ? (
+        <p className="mt-4 flex items-start gap-1.5 text-[12px] leading-relaxed text-primary">
+          <MapPin size={14} weight="fill" className="mt-0.5 shrink-0" />
+          {listing.service.businessAddress}
+        </p>
+      ) : null}
+      <div className="mt-4 grid gap-2">
+        {phone ? (
+          <a
+            href={`tel:${phone.replace(/[^\d+]/g, "")}`}
+            onClick={() => trackSellerContact("call", listing)}
+            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-nav-accent text-[14.5px] font-semibold text-primary transition-opacity hover:opacity-90"
+          >
+            <Phone size={17} aria-hidden="true" /> Call {phone}
+          </a>
+        ) : null}
+        <div className="grid grid-cols-2 gap-2">
+          {business.website ? (
+            <a
+              href={business.website}
+              target="_blank"
+              rel="noopener noreferrer nofollow"
+              className={contactLinkClass}
+            >
+              <Globe size={15} aria-hidden="true" /> Website
+            </a>
+          ) : null}
+          {business.email ? (
+            <a
+              href={`mailto:${business.email}?subject=${encodeURIComponent("Found you on Bluebird")}`}
+              onClick={() => trackSellerContact("email", listing)}
+              className={contactLinkClass}
+            >
+              <EnvelopeSimple size={15} aria-hidden="true" /> Email
+            </a>
+          ) : null}
+        </div>
+      </div>
+      {business.hours.length ? (
+        <div className="mt-5 border-t border-border/70 pt-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+            Hours
+          </p>
+          <dl className="mt-2 space-y-1 text-[12px]">
+            {business.hours.map(({ day, hours }) => (
+              <div key={day} className="flex justify-between gap-3">
+                <dt className="text-muted-foreground">{day}</dt>
+                <dd className="text-right font-medium">{hours}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      ) : null}
+      <ClaimBusinessPanel listing={listing} />
+    </section>
+  );
+}
+
+const claimRoles = ["Owner", "Manager", "Employee authorized to manage listings"] as const;
+
+function ClaimBusinessPanel({ listing }: { listing: ClassifiedDetail }) {
+  const { isSignedIn } = useAuth();
+  const queryClient = useQueryClient();
+  const fetchClaim = useServerFn(getMyServiceClaim);
+  const submitClaim = useServerFn(claimServiceBusiness);
+  const [open, setOpen] = useState(false);
+  const [role, setRole] = useState<string>(claimRoles[0]);
+  const [contact, setContact] = useState("");
+  const [note, setNote] = useState("");
+  const claim = useQuery({
+    queryKey: ["service-claim", listing.id],
+    queryFn: () => fetchClaim({ data: { directoryId: listing.id } }),
+    enabled: isSignedIn,
+  });
+  const mutation = useMutation({
+    mutationFn: () => submitClaim({ data: { directoryId: listing.id, role, contact, note } }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["service-claim", listing.id] });
+      toast.success("Claim sent. We'll verify it with the business and email you.");
+      setOpen(false);
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Could not send your claim."),
+  });
+  const mine = claim.data;
+
+  if (mine?.status === "approved") {
+    return (
+      <div className="mt-5 rounded-xl border border-primary/25 bg-primary/5 p-3.5 text-[12px] leading-relaxed">
+        <p className="font-semibold text-primary">You manage this business on Bluebird.</p>
+        <p className="mt-1 text-muted-foreground">
+          Post your full listing with photos, services and prices. It will show above this entry.
+        </p>
+        <Link
+          to="/create-listing"
+          className="mt-3 inline-flex h-9 items-center rounded-xl bg-primary px-3 font-semibold text-primary-foreground"
+        >
+          Post your listing
+        </Link>
+      </div>
+    );
+  }
+  if (listing.directory?.claimed) return null;
+  if (mine?.status === "pending") {
+    return (
+      <p className="mt-5 rounded-xl bg-secondary/50 p-3.5 text-[12px] leading-relaxed text-muted-foreground">
+        Your claim is being reviewed. We'll verify it with the business and email you.
+      </p>
+    );
+  }
+  return (
+    <div className="mt-5 border-t border-border/70 pt-4">
+      <p className="text-[13px] font-semibold">Is this your business?</p>
+      <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
+        Claim it free to add photos, services, prices and take quote requests on Bluebird.
+      </p>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <button
+            type="button"
+            className="mt-3 flex h-10 w-full items-center justify-center rounded-full border border-primary/40 text-[12.5px] font-semibold text-primary hover:bg-primary/5"
+          >
+            Claim this business
+          </button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Claim {listing.title}</DialogTitle>
+            <DialogDescription>
+              We verify every claim with the business before handing it over, usually within one or
+              two business days.
+            </DialogDescription>
+          </DialogHeader>
+          {isSignedIn ? (
+            <form
+              className="space-y-4"
+              onSubmit={(event) => {
+                event.preventDefault();
+                mutation.mutate();
+              }}
+            >
+              <label className="block text-[12px] font-medium">
+                Your role
+                <select
+                  value={role}
+                  onChange={(event) => setRole(event.target.value)}
+                  className="mt-1 h-10 w-full rounded-xl border border-input bg-background px-3 text-[12px]"
+                >
+                  {claimRoles.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-[12px] font-medium">
+                Business phone or email we can verify you at
+                <input
+                  required
+                  value={contact}
+                  onChange={(event) => setContact(event.target.value.slice(0, 200))}
+                  placeholder={listing.directory?.phone ?? "owner@yourbusiness.com"}
+                  className="mt-1 h-10 w-full rounded-xl border border-input bg-background px-3 text-[12px]"
+                />
+              </label>
+              <label className="block text-[12px] font-medium">
+                Anything we should know?{" "}
+                <span className="font-normal text-muted-foreground">(optional)</span>
+                <textarea
+                  value={note}
+                  onChange={(event) => setNote(event.target.value.slice(0, 1000))}
+                  rows={3}
+                  className="mt-1 w-full resize-y rounded-xl border border-input bg-background px-3 py-2.5 text-[12px]"
+                  placeholder="For example, a new phone number or that you moved."
+                />
+              </label>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className="h-10 rounded-xl border border-input px-4 text-[12px] font-semibold hover:bg-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={mutation.isPending}
+                  className="h-10 rounded-xl bg-primary px-4 text-[12px] font-semibold text-primary-foreground disabled:opacity-60"
+                >
+                  {mutation.isPending ? "Sending…" : "Send claim"}
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div className="rounded-xl border border-border bg-secondary/40 p-4 text-[12px] leading-relaxed text-muted-foreground">
+              Sign in or create a free account to claim your business.
+              <Link
+                to={brand.urls.auth}
+                className="mt-3 inline-flex h-9 items-center rounded-xl bg-primary px-3 font-semibold text-primary-foreground"
+              >
+                Sign in
+              </Link>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+/** Attribution for directory data (Foursquare OS Places, Apache 2.0). */
+function DirectoryCredit() {
+  return (
+    <footer className="mt-12 border-t border-border/70 py-5 text-center text-[11px] text-muted-foreground">
+      Business details from{" "}
+      <a
+        href="https://docs.foursquare.com/data-products/docs/access-fsq-os-places"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="font-semibold text-primary hover:underline"
+      >
+        Foursquare Open Source Places
+      </a>{" "}
+      (Apache 2.0). Confirm hours, prices and licensing directly with the business.
+    </footer>
+  );
+}
+
 function ServiceListingDetail({
   listing,
   title,
@@ -3275,17 +3563,29 @@ function ServiceListingDetail({
                 <span className="flex items-center gap-1.5 text-primary">
                   <MapPin size={15} weight="fill" /> {listing.city}, {listing.state}
                 </span>
+                {listing.directory ? (
+                  <span className="flex items-center gap-1.5">
+                    <Wrench size={15} /> {listing.service?.subcategory}
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1.5">
+                    <Clock size={15} /> Posted {postedAge(listing.createdAt).toLowerCase()}
+                  </span>
+                )}
                 <span className="flex items-center gap-1.5">
-                  <Clock size={15} /> Posted {postedAge(listing.createdAt).toLowerCase()}
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Eye size={15} /> Local listing
+                  <Eye size={15} /> {listing.directory ? "Local business" : "Local listing"}
                 </span>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <ListingStatsInline listing={listing} />
-              {listing.isMock ? (
+              {listing.directory ? (
+                <PartnerJobHeartButton
+                  listingId={listing.id}
+                  title={title}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+                />
+              ) : listing.isMock ? (
                 <button
                   type="button"
                   aria-label="Save listing"
@@ -3347,7 +3647,10 @@ function ServiceListingDetail({
                 <div>
                   <h2 className="text-[21px] font-bold">Description</h2>
                   <p className="mt-5 whitespace-pre-line text-[14px] leading-7 text-muted-foreground">
-                    {details.serviceSummary || "The seller has not added a description yet."}
+                    {details.serviceSummary ||
+                      (listing.directory
+                        ? "This business hasn't added a description on Bluebird yet. If it's yours, claim it to add your services, photos and prices."
+                        : "The seller has not added a description yet.")}
                   </p>
                   {details.offerings.length > 0 && (
                     <div className="mt-8 border-t border-border/70 pt-6">
@@ -3369,11 +3672,30 @@ function ServiceListingDetail({
                   <div className="mt-8 border-t border-border/70 pt-6">
                     <h3 className="text-[18px] font-bold">Service details</h3>
                     <dl className="mt-3 divide-y divide-border/70 text-[13px]">
-                      {[
-                        ["Subcategory", details.subcategory],
-                        ["Service area", details.serviceArea],
-                        ["Availability", details.availability],
-                      ].map(([label, value]) => (
+                      {(listing.directory
+                        ? [
+                            ["Services", listing.directory.trades.join(", ")],
+                            ["Address", listing.service?.businessAddress ?? listing.city],
+                            ...(listing.directory.phone
+                              ? [["Phone", listing.directory.phone]]
+                              : []),
+                            ...(listing.directory.website
+                              ? [
+                                  [
+                                    "Website",
+                                    listing.directory.website
+                                      .replace(/^https?:\/\/(www\.)?/, "")
+                                      .replace(/\/$/, ""),
+                                  ],
+                                ]
+                              : []),
+                          ]
+                        : [
+                            ["Subcategory", details.subcategory],
+                            ["Service area", details.serviceArea],
+                            ["Availability", details.availability],
+                          ]
+                      ).map(([label, value]) => (
                         <div key={label} className="flex items-center justify-between gap-4 py-3">
                           <dt>{label}</dt>
                           <dd className="text-right font-semibold text-muted-foreground">
@@ -3399,7 +3721,29 @@ function ServiceListingDetail({
                       )}
                     </div>
                   </div>
-                  {details.reviews.length === 0 ? (
+                  {listing.directory ? (
+                    <p className="mt-5 text-[13px] leading-relaxed text-muted-foreground">
+                      {listing.directory.rating != null && listing.directory.googleUrl ? (
+                        <>
+                          Rated {listing.directory.rating.toFixed(1)} on Google
+                          {listing.directory.reviewCount
+                            ? ` from ${listing.directory.reviewCount} reviews`
+                            : ""}
+                          .{" "}
+                          <a
+                            href={listing.directory.googleUrl}
+                            target="_blank"
+                            rel="noopener noreferrer nofollow"
+                            className="font-semibold text-primary hover:underline"
+                          >
+                            Read the reviews on Google
+                          </a>
+                        </>
+                      ) : (
+                        "No Bluebird reviews yet for this business."
+                      )}
+                    </p>
+                  ) : details.reviews.length === 0 ? (
                     <p className="mt-5 text-[13px] text-muted-foreground">
                       No reviews yet. Be the first to leave feedback after working with this seller.
                     </p>
@@ -3467,12 +3811,23 @@ function ServiceListingDetail({
         </div>
 
         <aside className="min-w-0 space-y-5 lg:sticky lg:top-24 lg:col-start-2 lg:row-start-2 lg:row-span-2">
-          <SellerCard listing={listing} />
-          <ListingActions listing={listing} showPaymentCalculator={false} showPriceHeader={false} />
+          {listing.directory ? (
+            <DirectoryBusinessCard listing={listing} />
+          ) : (
+            <>
+              <SellerCard listing={listing} />
+              <ListingActions
+                listing={listing}
+                showPaymentCalculator={false}
+                showPriceHeader={false}
+              />
+            </>
+          )}
           <PageStatsCard listing={listing} />
           <TrustSafetyCard listing={listing} />
         </aside>
       </div>
+      {listing.directory ? <DirectoryCredit /> : null}
     </main>
   );
 }

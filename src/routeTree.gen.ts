@@ -59,6 +59,7 @@ import { Route as AuthenticatedAdminValidationRouteImport } from './routes/_auth
 import { Route as AuthenticatedOrdersOrderIdRouteImport } from './routes/_authenticated/orders.$orderId'
 import { Route as ApiInternalDealerInventoryRouteImport } from './routes/api/internal/dealer-inventory'
 import { Route as ApiInternalSavedSearchesRouteImport } from './routes/api/internal/saved-searches'
+import { Route as ApiInternalServiceRatingsRouteImport } from './routes/api/internal/service-ratings'
 import { Route as CarsMakeIndexRouteImport } from './routes/cars.$make.index'
 import { Route as CarsMakeModelRouteImport } from './routes/cars.$make.$model'
 import { Route as IdahoPlaceIndexRouteImport } from './routes/idaho.$place.index'
@@ -342,6 +343,12 @@ const ApiInternalSavedSearchesRoute =
     path: '/api/internal/saved-searches',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiInternalServiceRatingsRoute =
+  ApiInternalServiceRatingsRouteImport.update({
+    id: '/api/internal/service-ratings',
+    path: '/api/internal/service-ratings',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const CarsMakeIndexRoute = CarsMakeIndexRouteImport.update({
   id: '/cars/$make/',
   path: '/cars/$make/',
@@ -462,6 +469,7 @@ export interface FileRoutesByFullPath {
   '/orders/$orderId': typeof AuthenticatedOrdersOrderIdRoute
   '/api/internal/dealer-inventory': typeof ApiInternalDealerInventoryRoute
   '/api/internal/saved-searches': typeof ApiInternalSavedSearchesRoute
+  '/api/internal/service-ratings': typeof ApiInternalServiceRatingsRoute
   '/cars/$make/$model': typeof CarsMakeModelRoute
   '/idaho/$place/$category': typeof IdahoPlaceCategoryRoute
   '/idaho/market-report/$month': typeof IdahoMarketReportMonthRoute
@@ -525,6 +533,7 @@ export interface FileRoutesByTo {
   '/orders/$orderId': typeof AuthenticatedOrdersOrderIdRoute
   '/api/internal/dealer-inventory': typeof ApiInternalDealerInventoryRoute
   '/api/internal/saved-searches': typeof ApiInternalSavedSearchesRoute
+  '/api/internal/service-ratings': typeof ApiInternalServiceRatingsRoute
   '/cars/$make/$model': typeof CarsMakeModelRoute
   '/idaho/$place/$category': typeof IdahoPlaceCategoryRoute
   '/idaho/market-report/$month': typeof IdahoMarketReportMonthRoute
@@ -591,6 +600,7 @@ export interface FileRoutesById {
   '/_authenticated/orders/$orderId': typeof AuthenticatedOrdersOrderIdRoute
   '/api/internal/dealer-inventory': typeof ApiInternalDealerInventoryRoute
   '/api/internal/saved-searches': typeof ApiInternalSavedSearchesRoute
+  '/api/internal/service-ratings': typeof ApiInternalServiceRatingsRoute
   '/cars/$make/$model': typeof CarsMakeModelRoute
   '/idaho/$place/$category': typeof IdahoPlaceCategoryRoute
   '/idaho/market-report/$month': typeof IdahoMarketReportMonthRoute
@@ -657,6 +667,7 @@ export interface FileRouteTypes {
     | '/orders/$orderId'
     | '/api/internal/dealer-inventory'
     | '/api/internal/saved-searches'
+    | '/api/internal/service-ratings'
     | '/cars/$make/$model'
     | '/idaho/$place/$category'
     | '/idaho/market-report/$month'
@@ -720,6 +731,7 @@ export interface FileRouteTypes {
     | '/orders/$orderId'
     | '/api/internal/dealer-inventory'
     | '/api/internal/saved-searches'
+    | '/api/internal/service-ratings'
     | '/cars/$make/$model'
     | '/idaho/$place/$category'
     | '/idaho/market-report/$month'
@@ -785,6 +797,7 @@ export interface FileRouteTypes {
     | '/_authenticated/orders/$orderId'
     | '/api/internal/dealer-inventory'
     | '/api/internal/saved-searches'
+    | '/api/internal/service-ratings'
     | '/cars/$make/$model'
     | '/idaho/$place/$category'
     | '/idaho/market-report/$month'
@@ -825,6 +838,7 @@ export interface RootRouteChildren {
   GuidesIndexRoute: typeof GuidesIndexRoute
   ApiInternalDealerInventoryRoute: typeof ApiInternalDealerInventoryRoute
   ApiInternalSavedSearchesRoute: typeof ApiInternalSavedSearchesRoute
+  ApiInternalServiceRatingsRoute: typeof ApiInternalServiceRatingsRoute
   CarsMakeModelRoute: typeof CarsMakeModelRoute
   IdahoPlaceCategoryRoute: typeof IdahoPlaceCategoryRoute
   IdahoMarketReportMonthRoute: typeof IdahoMarketReportMonthRoute
@@ -1190,6 +1204,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiInternalSavedSearchesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/internal/service-ratings': {
+      id: '/api/internal/service-ratings'
+      path: '/api/internal/service-ratings'
+      fullPath: '/api/internal/service-ratings'
+      preLoaderRoute: typeof ApiInternalServiceRatingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/cars/$make/': {
       id: '/cars/$make/'
       path: '/cars/$make'
@@ -1388,6 +1409,7 @@ const rootRouteChildren: RootRouteChildren = {
   GuidesIndexRoute: GuidesIndexRoute,
   ApiInternalDealerInventoryRoute: ApiInternalDealerInventoryRoute,
   ApiInternalSavedSearchesRoute: ApiInternalSavedSearchesRoute,
+  ApiInternalServiceRatingsRoute: ApiInternalServiceRatingsRoute,
   CarsMakeModelRoute: CarsMakeModelRoute,
   IdahoPlaceCategoryRoute: IdahoPlaceCategoryRoute,
   IdahoMarketReportMonthRoute: IdahoMarketReportMonthRoute,

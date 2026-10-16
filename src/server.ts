@@ -123,6 +123,7 @@ export default {
       import("./lib/dealer-inventory.functions").then(
         ({ processScheduledDealerInventorySources }) => processScheduledDealerInventorySources(),
       ),
+
       ...(typeof controller === "object" &&
       controller !== null &&
       (controller as { cron?: string }).cron === "0 16 * * 4"

@@ -10,7 +10,7 @@ import type { ClassifiedCard } from "./classifieds.functions";
  */
 const listingIdOf = (value: unknown) => {
   const id = String(value ?? "");
-  return /^adzuna-\d{1,20}$/.test(id) ? id : "";
+  return /^(adzuna-\d{1,20}|fsq-[0-9a-f]{24})$/.test(id) ? id : "";
 };
 
 export const getPartnerJobSaved = createServerFn({ method: "GET" })
@@ -44,8 +44,9 @@ export const setPartnerJobSaved = createServerFn({ method: "POST" })
       if (error) throw new Error("Could not remove this job. Try again.");
       return { saved: false };
     }
-    const { adzunaDetail } = await import("./adzuna-listings.server");
-    const job = await adzunaDetail(data.listingId);
+    const job = data.listingId.startsWith("fsq-")
+      ? await (await import("./service-directory.server")).directoryDetail(data.listingId)
+      : await (await import("./adzuna-listings.server")).adzunaDetail(data.listingId);
     if (!job) throw new Error("This job is no longer listed.");
     const { description: _d, seller: _s, images: _i, ...card } = job;
     const { error } = await table.upsert(

@@ -14,6 +14,8 @@ import {
   formatFulfillmentLabel,
   formatJobPay,
   homeStatusLabel,
+  listingLogoUrl,
+  withoutLogo,
   formatMileage,
   petPlacementLabels,
   postedAge,
@@ -214,12 +216,44 @@ function FeaturedBadge() {
 }
 
 /**
+ * A directory business has no prices, so its card leads with its Google
+ * rating when we have one, and "Call for a quote" as the smaller line.
+ */
+function DirectoryRating({ directory }: { directory: NonNullable<ClassifiedCard["directory"]> }) {
+  return (
+    <div className="min-h-[34px]">
+      {directory.rating != null ? (
+        <p className="flex items-baseline gap-1.5 leading-none">
+          <span className="text-[17px] text-brand-warm" aria-hidden="true">
+            ★
+          </span>
+          <span className="numeric text-[19px] font-bold text-foreground">
+            {directory.rating.toFixed(1)}
+          </span>
+          {directory.reviewCount != null ? (
+            <span className="text-[11.5px] text-muted-foreground">
+              {directory.reviewCount.toLocaleString()} Google review
+              {directory.reviewCount === 1 ? "" : "s"}
+            </span>
+          ) : null}
+        </p>
+      ) : null}
+      <p
+        className={`text-[12px] font-semibold text-primary ${directory.rating != null ? "mt-1.5" : "pt-1"}`}
+      >
+        Call for a quote
+      </p>
+    </div>
+  );
+}
+
+/**
  * The center of a photo-less card or listing gallery: the employer's logo
  * for a partner job when there is one, else the category art.
  */
 export function PlaceholderMark({ listing, large }: { listing: ClassifiedCard; large?: boolean }) {
   const [missing, setMissing] = useState(false);
-  const logoUrl = listing.externalJob?.logoUrl;
+  const logoUrl = listingLogoUrl(listing);
   if (logoUrl && !missing) {
     return (
       <span
@@ -273,8 +307,7 @@ function LogoPhoto({
   ratio: string;
 }) {
   const [missing, setMissing] = useState(false);
-  if (missing)
-    return <PlaceholderPhoto listing={{ ...listing, externalJob: undefined }} ratio={ratio} />;
+  if (missing) return <PlaceholderPhoto listing={withoutLogo(listing)} ratio={ratio} />;
   return (
     <div className={`relative ${ratio} overflow-hidden border-b border-border/60 bg-white p-3`}>
       <LogoImage
@@ -296,8 +329,9 @@ function Photo({
   priority?: boolean;
 }) {
   const ratio = tall ? "aspect-[4/3]" : "aspect-[4/3]";
-  if (!listing.imageUrl && listing.externalJob?.logoUrl) {
-    return <LogoPhoto listing={listing} logoUrl={listing.externalJob.logoUrl} ratio={ratio} />;
+  const logoUrl = listingLogoUrl(listing);
+  if (!listing.imageUrl && logoUrl) {
+    return <LogoPhoto listing={listing} logoUrl={logoUrl} ratio={ratio} />;
   }
   if (!listing.imageUrl) {
     return <PlaceholderPhoto listing={listing} ratio={ratio} />;
@@ -433,7 +467,7 @@ export function ListingCard({
           </span>
         ) : (
           <div className="absolute right-2 top-2 z-10">
-            {listing.externalJob ? (
+            {listing.externalJob || listing.directory ? (
               <PartnerJobHeartButton listingId={listing.id} title={listing.title} />
             ) : listing.externalHome ? (
               <PartnerHomeHeartButton listingId={listing.id} title={listing.title} />
@@ -456,12 +490,16 @@ export function ListingCard({
         </ListingLink>
       ) : (
         <ListingLink listing={listing} className="block px-3.5 pb-4 pt-3.5">
-          <p className="numeric text-[17px] font-bold leading-none text-foreground">
-            {soldAt ? (
-              <span className="mr-1 text-[11px] font-semibold text-muted-foreground">Asked</span>
-            ) : null}
-            <Price listing={listing} />
-          </p>
+          {listing.directory ? (
+            <DirectoryRating directory={listing.directory} />
+          ) : (
+            <p className="numeric text-[17px] font-bold leading-none text-foreground">
+              {soldAt ? (
+                <span className="mr-1 text-[11px] font-semibold text-muted-foreground">Asked</span>
+              ) : null}
+              <Price listing={listing} />
+            </p>
+          )}
           <h3 className="mt-1.5 line-clamp-2 min-h-[34px] text-[13px] font-semibold leading-[1.3] group-hover:text-primary">
             {listing.title}
           </h3>
@@ -476,8 +514,20 @@ export function ListingCard({
             {listing.city}, {listing.state}
           </p>
           <div className="mt-2 flex items-center justify-between gap-2 text-[10.5px] text-muted-foreground">
-            <span className="truncate">{soldAt ? "Sold" : cardActionLabel(listing)}</span>
-            <span className="shrink-0">{postedAge(soldAt ?? listing.createdAt)}</span>
+            <span className="truncate">
+              {soldAt
+                ? "Sold"
+                : listing.directory
+                  ? (listing.directory.phone ?? "Call for details")
+                  : cardActionLabel(listing)}
+            </span>
+            <span className="shrink-0">
+              {listing.directory
+                ? listing.directory.claimed
+                  ? "Owner verified"
+                  : "Local business"
+                : postedAge(soldAt ?? listing.createdAt)}
+            </span>
           </div>
         </ListingLink>
       )}
