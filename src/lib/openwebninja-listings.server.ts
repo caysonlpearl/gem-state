@@ -138,9 +138,6 @@ export async function openWebNinjaCards(data: ClassifiedBrowseInput): Promise<Cl
   return result.homes
     .filter(
       (home) =>
-        // Area searches near the border (Lewiston, Moscow) reach into
-        // Washington; Bluebird lists Idaho homes only.
-        home.state?.toUpperCase() === "ID" &&
         (data.priceMin == null || home.priceCents >= data.priceMin * 100) &&
         (data.priceMax == null || home.priceCents <= data.priceMax * 100) &&
         (data.homeBedroomsMin == null || (home.beds ?? -1) >= data.homeBedroomsMin) &&
