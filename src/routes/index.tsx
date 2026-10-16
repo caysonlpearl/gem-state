@@ -459,21 +459,38 @@ function Home() {
           <p className="hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-primary sm:block">
             Bluebird classifieds
           </p>
-          <h1 ref={headlineRef} className="homepage-hero-headline flex max-w-[34ch] flex-col justify-start text-[22px] sm:mt-2 font-bold leading-[1.08] tracking-tight sm:text-[48px]">
-            <span className="block">
-              Find{" "}
+          <h1
+            ref={headlineRef}
+            className="homepage-hero-headline flex max-w-[34ch] flex-col justify-start text-[22px] sm:mt-2 font-bold leading-[1.08] tracking-tight sm:text-[48px]"
+            style={
+              headlineScale === 1
+                ? undefined
+                : { fontSize: `${(headlineFontPx * headlineScale).toFixed(2)}px` }
+            }
+          >
+            {headlineGroups.map((group, groupIndex) => (
               <span
-                key={headlineItems.join("|")}
-                className={`${headlineRotated ? "classifieds-hero-rotating-item " : ""}text-brand-blue`}
-                aria-live="polite"
+                key={groupIndex}
+                className={`block${headlineGroups.length === 3 ? " whitespace-nowrap" : ""}`}
               >
-                {headlineItems[0]}
-              </span>{" "}
-              to {headlineItems[1]} to
-            </span>
-            <span className="block">
-              {headlineItems[2]} to {headlineItems[3]}.
-            </span>
+                {group.map((token, tokenIndex) =>
+                  token.highlight ? (
+                    <span
+                      key={headlineItems.join("|")}
+                      className={`${headlineRotated ? "classifieds-hero-rotating-item " : ""}text-brand-blue`}
+                      aria-live="polite"
+                    >
+                      {token.text}
+                    </span>
+                  ) : (
+                    <Fragment key={tokenIndex}>
+                      {tokenIndex > 0 ? " " : null}
+                      {token.text}
+                    </Fragment>
+                  ),
+                )}
+              </span>
+            ))}
           </h1>
           <p className="mt-1 max-w-[56ch] whitespace-nowrap text-xs leading-snug text-muted-foreground sm:mt-1.5 sm:leading-relaxed">
             And so much more across Idaho and surrounding states.
