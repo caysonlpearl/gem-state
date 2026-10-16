@@ -114,7 +114,7 @@ export default {
       });
     }
   },
-  async scheduled(_controller: unknown, env: unknown, ctx: unknown) {
+  async scheduled(controller: unknown, env: unknown, ctx: unknown) {
     registerRuntimeBindings(env);
     const task = Promise.all([
       import("./lib/saved-search-worker.server").then(({ processSavedSearchAlerts }) =>
@@ -123,6 +123,15 @@ export default {
       import("./lib/dealer-inventory.functions").then(
         ({ processScheduledDealerInventorySources }) => processScheduledDealerInventorySources(),
       ),
+      ...(typeof controller === "object" &&
+      controller !== null &&
+      (controller as { cron?: string }).cron === "0 16 * * 4"
+        ? [
+            import("./lib/openwebninja-listings.server").then(({ refreshOpenWebNinjaSearches }) =>
+              refreshOpenWebNinjaSearches(),
+            ),
+          ]
+        : []),
     ]);
     const runtime = ctx as { waitUntil?: (promise: Promise<unknown>) => void };
     if (typeof runtime.waitUntil === "function") runtime.waitUntil(task);

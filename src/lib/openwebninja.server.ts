@@ -36,15 +36,28 @@ async function cachedCall<T>(
   key: string,
   path: string,
   normalize: (json: unknown) => T,
+  options?: { forceRefresh?: boolean },
 ): Promise<{ ok: true; value: T } | { ok: false; status: "unavailable" | "limited" }> {
   const apiKey = serverEnv("OPENWEBNINJA_API_KEY");
   const db = cacheDb();
   if (!apiKey || !db) return { ok: false, status: "unavailable" };
+  const forceRefresh = options?.forceRefresh === true;
+  let previousPayload: T | null = null;
   try {
+    if (forceRefresh) {
+      const { data: previous } = await db
+        .from("openwebninja_cache")
+        .select("payload")
+        .eq("cache_key", key)
+        .maybeSingle();
+      previousPayload = (previous?.payload as T | undefined) ?? null;
+      await db.from("openwebninja_cache").delete().eq("cache_key", key);
+    }
     const { data: reservation, error } = await db.rpc("reserve_openwebninja_call", {
       p_cache_key: key,
     });
-    if (error || !reservation) return { ok: false, status: "unavailable" };
+    if (error || !reservation)
+      return previousPayload ? { ok: true, value: previousPayload } : { ok: false, status: "unavailable" };
     if (reservation.cached) return { ok: true, value: reservation.payload as T };
     if (!reservation.allowed) {
       const { data: stale } = await db
@@ -52,14 +65,24 @@ async function cachedCall<T>(
         .select("payload")
         .eq("cache_key", key)
         .maybeSingle();
-      return stale ? { ok: true, value: stale.payload as T } : { ok: false, status: "limited" };
+      if (stale) return { ok: true, value: stale.payload as T };
+      return previousPayload ? { ok: true, value: previousPayload } : { ok: false, status: "limited" };
     }
     const response = await fetch(`${API_BASE}/${path}`, {
       headers: { Accept: "application/json", "x-api-key": apiKey },
       signal: AbortSignal.timeout(15_000),
     });
-    if (!response.ok)
+    if (!response.ok) {
+      if (previousPayload) {
+        await db.from("openwebninja_cache").upsert({
+          cache_key: key,
+          payload: previousPayload,
+          expires_at: new Date(Date.now() + CACHE_MS).toISOString(),
+        });
+        return { ok: true, value: previousPayload };
+      }
       return { ok: false, status: response.status === 429 ? "limited" : "unavailable" };
+    }
     const value = normalize(await response.json());
     await db.from("openwebninja_cache").upsert({
       cache_key: key,
@@ -69,7 +92,7 @@ async function cachedCall<T>(
     return { ok: true, value };
   } catch {
     // Provider errors must not expose request details or the API key.
-    return { ok: false, status: "unavailable" };
+    return previousPayload ? { ok: true, value: previousPayload } : { ok: false, status: "unavailable" };
   }
 }
 
@@ -102,6 +125,7 @@ export async function searchHomesArea(
   state: string,
   area: OpenWebNinjaSearchArea,
   mode: OpenWebNinjaMode,
+  options?: { forceRefresh?: boolean },
 ) {
   const key = JSON.stringify({ v: 1, kind: "area-search", state, area: area.key, mode });
   const params = new URLSearchParams({
@@ -112,8 +136,11 @@ export async function searchHomesArea(
     page: "1",
     sort: "NEWEST",
   });
-  const result = await cachedCall(key, `search-coordinates?${params.toString()}`, (payload) =>
-    normalizeOpenWebNinjaResult(payload, mode),
+  const result = await cachedCall(
+    key,
+    `search-coordinates?${params.toString()}`,
+    (payload) => normalizeOpenWebNinjaResult(payload, mode),
+    options,
   );
   return result.ok ? result.value : { status: result.status, homes: [] };
 }

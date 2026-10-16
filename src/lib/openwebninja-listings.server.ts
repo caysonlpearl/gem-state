@@ -16,13 +16,37 @@ import { searchHomesArea } from "./openwebninja.server";
 /** City/mode searches remain available for an explicitly selected city. */
 export const OPENWEBNINJA_CITIES = ["Boise", "Meridian", "Nampa", "Idaho Falls", "Coeur d'Alene"];
 
-/** First geographic-area pilot. Its results continue through the same card and
- * detail routes as every other Bluebird home listing. */
+/** Geographic areas included in the statewide home feed. Each area is one
+ * provider search per mode and is cached for 30 days. */
 export const OPENWEBNINJA_AREAS = [
   {
     key: "treasure-valley",
     latitude: 43.615,
     longitude: -116.202,
+    diameterMiles: 45,
+  },
+  {
+    key: "magic-valley",
+    latitude: 42.56297,
+    longitude: -114.46102,
+    diameterMiles: 45,
+  },
+  {
+    key: "eastern-idaho",
+    latitude: 43.49165,
+    longitude: -112.03396,
+    diameterMiles: 45,
+  },
+  {
+    key: "southeast-idaho",
+    latitude: 42.8713,
+    longitude: -112.4455,
+    diameterMiles: 45,
+  },
+  {
+    key: "north-idaho",
+    latitude: 47.67768,
+    longitude: -116.78047,
     diameterMiles: 45,
   },
 ] as const;
@@ -84,13 +108,19 @@ export function openWebNinjaCard(home: OpenWebNinjaHome): ClassifiedCard {
 export async function openWebNinjaCards(data: ClassifiedBrowseInput): Promise<ClassifiedCard[]> {
   const city = providerCity(data);
   const state = usStates.find(([code, name]) => code === data.state || name === data.state);
-  const area = !data.city && (!state || state[0] === "ID") ? OPENWEBNINJA_AREAS[0] : null;
+  const areas = !data.city && (!state || state[0] === "ID") ? OPENWEBNINJA_AREAS : [];
   let result;
   if (city) {
     result = await (await import("./openwebninja.server")).searchHomes("ID", city, modeFor(data));
   } else {
-    if (!area) return [];
-    result = await searchHomesArea("ID", area, modeFor(data));
+    if (!areas.length) return [];
+    const responses = await Promise.all(
+      areas.map((area) => searchHomesArea("ID", area, modeFor(data))),
+    );
+    const homes = Array.from(
+      new Map(responses.flatMap((response) => response.homes).map((home) => [home.id, home])).values(),
+    );
+    result = { homes };
   }
   const q = data.q?.trim().toLowerCase();
   return result.homes
@@ -113,6 +143,23 @@ export async function openWebNinjaCards(data: ClassifiedBrowseInput): Promise<Cl
         }),
     )
     .map(openWebNinjaCard);
+}
+
+/** Refresh all statewide geographic feeds on the weekly provider schedule. */
+export async function refreshOpenWebNinjaSearches() {
+  const { searchHomesArea: searchArea } = await import("./openwebninja.server");
+  const responses = await Promise.all(
+    OPENWEBNINJA_AREAS.flatMap((area) =>
+      (["buy", "rent"] as const).map((mode) =>
+        searchArea("ID", area, mode, { forceRefresh: true }),
+      ),
+    ),
+  );
+  return {
+    areas: OPENWEBNINJA_AREAS.length,
+    modes: 2,
+    refreshed: responses.filter((response) => response.homes.length > 0).length,
+  };
 }
 
 export async function openWebNinjaDetail(listingId: string): Promise<ClassifiedDetail | null> {
