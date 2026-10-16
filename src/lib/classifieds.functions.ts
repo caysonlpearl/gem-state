@@ -66,6 +66,20 @@ export type ClassifiedCard = {
   title: string;
   externalJob?: { source: "Adzuna"; url: string; logoUrl?: string; employerSince?: string };
   /** Provider homes: shown with attribution, never stored or sold here. */
+  /** A local business from the services directory (not a member's listing). */
+  directory?: {
+    source: "Foursquare";
+    claimed: boolean;
+    logoUrl: string | null;
+    phone: string | null;
+    website: string | null;
+    email: string | null;
+    trades: string[];
+    rating: number | null;
+    reviewCount: number | null;
+    googleUrl: string | null;
+    hours: { day: string; hours: string }[];
+  };
   externalHome?: {
     source: "Mashvisor" | "OpenWeb Ninja";
     sourceUrl?: string | null;
@@ -173,7 +187,7 @@ export const reportClassifiedListing = createServerFn({ method: "POST" })
       !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
         listingId,
       ) &&
-      !/^adzuna-\d{1,20}$/.test(listingId)
+      !/^(adzuna-\d{1,20}|fsq-[0-9a-f]{24})$/.test(listingId)
     ) {
       throw new Error("Listing not found.");
     }
@@ -183,10 +197,11 @@ export const reportClassifiedListing = createServerFn({ method: "POST" })
   })
   .handler(async ({ data, context }) => {
     const client = context.supabase as any;
-    if (data.listingId.startsWith("adzuna-")) {
-      const { adzunaDetail } = await import("./adzuna-listings.server");
-      if (!(await adzunaDetail(data.listingId)))
-        throw new Error("That listing is no longer available.");
+    if (data.listingId.startsWith("adzuna-") || data.listingId.startsWith("fsq-")) {
+      const exists = data.listingId.startsWith("fsq-")
+        ? await (await import("./service-directory.server")).directoryDetail(data.listingId)
+        : await (await import("./adzuna-listings.server")).adzunaDetail(data.listingId);
+      if (!exists) throw new Error("That listing is no longer available.");
       const { error } = await client.from("partner_job_reports").insert({
         listing_id: data.listingId,
         reporter_id: context.userId,
@@ -300,9 +315,18 @@ export const resolveAdminClassifiedReport = createServerFn({ method: "POST" })
           resolved_by: resolved ? context.userId : null,
         })
         .eq("id", data.reportId.slice(PARTNER_REPORT_PREFIX.length))
-        .select("id");
+        .select("id, listing_id");
       if (error) throw new Error(error.message);
       if (!updated?.length) throw new Error("Listing report not found");
+      // Removing a reported directory business hides it from Services.
+      const listingId = String(updated[0].listing_id ?? "");
+      if (data.action === "reviewed" && listingId.startsWith("fsq-")) {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        await (supabaseAdmin as any)
+          .from("service_directory")
+          .update({ hidden: true, updated_at: new Date().toISOString() })
+          .eq("id", listingId);
+      }
       return { ok: true as const };
     }
     const { error } = await (context.supabase as any).rpc(
@@ -2007,6 +2031,10 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
           )
         : [];
     const includeExternalHomes = includeMashvisor || includeOpenWebNinja;
+    const { canIncludeDirectory } = await import("./service-directory-contract");
+    // Local businesses from the services directory follow members' service
+    // listings, paged in the database rather than loaded all at once.
+    const includeDirectory = canIncludeDirectory(data);
     const from = (page - 1) * PAGE_SIZE;
     // Pay units are deliberately normalized in `comparableJobPay` (hourly
     // annualized, salary/commission/contract kept in their stated units).
@@ -2019,6 +2047,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     const resultRange =
       includeAdzuna ||
       includeExternalHomes ||
+      includeDirectory ||
       unitAwareJobSort ||
       data.radiusMiles != null ||
       data.region
@@ -2109,14 +2138,25 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
         ? Math.max(PAGE_SIZE, mockSource.length)
         : PAGE_SIZE;
     const orderedListings = [...featuredListings, ...standardListings];
-    const pageListings =
+    const nativePage =
       includeAdzuna ||
       includeExternalHomes ||
+      includeDirectory ||
       unitAwareJobSort ||
       data.radiusMiles != null ||
       data.region
         ? orderedListings.slice(from, from + resultLimit)
         : orderedListings.slice(0, resultLimit);
+    const directory = includeDirectory
+      ? await (
+          await import("./service-directory.server")
+        ).directoryCards(
+          data,
+          Math.max(0, from - orderedListings.length),
+          resultLimit - nativePage.length,
+        )
+      : { cards: [], total: 0 };
+    const pageListings = [...nativePage, ...directory.cards];
     const urlByPath = await signListingThumbnails(
       pageListings.flatMap((listing) => {
         const cover = coverPathById.get(listing.id);
@@ -2128,7 +2168,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
       return cover ? { ...listing, imageUrl: urlByPath.get(cover) ?? null } : listing;
     });
     const nativePageIds = combinedListings
-      .filter((listing) => !listing.externalJob && !listing.externalHome)
+      .filter((listing) => !listing.externalJob && !listing.externalHome && !listing.directory)
       .map((listing) => listing.id);
     if (nativePageIds.length > 0) {
       void import("@/integrations/supabase/client.server")
@@ -2145,7 +2185,8 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
         (data.radiusMiles != null || data.region ? listings.length : (count ?? listings.length)) +
         mockListings.length +
         externalJobs.length +
-        externalHomes.length,
+        externalHomes.length +
+        directory.total,
       page,
       pageSize: PAGE_SIZE,
     };
@@ -2155,6 +2196,11 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
 export const getClassifiedListing = createServerFn({ method: "GET" })
   .validator((input: { id: string }) => ({ id: String(input.id).slice(0, 64) }))
   .handler(async ({ data }): Promise<ClassifiedDetail | null> => {
+    // Local businesses from the services directory open on the service page.
+    if (data.id.startsWith("fsq-")) {
+      const { directoryDetail } = await import("./service-directory.server");
+      return directoryDetail(data.id);
+    }
     // Partner jobs (Adzuna) open on the same job page design as Bluebird jobs.
     if (data.id.startsWith("adzuna-")) {
       const { adzunaDetail } = await import("./adzuna-listings.server");

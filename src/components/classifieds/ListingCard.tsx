@@ -13,6 +13,8 @@ import {
   formatFulfillmentLabel,
   formatJobPay,
   homeStatusLabel,
+  listingLogoUrl,
+  withoutLogo,
   formatMileage,
   petPlacementLabels,
   postedAge,
@@ -200,7 +202,7 @@ function FeaturedBadge() {
  */
 export function PlaceholderMark({ listing, large }: { listing: ClassifiedCard; large?: boolean }) {
   const [missing, setMissing] = useState(false);
-  const logoUrl = listing.externalJob?.logoUrl;
+  const logoUrl = listingLogoUrl(listing);
   if (logoUrl && !missing) {
     return (
       <span
@@ -254,8 +256,7 @@ function LogoPhoto({
   ratio: string;
 }) {
   const [missing, setMissing] = useState(false);
-  if (missing)
-    return <PlaceholderPhoto listing={{ ...listing, externalJob: undefined }} ratio={ratio} />;
+  if (missing) return <PlaceholderPhoto listing={withoutLogo(listing)} ratio={ratio} />;
   return (
     <div className={`relative ${ratio} overflow-hidden border-b border-border/60 bg-white p-3`}>
       <LogoImage
@@ -277,8 +278,9 @@ function Photo({
   priority?: boolean;
 }) {
   const ratio = tall ? "aspect-[4/3]" : "aspect-[4/3]";
-  if (!listing.imageUrl && listing.externalJob?.logoUrl) {
-    return <LogoPhoto listing={listing} logoUrl={listing.externalJob.logoUrl} ratio={ratio} />;
+  const logoUrl = listingLogoUrl(listing);
+  if (!listing.imageUrl && logoUrl) {
+    return <LogoPhoto listing={listing} logoUrl={logoUrl} ratio={ratio} />;
   }
   if (!listing.imageUrl) {
     return <PlaceholderPhoto listing={listing} ratio={ratio} />;
@@ -368,11 +370,13 @@ function Price({ listing }: { listing: ClassifiedCard }) {
     <>
       {listing.job
         ? formatJobPay(listing.job)
-        : (listing.service?.pricing ??
-          formatClassifiedPrice(listing.priceCents, {
-            wholeDollars: Boolean(listing.vehicle || listing.home),
-            monthly: listing.home?.mode === "rent",
-          }))}
+        : listing.directory?.rating != null
+          ? `★ ${listing.directory.rating.toFixed(1)}${listing.directory.reviewCount ? ` (${listing.directory.reviewCount})` : ""}`
+          : (listing.service?.pricing ??
+            formatClassifiedPrice(listing.priceCents, {
+              wholeDollars: Boolean(listing.vehicle || listing.home),
+              monthly: listing.home?.mode === "rent",
+            }))}
     </>
   );
 }
@@ -413,7 +417,7 @@ export function ListingCard({
           </span>
         ) : (
           <div className="absolute right-2 top-2 z-10">
-            {listing.externalJob ? (
+            {listing.externalJob || listing.directory ? (
               <PartnerJobHeartButton listingId={listing.id} title={listing.title} />
             ) : listing.externalHome ? (
               <PartnerHomeHeartButton listingId={listing.id} title={listing.title} />
@@ -455,7 +459,13 @@ export function ListingCard({
           </p>
           <div className="mt-2 flex items-center justify-between gap-2 text-[10.5px] text-muted-foreground">
             <span className="truncate">{soldAt ? "Sold" : cardActionLabel(listing)}</span>
-            <span className="shrink-0">{postedAge(soldAt ?? listing.createdAt)}</span>
+            <span className="shrink-0">
+              {listing.directory
+                ? listing.directory.claimed
+                  ? "Owner verified"
+                  : "Local business"
+                : postedAge(soldAt ?? listing.createdAt)}
+            </span>
           </div>
         </ListingLink>
       )}

@@ -61,6 +61,7 @@ import {
   type ClassifiedBrowseResult,
 } from "@/lib/classifieds.functions";
 import { trackEvent, traceMutation } from "@/lib/analytics";
+import { getServiceTradeCounts } from "@/lib/service-directory.functions";
 import { createSavedSearch, updateSavedSearch } from "@/lib/account-center.functions";
 import { SavedSearchNameDialog } from "@/components/classifieds/SavedSearchNameDialog";
 import { BluebirdEmptyState } from "@/components/layout/BluebirdEmptyState";
@@ -626,7 +627,7 @@ const homePreviewRowsByTab: Record<HomeTab, HomePreviewRow[]> = {
   ],
 };
 
-type ServiceCategory = { name: string; count: number; image: string };
+type ServiceCategory = { name: string; image: string };
 
 const serviceCategoryRows: { title: string; categories: ServiceCategory[] }[] = [
   {
@@ -634,37 +635,31 @@ const serviceCategoryRows: { title: string; categories: ServiceCategory[] }[] = 
     categories: [
       {
         name: "Drywall",
-        count: 49,
         image:
           "https://images.unsplash.com/photo-1621905252507-b35492cc74b4?auto=format&fit=crop&w=700&q=80",
       },
       {
         name: "Electricians",
-        count: 48,
         image:
           "https://images.unsplash.com/photo-1621905251918-48416bd8575a?auto=format&fit=crop&w=700&q=80",
       },
       {
         name: "Handyman",
-        count: 75,
         image:
           "https://images.unsplash.com/photo-1504148455328-c376907d081c?auto=format&fit=crop&w=700&q=80",
       },
       {
         name: "Heating & Air Conditioning",
-        count: 66,
         image:
           "https://images.unsplash.com/photo-1631545806609-ccf5d6f5c2ab?auto=format&fit=crop&w=700&q=80",
       },
       {
         name: "Movers",
-        count: 19,
         image:
           "https://images.unsplash.com/photo-1600518464441-9154a4dea21b?auto=format&fit=crop&w=700&q=80",
       },
       {
         name: "Painters",
-        count: 55,
         image:
           "https://images.unsplash.com/photo-1562259949-e8e7689d7828?auto=format&fit=crop&w=700&q=80",
       },
@@ -675,37 +670,31 @@ const serviceCategoryRows: { title: string; categories: ServiceCategory[] }[] = 
     categories: [
       {
         name: "Lawn Care & Maintenance",
-        count: 38,
         image:
           "https://images.unsplash.com/photo-1599685315640-3f3c8e3d9b4b?auto=format&fit=crop&w=700&q=80",
       },
       {
         name: "Landscape Contractors",
-        count: 100,
         image:
           "https://images.unsplash.com/photo-1558904541-efa843a96f01?auto=format&fit=crop&w=700&q=80",
       },
       {
         name: "House Cleaning",
-        count: 54,
         image:
           "https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=700&q=80",
       },
       {
         name: "Cabinet & Countertops",
-        count: 18,
         image:
           "https://images.unsplash.com/photo-1556912167-f556f1f39fdf?auto=format&fit=crop&w=700&q=80",
       },
       {
         name: "Carpet & Flooring Installation",
-        count: 39,
         image:
           "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?auto=format&fit=crop&w=700&q=80",
       },
       {
         name: "Automotive",
-        count: 54,
         image:
           "https://images.unsplash.com/photo-1486006920555-c77dcf18193c?auto=format&fit=crop&w=700&q=80",
       },
@@ -714,56 +703,58 @@ const serviceCategoryRows: { title: string; categories: ServiceCategory[] }[] = 
 ];
 
 const allServiceCategories: ServiceCategory[] = [
-  { name: "Accounting & Bookkeeping", count: 14, image: "" },
-  { name: "Appliance & Electronics Repair", count: 9, image: "" },
-  { name: "Automotive", count: 54, image: "" },
-  { name: "Cabinets & Countertops", count: 18, image: "" },
-  { name: "Carpentry", count: 20, image: "" },
-  { name: "Carpet & Flooring Installation", count: 39, image: "" },
-  { name: "Carpet Cleaning", count: 9, image: "" },
-  { name: "Childcare", count: 5, image: "" },
-  { name: "Concrete Contractors", count: 86, image: "" },
-  { name: "Concrete Foundations & Footings", count: 16, image: "" },
-  { name: "Deck & Patio Construction", count: 27, image: "" },
-  { name: "Drywall", count: 49, image: "" },
-  { name: "Electricians", count: 48, image: "" },
-  { name: "Excavation", count: 37, image: "" },
-  { name: "Fence Installation & Repair", count: 28, image: "" },
-  { name: "Garage Doors", count: 18, image: "" },
-  { name: "General Contractors", count: 126, image: "" },
-  { name: "Gutters & Downspouts", count: 15, image: "" },
-  { name: "Handyman", count: 75, image: "" },
-  { name: "Healthcare", count: 9, image: "" },
-  { name: "Heating & Air Conditioning", count: 66, image: "" },
-  { name: "Hot Tub & Pool", count: 12, image: "" },
-  { name: "House Cleaning", count: 54, image: "" },
-  { name: "Insulation", count: 5, image: "" },
-  { name: "IT Services", count: 9, image: "" },
-  { name: "Landscape Contractors", count: 100, image: "" },
-  { name: "Legal Services", count: 2, image: "" },
-  { name: "Masonry", count: 19, image: "" },
-  { name: "Miscellaneous Services", count: 55, image: "" },
-  { name: "Movers", count: 19, image: "" },
-  { name: "Other Home Services", count: 21, image: "" },
-  { name: "Painters", count: 55, image: "" },
-  { name: "Paving & Asphalt", count: 6, image: "" },
-  { name: "Pest Control", count: 4, image: "" },
-  { name: "Pet Training", count: 2, image: "" },
-  { name: "Plumbers", count: 76, image: "" },
-  { name: "Real Estate Services", count: 7, image: "" },
-  { name: "Remodelers", count: 42, image: "" },
-  { name: "Roofing", count: 50, image: "" },
-  { name: "RV & Boat Repair", count: 15, image: "" },
-  { name: "Scrap & Junk Removal", count: 36, image: "" },
-  { name: "Siding Installation & Repair", count: 18, image: "" },
-  { name: "Small Engine Repair", count: 7, image: "" },
-  { name: "Sprinkler Installation & Repair", count: 38, image: "" },
-  { name: "Tile, Marble & Granite Installation", count: 25, image: "" },
-  { name: "Tree Trimming & Removal", count: 30, image: "" },
-  { name: "Tutoring", count: 9, image: "" },
-  { name: "Welding & Fabrication", count: 23, image: "" },
-  { name: "Window Cleaning", count: 12, image: "" },
-  { name: "Windows & Glass Installation", count: 11, image: "" },
+  { name: "Accounting & Bookkeeping", image: "" },
+  { name: "Appliance & Electronics Repair", image: "" },
+  { name: "Automotive", image: "" },
+  { name: "Cabinets & Countertops", image: "" },
+  { name: "Carpentry", image: "" },
+  { name: "Carpet & Flooring Installation", image: "" },
+  { name: "Carpet Cleaning", image: "" },
+  { name: "Childcare", image: "" },
+  { name: "Concrete Contractors", image: "" },
+  { name: "Concrete Foundations & Footings", image: "" },
+  { name: "Deck & Patio Construction", image: "" },
+  { name: "Drywall", image: "" },
+  { name: "Electricians", image: "" },
+  { name: "Excavation", image: "" },
+  { name: "Fence Installation & Repair", image: "" },
+  { name: "Garage Doors", image: "" },
+  { name: "General Contractors", image: "" },
+  { name: "Gutters & Downspouts", image: "" },
+  { name: "Handyman", image: "" },
+  { name: "Healthcare", image: "" },
+  { name: "Heating & Air Conditioning", image: "" },
+  { name: "Hot Tub & Pool", image: "" },
+  { name: "House Cleaning", image: "" },
+  { name: "Insulation", image: "" },
+  { name: "IT Services", image: "" },
+  { name: "Landscape Contractors", image: "" },
+  { name: "Legal Services", image: "" },
+  { name: "Masonry", image: "" },
+  { name: "Miscellaneous Services", image: "" },
+  { name: "Movers", image: "" },
+  { name: "Other Home Services", image: "" },
+  { name: "Painters", image: "" },
+  { name: "Pet Care", image: "" },
+  { name: "Photography", image: "" },
+  { name: "Paving & Asphalt", image: "" },
+  { name: "Pest Control", image: "" },
+  { name: "Pet Training", image: "" },
+  { name: "Plumbers", image: "" },
+  { name: "Real Estate Services", image: "" },
+  { name: "Remodelers", image: "" },
+  { name: "Roofing", image: "" },
+  { name: "RV & Boat Repair", image: "" },
+  { name: "Scrap & Junk Removal", image: "" },
+  { name: "Siding Installation & Repair", image: "" },
+  { name: "Small Engine Repair", image: "" },
+  { name: "Sprinkler Installation & Repair", image: "" },
+  { name: "Tile, Marble & Granite Installation", image: "" },
+  { name: "Tree Trimming & Removal", image: "" },
+  { name: "Tutoring", image: "" },
+  { name: "Welding & Fabrication", image: "" },
+  { name: "Window Cleaning", image: "" },
+  { name: "Windows & Glass Installation", image: "" },
 ];
 
 const serviceSubcategoryOptions = [
@@ -3654,6 +3645,13 @@ function ServiceCategoryPicker({
 }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const fetchCounts = useServerFn(getServiceTradeCounts);
+  const counts = useQuery({
+    queryKey: ["service-trade-counts"],
+    queryFn: () => fetchCounts(),
+    staleTime: 10 * 60_000,
+    enabled: open,
+  });
   const options = allServiceCategories.filter(
     (category) => !value.trim() || category.name.toLowerCase().includes(value.trim().toLowerCase()),
   );
@@ -3710,7 +3708,11 @@ function ServiceCategoryPicker({
                 className="flex w-full items-center justify-between border-b border-border/70 px-3 py-2.5 text-left text-[13px] last:border-b-0 hover:bg-secondary"
               >
                 <span>{category.name}</span>
-                <span className="numeric text-[11px] text-muted-foreground">{category.count}</span>
+                {counts.data ? (
+                  <span className="numeric text-[11px] text-muted-foreground">
+                    {(counts.data[category.name] ?? 0).toLocaleString()}
+                  </span>
+                ) : null}
               </button>
             ))
           ) : (
@@ -3729,6 +3731,13 @@ function ServicesCategoryShowcase({
 }: {
   onCategorySelect: (category: string) => void;
 }) {
+  // Real counts: local businesses in the services directory per trade.
+  const fetchCounts = useServerFn(getServiceTradeCounts);
+  const counts = useQuery({
+    queryKey: ["service-trade-counts"],
+    queryFn: () => fetchCounts(),
+    staleTime: 10 * 60_000,
+  });
   return (
     <div className="mt-10 space-y-12 sm:mt-14 sm:space-y-16">
       {serviceCategoryRows.map((row) => (
@@ -3790,7 +3799,11 @@ function ServicesCategoryShowcase({
               className="flex items-center justify-between border-b border-border/60 py-2 text-left text-[13px] transition-colors hover:text-primary"
             >
               <span>{category.name}</span>
-              <span className="numeric text-muted-foreground">({category.count})</span>
+              {counts.data ? (
+                <span className="numeric text-muted-foreground">
+                  ({(counts.data[category.name] ?? 0).toLocaleString()})
+                </span>
+              ) : null}
             </button>
           ))}
         </div>

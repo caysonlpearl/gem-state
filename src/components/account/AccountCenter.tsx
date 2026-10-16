@@ -1469,7 +1469,7 @@ function SavedPartnerJobsSection({ jobs }: { jobs: ClassifiedCard[] }) {
   return (
     <section className="mt-10 space-y-4">
       <SectionHeader
-        eyebrow="Saved jobs"
+        eyebrow="Saved jobs & businesses"
         title={`${jobs.length} saved ${jobs.length === 1 ? "job" : "jobs"} from partner listings`}
         body="Jobs from our partner Adzuna. Postings change often; a job that's been filled opens today's jobs instead."
       />

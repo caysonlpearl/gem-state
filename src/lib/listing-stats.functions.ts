@@ -6,7 +6,7 @@ import { serverEnv } from "./runtime-env.server";
 export type ListingStats = { views: number; favorites: number };
 
 const LISTING_ID =
-  /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|adzuna-\d{1,20}|mashvisor-\d{1,15}|openwebninja-\d{1,20})$/;
+  /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|adzuna-\d{1,20}|mashvisor-\d{1,15}|openwebninja-\d{1,20}|fsq-[0-9a-f]{24})$/;
 const BOT = /bot|crawl|spider|slurp|preview|lighthouse|headless|monitor|curl|wget|python/i;
 
 async function sha256(text: string) {
@@ -56,7 +56,7 @@ export const recordListingView = createServerFn({ method: "POST" })
     }
 
     let favorites = 0;
-    if (data.listingId.startsWith("adzuna-")) {
+    if (data.listingId.startsWith("adzuna-") || data.listingId.startsWith("fsq-")) {
       const { count } = await db
         .from("saved_partner_jobs")
         .select("listing_id", { count: "exact", head: true })

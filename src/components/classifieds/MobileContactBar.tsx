@@ -29,7 +29,8 @@ export function MobileContactBar({ listing }: { listing: ClassifiedDetail }) {
       ? listing.job.applicationExternalContact
       : (listing.externalHome?.sourceUrl ?? null);
   const messagesEnabled = Boolean(seller) && seller?.allowInternalMessages !== false;
-  const showPrimary = Boolean(externalApply) || messagesEnabled;
+  const directoryPhone = listing.directory?.phone ?? null;
+  const showPrimary = Boolean(externalApply) || messagesEnabled || Boolean(directoryPhone);
   const hidden =
     Boolean(listing.ended) ||
     listing.isMock === true ||
@@ -88,7 +89,15 @@ export function MobileContactBar({ listing }: { listing: ClassifiedDetail }) {
             <Phone size={18} aria-hidden="true" />
           </a>
         ) : null}
-        {externalApply ? (
+        {directoryPhone ? (
+          <a
+            href={`tel:${directoryPhone.replace(/[^\d+]/g, "")}`}
+            onClick={() => trackSellerContact("call", listing)}
+            className={primaryButton}
+          >
+            <Phone size={17} aria-hidden="true" className="mr-1.5" /> Call
+          </a>
+        ) : externalApply ? (
           <a
             href={externalApplyHref(externalApply)}
             target="_blank"
