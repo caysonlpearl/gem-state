@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  formatPhone,
   canIncludeDirectory,
   directoryCard,
   enrichmentFrom,
@@ -108,4 +109,10 @@ test("lookups keep the business's own description and service list", () => {
   const card = directoryCard({ ...row, enrichment: enriched }, null);
   assert.equal(card.service.serviceSummary, enriched.summary);
   assert.deepEqual(card.service.offerings, enriched.services);
+});
+
+test("phone numbers read the way people write them", () => {
+  assert.equal(formatPhone("+12089499680"), "(208) 949-9680");
+  assert.equal(formatPhone("(208) 466-2311"), "(208) 466-2311");
+  assert.equal(formatPhone(null), null);
 });

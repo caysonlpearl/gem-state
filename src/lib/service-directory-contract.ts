@@ -74,6 +74,16 @@ export function canIncludeDirectory(data: ClassifiedBrowseInput) {
   );
 }
 
+/** US numbers as "(208) 949-9680"; anything else as given. */
+export function formatPhone(value: string | null | undefined) {
+  if (!value) return null;
+  const digits = value.replace(/\D/g, "");
+  const local = digits.length === 11 && digits.startsWith("1") ? digits.slice(1) : digits;
+  return local.length === 10
+    ? `(${local.slice(0, 3)}) ${local.slice(3, 6)}-${local.slice(6)}`
+    : value.trim();
+}
+
 /** The website's own domain, for a logo lookup; none for social pages. */
 export function websiteDomain(website: string | null | undefined) {
   if (!website) return null;
@@ -90,7 +100,7 @@ export function websiteDomain(website: string | null | undefined) {
 }
 
 export function directoryCard(row: DirectoryRow, logoUrl?: string | null): ClassifiedCard {
-  const phone = row.enrichment?.phone ?? row.phone;
+  const phone = formatPhone(row.enrichment?.phone ?? row.phone);
   return {
     id: row.id,
     productId: row.id,
