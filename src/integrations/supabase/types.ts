@@ -3062,16 +3062,19 @@ export type Database = {
           cache_key: string
           created_at: string
           id: number
+          provider: string
         }
         Insert: {
           cache_key: string
           created_at?: string
           id?: never
+          provider?: string
         }
         Update: {
           cache_key?: string
           created_at?: string
           id?: never
+          provider?: string
         }
         Relationships: []
       }
@@ -4514,6 +4517,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      rescuegroups_api_requests: {
+        Row: {
+          cache_key: string
+          created_at: string
+          id: number
+        }
+        Insert: {
+          cache_key: string
+          created_at?: string
+          id?: never
+        }
+        Update: {
+          cache_key?: string
+          created_at?: string
+          id?: never
+        }
+        Relationships: []
+      }
+      rescuegroups_cache: {
+        Row: {
+          cache_key: string
+          expires_at: string
+          payload: Json
+          updated_at: string
+        }
+        Insert: {
+          cache_key: string
+          expires_at: string
+          payload: Json
+          updated_at?: string
+        }
+        Update: {
+          cache_key?: string
+          expires_at?: string
+          payload?: Json
+          updated_at?: string
+        }
+        Relationships: []
       }
       resorts: {
         Row: {
@@ -7520,6 +7562,14 @@ export type Database = {
       reserve_mashvisor_search: { Args: { p_query_key: string }; Returns: Json }
       reserve_openwebninja_call: {
         Args: { p_cache_key: string }
+        Returns: Json
+      }
+      reserve_openwebninja_provider_call: {
+        Args: { p_cache_key: string; p_provider: string }
+        Returns: Json
+      }
+      reserve_rescuegroups_call: {
+        Args: { p_cache_key: string; p_daily_limit?: number }
         Returns: Json
       }
       reserve_service_enrichment: {

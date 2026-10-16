@@ -2696,7 +2696,7 @@ const generalCategoryHighlights = [
     description: "Gear for your next outing",
   },
   { slug: "farm-garden", name: "Farm & Garden", description: "Yard, farm, and garden" },
-  { slug: "general", name: "General", description: "Everyday local finds" },
+  { slug: "pets", name: "Pets", description: "Dogs, cats, and supplies" },
 ] as const;
 
 const petShowcaseRows: HomepagePreviewRow[] = [
