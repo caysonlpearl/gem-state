@@ -17,12 +17,18 @@ import {
   type RescueGroupsPet,
 } from "./rescuegroups-contract";
 
-/** Searches around these towns cover Idaho and its border areas. */
+/** The same Idaho areas as the homes feed, plus the central mountains, so
+ * the 100-mile searches cover the whole state and its border areas. */
 const CENTERS = [
-  { key: "boise", postalCode: "83702" },
-  { key: "idaho-falls", postalCode: "83402" },
-  { key: "coeur-d-alene", postalCode: "83814" },
-  { key: "twin-falls", postalCode: "83301" },
+  { key: "treasure-valley", postalCode: "83702" }, // Boise
+  { key: "western-idaho", postalCode: "83647" }, // Mountain Home
+  { key: "magic-valley", postalCode: "83301" }, // Twin Falls
+  { key: "eastern-idaho", postalCode: "83402" }, // Idaho Falls
+  { key: "southeast-idaho", postalCode: "83201" }, // Pocatello
+  { key: "north-central-idaho", postalCode: "83501" }, // Lewiston
+  { key: "north-idaho", postalCode: "83814" }, // Coeur d'Alene
+  { key: "central-mountains", postalCode: "83638" }, // McCall
+  { key: "salmon-river", postalCode: "83467" }, // Salmon
 ] as const;
 const RADIUS_MILES = 100;
 const PAGE_LIMIT = 100;

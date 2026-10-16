@@ -39,7 +39,7 @@ time** from a cache. They are never written as marketplace listings.
    `npm run test:payments`.
 3. **`src/lib/rescuegroups.server.ts`**, modeled on
    `src/lib/marketcheck.server.ts` (`cachedCall`, `cacheDb`, bot guard):
-   - `rescueGroupsInventory()`: one cached search per center, refreshed
+   - Centers (done): the 7 homes-feed areas plus McCall and Salmon. One cached search per center, refreshed
      about every 12h, a few pages of 100. Centers: Boise 83702, Idaho Falls
      83402, Coeur d'Alene 83814, Twin Falls 83301, 100 miles each. Dedupe by id.
      If a fetch fails or the budget is denied, fall back to the stale cache.
