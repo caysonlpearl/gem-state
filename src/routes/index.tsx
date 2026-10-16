@@ -353,7 +353,7 @@ function Home() {
               {headlineItems[2]} to {headlineItems[3]}.
             </span>
           </h1>
-          <p className="mt-1 max-w-[56ch] whitespace-nowrap text-[clamp(10.5px,3.1vw,12.5px)] leading-snug sm:mt-1.5 sm:text-[15px] leading-relaxed text-muted-foreground">
+          <p className="mt-1 max-w-[56ch] whitespace-nowrap text-xs leading-snug text-muted-foreground sm:mt-1.5 sm:leading-relaxed">
             And so much more across Idaho and surrounding states.
           </p>
           <div
@@ -395,7 +395,7 @@ function Home() {
                 onChange={(event) => setTerm(event.target.value)}
                 placeholder="Search listings"
                 aria-label="Search listings"
-                className="h-10 w-full rounded-full border-0 bg-transparent pl-9 sm:h-12 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+                className="h-10 w-full rounded-full border-0 bg-transparent pl-9 sm:h-12 pr-3 text-base md:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
               />
             </label>
             <HomeSearchDropdown
@@ -424,7 +424,7 @@ function Home() {
             />
             <button
               type="submit"
-              className="col-span-2 h-10 rounded-full bg-primary px-7 sm:col-span-1 sm:h-12 text-[13.5px] font-semibold text-primary-foreground shadow-sm transition-transform hover:scale-[1.02]"
+              className="col-span-2 h-10 rounded-full bg-primary px-7 sm:col-span-1 sm:h-12 text-base font-semibold text-primary-foreground shadow-sm transition-transform hover:scale-[1.02] md:text-sm"
             >
               Search
             </button>
