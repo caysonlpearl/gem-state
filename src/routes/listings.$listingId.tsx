@@ -32,6 +32,14 @@ import {
   ChatCircle,
   Globe,
   Wrench,
+  Buildings,
+  CalendarBlank,
+  Car,
+  House,
+  Images,
+  PawPrint,
+  Ruler,
+  Tag,
 } from "@phosphor-icons/react";
 
 import { brand } from "@/config/brand";
@@ -60,6 +68,8 @@ import {
   formatJobPay,
   formatMileage,
   fulfillmentLabels,
+  homeStatusLabel,
+  homeTypeNoun,
   petPlacementLabels,
   postedAge,
   vehicleHeadline,
@@ -1717,288 +1727,6 @@ function homeRentalDetails(listing: ClassifiedDetail, description: string) {
   };
 }
 
-function HomeFactCard({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl border border-border/70 bg-card px-4 py-3.5">
-      <p className="text-[10px] uppercase tracking-[0.08em] text-muted-foreground">{label}</p>
-      <p className="mt-1.5 text-[14px] font-semibold">{value}</p>
-    </div>
-  );
-}
-
-function HomeLocationPanel({
-  listing,
-  locationQuery,
-}: {
-  listing: ClassifiedDetail;
-  locationQuery: string;
-}) {
-  return (
-    <section className="soft-card overflow-hidden">
-      <ListingMapEmbed locationQuery={locationQuery} title="Home listing location map" />
-      <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-[12px] font-semibold">
-            {listing.city}, {listing.state}
-          </p>
-          <p className="mt-1 text-[11px] text-muted-foreground">
-            Approximate public location. Confirm the exact address and tour details with the seller.
-          </p>
-        </div>
-        <a
-          href={`https://www.google.com/maps/search/?api=1&query=${locationQuery}`}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex h-10 shrink-0 items-center justify-center gap-1.5 rounded-full bg-primary px-4 text-[12px] font-semibold text-primary-foreground hover:opacity-90"
-        >
-          <MapTrifold size={15} /> Open map
-        </a>
-      </div>
-    </section>
-  );
-}
-
-function HomeRentalInformation({
-  listing,
-  description,
-}: {
-  listing: ClassifiedDetail;
-  description: string;
-}) {
-  const [activeTab, setActiveTab] = useState<"description" | "amenities">("description");
-  const details = homeRentalDetails(listing, description);
-  const utilityRows =
-    details.utilities.length > 0
-      ? details.utilities.map(({ label, paidBy }) => [label, paidBy])
-      : details.isRental && details.utilitiesText
-        ? [["Utilities", details.utilitiesText]]
-        : [["Utilities", "Confirm with seller"]];
-  const amenityRows =
-    details.amenities.length > 0
-      ? details.amenities
-      : listing.externalHome
-        ? [
-            `Bedrooms: ${details.bedrooms}`,
-            `Bathrooms: ${details.bathrooms}`,
-            `Square feet: ${details.squareFeet}`,
-            "No additional amenity data was provided by the listing source.",
-          ]
-        : [
-            `Bedrooms: ${details.bedrooms}`,
-            `Bathrooms: ${details.bathrooms}`,
-            `Square feet: ${details.squareFeet}`,
-            ...(details.isRental ? [`Pets: ${details.pets}`, `Smoking: ${details.smoking}`] : []),
-            "Additional amenities: Ask seller",
-          ];
-
-  return (
-    <section className="soft-card overflow-hidden">
-      <div className={listingTabListClass} role="tablist" aria-label="Home information">
-        {(["description", "amenities"] as const).map((tab) => (
-          <button
-            key={tab}
-            type="button"
-            role="tab"
-            aria-selected={activeTab === tab}
-            onClick={() => setActiveTab(tab)}
-            className={listingTabClass(activeTab === tab)}
-          >
-            {tab === "amenities" ? "Home amenities" : "Description"}
-          </button>
-        ))}
-      </div>
-      <div className="p-5 sm:p-7">
-        {activeTab === "description" ? (
-          <div>
-            <h2 className="text-[21px] font-bold">Description</h2>
-            <p className="mt-5 whitespace-pre-line text-[14px] leading-7 text-muted-foreground">
-              {description ||
-                (listing.externalHome
-                  ? "Description not provided by the listing source."
-                  : "The seller has not added a description yet.")}
-            </p>
-            {details.isRental ? (
-              <>
-                <div className="mt-8 border-t border-border/70 pt-6">
-                  <h3 className="text-[18px] font-bold">Who pays utilities</h3>
-                  <dl className="mt-3 divide-y divide-border/70 text-[13px]">
-                    {utilityRows.map(([label, value]) => (
-                      <div key={label} className="flex items-center justify-between gap-4 py-3">
-                        <dt>{label}</dt>
-                        <dd className="font-semibold text-muted-foreground">{value}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                </div>
-                <div className="mt-8 border-t border-border/70 pt-6">
-                  <h3 className="text-[18px] font-bold">Lease terms</h3>
-                  <dl className="mt-3 divide-y divide-border/70 text-[13px]">
-                    <div className="flex items-center justify-between gap-4 py-3">
-                      <dt>Lease length</dt>
-                      <dd className="font-semibold text-muted-foreground">{details.leaseLength}</dd>
-                    </div>
-                    <div className="flex items-center justify-between gap-4 py-3">
-                      <dt>Security deposit</dt>
-                      <dd className="font-semibold text-muted-foreground">
-                        {details.securityDeposit}
-                      </dd>
-                    </div>
-                    {details.petDeposit ? (
-                      <div className="flex items-center justify-between gap-4 py-3">
-                        <dt>Pet deposit</dt>
-                        <dd className="font-semibold text-muted-foreground">
-                          {details.petDeposit}
-                        </dd>
-                      </div>
-                    ) : null}
-                    {details.monthlyPetFee ? (
-                      <div className="flex items-center justify-between gap-4 py-3">
-                        <dt>Monthly pet fee</dt>
-                        <dd className="font-semibold text-muted-foreground">
-                          {details.monthlyPetFee}
-                        </dd>
-                      </div>
-                    ) : null}
-                    <div className="flex items-center justify-between gap-4 py-3">
-                      <dt>Available</dt>
-                      <dd className="font-semibold text-muted-foreground">
-                        {details.availability}
-                      </dd>
-                    </div>
-                  </dl>
-                </div>
-              </>
-            ) : (
-              <div className="mt-8 border-t border-border/70 pt-6">
-                <h3 className="text-[18px] font-bold">Property details</h3>
-                <dl className="mt-3 divide-y divide-border/70 text-[13px]">
-                  {[
-                    ["Property type", details.propertyType],
-                    ...(!listing.externalHome ? [["Seller type", details.sellerType]] : []),
-                    ["School district", details.schoolDistrict],
-                    ["Year built", details.yearBuilt],
-                    ["Acreage", details.acreage],
-                    ["Heating", details.heating],
-                    ["Cooling", details.cooling],
-                    ["Garage/Parking", details.garageParking],
-                    ["Yard", details.yard],
-                    ["Appliances included", details.appliancesIncluded],
-                    ["Basement type", details.basementType],
-                    ["Floor coverings", details.floorCoverings],
-                    ["Exterior material", details.exteriorMaterial],
-                    ["Special features", details.specialFeatures],
-                    ["HOA fees", details.hoaFees],
-                    ...(details.openHouse ? [["Open house", details.openHouse]] : []),
-                  ].map(([label, value]) => (
-                    <div key={label} className="flex items-center justify-between gap-4 py-3">
-                      <dt>{label}</dt>
-                      <dd className="text-right font-semibold text-muted-foreground">{value}</dd>
-                    </div>
-                  ))}
-                </dl>
-                {details.priceHistory.length > 0 ? (
-                  <div className="mt-8 border-t border-border/70 pt-6">
-                    <h3 className="text-[18px] font-bold">Price history</h3>
-                    <dl className="mt-3 divide-y divide-border/70 text-[13px]">
-                      {details.priceHistory.map((item, index) => (
-                        <div
-                          key={`${item.label}-${index}`}
-                          className="flex items-center justify-between gap-4 py-3"
-                        >
-                          <dt>
-                            {item.label}
-                            {item.date ? ` · ${item.date}` : ""}
-                          </dt>
-                          <dd className="numeric font-semibold">
-                            {formatClassifiedPrice(Math.round(item.amount * 100), {
-                              wholeDollars: true,
-                            })}
-                          </dd>
-                        </div>
-                      ))}
-                    </dl>
-                  </div>
-                ) : null}
-                {details.taxHistory.length > 0 ? (
-                  <div className="mt-8 border-t border-border/70 pt-6">
-                    <h3 className="text-[18px] font-bold">Tax history</h3>
-                    <dl className="mt-3 divide-y divide-border/70 text-[13px]">
-                      {details.taxHistory.map((item, index) => (
-                        <div
-                          key={`${item.date ?? "tax"}-${index}`}
-                          className="flex items-center justify-between gap-4 py-3"
-                        >
-                          <dt>{item.date ?? "Recorded tax"}</dt>
-                          <dd className="numeric text-right font-semibold">
-                            {item.amount != null
-                              ? formatClassifiedPrice(Math.round(item.amount * 100), {
-                                  wholeDollars: true,
-                                })
-                              : item.value != null
-                                ? `Assessed value ${formatClassifiedPrice(Math.round(item.value * 100), { wholeDollars: true })}`
-                                : "Recorded"}
-                          </dd>
-                        </div>
-                      ))}
-                    </dl>
-                  </div>
-                ) : null}
-                {details.zestimate != null || details.rentZestimate != null ? (
-                  <div className="mt-8 border-t border-border/70 pt-6">
-                    <h3 className="text-[18px] font-bold">Market estimates</h3>
-                    <dl className="mt-3 divide-y divide-border/70 text-[13px]">
-                      {details.zestimate != null ? (
-                        <div className="flex items-center justify-between gap-4 py-3">
-                          <dt>Estimated value</dt>
-                          <dd className="numeric font-semibold">
-                            {formatClassifiedPrice(Math.round(details.zestimate * 100), {
-                              wholeDollars: true,
-                            })}
-                          </dd>
-                        </div>
-                      ) : null}
-                      {details.rentZestimate != null ? (
-                        <div className="flex items-center justify-between gap-4 py-3">
-                          <dt>Estimated rent</dt>
-                          <dd className="numeric font-semibold">
-                            {formatClassifiedPrice(Math.round(details.rentZestimate * 100), {
-                              wholeDollars: true,
-                            })}
-                          </dd>
-                        </div>
-                      ) : null}
-                    </dl>
-                  </div>
-                ) : null}
-              </div>
-            )}
-          </div>
-        ) : (
-          <div>
-            <h2 className="text-[21px] font-bold">Home amenities</h2>
-            <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
-              {listing.externalHome
-                ? `Details shown here are the property facts available from ${listing.externalHome.source}.`
-                : "Amenities and inclusions should be confirmed with the seller before applying, signing a lease, or making an offer."}
-            </p>
-            <ul className="mt-5 grid gap-3 sm:grid-cols-2">
-              {amenityRows.map((amenity) => (
-                <li
-                  key={amenity}
-                  className="flex items-start gap-2 rounded-xl border border-border/70 bg-secondary/35 px-3.5 py-3 text-[13px]"
-                >
-                  <CheckCircle size={16} weight="fill" className="mt-0.5 shrink-0 text-primary" />
-                  {amenity}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-    </section>
-  );
-}
-
 function HomeSafetyPanel({
   isRental,
   listingId,
@@ -2026,6 +1754,486 @@ function HomeSafetyPanel({
   );
 }
 
+const HOME_PLACEHOLDER =
+  /^(ask seller|confirm with seller|confirm availability|not provided by listing source|n\/a|none)$/i;
+
+/** A home fact worth showing: real data, not a stand-in like "Ask seller". */
+function knownHomeFact(value: string | null | undefined): value is string {
+  return Boolean(value && value.trim() && !HOME_PLACEHOLDER.test(value.trim()));
+}
+
+/** Principal and interest at 20% down, 6.75%, 30-year fixed. */
+function estimatedMonthlyPayment(priceCents: number) {
+  const principal = (priceCents / 100) * 0.8;
+  const rate = 0.0675 / 12;
+  return principal <= 0 ? 0 : (principal * rate) / (1 - Math.pow(1 + rate, -360));
+}
+
+const wholeDollars = (dollars: number) =>
+  formatClassifiedPrice(Math.round(dollars) * 100, { wholeDollars: true });
+
+/**
+ * Zillow-style photo collage: one large photo with up to four beside it and
+ * a "See all photos" button. Phones keep the swipeable gallery.
+ */
+function HomePhotoCollage({ listing }: { listing: ClassifiedDetail }) {
+  const images = listing.images;
+  if (images.length === 0) return <Gallery listing={listing} />;
+  const rest = images.slice(1);
+  const side = rest.length >= 4 ? rest.slice(0, 4) : rest.length >= 2 ? rest.slice(0, 2) : rest;
+  const grid =
+    side.length === 4
+      ? "grid-cols-4 grid-rows-2"
+      : side.length === 2
+        ? "grid-cols-3 grid-rows-2"
+        : side.length === 1
+          ? "grid-cols-3 grid-rows-1"
+          : "grid-cols-1";
+  return (
+    <>
+      <div className="lg:hidden">
+        <Gallery listing={listing} />
+      </div>
+      <Dialog>
+        <div
+          className={`relative hidden h-[460px] gap-2 overflow-hidden rounded-[28px] lg:grid ${grid}`}
+        >
+          <DialogTrigger asChild>
+            <button
+              type="button"
+              aria-label="Show all photos"
+              className={`group overflow-hidden bg-secondary ${side.length ? "col-span-2 row-span-2" : ""}`}
+            >
+              <img
+                src={images[0]!.url}
+                alt={images[0]!.alt}
+                fetchPriority="high"
+                className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+              />
+            </button>
+          </DialogTrigger>
+          {side.map((image) => (
+            <DialogTrigger asChild key={image.url}>
+              <button
+                type="button"
+                aria-label="Show all photos"
+                className="group overflow-hidden bg-secondary"
+              >
+                <img
+                  src={image.url}
+                  alt={image.alt}
+                  loading="lazy"
+                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                />
+              </button>
+            </DialogTrigger>
+          ))}
+          {images.length > 1 ? (
+            <DialogTrigger asChild>
+              <button
+                type="button"
+                className="absolute bottom-4 right-4 inline-flex h-10 items-center gap-2 rounded-full bg-card/95 px-4 text-[12.5px] font-semibold text-foreground shadow-md transition hover:bg-card"
+              >
+                <Images size={16} aria-hidden="true" /> See all {images.length} photos
+              </button>
+            </DialogTrigger>
+          ) : null}
+        </div>
+        <DialogContent className="max-h-[90vh] max-w-6xl overflow-y-auto rounded-[28px] p-5 sm:p-7">
+          <DialogHeader>
+            <DialogTitle>Home photos</DialogTitle>
+            <DialogDescription>{listing.title}</DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {images.map((image, index) => (
+              <img
+                key={image.url}
+                src={image.url}
+                alt={image.alt}
+                loading={index < 4 ? "eager" : "lazy"}
+                className={`w-full rounded-2xl object-cover ${index % 3 === 0 ? "sm:col-span-2" : ""}`}
+              />
+            ))}
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+function HomeFactRows({ rows }: { rows: [string, string | null | undefined][] }) {
+  const shown = rows.filter((row): row is [string, string] => knownHomeFact(row[1]));
+  if (!shown.length) return null;
+  return (
+    <dl className="mt-3 divide-y divide-border/70 text-[13px]">
+      {shown.map(([label, value]) => (
+        <div key={label} className="flex items-start justify-between gap-4 py-2.5">
+          <dt className="text-muted-foreground">{label}</dt>
+          <dd className="max-w-[65%] text-right font-semibold">{value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+/** Zillow-style "Facts & features", grouped, showing only what's known. */
+function HomeFactsAndFeatures({
+  listing,
+  details,
+}: {
+  listing: ClassifiedDetail;
+  details: ReturnType<typeof homeRentalDetails>;
+}) {
+  const groups: [string, [string, string | null | undefined][]][] = [
+    [
+      "Interior",
+      [
+        ["Bedrooms", details.bedrooms],
+        ["Bathrooms", details.bathrooms],
+        ["Living area", details.squareFeet],
+        ["Heating", details.heating],
+        ["Cooling", details.cooling],
+        ["Appliances", details.appliancesIncluded],
+        ["Flooring", details.floorCoverings],
+        ["Basement", details.basementType],
+      ],
+    ],
+    [
+      "Property",
+      [
+        ["Lot size", details.acreage],
+        ["Parking", details.garageParking],
+        ["Yard", details.yard],
+        ["Exterior", details.exteriorMaterial],
+        ["Special features", details.specialFeatures],
+      ],
+    ],
+    [
+      "Construction",
+      [
+        ["Home type", details.propertyType],
+        ["Year built", details.yearBuilt],
+      ],
+    ],
+    [
+      "Community & HOA",
+      [
+        ["Community", details.community?.name],
+        ["HOA fees", details.hoaFees],
+        ["School district", details.schoolDistrict],
+        ...(!listing.externalHome
+          ? ([["Listed by", details.sellerType]] as [string, string][])
+          : []),
+      ],
+    ],
+  ];
+  const shown = groups.filter(([, rows]) => rows.some(([, value]) => knownHomeFact(value)));
+  return (
+    <div>
+      <h2 className="text-[21px] font-bold">Facts &amp; features</h2>
+      {shown.length ? (
+        <div className="mt-2 grid gap-x-10 gap-y-6 md:grid-cols-2">
+          {shown.map(([title, rows]) => (
+            <section key={title}>
+              <h3 className="mt-4 text-[15px] font-bold">{title}</h3>
+              <HomeFactRows rows={rows} />
+            </section>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-4 text-[13px] text-muted-foreground">
+          No additional facts were included with this listing.
+        </p>
+      )}
+      {details.amenities.length > 0 ? (
+        <section className="mt-8 border-t border-border/70 pt-6">
+          <h3 className="text-[15px] font-bold">Features &amp; amenities</h3>
+          <ul className="mt-3 flex flex-wrap gap-2">
+            {details.amenities.map((amenity) => (
+              <li
+                key={amenity}
+                className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-secondary/40 px-3 py-1.5 text-[12.5px]"
+              >
+                <CheckCircle size={14} weight="fill" className="text-primary" /> {amenity}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+      {!listing.externalHome ? (
+        <p className="mt-6 text-[12px] text-muted-foreground">
+          Don&apos;t see something? Ask the seller before you tour or make an offer.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function HomeHistory({ details }: { details: ReturnType<typeof homeRentalDetails> }) {
+  return (
+    <div className="space-y-9">
+      {details.priceHistory.length > 0 ? (
+        <section>
+          <h2 className="text-[21px] font-bold">Price history</h2>
+          <table className="mt-4 w-full text-left text-[13px]">
+            <thead className="text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
+              <tr className="border-b border-border/70">
+                <th className="py-2 font-semibold">Date</th>
+                <th className="py-2 font-semibold">Event</th>
+                <th className="py-2 text-right font-semibold">Price</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/70">
+              {details.priceHistory.map((item, index) => (
+                <tr key={`${item.label}-${index}`}>
+                  <td className="py-2.5 text-muted-foreground">{item.date ?? "—"}</td>
+                  <td className="py-2.5">{item.label}</td>
+                  <td className="numeric py-2.5 text-right font-semibold">
+                    {wholeDollars(item.amount)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      ) : null}
+      {details.taxHistory.length > 0 ? (
+        <section>
+          <h2 className="text-[21px] font-bold">Public tax history</h2>
+          <table className="mt-4 w-full text-left text-[13px]">
+            <thead className="text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
+              <tr className="border-b border-border/70">
+                <th className="py-2 font-semibold">Year</th>
+                <th className="py-2 text-right font-semibold">Property taxes</th>
+                <th className="py-2 text-right font-semibold">Tax assessment</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/70">
+              {details.taxHistory.map((item, index) => (
+                <tr key={`${item.date ?? "tax"}-${index}`}>
+                  <td className="py-2.5 text-muted-foreground">{item.date ?? "—"}</td>
+                  <td className="numeric py-2.5 text-right font-semibold">
+                    {item.amount != null ? wholeDollars(item.amount) : "—"}
+                  </td>
+                  <td className="numeric py-2.5 text-right">
+                    {item.value != null ? wholeDollars(item.value) : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      ) : null}
+      {details.zestimate != null || details.rentZestimate != null ? (
+        <section>
+          <h2 className="text-[21px] font-bold">Market estimates</h2>
+          <HomeFactRows
+            rows={[
+              [
+                "Estimated value",
+                details.zestimate != null ? wholeDollars(details.zestimate) : null,
+              ],
+              [
+                "Estimated rent",
+                details.rentZestimate != null ? `${wholeDollars(details.rentZestimate)}/mo` : null,
+              ],
+            ]}
+          />
+        </section>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * KSL-style tabs holding Zillow's sections: the overview (description and
+ * rental terms), facts & features, price and tax history, and the map.
+ */
+function HomeDetailTabs({
+  listing,
+  description,
+  locationQuery,
+  details,
+}: {
+  listing: ClassifiedDetail;
+  description: string;
+  locationQuery: string;
+  details: ReturnType<typeof homeRentalDetails>;
+}) {
+  const hasHistory =
+    details.priceHistory.length > 0 ||
+    details.taxHistory.length > 0 ||
+    details.zestimate != null ||
+    details.rentZestimate != null;
+  const tabs = [
+    ["overview", "Overview"],
+    ["facts", "Facts & features"],
+    ...(hasHistory ? [["history", "Price & tax history"]] : []),
+    ["map", "Map"],
+  ] as const;
+  const [activeTab, setActiveTab] = useState<string>("overview");
+  const utilities =
+    details.utilities.length > 0
+      ? details.utilities.map(({ label, paidBy }) => `${label}: ${paidBy}`).join(" · ")
+      : details.utilitiesText;
+  const rentalTerms: [string, string | null | undefined][] = [
+    ["Available", details.availability],
+    ["Lease length", details.leaseLength],
+    ["Security deposit", details.securityDeposit],
+    ["Pet deposit", details.petDeposit],
+    ["Monthly pet fee", details.monthlyPetFee],
+    ["Pets", details.pets],
+    ["Smoking", details.smoking],
+    ["Utilities", utilities],
+  ];
+
+  return (
+    <section className="soft-card overflow-hidden">
+      <div className={listingTabListClass} role="tablist" aria-label="Home information">
+        {tabs.map(([tab, label]) => (
+          <button
+            key={tab}
+            type="button"
+            role="tab"
+            aria-selected={activeTab === tab}
+            onClick={() => setActiveTab(tab)}
+            className={listingTabClass(activeTab === tab)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <div className="p-5 sm:p-7">
+        {activeTab === "overview" ? (
+          <div>
+            <h2 className="text-[21px] font-bold">
+              {details.isRental ? "About this rental" : "About this home"}
+            </h2>
+            <p className="mt-4 whitespace-pre-line text-[14px] leading-7 text-muted-foreground">
+              {description ||
+                (listing.externalHome
+                  ? "No description was included with this listing."
+                  : "The seller hasn't added a description yet.")}
+            </p>
+            {knownHomeFact(details.openHouse) ? (
+              <p className="mt-5 rounded-xl bg-primary/5 px-4 py-3 text-[13px]">
+                <span className="font-semibold">Open house:</span> {details.openHouse}
+              </p>
+            ) : null}
+            {details.isRental ? (
+              <section className="mt-8 border-t border-border/70 pt-6">
+                <h3 className="text-[16px] font-bold">Rental terms</h3>
+                {rentalTerms.some(([, value]) => knownHomeFact(value)) ? (
+                  <HomeFactRows rows={rentalTerms} />
+                ) : (
+                  <p className="mt-2 text-[13px] text-muted-foreground">
+                    Ask about the lease length, deposits, pets and utilities before you apply.
+                  </p>
+                )}
+              </section>
+            ) : null}
+          </div>
+        ) : activeTab === "facts" ? (
+          <HomeFactsAndFeatures listing={listing} details={details} />
+        ) : activeTab === "history" ? (
+          <HomeHistory details={details} />
+        ) : (
+          <div>
+            <h2 className="text-[21px] font-bold">Location</h2>
+            <p className="mt-2 text-[13px] text-muted-foreground">
+              {listing.title}, {listing.city}, {listing.state}
+              {listing.postalCode ? ` ${listing.postalCode}` : ""}
+            </p>
+            <div className="mt-4 overflow-hidden rounded-2xl border border-border/70">
+              <ListingMapEmbed
+                locationQuery={locationQuery}
+                title="Home location map"
+                className="h-[360px]"
+              />
+            </div>
+            <a
+              href={`https://www.google.com/maps/search/?api=1&query=${locationQuery}`}
+              target="_blank"
+              rel="noreferrer"
+              className="mt-4 inline-flex items-center gap-1 text-[12.5px] font-semibold text-primary hover:underline"
+            >
+              Get directions <CaretRight size={15} />
+            </a>
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * The contact card for a partner (feed) home: who listed it, a way to reach
+ * them through the original listing, and a payment estimate for sales.
+ */
+function PartnerHomeContactCard({
+  listing,
+  isRental,
+}: {
+  listing: ClassifiedDetail;
+  isRental: boolean;
+}) {
+  const listedBy = listing.externalHome?.listedBy;
+  const sourceUrl = listing.externalHome?.sourceUrl;
+  const payment = isRental ? 0 : estimatedMonthlyPayment(listing.priceCents);
+  return (
+    <section className="soft-card p-5 sm:p-6">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+        Listed by
+      </p>
+      <div className="mt-3 flex items-start gap-3">
+        <EmployerTile name={listedBy?.brokerName || listedBy?.agentName || "Listing agent"} />
+        <div className="min-w-0 text-[12.5px]">
+          <p className="text-[15px] font-bold">{listedBy?.agentName || "Listing agent"}</p>
+          {listedBy?.brokerName ? <p className="mt-0.5">{listedBy.brokerName}</p> : null}
+          {listedBy?.agentPhone || listedBy?.brokerPhone ? (
+            <a
+              href={`tel:${(listedBy.agentPhone || listedBy.brokerPhone)!.replace(/[^\d+]/g, "")}`}
+              className="mt-1 inline-flex items-center gap-1 font-semibold text-primary hover:underline"
+            >
+              <Phone size={13} aria-hidden="true" /> {listedBy.agentPhone || listedBy.brokerPhone}
+            </a>
+          ) : (
+            <p className="mt-0.5 text-muted-foreground">
+              Contact details are on the original listing.
+            </p>
+          )}
+        </div>
+      </div>
+      {sourceUrl ? (
+        <a
+          href={sourceUrl}
+          target="_blank"
+          rel="noopener noreferrer nofollow"
+          className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-nav-accent text-[14.5px] font-semibold text-primary transition-opacity hover:opacity-90"
+        >
+          {isRental ? "Request a tour" : "Contact agent"}{" "}
+          <ArrowSquareOut size={16} aria-hidden="true" />
+        </a>
+      ) : null}
+      {sourceUrl ? (
+        <p className="mt-2 text-center text-[11.5px] text-muted-foreground">
+          Opens the original listing in a new tab.
+        </p>
+      ) : null}
+      {payment > 0 ? (
+        <div className="mt-5 rounded-2xl bg-secondary/50 px-4 py-3.5">
+          <p className="text-[12px] text-muted-foreground">Estimated payment</p>
+          <p className="numeric mt-0.5 text-[22px] font-bold">{wholeDollars(payment)}/mo</p>
+          <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+            Principal &amp; interest at 20% down, 6.75%, 30-year fixed. Taxes, insurance and HOA are
+            extra.
+          </p>
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
 function HomeListingDetail({
   listing,
   title,
@@ -2040,14 +2248,51 @@ function HomeListingDetail({
   handleShare: () => Promise<void>;
 }) {
   const details = homeRentalDetails(listing, description);
-  const price = formatClassifiedPrice(listing.priceCents, {
-    wholeDollars: true,
-    monthly: details.isRental,
-  });
+  const price = formatClassifiedPrice(listing.priceCents, { wholeDollars: true });
   const homeTab = details.isRental ? "rent" : "buy";
+  const home = listing.home;
+  const stats = [
+    home?.bedrooms != null
+      ? [home.bedrooms === 0 ? "Studio" : String(home.bedrooms), home.bedrooms === 0 ? "" : "beds"]
+      : null,
+    home?.bathrooms != null ? [String(home.bathrooms), "baths"] : null,
+    home?.squareFeet != null ? [home.squareFeet.toLocaleString(), "sqft"] : null,
+  ].filter((stat): stat is string[] => stat != null);
+  const payment = details.isRental ? 0 : estimatedMonthlyPayment(listing.priceCents);
+  const pricePerSqft =
+    !details.isRental && home?.squareFeet && listing.priceCents > 0
+      ? Math.round(listing.priceCents / 100 / home.squareFeet)
+      : null;
+  const chips: [ReactNode, string | null][] = [
+    [<House key="t" size={18} />, home ? homeTypeNoun(home.propertyType) : null],
+    [
+      <CalendarBlank key="y" size={18} />,
+      knownHomeFact(details.yearBuilt) ? `Built in ${details.yearBuilt}` : null,
+    ],
+    [<Ruler key="l" size={18} />, knownHomeFact(details.acreage) ? `${details.acreage} lot` : null],
+    [<Tag key="p" size={18} />, pricePerSqft ? `$${pricePerSqft.toLocaleString()}/sqft` : null],
+    [
+      <Buildings key="h" size={18} />,
+      knownHomeFact(details.hoaFees) ? `HOA ${details.hoaFees}` : null,
+    ],
+    [
+      <Car key="g" size={18} />,
+      knownHomeFact(details.garageParking) ? details.garageParking : null,
+    ],
+    [
+      <PawPrint key="pet" size={18} />,
+      details.isRental && knownHomeFact(details.pets) ? `Pets: ${details.pets}` : null,
+    ],
+    [
+      <CalendarBlank key="a" size={18} />,
+      details.isRental && knownHomeFact(details.availability) ? details.availability : null,
+    ],
+  ];
+  const heartClass =
+    "inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60";
 
   return (
-    <main className="mx-auto max-w-[1360px] px-4 py-6 sm:px-7 sm:py-8 lg:px-10">
+    <main className="mx-auto max-w-[1280px] px-4 py-6 sm:px-7 sm:py-8 lg:px-10">
       <nav
         aria-label="Breadcrumb"
         className="flex flex-wrap items-center gap-1 text-[11.5px] text-muted-foreground"
@@ -2069,39 +2314,67 @@ function HomeListingDetail({
         </span>
       </nav>
 
-      {/* Photo first on phones; on desktop the grid places the header across
-          the top and the photo beside the sidebar, exactly as before. */}
-      <div className="mt-5 grid gap-6 lg:mt-6 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,370px)] lg:grid-rows-[auto_auto_1fr] lg:items-start lg:gap-7">
-        <div className="min-w-0 lg:col-start-1 lg:row-start-2">
-          <Gallery listing={listing} />
-        </div>
+      <div className="mt-5">
+        <HomePhotoCollage listing={listing} />
+      </div>
 
-        <header className="border-b border-border/70 pb-5 lg:col-span-2 lg:row-start-1">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
+      <div className="mt-7 grid gap-7 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-start">
+        <div className="min-w-0 space-y-7">
+          <header className="flex flex-wrap items-start justify-between gap-4 border-b border-border/70 pb-6">
+            <div className="min-w-0">
               {details.community && (
                 <a
                   href="#community-homes"
-                  className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-primary hover:underline"
+                  className="mb-2 inline-flex items-center gap-1 text-[11.5px] font-semibold text-primary hover:underline"
                 >
                   Part of the {details.community.name} community
                 </a>
               )}
-              <h1 className="mt-1 text-[28px] font-bold leading-tight tracking-tight sm:text-[38px]">
+              <div className="flex flex-wrap items-end gap-x-7 gap-y-3">
+                <p className="numeric text-[32px] font-bold leading-none sm:text-[38px]">
+                  {price}
+                  {details.isRental ? (
+                    <span className="text-[18px] font-semibold text-muted-foreground">/mo</span>
+                  ) : null}
+                </p>
+                {stats.length ? (
+                  <dl className="flex items-end gap-5">
+                    {stats.map(([value, label]) => (
+                      <div key={label || value} className="flex flex-col-reverse">
+                        <dt className="mt-1 text-[12px] text-muted-foreground">{label}</dt>
+                        <dd className="numeric text-[22px] font-bold leading-none">{value}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : null}
+              </div>
+              <h1 className="mt-4 text-[19px] font-semibold leading-snug sm:text-[21px]">
                 {title}
               </h1>
-              <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12.5px] text-muted-foreground">
-                <span className="flex items-center gap-1.5 text-primary">
-                  <MapPin size={15} weight="fill" /> {listing.city}, {listing.state}
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Clock size={15} /> Posted {postedAge(listing.createdAt).toLowerCase()}
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Eye size={15} />{" "}
-                  {listing.externalHome
-                    ? `${listing.externalHome.source} listing`
-                    : "Local listing"}
+              <p className="mt-1 flex items-center gap-1.5 text-[13px] text-muted-foreground">
+                <MapPin size={15} weight="fill" className="text-primary" /> {listing.city},{" "}
+                {listing.state}
+                {listing.postalCode ? ` ${listing.postalCode}` : ""}
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-[12.5px]">
+                {home ? (
+                  <span className="inline-flex items-center gap-1.5 font-semibold">
+                    <span
+                      className={`h-2.5 w-2.5 rounded-full ${details.isRental ? "bg-primary" : "bg-emerald-500"}`}
+                    />
+                    {homeStatusLabel(home)}
+                  </span>
+                ) : null}
+                {payment > 0 ? (
+                  <span className="text-muted-foreground">
+                    Est.{" "}
+                    <span className="font-semibold text-foreground">
+                      {wholeDollars(payment)}/mo
+                    </span>
+                  </span>
+                ) : null}
+                <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                  <Clock size={14} /> Listed {postedAge(listing.createdAt).toLowerCase()}
                 </span>
               </div>
             </div>
@@ -2111,7 +2384,7 @@ function HomeListingDetail({
                 <PartnerHomeHeartButton
                   listingId={listing.id}
                   title={title}
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+                  className={heartClass}
                 />
               ) : (
                 <WatchHeartButton
@@ -2119,7 +2392,7 @@ function HomeListingDetail({
                   productSlug={listing.productSlug}
                   productName={title}
                   isDemo={listing.isMock === true}
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+                  className={heartClass}
                 />
               )}
               <button
@@ -2139,35 +2412,38 @@ function HomeListingDetail({
                 <Printer size={18} />
               </button>
             </div>
-          </div>
-          <p className="numeric mt-4 text-[30px] font-bold leading-none text-primary sm:text-[34px]">
-            {price}
-            {details.isRental ? " / mo." : ""}
-          </p>
-        </header>
+          </header>
 
-        <div className="min-w-0 space-y-7 lg:col-start-1 lg:row-start-3">
-          <section className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4" aria-label="Key home facts">
-            <HomeFactCard label="Bedrooms" value={details.bedrooms} />
-            <HomeFactCard label="Bathrooms" value={details.bathrooms} />
-            <HomeFactCard label="Square feet" value={details.squareFeet} />
-            <HomeFactCard
-              label={details.isRental ? "Availability" : "Property type"}
-              value={details.isRental ? details.availability : details.propertyType}
-            />
-          </section>
-          <HomeLocationPanel listing={listing} locationQuery={locationQuery} />
-          <HomeRentalInformation listing={listing} description={description} />
-          <HomeSafetyPanel
-            isRental={details.isRental}
-            listingId={listing.id}
-            isMock={listing.isMock === true}
+          {chips.some(([, label]) => label) ? (
+            <ul
+              className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3"
+              aria-label="Home highlights"
+            >
+              {chips
+                .filter((chip): chip is [ReactNode, string] => Boolean(chip[1]))
+                .map(([icon, label]) => (
+                  <li
+                    key={label}
+                    className="flex min-w-0 items-center gap-2.5 rounded-xl bg-secondary/55 px-3 py-2.5 text-[12.5px] font-medium sm:gap-3 sm:px-4 sm:py-3 sm:text-[13px]"
+                  >
+                    <span className="text-primary">{icon}</span>
+                    <span className="min-w-0 truncate">{label}</span>
+                  </li>
+                ))}
+            </ul>
+          ) : null}
+
+          <HomeDetailTabs
+            listing={listing}
+            description={description}
+            locationQuery={locationQuery}
+            details={details}
           />
         </div>
 
-        <aside className="min-w-0 space-y-5 lg:sticky lg:top-24 lg:col-start-2 lg:row-start-2 lg:row-span-2">
+        <aside className="min-w-0 space-y-5 lg:sticky lg:top-24">
           {listing.externalHome ? (
-            <PageStatsCard listing={listing} />
+            <PartnerHomeContactCard listing={listing} isRental={details.isRental} />
           ) : (
             <>
               <SellerCard listing={listing} />
@@ -2177,9 +2453,14 @@ function HomeListingDetail({
                 calculatorVariant="mortgage"
                 showPriceHeader={false}
               />
-              <PageStatsCard listing={listing} />
             </>
           )}
+          <PageStatsCard listing={listing} />
+          <HomeSafetyPanel
+            isRental={details.isRental}
+            listingId={listing.id}
+            isMock={listing.isMock === true}
+          />
         </aside>
       </div>
 
@@ -3231,23 +3512,30 @@ function PetDetails({ pet }: { pet: NonNullable<ClassifiedDetail["pet"]> }) {
   );
 }
 
-/** Small source credit at the end of an external home page. */
+/** Listing attribution at the end of a partner home page. */
 function ExternalHomeCredit({ listing }: { listing: ClassifiedDetail }) {
-  const source = listing.externalHome?.source ?? "external source";
+  const listedBy = listing.externalHome?.listedBy;
   return (
     <footer className="mt-12 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 border-t border-border/70 py-5 text-center text-[11px] text-muted-foreground">
-      <span>Listing data from {source}.</span>
+      {listedBy?.brokerName ? (
+        <span>
+          Listing courtesy of {listedBy.brokerName}
+          {listedBy.mlsName ? ` · ${listedBy.mlsName}` : ""}.
+        </span>
+      ) : null}
+      <span>
+        Information is deemed reliable but not guaranteed. Verify details with the listing agent.
+      </span>
       {listing.externalHome?.sourceUrl ? (
         <a
           href={listing.externalHome.sourceUrl}
           target="_blank"
-          rel="noopener noreferrer"
+          rel="noopener noreferrer nofollow"
           className="font-semibold text-primary hover:underline"
         >
           View original listing
         </a>
       ) : null}
-      <span>Verify price and availability with the listing source.</span>
     </footer>
   );
 }

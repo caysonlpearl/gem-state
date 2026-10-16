@@ -3469,6 +3469,29 @@ function HomesLandingHero({
   );
 }
 
+const homeTypeIs = (listing: ClassifiedCard, pattern: RegExp) =>
+  pattern.test(listing.home?.propertyType ?? "");
+
+/** What qualifies a home for each homes-landing row. Rows not listed here
+ * (like price drops, which the listing data can't show yet) stay hidden. */
+const homeRowFilters: Record<string, (listing: ClassifiedCard) => boolean> = {
+  "Featured homes for sale": (l) => l.isFeatured && l.home?.mode === "buy",
+  "Starter homes": (l) => l.home?.mode === "buy" && l.priceCents > 0 && l.priceCents <= 40_000_000,
+  "Condos & townhomes": (l) => l.home?.mode === "buy" && homeTypeIs(l, /condo|town/i),
+  "Homes with space to grow": (l) =>
+    l.home?.mode === "buy" && ((l.home.bedrooms ?? 0) >= 4 || (l.home.squareFeet ?? 0) >= 2500),
+  "New builds to explore": (l) => l.home?.mode === "build",
+  "New build communities": (l) => l.home?.mode === "build" && Boolean(l.home.community),
+  "Rentals worth a look": (l) => l.home?.mode === "rent",
+  "Pet-friendly rentals": (l) =>
+    l.home?.mode === "rent" && /allowed|yes|cats?|dogs?|friendly/i.test(l.home.pets ?? ""),
+  "Apartments under $1,800": (l) =>
+    l.home?.mode === "rent" && homeTypeIs(l, /apartment|condo/i) && l.priceCents <= 180_000,
+  "Rentals with room to spread out": (l) => l.home?.mode === "rent" && (l.home.bedrooms ?? 0) >= 3,
+  "Short-term & flexible stays": (l) =>
+    l.home?.mode === "rent" && /month-to-month|short/i.test(l.home.leaseLength ?? ""),
+};
+
 function HomeShowcaseRows({
   activeTab,
   listings,
@@ -3476,9 +3499,14 @@ function HomeShowcaseRows({
   activeTab: HomeTab;
   listings: ClassifiedCard[];
 }) {
+  // Each row shows only homes that match its heading; a row with nothing
+  // that fits stays hidden instead of repeating the same homes.
+  const rows = homePreviewRowsByTab[activeTab]
+    .map((row) => ({ row, homes: listings.filter(homeRowFilters[row.title] ?? (() => false)) }))
+    .filter(({ homes }) => homes.length > 0);
   return (
     <div className="mt-10 space-y-12 sm:mt-14 sm:space-y-16">
-      {homePreviewRowsByTab[activeTab].map((row, rowIndex) => (
+      {rows.map(({ row, homes }) => (
         <section key={row.title} aria-labelledby={row.title.replaceAll(" ", "-").toLowerCase()}>
           <div className="mb-4 flex items-end justify-between gap-3 border-b border-border pb-3">
             <div>
@@ -3505,15 +3533,11 @@ function HomeShowcaseRows({
               <ArrowRight size={14} aria-hidden="true" />
             </Link>
           </div>
-          {listings.length > 0 ? (
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-              {listings.slice(rowIndex % 2, (rowIndex % 2) + 4).map((listing) => (
-                <ListingCard key={`${row.title}-${listing.id}`} listing={listing} />
-              ))}
-            </div>
-          ) : (
-            <CategoryGettingStarted />
-          )}
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            {homes.slice(0, 4).map((listing) => (
+              <ListingCard key={`${row.title}-${listing.id}`} listing={listing} />
+            ))}
+          </div>
         </section>
       ))}
     </div>

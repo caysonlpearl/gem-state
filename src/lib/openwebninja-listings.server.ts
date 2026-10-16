@@ -141,7 +141,12 @@ export async function openWebNinjaDetail(listingId: string): Promise<ClassifiedD
   const acreage = extra?.lotSize && extra.lotSize > 0 ? extra.lotSize / 43_560 : null;
   return {
     ...card,
-    externalHome: { source: "OpenWeb Ninja", sourceUrl: extra?.url ?? home.sourceUrl },
+    externalHome: {
+      source: "OpenWeb Ninja",
+      sourceUrl: extra?.url ?? home.sourceUrl,
+      // Details cached before attribution was kept have none.
+      listedBy: extra?.listedBy ?? null,
+    },
     listingNumber: home.id,
     description: extra?.description ?? null,
     postalCode: home.zip,

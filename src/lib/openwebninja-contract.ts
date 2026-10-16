@@ -67,6 +67,16 @@ export type OpenWebNinjaPropertyExtra = {
   zestimate: number | null;
   rentZestimate: number | null;
   openHouse: string | null;
+  /** Who listed the home (Zillow's attributionInfo); MLS rules expect it shown. */
+  listedBy: OpenWebNinjaListedBy | null;
+};
+
+export type OpenWebNinjaListedBy = {
+  agentName: string | null;
+  agentPhone: string | null;
+  brokerName: string | null;
+  brokerPhone: string | null;
+  mlsName: string | null;
 };
 
 const asRecord = (value: unknown): Record<string, unknown> | null =>
@@ -416,7 +426,20 @@ export function normalizeOpenWebNinjaProperty(payload: unknown): OpenWebNinjaPro
     zestimate: num(record.zestimate),
     rentZestimate: num(record.rentZestimate),
     openHouse: text(firstValue(record, "openHouse", "open_house")),
+    listedBy: listedBy(record),
   };
+}
+
+function listedBy(record: Record<string, unknown>): OpenWebNinjaListedBy | null {
+  const info = asRecord(record.attributionInfo) ?? {};
+  const value = {
+    agentName: text(firstValue(info, "agentName")),
+    agentPhone: text(firstValue(info, "agentPhoneNumber", "agentPhone")),
+    brokerName: text(firstValue(info, "brokerName")) ?? text(record.brokerageName),
+    brokerPhone: text(firstValue(info, "brokerPhoneNumber", "brokerPhone")),
+    mlsName: text(firstValue(info, "mlsName")),
+  };
+  return Object.values(value).some(Boolean) ? value : null;
 }
 
 export const OPENWEBNINJA_ID = /^openwebninja-\d{1,20}$/;

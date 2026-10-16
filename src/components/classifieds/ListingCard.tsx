@@ -12,6 +12,7 @@ import {
   formatClassifiedPrice,
   formatFulfillmentLabel,
   formatJobPay,
+  homeStatusLabel,
   formatMileage,
   petPlacementLabels,
   postedAge,
@@ -427,32 +428,84 @@ export function ListingCard({
           </div>
         )}
       </div>
-      <ListingLink listing={listing} className="block px-3.5 pb-4 pt-3.5">
-        <p className="numeric text-[17px] font-bold leading-none text-foreground">
-          {soldAt ? (
-            <span className="mr-1 text-[11px] font-semibold text-muted-foreground">Asked</span>
-          ) : null}
-          <Price listing={listing} />
-        </p>
-        <h3 className="mt-1.5 line-clamp-2 min-h-[34px] text-[13px] font-semibold leading-[1.3] group-hover:text-primary">
-          {listing.title}
-        </h3>
-        <Facts listing={listing} />
-        {listing.dealer ? (
-          <p className="mt-1 truncate text-[11.5px] font-medium text-primary">
-            {listing.dealer.displayName} · Dealer inventory
+      {listing.home ? (
+        <ListingLink listing={listing} className="block px-3.5 pb-4 pt-3.5">
+          <HomeCardBody listing={listing} soldAt={soldAt} />
+        </ListingLink>
+      ) : (
+        <ListingLink listing={listing} className="block px-3.5 pb-4 pt-3.5">
+          <p className="numeric text-[17px] font-bold leading-none text-foreground">
+            {soldAt ? (
+              <span className="mr-1 text-[11px] font-semibold text-muted-foreground">Asked</span>
+            ) : null}
+            <Price listing={listing} />
           </p>
+          <h3 className="mt-1.5 line-clamp-2 min-h-[34px] text-[13px] font-semibold leading-[1.3] group-hover:text-primary">
+            {listing.title}
+          </h3>
+          <Facts listing={listing} />
+          {listing.dealer ? (
+            <p className="mt-1 truncate text-[11.5px] font-medium text-primary">
+              {listing.dealer.displayName} · Dealer inventory
+            </p>
+          ) : null}
+          <p className="mt-2 flex items-center gap-1 truncate text-[11.5px] text-muted-foreground">
+            <MapPin size={12} weight="fill" className="shrink-0 text-primary" />
+            {listing.city}, {listing.state}
+          </p>
+          <div className="mt-2 flex items-center justify-between gap-2 text-[10.5px] text-muted-foreground">
+            <span className="truncate">{soldAt ? "Sold" : cardActionLabel(listing)}</span>
+            <span className="shrink-0">{postedAge(soldAt ?? listing.createdAt)}</span>
+          </div>
+        </ListingLink>
+      )}
+    </article>
+  );
+}
+
+/**
+ * Home cards read like Zillow's and KSL's: price, then "3 bds | 2 ba |
+ * 1,487 sqft - House for sale", then the address.
+ */
+function HomeCardBody({ listing, soldAt }: { listing: ClassifiedCard; soldAt?: string }) {
+  const home = listing.home!;
+  const facts = [
+    home.bedrooms != null
+      ? [home.bedrooms === 0 ? "Studio" : String(home.bedrooms), home.bedrooms === 0 ? "" : "bds"]
+      : null,
+    home.bathrooms != null ? [String(home.bathrooms), "ba"] : null,
+    home.squareFeet != null ? [home.squareFeet.toLocaleString(), "sqft"] : null,
+  ].filter((fact): fact is string[] => fact != null);
+  return (
+    <>
+      <p className="numeric text-[19px] font-bold leading-none text-foreground">
+        {soldAt ? (
+          <span className="mr-1 text-[11px] font-semibold text-muted-foreground">Asked</span>
         ) : null}
-        <p className="mt-2 flex items-center gap-1 truncate text-[11.5px] text-muted-foreground">
+        <Price listing={listing} />
+      </p>
+      <p className="mt-2 truncate text-[12.5px] text-foreground">
+        {facts.map(([value, unit], index) => (
+          <span key={unit || value}>
+            {index > 0 ? <span className="mx-1.5 text-border">|</span> : null}
+            <span className="font-bold">{value}</span>
+            {unit ? ` ${unit}` : ""}
+          </span>
+        ))}
+        {facts.length ? <span className="mx-1.5 text-muted-foreground">-</span> : null}
+        <span className="text-muted-foreground">{soldAt ? "Sold" : homeStatusLabel(home)}</span>
+      </p>
+      <h3 className="mt-1.5 truncate text-[12.5px] font-semibold group-hover:text-primary">
+        {listing.title}
+      </h3>
+      <div className="mt-1 flex items-center justify-between gap-2 text-[11.5px] text-muted-foreground">
+        <span className="flex min-w-0 items-center gap-1 truncate">
           <MapPin size={12} weight="fill" className="shrink-0 text-primary" />
           {listing.city}, {listing.state}
-        </p>
-        <div className="mt-2 flex items-center justify-between gap-2 text-[10.5px] text-muted-foreground">
-          <span className="truncate">{soldAt ? "Sold" : cardActionLabel(listing)}</span>
-          <span className="shrink-0">{postedAge(soldAt ?? listing.createdAt)}</span>
-        </div>
-      </ListingLink>
-    </article>
+        </span>
+        <span className="shrink-0 text-[10.5px]">{postedAge(soldAt ?? listing.createdAt)}</span>
+      </div>
+    </>
   );
 }
 

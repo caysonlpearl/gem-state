@@ -155,3 +155,22 @@ export function formatJobPay(job: {
   const suffix = payType === "Contract" ? "/hr contract" : "/hr";
   return payMin === payMax ? `$${payMin}${suffix}` : `$${payMin}–$${payMax}${suffix}`;
 }
+
+/** "House", "Condo", "Townhouse"... the noun Zillow-style cards use. */
+export function homeTypeNoun(propertyType: string | null | undefined) {
+  const type = propertyType ?? "";
+  if (/single|house|residential/i.test(type)) return "House";
+  if (/condo/i.test(type)) return "Condo";
+  if (/town/i.test(type)) return "Townhouse";
+  if (/manufactured|mobile/i.test(type)) return "Manufactured home";
+  if (/multi|duplex|triplex|fourplex/i.test(type)) return "Multi-family home";
+  if (/apartment/i.test(type)) return "Apartment";
+  if (/lot|land/i.test(type)) return "Lot";
+  return "Home";
+}
+
+/** "House for sale", "Apartment for rent", "New construction". */
+export function homeStatusLabel(home: { mode: string; propertyType?: string | null }) {
+  if (home.mode === "build") return "New construction";
+  return `${homeTypeNoun(home.propertyType)} for ${home.mode === "rent" ? "rent" : "sale"}`;
+}

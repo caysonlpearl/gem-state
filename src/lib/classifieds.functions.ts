@@ -66,7 +66,17 @@ export type ClassifiedCard = {
   title: string;
   externalJob?: { source: "Adzuna"; url: string; logoUrl?: string; employerSince?: string };
   /** Provider homes: shown with attribution, never stored or sold here. */
-  externalHome?: { source: "Mashvisor" | "OpenWeb Ninja"; sourceUrl?: string | null };
+  externalHome?: {
+    source: "Mashvisor" | "OpenWeb Ninja";
+    sourceUrl?: string | null;
+    listedBy?: {
+      agentName: string | null;
+      agentPhone: string | null;
+      brokerName: string | null;
+      brokerPhone: string | null;
+      mlsName: string | null;
+    } | null;
+  };
   productId: string;
   productSlug: string;
   priceCents: number;
@@ -1979,9 +1989,8 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
       : [];
     const { canIncludeMashvisor, mashvisorCards } = await import("./mashvisor-listings.server");
     const includeMashvisor = canIncludeMashvisor(data);
-    const { canIncludeOpenWebNinja, openWebNinjaCards } = await import(
-      "./openwebninja-listings.server",
-    );
+    const { canIncludeOpenWebNinja, openWebNinjaCards } =
+      await import("./openwebninja-listings.server");
     const includeOpenWebNinja = canIncludeOpenWebNinja(data);
     const { openWebNinjaConfigured } = await import("./openwebninja.server");
     const openWebNinjaEnabled = includeOpenWebNinja && openWebNinjaConfigured();
@@ -2489,34 +2498,36 @@ export const getClassifiedsHome = createServerFn({ method: "GET" }).handler(
       const client = publicServerClient();
       const nowIso = new Date().toISOString();
 
-      const [{ data: categoryRows }, motors, recent, homes, jobs, flexibleJobs] = await Promise.all([
-        client
-          .from("asks")
-          .select(
-            "id, products!inner(status, categories!inner(slug)), classified_listing_details!inner(listing_id)",
-          )
-          .eq("status", "active")
-          .eq("is_demo", false)
-          .not("approved_at", "is", null)
-          .gt("expires_at", nowIso)
-          .eq("products.status", "published")
-          .limit(1000),
-        runBrowseClassifieds({ group: "motors", sort: "newest", page: 1 }),
-        runBrowseClassifieds({ sort: "newest", page: 1, includeAllMocks: true }),
-        runBrowseClassifieds({
-          category: "other-real-estate",
-          homeTab: "buy",
-          sort: "newest",
-          page: 1,
-        }),
-        runBrowseClassifieds({ category: "jobs", sort: "newest", page: 1 }),
-        runBrowseClassifieds({
-          category: "jobs",
-          jobEmploymentType: "Part-time",
-          sort: "newest",
-          page: 1,
-        }),
-      ]);
+      const [{ data: categoryRows }, motors, recent, homes, jobs, flexibleJobs] = await Promise.all(
+        [
+          client
+            .from("asks")
+            .select(
+              "id, products!inner(status, categories!inner(slug)), classified_listing_details!inner(listing_id)",
+            )
+            .eq("status", "active")
+            .eq("is_demo", false)
+            .not("approved_at", "is", null)
+            .gt("expires_at", nowIso)
+            .eq("products.status", "published")
+            .limit(1000),
+          runBrowseClassifieds({ group: "motors", sort: "newest", page: 1 }),
+          runBrowseClassifieds({ sort: "newest", page: 1, includeAllMocks: true }),
+          runBrowseClassifieds({
+            category: "other-real-estate",
+            homeTab: "buy",
+            sort: "newest",
+            page: 1,
+          }),
+          runBrowseClassifieds({ category: "jobs", sort: "newest", page: 1 }),
+          runBrowseClassifieds({
+            category: "jobs",
+            jobEmploymentType: "Part-time",
+            sort: "newest",
+            page: 1,
+          }),
+        ],
+      );
 
       const categoryCounts: Record<string, number> = {};
       for (const row of (categoryRows ?? []) as Record<string, unknown>[]) {
@@ -2535,10 +2546,9 @@ export const getClassifiedsHome = createServerFn({ method: "GET" }).handler(
         // several useful, non-identical curated rows without another round trip.
         recent: [
           ...new Map(
-            [...recent.listings, ...homes.listings, ...jobs.listings, ...flexibleJobs.listings].map((listing) => [
-              listing.id,
-              listing,
-            ]),
+            [...recent.listings, ...homes.listings, ...jobs.listings, ...flexibleJobs.listings].map(
+              (listing) => [listing.id, listing],
+            ),
           ).values(),
         ],
       };

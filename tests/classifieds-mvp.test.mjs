@@ -1521,11 +1521,12 @@ test("home listings use a rental-specific detail layout", () => {
   assert.match(classifiedsFunctionsSource, /listing\.home\?\.mode !== data\.homeTab/);
   assert.match(detailSource, /listing\.categorySlug === "other-real-estate"/);
   assert.match(detailSource, /function HomeListingDetail/);
-  assert.match(detailSource, /function HomeRentalInformation/);
-  assert.match(detailSource, /Who pays utilities/);
-  assert.match(detailSource, /Lease terms/);
+  assert.match(detailSource, /function HomeDetailTabs/);
+  assert.match(detailSource, /Rental terms/);
+  assert.match(detailSource, /\["Utilities", utilities\]/);
+  assert.match(detailSource, /\["Lease length", details\.leaseLength\]/);
   assert.match(detailSource, /Important safety tip/);
-  assert.match(detailSource, /Property details/);
+  assert.match(detailSource, /Facts &amp; features/);
   assert.match(detailSource, /More from \$\{sellerName/);
 });
 

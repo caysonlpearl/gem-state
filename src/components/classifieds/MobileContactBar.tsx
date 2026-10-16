@@ -22,11 +22,13 @@ export function MobileContactBar({ listing }: { listing: ClassifiedDetail }) {
   const seller = listing.seller;
   const isOwnListing = Boolean(isSignedIn && seller?.userId && seller.userId === user?.id);
   const isJob = Boolean(listing.job);
+  // Partner homes have no Bluebird seller to message; their contact is the
+  // listing agent on the original listing.
   const externalApply =
     isJob && listing.job?.applicationMethod === "external"
       ? listing.job.applicationExternalContact
-      : null;
-  const messagesEnabled = seller?.allowInternalMessages !== false;
+      : (listing.externalHome?.sourceUrl ?? null);
+  const messagesEnabled = Boolean(seller) && seller?.allowInternalMessages !== false;
   const showPrimary = Boolean(externalApply) || messagesEnabled;
   const hidden =
     Boolean(listing.ended) ||
@@ -90,11 +92,11 @@ export function MobileContactBar({ listing }: { listing: ClassifiedDetail }) {
           <a
             href={externalApplyHref(externalApply)}
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer nofollow"
             onClick={() => trackSellerContact("apply_external", listing)}
             className={primaryButton}
           >
-            Apply
+            {isJob ? "Apply" : listing.home?.mode === "rent" ? "Request a tour" : "Contact agent"}
           </a>
         ) : messagesEnabled ? (
           <button
