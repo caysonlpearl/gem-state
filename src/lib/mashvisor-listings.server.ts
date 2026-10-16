@@ -17,7 +17,13 @@ import {
  */
 export const MASHVISOR_CITIES = ["Boise", "Meridian", "Nampa", "Idaho Falls", "Coeur d'Alene"];
 
+// Keep the connector and cached responses available for rollback, but do not
+// expose Mashvisor homes in public browse pages or related-listing rails.
+// OpenWeb Ninja is the active external homes feed.
+const MASHVISOR_PUBLIC_FEED_ENABLED = false;
+
 export function canIncludeMashvisor(data: ClassifiedBrowseInput) {
+  if (!MASHVISOR_PUBLIC_FEED_ENABLED) return false;
   if (data.includeAllMocks || data.sellerSlug || data.dealerSlug || data.group) return false;
   return canIncludeMashvisorFilters(data as Record<string, unknown>);
 }
