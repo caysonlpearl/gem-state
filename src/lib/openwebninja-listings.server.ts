@@ -49,6 +49,18 @@ export const OPENWEBNINJA_AREAS = [
     longitude: -116.78047,
     diameterMiles: 45,
   },
+  {
+    key: "western-idaho",
+    latitude: 43.13295,
+    longitude: -115.69198,
+    diameterMiles: 45,
+  },
+  {
+    key: "north-central-idaho",
+    latitude: 46.41655,
+    longitude: -117.01766,
+    diameterMiles: 45,
+  },
 ] as const;
 
 export function canIncludeOpenWebNinja(data: ClassifiedBrowseInput) {
