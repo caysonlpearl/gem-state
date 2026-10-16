@@ -199,7 +199,17 @@ function imageList(record: Record<string, unknown>) {
   for (const [key, value] of Object.entries(record)) {
     if (/photo|image|picture|media/i.test(key)) visit(value);
   }
-  return Array.from(new Set(urls));
+  const seen = new Set<string>();
+  return urls.filter((url) => {
+    // Zillow returns several size/format variants for the same photo (for
+    // example p_d, d_d, o_a, WebP, and uncropped URLs). Keep one gallery
+    // entry per underlying photo while preserving the provider's order.
+    const zillowPhoto = url.match(/photos\.zillowstatic\.com\/fp\/([0-9a-f]{32})/i);
+    const key = zillowPhoto ? `zillow:${zillowPhoto[1]}` : url;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 }
 
 function list(value: unknown): string[] {

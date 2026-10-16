@@ -46,7 +46,18 @@ test("normalizes all property photos and expanded home facts", () => {
       description: "Updated home near downtown.",
       yearBuilt: 2018,
       responsivePhotos: [
-        { mixedSources: { jpeg: [{ url: "https://images.example/one.jpg" }] } },
+        {
+          mixedSources: {
+            jpeg: [
+              {
+                url: "https://photos.zillowstatic.com/fp/0123456789abcdef0123456789abcdef-p_d.jpg",
+              },
+              {
+                url: "https://photos.zillowstatic.com/fp/0123456789abcdef0123456789abcdef-o_a.webp",
+              },
+            ],
+          },
+        },
         { mixedSources: { jpeg: [{ url: "https://images.example/two.jpg" }] } },
       ],
       priceHistory: [
@@ -68,7 +79,7 @@ test("normalizes all property photos and expanded home facts", () => {
   assert.equal(property.description, "Updated home near downtown.");
   assert.equal(property.yearBuilt, 2018);
   assert.deepEqual(property.images, [
-    "https://images.example/one.jpg",
+    "https://photos.zillowstatic.com/fp/0123456789abcdef0123456789abcdef-p_d.jpg",
     "https://images.example/two.jpg",
   ]);
   assert.equal(property.heating, "Forced air");
