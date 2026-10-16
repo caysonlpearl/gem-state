@@ -2042,6 +2042,7 @@ function Browse() {
           />
           <GeneralClassifiedShowcase listings={result.listings} />
           <HomepageShowcaseRows
+            topListings={result.listings}
             eyebrow="Bluebird Marketplace Classifieds"
             rows={classifiedShowcaseRows}
           />
@@ -2095,7 +2096,11 @@ function Browse() {
             browseSearch={{ category: "pets", petMode: "results" }}
             listings={result.listings}
           />
-          <HomepageShowcaseRows eyebrow="Bluebird Marketplace Pets" rows={petShowcaseRows} />
+          <HomepageShowcaseRows
+            topListings={result.listings}
+            eyebrow="Bluebird Marketplace Pets"
+            rows={petShowcaseRows}
+          />
         </>
       )}
 
@@ -2109,6 +2114,7 @@ function Browse() {
             listings={result.listings}
           />
           <HomepageShowcaseRows
+            topListings={result.listings}
             eyebrow="Bluebird Marketplace Motors"
             rows={vehicleShowcaseRows}
             baseSearch={search}
@@ -2209,6 +2215,7 @@ function Browse() {
             compact
           />
           <HomepageShowcaseRows
+            topListings={result.listings}
             eyebrow="Bluebird Marketplace Jobs"
             rows={jobsShowcaseRows}
             jobSearch={search}
@@ -2266,6 +2273,7 @@ function Browse() {
             listings={result.listings}
           />
           <HomepageShowcaseRows
+            topListings={result.listings}
             eyebrow="Bluebird Marketplace Services"
             rows={servicesShowcaseRows}
             jobSearch={search}
@@ -3395,14 +3403,19 @@ function HomepageShowcaseRows({
   rows,
   jobSearch,
   baseSearch,
+  topListings,
 }: {
   eyebrow: string;
   rows: readonly HomepagePreviewRow[];
   jobSearch?: Search;
   baseSearch?: Search;
+  /** The listings the "Latest" showcase above the rows already shows. */
+  topListings?: readonly ClassifiedCard[];
 }) {
   const querySearch = jobSearch ?? baseSearch;
-  const [claims, setClaims] = useState<Record<number, string[]>>({});
+  const [claims, setClaims] = useState<Record<number, string[]>>(() => ({
+    [-1]: varietyOf(topListings ?? [], 5).map((listing) => listing.id),
+  }));
   const claim = useCallback((index: number, ids: string[]) => {
     setClaims((current) =>
       current[index]?.join(",") === ids.join(",") ? current : { ...current, [index]: ids },
