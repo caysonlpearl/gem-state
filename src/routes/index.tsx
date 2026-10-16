@@ -211,6 +211,26 @@ function Home() {
   // page's largest text, so swapping it on load delays LCP); the entrance
   // animation only plays on later rotations.
   const [headlineRotated, setHeadlineRotated] = useState(false);
+  const headlineRef = useRef<HTMLHeadingElement>(null);
+  // Phones hold the headline to exactly three lines: shrink the words (not the
+  // box) until the longest rotation fits.
+  useEffect(() => {
+    const h = headlineRef.current;
+    if (!h) return;
+    const fit = () => {
+      const spans = Array.from(h.children) as HTMLElement[];
+      spans.forEach((span) => (span.style.fontSize = ""));
+      if (window.innerWidth >= 640) return;
+      let size = 1;
+      while (h.scrollHeight > h.clientHeight + 1 && size > 0.8) {
+        size -= 0.04;
+        spans.forEach((span) => (span.style.fontSize = `${size}em`));
+      }
+    };
+    fit();
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, [headlineItems]);
   const [term, setTerm] = useState("");
   const [category, setCategory] = useState("");
   const [location, setLocation] = useState("");
@@ -317,7 +337,7 @@ function Home() {
           <p className="hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-primary sm:block">
             Bluebird classifieds
           </p>
-          <h1 className="homepage-hero-headline flex max-w-[34ch] flex-col justify-end text-[22px] sm:mt-2 font-bold leading-[1.08] tracking-tight sm:text-[48px]">
+          <h1 ref={headlineRef} className="homepage-hero-headline flex max-w-[34ch] flex-col justify-end text-[22px] sm:mt-2 font-bold leading-[1.08] tracking-tight sm:text-[48px]">
             <span className="block">
               Find{" "}
               <span
