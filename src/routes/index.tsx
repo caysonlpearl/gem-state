@@ -337,7 +337,7 @@ function Home() {
           <p className="hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-primary sm:block">
             Bluebird classifieds
           </p>
-          <h1 ref={headlineRef} className="homepage-hero-headline flex max-w-[34ch] flex-col justify-end text-[22px] sm:mt-2 font-bold leading-[1.08] tracking-tight sm:text-[48px]">
+          <h1 ref={headlineRef} className="homepage-hero-headline flex max-w-[34ch] flex-col justify-start text-[22px] sm:mt-2 font-bold leading-[1.08] tracking-tight sm:text-[48px]">
             <span className="block">
               Find{" "}
               <span
