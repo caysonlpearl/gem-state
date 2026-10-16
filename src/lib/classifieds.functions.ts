@@ -2463,7 +2463,7 @@ export const getClassifiedsHome = createServerFn({ method: "GET" }).handler(
       const client = publicServerClient();
       const nowIso = new Date().toISOString();
 
-      const [{ data: categoryRows }, motors, recent, jobs, flexibleJobs] = await Promise.all([
+      const [{ data: categoryRows }, motors, recent, homes, jobs, flexibleJobs] = await Promise.all([
         client
           .from("asks")
           .select(
@@ -2477,6 +2477,12 @@ export const getClassifiedsHome = createServerFn({ method: "GET" }).handler(
           .limit(1000),
         runBrowseClassifieds({ group: "motors", sort: "newest", page: 1 }),
         runBrowseClassifieds({ sort: "newest", page: 1, includeAllMocks: true }),
+        runBrowseClassifieds({
+          category: "other-real-estate",
+          homeTab: "buy",
+          sort: "newest",
+          page: 1,
+        }),
         runBrowseClassifieds({ category: "jobs", sort: "newest", page: 1 }),
         runBrowseClassifieds({
           category: "jobs",
@@ -2503,7 +2509,7 @@ export const getClassifiedsHome = createServerFn({ method: "GET" }).handler(
         // several useful, non-identical curated rows without another round trip.
         recent: [
           ...new Map(
-            [...recent.listings, ...jobs.listings, ...flexibleJobs.listings].map((listing) => [
+            [...recent.listings, ...homes.listings, ...jobs.listings, ...flexibleJobs.listings].map((listing) => [
               listing.id,
               listing,
             ]),
