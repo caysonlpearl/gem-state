@@ -15,6 +15,7 @@ import type {
   ClassifiedVehicle,
 } from "./classifieds.functions";
 import {
+  finalizeMarketCheckListing,
   dedupeMarketCheckImages,
   marketCheckDescription,
   marketCheckImages,
@@ -342,9 +343,12 @@ async function stateInventory(state: string, kind: MarketCheckSourceKind, forceR
     // The inventory was requested for this state, so private-seller listings
     // that arrive without one (MarketCheck often leaves it blank) are in it.
     all.push(
-      ...result.listings.map((listing) =>
-        listing.location.state ? listing : { ...listing, location: { ...listing.location, state } },
-      ),
+      ...result.listings.map((cached) => {
+        const listing = finalizeMarketCheckListing(cached);
+        return listing.location.state
+          ? listing
+          : { ...listing, location: { ...listing.location, state } };
+      }),
     );
     if (result.listings.length < PAGE_SIZE || all.length >= result.numFound) break;
   }
@@ -370,7 +374,8 @@ async function cachedListingsOf(kind: MarketCheckSourceKind, state: string) {
     }
     if (cacheKind !== kind) continue;
     for (const listing of (row?.payload?.listings ?? []) as MarketCheckListing[]) {
-      const repaired = repairCachedListing(listing, kind);
+      const found = repairCachedListing(listing, kind);
+      const repaired = found ? finalizeMarketCheckListing(found) : null;
       if (repaired && repaired.location.state === state) listings.set(repaired.id, repaired);
     }
   }
@@ -441,7 +446,8 @@ function pickRaw(raw: MarketCheckListing["raw"]): MarketCheckListing["raw"] {
   );
 }
 
-export function marketCheckCard(listing: MarketCheckListing): ClassifiedCard {
+export function marketCheckCard(input: MarketCheckListing): ClassifiedCard {
+  const listing = finalizeMarketCheckListing(input);
   const priceCents = listing.price == null ? 0 : Math.round(listing.price * 100);
   const createdAt = listing.lastSeenAt ?? listing.firstSeenAt ?? new Date(0).toISOString();
   return {
@@ -529,10 +535,11 @@ export async function marketCheckDetail(listingId: string): Promise<ClassifiedDe
         `/listing/${parsed.sourceKind === "dealer" ? "car" : "car/fsbo"}/${encodeURIComponent(parsed.providerId)}`,
         (payload) => normalizeMarketCheckListing(payload, parsed.sourceKind),
       );
-  const normalized =
+  const found =
     result.ok && result.value
       ? result.value
       : await cachedSearchListing(parsed.sourceKind, parsed.providerId);
+  const normalized = found ? finalizeMarketCheckListing(found) : null;
   if (!normalized) return null;
   const card = marketCheckCard(normalized);
   const images = marketCheckImages(normalized);

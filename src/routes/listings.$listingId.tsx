@@ -799,13 +799,23 @@ function VehicleHistoryCard({ vehicle }: { vehicle: ClassifiedDetail["vehicle"] 
   );
 }
 
+/** "craigslist.org" -> "Craigslist", for a private seller's source site. */
+function sourceSiteName(site: string | null) {
+  const host = String(site ?? "")
+    .replace(/^https?:\/\//, "")
+    .replace(/^www\./, "")
+    .split("/")[0];
+  const name = host.split(".")[0];
+  return name ? name.charAt(0).toUpperCase() + name.slice(1) : null;
+}
+
 function MarketCheckContactCard({ listing }: { listing: ClassifiedDetail }) {
   const source = listing.externalVehicle;
   if (!source) return null;
   const dealer = source.dealer;
   const name =
     source.sourceKind === "fsbo"
-      ? source.location.sellerName ?? "Private seller"
+      ? "Private seller"
       : (dealer?.name ?? source.location.sellerName ?? "Vehicle seller");
   const phone = dealer?.phone;
   return (
@@ -823,6 +833,15 @@ function MarketCheckContactCard({ listing }: { listing: ClassifiedDetail }) {
           {dealer?.city || dealer?.state ? (
             <p className="mt-1 text-muted-foreground">
               {[dealer.city, dealer.state].filter(Boolean).join(", ")}
+            </p>
+          ) : source.sourceKind === "fsbo" && (source.location.city || source.location.state) ? (
+            <p className="mt-1 text-[13px] text-muted-foreground">
+              {[source.location.city, source.location.state].filter(Boolean).join(", ")}
+            </p>
+          ) : null}
+          {source.sourceKind === "fsbo" && sourceSiteName(source.source) ? (
+            <p className="mt-1 text-[11.5px] text-muted-foreground">
+              Listed on {sourceSiteName(source.source)}
             </p>
           ) : null}
         </div>

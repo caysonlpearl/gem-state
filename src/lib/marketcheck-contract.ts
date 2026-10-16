@@ -288,15 +288,53 @@ function locationOf(
   };
 }
 
+/**
+ * MarketCheck's cached-image links carry our API key in the query string.
+ * Anything sent to a browser must never include one, so those links are
+ * dropped and the original photo links (dealer site, Craigslist) are used.
+ */
+function withoutApiKeys(urls: string[]) {
+  return urls.filter((url) => !/[?&]api_key=/i.test(url));
+}
+
 function mediaOf(raw: Record<string, unknown>): MarketCheckMedia {
   const media = asRecord(raw.media);
-  const photoLinks = dedupeMarketCheckImages(
-    Array.isArray(media.photo_links) ? media.photo_links : [],
+  const photoLinks = withoutApiKeys(
+    dedupeMarketCheckImages(Array.isArray(media.photo_links) ? media.photo_links : []),
   );
-  const photoLinksCached = dedupeMarketCheckImages(
-    Array.isArray(media.photo_links_cached) ? media.photo_links_cached : [],
+  const photoLinksCached = withoutApiKeys(
+    dedupeMarketCheckImages(
+      Array.isArray(media.photo_links_cached) ? media.photo_links_cached : [],
+    ),
   );
   return { photoLinks, photoLinksCached };
+}
+
+/**
+ * Makes a listing safe and complete for pages, including ones cached before
+ * these rules existed: no key-bearing photo links, and a private seller's
+ * city and state, which MarketCheck puts in its dealer-shaped block.
+ */
+export function finalizeMarketCheckListing(listing: MarketCheckListing): MarketCheckListing {
+  const media = {
+    photoLinks: withoutApiKeys(listing.media.photoLinks),
+    photoLinksCached: withoutApiKeys(listing.media.photoLinksCached),
+  };
+  let location = listing.location;
+  if (!location.city || !location.state || location.latitude == null) {
+    const place = dealerOf(asRecord(listing.raw));
+    const rawDealer = asRecord(asRecord(listing.raw).dealer);
+    const rawEnhanced = asRecord(asRecord(listing.raw).mc_dealership);
+    location = {
+      ...location,
+      city: location.city || place?.city || "",
+      state: location.state || place?.state || "",
+      zip: location.zip ?? place?.zip ?? null,
+      latitude: location.latitude ?? number(rawDealer.latitude ?? rawEnhanced.latitude),
+      longitude: location.longitude ?? number(rawDealer.longitude ?? rawEnhanced.longitude),
+    };
+  }
+  return { ...listing, media, location };
 }
 
 function financeOf(raw: Record<string, unknown>): MarketCheckFinance | null {
@@ -362,7 +400,8 @@ export function normalizeMarketCheckListing(
   // shared schema. It must not turn a private-party listing into a hybrid
   // "private seller · dealer inventory" card.
   const dealer = sourceKind === "dealer" ? dealerOf(raw) : null;
-  const location = locationOf(raw, dealer);
+  // A private seller's city still comes from that block.
+  const location = locationOf(raw, dealer ?? dealerOf(raw));
   const build = buildOf(raw);
   const heading =
     cleanHeading(text(raw.heading)) ??
@@ -441,11 +480,11 @@ export function marketCheckImages(listing: MarketCheckListing): string[] {
   // when it exists so the detail page does not render the same photo twice
   // under two different hosts or resize URLs. Fall back to the original links
   // only when the cached gallery is absent.
-  const source =
-    listing.media.photoLinksCached.length > 0
-      ? listing.media.photoLinksCached
-      : listing.media.photoLinks;
-  return dedupeMarketCheckImages(source);
+  // Cached links that carry the API key are never used.
+  const cached = withoutApiKeys(listing.media.photoLinksCached);
+  return withoutApiKeys(
+    dedupeMarketCheckImages(cached.length > 0 ? cached : listing.media.photoLinks),
+  );
 }
 
 export function marketCheckDescription(listing: MarketCheckListing): string | null {

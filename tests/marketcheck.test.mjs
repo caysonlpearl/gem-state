@@ -129,3 +129,36 @@ test("validates partner IDs", () => {
   });
   assert.equal(parseMarketCheckId("marketcheck-auction-123"), null);
 });
+
+test("never sends key-bearing photo links and fills a private seller's city", async () => {
+  const { normalizeMarketCheckListing, marketCheckImages, finalizeMarketCheckListing } =
+    await import("../src/lib/marketcheck-contract.ts");
+  const listing = normalizeMarketCheckListing(
+    {
+      id: "VIN1-abc",
+      heading: "2004 Toyota Prius",
+      media: {
+        photo_links: ["https://images.craigslist.org/a_1200x900.jpg"],
+        photo_links_cached: ["https://api.marketcheck.com/v2/image/cache/car/x/1?api_key=mc_live_secret"],
+      },
+      dealer: { name: "Private Seller", city: "Moscow", state: "ID", zip: "83844" },
+    },
+    "fsbo",
+  );
+  assert.deepEqual(marketCheckImages(listing), ["https://images.craigslist.org/a_1200x900.jpg"]);
+  assert.ok(!JSON.stringify(listing.media).includes("api_key"));
+  assert.equal(listing.location.city, "Moscow");
+  assert.equal(listing.location.state, "ID");
+  assert.equal(listing.dealer, null);
+
+  // Listings cached before the fix are cleaned on the way out.
+  const stale = {
+    ...listing,
+    location: { ...listing.location, city: "", state: "" },
+    media: { photoLinks: listing.media.photoLinks, photoLinksCached: ["https://x.test/1?api_key=k"] },
+    raw: { dealer: { city: "Viola", state: "ID" } },
+  };
+  const fixed = finalizeMarketCheckListing(stale);
+  assert.equal(fixed.location.city, "Viola");
+  assert.deepEqual(fixed.media.photoLinksCached, []);
+});
