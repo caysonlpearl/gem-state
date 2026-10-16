@@ -335,9 +335,16 @@ async function cachedSearchListing(
   if (!db) return null;
   const { data } = await (db as any)
     .from("marketcheck_cache")
-    .select("payload")
-    .like("cache_key", `%\"kind\":\"${sourceKind}\"%`);
+    .select("cache_key,payload")
+    .limit(100);
   for (const row of data ?? []) {
+    let cacheKind: string | null = null;
+    try {
+      cacheKind = JSON.parse(String(row?.cache_key ?? "")).kind ?? null;
+    } catch {
+      // Ignore legacy or malformed cache keys.
+    }
+    if (cacheKind !== sourceKind) continue;
     const listings = (row?.payload?.listings ?? []) as MarketCheckListing[];
     const match = listings.find((listing) => listing.providerId === providerId);
     if (match) return match;
