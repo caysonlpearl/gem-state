@@ -464,8 +464,8 @@
  * (line-height is 1.08), so no empty space is held back for a shape the
  * headline never takes at that size. */
 .homepage-hero-headline {
-  /* Narrow phones: the longest rotation wraps to six lines. */
-  min-height: 6.48em;
+  /* Phones use a compact 22px headline; the longest rotation fits four lines. */
+  min-height: 4.32em;
   text-wrap: balance;
 }
 
@@ -499,15 +499,8 @@
   box-shadow: 0 2px 8px rgb(23 54 77 / 0.4);
 }
 
-@media (min-width: 375px) {
-  /* 375-409px: the longest rotation wraps to five lines. */
-  .homepage-hero-headline {
-    min-height: 5.4em;
-  }
-}
-
-@media (min-width: 410px) {
-  /* 410px and up (through the small-tablet range): four lines. */
+@media (min-width: 640px) {
+  /* Small tablets at 48px: four lines. */
   .homepage-hero-headline {
     min-height: 4.32em;
   }

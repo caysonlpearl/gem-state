@@ -300,7 +300,7 @@ function Home() {
 
   return (
     <main className="mx-auto max-w-[1360px] px-4 pb-16 sm:px-6">
-      <section className="classifieds-hero-shell homepage-hero-shell relative mt-6 overflow-hidden rounded-[28px] border border-brand-blue/20 bg-secondary px-5 py-6 shadow-lg sm:px-10 sm:py-8">
+      <section className="classifieds-hero-shell homepage-hero-shell relative mt-6 overflow-hidden rounded-[28px] border border-brand-blue/20 bg-secondary px-4 py-4 shadow-lg sm:px-10 sm:py-8">
         <span
           className="classifieds-hero-orb classifieds-hero-orb--blue absolute -right-20 -top-24 h-64 w-64 rounded-full bg-brand-blue/12"
           aria-hidden="true"
@@ -314,10 +314,10 @@ function Home() {
           aria-hidden="true"
         />
         <div className="relative z-10">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
+          <p className="hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-primary sm:block">
             Bluebird classifieds
           </p>
-          <h1 className="homepage-hero-headline mt-2 max-w-[34ch] text-[34px] font-bold leading-[1.08] tracking-tight sm:text-[48px]">
+          <h1 className="homepage-hero-headline max-w-[34ch] text-[22px] sm:mt-2 font-bold leading-[1.08] tracking-tight sm:text-[48px]">
             <span className="block">
               Find{" "}
               <span
@@ -333,11 +333,11 @@ function Home() {
               {headlineItems[2]} to {headlineItems[3]}.
             </span>
           </h1>
-          <p className="mt-1.5 max-w-[56ch] text-[15px] leading-relaxed text-muted-foreground">
+          <p className="mt-1 max-w-[56ch] text-[12.5px] leading-snug sm:mt-1.5 sm:text-[15px] leading-relaxed text-muted-foreground">
             And so much more across Idaho and surrounding states.
           </p>
           <div
-            className="classifieds-hero-accent mt-3 flex items-center gap-1.5"
+            className="classifieds-hero-accent mt-3 hidden sm:flex items-center gap-1.5"
             aria-hidden="true"
           >
             <span className="classifieds-hero-accent-bar h-1.5 w-9 rounded-full bg-brand-blue" />
@@ -346,7 +346,7 @@ function Home() {
           </div>
 
           <form
-            className="floating-card mt-5 grid gap-2 border border-brand-blue/15 ring-1 ring-brand-warm/10 p-2 sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:p-3"
+            className="floating-card mt-3 grid grid-cols-2 gap-1.5 border border-brand-blue/15 ring-1 ring-brand-warm/10 p-1.5 sm:mt-5 sm:gap-2 sm:p-2 sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:p-3"
             onSubmit={(event) => {
               event.preventDefault();
               const locationSearch = parseLocationSearch(location);
@@ -364,7 +364,7 @@ function Home() {
               });
             }}
           >
-            <label className="relative block">
+            <label className="relative col-span-2 block sm:col-span-1">
               <MagnifyingGlass
                 size={16}
                 className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
@@ -375,7 +375,7 @@ function Home() {
                 onChange={(event) => setTerm(event.target.value)}
                 placeholder="Search listings"
                 aria-label="Search listings"
-                className="h-12 w-full rounded-full border-0 bg-transparent pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+                className="h-10 w-full rounded-full border-0 bg-transparent pl-9 sm:h-12 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
               />
             </label>
             <HomeSearchDropdown
@@ -404,24 +404,24 @@ function Home() {
             />
             <button
               type="submit"
-              className="h-12 rounded-full bg-primary px-7 text-[13.5px] font-semibold text-primary-foreground shadow-sm transition-transform hover:scale-[1.02]"
+              className="col-span-2 h-10 rounded-full bg-primary px-7 sm:col-span-1 sm:h-12 text-[13.5px] font-semibold text-primary-foreground shadow-sm transition-transform hover:scale-[1.02]"
             >
               Search
             </button>
           </form>
-          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12px] text-muted-foreground">
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-0 text-[12px] sm:mt-3 sm:gap-y-2 text-muted-foreground">
             <span className="font-semibold text-foreground">Search area: {locationSummary}</span>
             <button
               type="button"
               onClick={() => setMapOpen((open) => !open)}
-              className="inline-flex min-h-11 items-center font-semibold text-primary underline-offset-2 hover:underline"
+              className="inline-flex min-h-9 items-center font-semibold text-primary sm:min-h-11 underline-offset-2 hover:underline"
               aria-expanded={mapOpen}
             >
               {mapOpen ? "Hide map" : "Choose anywhere on map"}
             </button>
             {/* The radius only means something around a chosen city or map
                 point; before that, "Search area: Idaho" already says it. */}
-            <label className="flex min-h-11 min-w-[220px] flex-1 items-center gap-2 sm:max-w-[360px]">
+            <label className="flex min-h-9 min-w-[220px] sm:min-h-11 flex-1 items-center gap-2 sm:max-w-[360px]">
               <span className="whitespace-nowrap">Distance</span>
               <input
                 aria-label="Search radius in miles"
