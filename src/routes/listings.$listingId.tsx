@@ -83,6 +83,7 @@ import {
   petPlacementLabels,
   postedAge,
   vehicleHeadline,
+  placeLabel,
 } from "@/lib/classifieds-display";
 import {
   getClassifiedListing,
@@ -1654,7 +1655,7 @@ function ListingDetailContent() {
           </>
         ) : null}
         <span className="text-foreground">
-          {listing.city}, {listing.state}
+          {placeLabel(listing.city, listing.state)}
         </span>
       </nav>
 
@@ -1720,7 +1721,7 @@ function ListingDetailContent() {
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12.5px] text-muted-foreground">
             <span className="flex items-center gap-1.5 text-primary">
-              <MapPin size={15} weight="fill" /> {listing.city}, {listing.state}
+              <MapPin size={15} weight="fill" /> {placeLabel(listing.city, listing.state)}
             </span>
             <span className="flex items-center gap-1.5">
               <Clock size={15} /> Posted {postedAge(listing.createdAt).toLowerCase()}
@@ -1843,7 +1844,7 @@ function ListingDetailContent() {
                         />
                         <div>
                           <p className="font-semibold">
-                            {listing.city}, {listing.state}
+                            {placeLabel(listing.city, listing.state)}
                           </p>
                           <p className="mt-1 text-[12px] text-muted-foreground">
                             Approximate public location. Confirm the exact meeting location before
@@ -2433,7 +2434,7 @@ function HomeDetailTabs({
           <div>
             <h2 className="text-[21px] font-bold">Location</h2>
             <p className="mt-2 text-[13px] text-muted-foreground">
-              {listing.title}, {listing.city}, {listing.state}
+              {listing.title}, {placeLabel(listing.city, listing.state)}
               {listing.postalCode ? ` ${listing.postalCode}` : ""}
             </p>
             <div className="mt-4 overflow-hidden rounded-2xl border border-border/70">
@@ -2602,7 +2603,7 @@ function HomeListingDetail({
         </Link>
         <CaretRight size={13} />
         <span className="text-foreground">
-          {listing.city}, {listing.state}
+          {placeLabel(listing.city, listing.state)}
         </span>
       </nav>
 
@@ -2859,7 +2860,7 @@ function JobListingDetail({
         </Link>
         <CaretRight size={13} />
         <span className="text-foreground">
-          {listing.city}, {listing.state}
+          {placeLabel(listing.city, listing.state)}
         </span>
       </nav>
 
@@ -2878,7 +2879,7 @@ function JobListingDetail({
               </h1>
               <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12.5px] text-muted-foreground">
                 <span className="flex items-center gap-1.5 text-primary">
-                  <MapPin size={15} weight="fill" /> {listing.city}, {listing.state}
+                  <MapPin size={15} weight="fill" /> {placeLabel(listing.city, listing.state)}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <Clock size={15} /> Posted {postedAge(listing.createdAt).toLowerCase()}
@@ -3056,7 +3057,7 @@ function JobListingDetail({
                 <div>
                   <h2 className="text-[21px] font-bold">Location</h2>
                   <p className="mt-2 text-[13px] text-muted-foreground">
-                    {listing.city}, {listing.state}
+                    {placeLabel(listing.city, listing.state)}
                   </p>
                   <a
                     href={`https://www.google.com/maps/search/?api=1&query=${locationQuery}`}
@@ -3194,7 +3195,7 @@ function PartnerEmployerCard({
         <p className="text-[13px] font-semibold">{name}</p>
         <p className="mt-1 flex items-start gap-1.5 text-[12px] text-primary">
           <MapPin size={14} weight="fill" className="mt-0.5 shrink-0" />
-          {listing.city}, {listing.state}
+          {placeLabel(listing.city, listing.state)}
         </p>
       </div>
       {employerName ? (
@@ -3560,7 +3561,7 @@ function ServiceListingDetail({
         </Link>
         <CaretRight size={13} />
         <span className="text-foreground">
-          {listing.city}, {listing.state}
+          {placeLabel(listing.city, listing.state)}
         </span>
       </nav>
 
@@ -3579,7 +3580,7 @@ function ServiceListingDetail({
               </h1>
               <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12.5px] text-muted-foreground">
                 <span className="flex items-center gap-1.5 text-primary">
-                  <MapPin size={15} weight="fill" /> {listing.city}, {listing.state}
+                  <MapPin size={15} weight="fill" /> {placeLabel(listing.city, listing.state)}
                 </span>
                 {listing.directory ? (
                   <span className="flex items-center gap-1.5">
@@ -3890,7 +3891,7 @@ function GeneralListingDetail({
           </>
         )}
         <span className="text-foreground">
-          {listing.city}, {listing.state}
+          {placeLabel(listing.city, listing.state)}
         </span>
       </nav>
 
@@ -3909,7 +3910,7 @@ function GeneralListingDetail({
               </h1>
               <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-[12.5px] text-muted-foreground">
                 <span className="flex items-center gap-1.5 text-primary">
-                  <MapPin size={15} weight="fill" /> {listing.city}, {listing.state}
+                  <MapPin size={15} weight="fill" /> {placeLabel(listing.city, listing.state)}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <Clock size={15} /> Posted {postedAge(listing.createdAt).toLowerCase()}
@@ -4041,7 +4042,7 @@ function GeneralListingDetail({
                         />
                         <div>
                           <p className="font-semibold">
-                            {listing.city}, {listing.state}
+                            {placeLabel(listing.city, listing.state)}
                           </p>
                           <p className="mt-1 text-[12px] text-muted-foreground">
                             Approximate public location. Confirm the exact pickup or meeting

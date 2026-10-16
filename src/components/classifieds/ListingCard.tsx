@@ -19,6 +19,7 @@ import {
   formatMileage,
   petPlacementLabels,
   postedAge,
+  placeLabel,
 } from "@/lib/classifieds-display";
 import type { ClassifiedCard } from "@/lib/classifieds.functions";
 
@@ -519,7 +520,7 @@ export function ListingCard({
           ) : null}
           <p className="mt-2 flex items-center gap-1 truncate text-[11.5px] text-muted-foreground">
             <MapPin size={12} weight="fill" className="shrink-0 text-primary" />
-            {listing.city}, {listing.state}
+            {placeLabel(listing.city, listing.state)}
           </p>
           <div className="mt-2 flex items-center justify-between gap-2 text-[10.5px] text-muted-foreground">
             <span className="truncate">
@@ -581,7 +582,7 @@ function HomeCardBody({ listing, soldAt }: { listing: ClassifiedCard; soldAt?: s
       <div className="mt-1 flex items-center justify-between gap-2 text-[11.5px] text-muted-foreground">
         <span className="flex min-w-0 items-center gap-1 truncate">
           <MapPin size={12} weight="fill" className="shrink-0 text-primary" />
-          {listing.city}, {listing.state}
+          {placeLabel(listing.city, listing.state)}
         </span>
         <span className="shrink-0 text-[10.5px]">{postedAge(soldAt ?? listing.createdAt)}</span>
       </div>
@@ -619,7 +620,7 @@ export function ListingRow({ listing }: { listing: ClassifiedCard }) {
           ) : null}
           <p className="mt-2 flex items-center gap-1 truncate text-[11.5px] text-muted-foreground">
             <MapPin size={12} weight="fill" className="shrink-0 text-primary" />
-            {listing.city}, {listing.state} ·{" "}
+            {placeLabel(listing.city, listing.state)} ·{" "}
             {listing.job
               ? "Apply now"
               : listing.service

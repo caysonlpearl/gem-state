@@ -195,3 +195,21 @@ export function withoutLogo<T extends { externalJob?: unknown; directory?: unkno
       : undefined,
   };
 }
+
+const STATE_NAMES: Record<string, string> = {
+  ID: "Idaho",
+  WA: "Washington",
+  OR: "Oregon",
+  NV: "Nevada",
+  UT: "Utah",
+  WY: "Wyoming",
+  MT: "Montana",
+};
+
+/** "Eagle, ID", or just the state ("Idaho") when a partner listing has no city. */
+export function placeLabel(city: string | null | undefined, state: string | null | undefined) {
+  const town = String(city ?? "").trim();
+  const st = String(state ?? "").trim();
+  if (town) return st ? `${town}, ${st}` : town;
+  return STATE_NAMES[st.toUpperCase()] ?? st;
+}
