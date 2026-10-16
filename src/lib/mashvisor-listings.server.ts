@@ -101,8 +101,9 @@ export async function mashvisorDetail(listingId: string): Promise<ClassifiedDeta
   const card = mashvisorCard(home);
   const images = extra?.images.length ? extra.images : home.imageUrl ? [home.imageUrl] : [];
   const priceHistory = [
+    ...(extra?.priceHistory ?? []),
     ...(extra?.originalListPrice
-      ? [{ label: "Original list price", amount: extra.originalListPrice }]
+      ? [{ label: "Original list price", amount: extra.originalListPrice, date: null }]
       : []),
     ...(extra?.lastSalePrice
       ? [{ label: "Last recorded sale", amount: extra.lastSalePrice, date: extra.lastSaleDate }]
@@ -116,8 +117,11 @@ export async function mashvisorDetail(listingId: string): Promise<ClassifiedDeta
           },
         ]
       : []),
-    { label: "Current list price", amount: home.priceCents / 100 },
-  ].filter((entry, index, all) => index === 0 || entry.amount !== all[index - 1]?.amount);
+    { label: "Current list price", amount: home.priceCents / 100, date: null },
+  ].filter(
+    (entry, index, all) =>
+      index === 0 || entry.amount !== all[index - 1]?.amount || entry.date !== all[index - 1]?.date,
+  );
   const acreage = extra?.lotSize && extra.lotSize > 0 ? extra.lotSize / 43_560 : null;
   return {
     ...card,

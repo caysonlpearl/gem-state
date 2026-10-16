@@ -49,6 +49,7 @@ export type MashvisorPropertyExtra = {
   hoaFees: string | null;
   schools: string[];
   amenities: string[];
+  priceHistory: { label: string; amount: number; date: string | null }[];
 };
 
 const num = (value: unknown) => {
@@ -71,14 +72,91 @@ const httpsImage = (value: unknown) => {
   return url.replace(/^http:\/\//i, "https://");
 };
 
+const asRecord = (value: unknown): Record<string, unknown> | null =>
+  value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+
+const firstValue = (record: Record<string, unknown>, ...keys: string[]) => {
+  for (const key of keys) {
+    const value = record[key];
+    if (value != null && value !== "") return value;
+  }
+  return null;
+};
+
+/** Mashvisor has used a few wrappers/field names across API versions. */
+function propertyRecord(payload: unknown): Record<string, unknown> {
+  const root = asRecord(payload);
+  if (!root) return {};
+  const candidates: unknown[] = [
+    root,
+    root.content,
+    root.data,
+    root.property,
+    root.listing,
+    root.result,
+    asRecord(root.content)?.property,
+    asRecord(root.content)?.listing,
+    asRecord(root.content)?.data,
+    asRecord(root.data)?.property,
+    asRecord(root.data)?.listing,
+    asRecord(root.data)?.data,
+    asRecord(root.result)?.property,
+  ];
+  const score = (value: unknown) => {
+    const record = asRecord(value);
+    if (!record) return -1;
+    return [
+      "description",
+      "property_description",
+      "property_type",
+      "bedrooms",
+      "beds",
+      "bathrooms",
+      "baths",
+      "sqft",
+      "square_feet",
+      "extra_images",
+      "photos",
+    ].filter((key) => record[key] != null).length;
+  };
+  return (candidates.sort((a, b) => score(b) - score(a))[0] as Record<string, unknown>) ?? {};
+}
+
+function collectImages(record: Record<string, unknown>) {
+  const images: string[] = [];
+  const visit = (value: unknown, depth = 0) => {
+    if (depth > 4 || value == null) return;
+    const image = httpsImage(value);
+    if (image && /^https?:\/\//i.test(image)) {
+      images.push(image);
+      return;
+    }
+    if (Array.isArray(value)) {
+      value.forEach((item) => visit(item, depth + 1));
+      return;
+    }
+    const object = asRecord(value);
+    if (!object) return;
+    for (const [key, item] of Object.entries(object)) {
+      if (/image|photo|picture|media/i.test(key)) visit(item, depth + 1);
+    }
+  };
+  for (const [key, value] of Object.entries(record)) {
+    if (/image|photo|picture|media/i.test(key)) visit(value);
+  }
+  return Array.from(new Set(images));
+}
+
 export function normalizeMashvisorHome(raw: unknown): MashvisorHome | null {
   if (!raw || typeof raw !== "object") return null;
   const r = raw as Record<string, unknown>;
-  const id = num(r["id"]);
-  const price = num(r["list_price"]);
-  const address = text(r["address"]);
-  const city = text(r["city"]);
-  const state = text(r["state"])?.toUpperCase() ?? null;
+  const id = num(firstValue(r, "id", "property_id", "propertyId"));
+  const price = num(firstValue(r, "list_price", "listPrice", "price"));
+  const address = text(firstValue(r, "address", "street_address"));
+  const city = text(firstValue(r, "city", "locality"));
+  const state = text(firstValue(r, "state", "state_code"))?.toUpperCase() ?? null;
   // No price, address or place means it isn't a listing we can show honestly.
   if (!id || !price || price <= 0 || !address || !city || !state) return null;
   const beds = num(r["beds"]);
@@ -89,22 +167,30 @@ export function normalizeMashvisorHome(raw: unknown): MashvisorHome | null {
     address,
     city,
     state,
-    zip: text(r["zip_code"]) ?? text(r["zip"]),
-    propertyType: text(r["type"]),
+    zip: text(firstValue(r, "zip_code", "zip", "postal_code")),
+    propertyType: text(firstValue(r, "type", "property_type", "property_sub_type")),
     priceCents: Math.round(price * 100),
-    beds: beds != null && beds > 0 ? beds : null,
-    baths: baths != null && baths > 0 ? baths : null,
-    sqft: sqft != null && sqft > 0 ? Math.round(sqft) : null,
-    imageUrl: httpsImage(r["image_url"]) ?? httpsImage(r["image"]),
-    daysOnMarket: num(r["days_on_market"]),
+    beds: beds != null && beds > 0 ? beds : num(r["bedrooms"]),
+    baths: baths != null && baths > 0 ? baths : num(r["bathrooms"]),
+    sqft:
+      sqft != null && sqft > 0 ? Math.round(sqft) : num(firstValue(r, "square_feet", "squareFeet")),
+    imageUrl: httpsImage(firstValue(r, "image_url", "image", "photo", "thumbnail")),
+    daysOnMarket: num(firstValue(r, "days_on_market", "daysOnMarket")),
     latitude: num(r["latitude"]),
     longitude: num(r["longitude"]),
   };
 }
 
 export function normalizeMashvisorResult(payload: unknown): MashvisorResult {
-  const content = (payload as { content?: { properties?: unknown[] } } | null)?.content;
-  const list = Array.isArray(content?.properties) ? content.properties : [];
+  const root = asRecord(payload);
+  const content = asRecord(root?.content) ?? asRecord(root?.data) ?? root;
+  const list = Array.isArray(content?.properties)
+    ? content.properties
+    : Array.isArray(content?.listings)
+      ? content.listings
+      : Array.isArray(content?.results)
+        ? content.results
+        : [];
   return {
     status: "ok",
     homes: list.map(normalizeMashvisorHome).filter((home): home is MashvisorHome => !!home),
@@ -112,18 +198,16 @@ export function normalizeMashvisorResult(payload: unknown): MashvisorResult {
 }
 
 export function normalizeMashvisorProperty(payload: unknown): MashvisorPropertyExtra {
-  const c = ((payload as { content?: unknown } | null)?.content ?? {}) as Record<string, unknown>;
-  const url = text(c["url"]);
-  const extra = Array.isArray(c["extra_images"]) ? c["extra_images"] : [];
-  const imageCollection = Array.isArray(c["images"]) ? c["images"] : [];
-  const images = [
-    httpsImage(c["image"]),
-    ...extra.map(httpsImage),
-    ...imageCollection.map(httpsImage),
-  ].filter((image): image is string => !!image);
-  const year = num(c["yearBuilt"] ?? c["year_built"]);
-  const listPrice = num(c["originalListPrice"] ?? c["original_list_price"]);
-  const lastSale = num(c["lastSalePrice"] ?? c["last_sale_price"]);
+  const c = propertyRecord(payload);
+  const url = text(firstValue(c, "url", "listing_url", "source_url"));
+  const images = collectImages(c);
+  const year = num(firstValue(c, "yearBuilt", "year_built", "year_built_in"));
+  const listPrice = num(
+    firstValue(c, "originalListPrice", "original_list_price", "original_list_price_value"),
+  );
+  const lastSale = num(
+    firstValue(c, "lastSalePrice", "last_sale_price", "last_sold_price", "sale_price"),
+  );
   const list = (value: unknown) =>
     typeof value === "string"
       ? value
@@ -141,11 +225,16 @@ export function normalizeMashvisorProperty(payload: unknown): MashvisorPropertyE
                 : scalarText(item),
             )
             .filter((item): item is string => !!item)
-        : [];
-  const schools = Array.isArray(c["schools"]) ? c["schools"] : [];
+        : asRecord(value)
+          ? Object.values(value as Record<string, unknown>)
+              .map((item) => scalarText(item))
+              .filter((item): item is string => !!item)
+          : [];
+  const schools = firstValue(c, "schools", "nearby_schools");
+  const schoolList = Array.isArray(schools) ? schools : [];
   const districts = [
     ...new Set(
-      schools
+      schoolList
         .map((school) =>
           typeof school === "object" && school
             ? scalarText((school as Record<string, unknown>).district)
@@ -154,38 +243,73 @@ export function normalizeMashvisorProperty(payload: unknown): MashvisorPropertyE
         .filter((item): item is string => !!item),
     ),
   ];
-  const parkingSpots = num(c["parkingSpots"] ?? c["parking_spots"]);
-  const parkingType = scalarText(c["parkingType"] ?? c["parking_type"]);
+  const parkingSpots = num(firstValue(c, "parkingSpots", "parking_spots", "garage_spaces"));
+  const parkingType = scalarText(firstValue(c, "parkingType", "parking_type", "garage_type"));
+  const rawHistory = firstValue(c, "priceHistory", "price_history", "history", "listing_history");
+  const priceHistory = Array.isArray(rawHistory)
+    ? rawHistory
+        .map((item) => {
+          const entry = asRecord(item);
+          if (!entry) return null;
+          const amount = num(firstValue(entry, "amount", "price", "list_price", "sale_price"));
+          if (!amount || amount <= 0) return null;
+          return {
+            label:
+              scalarText(firstValue(entry, "label", "event", "type", "status")) ?? "Price update",
+            amount: Math.round(amount),
+            date: scalarText(firstValue(entry, "date", "event_date", "created_at")),
+          };
+        })
+        .filter((item): item is { label: string; amount: number; date: string | null } => !!item)
+    : [];
   return {
     url: url && /^https:\/\//i.test(url) ? url : null,
     images: Array.from(new Set(images)),
     yearBuilt: year && year > 1700 ? year : null,
     source: text(c["source"]),
-    propertyType: scalarText(c["homeType"] ?? c["property_sub_type"] ?? c["property_type"]),
-    bedrooms: num(c["beds"]),
-    bathrooms: num(c["baths"]),
-    squareFeet: num(c["sqft"]),
-    description: text(c["description"]),
+    propertyType: scalarText(
+      firstValue(c, "homeType", "property_sub_type", "property_type", "type"),
+    ),
+    bedrooms: num(firstValue(c, "beds", "bedrooms")),
+    bathrooms: num(firstValue(c, "baths", "bathrooms")),
+    squareFeet: num(firstValue(c, "sqft", "square_feet", "squareFeet", "living_area")),
+    description: text(firstValue(c, "description", "property_description", "listing_description")),
     originalListPrice: listPrice && listPrice > 0 ? Math.round(listPrice) : null,
     lastSalePrice: lastSale && lastSale > 0 ? Math.round(lastSale) : null,
-    lastSaleDate: scalarText(c["lastSaleDate"] ?? c["last_sale_date"]),
-    priceReducedAt: scalarText(c["recentReductionDate"] ?? c["recent_reduction_date"]),
-    lotSize: num(c["lotSize"] ?? c["lot_size"]),
-    heating: scalarText(c["heating_system"] ?? c["heating"]),
-    cooling: scalarText(c["cooling_system"] ?? c["cooling"]),
+    lastSaleDate: scalarText(
+      firstValue(c, "lastSaleDate", "last_sale_date", "last_sold_date", "sale_date"),
+    ),
+    priceReducedAt: scalarText(
+      firstValue(c, "recentReductionDate", "recent_reduction_date", "price_reduced_at"),
+    ),
+    lotSize: num(firstValue(c, "lotSize", "lot_size", "lot_sqft")),
+    heating: scalarText(firstValue(c, "heating_system", "heating", "heating_type")),
+    cooling: scalarText(firstValue(c, "cooling_system", "cooling", "cooling_type")),
     parking:
       [parkingType, parkingSpots ? `${parkingSpots} spaces` : null].filter(Boolean).join(" · ") ||
-      scalarText(c["parking"]),
-    appliances: list(c["characteristics"]).join(", ") || scalarText(c["appliances"]),
-    exteriorMaterial: scalarText(c["construction_materials"] ?? c["exterior_material"]),
+      scalarText(firstValue(c, "parking", "parking_description")),
+    appliances:
+      list(firstValue(c, "characteristics", "amenities", "appliances"))
+        .filter((item) => /appliance|washer|dryer|range|dishwasher|refrigerator/i.test(item))
+        .join(", ") || scalarText(firstValue(c, "appliances", "appliances_included")),
+    exteriorMaterial: scalarText(
+      firstValue(c, "construction_materials", "exterior_material", "exterior"),
+    ),
     specialFeatures:
-      list(c["detailed_characteristics"]).join(", ") || scalarText(c["architecture_style"]),
-    schoolDistrict: districts.join(", ") || null,
-    hoaFees: scalarText(c["hoa_dues"] ?? c["hoa_fees"] ?? c["hoaFees"]),
-    schools: list(schools),
+      list(firstValue(c, "detailed_characteristics", "special_features", "features")).join(", ") ||
+      scalarText(firstValue(c, "architecture_style")),
+    schoolDistrict:
+      scalarText(firstValue(c, "school_district", "schoolDistrict")) ??
+      (districts.join(", ") || null),
+    hoaFees: scalarText(firstValue(c, "hoa_dues", "hoa_fees", "hoaFees", "hoa")),
+    schools: list(schoolList),
     amenities: [
-      ...new Set([...list(c["characteristics"]), ...list(c["detailed_characteristics"])]),
+      ...new Set([
+        ...list(firstValue(c, "characteristics", "amenities")),
+        ...list(firstValue(c, "detailed_characteristics", "special_features", "features")),
+      ]),
     ],
+    priceHistory,
   };
 }
 

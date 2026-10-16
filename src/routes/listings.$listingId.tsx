@@ -1369,12 +1369,12 @@ function ListingDetailContent() {
 
       {/* Photo first on phones; on desktop the grid places the header across
           the top and the photo beside the sidebar, exactly as before. */}
-      <div className="mt-5 grid gap-6 lg:mt-6 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,370px)] lg:grid-rows-[auto_auto_1fr] lg:items-start lg:gap-7">
-        <div className="min-w-0 lg:col-start-1 lg:row-start-2">
+      <div className="mt-5 grid gap-6 lg:mt-6 lg:grid-cols-[280px_minmax(0,1fr)] lg:grid-rows-[auto_auto_auto] lg:items-start lg:gap-x-7 lg:gap-y-6">
+        <div className="min-w-0 lg:col-start-2 lg:row-start-2">
           <Gallery listing={listing} />
         </div>
 
-        <header className="border-b border-border/70 pb-5 lg:col-span-2 lg:row-start-1">
+        <header className="border-b border-border/70 pb-5 lg:col-start-2 lg:row-start-1">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <h1 className="text-[28px] font-bold leading-tight tracking-tight sm:text-[38px]">
@@ -1442,7 +1442,7 @@ function ListingDetailContent() {
           </p>
         </header>
 
-        <div className="min-w-0 space-y-7 lg:col-start-1 lg:row-start-3">
+        <div className="min-w-0 space-y-7 lg:col-start-2 lg:row-start-3">
           <section
             className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4"
             aria-label="Key vehicle facts"
@@ -1579,7 +1579,7 @@ function ListingDetailContent() {
           )}
         </div>
 
-        <aside className="min-w-0 space-y-5 lg:sticky lg:top-24 lg:col-start-2 lg:row-start-2 lg:row-span-2">
+        <aside className="min-w-0 space-y-5 lg:sticky lg:top-24 lg:col-start-1 lg:row-start-1 lg:row-span-3">
           <SellerCard listing={listing} />
           <ListingActions listing={listing} showPriceHeader={false} />
           <VehicleHistoryCard vehicle={vehicle} />

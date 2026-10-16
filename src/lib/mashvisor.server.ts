@@ -89,7 +89,9 @@ export async function propertyDetails(
 ): Promise<
   { ok: true; value: MashvisorPropertyExtra } | { ok: false; status: "unavailable" | "limited" }
 > {
-  const key = JSON.stringify({ v: 2, kind: "property", state, id });
+  // Bump the cache namespace when the response normalizer changes so an old
+  // one-photo/empty-details payload can never mask the corrected mapping.
+  const key = JSON.stringify({ v: 3, kind: "property", state, id });
   return cachedCall(
     key,
     `property?id=${encodeURIComponent(id)}&state=${encodeURIComponent(state)}`,

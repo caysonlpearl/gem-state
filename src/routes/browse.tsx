@@ -57,6 +57,7 @@ import {
 import {
   browseClassifieds,
   type ClassifiedBrowseInput,
+  type ClassifiedCard,
   type ClassifiedBrowseResult,
 } from "@/lib/classifieds.functions";
 import { trackEvent, traceMutation } from "@/lib/analytics";
@@ -2155,7 +2156,7 @@ function Browse() {
             }}
             listings={result.listings}
           />
-          <HomeShowcaseRows activeTab={homeTab} />
+          <HomeShowcaseRows activeTab={homeTab} listings={result.listings} />
         </>
       )}
 
@@ -3468,10 +3469,16 @@ function HomesLandingHero({
   );
 }
 
-function HomeShowcaseRows({ activeTab }: { activeTab: HomeTab }) {
+function HomeShowcaseRows({
+  activeTab,
+  listings,
+}: {
+  activeTab: HomeTab;
+  listings: ClassifiedCard[];
+}) {
   return (
     <div className="mt-10 space-y-12 sm:mt-14 sm:space-y-16">
-      {homePreviewRowsByTab[activeTab].map((row) => (
+      {homePreviewRowsByTab[activeTab].map((row, rowIndex) => (
         <section key={row.title} aria-labelledby={row.title.replaceAll(" ", "-").toLowerCase()}>
           <div className="mb-4 flex items-end justify-between gap-3 border-b border-border pb-3">
             <div>
@@ -3498,7 +3505,15 @@ function HomeShowcaseRows({ activeTab }: { activeTab: HomeTab }) {
               <ArrowRight size={14} aria-hidden="true" />
             </Link>
           </div>
-          <CategoryGettingStarted />
+          {listings.length > 0 ? (
+            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+              {listings.slice(rowIndex % 2, (rowIndex % 2) + 4).map((listing) => (
+                <ListingCard key={`${row.title}-${listing.id}`} listing={listing} />
+              ))}
+            </div>
+          ) : (
+            <CategoryGettingStarted />
+          )}
         </section>
       ))}
     </div>
