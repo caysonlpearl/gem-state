@@ -218,13 +218,15 @@ function Home() {
     const h = headlineRef.current;
     if (!h) return;
     const fit = () => {
-      const spans = Array.from(h.children) as HTMLElement[];
-      spans.forEach((span) => (span.style.fontSize = ""));
+      const inner = h.firstElementChild as HTMLElement | null;
+      if (!inner) return;
+      inner.style.fontSize = "";
       if (window.innerWidth >= 640) return;
+      // Each phone line is no-wrap, so shrink until the widest line fits.
       let size = 1;
-      while (h.scrollHeight > h.clientHeight + 1 && size > 0.8) {
-        size -= 0.04;
-        spans.forEach((span) => (span.style.fontSize = `${size}em`));
+      while (h.scrollWidth > h.clientWidth + 1 && size > 0.6) {
+        size -= 0.02;
+        inner.style.fontSize = `${size}em`;
       }
     };
     fit();
@@ -337,8 +339,10 @@ function Home() {
           <p className="hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-primary sm:block">
             Bluebird classifieds
           </p>
-          <h1 ref={headlineRef} className="homepage-hero-headline flex max-w-[34ch] flex-col justify-start text-[22px] sm:mt-2 font-bold leading-[1.08] tracking-tight sm:text-[48px]">
-            <span className="block">
+          <h1 ref={headlineRef} className="homepage-hero-headline block max-w-[34ch] text-[22px] sm:mt-2 font-bold leading-[1.08] tracking-tight sm:text-[48px]">
+            {/* Phones: fixed three lines "Find A to / B to C / to D."
+                Tablet/desktop: two lines "Find A to B to / C to D." */}
+            <span className="whitespace-nowrap sm:whitespace-normal">
               Find{" "}
               <span
                 key={headlineItems.join("|")}
@@ -347,10 +351,16 @@ function Home() {
               >
                 {headlineItems[0]}
               </span>{" "}
-              to {headlineItems[1]} to
-            </span>
-            <span className="block">
-              {headlineItems[2]} to {headlineItems[3]}.
+              to
+              <br className="sm:hidden" />
+              <span className="hidden sm:inline"> </span>
+              {headlineItems[1]} to
+              <br className="hidden sm:inline" />
+              <span className="sm:hidden"> </span>
+              {headlineItems[2]}
+              <br className="sm:hidden" />
+              <span className="hidden sm:inline"> </span>
+              to {headlineItems[3]}.
             </span>
           </h1>
           <p className="mt-1 max-w-[56ch] whitespace-nowrap text-xs leading-snug text-muted-foreground sm:mt-1.5 sm:leading-relaxed">
