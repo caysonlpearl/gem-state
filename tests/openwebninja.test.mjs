@@ -112,3 +112,15 @@ test("deduplicates provider photo variants in cached detail payloads", () => {
     ],
   );
 });
+
+test("finds rental descriptions nested in provider listing payloads", () => {
+  const property = normalizeOpenWebNinjaProperty({
+    data: {
+      homeStatus: "FOR_RENT",
+      listingProvider: {
+        marketingDescription: "Freshly updated rental near downtown.",
+      },
+    },
+  });
+  assert.equal(property.description, "Freshly updated rental near downtown.");
+});

@@ -123,7 +123,7 @@ export async function openWebNinjaDetail(listingId: string): Promise<ClassifiedD
   const found = await cachedHome(id);
   if (!found?.home) return null;
   const home = found.home;
-  const details = await propertyDetails(home.id);
+  const details = await propertyDetails(home.id, home.sourceUrl);
   const extra = details.ok ? details.value : null;
   const card = openWebNinjaCard(home);
   // Cached property payloads may predate the provider-variant normalizer, so

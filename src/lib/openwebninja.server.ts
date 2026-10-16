@@ -120,15 +120,18 @@ export async function searchHomesArea(
 
 export async function propertyDetails(
   id: string,
+  sourceUrl?: string | null,
 ): Promise<
   { ok: true; value: OpenWebNinjaPropertyExtra } | { ok: false; status: "unavailable" | "limited" }
 > {
-  const key = JSON.stringify({ v: 1, kind: "property", id });
-  return cachedCall(
-    key,
-    `property-details?zpid=${encodeURIComponent(id)}`,
-    normalizeOpenWebNinjaProperty,
-  );
+  // v2 invalidates detail payloads created before rental descriptions and
+  // listing-URL lookups were normalized.
+  const lookup = sourceUrl ? "url" : "zpid";
+  const key = JSON.stringify({ v: 2, kind: "property", id, lookup });
+  const params = sourceUrl
+    ? new URLSearchParams({ url: sourceUrl })
+    : new URLSearchParams({ zpid: id });
+  return cachedCall(key, `property-details?${params.toString()}`, normalizeOpenWebNinjaProperty);
 }
 
 export async function cachedHome(id: string) {

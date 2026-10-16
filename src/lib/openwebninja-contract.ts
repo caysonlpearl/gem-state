@@ -106,6 +106,42 @@ const firstValue = (record: Record<string, unknown>, ...keys: string[]) => {
   return null;
 };
 
+const DESCRIPTION_KEYS = [
+  "description",
+  "propertyDescription",
+  "listingDescription",
+  "marketingDescription",
+  "rentalDescription",
+  "publicDescription",
+  "publicRemarks",
+  "remarks",
+  "remarksPublic",
+  "listingRemarks",
+  "descriptionText",
+  "overview",
+  "summary",
+] as const;
+
+function nestedDescription(value: unknown, depth = 0): string | null {
+  if (depth > 6 || value == null) return null;
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      const found = nestedDescription(item, depth + 1);
+      if (found) return found;
+    }
+    return null;
+  }
+  const record = asRecord(value);
+  if (!record) return null;
+  const direct = text(firstValue(record, ...DESCRIPTION_KEYS));
+  if (direct) return direct;
+  for (const child of Object.values(record)) {
+    const found = nestedDescription(child, depth + 1);
+    if (found) return found;
+  }
+  return null;
+}
+
 const httpsImage = (value: unknown) => {
   const record = asRecord(value);
   const url = record
@@ -384,9 +420,10 @@ export function normalizeOpenWebNinjaProperty(payload: unknown): OpenWebNinjaPro
     bedrooms: num(firstValue(record, "bedrooms", "beds")),
     bathrooms: num(firstValue(record, "bathrooms", "baths")),
     squareFeet: num(firstValue(record, "livingArea", "livingAreaValue", "squareFeet", "sqft")),
-    description: text(
-      firstValue(record, "description", "propertyDescription", "listingDescription"),
-    ),
+    description:
+      text(firstValue(record, ...DESCRIPTION_KEYS)) ??
+      text(firstValue(facts, ...DESCRIPTION_KEYS)) ??
+      nestedDescription(payload),
     originalListPrice: listPrice && listPrice > 0 ? Math.round(listPrice) : null,
     lastSalePrice: lastSale && lastSale > 0 ? Math.round(lastSale) : null,
     lastSaleDate: normalizeDate(
