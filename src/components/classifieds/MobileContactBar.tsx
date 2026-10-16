@@ -27,7 +27,7 @@ export function MobileContactBar({ listing }: { listing: ClassifiedDetail }) {
   const externalApply =
     isJob && listing.job?.applicationMethod === "external"
       ? listing.job.applicationExternalContact
-      : (listing.externalHome?.sourceUrl ?? null);
+      : (listing.externalHome?.sourceUrl ?? listing.externalVehicle?.sourceUrl ?? null);
   const messagesEnabled = Boolean(seller) && seller?.allowInternalMessages !== false;
   const directoryPhone = listing.directory?.phone ?? null;
   const showPrimary = Boolean(externalApply) || messagesEnabled || Boolean(directoryPhone);
@@ -105,7 +105,13 @@ export function MobileContactBar({ listing }: { listing: ClassifiedDetail }) {
             onClick={() => trackSellerContact("apply_external", listing)}
             className={primaryButton}
           >
-            {isJob ? "Apply" : listing.home?.mode === "rent" ? "Request a tour" : "Contact agent"}
+            {isJob
+              ? "Apply"
+              : listing.home?.mode === "rent"
+                ? "Request a tour"
+                : listing.externalVehicle
+                  ? "View original listing"
+                  : "Contact agent"}
           </a>
         ) : messagesEnabled ? (
           <button
