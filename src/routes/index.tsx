@@ -185,16 +185,17 @@ function headlineDefaultGroups(items: readonly string[]): HeadlineToken[][] {
   return groups;
 }
 
-// Split the tokens into three contiguous lines whose widest line is as small
-// as possible, measured with the canvas so the split matches real text
-// metrics. Returns null when no split fits the available width.
-function splitHeadlineIntoThreeLines(
+// Split the tokens into the requested number of contiguous lines whose
+// widest line is as small as possible, measured with the canvas so the
+// split matches real text metrics. Returns null when no split fits.
+function splitHeadlineIntoLines(
   tokens: HeadlineToken[],
   maxWidth: number,
   fontCss: string,
   letterSpacing: string,
+  lineCount: number,
 ): HeadlineToken[][] | null {
-  if (typeof document === "undefined" || maxWidth <= 0) return null;
+  if (typeof document === "undefined" || maxWidth <= 0 || lineCount < 1) return null;
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
   if (!ctx) return null;
@@ -207,27 +208,41 @@ function splitHeadlineIntoThreeLines(
   const space = ctx.measureText(" ").width;
   const widths = tokens.map((token) => ctx.measureText(token.text).width);
   const count = tokens.length;
+  if (count < lineCount) return null;
   const spanWidth = (from: number, to: number) => {
     let width = 0;
     for (let i = from; i < to; i += 1) width += widths[i];
     return width + space * (to - from - 1);
   };
-  let best: { max: number; cuts: [number, number] } | null = null;
-  for (let first = 1; first < count - 1; first += 1) {
-    for (let second = first + 1; second < count; second += 1) {
-      const widest = Math.max(
-        spanWidth(0, first),
-        spanWidth(first, second),
-        spanWidth(second, count),
-      );
-      if (widest > maxWidth) continue;
-      if (!best || widest < best.max) best = { max: widest, cuts: [first, second] };
+  let best: { max: number; cuts: number[] } | null = null;
+  const cuts: number[] = [];
+  const walk = (start: number, linesLeft: number, maxSoFar: number) => {
+    if (linesLeft === 1) {
+      const width = spanWidth(start, count);
+      if (width > maxWidth) return;
+      const worst = Math.max(maxSoFar, width);
+      if (!best || worst < best.max) best = { max: worst, cuts: [...cuts] };
+      return;
     }
-  }
+    for (let cut = start + 1; cut <= count - (linesLeft - 1); cut += 1) {
+      const width = spanWidth(start, cut);
+      if (width > maxWidth) continue;
+      cuts.push(cut);
+      walk(cut, linesLeft - 1, Math.max(maxSoFar, width));
+      cuts.pop();
+    }
+  };
+  walk(0, lineCount, 0);
   if (!best) return null;
-  const [first, second] = best.cuts;
-  return [tokens.slice(0, first), tokens.slice(first, second), tokens.slice(second)];
+  const groups: HeadlineToken[][] = [];
+  let from = 0;
+  for (const cut of [...best.cuts, count]) {
+    groups.push(tokens.slice(from, cut));
+    from = cut;
+  }
+  return groups;
 }
+
 
 type ParsedLocationSearch = {
   city?: string;
