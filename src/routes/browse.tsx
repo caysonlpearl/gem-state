@@ -1,5 +1,11 @@
 import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
-import { queryOptions, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import {
+  queryOptions,
+  useQueries,
+  useQuery,
+  useQueryClient,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import {
   createContext,
@@ -2180,7 +2186,7 @@ function Browse() {
             }}
             listings={result.listings}
           />
-          <HomeShowcaseRows activeTab={homeTab} listings={result.listings} />
+          <HomeShowcaseRows activeTab={homeTab} listings={result.listings} search={search} />
         </>
       )}
 
@@ -3620,14 +3626,44 @@ const homeRowFilters: Record<string, (listing: ClassifiedCard) => boolean> = {
 function HomeShowcaseRows({
   activeTab,
   listings,
+  search,
 }: {
   activeTab: HomeTab;
   listings: ClassifiedCard[];
+  search: Search;
 }) {
-  // Each row shows only homes that match its heading; a row with nothing
-  // that fits stays hidden instead of repeating the same homes.
+  // The first page alone is too few homes to fill several rows without
+  // repeats, so the rows read a few more pages of the same search.
+  const morePages = useQueries({
+    queries: [2, 3, 4].map((page) => ({
+      ...classifiedQuery(inputFromSearch({ ...search, page } as Search)),
+      staleTime: 60_000,
+    })),
+  });
+  const pool = [
+    ...new Map(
+      [...listings, ...morePages.flatMap((query) => query.data?.listings ?? [])].map((listing) => [
+        listing.id,
+        listing,
+      ]),
+    ).values(),
+  ];
+  // Each row shows only homes that match its heading and that no row above
+  // (or the "Buy listings" showcase) already shows; it repeats a home only
+  // when it has fewer than four new ones. A row with nothing that fits stays
+  // hidden.
+  const shownIds = new Set(varietyOf(listings, 4).map((listing) => listing.id));
   const rows = homePreviewRowsByTab[activeTab]
-    .map((row) => ({ row, homes: listings.filter(homeRowFilters[row.title] ?? (() => false)) }))
+    .map((row) => {
+      const matching = pool.filter(homeRowFilters[row.title] ?? (() => false));
+      const fresh = matching.filter((listing) => !shownIds.has(listing.id)).slice(0, 4);
+      const homes =
+        fresh.length >= 4
+          ? fresh
+          : [...fresh, ...matching.filter((listing) => !fresh.includes(listing))].slice(0, 4);
+      for (const listing of homes) shownIds.add(listing.id);
+      return { row, homes };
+    })
     .filter(({ homes }) => homes.length > 0);
   return (
     <div className="mt-10 space-y-12 sm:mt-14 sm:space-y-16">

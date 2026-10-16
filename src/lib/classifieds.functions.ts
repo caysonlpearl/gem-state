@@ -2676,7 +2676,7 @@ export const getClassifiedsHome = createServerFn({ method: "GET" }).handler(
       return {
         totalActive: (categoryRows ?? []).length + additionalJobs,
         categoryCounts,
-        motors: motors.listings.slice(0, 8),
+        motors: motors.listings,
         // Keep enough of the first page available for the homepage to build
         // several useful, non-identical curated rows without another round trip.
         recent: [
