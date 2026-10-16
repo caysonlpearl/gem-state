@@ -11,9 +11,21 @@ import {
   type OpenWebNinjaHome,
   type OpenWebNinjaMode,
 } from "./openwebninja-contract";
+import { searchHomesArea } from "./openwebninja.server";
 
-/** Cached city/mode searches keep the five-city starting set under the free quota. */
+/** City/mode searches remain available for an explicitly selected city. */
 export const OPENWEBNINJA_CITIES = ["Boise", "Meridian", "Nampa", "Idaho Falls", "Coeur d'Alene"];
+
+/** First geographic-area pilot. Its results continue through the same card and
+ * detail routes as every other Bluebird home listing. */
+export const OPENWEBNINJA_AREAS = [
+  {
+    key: "treasure-valley",
+    latitude: 43.615,
+    longitude: -116.202,
+    diameterMiles: 45,
+  },
+] as const;
 
 export function canIncludeOpenWebNinja(data: ClassifiedBrowseInput) {
   if (data.includeAllMocks || data.sellerSlug || data.dealerSlug || data.group) return false;
@@ -25,7 +37,7 @@ export function canIncludeOpenWebNinja(data: ClassifiedBrowseInput) {
 function providerCity(data: ClassifiedBrowseInput) {
   const state = usStates.find(([code, name]) => code === data.state || name === data.state);
   if (state && state[0] !== "ID") return null;
-  if (!data.city) return "Boise";
+  if (!data.city) return null;
   return (
     OPENWEBNINJA_CITIES.find((city) => city.toLowerCase() === data.city!.toLowerCase()) ?? null
   );
@@ -71,9 +83,15 @@ export function openWebNinjaCard(home: OpenWebNinjaHome): ClassifiedCard {
 
 export async function openWebNinjaCards(data: ClassifiedBrowseInput): Promise<ClassifiedCard[]> {
   const city = providerCity(data);
-  if (!city) return [];
-  const { searchHomes } = await import("./openwebninja.server");
-  const result = await searchHomes("ID", city, modeFor(data));
+  const state = usStates.find(([code, name]) => code === data.state || name === data.state);
+  const area = !data.city && (!state || state[0] === "ID") ? OPENWEBNINJA_AREAS[0] : null;
+  let result;
+  if (city) {
+    result = await (await import("./openwebninja.server")).searchHomes("ID", city, modeFor(data));
+  } else {
+    if (!area) return [];
+    result = await searchHomesArea("ID", area, modeFor(data));
+  }
   const q = data.q?.trim().toLowerCase();
   return result.homes
     .filter(

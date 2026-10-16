@@ -77,6 +77,13 @@ export function openWebNinjaConfigured() {
   return Boolean(serverEnv("OPENWEBNINJA_API_KEY"));
 }
 
+export type OpenWebNinjaSearchArea = {
+  key: string;
+  latitude: number;
+  longitude: number;
+  diameterMiles: number;
+};
+
 export async function searchHomes(state: string, city: string, mode: OpenWebNinjaMode) {
   const key = JSON.stringify({ v: 1, kind: "search", state, city: city.toLowerCase(), mode });
   const params = new URLSearchParams({
@@ -86,6 +93,26 @@ export async function searchHomes(state: string, city: string, mode: OpenWebNinj
     sort: "NEWEST",
   });
   const result = await cachedCall(key, `search?${params.toString()}`, (payload) =>
+    normalizeOpenWebNinjaResult(payload, mode),
+  );
+  return result.ok ? result.value : { status: result.status, homes: [] };
+}
+
+export async function searchHomesArea(
+  state: string,
+  area: OpenWebNinjaSearchArea,
+  mode: OpenWebNinjaMode,
+) {
+  const key = JSON.stringify({ v: 1, kind: "area-search", state, area: area.key, mode });
+  const params = new URLSearchParams({
+    lat: String(area.latitude),
+    long: String(area.longitude),
+    diameter: String(area.diameterMiles),
+    home_status: mode === "rent" ? "FOR_RENT" : "FOR_SALE",
+    page: "1",
+    sort: "NEWEST",
+  });
+  const result = await cachedCall(key, `search-coordinates?${params.toString()}`, (payload) =>
     normalizeOpenWebNinjaResult(payload, mode),
   );
   return result.ok ? result.value : { status: result.status, homes: [] };
@@ -119,7 +146,7 @@ export async function cachedHome(id: string) {
     } catch {
       continue;
     }
-    if (key?.kind !== "search") continue;
+    if (key?.kind !== "search" && key?.kind !== "area-search") continue;
     const payload = row.payload as { homes?: OpenWebNinjaHome[] };
     const home = payload.homes?.find((item) => item.id === id);
     if (home) return { home, siblings: payload.homes ?? [] };
