@@ -636,8 +636,7 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
               onClick={() => trackSellerContact("apply_external", listing)}
               className="mt-2 flex h-9 items-center justify-center gap-1.5 rounded-md bg-primary text-[12.5px] font-semibold text-primary-foreground"
             >
-              <ChatCircle size={15} aria-hidden="true" /> Buy or message on{" "}
-              {listing.originalListing.platform}
+              <ChatCircle size={15} aria-hidden="true" /> Message seller
             </a>
           ) : seller.allowInternalMessages !== false && !listing.job ? (
             <button
@@ -1654,9 +1653,7 @@ function ListingDetailContent() {
             <CaretRight size={13} />
           </>
         ) : null}
-        <span className="text-foreground">
-          {placeLabel(listing.city, listing.state)}
-        </span>
+        <span className="text-foreground">{placeLabel(listing.city, listing.state)}</span>
       </nav>
 
       {/* Photo first on phones; on desktop the grid places the header across
@@ -1843,9 +1840,7 @@ function ListingDetailContent() {
                           className="mt-0.5 shrink-0 text-primary"
                         />
                         <div>
-                          <p className="font-semibold">
-                            {placeLabel(listing.city, listing.state)}
-                          </p>
+                          <p className="font-semibold">{placeLabel(listing.city, listing.state)}</p>
                           <p className="mt-1 text-[12px] text-muted-foreground">
                             Approximate public location. Confirm the exact meeting location before
                             pickup.
@@ -2602,9 +2597,7 @@ function HomeListingDetail({
           Homes
         </Link>
         <CaretRight size={13} />
-        <span className="text-foreground">
-          {placeLabel(listing.city, listing.state)}
-        </span>
+        <span className="text-foreground">{placeLabel(listing.city, listing.state)}</span>
       </nav>
 
       <div className="mt-5">
@@ -2859,9 +2852,7 @@ function JobListingDetail({
           Jobs
         </Link>
         <CaretRight size={13} />
-        <span className="text-foreground">
-          {placeLabel(listing.city, listing.state)}
-        </span>
+        <span className="text-foreground">{placeLabel(listing.city, listing.state)}</span>
       </nav>
 
       {/* Photo first on phones; on desktop the grid places the header across
@@ -3560,9 +3551,7 @@ function ServiceListingDetail({
           Services
         </Link>
         <CaretRight size={13} />
-        <span className="text-foreground">
-          {placeLabel(listing.city, listing.state)}
-        </span>
+        <span className="text-foreground">{placeLabel(listing.city, listing.state)}</span>
       </nav>
 
       {/* Photo first on phones; on desktop the grid places the header across
@@ -3890,9 +3879,7 @@ function GeneralListingDetail({
             <CaretRight size={13} />
           </>
         )}
-        <span className="text-foreground">
-          {placeLabel(listing.city, listing.state)}
-        </span>
+        <span className="text-foreground">{placeLabel(listing.city, listing.state)}</span>
       </nav>
 
       {/* Photo first on phones; on desktop the grid places the header across
@@ -4041,9 +4028,7 @@ function GeneralListingDetail({
                           className="mt-0.5 shrink-0 text-primary"
                         />
                         <div>
-                          <p className="font-semibold">
-                            {placeLabel(listing.city, listing.state)}
-                          </p>
+                          <p className="font-semibold">{placeLabel(listing.city, listing.state)}</p>
                           <p className="mt-1 text-[12px] text-muted-foreground">
                             Approximate public location. Confirm the exact pickup or meeting
                             location with the seller before you go.
@@ -4068,7 +4053,15 @@ function GeneralListingDetail({
 
         <aside className="min-w-0 space-y-5 lg:sticky lg:top-24 lg:col-start-1 lg:row-start-2 lg:row-span-2">
           <SellerCard listing={listing} />
-          <ListingActions listing={listing} showPaymentCalculator={false} showPriceHeader={false} />
+          {/* Vinted/Whatnot imports: the seller card's Message seller button
+              already links to the original listing, so no second card. */}
+          {listing.originalListing ? null : (
+            <ListingActions
+              listing={listing}
+              showPaymentCalculator={false}
+              showPriceHeader={false}
+            />
+          )}
           <PageStatsCard listing={listing} />
           <TrustSafetyCard listing={listing} />
         </aside>

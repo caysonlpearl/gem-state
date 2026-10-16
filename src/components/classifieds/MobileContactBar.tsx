@@ -113,7 +113,7 @@ export function MobileContactBar({ listing }: { listing: ClassifiedDetail }) {
               : listing.home?.mode === "rent"
                 ? "Request a tour"
                 : listing.originalListing
-                  ? `Buy on ${listing.originalListing.platform}`
+                  ? "Message"
                   : listing.externalVehicle
                   ? "Contact seller"
                   : "Contact agent"}
