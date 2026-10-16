@@ -26,7 +26,7 @@ export function HomeSearchDropdown({ value, onChange, options, label, placeholde
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverAnchor asChild>
-        <div className="soft-control relative flex h-12 min-w-0 items-center gap-2 px-4">
+        <div className="soft-control relative flex h-10 min-w-0 items-center gap-2 px-3 sm:h-12 sm:px-4">
           {editable ? <>
             <MapPin size={16} weight="duotone" className="shrink-0 text-primary" aria-hidden="true" />
             <input
