@@ -314,7 +314,6 @@ function Home() {
     const h = headlineRef.current;
     if (!h) return;
     const apply = () => {
-      console.warn("headline apply", window.innerWidth, headlineGroups.length);
       h.style.fontSize = "";
       if (window.innerWidth >= 640) {
         setHeadlineGroups(headlineDesktopGroups(headlineItems));
@@ -476,13 +475,15 @@ function Home() {
               >
                 {group.map((token, tokenIndex) =>
                   token.highlight ? (
-                    <span
-                      key={headlineItems.join("|")}
-                      className={`${headlineRotated ? "classifieds-hero-rotating-item " : ""}text-brand-blue`}
-                      aria-live="polite"
-                    >
-                      {token.text}
-                    </span>
+                    <Fragment key={headlineItems.join("|")}>
+                      {tokenIndex > 0 ? " " : null}
+                      <span
+                        className={`${headlineRotated ? "classifieds-hero-rotating-item " : ""}text-brand-blue`}
+                        aria-live="polite"
+                      >
+                        {token.text}
+                      </span>
+                    </Fragment>
                   ) : (
                     <Fragment key={tokenIndex}>
                       {tokenIndex > 0 ? " " : null}
