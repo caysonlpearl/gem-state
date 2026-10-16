@@ -465,7 +465,8 @@
  * headline never takes at that size. */
 .homepage-hero-headline {
   /* Phones use a compact 22px headline; the longest rotation fits three lines. */
-  min-height: 3.24em;
+  height: 3.24em;
+  overflow: hidden;
   text-wrap: balance;
 }
 
@@ -502,6 +503,8 @@
 @media (min-width: 640px) {
   /* Small tablets at 48px: four lines. */
   .homepage-hero-headline {
+    height: auto;
+    overflow: visible;
     min-height: 4.32em;
   }
 }
