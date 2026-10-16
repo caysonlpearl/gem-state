@@ -1632,8 +1632,25 @@ function homeRentalDetails(listing: ClassifiedDetail, description: string) {
         ? "Allowed"
         : "Ask seller");
   const parsedLeaseLength = source.match(
-    /\b(month-to-month|\d+\s*(?:to|-|–)\s*\d+\s*months?|\d+\s*months?)\b/i,
+    /\b(month-to-month|\d+\s*(?:\/|to|-|–)\s*\d+\s*-?\s*months?|\d+\s*-?\s*months?)\b/i,
   )?.[1];
+  const utilitiesText = source.match(
+    /(?:utilities included with rent|utilities included|utilities)\s*:\s*([^\n.]+)/i,
+  )?.[1];
+  const parsedUtilities = (() => {
+    const value = utilitiesText?.trim();
+    if (!value) return [];
+    if (/tenant|resident\s+(?:is\s+)?responsible|pays?\s+all/i.test(value)) {
+      return [{ label: "All utilities", paidBy: "Tenant" }];
+    }
+    if (/none|not included/i.test(value)) {
+      return [{ label: "Utilities", paidBy: "Tenant" }];
+    }
+    return [{ label: "Utilities", paidBy: value }];
+  })();
+  const securityDeposit = source.match(/security deposit\s*:\s*([^\n.]+)/i)?.[1]?.trim();
+  const petDeposit = source.match(/(\$[\d,]+)\s+(?:additional\s+)?security deposit per pet/i)?.[1];
+  const monthlyPetFee = source.match(/(\$[\d,]+)\s+monthly pet (?:rent|fee)/i)?.[1];
   const isRental =
     home?.mode === "rent" ||
     (home?.mode !== "buy" &&
@@ -1669,10 +1686,14 @@ function homeRentalDetails(listing: ClassifiedDetail, description: string) {
     pets,
     smoking,
     leaseLength: home?.leaseLength ?? parsedLeaseLength ?? "Confirm with seller",
+    securityDeposit: securityDeposit ?? "Confirm with seller",
+    petDeposit: petDeposit ?? null,
+    monthlyPetFee: monthlyPetFee ?? null,
     propertyType: home?.propertyType ?? missing,
     yearBuilt: home?.yearBuilt != null ? String(home.yearBuilt) : missing,
     sellerType: home?.sellerType ?? listing.seller?.sellerType ?? missing,
     utilities: home?.utilities ?? [],
+    utilitiesText: utilitiesText ?? null,
     amenities: home?.amenities ?? [],
     openHouse: home?.openHouse ?? null,
     community: home?.community ?? null,
@@ -1749,7 +1770,9 @@ function HomeRentalInformation({
   const utilityRows =
     details.utilities.length > 0
       ? details.utilities.map(({ label, paidBy }) => [label, paidBy])
-      : [["Utilities", "Confirm with seller"]];
+      : details.isRental && details.utilitiesText
+        ? [["Utilities", details.utilitiesText]]
+        : [["Utilities", "Confirm with seller"]];
   const amenityRows =
     details.amenities.length > 0
       ? details.amenities
@@ -1816,8 +1839,26 @@ function HomeRentalInformation({
                     </div>
                     <div className="flex items-center justify-between gap-4 py-3">
                       <dt>Security deposit</dt>
-                      <dd className="font-semibold text-muted-foreground">Confirm with seller</dd>
+                      <dd className="font-semibold text-muted-foreground">
+                        {details.securityDeposit}
+                      </dd>
                     </div>
+                    {details.petDeposit ? (
+                      <div className="flex items-center justify-between gap-4 py-3">
+                        <dt>Pet deposit</dt>
+                        <dd className="font-semibold text-muted-foreground">
+                          {details.petDeposit}
+                        </dd>
+                      </div>
+                    ) : null}
+                    {details.monthlyPetFee ? (
+                      <div className="flex items-center justify-between gap-4 py-3">
+                        <dt>Monthly pet fee</dt>
+                        <dd className="font-semibold text-muted-foreground">
+                          {details.monthlyPetFee}
+                        </dd>
+                      </div>
+                    ) : null}
                     <div className="flex items-center justify-between gap-4 py-3">
                       <dt>Available</dt>
                       <dd className="font-semibold text-muted-foreground">
