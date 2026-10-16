@@ -99,7 +99,15 @@ export function websiteDomain(website: string | null | undefined) {
   }
 }
 
-export function directoryCard(row: DirectoryRow, logoUrl?: string | null): ClassifiedCard {
+/** Foursquare stores some cities in capitals ("BOISE"); show them as "Boise". */
+export function cityName(city: string) {
+  return city === city.toUpperCase()
+    ? city.toLowerCase().replace(/\b[a-z]/g, (letter) => letter.toUpperCase())
+    : city;
+}
+
+export function directoryCard(input: DirectoryRow, logoUrl?: string | null): ClassifiedCard {
+  const row = { ...input, city: cityName(input.city ?? "") };
   const phone = formatPhone(row.enrichment?.phone ?? row.phone);
   return {
     id: row.id,
