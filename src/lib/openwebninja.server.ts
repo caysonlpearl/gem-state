@@ -11,7 +11,16 @@ import {
 // OpenWeb Ninja's free plan allows 100 calls/month. The database reservation
 // function keeps a ten-call buffer for manual testing and transient retries.
 export const CACHE_MS = 30 * 24 * 60 * 60 * 1000;
-const API_BASE = "https://api.openwebninja.com/realtime-zillow-data";
+/**
+ * Two subscriptions serve the same Zillow endpoints, parameters and home ids,
+ * each with its own monthly plan: Real-Time Zillow Data and Real-Time Real
+ * Estate Data (under /zillow). Either can fetch any home's details.
+ */
+export type HomeProvider = "zillow" | "realestate";
+const API_BASES: Record<HomeProvider, string> = {
+  zillow: "https://api.openwebninja.com/realtime-zillow-data",
+  realestate: "https://api.openwebninja.com/realtime-real-estate-data/zillow",
+};
 
 export function cacheDb() {
   const dbUrl = serverEnv("GEM_STATE_SUPABASE_URL") || serverEnv("SUPABASE_URL");
@@ -36,9 +45,10 @@ async function cachedCall<T>(
   key: string,
   path: string,
   normalize: (json: unknown) => T,
-  options?: { forceRefresh?: boolean; ttlMs?: number },
+  options?: { forceRefresh?: boolean; ttlMs?: number; provider?: HomeProvider },
 ): Promise<{ ok: true; value: T } | { ok: false; status: "unavailable" | "limited" }> {
   const ttlMs = options?.ttlMs ?? CACHE_MS;
+  const provider = options?.provider ?? "zillow";
   const apiKey = serverEnv("OPENWEBNINJA_API_KEY");
   const db = cacheDb();
   if (!apiKey || !db) return { ok: false, status: "unavailable" };
@@ -54,9 +64,13 @@ async function cachedCall<T>(
       previousPayload = (previous?.payload as T | undefined) ?? null;
       await db.from("openwebninja_cache").delete().eq("cache_key", key);
     }
-    const { data: reservation, error } = await db.rpc("reserve_openwebninja_call", {
-      p_cache_key: key,
-    });
+    const { data: reservation, error } =
+      provider === "zillow"
+        ? await db.rpc("reserve_openwebninja_call", { p_cache_key: key })
+        : await db.rpc("reserve_openwebninja_provider_call", {
+            p_cache_key: key,
+            p_provider: provider,
+          });
     if (error || !reservation)
       return previousPayload
         ? { ok: true, value: previousPayload }
@@ -80,7 +94,7 @@ async function cachedCall<T>(
       }
       return { ok: false, status: "limited" };
     }
-    const response = await fetch(`${API_BASE}/${path}`, {
+    const response = await fetch(`${API_BASES[provider]}/${path}`, {
       headers: { Accept: "application/json", "x-api-key": apiKey },
       signal: AbortSignal.timeout(15_000),
     });
@@ -139,7 +153,7 @@ export async function searchHomesArea(
   state: string,
   area: OpenWebNinjaSearchArea,
   mode: OpenWebNinjaMode,
-  options?: { forceRefresh?: boolean },
+  options?: { forceRefresh?: boolean; provider?: HomeProvider },
 ) {
   const key = areaSearchKey(state, area.key, mode);
   const params = new URLSearchParams({
@@ -171,7 +185,7 @@ export const propertyKey = (id: string) => JSON.stringify({ v: 3, kind: "propert
 export async function propertyDetails(
   id: string,
   sourceUrl?: string | null,
-  options?: { cacheOnly?: boolean },
+  options?: { cacheOnly?: boolean; provider?: HomeProvider },
 ): Promise<
   { ok: true; value: OpenWebNinjaPropertyExtra } | { ok: false; status: "unavailable" | "limited" }
 > {
@@ -203,6 +217,7 @@ export async function propertyDetails(
   if (options?.cacheOnly) return { ok: false, status: "limited" };
   return cachedCall(key, `property-details?${params.toString()}`, normalizeOpenWebNinjaProperty, {
     ttlMs: DETAIL_TTL_MS,
+    provider: options?.provider,
   });
 }
 

@@ -11,7 +11,7 @@ import {
   type OpenWebNinjaHome,
   type OpenWebNinjaMode,
 } from "./openwebninja-contract";
-import { searchHomesArea } from "./openwebninja.server";
+import { searchHomesArea, type HomeProvider } from "./openwebninja.server";
 
 /** City/mode searches remain available for an explicitly selected city. */
 export const OPENWEBNINJA_CITIES = ["Boise", "Meridian", "Nampa", "Idaho Falls", "Coeur d'Alene"];
@@ -159,28 +159,50 @@ export async function openWebNinjaCards(data: ClassifiedBrowseInput): Promise<Cl
     .map(openWebNinjaCard);
 }
 
-/** How often each area's for-sale and rental lists are refreshed (prices,
- * new and sold homes). Treasure Valley is weekly; the rest are monthly
- * until other providers take those areas over. */
-const AREA_REFRESH_DAYS: Record<string, number> = { "treasure-valley": 7 };
-const DEFAULT_AREA_REFRESH_DAYS = 28;
-/** Calls per rolling day the scheduled job may use (~90 a month). */
+/** Each area's for-sale and rental lists refresh weekly (prices, new and
+ * sold homes), each area on one subscription so their budgets split the work. */
+const AREA_REFRESH_DAYS = 7;
+const AREA_PROVIDER: Record<string, HomeProvider> = {
+  "treasure-valley": "zillow",
+  "western-idaho": "zillow",
+  "magic-valley": "zillow",
+  "north-central-idaho": "zillow",
+  "eastern-idaho": "realestate",
+  "southeast-idaho": "realestate",
+  "north-idaho": "realestate",
+};
+const PROVIDERS: HomeProvider[] = ["zillow", "realestate"];
+/** Calls per rolling day each subscription's job may use (~90 a month). */
 const DAILY_PACE = 3;
 
 /**
- * One step of the scheduled homes job, at most one provider call: refresh
- * an area list that is due, otherwise fetch full details for one home that
- * doesn't have them yet. Details are fetched once per home and kept.
+ * One step of the scheduled homes job for each subscription, at most one
+ * call each: refresh one of its area lists that is due, otherwise fetch full
+ * details for one home that doesn't have them yet (any area; both
+ * subscriptions return the same homes). Details are fetched once per home.
  */
 export async function advanceHomeFeed() {
+  const results: Record<string, unknown> = {};
+  for (const provider of PROVIDERS) {
+    results[provider] = await advanceHomeFeedFor(provider).catch((error) => ({
+      error: String(error?.message ?? error),
+    }));
+  }
+  return results;
+}
+
+async function advanceHomeFeedFor(provider: HomeProvider) {
   const ninja = await import("./openwebninja.server");
   const db = ninja.cacheDb() as any;
   if (!db || !ninja.openWebNinjaConfigured()) return { skipped: "not configured" };
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const { count } = await db
+  const { count, error: paceError } = await db
     .from("openwebninja_api_requests")
     .select("id", { count: "exact", head: true })
+    .eq("provider", provider)
     .gte("created_at", since);
+  // Before the per-provider migration only the original subscription runs.
+  if (paceError) return { skipped: "per-provider budgets not set up" };
   if ((count ?? 0) >= DAILY_PACE) return { skipped: "daily pace reached", usedToday: count };
 
   const searchKeys = OPENWEBNINJA_AREAS.flatMap((area) =>
@@ -199,22 +221,25 @@ export async function advanceHomeFeed() {
     );
   const rowByKey = new Map<string, any>((searchRows ?? []).map((row: any) => [row.cache_key, row]));
 
-  // 1. The most overdue area list.
+  // 1. This subscription's most overdue area list.
   const due = searchKeys
+    .filter((entry) => (AREA_PROVIDER[entry.area.key] ?? "zillow") === provider)
     .map((entry) => {
       const row = rowByKey.get(entry.key);
       const fetchedAt = row ? Date.parse(row.expires_at) - ninja.CACHE_MS : 0;
-      const days = AREA_REFRESH_DAYS[entry.area.key] ?? DEFAULT_AREA_REFRESH_DAYS;
-      return { ...entry, overdueBy: Date.now() - fetchedAt - days * 24 * 60 * 60 * 1000 };
+      return { ...entry, overdueBy: Date.now() - fetchedAt - AREA_REFRESH_DAYS * 86_400_000 };
     })
     .filter((entry) => entry.overdueBy > 0)
     .sort((a, b) => b.overdueBy - a.overdueBy)[0];
   if (due) {
-    const result = await searchHomesArea("ID", due.area, due.mode, { forceRefresh: true });
+    const result = await searchHomesArea("ID", due.area, due.mode, {
+      forceRefresh: true,
+      provider,
+    });
     return { refreshed: `${due.area.key} ${due.mode}`, homes: result.homes.length };
   }
 
-  // 2. One home without full details, newest first, alternating sale/rent.
+  // 2. One home without full details, newest first.
   const homes = searchKeys.flatMap(
     (entry) => (rowByKey.get(entry.key)?.payload?.homes ?? []) as { id: string }[],
   );
@@ -235,7 +260,7 @@ export async function advanceHomeFeed() {
   }
   const next = ids.find((id) => !have.has(id));
   if (!next) return { done: true, homes: ids.length };
-  const detail = await ninja.propertyDetails(next);
+  const detail = await ninja.propertyDetails(next, null, { provider });
   return { detailed: next, ok: detail.ok, remaining: ids.length - have.size - 1 };
 }
 
