@@ -617,10 +617,16 @@
    most inputs here use 12-14px utility sizes. Phones only, so desktop
    layouts keep their compact type. */
 @media (max-width: 767px) {
-  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not(.hero-field),
   select,
   textarea {
     font-size: 16px !important;
+  }
+
+  /* Hero search fields sit a step below the headline; maximum-scale=1 on the
+     viewport keeps iOS from zooming the page when they get focus. */
+  input.hero-field {
+    font-size: 14px !important;
   }
 }
 
