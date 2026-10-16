@@ -465,7 +465,7 @@
  * headline never takes at that size. */
 .homepage-hero-headline {
   /* Always exactly two lines; the font shrinks to fit the longest rotation. */
-  height: 2.16em;
+  height: 2.2em;
   overflow: hidden;
 }
 
