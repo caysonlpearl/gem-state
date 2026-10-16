@@ -18,7 +18,7 @@ import {
 } from "./rescuegroups-contract";
 
 /** The same Idaho areas as the homes feed, plus the central mountains, so
- * the 100-mile searches cover the whole state and its border areas. */
+ * the searches cover the whole state and its border areas. */
 const CENTERS = [
   { key: "treasure-valley", postalCode: "83702" }, // Boise
   { key: "western-idaho", postalCode: "83647" }, // Mountain Home
@@ -30,9 +30,11 @@ const CENTERS = [
   { key: "central-mountains", postalCode: "83638" }, // McCall
   { key: "salmon-river", postalCode: "83467" }, // Salmon
 ] as const;
-const RADIUS_MILES = 100;
+// RescueGroups has few Idaho members, so the reach includes nearby rescues
+// in the surrounding states Bluebird also covers.
+const RADIUS_MILES = 150;
 const PAGE_LIMIT = 100;
-const MAX_PAGES = 3;
+const MAX_PAGES = 5;
 const REFRESH_MS = 12 * 60 * 60 * 1000;
 const BOT = /bot|crawl|spider|slurp|preview|lighthouse|headless|monitor|curl|wget|python/i;
 
@@ -167,7 +169,7 @@ export function rescueGroupsCard(pet: RescueGroupsPet): ClassifiedCard {
       placementType: "adoption",
       offeredBy: "Rescue",
       hypoallergenic: null,
-      vaccinated: null,
+      vaccinated: pet.vaccinated == null ? null : pet.vaccinated ? "Yes" : "No",
       spayedNeutered: null,
       microchipped: null,
       recordsAvailable: null,
@@ -175,7 +177,7 @@ export function rescueGroupsCard(pet: RescueGroupsPet): ClassifiedCard {
       goodWithDogs: null,
       goodWithCats: null,
       indoorOutdoor: null,
-      specialNeeds: null,
+      specialNeeds: pet.specialNeeds ? "Yes" : null,
       breedingTerms: null,
     },
     externalPet: {

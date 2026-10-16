@@ -24,6 +24,9 @@ export type RescueGroupsPet = {
   size: string | null;
   description: string | null;
   adoptionFee: string | null;
+  vaccinated: boolean | null;
+  houseTrained: boolean | null;
+  specialNeeds: boolean | null;
   photos: string[];
   updatedAt: string | null;
   org: {
@@ -88,7 +91,8 @@ export function normalizeRescueGroupsAnimals(payload: unknown): RescueGroupsPet[
     const attrs = animal.attributes ?? {};
     const id = text(animal.id);
     const name = text(attrs.name);
-    if (!id || !/^[0-9]+$/.test(id) || !name) continue;
+    // Pets already promised to someone aren't shown.
+    if (!id || !/^[0-9]+$/.test(id) || !name || attrs.isAdoptionPending === true) continue;
 
     const photos = related(animal, "pictures")
       .map((pictureId) => included.get(`pictures:${pictureId}`))
@@ -132,10 +136,14 @@ export function normalizeRescueGroupsAnimals(payload: unknown): RescueGroupsPet[
       species: text(speciesResource?.attributes?.singular),
       breed: text(attrs.breedString) ?? text(attrs.breedPrimary),
       ageGroup: text(attrs.ageGroup),
-      sex: text(attrs.sexLabel),
+      sex: text(attrs.sex) ?? text(attrs.sexLabel),
       size: text(attrs.sizeGroup),
       description: text(attrs.descriptionText),
       adoptionFee: text(attrs.adoptionFeeString),
+      vaccinated:
+        typeof attrs.isCurrentVaccinations === "boolean" ? attrs.isCurrentVaccinations : null,
+      houseTrained: typeof attrs.isHousetrained === "boolean" ? attrs.isHousetrained : null,
+      specialNeeds: typeof attrs.isSpecialNeeds === "boolean" ? attrs.isSpecialNeeds : null,
       photos: [...new Set(photos)].slice(0, 20),
       updatedAt: text(attrs.updatedDate),
       org,

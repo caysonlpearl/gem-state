@@ -12,7 +12,8 @@ const payload = {
         name: "Biscuit",
         breedString: "Labrador Retriever Mix",
         ageGroup: "Young",
-        sexLabel: "Female",
+        sex: "Female",
+        isCurrentVaccinations: true,
         sizeGroup: "Large",
         descriptionText: "Loves walks.",
         adoptionFeeString: "$150",
@@ -45,4 +46,6 @@ test("normalizes RescueGroups pets with ordered photos, org and safe links", () 
   assert.equal(pet.org.state, "ID");
   assert.equal(pet.org.adoptionUrl, null);
   assert.equal(pet.sourceUrl, "https://idahohumane.org/");
+  assert.equal(pet.sex, "Female");
+  assert.equal(pet.vaccinated, true);
 });
