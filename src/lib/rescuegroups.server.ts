@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getRequest } from "@tanstack/react-start/server";
 
 import { serverEnv } from "./runtime-env.server";
-import { isWithinClassifiedRadius } from "../config/classifieds.ts";
+import { isWithinClassifiedRadius, usStates } from "../config/classifieds.ts";
 import { regionOfListing } from "./market-stats";
 import { normalizePetSubcategory, petSubcategories } from "../config/pets.ts";
 import type {
@@ -199,9 +199,15 @@ export function rescueGroupsCard(pet: RescueGroupsPet): ClassifiedCard {
 export async function rescueGroupsCards(data: ClassifiedBrowseInput): Promise<ClassifiedCard[]> {
   if (!canIncludeRescueGroups(data)) return [];
   const q = data.q?.trim().toLowerCase();
+  // A state filter (e.g. the homepage's Idaho rows) applies to the rescue's state.
+  const state = data.state
+    ? (usStates.find(([code, name]) => code === data.state || name === data.state)?.[0] ??
+      data.state.toUpperCase())
+    : null;
   return (await allPets())
     .filter(
       (pet) =>
+        (!state || pet.org?.state === state) &&
         (!q ||
           `${pet.name} ${pet.breed ?? ""} ${pet.species ?? ""} ${pet.org?.city ?? ""}`
             .toLowerCase()
