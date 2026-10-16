@@ -863,7 +863,7 @@ test("homepage headline rotates through four-item classifieds combinations", () 
   assert.match(homeSource, /Air Hockey Tables/);
   assert.match(
     homeSource,
-    /headlineItems\[0\].*headlineItems\[1\].*headlineItems\[2\].*headlineItems\[3\]/s,
+    /items\[0\].*items\[1\].*items\[2\].*items\[3\]/s,
   );
   assert.match(homeSource, /last-headline/);
 });

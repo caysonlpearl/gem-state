@@ -501,24 +501,11 @@
 }
 
 @media (min-width: 640px) {
-  /* Small tablets at 48px: four lines. */
+  /* Two measured lines at every width from small tablets up: the layout
+   * effect shrinks the font until the longest rotation fits. */
   .homepage-hero-headline {
-    height: auto;
-    overflow: visible;
-    min-height: 4.32em;
-  }
-}
-
-@media (min-width: 900px) {
-  .homepage-hero-headline {
-    min-height: 3.24em;
-  }
-}
-
-@media (min-width: 1100px) {
-  /* Two lines is every rotation's real height here. */
-  .homepage-hero-headline {
-    min-height: 2.16em;
+    height: 2.16em;
+    overflow: hidden;
   }
 }
 

@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import { Fragment, Suspense, lazy, useEffect, useRef, useState } from "react";
 import { ArrowRight, MagnifyingGlass, Car } from "@phosphor-icons/react";
 
 import { brand } from "@/config/brand";
@@ -139,6 +139,113 @@ function pickHeadlineItems() {
   return selected;
 }
 
+type HeadlineToken = { text: string; highlight?: boolean };
+
+// The headline is the same sentence at every size; phones lay it out as
+// exactly three measured lines, larger screens keep the original two-line
+// flow. Only the first item word carries the blue highlight, as before.
+function headlineTokensFor(items: readonly string[]): HeadlineToken[] {
+  return [
+    { text: "Find" },
+    { text: items[0], highlight: true },
+    { text: "to" },
+    { text: items[1] },
+    { text: "to" },
+    { text: items[2] },
+    { text: "to" },
+    { text: `${items[3]}.` },
+  ];
+}
+
+function headlineDesktopGroups(items: readonly string[]): HeadlineToken[][] {
+  const tokens = headlineTokensFor(items);
+  return [tokens.slice(0, 5), tokens.slice(5)];
+}
+
+// Server-rendered fallback before measurement: a character-balanced split.
+function headlineDefaultGroups(items: readonly string[]): HeadlineToken[][] {
+  const tokens = headlineTokensFor(items);
+  const total = tokens.reduce((sum, token) => sum + token.text.length + 1, 0);
+  const groups: HeadlineToken[][] = [[], [], []];
+  let groupIndex = 0;
+  let acc = 0;
+  for (const token of tokens) {
+    const next = acc + token.text.length + 1;
+    if (
+      groupIndex < 2 &&
+      groups[groupIndex].length > 0 &&
+      next > ((groupIndex + 1) * total) / 3
+    ) {
+      groupIndex += 1;
+      acc = 0;
+    }
+    groups[groupIndex].push(token);
+    acc = next;
+  }
+  return groups;
+}
+
+// Split the tokens into the requested number of contiguous lines whose
+// widest line is as small as possible, measured with the canvas so the
+// split matches real text metrics. Returns null when no split fits.
+function splitHeadlineIntoLines(
+  tokens: HeadlineToken[],
+  maxWidth: number,
+  fontCss: string,
+  letterSpacing: string,
+  lineCount: number,
+): HeadlineToken[][] | null {
+  if (typeof document === "undefined" || maxWidth <= 0 || lineCount < 1) return null;
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  ctx.font = fontCss;
+  try {
+    ctx.letterSpacing = letterSpacing;
+  } catch {
+    // Browsers without canvas letter-spacing just measure a hair wider.
+  }
+  const space = ctx.measureText(" ").width;
+  const widths = tokens.map((token) => ctx.measureText(token.text).width);
+  const count = tokens.length;
+  if (count < lineCount) return null;
+  const spanWidth = (from: number, to: number) => {
+    let width = 0;
+    for (let i = from; i < to; i += 1) width += widths[i];
+    return width + space * (to - from - 1);
+  };
+  let best: { max: number; cuts: number[] } | null = null;
+  const cuts: number[] = [];
+  const walk = (start: number, linesLeft: number, maxSoFar: number) => {
+    if (linesLeft === 1) {
+      const width = spanWidth(start, count);
+      if (width > maxWidth) return;
+      const worst = Math.max(maxSoFar, width);
+      if (!best || worst < best.max) best = { max: worst, cuts: [...cuts] };
+      return;
+    }
+    for (let cut = start + 1; cut <= count - (linesLeft - 1); cut += 1) {
+      const width = spanWidth(start, cut);
+      if (width > maxWidth) continue;
+      cuts.push(cut);
+      walk(cut, linesLeft - 1, Math.max(maxSoFar, width));
+      cuts.pop();
+    }
+  };
+  walk(0, lineCount, 0);
+  // TypeScript can't see the assignment inside the recursive walk closure.
+  const chosen = best as { max: number; cuts: number[] } | null;
+  if (!chosen) return null;
+  const groups: HeadlineToken[][] = [];
+  let from = 0;
+  for (const cut of [...chosen.cuts, count]) {
+    groups.push(tokens.slice(from, cut));
+    from = cut;
+  }
+  return groups;
+}
+
+
 type ParsedLocationSearch = {
   city?: string;
   region?: string;
@@ -212,25 +319,57 @@ function Home() {
   // animation only plays on later rotations.
   const [headlineRotated, setHeadlineRotated] = useState(false);
   const headlineRef = useRef<HTMLHeadingElement>(null);
-  // Phones hold the headline to exactly three lines: shrink the words (not the
-  // box) until the longest rotation fits.
+  // Phones hold the headline to exactly three measured lines: the words are
+  // split into the three narrowest possible rows (and scaled down only if the
+  // longest rotation still overflows), so every rotation keeps the same shape.
+  const [headlineGroups, setHeadlineGroups] = useState<HeadlineToken[][]>(() =>
+    headlineDesktopGroups(headlineItems),
+  );
+  const [headlineScale, setHeadlineScale] = useState(1);
+  const [headlineFontPx, setHeadlineFontPx] = useState(22);
   useEffect(() => {
     const h = headlineRef.current;
     if (!h) return;
-    const fit = () => {
-      const spans = Array.from(h.children) as HTMLElement[];
-      spans.forEach((span) => (span.style.fontSize = ""));
-      if (window.innerWidth >= 640) return;
-      let size = 1;
-      while (h.scrollHeight > h.clientHeight + 1 && size > 0.8) {
-        size -= 0.04;
-        spans.forEach((span) => (span.style.fontSize = `${size}em`));
+    const apply = () => {
+      h.style.fontSize = "";
+      const style = getComputedStyle(h);
+      const fontPx = parseFloat(style.fontSize) || 22;
+      setHeadlineFontPx(fontPx);
+      // Phones hold three lines; every wider screen holds exactly two.
+      const lineCount = window.innerWidth < 640 ? 3 : 2;
+      for (let scale = 1; scale >= 0.7; scale -= 0.04) {
+        const groups = splitHeadlineIntoLines(
+          headlineTokensFor(headlineItems),
+          h.clientWidth - 4,
+          `${style.fontWeight} ${fontPx * scale}px ${style.fontFamily}`,
+          style.letterSpacing,
+          lineCount,
+        );
+        if (groups) {
+          setHeadlineGroups(groups);
+          setHeadlineScale(scale);
+          return;
+        }
       }
+      setHeadlineGroups(
+        lineCount === 2 ? headlineDesktopGroups(headlineItems) : headlineDefaultGroups(headlineItems),
+      );
+      setHeadlineScale(0.7);
     };
-    fit();
-    window.addEventListener("resize", fit);
-    return () => window.removeEventListener("resize", fit);
+    apply();
+    window.addEventListener("resize", apply);
+    return () => window.removeEventListener("resize", apply);
   }, [headlineItems]);
+  // Safety net: canvas measurement can be a pixel off, so verify the rendered
+  // lines really fit and nudge the scale down if one overflows.
+  useEffect(() => {
+    const h = headlineRef.current;
+    if (!h || headlineGroups.length < 2) return;
+    const fits = Array.from(h.children).every(
+      (line) => (line as HTMLElement).scrollWidth <= h.clientWidth + 1,
+    );
+    if (!fits && headlineScale > 0.7) setHeadlineScale((s) => Math.max(0.7, s - 0.04));
+  }, [headlineGroups, headlineScale]);
   const [term, setTerm] = useState("");
   const [category, setCategory] = useState("");
   const [location, setLocation] = useState("");
@@ -337,21 +476,40 @@ function Home() {
           <p className="hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-primary sm:block">
             Bluebird classifieds
           </p>
-          <h1 ref={headlineRef} className="homepage-hero-headline flex max-w-[34ch] flex-col justify-start text-[22px] sm:mt-2 font-bold leading-[1.08] tracking-tight sm:text-[48px]">
-            <span className="block">
-              Find{" "}
+          <h1
+            ref={headlineRef}
+            className="homepage-hero-headline flex max-w-[34ch] flex-col justify-start text-[22px] sm:mt-2 font-bold leading-[1.08] tracking-tight sm:text-[48px]"
+            style={
+              headlineScale === 1
+                ? undefined
+                : { fontSize: `${(headlineFontPx * headlineScale).toFixed(2)}px` }
+            }
+          >
+            {headlineGroups.map((group, groupIndex) => (
               <span
-                key={headlineItems.join("|")}
-                className={`${headlineRotated ? "classifieds-hero-rotating-item " : ""}text-brand-blue`}
-                aria-live="polite"
+                key={groupIndex}
+                className={`block${headlineGroups.length === 3 ? " whitespace-nowrap" : ""}`}
               >
-                {headlineItems[0]}
-              </span>{" "}
-              to {headlineItems[1]} to
-            </span>
-            <span className="block">
-              {headlineItems[2]} to {headlineItems[3]}.
-            </span>
+                {group.map((token, tokenIndex) =>
+                  token.highlight ? (
+                    <Fragment key={headlineItems.join("|")}>
+                      {tokenIndex > 0 ? " " : null}
+                      <span
+                        className={`${headlineRotated ? "classifieds-hero-rotating-item " : ""}text-brand-blue`}
+                        aria-live="polite"
+                      >
+                        {token.text}
+                      </span>
+                    </Fragment>
+                  ) : (
+                    <Fragment key={tokenIndex}>
+                      {tokenIndex > 0 ? " " : null}
+                      {token.text}
+                    </Fragment>
+                  ),
+                )}
+              </span>
+            ))}
           </h1>
           <p className="mt-1 max-w-[56ch] whitespace-nowrap text-xs leading-snug text-muted-foreground sm:mt-1.5 sm:leading-relaxed">
             And so much more across Idaho and surrounding states.
