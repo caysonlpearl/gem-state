@@ -2153,6 +2153,10 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     const compareListings = (a: ClassifiedCard, b: ClassifiedCard) => {
       if (data.sort === "price_low" || data.sort === "price_high") {
         if (Boolean(a.externalJob) !== Boolean(b.externalJob)) return a.externalJob ? 1 : -1;
+        // Partner cars without a listed price go last, not first as "$0".
+        const unpriced = (listing: ClassifiedCard) =>
+          Boolean(listing.externalVehicle) && listing.priceCents <= 0;
+        if (unpriced(a) !== unpriced(b)) return unpriced(a) ? 1 : -1;
         const aValue = a.job ? comparableJobPay(a.job.payType, a.job.payMin) : a.priceCents;
         const bValue = b.job ? comparableJobPay(b.job.payType, b.job.payMin) : b.priceCents;
         const difference = data.sort === "price_low" ? aValue - bValue : bValue - aValue;

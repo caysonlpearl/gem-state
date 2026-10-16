@@ -111,7 +111,8 @@ function repairCachedSearch(payload: unknown, sourceKind: MarketCheckSourceKind)
     .map((listing) => repairCachedListing(listing, sourceKind))
     .filter((listing): listing is MarketCheckListing => Boolean(listing));
   return {
-    numFound: Number(payload.numFound ?? listings.length),
+    // A fresh provider response says num_found; a cached one, numFound.
+    numFound: Number(payload.numFound ?? payload.num_found ?? listings.length),
     listings,
     raw: isRecord(payload.raw) ? payload.raw : {},
   };
@@ -321,7 +322,8 @@ async function inventoryPage(
   forceRefresh = false,
 ) {
   const params = baseParams(state, start);
-  const key = JSON.stringify({ v: 2, kind, state, start });
+  // v3: v2 pages were cached with a wrong total, which stopped paging at 50.
+  const key = JSON.stringify({ v: 3, kind, state, start });
   const result = await cachedCall(
     key,
     `${sourceEndpoint(kind)}?${params.toString()}`,
@@ -337,7 +339,13 @@ async function stateInventory(state: string, kind: MarketCheckSourceKind, forceR
   const all: MarketCheckListing[] = [];
   for (let page = 0; page < pages; page += 1) {
     const result = await inventoryPage(state, kind, page * PAGE_SIZE, forceRefresh);
-    all.push(...result.listings);
+    // The inventory was requested for this state, so private-seller listings
+    // that arrive without one (MarketCheck often leaves it blank) are in it.
+    all.push(
+      ...result.listings.map((listing) =>
+        listing.location.state ? listing : { ...listing, location: { ...listing.location, state } },
+      ),
+    );
     if (result.listings.length < PAGE_SIZE || all.length >= result.numFound) break;
   }
   // Before the first weekly refresh (or if the month's calls run out), use

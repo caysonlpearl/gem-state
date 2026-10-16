@@ -3198,6 +3198,35 @@ function CategoryGettingStarted() {
   );
 }
 
+/**
+ * Up to `count` listings for a showcase row, preferring different titles so
+ * one dealer's ten identical trucks don't fill the whole row; repeats only
+ * fill in when there aren't enough different ones.
+ */
+function varietyOf<T extends { id: string; title: string }>(listings: readonly T[], count: number) {
+  const key = (listing: T) =>
+    listing.title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim()
+      .split(" ")
+      .slice(0, 4)
+      .join(" ");
+  const picked: T[] = [];
+  const seen = new Set<string>();
+  for (const listing of listings) {
+    if (picked.length >= count) break;
+    if (seen.has(key(listing))) continue;
+    seen.add(key(listing));
+    picked.push(listing);
+  }
+  for (const listing of listings) {
+    if (picked.length >= count) break;
+    if (!picked.includes(listing)) picked.push(listing);
+  }
+  return picked;
+}
+
 function LandingListingsShowcase({
   eyebrow,
   title,
@@ -3215,7 +3244,7 @@ function LandingListingsShowcase({
 }) {
   // This showcase is a single curated row. Keep it to the desktop row width
   // so a short second row can never appear beneath it.
-  const visibleListings = listings.slice(0, compact ? 5 : 4);
+  const visibleListings = varietyOf(listings, compact ? 5 : 4);
 
   return (
     <section
@@ -3297,7 +3326,7 @@ function JobShowcaseCards({ row, search }: { row: HomepagePreviewRow; search: Se
         <CategoryGettingStarted />
       ) : (
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-          {query.data.listings.slice(0, 5).map((listing, index) => (
+          {varietyOf(query.data.listings, 5).map((listing, index) => (
             <div key={listing.id} className={index === 4 ? "hidden min-w-0 lg:block" : "min-w-0"}>
               <ListingCard listing={listing} />
             </div>
