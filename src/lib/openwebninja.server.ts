@@ -57,7 +57,9 @@ async function cachedCall<T>(
       p_cache_key: key,
     });
     if (error || !reservation)
-      return previousPayload ? { ok: true, value: previousPayload } : { ok: false, status: "unavailable" };
+      return previousPayload
+        ? { ok: true, value: previousPayload }
+        : { ok: false, status: "unavailable" };
     if (reservation.cached) return { ok: true, value: reservation.payload as T };
     if (!reservation.allowed) {
       const { data: stale } = await db
@@ -66,7 +68,9 @@ async function cachedCall<T>(
         .eq("cache_key", key)
         .maybeSingle();
       if (stale) return { ok: true, value: stale.payload as T };
-      return previousPayload ? { ok: true, value: previousPayload } : { ok: false, status: "limited" };
+      return previousPayload
+        ? { ok: true, value: previousPayload }
+        : { ok: false, status: "limited" };
     }
     const response = await fetch(`${API_BASE}/${path}`, {
       headers: { Accept: "application/json", "x-api-key": apiKey },
@@ -92,7 +96,9 @@ async function cachedCall<T>(
     return { ok: true, value };
   } catch {
     // Provider errors must not expose request details or the API key.
-    return previousPayload ? { ok: true, value: previousPayload } : { ok: false, status: "unavailable" };
+    return previousPayload
+      ? { ok: true, value: previousPayload }
+      : { ok: false, status: "unavailable" };
   }
 }
 
@@ -157,6 +163,24 @@ export async function propertyDetails(
   void sourceUrl;
   const key = JSON.stringify({ v: 3, kind: "property", id });
   const params = new URLSearchParams({ zpid: id });
+  // Details fetched before the v3 key were paid for and are still good;
+  // use them instead of spending another call (or showing nothing when the
+  // daily budget is used up).
+  const db = cacheDb();
+  if (db) {
+    const { data: rows } = await db
+      .from("openwebninja_cache")
+      .select("cache_key,payload")
+      .in("cache_key", [
+        key,
+        JSON.stringify({ v: 2, kind: "property", id }),
+        JSON.stringify({ v: 1, kind: "property", id }),
+      ]);
+    const current = (rows ?? []).find((row: { cache_key: string }) => row.cache_key === key);
+    const legacy = (rows ?? []).find((row: { cache_key: string }) => row.cache_key !== key);
+    if (!current && legacy?.payload)
+      return { ok: true, value: legacy.payload as OpenWebNinjaPropertyExtra };
+  }
   return cachedCall(key, `property-details?${params.toString()}`, normalizeOpenWebNinjaProperty);
 }
 

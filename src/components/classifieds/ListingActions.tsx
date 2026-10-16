@@ -286,7 +286,7 @@ function LiveListingActions({
             onClick={() => trackSellerContact("apply_external", listing)}
             className="flex h-12 w-full items-center justify-center rounded-full bg-nav-accent text-[14.5px] font-semibold text-primary transition-opacity hover:opacity-90"
           >
-            Apply on the employer's site
+            Apply now
           </a>
         ) : (
           <div>

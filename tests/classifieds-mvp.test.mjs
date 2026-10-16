@@ -904,7 +904,7 @@ test("main homepage presents category-curated listing rows", () => {
   assert.doesNotMatch(footerSource, /How listings and seller contact work|Glossary/);
   assert.match(homeSource, /For sellers and businesses/);
   assert.match(homeSource, /A marketplace with a local feel/);
-  assert.match(homeSource, /localRecent\.filter\(\(listing\) => listing\.home\)/);
+  assert.match(homeSource, /localRecent\.filter\(\s*\(listing\) => listing\.home/);
   assert.match(homeSource, /localRecent\.filter\(\(listing\) => listing\.job\)/);
   assert.match(homeSource, /localRecent\.filter\(\(listing\) => listing\.service\)/);
   assert.match(homeSource, /City or ZIP code/);

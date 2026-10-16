@@ -799,16 +799,6 @@ function VehicleHistoryCard({ vehicle }: { vehicle: ClassifiedDetail["vehicle"] 
   );
 }
 
-/** "craigslist.org" -> "Craigslist", for a private seller's source site. */
-function sourceSiteName(site: string | null) {
-  const host = String(site ?? "")
-    .replace(/^https?:\/\//, "")
-    .replace(/^www\./, "")
-    .split("/")[0];
-  const name = host.split(".")[0];
-  return name ? name.charAt(0).toUpperCase() + name.slice(1) : null;
-}
-
 function MarketCheckContactCard({ listing }: { listing: ClassifiedDetail }) {
   const source = listing.externalVehicle;
   if (!source) return null;
@@ -823,7 +813,7 @@ function MarketCheckContactCard({ listing }: { listing: ClassifiedDetail }) {
       <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
         Listed by
       </p>
-      <div className="mt-3 flex items-start gap-3">
+      <div className="mt-3 flex items-center gap-3">
         <EmployerTile name={name} />
         <div className="min-w-0 text-[12.5px]">
           <p className="text-[15px] font-bold">{name}</p>
@@ -837,11 +827,6 @@ function MarketCheckContactCard({ listing }: { listing: ClassifiedDetail }) {
           ) : source.sourceKind === "fsbo" && (source.location.city || source.location.state) ? (
             <p className="mt-1 text-[13px] text-muted-foreground">
               {[source.location.city, source.location.state].filter(Boolean).join(", ")}
-            </p>
-          ) : null}
-          {source.sourceKind === "fsbo" && sourceSiteName(source.source) ? (
-            <p className="mt-1 text-[11.5px] text-muted-foreground">
-              Listed on {sourceSiteName(source.source)}
             </p>
           ) : null}
         </div>
@@ -1670,6 +1655,7 @@ function ListingDetailContent() {
                 {title}
               </h1>
               {vehicle &&
+                !listing.externalVehicle &&
                 !listing.title.toLowerCase().includes(title.toLowerCase()) &&
                 !title.toLowerCase().includes(listing.title.toLowerCase()) && (
                   <p className="mt-1 text-[14px] text-muted-foreground">{listing.title}</p>
@@ -1870,7 +1856,6 @@ function ListingDetailContent() {
               <p className="mt-1.5 text-[13px] leading-relaxed">{listing.sellerNote}</p>
             </section>
           )}
-          <MarketCheckSourceCredit listing={listing} />
         </div>
 
         <aside className="min-w-0 space-y-5 lg:sticky lg:top-24 lg:col-start-2 lg:row-start-2 lg:row-span-2">
@@ -1901,6 +1886,10 @@ function ListingDetailContent() {
           </section>
           <TrustSafetyCard listing={listing} />
         </aside>
+        {/* Last on phones (below the contact card); under the details on desktop. */}
+        <div className="min-w-0 lg:col-start-1 lg:row-start-4">
+          <MarketCheckSourceCredit listing={listing} />
+        </div>
       </div>
     </main>
   );
@@ -2961,7 +2950,7 @@ function JobListingDetail({
                       rel="noopener noreferrer nofollow sponsored"
                       className="mt-3 inline-flex items-center gap-1 text-[13px] font-semibold text-primary hover:underline"
                     >
-                      Read the full description on the employer&apos;s posting
+                      Read full description
                       <ArrowSquareOut size={14} aria-hidden="true" />
                     </a>
                   ) : null}
