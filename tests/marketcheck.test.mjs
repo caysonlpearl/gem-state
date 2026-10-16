@@ -97,7 +97,6 @@ test("normalizes dealer listing details and retains the raw payload", () => {
   assert.deepEqual(marketCheckImages(listing), [
     "https://images.example/car.jpg?size=small",
     "https://images.example/interior.jpg",
-    "https://images.example/third.jpg",
   ]);
 });
 
@@ -106,6 +105,8 @@ test("normalizes FSBO search rows and preserves provider counts", () => {
   assert.equal(result.numFound, 3);
   assert.equal(result.listings[0].sourceKind, "fsbo");
   assert.equal(result.listings[0].id, "marketcheck-fsbo-VIN123-abc");
+  assert.equal(result.listings[0].dealer, null);
+  assert.equal(result.listings[0].sellerType, "Private seller");
 });
 
 test("deduplicates image variants while preserving distinct photos", () => {

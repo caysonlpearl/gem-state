@@ -417,6 +417,14 @@ function Facts({ listing }: { listing: ClassifiedCard }) {
   return <p className="mt-1 truncate text-[11.5px] text-muted-foreground">{bits.join(" · ")}</p>;
 }
 
+function vehicleSourceLabel(listing: ClassifiedCard) {
+  if (listing.externalVehicle?.sourceKind === "fsbo") return "Private seller";
+  if (listing.externalVehicle?.sourceKind === "dealer") {
+    return `${listing.dealer?.displayName ?? "Dealer"} · Dealer inventory`;
+  }
+  return listing.dealer ? `${listing.dealer.displayName} · Dealer inventory` : null;
+}
+
 function Price({ listing }: { listing: ClassifiedCard }) {
   return (
     <>
@@ -504,9 +512,9 @@ export function ListingCard({
             {listing.title}
           </h3>
           <Facts listing={listing} />
-          {listing.dealer ? (
+          {vehicleSourceLabel(listing) ? (
             <p className="mt-1 truncate text-[11.5px] font-medium text-primary">
-              {listing.dealer.displayName} · Dealer inventory
+              {vehicleSourceLabel(listing)}
             </p>
           ) : null}
           <p className="mt-2 flex items-center gap-1 truncate text-[11.5px] text-muted-foreground">
@@ -604,9 +612,9 @@ export function ListingRow({ listing }: { listing: ClassifiedCard }) {
             </p>
           </div>
           <Facts listing={listing} />
-          {listing.dealer ? (
+          {vehicleSourceLabel(listing) ? (
             <p className="mt-1 truncate text-[11.5px] font-medium text-primary">
-              {listing.dealer.displayName} · Dealer inventory
+              {vehicleSourceLabel(listing)}
             </p>
           ) : null}
           <p className="mt-2 flex items-center gap-1 truncate text-[11.5px] text-muted-foreground">

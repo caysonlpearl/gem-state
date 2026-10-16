@@ -2612,7 +2612,10 @@ export const getClassifiedsHome = createServerFn({ method: "GET" }).handler(
             .gt("expires_at", nowIso)
             .eq("products.status", "published")
             .limit(1000),
-          runBrowseClassifieds({ group: "motors", sort: "newest", page: 1 }),
+          // The public homepage is intentionally local. The full vehicle
+          // browser can still widen its geography through its filters, but
+          // homepage rows should never lead with distant inventory.
+          runBrowseClassifieds({ group: "motors", state: "ID", sort: "newest", page: 1 }),
           runBrowseClassifieds({ sort: "newest", page: 1, includeAllMocks: true }),
           runBrowseClassifieds({
             category: "other-real-estate",

@@ -404,7 +404,7 @@ export function marketCheckCard(listing: MarketCheckListing): ClassifiedCard {
     imageUrl: marketCheckImages(listing)[0] ?? null,
     vehicle: vehicleOf(listing),
     externalVehicle: listing,
-    dealer: listing.dealer
+    dealer: listing.sourceKind === "dealer" && listing.dealer
       ? {
           displayName: listing.dealer.name ?? listing.location.sellerName ?? "Vehicle seller",
           slug: "",

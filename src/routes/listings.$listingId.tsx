@@ -792,7 +792,10 @@ function MarketCheckContactCard({ listing }: { listing: ClassifiedDetail }) {
   const source = listing.externalVehicle;
   if (!source) return null;
   const dealer = source.dealer;
-  const name = dealer?.name ?? source.location.sellerName ?? "Vehicle seller";
+  const name =
+    source.sourceKind === "fsbo"
+      ? source.location.sellerName ?? "Private seller"
+      : (dealer?.name ?? source.location.sellerName ?? "Vehicle seller");
   const phone = dealer?.phone;
   return (
     <section className="soft-card p-5 sm:p-6">
