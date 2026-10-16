@@ -115,15 +115,15 @@ function vintedExtractItemInPage(withPhotos) {
   };
 
   if (withPhotos) {
-    // The item's own gallery: Vinted photos that aren't in the "Member's
-    // items" / "Similar items" grids or an avatar. Signed URLs are kept whole.
+    // The item's own gallery only: Vinted tags those photos item-photo-N.
+    // Every other Vinted image on the page (the "Member's items" and
+    // "Similar items" grids, avatars) belongs to other listings, and reading
+    // them mixed other items' photos into each import. Signed URLs are kept whole.
     const seen = new Set();
     const photos = [];
-    for (const img of document.querySelectorAll("img")) {
+    for (const img of document.querySelectorAll("img[data-testid^='item-photo-']")) {
       const src = img.currentSrc || img.src || "";
       if (!/vinted\.net\/t\//.test(src)) continue;
-      if (img.closest("[data-testid='grid-item'], [data-testid^='product-item-id'], [data-testid*='avatar']")) continue;
-      if ((img.naturalWidth || 0) && img.naturalWidth < 200) continue;
       const key = (src.match(/\/t\/([^/]+)/) || [])[1] || src;
       if (seen.has(key)) continue;
       seen.add(key);

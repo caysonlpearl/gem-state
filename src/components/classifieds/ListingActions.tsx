@@ -117,8 +117,11 @@ function LiveListingActions({
 
   // Cars from MarketCheck have no Bluebird seller to message: the contact is
   // the dealer or private seller on the original listing.
-  const partnerVehicleUrl = listing.externalVehicle?.sourceUrl ?? null;
-  const isPartnerVehicle = Boolean(listing.externalVehicle);
+  // Vinted and Whatnot imports are bought and discussed on the original
+  // listing too.
+  const originalListing = listing.originalListing ?? null;
+  const partnerVehicleUrl = listing.externalVehicle?.sourceUrl ?? originalListing?.url ?? null;
+  const isPartnerVehicle = Boolean(listing.externalVehicle || originalListing);
   const canContactHere =
     !isPreviewListing && !isOwnListing && !isExternalApply && !isPartnerVehicle;
 
@@ -251,7 +254,9 @@ function LiveListingActions({
           <Info size={15} className="mt-0.5 shrink-0 text-primary" />
           {isExternalApply
             ? "This employer accepts applications on their own site or by email."
-            : isPartnerVehicle
+            : originalListing
+              ? `This item is sold on ${originalListing.platform}. Buy it or message the seller on the original listing.`
+              : isPartnerVehicle
               ? "Reach the seller through the original listing to confirm availability, condition and the final price."
               : isJobApply
                 ? "Apply to let the employer know you're interested. They will reach out about next steps."
@@ -272,7 +277,9 @@ function LiveListingActions({
               onClick={() => trackSellerContact("apply_external", listing)}
               className="flex h-12 w-full items-center justify-center rounded-full bg-nav-accent text-[14.5px] font-semibold text-primary transition-opacity hover:opacity-90"
             >
-              Contact seller on the original listing
+              {originalListing
+                ? `Buy or message on ${originalListing.platform}`
+                : "Contact seller on the original listing"}
             </a>
           ) : null
         ) : isExternalApply && !isOwnListing ? (

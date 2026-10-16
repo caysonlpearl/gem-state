@@ -627,7 +627,18 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
           <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
             Contact seller
           </p>
-          {seller.allowInternalMessages !== false && !listing.job ? (
+          {listing.originalListing ? (
+            <a
+              href={listing.originalListing.url}
+              target="_blank"
+              rel="noopener noreferrer nofollow"
+              onClick={() => trackSellerContact("apply_external", listing)}
+              className="mt-2 flex h-9 items-center justify-center gap-1.5 rounded-md bg-primary text-[12.5px] font-semibold text-primary-foreground"
+            >
+              <ChatCircle size={15} aria-hidden="true" /> Buy or message on{" "}
+              {listing.originalListing.platform}
+            </a>
+          ) : seller.allowInternalMessages !== false && !listing.job ? (
             <button
               type="button"
               onClick={() => window.dispatchEvent(new Event(OPEN_CONTACT_EVENT))}

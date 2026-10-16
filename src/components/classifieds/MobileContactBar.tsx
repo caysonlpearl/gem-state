@@ -27,7 +27,10 @@ export function MobileContactBar({ listing }: { listing: ClassifiedDetail }) {
   const externalApply =
     isJob && listing.job?.applicationMethod === "external"
       ? listing.job.applicationExternalContact
-      : (listing.externalHome?.sourceUrl ?? listing.externalVehicle?.sourceUrl ?? null);
+      : (listing.externalHome?.sourceUrl ??
+        listing.externalVehicle?.sourceUrl ??
+        listing.originalListing?.url ??
+        null);
   const messagesEnabled = Boolean(seller) && seller?.allowInternalMessages !== false;
   const directoryPhone = listing.directory?.phone ?? null;
   const showPrimary = Boolean(externalApply) || messagesEnabled || Boolean(directoryPhone);
@@ -109,7 +112,9 @@ export function MobileContactBar({ listing }: { listing: ClassifiedDetail }) {
               ? "Apply"
               : listing.home?.mode === "rent"
                 ? "Request a tour"
-                : listing.externalVehicle
+                : listing.originalListing
+                  ? `Buy on ${listing.originalListing.platform}`
+                  : listing.externalVehicle
                   ? "View original listing"
                   : "Contact agent"}
           </a>

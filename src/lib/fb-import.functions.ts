@@ -75,14 +75,21 @@ export type FbImportItem = {
 // (see signListingMedia in classifieds.functions.ts).
 async function signStagedPhotos(admin: any, paths: string[]): Promise<Map<string, string>> {
   const unique = [...new Set(paths)];
-  if (!unique.length) return new Map();
-  const { data, error } = await admin.storage.from("listing-media").createSignedUrls(unique, 3600);
-  if (error) return new Map();
-  return new Map(
-    (data ?? [])
-      .filter((item: any) => item.path && item.signedUrl)
-      .map((item: any) => [item.path as string, item.signedUrl as string]),
-  );
+  const signed = new Map<string, string>();
+  // Storage signs at most 1000 paths per request; a big batch (176 Vinted
+  // items x 8 photos) failed whole and showed every item as "No photo".
+  for (let start = 0; start < unique.length; start += 500) {
+    const chunk = unique.slice(start, start + 500);
+    const { data, error } = await admin.storage.from("listing-media").createSignedUrls(chunk, 3600);
+    if (error) {
+      console.warn("Could not sign staged photos", error.message);
+      continue;
+    }
+    for (const item of data ?? []) {
+      if (item.path && item.signedUrl) signed.set(item.path, item.signedUrl);
+    }
+  }
+  return signed;
 }
 
 /**
@@ -655,6 +662,38 @@ export const setFacebookImportItemsCategory = createServerFn({ method: "POST" })
       }
     }
     return { items: (items ?? []).length, listingsUpdated };
+  });
+
+/**
+ * Puts one Idaho city (and its region) on several staged items at once.
+ * Vinted and Whatnot often don't show where a seller is, so a whole batch
+ * can arrive without a city. With onlyMissing, items that already have a
+ * city keep it.
+ */
+export const setFacebookImportItemsCity = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: { itemIds: string[]; city: string; onlyMissing?: boolean }) => {
+    const itemIds = (Array.isArray(input?.itemIds) ? input.itemIds : [])
+      .map((id) => String(id))
+      .filter((id) => /^[0-9a-f-]{36}$/i.test(id))
+      .slice(0, 500);
+    const place = findIdahoPlace(String(input?.city ?? ""));
+    if (!place) throw new Error("Choose a city from the list of Idaho cities and towns.");
+    if (!itemIds.length) throw new Error("Select at least one listing.");
+    return { itemIds, city: place[0], region: place[1], onlyMissing: input?.onlyMissing !== false };
+  })
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    let query = (supabaseAdmin as any)
+      .from("fb_marketplace_import_items")
+      .update({ city: data.city, state: "ID", region: data.region })
+      .in("id", data.itemIds)
+      .in("status", ["draft", "needs_update"]);
+    if (data.onlyMissing) query = query.or("city.is.null,city.eq.");
+    const { data: items, error } = await query.select("id");
+    if (error) throw new Error(error.message);
+    return { items: (items ?? []).length, city: data.city };
   });
 
 export const discardAllFacebookImportItems = createServerFn({ method: "POST" })

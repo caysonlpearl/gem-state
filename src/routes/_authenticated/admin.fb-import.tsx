@@ -16,6 +16,7 @@ import { IdahoCityPicker } from "@/components/classifieds/IdahoCityPicker";
 import {
   discardAllFacebookImportItems,
   setFacebookImportItemsCategory,
+  setFacebookImportItemsCity,
   discardFacebookImportItem,
   getFacebookImportItems,
   getFacebookImportProfiles,
@@ -899,6 +900,26 @@ function FbImportPage() {
       toast.error(error instanceof Error ? error.message : "Could not set the category."),
   });
 
+  const setCityFn = useServerFn(setFacebookImportItemsCity);
+  const [bulkCity, setBulkCity] = useState("");
+  const [bulkCityOnlyMissing, setBulkCityOnlyMissing] = useState(true);
+  const bulkCityMutation = useMutation({
+    mutationFn: () =>
+      setCityFn({
+        data: {
+          itemIds: Array.from(selectedIds),
+          city: bulkCity,
+          onlyMissing: bulkCityOnlyMissing,
+        },
+      }),
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({ queryKey: ["fb-import-items"] });
+      toast.success(`Set ${result.city} on ${result.items} listing(s).`);
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Could not set the city."),
+  });
+
   const clearAll = useServerFn(discardAllFacebookImportItems);
   const clearAllMutation = useMutation({
     mutationFn: () => clearAll(),
@@ -1036,6 +1057,37 @@ function FbImportPage() {
             {bulkCategoryMutation.isPending ? "Applying…" : `Apply to ${selectedIds.size} selected`}
           </button>
         </div>
+        <div className="flex flex-wrap items-center gap-2 px-4 pt-3">
+          <span className="text-[12px] font-medium">Set city for selected</span>
+          <IdahoCityPicker
+            value={bulkCity}
+            onChange={setBulkCity}
+            invalid={bulkCity.trim() !== "" && !findIdahoPlace(bulkCity)}
+            placeholder="Idaho city"
+            className="h-9 w-48 rounded-md border border-input bg-background px-2 text-[12px]"
+          />
+          <label className="flex items-center gap-1.5 text-[12px]">
+            <input
+              type="checkbox"
+              checked={bulkCityOnlyMissing}
+              onChange={(e) => setBulkCityOnlyMissing(e.target.checked)}
+            />
+            Only listings without a city
+          </label>
+          <button
+            type="button"
+            onClick={() => bulkCityMutation.mutate()}
+            disabled={
+              !findIdahoPlace(bulkCity) ||
+              !selectedIds.size ||
+              hasUnsavedSelection ||
+              bulkCityMutation.isPending
+            }
+            className="h-9 rounded-md border border-input px-3 text-[12px] font-medium hover:bg-secondary disabled:opacity-50"
+          >
+            {bulkCityMutation.isPending ? "Applying…" : `Apply to ${selectedIds.size} selected`}
+          </button>
+        </div>
         {hasUnsavedSelection && (
           <p role="status" className="px-4 py-3 text-sm text-primary">
             Save changes on the edited listings before publishing.
@@ -1051,9 +1103,9 @@ function FbImportPage() {
           <ul>
             {data.map((item) => (
               <ReviewRow
-                // Remount when the category changes elsewhere (bulk set) so
+                // Remount when the category or city changes elsewhere (bulk set) so
                 // the row's own form shows the new value.
-                key={`${item.id}:${item.categorySlug}`}
+                key={`${item.id}:${item.categorySlug}:${item.city}`}
                 item={item}
                 selected={selectedIds.has(item.id)}
                 onToggleSelected={(checked) => toggleSelected(item.id, checked)}

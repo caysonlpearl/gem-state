@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- the generated client types lag the classified listing RPC additions */
+import { originalListingFor, type OriginalListing } from "./import-original-listing";
 import { createServerFn } from "@tanstack/react-start";
 
 import { publicServerClient } from "./supabase-public.server";
@@ -158,6 +159,8 @@ export type ClassifiedDetail = ClassifiedCard & {
   employerListings?: ClassifiedCard[] | undefined;
   /** Set when the listing has sold or expired and its page is being kept up for a while. */
   ended?: { reason: "sold" | "expired"; endedAt: string } | undefined;
+  /** Imported from Vinted or Whatnot: buying and messaging happen there. */
+  originalListing?: OriginalListing | undefined;
 };
 
 export type ClassifiedBrowseResult = {
@@ -2299,8 +2302,24 @@ export const getClassifiedListing = createServerFn({ method: "GET" })
         (supabaseAdmin as any).rpc("record_classified_listing_view", { _listing_id: data.id }),
       )
       .catch(() => undefined);
-    return buildClassifiedDetail(record, client, { includeContact: true });
+    const detail = await buildClassifiedDetail(record, client, { includeContact: true });
+    const originalListing = detail ? await importedOriginalListing(data.id) : null;
+    return detail && originalListing ? { ...detail, originalListing } : detail;
   });
+
+/** The Vinted or Whatnot listing a published import came from, if any. */
+async function importedOriginalListing(listingId: string): Promise<OriginalListing | null> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data, error } = await (supabaseAdmin as any)
+    .from("fb_marketplace_import_items")
+    .select("source_url")
+    .eq("listing_id", listingId)
+    .or("source_url.ilike.%vinted.%,source_url.ilike.%whatnot.com%")
+    .limit(1)
+    .maybeSingle();
+  if (error) return null;
+  return originalListingFor(data?.source_url);
+}
 
 /** How long a sold or expired listing keeps its page before redirecting. */
 export const ENDED_LISTING_RETENTION_DAYS = 60;
