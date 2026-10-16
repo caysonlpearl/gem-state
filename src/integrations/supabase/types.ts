@@ -2932,6 +2932,45 @@ export type Database = {
         }
         Relationships: []
       }
+      marketcheck_api_requests: {
+        Row: {
+          cache_key: string
+          created_at: string
+          id: number
+        }
+        Insert: {
+          cache_key: string
+          created_at?: string
+          id?: never
+        }
+        Update: {
+          cache_key?: string
+          created_at?: string
+          id?: never
+        }
+        Relationships: []
+      }
+      marketcheck_cache: {
+        Row: {
+          cache_key: string
+          expires_at: string
+          payload: Json
+          updated_at: string
+        }
+        Insert: {
+          cache_key: string
+          expires_at: string
+          payload: Json
+          updated_at?: string
+        }
+        Update: {
+          cache_key?: string
+          expires_at?: string
+          payload?: Json
+          updated_at?: string
+        }
+        Relationships: []
+      }
       mashvisor_api_requests: {
         Row: {
           created_at: string
@@ -3017,6 +3056,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      openwebninja_api_requests: {
+        Row: {
+          cache_key: string
+          created_at: string
+          id: number
+        }
+        Insert: {
+          cache_key: string
+          created_at?: string
+          id?: never
+        }
+        Update: {
+          cache_key?: string
+          created_at?: string
+          id?: never
+        }
+        Relationships: []
+      }
+      openwebninja_cache: {
+        Row: {
+          cache_key: string
+          expires_at: string
+          payload: Json
+        }
+        Insert: {
+          cache_key: string
+          expires_at: string
+          payload: Json
+        }
+        Update: {
+          cache_key?: string
+          expires_at?: string
+          payload?: Json
+        }
+        Relationships: []
       }
       order_addresses: {
         Row: {
@@ -3679,6 +3754,42 @@ export type Database = {
         Relationships: []
       }
       partner_job_reports: {
+        Row: {
+          created_at: string
+          details: string | null
+          id: string
+          listing_id: string
+          reason: string
+          reporter_id: string
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          details?: string | null
+          id?: string
+          listing_id: string
+          reason: string
+          reporter_id: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          details?: string | null
+          id?: string
+          listing_id?: string
+          reason?: string
+          reporter_id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
+      partner_vehicle_reports: {
         Row: {
           created_at: string
           details: string | null
@@ -4443,7 +4554,49 @@ export type Database = {
         }
         Relationships: []
       }
+      saved_partner_homes: {
+        Row: {
+          created_at: string
+          listing_id: string
+          snapshot: Json
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          listing_id: string
+          snapshot: Json
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          listing_id?: string
+          snapshot?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
       saved_partner_jobs: {
+        Row: {
+          created_at: string
+          listing_id: string
+          snapshot: Json
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          listing_id: string
+          snapshot: Json
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          listing_id?: string
+          snapshot?: Json
+          user_id?: string
+        }
+        Relationships: []
+      }
+      saved_partner_vehicles: {
         Row: {
           created_at: string
           listing_id: string
@@ -4876,6 +5029,158 @@ export type Database = {
           seller_id?: string
           status?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      service_directory: {
+        Row: {
+          address: string | null
+          category_labels: string[]
+          city: string
+          claimed_at: string | null
+          claimed_by: string | null
+          email: string | null
+          enriched_at: string | null
+          enrichment: Json | null
+          facebook_id: string | null
+          hidden: boolean
+          id: string
+          imported_at: string
+          instagram: string | null
+          latitude: number | null
+          longitude: number | null
+          name: string
+          phone: string | null
+          phone_digits: string | null
+          postcode: string | null
+          priority: number
+          source_refreshed_at: string | null
+          state: string
+          trade: string
+          trades: string[]
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          category_labels?: string[]
+          city: string
+          claimed_at?: string | null
+          claimed_by?: string | null
+          email?: string | null
+          enriched_at?: string | null
+          enrichment?: Json | null
+          facebook_id?: string | null
+          hidden?: boolean
+          id: string
+          imported_at?: string
+          instagram?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          name: string
+          phone?: string | null
+          phone_digits?: string | null
+          postcode?: string | null
+          priority?: number
+          source_refreshed_at?: string | null
+          state?: string
+          trade: string
+          trades?: string[]
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          category_labels?: string[]
+          city?: string
+          claimed_at?: string | null
+          claimed_by?: string | null
+          email?: string | null
+          enriched_at?: string | null
+          enrichment?: Json | null
+          facebook_id?: string | null
+          hidden?: boolean
+          id?: string
+          imported_at?: string
+          instagram?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          name?: string
+          phone?: string | null
+          phone_digits?: string | null
+          postcode?: string | null
+          priority?: number
+          source_refreshed_at?: string | null
+          state?: string
+          trade?: string
+          trades?: string[]
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
+      service_directory_claims: {
+        Row: {
+          contact: string
+          created_at: string
+          directory_id: string
+          id: string
+          note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          role: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          contact: string
+          created_at?: string
+          directory_id: string
+          id?: string
+          note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          role: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          contact?: string
+          created_at?: string
+          directory_id?: string
+          id?: string
+          note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          role?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_directory_claims_directory_id_fkey"
+            columns: ["directory_id"]
+            isOneToOne: false
+            referencedRelation: "service_directory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_enrichment_requests: {
+        Row: {
+          created_at: string
+          directory_id: string
+          id: number
+        }
+        Insert: {
+          created_at?: string
+          directory_id: string
+          id?: never
+        }
+        Update: {
+          created_at?: string
+          directory_id?: string
+          id?: never
         }
         Relationships: []
       }
@@ -7208,7 +7513,19 @@ export type Database = {
         }
         Returns: string
       }
+      reserve_marketcheck_call: {
+        Args: { p_cache_key: string; p_monthly_limit?: number }
+        Returns: Json
+      }
       reserve_mashvisor_search: { Args: { p_query_key: string }; Returns: Json }
+      reserve_openwebninja_call: {
+        Args: { p_cache_key: string }
+        Returns: Json
+      }
+      reserve_service_enrichment: {
+        Args: { p_directory_id: string }
+        Returns: boolean
+      }
       reserve_shipping_label_purchase: {
         Args: { _quote_id: string; _rate_cents: number; _rate_id: string }
         Returns: Json
@@ -7315,6 +7632,28 @@ export type Database = {
           _conversation_id: string
         }
         Returns: string
+      }
+      service_directory_nearby: {
+        Args: {
+          p_lat: number
+          p_limit?: number
+          p_lon: number
+          p_miles: number
+          p_offset?: number
+          p_q?: string
+          p_trade?: string
+        }
+        Returns: {
+          id: string
+          total: number
+        }[]
+      }
+      service_directory_trade_counts: {
+        Args: never
+        Returns: {
+          n: number
+          trade: string
+        }[]
       }
       set_import_sync: {
         Args: { _enabled: boolean; _seller: string; _user: string }
