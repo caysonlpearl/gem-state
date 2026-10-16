@@ -29,16 +29,44 @@ export type MashvisorPropertyExtra = {
   images: string[];
   yearBuilt: number | null;
   source: string | null;
+  propertyType: string | null;
+  bedrooms: number | null;
+  bathrooms: number | null;
+  squareFeet: number | null;
+  description: string | null;
+  originalListPrice: number | null;
+  lastSalePrice: number | null;
+  lastSaleDate: string | null;
+  priceReducedAt: string | null;
+  lotSize: number | null;
+  heating: string | null;
+  cooling: string | null;
+  parking: string | null;
+  appliances: string | null;
+  exteriorMaterial: string | null;
+  specialFeatures: string | null;
+  schoolDistrict: string | null;
+  hoaFees: string | null;
+  schools: string[];
+  amenities: string[];
 };
 
 const num = (value: unknown) => {
   const n = typeof value === "string" ? Number(value) : value;
   return typeof n === "number" && Number.isFinite(n) ? n : null;
 };
-const text = (value: unknown) =>
-  typeof value === "string" && value.trim() ? value.trim() : null;
+const text = (value: unknown) => (typeof value === "string" && value.trim() ? value.trim() : null);
+const scalarText = (value: unknown) => {
+  if (typeof value === "string" && value.trim()) return value.trim();
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  return null;
+};
 const httpsImage = (value: unknown) => {
-  const url = text(value);
+  const url =
+    typeof value === "object" && value !== null
+      ? (text((value as Record<string, unknown>).url) ??
+        text((value as Record<string, unknown>).image_url))
+      : text(value);
   if (!url) return null;
   return url.replace(/^http:\/\//i, "https://");
 };
@@ -87,15 +115,77 @@ export function normalizeMashvisorProperty(payload: unknown): MashvisorPropertyE
   const c = ((payload as { content?: unknown } | null)?.content ?? {}) as Record<string, unknown>;
   const url = text(c["url"]);
   const extra = Array.isArray(c["extra_images"]) ? c["extra_images"] : [];
-  const images = [httpsImage(c["image"]), ...extra.map(httpsImage)].filter(
-    (image): image is string => !!image,
-  );
-  const year = num(c["yearBuilt"]);
+  const imageCollection = Array.isArray(c["images"]) ? c["images"] : [];
+  const images = [
+    httpsImage(c["image"]),
+    ...extra.map(httpsImage),
+    ...imageCollection.map(httpsImage),
+  ].filter((image): image is string => !!image);
+  const year = num(c["yearBuilt"] ?? c["year_built"]);
+  const listPrice = num(c["originalListPrice"] ?? c["original_list_price"]);
+  const lastSale = num(c["lastSalePrice"] ?? c["last_sale_price"]);
+  const list = (value: unknown) =>
+    typeof value === "string"
+      ? value
+          .split(/[,;\n]+/)
+          .map((item) => item.trim())
+          .filter(Boolean)
+      : Array.isArray(value)
+        ? value
+            .map((item) =>
+              typeof item === "object" && item
+                ? scalarText(
+                    (item as Record<string, unknown>).name ??
+                      (item as Record<string, unknown>).description,
+                  )
+                : scalarText(item),
+            )
+            .filter((item): item is string => !!item)
+        : [];
+  const schools = Array.isArray(c["schools"]) ? c["schools"] : [];
+  const districts = [
+    ...new Set(
+      schools
+        .map((school) =>
+          typeof school === "object" && school
+            ? scalarText((school as Record<string, unknown>).district)
+            : null,
+        )
+        .filter((item): item is string => !!item),
+    ),
+  ];
+  const parkingSpots = num(c["parkingSpots"] ?? c["parking_spots"]);
+  const parkingType = scalarText(c["parkingType"] ?? c["parking_type"]);
   return {
     url: url && /^https:\/\//i.test(url) ? url : null,
-    images: Array.from(new Set(images)).slice(0, 20),
+    images: Array.from(new Set(images)),
     yearBuilt: year && year > 1700 ? year : null,
     source: text(c["source"]),
+    propertyType: scalarText(c["homeType"] ?? c["property_sub_type"] ?? c["property_type"]),
+    bedrooms: num(c["beds"]),
+    bathrooms: num(c["baths"]),
+    squareFeet: num(c["sqft"]),
+    description: text(c["description"]),
+    originalListPrice: listPrice && listPrice > 0 ? Math.round(listPrice) : null,
+    lastSalePrice: lastSale && lastSale > 0 ? Math.round(lastSale) : null,
+    lastSaleDate: scalarText(c["lastSaleDate"] ?? c["last_sale_date"]),
+    priceReducedAt: scalarText(c["recentReductionDate"] ?? c["recent_reduction_date"]),
+    lotSize: num(c["lotSize"] ?? c["lot_size"]),
+    heating: scalarText(c["heating_system"] ?? c["heating"]),
+    cooling: scalarText(c["cooling_system"] ?? c["cooling"]),
+    parking:
+      [parkingType, parkingSpots ? `${parkingSpots} spaces` : null].filter(Boolean).join(" · ") ||
+      scalarText(c["parking"]),
+    appliances: list(c["characteristics"]).join(", ") || scalarText(c["appliances"]),
+    exteriorMaterial: scalarText(c["construction_materials"] ?? c["exterior_material"]),
+    specialFeatures:
+      list(c["detailed_characteristics"]).join(", ") || scalarText(c["architecture_style"]),
+    schoolDistrict: districts.join(", ") || null,
+    hoaFees: scalarText(c["hoa_dues"] ?? c["hoa_fees"] ?? c["hoaFees"]),
+    schools: list(schools),
+    amenities: [
+      ...new Set([...list(c["characteristics"]), ...list(c["detailed_characteristics"])]),
+    ],
   };
 }
 
@@ -137,7 +227,6 @@ export function canIncludeMashvisorFilters(data: Record<string, unknown>) {
   // Mashvisor offers for-sale homes only; its rental data is past rentals.
   if (data["homeTab"] && data["homeTab"] !== "buy") return false;
   return Object.entries(data).every(
-    ([key, value]) =>
-      ALLOWED.has(key) || value == null || value === false || value === "",
+    ([key, value]) => ALLOWED.has(key) || value == null || value === false || value === "",
   );
 }

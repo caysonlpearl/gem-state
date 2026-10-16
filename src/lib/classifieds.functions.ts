@@ -66,7 +66,7 @@ export type ClassifiedCard = {
   title: string;
   externalJob?: { source: "Adzuna"; url: string; logoUrl?: string; employerSince?: string };
   /** Homes from the Mashvisor feed: shown with attribution, never stored or sold here. */
-  externalHome?: { source: "Mashvisor" };
+  externalHome?: { source: "Mashvisor"; sourceUrl?: string | null };
   productId: string;
   productSlug: string;
   priceCents: number;

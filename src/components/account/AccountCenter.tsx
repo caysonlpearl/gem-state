@@ -71,6 +71,7 @@ import {
 } from "@/lib/conversation.functions";
 import { getMyWatchlist, setWatchState, type WatchedVariant } from "@/lib/community.functions";
 import { getMySavedPartnerJobs } from "@/lib/saved-jobs.functions";
+import { getMySavedPartnerHomes } from "@/lib/saved-homes.functions";
 import type { ClassifiedCard } from "@/lib/classifieds.functions";
 import { ListingCard, PartnerJobsCredit } from "@/components/classifieds/ListingCard";
 import {
@@ -206,6 +207,12 @@ export function AccountCenter({
   const savedPartnerJobs = useQuery({
     queryKey: ["my-saved-partner-jobs"],
     queryFn: () => fetchSavedPartnerJobs(),
+    enabled: section === "saved",
+  });
+  const fetchSavedPartnerHomes = useServerFn(getMySavedPartnerHomes);
+  const savedPartnerHomes = useQuery({
+    queryKey: ["my-saved-partner-homes"],
+    queryFn: () => fetchSavedPartnerHomes(),
     enabled: section === "saved",
   });
   const notifications = useQuery({
@@ -370,6 +377,7 @@ export function AccountCenter({
             <>
               <SavedListingsSection items={watchlist.data ?? []} />
               <SavedPartnerJobsSection jobs={savedPartnerJobs.data ?? []} />
+              <SavedPartnerHomesSection homes={savedPartnerHomes.data ?? []} />
             </>
           ) : section === "searches" ? (
             <SavedSearchesSection searches={savedSearches.data ?? []} />
@@ -1471,6 +1479,24 @@ function SavedPartnerJobsSection({ jobs }: { jobs: ClassifiedCard[] }) {
         ))}
       </div>
       <PartnerJobsCredit listings={jobs} />
+    </section>
+  );
+}
+
+function SavedPartnerHomesSection({ homes }: { homes: ClassifiedCard[] }) {
+  if (!homes.length) return null;
+  return (
+    <section className="mt-10 space-y-4">
+      <SectionHeader
+        eyebrow="Saved homes"
+        title={`${homes.length} saved ${homes.length === 1 ? "home" : "homes"} from partner listings`}
+        body="Homes from Mashvisor. Prices, availability, and property details can change; verify them with the listing source."
+      />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {homes.map((home) => (
+          <ListingCard key={home.id} listing={home} />
+        ))}
+      </div>
     </section>
   );
 }

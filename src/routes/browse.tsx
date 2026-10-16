@@ -3271,7 +3271,7 @@ function JobShowcaseCards({ row, search }: { row: HomepagePreviewRow; search: Se
     staleTime: 60_000,
   });
   return (
-<div ref={container} className="min-h-32">
+    <div ref={container} className="min-h-32">
       {query.isPending ? (
         <p className="py-8 text-sm text-muted-foreground">Loading jobs…</p>
       ) : !query.data?.listings.length ? (
@@ -3285,7 +3285,6 @@ function JobShowcaseCards({ row, search }: { row: HomepagePreviewRow; search: Se
           ))}
         </div>
       )}
-    </div>
     </div>
   );
 }

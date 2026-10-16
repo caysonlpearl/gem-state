@@ -1,13 +1,15 @@
 import { createClient } from "@supabase/supabase-js";
 import { serverEnv } from "./runtime-env.server";
 import {
+  normalizeMashvisorProperty,
   normalizeMashvisorResult,
+  type MashvisorPropertyExtra,
   type MashvisorResult,
 } from "./mashvisor-contract";
 
-// Free plan: 30 requests/month. Results are kept a week; stale copies are
-// shown when the monthly budget is used up.
-const CACHE_MS = 7 * 24 * 60 * 60 * 1000;
+// Keep each city result two weeks so five markets refresh about ten times
+// monthly, leaving the remaining calls for property detail pages.
+const CACHE_MS = 14 * 24 * 60 * 60 * 1000;
 
 function cacheDb() {
   const dbUrl = serverEnv("GEM_STATE_SUPABASE_URL") || serverEnv("SUPABASE_URL");
@@ -71,13 +73,28 @@ async function cachedCall<T>(
 }
 
 export async function searchHomesForSale(state: string, city: string): Promise<MashvisorResult> {
-  const key = JSON.stringify({ v: 1, kind: "city", state, city: city.toLowerCase() });
+  const key = JSON.stringify({ v: 2, kind: "city", state, city: city.toLowerCase() });
   const result = await cachedCall(
     key,
     `city/properties/${encodeURIComponent(state)}/${encodeURIComponent(city)}?page=1&items=50`,
     normalizeMashvisorResult,
   );
   return result.ok ? result.value : { status: result.status, homes: [] };
+}
+
+/** One cached property-info request supplies the expanded details and photos. */
+export async function propertyDetails(
+  state: string,
+  id: string,
+): Promise<
+  { ok: true; value: MashvisorPropertyExtra } | { ok: false; status: "unavailable" | "limited" }
+> {
+  const key = JSON.stringify({ v: 2, kind: "property", state, id });
+  return cachedCall(
+    key,
+    `property?id=${encodeURIComponent(id)}&state=${encodeURIComponent(state)}`,
+    normalizeMashvisorProperty,
+  );
 }
 
 /** A home from any recent cached city search (for its listing page). */
@@ -90,6 +107,6 @@ export async function cachedHome(id: string) {
     .contains("payload", { homes: [{ id }] })
     .order("expires_at", { ascending: false })
     .limit(1);
-  const homes = ((data?.[0]?.payload as MashvisorResult | undefined)?.homes ?? []);
+  const homes = (data?.[0]?.payload as MashvisorResult | undefined)?.homes ?? [];
   return { home: homes.find((home) => home.id === id) ?? null, siblings: homes };
 }

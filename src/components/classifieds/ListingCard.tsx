@@ -5,6 +5,7 @@ import { listingParam } from "@/lib/listing-url";
 
 import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { PartnerJobHeartButton } from "@/components/community/PartnerJobHeartButton";
+import { PartnerHomeHeartButton } from "@/components/community/PartnerHomeHeartButton";
 import { WatchHeartButton } from "@/components/community/WatchHeartButton";
 import {
   conditionLabels,
@@ -408,6 +409,8 @@ export function ListingCard({
           <div className="absolute right-2 top-2 z-10">
             {listing.externalJob ? (
               <PartnerJobHeartButton listingId={listing.id} title={listing.title} />
+            ) : listing.externalHome ? (
+              <PartnerHomeHeartButton listingId={listing.id} title={listing.title} />
             ) : (
               <WatchHeartButton
                 productId={listing.productId}

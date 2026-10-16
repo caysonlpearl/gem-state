@@ -12,9 +12,8 @@ import {
 } from "./mashvisor-contract";
 
 /**
- * Cities fetched from Mashvisor. The free plan allows 30 requests a month,
- * so only these are ever requested (one call each, cached a week). Other
- * searches show Bluebird listings only.
+ * Cities fetched from Mashvisor. Only these are ever requested (one call
+ * each, cached two weeks). Other searches show Bluebird listings only.
  */
 export const MASHVISOR_CITIES = ["Boise", "Meridian", "Nampa", "Idaho Falls", "Coeur d'Alene"];
 
@@ -76,7 +75,8 @@ export async function mashvisorCards(data: ClassifiedBrowseInput): Promise<Class
         (data.homeBathroomsMin == null || (home.baths ?? -1) >= data.homeBathroomsMin) &&
         (data.homeSquareFeetMin == null || (home.sqft ?? -1) >= data.homeSquareFeetMin) &&
         (!data.postalCode || home.zip === data.postalCode) &&
-        (!q || `${home.address} ${home.city} ${home.propertyType ?? ""}`.toLowerCase().includes(q)) &&
+        (!q ||
+          `${home.address} ${home.city} ${home.propertyType ?? ""}`.toLowerCase().includes(q)) &&
         isWithinClassifiedRadius({
           city: data.city,
           listingCity: home.city,
@@ -92,19 +92,63 @@ export async function mashvisorCards(data: ClassifiedBrowseInput): Promise<Class
 export async function mashvisorDetail(listingId: string): Promise<ClassifiedDetail | null> {
   const id = listingId.match(MASHVISOR_ID)?.[1];
   if (!id) return null;
-  const { cachedHome } = await import("./mashvisor.server");
+  const { cachedHome, propertyDetails } = await import("./mashvisor.server");
   const found = await cachedHome(id);
   if (!found?.home) return null;
-  const card = mashvisorCard(found.home);
+  const home = found.home;
+  const details = await propertyDetails(home.state, home.id);
+  const extra = details.ok ? details.value : null;
+  const card = mashvisorCard(home);
+  const images = extra?.images.length ? extra.images : home.imageUrl ? [home.imageUrl] : [];
+  const priceHistory = [
+    ...(extra?.originalListPrice
+      ? [{ label: "Original list price", amount: extra.originalListPrice }]
+      : []),
+    ...(extra?.lastSalePrice
+      ? [{ label: "Last recorded sale", amount: extra.lastSalePrice, date: extra.lastSaleDate }]
+      : []),
+    ...(extra?.priceReducedAt
+      ? [
+          {
+            label: "Recent price reduction",
+            amount: home.priceCents / 100,
+            date: extra.priceReducedAt,
+          },
+        ]
+      : []),
+    { label: "Current list price", amount: home.priceCents / 100 },
+  ].filter((entry, index, all) => index === 0 || entry.amount !== all[index - 1]?.amount);
+  const acreage = extra?.lotSize && extra.lotSize > 0 ? extra.lotSize / 43_560 : null;
   return {
     ...card,
+    externalHome: { source: "Mashvisor", sourceUrl: extra?.url ?? null },
     listingNumber: found.home.id,
-    description: null,
+    description: extra?.description ?? null,
     postalCode: found.home.zip,
     expiresAt: null,
     sellerNote: null,
     variantId: card.id,
     seller: null,
-    images: found.home.imageUrl ? [{ url: found.home.imageUrl, alt: card.title }] : [],
+    home: {
+      ...card.home!,
+      propertyType: extra?.propertyType ?? card.home!.propertyType,
+      bedrooms: extra?.bedrooms && extra.bedrooms > 0 ? extra.bedrooms : card.home!.bedrooms,
+      bathrooms: extra?.bathrooms && extra.bathrooms > 0 ? extra.bathrooms : card.home!.bathrooms,
+      squareFeet:
+        extra?.squareFeet && extra.squareFeet > 0 ? extra.squareFeet : card.home!.squareFeet,
+      yearBuilt: extra?.yearBuilt ?? null,
+      acreage: acreage ? `${acreage.toFixed(2)} acres` : null,
+      heating: extra?.heating ?? null,
+      cooling: extra?.cooling ?? null,
+      garageParking: extra?.parking ?? null,
+      hoaFees: extra?.hoaFees ?? null,
+      schoolDistrict: extra?.schoolDistrict ?? null,
+      amenities: extra?.amenities ?? [],
+      appliancesIncluded: extra?.appliances ?? null,
+      exteriorMaterial: extra?.exteriorMaterial ?? null,
+      specialFeatures: extra?.specialFeatures ?? null,
+      priceHistory,
+    },
+    images: images.map((url) => ({ url, alt: card.title })),
   } as unknown as ClassifiedDetail;
 }

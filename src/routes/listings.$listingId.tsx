@@ -51,6 +51,7 @@ import {
   PlaceholderMark,
 } from "@/components/classifieds/ListingCard";
 import { PartnerJobHeartButton } from "@/components/community/PartnerJobHeartButton";
+import { PartnerHomeHeartButton } from "@/components/community/PartnerHomeHeartButton";
 import { WatchHeartButton } from "@/components/community/WatchHeartButton";
 import {
   conditionLabels,
@@ -1387,13 +1388,21 @@ function ListingDetailContent() {
             </div>
             <div className="flex items-center gap-2">
               <ListingStatsInline listing={listing} />
-              <WatchHeartButton
-                productId={listing.productId}
-                productSlug={listing.productSlug}
-                productName={title}
-                isDemo={listing.isMock === true}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
-              />
+              {listing.externalHome ? (
+                <PartnerHomeHeartButton
+                  listingId={listing.id}
+                  title={title}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+                />
+              ) : (
+                <WatchHeartButton
+                  productId={listing.productId}
+                  productSlug={listing.productSlug}
+                  productName={title}
+                  isDemo={listing.isMock === true}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+                />
+              )}
               <button
                 type="button"
                 aria-label="Share listing"
@@ -1630,6 +1639,7 @@ function homeRentalDetails(listing: ClassifiedDetail, description: string) {
     (home?.mode !== "buy" &&
       home?.mode !== "build" &&
       (listing.priceCents < 1_000_000 || /rent|rental|lease|per month|\/\s*mo/i.test(source)));
+  const missing = listing.externalHome ? "Not provided by listing source" : "Ask seller";
 
   return {
     bedrooms:
@@ -1637,42 +1647,43 @@ function homeRentalDetails(listing: ClassifiedDetail, description: string) {
         ? `${home.bedrooms} ${home.bedrooms === 1 ? "bed" : "beds"}`
         : bedrooms
           ? `${bedrooms} ${Number(bedrooms) === 1 ? "bed" : "beds"}`
-          : "Ask seller",
+          : missing,
     bathrooms:
       home?.bathrooms != null
         ? `${home.bathrooms} ${home.bathrooms === 1 ? "bath" : "baths"}`
         : bathrooms
           ? `${bathrooms} ${Number(bathrooms) === 1 ? "bath" : "baths"}`
-          : "Ask seller",
+          : missing,
     squareFeet:
       home?.squareFeet != null
         ? `${home.squareFeet.toLocaleString()} sq ft`
         : squareFeet
           ? `${squareFeet} sq ft`
-          : "Ask seller",
-    availability,
+          : missing,
+    availability: listing.externalHome ? "For sale" : availability,
     pets,
     smoking,
     leaseLength: home?.leaseLength ?? parsedLeaseLength ?? "Confirm with seller",
-    propertyType: home?.propertyType ?? "Ask seller",
-    yearBuilt: home?.yearBuilt != null ? String(home.yearBuilt) : "Ask seller",
-    sellerType: home?.sellerType ?? listing.seller?.sellerType ?? "Ask seller",
+    propertyType: home?.propertyType ?? missing,
+    yearBuilt: home?.yearBuilt != null ? String(home.yearBuilt) : missing,
+    sellerType: home?.sellerType ?? listing.seller?.sellerType ?? missing,
     utilities: home?.utilities ?? [],
     amenities: home?.amenities ?? [],
     openHouse: home?.openHouse ?? null,
     community: home?.community ?? null,
-    schoolDistrict: home?.schoolDistrict ?? "Ask seller",
-    acreage: home?.acreage ?? "Ask seller",
-    heating: home?.heating ?? "Ask seller",
-    cooling: home?.cooling ?? "Ask seller",
-    garageParking: home?.garageParking ?? "Ask seller",
-    yard: home?.yard ?? "Ask seller",
-    appliancesIncluded: home?.appliancesIncluded ?? "Ask seller",
-    basementType: home?.basementType ?? "Ask seller",
-    floorCoverings: home?.floorCoverings ?? "Ask seller",
-    exteriorMaterial: home?.exteriorMaterial ?? "Ask seller",
-    specialFeatures: home?.specialFeatures ?? "Ask seller",
+    schoolDistrict: home?.schoolDistrict ?? missing,
+    acreage: home?.acreage ?? missing,
+    heating: home?.heating ?? missing,
+    cooling: home?.cooling ?? missing,
+    garageParking: home?.garageParking ?? missing,
+    yard: home?.yard ?? missing,
+    appliancesIncluded: home?.appliancesIncluded ?? missing,
+    basementType: home?.basementType ?? missing,
+    floorCoverings: home?.floorCoverings ?? missing,
+    exteriorMaterial: home?.exteriorMaterial ?? missing,
+    specialFeatures: home?.specialFeatures ?? missing,
     hoaFees: home?.hoaFees ?? "N/A",
+    priceHistory: home?.priceHistory ?? [],
     isRental,
   };
 }
@@ -1734,13 +1745,20 @@ function HomeRentalInformation({
   const amenityRows =
     details.amenities.length > 0
       ? details.amenities
-      : [
-          `Bedrooms: ${details.bedrooms}`,
-          `Bathrooms: ${details.bathrooms}`,
-          `Square feet: ${details.squareFeet}`,
-          ...(details.isRental ? [`Pets: ${details.pets}`, `Smoking: ${details.smoking}`] : []),
-          "Additional amenities: Ask seller",
-        ];
+      : listing.externalHome
+        ? [
+            `Bedrooms: ${details.bedrooms}`,
+            `Bathrooms: ${details.bathrooms}`,
+            `Square feet: ${details.squareFeet}`,
+            "No additional amenity data was provided by the listing source.",
+          ]
+        : [
+            `Bedrooms: ${details.bedrooms}`,
+            `Bathrooms: ${details.bathrooms}`,
+            `Square feet: ${details.squareFeet}`,
+            ...(details.isRental ? [`Pets: ${details.pets}`, `Smoking: ${details.smoking}`] : []),
+            "Additional amenities: Ask seller",
+          ];
 
   return (
     <section className="soft-card overflow-hidden">
@@ -1763,7 +1781,10 @@ function HomeRentalInformation({
           <div>
             <h2 className="text-[21px] font-bold">Description</h2>
             <p className="mt-5 whitespace-pre-line text-[14px] leading-7 text-muted-foreground">
-              {description || "The seller has not added a description yet."}
+              {description ||
+                (listing.externalHome
+                  ? "Description not provided by the listing source."
+                  : "The seller has not added a description yet.")}
             </p>
             {details.isRental ? (
               <>
@@ -1804,7 +1825,7 @@ function HomeRentalInformation({
                 <dl className="mt-3 divide-y divide-border/70 text-[13px]">
                   {[
                     ["Property type", details.propertyType],
-                    ["Seller type", details.sellerType],
+                    ...(!listing.externalHome ? [["Seller type", details.sellerType]] : []),
                     ["School district", details.schoolDistrict],
                     ["Year built", details.yearBuilt],
                     ["Acreage", details.acreage],
@@ -1826,6 +1847,29 @@ function HomeRentalInformation({
                     </div>
                   ))}
                 </dl>
+                {details.priceHistory.length > 0 ? (
+                  <div className="mt-8 border-t border-border/70 pt-6">
+                    <h3 className="text-[18px] font-bold">Price history</h3>
+                    <dl className="mt-3 divide-y divide-border/70 text-[13px]">
+                      {details.priceHistory.map((item, index) => (
+                        <div
+                          key={`${item.label}-${index}`}
+                          className="flex items-center justify-between gap-4 py-3"
+                        >
+                          <dt>
+                            {item.label}
+                            {item.date ? ` · ${item.date}` : ""}
+                          </dt>
+                          <dd className="numeric font-semibold">
+                            {formatClassifiedPrice(Math.round(item.amount * 100), {
+                              wholeDollars: true,
+                            })}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </div>
+                ) : null}
               </div>
             )}
           </div>
@@ -1833,8 +1877,9 @@ function HomeRentalInformation({
           <div>
             <h2 className="text-[21px] font-bold">Home amenities</h2>
             <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
-              Amenities and inclusions should be confirmed with the seller before applying, signing
-              a lease, or making an offer.
+              {listing.externalHome
+                ? "Details shown here are the property facts available from Mashvisor."
+                : "Amenities and inclusions should be confirmed with the seller before applying, signing a lease, or making an offer."}
             </p>
             <ul className="mt-5 grid gap-3 sm:grid-cols-2">
               {amenityRows.map((amenity) => (
@@ -1953,19 +1998,27 @@ function HomeListingDetail({
                   <Clock size={15} /> Posted {postedAge(listing.createdAt).toLowerCase()}
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <Eye size={15} /> Local listing
+                  <Eye size={15} /> {listing.externalHome ? "Mashvisor listing" : "Local listing"}
                 </span>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <ListingStatsInline listing={listing} />
-              <WatchHeartButton
-                productId={listing.productId}
-                productSlug={listing.productSlug}
-                productName={title}
-                isDemo={listing.isMock === true}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
-              />
+              {listing.externalHome ? (
+                <PartnerHomeHeartButton
+                  listingId={listing.id}
+                  title={title}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+                />
+              ) : (
+                <WatchHeartButton
+                  productId={listing.productId}
+                  productSlug={listing.productSlug}
+                  productName={title}
+                  isDemo={listing.isMock === true}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+                />
+              )}
               <button
                 type="button"
                 aria-label="Share listing"
@@ -1996,8 +2049,8 @@ function HomeListingDetail({
             <HomeFactCard label="Bathrooms" value={details.bathrooms} />
             <HomeFactCard label="Square feet" value={details.squareFeet} />
             <HomeFactCard
-              label={details.isRental ? "Availability" : "Status"}
-              value={details.isRental ? details.availability : "For sale"}
+              label={details.isRental ? "Availability" : "Property type"}
+              value={details.isRental ? details.availability : details.propertyType}
             />
           </section>
           <HomeLocationPanel listing={listing} locationQuery={locationQuery} />
@@ -2011,7 +2064,7 @@ function HomeListingDetail({
 
         <aside className="min-w-0 space-y-5 lg:sticky lg:top-24 lg:col-start-2 lg:row-start-2 lg:row-span-2">
           {listing.externalHome ? (
-            <MashvisorHomeCard listing={listing} />
+            <PageStatsCard listing={listing} />
           ) : (
             <>
               <SellerCard listing={listing} />
@@ -2078,6 +2131,8 @@ function HomeListingDetail({
           </div>
         </section>
       )}
+
+      {listing.externalHome ? <MashvisorHomeCredit listing={listing} /> : null}
     </main>
   );
 }
@@ -3073,32 +3128,22 @@ function PetDetails({ pet }: { pet: NonNullable<ClassifiedDetail["pet"]> }) {
   );
 }
 
-/**
- * In the seller card's place for a Mashvisor feed home: where the listing
- * comes from and how to reach the agent, with no Bluebird buy/offer/message.
- */
-function MashvisorHomeCard({ listing }: { listing: ClassifiedDetail }) {
-  const search = `${listing.title}, ${listing.city}, ${listing.state} ${listing.postalCode ?? ""}`.trim();
+/** Small source credit at the end of an external home page. */
+function MashvisorHomeCredit({ listing }: { listing: ClassifiedDetail }) {
   return (
-    <section className="rounded-[24px] border border-border/70 bg-card p-5">
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-        Listing data from Mashvisor
-      </p>
-      <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
-        This home is listed for sale through the MLS, not by a Bluebird seller. Contact the
-        listing agent to ask questions or schedule a showing.
-      </p>
-      <a
-        href={`https://www.google.com/search?q=${encodeURIComponent(search)}`}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-full bg-primary text-[14px] font-semibold text-primary-foreground transition hover:bg-primary/90"
-      >
-        Find the original listing
-      </a>
-      <p className="mt-3 text-[11px] text-muted-foreground">
-        Details may be out of date. Price and availability are confirmed by the listing agent.
-      </p>
-    </section>
+    <footer className="mt-12 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 border-t border-border/70 py-5 text-center text-[11px] text-muted-foreground">
+      <span>Listing data from Mashvisor.</span>
+      {listing.externalHome?.sourceUrl ? (
+        <a
+          href={listing.externalHome.sourceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-semibold text-primary hover:underline"
+        >
+          View original listing
+        </a>
+      ) : null}
+      <span>Verify price and availability with the listing source.</span>
+    </footer>
   );
 }

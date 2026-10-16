@@ -42,6 +42,7 @@ export type ClassifiedHomeDetails = {
   exteriorMaterial?: string | null;
   specialFeatures?: string | null;
   hoaFees?: string | null;
+  priceHistory?: { label: string; amount: number; date?: string | null }[];
 };
 
 export const homeCommunities: Record<string, ClassifiedHomeCommunity> = {
