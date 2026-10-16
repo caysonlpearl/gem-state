@@ -25,7 +25,8 @@ export async function searchJobs(input: AdzunaSearch): Promise<AdzunaResult> {
     },
   });
   const query = {
-    version: 3,
+    // 5: city normalization, salary ranges and category mapping.
+    version: 5,
     category: input.category,
     employment: input.employment,
     what: input.what.toLowerCase(),

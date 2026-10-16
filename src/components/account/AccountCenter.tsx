@@ -70,6 +70,9 @@ import {
   type ConversationSummary,
 } from "@/lib/conversation.functions";
 import { getMyWatchlist, setWatchState, type WatchedVariant } from "@/lib/community.functions";
+import { getMySavedPartnerJobs } from "@/lib/saved-jobs.functions";
+import type { ClassifiedCard } from "@/lib/classifieds.functions";
+import { ListingCard, PartnerJobsCredit } from "@/components/classifieds/ListingCard";
 import {
   getMyNotifications,
   markNotificationsRead,
@@ -198,6 +201,12 @@ export function AccountCenter({
     queryKey: ["my-watchlist"],
     queryFn: () => fetchWatchlist(),
     enabled: section === "overview" || section === "saved",
+  });
+  const fetchSavedPartnerJobs = useServerFn(getMySavedPartnerJobs);
+  const savedPartnerJobs = useQuery({
+    queryKey: ["my-saved-partner-jobs"],
+    queryFn: () => fetchSavedPartnerJobs(),
+    enabled: section === "saved",
   });
   const notifications = useQuery({
     queryKey: ["notifications"],
@@ -358,7 +367,10 @@ export function AccountCenter({
               notificationPreferences={notificationPreferences.data}
             />
           ) : section === "saved" ? (
-            <SavedListingsSection items={watchlist.data ?? []} />
+            <>
+              <SavedListingsSection items={watchlist.data ?? []} />
+              <SavedPartnerJobsSection jobs={savedPartnerJobs.data ?? []} />
+            </>
           ) : section === "searches" ? (
             <SavedSearchesSection searches={savedSearches.data ?? []} />
           ) : section === "messages" ? (
@@ -1440,6 +1452,26 @@ function SettingsSection({
         />
       </div>
     </div>
+  );
+}
+
+/** Saved partner (Adzuna) jobs: they aren't Bluebird products, so they're listed on their own. */
+function SavedPartnerJobsSection({ jobs }: { jobs: ClassifiedCard[] }) {
+  if (!jobs.length) return null;
+  return (
+    <section className="mt-10 space-y-4">
+      <SectionHeader
+        eyebrow="Saved jobs"
+        title={`${jobs.length} saved ${jobs.length === 1 ? "job" : "jobs"} from partner listings`}
+        body="Jobs from our partner Adzuna. Postings change often; a job that's been filled opens today's jobs instead."
+      />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {jobs.map((job) => (
+          <ListingCard key={job.id} listing={job} />
+        ))}
+      </div>
+      <PartnerJobsCredit listings={jobs} />
+    </section>
   );
 }
 

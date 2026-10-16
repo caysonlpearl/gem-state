@@ -260,7 +260,7 @@ function LiveListingActions({
           <a
             href={externalApplyHref(listing.job?.applicationExternalContact ?? "")}
             target="_blank"
-            rel="noreferrer"
+            rel={listing.externalJob ? "noopener noreferrer nofollow sponsored" : "noreferrer"}
             onClick={() => trackSellerContact("apply_external", listing)}
             className="flex h-12 w-full items-center justify-center rounded-full bg-nav-accent text-[14.5px] font-semibold text-primary transition-opacity hover:opacity-90"
           >
@@ -374,8 +374,9 @@ function LiveListingActions({
       />
 
       <p className="border-t border-border px-5 py-3 text-[11px] leading-relaxed text-muted-foreground">
-        Bluebird does not process payment for this listing. Confirm the item, price, and meeting or
-        shipping details with the seller before exchanging money.
+        {isJobApply
+          ? "Real employers never charge you to apply. Be wary of any job that asks for money, gift cards, or bank details up front."
+          : "Bluebird does not process payment for this listing. Confirm the item, price, and meeting or shipping details with the seller before exchanging money."}
       </p>
     </div>
   );

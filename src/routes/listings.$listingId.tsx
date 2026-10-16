@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
   ArrowLeft,
+  ArrowSquareOut,
   ArrowRight,
   CaretDown,
   CaretRight,
@@ -42,7 +43,14 @@ import { OPEN_CONTACT_EVENT } from "@/components/classifieds/ContactSignInSheet"
 import { listingIdFromParam, listingParam, listingPath } from "@/lib/listing-url";
 import { trackEvent, trackSellerContact } from "@/lib/analytics";
 import { PUBLIC_PAGE_STALE_MS } from "@/lib/query-freshness";
-import { ListingCard } from "@/components/classifieds/ListingCard";
+import { recordListingView } from "@/lib/listing-stats.functions";
+import {
+  EmployerTile,
+  ListingCard,
+  LogoDevCredit,
+  PlaceholderMark,
+} from "@/components/classifieds/ListingCard";
+import { PartnerJobHeartButton } from "@/components/community/PartnerJobHeartButton";
 import { WatchHeartButton } from "@/components/community/WatchHeartButton";
 import {
   conditionLabels,
@@ -73,7 +81,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { useAuth } from "@/hooks/useAuth";
 import { reportClassifiedListing } from "@/lib/classifieds.functions";
 
@@ -151,6 +158,14 @@ export const Route = createFileRoute("/listings/$listingId")({
   loader: async ({ context, params }) => {
     const listingId = listingIdFromParam(params.listingId);
     const listing = await context.queryClient.ensureQueryData(listingQuery(listingId));
+    if (!listing && listingId.startsWith("mashvisor-")) {
+      // Feed homes come and go with the weekly refresh.
+      throw redirect({ href: "/browse?category=other-real-estate", statusCode: 302 });
+    }
+    if (!listing && listingId.startsWith("adzuna-")) {
+      // Partner job postings come and go; an old link goes to today's jobs.
+      throw redirect({ href: "/browse?category=jobs", statusCode: 302 });
+    }
     if (!listing) {
       // A removed or expired listing sends its visitors (and whatever search
       // value it earned) to the closest live page instead of a dead end.
@@ -181,7 +196,10 @@ export const Route = createFileRoute("/listings/$listingId")({
       ended: listing.ended?.reason ?? null,
       shareImage: listing.images.length ? `/media/listings/${listing.id}/0` : undefined,
       leadImage: listing.images[0]?.url,
-      structuredData: listingStructuredData(listing),
+      // Partner (Adzuna) jobs aren't Bluebird's postings: no job markup for
+      // Google, and the page stays out of search results.
+      external: Boolean(listing.externalJob),
+      structuredData: listing.externalJob ? [] : listingStructuredData(listing),
     };
   },
   head: ({ loaderData }) => {
@@ -207,13 +225,15 @@ export const Route = createFileRoute("/listings/$listingId")({
         { name: "description", content: description },
         ...(isSeoTestListing(loaderData.title)
           ? [{ name: "robots", content: "noindex, nofollow" }]
-          : []),
+          : loaderData.external
+            ? [{ name: "robots", content: "noindex, follow" }]
+            : []),
         { property: "og:title", content: title },
         { property: "og:description", content: description },
         { property: "og:type", content: "website" },
         ...socialImageMeta(brand.urls.siteUrl, loaderData.shareImage, loaderData.title),
       ],
-      scripts: [jsonLdScript(loaderData.structuredData)],
+      scripts: loaderData.structuredData.length ? [jsonLdScript(loaderData.structuredData)] : [],
       // Discover the exact gallery resource before hydration, without a second photo URL.
       links: loaderData.leadImage
         ? [{ rel: "preload", as: "image", href: loaderData.leadImage, fetchPriority: "high" }]
@@ -291,22 +311,58 @@ function QuickFact({ label, value, icon }: { label: string; value: string; icon:
   );
 }
 
+/** A listing with no photos: category art (or a partner employer's logo tile). */
+function GalleryPlaceholder({ listing }: { listing: ClassifiedDetail }) {
+  return (
+    <div className="flex min-h-[360px] flex-col items-center justify-center rounded-[28px] border border-border/70 bg-secondary/55 text-[12px] text-muted-foreground sm:min-h-[520px]">
+      <PlaceholderMark listing={listing} large />
+      <span className="mt-4">
+        {listing.externalJob
+          ? "This job posting has no photos."
+          : "This seller has not added photos yet."}
+      </span>
+    </div>
+  );
+}
+
+/** A partner job's employer logo filling the gallery, on white. */
+function GalleryLogo({ listing, logoUrl }: { listing: ClassifiedDetail; logoUrl: string }) {
+  const [missing, setMissing] = useState(false);
+  const ref = useRef<HTMLImageElement>(null);
+  useEffect(() => {
+    // A failure before hydration never reaches onError.
+    const img = ref.current;
+    if (img?.complete && img.naturalWidth === 0) setMissing(true);
+  }, []);
+  if (missing) {
+    return <GalleryPlaceholder listing={{ ...listing, externalJob: undefined }} />;
+  }
+  return (
+    <div className="flex h-[300px] items-center justify-center overflow-hidden rounded-[28px] border border-border/70 bg-white p-8 sm:h-[460px] sm:p-14">
+      <img
+        ref={ref}
+        // The gallery is several times a card's size; ask for a sharper copy.
+        src={logoUrl.replace(/([?&])size=\d+/, "$1size=800")}
+        alt={`${listing.job?.employerName ?? "Employer"} logo`}
+        onError={() => setMissing(true)}
+        className="h-full w-full object-contain"
+        fetchPriority="high"
+      />
+    </div>
+  );
+}
+
 function Gallery({ listing }: { listing: ClassifiedDetail }) {
   const [activeImage, setActiveImage] = useState(0);
   const images = listing.images;
   const subject = listing.vehicle ? "vehicle" : "listing";
 
-  if (images.length === 0) {
-    return (
-      <div className="flex min-h-[360px] flex-col items-center justify-center rounded-[28px] border border-border/70 bg-secondary/55 text-[12px] text-muted-foreground sm:min-h-[520px]">
-        <span className="grid h-20 w-20 place-items-center rounded-3xl bg-card text-primary">
-          <CategoryArtwork slug={listing.categorySlug ?? "general"} size={110} />
-        </span>
-        <span className="mt-4">This seller has not added photos yet.</span>
-      </div>
-    );
+  if (images.length === 0 && listing.externalJob?.logoUrl) {
+    return <GalleryLogo listing={listing} logoUrl={listing.externalJob.logoUrl} />;
   }
-
+  if (images.length === 0) {
+    return <GalleryPlaceholder listing={listing} />;
+  }
   const goToImage = (next: number) => {
     setActiveImage((next + images.length) % images.length);
   };
@@ -625,13 +681,20 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
 }
 
 function ProfileStrength({ seller }: { seller: NonNullable<ClassifiedDetail["seller"]> }) {
-  const checks = [
-    Boolean(seller.avatarUrl),
-    Boolean(seller.bio),
-    seller.payoutVerified,
-    seller.reviewCount > 0,
-    Boolean(seller.memberSince && new Date().getFullYear() - seller.memberSince >= 1),
-  ];
+  return (
+    <StrengthMeter
+      checks={[
+        Boolean(seller.avatarUrl),
+        Boolean(seller.bio),
+        seller.payoutVerified,
+        seller.reviewCount > 0,
+        Boolean(seller.memberSince && new Date().getFullYear() - seller.memberSince >= 1),
+      ]}
+    />
+  );
+}
+
+function StrengthMeter({ checks }: { checks: boolean[] }) {
   const score = checks.filter(Boolean).length;
   const label = score >= 4 ? "Strong" : score >= 2 ? "Good" : "New";
   return (
@@ -693,7 +756,46 @@ function VehicleHistoryCard({ vehicle }: { vehicle: ClassifiedDetail["vehicle"] 
   );
 }
 
+const STATS_LISTING_ID =
+  /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|adzuna-\d{1,20}|mashvisor-\d{1,15})$/;
+
+/** Records this page view and returns views and saves; one request per page. */
+function useListingStats(listing: ClassifiedDetail) {
+  const record = useServerFn(recordListingView);
+  return useQuery({
+    queryKey: ["listing-stats", listing.id],
+    queryFn: () => record({ data: { listingId: listing.id } }),
+    enabled: !listing.isMock && STATS_LISTING_ID.test(listing.id),
+    staleTime: 60_000,
+  });
+}
+
+/** Views and saves beside the header buttons, like KSL's "44 👁 2 ♡". */
+function ListingStatsInline({ listing }: { listing: ClassifiedDetail }) {
+  const stats = useListingStats(listing).data;
+  if (!stats) return null;
+  return (
+    <div className="mr-1 flex items-center gap-3 text-[12.5px] font-medium text-muted-foreground">
+      <span
+        className="inline-flex items-center gap-1"
+        title={`${stats.views} page view${stats.views === 1 ? "" : "s"}`}
+      >
+        <span className="numeric">{stats.views}</span> <Eye size={16} aria-hidden="true" />
+        <span className="sr-only">views</span>
+      </span>
+      <span
+        className="inline-flex items-center gap-1"
+        title={`Saved by ${stats.favorites} member${stats.favorites === 1 ? "" : "s"}`}
+      >
+        <span className="numeric">{stats.favorites}</span> <Heart size={16} aria-hidden="true" />
+        <span className="sr-only">saves</span>
+      </span>
+    </div>
+  );
+}
+
 function PageStatsCard({ listing }: { listing: ClassifiedDetail }) {
+  const stats = useListingStats(listing).data;
   const formatDate = (value: string) =>
     new Date(value).toLocaleDateString("en-US", {
       month: "short",
@@ -737,11 +839,11 @@ function PageStatsCard({ listing }: { listing: ClassifiedDetail }) {
         )}
         <div className="flex items-center justify-between gap-4 py-2">
           <dt className="text-muted-foreground">Page views</dt>
-          <dd className="text-right font-medium text-muted-foreground">Not tracked yet</dd>
+          <dd className="numeric text-right font-medium">{stats ? stats.views : "—"}</dd>
         </div>
         <div className="flex items-center justify-between gap-4 py-2">
           <dt className="text-muted-foreground">Favorited</dt>
-          <dd className="text-right font-medium text-muted-foreground">Not tracked yet</dd>
+          <dd className="numeric text-right font-medium">{stats ? stats.favorites : "—"}</dd>
         </div>
         <div className="flex items-center justify-between gap-4 py-2 last:pb-0">
           <dt className="text-muted-foreground">Status</dt>
@@ -1284,6 +1386,7 @@ function ListingDetailContent() {
                 )}
             </div>
             <div className="flex items-center gap-2">
+              <ListingStatsInline listing={listing} />
               <WatchHeartButton
                 productId={listing.productId}
                 productSlug={listing.productSlug}
@@ -1855,6 +1958,7 @@ function HomeListingDetail({
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <ListingStatsInline listing={listing} />
               <WatchHeartButton
                 productId={listing.productId}
                 productSlug={listing.productSlug}
@@ -1906,14 +2010,20 @@ function HomeListingDetail({
         </div>
 
         <aside className="min-w-0 space-y-5 lg:sticky lg:top-24 lg:col-start-2 lg:row-start-2 lg:row-span-2">
-          <SellerCard listing={listing} />
-          <ListingActions
-            listing={listing}
-            showPaymentCalculator={!details.isRental}
-            calculatorVariant="mortgage"
-            showPriceHeader={false}
-          />
-          <PageStatsCard listing={listing} />
+          {listing.externalHome ? (
+            <MashvisorHomeCard listing={listing} />
+          ) : (
+            <>
+              <SellerCard listing={listing} />
+              <ListingActions
+                listing={listing}
+                showPaymentCalculator={!details.isRental}
+                calculatorVariant="mortgage"
+                showPriceHeader={false}
+              />
+              <PageStatsCard listing={listing} />
+            </>
+          )}
         </aside>
       </div>
 
@@ -2043,12 +2153,19 @@ function JobListingDetail({
                   <Clock size={15} /> Posted {postedAge(listing.createdAt).toLowerCase()}
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <Eye size={15} /> Local listing
+                  <Eye size={15} /> {listing.externalJob ? "Via Adzuna" : "Local listing"}
                 </span>
               </div>
             </div>
             <div className="flex items-center gap-2">
-              {listing.isMock ? (
+              <ListingStatsInline listing={listing} />
+              {listing.externalJob ? (
+                <PartnerJobHeartButton
+                  listingId={listing.id}
+                  title={title}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+                />
+              ) : listing.isMock ? (
                 <button
                   type="button"
                   aria-label="Save listing"
@@ -2116,6 +2233,18 @@ function JobListingDetail({
                   <p className="mt-5 whitespace-pre-line text-[14px] leading-7 text-muted-foreground">
                     {details.jobSummary || "The employer has not added a description yet."}
                   </p>
+                  {listing.externalJob ? (
+                    // Adzuna only shares the first few hundred characters.
+                    <a
+                      href={listing.externalJob.url}
+                      target="_blank"
+                      rel="noopener noreferrer nofollow sponsored"
+                      className="mt-3 inline-flex items-center gap-1 text-[13px] font-semibold text-primary hover:underline"
+                    >
+                      Read the full description on the employer&apos;s posting
+                      <ArrowSquareOut size={14} aria-hidden="true" />
+                    </a>
+                  ) : null}
                   {details.responsibilities.length > 0 && (
                     <div className="mt-8 border-t border-border/70 pt-6">
                       <h3 className="text-[18px] font-bold">Key responsibilities</h3>
@@ -2156,13 +2285,37 @@ function JobListingDetail({
                 <div>
                   <h2 className="text-[21px] font-bold">Job specifications</h2>
                   <dl className="mt-5 divide-y divide-border/70 text-[13px]">
-                    {[
-                      ["Pay range", details.payRange],
-                      ["Pay type", details.payType],
-                      ["Employment type", details.employmentType],
-                      ["Years of experience", details.experienceRequired],
-                      ["Education level", details.educationLevel],
-                    ].map(([label, value]) => (
+                    {(listing.externalJob
+                      ? // Partner jobs: only what Adzuna actually provides.
+                        [
+                          ["Pay range", details.payRange],
+                          [
+                            "Pay type",
+                            listing.job?.payMin
+                              ? listing.job.payEstimated
+                                ? "Annual salary (Adzuna estimate)"
+                                : "Annual salary"
+                              : "Not listed",
+                          ],
+                          [
+                            "Employment type",
+                            details.employmentType === "Not specified"
+                              ? "Not listed"
+                              : details.employmentType,
+                          ],
+                          ["Category", listing.job?.category || "Not listed"],
+                          ["Employer", details.employerName || "Not listed"],
+                          ["Location", `${listing.city}, ${listing.state}`],
+                          ["Posted", postedAge(listing.createdAt)],
+                        ]
+                      : [
+                          ["Pay range", details.payRange],
+                          ["Pay type", details.payType],
+                          ["Employment type", details.employmentType],
+                          ["Years of experience", details.experienceRequired],
+                          ["Education level", details.educationLevel],
+                        ]
+                    ).map(([label, value]) => (
                       <div key={label} className="flex items-center justify-between gap-4 py-3">
                         <dt>{label}</dt>
                         <dd className="text-right font-semibold text-muted-foreground">{value}</dd>
@@ -2200,14 +2353,29 @@ function JobListingDetail({
         </div>
 
         <aside className="min-w-0 space-y-5 lg:sticky lg:top-24 lg:col-start-2 lg:row-start-2 lg:row-span-2">
-          <SellerCard listing={listing} />
-          <ListingActions
-            listing={listing}
-            showPaymentCalculator={false}
-            showPriceHeader={false}
-            ctaVerb="apply"
-          />
-          <PageStatsCard listing={listing} />
+          {listing.externalJob ? (
+            <>
+              <PartnerEmployerCard listing={listing} employerName={details.employerName} />
+              <ListingActions
+                listing={listing}
+                showPaymentCalculator={false}
+                showPriceHeader={false}
+                ctaVerb="apply"
+              />
+              <PageStatsCard listing={listing} />
+            </>
+          ) : (
+            <>
+              <SellerCard listing={listing} />
+              <ListingActions
+                listing={listing}
+                showPaymentCalculator={false}
+                showPriceHeader={false}
+                ctaVerb="apply"
+              />
+              <PageStatsCard listing={listing} />
+            </>
+          )}
           <TrustSafetyCard listing={listing} />
         </aside>
       </div>
@@ -2230,6 +2398,108 @@ function JobListingDetail({
         </section>
       )}
     </main>
+  );
+}
+
+/**
+ * The profile card for a partner (Adzuna) job, in the seller card's place:
+ * the employer (logo, city, where the posting came from) and a link to their
+ * other jobs. Applying happens through ListingActions like any external-apply
+ * job; Adzuna's terms require the "Jobs by Adzuna" credit linking to them.
+ */
+function PartnerEmployerCard({
+  listing,
+  employerName,
+}: {
+  listing: ClassifiedDetail;
+  employerName: string;
+}) {
+  const name = employerName || listing.title;
+  const since = listing.externalJob?.employerSince;
+  const sinceYear = since ? new Date(since).getFullYear() : null;
+  return (
+    <section className="soft-card p-5 sm:p-6">
+      <div className="flex items-start gap-3">
+        <EmployerTile name={name} imageUrl={listing.externalJob?.logoUrl} />
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="text-[15px] font-bold">{name}</h2>
+            <span className="rounded-full bg-secondary px-2 py-1 text-[10px] font-semibold">
+              Via Adzuna
+            </span>
+          </div>
+          <div className="mt-3 space-y-1 text-[12px]">
+            <p>
+              <span className="font-semibold">City:</span> {listing.city}
+              {listing.state ? `, ${listing.state}` : ""}
+            </p>
+            <p>
+              <span className="font-semibold">Posted:</span>{" "}
+              {new Date(listing.createdAt).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              })}
+            </p>
+            {sinceYear ? (
+              <p>
+                <span className="font-semibold">On Bluebird since:</span> {sinceYear}
+                {new Date().getFullYear() - sinceYear > 0 && (
+                  <span className="ml-1 rounded-full bg-brand-warm/20 px-1.5 py-0.5 text-[10px] font-bold text-brand-warm">
+                    {new Date().getFullYear() - sinceYear} yrs
+                  </span>
+                )}
+              </p>
+            ) : null}
+            <p>
+              <span className="font-semibold">Source:</span> Adzuna job feed
+            </p>
+          </div>
+        </div>
+      </div>
+      {/* How complete this employer's posting is: what Adzuna gave us. */}
+      <StrengthMeter
+        checks={[
+          Boolean(listing.externalJob?.logoUrl),
+          Boolean(listing.job?.payMin),
+          Boolean(listing.job?.employmentType && listing.job.employmentType !== "Not specified"),
+          Boolean(listing.job?.category),
+          Boolean(listing.employerListings?.length),
+        ]}
+      />
+      <div className="mt-4 border-t border-border/70 pt-4">
+        <p className="text-[13px] font-semibold">{name}</p>
+        <p className="mt-1 flex items-start gap-1.5 text-[12px] text-primary">
+          <MapPin size={14} weight="fill" className="mt-0.5 shrink-0" />
+          {listing.city}, {listing.state}
+        </p>
+      </div>
+      {employerName ? (
+        <Link
+          to="/browse"
+          search={{ category: "jobs", jobMode: "results", jobEmployer: employerName }}
+          className="mt-4 flex items-center justify-center gap-1 border-t border-border/70 pt-4 text-[12.5px] font-semibold text-primary hover:underline"
+        >
+          All jobs from {employerName} <CaretRight size={13} />
+        </Link>
+      ) : null}
+      <div className="mt-4 border-t border-border/70 pt-3 text-[11px] text-muted-foreground">
+        Jobs by{" "}
+        <a
+          href="https://www.adzuna.com"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex min-h-[23px] min-w-[116px] items-center text-[23px] font-bold leading-none text-primary"
+        >
+          Adzuna
+        </a>
+        {listing.externalJob?.logoUrl ? (
+          <p className="mt-1">
+            <LogoDevCredit />
+          </p>
+        ) : null}
+      </div>
+    </section>
   );
 }
 
@@ -2323,6 +2593,7 @@ function ServiceListingDetail({
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <ListingStatsInline listing={listing} />
               {listing.isMock ? (
                 <button
                   type="button"
@@ -2588,6 +2859,7 @@ function GeneralListingDetail({
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <ListingStatsInline listing={listing} />
               {listing.isMock ? (
                 <button
                   type="button"
@@ -2796,6 +3068,36 @@ function PetDetails({ pet }: { pet: NonNullable<ClassifiedDetail["pet"]> }) {
       <p className="mt-4 border-t border-border/70 pt-4 text-[12px] leading-5 text-muted-foreground">
         Meet in person, verify records, and avoid deposits, wire transfers, or gift cards before you
         have confirmed the pet and seller.
+      </p>
+    </section>
+  );
+}
+
+/**
+ * In the seller card's place for a Mashvisor feed home: where the listing
+ * comes from and how to reach the agent, with no Bluebird buy/offer/message.
+ */
+function MashvisorHomeCard({ listing }: { listing: ClassifiedDetail }) {
+  const search = `${listing.title}, ${listing.city}, ${listing.state} ${listing.postalCode ?? ""}`.trim();
+  return (
+    <section className="rounded-[24px] border border-border/70 bg-card p-5">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+        Listing data from Mashvisor
+      </p>
+      <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
+        This home is listed for sale through the MLS, not by a Bluebird seller. Contact the
+        listing agent to ask questions or schedule a showing.
+      </p>
+      <a
+        href={`https://www.google.com/search?q=${encodeURIComponent(search)}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mt-4 inline-flex h-11 w-full items-center justify-center rounded-full bg-primary text-[14px] font-semibold text-primary-foreground transition hover:bg-primary/90"
+      >
+        Find the original listing
+      </a>
+      <p className="mt-3 text-[11px] text-muted-foreground">
+        Details may be out of date. Price and availability are confirmed by the listing agent.
       </p>
     </section>
   );

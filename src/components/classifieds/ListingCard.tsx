@@ -1,9 +1,10 @@
-import type { ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { MapPin } from "@phosphor-icons/react";
 import { listingParam } from "@/lib/listing-url";
 
 import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
+import { PartnerJobHeartButton } from "@/components/community/PartnerJobHeartButton";
 import { WatchHeartButton } from "@/components/community/WatchHeartButton";
 import {
   conditionLabels,
@@ -25,16 +26,9 @@ function ListingLink({
   className: string;
   children: ReactNode;
 }) {
-  return listing.externalJob ? (
-    <a
-      href={listing.externalJob.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className={className}
-    >
-      {children}
-    </a>
-  ) : (
+  // Partner (Adzuna) jobs open on Bluebird's own job page like any listing;
+  // the visitor leaves for Adzuna only from that page's Apply button.
+  return (
     <Link
       to="/listings/$listingId"
       params={{ listingId: listingParam(listing) }}
@@ -44,20 +38,145 @@ function ListingLink({
     </Link>
   );
 }
-function Attribution({ listing }: { listing: ClassifiedCard }) {
-  return listing.externalJob ? (
-    <div className="px-3.5 pb-3 text-[10px] text-muted-foreground">
+/**
+ * "Jobs by Adzuna" once under a group of cards that includes Adzuna jobs.
+ * Adzuna's terms ask for it on pages showing their results; once per group
+ * keeps the cards themselves clean. Job pages carry their own.
+ */
+export function PartnerJobsCredit({ listings }: { listings: readonly ClassifiedCard[] }) {
+  if (!listings.some((listing) => listing.externalJob)) return null;
+  return (
+    <p className="mt-3 text-right text-[10px] text-muted-foreground">
       Jobs by{" "}
       <a
         href="https://www.adzuna.com"
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex min-h-[23px] min-w-[116px] items-center text-[23px] font-bold leading-none text-primary"
+        className="inline-flex min-h-[23px] min-w-[116px] items-center justify-end text-[23px] font-bold leading-none text-primary"
       >
         Adzuna
       </a>
-    </div>
-  ) : null;
+      {listings.some((listing) => listing.externalJob?.logoUrl) ? (
+        <>
+          <br />
+          <LogoDevCredit />
+        </>
+      ) : null}
+    </p>
+  );
+}
+
+/** "Listing data from Mashvisor" once under a group that includes feed homes. */
+export function PartnerHomesCredit({ listings }: { listings: readonly ClassifiedCard[] }) {
+  if (!listings.some((listing) => listing.externalHome)) return null;
+  return (
+    <p className="mt-3 text-right text-[11px] text-muted-foreground">
+      Some home listing data from{" "}
+      <a
+        href="https://www.mashvisor.com"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="font-semibold text-primary"
+      >
+        Mashvisor
+      </a>
+    </p>
+  );
+}
+
+const TILE_COLORS = [
+  "bg-primary/10 text-primary",
+  "bg-accent/30 text-accent-foreground",
+  "bg-brand-warm/15 text-foreground",
+  "bg-secondary text-foreground",
+];
+
+function initialsOf(name: string) {
+  const words = name
+    .replace(/[^A-Za-z0-9& ]+/g, " ")
+    .split(/\s+/)
+    .filter((word) => word && !/^(the|of|and|inc|llc|co|corp|ltd)$/i.test(word));
+  return (
+    words.length > 1 ? words[0]![0]! + words[1]![0]! : (words[0] ?? "?").slice(0, 2)
+  ).toUpperCase();
+}
+
+/**
+ * An employer's logo when there's one (logo.dev, for partner jobs), otherwise
+ * their initials on a soft colored tile. Used in the apply box on partner
+ * job pages.
+ */
+/** logo.dev's free plan asks for this link wherever its logos show. */
+export function LogoDevCredit() {
+  return (
+    <a
+      href="https://logo.dev"
+      target="_blank"
+      rel="noopener noreferrer"
+      className="text-[10px] text-muted-foreground hover:underline"
+    >
+      Logos provided by Logo.dev
+    </a>
+  );
+}
+
+/**
+ * A logo that reports when it can't load (logo.dev answers 404 when it has
+ * none). Also catches a failure that happened before hydration, which
+ * React's onError never sees.
+ */
+function LogoImage({
+  src,
+  className,
+  onMissing,
+}: {
+  src: string;
+  className: string;
+  onMissing: () => void;
+}) {
+  const ref = useRef<HTMLImageElement>(null);
+  useEffect(() => {
+    const img = ref.current;
+    if (img?.complete && img.naturalWidth === 0) onMissing();
+  }, [onMissing]);
+  return (
+    <img ref={ref} src={src} alt="" loading="lazy" onError={onMissing} className={className} />
+  );
+}
+
+export function EmployerTile({
+  name,
+  imageUrl,
+  size = "md",
+}: {
+  name: string;
+  imageUrl?: string | null;
+  size?: "md" | "lg";
+}) {
+  const [missing, setMissing] = useState(false);
+  const box =
+    size === "lg" ? "h-16 w-16 rounded-2xl text-[20px]" : "h-12 w-12 rounded-xl text-[15px]";
+  if (imageUrl && !missing) {
+    return (
+      <span className={`${box} shrink-0 overflow-hidden border border-border bg-white p-1.5`}>
+        <LogoImage
+          src={imageUrl}
+          onMissing={() => setMissing(true)}
+          className="h-full w-full object-contain"
+        />
+      </span>
+    );
+  }
+  const color =
+    TILE_COLORS[[...name].reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % TILE_COLORS.length];
+  return (
+    <span
+      aria-hidden="true"
+      className={`${box} ${color} grid shrink-0 place-items-center font-display font-bold tracking-tight`}
+    >
+      {initialsOf(name)}
+    </span>
+  );
 }
 
 function FeaturedBadge() {
@@ -65,6 +184,79 @@ function FeaturedBadge() {
     <span className="inline-flex rounded-full bg-accent px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-accent-foreground shadow-sm">
       Featured
     </span>
+  );
+}
+
+/**
+ * The center of a photo-less card or listing gallery: the employer's logo
+ * for a partner job when there is one, else the category art.
+ */
+export function PlaceholderMark({ listing, large }: { listing: ClassifiedCard; large?: boolean }) {
+  const [missing, setMissing] = useState(false);
+  const logoUrl = listing.externalJob?.logoUrl;
+  if (logoUrl && !missing) {
+    return (
+      <span
+        className={`relative grid place-items-center overflow-hidden bg-white shadow-sm ${large ? "h-28 w-28 rounded-3xl p-4" : "h-20 w-20 rounded-2xl p-2.5"}`}
+      >
+        <LogoImage
+          src={logoUrl}
+          onMissing={() => setMissing(true)}
+          className="h-full w-full object-contain"
+        />
+      </span>
+    );
+  }
+  return large ? (
+    <span className="grid h-20 w-20 place-items-center rounded-3xl bg-card text-primary">
+      <CategoryArtwork slug={listing.categorySlug ?? "general"} size={110} />
+    </span>
+  ) : (
+    <span className="relative grid h-14 w-14 place-items-center rounded-2xl bg-card/75 text-primary shadow-sm backdrop-blur">
+      <CategoryArtwork slug={listing.categorySlug ?? "general"} size={84} />
+    </span>
+  );
+}
+
+/** A photo-less listing: category art on a soft gradient. */
+function PlaceholderPhoto({ listing, ratio }: { listing: ClassifiedCard; ratio: string }) {
+  return (
+    <div
+      className={`relative flex ${ratio} items-center justify-center overflow-hidden bg-gradient-to-br from-secondary via-card to-accent/25 text-muted-foreground`}
+    >
+      <span className="absolute -right-6 -top-8 h-28 w-28 rounded-full bg-primary/5" />
+      <span className="absolute -bottom-10 -left-5 h-28 w-28 rounded-full bg-brand-warm/10" />
+      {listing.isFeatured ? (
+        <span className="absolute left-2 top-2 z-10">
+          <FeaturedBadge />
+        </span>
+      ) : null}
+      <PlaceholderMark listing={listing} />
+    </div>
+  );
+}
+
+/** A partner job's employer logo filling the photo area, on white. */
+function LogoPhoto({
+  listing,
+  logoUrl,
+  ratio,
+}: {
+  listing: ClassifiedCard;
+  logoUrl: string;
+  ratio: string;
+}) {
+  const [missing, setMissing] = useState(false);
+  if (missing)
+    return <PlaceholderPhoto listing={{ ...listing, externalJob: undefined }} ratio={ratio} />;
+  return (
+    <div className={`relative ${ratio} overflow-hidden border-b border-border/60 bg-white p-3`}>
+      <LogoImage
+        src={logoUrl}
+        onMissing={() => setMissing(true)}
+        className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.03]"
+      />
+    </div>
   );
 }
 
@@ -78,23 +270,11 @@ function Photo({
   priority?: boolean;
 }) {
   const ratio = tall ? "aspect-[4/3]" : "aspect-[4/3]";
+  if (!listing.imageUrl && listing.externalJob?.logoUrl) {
+    return <LogoPhoto listing={listing} logoUrl={listing.externalJob.logoUrl} ratio={ratio} />;
+  }
   if (!listing.imageUrl) {
-    return (
-      <div
-        className={`relative flex ${ratio} items-center justify-center overflow-hidden bg-gradient-to-br from-secondary via-card to-accent/25 text-muted-foreground`}
-      >
-        <span className="absolute -right-6 -top-8 h-28 w-28 rounded-full bg-primary/5" />
-        <span className="absolute -bottom-10 -left-5 h-28 w-28 rounded-full bg-brand-warm/10" />
-        {listing.isFeatured ? (
-          <span className="absolute left-2 top-2 z-10">
-            <FeaturedBadge />
-          </span>
-        ) : null}
-        <span className="relative grid h-14 w-14 place-items-center rounded-2xl bg-card/75 text-primary shadow-sm backdrop-blur">
-          <CategoryArtwork slug={listing.categorySlug ?? "general"} size={84} />
-        </span>
-      </div>
-    );
+    return <PlaceholderPhoto listing={listing} ratio={ratio} />;
   }
   return (
     <div className={`relative ${ratio} overflow-hidden bg-secondary`}>
@@ -179,15 +359,13 @@ function Facts({ listing }: { listing: ClassifiedCard }) {
 function Price({ listing }: { listing: ClassifiedCard }) {
   return (
     <>
-      {listing.externalJob
-        ? "See pay details"
-        : listing.job
-          ? formatJobPay(listing.job)
-          : (listing.service?.pricing ??
-            formatClassifiedPrice(listing.priceCents, {
-              wholeDollars: Boolean(listing.vehicle || listing.home),
-              monthly: listing.home?.mode === "rent",
-            }))}
+      {listing.job
+        ? formatJobPay(listing.job)
+        : (listing.service?.pricing ??
+          formatClassifiedPrice(listing.priceCents, {
+            wholeDollars: Boolean(listing.vehicle || listing.home),
+            monthly: listing.home?.mode === "rent",
+          }))}
     </>
   );
 }
@@ -226,16 +404,20 @@ export function ListingCard({
           <span className="absolute left-2 top-2 z-10 inline-flex rounded-full bg-foreground px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-background shadow-sm">
             Sold
           </span>
-        ) : !listing.externalJob ? (
+        ) : (
           <div className="absolute right-2 top-2 z-10">
-            <WatchHeartButton
-              productId={listing.productId}
-              productSlug={listing.productSlug}
-              productName={listing.title}
-              isDemo={listing.isMock === true}
-            />
+            {listing.externalJob ? (
+              <PartnerJobHeartButton listingId={listing.id} title={listing.title} />
+            ) : (
+              <WatchHeartButton
+                productId={listing.productId}
+                productSlug={listing.productSlug}
+                productName={listing.title}
+                isDemo={listing.isMock === true}
+              />
+            )}
           </div>
-        ) : null}
+        )}
       </div>
       <ListingLink listing={listing} className="block px-3.5 pb-4 pt-3.5">
         <p className="numeric text-[17px] font-bold leading-none text-foreground">
@@ -262,7 +444,6 @@ export function ListingCard({
           <span className="shrink-0">{postedAge(soldAt ?? listing.createdAt)}</span>
         </div>
       </ListingLink>
-      <Attribution listing={listing} />
     </article>
   );
 }
@@ -313,7 +494,6 @@ export function ListingRow({ listing }: { listing: ClassifiedCard }) {
           <p className="mt-1 text-[10.5px] text-muted-foreground">{postedAge(listing.createdAt)}</p>
         </div>
       </ListingLink>
-      <Attribution listing={listing} />
     </article>
   );
 }

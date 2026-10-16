@@ -38,7 +38,13 @@ import {
 import { fieldsForClassifiedItem, industrialSubcategories } from "@/config/classified-item-fields";
 import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { AllCategoriesPopover } from "@/components/classifieds/AllCategoriesPopover";
-import { ListingCard, ListingRow } from "@/components/classifieds/ListingCard";
+import {
+  ListingCard,
+  ListingRow,
+  LogoDevCredit,
+  PartnerJobsCredit,
+  PartnerHomesCredit,
+} from "@/components/classifieds/ListingCard";
 import {
   LocationRadiusPicker,
   type LocationPoint,
@@ -2181,12 +2187,18 @@ function Browse() {
             action="Browse all jobs"
             browseSearch={{ category: "jobs", jobMode: "results" }}
             listings={result.listings}
+            compact
           />
           <HomepageShowcaseRows
             eyebrow="Bluebird Marketplace Jobs"
             rows={jobsShowcaseRows}
             jobSearch={search}
           />
+          {/* Partner job credits live on each job's own page; logo.dev's
+              free plan asks for one visible link where its logos show. */}
+          <p className="mt-12 text-center">
+            <LogoDevCredit />
+          </p>
         </>
       )}
 
@@ -3173,16 +3185,18 @@ function LandingListingsShowcase({
   action,
   browseSearch,
   listings,
+  compact,
 }: {
   eyebrow: string;
   title: string;
   action: string;
   browseSearch: Search;
   listings: ClassifiedBrowseResult["listings"];
+  compact?: boolean;
 }) {
   // This showcase is a single curated row. Keep it to the desktop row width
   // so a short second row can never appear beneath it.
-  const visibleListings = listings.slice(0, 4);
+  const visibleListings = listings.slice(0, compact ? 5 : 4);
 
   return (
     <section
@@ -3210,9 +3224,19 @@ function LandingListingsShowcase({
       </div>
 
       {visibleListings.length > 0 ? (
-        <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {visibleListings.map((listing) => (
-            <li key={listing.id} className="min-w-0">
+        <ul
+          className={
+            compact
+              ? "grid grid-cols-2 gap-3 lg:grid-cols-5"
+              : "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+          }
+        >
+          {visibleListings.map((listing, index) => (
+            // Compact rows show four (2 × 2) below desktop, five across on it.
+            <li
+              key={listing.id}
+              className={`min-w-0 ${compact && index === 4 ? "hidden lg:block" : ""}`}
+            >
               <ListingCard listing={listing} />
             </li>
           ))}
@@ -3247,18 +3271,21 @@ function JobShowcaseCards({ row, search }: { row: HomepagePreviewRow; search: Se
     staleTime: 60_000,
   });
   return (
-    <div ref={container} className="min-h-32">
+<div ref={container} className="min-h-32">
       {query.isPending ? (
         <p className="py-8 text-sm text-muted-foreground">Loading jobs…</p>
       ) : !query.data?.listings.length ? (
         <CategoryGettingStarted />
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {query.data.listings.slice(0, 4).map((listing) => (
-            <ListingCard key={listing.id} listing={listing} />
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+          {query.data.listings.slice(0, 5).map((listing, index) => (
+            <div key={listing.id} className={index === 4 ? "hidden min-w-0 lg:block" : "min-w-0"}>
+              <ListingCard listing={listing} />
+            </div>
           ))}
         </div>
       )}
+    </div>
     </div>
   );
 }
@@ -4140,150 +4167,182 @@ function JobsLandingHero({
   const [mode, setMode] = useState<"search" | "post">("search");
   const [draft, setDraft] = useState(search.q ?? "");
   const [category, setCategory] = useState(search.jobCategory ?? "");
-  const [jobType, setJobType] = useState(
-    normalizeMultiSelect(search.jobType ?? search.jobEmploymentType),
-  );
+  const [location, setLocation] = useState(search.city ?? search.postalCode ?? "");
   const [payType, setPayType] = useState(search.jobPayType ?? "");
 
   useEffect(() => {
     setDraft(search.q ?? "");
     setCategory(search.jobCategory ?? "");
-    setJobType(normalizeMultiSelect(search.jobType ?? search.jobEmploymentType));
+    setLocation(search.city ?? search.postalCode ?? "");
     setPayType(search.jobPayType ?? "");
-  }, [search.q, search.jobCategory, search.jobType, search.jobEmploymentType, search.jobPayType]);
+  }, [search.q, search.jobCategory, search.city, search.postalCode, search.jobPayType]);
+
+  // A city searches within 25 miles of it; a ZIP code matches that ZIP.
+  const locationPatch = (): Partial<Search> => {
+    const place = location.trim();
+    if (!place) return { city: undefined, postalCode: undefined, radiusMiles: undefined };
+    if (/^\d{5}$/.test(place))
+      return { postalCode: place, city: undefined, radiusMiles: undefined };
+    return { city: place, postalCode: undefined, radiusMiles: search.radiusMiles ?? 25 };
+  };
 
   return (
     <section
       aria-label="Bluebird Marketplace Jobs"
-      className="relative isolate min-h-[590px] overflow-hidden rounded-[32px] bg-primary bg-cover bg-center shadow-xl sm:min-h-[670px]"
+      className="relative isolate overflow-hidden rounded-[32px] bg-primary bg-cover bg-center shadow-xl"
       style={{
         backgroundImage:
           "linear-gradient(90deg, rgb(11 26 38 / 78%), rgb(11 26 38 / 42%) 55%, rgb(11 26 38 / 18%)), url(https://images.unsplash.com/photo-1521737604893-d14cc237f11d?auto=format&fit=crop&w=2200&q=85)",
       }}
     >
       <div className="absolute inset-0 bg-gradient-to-t from-primary/60 via-transparent to-primary/10" />
-      <div className="absolute right-5 top-5 z-20 sm:right-7 sm:top-7">
-        <SponsoredHeroBadge />
-      </div>
-      <div className="relative flex min-h-[590px] items-center justify-center px-4 pb-12 pt-24 sm:min-h-[670px] sm:px-8 sm:pb-12 sm:pt-16">
-        <div className="w-full max-w-[720px] rounded-[28px] border border-white/20 bg-primary/80 p-5 text-primary-foreground shadow-2xl backdrop-blur-md sm:p-8">
-          <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">
-            Bluebird Marketplace Jobs
-          </p>
-          <h1 className="mt-3 text-center font-display text-[34px] font-bold leading-[1.05] tracking-tight sm:text-[54px]">
-            Find <span className="text-accent">local</span> work that fits your life.
-          </h1>
-          <p className="mx-auto mt-4 max-w-[46ch] text-center text-[14px] leading-relaxed text-white/80 sm:text-[15px]">
-            Search jobs from local employers across Idaho and surrounding states — or post your next
-            opportunity.
-          </p>
+      {/* The badge gets its own row above the card, so the two never overlap. */}
+      <div className="relative flex min-h-[480px] flex-col px-4 pb-8 pt-4 sm:min-h-[520px] sm:px-8 sm:pb-10 sm:pt-6">
+        <div className="relative z-20 flex justify-end">
+          <SponsoredHeroBadge />
+        </div>
+        <div className="flex flex-1 items-center justify-center pt-4">
+          <div className="w-full max-w-[640px] rounded-[24px] border border-white/20 bg-primary/80 p-5 text-primary-foreground shadow-2xl backdrop-blur-md sm:p-7">
+            <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">
+              Bluebird Marketplace Jobs
+            </p>
+            <h1 className="mt-2 text-center font-display text-[30px] font-bold leading-[1.05] tracking-tight sm:text-[44px]">
+              Find <span className="text-accent">local</span> work that fits your life.
+            </h1>
+            <p className="mx-auto mt-3 max-w-[46ch] text-center text-[13.5px] leading-relaxed text-white/80 sm:text-[14.5px]">
+              Search jobs from local employers across Idaho and surrounding states — or post your
+              next opportunity.
+            </p>
 
-          <div className="mt-7 grid grid-cols-2 rounded-2xl bg-white/10 p-1.5 ring-1 ring-white/20">
-            <button
-              type="button"
-              aria-pressed={mode === "search"}
-              onClick={() => setMode("search")}
-              className={`rounded-xl px-2 py-3 text-[13px] font-bold transition-colors sm:text-[15px] ${mode === "search" ? "bg-accent text-accent-foreground shadow-sm" : "text-white/85 hover:bg-white/10"}`}
-            >
-              Search Jobs
-            </button>
-            <button
-              type="button"
-              aria-pressed={mode === "post"}
-              onClick={() => setMode("post")}
-              className={`rounded-xl px-2 py-3 text-[13px] font-bold transition-colors sm:text-[15px] ${mode === "post" ? "bg-accent text-accent-foreground shadow-sm" : "text-white/85 hover:bg-white/10"}`}
-            >
-              Post a Job
-            </button>
-          </div>
-
-          {mode === "search" ? (
-            <>
-              <form
-                className="mt-3 flex flex-col gap-2 rounded-2xl bg-card p-2 text-foreground"
-                onSubmit={(event) => {
-                  event.preventDefault();
-                  onSearch({
-                    q: draft.trim() || undefined,
-                    jobCategory: category || undefined,
-                    jobType: jobType && !jobType.startsWith("Any ") ? jobType : undefined,
-                    jobPayType: payType && !payType.startsWith("Any ") ? payType : undefined,
-                  });
-                }}
-              >
-                <label className="flex min-w-0 items-center gap-2 px-3">
-                  <MagnifyingGlass size={19} className="shrink-0 text-primary" aria-hidden="true" />
-                  <span className="sr-only">Search jobs</span>
-                  <input
-                    type="search"
-                    value={draft}
-                    onChange={(event) => setDraft(event.target.value)}
-                    placeholder="What job are you looking for?"
-                    aria-label="Search jobs"
-                    className="h-12 min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground"
-                  />
-                  <button
-                    type="submit"
-                    className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-[13px] font-bold text-primary-foreground hover:opacity-90"
-                  >
-                    Search
-                  </button>
-                </label>
-              </form>
-              <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                <JobSelect
-                  label="Category"
-                  options={jobCategoryOptions}
-                  value={category}
-                  onChange={setCategory}
-                />
-                <JobChecklist
-                  label="Job type"
-                  options={jobTypeOptions}
-                  value={jobType}
-                  onChange={setJobType}
-                />
-                <JobSelect
-                  label="Job pay range"
-                  options={jobPayTypeOptions}
-                  value={payType}
-                  onChange={setPayType}
-                />
-              </div>
-              <div className="mt-5 flex flex-wrap items-center justify-between gap-3 text-[12px]">
-                <span className="text-white/70">
-                  {resultCount.toLocaleString()} local jobs to explore
-                </span>
-                <button
-                  type="button"
-                  onClick={() =>
-                    onMoreFilters({
-                      jobCategory: category || undefined,
-                      jobType: jobType && !jobType.startsWith("Any ") ? jobType : undefined,
-                      jobPayType: payType && !payType.startsWith("Any ") ? payType : undefined,
-                    })
-                  }
-                  className="inline-flex items-center gap-1.5 rounded-full border border-accent/70 px-4 py-2 font-bold text-accent transition-colors hover:bg-accent hover:text-accent-foreground"
-                >
-                  More filters <ArrowRight size={14} aria-hidden="true" />
-                </button>
-              </div>
-            </>
-          ) : (
-            <div className="mt-3 rounded-2xl bg-card p-6 text-center text-foreground sm:p-8">
-              <p className="text-[18px] font-bold">Have a great opportunity?</p>
-              <p className="mx-auto mt-2 max-w-[40ch] text-[13px] leading-relaxed text-muted-foreground">
-                Reach local candidates and share the details that make your team worth joining.
-              </p>
+            <div className="mt-5 grid grid-cols-2 rounded-2xl bg-white/10 p-1.5 ring-1 ring-white/20">
               <button
                 type="button"
-                onClick={onPost}
-                className="mt-5 inline-flex h-12 items-center justify-center rounded-xl bg-primary px-6 text-[13px] font-bold text-primary-foreground hover:opacity-90"
+                aria-pressed={mode === "search"}
+                onClick={() => setMode("search")}
+                className={`rounded-xl px-2 py-2.5 text-[13px] font-bold transition-colors sm:text-[14px] ${mode === "search" ? "bg-accent text-accent-foreground shadow-sm" : "text-white/85 hover:bg-white/10"}`}
               >
-                Post a Job Listing
+                Search Jobs
+              </button>
+              <button
+                type="button"
+                aria-pressed={mode === "post"}
+                onClick={() => setMode("post")}
+                className={`rounded-xl px-2 py-2.5 text-[13px] font-bold transition-colors sm:text-[14px] ${mode === "post" ? "bg-accent text-accent-foreground shadow-sm" : "text-white/85 hover:bg-white/10"}`}
+              >
+                Post a Job
               </button>
             </div>
-          )}
+
+            {mode === "search" ? (
+              <>
+                <form
+                  className="mt-3 flex flex-col gap-2 rounded-2xl bg-card p-2 text-foreground"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    onSearch({
+                      q: draft.trim() || undefined,
+                      jobCategory: category || undefined,
+                      ...locationPatch(),
+                      jobPayType: payType && !payType.startsWith("Any ") ? payType : undefined,
+                    });
+                  }}
+                >
+                  <label className="flex min-w-0 items-center gap-2 px-3">
+                    <MagnifyingGlass
+                      size={19}
+                      className="shrink-0 text-primary"
+                      aria-hidden="true"
+                    />
+                    <span className="sr-only">Search jobs</span>
+                    <input
+                      type="search"
+                      value={draft}
+                      onChange={(event) => setDraft(event.target.value)}
+                      placeholder="What job are you looking for?"
+                      aria-label="Search jobs"
+                      className="h-12 min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground"
+                    />
+                    <button
+                      type="submit"
+                      className="inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-[13px] font-bold text-primary-foreground hover:opacity-90"
+                    >
+                      Search
+                    </button>
+                  </label>
+                </form>
+                <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                  <label className="relative block min-w-0">
+                    <span className="sr-only">City or ZIP code</span>
+                    <MapPin
+                      size={16}
+                      weight="fill"
+                      aria-hidden="true"
+                      className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-primary"
+                    />
+                    <input
+                      type="text"
+                      list="jobs-hero-locations"
+                      value={location}
+                      onChange={(event) => setLocation(event.target.value)}
+                      placeholder="City or ZIP code"
+                      aria-label="City or ZIP code"
+                      autoComplete="address-level2"
+                      className="h-12 w-full rounded-xl border border-input bg-card pl-9 pr-3 text-[12px] text-foreground outline-none placeholder:text-muted-foreground focus:border-primary"
+                    />
+                    <datalist id="jobs-hero-locations">
+                      {marketplaceCities.map((city) => (
+                        <option key={city} value={city} />
+                      ))}
+                    </datalist>
+                  </label>
+                  <JobSelect
+                    label="Category"
+                    options={jobCategoryOptions}
+                    value={category}
+                    onChange={setCategory}
+                  />
+                  <JobSelect
+                    label="Job pay range"
+                    options={jobPayTypeOptions}
+                    value={payType}
+                    onChange={setPayType}
+                  />
+                </div>
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-[12px]">
+                  <span className="text-white/70">
+                    {resultCount.toLocaleString()} local jobs to explore
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      onMoreFilters({
+                        jobCategory: category || undefined,
+                        ...locationPatch(),
+                        jobPayType: payType && !payType.startsWith("Any ") ? payType : undefined,
+                      })
+                    }
+                    className="inline-flex items-center gap-1.5 rounded-full border border-accent/70 px-4 py-2 font-bold text-accent transition-colors hover:bg-accent hover:text-accent-foreground"
+                  >
+                    More filters <ArrowRight size={14} aria-hidden="true" />
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="mt-3 rounded-2xl bg-card p-6 text-center text-foreground sm:p-8">
+                <p className="text-[18px] font-bold">Have a great opportunity?</p>
+                <p className="mx-auto mt-2 max-w-[40ch] text-[13px] leading-relaxed text-muted-foreground">
+                  Reach local candidates and share the details that make your team worth joining.
+                </p>
+                <button
+                  type="button"
+                  onClick={onPost}
+                  className="mt-5 inline-flex h-12 items-center justify-center rounded-xl bg-primary px-6 text-[13px] font-bold text-primary-foreground hover:opacity-90"
+                >
+                  Post a Job Listing
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </section>
@@ -4584,11 +4643,15 @@ function JobsFilterPage({
               </button>
             </BluebirdEmptyState>
           ) : (
-            <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {sortedListings.map((listing) => (
-                <ListingCard key={listing.id} listing={listing} />
-              ))}
-            </div>
+            <>
+              <div className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-4">
+                {sortedListings.map((listing) => (
+                  <ListingCard key={listing.id} listing={listing} />
+                ))}
+              </div>
+              <PartnerJobsCredit listings={sortedListings} />
+              <PartnerHomesCredit listings={sortedListings} />
+            </>
           )}
         </section>
       </div>

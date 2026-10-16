@@ -927,8 +927,10 @@ test("browse heroes surface the Bluebird sponsorship opportunity", () => {
   assert.match(browseSource, /Bluebird Marketplace Services/);
   assert.match(browseSource, /Bluebird Marketplace Jobs/);
   assert.match(browseSource, /Bluebird motors/);
-  assert.match(browseSource, /min-h-\[590px\]/);
-  assert.match(browseSource, /absolute right-5 top-5 z-20 sm:right-7 sm:top-7/);
+  // The jobs hero is compact, and its badge sits in its own row above the
+  // card so the two can't overlap.
+  assert.match(browseSource, /min-h-\[480px\] flex-col/);
+  assert.match(browseSource, /relative z-20 flex justify-end/);
   // The sponsorship badge sits in the hero's top-right corner.
   assert.match(browseSource, /absolute right-5 top-5 z-20 sm:right-10 sm:top-6/);
 });
@@ -1339,7 +1341,10 @@ test("discrete browse inputs reject decimals and lease filters match whole month
 
 test("job pay display uses one currency marker and preserves pay units", () => {
   assert.equal(displaySource.includes("value >= 1000 ? `$${Math.round(value / 1000)}k`"), true);
-  assert.equal(displaySource.includes("return payMin === payMax ? `${fmt(payMin)}/yr`"), true);
+  assert.equal(displaySource.includes("payMin === payMax ? `${fmt(payMin)}/yr`"), true);
+  // No salary at all reads "Pay not listed"; an outside estimate is marked "Est.".
+  assert.equal(displaySource.includes('if (!payMin && !payMax) return "Pay not listed";'), true);
+  assert.equal(displaySource.includes("job.payEstimated ? `Est. ${range}`"), true);
   assert.equal(displaySource.includes("return payMin === payMax ? `$$${fmt(payMin)}`"), false);
 });
 

@@ -64,7 +64,9 @@ export type ClassifiedPet = ClassifiedPetDetails;
 export type ClassifiedCard = {
   id: string;
   title: string;
-  externalJob?: { source: "Adzuna"; url: string };
+  externalJob?: { source: "Adzuna"; url: string; logoUrl?: string; employerSince?: string };
+  /** Homes from the Mashvisor feed: shown with attribution, never stored or sold here. */
+  externalHome?: { source: "Mashvisor" };
   productId: string;
   productSlug: string;
   priceCents: number;
@@ -158,7 +160,10 @@ export const reportClassifiedListing = createServerFn({ method: "POST" })
     const reason = String(input.reason ?? "").trim();
     const details = input.details == null ? null : String(input.details).trim();
     if (
-      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(listingId)
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+        listingId,
+      ) &&
+      !/^adzuna-\d{1,20}$/.test(listingId)
     ) {
       throw new Error("Listing not found.");
     }
@@ -168,6 +173,20 @@ export const reportClassifiedListing = createServerFn({ method: "POST" })
   })
   .handler(async ({ data, context }) => {
     const client = context.supabase as any;
+    if (data.listingId.startsWith("adzuna-")) {
+      const { adzunaDetail } = await import("./adzuna-listings.server");
+      if (!(await adzunaDetail(data.listingId)))
+        throw new Error("That listing is no longer available.");
+      const { error } = await client.from("partner_job_reports").insert({
+        listing_id: data.listingId,
+        reporter_id: context.userId,
+        reason: data.reason,
+        details: data.details,
+      });
+      if (error?.code === "23505") return { alreadyReported: true as const };
+      if (error) throw new Error(error.message);
+      return { alreadyReported: false as const };
+    }
     const { data: listing, error: listingError } = await client
       .from("asks")
       .select("id")
@@ -201,6 +220,8 @@ export type AdminClassifiedReport = {
   resolvedAt: string | null;
 };
 
+const PARTNER_REPORT_PREFIX = "partner:";
+
 export const getAdminClassifiedReports = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<{ isAdmin: boolean; reports: AdminClassifiedReport[] }> => {
@@ -217,17 +238,28 @@ export const getAdminClassifiedReports = createServerFn({ method: "GET" })
       .in("status", ["open", "under_review"])
       .order("created_at", { ascending: false });
     if (error) throw new Error(error.message);
+    // Partner (Adzuna) job reports share the queue; their ids carry a prefix
+    // so resolving one goes to the right table.
+    const { data: partner } = await client
+      .from("partner_job_reports")
+      .select("id,listing_id,reason,details,status,created_at")
+      .in("status", ["open", "under_review"])
+      .order("created_at", { ascending: false });
+    const toReport = (row: any, idPrefix: string): AdminClassifiedReport => ({
+      id: `${idPrefix}${row.id}`,
+      listingId: row.listing_id,
+      reason: row.reason,
+      details: row.details ?? null,
+      status: row.status,
+      createdAt: row.created_at,
+      resolvedAt: row.resolved_at ?? null,
+    });
     return {
       isAdmin: true,
-      reports: (data ?? []).map((row: any) => ({
-        id: row.id,
-        listingId: row.listing_id,
-        reason: row.reason,
-        details: row.details ?? null,
-        status: row.status,
-        createdAt: row.created_at,
-        resolvedAt: row.resolved_at ?? null,
-      })),
+      reports: [
+        ...(data ?? []).map((row: any) => toReport(row, "")),
+        ...(partner ?? []).map((row: any) => toReport(row, PARTNER_REPORT_PREFIX)),
+      ].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     };
   });
 
@@ -247,6 +279,22 @@ export const resolveAdminClassifiedReport = createServerFn({ method: "POST" })
     },
   )
   .handler(async ({ data, context }) => {
+    if (data.reportId.startsWith(PARTNER_REPORT_PREFIX)) {
+      // RLS limits these updates to admins.
+      const resolved = data.action !== "assign";
+      const { data: updated, error } = await (context.supabase as any)
+        .from("partner_job_reports")
+        .update({
+          status: resolved ? data.action : "under_review",
+          resolved_at: resolved ? new Date().toISOString() : null,
+          resolved_by: resolved ? context.userId : null,
+        })
+        .eq("id", data.reportId.slice(PARTNER_REPORT_PREFIX.length))
+        .select("id");
+      if (error) throw new Error(error.message);
+      if (!updated?.length) throw new Error("Listing report not found");
+      return { ok: true as const };
+    }
     const { error } = await (context.supabase as any).rpc(
       "admin_update_classified_listing_report",
       {
@@ -1929,6 +1977,13 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
           (listing) => !data.region || regionOfListing(listing) === data.region,
         )
       : [];
+    const { canIncludeMashvisor, mashvisorCards } = await import("./mashvisor-listings.server");
+    const includeMashvisor = canIncludeMashvisor(data);
+    const externalHomes = includeMashvisor
+      ? (await mashvisorCards(data)).filter(
+          (listing) => !data.region || regionOfListing(listing) === data.region,
+        )
+      : [];
     const from = (page - 1) * PAGE_SIZE;
     // Pay units are deliberately normalized in `comparableJobPay` (hourly
     // annualized, salary/commission/contract kept in their stated units).
@@ -1939,7 +1994,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     const unitAwareJobSort =
       data.category === "jobs" && (data.sort === "price_low" || data.sort === "price_high");
     const resultRange =
-      includeAdzuna || unitAwareJobSort || data.radiusMiles != null || data.region
+      includeAdzuna || includeMashvisor || unitAwareJobSort || data.radiusMiles != null || data.region
         ? { from: 0, to: Math.max(4_999, from + PAGE_SIZE - 1) }
         : { from, to: from + PAGE_SIZE - 1 };
     const {
@@ -2020,6 +2075,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
       ...listings.filter((listing) => !listing.isFeatured),
       ...mockListings,
       ...externalJobs,
+      ...externalHomes,
     ].sort(compareListings);
     const resultLimit =
       data.includeAllMocks && SHOW_PUBLIC_PREVIEW_FIXTURES
@@ -2027,7 +2083,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
         : PAGE_SIZE;
     const orderedListings = [...featuredListings, ...standardListings];
     const pageListings =
-      includeAdzuna || unitAwareJobSort || data.radiusMiles != null || data.region
+      includeAdzuna || includeMashvisor || unitAwareJobSort || data.radiusMiles != null || data.region
         ? orderedListings.slice(from, from + resultLimit)
         : orderedListings.slice(0, resultLimit);
     const urlByPath = await signListingThumbnails(
@@ -2041,7 +2097,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
       return cover ? { ...listing, imageUrl: urlByPath.get(cover) ?? null } : listing;
     });
     const nativePageIds = combinedListings
-      .filter((listing) => !listing.externalJob)
+      .filter((listing) => !listing.externalJob && !listing.externalHome)
       .map((listing) => listing.id);
     if (nativePageIds.length > 0) {
       void import("@/integrations/supabase/client.server")
@@ -2057,7 +2113,8 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
       total:
         (data.radiusMiles != null || data.region ? listings.length : (count ?? listings.length)) +
         mockListings.length +
-        externalJobs.length,
+        externalJobs.length +
+        externalHomes.length,
       page,
       pageSize: PAGE_SIZE,
     };
@@ -2067,6 +2124,15 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
 export const getClassifiedListing = createServerFn({ method: "GET" })
   .validator((input: { id: string }) => ({ id: String(input.id).slice(0, 64) }))
   .handler(async ({ data }): Promise<ClassifiedDetail | null> => {
+    // Partner jobs (Adzuna) open on the same job page design as Bluebird jobs.
+    if (data.id.startsWith("adzuna-")) {
+      const { adzunaDetail } = await import("./adzuna-listings.server");
+      return adzunaDetail(data.id);
+    }
+    if (data.id.startsWith("mashvisor-")) {
+      const { mashvisorDetail } = await import("./mashvisor-listings.server");
+      return mashvisorDetail(data.id);
+    }
     const mockListing = [...mockClassifiedListings, ...mockVehicleListings].find(
       (listing) => listing.id === data.id,
     );
