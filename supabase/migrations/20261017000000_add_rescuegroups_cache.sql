@@ -1,6 +1,5 @@
 -- RescueGroups.org adoptable pets: a service-role-only cache and request log,
 -- the same shape as the other partner feeds (MarketCheck, OpenWeb Ninja).
--- NOT YET APPLIED -- see docs/rescuegroups-handoff.md.
 create table if not exists public.rescuegroups_cache (
   cache_key text primary key,
   payload jsonb not null,

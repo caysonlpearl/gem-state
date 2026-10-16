@@ -13,13 +13,22 @@ time** from a cache. They are never written as marketplace listings.
   `tests/rescuegroups-contract.test.mjs`.
 - `supabase/migrations/20261017000000_add_rescuegroups_cache.sql`: cache
   table, request log, `reserve_rescuegroups_call` budget function, and
-  `rescuegroups-` added to `listing_view_counts`. **Not applied yet.**
+  `rescuegroups-` added to `listing_view_counts`. **Applied in production
+  on 2026-10-16.**
+- `src/lib/rescuegroups.server.ts`: cached feed (4 search centers, 100
+  miles, up to 3 pages of 100, refreshed every 12h, stale on failure, crawlers
+  never trigger calls), `rescueGroupsCards`, `rescueGroupsCard` (maps into the
+  existing `pet` fields with placement "adoption"), `rescueGroupsDetail`.
+- Wired: `runBrowseClassifieds` merges `externalPets` for the pets category
+  and all-items; `getClassifiedListing` routes `rescuegroups-` ids;
+  `ClassifiedCard.externalPet`; "Adopt" button in `ListingActions` and
+  `MobileContactBar` (opens the rescue's adoption page).
 
 ## Owner steps (not for an agent)
 - Add `RESCUEGROUPS_API_KEY` to the live site's secrets and to local `.env`.
   Agents never enter keys into web forms.
 
-## Remaining work, in order
+## Remaining work, in order (steps 2-4 are done; start at 1 and 5)
 1. **Verify the API against a real response** with the local key
    (`curl -X POST 'https://api.rescuegroups.org/v5/public/animals/search/available/?include=pictures,orgs,species&limit=5' -H "Authorization: $RESCUEGROUPS_API_KEY" -H 'Content-Type: application/vnd.api+json' -d '{"data":{"filterRadius":{"miles":150,"postalcode":"83702"}}}'`).
    Fix the normalizer's field names if any differ (picture `large.url`,

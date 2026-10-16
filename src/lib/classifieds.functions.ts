@@ -95,6 +95,14 @@ export type ClassifiedCard = {
   };
   /** Provider vehicles are merged into the ordinary motors result set. */
   externalVehicle?: MarketCheckListing;
+  /** Adoptable pets from RescueGroups.org; "Adopt" opens the rescue's page. */
+  externalPet?: {
+    sourceUrl: string | null;
+    orgName: string | null;
+    orgPhone: string | null;
+    orgEmail: string | null;
+    size: string | null;
+  };
   productId: string;
   productSlug: string;
   priceCents: number;
@@ -2074,6 +2082,14 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     const { canIncludeMarketCheck, marketCheckCards } = await import("./marketcheck.server");
     const includeMarketCheck = canIncludeMarketCheck(data);
     const externalVehicles = includeMarketCheck ? await marketCheckCards(data) : [];
+    const { canIncludeRescueGroups, rescueGroupsCards, rescueGroupsConfigured } =
+      await import("./rescuegroups.server");
+    const includeRescueGroups = canIncludeRescueGroups(data) && rescueGroupsConfigured();
+    const externalPets = includeRescueGroups
+      ? (await rescueGroupsCards(data)).filter(
+          (listing) => !data.region || regionOfListing(listing) === data.region,
+        )
+      : [];
     const includeExternalHomes = includeMashvisor || includeOpenWebNinja;
     const { canIncludeDirectory } = await import("./service-directory-contract");
     // Local businesses from the services directory follow members' service
@@ -2092,6 +2108,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
       includeAdzuna ||
       includeExternalHomes ||
       includeMarketCheck ||
+      includeRescueGroups ||
       includeDirectory ||
       unitAwareJobSort ||
       data.radiusMiles != null ||
@@ -2182,6 +2199,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
       ...externalJobs,
       ...externalHomes,
       ...externalVehicles,
+      ...externalPets,
     ].sort(compareListings);
     const resultLimit =
       data.includeAllMocks && SHOW_PUBLIC_PREVIEW_FIXTURES
@@ -2192,6 +2210,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
       includeAdzuna ||
       includeExternalHomes ||
       includeMarketCheck ||
+      includeRescueGroups ||
       includeDirectory ||
       unitAwareJobSort ||
       data.radiusMiles != null ||
@@ -2244,6 +2263,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
         externalJobs.length +
         externalHomes.length +
         externalVehicles.length +
+        externalPets.length +
         directory.total,
       page,
       pageSize: PAGE_SIZE,
@@ -2271,6 +2291,10 @@ export const getClassifiedListing = createServerFn({ method: "GET" })
     if (data.id.startsWith("openwebninja-")) {
       const { openWebNinjaDetail } = await import("./openwebninja-listings.server");
       return openWebNinjaDetail(data.id);
+    }
+    if (data.id.startsWith("rescuegroups-")) {
+      const { rescueGroupsDetail } = await import("./rescuegroups.server");
+      return rescueGroupsDetail(data.id);
     }
     if (data.id.startsWith("marketcheck-")) {
       const { marketCheckDetail } = await import("./marketcheck.server");

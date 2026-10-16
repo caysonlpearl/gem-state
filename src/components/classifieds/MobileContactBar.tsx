@@ -30,6 +30,7 @@ export function MobileContactBar({ listing }: { listing: ClassifiedDetail }) {
       : (listing.externalHome?.sourceUrl ??
         listing.externalVehicle?.sourceUrl ??
         listing.originalListing?.url ??
+        listing.externalPet?.sourceUrl ??
         null);
   const messagesEnabled = Boolean(seller) && seller?.allowInternalMessages !== false;
   const directoryPhone = listing.directory?.phone ?? null;
@@ -112,11 +113,13 @@ export function MobileContactBar({ listing }: { listing: ClassifiedDetail }) {
               ? "Apply"
               : listing.home?.mode === "rent"
                 ? "Request a tour"
-                : listing.originalListing
-                  ? "Message"
-                  : listing.externalVehicle
-                  ? "Contact seller"
-                  : "Contact agent"}
+                : listing.externalPet
+                  ? "Adopt"
+                  : listing.originalListing
+                    ? "Message"
+                    : listing.externalVehicle
+                      ? "Contact seller"
+                      : "Contact agent"}
           </a>
         ) : messagesEnabled ? (
           <button

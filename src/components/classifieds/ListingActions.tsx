@@ -120,8 +120,11 @@ function LiveListingActions({
   // Vinted and Whatnot imports are bought and discussed on the original
   // listing too.
   const originalListing = listing.originalListing ?? null;
-  const partnerVehicleUrl = listing.externalVehicle?.sourceUrl ?? originalListing?.url ?? null;
-  const isPartnerVehicle = Boolean(listing.externalVehicle || originalListing);
+  // Rescue pets are adopted through the rescue's own page.
+  const externalPet = listing.externalPet ?? null;
+  const partnerVehicleUrl =
+    listing.externalVehicle?.sourceUrl ?? originalListing?.url ?? externalPet?.sourceUrl ?? null;
+  const isPartnerVehicle = Boolean(listing.externalVehicle || originalListing || externalPet);
   const canContactHere =
     !isPreviewListing && !isOwnListing && !isExternalApply && !isPartnerVehicle;
 
@@ -254,11 +257,13 @@ function LiveListingActions({
           <Info size={15} className="mt-0.5 shrink-0 text-primary" />
           {isExternalApply
             ? "This employer accepts applications on their own site or by email."
-            : isPartnerVehicle
-              ? "Reach the seller through the original listing to confirm availability, condition and the final price."
-              : isJobApply
-                ? "Apply to let the employer know you're interested. They will reach out about next steps."
-                : "Contact the seller to confirm availability, condition, pickup, shipping, and the final amount."}
+            : externalPet
+              ? `Adopt ${listing.pet?.name ?? "this pet"} through ${externalPet.orgName ?? "the rescue"}.`
+              : isPartnerVehicle
+                ? "Reach the seller through the original listing to confirm availability, condition and the final price."
+                : isJobApply
+                  ? "Apply to let the employer know you're interested. They will reach out about next steps."
+                  : "Contact the seller to confirm availability, condition, pickup, shipping, and the final amount."}
         </p>
 
         {isPreviewListing ? (
@@ -275,7 +280,7 @@ function LiveListingActions({
               onClick={() => trackSellerContact("apply_external", listing)}
               className="flex h-12 w-full items-center justify-center rounded-full bg-nav-accent text-[14.5px] font-semibold text-primary transition-opacity hover:opacity-90"
             >
-              {originalListing ? "Message seller" : "Contact seller"}
+              {externalPet ? "Adopt" : originalListing ? "Message seller" : "Contact seller"}
             </a>
           ) : null
         ) : isExternalApply && !isOwnListing ? (

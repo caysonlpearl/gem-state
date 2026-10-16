@@ -45,11 +45,18 @@ type Resource = {
   type?: string;
   id?: string | number;
   attributes?: Record<string, unknown>;
-  relationships?: Record<string, { data?: { type?: string; id?: string | number }[] | { type?: string; id?: string | number } | null }>;
+  relationships?: Record<
+    string,
+    {
+      data?:
+        { type?: string; id?: string | number }[] | { type?: string; id?: string | number } | null;
+    }
+  >;
 };
 
 const text = (value: unknown) => {
-  const result = typeof value === "string" ? value.trim() : typeof value === "number" ? String(value) : "";
+  const result =
+    typeof value === "string" ? value.trim() : typeof value === "number" ? String(value) : "";
   return result || null;
 };
 
