@@ -10,10 +10,10 @@ import {
 
 // OpenWeb Ninja's free plan allows 100 calls/month. The database reservation
 // function keeps a ten-call buffer for manual testing and transient retries.
-const CACHE_MS = 30 * 24 * 60 * 60 * 1000;
+export const CACHE_MS = 30 * 24 * 60 * 60 * 1000;
 const API_BASE = "https://api.openwebninja.com/realtime-zillow-data";
 
-function cacheDb() {
+export function cacheDb() {
   const dbUrl = serverEnv("GEM_STATE_SUPABASE_URL") || serverEnv("SUPABASE_URL");
   const dbKey =
     serverEnv("GEM_STATE_SUPABASE_SERVICE_ROLE_KEY") || serverEnv("SUPABASE_SERVICE_ROLE_KEY");
@@ -36,8 +36,9 @@ async function cachedCall<T>(
   key: string,
   path: string,
   normalize: (json: unknown) => T,
-  options?: { forceRefresh?: boolean },
+  options?: { forceRefresh?: boolean; ttlMs?: number },
 ): Promise<{ ok: true; value: T } | { ok: false; status: "unavailable" | "limited" }> {
+  const ttlMs = options?.ttlMs ?? CACHE_MS;
   const apiKey = serverEnv("OPENWEBNINJA_API_KEY");
   const db = cacheDb();
   if (!apiKey || !db) return { ok: false, status: "unavailable" };
@@ -68,9 +69,16 @@ async function cachedCall<T>(
         .eq("cache_key", key)
         .maybeSingle();
       if (stale) return { ok: true, value: stale.payload as T };
-      return previousPayload
-        ? { ok: true, value: previousPayload }
-        : { ok: false, status: "limited" };
+      if (previousPayload) {
+        // A forced refresh removed the saved copy; put it back unchanged.
+        await db.from("openwebninja_cache").upsert({
+          cache_key: key,
+          payload: previousPayload,
+          expires_at: new Date(Date.now() + ttlMs).toISOString(),
+        });
+        return { ok: true, value: previousPayload };
+      }
+      return { ok: false, status: "limited" };
     }
     const response = await fetch(`${API_BASE}/${path}`, {
       headers: { Accept: "application/json", "x-api-key": apiKey },
@@ -81,7 +89,7 @@ async function cachedCall<T>(
         await db.from("openwebninja_cache").upsert({
           cache_key: key,
           payload: previousPayload,
-          expires_at: new Date(Date.now() + CACHE_MS).toISOString(),
+          expires_at: new Date(Date.now() + ttlMs).toISOString(),
         });
         return { ok: true, value: previousPayload };
       }
@@ -91,7 +99,7 @@ async function cachedCall<T>(
     await db.from("openwebninja_cache").upsert({
       cache_key: key,
       payload: value,
-      expires_at: new Date(Date.now() + CACHE_MS).toISOString(),
+      expires_at: new Date(Date.now() + ttlMs).toISOString(),
     });
     return { ok: true, value };
   } catch {
@@ -133,7 +141,7 @@ export async function searchHomesArea(
   mode: OpenWebNinjaMode,
   options?: { forceRefresh?: boolean },
 ) {
-  const key = JSON.stringify({ v: 1, kind: "area-search", state, area: area.key, mode });
+  const key = areaSearchKey(state, area.key, mode);
   const params = new URLSearchParams({
     lat: String(area.latitude),
     long: String(area.longitude),
@@ -151,9 +159,19 @@ export async function searchHomesArea(
   return result.ok ? result.value : { status: result.status, homes: [] };
 }
 
+/** Full details are fetched once per home and kept for a year; the weekly
+ * list refresh is what keeps price and availability current. */
+const DETAIL_TTL_MS = 365 * 24 * 60 * 60 * 1000;
+
+export const areaSearchKey = (state: string, area: string, mode: OpenWebNinjaMode) =>
+  JSON.stringify({ v: 1, kind: "area-search", state, area, mode });
+
+export const propertyKey = (id: string) => JSON.stringify({ v: 3, kind: "property", id });
+
 export async function propertyDetails(
   id: string,
   sourceUrl?: string | null,
+  options?: { cacheOnly?: boolean },
 ): Promise<
   { ok: true; value: OpenWebNinjaPropertyExtra } | { ok: false; status: "unavailable" | "limited" }
 > {
@@ -161,7 +179,7 @@ export async function propertyDetails(
   // normalized. The provider's zpid lookup is the most reliable detail path
   // for both sale and rental records; keep sourceUrl for the caller contract.
   void sourceUrl;
-  const key = JSON.stringify({ v: 3, kind: "property", id });
+  const key = propertyKey(id);
   const params = new URLSearchParams({ zpid: id });
   // Details fetched before the v3 key were paid for and are still good;
   // use them instead of spending another call (or showing nothing when the
@@ -178,10 +196,14 @@ export async function propertyDetails(
       ]);
     const current = (rows ?? []).find((row: { cache_key: string }) => row.cache_key === key);
     const legacy = (rows ?? []).find((row: { cache_key: string }) => row.cache_key !== key);
-    if (!current && legacy?.payload)
-      return { ok: true, value: legacy.payload as OpenWebNinjaPropertyExtra };
+    const saved = current?.payload ?? legacy?.payload;
+    if (saved) return { ok: true, value: saved as OpenWebNinjaPropertyExtra };
   }
-  return cachedCall(key, `property-details?${params.toString()}`, normalizeOpenWebNinjaProperty);
+  // Visitors never spend calls: details come from the scheduled homes job.
+  if (options?.cacheOnly) return { ok: false, status: "limited" };
+  return cachedCall(key, `property-details?${params.toString()}`, normalizeOpenWebNinjaProperty, {
+    ttlMs: DETAIL_TTL_MS,
+  });
 }
 
 export async function cachedHome(id: string) {
@@ -190,6 +212,8 @@ export async function cachedHome(id: string) {
   const { data } = await db
     .from("openwebninja_cache")
     .select("cache_key,payload")
+    // Only the home lists; saved details (kept a year) would crowd them out.
+    .like("cache_key", '%search"%')
     .order("expires_at", { ascending: false })
     .limit(100);
   for (const row of data ?? []) {

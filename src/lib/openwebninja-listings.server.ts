@@ -130,7 +130,9 @@ export async function openWebNinjaCards(data: ClassifiedBrowseInput): Promise<Cl
       areas.map((area) => searchHomesArea("ID", area, modeFor(data))),
     );
     const homes = Array.from(
-      new Map(responses.flatMap((response) => response.homes).map((home) => [home.id, home])).values(),
+      new Map(
+        responses.flatMap((response) => response.homes).map((home) => [home.id, home]),
+      ).values(),
     );
     result = { homes };
   }
@@ -155,6 +157,86 @@ export async function openWebNinjaCards(data: ClassifiedBrowseInput): Promise<Cl
         }),
     )
     .map(openWebNinjaCard);
+}
+
+/** How often each area's for-sale and rental lists are refreshed (prices,
+ * new and sold homes). Treasure Valley is weekly; the rest are monthly
+ * until other providers take those areas over. */
+const AREA_REFRESH_DAYS: Record<string, number> = { "treasure-valley": 7 };
+const DEFAULT_AREA_REFRESH_DAYS = 28;
+/** Calls per rolling day the scheduled job may use (~90 a month). */
+const DAILY_PACE = 3;
+
+/**
+ * One step of the scheduled homes job, at most one provider call: refresh
+ * an area list that is due, otherwise fetch full details for one home that
+ * doesn't have them yet. Details are fetched once per home and kept.
+ */
+export async function advanceHomeFeed() {
+  const ninja = await import("./openwebninja.server");
+  const db = ninja.cacheDb() as any;
+  if (!db || !ninja.openWebNinjaConfigured()) return { skipped: "not configured" };
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { count } = await db
+    .from("openwebninja_api_requests")
+    .select("id", { count: "exact", head: true })
+    .gte("created_at", since);
+  if ((count ?? 0) >= DAILY_PACE) return { skipped: "daily pace reached", usedToday: count };
+
+  const searchKeys = OPENWEBNINJA_AREAS.flatMap((area) =>
+    (["buy", "rent"] as const).map((mode) => ({
+      area,
+      mode,
+      key: ninja.areaSearchKey("ID", area.key, mode),
+    })),
+  );
+  const { data: searchRows } = await db
+    .from("openwebninja_cache")
+    .select("cache_key,payload,expires_at")
+    .in(
+      "cache_key",
+      searchKeys.map((entry) => entry.key),
+    );
+  const rowByKey = new Map<string, any>((searchRows ?? []).map((row: any) => [row.cache_key, row]));
+
+  // 1. The most overdue area list.
+  const due = searchKeys
+    .map((entry) => {
+      const row = rowByKey.get(entry.key);
+      const fetchedAt = row ? Date.parse(row.expires_at) - ninja.CACHE_MS : 0;
+      const days = AREA_REFRESH_DAYS[entry.area.key] ?? DEFAULT_AREA_REFRESH_DAYS;
+      return { ...entry, overdueBy: Date.now() - fetchedAt - days * 24 * 60 * 60 * 1000 };
+    })
+    .filter((entry) => entry.overdueBy > 0)
+    .sort((a, b) => b.overdueBy - a.overdueBy)[0];
+  if (due) {
+    const result = await searchHomesArea("ID", due.area, due.mode, { forceRefresh: true });
+    return { refreshed: `${due.area.key} ${due.mode}`, homes: result.homes.length };
+  }
+
+  // 2. One home without full details, newest first, alternating sale/rent.
+  const homes = searchKeys.flatMap(
+    (entry) => (rowByKey.get(entry.key)?.payload?.homes ?? []) as { id: string }[],
+  );
+  const ids = [...new Set(homes.map((home) => home.id))];
+  const detailKeys = (id: string) => [
+    ninja.propertyKey(id),
+    JSON.stringify({ v: 2, kind: "property", id }),
+    JSON.stringify({ v: 1, kind: "property", id }),
+  ];
+  const have = new Set<string>();
+  for (let start = 0; start < ids.length; start += 100) {
+    const chunk = ids.slice(start, start + 100);
+    const { data: rows } = await db
+      .from("openwebninja_cache")
+      .select("cache_key")
+      .in("cache_key", chunk.flatMap(detailKeys));
+    for (const row of rows ?? []) have.add(JSON.parse(row.cache_key).id);
+  }
+  const next = ids.find((id) => !have.has(id));
+  if (!next) return { done: true, homes: ids.length };
+  const detail = await ninja.propertyDetails(next);
+  return { detailed: next, ok: detail.ok, remaining: ids.length - have.size - 1 };
 }
 
 /** Refresh all statewide geographic feeds on the weekly provider schedule. */
@@ -182,7 +264,7 @@ export async function openWebNinjaDetail(listingId: string): Promise<ClassifiedD
   const found = await cachedHome(id);
   if (!found?.home) return null;
   const home = found.home;
-  const details = await propertyDetails(home.id, home.sourceUrl);
+  const details = await propertyDetails(home.id, home.sourceUrl, { cacheOnly: true });
   const extra = details.ok ? details.value : null;
   const card = openWebNinjaCard(home);
   // Cached property payloads may predate the provider-variant normalizer, so
