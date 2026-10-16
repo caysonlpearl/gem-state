@@ -1578,9 +1578,9 @@ test("all categories routes to its own general classifieds landing page", () => 
   assert.match(browseSource, /Top listings/);
   assert.match(browseSource, /Newest listings/);
   assert.match(browseSource, /classifiedShowcaseRows/);
-  assert.match(browseSource, /Holiday & seasonal finds/);
+  assert.match(browseSource, /Everyday finds/);
   assert.match(browseSource, /Clothing & accessories/);
-  assert.match(browseSource, /Recently discounted/);
+  assert.match(browseSource, /Lowest prices/);
   for (const row of [
     "Furniture & home refresh",
     "Electronics & gaming",

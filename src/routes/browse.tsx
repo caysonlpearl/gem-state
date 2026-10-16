@@ -2051,6 +2051,7 @@ function Browse() {
             topListings={result.listings}
             eyebrow="Bluebird Marketplace Classifieds"
             rows={classifiedShowcaseRows}
+            baseSearch={search}
           />
         </>
       )}
@@ -2106,6 +2107,7 @@ function Browse() {
             topListings={result.listings}
             eyebrow="Bluebird Marketplace Pets"
             rows={petShowcaseRows}
+            baseSearch={search}
           />
         </>
       )}
@@ -2779,7 +2781,7 @@ const classifiedShowcaseRows: HomepagePreviewRow[] = [
     cards: [],
   },
   {
-    title: "Holiday & seasonal finds",
+    title: "Everyday finds",
     action: "Browse seasonal finds",
     href: "/browse?category=general",
     cards: [],
@@ -2791,7 +2793,7 @@ const classifiedShowcaseRows: HomepagePreviewRow[] = [
     cards: [],
   },
   {
-    title: "Recently discounted",
+    title: "Lowest prices",
     action: "See all price drops",
     href: "/browse?allCategories=true&sort=price_low",
     cards: [],
