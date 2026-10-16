@@ -233,10 +233,12 @@ function splitHeadlineIntoLines(
     }
   };
   walk(0, lineCount, 0);
-  if (!best) return null;
+  // TypeScript can't see the assignment inside the recursive walk closure.
+  const chosen = best as { max: number; cuts: number[] } | null;
+  if (!chosen) return null;
   const groups: HeadlineToken[][] = [];
   let from = 0;
-  for (const cut of [...best.cuts, count]) {
+  for (const cut of [...chosen.cuts, count]) {
     groups.push(tokens.slice(from, cut));
     from = cut;
   }
