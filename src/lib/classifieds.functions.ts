@@ -65,8 +65,8 @@ export type ClassifiedCard = {
   id: string;
   title: string;
   externalJob?: { source: "Adzuna"; url: string; logoUrl?: string; employerSince?: string };
-  /** Homes from the Mashvisor feed: shown with attribution, never stored or sold here. */
-  externalHome?: { source: "Mashvisor"; sourceUrl?: string | null };
+  /** Provider homes: shown with attribution, never stored or sold here. */
+  externalHome?: { source: "Mashvisor" | "OpenWeb Ninja"; sourceUrl?: string | null };
   productId: string;
   productSlug: string;
   priceCents: number;
@@ -1979,11 +1979,25 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
       : [];
     const { canIncludeMashvisor, mashvisorCards } = await import("./mashvisor-listings.server");
     const includeMashvisor = canIncludeMashvisor(data);
-    const externalHomes = includeMashvisor
-      ? (await mashvisorCards(data)).filter(
+    const { canIncludeOpenWebNinja, openWebNinjaCards } = await import(
+      "./openwebninja-listings.server",
+    );
+    const includeOpenWebNinja = canIncludeOpenWebNinja(data);
+    const { openWebNinjaConfigured } = await import("./openwebninja.server");
+    const openWebNinjaEnabled = includeOpenWebNinja && openWebNinjaConfigured();
+    const openWebNinjaHomes = openWebNinjaEnabled
+      ? (await openWebNinjaCards(data)).filter(
           (listing) => !data.region || regionOfListing(listing) === data.region,
         )
       : [];
+    const externalHomes = openWebNinjaEnabled
+      ? openWebNinjaHomes
+      : includeMashvisor
+        ? (await mashvisorCards(data)).filter(
+            (listing) => !data.region || regionOfListing(listing) === data.region,
+          )
+        : [];
+    const includeExternalHomes = includeMashvisor || includeOpenWebNinja;
     const from = (page - 1) * PAGE_SIZE;
     // Pay units are deliberately normalized in `comparableJobPay` (hourly
     // annualized, salary/commission/contract kept in their stated units).
@@ -1994,7 +2008,11 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     const unitAwareJobSort =
       data.category === "jobs" && (data.sort === "price_low" || data.sort === "price_high");
     const resultRange =
-      includeAdzuna || includeMashvisor || unitAwareJobSort || data.radiusMiles != null || data.region
+      includeAdzuna ||
+      includeExternalHomes ||
+      unitAwareJobSort ||
+      data.radiusMiles != null ||
+      data.region
         ? { from: 0, to: Math.max(4_999, from + PAGE_SIZE - 1) }
         : { from, to: from + PAGE_SIZE - 1 };
     const {
@@ -2083,7 +2101,11 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
         : PAGE_SIZE;
     const orderedListings = [...featuredListings, ...standardListings];
     const pageListings =
-      includeAdzuna || includeMashvisor || unitAwareJobSort || data.radiusMiles != null || data.region
+      includeAdzuna ||
+      includeExternalHomes ||
+      unitAwareJobSort ||
+      data.radiusMiles != null ||
+      data.region
         ? orderedListings.slice(from, from + resultLimit)
         : orderedListings.slice(0, resultLimit);
     const urlByPath = await signListingThumbnails(
@@ -2132,6 +2154,10 @@ export const getClassifiedListing = createServerFn({ method: "GET" })
     if (data.id.startsWith("mashvisor-")) {
       const { mashvisorDetail } = await import("./mashvisor-listings.server");
       return mashvisorDetail(data.id);
+    }
+    if (data.id.startsWith("openwebninja-")) {
+      const { openWebNinjaDetail } = await import("./openwebninja-listings.server");
+      return openWebNinjaDetail(data.id);
     }
     const mockListing = [...mockClassifiedListings, ...mockVehicleListings].find(
       (listing) => listing.id === data.id,

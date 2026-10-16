@@ -5,7 +5,7 @@ import type { ClassifiedCard } from "./classifieds.functions";
 
 const listingIdOf = (value: unknown) => {
   const id = String(value ?? "");
-  return /^mashvisor-\d{1,15}$/.test(id) ? id : "";
+  return /^(mashvisor-\d{1,15}|openwebninja-\d{1,20})$/.test(id) ? id : "";
 };
 
 export const getPartnerHomeSaved = createServerFn({ method: "GET" })
@@ -40,12 +40,18 @@ export const setPartnerHomeSaved = createServerFn({ method: "POST" })
       return { saved: false };
     }
     // Saving from a feed card should not spend a call on the detail endpoint.
-    const id = data.listingId.slice("mashvisor-".length);
-    const { cachedHome } = await import("./mashvisor.server");
-    const { mashvisorCard } = await import("./mashvisor-listings.server");
-    const cached = await cachedHome(id);
-    if (!cached?.home) throw new Error("This home is no longer listed.");
-    const snapshot = mashvisorCard(cached.home);
+    const isOpenWebNinja = data.listingId.startsWith("openwebninja-");
+    const id = data.listingId.slice(isOpenWebNinja ? "openwebninja-".length : "mashvisor-".length);
+    let snapshot: ClassifiedCard;
+    if (isOpenWebNinja) {
+      const cached = await (await import("./openwebninja.server")).cachedHome(id);
+      if (!cached?.home) throw new Error("This home is no longer listed.");
+      snapshot = (await import("./openwebninja-listings.server")).openWebNinjaCard(cached.home);
+    } else {
+      const cached = await (await import("./mashvisor.server")).cachedHome(id);
+      if (!cached?.home) throw new Error("This home is no longer listed.");
+      snapshot = (await import("./mashvisor-listings.server")).mashvisorCard(cached.home);
+    }
     const { error } = await table.upsert(
       { user_id: context.userId, listing_id: data.listingId, snapshot },
       { onConflict: "user_id,listing_id" },

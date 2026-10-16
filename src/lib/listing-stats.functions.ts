@@ -6,7 +6,7 @@ import { serverEnv } from "./runtime-env.server";
 export type ListingStats = { views: number; favorites: number };
 
 const LISTING_ID =
-  /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|adzuna-\d{1,20}|mashvisor-\d{1,15})$/;
+  /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|adzuna-\d{1,20}|mashvisor-\d{1,15}|openwebninja-\d{1,20})$/;
 const BOT = /bot|crawl|spider|slurp|preview|lighthouse|headless|monitor|curl|wget|python/i;
 
 async function sha256(text: string) {
@@ -62,7 +62,10 @@ export const recordListingView = createServerFn({ method: "POST" })
         .select("listing_id", { count: "exact", head: true })
         .eq("listing_id", data.listingId);
       favorites = count ?? 0;
-    } else if (data.listingId.startsWith("mashvisor-")) {
+    } else if (
+      data.listingId.startsWith("mashvisor-") ||
+      data.listingId.startsWith("openwebninja-")
+    ) {
       const { count } = await db
         .from("saved_partner_homes")
         .select("listing_id", { count: "exact", head: true })

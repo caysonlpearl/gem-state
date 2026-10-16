@@ -159,7 +159,7 @@ export const Route = createFileRoute("/listings/$listingId")({
   loader: async ({ context, params }) => {
     const listingId = listingIdFromParam(params.listingId);
     const listing = await context.queryClient.ensureQueryData(listingQuery(listingId));
-    if (!listing && listingId.startsWith("mashvisor-")) {
+    if (!listing && (listingId.startsWith("mashvisor-") || listingId.startsWith("openwebninja-"))) {
       // Feed homes come and go with the weekly refresh.
       throw redirect({ href: "/browse?category=other-real-estate", statusCode: 302 });
     }
@@ -758,7 +758,7 @@ function VehicleHistoryCard({ vehicle }: { vehicle: ClassifiedDetail["vehicle"] 
 }
 
 const STATS_LISTING_ID =
-  /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|adzuna-\d{1,20}|mashvisor-\d{1,15})$/;
+  /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|adzuna-\d{1,20}|mashvisor-\d{1,15}|openwebninja-\d{1,20})$/;
 
 /** Records this page view and returns views and saves; one request per page. */
 function useListingStats(listing: ClassifiedDetail) {
@@ -1660,7 +1660,12 @@ function homeRentalDetails(listing: ClassifiedDetail, description: string) {
         : squareFeet
           ? `${squareFeet} sq ft`
           : missing,
-    availability: listing.externalHome ? "For sale" : availability,
+    availability:
+      listing.externalHome && home?.mode === "rent"
+        ? "For rent"
+        : listing.externalHome
+          ? "For sale"
+          : availability,
     pets,
     smoking,
     leaseLength: home?.leaseLength ?? parsedLeaseLength ?? "Confirm with seller",
@@ -1684,6 +1689,9 @@ function homeRentalDetails(listing: ClassifiedDetail, description: string) {
     specialFeatures: home?.specialFeatures ?? missing,
     hoaFees: home?.hoaFees ?? "N/A",
     priceHistory: home?.priceHistory ?? [],
+    taxHistory: home?.taxHistory ?? [],
+    zestimate: home?.zestimate ?? null,
+    rentZestimate: home?.rentZestimate ?? null,
     isRental,
   };
 }
@@ -1870,6 +1878,57 @@ function HomeRentalInformation({
                     </dl>
                   </div>
                 ) : null}
+                {details.taxHistory.length > 0 ? (
+                  <div className="mt-8 border-t border-border/70 pt-6">
+                    <h3 className="text-[18px] font-bold">Tax history</h3>
+                    <dl className="mt-3 divide-y divide-border/70 text-[13px]">
+                      {details.taxHistory.map((item, index) => (
+                        <div
+                          key={`${item.date ?? "tax"}-${index}`}
+                          className="flex items-center justify-between gap-4 py-3"
+                        >
+                          <dt>{item.date ?? "Recorded tax"}</dt>
+                          <dd className="numeric text-right font-semibold">
+                            {item.amount != null
+                              ? formatClassifiedPrice(Math.round(item.amount * 100), {
+                                  wholeDollars: true,
+                                })
+                              : item.value != null
+                                ? `Assessed value ${formatClassifiedPrice(Math.round(item.value * 100), { wholeDollars: true })}`
+                                : "Recorded"}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </div>
+                ) : null}
+                {details.zestimate != null || details.rentZestimate != null ? (
+                  <div className="mt-8 border-t border-border/70 pt-6">
+                    <h3 className="text-[18px] font-bold">Market estimates</h3>
+                    <dl className="mt-3 divide-y divide-border/70 text-[13px]">
+                      {details.zestimate != null ? (
+                        <div className="flex items-center justify-between gap-4 py-3">
+                          <dt>Estimated value</dt>
+                          <dd className="numeric font-semibold">
+                            {formatClassifiedPrice(Math.round(details.zestimate * 100), {
+                              wholeDollars: true,
+                            })}
+                          </dd>
+                        </div>
+                      ) : null}
+                      {details.rentZestimate != null ? (
+                        <div className="flex items-center justify-between gap-4 py-3">
+                          <dt>Estimated rent</dt>
+                          <dd className="numeric font-semibold">
+                            {formatClassifiedPrice(Math.round(details.rentZestimate * 100), {
+                              wholeDollars: true,
+                            })}
+                          </dd>
+                        </div>
+                      ) : null}
+                    </dl>
+                  </div>
+                ) : null}
               </div>
             )}
           </div>
@@ -1878,7 +1937,7 @@ function HomeRentalInformation({
             <h2 className="text-[21px] font-bold">Home amenities</h2>
             <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
               {listing.externalHome
-                ? "Details shown here are the property facts available from Mashvisor."
+                ? `Details shown here are the property facts available from ${listing.externalHome.source}.`
                 : "Amenities and inclusions should be confirmed with the seller before applying, signing a lease, or making an offer."}
             </p>
             <ul className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -1998,7 +2057,10 @@ function HomeListingDetail({
                   <Clock size={15} /> Posted {postedAge(listing.createdAt).toLowerCase()}
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <Eye size={15} /> {listing.externalHome ? "Mashvisor listing" : "Local listing"}
+                  <Eye size={15} />{" "}
+                  {listing.externalHome
+                    ? `${listing.externalHome.source} listing`
+                    : "Local listing"}
                 </span>
               </div>
             </div>
@@ -2132,7 +2194,7 @@ function HomeListingDetail({
         </section>
       )}
 
-      {listing.externalHome ? <MashvisorHomeCredit listing={listing} /> : null}
+      {listing.externalHome ? <ExternalHomeCredit listing={listing} /> : null}
     </main>
   );
 }
@@ -3129,10 +3191,11 @@ function PetDetails({ pet }: { pet: NonNullable<ClassifiedDetail["pet"]> }) {
 }
 
 /** Small source credit at the end of an external home page. */
-function MashvisorHomeCredit({ listing }: { listing: ClassifiedDetail }) {
+function ExternalHomeCredit({ listing }: { listing: ClassifiedDetail }) {
+  const source = listing.externalHome?.source ?? "external source";
   return (
     <footer className="mt-12 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 border-t border-border/70 py-5 text-center text-[11px] text-muted-foreground">
-      <span>Listing data from Mashvisor.</span>
+      <span>Listing data from {source}.</span>
       {listing.externalHome?.sourceUrl ? (
         <a
           href={listing.externalHome.sourceUrl}

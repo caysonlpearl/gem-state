@@ -67,19 +67,24 @@ export function PartnerJobsCredit({ listings }: { listings: readonly ClassifiedC
   );
 }
 
-/** "Listing data from Mashvisor" once under a group that includes feed homes. */
+/** A single source credit once under a group that includes feed homes. */
 export function PartnerHomesCredit({ listings }: { listings: readonly ClassifiedCard[] }) {
-  if (!listings.some((listing) => listing.externalHome)) return null;
+  const source = listings.find((listing) => listing.externalHome)?.externalHome;
+  if (!source) return null;
+  const providerUrl =
+    source.source === "Mashvisor"
+      ? "https://www.mashvisor.com"
+      : "https://www.openwebninja.com/api/real-time-zillow-data";
   return (
     <p className="mt-3 text-right text-[11px] text-muted-foreground">
       Some home listing data from{" "}
       <a
-        href="https://www.mashvisor.com"
+        href={providerUrl}
         target="_blank"
         rel="noopener noreferrer"
         className="font-semibold text-primary"
       >
-        Mashvisor
+        {source.source}
       </a>
     </p>
   );

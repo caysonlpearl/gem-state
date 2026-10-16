@@ -1,0 +1,170 @@
+import type {
+  ClassifiedBrowseInput,
+  ClassifiedCard,
+  ClassifiedDetail,
+} from "./classifieds.functions";
+import { isWithinClassifiedRadius, usStates } from "../config/classifieds.ts";
+import {
+  OPENWEBNINJA_ID,
+  listedAt,
+  type OpenWebNinjaHome,
+  type OpenWebNinjaMode,
+} from "./openwebninja-contract";
+
+/** Cached city/mode searches keep the five-city starting set under the free quota. */
+export const OPENWEBNINJA_CITIES = ["Boise", "Meridian", "Nampa", "Idaho Falls", "Coeur d'Alene"];
+
+export function canIncludeOpenWebNinja(data: ClassifiedBrowseInput) {
+  if (data.includeAllMocks || data.sellerSlug || data.dealerSlug || data.group) return false;
+  return (
+    data.category === "other-real-estate" && (data.homeTab === "buy" || data.homeTab === "rent")
+  );
+}
+
+function providerCity(data: ClassifiedBrowseInput) {
+  const state = usStates.find(([code, name]) => code === data.state || name === data.state);
+  if (state && state[0] !== "ID") return null;
+  if (!data.city) return "Boise";
+  return (
+    OPENWEBNINJA_CITIES.find((city) => city.toLowerCase() === data.city!.toLowerCase()) ?? null
+  );
+}
+
+function modeFor(data: ClassifiedBrowseInput): OpenWebNinjaMode {
+  return data.homeTab === "rent" ? "rent" : "buy";
+}
+
+export function openWebNinjaCard(home: OpenWebNinjaHome): ClassifiedCard {
+  return {
+    id: `openwebninja-${home.id}`,
+    productId: `openwebninja-${home.id}`,
+    productSlug: "",
+    title: home.address,
+    city: home.city,
+    state: home.state,
+    region: "",
+    postalCode: home.zip,
+    priceCents: home.priceCents,
+    currency: "USD",
+    categorySlug: "other-real-estate",
+    categoryName: "Homes",
+    condition: "",
+    fulfillmentMode: "",
+    createdAt: listedAt(home),
+    isFeatured: home.isFeatured,
+    imageUrl: home.imageUrl,
+    vehicle: null,
+    externalHome: { source: "OpenWeb Ninja", sourceUrl: home.sourceUrl },
+    home: {
+      mode: home.mode,
+      propertyType: home.propertyType ?? "Home",
+      bedrooms: home.beds,
+      bathrooms: home.baths,
+      squareFeet: home.sqft,
+      openHouse: home.openHouse,
+      zestimate: home.zestimate,
+      rentZestimate: home.rentZestimate,
+    },
+  };
+}
+
+export async function openWebNinjaCards(data: ClassifiedBrowseInput): Promise<ClassifiedCard[]> {
+  const city = providerCity(data);
+  if (!city) return [];
+  const { searchHomes } = await import("./openwebninja.server");
+  const result = await searchHomes("ID", city, modeFor(data));
+  const q = data.q?.trim().toLowerCase();
+  return result.homes
+    .filter(
+      (home) =>
+        (data.priceMin == null || home.priceCents >= data.priceMin * 100) &&
+        (data.priceMax == null || home.priceCents <= data.priceMax * 100) &&
+        (data.homeBedroomsMin == null || (home.beds ?? -1) >= data.homeBedroomsMin) &&
+        (data.homeBathroomsMin == null || (home.baths ?? -1) >= data.homeBathroomsMin) &&
+        (data.homeSquareFeetMin == null || (home.sqft ?? -1) >= data.homeSquareFeetMin) &&
+        (!data.postalCode || home.zip === data.postalCode) &&
+        (!q ||
+          `${home.address} ${home.city} ${home.propertyType ?? ""}`.toLowerCase().includes(q)) &&
+        isWithinClassifiedRadius({
+          city: data.city,
+          listingCity: home.city,
+          latitude: data.latitude,
+          longitude: data.longitude,
+          radiusMiles: data.radiusMiles,
+        }),
+    )
+    .map(openWebNinjaCard);
+}
+
+export async function openWebNinjaDetail(listingId: string): Promise<ClassifiedDetail | null> {
+  const match = listingId.match(OPENWEBNINJA_ID);
+  const id = match?.[0].slice("openwebninja-".length);
+  if (!id) return null;
+  const { cachedHome, propertyDetails } = await import("./openwebninja.server");
+  const found = await cachedHome(id);
+  if (!found?.home) return null;
+  const home = found.home;
+  const details = await propertyDetails(home.id);
+  const extra = details.ok ? details.value : null;
+  const card = openWebNinjaCard(home);
+  const images = extra?.images.length ? extra.images : home.imageUrl ? [home.imageUrl] : [];
+  const priceHistory = [
+    ...(extra?.priceHistory ?? []),
+    ...(extra?.originalListPrice
+      ? [{ label: "Original list price", amount: extra.originalListPrice, date: null }]
+      : []),
+    ...(extra?.lastSalePrice
+      ? [{ label: "Last recorded sale", amount: extra.lastSalePrice, date: extra.lastSaleDate }]
+      : []),
+    ...(extra?.priceReducedAt
+      ? [
+          {
+            label: "Recent price reduction",
+            amount: home.priceCents / 100,
+            date: extra.priceReducedAt,
+          },
+        ]
+      : []),
+    { label: "Current list price", amount: home.priceCents / 100, date: null },
+  ].filter(
+    (entry, index, all) =>
+      index === 0 || entry.amount !== all[index - 1]?.amount || entry.date !== all[index - 1]?.date,
+  );
+  const acreage = extra?.lotSize && extra.lotSize > 0 ? extra.lotSize / 43_560 : null;
+  return {
+    ...card,
+    externalHome: { source: "OpenWeb Ninja", sourceUrl: extra?.url ?? home.sourceUrl },
+    listingNumber: home.id,
+    description: extra?.description ?? null,
+    postalCode: home.zip,
+    expiresAt: null,
+    sellerNote: null,
+    variantId: card.id,
+    seller: null,
+    home: {
+      ...card.home!,
+      propertyType: extra?.propertyType ?? card.home!.propertyType,
+      bedrooms: extra?.bedrooms && extra.bedrooms > 0 ? extra.bedrooms : card.home!.bedrooms,
+      bathrooms: extra?.bathrooms && extra.bathrooms > 0 ? extra.bathrooms : card.home!.bathrooms,
+      squareFeet:
+        extra?.squareFeet && extra.squareFeet > 0 ? extra.squareFeet : card.home!.squareFeet,
+      yearBuilt: extra?.yearBuilt ?? null,
+      acreage: acreage ? `${acreage.toFixed(2)} acres` : null,
+      heating: extra?.heating ?? null,
+      cooling: extra?.cooling ?? null,
+      garageParking: extra?.parking ?? null,
+      hoaFees: extra?.hoaFees ?? null,
+      schoolDistrict: extra?.schoolDistrict ?? null,
+      amenities: extra?.amenities ?? [],
+      appliancesIncluded: extra?.appliances ?? null,
+      exteriorMaterial: extra?.exteriorMaterial ?? null,
+      specialFeatures: extra?.specialFeatures ?? null,
+      priceHistory,
+      taxHistory: extra?.taxHistory ?? [],
+      zestimate: extra?.zestimate ?? home.zestimate ?? null,
+      rentZestimate: extra?.rentZestimate ?? home.rentZestimate ?? null,
+      openHouse: extra?.openHouse ?? home.openHouse ?? null,
+    },
+    images: images.map((url) => ({ url, alt: card.title })),
+  } as unknown as ClassifiedDetail;
+}
