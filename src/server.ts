@@ -123,11 +123,7 @@ export default {
       import("./lib/dealer-inventory.functions").then(
         ({ processScheduledDealerInventorySources }) => processScheduledDealerInventorySources(),
       ),
-      // One Google-ratings batch for the services directory per run (every
-      // 15 minutes, capped at 20 lookups a day by the database budget).
-      import("./lib/service-directory.server").then(({ rateNextTradeCity }) =>
-        rateNextTradeCity().catch(() => null),
-      ),
+
       ...(typeof controller === "object" &&
       controller !== null &&
       (controller as { cron?: string }).cron === "0 16 * * 4"

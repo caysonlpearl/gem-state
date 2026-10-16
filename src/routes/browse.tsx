@@ -3965,6 +3965,9 @@ function ServicesFilterPage({
       <div className="mt-7 grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
         <ResponsiveBrowseFilters title="Service filters" resetKey={JSON.stringify(search)}>
           <div className="space-y-3">
+            <ServiceFilterGroup title="Location">
+              <InlineLocationFilter search={search} onApply={onApply} />
+            </ServiceFilterGroup>
             <ServiceFilterGroup title="Category">
               <ServiceOptionSelect
                 label="Category"

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- tables added after the generated types */
-import { idahoPlaces } from "../config/idaho-places.ts";
+import { findIdahoPlace, idahoPlaces } from "../config/idaho-places.ts";
 import { serverEnv } from "./runtime-env.server";
 import { logoImageUrl } from "./employer-logo-match.ts";
 import {
@@ -22,7 +22,6 @@ import type {
 } from "./classifieds.functions";
 
 const ENRICH_AFTER_MS = 90 * 24 * 3600 * 1000;
-const MILES_PER_DEGREE_LAT = 69;
 
 async function db() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -50,15 +49,21 @@ export async function directoryCards(
       .select(DIRECTORY_COLUMNS, { count: "exact" })
       .eq("hidden", false)
       .eq("state", "ID");
-    if (data.latitude != null && data.longitude != null && data.radiusMiles != null) {
-      const dLat = data.radiusMiles / MILES_PER_DEGREE_LAT;
-      const dLon = dLat / Math.max(0.2, Math.cos((data.latitude * Math.PI) / 180));
-      query = query
-        .gte("latitude", data.latitude - dLat)
-        .lte("latitude", data.latitude + dLat)
-        .gte("longitude", data.longitude - dLon)
-        .lte("longitude", data.longitude + dLon);
-    } else if (data.city) {
+    // The directory only covers Idaho.
+    if (data.state && !/^(id|idaho)$/i.test(data.state)) return { cards: [], total: 0 };
+    // A distance search centers on the chosen map point, or the chosen city.
+    const place = data.city ? findIdahoPlace(data.city) : undefined;
+    const center =
+      data.latitude != null && data.longitude != null
+        ? { latitude: data.latitude, longitude: data.longitude }
+        : place
+          ? { latitude: place[2], longitude: place[3] }
+          : null;
+    const q = data.q?.replace(/[%_,()]/g, " ").trim();
+    if (center && data.radiusMiles != null && !data.region && !data.postalCode) {
+      return nearbyCards(center, data.radiusMiles, data.serviceSubcategory, q, offset, limit);
+    }
+    if (data.city) {
       query = query.ilike("city", data.city.replace(/[%_]/g, ""));
     }
     if (data.region) {
@@ -67,7 +72,6 @@ export async function directoryCards(
     }
     if (data.postalCode) query = query.eq("postcode", data.postalCode);
     if (data.serviceSubcategory) query = query.contains("trades", [data.serviceSubcategory]);
-    const q = data.q?.replace(/[%_,()]/g, " ").trim();
     if (q) query = query.or(`name.ilike.%${q}%,trade.ilike.%${q}%`);
     query = query
       .order("claimed_at", { ascending: false, nullsFirst: false })
@@ -93,6 +97,44 @@ export async function directoryCards(
   } catch {
     return { cards: [], total: 0 };
   }
+}
+
+/** Directory businesses within a true distance of a point, one page at a time. */
+async function nearbyCards(
+  center: { latitude: number; longitude: number },
+  miles: number,
+  trade: string | undefined,
+  q: string | undefined,
+  offset: number,
+  limit: number,
+): Promise<{ cards: ClassifiedCard[]; total: number }> {
+  const client = await db();
+  const { data: hits, error } = await client.rpc("service_directory_nearby", {
+    p_lat: center.latitude,
+    p_lon: center.longitude,
+    p_miles: miles,
+    p_trade: trade ?? null,
+    p_q: q || null,
+    p_offset: offset,
+    p_limit: Math.max(limit, 1),
+  });
+  if (error) return { cards: [], total: 0 };
+  const page = (hits ?? []) as { id: string; total: number }[];
+  const total = Number(page[0]?.total ?? 0);
+  const ids = limit > 0 ? page.map((hit) => hit.id) : [];
+  if (!ids.length) return { cards: [], total };
+  const { data: rows } = await client
+    .from("service_directory")
+    .select(DIRECTORY_COLUMNS)
+    .in("id", ids);
+  const byId = new Map(((rows ?? []) as DirectoryRow[]).map((row) => [row.id, row]));
+  return {
+    cards: ids.flatMap((id) => {
+      const row = byId.get(id);
+      return row ? [directoryCard(row, logoFor(row))] : [];
+    }),
+    total,
+  };
 }
 
 /** A directory business as a listing page, with hours and rating looked up when stale. */
