@@ -327,6 +327,24 @@ async function searchAll(
   return all;
 }
 
+async function cachedSearchListing(
+  sourceKind: MarketCheckSourceKind,
+  providerId: string,
+): Promise<MarketCheckListing | null> {
+  const db = cacheDb();
+  if (!db) return null;
+  const { data } = await (db as any)
+    .from("marketcheck_cache")
+    .select("payload")
+    .like("cache_key", `%\"kind\":\"${sourceKind}\"%`);
+  for (const row of data ?? []) {
+    const listings = (row?.payload?.listings ?? []) as MarketCheckListing[];
+    const match = listings.find((listing) => listing.providerId === providerId);
+    if (match) return match;
+  }
+  return null;
+}
+
 export function canIncludeMarketCheck(data: ClassifiedBrowseInput) {
   if (data.includeAllMocks || data.sellerSlug || data.dealerSlug) return false;
   if (data.category !== "cars-trucks" && data.group !== "motors") return false;
@@ -431,8 +449,11 @@ export async function marketCheckDetail(listingId: string): Promise<ClassifiedDe
     `/listing/${parsed.sourceKind === "dealer" ? "car" : "car/fsbo"}/${encodeURIComponent(parsed.providerId)}`,
     (payload) => normalizeMarketCheckListing(payload, parsed.sourceKind),
   );
-  if (!result.ok || !result.value) return null;
-  const normalized = result.value;
+  const normalized =
+    result.ok && result.value
+      ? result.value
+      : await cachedSearchListing(parsed.sourceKind, parsed.providerId);
+  if (!normalized) return null;
   const card = marketCheckCard(normalized);
   const images = marketCheckImages(normalized);
   return {
