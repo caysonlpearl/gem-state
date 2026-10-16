@@ -124,13 +124,12 @@ export async function propertyDetails(
 ): Promise<
   { ok: true; value: OpenWebNinjaPropertyExtra } | { ok: false; status: "unavailable" | "limited" }
 > {
-  // v2 invalidates detail payloads created before rental descriptions and
-  // listing-URL lookups were normalized.
-  const lookup = sourceUrl ? "url" : "zpid";
-  const key = JSON.stringify({ v: 2, kind: "property", id, lookup });
-  const params = sourceUrl
-    ? new URLSearchParams({ url: sourceUrl })
-    : new URLSearchParams({ zpid: id });
+  // v3 invalidates payloads created before rental descriptions were
+  // normalized. The provider's zpid lookup is the most reliable detail path
+  // for both sale and rental records; keep sourceUrl for the caller contract.
+  void sourceUrl;
+  const key = JSON.stringify({ v: 3, kind: "property", id });
+  const params = new URLSearchParams({ zpid: id });
   return cachedCall(key, `property-details?${params.toString()}`, normalizeOpenWebNinjaProperty);
 }
 
