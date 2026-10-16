@@ -358,7 +358,10 @@ export function normalizeMarketCheckListing(
   const raw = asRecord(payload);
   const providerId = text(raw.id);
   if (!providerId) return null;
-  const dealer = dealerOf(raw);
+  // FSBO responses can still carry a dealer-shaped object from the provider's
+  // shared schema. It must not turn a private-party listing into a hybrid
+  // "private seller · dealer inventory" card.
+  const dealer = sourceKind === "dealer" ? dealerOf(raw) : null;
   const location = locationOf(raw, dealer);
   const build = buildOf(raw);
   const heading =
@@ -391,7 +394,7 @@ export function normalizeMarketCheckListing(
     dom180: number(raw.dom_180),
     domActive: number(raw.dom_active),
     dosActive: number(raw.dos_active),
-    sellerType: text(raw.seller_type),
+    sellerType: sourceKind === "fsbo" ? "Private seller" : (text(raw.seller_type) ?? "Dealer"),
     inventoryType: text(raw.inventory_type),
     certified: raw.is_certified === 1 || raw.is_certified === true,
     stockNumber: text(raw.stock_no),
@@ -433,7 +436,16 @@ export function normalizeMarketCheckSearch(
 }
 
 export function marketCheckImages(listing: MarketCheckListing): string[] {
-  return dedupeMarketCheckImages([...listing.media.photoLinksCached, ...listing.media.photoLinks]);
+  // MarketCheck exposes the same gallery twice: once through its cached image
+  // host and once through the original photo links. Prefer the cached gallery
+  // when it exists so the detail page does not render the same photo twice
+  // under two different hosts or resize URLs. Fall back to the original links
+  // only when the cached gallery is absent.
+  const source =
+    listing.media.photoLinksCached.length > 0
+      ? listing.media.photoLinksCached
+      : listing.media.photoLinks;
+  return dedupeMarketCheckImages(source);
 }
 
 export function marketCheckDescription(listing: MarketCheckListing): string | null {

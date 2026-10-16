@@ -828,12 +828,26 @@ function normalizedCondition(value: string | undefined) {
 }
 
 function inputFromSearch(search: Search): ClassifiedBrowseInput {
+  const hasExplicitVehicleLocation = Boolean(
+    search.state ||
+      search.region ||
+      search.city ||
+      search.postalCode ||
+      search.latitude != null ||
+      search.longitude != null,
+  );
+  const defaultVehicleLandingState =
+    (search.group === "motors" || isMotorsCategory(search.category)) &&
+    search.vehicleMode !== "results" &&
+    !hasExplicitVehicleLocation
+      ? "ID"
+      : search.state;
   return {
     q: search.q,
     category: search.category,
     homeTab: search.homeTab,
     group: search.group,
-    state: search.state,
+    state: defaultVehicleLandingState,
     region: search.region,
     city: search.city,
     radiusMiles: search.radiusMiles,
@@ -2086,7 +2100,11 @@ function Browse() {
             browseSearch={{ group: "motors", vehicleMode: "results" }}
             listings={result.listings}
           />
-          <HomepageShowcaseRows eyebrow="Bluebird Marketplace Motors" rows={vehicleShowcaseRows} />
+          <HomepageShowcaseRows
+            eyebrow="Bluebird Marketplace Motors"
+            rows={vehicleShowcaseRows}
+            baseSearch={search}
+          />
         </>
       )}
 
@@ -2749,79 +2767,79 @@ const vehicleShowcaseRows: HomepagePreviewRow[] = [
   {
     title: "Popular cars & trucks",
     action: "See popular vehicles",
-    href: "/browse?group=motors&vehicleMode=results",
+    href: "/browse?group=motors&vehicleMode=results&state=ID",
     cards: [],
   },
   {
     title: "Adventure-ready rides",
     action: "Explore outdoor vehicles",
-    href: "/browse?group=motors&vehicleMode=results&bodyStyle=SUV||Truck",
+    href: "/browse?group=motors&vehicleMode=results&state=ID&bodyStyle=SUV||Truck",
     cards: [],
   },
   {
     title: "Just reduced",
     action: "See vehicle price drops",
-    href: "/browse?group=motors&vehicleMode=results&sort=price_low",
+    href: "/browse?group=motors&vehicleMode=results&state=ID&sort=price_low",
     cards: [],
   },
   showcaseRow(
     "Fuel-efficient commuters",
     "Shop efficient cars",
-    "/browse?group=motors&vehicleMode=results&fuelType=Hybrid||Electric",
+    "/browse?group=motors&vehicleMode=results&state=ID&fuelType=Hybrid||Electric",
     [],
   ),
   showcaseRow(
     "Family SUVs & crossovers",
     "Find family SUVs",
-    "/browse?group=motors&vehicleMode=results&bodyStyle=SUV",
+    "/browse?group=motors&vehicleMode=results&state=ID&bodyStyle=SUV",
     [],
   ),
   showcaseRow(
     "Work trucks & vans",
     "Shop work-ready vehicles",
-    "/browse?group=motors&vehicleMode=results&bodyStyle=Truck||Van",
+    "/browse?group=motors&vehicleMode=results&state=ID&bodyStyle=Truck||Van",
     [],
   ),
   showcaseRow(
     "RVs, campers & trailers",
     "Explore campers and trailers",
-    "/browse?group=motors&vehicleMode=results&bodyStyle=RV||Trailer",
+    "/browse?group=motors&vehicleMode=results&state=ID&bodyStyle=RV||Trailer",
     [],
   ),
   showcaseRow(
     "Motorcycles & powersports",
     "Shop powersports",
-    "/browse?group=motors&vehicleMode=results&bodyStyle=Motorcycle||ATV",
+    "/browse?group=motors&vehicleMode=results&state=ID&bodyStyle=Motorcycle||ATV",
     [],
   ),
   showcaseRow(
     "Cars under $20,000",
     "Find affordable cars",
-    "/browse?group=motors&vehicleMode=results&priceMax=20000",
+    "/browse?group=motors&vehicleMode=results&state=ID&priceMax=20000",
     [],
   ),
   showcaseRow(
     "Late-model local vehicles",
     "Browse newer vehicles",
-    "/browse?group=motors&vehicleMode=results&yearMin=2022",
+    "/browse?group=motors&vehicleMode=results&state=ID&yearMin=2022",
     [],
   ),
   showcaseRow(
     "Classic & enthusiast vehicles",
     "Explore classic rides",
-    "/browse?group=motors&vehicleMode=results",
+    "/browse?group=motors&vehicleMode=results&state=ID",
     [],
   ),
   showcaseRow(
     "Three-row family vehicles",
     "Find three-row vehicles",
-    "/browse?group=motors&vehicleMode=results",
+    "/browse?group=motors&vehicleMode=results&state=ID",
     [],
   ),
   showcaseRow(
     "AWD & winter-ready rides",
     "Shop all-weather vehicles",
-    "/browse?group=motors&vehicleMode=results&drivetrain=AWD||4WD",
+    "/browse?group=motors&vehicleMode=results&state=ID&drivetrain=AWD||4WD",
     [],
   ),
 ];
@@ -3294,11 +3312,14 @@ function HomepageShowcaseRows({
   eyebrow,
   rows,
   jobSearch,
+  baseSearch,
 }: {
   eyebrow: string;
   rows: readonly HomepagePreviewRow[];
   jobSearch?: Search;
+  baseSearch?: Search;
 }) {
+  const querySearch = jobSearch ?? baseSearch;
   return (
     <div className="mt-10 space-y-12 sm:mt-14 sm:space-y-16">
       {rows.map((row) => (
@@ -3323,8 +3344,8 @@ function HomepageShowcaseRows({
               <ArrowRight size={14} aria-hidden="true" />
             </a>
           </div>
-          {jobSearch ? (
-            <JobShowcaseCards row={row} search={jobSearch} />
+          {querySearch ? (
+            <JobShowcaseCards row={row} search={querySearch} />
           ) : (
             <CategoryGettingStarted />
           )}
