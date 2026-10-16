@@ -617,7 +617,11 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
   const fartherAwayListings = pick(home.recent.filter((listing) => !matchesLocation(listing)));
   const vehicleListings = pick(localMotors);
   const truckListings = pick(
-    localMotors.filter((listing) => /truck|suv|pickup|jeep/i.test(listing.title)),
+    localMotors.filter((listing) =>
+      /truck|suv|pickup|jeep|sport utility|chassis/i.test(
+        `${listing.vehicle?.bodyStyle ?? ""} ${listing.title}`,
+      ),
+    ),
   );
   const valueVehicleListings = pick([...localMotors].sort((a, b) => a.priceCents - b.priceCents));
   const buyHomes = pick(homeListings.filter((listing) => listing.home?.mode === "buy"));
