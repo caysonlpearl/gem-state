@@ -212,8 +212,9 @@ function Home() {
   // animation only plays on later rotations.
   const [headlineRotated, setHeadlineRotated] = useState(false);
   const headlineRef = useRef<HTMLHeadingElement>(null);
-  // Phones hold the headline to exactly three lines: shrink the words (not the
-  // box) until the longest rotation fits.
+  // Phones hold the headline to exactly three lines: grow short rotations to
+  // fill the third line and shrink long ones until they fit, so the headline
+  // never changes shape between rotations.
   useEffect(() => {
     const h = headlineRef.current;
     if (!h) return;
@@ -221,10 +222,25 @@ function Home() {
       const spans = Array.from(h.children) as HTMLElement[];
       spans.forEach((span) => (span.style.fontSize = ""));
       if (window.innerWidth >= 640) return;
+      const lineCount = () =>
+        spans.reduce((total, span) => total + span.getClientRects().length, 0);
       let size = 1;
-      while (h.scrollHeight > h.clientHeight + 1 && size > 0.8) {
-        size -= 0.04;
-        spans.forEach((span) => (span.style.fontSize = `${size}em`));
+      let lines = lineCount();
+      if (lines > 3) {
+        while (lines > 3 && size > 0.8) {
+          size -= 0.04;
+          spans.forEach((span) => (span.style.fontSize = `${size}em`));
+          lines = lineCount();
+        }
+      } else {
+        while (lines < 3 && size < 1.36) {
+          const next = size + 0.04;
+          spans.forEach((span) => (span.style.fontSize = `${next}em`));
+          const nextLines = lineCount();
+          if (nextLines > 3) break;
+          size = next;
+          lines = nextLines;
+        }
       }
     };
     fit();
