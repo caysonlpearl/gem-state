@@ -203,11 +203,9 @@ export async function propertyDetails(
     const { data: rows } = await db
       .from("openwebninja_cache")
       .select("cache_key,payload")
-      .in("cache_key", [
-        key,
-        JSON.stringify({ v: 2, kind: "property", id }),
-        JSON.stringify({ v: 1, kind: "property", id }),
-      ]);
+      // A pattern, not .in(): these JSON keys contain commas, which break
+      // PostgREST's in-list and silently match nothing.
+      .like("cache_key", `%"kind":"property","id":"${id.replace(/[^0-9A-Za-z_-]/g, "")}"}`);
     const current = (rows ?? []).find((row: { cache_key: string }) => row.cache_key === key);
     const legacy = (rows ?? []).find((row: { cache_key: string }) => row.cache_key !== key);
     const saved = current?.payload ?? legacy?.payload;

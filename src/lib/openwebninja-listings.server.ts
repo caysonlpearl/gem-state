@@ -215,10 +215,9 @@ async function advanceHomeFeedFor(provider: HomeProvider) {
   const { data: searchRows } = await db
     .from("openwebninja_cache")
     .select("cache_key,payload,expires_at")
-    .in(
-      "cache_key",
-      searchKeys.map((entry) => entry.key),
-    );
+    // A pattern, not .in(): the JSON keys contain commas, which break
+    // PostgREST's in-list and silently match nothing.
+    .like("cache_key", '%"kind":"area-search"%');
   const rowByKey = new Map<string, any>((searchRows ?? []).map((row: any) => [row.cache_key, row]));
 
   // 1. This subscription's most overdue area list.
@@ -244,20 +243,13 @@ async function advanceHomeFeedFor(provider: HomeProvider) {
     (entry) => (rowByKey.get(entry.key)?.payload?.homes ?? []) as { id: string }[],
   );
   const ids = [...new Set(homes.map((home) => home.id))];
-  const detailKeys = (id: string) => [
-    ninja.propertyKey(id),
-    JSON.stringify({ v: 2, kind: "property", id }),
-    JSON.stringify({ v: 1, kind: "property", id }),
-  ];
   const have = new Set<string>();
-  for (let start = 0; start < ids.length; start += 100) {
-    const chunk = ids.slice(start, start + 100);
-    const { data: rows } = await db
-      .from("openwebninja_cache")
-      .select("cache_key")
-      .in("cache_key", chunk.flatMap(detailKeys));
-    for (const row of rows ?? []) have.add(JSON.parse(row.cache_key).id);
-  }
+  const { data: detailRows } = await db
+    .from("openwebninja_cache")
+    .select("cache_key")
+    .like("cache_key", '%"kind":"property"%')
+    .limit(5000);
+  for (const row of detailRows ?? []) have.add(String(JSON.parse(row.cache_key).id));
   const next = ids.find((id) => !have.has(id));
   if (!next) return { done: true, homes: ids.length };
   const detail = await ninja.propertyDetails(next, null, { provider });
