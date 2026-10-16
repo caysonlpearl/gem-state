@@ -38,7 +38,7 @@ import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
  * redirect after the SSR pass.
  */
 const navLinkClass =
-  "inline-flex h-[112px] w-auto min-w-[164px] shrink-0 flex-row items-center justify-start gap-3 rounded-2xl px-4 text-left text-[12px] font-semibold leading-tight tracking-[-0.01em] text-foreground transition-[background-color,color,box-shadow] hover:bg-brand-blue/10 hover:text-primary hover:shadow-md";
+  "inline-flex h-[96px] w-auto min-w-[164px] shrink-0 flex-row items-center justify-start gap-3 rounded-2xl px-4 text-left text-[12px] font-semibold leading-tight tracking-[-0.01em] text-foreground transition-[background-color,color,box-shadow] hover:bg-brand-blue/10 hover:text-primary hover:shadow-md";
 
 const utilityLinkClass =
   "hidden h-9 items-center px-2.5 text-[12.5px] text-muted-foreground transition-colors hover:text-primary md:inline-flex";
@@ -390,7 +390,7 @@ export function SiteHeader() {
         className="relative z-10 hidden border-t border-border bg-background lg:block"
       >
         <div className="mx-auto max-w-[1440px]">
-          <ul className="mx-auto flex max-w-[1280px] flex-nowrap items-center justify-center gap-3 px-4 sm:gap-2 sm:px-8">
+          <ul className="mx-auto flex max-w-[1280px] flex-nowrap items-center justify-center gap-3 px-4 py-2 sm:gap-2 sm:px-8">
             <li>
               <Link
                 to="/browse"
