@@ -48,7 +48,7 @@ export function HomeSearchDropdown({ value, onChange, options, label, placeholde
                 }
                 if (event.key === "Enter") setOpen(false);
               }}
-              className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+              className="min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground md:text-sm"
             />
             <PopoverTrigger asChild>
               <Button type="button" variant="ghost" size="icon" aria-label="Show locations" className="h-7 w-7 shrink-0 rounded-full text-muted-foreground">
@@ -57,7 +57,7 @@ export function HomeSearchDropdown({ value, onChange, options, label, placeholde
             </PopoverTrigger>
           </> : <PopoverTrigger asChild>
             <Button type="button" variant="ghost" role="combobox" aria-label={label} aria-expanded={open} className="h-full w-full justify-between rounded-full p-0 font-normal hover:bg-transparent">
-              <span className="truncate">{options.find((option) => option.value === value)?.label ?? placeholder}</span>
+              <span className="truncate text-base md:text-sm">{options.find((option) => option.value === value)?.label ?? placeholder}</span>
               <CaretDown weight="bold" className="text-muted-foreground" />
             </Button>
           </PopoverTrigger>}
