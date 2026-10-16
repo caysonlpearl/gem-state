@@ -330,20 +330,18 @@ function Home() {
     if (!h) return;
     const apply = () => {
       h.style.fontSize = "";
-      if (window.innerWidth >= 640) {
-        setHeadlineGroups(headlineDesktopGroups(headlineItems));
-        setHeadlineScale(1);
-        return;
-      }
       const style = getComputedStyle(h);
       const fontPx = parseFloat(style.fontSize) || 22;
       setHeadlineFontPx(fontPx);
+      // Phones hold three lines; every wider screen holds exactly two.
+      const lineCount = window.innerWidth < 640 ? 3 : 2;
       for (let scale = 1; scale >= 0.7; scale -= 0.04) {
-        const groups = splitHeadlineIntoThreeLines(
+        const groups = splitHeadlineIntoLines(
           headlineTokensFor(headlineItems),
           h.clientWidth - 4,
           `${style.fontWeight} ${fontPx * scale}px ${style.fontFamily}`,
           style.letterSpacing,
+          lineCount,
         );
         if (groups) {
           setHeadlineGroups(groups);
@@ -351,7 +349,9 @@ function Home() {
           return;
         }
       }
-      setHeadlineGroups(headlineDefaultGroups(headlineItems));
+      setHeadlineGroups(
+        lineCount === 2 ? headlineDesktopGroups(headlineItems) : headlineDefaultGroups(headlineItems),
+      );
       setHeadlineScale(0.7);
     };
     apply();
@@ -362,7 +362,7 @@ function Home() {
   // lines really fit and nudge the scale down if one overflows.
   useEffect(() => {
     const h = headlineRef.current;
-    if (!h || headlineGroups.length !== 3 || window.innerWidth >= 640) return;
+    if (!h || headlineGroups.length < 2) return;
     const fits = Array.from(h.children).every(
       (line) => (line as HTMLElement).scrollWidth <= h.clientWidth + 1,
     );
