@@ -582,7 +582,11 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
   const { motorCategories, matchesLocation, withLocation, feedLocation } = where;
   const localRecent = home.recent.filter(matchesLocation);
   const localMotors = home.motors.filter(matchesLocation);
-  const homeListings = localRecent.filter((listing) => listing.home);
+  // The homepage shows Idaho homes for now; browse still includes the
+  // surrounding states.
+  const homeListings = localRecent.filter(
+    (listing) => listing.home && listing.state?.toUpperCase() === "ID",
+  );
   const jobListings = localRecent.filter((listing) => listing.job);
   const serviceSource = localRecent.filter((listing) => listing.service);
   const generalSource = localRecent.filter(
