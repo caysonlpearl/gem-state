@@ -868,8 +868,8 @@ test("homepage headline rotates through four-item classifieds combinations", () 
   assert.match(homeSource, /last-headline/);
 });
 
-test("homepage hero uses the expanded headline width and updated subline", () => {
-  assert.match(homeSource, /max-w-\[34ch\]/);
+test("homepage hero headline is always two lines and keeps the updated subline", () => {
+  assert.equal((homeSource.match(/className="block whitespace-nowrap"/g) ?? []).length, 2);
   assert.match(homeSource, /And so much more across Idaho and surrounding states\./);
   assert.doesNotMatch(homeSource, /listed one item at a time by sellers/);
   assert.doesNotMatch(homeSource, /What are you looking for\?/);
