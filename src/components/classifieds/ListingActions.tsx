@@ -279,7 +279,7 @@ function LiveListingActions({
             >
               {originalListing
                 ? `Buy or message on ${originalListing.platform}`
-                : "Contact seller on the original listing"}
+                : "Contact seller"}
             </a>
           ) : null
         ) : isExternalApply && !isOwnListing ? (

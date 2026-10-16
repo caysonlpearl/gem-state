@@ -115,7 +115,7 @@ export function MobileContactBar({ listing }: { listing: ClassifiedDetail }) {
                 : listing.originalListing
                   ? `Buy on ${listing.originalListing.platform}`
                   : listing.externalVehicle
-                  ? "View original listing"
+                  ? "Contact seller"
                   : "Contact agent"}
           </a>
         ) : messagesEnabled ? (

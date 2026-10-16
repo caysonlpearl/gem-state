@@ -853,16 +853,6 @@ function MarketCheckContactCard({ listing }: { listing: ClassifiedDetail }) {
           </a>
         ) : null}
       </div>
-      {source.sourceUrl ? (
-        <a
-          href={source.sourceUrl}
-          target="_blank"
-          rel="noopener noreferrer nofollow"
-          className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-full bg-nav-accent text-[13px] font-semibold text-primary hover:opacity-90"
-        >
-          View original listing <ArrowSquareOut size={16} aria-hidden="true" />
-        </a>
-      ) : null}
     </section>
   );
 }
