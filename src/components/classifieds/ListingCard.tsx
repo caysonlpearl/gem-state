@@ -6,6 +6,7 @@ import { listingParam } from "@/lib/listing-url";
 import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { PartnerJobHeartButton } from "@/components/community/PartnerJobHeartButton";
 import { PartnerHomeHeartButton } from "@/components/community/PartnerHomeHeartButton";
+import { PartnerVehicleHeartButton } from "@/components/community/PartnerVehicleHeartButton";
 import { WatchHeartButton } from "@/components/community/WatchHeartButton";
 import {
   conditionLabels,
@@ -86,6 +87,24 @@ export function PartnerHomesCredit({ listings }: { listings: readonly Classified
         className="font-semibold text-primary"
       >
         {source.source}
+      </a>
+    </p>
+  );
+}
+
+/** A single source credit once under a group that includes MarketCheck vehicles. */
+export function PartnerVehiclesCredit({ listings }: { listings: readonly ClassifiedCard[] }) {
+  if (!listings.some((listing) => listing.externalVehicle)) return null;
+  return (
+    <p className="mt-3 text-right text-[11px] text-muted-foreground">
+      Some vehicle listing data from{" "}
+      <a
+        href="https://www.marketcheck.com"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="font-semibold text-primary"
+      >
+        MarketCheck
       </a>
     </p>
   );
@@ -354,6 +373,7 @@ function Facts({ listing }: { listing: ClassifiedCard }) {
   }
   const mileage = listing.vehicle ? formatMileage(listing.vehicle.mileage) : null;
   const bits = [
+    listing.vehicle?.year != null ? String(listing.vehicle.year) : null,
     mileage,
     listing.vehicle?.transmission ?? null,
     listing.vehicle?.drivetrain ?? null,
@@ -417,6 +437,8 @@ export function ListingCard({
               <PartnerJobHeartButton listingId={listing.id} title={listing.title} />
             ) : listing.externalHome ? (
               <PartnerHomeHeartButton listingId={listing.id} title={listing.title} />
+            ) : listing.externalVehicle ? (
+              <PartnerVehicleHeartButton listingId={listing.id} title={listing.title} />
             ) : (
               <WatchHeartButton
                 productId={listing.productId}

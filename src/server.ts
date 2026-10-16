@@ -130,6 +130,9 @@ export default {
             import("./lib/openwebninja-listings.server").then(({ refreshOpenWebNinjaSearches }) =>
               refreshOpenWebNinjaSearches(),
             ),
+            import("./lib/marketcheck.server").then(({ refreshMarketCheckSearches }) =>
+              refreshMarketCheckSearches(),
+            ),
           ]
         : []),
     ]);

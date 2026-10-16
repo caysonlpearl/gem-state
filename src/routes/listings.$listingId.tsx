@@ -60,6 +60,7 @@ import {
 } from "@/components/classifieds/ListingCard";
 import { PartnerJobHeartButton } from "@/components/community/PartnerJobHeartButton";
 import { PartnerHomeHeartButton } from "@/components/community/PartnerHomeHeartButton";
+import { PartnerVehicleHeartButton } from "@/components/community/PartnerVehicleHeartButton";
 import { WatchHeartButton } from "@/components/community/WatchHeartButton";
 import {
   conditionLabels,
@@ -767,8 +768,236 @@ function VehicleHistoryCard({ vehicle }: { vehicle: ClassifiedDetail["vehicle"] 
   );
 }
 
+function MarketCheckContactCard({ listing }: { listing: ClassifiedDetail }) {
+  const source = listing.externalVehicle;
+  if (!source) return null;
+  const dealer = source.dealer;
+  const name = dealer?.name ?? source.location.sellerName ?? "Vehicle seller";
+  const phone = dealer?.phone;
+  return (
+    <section className="soft-card p-5 sm:p-6">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+        Listed by
+      </p>
+      <div className="mt-3 flex items-start gap-3">
+        <EmployerTile name={name} />
+        <div className="min-w-0 text-[12.5px]">
+          <p className="text-[15px] font-bold">{name}</p>
+          {dealer?.dealerType ? (
+            <p className="mt-0.5 capitalize">{dealer.dealerType} dealer</p>
+          ) : null}
+          {dealer?.city || dealer?.state ? (
+            <p className="mt-1 text-muted-foreground">
+              {[dealer.city, dealer.state].filter(Boolean).join(", ")}
+            </p>
+          ) : null}
+        </div>
+      </div>
+      {dealer?.street || dealer?.zip ? (
+        <p className="mt-4 flex items-start gap-1.5 text-[12px] leading-relaxed text-primary">
+          <MapPin size={14} weight="fill" className="mt-0.5 shrink-0" />
+          {[dealer.street, dealer.city, dealer.state, dealer.zip].filter(Boolean).join(", ")}
+        </p>
+      ) : null}
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        {phone ? (
+          <a
+            href={`tel:${phone.replace(/[^\d+]/g, "")}`}
+            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-border text-[12px] font-medium hover:border-primary hover:bg-primary/5 hover:text-primary"
+          >
+            <Phone size={15} aria-hidden="true" /> Call
+          </a>
+        ) : null}
+        {dealer?.website ? (
+          <a
+            href={dealer.website}
+            target="_blank"
+            rel="noopener noreferrer nofollow"
+            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-border text-[12px] font-medium hover:border-primary hover:bg-primary/5 hover:text-primary"
+          >
+            <Globe size={15} aria-hidden="true" /> Website
+          </a>
+        ) : null}
+      </div>
+      {source.sourceUrl ? (
+        <a
+          href={source.sourceUrl}
+          target="_blank"
+          rel="noopener noreferrer nofollow"
+          className="mt-4 flex h-11 w-full items-center justify-center gap-2 rounded-full bg-nav-accent text-[13px] font-semibold text-primary hover:opacity-90"
+        >
+          View original listing <ArrowSquareOut size={16} aria-hidden="true" />
+        </a>
+      ) : null}
+    </section>
+  );
+}
+
+function MarketCheckDetailSections({ listing }: { listing: ClassifiedDetail }) {
+  const source = listing.externalVehicle;
+  if (!source) return null;
+  const build = source.build;
+  const rows: [string, string | null][] = [
+    ["Version", build.version],
+    ["Vehicle type", build.vehicleType],
+    ["Engine", build.engine],
+    ["Engine size", build.engineSize != null ? `${build.engineSize} L` : null],
+    ["Engine block", build.engineBlock],
+    ["Cylinders", build.cylinders != null ? String(build.cylinders) : null],
+    ["Doors", build.doors != null ? String(build.doors) : null],
+    ["Seating", build.seating],
+    ["Powertrain", build.powertrainType],
+    ["City MPG", build.cityMpg != null ? String(build.cityMpg) : null],
+    ["Highway MPG", build.highwayMpg != null ? String(build.highwayMpg) : null],
+    [
+      "Interior color",
+      String(source.raw.interior_color ?? source.raw.base_int_color ?? "") || null,
+    ],
+    ["Manufactured in", build.madeIn],
+    ["Stock number", source.stockNumber],
+    ["Seller type", source.sellerType],
+    ["Inventory type", source.inventoryType],
+    ["Certified", source.certified ? "Yes" : null],
+    ["Vehicle status", source.vehicleStatus ?? source.availabilityStatus],
+    ["In transit", source.inTransit === true ? "Yes" : source.inTransit === false ? "No" : null],
+    ["Days on market", source.dom != null ? String(source.dom) : null],
+    ["Active days", source.domActive != null ? String(source.domActive) : null],
+    ["Days on site", source.dosActive != null ? String(source.dosActive) : null],
+    ["MSRP", source.msrp != null ? wholeDollars(source.msrp) : null],
+    ["Fees", source.fees != null ? wholeDollars(source.fees) : null],
+    [
+      "Price includes fees",
+      source.priceIncludesFees == null ? null : source.priceIncludesFees ? "Yes" : "No",
+    ],
+    ["Previous price", source.referencePrice != null ? wholeDollars(source.referencePrice) : null],
+    ["Price change", source.priceChangePercent != null ? `${source.priceChangePercent}%` : null],
+  ].filter(([, value]) => Boolean(value)) as [string, string][];
+  const groups = [
+    ["Vehicle details", rows.slice(0, 13)],
+    ["Listing details", rows.slice(13)],
+  ] as const;
+  const list = (title: string, values: string[]) =>
+    values.length ? (
+      <section className="mt-7 border-t border-border/70 pt-6">
+        <h3 className="text-[15px] font-bold">{title}</h3>
+        <ul className="mt-3 flex flex-wrap gap-2">
+          {values.map((value) => (
+            <li
+              key={value}
+              className="rounded-full border border-border/70 bg-secondary/40 px-3 py-1.5 text-[12.5px]"
+            >
+              {value}
+            </li>
+          ))}
+        </ul>
+      </section>
+    ) : null;
+  return (
+    <div className="mt-7">
+      {groups.map(([title, groupRows]) => (
+        <section
+          key={title}
+          className="mt-7 border-t border-border/70 pt-6 first:mt-0 first:border-t-0 first:pt-0"
+        >
+          <h3 className="text-[15px] font-bold">{title}</h3>
+          <SpecGrid
+            rows={groupRows
+              .filter((row) => Boolean(row[1]))
+              .map(([label, value]) => [label, value!] as [string, string])}
+          />
+        </section>
+      ))}
+      {list("Options", source.extra.options)}
+      {list("Features", source.extra.features)}
+      {list("High-value features", source.extra.highValueFeatures)}
+      {list("Option packages", source.extra.optionsPackages)}
+      {source.finance || source.lease ? (
+        <section className="mt-7 border-t border-border/70 pt-6">
+          <h3 className="text-[15px] font-bold">Finance and lease offers</h3>
+          <SpecGrid
+            rows={
+              [
+                [
+                  "Finance term",
+                  source.finance?.loanTerm != null ? `${source.finance.loanTerm} months` : null,
+                ],
+                [
+                  "Finance APR",
+                  source.finance?.loanApr != null ? `${source.finance.loanApr}%` : null,
+                ],
+                [
+                  "Finance down payment",
+                  source.finance?.downPayment != null
+                    ? wholeDollars(source.finance.downPayment)
+                    : null,
+                ],
+                [
+                  "Estimated finance payment",
+                  source.finance?.estimatedMonthlyPayment != null
+                    ? `${wholeDollars(source.finance.estimatedMonthlyPayment)}/mo`
+                    : null,
+                ],
+                ["Lease term", source.lease?.term != null ? `${source.lease.term} months` : null],
+                [
+                  "Lease down payment",
+                  source.lease?.downPayment != null ? wholeDollars(source.lease.downPayment) : null,
+                ],
+                [
+                  "Estimated lease payment",
+                  source.lease?.estimatedMonthlyPayment != null
+                    ? `${wholeDollars(source.lease.estimatedMonthlyPayment)}/mo`
+                    : null,
+                ],
+              ].filter(([, value]) => Boolean(value)) as [string, string][]
+            }
+          />
+        </section>
+      ) : null}
+      {source.priceHistory.length ? (
+        <section className="mt-7 border-t border-border/70 pt-6">
+          <h3 className="text-[15px] font-bold">Price history</h3>
+          <div className="mt-3 divide-y divide-border/70 text-[13px]">
+            {source.priceHistory.map((item, index) => (
+              <div
+                key={`${item.label}-${index}`}
+                className="flex items-center justify-between gap-4 py-2.5"
+              >
+                <span>{item.label}</span>
+                <span className="numeric font-semibold">
+                  {item.amount != null ? wholeDollars(item.amount) : "—"}
+                  {item.date ? ` · ${new Date(item.date).toLocaleDateString()}` : ""}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+    </div>
+  );
+}
+
+function MarketCheckSourceCredit({ listing }: { listing: ClassifiedDetail }) {
+  const source = listing.externalVehicle;
+  if (!source) return null;
+  return (
+    <p className="border-t border-border/70 pt-4 text-[11px] text-muted-foreground">
+      Vehicle listing data provided by MarketCheck.
+      {source.sourceUrl ? (
+        <a
+          href={source.sourceUrl}
+          target="_blank"
+          rel="noopener noreferrer nofollow"
+          className="ml-1 font-semibold text-primary hover:underline"
+        >
+          View original listing <ArrowSquareOut size={13} className="inline" aria-hidden="true" />
+        </a>
+      ) : null}
+    </p>
+  );
+}
+
 const STATS_LISTING_ID =
-  /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|adzuna-\d{1,20}|mashvisor-\d{1,15}|openwebninja-\d{1,20})$/;
+  /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|adzuna-\d{1,20}|mashvisor-\d{1,15}|openwebninja-\d{1,20}|marketcheck-(?:dealer|fsbo)-[A-Za-z0-9._:-]{1,160})$/;
 
 /** Records this page view and returns views and saves; one request per page. */
 function useListingStats(listing: ClassifiedDetail) {
@@ -1219,6 +1448,7 @@ function ListingDetailContent() {
   if (!listing) return <ListingMissing />;
 
   const vehicle = listing.vehicle;
+  const marketCheck = listing.externalVehicle;
   const isVehicle = Boolean(vehicle);
   // Cars and trucks link to their make and model page.
   const pageMake = listing.categorySlug === "cars-trucks" ? canonicalMake(vehicle?.make) : null;
@@ -1243,6 +1473,14 @@ function ListingDetailContent() {
         ["Exterior", vehicle.exteriorColor],
         ["Title", vehicle.titleStatus],
         ["VIN", vehicle.vin],
+        ...(marketCheck
+          ? ([
+              ["Seller type", marketCheck.sellerType],
+              ["Inventory", marketCheck.inventoryType],
+              ["Certified", marketCheck.certified ? "Yes" : null],
+              ["Status", marketCheck.vehicleStatus ?? marketCheck.availabilityStatus],
+            ] as [string, string | null][])
+          : []),
         ["Condition", condition],
         ["Fulfillment", formatFulfillmentLabel(listing.fulfillmentMode, true)],
       ].filter(([, value]) => Boolean(value)) as [string, string][])
@@ -1404,6 +1642,12 @@ function ListingDetailContent() {
                   title={title}
                   className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
                 />
+              ) : listing.externalVehicle ? (
+                <PartnerVehicleHeartButton
+                  listingId={listing.id}
+                  title={title}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+                />
               ) : (
                 <WatchHeartButton
                   productId={listing.productId}
@@ -1444,7 +1688,7 @@ function ListingDetailContent() {
               </span>
             )}
             <span className="flex items-center gap-1.5">
-              <Eye size={15} /> Local listing
+              <Eye size={15} /> {listing.externalVehicle ? "Via MarketCheck" : "Local listing"}
             </span>
           </div>
           <p className="numeric mt-4 text-[30px] font-bold leading-none text-primary sm:text-[34px]">
@@ -1515,7 +1759,9 @@ function ListingDetailContent() {
                       </p>
                     ) : (
                       <p className="mt-3 text-[14px] text-muted-foreground">
-                        The seller has not added a description yet.
+                        {listing.externalVehicle
+                          ? "No description was included with this listing."
+                          : "The seller has not added a description yet."}
                       </p>
                     )}
                     {!descriptionExpanded && description.length > 720 && (
@@ -1540,6 +1786,7 @@ function ListingDetailContent() {
                   <div className="mt-4">
                     <SpecGrid rows={specRows} />
                   </div>
+                  <MarketCheckDetailSections listing={listing} />
                 </div>
               )}
               {activeTab === "location" && (
@@ -1587,10 +1834,15 @@ function ListingDetailContent() {
               <p className="mt-1.5 text-[13px] leading-relaxed">{listing.sellerNote}</p>
             </section>
           )}
+          <MarketCheckSourceCredit listing={listing} />
         </div>
 
         <aside className="min-w-0 space-y-5 lg:sticky lg:top-24 lg:col-start-1 lg:row-start-1 lg:row-span-3">
-          <SellerCard listing={listing} />
+          {listing.externalVehicle ? (
+            <MarketCheckContactCard listing={listing} />
+          ) : (
+            <SellerCard listing={listing} />
+          )}
           <ListingActions listing={listing} showPriceHeader={false} />
           <VehicleHistoryCard vehicle={vehicle} />
           <PageStatsCard listing={listing} />

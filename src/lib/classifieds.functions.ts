@@ -29,6 +29,7 @@ import {
   optionalNonNegativeInteger,
   optionalNonNegativeNumber,
 } from "@/lib/classifieds-query";
+import type { MarketCheckListing } from "./marketcheck-contract";
 
 // Preview fixtures remain in source for regression coverage, but they must not
 // appear in the public marketplace once Bluebird is preparing for launch.
@@ -77,6 +78,8 @@ export type ClassifiedCard = {
       mlsName: string | null;
     } | null;
   };
+  /** Provider vehicles are merged into the ordinary motors result set. */
+  externalVehicle?: MarketCheckListing;
   productId: string;
   productSlug: string;
   priceCents: number;
@@ -173,7 +176,8 @@ export const reportClassifiedListing = createServerFn({ method: "POST" })
       !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
         listingId,
       ) &&
-      !/^adzuna-\d{1,20}$/.test(listingId)
+      !/^adzuna-\d{1,20}$/.test(listingId) &&
+      !/^marketcheck-(?:dealer|fsbo)-[A-Za-z0-9._:-]{1,160}$/.test(listingId)
     ) {
       throw new Error("Listing not found.");
     }
@@ -188,6 +192,20 @@ export const reportClassifiedListing = createServerFn({ method: "POST" })
       if (!(await adzunaDetail(data.listingId)))
         throw new Error("That listing is no longer available.");
       const { error } = await client.from("partner_job_reports").insert({
+        listing_id: data.listingId,
+        reporter_id: context.userId,
+        reason: data.reason,
+        details: data.details,
+      });
+      if (error?.code === "23505") return { alreadyReported: true as const };
+      if (error) throw new Error(error.message);
+      return { alreadyReported: false as const };
+    }
+    if (data.listingId.startsWith("marketcheck-")) {
+      const { marketCheckDetail } = await import("./marketcheck.server");
+      if (!(await marketCheckDetail(data.listingId)))
+        throw new Error("That listing is no longer available.");
+      const { error } = await client.from("partner_vehicle_reports").insert({
         listing_id: data.listingId,
         reporter_id: context.userId,
         reason: data.reason,
@@ -231,6 +249,7 @@ export type AdminClassifiedReport = {
 };
 
 const PARTNER_REPORT_PREFIX = "partner:";
+const PARTNER_VEHICLE_REPORT_PREFIX = "partner-vehicle:";
 
 export const getAdminClassifiedReports = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -255,6 +274,11 @@ export const getAdminClassifiedReports = createServerFn({ method: "GET" })
       .select("id,listing_id,reason,details,status,created_at")
       .in("status", ["open", "under_review"])
       .order("created_at", { ascending: false });
+    const { data: partnerVehicles } = await client
+      .from("partner_vehicle_reports")
+      .select("id,listing_id,reason,details,status,created_at,resolved_at")
+      .in("status", ["open", "under_review"])
+      .order("created_at", { ascending: false });
     const toReport = (row: any, idPrefix: string): AdminClassifiedReport => ({
       id: `${idPrefix}${row.id}`,
       listingId: row.listing_id,
@@ -269,6 +293,7 @@ export const getAdminClassifiedReports = createServerFn({ method: "GET" })
       reports: [
         ...(data ?? []).map((row: any) => toReport(row, "")),
         ...(partner ?? []).map((row: any) => toReport(row, PARTNER_REPORT_PREFIX)),
+        ...(partnerVehicles ?? []).map((row: any) => toReport(row, PARTNER_VEHICLE_REPORT_PREFIX)),
       ].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     };
   });
@@ -289,6 +314,19 @@ export const resolveAdminClassifiedReport = createServerFn({ method: "POST" })
     },
   )
   .handler(async ({ data, context }) => {
+    if (data.reportId.startsWith(PARTNER_VEHICLE_REPORT_PREFIX)) {
+      const resolved = data.action !== "assign";
+      const { error } = await (context.supabase as any)
+        .from("partner_vehicle_reports")
+        .update({
+          status: resolved ? data.action : "under_review",
+          resolved_at: resolved ? new Date().toISOString() : null,
+          resolved_by: resolved ? context.userId : null,
+        })
+        .eq("id", data.reportId.slice(PARTNER_VEHICLE_REPORT_PREFIX.length));
+      if (error) throw new Error(error.message);
+      return { ok: true as const };
+    }
     if (data.reportId.startsWith(PARTNER_REPORT_PREFIX)) {
       // RLS limits these updates to admins.
       const resolved = data.action !== "assign";
@@ -2006,6 +2044,9 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
             (listing) => !data.region || regionOfListing(listing) === data.region,
           )
         : [];
+    const { canIncludeMarketCheck, marketCheckCards } = await import("./marketcheck.server");
+    const includeMarketCheck = canIncludeMarketCheck(data);
+    const externalVehicles = includeMarketCheck ? await marketCheckCards(data) : [];
     const includeExternalHomes = includeMashvisor || includeOpenWebNinja;
     const from = (page - 1) * PAGE_SIZE;
     // Pay units are deliberately normalized in `comparableJobPay` (hourly
@@ -2019,6 +2060,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     const resultRange =
       includeAdzuna ||
       includeExternalHomes ||
+      includeMarketCheck ||
       unitAwareJobSort ||
       data.radiusMiles != null ||
       data.region
@@ -2103,6 +2145,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
       ...mockListings,
       ...externalJobs,
       ...externalHomes,
+      ...externalVehicles,
     ].sort(compareListings);
     const resultLimit =
       data.includeAllMocks && SHOW_PUBLIC_PREVIEW_FIXTURES
@@ -2112,6 +2155,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     const pageListings =
       includeAdzuna ||
       includeExternalHomes ||
+      includeMarketCheck ||
       unitAwareJobSort ||
       data.radiusMiles != null ||
       data.region
@@ -2129,6 +2173,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     });
     const nativePageIds = combinedListings
       .filter((listing) => !listing.externalJob && !listing.externalHome)
+      .filter((listing) => !listing.externalVehicle)
       .map((listing) => listing.id);
     if (nativePageIds.length > 0) {
       void import("@/integrations/supabase/client.server")
@@ -2145,7 +2190,8 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
         (data.radiusMiles != null || data.region ? listings.length : (count ?? listings.length)) +
         mockListings.length +
         externalJobs.length +
-        externalHomes.length,
+        externalHomes.length +
+        externalVehicles.length,
       page,
       pageSize: PAGE_SIZE,
     };
@@ -2167,6 +2213,10 @@ export const getClassifiedListing = createServerFn({ method: "GET" })
     if (data.id.startsWith("openwebninja-")) {
       const { openWebNinjaDetail } = await import("./openwebninja-listings.server");
       return openWebNinjaDetail(data.id);
+    }
+    if (data.id.startsWith("marketcheck-")) {
+      const { marketCheckDetail } = await import("./marketcheck.server");
+      return marketCheckDetail(data.id);
     }
     const mockListing = [...mockClassifiedListings, ...mockVehicleListings].find(
       (listing) => listing.id === data.id,

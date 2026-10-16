@@ -72,8 +72,13 @@ import {
 import { getMyWatchlist, setWatchState, type WatchedVariant } from "@/lib/community.functions";
 import { getMySavedPartnerJobs } from "@/lib/saved-jobs.functions";
 import { getMySavedPartnerHomes } from "@/lib/saved-homes.functions";
+import { getMySavedPartnerVehicles } from "@/lib/saved-vehicles.functions";
 import type { ClassifiedCard } from "@/lib/classifieds.functions";
-import { ListingCard, PartnerJobsCredit } from "@/components/classifieds/ListingCard";
+import {
+  ListingCard,
+  PartnerJobsCredit,
+  PartnerVehiclesCredit,
+} from "@/components/classifieds/ListingCard";
 import {
   getMyNotifications,
   markNotificationsRead,
@@ -213,6 +218,12 @@ export function AccountCenter({
   const savedPartnerHomes = useQuery({
     queryKey: ["my-saved-partner-homes"],
     queryFn: () => fetchSavedPartnerHomes(),
+    enabled: section === "saved",
+  });
+  const fetchSavedPartnerVehicles = useServerFn(getMySavedPartnerVehicles);
+  const savedPartnerVehicles = useQuery({
+    queryKey: ["my-saved-partner-vehicles"],
+    queryFn: () => fetchSavedPartnerVehicles(),
     enabled: section === "saved",
   });
   const notifications = useQuery({
@@ -378,6 +389,7 @@ export function AccountCenter({
               <SavedListingsSection items={watchlist.data ?? []} />
               <SavedPartnerJobsSection jobs={savedPartnerJobs.data ?? []} />
               <SavedPartnerHomesSection homes={savedPartnerHomes.data ?? []} />
+              <SavedPartnerVehiclesSection vehicles={savedPartnerVehicles.data ?? []} />
             </>
           ) : section === "searches" ? (
             <SavedSearchesSection searches={savedSearches.data ?? []} />
@@ -1497,6 +1509,25 @@ function SavedPartnerHomesSection({ homes }: { homes: ClassifiedCard[] }) {
           <ListingCard key={home.id} listing={home} />
         ))}
       </div>
+    </section>
+  );
+}
+
+function SavedPartnerVehiclesSection({ vehicles }: { vehicles: ClassifiedCard[] }) {
+  if (!vehicles.length) return null;
+  return (
+    <section className="mt-10 space-y-4">
+      <SectionHeader
+        eyebrow="Saved vehicles"
+        title={`${vehicles.length} saved ${vehicles.length === 1 ? "vehicle" : "vehicles"} from partner listings`}
+        body="Vehicles from MarketCheck. Prices, availability, and vehicle details can change; verify them with the original seller."
+      />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {vehicles.map((vehicle) => (
+          <ListingCard key={vehicle.id} listing={vehicle} />
+        ))}
+      </div>
+      <PartnerVehiclesCredit listings={vehicles} />
     </section>
   );
 }
