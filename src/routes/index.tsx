@@ -189,7 +189,6 @@ function headlineDefaultGroups(items: readonly string[]): HeadlineToken[][] {
 // as possible, measured with the canvas so the split matches real text
 // metrics. Returns null when no split fits the available width.
 function splitHeadlineIntoThreeLines(
-  console.warn("split called", tokens.length, maxWidth);
   tokens: HeadlineToken[],
   maxWidth: number,
   fontCss: string,
