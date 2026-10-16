@@ -476,7 +476,7 @@ export function ListingCard({
           </span>
         ) : (
           <div className="absolute right-2 top-2 z-10">
-            {listing.externalJob || listing.directory ? (
+            {listing.externalJob || listing.directory || listing.externalPet ? (
               <PartnerJobHeartButton listingId={listing.id} title={listing.title} />
             ) : listing.externalHome ? (
               <PartnerHomeHeartButton listingId={listing.id} title={listing.title} />

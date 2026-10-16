@@ -4,6 +4,7 @@ import { getRequest } from "@tanstack/react-start/server";
 import { serverEnv } from "./runtime-env.server";
 import { isWithinClassifiedRadius } from "../config/classifieds.ts";
 import { regionOfListing } from "./market-stats";
+import { normalizePetSubcategory, petSubcategories } from "../config/pets.ts";
 import type {
   ClassifiedBrowseInput,
   ClassifiedCard,
@@ -140,6 +141,11 @@ export function rescueGroupsCard(pet: RescueGroupsPet): ClassifiedCard {
   const city = pet.org?.city ?? "";
   const state = pet.org?.state ?? "";
   const species = pet.species ?? "Pet";
+  // Rescue species map onto Bluebird's pet subcategories (dogs, cats, ...).
+  const known = normalizePetSubcategory(species);
+  const subcategory = petSubcategories.some(([slug]) => slug === known)
+    ? (known as string)
+    : "other-pets";
   return {
     id: `rescuegroups-${pet.id}`,
     productId: `rescuegroups-${pet.id}`,
@@ -160,7 +166,7 @@ export function rescueGroupsCard(pet: RescueGroupsPet): ClassifiedCard {
     imageUrl: pet.photos[0] ?? null,
     vehicle: null,
     pet: {
-      subcategory: species,
+      subcategory,
       species,
       breed: pet.breed,
       name: pet.name,
@@ -208,7 +214,23 @@ export async function rescueGroupsCards(data: ClassifiedBrowseInput): Promise<Cl
           radiusMiles: data.radiusMiles,
         }),
     )
-    .map(rescueGroupsCard);
+    .map(rescueGroupsCard)
+    .filter((card) => {
+      const pet = card.pet!;
+      if (
+        data.petSubcategory &&
+        normalizePetSubcategory(pet.subcategory) !== normalizePetSubcategory(data.petSubcategory)
+      )
+        return false;
+      if (data.petSpecies && pet.species.toLowerCase() !== data.petSpecies.toLowerCase())
+        return false;
+      if (data.petPlacementType && pet.placementType !== data.petPlacementType) return false;
+      if (data.petSex && pet.sex !== data.petSex) return false;
+      if (data.petAge && !pet.age?.toLowerCase().includes(data.petAge.toLowerCase())) return false;
+      if (data.petVaccinated && pet.vaccinated !== data.petVaccinated) return false;
+      if (data.priceMax != null && card.priceCents > data.priceMax * 100) return false;
+      return true;
+    });
 }
 
 export async function rescueGroupsDetail(listingId: string): Promise<ClassifiedDetail | null> {

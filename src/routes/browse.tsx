@@ -2706,6 +2706,24 @@ const petShowcaseRows: HomepagePreviewRow[] = [
     href: "/browse?category=pets&petMode=results",
     cards: [],
   },
+  {
+    title: "Dogs for adoption",
+    action: "See adoptable dogs",
+    href: "/browse?category=pets&petMode=results&petSubcategory=dogs&petPlacementType=adoption",
+    cards: [],
+  },
+  {
+    title: "Cats for adoption",
+    action: "See adoptable cats",
+    href: "/browse?category=pets&petMode=results&petSubcategory=cats&petPlacementType=adoption",
+    cards: [],
+  },
+  {
+    title: "Other pets looking for a home",
+    action: "See other pets",
+    href: "/browse?category=pets&petMode=results&petSubcategory=other-pets&petPlacementType=adoption",
+    cards: [],
+  },
 ];
 
 type HomepagePreviewCard = {

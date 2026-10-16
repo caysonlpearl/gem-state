@@ -2646,47 +2646,58 @@ export const getClassifiedsHome = createServerFn({ method: "GET" }).handler(
       const client = publicServerClient();
       const nowIso = new Date().toISOString();
 
-      const [{ data: categoryRows }, motors, recent, homes, jobs, flexibleJobs, rentals, services] =
-        await Promise.all([
-          client
-            .from("asks")
-            .select(
-              "id, products!inner(status, categories!inner(slug)), classified_listing_details!inner(listing_id)",
-            )
-            .eq("status", "active")
-            .eq("is_demo", false)
-            .not("approved_at", "is", null)
-            .gt("expires_at", nowIso)
-            .eq("products.status", "published")
-            .limit(1000),
-          // The public homepage is intentionally local. The full vehicle
-          // browser can still widen its geography through its filters, but
-          // homepage rows should never lead with distant inventory.
-          runBrowseClassifieds({ group: "motors", state: "ID", sort: "newest", page: 1 }),
-          runBrowseClassifieds({ sort: "newest", page: 1, includeAllMocks: true }),
-          runBrowseClassifieds({
-            category: "other-real-estate",
-            homeTab: "buy",
-            sort: "newest",
-            page: 1,
-          }),
-          runBrowseClassifieds({ category: "jobs", sort: "newest", page: 1 }),
-          runBrowseClassifieds({
-            category: "jobs",
-            jobEmploymentType: "Part-time",
-            sort: "newest",
-            page: 1,
-          }),
-          // Rentals and services rows on the homepage need their own pull;
-          // the general "recent" read leaves out partner feeds and directories.
-          runBrowseClassifieds({
-            category: "other-real-estate",
-            homeTab: "rent",
-            sort: "newest",
-            page: 1,
-          }),
-          runBrowseClassifieds({ category: "services", sort: "newest", page: 1 }),
-        ]);
+      const [
+        { data: categoryRows },
+        motors,
+        recent,
+        homes,
+        jobs,
+        flexibleJobs,
+        rentals,
+        services,
+        pets,
+      ] = await Promise.all([
+        client
+          .from("asks")
+          .select(
+            "id, products!inner(status, categories!inner(slug)), classified_listing_details!inner(listing_id)",
+          )
+          .eq("status", "active")
+          .eq("is_demo", false)
+          .not("approved_at", "is", null)
+          .gt("expires_at", nowIso)
+          .eq("products.status", "published")
+          .limit(1000),
+        // The public homepage is intentionally local. The full vehicle
+        // browser can still widen its geography through its filters, but
+        // homepage rows should never lead with distant inventory.
+        runBrowseClassifieds({ group: "motors", state: "ID", sort: "newest", page: 1 }),
+        runBrowseClassifieds({ sort: "newest", page: 1, includeAllMocks: true }),
+        runBrowseClassifieds({
+          category: "other-real-estate",
+          homeTab: "buy",
+          sort: "newest",
+          page: 1,
+        }),
+        runBrowseClassifieds({ category: "jobs", sort: "newest", page: 1 }),
+        runBrowseClassifieds({
+          category: "jobs",
+          jobEmploymentType: "Part-time",
+          sort: "newest",
+          page: 1,
+        }),
+        // Rentals and services rows on the homepage need their own pull;
+        // the general "recent" read leaves out partner feeds and directories.
+        runBrowseClassifieds({
+          category: "other-real-estate",
+          homeTab: "rent",
+          sort: "newest",
+          page: 1,
+        }),
+        runBrowseClassifieds({ category: "services", sort: "newest", page: 1 }),
+        // Adoptable pets for the homepage's pets row.
+        runBrowseClassifieds({ category: "pets", state: "ID", sort: "newest", page: 1 }),
+      ]);
 
       const categoryCounts: Record<string, number> = {};
       for (const row of (categoryRows ?? []) as Record<string, unknown>[]) {
@@ -2712,6 +2723,7 @@ export const getClassifiedsHome = createServerFn({ method: "GET" }).handler(
               ...jobs.listings,
               ...flexibleJobs.listings,
               ...services.listings,
+              ...pets.listings,
             ].map((listing) => [listing.id, listing]),
           ).values(),
         ],

@@ -3895,7 +3895,13 @@ function GeneralListingDetail({
             </div>
             <div className="flex items-center gap-2">
               <ListingStatsInline listing={listing} />
-              {listing.isMock ? (
+              {listing.externalPet ? (
+                <PartnerJobHeartButton
+                  listingId={listing.id}
+                  title={title}
+                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+                />
+              ) : listing.isMock ? (
                 <button
                   type="button"
                   aria-label="Save listing"
@@ -4042,6 +4048,7 @@ function GeneralListingDetail({
 
         <aside className="min-w-0 space-y-5 lg:sticky lg:top-24 lg:col-start-1 lg:row-start-2 lg:row-span-2">
           <SellerCard listing={listing} />
+          <RescueCard listing={listing} />
           {/* Vinted/Whatnot imports: the seller card's Message seller button
               already links to the original listing, so no second card. */}
           {listing.originalListing ? null : (
@@ -4055,7 +4062,51 @@ function GeneralListingDetail({
           <TrustSafetyCard listing={listing} />
         </aside>
       </div>
+      {listing.externalPet ? (
+        <p className="mt-12 border-t border-border/70 py-5 text-center text-[11px] text-muted-foreground">
+          Pet data from RescueGroups.org.
+        </p>
+      ) : null}
     </main>
+  );
+}
+
+/** The rescue caring for a RescueGroups pet: name, town and how to reach them. */
+function RescueCard({ listing }: { listing: ClassifiedDetail }) {
+  const rescue = listing.externalPet;
+  if (!rescue) return null;
+  const name = rescue.orgName ?? "Animal rescue";
+  const linkClass =
+    "inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-border text-[12px] font-medium hover:border-primary hover:bg-primary/5 hover:text-primary";
+  return (
+    <section className="soft-card p-5 sm:p-6">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+        Listed by
+      </p>
+      <div className="mt-3 flex items-center gap-3">
+        <EmployerTile name={name} />
+        <div className="min-w-0">
+          <p className="text-[15px] font-bold">{name}</p>
+          <p className="mt-1 text-[13px] text-muted-foreground">
+            {placeLabel(listing.city, listing.state)}
+          </p>
+        </div>
+      </div>
+      {rescue.orgPhone || rescue.orgEmail ? (
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          {rescue.orgPhone ? (
+            <a href={`tel:${rescue.orgPhone.replace(/[^\d+]/g, "")}`} className={linkClass}>
+              <Phone size={15} aria-hidden="true" /> Call
+            </a>
+          ) : null}
+          {rescue.orgEmail ? (
+            <a href={`mailto:${rescue.orgEmail}`} className={linkClass}>
+              <EnvelopeSimple size={15} aria-hidden="true" /> Email
+            </a>
+          ) : null}
+        </div>
+      ) : null}
+    </section>
   );
 }
 

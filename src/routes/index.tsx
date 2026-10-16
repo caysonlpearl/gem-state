@@ -339,7 +339,10 @@ function Home() {
           <p className="hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-primary sm:block">
             Bluebird classifieds
           </p>
-          <h1 ref={headlineRef} className="homepage-hero-headline block max-w-[34ch] text-[22px] sm:mt-2 font-bold leading-[1.08] tracking-tight sm:text-[48px]">
+          <h1
+            ref={headlineRef}
+            className="homepage-hero-headline block max-w-[34ch] text-[22px] sm:mt-2 font-bold leading-[1.08] tracking-tight sm:text-[48px]"
+          >
             {/* Phones: fixed three lines "Find A to / B to C / to D."
                 Tablet/desktop: two lines "Find A to B to / C to D." */}
             <span className="whitespace-nowrap sm:whitespace-normal">
@@ -651,6 +654,10 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
       ),
     ),
   );
+  // Adoptable pets, Idaho only like the other homepage rows.
+  const petListings = pick(
+    localRecent.filter((listing) => listing.pet && listing.state?.toUpperCase() === "ID"),
+  );
   const generalListings = pick(generalSource);
   const toyAndCollectibleListings = pick(
     generalSource.filter((listing) =>
@@ -676,7 +683,11 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
               Vehicles for sale in Idaho
             </h2>
           </div>
-          <Link to="/browse" search={withLocation({ group: "motors" })} className={`${seeAll} shrink-0`}>
+          <Link
+            to="/browse"
+            search={withLocation({ group: "motors" })}
+            className={`${seeAll} shrink-0`}
+          >
             All vehicles <ArrowRight size={12} />
           </Link>
         </div>
@@ -849,6 +860,14 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
         listings={serviceListings}
         search={withLocation({ category: "services" })}
         action="Find a local pro"
+      />
+
+      <HomepageListingRow
+        eyebrow="Bluebird pets"
+        title="Adoptable pets"
+        listings={petListings}
+        search={withLocation({ category: "pets" })}
+        action="Meet more pets"
       />
 
       <HomepageListingRow

@@ -77,7 +77,7 @@ time** from a cache. They are never written as marketplace listings.
 7. **Homepage**: pets currently skip the homepage rows (`!listing.pet` in
    `src/routes/index.tsx`). Optionally add an "Adoptable pets" row from
    the pets pull. Homepage rows stay Idaho-only (filter `state === "ID"`).
-8. Saved/heart button: reuse the partner pattern
+8. Saved/heart button: DONE (pets reuse saved_partner_jobs; migration 20261017010000 applied).
    (`PartnerVehicleHeartButton` / `saved_partner_*`) or hide the heart for
    pets in v1.
 9. Test, typecheck (`npx tsc --noEmit`), push to main, then the owner
