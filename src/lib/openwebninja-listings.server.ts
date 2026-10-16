@@ -5,6 +5,7 @@ import type {
 } from "./classifieds.functions";
 import { isWithinClassifiedRadius, usStates } from "../config/classifieds.ts";
 import {
+  dedupeImageUrls,
   OPENWEBNINJA_ID,
   listedAt,
   type OpenWebNinjaHome,
@@ -107,7 +108,14 @@ export async function openWebNinjaDetail(listingId: string): Promise<ClassifiedD
   const details = await propertyDetails(home.id);
   const extra = details.ok ? details.value : null;
   const card = openWebNinjaCard(home);
-  const images = extra?.images.length ? extra.images : home.imageUrl ? [home.imageUrl] : [];
+  // Cached property payloads may predate the provider-variant normalizer, so
+  // apply the same dedupe when reading them instead of spending another API
+  // request just to rewrite an existing cache entry.
+  const images = extra?.images.length
+    ? dedupeImageUrls(extra.images)
+    : home.imageUrl
+      ? [home.imageUrl]
+      : [];
   const priceHistory = [
     ...(extra?.priceHistory ?? []),
     ...(extra?.originalListPrice

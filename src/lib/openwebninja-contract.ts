@@ -105,6 +105,19 @@ const httpsImage = (value: unknown) => {
   return url.replace(/^http:\/\//i, "https://");
 };
 
+/** Keep one gallery entry per provider photo, even when a cached payload has
+ * already been normalized and contains several Zillow URL variants. */
+export function dedupeImageUrls(urls: string[]) {
+  const seen = new Set<string>();
+  return urls.filter((url) => {
+    const zillowPhoto = url.match(/photos\.zillowstatic\.com\/fp\/([0-9a-f]{32})/i);
+    const key = zillowPhoto ? `zillow:${zillowPhoto[1]}` : url;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 const normalizeDate = (value: unknown) => {
   const direct = text(value);
   if (direct && /^\d{4}-\d{2}-\d{2}/.test(direct)) return direct.slice(0, 10);
@@ -199,17 +212,7 @@ function imageList(record: Record<string, unknown>) {
   for (const [key, value] of Object.entries(record)) {
     if (/photo|image|picture|media/i.test(key)) visit(value);
   }
-  const seen = new Set<string>();
-  return urls.filter((url) => {
-    // Zillow returns several size/format variants for the same photo (for
-    // example p_d, d_d, o_a, WebP, and uncropped URLs). Keep one gallery
-    // entry per underlying photo while preserving the provider's order.
-    const zillowPhoto = url.match(/photos\.zillowstatic\.com\/fp\/([0-9a-f]{32})/i);
-    const key = zillowPhoto ? `zillow:${zillowPhoto[1]}` : url;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+  return dedupeImageUrls(urls);
 }
 
 function list(value: unknown): string[] {

@@ -4,6 +4,7 @@ import {
   normalizeOpenWebNinjaHome,
   normalizeOpenWebNinjaProperty,
   normalizeOpenWebNinjaResult,
+  dedupeImageUrls,
   OPENWEBNINJA_ID,
 } from "../src/lib/openwebninja-contract.ts";
 
@@ -96,4 +97,18 @@ test("normalizes all property photos and expanded home facts", () => {
 test("only accepts numeric OpenWeb Ninja listing IDs", () => {
   assert.ok(OPENWEBNINJA_ID.test("openwebninja-12345"));
   assert.ok(!OPENWEBNINJA_ID.test("openwebninja-abc"));
+});
+
+test("deduplicates provider photo variants in cached detail payloads", () => {
+  assert.deepEqual(
+    dedupeImageUrls([
+      "https://photos.zillowstatic.com/fp/0123456789abcdef0123456789abcdef-p_d.jpg",
+      "https://photos.zillowstatic.com/fp/0123456789abcdef0123456789abcdef-o_a.webp",
+      "https://images.example/other.jpg",
+    ]),
+    [
+      "https://photos.zillowstatic.com/fp/0123456789abcdef0123456789abcdef-p_d.jpg",
+      "https://images.example/other.jpg",
+    ],
+  );
 });
