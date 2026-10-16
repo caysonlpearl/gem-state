@@ -93,3 +93,18 @@ test("external inventory participates in jobs and general browse but never owner
     assert.equal(canIncludeAdzuna({ category: "jobs", ...scope }), false);
   }
 });
+
+test("retains cities supplied in display name when the hierarchy stops at county", () => {
+  const r = normalizeAdzunaResult({
+    results: [
+      {
+        ...job,
+        location: {
+          display_name: "Sunnyslope, Canyon County",
+          area: ["US", "Idaho", "Canyon County"],
+        },
+      },
+    ],
+  });
+  assert.equal(r.jobs[0].location, "Sunnyslope, ID");
+});

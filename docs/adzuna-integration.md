@@ -14,7 +14,7 @@ Filters the provider cannot substantiate (photos, pay, education, experience)
 exclude external results. Unknown pay reads “See pay details”; unknown employment
 is omitted. No salaries, photos, cities, or dates are invented. Locations are
 normalized from the provider hierarchy to city plus US state abbreviation;
-county-only and otherwise unresolved locations are excluded. Cache version 2
+county-only and otherwise unresolved locations are excluded. Cache version 3
 prevents earlier display-name-only payloads from leaking into the new cards.
 
 No external jobs are inserted into marketplace products, sold, saved to watchlists,

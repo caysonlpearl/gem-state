@@ -3225,17 +3225,40 @@ function LandingListingsShowcase({
 }
 
 function JobShowcaseCards({ row, search }: { row: HomepagePreviewRow; search: Search }) {
+  const container = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: "400px" },
+    );
+    if (container.current) observer.observe(container.current);
+    return () => observer.disconnect();
+  }, []);
   const params = Object.fromEntries(new URL(row.href, "https://onbluebird.com").searchParams);
-  const query = useQuery(
-    classifiedQuery(inputFromSearch({ ...search, ...params, page: 1 } as Search)),
-  );
-  if (query.isPending) return <p className="py-8 text-sm text-muted-foreground">Loading jobs…</p>;
-  if (!query.data?.listings.length) return <CategoryGettingStarted />;
+  const query = useQuery({
+    ...classifiedQuery(inputFromSearch({ ...search, ...params, page: 1 } as Search)),
+    enabled: visible,
+    staleTime: 60_000,
+  });
   return (
-    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-      {query.data.listings.slice(0, 4).map((listing) => (
-        <ListingCard key={listing.id} listing={listing} />
-      ))}
+    <div ref={container} className="min-h-32">
+      {query.isPending ? (
+        <p className="py-8 text-sm text-muted-foreground">Loading jobs…</p>
+      ) : !query.data?.listings.length ? (
+        <CategoryGettingStarted />
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {query.data.listings.slice(0, 4).map((listing) => (
+            <ListingCard key={listing.id} listing={listing} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

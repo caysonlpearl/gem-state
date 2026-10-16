@@ -10,6 +10,8 @@ const categories: Record<string, string> = {
   Hospitality: "hospitality-catering-jobs",
   Retail: "retail-jobs",
   Education: "teaching-jobs",
+  "Human Resources": "hr-jobs",
+  "Information Technology": "it-jobs",
 };
 
 export function canIncludeAdzuna(data: ClassifiedBrowseInput) {
@@ -17,7 +19,7 @@ export function canIncludeAdzuna(data: ClassifiedBrowseInput) {
     data.includeAllMocks ||
     data.sellerSlug ||
     data.dealerSlug ||
-    data.group ||
+    (data.group && data.group !== "classifieds") ||
     (data.category && data.category !== "jobs")
   )
     return false;

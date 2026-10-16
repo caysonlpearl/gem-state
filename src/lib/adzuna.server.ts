@@ -25,7 +25,7 @@ export async function searchJobs(input: AdzunaSearch): Promise<AdzunaResult> {
     },
   });
   const query = {
-    version: 2,
+    version: 3,
     category: input.category,
     employment: input.employment,
     what: input.what.toLowerCase(),
@@ -55,7 +55,7 @@ export async function searchJobs(input: AdzunaSearch): Promise<AdzunaResult> {
     }).toString();
     const response = await fetch(url, {
       headers: { Accept: "application/json" },
-      signal: AbortSignal.timeout(10000),
+      signal: AbortSignal.timeout(20000),
     });
     if (!response.ok) return empty(response.status === 429 ? "limited" : "unavailable");
     const result = normalizeAdzunaResult(await response.json());

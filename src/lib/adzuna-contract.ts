@@ -67,14 +67,16 @@ export function normalizeAdzunaResult(value: unknown): AdzunaResult {
     const state = usStates.find(([code, name]) =>
       [...area, ...display].some((v) => v.toLowerCase() === name.toLowerCase() || v === code),
     )?.[0];
-    // US hierarchy ends with the locality. A county-only result is not a city.
-    const candidate = area.length >= 3 ? area[area.length - 1] : display[0];
-    const city =
-      candidate &&
-      !/\b(county|parish)\b/i.test(candidate) &&
-      !usStates.some(([code, name]) => candidate === code || candidate === name)
-        ? candidate
-        : "";
+    // Some US hierarchies stop at county; display_name still identifies the
+    // city. Accept a locality from either field, never a county or state.
+    const isCity = (value: string) =>
+      value &&
+      !/\b(county|parish)\b/i.test(value) &&
+      !["US", "USA", "United States"].includes(value) &&
+      !usStates.some(
+        ([code, name]) => value === code || value.toLowerCase() === name.toLowerCase(),
+      );
+    const city = [display[0], area.length >= 3 ? area[area.length - 1] : ""].find(isCity) ?? "";
     if (!city || !state || !Number.isFinite(Date.parse(row.created))) continue;
     seen.add(id);
     jobs.push({
