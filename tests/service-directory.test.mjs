@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  nextRatingBatch,
+  ratingBatchKey,
   formatPhone,
   canIncludeDirectory,
   directoryCard,
@@ -115,4 +117,12 @@ test("phone numbers read the way people write them", () => {
   assert.equal(formatPhone("+12089499680"), "(208) 949-9680");
   assert.equal(formatPhone("(208) 466-2311"), "(208) 466-2311");
   assert.equal(formatPhone(null), null);
+});
+
+test("ratings batches walk the biggest towns' main trades, skipping ones run this month", () => {
+  assert.deepEqual(nextRatingBatch(new Set()), { trade: "Plumbers", city: "Boise" });
+  assert.deepEqual(nextRatingBatch(new Set([ratingBatchKey("Plumbers", "Boise")])), {
+    trade: "Electricians",
+    city: "Boise",
+  });
 });

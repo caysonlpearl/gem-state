@@ -197,6 +197,38 @@ function FeaturedBadge() {
 }
 
 /**
+ * A directory business has no prices, so its card leads with its Google
+ * rating when we have one, and "Call for a quote" as the smaller line.
+ */
+function DirectoryRating({ directory }: { directory: NonNullable<ClassifiedCard["directory"]> }) {
+  return (
+    <div className="min-h-[34px]">
+      {directory.rating != null ? (
+        <p className="flex items-baseline gap-1.5 leading-none">
+          <span className="text-[17px] text-brand-warm" aria-hidden="true">
+            ★
+          </span>
+          <span className="numeric text-[19px] font-bold text-foreground">
+            {directory.rating.toFixed(1)}
+          </span>
+          {directory.reviewCount != null ? (
+            <span className="text-[11.5px] text-muted-foreground">
+              {directory.reviewCount.toLocaleString()} Google review
+              {directory.reviewCount === 1 ? "" : "s"}
+            </span>
+          ) : null}
+        </p>
+      ) : null}
+      <p
+        className={`text-[12px] font-semibold text-primary ${directory.rating != null ? "mt-1.5" : "pt-1"}`}
+      >
+        Call for a quote
+      </p>
+    </div>
+  );
+}
+
+/**
  * The center of a photo-less card or listing gallery: the employer's logo
  * for a partner job when there is one, else the category art.
  */
@@ -370,13 +402,11 @@ function Price({ listing }: { listing: ClassifiedCard }) {
     <>
       {listing.job
         ? formatJobPay(listing.job)
-        : listing.directory?.rating != null
-          ? `★ ${listing.directory.rating.toFixed(1)}${listing.directory.reviewCount ? ` (${listing.directory.reviewCount})` : ""}`
-          : (listing.service?.pricing ??
-            formatClassifiedPrice(listing.priceCents, {
-              wholeDollars: Boolean(listing.vehicle || listing.home),
-              monthly: listing.home?.mode === "rent",
-            }))}
+        : (listing.service?.pricing ??
+          formatClassifiedPrice(listing.priceCents, {
+            wholeDollars: Boolean(listing.vehicle || listing.home),
+            monthly: listing.home?.mode === "rent",
+          }))}
     </>
   );
 }
@@ -438,12 +468,16 @@ export function ListingCard({
         </ListingLink>
       ) : (
         <ListingLink listing={listing} className="block px-3.5 pb-4 pt-3.5">
-          <p className="numeric text-[17px] font-bold leading-none text-foreground">
-            {soldAt ? (
-              <span className="mr-1 text-[11px] font-semibold text-muted-foreground">Asked</span>
-            ) : null}
-            <Price listing={listing} />
-          </p>
+          {listing.directory ? (
+            <DirectoryRating directory={listing.directory} />
+          ) : (
+            <p className="numeric text-[17px] font-bold leading-none text-foreground">
+              {soldAt ? (
+                <span className="mr-1 text-[11px] font-semibold text-muted-foreground">Asked</span>
+              ) : null}
+              <Price listing={listing} />
+            </p>
+          )}
           <h3 className="mt-1.5 line-clamp-2 min-h-[34px] text-[13px] font-semibold leading-[1.3] group-hover:text-primary">
             {listing.title}
           </h3>
@@ -458,7 +492,13 @@ export function ListingCard({
             {listing.city}, {listing.state}
           </p>
           <div className="mt-2 flex items-center justify-between gap-2 text-[10.5px] text-muted-foreground">
-            <span className="truncate">{soldAt ? "Sold" : cardActionLabel(listing)}</span>
+            <span className="truncate">
+              {soldAt
+                ? "Sold"
+                : listing.directory
+                  ? (listing.directory.phone ?? "Call for details")
+                  : cardActionLabel(listing)}
+            </span>
             <span className="shrink-0">
               {listing.directory
                 ? listing.directory.claimed

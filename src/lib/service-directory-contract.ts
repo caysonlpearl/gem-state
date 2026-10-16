@@ -221,3 +221,62 @@ function serviceNames(value: unknown): string[] {
     .map((name) => name.trim().replace(/^./, (c) => c.toUpperCase()));
   return Array.from(new Set(names)).slice(0, 20);
 }
+
+/** What to search Google for when rating a whole trade in a town at once. */
+export const TRADE_SEARCH_TERMS: Record<string, string> = {
+  Plumbers: "plumber",
+  Electricians: "electrician",
+  "Heating & Air Conditioning": "HVAC contractor",
+  Roofing: "roofing contractor",
+  "Landscape Contractors": "landscaping",
+  "House Cleaning": "house cleaning service",
+  Handyman: "handyman",
+  "General Contractors": "general contractor",
+  Painters: "house painter",
+  "Pest Control": "pest control",
+  Automotive: "auto repair",
+  Movers: "movers",
+  "Tree Trimming & Removal": "tree service",
+  "Carpet & Flooring Installation": "flooring contractor",
+  "Garage Doors": "garage door repair",
+  "Concrete Contractors": "concrete contractor",
+};
+
+/** Towns rated first, largest first. */
+export const RATING_CITIES = [
+  "Boise",
+  "Meridian",
+  "Nampa",
+  "Idaho Falls",
+  "Pocatello",
+  "Caldwell",
+  "Coeur d'Alene",
+  "Twin Falls",
+  "Post Falls",
+  "Eagle",
+  "Lewiston",
+  "Rexburg",
+  "Kuna",
+  "Garden City",
+  "Hayden",
+  "Ammon",
+  "Moscow",
+  "Sandpoint",
+  "Star",
+  "Chubbuck",
+];
+
+export const ratingBatchKey = (trade: string, city: string) => `batch:${trade}:${city}`;
+
+/** The next trade-and-town search to run: the first one not run in the last month. */
+export function nextRatingBatch(recentKeys: Set<string>) {
+  for (const city of RATING_CITIES) {
+    for (const trade of Object.keys(TRADE_SEARCH_TERMS)) {
+      if (!recentKeys.has(ratingBatchKey(trade, city))) return { trade, city };
+    }
+  }
+  return null;
+}
+
+export const phoneDigits = (value: unknown) =>
+  typeof value === "string" ? value.replace(/\D/g, "").slice(-10) : "";

@@ -8,6 +8,10 @@ import {
   directoryCard,
   enrichmentFrom,
   matchBusiness,
+  nextRatingBatch,
+  phoneDigits,
+  ratingBatchKey,
+  TRADE_SEARCH_TERMS,
   websiteDomain,
   type DirectoryRow,
 } from "./service-directory-contract.ts";
@@ -68,6 +72,9 @@ export async function directoryCards(
     query = query
       .order("claimed_at", { ascending: false, nullsFirst: false })
       .order("priority", { ascending: true })
+      // The most-reviewed businesses on Google first: a fair proxy for the
+      // pros people actually use.
+      .order("enrichment->reviewCount", { ascending: false, nullsFirst: false })
       .order("source_refreshed_at", { ascending: false, nullsFirst: false })
       .order("name", { ascending: true });
     const {
@@ -178,4 +185,84 @@ export async function directoryTradeCounts(): Promise<Record<string, number>> {
   } catch {
     return {};
   }
+}
+
+/**
+ * Rates a whole trade in a town with one Local Business Data search (up to
+ * 50 businesses per request): results are matched to directory businesses
+ * by phone number and their Google rating, hours and description kept.
+ * Runs from the scheduled job, one batch per run, inside the same database
+ * budget as page lookups.
+ */
+export async function rateNextTradeCity(): Promise<{
+  trade: string;
+  city: string;
+  rated: number;
+} | null> {
+  const apiKey = serverEnv("OPENWEBNINJA_API_KEY");
+  if (!apiKey) return null;
+  const client = await db();
+  const { data: recent } = await client
+    .from("service_enrichment_requests")
+    .select("directory_id")
+    .like("directory_id", "batch:%")
+    .gte("created_at", new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString());
+  const next = nextRatingBatch(
+    new Set(((recent ?? []) as { directory_id: string }[]).map((row) => row.directory_id)),
+  );
+  if (!next) return null;
+  // Leave a few of the day's 20 lookups for pages people open.
+  const { count: today } = await client
+    .from("service_enrichment_requests")
+    .select("id", { count: "exact", head: true })
+    .gte("created_at", new Date(Date.now() - 24 * 3600 * 1000).toISOString());
+  if ((today ?? 0) >= 14) return null;
+  const { data: allowed, error } = await client.rpc("reserve_service_enrichment", {
+    p_directory_id: ratingBatchKey(next.trade, next.city),
+  });
+  if (error || !allowed) return null;
+  const params = new URLSearchParams({
+    query: `${TRADE_SEARCH_TERMS[next.trade]} in ${next.city}, ID`,
+    limit: "50",
+    region: "us",
+    language: "en",
+  });
+  const response = await fetch(
+    `https://api.openwebninja.com/local-business-data/search?${params.toString()}`,
+    {
+      headers: { Accept: "application/json", "x-api-key": apiKey },
+      signal: AbortSignal.timeout(20000),
+    },
+  );
+  if (!response.ok) return { ...next, rated: 0 };
+  const body = (await response.json()) as { data?: unknown };
+  const results = (Array.isArray(body.data) ? body.data : []) as Record<string, unknown>[];
+  const byPhone = new Map(
+    results
+      .map((result) => [phoneDigits(result.phone_number), result] as const)
+      .filter(([digits]) => digits.length === 10),
+  );
+  if (!byPhone.size) return { ...next, rated: 0 };
+  const { data: rows } = await client
+    .from("service_directory")
+    .select("id, phone_digits")
+    .in("phone_digits", [...byPhone.keys()]);
+  const now = new Date().toISOString();
+  let rated = 0;
+  for (const row of (rows ?? []) as { id: string; phone_digits: string }[]) {
+    const result = byPhone.get(row.phone_digits);
+    if (!result) continue;
+    const enrichment = enrichmentFrom(result);
+    await client
+      .from("service_directory")
+      .update({
+        enrichment,
+        enriched_at: now,
+        updated_at: now,
+        ...(enrichment.closed ? { hidden: true } : {}),
+      })
+      .eq("id", row.id);
+    rated += 1;
+  }
+  return { ...next, rated };
 }
