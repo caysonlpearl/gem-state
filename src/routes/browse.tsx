@@ -830,11 +830,11 @@ function normalizedCondition(value: string | undefined) {
 function inputFromSearch(search: Search): ClassifiedBrowseInput {
   const hasExplicitVehicleLocation = Boolean(
     search.state ||
-      search.region ||
-      search.city ||
-      search.postalCode ||
-      search.latitude != null ||
-      search.longitude != null,
+    search.region ||
+    search.city ||
+    search.postalCode ||
+    search.latitude != null ||
+    search.longitude != null,
   );
   const defaultVehicleLandingState =
     (search.group === "motors" || isMotorsCategory(search.category)) &&
@@ -2765,8 +2765,8 @@ const classifiedShowcaseRows: HomepagePreviewRow[] = [
 
 const vehicleShowcaseRows: HomepagePreviewRow[] = [
   {
-    title: "Popular cars & trucks",
-    action: "See popular vehicles",
+    title: "Newest in Idaho",
+    action: "See the newest vehicles",
     href: "/browse?group=motors&vehicleMode=results&state=ID",
     cards: [],
   },
@@ -2777,8 +2777,8 @@ const vehicleShowcaseRows: HomepagePreviewRow[] = [
     cards: [],
   },
   {
-    title: "Just reduced",
-    action: "See vehicle price drops",
+    title: "Lowest prices",
+    action: "See the lowest prices",
     href: "/browse?group=motors&vehicleMode=results&state=ID&sort=price_low",
     cards: [],
   },
@@ -2827,13 +2827,13 @@ const vehicleShowcaseRows: HomepagePreviewRow[] = [
   showcaseRow(
     "Classic & enthusiast vehicles",
     "Explore classic rides",
-    "/browse?group=motors&vehicleMode=results&state=ID",
+    "/browse?group=motors&vehicleMode=results&state=ID&yearMax=1995",
     [],
   ),
   showcaseRow(
-    "Three-row family vehicles",
-    "Find three-row vehicles",
-    "/browse?group=motors&vehicleMode=results&state=ID",
+    "Minivans & people movers",
+    "Find minivans",
+    "/browse?group=motors&vehicleMode=results&state=ID&bodyStyle=Minivan",
     [],
   ),
   showcaseRow(

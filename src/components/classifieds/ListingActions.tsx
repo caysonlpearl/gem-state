@@ -115,7 +115,12 @@ function LiveListingActions({
   const monthlyPayment =
     principal === 0 ? 0 : (principal * monthlyRate) / (1 - Math.pow(1 + monthlyRate, -payments));
 
-  const canContactHere = !isPreviewListing && !isOwnListing && !isExternalApply;
+  // Cars from MarketCheck have no Bluebird seller to message: the contact is
+  // the dealer or private seller on the original listing.
+  const partnerVehicleUrl = listing.externalVehicle?.sourceUrl ?? null;
+  const isPartnerVehicle = Boolean(listing.externalVehicle);
+  const canContactHere =
+    !isPreviewListing && !isOwnListing && !isExternalApply && !isPartnerVehicle;
 
   // Opens the message (or application) form and brings it on screen, or asks
   // a signed-out buyer to sign in first. Also what the mobile bottom bar
@@ -246,9 +251,11 @@ function LiveListingActions({
           <Info size={15} className="mt-0.5 shrink-0 text-primary" />
           {isExternalApply
             ? "This employer accepts applications on their own site or by email."
-            : isJobApply
-              ? "Apply to let the employer know you're interested. They will reach out about next steps."
-              : "Contact the seller to confirm availability, condition, pickup, shipping, and the final amount."}
+            : isPartnerVehicle
+              ? "Reach the seller through the original listing to confirm availability, condition and the final price."
+              : isJobApply
+                ? "Apply to let the employer know you're interested. They will reach out about next steps."
+                : "Contact the seller to confirm availability, condition, pickup, shipping, and the final amount."}
         </p>
 
         {isPreviewListing ? (
@@ -256,6 +263,18 @@ function LiveListingActions({
             This is a preview listing. Contact and application actions become available on a
             published seller listing.
           </div>
+        ) : isPartnerVehicle ? (
+          partnerVehicleUrl ? (
+            <a
+              href={partnerVehicleUrl}
+              target="_blank"
+              rel="noopener noreferrer nofollow"
+              onClick={() => trackSellerContact("apply_external", listing)}
+              className="flex h-12 w-full items-center justify-center rounded-full bg-nav-accent text-[14.5px] font-semibold text-primary transition-opacity hover:opacity-90"
+            >
+              Contact seller on the original listing
+            </a>
+          ) : null
         ) : isExternalApply && !isOwnListing ? (
           <a
             href={externalApplyHref(listing.job?.applicationExternalContact ?? "")}

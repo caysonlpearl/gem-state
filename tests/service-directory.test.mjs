@@ -126,3 +126,14 @@ test("ratings batches walk the biggest towns' main trades, skipping ones run thi
     city: "Boise",
   });
 });
+
+import { cleanDescription, cleanHeading } from "../src/lib/marketcheck-contract.ts";
+test("partner vehicle headings and seller text lose classifieds boilerplate", () => {
+  assert.equal(cleanHeading("2013 Kia Optima SLX Turbo |"), "2013 Kia Optima SLX Turbo");
+  assert.equal(cleanHeading("  | 2004 Toyota Prius - "), "2004 Toyota Prius");
+  assert.equal(cleanHeading("   "), null);
+  assert.equal(
+    cleanDescription("QR Code Link to This Post\n\nFOR SALE: 2013 Kia"),
+    "FOR SALE: 2013 Kia",
+  );
+});

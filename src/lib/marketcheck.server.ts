@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- Supabase's generated client does not include the new cache tables yet. */
 import { createClient } from "@supabase/supabase-js";
+import { getRequest } from "@tanstack/react-start/server";
 import { serverEnv } from "./runtime-env.server";
 import {
   classifiedCoordinatesForCity,
@@ -27,8 +28,18 @@ import {
 const API_BASE = "https://api.marketcheck.com/v2";
 const CACHE_MS = 7 * 24 * 60 * 60 * 1000;
 const PAGE_SIZE = 50;
-const MAX_PAGES = 10;
-const DEFAULT_STATES = ["ID", "WA", "OR", "NV", "UT", "WY", "MT"] as const;
+/**
+ * The free plan is 500 calls a month, so searches never go to MarketCheck
+ * per filter. Each state has one cached inventory (newest listings first),
+ * refreshed weekly, and every Bluebird filter, row and sort runs over it
+ * here. Idaho gets the deepest inventory; another state is fetched only
+ * when a visitor picks it.
+ */
+const BASE_PAGES: Record<MarketCheckSourceKind, number> = { dealer: 6, fsbo: 4 };
+const OTHER_STATE_PAGES = 2;
+const HOME_STATE = "ID";
+const DEFAULT_MONTHLY_LIMIT = 450;
+const BOT = /bot|crawl|spider|slurp|preview|lighthouse|headless|monitor|curl|wget|python/i;
 
 function cacheDb() {
   const dbUrl = serverEnv("GEM_STATE_SUPABASE_URL") || serverEnv("SUPABASE_URL");
@@ -113,90 +124,41 @@ function stateCode(value: string | undefined) {
   return found?.[0];
 }
 
-function regionalStates(data: ClassifiedBrowseInput) {
-  if (data.state) return [stateCode(data.state) ?? data.state.toUpperCase()];
-  if (data.city || data.postalCode || data.latitude != null || data.longitude != null)
-    return undefined;
-  return [...DEFAULT_STATES];
-}
-
-function range(min: number | undefined, max: number | undefined) {
-  if (min == null && max == null) return undefined;
-  return `${min ?? 0}-${max ?? ""}`;
-}
-
 function sourceEndpoint(kind: MarketCheckSourceKind) {
   return kind === "dealer" ? "/search/car/active" : "/search/car/fsbo/active";
 }
 
-function providerParams(data: ClassifiedBrowseInput, kind: MarketCheckSourceKind, start: number) {
-  const params = new URLSearchParams({
+/** One page of a state's inventory: no filters, newest first. */
+function baseParams(state: string, start: number) {
+  return new URLSearchParams({
     rows: String(PAGE_SIZE),
     start: String(start),
     country: "us",
+    state,
     dedup: "true",
     photo_links: "true",
+    sort_by: "last_seen_at",
+    sort_order: "desc",
   });
-  const states = regionalStates(data);
-  if (states?.length) params.set("state", states.join(","));
-  const cityPoint = data.city ? classifiedCoordinatesForCity(data.city) : undefined;
-  const locationPoint =
-    data.latitude != null && data.longitude != null
-      ? [data.latitude, data.longitude]
-      : data.radiusMiles != null && cityPoint
-        ? cityPoint
-        : undefined;
-  if (data.city && !locationPoint) params.set("city", data.city);
-  if (data.postalCode) params.set("zip", data.postalCode);
-  if (locationPoint) {
-    params.set("latitude", String(locationPoint[0]));
-    params.set("longitude", String(locationPoint[1]));
-    params.set("radius", String(Math.min(500, Math.max(1, data.radiusMiles ?? 25))));
-  } else if (data.postalCode && data.radiusMiles != null) {
-    params.set("radius", String(Math.min(500, Math.max(1, data.radiusMiles))));
-  }
-  const setList = (key: string, value: string | undefined) => {
-    const items = values(value);
-    if (items.length) params.set(key, items.join(","));
-  };
-  setList("make", data.make);
-  setList("model", data.model);
-  setList("body_type", data.bodyStyle);
-  setList("transmission", data.transmission);
-  setList("drivetrain", data.drivetrain);
-  setList("fuel_type", data.fuelType);
-  setList("exterior_color", data.exteriorColor);
-  const yearRange = range(data.yearMin, data.yearMax);
-  if (yearRange) params.set("year_range", yearRange);
-  const priceRange = range(data.priceMin, data.priceMax);
-  if (priceRange) params.set("price_range", priceRange);
-  const milesRange = range(undefined, data.mileageMax);
-  if (milesRange) params.set("miles_range", milesRange);
-  const conditions = values(data.condition);
-  if (conditions.length && conditions.every((item) => /^new/i.test(item)))
-    params.set("car_type", "new");
-  else if (conditions.length && conditions.every((item) => /^used/i.test(item))) {
-    params.set(
-      "car_type",
-      conditions.some((item) => /certified/i.test(item)) ? "certified" : "used",
-    );
-  }
-  if (data.titleStatus === "Clean") params.set("carfax_clean_title", "true");
-  if (data.sort === "price_low" || data.sort === "price_high") {
-    params.set("sort_by", "price");
-    params.set("sort_order", data.sort === "price_low" ? "asc" : "desc");
-  } else if (data.sort === "mileage_low") {
-    params.set("sort_by", "miles");
-    params.set("sort_order", "asc");
-  } else {
-    params.set("sort_by", "last_seen_at");
-    params.set("sort_order", "desc");
-  }
-  return params;
 }
 
 function rawHasCleanTitle(listing: MarketCheckListing) {
   return listing.raw.carfax_clean_title === true || listing.raw.carfax_clean_title === 1;
+}
+
+/** Bluebird's body styles in MarketCheck's words ("Truck" is "Pickup"). */
+const BODY_STYLE_SYNONYMS: Record<string, string[]> = {
+  truck: ["pickup", "chassis cab", "truck"],
+  van: ["cargo van", "passenger van", "minivan", "van", "car van", "cutaway"],
+  suv: ["suv", "crossover"],
+  minivan: ["minivan", "mini mpv"],
+  car: ["sedan", "coupe", "hatchback", "wagon", "convertible", "targa"],
+};
+
+function matchesBodyStyle(selectedStyles: string[], bodyType: string | null) {
+  if (!selectedStyles.length) return true;
+  const actual = lower(bodyType);
+  return selectedStyles.some((style) => (BODY_STYLE_SYNONYMS[style] ?? [style]).includes(actual));
 }
 
 function matchesProviderFilters(listing: MarketCheckListing, data: ClassifiedBrowseInput) {
@@ -245,10 +207,14 @@ function matchesProviderFilters(listing: MarketCheckListing, data: ClassifiedBro
     selectedValues.length === 0 || selectedValues.includes(lower(actual));
   if (!equalsAny(selected(data.make), listing.build.make)) return false;
   if (!equalsAny(selected(data.model), listing.build.model)) return false;
-  if (!equalsAny(selected(data.bodyStyle), listing.build.bodyType)) return false;
+  if (!matchesBodyStyle(selected(data.bodyStyle), listing.build.bodyType)) return false;
   if (!equalsAny(selected(data.transmission), listing.build.transmission)) return false;
   if (!equalsAny(selected(data.drivetrain), listing.build.drivetrain)) return false;
-  if (!equalsAny(selected(data.fuelType), listing.build.fuelType)) return false;
+  if (
+    selected(data.fuelType).length &&
+    !selected(data.fuelType).some((fuel) => lower(listing.build.fuelType).includes(fuel))
+  )
+    return false;
   if (
     !equalsAny(
       selected(data.exteriorColor),
@@ -294,10 +260,13 @@ async function cachedCall<T>(
     if (data?.payload && data.expires_at && Date.parse(data.expires_at) > now.getTime())
       return { ok: true, value: data.payload as T };
   }
-  const limit = Number(serverEnv("MARKETCHECK_MONTHLY_CALL_LIMIT") || 100);
+  const limit = Number(serverEnv("MARKETCHECK_MONTHLY_CALL_LIMIT") || DEFAULT_MONTHLY_LIMIT);
   const { data: reservation, error: reservationError } = await (db as any).rpc(
     "reserve_marketcheck_call",
-    { p_cache_key: key, p_monthly_limit: Number.isFinite(limit) && limit > 0 ? limit : 100 },
+    {
+      p_cache_key: key,
+      p_monthly_limit: Number.isFinite(limit) && limit > 0 ? limit : DEFAULT_MONTHLY_LIMIT,
+    },
   );
   if (reservationError || !reservation?.allowed) {
     const { data: stale } = await table.select("payload").eq("cache_key", key).maybeSingle();
@@ -334,14 +303,25 @@ async function cachedCall<T>(
   }
 }
 
-async function searchPage(
-  data: ClassifiedBrowseInput,
+async function cachedOnly<T>(key: string): Promise<{ ok: true; value: T } | { ok: false }> {
+  const db = cacheDb();
+  if (!db) return { ok: false };
+  const { data } = await (db as any)
+    .from("marketcheck_cache")
+    .select("payload")
+    .eq("cache_key", key)
+    .maybeSingle();
+  return data?.payload ? { ok: true, value: data.payload as T } : { ok: false };
+}
+
+async function inventoryPage(
+  state: string,
   kind: MarketCheckSourceKind,
   start: number,
   forceRefresh = false,
 ) {
-  const params = providerParams(data, kind, start);
-  const key = JSON.stringify({ v: 1, kind, params: [...params.entries()] });
+  const params = baseParams(state, start);
+  const key = JSON.stringify({ v: 2, kind, state, start });
   const result = await cachedCall(
     key,
     `${sourceEndpoint(kind)}?${params.toString()}`,
@@ -351,18 +331,42 @@ async function searchPage(
   return result.ok ? result.value : { numFound: 0, listings: [], raw: {} };
 }
 
-async function searchAll(
-  data: ClassifiedBrowseInput,
-  kind: MarketCheckSourceKind,
-  forceRefresh = false,
-) {
+/** A state's cached inventory for one source (dealer or private seller). */
+async function stateInventory(state: string, kind: MarketCheckSourceKind, forceRefresh = false) {
+  const pages = state === HOME_STATE ? BASE_PAGES[kind] : OTHER_STATE_PAGES;
   const all: MarketCheckListing[] = [];
-  for (let page = 0; page < MAX_PAGES; page += 1) {
-    const result = await searchPage(data, kind, page * PAGE_SIZE, forceRefresh);
+  for (let page = 0; page < pages; page += 1) {
+    const result = await inventoryPage(state, kind, page * PAGE_SIZE, forceRefresh);
     all.push(...result.listings);
     if (result.listings.length < PAGE_SIZE || all.length >= result.numFound) break;
   }
-  return all;
+  // Before the first weekly refresh (or if the month's calls run out), use
+  // whatever this source already has cached rather than showing no cars.
+  return all.length ? all : cachedListingsOf(kind, state);
+}
+
+async function cachedListingsOf(kind: MarketCheckSourceKind, state: string) {
+  const db = cacheDb();
+  if (!db) return [];
+  const { data } = await (db as any)
+    .from("marketcheck_cache")
+    .select("cache_key,payload")
+    .limit(200);
+  const listings = new Map<string, MarketCheckListing>();
+  for (const row of data ?? []) {
+    let cacheKind: string | null = null;
+    try {
+      cacheKind = JSON.parse(String(row?.cache_key ?? "")).kind ?? null;
+    } catch {
+      continue;
+    }
+    if (cacheKind !== kind) continue;
+    for (const listing of (row?.payload?.listings ?? []) as MarketCheckListing[]) {
+      const repaired = repairCachedListing(listing, kind);
+      if (repaired && repaired.location.state === state) listings.set(repaired.id, repaired);
+    }
+  }
+  return [...listings.values()];
 }
 
 async function cachedSearchListing(
@@ -415,6 +419,20 @@ function vehicleOf(listing: MarketCheckListing): ClassifiedVehicle {
   };
 }
 
+const PAGE_RAW_KEYS = [
+  "interior_color",
+  "base_int_color",
+  "exterior_color",
+  "base_ext_color",
+  "carfax_clean_title",
+] as const;
+
+function pickRaw(raw: MarketCheckListing["raw"]): MarketCheckListing["raw"] {
+  return Object.fromEntries(
+    PAGE_RAW_KEYS.filter((key) => raw[key] != null).map((key) => [key, raw[key]!]),
+  );
+}
+
 export function marketCheckCard(listing: MarketCheckListing): ClassifiedCard {
   const priceCents = listing.price == null ? 0 : Math.round(listing.price * 100);
   const createdAt = listing.lastSeenAt ?? listing.firstSeenAt ?? new Date(0).toISOString();
@@ -441,19 +459,22 @@ export function marketCheckCard(listing: MarketCheckListing): ClassifiedCard {
     isFeatured: false,
     imageUrl: marketCheckImages(listing)[0] ?? null,
     vehicle: vehicleOf(listing),
-    externalVehicle: listing,
-    dealer: listing.sourceKind === "dealer" && listing.dealer
-      ? {
-          displayName: listing.dealer.name ?? listing.location.sellerName ?? "Vehicle seller",
-          slug: "",
-          logoUrl: null,
-          city: listing.dealer.city,
-          state: listing.dealer.state,
-          website: listing.dealer.website,
-          address: listing.dealer.street,
-          postalCode: listing.dealer.zip,
-        }
-      : null,
+    // Only the provider fields the pages read; the full payload stays in the
+    // server cache instead of riding along with every card.
+    externalVehicle: { ...listing, raw: pickRaw(listing.raw) },
+    dealer:
+      listing.sourceKind === "dealer" && listing.dealer
+        ? {
+            displayName: listing.dealer.name ?? listing.location.sellerName ?? "Vehicle seller",
+            slug: "",
+            logoUrl: null,
+            city: listing.dealer.city,
+            state: listing.dealer.state,
+            website: listing.dealer.website,
+            address: listing.dealer.street,
+            postalCode: listing.dealer.zip,
+          }
+        : null,
   };
 }
 
@@ -462,9 +483,10 @@ export async function marketCheckCards(
   options?: { forceRefresh?: boolean },
 ) {
   if (!configured()) return [];
+  const state = stateCode(data.state) ?? HOME_STATE;
   const [dealer, fsbo] = await Promise.all([
-    searchAll(data, "dealer", options?.forceRefresh),
-    searchAll(data, "fsbo", options?.forceRefresh),
+    stateInventory(state, "dealer", options?.forceRefresh),
+    stateInventory(state, "fsbo", options?.forceRefresh),
   ]);
   const seenIds = new Set<string>();
   const seenVins = new Set<string>();
@@ -489,11 +511,16 @@ export async function marketCheckDetail(listingId: string): Promise<ClassifiedDe
     sourceKind: parsed.sourceKind,
     providerId: parsed.providerId,
   });
-  const result = await cachedCall(
-    key,
-    `/listing/${parsed.sourceKind === "dealer" ? "car" : "car/fsbo"}/${encodeURIComponent(parsed.providerId)}`,
-    (payload) => normalizeMarketCheckListing(payload, parsed.sourceKind),
-  );
+  // Crawlers see the listing from the cached inventory; only people's visits
+  // spend a call on the full details (description).
+  const fromBot = BOT.test(getRequest()?.headers.get("user-agent") ?? "");
+  const result = fromBot
+    ? await cachedOnly<MarketCheckListing | null>(key)
+    : await cachedCall(
+        key,
+        `/listing/${parsed.sourceKind === "dealer" ? "car" : "car/fsbo"}/${encodeURIComponent(parsed.providerId)}`,
+        (payload) => normalizeMarketCheckListing(payload, parsed.sourceKind),
+      );
   const normalized =
     result.ok && result.value
       ? result.value
@@ -515,10 +542,9 @@ export async function marketCheckDetail(listingId: string): Promise<ClassifiedDe
 
 export async function refreshMarketCheckSearches() {
   if (!configured()) return { configured: false, refreshed: 0 };
-  const data: ClassifiedBrowseInput = { category: "cars-trucks", sort: "newest" };
   const [dealer, fsbo] = await Promise.all([
-    searchAll(data, "dealer", true),
-    searchAll(data, "fsbo", true),
+    stateInventory(HOME_STATE, "dealer", true),
+    stateInventory(HOME_STATE, "fsbo", true),
   ]);
   return { configured: true, refreshed: dealer.length + fsbo.length };
 }

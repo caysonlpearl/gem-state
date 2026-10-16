@@ -365,9 +365,9 @@ export function normalizeMarketCheckListing(
   const location = locationOf(raw, dealer);
   const build = buildOf(raw);
   const heading =
-    text(raw.heading) ??
-    [build.year, build.make, build.model, build.trim].filter(Boolean).join(" ") ??
-    "Vehicle listing";
+    cleanHeading(text(raw.heading)) ??
+    ([build.year, build.make, build.model, build.trim].filter(Boolean).join(" ") ||
+      "Vehicle listing");
   const firstSeenAt = dateOf(
     raw.first_seen_at_date ?? raw.first_seen_at ?? raw.scraped_at_date ?? raw.scraped_at,
   );
@@ -449,5 +449,26 @@ export function marketCheckImages(listing: MarketCheckListing): string[] {
 }
 
 export function marketCheckDescription(listing: MarketCheckListing): string | null {
-  return listing.extra.sellerComments;
+  return cleanDescription(listing.extra.sellerComments);
+}
+
+/** Private-seller headings often trail separators ("2013 Kia Optima SX |"). */
+export function cleanHeading(value: string | null): string | null {
+  const cleaned = value
+    ?.replace(/^[\s|•·–—-]+|[\s|•·–—-]+$/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+  return cleaned || null;
+}
+
+/** Drops classifieds-site boilerplate that rides along in scraped seller text. */
+export function cleanDescription(value: string | null): string | null {
+  const cleaned = value
+    ?.replace(/QR Code Link to This Post/gi, "")
+    .replace(/show contact info/gi, "")
+    .replace(/do NOT contact me with unsolicited services or offers/gi, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  return cleaned || null;
 }

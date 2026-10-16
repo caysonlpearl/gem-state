@@ -997,7 +997,10 @@ test("mobile menu trigger uses a visible Bluebird brand treatment", () => {
 });
 
 test("site favicon uses the enlarged transparent Bluebird bird", () => {
-  assert.match(rootSource, /rel: "icon", href: "\/images\/brand\/bluebird-favicon-transparent\.png", type: "image\/png"/);
+  assert.match(
+    rootSource,
+    /rel: "icon", href: "\/images\/brand\/bluebird-favicon-transparent\.png", type: "image\/png"/,
+  );
 });
 
 test("classified cards use category-aware price and fulfillment language", () => {
@@ -1012,7 +1015,10 @@ test("classified cards use category-aware price and fulfillment language", () =>
 
 test("site header does not add a blue separator below the category row", () => {
   assert.match(headerSource, /overflow-visible border-0 bg-card\/95 backdrop-blur/);
-  assert.match(headerSource, /<nav[\s\S]*className="relative z-10 hidden border-t border-border bg-background lg:block"/);
+  assert.match(
+    headerSource,
+    /<nav[\s\S]*className="relative z-10 hidden border-t border-border bg-background lg:block"/,
+  );
 });
 
 test("all categories opens a labeled icon menu with KSL-style sections", () => {
@@ -1028,7 +1034,10 @@ test("all categories opens a labeled icon menu with KSL-style sections", () => {
     /CategoryArtwork[\s\S]*slug=\{category\.slug\}[\s\S]*size=\{58\}[\s\S]*className="!h-\[58px\] !w-\[58px\] shrink-0"/,
   );
   assert.match(allCategoriesSource, /w-\[min\(1280px,calc\(100vw-2rem\)\)\]/);
-  assert.match(allCategoriesSource, /max-h-\[min\(calc\(100dvh-2rem\),var\(--radix-popper-available-height\)\)\]/);
+  assert.match(
+    allCategoriesSource,
+    /max-h-\[min\(calc\(100dvh-2rem\),var\(--radix-popper-available-height\)\)\]/,
+  );
   assert.match(allCategoriesSource, /break-words whitespace-normal/);
   assert.match(allCategoriesSource, /xl:grid-cols-6/);
   assert.match(headerSource, /w-auto min-w-\[164px\]/);
@@ -1174,8 +1183,11 @@ test("vehicle browse uses a branded buy and category-accurate discovery filters"
   assert.match(browseSource, /Buy/);
   assert.match(browseSource, /Sell/);
   assert.match(browseSource, /vehicleShowcaseRows/);
-  assert.match(browseSource, /Popular cars & trucks/);
-  assert.match(browseSource, /Just reduced/);
+  // Row titles say only what their filters show (no "popular" or "just
+  // reduced" without data behind them).
+  assert.match(browseSource, /Newest in Idaho/);
+  assert.match(browseSource, /"Lowest prices",[\s\S]{0,120}sort=price_low/);
+  assert.doesNotMatch(browseSource, /Just reduced|Popular cars & trucks/);
   for (const row of [
     "Fuel-efficient commuters",
     "Family SUVs & crossovers",
@@ -1185,7 +1197,7 @@ test("vehicle browse uses a branded buy and category-accurate discovery filters"
     "Cars under $20,000",
     "Late-model local vehicles",
     "Classic & enthusiast vehicles",
-    "Three-row family vehicles",
+    "Minivans & people movers",
     "AWD & winter-ready rides",
   ]) {
     assert.match(browseSource, new RegExp(row.replaceAll("$", "\\$")));
@@ -1390,7 +1402,10 @@ test("services browse has a category-led landing page", () => {
     ["Moving & hauling", "Movers"],
     ["Pet care", "Pet%20Care"],
   ]) {
-    assert.match(browseSource, new RegExp(`"${row}",\\s+"[^"]+",\\s+"[^"]*serviceSubcategory=${trade}"`));
+    assert.match(
+      browseSource,
+      new RegExp(`"${row}",\\s+"[^"]+",\\s+"[^"]*serviceSubcategory=${trade}"`),
+    );
   }
 });
 
@@ -1671,18 +1686,43 @@ test("classified listing setup gate is reasserted for every RPC overload", () =>
 
 test("city browse links preserve an adjustable radius and filter by distance", () => {
   assert.match(configSource, /export const idahoCities = \[/);
-  for (const city of ["Garden City", "Kuna", "Mountain Home", "Moscow", "Post Falls", "Sandpoint"]) {
-    assert.match(configSource, new RegExp(`\\"${city.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}\\"`));
+  for (const city of [
+    "Garden City",
+    "Kuna",
+    "Mountain Home",
+    "Moscow",
+    "Post Falls",
+    "Sandpoint",
+  ]) {
+    assert.match(
+      configSource,
+      new RegExp(`\\"${city.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}\\"`),
+    );
   }
   assert.match(browseSource, /radiusMiles\?: number/);
   assert.match(browseSource, /Search radius:/);
   assert.match(browseSource, /Within \{radiusMiles\} miles/);
   assert.match(configSource, /isWithinClassifiedCityRadius/);
   assert.match(configSource, /export const regionalCities = \[/);
-  for (const city of ["St. George", "Cedar City", "Portland", "Albany", "Spokane", "Everett", "Seattle", "Wenatchee"]) {
-    assert.match(configSource, new RegExp(`\\"${city.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}\\"`));
+  for (const city of [
+    "St. George",
+    "Cedar City",
+    "Portland",
+    "Albany",
+    "Spokane",
+    "Everett",
+    "Seattle",
+    "Wenatchee",
+  ]) {
+    assert.match(
+      configSource,
+      new RegExp(`\\"${city.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}\\"`),
+    );
   }
-  assert.match(configSource, /export const marketplaceCities = \[\.\.\.idahoCities, \.\.\.regionalCities\]/);
+  assert.match(
+    configSource,
+    /export const marketplaceCities = \[\.\.\.idahoCities, \.\.\.regionalCities\]/,
+  );
   assert.match(classifiedsFunctionsSource, /data\.radiusMiles != null/);
   assert.match(browseSource, /Any region \(optional\)/);
   assert.match(browseSource, /Any state \(optional\)/);
