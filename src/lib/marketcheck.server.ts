@@ -428,7 +428,7 @@ export async function marketCheckDetail(listingId: string): Promise<ClassifiedDe
   });
   const result = await cachedCall(
     key,
-    `/listing/${parsed.sourceKind === "dealer" ? "car" : "fsbo"}/${encodeURIComponent(parsed.providerId)}`,
+    `/listing/${parsed.sourceKind === "dealer" ? "car" : "car/fsbo"}/${encodeURIComponent(parsed.providerId)}`,
     (payload) => normalizeMarketCheckListing(payload, parsed.sourceKind),
   );
   if (!result.ok || !result.value) return null;
