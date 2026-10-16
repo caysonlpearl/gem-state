@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import { Fragment, Suspense, lazy, useEffect, useRef, useState } from "react";
 import { ArrowRight, MagnifyingGlass, Car } from "@phosphor-icons/react";
 
 import { brand } from "@/config/brand";
@@ -137,6 +137,96 @@ function pickHeadlineItems() {
     window.name = `${headlineWindowKey}${selected.join("|")}`;
   }
   return selected;
+}
+
+type HeadlineToken = { text: string; highlight?: boolean };
+
+// The headline is the same sentence at every size; phones lay it out as
+// exactly three measured lines, larger screens keep the original two-line
+// flow. Only the first item word carries the blue highlight, as before.
+function headlineTokensFor(items: readonly string[]): HeadlineToken[] {
+  return [
+    { text: "Find" },
+    { text: items[0], highlight: true },
+    { text: "to" },
+    { text: items[1] },
+    { text: "to" },
+    { text: items[2] },
+    { text: "to" },
+    { text: `${items[3]}.` },
+  ];
+}
+
+function headlineDesktopGroups(items: readonly string[]): HeadlineToken[][] {
+  const tokens = headlineTokensFor(items);
+  return [tokens.slice(0, 5), tokens.slice(5)];
+}
+
+// Server-rendered fallback before measurement: a character-balanced split.
+function headlineDefaultGroups(items: readonly string[]): HeadlineToken[][] {
+  const tokens = headlineTokensFor(items);
+  const total = tokens.reduce((sum, token) => sum + token.text.length + 1, 0);
+  const groups: HeadlineToken[][] = [[], [], []];
+  let groupIndex = 0;
+  let acc = 0;
+  for (const token of tokens) {
+    const next = acc + token.text.length + 1;
+    if (
+      groupIndex < 2 &&
+      groups[groupIndex].length > 0 &&
+      next > ((groupIndex + 1) * total) / 3
+    ) {
+      groupIndex += 1;
+      acc = 0;
+    }
+    groups[groupIndex].push(token);
+    acc = next;
+  }
+  return groups;
+}
+
+// Split the tokens into three contiguous lines whose widest line is as small
+// as possible, measured with the canvas so the split matches real text
+// metrics. Returns null when no split fits the available width.
+function splitHeadlineIntoThreeLines(
+  tokens: HeadlineToken[],
+  maxWidth: number,
+  fontCss: string,
+  letterSpacing: string,
+): HeadlineToken[][] | null {
+  if (typeof document === "undefined" || maxWidth <= 0) return null;
+  const canvas = document.createElement("canvas");
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return null;
+  ctx.font = fontCss;
+  try {
+    ctx.letterSpacing = letterSpacing;
+  } catch {
+    // Browsers without canvas letter-spacing just measure a hair wider.
+  }
+  const space = ctx.measureText(" ").width;
+  const widths = tokens.map((token) => ctx.measureText(token.text).width);
+  const count = tokens.length;
+  const spanWidth = (from: number, to: number) => {
+    let width = 0;
+    for (let i = from; i < to; i += 1) width += widths[i];
+    return width + space * (to - from - 1);
+  };
+  let best: { max: number; cuts: [number, number] } | null = null;
+  for (let first = 1; first < count - 1; first += 1) {
+    for (let second = first + 1; second < count; second += 1) {
+      const widest = Math.max(
+        spanWidth(0, first),
+        spanWidth(first, second),
+        spanWidth(second, count),
+      );
+      if (widest > maxWidth) continue;
+      if (!best || widest < best.max) best = { max: widest, cuts: [first, second] };
+    }
+  }
+  if (!best) return null;
+  const [first, second] = best.cuts;
+  return [tokens.slice(0, first), tokens.slice(first, second), tokens.slice(second)];
 }
 
 type ParsedLocationSearch = {
