@@ -1,7 +1,15 @@
 import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
 import { queryOptions, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useEffect, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ArrowRight,
   BookmarkSimple,
@@ -3296,7 +3304,27 @@ function LandingListingsShowcase({
   );
 }
 
-function JobShowcaseCards({ row, search }: { row: HomepagePreviewRow; search: Search }) {
+/**
+ * Rows on one landing page share what they show: each row skips listings a
+ * row above it already shows, and only repeats one when it has nothing new
+ * left to fill its five places.
+ */
+type ShownRows = {
+  claims: Record<number, string[]>;
+  claim: (index: number, ids: string[]) => void;
+};
+const ShownRowsContext = createContext<ShownRows | null>(null);
+
+function JobShowcaseCards({
+  row,
+  search,
+  index = 0,
+}: {
+  row: HomepagePreviewRow;
+  search: Search;
+  index?: number;
+}) {
+  const shown = useContext(ShownRowsContext);
   const container = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
   useEffect(() => {
@@ -3318,6 +3346,31 @@ function JobShowcaseCards({ row, search }: { row: HomepagePreviewRow; search: Se
     enabled: visible,
     staleTime: 60_000,
   });
+  const shownAbove = new Set(
+    Object.entries(shown?.claims ?? {})
+      .filter(([rowIndex]) => Number(rowIndex) < index)
+      .flatMap(([, ids]) => ids),
+  );
+  const listings = query.data?.listings ?? [];
+  const fresh = varietyOf(
+    listings.filter((listing) => !shownAbove.has(listing.id)),
+    5,
+  );
+  const picks =
+    fresh.length >= 5
+      ? fresh
+      : [
+          ...fresh,
+          ...varietyOf(
+            listings.filter((listing) => !fresh.some((pick) => pick.id === listing.id)),
+            5 - fresh.length,
+          ),
+        ];
+  const pickKey = picks.map((listing) => listing.id).join(",");
+  const claim = shown?.claim;
+  useEffect(() => {
+    if (claim && pickKey) claim(index, pickKey.split(","));
+  }, [claim, index, pickKey]);
   return (
     <div ref={container} className="min-h-32">
       {query.isPending ? (
@@ -3326,7 +3379,7 @@ function JobShowcaseCards({ row, search }: { row: HomepagePreviewRow; search: Se
         <CategoryGettingStarted />
       ) : (
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-          {varietyOf(query.data.listings, 5).map((listing, index) => (
+          {picks.map((listing, index) => (
             <div key={listing.id} className={index === 4 ? "hidden min-w-0 lg:block" : "min-w-0"}>
               <ListingCard listing={listing} />
             </div>
@@ -3349,38 +3402,47 @@ function HomepageShowcaseRows({
   baseSearch?: Search;
 }) {
   const querySearch = jobSearch ?? baseSearch;
+  const [claims, setClaims] = useState<Record<number, string[]>>({});
+  const claim = useCallback((index: number, ids: string[]) => {
+    setClaims((current) =>
+      current[index]?.join(",") === ids.join(",") ? current : { ...current, [index]: ids },
+    );
+  }, []);
+  const shown = useMemo(() => ({ claims, claim }), [claims, claim]);
   return (
-    <div className="mt-10 space-y-12 sm:mt-14 sm:space-y-16">
-      {rows.map((row) => (
-        <section key={row.title} aria-labelledby={row.title.replaceAll(" ", "-").toLowerCase()}>
-          <div className="mb-4 flex items-end justify-between gap-3 border-b border-border pb-3">
-            <div>
-              <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
-                {eyebrow}
-              </p>
-              <h2
-                id={row.title.replaceAll(" ", "-").toLowerCase()}
-                className="mt-1 text-[22px] font-bold tracking-tight sm:text-[27px]"
+    <ShownRowsContext.Provider value={shown}>
+      <div className="mt-10 space-y-12 sm:mt-14 sm:space-y-16">
+        {rows.map((row, rowIndex) => (
+          <section key={row.title} aria-labelledby={row.title.replaceAll(" ", "-").toLowerCase()}>
+            <div className="mb-4 flex items-end justify-between gap-3 border-b border-border pb-3">
+              <div>
+                <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
+                  {eyebrow}
+                </p>
+                <h2
+                  id={row.title.replaceAll(" ", "-").toLowerCase()}
+                  className="mt-1 text-[22px] font-bold tracking-tight sm:text-[27px]"
+                >
+                  {row.title}
+                </h2>
+              </div>
+              <a
+                href={row.href}
+                className="inline-flex shrink-0 items-center gap-1 text-[12px] font-bold text-primary hover:underline"
               >
-                {row.title}
-              </h2>
+                {row.action}
+                <ArrowRight size={14} aria-hidden="true" />
+              </a>
             </div>
-            <a
-              href={row.href}
-              className="inline-flex shrink-0 items-center gap-1 text-[12px] font-bold text-primary hover:underline"
-            >
-              {row.action}
-              <ArrowRight size={14} aria-hidden="true" />
-            </a>
-          </div>
-          {querySearch ? (
-            <JobShowcaseCards row={row} search={querySearch} />
-          ) : (
-            <CategoryGettingStarted />
-          )}
-        </section>
-      ))}
-    </div>
+            {querySearch ? (
+              <JobShowcaseCards row={row} search={querySearch} index={rowIndex} />
+            ) : (
+              <CategoryGettingStarted />
+            )}
+          </section>
+        ))}
+      </div>
+    </ShownRowsContext.Provider>
   );
 }
 
