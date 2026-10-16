@@ -379,22 +379,28 @@ function Home() {
               />
             </label>
             <HomeSearchDropdown
-                value={category}
-                onChange={setCategory}
-                label="Category"
-                placeholder="All categories"
-                options={[{ value: "", label: "All categories" }, ...classifiedCategories.map((option) => ({ value: option.slug, label: option.name }))]}
+              value={category}
+              onChange={setCategory}
+              label="Category"
+              placeholder="All categories"
+              options={[
+                { value: "", label: "All categories" },
+                ...classifiedCategories.map((option) => ({
+                  value: option.slug,
+                  label: option.name,
+                })),
+              ]}
             />
             <HomeSearchDropdown
-                value={location}
-                onChange={(next) => {
-                  setLocation(next);
-                  setMapPoint(undefined);
-                }}
-                placeholder="City or ZIP code"
-                label="City or ZIP code"
-                editable
-                options={marketplaceCities.map((option) => ({ value: option, label: option }))}
+              value={location}
+              onChange={(next) => {
+                setLocation(next);
+                setMapPoint(undefined);
+              }}
+              placeholder="City or ZIP code"
+              label="City or ZIP code"
+              editable
+              options={marketplaceCities.map((option) => ({ value: option, label: option }))}
             />
             <button
               type="submit"
@@ -602,7 +608,7 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
   const serviceListings = pick(serviceSource);
   const homeServices = pick(
     serviceSource.filter((listing) =>
-      /home|handyman|lawn|landscape|repair|clean/i.test(
+      /home|handyman|lawn|landscape|repair|clean|plumb|electric|roof|heating|paint|contractor|pest/i.test(
         `${listing.title} ${listing.service?.subcategory ?? ""}`,
       ),
     ),

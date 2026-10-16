@@ -39,6 +39,10 @@ export type DirectoryEnrichment = {
   website: string | null;
   googleUrl: string | null;
   closed: boolean;
+  /** The business's own description from its Google profile. */
+  summary?: string | null;
+  /** Services the business lists on Google ("Water heater installation"...). */
+  services?: string[];
 };
 
 export const DIRECTORY_COLUMNS =
@@ -112,8 +116,8 @@ export function directoryCard(row: DirectoryRow, logoUrl?: string | null): Class
       pricingType: "quote",
       serviceArea: `${row.city}, ${row.state}`,
       availability: "Contact for availability",
-      serviceSummary: "",
-      offerings: [],
+      serviceSummary: row.enrichment?.summary ?? "",
+      offerings: row.enrichment?.services ?? [],
       businessAddress: [row.address, row.city, row.state, row.postcode].filter(Boolean).join(", "),
     },
     directory: {
@@ -194,5 +198,16 @@ export function enrichmentFrom(result: Record<string, unknown>): DirectoryEnrich
         ? String(result.place_link)
         : null,
     closed: status === "CLOSED_PERMANENTLY",
+    summary: text(asRecord(result.about)?.summary)?.slice(0, 1200) ?? null,
+    services: serviceNames(result.business_services ?? result.subtypes),
   };
+}
+
+function serviceNames(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const names = value
+    .map((item) => (typeof item === "string" ? item : text(asRecord(item)?.name)))
+    .filter((name): name is string => Boolean(name && name.trim()))
+    .map((name) => name.trim().replace(/^./, (c) => c.toUpperCase()));
+  return Array.from(new Set(names)).slice(0, 20);
 }

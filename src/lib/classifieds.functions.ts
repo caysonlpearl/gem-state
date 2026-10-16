@@ -2544,8 +2544,8 @@ export const getClassifiedsHome = createServerFn({ method: "GET" }).handler(
       const client = publicServerClient();
       const nowIso = new Date().toISOString();
 
-      const [{ data: categoryRows }, motors, recent, homes, jobs, flexibleJobs] = await Promise.all(
-        [
+      const [{ data: categoryRows }, motors, recent, homes, jobs, flexibleJobs, rentals, services] =
+        await Promise.all([
           client
             .from("asks")
             .select(
@@ -2572,8 +2572,16 @@ export const getClassifiedsHome = createServerFn({ method: "GET" }).handler(
             sort: "newest",
             page: 1,
           }),
-        ],
-      );
+          // Rentals and services rows on the homepage need their own pull;
+          // the general "recent" read leaves out partner feeds and directories.
+          runBrowseClassifieds({
+            category: "other-real-estate",
+            homeTab: "rent",
+            sort: "newest",
+            page: 1,
+          }),
+          runBrowseClassifieds({ category: "services", sort: "newest", page: 1 }),
+        ]);
 
       const categoryCounts: Record<string, number> = {};
       for (const row of (categoryRows ?? []) as Record<string, unknown>[]) {
@@ -2592,9 +2600,14 @@ export const getClassifiedsHome = createServerFn({ method: "GET" }).handler(
         // several useful, non-identical curated rows without another round trip.
         recent: [
           ...new Map(
-            [...recent.listings, ...homes.listings, ...jobs.listings, ...flexibleJobs.listings].map(
-              (listing) => [listing.id, listing],
-            ),
+            [
+              ...recent.listings,
+              ...homes.listings,
+              ...rentals.listings,
+              ...jobs.listings,
+              ...flexibleJobs.listings,
+              ...services.listings,
+            ].map((listing) => [listing.id, listing]),
           ).values(),
         ],
       };

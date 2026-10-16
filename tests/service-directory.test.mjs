@@ -97,3 +97,15 @@ test("logos come from a business's own site, never a social or builder page", ()
   assert.equal(websiteDomain("https://www.facebook.com/coelho"), null);
   assert.equal(websiteDomain(null), null);
 });
+
+test("lookups keep the business's own description and service list", () => {
+  const enriched = enrichmentFrom({
+    about: { summary: "Family-owned plumbers serving Canyon County since 1998." },
+    business_services: ["water heater installation", { name: "Drain cleaning" }, "Drain cleaning"],
+  });
+  assert.equal(enriched.summary, "Family-owned plumbers serving Canyon County since 1998.");
+  assert.deepEqual(enriched.services, ["Water heater installation", "Drain cleaning"]);
+  const card = directoryCard({ ...row, enrichment: enriched }, null);
+  assert.equal(card.service.serviceSummary, enriched.summary);
+  assert.deepEqual(card.service.offerings, enriched.services);
+});

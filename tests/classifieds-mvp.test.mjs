@@ -1375,21 +1375,22 @@ test("services browse has a category-led landing page", () => {
   assert.match(browseSource, /Time On Site/);
   assert.match(browseSource, /serviceMode: "results"/);
   assert.match(browseSource, /servicesShowcaseRows/);
-  assert.match(browseSource, /Recently added pros/);
-  assert.match(browseSource, /Projects to plan this season/);
-  for (const row of [
-    "Plumbing & water",
-    "Electrical & lighting",
-    "Lawn & landscaping",
-    "Cleaning & move-out",
-    "Automotive & mobile repair",
-    "Home improvement pros",
-    "Technology & business help",
-    "Moving & hauling",
-    "Pet care & family help",
-    "Roofing & exterior work",
+  // Every showcase row is one real trade filter, so rows never repeat.
+  for (const [row, trade] of [
+    ["Plumbing & water", "Plumbers"],
+    ["Electrical & lighting", "Electricians"],
+    ["Heating & cooling", "Heating%20%26%20Air%20Conditioning"],
+    ["Roofing", "Roofing"],
+    ["Lawn & landscaping", "Landscape%20Contractors"],
+    ["Cleaning & move-out", "House%20Cleaning"],
+    ["Handyman & repairs", "Handyman"],
+    ["Home improvement pros", "General%20Contractors"],
+    ["Automotive & mobile repair", "Automotive"],
+    ["Technology & business help", "IT%20Services"],
+    ["Moving & hauling", "Movers"],
+    ["Pet care", "Pet%20Care"],
   ]) {
-    assert.match(browseSource, new RegExp(row));
+    assert.match(browseSource, new RegExp(`"${row}",\\s+"[^"]+",\\s+"[^"]*serviceSubcategory=${trade}"`));
   }
 });
 

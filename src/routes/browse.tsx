@@ -2241,6 +2241,7 @@ function Browse() {
           <HomepageShowcaseRows
             eyebrow="Bluebird Marketplace Services"
             rows={servicesShowcaseRows}
+            jobSearch={search}
           />
         </>
       )}
@@ -2905,29 +2906,12 @@ const jobsShowcaseRows: HomepagePreviewRow[] = [
   ),
 ];
 
+// Each row is one trade, filled from members' listings and the services directory.
 const servicesShowcaseRows: HomepagePreviewRow[] = [
-  {
-    title: "Recently added pros",
-    action: "See newest service listings",
-    href: "/browse?category=services&serviceMode=results",
-    cards: [],
-  },
-  {
-    title: "Popular with neighbors",
-    action: "Browse popular pros",
-    href: "/browse?category=services&serviceMode=results",
-    cards: [],
-  },
-  {
-    title: "Projects to plan this season",
-    action: "Find a local pro",
-    href: "/browse?category=services&serviceMode=results",
-    cards: [],
-  },
   showcaseRow(
     "Plumbing & water",
     "Find a plumber",
-    "/browse?category=services&serviceMode=results&serviceSubcategory=Plumbing",
+    "/browse?category=services&serviceMode=results&serviceSubcategory=Plumbers",
     [],
   ),
   showcaseRow(
@@ -2937,33 +2921,51 @@ const servicesShowcaseRows: HomepagePreviewRow[] = [
     [],
   ),
   showcaseRow(
+    "Heating & cooling",
+    "Find HVAC service",
+    "/browse?category=services&serviceMode=results&serviceSubcategory=Heating%20%26%20Air%20Conditioning",
+    [],
+  ),
+  showcaseRow(
+    "Roofing",
+    "Find a roofer",
+    "/browse?category=services&serviceMode=results&serviceSubcategory=Roofing",
+    [],
+  ),
+  showcaseRow(
     "Lawn & landscaping",
     "Find lawn care",
-    "/browse?category=services&serviceMode=results&serviceSubcategory=Landscape Contractors",
+    "/browse?category=services&serviceMode=results&serviceSubcategory=Landscape%20Contractors",
     [],
   ),
   showcaseRow(
     "Cleaning & move-out",
     "Find a cleaner",
-    "/browse?category=services&serviceMode=results&serviceSubcategory=House Cleaning",
+    "/browse?category=services&serviceMode=results&serviceSubcategory=House%20Cleaning",
     [],
   ),
   showcaseRow(
-    "Automotive & mobile repair",
-    "Find auto service",
-    "/browse?category=services&serviceMode=results&serviceSubcategory=Automotive",
+    "Handyman & repairs",
+    "Find a handyman",
+    "/browse?category=services&serviceMode=results&serviceSubcategory=Handyman",
     [],
   ),
   showcaseRow(
     "Home improvement pros",
-    "Plan a home project",
-    "/browse?category=services&serviceMode=results",
+    "Find a contractor",
+    "/browse?category=services&serviceMode=results&serviceSubcategory=General%20Contractors",
     [],
   ),
   showcaseRow(
-    "Technology & business help",
-    "Find local tech help",
-    "/browse?category=services&serviceMode=results",
+    "Painting",
+    "Find a painter",
+    "/browse?category=services&serviceMode=results&serviceSubcategory=Painters",
+    [],
+  ),
+  showcaseRow(
+    "Pest control",
+    "Find pest control",
+    "/browse?category=services&serviceMode=results&serviceSubcategory=Pest%20Control",
     [],
   ),
   showcaseRow(
@@ -2973,15 +2975,21 @@ const servicesShowcaseRows: HomepagePreviewRow[] = [
     [],
   ),
   showcaseRow(
-    "Pet care & family help",
-    "Find local care",
-    "/browse?category=services&serviceMode=results",
+    "Automotive & mobile repair",
+    "Find auto service",
+    "/browse?category=services&serviceMode=results&serviceSubcategory=Automotive",
     [],
   ),
   showcaseRow(
-    "Roofing & exterior work",
-    "Find exterior pros",
-    "/browse?category=services&serviceMode=results",
+    "Pet care",
+    "Find pet care",
+    "/browse?category=services&serviceMode=results&serviceSubcategory=Pet%20Care",
+    [],
+  ),
+  showcaseRow(
+    "Technology & business help",
+    "Find local tech help",
+    "/browse?category=services&serviceMode=results&serviceSubcategory=IT%20Services",
     [],
   ),
 ];
@@ -3265,7 +3273,7 @@ function JobShowcaseCards({ row, search }: { row: HomepagePreviewRow; search: Se
   return (
     <div ref={container} className="min-h-32">
       {query.isPending ? (
-        <p className="py-8 text-sm text-muted-foreground">Loading jobs…</p>
+        <p className="py-8 text-sm text-muted-foreground">Loading…</p>
       ) : !query.data?.listings.length ? (
         <CategoryGettingStarted />
       ) : (
