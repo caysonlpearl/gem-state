@@ -189,6 +189,7 @@ function headlineDefaultGroups(items: readonly string[]): HeadlineToken[][] {
 // as possible, measured with the canvas so the split matches real text
 // metrics. Returns null when no split fits the available width.
 function splitHeadlineIntoThreeLines(
+  console.warn("split called", tokens.length, maxWidth);
   tokens: HeadlineToken[],
   maxWidth: number,
   fontCss: string,
@@ -314,7 +315,7 @@ function Home() {
     const h = headlineRef.current;
     if (!h) return;
     const apply = () => {
-      console.debug("headline apply", window.innerWidth, headlineGroups.length);
+      console.warn("headline apply", window.innerWidth, headlineGroups.length);
       h.style.fontSize = "";
       if (window.innerWidth >= 640) {
         setHeadlineGroups(headlineDesktopGroups(headlineItems));
