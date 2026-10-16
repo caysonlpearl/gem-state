@@ -1710,9 +1710,6 @@ function ListingDetailContent() {
                 <Gauge size={15} /> {formatMileage(vehicle.mileage)}
               </span>
             )}
-            <span className="flex items-center gap-1.5">
-              <Eye size={15} /> {listing.externalVehicle ? "Via MarketCheck" : "Local listing"}
-            </span>
           </div>
           <p className="numeric mt-4 text-[30px] font-bold leading-none text-primary sm:text-[34px]">
             {formatClassifiedPrice(listing.priceCents, { wholeDollars: true })}
@@ -2866,9 +2863,6 @@ function JobListingDetail({
                 <span className="flex items-center gap-1.5">
                   <Clock size={15} /> Posted {postedAge(listing.createdAt).toLowerCase()}
                 </span>
-                <span className="flex items-center gap-1.5">
-                  <Eye size={15} /> {listing.externalJob ? "Via Adzuna" : "Local listing"}
-                </span>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -3111,6 +3105,7 @@ function JobListingDetail({
           </div>
         </section>
       )}
+      {listing.externalJob ? <PartnerJobSourceCredit listing={listing} /> : null}
     </main>
   );
 }
@@ -3138,9 +3133,6 @@ function PartnerEmployerCard({
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-[15px] font-bold">{name}</h2>
-            <span className="rounded-full bg-secondary px-2 py-1 text-[10px] font-semibold">
-              Via Adzuna
-            </span>
           </div>
           <div className="mt-3 space-y-1 text-[12px]">
             <p>
@@ -3165,9 +3157,6 @@ function PartnerEmployerCard({
                 )}
               </p>
             ) : null}
-            <p>
-              <span className="font-semibold">Source:</span> Adzuna job feed
-            </p>
           </div>
         </div>
       </div>
@@ -3197,23 +3186,29 @@ function PartnerEmployerCard({
           All jobs from {employerName} <CaretRight size={13} />
         </Link>
       ) : null}
-      <div className="mt-4 border-t border-border/70 pt-3 text-[11px] text-muted-foreground">
+    </section>
+  );
+}
+
+/** Required partner attribution, kept at the bottom of the job detail page. */
+function PartnerJobSourceCredit({ listing }: { listing: ClassifiedDetail }) {
+  if (!listing.externalJob) return null;
+  return (
+    <footer className="mt-12 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 border-t border-border/70 py-5 text-center text-[11px] text-muted-foreground">
+      <span>
         Jobs by{" "}
         <a
           href="https://www.adzuna.com"
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex min-h-[23px] min-w-[116px] items-center text-[23px] font-bold leading-none text-primary"
+          className="font-semibold text-primary hover:underline"
         >
           Adzuna
         </a>
-        {listing.externalJob?.logoUrl ? (
-          <p className="mt-1">
-            <LogoDevCredit />
-          </p>
-        ) : null}
-      </div>
-    </section>
+        .
+      </span>
+      {listing.externalJob.logoUrl ? <LogoDevCredit /> : null}
+    </footer>
   );
 }
 
@@ -3575,9 +3570,6 @@ function ServiceListingDetail({
                     <Clock size={15} /> Posted {postedAge(listing.createdAt).toLowerCase()}
                   </span>
                 )}
-                <span className="flex items-center gap-1.5">
-                  <Eye size={15} /> {listing.directory ? "Local business" : "Local listing"}
-                </span>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -3901,9 +3893,6 @@ function GeneralListingDetail({
                 </span>
                 <span className="flex items-center gap-1.5">
                   <Clock size={15} /> Posted {postedAge(listing.createdAt).toLowerCase()}
-                </span>
-                <span className="flex items-center gap-1.5">
-                  <Eye size={15} /> Local listing
                 </span>
               </div>
             </div>
