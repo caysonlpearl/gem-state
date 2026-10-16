@@ -464,8 +464,8 @@
  * (line-height is 1.08), so no empty space is held back for a shape the
  * headline never takes at that size. */
 .homepage-hero-headline {
-  /* Phones use a compact 22px headline; the longest rotation fits four lines. */
-  min-height: 4.32em;
+  /* Phones use a compact 22px headline; the longest rotation fits three lines. */
+  min-height: 3.24em;
   text-wrap: balance;
 }
 
