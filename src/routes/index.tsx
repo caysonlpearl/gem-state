@@ -212,25 +212,37 @@ function Home() {
   // animation only plays on later rotations.
   const [headlineRotated, setHeadlineRotated] = useState(false);
   const headlineRef = useRef<HTMLHeadingElement>(null);
-  // Phones hold the headline to exactly three lines: shrink the words (not the
-  // box) until the longest rotation fits.
+  // The headline is always exactly two lines. One font size is chosen per
+  // screen width so the longest rotation fits, so every rotation shares the
+  // same size and line count.
   useEffect(() => {
     const h = headlineRef.current;
     if (!h) return;
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
     const fit = () => {
-      const spans = Array.from(h.children) as HTMLElement[];
-      spans.forEach((span) => (span.style.fontSize = ""));
-      if (window.innerWidth >= 640) return;
-      let size = 1;
-      while (h.scrollHeight > h.clientHeight + 1 && size > 0.8) {
-        size -= 0.04;
-        spans.forEach((span) => (span.style.fontSize = `${size}em`));
+      if (!ctx) return;
+      h.style.fontSize = "";
+      const style = window.getComputedStyle(h);
+      const base = parseFloat(style.fontSize);
+      ctx.font = `${style.fontWeight} ${base}px ${style.fontFamily}`;
+      let widest = 0;
+      for (const [a, b, c, d] of headlineOptions) {
+        widest = Math.max(
+          widest,
+          ctx.measureText(`Find ${a} to ${b}`).width,
+          ctx.measureText(`to ${c} to ${d}.`).width,
+        );
       }
+      // Small margin for tight letter-spacing and the rotating-word animation.
+      const available = h.clientWidth * 0.97;
+      if (widest > available) h.style.fontSize = `${Math.floor((base * available) / widest)}px`;
     };
     fit();
+    void document.fonts?.ready.then(fit);
     window.addEventListener("resize", fit);
     return () => window.removeEventListener("resize", fit);
-  }, [headlineItems]);
+  }, []);
   const [term, setTerm] = useState("");
   const [category, setCategory] = useState("");
   const [location, setLocation] = useState("");
@@ -337,8 +349,8 @@ function Home() {
           <p className="hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-primary sm:block">
             Bluebird classifieds
           </p>
-          <h1 ref={headlineRef} className="homepage-hero-headline flex max-w-[34ch] flex-col justify-start text-[22px] sm:mt-2 font-bold leading-[1.08] tracking-tight sm:text-[48px]">
-            <span className="block">
+          <h1 ref={headlineRef} className="homepage-hero-headline flex w-full max-w-[22em] flex-col justify-start text-[22px] sm:mt-2 font-bold leading-[1.08] tracking-tight sm:text-[48px]">
+            <span className="block whitespace-nowrap">
               Find{" "}
               <span
                 key={headlineItems.join("|")}
@@ -347,10 +359,10 @@ function Home() {
               >
                 {headlineItems[0]}
               </span>{" "}
-              to {headlineItems[1]} to
+              to {headlineItems[1]}
             </span>
-            <span className="block">
-              {headlineItems[2]} to {headlineItems[3]}.
+            <span className="block whitespace-nowrap">
+              to {headlineItems[2]} to {headlineItems[3]}.
             </span>
           </h1>
           <p className="mt-1 max-w-[56ch] whitespace-nowrap text-xs leading-snug text-muted-foreground sm:mt-1.5 sm:leading-relaxed">
