@@ -3072,22 +3072,33 @@ function PetsLandingHero({
   ];
 
   return (
-    <section className="relative overflow-hidden rounded-[28px] border border-border/70 bg-gradient-to-br from-secondary via-card to-accent/20 px-5 py-9 shadow-sm sm:px-10 sm:py-12">
-      <span className="absolute -right-16 -top-20 h-56 w-56 rounded-full bg-brand-warm/20" />
-      <span className="absolute -bottom-24 left-1/3 h-64 w-64 rounded-full bg-primary/5" />
-      <div className="relative mx-auto max-w-3xl text-center">
-        <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-primary">
+    <section aria-label="Bluebird Marketplace pets" className="classifieds-hero-shell relative isolate flex min-h-[430px] flex-col justify-center overflow-hidden rounded-[32px] border border-brand-blue/20 bg-secondary px-5 py-10 shadow-xl sm:px-10 sm:py-12">
+      <span className="classifieds-hero-orb classifieds-hero-orb--blue absolute -right-20 -top-24 h-72 w-72 rounded-full bg-brand-blue/12" aria-hidden="true" />
+      <span className="classifieds-hero-orb classifieds-hero-orb--warm absolute -bottom-36 left-1/3 h-80 w-80 rounded-full bg-brand-warm/18" aria-hidden="true" />
+      <span className="classifieds-hero-sheen pointer-events-none absolute inset-y-0 -left-1/3 z-0 w-1/3 skew-x-[-18deg] bg-white/20" aria-hidden="true" />
+      <div className="relative z-10 mx-auto w-full max-w-[920px] text-center">
+        <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">
           Bluebird Marketplace Pets
         </p>
-        <h1 className="mt-3 text-[34px] font-bold tracking-tight sm:text-[48px]">
-          Find the right pet for your home.
+        <h1 className="mx-auto mt-3 max-w-[22ch] text-[36px] font-bold leading-[1.05] tracking-tight sm:text-[56px]">
+          Find the{" "}
+          <span className="relative inline-block text-brand-blue">
+            right pet
+            <span className="absolute -bottom-2 left-1/4 h-1 w-1/2 rounded-full bg-brand-warm/80 sm:-bottom-3" aria-hidden="true" />
+          </span>{" "}
+          for your home.
         </h1>
-        <p className="mx-auto mt-3 max-w-2xl text-[14px] leading-7 text-muted-foreground sm:text-[16px]">
+        <p className="mx-auto mt-4 max-w-[54ch] text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">
           Browse local pets, supplies, and rehoming listings with filters for the animal, breed,
           placement type, and seller.
         </p>
+        <div className="mx-auto mt-5 flex w-fit items-center gap-1.5" aria-hidden="true">
+          <span className="h-1.5 w-9 rounded-full bg-brand-blue" />
+          <span className="h-1.5 w-5 rounded-full bg-brand-warm" />
+          <span className="h-1.5 w-2.5 rounded-full bg-brand-blue/60" />
+        </div>
         <form
-          className="mx-auto mt-7 flex max-w-2xl flex-col gap-2 rounded-2xl border border-border/70 bg-card p-2 shadow-md sm:flex-row"
+          className="mx-auto mt-7 flex max-w-[860px] flex-col gap-2 rounded-[24px] border border-brand-blue/20 bg-card p-2 shadow-[0_20px_45px_-28px_rgb(31_53_87_/_55%)] ring-1 ring-brand-warm/10 sm:flex-row"
           onSubmit={(event) => {
             event.preventDefault();
             onSearch();
@@ -3096,7 +3107,8 @@ function PetsLandingHero({
           <label className="relative min-w-0 flex-1">
             <MagnifyingGlass
               size={18}
-              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-primary"
+              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-brand-blue"
+              aria-hidden="true"
             />
             <input
               type="search"
@@ -3104,14 +3116,14 @@ function PetsLandingHero({
               onChange={(event) => onTermChange(event.target.value)}
               placeholder="Search dogs, cats, birds, breeders, and more"
               aria-label="Search pets"
-              className="h-12 w-full rounded-xl bg-transparent pl-11 pr-3 text-[14px] outline-none placeholder:text-muted-foreground"
+              className="h-12 w-full rounded-xl bg-transparent pl-11 pr-3 text-[13px] outline-none placeholder:text-muted-foreground"
             />
           </label>
           <button
             type="submit"
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-6 text-[13px] font-semibold text-primary-foreground hover:opacity-90"
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-7 text-[13px] font-bold text-primary-foreground transition-transform hover:-translate-y-0.5"
           >
-            <MagnifyingGlass size={16} /> Search pets
+            <MagnifyingGlass size={17} aria-hidden="true" /> Search pets
           </button>
         </form>
         <div className="mt-5 flex flex-wrap justify-center gap-2">
