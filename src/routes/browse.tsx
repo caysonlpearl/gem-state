@@ -3061,6 +3061,7 @@ function PetsLandingHero({
   onCategory: (subcategory: string) => void;
   onPost: () => void;
 }) {
+  const [mobileMode, setMobileMode] = useState<"search" | "post">("search");
   const quickCategories = [
     { slug: "dogs", label: "Dogs" },
     { slug: "cats", label: "Cats" },
@@ -3072,7 +3073,7 @@ function PetsLandingHero({
   ];
 
   return (
-    <section aria-label="Bluebird Marketplace pets" className="classifieds-hero-shell relative isolate flex min-h-[430px] flex-col justify-center overflow-hidden rounded-[32px] border border-brand-blue/20 bg-secondary px-5 py-10 shadow-xl sm:px-10 sm:py-12">
+    <section aria-label="Bluebird Marketplace pets" className="classifieds-hero-shell relative isolate flex min-h-[360px] flex-col justify-center overflow-hidden rounded-[32px] border border-brand-blue/20 bg-secondary px-5 py-6 shadow-xl sm:min-h-[430px] sm:px-10 sm:py-12">
       <span className="classifieds-hero-orb classifieds-hero-orb--blue absolute -right-20 -top-24 h-72 w-72 rounded-full bg-brand-blue/12" aria-hidden="true" />
       <span className="classifieds-hero-orb classifieds-hero-orb--warm absolute -bottom-36 left-1/3 h-80 w-80 rounded-full bg-brand-warm/18" aria-hidden="true" />
       <span className="classifieds-hero-sheen pointer-events-none absolute inset-y-0 -left-1/3 z-0 w-1/3 skew-x-[-18deg] bg-white/20" aria-hidden="true" />
@@ -3088,7 +3089,7 @@ function PetsLandingHero({
           </span>{" "}
           for your home.
         </h1>
-        <p className="mx-auto mt-4 max-w-[54ch] text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">
+        <p className="mx-auto mt-3 line-clamp-2 max-w-[42ch] text-[14px] leading-snug text-muted-foreground sm:mt-4 sm:max-w-[54ch] sm:text-[15px] sm:leading-relaxed">
           Browse local pets, supplies, and rehoming listings with filters for the animal, breed,
           placement type, and seller.
         </p>
@@ -3097,8 +3098,65 @@ function PetsLandingHero({
           <span className="h-1.5 w-5 rounded-full bg-brand-warm" />
           <span className="h-1.5 w-2.5 rounded-full bg-brand-blue/60" />
         </div>
+        <div className="mx-auto mt-4 flex max-w-[860px] rounded-full border border-brand-blue/20 bg-card p-1 shadow-[0_20px_45px_-28px_rgb(31_53_87_/_55%)] ring-1 ring-brand-warm/10 sm:hidden" role="group" aria-label="Pet listing actions">
+          <button
+            type="button"
+            aria-pressed={mobileMode === "search"}
+            onClick={() => setMobileMode("search")}
+            className={`min-h-10 flex-1 rounded-full px-4 text-[12px] font-bold transition ${mobileMode === "search" ? "bg-primary text-primary-foreground" : "text-foreground"}`}
+          >
+            Search
+          </button>
+          <button
+            type="button"
+            aria-pressed={mobileMode === "post"}
+            onClick={() => setMobileMode("post")}
+            className={`min-h-10 flex-1 rounded-full px-4 text-[12px] font-bold transition ${mobileMode === "post" ? "bg-primary text-primary-foreground" : "text-foreground"}`}
+          >
+            Post
+          </button>
+        </div>
+        {mobileMode === "search" ? (
+          <form
+            className="mx-auto mt-2 flex w-full max-w-[860px] gap-2 rounded-[20px] border border-brand-blue/20 bg-card p-1.5 shadow-[0_20px_45px_-28px_rgb(31_53_87_/_55%)] ring-1 ring-brand-warm/10 sm:hidden"
+            onSubmit={(event) => {
+              event.preventDefault();
+              onSearch();
+            }}
+          >
+            <label className="relative min-w-0 flex-1">
+              <MagnifyingGlass
+                size={17}
+                className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-brand-blue"
+                aria-hidden="true"
+              />
+              <input
+                type="search"
+                value={term}
+                onChange={(event) => onTermChange(event.target.value)}
+                placeholder="Search pets"
+                aria-label="Search pets"
+                className="h-10 w-full rounded-xl bg-transparent pl-10 pr-2 text-[13px] outline-none placeholder:text-muted-foreground"
+              />
+            </label>
+            <button
+              type="submit"
+              className="inline-flex h-10 shrink-0 items-center justify-center rounded-xl bg-primary px-4 text-[12px] font-bold text-primary-foreground"
+            >
+              Go
+            </button>
+          </form>
+        ) : (
+          <button
+            type="button"
+            onClick={onPost}
+            className="mx-auto mt-2 inline-flex h-11 w-full max-w-[860px] items-center justify-center gap-2 rounded-[20px] bg-primary px-5 text-[12px] font-bold text-primary-foreground sm:hidden"
+          >
+            Post a pet listing <ArrowRight size={15} aria-hidden="true" />
+          </button>
+        )}
         <form
-          className="mx-auto mt-7 flex max-w-[860px] flex-col gap-2 rounded-[24px] border border-brand-blue/20 bg-card p-2 shadow-[0_20px_45px_-28px_rgb(31_53_87_/_55%)] ring-1 ring-brand-warm/10 sm:flex-row"
+          className="mx-auto mt-7 hidden max-w-[860px] flex-col gap-2 rounded-[24px] border border-brand-blue/20 bg-card p-2 shadow-[0_20px_45px_-28px_rgb(31_53_87_/_55%)] ring-1 ring-brand-warm/10 sm:flex sm:flex-row"
           onSubmit={(event) => {
             event.preventDefault();
             onSearch();
@@ -3126,7 +3184,7 @@ function PetsLandingHero({
             <MagnifyingGlass size={17} aria-hidden="true" /> Search pets
           </button>
         </form>
-        <div className="mt-5 flex flex-wrap justify-center gap-2">
+        <div className="mt-5 hidden flex-wrap justify-center gap-2 sm:flex">
           {quickCategories.map((category) => (
             <button
               key={category.slug}
@@ -3141,7 +3199,7 @@ function PetsLandingHero({
         <button
           type="button"
           onClick={onPost}
-          className="mt-6 inline-flex h-10 items-center gap-2 rounded-full border border-primary px-5 text-[12px] font-semibold text-primary hover:bg-primary/10"
+          className="mt-6 hidden h-10 items-center gap-2 rounded-full border border-primary px-5 text-[12px] font-semibold text-primary hover:bg-primary/10 sm:inline-flex"
         >
           Post a pet listing <ArrowRight size={15} />
         </button>
