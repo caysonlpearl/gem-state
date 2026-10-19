@@ -2,17 +2,22 @@ import { useRef, useState } from "react";
 import { CaretDown, Check, MapPin } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 type Option = { value: string; label: string };
 
-export function HomeSearchDropdown({ value, onChange, options, label, placeholder, editable = false }: {
+export function HomeSearchDropdown({ value, onChange, options, label, placeholder, shortPlaceholder, editable = false }: {
   value: string;
   onChange: (value: string) => void;
   options: Option[];
   label: string;
   placeholder: string;
+  /** Narrow-screen stand-in so the hint text never gets cut off. */
+  shortPlaceholder?: string;
   editable?: boolean;
 }) {
+  const isMobile = useIsMobile();
+  const hint = isMobile && shortPlaceholder ? shortPlaceholder : placeholder;
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const filtered = editable && value
@@ -36,7 +41,7 @@ export function HomeSearchDropdown({ value, onChange, options, label, placeholde
               role="combobox"
               aria-expanded={open}
               aria-autocomplete="list"
-              placeholder={placeholder}
+              placeholder={hint}
               onFocus={() => setOpen(true)}
               onChange={(event) => { onChange(event.target.value); setOpen(true); }}
               onKeyDown={(event) => {

@@ -430,6 +430,7 @@ function Home() {
                 setMapPoint(undefined);
               }}
               placeholder="City or ZIP code"
+              shortPlaceholder="City or ZIP"
               label="City or ZIP code"
               editable
               options={marketplaceCities.map((option) => ({ value: option, label: option }))}
