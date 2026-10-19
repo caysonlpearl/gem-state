@@ -52,7 +52,7 @@ const categoryArtwork = {
   },
   firearms: {
     src: "/category-icons/firearms.webp",
-    alt: "Dimensional sporting rifle secured in a padded, locked case",
+    alt: "Dimensional sporting handgun secured with a trigger lock",
   },
   "tools-equipment": {
     src: "/category-icons/tools-equipment.webp",
