@@ -341,9 +341,6 @@ function Home() {
         <div className="relative z-10">
           <div className="homepage-hero-top">
             <div className="min-w-0">
-              <p className="hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-primary sm:block">
-                BLUEBIRD MARKETPLACE
-              </p>
               <h1
                 ref={headlineRef}
                 className="homepage-hero-headline block max-w-[34ch] text-[22px] sm:mt-2 font-bold leading-[1.08] tracking-tight sm:text-[48px]"
