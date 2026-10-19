@@ -115,6 +115,18 @@ function policyBodies(): Record<string, React.ReactNode> {
           authorization, unsafe hazardous materials, or listings for an item you do not hold or
           cannot lawfully sell. Sellers are responsible for following applicable laws.
         </p>
+        <p>
+          Lawful firearm listings are available in the Firearms category. Firearm listings and
+          transactions must comply with applicable law and Bluebird’s firearm safety guidance.
+        </p>
+        <p>
+          <a
+            href="/firearms-safety"
+            className="font-semibold text-primary underline underline-offset-4"
+          >
+            Read the firearm listing and transaction safety statement.
+          </a>
+        </p>
       </>
     ),
     "identity-verification": (

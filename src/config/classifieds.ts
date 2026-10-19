@@ -676,6 +676,7 @@ export const classifiedCategories = [
   { slug: "health-beauty", name: "Health & Beauty", group: "classifieds" },
   { slug: "home-garden", name: "Home & Garden", group: "classifieds" },
   { slug: "jewelry-watches", name: "Jewelry & Watches", group: "classifieds" },
+  { slug: "firearms", name: "Firearms", group: "classifieds" },
   { slug: "musical-instruments", name: "Musical Instruments", group: "classifieds" },
   { slug: "office-business", name: "Office & Business", group: "classifieds" },
   { slug: "tickets-events", name: "Tickets & Events", group: "classifieds" },

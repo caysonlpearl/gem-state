@@ -49,6 +49,7 @@ const pinned = { activeProps: { className: "" }, inactiveProps: { className: "" 
 const featuredHeaderCategories = [
   { slug: "cars-trucks", name: "Vehicles", group: "motors" },
   { slug: "other-real-estate", name: "Homes" },
+  { slug: "firearms", name: "Firearms" },
   { slug: "jobs", name: "Jobs" },
   { slug: "services", name: "Services" },
 ] as const;
@@ -62,6 +63,7 @@ const mobilePrimaryCategories = [
     description: "Cars, trucks, RVs & trailers",
   },
   { slug: "other-real-estate", name: "Homes", description: "Homes, rentals & builds" },
+  { slug: "firearms", name: "Firearms", description: "Browse local firearm listings" },
   { slug: "jobs", name: "Jobs", description: "Local work & hiring" },
   { slug: "services", name: "Services", description: "Help for your next project" },
 ] as const;
@@ -159,7 +161,6 @@ export function SiteHeader() {
     await supabase.auth.signOut({ scope: "global" });
     await navigate({ to: "/", replace: true });
   }
-
 
   return (
     <header className="sticky top-0 z-40 overflow-visible border-0 bg-card/95 backdrop-blur">

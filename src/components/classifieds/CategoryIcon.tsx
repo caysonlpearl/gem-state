@@ -50,6 +50,10 @@ const categoryArtwork = {
     src: "/category-icons/electronics.webp",
     alt: "Dimensional smartphone illustration",
   },
+  firearms: {
+    src: "/category-icons/firearms.svg",
+    alt: "Illustration of a securely stored sporting rifle",
+  },
   "tools-equipment": {
     src: "/category-icons/tools-equipment.webp",
     alt: "Dimensional drill illustration",
@@ -203,11 +207,14 @@ export function CategoryArtwork({
   const artwork =
     categoryArtwork[slug as CategoryArtworkSlug] ?? (alias ? categoryArtwork[alias] : undefined);
   if (!artwork) return <SquaresFour size={Math.round(size * 0.6)} weight="duotone" />;
+  const srcSet = artwork.src.endsWith(".webp")
+    ? `${artwork.src.replace(".webp", "-96.webp")} 96w, ${artwork.src.replace(".webp", "-160.webp")} 160w, ${artwork.src} 256w`
+    : undefined;
 
   return (
     <img
       src={artwork.src}
-      srcSet={`${artwork.src.replace(".webp", "-96.webp")} 96w, ${artwork.src.replace(".webp", "-160.webp")} 160w, ${artwork.src} 256w`}
+      {...(srcSet ? { srcSet } : {})}
       sizes={`${size}px`}
       alt=""
       aria-hidden="true"

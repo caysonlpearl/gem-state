@@ -16,6 +16,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as BrowseRouteImport } from './routes/browse'
 import { Route as ClaimSellerRouteImport } from './routes/claim-seller'
 import { Route as ContactRouteImport } from './routes/contact'
+import { Route as FirearmsSafetyRouteImport } from './routes/firearms-safety'
 import { Route as GlossaryRouteImport } from './routes/glossary'
 import { Route as MessagesRouteImport } from './routes/messages'
 import { Route as PetsRouteImport } from './routes/pets'
@@ -107,6 +108,11 @@ const ClaimSellerRoute = ClaimSellerRouteImport.update({
 const ContactRoute = ContactRouteImport.update({
   id: '/contact',
   path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FirearmsSafetyRoute = FirearmsSafetyRouteImport.update({
+  id: '/firearms-safety',
+  path: '/firearms-safety',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GlossaryRoute = GlossaryRouteImport.update({
@@ -433,6 +439,7 @@ export interface FileRoutesByFullPath {
   '/browse': typeof BrowseRoute
   '/claim-seller': typeof ClaimSellerRoute
   '/contact': typeof ContactRoute
+  '/firearms-safety': typeof FirearmsSafetyRoute
   '/glossary': typeof GlossaryRoute
   '/messages': typeof MessagesRoute
   '/pets': typeof PetsRoute
@@ -499,6 +506,7 @@ export interface FileRoutesByTo {
   '/browse': typeof BrowseRoute
   '/claim-seller': typeof ClaimSellerRoute
   '/contact': typeof ContactRoute
+  '/firearms-safety': typeof FirearmsSafetyRoute
   '/glossary': typeof GlossaryRoute
   '/messages': typeof MessagesRoute
   '/pets': typeof PetsRoute
@@ -566,6 +574,7 @@ export interface FileRoutesById {
   '/browse': typeof BrowseRoute
   '/claim-seller': typeof ClaimSellerRoute
   '/contact': typeof ContactRoute
+  '/firearms-safety': typeof FirearmsSafetyRoute
   '/glossary': typeof GlossaryRoute
   '/messages': typeof MessagesRoute
   '/pets': typeof PetsRoute
@@ -634,6 +643,7 @@ export interface FileRouteTypes {
     | '/browse'
     | '/claim-seller'
     | '/contact'
+    | '/firearms-safety'
     | '/glossary'
     | '/messages'
     | '/pets'
@@ -700,6 +710,7 @@ export interface FileRouteTypes {
     | '/browse'
     | '/claim-seller'
     | '/contact'
+    | '/firearms-safety'
     | '/glossary'
     | '/messages'
     | '/pets'
@@ -766,6 +777,7 @@ export interface FileRouteTypes {
     | '/browse'
     | '/claim-seller'
     | '/contact'
+    | '/firearms-safety'
     | '/glossary'
     | '/messages'
     | '/pets'
@@ -834,6 +846,7 @@ export interface RootRouteChildren {
   BrowseRoute: typeof BrowseRoute
   ClaimSellerRoute: typeof ClaimSellerRoute
   ContactRoute: typeof ContactRoute
+  FirearmsSafetyRoute: typeof FirearmsSafetyRoute
   GlossaryRoute: typeof GlossaryRoute
   MessagesRoute: typeof MessagesRoute
   PetsRoute: typeof PetsRoute
@@ -914,6 +927,13 @@ declare module '@tanstack/react-router' {
       path: '/contact'
       fullPath: '/contact'
       preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/firearms-safety': {
+      id: '/firearms-safety'
+      path: '/firearms-safety'
+      fullPath: '/firearms-safety'
+      preLoaderRoute: typeof FirearmsSafetyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/glossary': {
@@ -1413,6 +1433,7 @@ const rootRouteChildren: RootRouteChildren = {
   BrowseRoute: BrowseRoute,
   ClaimSellerRoute: ClaimSellerRoute,
   ContactRoute: ContactRoute,
+  FirearmsSafetyRoute: FirearmsSafetyRoute,
   GlossaryRoute: GlossaryRoute,
   MessagesRoute: MessagesRoute,
   PetsRoute: PetsRoute,

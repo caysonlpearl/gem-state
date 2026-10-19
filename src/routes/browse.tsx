@@ -25,6 +25,7 @@ import {
   MapPin,
   MagnifyingGlass,
   Megaphone,
+  ShieldCheck,
   X,
 } from "@phosphor-icons/react";
 
@@ -2325,16 +2326,45 @@ function Browse() {
       <div
         className={`flex flex-wrap items-end justify-between gap-3 ${motors || homes || jobs || services ? "mt-7" : ""} ${homes || jobs || services || serviceLanding || !showGenericBrowse ? "hidden" : ""}`}
       >
-        <div className={motors ? "hidden" : ""}>
-          <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-primary">
-            Bluebird classifieds
-          </p>
-          <h1 className="mt-2 text-[30px] font-bold tracking-tight">{heading}</h1>
-          <p className="mt-2 max-w-[62ch] text-[14px] leading-relaxed text-muted-foreground">
-            Local listings from sellers across Idaho.
-          </p>
+        <div className={`${motors ? "hidden" : ""} flex items-center gap-4`}>
+          {search.category === "firearms" && (
+            <span className="flex size-[76px] shrink-0 items-center justify-center rounded-2xl border border-border/70 bg-card shadow-sm sm:size-[88px]">
+              <CategoryArtwork slug="firearms" size={78} />
+            </span>
+          )}
+          <div>
+            <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-primary">
+              Bluebird classifieds
+            </p>
+            <h1 className="mt-2 text-[30px] font-bold tracking-tight">{heading}</h1>
+            <p className="mt-2 max-w-[62ch] text-[14px] leading-relaxed text-muted-foreground">
+              Local listings from sellers across Idaho.
+            </p>
+          </div>
         </div>
       </div>
+
+      {search.category === "firearms" && showGenericBrowse && (
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand-blue/20 bg-brand-blue/5 px-4 py-3 sm:px-5">
+          <div className="flex min-w-0 items-start gap-3">
+            <ShieldCheck
+              size={19}
+              weight="fill"
+              className="mt-0.5 shrink-0 text-primary"
+              aria-hidden="true"
+            />
+            <p className="text-[12px] leading-relaxed text-muted-foreground sm:text-[13px]">
+              Review Bluebird’s guidance for safe, lawful firearm listings and transactions.
+            </p>
+          </div>
+          <Link
+            to="/firearms-safety"
+            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-primary/40 bg-card px-3.5 text-[12px] font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+          >
+            Firearm safety statement <ArrowRight size={14} weight="bold" aria-hidden="true" />
+          </Link>
+        </div>
+      )}
 
       {!allCategoriesLanding && !motors && !homes && !jobs && !services && !pets && (
         <form
@@ -2699,6 +2729,7 @@ const generalCategoryHighlights = [
   },
   { slug: "farm-garden", name: "Farm & Garden", description: "Yard, farm, and garden" },
   { slug: "pets", name: "Pets", description: "Dogs, cats, and supplies" },
+  { slug: "firearms", name: "Firearms", description: "Browse local firearm listings" },
 ] as const;
 
 const petShowcaseRows: HomepagePreviewRow[] = [

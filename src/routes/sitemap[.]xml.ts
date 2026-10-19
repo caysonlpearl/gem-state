@@ -13,6 +13,7 @@ const STATIC_PATHS: { path: string; changefreq: string; priority: string }[] = [
   { path: "/browse", changefreq: "daily", priority: "0.9" },
   { path: "/sell", changefreq: "monthly", priority: "0.6" },
   { path: "/safety", changefreq: "monthly", priority: "0.5" },
+  { path: "/firearms-safety", changefreq: "monthly", priority: "0.5" },
   { path: "/glossary", changefreq: "monthly", priority: "0.5" },
   { path: "/guides", changefreq: "weekly", priority: "0.6" },
   { path: "/policies", changefreq: "monthly", priority: "0.3" },

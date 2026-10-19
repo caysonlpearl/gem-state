@@ -121,6 +121,11 @@ export function SiteFooter() {
                 </Link>
               </li>
               <li>
+                <Link to="/firearms-safety" className={linkClass} {...pinned}>
+                  Firearm safety statement
+                </Link>
+              </li>
+              <li>
                 <Link to="/guides" className={linkClass} {...pinned}>
                   Buying and selling guides
                 </Link>

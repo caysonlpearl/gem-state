@@ -27,6 +27,7 @@ const allCategoryMenuItems = [
   { slug: "computers", name: "Computers", group: "classifieds" },
   { slug: "cycling", name: "Cycling", group: "classifieds" },
   { slug: "electronics", name: "Electronics", group: "classifieds" },
+  { slug: "firearms", name: "Firearms", group: "classifieds" },
   { slug: "fitness-equipment", name: "Fitness Equipment", group: "classifieds" },
   { slug: "for-trade-barter", name: "For Trade or Barter", group: "classifieds" },
   { slug: "free", name: "FREE", group: "classifieds" },
