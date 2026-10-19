@@ -659,8 +659,9 @@
     font-size: 16px !important;
   }
   /* The homepage search card carries its own compact type, so its fields
-     opt out of the 16px floor and keep the size the card was designed at. */
-  .classifieds-hero-shell input {
+     opt out of the 16px floor and keep the size the card was designed at.
+     Same :not() chain as the rule above so this one outranks it. */
+  .classifieds-hero-shell input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]) {
     font-size: 13px !important;
   }
   }
