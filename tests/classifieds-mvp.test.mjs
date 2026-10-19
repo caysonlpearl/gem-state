@@ -1001,9 +1001,19 @@ test("browse other classifieds tiles carry firearms, pets, furniture, electronic
   ]) {
     assert.match(homeSource, new RegExp(`slug: "${slug}", name: "${label}"`));
   }
-  // Pets and Firearms left the top category header; the tiles carry them now.
-  assert.doesNotMatch(headerSource, /slug: "pets"/);
-  assert.doesNotMatch(headerSource, /slug: "firearms"/);
+  // Pets and Firearms left the desktop top category header; the tiles carry them now.
+  // Scoped to featuredHeaderCategories so the mobile menu can still list them.
+  const headerRow = headerSource.match(/const featuredHeaderCategories = \[([\s\S]*?)\] as const/);
+  assert.ok(headerRow, "featuredHeaderCategories array not found");
+  assert.doesNotMatch(headerRow[1], /slug: "pets"/);
+  assert.doesNotMatch(headerRow[1], /slug: "firearms"/);
+});
+
+test("mobile browse menu lists firearms and pets", () => {
+  const mobileList = headerSource.match(/const mobilePrimaryCategories = \[([\s\S]*?)\] as const/);
+  assert.ok(mobileList, "mobilePrimaryCategories array not found");
+  assert.match(mobileList[1], /slug: "firearms", name: "Firearms"/);
+  assert.match(mobileList[1], /slug: "pets", name: "Pets"/);
 });
 
 test("mobile menu trigger uses a visible Bluebird brand treatment", () => {
