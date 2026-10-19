@@ -2697,8 +2697,8 @@ function FirearmsLandingHero({
       <span className="absolute -bottom-24 left-1/3 h-64 w-64 rounded-full bg-primary/5" />
       <div className="relative mx-auto max-w-4xl">
         <div className="flex flex-col items-center gap-5 text-center sm:flex-row sm:items-start sm:text-left">
-          <span className="flex size-24 shrink-0 items-center justify-center rounded-3xl border border-border/70 bg-card/90 shadow-sm sm:size-28">
-            <CategoryArtwork slug="firearms" size={104} />
+          <span className="flex size-24 shrink-0 items-center justify-center sm:size-28">
+            <CategoryArtwork slug="firearms" size={112} />
           </span>
           <div>
             <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-primary">
