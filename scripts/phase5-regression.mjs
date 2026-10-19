@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 const baseUrl = (
-  process.env.BLUEBIRD_BASE_URL || "https://gemstateclassifieds.lovable.app"
+  process.env.BLUEBIRD_BASE_URL || "https://onbluebird.com"
 ).replace(/\/$/, "");
 const requiredRoutes = ["/", "/browse", "/policies", "/safety", "/contact"];
 const protectedRoutes = ["/account", "/create-listing", "/selling", "/buying", "/watchlist"];
