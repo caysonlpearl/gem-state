@@ -1009,6 +1009,13 @@ test("browse other classifieds tiles carry firearms, pets, furniture, electronic
   assert.doesNotMatch(headerRow[1], /slug: "firearms"/);
 });
 
+test("mobile browse menu lists firearms and pets", () => {
+  const mobileList = headerSource.match(/const mobilePrimaryCategories = \[([\s\S]*?)\] as const/);
+  assert.ok(mobileList, "mobilePrimaryCategories array not found");
+  assert.match(mobileList[1], /slug: "firearms", name: "Firearms"/);
+  assert.match(mobileList[1], /slug: "pets", name: "Pets"/);
+});
+
 test("mobile menu trigger uses a visible Bluebird brand treatment", () => {
   assert.match(headerSource, /aria-label=\{menuOpen \? "Close menu" : "Open menu"\}/);
   assert.match(
