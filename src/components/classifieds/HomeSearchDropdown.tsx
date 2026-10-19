@@ -26,7 +26,7 @@ export function HomeSearchDropdown({ value, onChange, options, label, placeholde
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverAnchor asChild>
-        <div className="soft-control relative flex h-10 min-w-0 items-center gap-2 px-3 sm:h-12 sm:px-4">
+        <div className="soft-control relative flex h-10 min-w-0 items-center gap-1.5 px-2.5 sm:h-12 sm:gap-2 sm:px-4">
           {editable ? <>
             <MapPin size={16} weight="duotone" className="shrink-0 text-primary" aria-hidden="true" />
             <input
@@ -51,7 +51,7 @@ export function HomeSearchDropdown({ value, onChange, options, label, placeholde
               className="min-w-0 flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-muted-foreground"
             />
             <PopoverTrigger asChild>
-              <Button type="button" variant="ghost" size="icon" aria-label="Show locations" className="h-7 w-7 shrink-0 rounded-full text-muted-foreground">
+              <Button type="button" variant="ghost" size="icon" aria-label="Show locations" className="hidden h-7 w-7 shrink-0 rounded-full text-muted-foreground sm:inline-flex">
                 <CaretDown weight="bold" />
               </Button>
             </PopoverTrigger>
