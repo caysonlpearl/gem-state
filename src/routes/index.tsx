@@ -383,7 +383,6 @@ function Home() {
                 <span className="classifieds-hero-accent-bar h-1.5 w-2.5 rounded-full bg-brand-blue/60" />
               </div>
             </div>
-            <HomepageFeaturedCategories withLocation={where.withLocation} compact />
           </div>
 
           <form
@@ -515,96 +514,38 @@ function Home() {
 
 function HomepageFeaturedCategories({
   withLocation,
-  compact = false,
 }: {
   withLocation: (search: HomepageBrowseSearch) => HomepageBrowseSearch;
-  compact?: boolean;
 }) {
   return (
     <section
       aria-label="Explore pets and firearms"
-      className={
-        compact
-          ? "hidden gap-3 min-[1200px]:grid"
-          : "mt-5 grid grid-cols-2 gap-2.5 sm:gap-5 min-[1200px]:hidden"
-      }
+      className="homepage-featured-categories mt-5 grid grid-cols-2 gap-2.5 sm:gap-4"
     >
       {[
-        {
-          slug: "pets",
-          title: "Pets & adoption",
-          body: "Find a new companion, explore local pet listings, and meet pets looking for a home.",
-          action: "Browse pets",
-          tone: "bg-brand-blue/7",
-        },
-        {
-          slug: "firearms",
-          title: "Firearms & gear",
-          body: "Explore local firearm listings, accessories, and gear in one dedicated place.",
-          action: "Browse firearms",
-          tone: "bg-brand-warm/10",
-        },
-      ].map((category) =>
-        compact ? (
-          <Link
-            key={category.slug}
-            to="/browse"
-            search={withLocation({ category: category.slug })}
-            className={`group flex min-h-[72px] items-center gap-3 rounded-[20px] border border-primary/15 px-4 py-2.5 shadow-sm transition-colors hover:border-primary/40 hover:bg-card/80 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary ${category.tone}`}
-          >
-            <span className="grid size-12 shrink-0 place-items-center rounded-full bg-card/75">
-              <CategoryArtwork slug={category.slug} size={48} />
-            </span>
-            <span className="min-w-0 flex-1 text-[16px] font-bold leading-tight tracking-tight">
-              {category.title}
-            </span>
+        { slug: "pets", title: "Pets & adoption", tone: "bg-brand-blue/7" },
+        { slug: "firearms", title: "Firearms & gear", tone: "bg-brand-warm/10" },
+      ].map((category) => (
+        <Link
+          key={category.slug}
+          to="/browse"
+          search={withLocation({ category: category.slug })}
+          className={`group flex min-w-0 flex-col items-start gap-2.5 rounded-[20px] border border-primary/15 p-3.5 shadow-sm transition-colors hover:border-primary/40 hover:bg-card/80 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary sm:min-h-[60px] sm:flex-row sm:items-center sm:gap-3 sm:rounded-2xl sm:px-4 sm:py-2 ${category.tone}`}
+        >
+          <span className="grid size-12 shrink-0 place-items-center rounded-full bg-card/70 sm:size-10">
+            <CategoryArtwork slug={category.slug} size={40} />
+          </span>
+          <span className="flex w-full min-w-0 items-center gap-1 text-[15px] font-bold leading-tight tracking-tight sm:flex-1 sm:gap-3 sm:text-[16px]">
+            <span className="min-w-0">{category.title}</span>
             <ArrowRight
-              size={16}
+              size={14}
               weight="bold"
-              className="shrink-0 text-primary"
+              className="shrink-0 text-primary sm:ml-auto"
               aria-hidden="true"
             />
-          </Link>
-        ) : (
-          <article
-            key={category.slug}
-            className={`group relative flex flex-col items-start gap-2.5 overflow-hidden rounded-[20px] border border-primary/15 p-3.5 shadow-sm transition-colors hover:border-primary/30 has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-ring sm:flex-row sm:items-center sm:gap-5 sm:rounded-[24px] sm:p-6 ${category.tone}`}
-          >
-            <div className="grid size-12 shrink-0 place-items-center rounded-full bg-card/70 sm:size-28">
-              <CategoryArtwork slug={category.slug} size={88} className="max-sm:!size-[40px]" />
-            </div>
-            <div className="min-w-0">
-              <h2 className="text-[15px] font-bold leading-tight tracking-tight sm:text-[25px]">
-                {/* The whole card is the tap target on phones, so no second
-                  control is needed there; the desktop button stays. */}
-                <Link
-                  to="/browse"
-                  search={withLocation({ category: category.slug })}
-                  className="after:absolute after:inset-0 after:content-[''] focus-visible:outline-none"
-                >
-                  {category.title}
-                  <ArrowRight
-                    size={13}
-                    weight="bold"
-                    aria-hidden="true"
-                    className="ml-1 inline align-[-1px] sm:hidden"
-                  />
-                </Link>
-              </h2>
-              <p className="mt-1.5 hidden max-w-[38ch] text-[11px] leading-snug text-muted-foreground sm:mt-2 sm:block sm:text-[13px] sm:leading-relaxed">
-                {category.body}
-              </p>
-              <Link
-                to="/browse"
-                search={withLocation({ category: category.slug })}
-                className="relative z-10 mt-4 hidden min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-primary px-5 text-[13px] font-semibold text-primary-foreground shadow-sm transition-colors group-hover:bg-primary/90 sm:inline-flex"
-              >
-                {category.action} <ArrowRight size={15} weight="bold" aria-hidden="true" />
-              </Link>
-            </div>
-          </article>
-        ),
-      )}
+          </span>
+        </Link>
+      ))}
     </section>
   );
 }
