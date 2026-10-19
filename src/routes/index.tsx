@@ -371,7 +371,7 @@ function Home() {
                   to {headlineItems[3]}.
                 </span>
               </h1>
-              <p className="mt-1 max-w-[56ch] whitespace-nowrap text-xs leading-snug text-muted-foreground sm:mt-1.5 sm:leading-relaxed">
+              <p className="mt-1 max-w-[56ch] text-xs leading-snug text-muted-foreground sm:mt-1.5 sm:whitespace-nowrap sm:leading-relaxed">
                 And so much more across Idaho and surrounding states.
               </p>
               <div
@@ -786,7 +786,7 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
             <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">
               <Car size={14} weight="fill" /> Cars &amp; motors
             </p>
-            <h2 className="mt-1 whitespace-nowrap text-[19px] font-bold tracking-tight sm:text-[26px]">
+            <h2 className="mt-1 text-[19px] font-bold tracking-tight sm:whitespace-nowrap sm:text-[26px]">
               Vehicles for sale in Idaho
             </h2>
           </div>
