@@ -511,7 +511,7 @@ function HomepageFeaturedCategories({
   return (
     <section
       aria-label="Explore pets and firearms"
-      className="mt-5 grid gap-4 sm:grid-cols-2 sm:gap-5"
+      className="mt-5 grid grid-cols-2 gap-2.5 sm:gap-5"
     >
       {[
         {
@@ -531,22 +531,22 @@ function HomepageFeaturedCategories({
       ].map((category) => (
         <article
           key={category.slug}
-          className={`relative flex items-center gap-4 overflow-hidden rounded-[24px] border border-primary/15 p-5 shadow-sm sm:gap-5 sm:p-6 ${category.tone}`}
+          className={`relative flex flex-col items-start gap-3 overflow-hidden rounded-[20px] border border-primary/15 p-3.5 shadow-sm sm:flex-row sm:items-center sm:gap-5 sm:rounded-[24px] sm:p-6 ${category.tone}`}
         >
-          <div className="grid size-20 shrink-0 place-items-center rounded-full bg-card/70 sm:size-28">
-            <CategoryArtwork slug={category.slug} size={88} className="max-sm:!size-[72px]" />
+          <div className="grid size-12 shrink-0 place-items-center rounded-full bg-card/70 sm:size-28">
+            <CategoryArtwork slug={category.slug} size={88} className="max-sm:!size-[40px]" />
           </div>
           <div className="min-w-0">
-            <h2 className="text-[21px] font-bold leading-tight tracking-tight sm:text-[25px]">
+            <h2 className="text-[15px] font-bold leading-tight tracking-tight sm:text-[25px]">
               {category.title}
             </h2>
-            <p className="mt-2 max-w-[38ch] text-[13px] leading-relaxed text-muted-foreground">
+            <p className="mt-1.5 max-w-[38ch] text-[11px] leading-snug text-muted-foreground sm:mt-2 sm:text-[13px] sm:leading-relaxed">
               {category.body}
             </p>
             <Link
               to="/browse"
               search={withLocation({ category: category.slug })}
-              className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-primary px-4 text-[12px] font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary sm:px-5 sm:text-[13px]"
+              className="mt-1 inline-flex min-h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-primary px-3 text-[11px] font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary sm:mt-4 sm:min-h-11 sm:gap-2 sm:px-5 sm:text-[13px]"
             >
               {category.action} <ArrowRight size={15} weight="bold" aria-hidden="true" />
             </Link>
