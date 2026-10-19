@@ -2695,6 +2695,7 @@ export const getClassifiedsHome = createServerFn({ method: "GET" }).handler(
         rentals,
         services,
         pets,
+        firearms,
       ] = await Promise.all([
         client
           .from("asks")
@@ -2736,6 +2737,9 @@ export const getClassifiedsHome = createServerFn({ method: "GET" }).handler(
         runBrowseClassifieds({ category: "services", sort: "newest", page: 1 }),
         // Adoptable pets for the homepage's pets row.
         runBrowseClassifieds({ category: "pets", state: "ID", sort: "newest", page: 1 }),
+        // Dedicated inventory keeps the Firearms homepage row independent
+        // of what happens to appear in the general recent-listings page.
+        runBrowseClassifieds({ category: "firearms", state: "ID", sort: "newest", page: 1 }),
       ]);
 
       const categoryCounts: Record<string, number> = {};
@@ -2763,6 +2767,7 @@ export const getClassifiedsHome = createServerFn({ method: "GET" }).handler(
               ...flexibleJobs.listings,
               ...services.listings,
               ...pets.listings,
+              ...firearms.listings,
             ].map((listing) => [listing.id, listing]),
           ).values(),
         ],

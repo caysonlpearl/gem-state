@@ -492,12 +492,68 @@ function Home() {
         </div>
       </section>
 
+      <HomepageFeaturedCategories withLocation={where.withLocation} />
+
       {/* Listing rows wait on data; the hero above never does, so the
           page's largest text paints without waiting on the database. */}
       <Suspense fallback={<HomeSectionsLoading />}>
         <HomeSections where={where} />
       </Suspense>
     </main>
+  );
+}
+
+function HomepageFeaturedCategories({
+  withLocation,
+}: {
+  withLocation: (search: HomepageBrowseSearch) => HomepageBrowseSearch;
+}) {
+  return (
+    <section
+      aria-label="Explore pets and firearms"
+      className="mt-5 grid gap-4 sm:grid-cols-2 sm:gap-5"
+    >
+      {[
+        {
+          slug: "pets",
+          title: "Pets & adoption",
+          body: "Find a new companion, explore local pet listings, and meet pets looking for a home.",
+          action: "Browse pets",
+          tone: "bg-brand-blue/7",
+        },
+        {
+          slug: "firearms",
+          title: "Firearms & gear",
+          body: "Explore local firearm listings, accessories, and gear in one dedicated place.",
+          action: "Browse firearms",
+          tone: "bg-brand-warm/10",
+        },
+      ].map((category) => (
+        <article
+          key={category.slug}
+          className={`relative flex items-center gap-4 overflow-hidden rounded-[24px] border border-primary/15 p-5 shadow-sm sm:gap-5 sm:p-6 ${category.tone}`}
+        >
+          <div className="grid size-20 shrink-0 place-items-center rounded-full bg-card/70 sm:size-28">
+            <CategoryArtwork slug={category.slug} size={88} className="max-sm:!size-[72px]" />
+          </div>
+          <div className="min-w-0">
+            <h2 className="text-[21px] font-bold leading-tight tracking-tight sm:text-[25px]">
+              {category.title}
+            </h2>
+            <p className="mt-2 max-w-[38ch] text-[13px] leading-relaxed text-muted-foreground">
+              {category.body}
+            </p>
+            <Link
+              to="/browse"
+              search={withLocation({ category: category.slug })}
+              className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-primary px-5 text-[13px] font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
+            >
+              {category.action} <ArrowRight size={15} weight="bold" aria-hidden="true" />
+            </Link>
+          </div>
+        </article>
+      ))}
+    </section>
   );
 }
 
@@ -625,6 +681,11 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
     for (const listing of unseen) shownIds.add(listing.id);
     return unseen;
   };
+  // Reserve dedicated-category inventory before broad rows consume it.
+  const petListings = pick(localRecent.filter((listing) => listing.pet));
+  const firearmListings = pick(
+    localRecent.filter((listing) => listing.categorySlug === "firearms"),
+  );
   const freshListings = pick(localRecent.filter((listing) => !listing.pet));
   const fartherAwayListings = pick(home.recent.filter((listing) => !matchesLocation(listing)));
   const vehicleListings = pick(localMotors);
@@ -652,10 +713,6 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
         `${listing.title} ${listing.service?.subcategory ?? ""}`,
       ),
     ),
-  );
-  // Adoptable pets, Idaho only like the other homepage rows.
-  const petListings = pick(
-    localRecent.filter((listing) => listing.pet && listing.state?.toUpperCase() === "ID"),
   );
   const generalListings = pick(generalSource);
   const toyAndCollectibleListings = pick(
@@ -853,10 +910,18 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
 
       <HomepageListingRow
         eyebrow="Bluebird pets"
-        title="Adoptable pets"
+        title="Pets & adoption"
         listings={petListings}
         search={withLocation({ category: "pets" })}
-        action="Meet more pets"
+        action="Browse pets"
+      />
+
+      <HomepageListingRow
+        eyebrow="Bluebird firearms"
+        title="Firearms & gear"
+        listings={firearmListings}
+        search={withLocation({ category: "firearms" })}
+        action="Browse firearms"
       />
 
       <HomepageListingRow
