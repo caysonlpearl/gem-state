@@ -407,7 +407,7 @@ function Home() {
                 onChange={(event) => setTerm(event.target.value)}
                 placeholder="Search listings"
                 aria-label="Search listings"
-                className="h-10 w-full rounded-full border-0 bg-transparent pl-9 sm:h-12 pr-3 text-base md:text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+                className="h-10 w-full rounded-full border-0 bg-transparent pl-9 sm:h-12 pr-3 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none"
               />
             </label>
             <HomeSearchDropdown
@@ -430,13 +430,14 @@ function Home() {
                 setMapPoint(undefined);
               }}
               placeholder="City or ZIP code"
+              shortPlaceholder="City or ZIP"
               label="City or ZIP code"
               editable
               options={marketplaceCities.map((option) => ({ value: option, label: option }))}
             />
             <button
               type="submit"
-              className="col-span-2 h-10 rounded-full bg-primary px-7 sm:col-span-1 sm:h-12 text-base font-semibold text-primary-foreground shadow-sm transition-transform hover:scale-[1.02] md:text-sm"
+              className="col-span-2 h-10 rounded-full bg-primary px-7 sm:col-span-1 sm:h-12 text-[13px] font-semibold text-primary-foreground shadow-sm transition-transform hover:scale-[1.02]"
             >
               Search
             </button>

@@ -2,17 +2,22 @@ import { useRef, useState } from "react";
 import { CaretDown, Check, MapPin } from "@phosphor-icons/react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 type Option = { value: string; label: string };
 
-export function HomeSearchDropdown({ value, onChange, options, label, placeholder, editable = false }: {
+export function HomeSearchDropdown({ value, onChange, options, label, placeholder, shortPlaceholder, editable = false }: {
   value: string;
   onChange: (value: string) => void;
   options: Option[];
   label: string;
   placeholder: string;
+  /** Narrow-screen stand-in so the hint text never gets cut off. */
+  shortPlaceholder?: string;
   editable?: boolean;
 }) {
+  const isMobile = useIsMobile();
+  const hint = isMobile && shortPlaceholder ? shortPlaceholder : placeholder;
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const filtered = editable && value
@@ -26,7 +31,7 @@ export function HomeSearchDropdown({ value, onChange, options, label, placeholde
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverAnchor asChild>
-        <div className="soft-control relative flex h-10 min-w-0 items-center gap-2 px-3 sm:h-12 sm:px-4">
+        <div className="soft-control relative flex h-10 min-w-0 items-center gap-1.5 px-2.5 sm:h-12 sm:gap-2 sm:px-4">
           {editable ? <>
             <MapPin size={16} weight="duotone" className="shrink-0 text-primary" aria-hidden="true" />
             <input
@@ -36,7 +41,7 @@ export function HomeSearchDropdown({ value, onChange, options, label, placeholde
               role="combobox"
               aria-expanded={open}
               aria-autocomplete="list"
-              placeholder={placeholder}
+              placeholder={hint}
               onFocus={() => setOpen(true)}
               onChange={(event) => { onChange(event.target.value); setOpen(true); }}
               onKeyDown={(event) => {
@@ -48,16 +53,16 @@ export function HomeSearchDropdown({ value, onChange, options, label, placeholde
                 }
                 if (event.key === "Enter") setOpen(false);
               }}
-              className="min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground md:text-sm"
+              className="min-w-0 flex-1 bg-transparent text-[13px] text-foreground outline-none placeholder:text-muted-foreground"
             />
             <PopoverTrigger asChild>
-              <Button type="button" variant="ghost" size="icon" aria-label="Show locations" className="h-7 w-7 shrink-0 rounded-full text-muted-foreground">
+              <Button type="button" variant="ghost" size="icon" aria-label="Show locations" className="hidden h-7 w-7 shrink-0 rounded-full text-muted-foreground sm:inline-flex">
                 <CaretDown weight="bold" />
               </Button>
             </PopoverTrigger>
           </> : <PopoverTrigger asChild>
             <Button type="button" variant="ghost" role="combobox" aria-label={label} aria-expanded={open} className="h-full w-full justify-between rounded-full p-0 font-normal hover:bg-transparent">
-              <span className="truncate text-base md:text-sm">{options.find((option) => option.value === value)?.label ?? placeholder}</span>
+              <span className="truncate text-[13px]">{options.find((option) => option.value === value)?.label ?? placeholder}</span>
               <CaretDown weight="bold" className="text-muted-foreground" />
             </Button>
           </PopoverTrigger>}
