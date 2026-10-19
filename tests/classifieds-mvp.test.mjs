@@ -1735,12 +1735,19 @@ test("firearms are a first-class category with linked safety guidance", async ()
   const firearmsMigrationSource = await read(
     "supabase/migrations/20261019100000_add_firearms_classified_category.sql",
   );
-  const firearmsArtworkSource = await read("public/category-icons/firearms.svg");
+  const firearmsArtwork = await readFile(
+    new URL("../public/category-icons/firearms.webp", import.meta.url),
+  );
+  const firearmsArtworkVariants = await Promise.all(
+    [96, 160].map((size) =>
+      readFile(new URL(`../public/category-icons/firearms-${size}.webp`, import.meta.url)),
+    ),
+  );
 
   assert.match(configSource, /slug: "firearms", name: "Firearms", group: "classifieds"/);
   assert.match(allCategoriesSource, /slug: "firearms", name: "Firearms"/);
   assert.match(headerSource, /slug: "firearms", name: "Firearms"/);
-  assert.match(categoryIconSource, /firearms: \{[\s\S]*?\/category-icons\/firearms\.svg/);
+  assert.match(categoryIconSource, /firearms: \{[\s\S]*?\/category-icons\/firearms\.webp/);
   assert.match(browseSource, /search\.category === "firearms"[\s\S]*?Firearm safety statement/);
   assert.match(placePageSource, /isFirearmsPage[\s\S]*?CategoryArtwork slug="firearms"/);
   assert.match(placePageSource, /isFirearmsPage[\s\S]*?Firearm safety statement/);
@@ -1748,5 +1755,8 @@ test("firearms are a first-class category with linked safety guidance", async ()
   assert.match(firearmsPageSource, /minimum-age-gun-sales-and-transfers/);
   assert.match(policiesSource, /Lawful firearm listings are available in the Firearms category/);
   assert.match(firearmsMigrationSource, /VALUES \('firearms', 'Firearms', 72\)/);
-  assert.match(firearmsArtworkSource, /<svg[^>]*viewBox="0 0 256 256"/);
+  assert.equal(firearmsArtwork.subarray(8, 12).toString(), "WEBP");
+  for (const variant of firearmsArtworkVariants) {
+    assert.equal(variant.subarray(8, 12).toString(), "WEBP");
+  }
 });

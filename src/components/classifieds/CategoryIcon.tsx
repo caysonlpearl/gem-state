@@ -51,8 +51,8 @@ const categoryArtwork = {
     alt: "Dimensional smartphone illustration",
   },
   firearms: {
-    src: "/category-icons/firearms.svg",
-    alt: "Illustration of a securely stored sporting rifle",
+    src: "/category-icons/firearms.webp",
+    alt: "Dimensional sporting rifle secured in a padded, locked case",
   },
   "tools-equipment": {
     src: "/category-icons/tools-equipment.webp",
