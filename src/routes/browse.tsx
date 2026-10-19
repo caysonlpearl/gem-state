@@ -3782,7 +3782,7 @@ function GeneralClassifiedShowcase({ listings }: { listings: ClassifiedBrowseRes
             </div>
             <Link
               to="/browse"
-              search={{ category: "general" }}
+              search={(prev) => ({ ...prev, allCategories: undefined, page: 1 })}
               className="inline-flex shrink-0 items-center gap-1 text-[12px] font-bold text-primary hover:underline"
             >
               See all <ArrowRight size={14} aria-hidden="true" />
