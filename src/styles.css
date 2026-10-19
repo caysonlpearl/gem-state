@@ -664,7 +664,6 @@
   .classifieds-hero-shell input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]) {
     font-size: 13px !important;
   }
-  }
 }
 
 /* Room for the listing page's fixed bottom contact bar, so it never covers
