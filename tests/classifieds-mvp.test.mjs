@@ -1731,6 +1731,7 @@ test("city browse links preserve an adjustable radius and filter by distance", (
 
 test("firearms are a first-class category with linked safety guidance", async () => {
   const firearmsPageSource = await read("src/routes/firearms-safety.tsx");
+  const placePageSource = await read("src/components/classifieds/PlacePage.tsx");
   const firearmsMigrationSource = await read(
     "supabase/migrations/20261019100000_add_firearms_classified_category.sql",
   );
@@ -1741,6 +1742,8 @@ test("firearms are a first-class category with linked safety guidance", async ()
   assert.match(headerSource, /slug: "firearms", name: "Firearms"/);
   assert.match(categoryIconSource, /firearms: \{[\s\S]*?\/category-icons\/firearms\.svg/);
   assert.match(browseSource, /search\.category === "firearms"[\s\S]*?Firearm safety statement/);
+  assert.match(placePageSource, /isFirearmsPage[\s\S]*?CategoryArtwork slug="firearms"/);
+  assert.match(placePageSource, /isFirearmsPage[\s\S]*?Firearm safety statement/);
   assert.match(firearmsPageSource, /Interstate transfers generally must go through/);
   assert.match(firearmsPageSource, /minimum-age-gun-sales-and-transfers/);
   assert.match(policiesSource, /Lawful firearm listings are available in the Firearms category/);

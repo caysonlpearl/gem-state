@@ -1,6 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
-import { ArrowRight, CaretRight } from "@phosphor-icons/react";
+import { ArrowRight, CaretRight, ShieldCheck } from "@phosphor-icons/react";
 
+import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { ListingCard } from "@/components/classifieds/ListingCard";
 import { BluebirdEmptyState } from "@/components/layout/BluebirdEmptyState";
 import { guidesForCategory } from "@/content/guides";
@@ -126,7 +127,9 @@ function PriceTables({ tables }: { tables: PlacePageData["priceTables"] }) {
             <table className="mt-2 w-full text-left text-[13.5px]">
               <thead className="text-[11.5px] uppercase tracking-[0.06em] text-muted-foreground">
                 <tr>
-                  <th className="py-2 font-semibold">{table.heading.includes("year") ? "Model year" : "Mileage"}</th>
+                  <th className="py-2 font-semibold">
+                    {table.heading.includes("year") ? "Model year" : "Mileage"}
+                  </th>
                   <th className="py-2 text-right font-semibold">Listings</th>
                   <th className="py-2 text-right font-semibold">Median</th>
                 </tr>
@@ -228,6 +231,8 @@ function Faq({ faq }: { faq: PlacePageData["faq"] }) {
 /** Landing page for a city, region, category, or city/region + category. */
 export function PlacePage({ data }: { data: PlacePageData }) {
   const seeAll = browseHref(data.browseSearch);
+  const categorySlug = String(data.browseSearch["category"] ?? "");
+  const isFirearmsPage = categorySlug === "firearms";
   return (
     <main className="mx-auto max-w-[1360px] space-y-10 px-4 py-6 sm:px-7 sm:py-8 lg:px-10">
       <div>
@@ -248,12 +253,21 @@ export function PlacePage({ data }: { data: PlacePageData }) {
             </span>
           ))}
         </nav>
-        <h1 className="mt-4 text-[28px] font-bold leading-tight tracking-tight sm:text-[36px]">
-          {data.heading}
-        </h1>
-        <p className="mt-2 max-w-[70ch] text-[15px] leading-relaxed text-muted-foreground">
-          {data.lead}
-        </p>
+        <div className={isFirearmsPage ? "mt-4 flex items-center gap-4" : "mt-4"}>
+          {isFirearmsPage ? (
+            <span className="flex size-[76px] shrink-0 items-center justify-center rounded-2xl border border-border/70 bg-card shadow-sm sm:size-[88px]">
+              <CategoryArtwork slug="firearms" size={78} />
+            </span>
+          ) : null}
+          <div>
+            <h1 className="text-[28px] font-bold leading-tight tracking-tight sm:text-[36px]">
+              {data.heading}
+            </h1>
+            <p className="mt-2 max-w-[70ch] text-[15px] leading-relaxed text-muted-foreground">
+              {data.lead}
+            </p>
+          </div>
+        </div>
         <a
           href={seeAll}
           className="mt-3 inline-flex min-h-11 items-center gap-1 text-[13.5px] font-semibold text-primary hover:underline"
@@ -262,6 +276,28 @@ export function PlacePage({ data }: { data: PlacePageData }) {
         </a>
         <Stats stats={data.stats} />
       </div>
+
+      {isFirearmsPage ? (
+        <div className="-mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-brand-blue/20 bg-brand-blue/5 px-4 py-3 sm:px-5">
+          <div className="flex min-w-0 items-start gap-3">
+            <ShieldCheck
+              size={19}
+              weight="fill"
+              className="mt-0.5 shrink-0 text-primary"
+              aria-hidden="true"
+            />
+            <p className="text-[12px] leading-relaxed text-muted-foreground sm:text-[13px]">
+              Review Bluebird’s guidance for safe, lawful firearm listings and transactions.
+            </p>
+          </div>
+          <a
+            href="/firearms-safety"
+            className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-primary/40 bg-card px-3.5 text-[12px] font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+          >
+            Firearm safety statement <ArrowRight size={14} weight="bold" aria-hidden="true" />
+          </a>
+        </div>
+      ) : null}
 
       {data.listings.length === 0 ? (
         <BluebirdEmptyState
