@@ -17,6 +17,7 @@ import {
   useState,
 } from "react";
 import {
+  ArrowLeft,
   ArrowRight,
   BookmarkSimple,
   CaretDown,
@@ -2495,6 +2496,16 @@ function Browse() {
             <p className="mt-2 max-w-[62ch] text-[14px] leading-relaxed text-muted-foreground">
               Local listings from sellers across Idaho.
             </p>
+            {firearms ? (
+              <Link
+                to="/browse"
+                search={{ category: "firearms" }}
+                className="mt-3 inline-flex h-10 items-center gap-2 rounded-full border border-primary/35 bg-card px-4 text-[12px] font-semibold text-primary shadow-sm transition-colors hover:bg-primary hover:text-primary-foreground"
+              >
+                <ArrowLeft size={14} weight="bold" aria-hidden="true" />
+                Firearms category home
+              </Link>
+            ) : null}
           </div>
         </div>
       </div>

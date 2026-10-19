@@ -1758,6 +1758,8 @@ test("firearms are a first-class category with linked safety guidance", async ()
   assert.match(browseSource, /Shop popular brands/);
   assert.match(browseSource, /Firearm accessories/);
   assert.match(browseSource, /title="Latest firearm listings"/);
+  assert.match(browseSource, /Firearms category home/);
+  assert.match(browseSource, /search=\{\{ category: "firearms" \}\}/);
   assert.match(browseSource, /<FirearmFilterFields search=\{search\}/);
   for (const filter of [
     "firearmListingType",
