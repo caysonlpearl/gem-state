@@ -546,7 +546,7 @@ function HomepageFeaturedCategories({
             <Link
               to="/browse"
               search={withLocation({ category: category.slug })}
-              className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-primary px-5 text-[13px] font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary"
+              className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-primary px-4 text-[12px] font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary sm:px-5 sm:text-[13px]"
             >
               {category.action} <ArrowRight size={15} weight="bold" aria-hidden="true" />
             </Link>
