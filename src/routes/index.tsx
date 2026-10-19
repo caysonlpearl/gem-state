@@ -78,12 +78,11 @@ const seeAll =
 const HOMEPAGE_ROW_SIZE = 4;
 
 const homepageCategoryHighlights = [
-  { slug: "all", name: "All items" },
-  { slug: "other-real-estate", name: "Homes" },
-  { slug: "cars-trucks", name: "Vehicles", group: "motors" },
-  { slug: "services", name: "Services" },
+  { slug: "firearms", name: "Firearms" },
   { slug: "pets", name: "Pets" },
-  { slug: "jobs", name: "Jobs" },
+  { slug: "furniture", name: "Furniture" },
+  { slug: "electronics", name: "Electronics" },
+  { slug: "industrial", name: "Industrial" },
 ] as const;
 
 type HomepageBrowseSearch = {
@@ -727,26 +726,16 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
       {/* Everything else */}
       <section className="mt-16">
         <h2 className="text-[26px] font-bold tracking-tight">Browse other classifieds</h2>
-        <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
           {homepageCategoryHighlights.map((option) => (
             <Link
               key={option.slug}
               to="/browse"
-              search={
-                option.slug === "all"
-                  ? withLocation({ allCategories: true })
-                  : "group" in option
-                    ? withLocation({ group: option.group })
-                    : { category: option.slug }
-              }
+              search={{ category: option.slug }}
               className="group rounded-2xl border border-transparent bg-card px-4 py-5 shadow-sm transition-shadow hover:shadow-md"
             >
               <span className="flex h-12 items-center">
-                <CategoryArtwork
-                  slug={option.slug === "all" ? "general" : option.slug}
-                  size={54}
-                  className="category-art--nav"
-                />
+                <CategoryArtwork slug={option.slug} size={54} className="category-art--nav" />
               </span>
               <span className="block text-[13px] font-semibold">{option.name}</span>
             </Link>
