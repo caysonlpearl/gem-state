@@ -532,14 +532,28 @@ function HomepageFeaturedCategories({
       ].map((category) => (
         <article
           key={category.slug}
-          className={`relative flex flex-col items-start gap-3 overflow-hidden rounded-[20px] border border-primary/15 p-3.5 shadow-sm sm:flex-row sm:items-center sm:gap-5 sm:rounded-[24px] sm:p-6 ${category.tone}`}
+          className={`group relative flex flex-col items-start gap-2.5 overflow-hidden rounded-[20px] border border-primary/15 p-3.5 shadow-sm transition-colors hover:border-primary/30 has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-ring sm:flex-row sm:items-center sm:gap-5 sm:rounded-[24px] sm:p-6 ${category.tone}`}
         >
           <div className="grid size-12 shrink-0 place-items-center rounded-full bg-card/70 sm:size-28">
             <CategoryArtwork slug={category.slug} size={88} className="max-sm:!size-[40px]" />
           </div>
           <div className="min-w-0">
             <h2 className="text-[15px] font-bold leading-tight tracking-tight sm:text-[25px]">
-              {category.title}
+              {/* The whole card is the tap target on phones, so no second
+                  control is needed there; the desktop button stays. */}
+              <Link
+                to="/browse"
+                search={withLocation({ category: category.slug })}
+                className="after:absolute after:inset-0 after:content-[''] focus-visible:outline-none"
+              >
+                {category.title}
+                <ArrowRight
+                  size={13}
+                  weight="bold"
+                  aria-hidden="true"
+                  className="ml-1 inline align-[-1px] sm:hidden"
+                />
+              </Link>
             </h2>
             <p className="mt-1.5 hidden max-w-[38ch] text-[11px] leading-snug text-muted-foreground sm:mt-2 sm:block sm:text-[13px] sm:leading-relaxed">
               {category.body}
@@ -547,7 +561,7 @@ function HomepageFeaturedCategories({
             <Link
               to="/browse"
               search={withLocation({ category: category.slug })}
-              className="mt-1 inline-flex min-h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-full bg-primary px-3 text-[11px] font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary sm:mt-4 sm:min-h-11 sm:gap-2 sm:px-5 sm:text-[13px]"
+              className="relative z-10 mt-4 hidden min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-primary px-5 text-[13px] font-semibold text-primary-foreground shadow-sm transition-colors group-hover:bg-primary/90 sm:inline-flex"
             >
               {category.action} <ArrowRight size={15} weight="bold" aria-hidden="true" />
             </Link>
