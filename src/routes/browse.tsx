@@ -1438,7 +1438,7 @@ function Browse() {
   const selectedCategory = classifiedCategories.find(
     (category) => category.slug === search.category,
   );
-  const allCategoriesLanding = search.allCategories === true;
+  const allCategoriesLanding = search.allCategories === true && (search.page ?? 1) === 1;
   const motors = search.group === "motors" || isMotorsCategory(search.category);
   const homes = search.category === "other-real-estate";
   const jobs = search.category === "jobs";
