@@ -541,7 +541,7 @@ function HomepageFeaturedCategories({
             <h2 className="text-[15px] font-bold leading-tight tracking-tight sm:text-[25px]">
               {category.title}
             </h2>
-            <p className="mt-1.5 max-w-[38ch] text-[11px] leading-snug text-muted-foreground sm:mt-2 sm:text-[13px] sm:leading-relaxed">
+            <p className="mt-1.5 hidden max-w-[38ch] text-[11px] leading-snug text-muted-foreground sm:mt-2 sm:block sm:text-[13px] sm:leading-relaxed">
               {category.body}
             </p>
             <Link
