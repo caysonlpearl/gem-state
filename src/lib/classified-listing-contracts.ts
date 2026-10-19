@@ -245,6 +245,20 @@ export const classifiedListingSchema = z
           });
         }
       }
+      if (listing.category === "firearms") {
+        const listingType = listing.itemDetails?.listingType;
+        const conditionalField = listingType === "Accessory" ? "accessoryType" : "firearmType";
+        if (!listing.itemDetails?.[conditionalField]?.trim()) {
+          context.addIssue({
+            code: "custom",
+            path: ["itemDetails", conditionalField],
+            message:
+              listingType === "Accessory"
+                ? "Accessory type is required for this category."
+                : "Firearm type is required for this category.",
+          });
+        }
+      }
     }
   })
   // Idaho listings use the listed spelling of their city and that city's

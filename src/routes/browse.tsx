@@ -50,7 +50,14 @@ import {
   normalizePetSpecies,
   normalizePetSubcategory,
 } from "@/config/pets";
-import { fieldsForClassifiedItem, industrialSubcategories } from "@/config/classified-item-fields";
+import {
+  fieldsForClassifiedItem,
+  firearmAccessoryTypes,
+  firearmBrands,
+  firearmListingTypes,
+  firearmTypes,
+  industrialSubcategories,
+} from "@/config/classified-item-fields";
 import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { AllCategoriesPopover } from "@/components/classifieds/AllCategoriesPopover";
 import {
@@ -159,6 +166,10 @@ type Search = {
   vehicleMode?: "landing" | "results" | undefined;
   petMode?: PetMode | undefined;
   firearmMode?: FirearmMode | undefined;
+  firearmListingType?: string | undefined;
+  firearmType?: string | undefined;
+  firearmBrand?: string | undefined;
+  firearmAccessoryType?: string | undefined;
   petSubcategory?: string | undefined;
   petSpecies?: string | undefined;
   petBreed?: string | undefined;
@@ -262,6 +273,10 @@ const savedSearchFilterKeys: readonly (keyof Search)[] = [
   "vehicleMode",
   "petMode",
   "firearmMode",
+  "firearmListingType",
+  "firearmType",
+  "firearmBrand",
+  "firearmAccessoryType",
   "serviceSubcategory",
   "serviceExpandSearch",
   "servicePhotos",
@@ -934,6 +949,10 @@ function inputFromSearch(search: Search): ClassifiedBrowseInput {
     petGoodWithDogs: search.petGoodWithDogs,
     petGoodWithCats: search.petGoodWithCats,
     petIndoorOutdoor: search.petIndoorOutdoor,
+    firearmListingType: search.firearmListingType,
+    firearmType: search.firearmType,
+    firearmBrand: search.firearmBrand,
+    firearmAccessoryType: search.firearmAccessoryType,
     itemDetailKey: search.itemDetailKey,
     itemDetailValue: search.itemDetailValue,
     sort: search.sort ?? "newest",
@@ -973,6 +992,13 @@ const petSearchKeys: readonly (keyof Search)[] = [
   "petGoodWithDogs",
   "petGoodWithCats",
   "petIndoorOutdoor",
+];
+const firearmSearchKeys: readonly (keyof Search)[] = [
+  "firearmMode",
+  "firearmListingType",
+  "firearmType",
+  "firearmBrand",
+  "firearmAccessoryType",
 ];
 const jobSearchKeys: readonly (keyof Search)[] = [
   "jobMode",
@@ -1049,7 +1075,7 @@ function normalizeBrowseSearch(search: Search): Search {
   if (!jobs) clear(jobSearchKeys);
   if (!services) clear(serviceSearchKeys);
   if (!homes) clear(homeSearchKeys);
-  if (!firearms) next.firearmMode = undefined;
+  if (!firearms) clear(firearmSearchKeys);
 
   if (pets) {
     if (
@@ -1069,6 +1095,17 @@ function normalizeBrowseSearch(search: Search): Search {
     // canonical jobType field so the constraint is never silently discarded.
     next.jobType = next.jobType ?? next.jobEmploymentType;
     next.jobEmploymentType = undefined;
+  }
+  if (firearms) {
+    const hasFirearmFilter = firearmSearchKeys.some(
+      (key) => key !== "firearmMode" && hasSearchValue(next[key]),
+    );
+    if (next.firearmMode === undefined && hasFirearmFilter) next.firearmMode = "results";
+    if (next.firearmListingType === "Accessory") {
+      next.firearmType = undefined;
+    } else if (next.firearmListingType === "Firearm") {
+      next.firearmAccessoryType = undefined;
+    }
   }
   if (homes && next.homeTab === undefined) next.homeTab = "buy";
   return next;
@@ -1102,6 +1139,10 @@ export const Route = createFileRoute("/browse")({
     const vehicleMode = stringParam(search, "vehicleMode", 10);
     const petMode = stringParam(search, "petMode", 10);
     const firearmMode = stringParam(search, "firearmMode", 10);
+    const firearmListingType = stringParam(search, "firearmListingType", 30);
+    const firearmType = stringParam(search, "firearmType", 60);
+    const firearmBrand = stringParam(search, "firearmBrand", 80);
+    const firearmAccessoryType = stringParam(search, "firearmAccessoryType", 80);
     const category = stringParam(search, "category", 60);
     const savedSearchId = stringParam(search, "savedSearchId", 64);
     const page = Number(search["page"]);
@@ -1160,6 +1201,14 @@ export const Route = createFileRoute("/browse")({
               ? "landing"
               : undefined
           : undefined,
+      firearmListingType: firearmListingTypes.includes(firearmListingType as never)
+        ? firearmListingType
+        : undefined,
+      firearmType: firearmTypes.includes(firearmType as never) ? firearmType : undefined,
+      firearmBrand: firearmBrands.includes(firearmBrand as never) ? firearmBrand : undefined,
+      firearmAccessoryType: firearmAccessoryTypes.includes(firearmAccessoryType as never)
+        ? firearmAccessoryType
+        : undefined,
       sellerType: stringParam(search, "sellerType", 30),
       mileageBands: stringParam(search, "mileageBands", 300),
       serviceSubcategory: stringParam(search, "serviceSubcategory", 80),
@@ -1376,6 +1425,11 @@ function Browse() {
       exteriorColor: undefined,
       titleStatus: undefined,
       sellerType: undefined,
+      firearmMode: undefined,
+      firearmListingType: undefined,
+      firearmType: undefined,
+      firearmBrand: undefined,
+      firearmAccessoryType: undefined,
       ...patch,
     });
 
@@ -1393,7 +1447,10 @@ function Browse() {
   const petLanding = pets && search.petMode !== "results";
   const firearmLanding = firearms && search.firearmMode !== "results";
   const showGenericBrowse =
-    !allCategoriesLanding && (!motors || vehicleLanding) && (!pets || !petLanding) && !firearmLanding;
+    !allCategoriesLanding &&
+    (!motors || vehicleLanding) &&
+    (!pets || !petLanding) &&
+    !firearmLanding;
   const homeTab: HomeTab = search.homeTab ?? "buy";
   const homeLanding = homes && search.homeMode !== "results";
   const jobLanding = jobs && search.jobMode !== "results";
@@ -1431,7 +1488,7 @@ function Browse() {
     ? `“${search.q}”`
     : (selectedCategory?.name.toLowerCase() ?? (motors ? "vehicles" : "listings"));
   const alertPlace = search.city ? ` near ${search.city}` : "";
-  const activeFilterCount = countActiveFilters(search, motors, pets);
+  const activeFilterCount = countActiveFilters(search, motors, pets, firearms);
   const heading =
     selectedCategory?.name ?? (search.group === "motors" ? "Vehicles" : "All classifieds");
   const noResultsHint = pets
@@ -1442,9 +1499,11 @@ function Browse() {
         ? "Try widening the job type, pay range, experience, location, or search terms."
         : services
           ? "Try widening the service type, price, location, availability, or search terms."
-          : motors
-            ? "Try widening the year, price, mileage, location, or vehicle filters."
-            : "Try widening the category, price, condition, location, or search terms.";
+          : firearms
+            ? "Try widening the firearm type, brand, accessory, price, location, or search terms."
+            : motors
+              ? "Try widening the year, price, mileage, location, or vehicle filters."
+              : "Try widening the category, price, condition, location, or search terms.";
 
   if (isClearingFilters) {
     return (
@@ -1536,10 +1595,24 @@ function Browse() {
       petGoodWithDogs: nextPets ? value("petGoodWithDogs") : undefined,
       petGoodWithCats: nextPets ? value("petGoodWithCats") : undefined,
       petIndoorOutdoor: nextPets ? value("petIndoorOutdoor") : undefined,
+      firearmListingType: nextFirearms ? value("firearmListingType") : undefined,
+      firearmType:
+        nextFirearms && value("firearmListingType") !== "Accessory"
+          ? value("firearmType")
+          : undefined,
+      firearmBrand: nextFirearms ? value("firearmBrand") : undefined,
+      firearmAccessoryType:
+        nextFirearms && value("firearmListingType") !== "Firearm"
+          ? value("firearmAccessoryType")
+          : undefined,
       itemDetailKey:
-        category && itemCategorySlugs.has(category) ? value("itemDetailKey") : undefined,
+        category && itemCategorySlugs.has(category) && !nextFirearms
+          ? value("itemDetailKey")
+          : undefined,
       itemDetailValue:
-        category && itemCategorySlugs.has(category) ? value("itemDetailValue") : undefined,
+        category && itemCategorySlugs.has(category) && !nextFirearms
+          ? value("itemDetailValue")
+          : undefined,
     };
   }
 
@@ -1641,8 +1714,12 @@ function Browse() {
       </FilterSection>
 
       {search.category && itemCategorySlugs.has(search.category) && (
-        <FilterSection title="Category details">
-          {search.category === "industrial" ? (
+        <FilterSection
+          title={search.category === "firearms" ? "Firearm filters" : "Category details"}
+        >
+          {search.category === "firearms" ? (
+            <FirearmFilterFields search={search} />
+          ) : search.category === "industrial" ? (
             <>
               <input type="hidden" name="itemDetailKey" value="itemType" />
               <select
@@ -2149,18 +2226,51 @@ function Browse() {
               search: scoped({ firearmMode: "results", q: undefined }),
             })
           }
+          onCategory={(patch) =>
+            void navigate({
+              to: "/browse",
+              search: scoped({
+                firearmMode: "results",
+                q: undefined,
+                firearmListingType: undefined,
+                firearmType: undefined,
+                firearmBrand: undefined,
+                firearmAccessoryType: undefined,
+                ...patch,
+              }),
+            })
+          }
           onPost={() => void navigate({ to: "/create-listing" })}
         />
       )}
 
       {firearms && firearmLanding && (
-        <LandingListingsShowcase
-          eyebrow="Bluebird Marketplace Firearms"
-          title="Latest firearm listings"
-          action="Browse all firearms"
-          browseSearch={{ category: "firearms", firearmMode: "results" }}
-          listings={result.listings}
-        />
+        <>
+          <FirearmsSafetyCallout />
+          <LandingListingsShowcase
+            eyebrow="Bluebird Marketplace Firearms"
+            title="Latest firearm listings"
+            action="Browse all firearms"
+            browseSearch={{ category: "firearms", firearmMode: "results" }}
+            listings={result.listings}
+          />
+          <FirearmsCategoryShowcase
+            onSelect={(patch) =>
+              void navigate({
+                to: "/browse",
+                search: scoped({
+                  firearmMode: "results",
+                  q: undefined,
+                  firearmListingType: undefined,
+                  firearmType: undefined,
+                  firearmBrand: undefined,
+                  firearmAccessoryType: undefined,
+                  ...patch,
+                }),
+              })
+            }
+          />
+        </>
       )}
 
       {motors && vehicleLanding && (
@@ -2377,11 +2487,6 @@ function Browse() {
         className={`flex flex-wrap items-end justify-between gap-3 ${motors || homes || jobs || services ? "mt-7" : ""} ${homes || jobs || services || serviceLanding || !showGenericBrowse ? "hidden" : ""}`}
       >
         <div className={`${motors ? "hidden" : ""} flex items-center gap-4`}>
-          {search.category === "firearms" && (
-            <span className="flex size-[76px] shrink-0 items-center justify-center rounded-2xl border border-border/70 bg-card shadow-sm sm:size-[88px]">
-              <CategoryArtwork slug="firearms" size={78} />
-            </span>
-          )}
           <div>
             <p className="font-mono text-[9px] uppercase tracking-[0.16em] text-primary">
               Bluebird classifieds
@@ -2451,7 +2556,7 @@ function Browse() {
           </BrowsePill>
           <BrowsePill
             active={search.group === "motors" || motors}
-            search={scoped({ group: "motors", category: undefined })}
+            search={scopedWithoutVehicleFilters({ group: "motors", category: undefined })}
           >
             Vehicles
           </BrowsePill>
@@ -2545,7 +2650,7 @@ function Browse() {
                 </p>
                 {activeFilterCount > 0 && (
                   <div className="flex flex-wrap gap-1.5">
-                    {activeFilterLabels(search, motors, pets).map((label) => (
+                    {activeFilterLabels(search, motors, pets, firearms).map((label) => (
                       <span
                         key={label}
                         className="inline-flex items-center gap-1 rounded-full border border-border bg-card px-2 py-1 text-[10.5px] text-muted-foreground"
@@ -2683,31 +2788,37 @@ function FirearmsLandingHero({
   onTermChange,
   onSearch,
   onBrowse,
+  onCategory,
   onPost,
 }: {
   term: string;
   onTermChange: (value: string) => void;
   onSearch: () => void;
   onBrowse: () => void;
+  onCategory: (patch: Partial<Search>) => void;
   onPost: () => void;
 }) {
+  const quickCategories: { label: string; patch: Partial<Search> }[] = [
+    { label: "Rifles", patch: { firearmListingType: "Firearm", firearmType: "Rifle" } },
+    { label: "Handguns", patch: { firearmListingType: "Firearm", firearmType: "Handgun" } },
+    { label: "Shotguns", patch: { firearmListingType: "Firearm", firearmType: "Shotgun" } },
+    { label: "Accessories", patch: { firearmListingType: "Accessory" } },
+  ];
   return (
-    <section className="relative overflow-hidden rounded-[28px] border border-border/70 bg-gradient-to-br from-secondary via-card to-accent/20 px-5 py-8 shadow-sm sm:px-10 sm:py-10">
+    <section className="relative overflow-hidden rounded-[28px] border border-border/70 bg-gradient-to-br from-secondary via-card to-accent/20 px-5 py-9 shadow-sm sm:px-10 sm:py-12">
       <span className="absolute -right-16 -top-20 h-56 w-56 rounded-full bg-brand-warm/20" />
       <span className="absolute -bottom-24 left-1/3 h-64 w-64 rounded-full bg-primary/5" />
-      <div className="relative mx-auto max-w-4xl">
-        <div className="mx-auto max-w-3xl text-center">
-            <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-primary">
-              Bluebird Marketplace Firearms
-            </p>
-            <h1 className="mt-2 text-[34px] font-bold tracking-tight sm:text-[46px]">
-              Firearms, listed locally.
-            </h1>
-            <p className="mx-auto mt-2 max-w-2xl text-[14px] leading-7 text-muted-foreground sm:mx-0 sm:text-[16px]">
-              Browse community listings and connect with local sellers. Bluebird provides the
-              marketplace; buyers and sellers are responsible for following applicable laws.
-            </p>
-        </div>
+      <div className="relative mx-auto max-w-3xl text-center">
+        <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-primary">
+          Bluebird Marketplace Firearms
+        </p>
+        <h1 className="mt-3 text-[34px] font-bold tracking-tight sm:text-[48px]">
+          Find firearms and gear near you.
+        </h1>
+        <p className="mx-auto mt-3 max-w-2xl text-[14px] leading-7 text-muted-foreground sm:text-[16px]">
+          Browse local rifles, handguns, shotguns, and accessories by type, brand, price, and
+          distance.
+        </p>
 
         <form
           className="mx-auto mt-6 flex max-w-3xl flex-col gap-2 rounded-2xl border border-border/70 bg-card p-2 shadow-md sm:flex-row"
@@ -2739,7 +2850,20 @@ function FirearmsLandingHero({
           </button>
         </form>
 
-        <div className="mt-4 flex flex-wrap justify-center gap-3">
+        <div className="mt-5 flex flex-wrap justify-center gap-2">
+          {quickCategories.map((category) => (
+            <button
+              key={category.label}
+              type="button"
+              onClick={() => onCategory(category.patch)}
+              className="rounded-full border border-border bg-card/80 px-3.5 py-2 text-[12px] font-semibold text-foreground transition hover:border-primary hover:text-primary"
+            >
+              {category.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
           <button
             type="button"
             onClick={onBrowse}
@@ -2754,16 +2878,123 @@ function FirearmsLandingHero({
           >
             Post a listing
           </button>
-          <Link
-            to="/firearms-safety"
-            className="inline-flex h-10 items-center gap-2 rounded-full border border-border bg-card/80 px-5 text-[12px] font-semibold text-foreground hover:border-primary hover:text-primary"
-          >
-            <ShieldCheck size={16} weight="fill" aria-hidden="true" />
-            Firearm safety statement
-          </Link>
         </div>
       </div>
     </section>
+  );
+}
+
+function FirearmsSafetyCallout() {
+  return (
+    <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-brand-blue/20 bg-brand-blue/5 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+      <div className="flex min-w-0 items-start gap-3">
+        <ShieldCheck
+          size={21}
+          weight="fill"
+          className="mt-0.5 shrink-0 text-primary"
+          aria-hidden="true"
+        />
+        <div>
+          <p className="text-[13px] font-semibold text-foreground">Buy and sell responsibly</p>
+          <p className="mt-0.5 text-[12px] leading-relaxed text-muted-foreground">
+            Review Bluebird’s guidance for safe, lawful firearm listings and private transactions.
+          </p>
+        </div>
+      </div>
+      <Link
+        to="/firearms-safety"
+        className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full border border-primary/40 bg-card px-3.5 text-[12px] font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+      >
+        Firearm safety statement <ArrowRight size={14} weight="bold" aria-hidden="true" />
+      </Link>
+    </div>
+  );
+}
+
+function FirearmsCategoryShowcase({ onSelect }: { onSelect: (patch: Partial<Search>) => void }) {
+  const popularBrands = [
+    "Browning",
+    "Glock",
+    "Henry",
+    "Mossberg",
+    "Remington",
+    "Ruger",
+    "Savage Arms",
+    "SIG Sauer",
+    "Smith & Wesson",
+    "Springfield Armory",
+    "Weatherby",
+    "Winchester",
+  ];
+
+  return (
+    <div className="mt-10 space-y-12 sm:mt-14 sm:space-y-16">
+      <FirearmBrowseSection title="Browse by firearm type">
+        {firearmTypes.map((type) => (
+          <FirearmBrowseButton
+            key={type}
+            label={type}
+            onClick={() => onSelect({ firearmListingType: "Firearm", firearmType: type })}
+          />
+        ))}
+      </FirearmBrowseSection>
+
+      <FirearmBrowseSection title="Shop popular brands">
+        {popularBrands.map((brandName) => (
+          <FirearmBrowseButton
+            key={brandName}
+            label={brandName}
+            onClick={() => onSelect({ firearmBrand: brandName })}
+          />
+        ))}
+      </FirearmBrowseSection>
+
+      <FirearmBrowseSection title="Firearm accessories">
+        {firearmAccessoryTypes.map((type) => (
+          <FirearmBrowseButton
+            key={type}
+            label={type}
+            onClick={() =>
+              onSelect({ firearmListingType: "Accessory", firearmAccessoryType: type })
+            }
+          />
+        ))}
+      </FirearmBrowseSection>
+    </div>
+  );
+}
+
+function FirearmBrowseSection({ title, children }: { title: string; children: React.ReactNode }) {
+  const id = title.replaceAll(" ", "-").toLowerCase();
+  return (
+    <section aria-labelledby={id}>
+      <div className="mb-4 border-b border-border pb-3">
+        <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
+          Bluebird Marketplace Firearms
+        </p>
+        <h2 id={id} className="mt-1 text-[22px] font-bold tracking-tight sm:text-[27px]">
+          {title}
+        </h2>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{children}</div>
+    </section>
+  );
+}
+
+function FirearmBrowseButton({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group flex min-h-12 items-center justify-between rounded-xl border border-border bg-card px-4 py-3 text-left text-[13px] font-semibold shadow-sm transition hover:border-primary hover:text-primary"
+    >
+      <span>{label}</span>
+      <ArrowRight
+        size={15}
+        aria-hidden="true"
+        className="shrink-0 transition-transform group-hover:translate-x-0.5"
+      />
+    </button>
   );
 }
 
@@ -7374,7 +7605,7 @@ function InlineApplyButton({ onClick }: { onClick: () => void }) {
   );
 }
 
-function countActiveFilters(search: Search, motors: boolean, pets: boolean) {
+function countActiveFilters(search: Search, motors: boolean, pets: boolean, firearms: boolean) {
   const keys: (keyof Search)[] = [
     "category",
     "group",
@@ -7422,10 +7653,12 @@ function countActiveFilters(search: Search, motors: boolean, pets: boolean) {
       "petGoodWithCats",
       "petIndoorOutdoor",
     );
+  if (firearms)
+    keys.push("firearmListingType", "firearmType", "firearmBrand", "firearmAccessoryType");
   return keys.filter((key) => search[key] !== undefined && search[key] !== "").length;
 }
 
-function activeFilterLabels(search: Search, motors: boolean, pets: boolean) {
+function activeFilterLabels(search: Search, motors: boolean, pets: boolean, firearms: boolean) {
   const labels: string[] = [];
   if (search.category)
     labels.push(
@@ -7494,6 +7727,12 @@ function activeFilterLabels(search: Search, motors: boolean, pets: boolean) {
     if (search.petGoodWithDogs === "Yes") labels.push("Good with dogs");
     if (search.petGoodWithCats === "Yes") labels.push("Good with cats");
   }
+  if (firearms) {
+    if (search.firearmListingType) labels.push(search.firearmListingType);
+    if (search.firearmType) labels.push(search.firearmType);
+    if (search.firearmBrand) labels.push(search.firearmBrand);
+    if (search.firearmAccessoryType) labels.push(search.firearmAccessoryType);
+  }
   return labels;
 }
 
@@ -7514,6 +7753,72 @@ function FilterSection({
       </h3>
       <div className="space-y-2">{children}</div>
     </div>
+  );
+}
+
+function FirearmFilterFields({ search }: { search: Search }) {
+  const [listingType, setListingType] = useState(search.firearmListingType ?? "");
+
+  return (
+    <>
+      <select
+        name="firearmListingType"
+        aria-label="Firearm listing type"
+        value={listingType}
+        onChange={(event) => setListingType(event.target.value)}
+        className="filter-input"
+      >
+        <option value="">Firearms and accessories</option>
+        {firearmListingTypes.map((option) => (
+          <option key={option} value={option}>
+            {option === "Firearm" ? "Firearms only" : "Accessories only"}
+          </option>
+        ))}
+      </select>
+      {listingType !== "Accessory" && (
+        <select
+          name="firearmType"
+          aria-label="Firearm type"
+          defaultValue={listingType === "Accessory" ? "" : (search.firearmType ?? "")}
+          className="filter-input"
+        >
+          <option value="">Any firearm type</option>
+          {firearmTypes.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      )}
+      <select
+        name="firearmBrand"
+        aria-label="Firearm or accessory brand"
+        defaultValue={search.firearmBrand ?? ""}
+        className="filter-input"
+      >
+        <option value="">Any brand</option>
+        {firearmBrands.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+      {listingType !== "Firearm" && (
+        <select
+          name="firearmAccessoryType"
+          aria-label="Firearm accessory type"
+          defaultValue={listingType === "Firearm" ? "" : (search.firearmAccessoryType ?? "")}
+          className="filter-input"
+        >
+          <option value="">Any accessory type</option>
+          {firearmAccessoryTypes.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      )}
+    </>
   );
 }
 

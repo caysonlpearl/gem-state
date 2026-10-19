@@ -6,6 +6,7 @@ const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
 const configSource = await read("src/config/classifieds.ts");
 const petsConfigSource = await read("src/config/pets.ts");
+const itemFieldsConfigSource = await read("src/config/classified-item-fields.ts");
 const browseSource = await read("src/routes/browse.tsx");
 const displaySource = await read("src/lib/classifieds-display.ts");
 const querySource = await read("src/lib/classifieds-query.ts");
@@ -16,6 +17,7 @@ const homeFieldsSource = await read("src/components/classifieds/listing-form/Hom
 const jobFieldsSource = await read("src/components/classifieds/listing-form/JobFields.tsx");
 const serviceFieldsSource = await read("src/components/classifieds/listing-form/ServiceFields.tsx");
 const petFieldsSource = await read("src/components/classifieds/listing-form/PetFields.tsx");
+const itemFieldsSource = await read("src/components/classifieds/listing-form/ItemFields.tsx");
 const listingFormPayloadSource = await read("src/components/classifieds/listing-form/payload.ts");
 const editSource = await read("src/routes/_authenticated/listings.$listingId.edit.tsx");
 const homeJobServiceMigrationSource = await read(
@@ -1751,7 +1753,28 @@ test("firearms are a first-class category with linked safety guidance", async ()
   assert.match(browseSource, /firearms && firearmLanding && \(\s*<FirearmsLandingHero/);
   assert.match(browseSource, /firearmMode: "results"/);
   assert.match(browseSource, /function FirearmsLandingHero\(/);
+  assert.match(browseSource, /function FirearmsCategoryShowcase\(/);
+  assert.match(browseSource, /Browse by firearm type/);
+  assert.match(browseSource, /Shop popular brands/);
+  assert.match(browseSource, /Firearm accessories/);
   assert.match(browseSource, /title="Latest firearm listings"/);
+  assert.match(browseSource, /<FirearmFilterFields search=\{search\}/);
+  for (const filter of [
+    "firearmListingType",
+    "firearmType",
+    "firearmBrand",
+    "firearmAccessoryType",
+  ]) {
+    assert.match(browseSource, new RegExp(filter));
+    assert.match(classifiedsFunctionsSource, new RegExp(filter));
+  }
+  assert.match(itemFieldsConfigSource, /firearms: \[/);
+  assert.match(itemFieldsConfigSource, /export const firearmTypes = \[/);
+  assert.match(itemFieldsConfigSource, /export const firearmBrands = \[/);
+  assert.match(itemFieldsConfigSource, /export const firearmAccessoryTypes = \[/);
+  assert.match(itemFieldsSource, /details\.listingType === "Accessory"/);
+  assert.match(contractsSource, /Accessory type is required for this category/);
+  assert.match(contractsSource, /Firearm type is required for this category/);
   assert.match(browseSource, /search\.category === "firearms"[\s\S]*?Firearm safety statement/);
   assert.match(placePageSource, /isFirearmsPage[\s\S]*?CategoryArtwork slug="firearms"/);
   assert.match(placePageSource, /isFirearmsPage[\s\S]*?Firearm safety statement/);

@@ -11,10 +11,37 @@ export function ItemFields({
   set: (key: string, value: string) => void;
 }) {
   const fields = fieldsForClassifiedItem(category);
+  const visibleFields =
+    category === "firearms"
+      ? fields.filter((field) => {
+          if (field.key === "accessoryType") return details.listingType === "Accessory";
+          if (field.key === "firearmType" || field.key === "caliber")
+            return details.listingType !== "Accessory";
+          return true;
+        })
+      : fields;
   return (
     <div className="grid gap-4 sm:grid-cols-2">
-      {fields.map((field) => (
-        <ItemField key={field.key} field={field} value={details[field.key] ?? ""} set={set} />
+      {visibleFields.map((field) => (
+        <ItemField
+          key={field.key}
+          field={{
+            ...field,
+            required:
+              field.required ||
+              (category === "firearms" &&
+                ((field.key === "firearmType" && details.listingType !== "Accessory") ||
+                  (field.key === "accessoryType" && details.listingType === "Accessory"))),
+          }}
+          value={details[field.key] ?? ""}
+          set={(key, value) => {
+            set(key, value);
+            if (category === "firearms" && key === "listingType") {
+              set(value === "Accessory" ? "firearmType" : "accessoryType", "");
+              if (value === "Accessory") set("caliber", "");
+            }
+          }}
+        />
       ))}
     </div>
   );

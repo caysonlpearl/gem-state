@@ -5,7 +5,13 @@ import { createServerFn } from "@tanstack/react-start";
 import { publicServerClient } from "./supabase-public.server";
 import { classifiedCategories, isWithinClassifiedRadius } from "@/config/classifieds";
 import { normalizePetSpecies, normalizePetSubcategory } from "@/config/pets";
-import { normalizeClassifiedItemDetails } from "@/config/classified-item-fields";
+import {
+  firearmAccessoryTypes,
+  firearmBrands,
+  firearmListingTypes,
+  firearmTypes,
+  normalizeClassifiedItemDetails,
+} from "@/config/classified-item-fields";
 import { regionOfListing } from "@/lib/market-stats";
 import { formatUsd } from "@/config/fees";
 import {
@@ -1386,6 +1392,15 @@ function mockMatches(
       .includes(data.itemDetailValue.toLowerCase())
   )
     return false;
+  const firearmDetails = (listing as { itemDetails?: Record<string, string> }).itemDetails;
+  for (const [filter, key] of [
+    [data.firearmListingType, "listingType"],
+    [data.firearmType, "firearmType"],
+    [data.firearmBrand, "brand"],
+    [data.firearmAccessoryType, "accessoryType"],
+  ] as const) {
+    if (filter && firearmDetails?.[key]?.toLowerCase() !== filter.toLowerCase()) return false;
+  }
   if (data.make && !filterValues(data.make).includes(listing.vehicle?.make ?? "")) return false;
   if (data.model && !filterValues(data.model).includes(listing.vehicle?.model ?? "")) return false;
   if (data.yearMin != null && (listing.vehicle?.year ?? -1) < data.yearMin) return false;
@@ -1599,6 +1614,10 @@ export type ClassifiedBrowseInput = {
   petGoodWithDogs?: string | undefined;
   petGoodWithCats?: string | undefined;
   petIndoorOutdoor?: string | undefined;
+  firearmListingType?: string | undefined;
+  firearmType?: string | undefined;
+  firearmBrand?: string | undefined;
+  firearmAccessoryType?: string | undefined;
   itemDetailKey?: string | undefined;
   itemDetailValue?: string | undefined;
   sort?: "newest" | "price_low" | "price_high" | "mileage_low" | undefined;
@@ -1618,6 +1637,10 @@ const num = (value: unknown) => {
 };
 const integerNum = (value: unknown) => {
   return optionalNonNegativeInteger(value);
+};
+const listedValue = (value: unknown, options: readonly string[], max = 80) => {
+  const parsed = text(value, max);
+  return parsed && options.includes(parsed) ? parsed : undefined;
 };
 
 export const browseClassifieds = createServerFn({ method: "GET" })
@@ -1712,6 +1735,10 @@ export const browseClassifieds = createServerFn({ method: "GET" })
     petGoodWithDogs: text(input?.petGoodWithDogs, 20),
     petGoodWithCats: text(input?.petGoodWithCats, 20),
     petIndoorOutdoor: text(input?.petIndoorOutdoor, 30),
+    firearmListingType: listedValue(input?.firearmListingType, firearmListingTypes, 30),
+    firearmType: listedValue(input?.firearmType, firearmTypes, 60),
+    firearmBrand: listedValue(input?.firearmBrand, firearmBrands, 80),
+    firearmAccessoryType: listedValue(input?.firearmAccessoryType, firearmAccessoryTypes, 80),
     itemDetailKey: text(input?.itemDetailKey, 60),
     itemDetailValue: text(input?.itemDetailValue, 200),
     sort: (["newest", "price_low", "price_high", "mileage_low"] as const).includes(
@@ -1898,6 +1925,18 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
         query = query.ilike(
           `classified_listing_details.item_details->>${allowedKey}`,
           `%${escapeLikeValue(data.itemDetailValue)}%`,
+        );
+    }
+    for (const [value, key] of [
+      [data.firearmListingType, "listingType"],
+      [data.firearmType, "firearmType"],
+      [data.firearmBrand, "brand"],
+      [data.firearmAccessoryType, "accessoryType"],
+    ] as const) {
+      if (value)
+        query = query.ilike(
+          `classified_listing_details.item_details->>${key}`,
+          escapeLikeValue(value),
         );
     }
     if (data.homeTab && data.category === "other-real-estate")

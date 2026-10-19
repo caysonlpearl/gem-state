@@ -31,9 +31,90 @@ export const industrialSubcategories = [
   "Woodworking Tools",
 ] as const;
 
+export const firearmListingTypes = ["Firearm", "Accessory"] as const;
+
+export const firearmTypes = [
+  "Rifle",
+  "Shotgun",
+  "Handgun",
+  "Revolver",
+  "Muzzleloader",
+  "Receiver / frame",
+  "Other firearm",
+] as const;
+
+export const firearmBrands = [
+  "Aero Precision",
+  "Beretta",
+  "Bergara",
+  "Browning",
+  "Canik",
+  "Century Arms",
+  "Christensen Arms",
+  "Colt",
+  "CZ",
+  "Daniel Defense",
+  "FN",
+  "Glock",
+  "Heckler & Koch",
+  "Henry",
+  "Kimber",
+  "Marlin",
+  "Mossberg",
+  "Palmetto State Armory",
+  "Remington",
+  "Ruger",
+  "Savage Arms",
+  "SIG Sauer",
+  "Smith & Wesson",
+  "Springfield Armory",
+  "Tikka",
+  "Weatherby",
+  "Winchester",
+  "Other",
+] as const;
+
+export const firearmAccessoryTypes = [
+  "Ammunition",
+  "Cases & storage",
+  "Cleaning & maintenance",
+  "Grips & stocks",
+  "Holsters",
+  "Magazines",
+  "Optics & sights",
+  "Parts",
+  "Reloading equipment",
+  "Safes & locks",
+  "Slings",
+  "Targets & range gear",
+  "Other accessories",
+] as const;
+
 export const classifiedItemFields: Record<string, ClassifiedItemField[]> = {
+  firearms: [
+    {
+      key: "listingType",
+      label: "Listing type",
+      options: firearmListingTypes,
+      required: true,
+    },
+    { key: "firearmType", label: "Firearm type", options: firearmTypes },
+    { key: "brand", label: "Brand", options: firearmBrands },
+    {
+      key: "accessoryType",
+      label: "Accessory type",
+      options: firearmAccessoryTypes,
+    },
+    { key: "caliber", label: "Caliber / gauge", placeholder: "Example: 9mm, .308, 12 gauge" },
+    { key: "model", label: "Model", placeholder: "Model name or number" },
+  ],
   industrial: [
-    { key: "itemType", label: "Industrial subcategory", options: industrialSubcategories, required: true },
+    {
+      key: "itemType",
+      label: "Industrial subcategory",
+      options: industrialSubcategories,
+      required: true,
+    },
   ],
   furniture: [
     {
