@@ -321,7 +321,7 @@ function Home() {
 
   return (
     <main className="mx-auto max-w-[1360px] px-4 pb-16 sm:px-6">
-      <section className="classifieds-hero-shell homepage-hero-shell relative mt-3 overflow-hidden rounded-[28px] border border-brand-blue/20 bg-secondary px-4 py-4 shadow-lg sm:px-6 sm:py-3">
+      <section className="classifieds-hero-shell homepage-hero-shell relative mt-6 overflow-hidden rounded-[28px] border border-brand-blue/20 bg-secondary px-4 py-4 shadow-lg sm:px-10 sm:py-8">
         <span
           className="classifieds-hero-orb classifieds-hero-orb--blue absolute -right-20 -top-24 h-64 w-64 rounded-full bg-brand-blue/12"
           aria-hidden="true"
@@ -335,15 +335,15 @@ function Home() {
           aria-hidden="true"
         />
         <div className="relative z-10">
-          <p className="hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
+          <p className="hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-primary sm:block">
             Bluebird classifieds
           </p>
           <h1
             ref={headlineRef}
-            className="homepage-hero-headline block max-w-[34ch] text-[22px] font-bold leading-[1.08] tracking-tight sm:text-[28px] lg:max-w-none"
+            className="homepage-hero-headline block max-w-[34ch] text-[22px] sm:mt-2 font-bold leading-[1.08] tracking-tight sm:text-[48px]"
           >
             {/* Phones: fixed three lines "Find A to / B to C / to D."
-                Tablets: two lines; desktop keeps the compact headline on one line. */}
+                Tablet/desktop: two lines "Find A to B to / C to D." */}
             <span className="whitespace-nowrap sm:whitespace-normal">
               Find{" "}
               <span
@@ -357,19 +357,19 @@ function Home() {
               <br className="sm:hidden" />
               <span className="hidden sm:inline"> </span>
               {headlineItems[1]} to
-              <br className="hidden sm:inline lg:hidden" />
-              <span className="sm:hidden lg:inline"> </span>
+              <br className="hidden sm:inline" />
+              <span className="sm:hidden"> </span>
               {headlineItems[2]}
               <br className="sm:hidden" />
               <span className="hidden sm:inline"> </span>
               to {headlineItems[3]}.
             </span>
           </h1>
-          <p className="mt-1 max-w-[56ch] whitespace-nowrap text-xs leading-snug text-muted-foreground sm:hidden">
+          <p className="mt-1 max-w-[56ch] whitespace-nowrap text-xs leading-snug text-muted-foreground sm:mt-1.5 sm:leading-relaxed">
             And so much more across Idaho and surrounding states.
           </p>
           <div
-            className="classifieds-hero-accent mt-3 hidden items-center gap-1.5"
+            className="classifieds-hero-accent mt-3 hidden sm:flex items-center gap-1.5"
             aria-hidden="true"
           >
             <span className="classifieds-hero-accent-bar h-1.5 w-9 rounded-full bg-brand-blue" />
@@ -378,7 +378,7 @@ function Home() {
           </div>
 
           <form
-            className="floating-card mt-3 grid grid-cols-2 gap-1.5 border border-brand-blue/15 ring-1 ring-brand-warm/10 p-1.5 sm:mt-2 sm:gap-2 sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:p-1.5"
+            className="floating-card mt-3 grid grid-cols-2 gap-1.5 border border-brand-blue/15 ring-1 ring-brand-warm/10 p-1.5 sm:mt-5 sm:gap-2 sm:p-2 sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:p-3"
             onSubmit={(event) => {
               event.preventDefault();
               const locationSearch = parseLocationSearch(location);
@@ -442,19 +442,19 @@ function Home() {
               Search
             </button>
           </form>
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-0 text-[12px] sm:mt-1 sm:gap-y-0 text-muted-foreground">
+          <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-0 text-[12px] sm:mt-3 sm:gap-y-2 text-muted-foreground">
             <span className="font-semibold text-foreground">Search area: {locationSummary}</span>
             <button
               type="button"
               onClick={() => setMapOpen((open) => !open)}
-              className="inline-flex min-h-9 items-center font-semibold text-primary sm:min-h-9 underline-offset-2 hover:underline"
+              className="inline-flex min-h-9 items-center font-semibold text-primary sm:min-h-11 underline-offset-2 hover:underline"
               aria-expanded={mapOpen}
             >
               {mapOpen ? "Hide map" : "Choose anywhere on map"}
             </button>
             {/* The radius only means something around a chosen city or map
                 point; before that, "Search area: Idaho" already says it. */}
-            <label className="flex min-h-9 min-w-[220px] sm:min-h-9 flex-1 items-center gap-2 sm:max-w-[360px]">
+            <label className="flex min-h-9 min-w-[220px] sm:min-h-11 flex-1 items-center gap-2 sm:max-w-[360px]">
               <span className="whitespace-nowrap">Distance</span>
               <input
                 aria-label="Search radius in miles"
@@ -512,13 +512,13 @@ function HomepageFeaturedCategories({
   return (
     <section
       aria-label="Explore pets and firearms"
-      className="mt-5 grid grid-cols-2 items-start gap-2.5 sm:gap-5"
+      className="mt-5 grid grid-cols-2 gap-2.5 sm:gap-5"
     >
       {[
         {
           slug: "pets",
           title: "Pets & adoption",
-          body: "Local pets and companions looking for a home.",
+          body: "Find a new companion, explore local pet listings, and meet pets looking for a home.",
           action: "Browse pets",
           tone: "bg-brand-blue/7",
         },
@@ -532,10 +532,10 @@ function HomepageFeaturedCategories({
       ].map((category) => (
         <article
           key={category.slug}
-          className={`group relative flex flex-col items-start gap-2.5 overflow-hidden rounded-[20px] border border-primary/15 p-3.5 shadow-sm transition-colors hover:border-primary/30 has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-ring sm:flex-row sm:items-center sm:gap-5 sm:rounded-[24px] ${category.slug === "pets" ? "sm:p-4" : "sm:p-6"} ${category.tone}`}
+          className={`group relative flex flex-col items-start gap-2.5 overflow-hidden rounded-[20px] border border-primary/15 p-3.5 shadow-sm transition-colors hover:border-primary/30 has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-ring sm:flex-row sm:items-center sm:gap-5 sm:rounded-[24px] sm:p-6 ${category.tone}`}
         >
-          <div className={`grid size-12 shrink-0 place-items-center rounded-full bg-card/70 ${category.slug === "pets" ? "sm:size-20" : "sm:size-28"}`}>
-            <CategoryArtwork slug={category.slug} size={category.slug === "pets" ? 72 : 88} className="max-sm:!size-[40px]" />
+          <div className="grid size-12 shrink-0 place-items-center rounded-full bg-card/70 sm:size-28">
+            <CategoryArtwork slug={category.slug} size={88} className="max-sm:!size-[40px]" />
           </div>
           <div className="min-w-0">
             <h2 className="text-[15px] font-bold leading-tight tracking-tight sm:text-[25px]">
@@ -561,7 +561,7 @@ function HomepageFeaturedCategories({
             <Link
               to="/browse"
               search={withLocation({ category: category.slug })}
-              className={`relative z-10 ${category.slug === "pets" ? "mt-2" : "mt-4"} hidden min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-primary px-5 text-[13px] font-semibold text-primary-foreground shadow-sm transition-colors group-hover:bg-primary/90 sm:inline-flex`}
+              className="relative z-10 mt-4 hidden min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-primary px-5 text-[13px] font-semibold text-primary-foreground shadow-sm transition-colors group-hover:bg-primary/90 sm:inline-flex"
             >
               {category.action} <ArrowRight size={15} weight="bold" aria-hidden="true" />
             </Link>
@@ -701,9 +701,7 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
   const firearmListings = pick(
     localRecent.filter((listing) => listing.categorySlug === "firearms"),
   );
-  const freshListings = pick(
-    localRecent.filter((listing) => !listing.pet && listing.categorySlug !== "firearms"),
-  );
+  const freshListings = pick(localRecent.filter((listing) => !listing.pet));
   const fartherAwayListings = pick(home.recent.filter((listing) => !matchesLocation(listing)));
   const vehicleListings = pick(localMotors);
   const truckListings = pick(
@@ -745,16 +743,7 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
 
   return (
     <>
-      <HomepageListingRow
-        leading
-        eyebrow="Bluebird picks"
-        title="Fresh local finds"
-        listings={freshListings}
-        search={withLocation({ allCategories: true })}
-        action="See all fresh listings"
-      />
-
-      {/* Motors */}
+      {/* Motors lead */}
       <section className="mt-6 sm:mt-14">
         <div className="flex items-end justify-between gap-3">
           <div className="min-w-0">
@@ -825,6 +814,14 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
           ))}
         </div>
       </section>
+
+      <HomepageListingRow
+        eyebrow="Bluebird picks"
+        title="Fresh local finds"
+        listings={freshListings}
+        search={withLocation({ allCategories: true })}
+        action="See all fresh listings"
+      />
 
       <HomepageListingRow
         eyebrow="Bluebird distance"
@@ -1016,14 +1013,12 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
 }
 
 function HomepageListingRow({
-  leading = false,
   eyebrow,
   title,
   listings,
   search,
   action,
 }: {
-  leading?: boolean;
   eyebrow: string;
   title: string;
   listings: Awaited<ReturnType<typeof getClassifiedsHome>>["recent"];
@@ -1032,15 +1027,15 @@ function HomepageListingRow({
 }) {
   return (
     <section
-      className={leading ? "mt-4" : "mt-16"}
+      className="mt-16"
       aria-labelledby={`${title.toLowerCase().replaceAll(" ", "-")}-heading`}
     >
       <div className="flex items-end justify-between gap-4 border-b border-border pb-3">
         <div>
-          <p className={`${leading ? "hidden" : ""} font-mono text-[9px] uppercase tracking-[0.18em] text-primary`}>{eyebrow}</p>
+          <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">{eyebrow}</p>
           <h2
             id={`${title.toLowerCase().replaceAll(" ", "-")}-heading`}
-            className={`${leading ? "text-[22px]" : "text-[26px]"} mt-1 font-bold tracking-tight`}
+            className="mt-1 text-[26px] font-bold tracking-tight"
           >
             {title}
           </h2>
@@ -1050,10 +1045,10 @@ function HomepageListingRow({
         </Link>
       </div>
       {listings.length > 0 ? (
-        <div className={`${leading ? "mt-3" : "mt-5"} no-scrollbar flex gap-4 overflow-x-auto pb-2 lg:grid lg:grid-cols-4 lg:overflow-visible`}>
+        <div className="no-scrollbar mt-5 flex gap-4 overflow-x-auto pb-2 lg:grid lg:grid-cols-4 lg:overflow-visible">
           {listings.slice(0, HOMEPAGE_ROW_SIZE).map((listing) => (
             <div key={listing.id} className="min-w-[235px] lg:min-w-0">
-              <ListingCard listing={listing} priority={leading} />
+              <ListingCard listing={listing} />
             </div>
           ))}
         </div>
