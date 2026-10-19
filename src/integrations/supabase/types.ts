@@ -5074,6 +5074,42 @@ export type Database = {
         }
         Relationships: []
       }
+      service_business_api_reservations: {
+        Row: {
+          actual_businesses: number | null
+          created_at: string
+          directory_id: string
+          id: number
+          request_key: string
+          reserved_businesses: number
+          response_payload: Json | null
+          settled_at: string | null
+          status: string
+        }
+        Insert: {
+          actual_businesses?: number | null
+          created_at?: string
+          directory_id: string
+          id?: never
+          request_key: string
+          reserved_businesses: number
+          response_payload?: Json | null
+          settled_at?: string | null
+          status?: string
+        }
+        Update: {
+          actual_businesses?: number | null
+          created_at?: string
+          directory_id?: string
+          id?: never
+          request_key?: string
+          reserved_businesses?: number
+          response_payload?: Json | null
+          settled_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       service_directory: {
         Row: {
           address: string | null
@@ -7572,6 +7608,14 @@ export type Database = {
         Args: { p_cache_key: string; p_daily_limit?: number }
         Returns: Json
       }
+      reserve_service_business_credits: {
+        Args: {
+          p_directory_id: string
+          p_request_key: string
+          p_requested_businesses?: number
+        }
+        Returns: Json
+      }
       reserve_service_enrichment: {
         Args: { p_directory_id: string }
         Returns: boolean
@@ -7712,6 +7756,14 @@ export type Database = {
       set_shopper_availability: {
         Args: { _available: boolean; _hours?: number }
         Returns: string
+      }
+      settle_service_business_credits: {
+        Args: {
+          p_actual_businesses: number
+          p_reservation_id: number
+          p_response_payload?: Json
+        }
+        Returns: boolean
       }
       shopper_active_assignment_count: {
         Args: { _shopper_id: string }

@@ -49,6 +49,7 @@ const pinned = { activeProps: { className: "" }, inactiveProps: { className: "" 
 const featuredHeaderCategories = [
   { slug: "cars-trucks", name: "Vehicles", group: "motors" },
   { slug: "other-real-estate", name: "Homes" },
+  { slug: "pets", name: "Pets" },
   { slug: "firearms", name: "Firearms" },
   { slug: "jobs", name: "Jobs" },
   { slug: "services", name: "Services" },
@@ -63,6 +64,7 @@ const mobilePrimaryCategories = [
     description: "Cars, trucks, RVs & trailers",
   },
   { slug: "other-real-estate", name: "Homes", description: "Homes, rentals & builds" },
+  { slug: "pets", name: "Pets", description: "Dogs, cats, and supplies" },
   { slug: "firearms", name: "Firearms", description: "Browse local firearm listings" },
   { slug: "jobs", name: "Jobs", description: "Local work & hiring" },
   { slug: "services", name: "Services", description: "Help for your next project" },
