@@ -96,6 +96,7 @@ type HomeTab = "build" | "buy" | "rent";
 type JobMode = "landing" | "results";
 type ServiceMode = "landing" | "results";
 type PetMode = "landing" | "results";
+type FirearmMode = "landing" | "results";
 
 const isPostalCode = (value: string) => /^\d{5}(?:-\d{4})?$/.test(value.trim());
 
@@ -157,6 +158,7 @@ type Search = {
   serviceMode?: ServiceMode | undefined;
   vehicleMode?: "landing" | "results" | undefined;
   petMode?: PetMode | undefined;
+  firearmMode?: FirearmMode | undefined;
   petSubcategory?: string | undefined;
   petSpecies?: string | undefined;
   petBreed?: string | undefined;
@@ -259,6 +261,7 @@ const savedSearchFilterKeys: readonly (keyof Search)[] = [
   "serviceMode",
   "vehicleMode",
   "petMode",
+  "firearmMode",
   "serviceSubcategory",
   "serviceExpandSearch",
   "servicePhotos",
@@ -1039,12 +1042,14 @@ function normalizeBrowseSearch(search: Search): Search {
   const jobs = next.category === "jobs";
   const services = next.category === "services";
   const homes = next.category === "other-real-estate";
+  const firearms = next.category === "firearms";
 
   if (!motors) clear(vehicleSearchKeys);
   if (!pets) clear(petSearchKeys);
   if (!jobs) clear(jobSearchKeys);
   if (!services) clear(serviceSearchKeys);
   if (!homes) clear(homeSearchKeys);
+  if (!firearms) next.firearmMode = undefined;
 
   if (pets) {
     if (
@@ -1096,6 +1101,8 @@ export const Route = createFileRoute("/browse")({
     const serviceMode = stringParam(search, "serviceMode", 10);
     const vehicleMode = stringParam(search, "vehicleMode", 10);
     const petMode = stringParam(search, "petMode", 10);
+    const firearmMode = stringParam(search, "firearmMode", 10);
+    const category = stringParam(search, "category", 60);
     const savedSearchId = stringParam(search, "savedSearchId", 64);
     const page = Number(search["page"]);
     const parsed: Search = {
@@ -1107,7 +1114,7 @@ export const Route = createFileRoute("/browse")({
           : undefined,
       q: stringParam(search, "q"),
       savedSearchId,
-      category: stringParam(search, "category", 60),
+      category,
       group: group === "motors" || group === "classifieds" ? group : undefined,
       state: stringParam(search, "state", 2)?.toUpperCase(),
       region: stringParam(search, "region"),
@@ -1145,6 +1152,14 @@ export const Route = createFileRoute("/browse")({
       vehicleMode:
         vehicleMode === "results" ? "results" : vehicleMode === "landing" ? "landing" : undefined,
       petMode: petMode === "results" ? "results" : petMode === "landing" ? "landing" : undefined,
+      firearmMode:
+        category === "firearms"
+          ? firearmMode === "results"
+            ? "results"
+            : firearmMode === "landing"
+              ? "landing"
+              : undefined
+          : undefined,
       sellerType: stringParam(search, "sellerType", 30),
       mileageBands: stringParam(search, "mileageBands", 300),
       serviceSubcategory: stringParam(search, "serviceSubcategory", 80),
@@ -1325,6 +1340,7 @@ function Browse() {
       "serviceMode",
       "vehicleMode",
       "petMode",
+      "firearmMode",
       "view",
     ];
     return Object.fromEntries(
@@ -1372,10 +1388,12 @@ function Browse() {
   const jobs = search.category === "jobs";
   const services = search.category === "services";
   const pets = search.category === "pets";
+  const firearms = search.category === "firearms";
   const vehicleLanding = motors && search.vehicleMode !== "results";
   const petLanding = pets && search.petMode !== "results";
+  const firearmLanding = firearms && search.firearmMode !== "results";
   const showGenericBrowse =
-    !allCategoriesLanding && (!motors || vehicleLanding) && (!pets || !petLanding);
+    !allCategoriesLanding && (!motors || vehicleLanding) && (!pets || !petLanding) && !firearmLanding;
   const homeTab: HomeTab = search.homeTab ?? "buy";
   const homeLanding = homes && search.homeMode !== "results";
   const jobLanding = jobs && search.jobMode !== "results";
@@ -1460,6 +1478,7 @@ function Browse() {
     const category = value("category");
     const nextMotors = value("group") === "motors" || isMotorsCategory(category);
     const nextPets = category === "pets";
+    const nextFirearms = category === "firearms";
     const nextPetSpecies = nextPets ? normalizePetSpecies(value("petSpecies")) : undefined;
     const nextPetSubcategory = nextPets
       ? normalizePetSubcategory(value("petSubcategory"))
@@ -1500,6 +1519,7 @@ function Browse() {
       exteriorColor: nextMotors ? value("exteriorColor") : undefined,
       titleStatus: nextMotors ? value("titleStatus") : undefined,
       petMode: nextPets ? "results" : undefined,
+      firearmMode: nextFirearms ? "results" : undefined,
       petSubcategory: compatiblePetSubcategory,
       petSpecies: nextPetSpecies,
       petBreed: nextPets && compatiblePetSubcategory ? value("petBreed") : undefined,
@@ -2113,6 +2133,36 @@ function Browse() {
         </>
       )}
 
+      {firearms && firearmLanding && (
+        <FirearmsLandingHero
+          term={term}
+          onTermChange={setTerm}
+          onSearch={() =>
+            void navigate({
+              to: "/browse",
+              search: scoped({ firearmMode: "results", q: term.trim() || undefined }),
+            })
+          }
+          onBrowse={() =>
+            void navigate({
+              to: "/browse",
+              search: scoped({ firearmMode: "results", q: undefined }),
+            })
+          }
+          onPost={() => void navigate({ to: "/create-listing" })}
+        />
+      )}
+
+      {firearms && firearmLanding && (
+        <LandingListingsShowcase
+          eyebrow="Bluebird Marketplace Firearms"
+          title="Latest firearm listings"
+          action="Browse all firearms"
+          browseSearch={{ category: "firearms", firearmMode: "results" }}
+          listings={result.listings}
+        />
+      )}
+
       {motors && vehicleLanding && (
         <>
           <LandingListingsShowcase
@@ -2625,6 +2675,100 @@ function Browse() {
         onSubmit={() => void saveCurrentSearch()}
       />
     </main>
+  );
+}
+
+function FirearmsLandingHero({
+  term,
+  onTermChange,
+  onSearch,
+  onBrowse,
+  onPost,
+}: {
+  term: string;
+  onTermChange: (value: string) => void;
+  onSearch: () => void;
+  onBrowse: () => void;
+  onPost: () => void;
+}) {
+  return (
+    <section className="relative overflow-hidden rounded-[28px] border border-border/70 bg-gradient-to-br from-secondary via-card to-accent/20 px-5 py-8 shadow-sm sm:px-10 sm:py-10">
+      <span className="absolute -right-16 -top-20 h-56 w-56 rounded-full bg-brand-warm/20" />
+      <span className="absolute -bottom-24 left-1/3 h-64 w-64 rounded-full bg-primary/5" />
+      <div className="relative mx-auto max-w-4xl">
+        <div className="flex flex-col items-center gap-5 text-center sm:flex-row sm:items-start sm:text-left">
+          <span className="flex size-24 shrink-0 items-center justify-center rounded-3xl border border-border/70 bg-card/90 shadow-sm sm:size-28">
+            <CategoryArtwork slug="firearms" size={104} />
+          </span>
+          <div>
+            <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-primary">
+              Bluebird Marketplace Firearms
+            </p>
+            <h1 className="mt-2 text-[34px] font-bold tracking-tight sm:text-[46px]">
+              Firearms, listed locally.
+            </h1>
+            <p className="mx-auto mt-2 max-w-2xl text-[14px] leading-7 text-muted-foreground sm:mx-0 sm:text-[16px]">
+              Browse community listings and connect with local sellers. Bluebird provides the
+              marketplace; buyers and sellers are responsible for following applicable laws.
+            </p>
+          </div>
+        </div>
+
+        <form
+          className="mx-auto mt-6 flex max-w-3xl flex-col gap-2 rounded-2xl border border-border/70 bg-card p-2 shadow-md sm:flex-row"
+          onSubmit={(event) => {
+            event.preventDefault();
+            onSearch();
+          }}
+        >
+          <label className="relative min-w-0 flex-1">
+            <MagnifyingGlass
+              size={18}
+              className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-primary"
+              aria-hidden="true"
+            />
+            <input
+              type="search"
+              value={term}
+              onChange={(event) => onTermChange(event.target.value)}
+              placeholder="Search firearms and accessories"
+              aria-label="Search firearm listings"
+              className="h-12 w-full rounded-xl bg-transparent pl-11 pr-3 text-[14px] outline-none placeholder:text-muted-foreground"
+            />
+          </label>
+          <button
+            type="submit"
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-6 text-[13px] font-semibold text-primary-foreground hover:opacity-90"
+          >
+            <MagnifyingGlass size={16} aria-hidden="true" /> Search
+          </button>
+        </form>
+
+        <div className="mt-4 flex flex-wrap justify-center gap-3 sm:justify-start">
+          <button
+            type="button"
+            onClick={onBrowse}
+            className="inline-flex h-10 items-center gap-2 rounded-full border border-primary bg-primary px-5 text-[12px] font-semibold text-primary-foreground hover:opacity-90"
+          >
+            Browse all firearms <ArrowRight size={15} aria-hidden="true" />
+          </button>
+          <button
+            type="button"
+            onClick={onPost}
+            className="inline-flex h-10 items-center gap-2 rounded-full border border-primary/40 bg-card px-5 text-[12px] font-semibold text-primary hover:bg-primary/10"
+          >
+            Post a listing
+          </button>
+          <Link
+            to="/firearms-safety"
+            className="inline-flex h-10 items-center gap-2 rounded-full border border-border bg-card/80 px-5 text-[12px] font-semibold text-foreground hover:border-primary hover:text-primary"
+          >
+            <ShieldCheck size={16} weight="fill" aria-hidden="true" />
+            Firearm safety statement
+          </Link>
+        </div>
+      </div>
+    </section>
   );
 }
 

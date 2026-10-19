@@ -1748,6 +1748,10 @@ test("firearms are a first-class category with linked safety guidance", async ()
   assert.match(allCategoriesSource, /slug: "firearms", name: "Firearms"/);
   assert.match(headerSource, /slug: "firearms", name: "Firearms"/);
   assert.match(categoryIconSource, /firearms: \{[\s\S]*?\/category-icons\/firearms\.webp/);
+  assert.match(browseSource, /firearms && firearmLanding && \(\s*<FirearmsLandingHero/);
+  assert.match(browseSource, /firearmMode: "results"/);
+  assert.match(browseSource, /function FirearmsLandingHero\(/);
+  assert.match(browseSource, /title="Latest firearm listings"/);
   assert.match(browseSource, /search\.category === "firearms"[\s\S]*?Firearm safety statement/);
   assert.match(placePageSource, /isFirearmsPage[\s\S]*?CategoryArtwork slug="firearms"/);
   assert.match(placePageSource, /isFirearmsPage[\s\S]*?Firearm safety statement/);
