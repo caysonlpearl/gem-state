@@ -780,7 +780,7 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
   return (
     <>
       {/* Motors lead */}
-      <section className="mt-6 sm:mt-14 min-[1200px]:mt-6">
+      <section className="homepage-lead-vehicles mt-6 sm:mt-14">
         <div className="flex items-end justify-between gap-3">
           <div className="min-w-0">
             <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">

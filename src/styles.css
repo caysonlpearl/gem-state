@@ -571,10 +571,14 @@
   }
 
   .homepage-hero-headline {
-    height: 2.16em;
-    min-height: 2.16em;
+    height: calc(2.16em + 4px);
+    min-height: calc(2.16em + 4px);
     overflow: hidden;
     font-size: 40px;
+  }
+
+  .homepage-lead-vehicles {
+    margin-top: 24px;
   }
 }
 
