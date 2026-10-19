@@ -342,7 +342,7 @@ function Home() {
           <div className="homepage-hero-top">
             <div className="min-w-0">
               <p className="hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-primary sm:block">
-                Bluebird classifieds
+                BLUEBIRD MARKETPLACE
               </p>
               <h1
                 ref={headlineRef}
