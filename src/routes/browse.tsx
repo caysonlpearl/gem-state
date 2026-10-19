@@ -3141,7 +3141,7 @@ function PetsLandingHero({
 const generalCategoryHighlights = [
   { slug: "furniture", name: "Furniture", description: "Home pieces and decor" },
   { slug: "electronics", name: "Electronics", description: "Devices, audio, and gear" },
-  { slug: "tools-equipment", name: "Tools & Equipment", description: "Workshop and jobsite finds" },
+  { slug: "firearms", name: "Firearms", description: "Rifles, handguns, and range gear" },
   {
     slug: "outdoor-sporting",
     name: "Outdoor & Sporting",

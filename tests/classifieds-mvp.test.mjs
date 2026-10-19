@@ -1586,7 +1586,7 @@ test("all categories routes to its own general classifieds landing page", () => 
   for (const category of [
     "Furniture",
     "Electronics",
-    "Tools & Equipment",
+    "Firearms",
     "Outdoor & Sporting",
     "Farm & Garden",
     "General",
