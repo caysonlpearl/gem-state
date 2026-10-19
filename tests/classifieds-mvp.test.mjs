@@ -990,6 +990,22 @@ test("header categories show four primary destinations and an All items control"
   assert.match(headerSource, /size=\{88\}/);
 });
 
+test("browse other classifieds tiles carry firearms, pets, furniture, electronics and industrial", () => {
+  assert.match(homeSource, /homepageCategoryHighlights = \[/);
+  for (const [slug, label] of [
+    ["firearms", "Firearms"],
+    ["pets", "Pets"],
+    ["furniture", "Furniture"],
+    ["electronics", "Electronics"],
+    ["industrial", "Industrial"],
+  ]) {
+    assert.match(homeSource, new RegExp(`slug: "${slug}", name: "${label}"`));
+  }
+  // Pets and Firearms left the top category header; the tiles carry them now.
+  assert.doesNotMatch(headerSource, /slug: "pets"/);
+  assert.doesNotMatch(headerSource, /slug: "firearms"/);
+});
+
 test("mobile menu trigger uses a visible Bluebird brand treatment", () => {
   assert.match(headerSource, /aria-label=\{menuOpen \? "Close menu" : "Open menu"\}/);
   assert.match(
@@ -1748,7 +1764,7 @@ test("firearms are a first-class category with linked safety guidance", async ()
 
   assert.match(configSource, /slug: "firearms", name: "Firearms", group: "classifieds"/);
   assert.match(allCategoriesSource, /slug: "firearms", name: "Firearms"/);
-  assert.match(headerSource, /slug: "firearms", name: "Firearms"/);
+  assert.match(homeSource, /slug: "firearms", name: "Firearms"/);
   assert.match(categoryIconSource, /firearms: \{[\s\S]*?\/category-icons\/firearms\.webp/);
   assert.match(browseSource, /firearms && firearmLanding && \(\s*<FirearmsLandingHero/);
   assert.match(browseSource, /firearmMode: "results"/);
