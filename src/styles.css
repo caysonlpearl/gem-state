@@ -558,6 +558,26 @@
   }
 }
 
+@media (min-width: 1200px) {
+  .homepage-hero-shell {
+    padding-block: 24px;
+  }
+
+  .homepage-hero-top {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 280px;
+    align-items: center;
+    gap: 32px;
+  }
+
+  .homepage-hero-headline {
+    height: 2.16em;
+    min-height: 2.16em;
+    overflow: hidden;
+    font-size: 40px;
+  }
+}
+
 @keyframes category-art-bob {
   0%,
   100% {

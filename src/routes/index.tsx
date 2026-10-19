@@ -211,8 +211,8 @@ function Home() {
   // animation only plays on later rotations.
   const [headlineRotated, setHeadlineRotated] = useState(false);
   const headlineRef = useRef<HTMLHeadingElement>(null);
-  // Phones hold the headline to exactly three lines: shrink the words (not the
-  // box) until the longest rotation fits.
+  // Fit the words inside the reserved headline shape without moving the
+  // search or listing row when a longer phrase rotates into view.
   useEffect(() => {
     const h = headlineRef.current;
     if (!h) return;
@@ -220,10 +220,14 @@ function Home() {
       const inner = h.firstElementChild as HTMLElement | null;
       if (!inner) return;
       inner.style.fontSize = "";
-      if (window.innerWidth >= 640) return;
-      // Each phone line is no-wrap, so shrink until the widest line fits.
+      const desktop = window.innerWidth >= 1200;
+      if (window.innerWidth >= 640 && !desktop) return;
       let size = 1;
-      while (h.scrollWidth > h.clientWidth + 1 && size > 0.6) {
+      const minimum = desktop ? 0.9 : 0.6;
+      while (
+        (h.scrollWidth > h.clientWidth + 1 || (desktop && h.scrollHeight > h.clientHeight + 1)) &&
+        size > minimum
+      ) {
         size -= 0.02;
         inner.style.fontSize = `${size}em`;
       }
@@ -335,46 +339,51 @@ function Home() {
           aria-hidden="true"
         />
         <div className="relative z-10">
-          <p className="hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-primary sm:block">
-            Bluebird classifieds
-          </p>
-          <h1
-            ref={headlineRef}
-            className="homepage-hero-headline block max-w-[34ch] text-[22px] sm:mt-2 font-bold leading-[1.08] tracking-tight sm:text-[48px]"
-          >
-            {/* Phones: fixed three lines "Find A to / B to C / to D."
-                Tablet/desktop: two lines "Find A to B to / C to D." */}
-            <span className="whitespace-nowrap sm:whitespace-normal">
-              Find{" "}
-              <span
-                key={headlineItems.join("|")}
-                className={`${headlineRotated ? "classifieds-hero-rotating-item " : ""}text-brand-blue`}
-                aria-live="polite"
+          <div className="homepage-hero-top">
+            <div className="min-w-0">
+              <p className="hidden text-[11px] font-semibold uppercase tracking-[0.16em] text-primary sm:block">
+                Bluebird classifieds
+              </p>
+              <h1
+                ref={headlineRef}
+                className="homepage-hero-headline block max-w-[34ch] text-[22px] sm:mt-2 font-bold leading-[1.08] tracking-tight sm:text-[48px]"
               >
-                {headlineItems[0]}
-              </span>{" "}
-              to
-              <br className="sm:hidden" />
-              <span className="hidden sm:inline"> </span>
-              {headlineItems[1]} to
-              <br className="hidden sm:inline" />
-              <span className="sm:hidden"> </span>
-              {headlineItems[2]}
-              <br className="sm:hidden" />
-              <span className="hidden sm:inline"> </span>
-              to {headlineItems[3]}.
-            </span>
-          </h1>
-          <p className="mt-1 max-w-[56ch] whitespace-nowrap text-xs leading-snug text-muted-foreground sm:mt-1.5 sm:leading-relaxed">
-            And so much more across Idaho and surrounding states.
-          </p>
-          <div
-            className="classifieds-hero-accent mt-3 hidden sm:flex items-center gap-1.5"
-            aria-hidden="true"
-          >
-            <span className="classifieds-hero-accent-bar h-1.5 w-9 rounded-full bg-brand-blue" />
-            <span className="classifieds-hero-accent-bar classifieds-hero-accent-bar--warm h-1.5 w-5 rounded-full bg-brand-warm" />
-            <span className="classifieds-hero-accent-bar h-1.5 w-2.5 rounded-full bg-brand-blue/60" />
+                {/* Phones: fixed three lines "Find A to / B to C / to D."
+                Tablet/desktop: two lines "Find A to B to / C to D." */}
+                <span className="whitespace-nowrap sm:whitespace-normal">
+                  Find{" "}
+                  <span
+                    key={headlineItems.join("|")}
+                    className={`${headlineRotated ? "classifieds-hero-rotating-item " : ""}text-brand-blue`}
+                    aria-live="polite"
+                  >
+                    {headlineItems[0]}
+                  </span>{" "}
+                  to
+                  <br className="sm:hidden" />
+                  <span className="hidden sm:inline"> </span>
+                  {headlineItems[1]} to
+                  <br className="hidden sm:inline" />
+                  <span className="sm:hidden"> </span>
+                  {headlineItems[2]}
+                  <br className="sm:hidden" />
+                  <span className="hidden sm:inline"> </span>
+                  to {headlineItems[3]}.
+                </span>
+              </h1>
+              <p className="mt-1 max-w-[56ch] whitespace-nowrap text-xs leading-snug text-muted-foreground sm:mt-1.5 sm:leading-relaxed">
+                And so much more across Idaho and surrounding states.
+              </p>
+              <div
+                className="classifieds-hero-accent mt-3 hidden sm:flex items-center gap-1.5"
+                aria-hidden="true"
+              >
+                <span className="classifieds-hero-accent-bar h-1.5 w-9 rounded-full bg-brand-blue" />
+                <span className="classifieds-hero-accent-bar classifieds-hero-accent-bar--warm h-1.5 w-5 rounded-full bg-brand-warm" />
+                <span className="classifieds-hero-accent-bar h-1.5 w-2.5 rounded-full bg-brand-blue/60" />
+              </div>
+            </div>
+            <HomepageFeaturedCategories withLocation={where.withLocation} compact />
           </div>
 
           <form
@@ -506,13 +515,19 @@ function Home() {
 
 function HomepageFeaturedCategories({
   withLocation,
+  compact = false,
 }: {
   withLocation: (search: HomepageBrowseSearch) => HomepageBrowseSearch;
+  compact?: boolean;
 }) {
   return (
     <section
       aria-label="Explore pets and firearms"
-      className="mt-5 grid grid-cols-2 gap-2.5 sm:gap-5"
+      className={
+        compact
+          ? "hidden gap-3 min-[1200px]:grid"
+          : "mt-5 grid grid-cols-2 gap-2.5 sm:gap-5 min-[1200px]:hidden"
+      }
     >
       {[
         {
@@ -529,49 +544,70 @@ function HomepageFeaturedCategories({
           action: "Browse firearms",
           tone: "bg-brand-warm/10",
         },
-      ].map((category) => (
-        <article
-          key={category.slug}
-          className={`group relative flex flex-col items-start gap-2.5 overflow-hidden rounded-[20px] border border-primary/15 p-3.5 shadow-sm transition-colors hover:border-primary/30 has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-ring sm:flex-row sm:items-center sm:gap-5 sm:rounded-[24px] sm:p-6 ${category.tone}`}
-        >
-          <div className="grid size-12 shrink-0 place-items-center rounded-full bg-card/70 sm:size-28">
-            <CategoryArtwork slug={category.slug} size={88} className="max-sm:!size-[40px]" />
-          </div>
-          <div className="min-w-0">
-            <h2 className="text-[15px] font-bold leading-tight tracking-tight sm:text-[25px]">
-              {/* The whole card is the tap target on phones, so no second
+      ].map((category) =>
+        compact ? (
+          <Link
+            key={category.slug}
+            to="/browse"
+            search={withLocation({ category: category.slug })}
+            className={`group flex min-h-[72px] items-center gap-3 rounded-[20px] border border-primary/15 px-4 py-2.5 shadow-sm transition-colors hover:border-primary/40 hover:bg-card/80 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary ${category.tone}`}
+          >
+            <span className="grid size-12 shrink-0 place-items-center rounded-full bg-card/75">
+              <CategoryArtwork slug={category.slug} size={48} />
+            </span>
+            <span className="min-w-0 flex-1 text-[16px] font-bold leading-tight tracking-tight">
+              {category.title}
+            </span>
+            <ArrowRight
+              size={16}
+              weight="bold"
+              className="shrink-0 text-primary"
+              aria-hidden="true"
+            />
+          </Link>
+        ) : (
+          <article
+            key={category.slug}
+            className={`group relative flex flex-col items-start gap-2.5 overflow-hidden rounded-[20px] border border-primary/15 p-3.5 shadow-sm transition-colors hover:border-primary/30 has-[a:focus-visible]:outline-2 has-[a:focus-visible]:outline-offset-2 has-[a:focus-visible]:outline-ring sm:flex-row sm:items-center sm:gap-5 sm:rounded-[24px] sm:p-6 ${category.tone}`}
+          >
+            <div className="grid size-12 shrink-0 place-items-center rounded-full bg-card/70 sm:size-28">
+              <CategoryArtwork slug={category.slug} size={88} className="max-sm:!size-[40px]" />
+            </div>
+            <div className="min-w-0">
+              <h2 className="text-[15px] font-bold leading-tight tracking-tight sm:text-[25px]">
+                {/* The whole card is the tap target on phones, so no second
                   control is needed there; the desktop button stays. */}
+                <Link
+                  to="/browse"
+                  search={withLocation({ category: category.slug })}
+                  className="after:absolute after:inset-0 after:content-[''] focus-visible:outline-none"
+                >
+                  {category.title}
+                  <ArrowRight
+                    size={13}
+                    weight="bold"
+                    aria-hidden="true"
+                    className="ml-1 inline align-[-1px] sm:hidden"
+                  />
+                </Link>
+              </h2>
+              <p className="mt-1.5 hidden max-w-[38ch] text-[11px] leading-snug text-muted-foreground sm:mt-2 sm:block sm:text-[13px] sm:leading-relaxed">
+                {category.body}
+              </p>
               <Link
                 to="/browse"
                 search={withLocation({ category: category.slug })}
-                className="after:absolute after:inset-0 after:content-[''] focus-visible:outline-none"
+                className="relative z-10 mt-4 hidden min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-primary px-5 text-[13px] font-semibold text-primary-foreground shadow-sm transition-colors group-hover:bg-primary/90 sm:inline-flex"
               >
-                {category.title}
-                <ArrowRight
-                  size={13}
-                  weight="bold"
-                  aria-hidden="true"
-                  className="ml-1 inline align-[-1px] sm:hidden"
-                />
+                {category.action} <ArrowRight size={15} weight="bold" aria-hidden="true" />
               </Link>
-            </h2>
-            <p className="mt-1.5 hidden max-w-[38ch] text-[11px] leading-snug text-muted-foreground sm:mt-2 sm:block sm:text-[13px] sm:leading-relaxed">
-              {category.body}
-            </p>
-            <Link
-              to="/browse"
-              search={withLocation({ category: category.slug })}
-              className="relative z-10 mt-4 hidden min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-full bg-primary px-5 text-[13px] font-semibold text-primary-foreground shadow-sm transition-colors group-hover:bg-primary/90 sm:inline-flex"
-            >
-              {category.action} <ArrowRight size={15} weight="bold" aria-hidden="true" />
-            </Link>
-          </div>
-        </article>
-      ))}
+            </div>
+          </article>
+        ),
+      )}
     </section>
   );
 }
-
 /** Everything the page derives from the visitor's chosen location. */
 function homeLocation(location: string, mapPoint: LocationPoint | undefined, radiusMiles: number) {
   const motorCategories = classifiedCategories.filter((c) => c.group === "motors");
@@ -744,7 +780,7 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
   return (
     <>
       {/* Motors lead */}
-      <section className="mt-6 sm:mt-14">
+      <section className="mt-6 sm:mt-14 min-[1200px]:mt-6">
         <div className="flex items-end justify-between gap-3">
           <div className="min-w-0">
             <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">
@@ -762,7 +798,21 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
             All vehicles <ArrowRight size={12} />
           </Link>
         </div>
-        <div className="no-scrollbar -mx-4 mt-3 flex flex-nowrap gap-2 overflow-x-auto px-4 sm:mx-0 sm:mt-4 sm:flex-wrap sm:px-0">
+        {leadMotors.length > 0 ? (
+          <div className="no-scrollbar mt-5 flex gap-4 overflow-x-auto pb-2 lg:grid lg:grid-cols-4 lg:overflow-visible">
+            {leadMotors.map((listing) => (
+              <div key={listing.id} className="min-w-[235px] lg:min-w-0">
+                <ListingCard listing={listing} />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <EmptyState
+            title={EMPTY_ROW_TITLE}
+            body="Vehicle listings show up here as soon as Idaho sellers post them. Have one to sell? Be one of the first."
+          />
+        )}
+        <div className="no-scrollbar -mx-4 mt-4 flex flex-nowrap gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">
           {motorCategories.map((option) => (
             <Link
               key={option.slug}
@@ -779,20 +829,6 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
             </Link>
           ))}
         </div>
-        {leadMotors.length > 0 ? (
-          <div className="no-scrollbar mt-5 flex gap-4 overflow-x-auto pb-2 lg:grid lg:grid-cols-4 lg:overflow-visible">
-            {leadMotors.map((listing) => (
-              <div key={listing.id} className="min-w-[235px] lg:min-w-0">
-                <ListingCard listing={listing} />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <EmptyState
-            title={EMPTY_ROW_TITLE}
-            body="Vehicle listings show up here as soon as Idaho sellers post them. Have one to sell? Be one of the first."
-          />
-        )}
       </section>
 
       {/* Everything else */}
