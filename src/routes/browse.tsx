@@ -3089,7 +3089,10 @@ function PetsLandingHero({
           </span>{" "}
           for your home.
         </h1>
-        <p className="mx-auto mt-3 line-clamp-2 max-w-[42ch] text-[14px] leading-snug text-muted-foreground sm:mt-4 sm:max-w-[54ch] sm:text-[15px] sm:leading-relaxed">
+        <p className="mx-auto mt-3 max-w-[42ch] text-[13px] leading-snug text-muted-foreground sm:hidden">
+          Find pets and supplies. Filter by animal, breed, placement, and seller.
+        </p>
+        <p className="mx-auto mt-4 hidden max-w-[54ch] text-[15px] leading-relaxed text-muted-foreground sm:block">
           Browse local pets, supplies, and rehoming listings with filters for the animal, breed,
           placement type, and seller.
         </p>
