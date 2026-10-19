@@ -2696,11 +2696,7 @@ function FirearmsLandingHero({
       <span className="absolute -right-16 -top-20 h-56 w-56 rounded-full bg-brand-warm/20" />
       <span className="absolute -bottom-24 left-1/3 h-64 w-64 rounded-full bg-primary/5" />
       <div className="relative mx-auto max-w-4xl">
-        <div className="flex flex-col items-center gap-5 text-center sm:flex-row sm:items-start sm:text-left">
-          <span className="flex size-24 shrink-0 items-center justify-center sm:size-28">
-            <CategoryArtwork slug="firearms" size={112} />
-          </span>
-          <div>
+        <div className="mx-auto max-w-3xl text-center">
             <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-primary">
               Bluebird Marketplace Firearms
             </p>
@@ -2711,7 +2707,6 @@ function FirearmsLandingHero({
               Browse community listings and connect with local sellers. Bluebird provides the
               marketplace; buyers and sellers are responsible for following applicable laws.
             </p>
-          </div>
         </div>
 
         <form
@@ -2744,7 +2739,7 @@ function FirearmsLandingHero({
           </button>
         </form>
 
-        <div className="mt-4 flex flex-wrap justify-center gap-3 sm:justify-start">
+        <div className="mt-4 flex flex-wrap justify-center gap-3">
           <button
             type="button"
             onClick={onBrowse}
