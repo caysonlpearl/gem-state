@@ -2271,6 +2271,12 @@ function Browse() {
               })
             }
           />
+          <HomepageShowcaseRows
+            topListings={result.listings}
+            eyebrow="Bluebird Marketplace Firearms"
+            rows={firearmShowcaseRows}
+            baseSearch={search}
+          />
         </>
       )}
 
@@ -3143,8 +3149,58 @@ const generalCategoryHighlights = [
   },
   { slug: "farm-garden", name: "Farm & Garden", description: "Yard, farm, and garden" },
   { slug: "pets", name: "Pets", description: "Dogs, cats, and supplies" },
-  { slug: "firearms", name: "Firearms", description: "Browse local firearm listings" },
 ] as const;
+
+const firearmShowcaseRows: HomepagePreviewRow[] = [
+  {
+    title: "Rifles near you",
+    action: "Browse rifles",
+    href: "/browse?category=firearms&firearmMode=results&firearmListingType=Firearm&firearmType=Rifle",
+    cards: [],
+  },
+  {
+    title: "Handguns near you",
+    action: "Browse handguns",
+    href: "/browse?category=firearms&firearmMode=results&firearmListingType=Firearm&firearmType=Handgun",
+    cards: [],
+  },
+  {
+    title: "Shotguns near you",
+    action: "Browse shotguns",
+    href: "/browse?category=firearms&firearmMode=results&firearmListingType=Firearm&firearmType=Shotgun",
+    cards: [],
+  },
+  {
+    title: "Ammunition",
+    action: "Shop ammunition",
+    href: "/browse?category=firearms&firearmMode=results&firearmListingType=Accessory&firearmAccessoryType=Ammunition",
+    cards: [],
+  },
+  {
+    title: "Optics and sights",
+    action: "Shop optics",
+    href: "/browse?category=firearms&firearmMode=results&firearmListingType=Accessory&firearmAccessoryType=Optics%20%26%20sights",
+    cards: [],
+  },
+  {
+    title: "Cases and secure storage",
+    action: "Shop cases and storage",
+    href: "/browse?category=firearms&firearmMode=results&firearmListingType=Accessory&firearmAccessoryType=Cases%20%26%20storage",
+    cards: [],
+  },
+  {
+    title: "Safes and locks",
+    action: "Shop safes and locks",
+    href: "/browse?category=firearms&firearmMode=results&firearmListingType=Accessory&firearmAccessoryType=Safes%20%26%20locks",
+    cards: [],
+  },
+  {
+    title: "Targets and range gear",
+    action: "Shop range gear",
+    href: "/browse?category=firearms&firearmMode=results&firearmListingType=Accessory&firearmAccessoryType=Targets%20%26%20range%20gear",
+    cards: [],
+  },
+];
 
 const petShowcaseRows: HomepagePreviewRow[] = [
   {

@@ -316,6 +316,35 @@
     filter: drop-shadow(0 8px 5px rgb(34 32 27 / 18%));
   }
 
+  .category-header-art-frame {
+    position: relative;
+    isolation: isolate;
+    display: grid;
+    width: 88px;
+    height: 88px;
+    flex: none;
+    place-items: center;
+  }
+
+  .category-header-art-frame--grounded::after {
+    position: absolute;
+    bottom: 7px;
+    left: 50%;
+    z-index: 0;
+    width: 48px;
+    height: 7px;
+    content: "";
+    transform: translateX(-50%);
+    border-radius: 999px;
+    background: rgb(34 32 27 / 14%);
+    filter: blur(2px);
+  }
+
+  .category-header-art-frame > .category-art {
+    position: relative;
+    z-index: 1;
+  }
+
   .group:hover .category-art,
   .group:focus-visible .category-art {
     transform: translateY(-4px) rotate(-2deg) scale(1.04);

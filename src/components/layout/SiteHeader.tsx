@@ -400,11 +400,13 @@ export function SiteHeader() {
                 className={`${navLinkClass} w-[190px]`}
                 {...pinned}
               >
-                <CategoryArtwork
-                  slug="general"
-                  size={88}
-                  className="category-art--nav category-art--header"
-                />
+                <span className="category-header-art-frame category-header-art-frame--grounded">
+                  <CategoryArtwork
+                    slug="general"
+                    size={88}
+                    className="category-art--nav category-art--header"
+                  />
+                </span>
                 <span>All items</span>
               </Link>
             </li>
@@ -416,11 +418,19 @@ export function SiteHeader() {
                   className={navLinkClass}
                   {...pinned}
                 >
-                  <CategoryArtwork
-                    slug={c.slug}
-                    size={88}
-                    className="category-art--nav category-art--header"
-                  />
+                  <span
+                    className={`category-header-art-frame ${
+                      c.slug === "cars-trucks" || c.slug === "firearms"
+                        ? "category-header-art-frame--grounded"
+                        : ""
+                    }`}
+                  >
+                    <CategoryArtwork
+                      slug={c.slug}
+                      size={c.slug === "firearms" ? 72 : 88}
+                      className="category-art--nav category-art--header"
+                    />
+                  </span>
                   <span>{c.name}</span>
                 </Link>
               </li>
