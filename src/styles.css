@@ -357,6 +357,32 @@
   }
 }
 
+/* Seven header categories no longer fit the 88px artwork across the narrow
+   desktop range, so the row tightens its artwork, padding and gaps until 1280px
+   where the full-size layout has room again. */
+@media (min-width: 1024px) and (max-width: 1279.98px) {
+  nav[aria-label="Categories"] ul {
+    gap: 6px;
+  }
+
+  nav[aria-label="Categories"] a {
+    width: auto;
+    min-width: 0;
+    gap: 8px;
+    padding-inline: 8px;
+  }
+
+  nav[aria-label="Categories"] .category-header-art-frame {
+    width: 72px;
+    height: 72px;
+  }
+
+  nav[aria-label="Categories"] .category-header-art-frame > .category-art {
+    width: 72px !important;
+    height: 72px !important;
+  }
+}
+
 @utility product-placeholder {
   background-color: var(--color-product-well);
   background-image: repeating-linear-gradient(
