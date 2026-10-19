@@ -3073,7 +3073,7 @@ function PetsLandingHero({
   ];
 
   return (
-    <section aria-label="Bluebird Marketplace pets" className="classifieds-hero-shell relative isolate flex min-h-[360px] flex-col justify-center overflow-hidden rounded-[32px] border border-brand-blue/20 bg-secondary px-5 py-6 shadow-xl sm:min-h-[430px] sm:px-10 sm:py-12">
+    <section aria-label="Bluebird Marketplace pets" className="classifieds-hero-shell relative isolate flex min-h-[360px] flex-col justify-start overflow-hidden rounded-[32px] border border-brand-blue/20 bg-secondary px-5 py-6 shadow-xl sm:min-h-[430px] sm:justify-center sm:px-10 sm:py-12">
       <span className="classifieds-hero-orb classifieds-hero-orb--blue absolute -right-20 -top-24 h-72 w-72 rounded-full bg-brand-blue/12" aria-hidden="true" />
       <span className="classifieds-hero-orb classifieds-hero-orb--warm absolute -bottom-36 left-1/3 h-80 w-80 rounded-full bg-brand-warm/18" aria-hidden="true" />
       <span className="classifieds-hero-sheen pointer-events-none absolute inset-y-0 -left-1/3 z-0 w-1/3 skew-x-[-18deg] bg-white/20" aria-hidden="true" />
