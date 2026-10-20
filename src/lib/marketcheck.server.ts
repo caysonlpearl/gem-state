@@ -197,8 +197,8 @@ function matchesProviderFilters(listing: MarketCheckListing, data: ClassifiedBro
   )
     return false;
   const state = stateCode(data.state) ?? data.state?.toUpperCase();
-  if (state && listing.location.state !== state) return false;
   const radiusSearch = data.radiusMiles != null;
+  if (state && !(data.city && radiusSearch) && listing.location.state !== state) return false;
   if (data.city && !radiusSearch && lower(listing.location.city) !== lower(data.city)) return false;
   if (data.postalCode && !(listing.location.zip ?? "").startsWith(data.postalCode)) return false;
   const radiusCenter =
@@ -206,14 +206,16 @@ function matchesProviderFilters(listing: MarketCheckListing, data: ClassifiedBro
       ? { latitude: data.latitude, longitude: data.longitude }
       : data.city && data.radiusMiles != null
         ? (() => {
-            const point = classifiedCoordinatesForCity(data.city);
+            const point = classifiedCoordinatesForCity(data.city, data.state);
             return point ? { latitude: point[0], longitude: point[1] } : undefined;
           })()
         : undefined;
   if (
     !isWithinClassifiedRadius({
       city: data.city,
+      cityState: data.state,
       listingCity: listing.location.city,
+      listingState: listing.location.state,
       latitude: radiusCenter?.latitude,
       longitude: radiusCenter?.longitude,
       radiusMiles: data.radiusMiles,

@@ -199,7 +199,8 @@ export function rescueGroupsCard(pet: RescueGroupsPet): ClassifiedCard {
 export async function rescueGroupsCards(data: ClassifiedBrowseInput): Promise<ClassifiedCard[]> {
   if (!canIncludeRescueGroups(data)) return [];
   const q = data.q?.trim().toLowerCase();
-  // A state filter (e.g. the homepage's Idaho rows) applies to the rescue's state.
+  // A state-only filter constrains rescues to that state. For a city-radius
+  // search, state disambiguates the center and nearby results may cross borders.
   const state = data.state
     ? (usStates.find(([code, name]) => code === data.state || name === data.state)?.[0] ??
       data.state.toUpperCase())
@@ -207,14 +208,16 @@ export async function rescueGroupsCards(data: ClassifiedBrowseInput): Promise<Cl
   return (await allPets())
     .filter(
       (pet) =>
-        (!state || pet.org?.state === state) &&
+        (!(state && !(data.city && data.radiusMiles != null)) || pet.org?.state === state) &&
         (!q ||
           `${pet.name} ${pet.breed ?? ""} ${pet.species ?? ""} ${pet.org?.city ?? ""}`
             .toLowerCase()
             .includes(q)) &&
         isWithinClassifiedRadius({
           city: data.city,
+          cityState: data.state,
           listingCity: pet.org?.city ?? "",
+          listingState: pet.org?.state ?? undefined,
           latitude: data.latitude,
           longitude: data.longitude,
           radiusMiles: data.radiusMiles,

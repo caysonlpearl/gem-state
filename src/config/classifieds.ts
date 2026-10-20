@@ -108,7 +108,7 @@ export const regionalCities = [
   "Provo",
   "Orem",
   "Lehi",
-  "Sandy",
+  "Sandy, UT",
   "Draper",
   "West Jordan",
   "South Jordan",
@@ -188,7 +188,7 @@ export const regionalCities = [
   "Oregon City",
   "Prineville",
   "Roseburg",
-  "Sandy",
+  "Sandy, OR",
   "Seaside",
   "Sherwood",
   "Springfield",
@@ -369,6 +369,8 @@ export const classifiedCityCenters: Record<string, [number, number]> = {
   murray: [40.6669, -111.888],
   "west jordan": [40.6097, -111.9391],
   sandy: [40.56498, -111.83897],
+  "sandy, ut": [40.56498, -111.83897],
+  "sandy, or": [45.3987472, -122.26971],
   draper: [40.5247, -111.8638],
   "south jordan": [40.5622, -111.9297],
   "st. george": [37.0965, -113.5684],
@@ -541,10 +543,35 @@ const classifiedCityNamesByKey = new Map(
     city,
   ]),
 );
+classifiedCityNamesByKey.set("sandy", "Sandy, UT");
 
-export function classifiedCoordinatesForCity(city: string | undefined) {
+export function classifiedCoordinatesForCity(city: string | undefined, state?: string) {
   if (!city) return undefined;
-  return classifiedCityCenters[city.trim().toLowerCase()];
+  const trimmedCity = city.trim();
+  const cityState = trimmedCity.match(/^(.+),\s*(.+)$/);
+  const embeddedState = cityState?.[2]?.trim();
+  const recognizedEmbeddedState = embeddedState
+    ? usStates.find(
+        ([code, name]) =>
+          code.toLowerCase() === embeddedState.toLowerCase() ||
+          name.toLowerCase() === embeddedState.toLowerCase(),
+      )
+    : undefined;
+  const cityName = recognizedEmbeddedState ? cityState?.[1]?.trim() || trimmedCity : trimmedCity;
+  const stateToken = (state ?? recognizedEmbeddedState?.[0])?.trim();
+  const stateCode = stateToken
+    ? (usStates
+        .find(
+          ([code, name]) =>
+            code.toLowerCase() === stateToken.toLowerCase() ||
+            name.toLowerCase() === stateToken.toLowerCase(),
+        )?.[0]
+        .toLowerCase() ?? stateToken.toLowerCase())
+    : undefined;
+  const stateSpecificCenter = stateCode
+    ? classifiedCityCenters[`${cityName.toLowerCase()}, ${stateCode}`]
+    : undefined;
+  return stateSpecificCenter ?? classifiedCityCenters[cityName.toLowerCase()];
 }
 
 export function nearestClassifiedCity(latitude: number, longitude: number) {
@@ -575,13 +602,17 @@ export function classifiedDistanceMiles(
 
 export function isWithinClassifiedRadius({
   city,
+  cityState,
   listingCity,
+  listingState,
   latitude,
   longitude,
   radiusMiles,
 }: {
   city?: string;
+  cityState?: string;
   listingCity: string;
+  listingState?: string;
   latitude?: number;
   longitude?: number;
   radiusMiles?: number;
@@ -590,10 +621,15 @@ export function isWithinClassifiedRadius({
   const center =
     latitude != null && longitude != null
       ? ([latitude, longitude] as [number, number])
-      : classifiedCoordinatesForCity(city);
-  const point = classifiedCoordinatesForCity(listingCity);
+      : classifiedCoordinatesForCity(city, cityState);
+  const point = classifiedCoordinatesForCity(listingCity, listingState);
   if (!center || !point) {
-    return listingCity.trim().toLowerCase() === city?.trim().toLowerCase();
+    const normalizeCity = (value: string | undefined) =>
+      value
+        ?.trim()
+        .replace(/,\s*[a-z]{2}$/i, "")
+        .toLowerCase();
+    return normalizeCity(listingCity) === normalizeCity(city);
   }
   return classifiedDistanceMiles(center[0], center[1], point[0], point[1]) <= radiusMiles;
 }

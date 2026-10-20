@@ -150,7 +150,9 @@ export async function openWebNinjaCards(data: ClassifiedBrowseInput): Promise<Cl
           `${home.address} ${home.city} ${home.propertyType ?? ""}`.toLowerCase().includes(q)) &&
         isWithinClassifiedRadius({
           city: data.city,
+          cityState: data.state,
           listingCity: home.city,
+          listingState: home.state,
           latitude: data.latitude,
           longitude: data.longitude,
           radiusMiles: data.radiusMiles,

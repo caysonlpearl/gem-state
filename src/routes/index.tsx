@@ -575,7 +575,9 @@ function homeLocation(location: string, mapPoint: LocationPoint | undefined, rad
     if (parsedLocation.city || mapPoint) {
       return isWithinClassifiedRadius({
         city: parsedLocation.city,
+        cityState: parsedLocation.state,
         listingCity: listing.city,
+        listingState: listing.state,
         latitude: mapPoint?.latitude,
         longitude: mapPoint?.longitude,
         radiusMiles,
@@ -593,7 +595,7 @@ function homeLocation(location: string, mapPoint: LocationPoint | undefined, rad
   const locationSummary = mapPoint
     ? `${mapPoint.city ?? "Map point"} · within ${radiusMiles} miles`
     : parsedLocation.city
-      ? `${parsedLocation.city} · within ${radiusMiles} miles`
+      ? `${parsedLocation.city}${parsedLocation.state ? `, ${parsedLocation.state}` : ""} · within ${radiusMiles} miles`
       : parsedLocation.postalCode
         ? `ZIP ${parsedLocation.postalCode}`
         : (parsedLocation.region ?? selectedStateName ?? "Idaho");

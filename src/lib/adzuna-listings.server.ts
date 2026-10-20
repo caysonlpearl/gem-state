@@ -97,13 +97,15 @@ export async function adzunaCards(data: ClassifiedBrowseInput): Promise<Classifi
   const cards = result.jobs
     .filter(
       (job) =>
-        (!state || job.state === state[0]) &&
+        (!(state && !(data.city && data.radiusMiles != null)) || job.state === state[0]) &&
         (!data.city ||
           data.radiusMiles != null ||
           job.city.toLowerCase() === data.city.toLowerCase()) &&
         isWithinClassifiedRadius({
           city: data.city,
+          cityState: data.state,
           listingCity: job.city,
+          listingState: job.state,
           latitude: data.latitude,
           longitude: data.longitude,
           radiusMiles: data.radiusMiles,

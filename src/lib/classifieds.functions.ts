@@ -1354,7 +1354,8 @@ function mockMatches(
     const needle = data.q.toLowerCase();
     if (!`${listing.title} ${listing.description}`.toLowerCase().includes(needle)) return false;
   }
-  if (data.state && data.state !== listing.state) return false;
+  if (data.state && !(data.city && data.radiusMiles != null) && data.state !== listing.state)
+    return false;
   if (data.postalCode && !listing.postalCode.startsWith(data.postalCode)) return false;
   if (
     data.city &&
@@ -1367,7 +1368,9 @@ function mockMatches(
     data.radiusMiles != null &&
     !isWithinClassifiedRadius({
       city: data.city,
+      cityState: data.state,
       listingCity: listing.city,
+      listingState: listing.state,
       latitude: data.latitude,
       longitude: data.longitude,
       radiusMiles: data.radiusMiles,
@@ -1872,7 +1875,8 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     // the Idaho city's), so older listings saved as "ID" still count; like
     // radius search, that filter runs after the fetch.
     if (data.region) query = query.eq("classified_listing_details.state", "ID");
-    if (data.state) query = query.eq("classified_listing_details.state", data.state);
+    if (data.state && !(data.city && data.radiusMiles != null))
+      query = query.eq("classified_listing_details.state", data.state);
     if (data.city && data.radiusMiles == null)
       query = query.ilike("classified_listing_details.city", `%${escapeLikeValue(data.city)}%`);
     if (data.postalCode)
@@ -2187,7 +2191,9 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
       .filter((listing) =>
         isWithinClassifiedRadius({
           city: data.city,
+          cityState: data.state,
           listingCity: listing.city,
+          listingState: listing.state,
           latitude: data.latitude,
           longitude: data.longitude,
           radiusMiles: data.radiusMiles,
@@ -2457,6 +2463,7 @@ export const getRecentlySoldListings = createServerFn({ method: "GET" })
     (input: {
       category?: string;
       city?: string;
+      state?: string;
       region?: string;
       radiusMiles?: number;
       make?: string;
@@ -2465,6 +2472,7 @@ export const getRecentlySoldListings = createServerFn({ method: "GET" })
     }) => ({
       category: input?.category ? String(input.category).slice(0, 60) : undefined,
       city: input?.city ? String(input.city).slice(0, 80) : undefined,
+      state: input?.state ? String(input.state).slice(0, 2).toUpperCase() : undefined,
       region: input?.region ? String(input.region).slice(0, 80) : undefined,
       radiusMiles:
         input?.radiusMiles != null
@@ -2509,7 +2517,9 @@ export const getRecentlySoldListings = createServerFn({ method: "GET" })
           data.city &&
           !isWithinClassifiedRadius({
             city: data.city,
+            cityState: data.state,
             listingCity: card.city,
+            listingState: card.state,
             radiusMiles: data.radiusMiles ?? 25,
           })
         )
