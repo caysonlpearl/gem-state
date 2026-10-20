@@ -8,6 +8,7 @@
     "build": "vite build",
     "seed:classifieds": "node scripts/seed-classifieds.mjs",
     "test:pagination:ui": "node scripts/pagination-ui-smoke.mjs",
+    "test:homepage:ui": "node scripts/homepage-cars-trucks-ui.mjs",
     "test:classifieds": "node --experimental-strip-types --test tests/classifieds-mvp.test.mjs",
     "test:seller-claims": "node --experimental-strip-types --test tests/seller-claims.test.mjs",
     "test:inventory": "node --experimental-strip-types --test tests/dealer-inventory.test.mjs",

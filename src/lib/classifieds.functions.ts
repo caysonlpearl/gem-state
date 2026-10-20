@@ -2726,9 +2726,24 @@ async function loadClassifiedsHomeMotors() {
 async function loadClassifiedsHomeLead(): Promise<ClassifiedsHomeLead> {
   const [categoryData, motors] = await Promise.all([
     loadClassifiedsHomeCategoryData(),
-    loadClassifiedsHomeMotors(),
+    loadClassifiedsHomeCarsTrucks(),
   ]);
   return { ...categoryData, motors };
+}
+
+async function loadClassifiedsHomeCarsTrucks() {
+  const { shortCache, PUBLIC_PAGE_CACHE_MS } = await import("./short-cache.server");
+  return shortCache("classifieds-home-cars-trucks", PUBLIC_PAGE_CACHE_MS, async () => {
+    // Filter before paging: newer parts and trailers must not displace the
+    // featured cars/trucks. The broader Motors browser and rows stay intact.
+    const result = await runBrowseClassifieds({
+      category: "cars-trucks",
+      state: "ID",
+      sort: "newest",
+      page: 1,
+    });
+    return result.listings;
+  });
 }
 
 export const getClassifiedsHomeLead = createServerFn({ method: "GET" }).handler(

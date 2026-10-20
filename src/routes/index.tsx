@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { QueryErrorResetBoundary, queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { QueryErrorResetBoundary, queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { Component, Suspense, lazy, useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowRight, MagnifyingGlass, Car } from "@phosphor-icons/react";
 
@@ -45,7 +45,7 @@ const homeQuery = queryOptions({
 });
 
 const homeLeadQuery = queryOptions({
-  queryKey: ["classifieds-home-lead"],
+  queryKey: ["classifieds-home-lead", "cars-trucks"],
   staleTime: PUBLIC_PAGE_STALE_MS,
   queryFn: () => getClassifiedsHomeLead(),
 });
@@ -671,7 +671,7 @@ function HomepageLeadVehicles({ where }: { where: ReturnType<typeof homeLocation
       ) : (
         <EmptyState
           title={EMPTY_ROW_TITLE}
-          body="Vehicle listings show up here as soon as Idaho sellers post them. Have one to sell? Be one of the first."
+          body="Cars and trucks show up here as soon as Idaho sellers post them. Have one to sell? Be one of the first."
         />
       )}
       <div className="no-scrollbar -mx-4 mt-4 flex flex-nowrap gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">
@@ -700,18 +700,18 @@ function HomepageLeadHeader({ where }: { where: ReturnType<typeof homeLocation> 
     <div className="flex items-end justify-between gap-3">
       <div className="min-w-0">
         <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">
-          <Car size={14} weight="fill" /> Cars &amp; motors
+          <Car size={14} weight="fill" /> Cars &amp; trucks
         </p>
         <h2 className="mt-1 text-[19px] font-bold tracking-tight sm:whitespace-nowrap sm:text-[26px]">
-          Vehicles for sale in Idaho
+          Cars &amp; trucks for sale in Idaho
         </h2>
       </div>
       <Link
         to="/browse"
-        search={where.withLocation({ group: "motors" })}
+        search={where.withLocation({ category: "cars-trucks" })}
         className={`${seeAll} shrink-0`}
       >
-        All vehicles <ArrowRight size={12} />
+        All cars &amp; trucks <ArrowRight size={12} />
       </Link>
     </div>
   );
@@ -739,8 +739,8 @@ function HomepageLeadLoading({ where }: { where: ReturnType<typeof homeLocation>
           role="status"
         >
           {takingLonger
-            ? "Still loading vehicle listings. This section will update when results are ready."
-            : "Loading Idaho vehicle listings."}
+            ? "Still loading cars and trucks. This section will update when results are ready."
+            : "Loading Idaho cars and trucks."}
         </p>
       </div>
     </section>
@@ -770,7 +770,7 @@ class HomepageLeadErrorBoundary extends Component<
           <BluebirdEmptyState
             headingLevel="h2"
             className="mt-5"
-            title="Vehicle listings couldn’t load."
+            title="Cars and trucks couldn’t load."
             description="Check your connection and try again."
           >
             <button
@@ -790,6 +790,10 @@ class HomepageLeadErrorBoundary extends Component<
 
 function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
   const { data: home } = useSuspenseQuery(homeQuery);
+  // Observe the independently loaded lead without fetching or throwing its
+  // errors here. Once it resolves (including after retry), reserve those same
+  // IDs so the broader rows do not repeat the featured cars and trucks.
+  const { data: homeLead } = useQuery({ ...homeLeadQuery, enabled: false, throwOnError: false });
   const { matchesLocation, withLocation, feedLocation } = where;
   const localRecent = home.recent.filter(matchesLocation);
   const localMotors = home.motors.filter(matchesLocation);
@@ -815,7 +819,7 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
       allLocalListings.push(listing);
     }
   }
-  const leadMotors = localMotors.slice(0, HOMEPAGE_ROW_SIZE);
+  const leadMotors = (homeLead?.motors ?? []).filter(matchesLocation).slice(0, HOMEPAGE_ROW_SIZE);
   const shownIds = new Set<string>(leadMotors.map((listing) => listing.id));
   const pick = (candidates: ClassifiedsHome["recent"]) => {
     const unseen = candidates
@@ -1157,7 +1161,10 @@ function HomeFeed({
   location: Record<string, string | number | undefined>;
 }) {
   const fetchPage = useServerFn(browseClassifieds);
-  const [items, setItems] = useState(initial);
+  // The first-page remainder is derived from the current row allocation.
+  // Keep only explicitly loaded later pages in state so allocation changes
+  // neither retain stale first-page cards nor discard loaded pagination.
+  const [loadedItems, setLoadedItems] = useState<typeof initial>([]);
   const [nextPage, setNextPage] = useState(2);
   const [done, setDone] = useState(!hasMore);
   const [loading, setLoading] = useState(false);
@@ -1169,8 +1176,8 @@ function HomeFeed({
         Object.entries(location).filter(([, value]) => value !== undefined && value !== ""),
       );
       const result = await fetchPage({ data: { ...filters, sort: "newest", page: nextPage } });
-      setItems((current) => {
-        const seen = new Set([...shownIds, ...current.map((listing) => listing.id)]);
+      setLoadedItems((current) => {
+        const seen = new Set(current.map((listing) => listing.id));
         return [...current, ...result.listings.filter((listing) => !seen.has(listing.id))];
       });
       setNextPage(result.page + 1);
@@ -1182,7 +1189,16 @@ function HomeFeed({
     }
   }
 
-  if (!items.length && done) return null;
+  // The independent lead can shift every secondary row after mount. Exclude
+  // all currently allocated IDs, not just the featured ones. Retain fetched
+  // records even while allocated elsewhere, so they can reappear if released.
+  const seenIds = new Set(shownIds);
+  const visibleItems = [...initial, ...loadedItems].filter((listing) => {
+    if (seenIds.has(listing.id)) return false;
+    seenIds.add(listing.id);
+    return true;
+  });
+  if (!visibleItems.length && done) return null;
 
   return (
     <section className="mt-16" aria-labelledby="keep-browsing-heading">
@@ -1191,9 +1207,9 @@ function HomeFeed({
           Keep browsing
         </h2>
       </div>
-      {items.length > 0 && (
+      {visibleItems.length > 0 && (
         <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
-          {items.map((listing) => (
+          {visibleItems.map((listing) => (
             <ListingCard key={listing.id} listing={listing} />
           ))}
         </div>

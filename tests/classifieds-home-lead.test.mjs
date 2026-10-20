@@ -204,7 +204,7 @@ test("homepage lead loading, successful empty, and request-error states stay dis
   assert.match(source, /useSuspenseQuery\(homeLeadQuery\)/);
   assert.match(source, /function HomepageLeadLoading\([\s\S]*?HOMEPAGE_LEAD_SLOW_NOTICE_MS/);
   assert.notEqual(errorBoundaryStart, -1);
-  assert.match(errorBoundary, /Vehicle listings couldn’t load/);
+  assert.match(errorBoundary, /Cars and trucks couldn’t load/);
   assert.match(errorBoundary, /onClick=\{this\.retry\}/);
   assert.match(
     source,
