@@ -3,7 +3,11 @@ import { originalListingFor, type OriginalListing } from "./import-original-list
 import { createServerFn } from "@tanstack/react-start";
 
 import { publicServerClient } from "./supabase-public.server";
-import { classifiedCategories, isWithinClassifiedRadius } from "@/config/classifieds";
+import {
+  classifiedCategories,
+  hasClassifiedRadiusCenter,
+  isWithinClassifiedRadius,
+} from "@/config/classifieds";
 import { normalizePetSpecies, normalizePetSubcategory } from "@/config/pets";
 import {
   firearmAccessoryTypes,
@@ -1354,8 +1358,7 @@ function mockMatches(
     const needle = data.q.toLowerCase();
     if (!`${listing.title} ${listing.description}`.toLowerCase().includes(needle)) return false;
   }
-  if (data.state && !(data.city && data.radiusMiles != null) && data.state !== listing.state)
-    return false;
+  if (data.state && !hasClassifiedRadiusCenter(data) && data.state !== listing.state) return false;
   if (data.postalCode && !listing.postalCode.startsWith(data.postalCode)) return false;
   if (
     data.city &&
@@ -1875,7 +1878,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     // the Idaho city's), so older listings saved as "ID" still count; like
     // radius search, that filter runs after the fetch.
     if (data.region) query = query.eq("classified_listing_details.state", "ID");
-    if (data.state && !(data.city && data.radiusMiles != null))
+    if (data.state && !hasClassifiedRadiusCenter(data))
       query = query.eq("classified_listing_details.state", data.state);
     if (data.city && data.radiusMiles == null)
       query = query.ilike("classified_listing_details.city", `%${escapeLikeValue(data.city)}%`);

@@ -5,7 +5,11 @@ import type {
   ClassifiedCard,
   ClassifiedDetail,
 } from "./classifieds.functions";
-import { isWithinClassifiedRadius, usStates } from "../config/classifieds.ts";
+import {
+  hasClassifiedRadiusCenter,
+  isWithinClassifiedRadius,
+  usStates,
+} from "../config/classifieds.ts";
 
 const categories: Record<string, string> = {
   "Accounting & Finance": "accounting-finance-jobs",
@@ -97,7 +101,7 @@ export async function adzunaCards(data: ClassifiedBrowseInput): Promise<Classifi
   const cards = result.jobs
     .filter(
       (job) =>
-        (!(state && !(data.city && data.radiusMiles != null)) || job.state === state[0]) &&
+        (!(state && !hasClassifiedRadiusCenter(data)) || job.state === state[0]) &&
         (!data.city ||
           data.radiusMiles != null ||
           job.city.toLowerCase() === data.city.toLowerCase()) &&

@@ -2,7 +2,11 @@ import { createClient } from "@supabase/supabase-js";
 import { getRequest } from "@tanstack/react-start/server";
 
 import { serverEnv } from "./runtime-env.server";
-import { isWithinClassifiedRadius, usStates } from "../config/classifieds.ts";
+import {
+  hasClassifiedRadiusCenter,
+  isWithinClassifiedRadius,
+  usStates,
+} from "../config/classifieds.ts";
 import { regionOfListing } from "./market-stats";
 import { normalizePetSubcategory, petSubcategories } from "../config/pets.ts";
 import type {
@@ -208,7 +212,7 @@ export async function rescueGroupsCards(data: ClassifiedBrowseInput): Promise<Cl
   return (await allPets())
     .filter(
       (pet) =>
-        (!(state && !(data.city && data.radiusMiles != null)) || pet.org?.state === state) &&
+        (!(state && !hasClassifiedRadiusCenter(data)) || pet.org?.state === state) &&
         (!q ||
           `${pet.name} ${pet.breed ?? ""} ${pet.species ?? ""} ${pet.org?.city ?? ""}`
             .toLowerCase()

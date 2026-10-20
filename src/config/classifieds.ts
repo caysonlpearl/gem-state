@@ -275,6 +275,50 @@ export const regionalCities = [
 
 export const marketplaceCities = [...idahoCities, ...regionalCities] as const;
 
+/** States whose listings and provider inventory are currently surfaced by the marketplace. */
+export const marketplaceStateCodes = ["ID", "UT", "OR", "WA"] as const;
+
+/** A state is only a location-center hint when the search has a real radius center. */
+export function hasClassifiedRadiusCenter({
+  city,
+  latitude,
+  longitude,
+  radiusMiles,
+}: {
+  city?: string;
+  latitude?: number;
+  longitude?: number;
+  radiusMiles?: number;
+}) {
+  return radiusMiles != null && (Boolean(city?.trim()) || (latitude != null && longitude != null));
+}
+
+/**
+ * External feeds are configured for these four states. A centered radius
+ * checks all four; a state-only browse reads just its selected state.
+ */
+export function classifiedProviderSearchStates({
+  state,
+  city,
+  latitude,
+  longitude,
+  radiusMiles,
+}: {
+  state?: string;
+  city?: string;
+  latitude?: number;
+  longitude?: number;
+  radiusMiles?: number;
+}) {
+  if (hasClassifiedRadiusCenter({ city, latitude, longitude, radiusMiles }))
+    return [...marketplaceStateCodes];
+  const normalized = usStates.find(
+    ([code, name]) =>
+      code.toLowerCase() === state?.toLowerCase() || name.toLowerCase() === state?.toLowerCase(),
+  )?.[0];
+  return [normalized ?? "ID"];
+}
+
 /** Coordinates used for the marketplace location experience. Listing records
  * currently store city names, so these centers provide a stable, transparent
  * fallback until per-listing geocoding is added. */
@@ -558,7 +602,9 @@ export function classifiedCoordinatesForCity(city: string | undefined, state?: s
       )
     : undefined;
   const cityName = recognizedEmbeddedState ? cityState?.[1]?.trim() || trimmedCity : trimmedCity;
-  const stateToken = (state ?? recognizedEmbeddedState?.[0])?.trim();
+  // A qualified selector such as "Sandy, OR" is the chosen center even if a
+  // stale/default state filter is still present in the URL.
+  const stateToken = (recognizedEmbeddedState?.[0] ?? state)?.trim();
   const stateCode = stateToken
     ? (usStates
         .find(

@@ -4,10 +4,13 @@ import assert from "node:assert/strict";
 import { findIdahoPlace, idahoPlaces } from "../src/config/idaho-places.ts";
 import {
   classifiedCoordinatesForCity,
+  classifiedProviderSearchStates,
+  hasClassifiedRadiusCenter,
   idahoCities,
   idahoRegions,
   isWithinClassifiedRadius,
   marketplaceCities,
+  marketplaceStateCodes,
 } from "../src/config/classifieds.ts";
 
 test("typed city names resolve to the listed spelling and region", () => {
@@ -41,9 +44,11 @@ test("same-named cities remain unique and radius searches use the selected state
   const utah = classifiedCoordinatesForCity("Sandy", "UT");
   const oregon = classifiedCoordinatesForCity("Sandy, OR");
   const oregonFullName = classifiedCoordinatesForCity("Sandy, Oregon");
+  const oregonWithStaleIdahoFilter = classifiedCoordinatesForCity("Sandy, OR", "ID");
   assert.deepEqual(utah, [40.56498, -111.83897]);
   assert.deepEqual(oregon, [45.3987472, -122.26971]);
   assert.deepEqual(oregonFullName, oregon);
+  assert.deepEqual(oregonWithStaleIdahoFilter, oregon);
 
   assert.equal(
     isWithinClassifiedRadius({
@@ -55,6 +60,27 @@ test("same-named cities remain unique and radius searches use the selected state
     }),
     true,
   );
+  assert.equal(
+    hasClassifiedRadiusCenter({ city: "", latitude: 45.4, longitude: -122.2, radiusMiles: 25 }),
+    true,
+  );
+  assert.equal(hasClassifiedRadiusCenter({ city: "", latitude: 45.4, radiusMiles: 25 }), false);
+  assert.deepEqual(marketplaceStateCodes, ["ID", "UT", "OR", "WA"]);
+  assert.deepEqual(
+    classifiedProviderSearchStates({ city: "Boise", state: "ID", radiusMiles: 500 }),
+    ["ID", "UT", "OR", "WA"],
+  );
+  assert.deepEqual(
+    classifiedProviderSearchStates({
+      latitude: 45.4,
+      longitude: -122.2,
+      state: "ID",
+      radiusMiles: 500,
+    }),
+    ["ID", "UT", "OR", "WA"],
+  );
+  assert.deepEqual(classifiedProviderSearchStates({ state: "Washington" }), ["WA"]);
+  assert.deepEqual(classifiedProviderSearchStates({ state: "unknown" }), ["ID"]);
   assert.equal(
     isWithinClassifiedRadius({
       city: "Sandy",

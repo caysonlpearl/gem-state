@@ -4,6 +4,8 @@ import { getRequest } from "@tanstack/react-start/server";
 import { serverEnv } from "./runtime-env.server";
 import {
   classifiedCoordinatesForCity,
+  classifiedProviderSearchStates,
+  hasClassifiedRadiusCenter,
   isWithinClassifiedRadius,
   usStates,
 } from "../config/classifieds.ts";
@@ -38,8 +40,8 @@ const PAGE_SIZE = 50;
  * The free plan is 500 calls a month, so searches never go to MarketCheck
  * per filter. Each state has one cached inventory (newest listings first),
  * refreshed weekly, and every Bluebird filter, row and sort runs over it
- * here. Idaho gets the deepest inventory; another state is fetched only
- * when a visitor picks it.
+ * here. Idaho gets the deepest inventory; a radius search checks each state
+ * currently included in Bluebird's marketplace, with the same weekly cache.
  */
 const BASE_PAGES: Record<MarketCheckSourceKind, number> = { dealer: 6, fsbo: 4 };
 const OTHER_STATE_PAGES = 2;
@@ -88,6 +90,11 @@ export class MarketCheckLookupError extends Error {
 
 export function marketCheckConfigured() {
   return configured();
+}
+
+/** A radius can cross borders; a city/state-only search stays in its selected state. */
+export function marketCheckStatesForBrowse(data: ClassifiedBrowseInput) {
+  return classifiedProviderSearchStates(data);
 }
 
 const values = (value: string | undefined) =>
@@ -197,8 +204,8 @@ function matchesProviderFilters(listing: MarketCheckListing, data: ClassifiedBro
   )
     return false;
   const state = stateCode(data.state) ?? data.state?.toUpperCase();
-  const radiusSearch = data.radiusMiles != null;
-  if (state && !(data.city && radiusSearch) && listing.location.state !== state) return false;
+  const radiusSearch = hasClassifiedRadiusCenter(data);
+  if (state && !radiusSearch && listing.location.state !== state) return false;
   if (data.city && !radiusSearch && lower(listing.location.city) !== lower(data.city)) return false;
   if (data.postalCode && !(listing.location.zip ?? "").startsWith(data.postalCode)) return false;
   const radiusCenter =
@@ -270,8 +277,7 @@ function matchesProviderFilters(listing: MarketCheckListing, data: ClassifiedBro
 }
 
 type CachedCallResult<T> =
-  | { ok: true; value: T }
-  | { ok: false; status: MarketCheckLookupStatus; providerStatus?: number };
+  { ok: true; value: T } | { ok: false; status: MarketCheckLookupStatus; providerStatus?: number };
 
 async function cachedCall<T>(
   key: string,
@@ -551,11 +557,16 @@ export async function marketCheckCards(
   options?: { forceRefresh?: boolean },
 ) {
   if (!configured()) return [];
-  const state = stateCode(data.state) ?? HOME_STATE;
-  const [dealer, fsbo] = await Promise.all([
-    stateInventory(state, "dealer", options?.forceRefresh),
-    stateInventory(state, "fsbo", options?.forceRefresh),
-  ]);
+  const inventories = await Promise.all(
+    marketCheckStatesForBrowse(data).map((state) =>
+      Promise.all([
+        stateInventory(state, "dealer", options?.forceRefresh),
+        stateInventory(state, "fsbo", options?.forceRefresh),
+      ]),
+    ),
+  );
+  const dealer = inventories.flatMap(([listings]) => listings);
+  const fsbo = inventories.flatMap(([, listings]) => listings);
   const seenIds = new Set<string>();
   const seenVins = new Set<string>();
   return [...dealer, ...fsbo]
