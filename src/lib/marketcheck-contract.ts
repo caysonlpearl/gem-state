@@ -393,7 +393,13 @@ export function normalizeMarketCheckListing(
   payload: unknown,
   sourceKind: MarketCheckSourceKind,
 ): MarketCheckListing | null {
-  const raw = asRecord(payload);
+  const record = asRecord(payload);
+  // Warm inventory rows already contain normalized listings with the
+  // provider response under `raw`. Re-normalizing the wrapper itself would
+  // treat `marketcheck-dealer-…` as the provider ID and double-prefix every
+  // detail URL. Prefer the embedded provider payload when it has an ID.
+  const embeddedRaw = asRecord(record.raw);
+  const raw = embeddedRaw.id != null ? embeddedRaw : record;
   const providerId = text(raw.id);
   if (!providerId) return null;
   // FSBO responses can still carry a dealer-shaped object from the provider's

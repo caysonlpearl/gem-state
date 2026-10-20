@@ -102,6 +102,15 @@ test("normalizes dealer listing details and retains the raw payload", () => {
   ]);
 });
 
+test("re-normalizing a warm cached listing preserves its provider ID", () => {
+  const first = normalizeMarketCheckListing(payload, "dealer");
+  assert.ok(first);
+  const warmed = normalizeMarketCheckListing(first, "dealer");
+  assert.ok(warmed);
+  assert.equal(warmed.providerId, "VIN123-abc");
+  assert.equal(warmed.id, first.id);
+});
+
 test("normalizes FSBO search rows and preserves provider counts", () => {
   const result = normalizeMarketCheckSearch({ num_found: 3, listings: [payload] }, "fsbo");
   assert.equal(result.numFound, 3);
