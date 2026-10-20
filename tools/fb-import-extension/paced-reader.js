@@ -155,7 +155,8 @@ async function readListingJobs(jobs, { onItemDone } = {}) {
             )
               item[key] = value;
           }
-          delete item.unreadable;
+          if (details.incomplete) item.unreadable = true;
+          else delete item.unreadable;
         } catch {
           item.unreadable = true;
         } finally {

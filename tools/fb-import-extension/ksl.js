@@ -171,7 +171,28 @@ function kslExtractListingInPage(withPhotos) {
       }
     }
   }
-  if (!listing) return null;
+  let breadcrumbCategory = "",
+    breadcrumbSubcategory = "";
+  const trail = document.querySelector('a[href*="/search/cat/"][href*="/sub/"]');
+  if (trail) {
+    try {
+      const match = new URL(trail.href, location.href).pathname.match(
+        /\/search\/cat\/([^/]+)\/sub\/([^/]+)/,
+      );
+      if (match) {
+        breadcrumbCategory = decodeURIComponent(match[1]);
+        breadcrumbSubcategory = decodeURIComponent(match[2]);
+      }
+    } catch {
+      /* Keep the embedded category when a breadcrumb is malformed. */
+    }
+  }
+  if (!listing) {
+    // The visible breadcrumb remains authoritative when KSL's streamed JSON
+    // is incomplete. Keep those facts, but flag price/photos for review.
+    if (!breadcrumbCategory || !breadcrumbSubcategory) return null;
+    return { kslCategory: breadcrumbCategory, kslSubCategory: breadcrumbSubcategory, incomplete: true };
+  }
 
   const status = String(listing.status || "");
   if (status && !/^active$/i.test(status)) {
@@ -206,22 +227,6 @@ function kslExtractListingInPage(withPhotos) {
     if (h3 && h3.nextElementSibling) conditionText = (h3.nextElementSibling.innerText || "").trim();
   }
 
-  let breadcrumbCategory = "",
-    breadcrumbSubcategory = "";
-  const trail = document.querySelector('a[href*="/search/cat/"][href*="/sub/"]');
-  if (trail) {
-    try {
-      const match = new URL(trail.href, location.href).pathname.match(
-        /\/search\/cat\/([^/]+)\/sub\/([^/]+)/,
-      );
-      if (match) {
-        breadcrumbCategory = decodeURIComponent(match[1]);
-        breadcrumbSubcategory = decodeURIComponent(match[2]);
-      }
-    } catch {
-      /* Keep the embedded category when a breadcrumb is malformed. */
-    }
-  }
   const place = listing.location || {};
   const result = {
     title: listing.title || "",
@@ -276,7 +281,8 @@ const KSL_CATEGORY_RULES = [
     "rvs-campers",
   ],
   [/trailer/, "trailers"],
-  [/auto part|tire|wheel|car part|truck part|parts and accessories/, "auto-parts"],
+  [/auto part|auto accessor|tire|wheel|car part|truck part|parts and accessories/, "auto-parts"],
+  [/^generators?$/, "tools-equipment"],
   [/\bcars?\b|trucks?|suv|vans?\b|vehicle/, "cars-trucks"],
   [
     /real estate|home for sale|land|lot\b|rental|apartment|condo|townhome|house/,

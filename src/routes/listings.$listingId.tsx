@@ -1648,6 +1648,14 @@ function ListingDetailContent() {
             <CaretRight size={13} />
           </>
         )}
+        {listing.itemDetails?.itemType && listing.categorySlug && (
+          <>
+            <Link to="/browse" search={classifiedSubcategorySearch(listing.categorySlug, listing.itemDetails.itemType)} className="hover:text-foreground">
+              {listing.itemDetails.itemType}
+            </Link>
+            <CaretRight size={13} />
+          </>
+        )}
         {modelPage ? (
           <>
             <a href={modelPage.path} className="hover:text-foreground">

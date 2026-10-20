@@ -114,7 +114,7 @@ const itemCategorySlugs = new Set<string>(
   classifiedCategories
     .filter(
       (category) =>
-        category.group === "classifieds" &&
+        (category.group === "classifieds" || category.group === "motors") &&
         !["other-real-estate", "jobs", "services", "pets"].includes(category.slug),
     )
     .map((category) => category.slug),

@@ -223,3 +223,21 @@ test("finished imports keep recoverable data when clipboard and handoff are unav
   assert.match(displayed,/&lt;\/textarea&gt;&lt;script&gt;/);
   assert.doesNotMatch(displayed,/<script>/);
 });
+
+
+test("automotive accessory and generator subcategories do not fall into clothing or RV listings", () => {
+  assert.equal(run("kslMapCategory('Auto Parts and Accessories','Auto Accessories','Tool Box','')"), "auto-parts");
+  assert.equal(run("kslMapCategory('Recreational Vehicles','Generators','Working Generator','')"), "tools-equipment");
+  for (const category of ["auto-parts","trailers","rvs-campers","cars-trucks"]) {
+    const details = inferImportItemDetails(category,"Source type",{},"");
+    assert.equal(classifiedSubcategorySearch(category,"Source type").itemDetailKey, "itemType");
+    assert.deepEqual(normalizeClassifiedItemDetails(category,details), {itemType:"Source type"});
+  }
+});
+
+
+test("visible KSL taxonomy survives incomplete embedded details without hiding the read failure", () => {
+  ctx.document = {title:"Example",body:{innerText:"Example"},querySelector:()=>({href:"https://classifieds.ksl.com/search/cat/Industrial/sub/Air%20Compressors"}),querySelectorAll:()=>[]};
+  ctx.location = {href:"https://classifieds.ksl.com/listing/80713052"};
+  assert.deepEqual(run("kslExtractListingInPage(false)"), {kslCategory:"Industrial",kslSubCategory:"Air Compressors",incomplete:true});
+});

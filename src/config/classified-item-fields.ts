@@ -98,6 +98,12 @@ export const firearmAccessoryTypes = [
 ] as const;
 
 export const classifiedItemFields: Record<string, ClassifiedItemField[]> = {
+  "cars-trucks": [{ key: "itemType", label: "Vehicle category" }],
+  motorcycles: [{ key: "itemType", label: "Motorcycle type" }],
+  "rvs-campers": [{ key: "itemType", label: "RV or camper type" }],
+  powersports: [{ key: "itemType", label: "Powersports type" }],
+  "auto-parts": [{ key: "itemType", label: "Part or accessory type" }],
+  trailers: [{ key: "itemType", label: "Trailer type" }],
   firearms: [
     {
       key: "listingType",

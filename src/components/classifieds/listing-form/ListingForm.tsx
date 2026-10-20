@@ -559,7 +559,13 @@ export function ListingForm(props: ListingFormProps) {
             }
           />
           <div className="mt-4">
-            {isVehicle && <VehicleFields form={form} set={set} />}
+            {isVehicle && (
+              <div className="space-y-4">
+                <ItemFields category={form.category} details={form.itemDetails}
+                  set={(key, value) => set("itemDetails", { ...form.itemDetails, [key]: value })} />
+                <VehicleFields form={form} set={set} />
+              </div>
+            )}
             {isHome && <HomeFields form={form} set={set} />}
             {isJob && <JobFields form={form} set={set} />}
             {isService && <ServiceFields form={form} set={set} />}
