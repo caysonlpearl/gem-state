@@ -213,7 +213,7 @@ function dealerExtractListingInPage(withPhotos) {
   return result;
 }
 
-function dealerCategorySlug(category, title = "") {
+function dealerCategorySlug(category, title = "", sourceUrl = "") {
   const text = `${category} ${title}`;
   if (/truck bod(?:y|ies)|truck (?:parts|attachments)|parts and components|bodies only/i.test(text))
     return "auto-parts";
@@ -222,6 +222,14 @@ function dealerCategorySlug(category, title = "") {
   if (/construction attachments|cranes?|excavator|loader|forklift|equipment|machinery/i.test(text))
     return "industrial";
   if (/trucks?|chassis|ford f\d|kenworth|peterbilt|freightliner/i.test(text)) return "cars-trucks";
+  // Sandhills sometimes shortens the structured category to "Bottom".
+  // Its own detail URL retains the complete semi-trailer category. Only
+  // trust a validated listing URL, never query parameters or another host.
+  // Recognized source categories above remain authoritative.
+  if (dealerListingId(sourceUrl)) {
+    const path = new URL(sourceUrl).search.slice(1).split(/[?&#]/)[0];
+    if (/-semi-trailers$/i.test(path)) return "trailers";
+  }
   return typeof inferCategory === "function" ? inferCategory(title, "") : "general";
 }
 function dealerToImportItem(item) {
@@ -234,7 +242,7 @@ function dealerToImportItem(item) {
       /new/i.test(item.dealerCondition || "") && !/used/i.test(item.dealerCondition || "")
         ? "new_without_tags"
         : "used_good",
-    categorySlug: dealerCategorySlug(item.dealerCategory, item.title),
+    categorySlug: dealerCategorySlug(item.dealerCategory, item.title, item.sourceUrl),
     subcategory: item.dealerCategory || "",
     city: item.city || "",
     state: item.state || "ID",

@@ -1,4 +1,4 @@
-# Bluebird Listing Import 1.4.3
+# Bluebird Listing Import 1.4.4
 
 This is a manually operated Chrome extension. It reads public listing data in the browser session the operator is already using; it does not run scheduled imports or publish automatically.
 
@@ -37,3 +37,5 @@ Dealer fixtures were captured from the public catalog and representative detail 
 Source subcategories are carried into the admin review form and saved as category-specific listing details. KSL Industrial classifications take precedence over words such as Tractor or Semi Truck in the subcategory. Version 1.4.3 or newer is required to extract these fields.
 
 Completed scans retain a recovery copy on the source page. Delivery waits for the admin form to acknowledge receipt; keep the source page open until the batch is staged.
+
+Version 1.4.4 keeps recognized KSL source categories authoritative. When the source category is ambiguous, only the title is used for fallback inference; incidental description/specification words cannot imply Auto Parts. Ambiguous items stay in General for review. Diesel Depot's validated detail URL can resolve its shortened `Bottom` category when the URL explicitly identifies a semi-trailer. Explicit truck-parts categories still take precedence. These changes affect newly read imports; they do not reclassify existing Bluebird listings or change Motors/homepage grouping.

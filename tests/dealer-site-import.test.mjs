@@ -140,6 +140,48 @@ test("every dealer section is discovered and all 68 visible records are accounte
   );
   assert.equal(trailer.items.length, 24);
 });
+
+test("dealer's own complete-trailer URL disambiguates a shortened structured category", () => {
+  const catalog = fixture("catalogs").find((c) => c.section === "Trailers for Sale");
+  const run = reader(catalog);
+  const item = run(
+    "dealerCollectInventoryPage().items.find(item => dealerListingId(item.sourceUrl) === '260985591')",
+  );
+  assert.equal(item.dealerCategory, "Bottom");
+  assert.match(item.sourceUrl, /bottom-dump-trailers-semi-trailers/);
+  const mapped = run(`dealerToImportItem(${JSON.stringify(item)})`);
+  assert.equal(mapped.categorySlug, "trailers");
+  assert.equal(mapped.sourceUrl, item.sourceUrl);
+  assert.equal(mapped.subcategory, "Bottom");
+  for (const bad of [
+    item.sourceUrl.replace("www.diesel-depot.com", "other.example"),
+    item.sourceUrl.replace("https:", "http:"),
+    item.sourceUrl.replace("/inventory/", "/other/"),
+    item.sourceUrl.replace("/listing/for-sale/", "/listings/for-sale/"),
+    item.sourceUrl.replace("260985591", "not-an-id"),
+    item.sourceUrl.replace("https://", "https://user:password@"),
+    item.sourceUrl.replace("-semi-trailers", "-trailer-parts"),
+    item.sourceUrl.replace("-semi-trailers", "-other") + "&category=-semi-trailers",
+  ]) {
+    assert.equal(
+      run(`dealerToImportItem(${JSON.stringify({ ...item, sourceUrl: bad })}).categorySlug`),
+      "general",
+      bad,
+    );
+  }
+  assert.equal(
+    run(
+      `dealerToImportItem(${JSON.stringify({ ...item, dealerCategory: "Truck Parts and Components" })}).categorySlug`,
+    ),
+    "auto-parts",
+  );
+  assert.equal(
+    run(
+      `dealerToImportItem(${JSON.stringify({ ...item, dealerCategory: "Construction Equipment" })}).categorySlug`,
+    ),
+    "industrial",
+  );
+});
 test("wrong listing, verification, missing price, and explicit unavailability remain distinct", () => {
   const f = fixture("truck");
   assert.equal(

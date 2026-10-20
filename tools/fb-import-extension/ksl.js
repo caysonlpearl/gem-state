@@ -324,8 +324,10 @@ function kslMapCategory(category, subCategory, title, description) {
     const rule = KSL_CATEGORY_RULES.find(([pattern]) => pattern.test(value));
     if (rule) return rule[1];
   }
-  // Fall back to the same title/description guess the Facebook reader uses.
-  return typeof inferCategory === "function" ? inferCategory(title, description) : "general";
+  // Match server categoryHintFrom: KSL descriptions can be spec sheets or
+  // blurbs. Incidental component words must not turn an unknown item into
+  // Auto Parts. Leave ambiguous titles in General for administrator review.
+  return typeof inferCategory === "function" ? inferCategory(title, "") : "general";
 }
 
 // --- Driving the browser -----------------------------------------------------

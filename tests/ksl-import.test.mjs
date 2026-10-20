@@ -14,6 +14,45 @@ vm.createContext(sandbox);
 vm.runInContext(source, sandbox);
 const ksl = (expression) => vm.runInContext(expression, sandbox);
 
+test("ambiguous KSL taxonomy uses title evidence, not incidental spec-sheet or blurb words", () => {
+  // Run the real fallback used by the extension, rather than the mapper stub.
+  const background = readFileSync(
+    new URL("../tools/fb-import-extension/background.js", import.meta.url),
+    "utf8",
+  );
+  const real = vm.createContext({
+    chrome: {
+      runtime: { onMessage: { addListener() {} } },
+      action: { onClicked: { addListener() {} } },
+    },
+  });
+  vm.runInContext(background, real);
+  vm.runInContext(source, real);
+  const map = (category, subcategory, title, description) => {
+    real.input = { kslCategory: category, kslSubCategory: subcategory, title, description };
+    return vm.runInContext("kslToImportItem(input).categorySlug", real);
+  };
+  // Synthetic specs reproduce a whole machine's component labels without
+  // assuming a manufacturer/model identifies a particular kind of machine.
+  const specs = "Manufacturer\nEXAMPLE\nModel\nX42\nVIN\nEXAMPLE123\nTires\n11R24.5\nWheels\nSteel";
+  assert.equal(map("General", "Other", "2027 EXAMPLE X42", specs), "general");
+  assert.equal(
+    map("General", "Other", "The Last Journey", "A story about a car engine."),
+    "general",
+  );
+  assert.equal(map("General", "Other", "Replacement alternator", specs), "auto-parts");
+  assert.equal(map("General", "Other", "Cargo trailer", specs), "trailers");
+  // Recognized source categories still win over both titles and descriptions.
+  assert.equal(
+    map("Auto Parts and Accessories", "Auto Accessories", "3 Hose Reel Cabinets", "Shop storage"),
+    "auto-parts",
+  );
+  assert.equal(
+    map("Industrial", "Heavy Equipment/Tractors", "2013 PETERBILT 388", specs),
+    "industrial",
+  );
+});
+
 test("recognises KSL seller and listing pages", () => {
   const member = ksl("KSL_MEMBER_RE");
   assert.ok(member.test("https://classifieds.ksl.com/search/member/5162572"));
@@ -34,12 +73,14 @@ test("drops the trailing city from KSL titles", () => {
 
 test("maps KSL categories to Bluebird slugs", () => {
   const map = (category, sub, title = "") =>
-    ksl(`kslMapCategory(${JSON.stringify(category)}, ${JSON.stringify(sub)}, ${JSON.stringify(title)}, "")`);
+    ksl(
+      `kslMapCategory(${JSON.stringify(category)}, ${JSON.stringify(sub)}, ${JSON.stringify(title)}, "")`,
+    );
   assert.equal(map("Livestock", "Horses"), "pets");
   assert.equal(map("Recreational Vehicles", "Travel Trailers"), "rvs-campers");
   assert.equal(map("Furniture", "Dressers"), "furniture");
   assert.equal(map("Sporting Goods", "Bicycles"), "outdoor-sporting");
-  // Unknown categories fall back to the shared title/description guess.
+  // Unknown categories fall back to the shared title-only guess.
   assert.equal(map("", "", "Something odd"), "general");
 });
 
