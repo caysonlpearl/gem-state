@@ -7,6 +7,7 @@ import {
   freshMarketCheckInventory,
   marketCheckCachePageKeys,
   marketCheckImages,
+  marketCheckLookupStatus,
   normalizeMarketCheckListing,
   normalizeMarketCheckSearch,
   parseMarketCheckId,
@@ -140,6 +141,15 @@ test("validates partner IDs", () => {
     providerId: "123",
   });
   assert.equal(parseMarketCheckId("marketcheck-auction-123"), null);
+});
+
+test("keeps provider failures separate from a confirmed missing listing", () => {
+  assert.equal(marketCheckLookupStatus(404), "not-found");
+  assert.equal(marketCheckLookupStatus(429), "limited");
+  assert.equal(marketCheckLookupStatus(401), "unavailable");
+  assert.equal(marketCheckLookupStatus(403), "unavailable");
+  assert.equal(marketCheckLookupStatus(422), "unavailable");
+  assert.equal(marketCheckLookupStatus(500), "unavailable");
 });
 
 test("canonicalizes only historical repeated dealer prefixes", () => {
