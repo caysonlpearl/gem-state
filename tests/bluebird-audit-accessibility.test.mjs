@@ -17,6 +17,7 @@ const listingCardSource = await readFile(
   "utf8",
 );
 const homeSource = await readFile(new URL("../src/routes/index.tsx", import.meta.url), "utf8");
+const browseSource = await readFile(new URL("../src/routes/browse.tsx", import.meta.url), "utf8");
 
 function componentSource(source, fileName, name) {
   const file = ts.createSourceFile(
@@ -95,6 +96,24 @@ test("homepage empty rows use a subordinate heading while standalone empty state
   assert.match(homeSource, /function EmptyState\([\s\S]*?<BluebirdEmptyState\s+headingLevel="h2"/);
   assert.match(placePageSource, /<BluebirdEmptyState\s+headingLevel="h2"/);
   assert.match(emptyStateSource, /headingLevel = "h1"/);
+});
+
+test("browse results have a heading before cards and empty-state text stays at h2", () => {
+  assert.match(
+    browseSource,
+    /<section id="results" aria-labelledby="browse-results-heading"[^>]*>\s*<h2 id="browse-results-heading" className="sr-only">\s*Search results\s*<\/h2>/,
+  );
+  assert.match(
+    browseSource,
+    /<BluebirdEmptyState\s+className="mt-5"\s+headingLevel="h2"\s+title="No listings match these filters\."/,
+  );
+});
+
+test("featured pets and firearms remain adjacent in the two-column homepage grid", () => {
+  assert.match(
+    homeSource,
+    /className="homepage-featured-categories mt-5 grid grid-cols-2[\s\S]*?\{ slug: "pets", title: "Pets & adoption"[\s\S]*?\{ slug: "firearms", title: "Firearms & gear"/,
+  );
 });
 
 test("photo-only listing links expose a title-based accessible name", () => {

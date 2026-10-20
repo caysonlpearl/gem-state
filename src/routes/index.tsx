@@ -21,6 +21,7 @@ import type { LocationPoint } from "@/components/classifieds/LocationRadiusPicke
 import {
   browseClassifieds,
   getClassifiedsHome,
+  getClassifiedsHomeLead,
   type ClassifiedsHome,
 } from "@/lib/classifieds.functions";
 import { useServerFn } from "@tanstack/react-start";
@@ -41,6 +42,12 @@ const homeQuery = queryOptions({
   queryKey: ["classifieds-home"],
   staleTime: PUBLIC_PAGE_STALE_MS,
   queryFn: () => getClassifiedsHome(),
+});
+
+const homeLeadQuery = queryOptions({
+  queryKey: ["classifieds-home-lead"],
+  staleTime: PUBLIC_PAGE_STALE_MS,
+  queryFn: () => getClassifiedsHomeLead(),
 });
 
 export const Route = createFileRoute("/")({
@@ -68,6 +75,7 @@ export const Route = createFileRoute("/")({
   // still get them).
   loader: ({ context }) => {
     void context.queryClient.prefetchQuery(homeQuery);
+    void context.queryClient.prefetchQuery(homeLeadQuery);
   },
   component: Home,
 });
@@ -500,9 +508,12 @@ function Home() {
 
       <HomepageFeaturedCategories withLocation={where.withLocation} />
 
-      {/* Listing rows wait on data; the hero above never does, so the
-          page's largest text paints without waiting on the database. */}
+      {/* The lead photos use their own cached data query so the rest of the
+          homepage feeds cannot hold up the first vehicle image. */}
       <Suspense fallback={<HomeSectionsLoading />}>
+        <HomepageLeadVehicles where={where} />
+      </Suspense>
+      <Suspense fallback={null}>
         <HomeSections where={where} />
       </Suspense>
     </main>
@@ -634,9 +645,68 @@ function HomeSectionsLoading() {
   );
 }
 
+function HomepageLeadVehicles({ where }: { where: ReturnType<typeof homeLocation> }) {
+  const { data: homeLead } = useSuspenseQuery(homeLeadQuery);
+  const { motorCategories, matchesLocation, withLocation } = where;
+  const leadMotors = homeLead.motors.filter(matchesLocation).slice(0, HOMEPAGE_ROW_SIZE);
+
+  return (
+    <section className="homepage-lead-vehicles mt-6 sm:mt-14">
+      <div className="flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">
+            <Car size={14} weight="fill" /> Cars &amp; motors
+          </p>
+          <h2 className="mt-1 text-[19px] font-bold tracking-tight sm:whitespace-nowrap sm:text-[26px]">
+            Vehicles for sale in Idaho
+          </h2>
+        </div>
+        <Link
+          to="/browse"
+          search={withLocation({ group: "motors" })}
+          className={`${seeAll} shrink-0`}
+        >
+          All vehicles <ArrowRight size={12} />
+        </Link>
+      </div>
+      {leadMotors.length > 0 ? (
+        <div className="no-scrollbar mt-5 flex gap-4 overflow-x-auto pb-2 lg:grid lg:grid-cols-4 lg:overflow-visible">
+          {leadMotors.map((listing, index) => (
+            <div key={listing.id} className="min-w-[235px] lg:min-w-0">
+              <ListingCard listing={listing} priority={index === 0} />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <EmptyState
+          title={EMPTY_ROW_TITLE}
+          body="Vehicle listings show up here as soon as Idaho sellers post them. Have one to sell? Be one of the first."
+        />
+      )}
+      <div className="no-scrollbar -mx-4 mt-4 flex flex-nowrap gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">
+        {motorCategories.map((option) => (
+          <Link
+            key={option.slug}
+            to="/browse"
+            search={withLocation({ category: option.slug })}
+            className="inline-flex min-h-9 shrink-0 items-center whitespace-nowrap rounded-full border border-input bg-card px-3.5 text-[12px] sm:min-h-11 sm:px-4 sm:text-[12.5px] transition-colors hover:border-primary hover:bg-secondary"
+          >
+            {option.name}
+            {homeLead.categoryCounts[option.slug] ? (
+              <span className="ml-1.5 text-muted-foreground">
+                {homeLead.categoryCounts[option.slug]}
+              </span>
+            ) : null}
+          </Link>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
   const { data: home } = useSuspenseQuery(homeQuery);
-  const { motorCategories, matchesLocation, withLocation, feedLocation } = where;
+  const { matchesLocation, withLocation, feedLocation } = where;
   const localRecent = home.recent.filter(matchesLocation);
   const localMotors = home.motors.filter(matchesLocation);
   // The homepage shows Idaho homes for now; browse still includes the
@@ -717,58 +787,6 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
 
   return (
     <>
-      {/* Motors lead */}
-      <section className="homepage-lead-vehicles mt-6 sm:mt-14">
-        <div className="flex items-end justify-between gap-3">
-          <div className="min-w-0">
-            <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">
-              <Car size={14} weight="fill" /> Cars &amp; motors
-            </p>
-            <h2 className="mt-1 text-[19px] font-bold tracking-tight sm:whitespace-nowrap sm:text-[26px]">
-              Vehicles for sale in Idaho
-            </h2>
-          </div>
-          <Link
-            to="/browse"
-            search={withLocation({ group: "motors" })}
-            className={`${seeAll} shrink-0`}
-          >
-            All vehicles <ArrowRight size={12} />
-          </Link>
-        </div>
-        {leadMotors.length > 0 ? (
-          <div className="no-scrollbar mt-5 flex gap-4 overflow-x-auto pb-2 lg:grid lg:grid-cols-4 lg:overflow-visible">
-            {leadMotors.map((listing, index) => (
-              <div key={listing.id} className="min-w-[235px] lg:min-w-0">
-                <ListingCard listing={listing} priority={index === 0} />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <EmptyState
-            title={EMPTY_ROW_TITLE}
-            body="Vehicle listings show up here as soon as Idaho sellers post them. Have one to sell? Be one of the first."
-          />
-        )}
-        <div className="no-scrollbar -mx-4 mt-4 flex flex-nowrap gap-2 overflow-x-auto px-4 sm:mx-0 sm:flex-wrap sm:px-0">
-          {motorCategories.map((option) => (
-            <Link
-              key={option.slug}
-              to="/browse"
-              search={withLocation({ category: option.slug })}
-              className="inline-flex min-h-9 shrink-0 items-center whitespace-nowrap rounded-full border border-input bg-card px-3.5 text-[12px] sm:min-h-11 sm:px-4 sm:text-[12.5px] transition-colors hover:border-primary hover:bg-secondary"
-            >
-              {option.name}
-              {home.categoryCounts[option.slug] ? (
-                <span className="ml-1.5 text-muted-foreground">
-                  {home.categoryCounts[option.slug]}
-                </span>
-              ) : null}
-            </Link>
-          ))}
-        </div>
-      </section>
-
       {/* Everything else */}
       <section className="mt-16">
         <h2 className="text-[26px] font-bold tracking-tight">Browse other classifieds</h2>

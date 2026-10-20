@@ -162,10 +162,12 @@ function LogoImage({
   src,
   className,
   onMissing,
+  priority,
 }: {
   src: string;
   className: string;
   onMissing: () => void;
+  priority?: boolean;
 }) {
   const ref = useRef<HTMLImageElement>(null);
   useEffect(() => {
@@ -173,7 +175,15 @@ function LogoImage({
     if (img?.complete && img.naturalWidth === 0) onMissing();
   }, [onMissing]);
   return (
-    <img ref={ref} src={src} alt="" loading="lazy" onError={onMissing} className={className} />
+    <img
+      ref={ref}
+      src={src}
+      alt=""
+      loading={priority ? "eager" : "lazy"}
+      fetchPriority={priority ? "high" : undefined}
+      onError={onMissing}
+      className={className}
+    />
   );
 }
 
@@ -306,10 +316,12 @@ function LogoPhoto({
   listing,
   logoUrl,
   ratio,
+  priority,
 }: {
   listing: ClassifiedCard;
   logoUrl: string;
   ratio: string;
+  priority?: boolean;
 }) {
   const [missing, setMissing] = useState(false);
   if (missing) return <PlaceholderPhoto listing={withoutLogo(listing)} ratio={ratio} />;
@@ -317,6 +329,7 @@ function LogoPhoto({
     <div className={`relative ${ratio} overflow-hidden border-b border-border/60 bg-white p-3`}>
       <LogoImage
         src={logoUrl}
+        priority={priority}
         onMissing={() => setMissing(true)}
         className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.03]"
       />
@@ -336,7 +349,7 @@ export function ListingCardPhoto({
   const ratio = tall ? "aspect-[4/3]" : "aspect-[4/3]";
   const logoUrl = listingLogoUrl(listing);
   if (!listing.imageUrl && logoUrl) {
-    return <LogoPhoto listing={listing} logoUrl={logoUrl} ratio={ratio} />;
+    return <LogoPhoto listing={listing} logoUrl={logoUrl} ratio={ratio} priority={priority} />;
   }
   if (!listing.imageUrl) {
     return <PlaceholderPhoto listing={listing} ratio={ratio} />;

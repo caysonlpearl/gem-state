@@ -127,6 +127,38 @@ test("other homepage showcase sections do not add extra eager cards", () => {
 test("listing images stay lazy by default and only opt-in images get high fetch priority", () => {
   assert.match(cardSource, /loading=\{priority \? "eager" : "lazy"\}/);
   assert.match(cardSource, /fetchPriority=\{priority \? "high" : undefined\}/);
+  assert.match(
+    cardSource,
+    /<LogoPhoto listing=\{listing\} logoUrl=\{logoUrl\} ratio=\{ratio\} priority=\{priority\} \/>/,
+  );
+});
+
+test("prioritized employer logos render eagerly and retain lazy loading otherwise", () => {
+  const logoImage = componentSource(cardSource, "ListingCard.tsx", ["LogoImage"]);
+  const compiled = ts.transpileModule(logoImage.replace(/^function /, "function "), {
+    compilerOptions: { jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const LogoImage = vm.runInNewContext(`${compiled}\nLogoImage`, {
+    React,
+    useRef: React.useRef,
+    useEffect: React.useEffect,
+  });
+
+  const prioritized = renderToStaticMarkup(
+    React.createElement(LogoImage, {
+      src: "/logo.svg",
+      className: "logo",
+      onMissing() {},
+      priority: true,
+    }),
+  );
+  const following = renderToStaticMarkup(
+    React.createElement(LogoImage, { src: "/logo.svg", className: "logo", onMissing() {} }),
+  );
+  assert.match(prioritized, /loading="eager"/);
+  assert.match(prioritized, /fetchPriority="high"|fetchpriority="high"/i);
+  assert.match(following, /loading="lazy"/);
+  assert.doesNotMatch(following, /fetchPriority="high"|fetchpriority="high"/i);
 });
 
 test("the rendered listing photo emits eager/high only for the first visible fixture", () => {
