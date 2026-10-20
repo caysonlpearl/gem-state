@@ -1154,5 +1154,5 @@ function HomepageInfoBand({
 const EMPTY_ROW_TITLE = "Bluebird is just getting started.";
 
 function EmptyState({ title, body }: { title: string; body: string }) {
-  return <BluebirdEmptyState className="mt-5" title={title} description={body} />;
+  return <BluebirdEmptyState headingLevel="h2" className="mt-5" title={title} description={body} />;
 }

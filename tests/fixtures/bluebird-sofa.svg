@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600">
+  <rect width="800" height="600" fill="#e6eef4"/>
+  <rect y="420" width="800" height="180" fill="#c7d9e0"/>
+  <rect x="170" y="205" width="460" height="230" rx="44" fill="#46758c"/>
+  <rect x="135" y="250" width="96" height="180" rx="30" fill="#35677e"/>
+  <rect x="570" y="250" width="96" height="180" rx="30" fill="#35677e"/>
+  <rect x="260" y="210" width="16" height="220" rx="8" fill="#77a0b0" opacity=".8"/>
+  <rect x="520" y="210" width="16" height="220" rx="8" fill="#77a0b0" opacity=".8"/>
+  <path d="M190 435v52m420-52v52" stroke="#3b5360" stroke-width="22" stroke-linecap="round"/>
+  <text x="400" y="120" text-anchor="middle" font-family="sans-serif" font-size="30" fill="#274654">SYNTHETIC SOFA PHOTO</text>
+</svg>

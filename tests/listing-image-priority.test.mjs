@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import vm from "node:vm";
 import ts from "typescript";
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
 const homeSource = await readFile(new URL("../src/routes/index.tsx", import.meta.url), "utf8");
 const browseSource = await readFile(new URL("../src/routes/browse.tsx", import.meta.url), "utf8");
@@ -125,4 +127,34 @@ test("other homepage showcase sections do not add extra eager cards", () => {
 test("listing images stay lazy by default and only opt-in images get high fetch priority", () => {
   assert.match(cardSource, /loading=\{priority \? "eager" : "lazy"\}/);
   assert.match(cardSource, /fetchPriority=\{priority \? "high" : undefined\}/);
+});
+
+test("the rendered listing photo emits eager/high only for the first visible fixture", () => {
+  const photo = componentSource(cardSource, "ListingCard.tsx", ["ListingCardPhoto"]);
+  const compiled = ts.transpileModule(photo.replace(/^export\s+/, ""), {
+    compilerOptions: { jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const ListingCardPhoto = vm.runInNewContext(`${compiled}\nListingCardPhoto`, {
+    React,
+    listingLogoUrl: () => undefined,
+    LogoPhoto: "LogoPhoto",
+    PlaceholderPhoto: "PlaceholderPhoto",
+  });
+  const fixture = {
+    id: "synthetic-sofa",
+    title: "Mid-century blue sofa",
+    imageUrl: "/tests/fixtures/bluebird-sofa.svg",
+  };
+
+  const firstImage = renderToStaticMarkup(
+    React.createElement(ListingCardPhoto, { listing: fixture, priority: true }),
+  );
+  const followingImage = renderToStaticMarkup(
+    React.createElement(ListingCardPhoto, { listing: { ...fixture, id: "synthetic-dog" } }),
+  );
+
+  assert.match(firstImage, /loading="eager"/);
+  assert.match(firstImage, /fetchPriority="high"|fetchpriority="high"/i);
+  assert.match(followingImage, /loading="lazy"/);
+  assert.doesNotMatch(followingImage, /fetchPriority="high"|fetchpriority="high"/i);
 });

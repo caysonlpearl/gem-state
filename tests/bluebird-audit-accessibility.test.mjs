@@ -16,6 +16,7 @@ const listingCardSource = await readFile(
   new URL("../src/components/classifieds/ListingCard.tsx", import.meta.url),
   "utf8",
 );
+const homeSource = await readFile(new URL("../src/routes/index.tsx", import.meta.url), "utf8");
 
 function componentSource(source, fileName, name) {
   const file = ts.createSourceFile(
@@ -90,10 +91,16 @@ test("other empty states retain the component's default h1", () => {
   assert.equal(elementsOfType(tree, "h2").length, 0);
 });
 
+test("homepage empty rows use a subordinate heading while standalone empty states keep h1", () => {
+  assert.match(homeSource, /function EmptyState\([\s\S]*?<BluebirdEmptyState\s+headingLevel="h2"/);
+  assert.match(placePageSource, /<BluebirdEmptyState\s+headingLevel="h2"/);
+  assert.match(emptyStateSource, /headingLevel = "h1"/);
+});
+
 test("photo-only listing links expose a title-based accessible name", () => {
   assert.match(
     listingCardSource,
-    /<ListingLink\s+listing=\{listing\}\s+className="block"\s+ariaLabel=\{"View listing: " \+ listing\.title\}\s*>\s*<Photo/,
+    /<ListingLink\s+listing=\{listing\}\s+className="block"\s+ariaLabel=\{"View listing: " \+ listing\.title\}\s*>\s*<ListingCardPhoto/,
   );
 
   const component = componentSource(listingCardSource, "ListingCard.tsx", "ListingLink");

@@ -324,7 +324,7 @@ function LogoPhoto({
   );
 }
 
-function Photo({
+export function ListingCardPhoto({
   listing,
   tall,
   priority,
@@ -477,7 +477,7 @@ export function ListingCard({
           className="block"
           ariaLabel={"View listing: " + listing.title}
         >
-          <Photo listing={listing} priority={priority} />
+          <ListingCardPhoto listing={listing} priority={priority} />
         </ListingLink>
         {soldAt ? (
           <span className="absolute left-2 top-2 z-10 inline-flex rounded-full bg-foreground px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-background shadow-sm">
@@ -606,7 +606,7 @@ export function ListingRow({ listing }: { listing: ClassifiedCard }) {
         listing={listing}
         className="grid grid-cols-[130px_minmax(0,1fr)] gap-3 sm:grid-cols-[210px_minmax(0,1fr)]"
       >
-        <Photo listing={listing} />
+        <ListingCardPhoto listing={listing} />
         <div className="min-w-0 py-3 pr-3">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3">
             <h3 className="min-w-0 flex-1 truncate text-[14px] font-semibold group-hover:text-primary">
