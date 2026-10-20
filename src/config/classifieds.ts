@@ -818,8 +818,7 @@ for (const [city, , latitude, longitude] of idahoPlaces) {
 // Keep this legacy radius-center entry state-qualified even though it is not
 // currently one of the location selector's options.
 recordClassifiedCityState("Murray", "UT");
-if (classifiedCityCenters["murray, ut"])
-  recordClassifiedCityCenter("Murray", "UT", classifiedCityCenters["murray, ut"]);
+recordClassifiedCityCenter("Murray", "UT", classifiedCityCenters.murray);
 
 export function classifiedStatesForCity(city: string) {
   const normalizedCity = city

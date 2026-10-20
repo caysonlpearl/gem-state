@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { findIdahoPlace, idahoPlaces } from "../src/config/idaho-places.ts";
 import {
   classifiedCoordinatesForCity,
+  classifiedCityCenters,
   classifiedDistanceMiles,
   classifiedProviderSearchStates,
   classifiedStatesForCity,
@@ -195,6 +196,50 @@ test("every duplicate city across supported states resolves only with a state", 
       [latitude, longitude],
       `${city}, ID must use the Idaho Gazetteer center`,
     );
+  }
+});
+
+test("Murray, Utah keeps its legacy center and nearby listings in radius searches", () => {
+  assert.deepEqual(classifiedCoordinatesForCity("Murray", "UT"), [40.6669, -111.888]);
+  assert.equal(
+    isWithinClassifiedRadius({
+      city: "Murray",
+      cityState: "UT",
+      listingCity: "Salt Lake City",
+      listingState: "UT",
+      radiusMiles: 10,
+    }),
+    true,
+  );
+});
+
+test("every previously configured center remains available for its registered state", () => {
+  for (const [key, expectedCenter] of Object.entries(classifiedCityCenters)) {
+    const qualified = key.match(/^(.*),\s*(ID|UT|OR|WA)$/i);
+    const city = (qualified?.[1] ?? key).trim();
+    const states = qualified ? [qualified[2].toUpperCase()] : classifiedStatesForCity(city);
+    const knownStates = classifiedStatesForCity(city);
+    assert.ok(states.length, `${key} must have a registered state`);
+
+    let centerStillUsed = false;
+    for (const state of states) {
+      const center = classifiedCoordinatesForCity(city, state);
+      assert.ok(center, `${city}, ${state} center must resolve`);
+      if (JSON.stringify(center) === JSON.stringify(expectedCenter)) centerStillUsed = true;
+    }
+    assert.ok(centerStillUsed, `${key} must remain a center for at least one state`);
+
+    if (knownStates.length === 1)
+      assert.deepEqual(
+        classifiedCoordinatesForCity(city),
+        classifiedCoordinatesForCity(city, knownStates[0]),
+      );
+    else if (knownStates.length > 1)
+      assert.equal(
+        classifiedCoordinatesForCity(city),
+        undefined,
+        `${city} is ambiguous without state`,
+      );
   }
 });
 
