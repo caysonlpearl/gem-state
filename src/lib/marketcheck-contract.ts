@@ -389,6 +389,30 @@ export function parseMarketCheckId(
   return { sourceKind: match[1] as MarketCheckSourceKind, providerId: match[2] };
 }
 
+/**
+ * Return the stable listing ID for a MarketCheck URL.
+ *
+ * A warm-cache regression briefly wrapped already-normalized dealer IDs and
+ * produced IDs such as `marketcheck-dealer-marketcheck-dealer-VIN`. The
+ * `marketcheck-*` prefix is Bluebird's reserved listing namespace, so a
+ * repeated dealer prefix is historical corruption rather than a provider ID.
+ * Only that exact repeated prefix is repaired; FSBO and unrelated IDs are
+ * preserved, and malformed values are rejected before any lookup can run.
+ */
+export function canonicalMarketCheckId(id: string): string | null {
+  if (!MARKETCHECK_ID.test(id)) return null;
+  const parsed = parseMarketCheckId(id);
+  if (!parsed) return null;
+  if (parsed.sourceKind !== "dealer") return id;
+
+  const repeatedPrefix = "marketcheck-dealer-";
+  if (!parsed.providerId.startsWith(repeatedPrefix)) return id;
+
+  const providerId = parsed.providerId.replace(/^(?:marketcheck-dealer-)+/, "");
+  if (!providerId) return null;
+  return marketCheckListingId("dealer", providerId);
+}
+
 export function normalizeMarketCheckListing(
   payload: unknown,
   sourceKind: MarketCheckSourceKind,

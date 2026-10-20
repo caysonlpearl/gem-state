@@ -55,6 +55,7 @@ import { ListingActions } from "@/components/classifieds/ListingActions";
 import { MobileContactBar } from "@/components/classifieds/MobileContactBar";
 import { OPEN_CONTACT_EVENT } from "@/components/classifieds/ContactSignInSheet";
 import { listingIdFromParam, listingParam, listingPath } from "@/lib/listing-url";
+import { canonicalMarketCheckId } from "@/lib/marketcheck-contract";
 import { trackEvent, trackSellerContact } from "@/lib/analytics";
 import { PUBLIC_PAGE_STALE_MS } from "@/lib/query-freshness";
 import { recordListingView } from "@/lib/listing-stats.functions";
@@ -179,6 +180,16 @@ function ListingMapEmbed({
 
 export const Route = createFileRoute("/listings/$listingId")({
   loader: async ({ context, params }) => {
+    // Historical warm-cache rows generated repeated dealer prefixes. Redirect
+    // before querying the listing so the old URL cannot spend a provider call.
+    const canonicalMarketCheckIdValue = canonicalMarketCheckId(params.listingId);
+    if (canonicalMarketCheckIdValue && canonicalMarketCheckIdValue !== params.listingId) {
+      throw redirect({
+        to: "/listings/$listingId",
+        params: { listingId: canonicalMarketCheckIdValue },
+        statusCode: 301,
+      });
+    }
     const listingId = listingIdFromParam(params.listingId);
     const listing = await context.queryClient.ensureQueryData(listingQuery(listingId));
     if (!listing && (listingId.startsWith("mashvisor-") || listingId.startsWith("openwebninja-"))) {

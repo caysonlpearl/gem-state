@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   MARKETCHECK_ID,
+  canonicalMarketCheckId,
   dedupeMarketCheckImages,
   freshMarketCheckInventory,
   marketCheckCachePageKeys,
@@ -139,6 +140,39 @@ test("validates partner IDs", () => {
     providerId: "123",
   });
   assert.equal(parseMarketCheckId("marketcheck-auction-123"), null);
+});
+
+test("canonicalizes only historical repeated dealer prefixes", () => {
+  assert.equal(
+    canonicalMarketCheckId("marketcheck-dealer-VIN123-abc"),
+    "marketcheck-dealer-VIN123-abc",
+  );
+  assert.equal(
+    canonicalMarketCheckId("marketcheck-dealer-marketcheck-dealer-VIN123-abc"),
+    "marketcheck-dealer-VIN123-abc",
+  );
+  assert.equal(
+    canonicalMarketCheckId(
+      canonicalMarketCheckId("marketcheck-dealer-marketcheck-dealer-VIN123-abc"),
+    ),
+    "marketcheck-dealer-VIN123-abc",
+  );
+  assert.equal(
+    canonicalMarketCheckId("marketcheck-dealer-marketcheck-dealer-marketcheck-dealer-VIN123-abc"),
+    "marketcheck-dealer-VIN123-abc",
+  );
+  assert.equal(
+    canonicalMarketCheckId("marketcheck-fsbo-VIN123-abc"),
+    "marketcheck-fsbo-VIN123-abc",
+  );
+  assert.equal(
+    canonicalMarketCheckId("marketcheck-fsbo-marketcheck-fsbo-VIN123-abc"),
+    "marketcheck-fsbo-marketcheck-fsbo-VIN123-abc",
+  );
+  assert.equal(canonicalMarketCheckId("marketcheck-dealer-marketcheck-dealer-"), null);
+  assert.equal(canonicalMarketCheckId("marketcheck-dealer-bad/id"), null);
+  assert.equal(canonicalMarketCheckId("fsq-123"), null);
+  assert.equal(canonicalMarketCheckId("not-a-listing"), null);
 });
 
 test("never sends key-bearing photo links and fills a private seller's city", async () => {

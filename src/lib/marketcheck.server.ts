@@ -21,6 +21,7 @@ import {
   marketCheckImages,
   normalizeMarketCheckListing,
   normalizeMarketCheckSearch,
+  canonicalMarketCheckId,
   parseMarketCheckId,
   freshMarketCheckInventory,
   marketCheckCachePageKeys,
@@ -541,7 +542,8 @@ export async function marketCheckCards(
 }
 
 export async function marketCheckDetail(listingId: string): Promise<ClassifiedDetail | null> {
-  const parsed = parseMarketCheckId(listingId);
+  const canonicalId = canonicalMarketCheckId(listingId);
+  const parsed = canonicalId ? parseMarketCheckId(canonicalId) : null;
   if (!parsed || !configured()) return null;
   const key = JSON.stringify({
     v: 1,
