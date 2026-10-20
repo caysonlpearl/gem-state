@@ -28,10 +28,12 @@ function ListingLink({
   listing,
   className,
   children,
+  ariaLabel,
 }: {
   listing: ClassifiedCard;
   className: string;
   children: ReactNode;
+  ariaLabel?: string;
 }) {
   // Partner (Adzuna) jobs open on Bluebird's own job page like any listing;
   // the visitor leaves for Adzuna only from that page's Apply button.
@@ -40,6 +42,7 @@ function ListingLink({
       to="/listings/$listingId"
       params={{ listingId: listingParam(listing) }}
       className={className}
+      aria-label={ariaLabel}
     >
       {children}
     </Link>
@@ -469,7 +472,11 @@ export function ListingCard({
   return (
     <article className="group relative min-w-0 overflow-hidden rounded-2xl border border-transparent bg-card shadow-sm transition-shadow hover:shadow-md">
       <div className="relative">
-        <ListingLink listing={listing} className="block">
+        <ListingLink
+          listing={listing}
+          className="block"
+          ariaLabel={"View listing: " + listing.title}
+        >
           <Photo listing={listing} priority={priority} />
         </ListingLink>
         {soldAt ? (

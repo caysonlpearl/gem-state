@@ -174,7 +174,7 @@ function RegionGroups({ groups }: { groups: PlacePageData["regionGroups"] }) {
           <ul className="mt-4 grid grid-cols-2 gap-x-4 gap-y-9 md:grid-cols-3 xl:grid-cols-4">
             {group.listings.map((listing, index) => (
               <li key={listing.id}>
-                <ListingCard listing={listing} priority={groupIndex === 0 && index < 2} />
+                <ListingCard listing={listing} priority={groupIndex === 0 && index === 0} />
               </li>
             ))}
           </ul>
@@ -301,6 +301,7 @@ export function PlacePage({ data }: { data: PlacePageData }) {
 
       {data.listings.length === 0 ? (
         <BluebirdEmptyState
+          headingLevel="h2"
           title="Nothing listed here yet"
           description="New listings show up on this page as soon as they're posted. Try nearby cities or other categories below."
         />
@@ -311,7 +312,7 @@ export function PlacePage({ data }: { data: PlacePageData }) {
           <ul className="grid grid-cols-2 gap-x-4 gap-y-9 md:grid-cols-3 xl:grid-cols-4">
             {data.listings.map((listing, index) => (
               <li key={listing.id}>
-                <ListingCard listing={listing} priority={index < 2} />
+                <ListingCard listing={listing} priority={index === 0} />
               </li>
             ))}
           </ul>

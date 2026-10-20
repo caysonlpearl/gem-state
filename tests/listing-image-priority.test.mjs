@@ -10,9 +10,19 @@ const cardSource = await readFile(
   new URL("../src/components/classifieds/ListingCard.tsx", import.meta.url),
   "utf8",
 );
+const placePageSource = await readFile(
+  new URL("../src/components/classifieds/PlacePage.tsx", import.meta.url),
+  "utf8",
+);
 
 function componentSource(source, fileName, names) {
-  const file = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const file = ts.createSourceFile(
+    fileName,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
   return names
     .map((name) => {
       const declaration = file.statements.find(
@@ -45,10 +55,7 @@ function render(source, fileName, entry, globals = {}) {
 function elementsOfType(node, type) {
   if (Array.isArray(node)) return node.flatMap((child) => elementsOfType(child, type));
   if (!node || typeof node !== "object") return [];
-  return [
-    ...(node.type === type ? [node] : []),
-    ...elementsOfType(node.children, type),
-  ];
+  return [...(node.type === type ? [node] : []), ...elementsOfType(node.children, type)];
 }
 
 const listings = Array.from({ length: 6 }, (_, index) => ({
@@ -85,14 +92,34 @@ test("category landing and Pets listing showcases prioritize one card per page",
   const tree = render(
     showcaseSource,
     "browse.tsx",
-    `LandingListingsShowcase({ eyebrow: "Bluebird Marketplace Pets", title: "Latest pet listings", action: "Browse all pets", browseSearch: { category: "pets" }, listings: ${JSON.stringify(listings)} })`,
+    `LandingListingsShowcase({ eyebrow: "Bluebird Marketplace Pets", title: "Latest pet listings", action: "Browse all pets", browseSearch: { category: "pets" }, listings: ${JSON.stringify(listings)}, compact: true })`,
   );
-  const priorities = elementsOfType(tree, "ListingCard").map((card) => card.props.priority);
-  assert.deepEqual(priorities, [true, false, false, false]);
+  const cards = elementsOfType(tree, "ListingCard");
+  const priorities = cards.map((card) => card.props.priority);
+  assert.deepEqual(priorities, [true, false, false, false, false]);
+  const listItems = elementsOfType(tree, "li");
+  assert.match(listItems[4].props.className, /hidden lg:block/);
   assert.match(
     browseSource,
     /pets && petLanding && \([\s\S]*?title="Latest pet listings"[\s\S]*?listings=\{result\.listings\}/,
   );
+});
+
+test("city and category inventory pages prioritize only the first card in the first visible group", () => {
+  assert.match(
+    placePageSource,
+    /group\.listings\.map\(\(listing, index\) => \([\s\S]*?priority=\{groupIndex === 0 && index === 0\}/,
+  );
+  assert.match(
+    placePageSource,
+    /data\.listings\.map\(\(listing, index\) => \([\s\S]*?priority=\{index === 0\}/,
+  );
+  assert.doesNotMatch(placePageSource, /priority=\{[^}]*index < 2/);
+});
+
+test("other homepage showcase sections do not add extra eager cards", () => {
+  const source = componentSource(browseSource, "browse.tsx", ["HomepageShowcaseRows"]);
+  assert.doesNotMatch(source, /priority=/);
 });
 
 test("listing images stay lazy by default and only opt-in images get high fetch priority", () => {
