@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import { trackEvent } from "@/lib/analytics";
 import { PUBLIC_PAGE_STALE_MS } from "@/lib/query-freshness";
 import { jsonLdScript, siteStructuredData } from "@/lib/structured-data";
+import { excludeAutoPartsFromVehicleRows } from "@/lib/homepage-vehicle-sections";
 
 // The map (and its stylesheet) only loads when someone opens it, so it never
 // delays the first paint of the home page.
@@ -797,6 +798,7 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
   const { matchesLocation, withLocation, feedLocation } = where;
   const localRecent = home.recent.filter(matchesLocation);
   const localMotors = home.motors.filter(matchesLocation);
+  const localVehicleInventory = excludeAutoPartsFromVehicleRows(localMotors);
   // The homepage shows Idaho homes for now; browse still includes the
   // surrounding states.
   const homeListings = localRecent.filter(
@@ -835,15 +837,17 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
   );
   const freshListings = pick(localRecent.filter((listing) => !listing.pet));
   const fartherAwayListings = pick(home.recent.filter((listing) => !matchesLocation(listing)));
-  const vehicleListings = pick(localMotors);
+  const vehicleListings = pick(localVehicleInventory);
   const truckListings = pick(
-    localMotors.filter((listing) =>
+    localVehicleInventory.filter((listing) =>
       /truck|suv|pickup|jeep|sport utility|chassis/i.test(
         `${listing.vehicle?.bodyStyle ?? ""} ${listing.title}`,
       ),
     ),
   );
-  const valueVehicleListings = pick([...localMotors].sort((a, b) => a.priceCents - b.priceCents));
+  const valueVehicleListings = pick(
+    [...localVehicleInventory].sort((a, b) => a.priceCents - b.priceCents),
+  );
   const buyHomes = pick(homeListings.filter((listing) => listing.home?.mode === "buy"));
   const buildHomes = pick(homeListings.filter((listing) => listing.home?.mode === "build"));
   const rentalHomes = pick(homeListings.filter((listing) => listing.home?.mode === "rent"));

@@ -6,6 +6,27 @@ import ts from "typescript";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { classifiedCategories } from "../src/config/classifieds.ts";
+import { excludeAutoPartsFromVehicleRows } from "../src/lib/homepage-vehicle-sections.ts";
+
+test("homepage vehicle rows exclude parts while retaining vehicle and trailer listings", () => {
+  const listings = [
+    { id: "car", categorySlug: "cars-trucks" },
+    { id: "trailer", categorySlug: "trailers" },
+    { id: "parts", categorySlug: "auto-parts" },
+  ];
+  assert.deepEqual(
+    excludeAutoPartsFromVehicleRows(listings).map((listing) => listing.id),
+    ["car", "trailer"],
+  );
+  const route = readFileSync(new URL("../src/routes/index.tsx", import.meta.url), "utf8");
+  assert.match(
+    route,
+    /const localVehicleInventory = excludeAutoPartsFromVehicleRows\(localMotors\)/,
+  );
+  assert.match(route, /const vehicleListings = pick\(localVehicleInventory\)/);
+  assert.match(route, /localVehicleInventory\.filter\(\(listing\) =>/);
+  assert.match(route, /\[\.\.\.localVehicleInventory\]\.sort\(/);
+});
 
 const source = readFileSync(
   new URL("../src/lib/classifieds.functions.ts", import.meta.url),
