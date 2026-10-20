@@ -339,6 +339,9 @@ export function classifiedSubcategorySearch(category: string, value: string) {
     category,
     itemDetailKey: classifiedSubcategoryField(category).key,
     itemDetailValue: value,
+    ...(["cars-trucks", "motorcycles", "rvs-campers", "powersports", "auto-parts", "trailers"].includes(category)
+      ? {vehicleMode:"results" as const}
+      : {}),
   };
 }
 

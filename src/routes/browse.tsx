@@ -1073,6 +1073,7 @@ function normalizeBrowseSearch(search: Search): Search {
   const homes = next.category === "other-real-estate";
   const firearms = next.category === "firearms";
 
+  if (motors && next.itemDetailKey && next.itemDetailValue) next.vehicleMode = "results";
   if (!motors) clear(vehicleSearchKeys);
   if (!pets) clear(petSearchKeys);
   if (!jobs) clear(jobSearchKeys);

@@ -241,3 +241,9 @@ test("visible KSL taxonomy survives incomplete embedded details without hiding t
   ctx.location = {href:"https://classifieds.ksl.com/listing/80713052"};
   assert.deepEqual(run("kslExtractListingInPage(false)"), {kslCategory:"Industrial",kslSubCategory:"Air Compressors",incomplete:true});
 });
+
+
+test("motor subcategory destinations open results directly instead of the category landing", () => {
+  for (const category of ["cars-trucks","motorcycles","rvs-campers","powersports","auto-parts","trailers"])
+    assert.equal(classifiedSubcategorySearch(category,"Imported subtype").vehicleMode,"results");
+});
