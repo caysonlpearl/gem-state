@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { marketCheckCards } from "../src/lib/marketcheck.server.ts";
+import { normalizeMarketCheckSearch } from "../src/lib/marketcheck-contract.ts";
 
 const supportedStates = ["ID", "UT", "OR", "WA"];
 
@@ -32,6 +33,82 @@ function providerListing(state, kind, start, index) {
       fuel_type: "Gasoline",
     },
   };
+}
+
+async function withMockMarketCheck({ initialCache = [], allowReservation, onProvider }, run) {
+  const envNames = [
+    "GEM_STATE_SUPABASE_URL",
+    "SUPABASE_URL",
+    "GEM_STATE_SUPABASE_SERVICE_ROLE_KEY",
+    "SUPABASE_SERVICE_ROLE_KEY",
+    "MARKETCHECK_API_KEY",
+    "MARKETCHECK_MONTHLY_CALL_LIMIT",
+  ];
+  const previousEnv = Object.fromEntries(envNames.map((name) => [name, process.env[name]]));
+  const originalFetch = globalThis.fetch;
+  const cache = new Map(initialCache.map((row) => [row.cache_key, row]));
+  const cacheWrites = [];
+  const reservations = [];
+  const providerCalls = [];
+
+  process.env.GEM_STATE_SUPABASE_URL = "https://supabase.mock.test";
+  process.env.SUPABASE_URL = "";
+  process.env.GEM_STATE_SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
+  process.env.SUPABASE_SERVICE_ROLE_KEY = "";
+  process.env.MARKETCHECK_API_KEY = "test-marketcheck-key";
+  delete process.env.MARKETCHECK_MONTHLY_CALL_LIMIT;
+
+  globalThis.fetch = async (input, init = {}) => {
+    const requestUrl = typeof input === "string" || input instanceof URL ? input : input.url;
+    const url = new URL(requestUrl);
+    const method = (init.method ?? "GET").toUpperCase();
+
+    if (url.hostname === "supabase.mock.test") {
+      if (url.pathname.endsWith("/rpc/reserve_marketcheck_call")) {
+        const body = JSON.parse(init.body);
+        const allowed = allowReservation(body, reservations);
+        reservations.push({ ...body, allowed, providerCallsAtReservation: providerCalls.length });
+        return Response.json({ allowed });
+      }
+      if (url.pathname.endsWith("/marketcheck_cache") && method === "GET") {
+        const filter = url.searchParams.get("cache_key");
+        const rows = filter?.startsWith("eq.")
+          ? [cache.get(filter.slice(3))].filter(Boolean)
+          : [...cache.values()];
+        return Response.json(rows);
+      }
+      if (url.pathname.endsWith("/marketcheck_cache") && method === "POST") {
+        const payload = JSON.parse(init.body);
+        const rows = Array.isArray(payload) ? payload : [payload];
+        for (const row of rows) {
+          cache.set(row.cache_key, row);
+          cacheWrites.push(row);
+        }
+        return new Response(null, { status: 201 });
+      }
+      throw new Error(`Unexpected mocked database request: ${method} ${url.pathname}`);
+    }
+
+    if (url.hostname !== "api.marketcheck.com")
+      throw new Error(`Unexpected network destination: ${url.hostname}`);
+
+    const state = url.searchParams.get("state");
+    const start = Number(url.searchParams.get("start"));
+    const kind = url.pathname.includes("/fsbo/") ? "fsbo" : "dealer";
+    const call = { state, start, kind };
+    providerCalls.push(call);
+    return onProvider(call);
+  };
+
+  try {
+    await run({ cache, cacheWrites, reservations, providerCalls });
+  } finally {
+    globalThis.fetch = originalFetch;
+    for (const name of envNames) {
+      if (previousEnv[name] === undefined) delete process.env[name];
+      else process.env[name] = previousEnv[name];
+    }
+  }
 }
 
 test("radius browse fetches supported-state caches within page/budget ceilings, then filters by distance", async () => {
@@ -155,4 +232,96 @@ test("radius browse fetches supported-state caches within page/budget ceilings, 
       else process.env[name] = previousEnv[name];
     }
   }
+});
+
+test("quota denials gate provider calls and repeated refreshes preserve stale cache retention", async () => {
+  const staleDealerKey = JSON.stringify({ v: 3, kind: "dealer", state: "WA", start: 0 });
+  const staleExpiresAt = "2026-01-01T00:00:00.000Z";
+  const staleDealerPayload = normalizeMarketCheckSearch(
+    {
+      num_found: 1,
+      listings: [providerListing("WA", "dealer", 0, 500)],
+    },
+    "dealer",
+  );
+  let allowedReservations = 0;
+  await withMockMarketCheck(
+    {
+      initialCache: [
+        {
+          cache_key: staleDealerKey,
+          payload: staleDealerPayload,
+          expires_at: staleExpiresAt,
+        },
+      ],
+      allowReservation: ({ p_cache_key }) => {
+        const key = JSON.parse(p_cache_key);
+        if (key.kind === "fsbo" && allowedReservations === 0) {
+          allowedReservations += 1;
+          return true;
+        }
+        return false;
+      },
+      onProvider: ({ state, kind, start }) =>
+        Response.json({
+          num_found: 1,
+          listings: [providerListing(state, kind, start, 501)],
+        }),
+    },
+    async ({ cache, cacheWrites, reservations, providerCalls }) => {
+      const browse = { group: "motors", state: "Washington" };
+      const firstResult = await marketCheckCards(browse, { forceRefresh: true });
+
+      assert.equal(allowedReservations, 1);
+      assert.equal(reservations.length, 2);
+      assert.equal(reservations.filter((entry) => entry.allowed).length, 1);
+      assert.ok(reservations.every((entry) => entry.p_monthly_limit === 450));
+      assert.deepEqual(providerCalls, [{ state: "WA", start: 0, kind: "fsbo" }]);
+      assert.ok(firstResult.some((card) => card.externalVehicle.sourceKind === "dealer"));
+      assert.ok(firstResult.some((card) => card.externalVehicle.sourceKind === "fsbo"));
+      assert.ok(
+        reservations.some((entry) => entry.p_cache_key === staleDealerKey && !entry.allowed),
+      );
+      assert.ok(!providerCalls.some((call) => call.kind === "dealer"));
+
+      const retainedRowsAfterFirstAttempt = new Map(
+        [...cache].map(([key, row]) => [key, row.expires_at]),
+      );
+      assert.equal(cache.get(staleDealerKey).expires_at, staleExpiresAt);
+      assert.equal(
+        cacheWrites.some((row) => row.cache_key === staleDealerKey),
+        false,
+      );
+
+      for (let attempt = 0; attempt < 3; attempt += 1)
+        await marketCheckCards(browse, { forceRefresh: true });
+
+      assert.equal(providerCalls.length, 1, "denied and repeated refreshes must not call upstream");
+      assert.equal(cacheWrites.length, 1, "denied refreshes must not rewrite cache retention");
+      assert.deepEqual(
+        new Map([...cache].map(([key, row]) => [key, row.expires_at])),
+        retainedRowsAfterFirstAttempt,
+      );
+
+      const allowedKeys = new Set(
+        reservations.filter((entry) => entry.allowed).map((entry) => entry.p_cache_key),
+      );
+      for (const call of providerCalls) {
+        const key = JSON.stringify({ v: 3, kind: call.kind, state: call.state, start: call.start });
+        assert.ok(allowedKeys.has(key), `provider call ${key} must be budget-approved`);
+      }
+      for (const denied of reservations.filter((entry) => !entry.allowed)) {
+        const key = JSON.parse(denied.p_cache_key);
+        assert.ok(
+          !providerCalls
+            .slice(denied.providerCallsAtReservation)
+            .some(
+              (call) =>
+                call.state === key.state && call.kind === key.kind && call.start === key.start,
+            ),
+          `denied cache key ${denied.p_cache_key} must not reach provider`,
+        );
+      }
+    },
+  );
 });

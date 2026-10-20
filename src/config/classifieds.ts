@@ -634,13 +634,14 @@ export function classifiedCoordinatesForCity(city: string | undefined, state?: s
   if (selectedState) {
     const stateCode = selectedState.toLowerCase();
     if (!knownStates?.has(stateCode)) return undefined;
-    return (
-      classifiedCityCenters[`${normalizedCity}, ${stateCode}`] ??
-      classifiedCityCenters[normalizedCity]
-    );
+    return classifiedCityCentersByState.get(`${normalizedCity}, ${stateCode}`);
   }
   if (knownStates && knownStates.size !== 1) return undefined;
-  return classifiedCityCenters[normalizedCity];
+  if (knownStates?.size === 1) {
+    const stateCode = knownStates.values().next().value;
+    return classifiedCityCentersByState.get(`${normalizedCity}, ${stateCode}`);
+  }
+  return undefined;
 }
 
 export function nearestClassifiedCity(latitude: number, longitude: number) {
@@ -760,6 +761,7 @@ export const usStates = [
 ] as const;
 
 const classifiedCityStateCodes = new Map<string, Set<string>>();
+const classifiedCityCentersByState = new Map<string, [number, number]>();
 function recordClassifiedCityState(city: string, state: string) {
   const key = city
     .replace(/,\s*(?:ID|UT|OR|WA)$/i, "")
@@ -769,14 +771,65 @@ function recordClassifiedCityState(city: string, state: string) {
   states.add(state.toLowerCase());
   classifiedCityStateCodes.set(key, states);
 }
-for (const [city] of idahoPlaces) recordClassifiedCityState(city, "ID");
+function recordClassifiedCityCenter(city: string, state: string, center: [number, number]) {
+  const key = `${city
+    .replace(/,\s*(?:ID|UT|OR|WA)$/i, "")
+    .trim()
+    .toLowerCase()}, ${state.toLowerCase()}`;
+  classifiedCityCentersByState.set(key, center);
+}
+
+// Keep Gazetteer coordinates state-qualified so Idaho cities that share names
+// with nearby states (such as Aberdeen, Midvale, and Richfield) do not inherit
+// the neighboring state's bare city center.
+for (const [city, , latitude, longitude] of idahoPlaces) {
+  recordClassifiedCityState(city, "ID");
+  recordClassifiedCityCenter(city, "ID", [latitude, longitude]);
+}
 for (const city of idahoCities) recordClassifiedCityState(city, "ID");
 for (const [state, cities] of Object.entries(regionalCitiesByState)) {
   for (const city of cities) recordClassifiedCityState(city, state);
 }
+// Import explicit regional centers first, then associate unqualified regional
+// centers with their source-state list. A colliding bare center is never used
+// as a fallback after this state-qualified map is built.
+for (const [key, center] of Object.entries(classifiedCityCenters)) {
+  const qualified = key.match(/^(.*),\s*(ID|UT|OR|WA)$/i);
+  if (qualified) recordClassifiedCityCenter(qualified[1], qualified[2], center);
+}
+for (const [state, cities] of Object.entries(regionalCitiesByState)) {
+  for (const city of cities) {
+    const qualified = city.match(/^(.+),\s*(ID|UT|OR|WA)$/i);
+    const cityName = qualified?.[1]?.trim() ?? city.trim();
+    const cityState = qualified?.[2] ?? state;
+    const center =
+      classifiedCityCenters[`${cityName.toLowerCase()}, ${cityState.toLowerCase()}`] ??
+      classifiedCityCenters[cityName.toLowerCase()];
+    if (center) recordClassifiedCityCenter(cityName, cityState, center);
+  }
+}
+for (const [city, , latitude, longitude] of idahoPlaces) {
+  const normalizedCity = city.toLowerCase();
+  const states = classifiedCityStateCodes.get(normalizedCity);
+  const existingIdahoCenter =
+    states?.size === 1 ? classifiedCityCenters[normalizedCity] : undefined;
+  recordClassifiedCityCenter(city, "ID", existingIdahoCenter ?? [latitude, longitude]);
+}
 // Keep this legacy radius-center entry state-qualified even though it is not
 // currently one of the location selector's options.
 recordClassifiedCityState("Murray", "UT");
+if (classifiedCityCenters["murray, ut"])
+  recordClassifiedCityCenter("Murray", "UT", classifiedCityCenters["murray, ut"]);
+
+export function classifiedStatesForCity(city: string) {
+  const normalizedCity = city
+    .replace(/,\s*(?:ID|UT|OR|WA)$/i, "")
+    .trim()
+    .toLowerCase();
+  return [...(classifiedCityStateCodes.get(normalizedCity) ?? [])]
+    .map((state) => state.toUpperCase())
+    .sort();
+}
 
 export const classifiedCategories = [
   { slug: "cars-trucks", name: "Cars & Trucks", group: "motors" },

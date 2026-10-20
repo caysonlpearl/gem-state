@@ -6,12 +6,14 @@ import {
   classifiedCoordinatesForCity,
   classifiedDistanceMiles,
   classifiedProviderSearchStates,
+  classifiedStatesForCity,
   hasClassifiedRadiusCenter,
   idahoCities,
   idahoRegions,
   isWithinClassifiedRadius,
   marketplaceCities,
   marketplaceStateCodes,
+  regionalCities,
 } from "../src/config/classifieds.ts";
 
 test("typed city names resolve to the listed spelling and region", () => {
@@ -121,6 +123,79 @@ test("explicit states never borrow a different state's city center", () => {
   assert.equal(classifiedCoordinatesForCity("Sandy", "ID"), undefined);
   assert.deepEqual(classifiedCoordinatesForCity("Sandy", "OR"), [45.3987472, -122.26971]);
   assert.equal(classifiedCoordinatesForCity("Sandy"), undefined);
+});
+
+test("colliding Idaho and regional city names use their own state centers", () => {
+  const expected = {
+    Aberdeen: {
+      ID: [42.9441, -112.8384],
+      WA: [46.9754, -123.8157],
+    },
+    Midvale: {
+      ID: [44.4623, -116.7407],
+      UT: [40.6111, -111.8999],
+    },
+    Richfield: {
+      ID: [43.0516, -114.1559],
+      UT: [38.7725, -112.0841],
+    },
+  };
+
+  for (const [city, centers] of Object.entries(expected)) {
+    for (const [state, center] of Object.entries(centers))
+      assert.deepEqual(classifiedCoordinatesForCity(city, state), center, `${city}, ${state}`);
+    assert.equal(classifiedCoordinatesForCity(city), undefined, `${city} without a state`);
+  }
+
+  for (const [city, centers] of Object.entries(expected)) {
+    const [firstState, secondState] = Object.keys(centers);
+    for (const [cityState, listingState] of [
+      [firstState, secondState],
+      [secondState, firstState],
+    ])
+      assert.equal(
+        isWithinClassifiedRadius({
+          city,
+          cityState,
+          listingCity: city,
+          listingState,
+          radiusMiles: 1,
+        }),
+        false,
+        `${city} ${cityState} must not match ${listingState}`,
+      );
+  }
+});
+
+test("every duplicate city across supported states resolves only with a state", () => {
+  const allCities = new Set([
+    ...idahoPlaces.map(([city]) => city),
+    ...regionalCities.map((city) => city.replace(/,\s*(?:ID|UT|OR|WA)$/i, "").trim()),
+  ]);
+  const collidingCities = [...allCities]
+    .filter((city) => classifiedStatesForCity(city).length > 1)
+    .sort((left, right) => left.localeCompare(right));
+
+  assert.deepEqual(collidingCities, ["Aberdeen", "Midvale", "Richfield", "Sandy"]);
+  for (const city of collidingCities) {
+    const states = classifiedStatesForCity(city);
+    for (const state of states)
+      assert.ok(classifiedCoordinatesForCity(city, state), `${city}, ${state} center`);
+    assert.equal(
+      classifiedCoordinatesForCity(city),
+      undefined,
+      `${city} must not resolve to an ambiguous bare center`,
+    );
+  }
+
+  for (const [city, , latitude, longitude] of idahoPlaces) {
+    if (classifiedStatesForCity(city).length < 2) continue;
+    assert.deepEqual(
+      classifiedCoordinatesForCity(city, "ID"),
+      [latitude, longitude],
+      `${city}, ID must use the Idaho Gazetteer center`,
+    );
+  }
 });
 
 test("unmapped same-name cities in different states stay unresolved at every radius", () => {
