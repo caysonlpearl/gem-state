@@ -474,6 +474,72 @@ export function normalizeMarketCheckSearch(
   return { numFound: number(raw.num_found) ?? listings.length, listings, raw };
 }
 
+type CachedMarketCheckRow = {
+  cache_key: string;
+  payload: unknown;
+  expires_at: string | null;
+};
+
+/**
+ * Reassembles a complete, still-fresh state inventory from one cache read.
+ * Returning null keeps the caller on its normal per-page refresh path when a
+ * scheduled refresh has only written some pages or the provider count changed.
+ */
+export function freshMarketCheckInventory(
+  rows: readonly CachedMarketCheckRow[],
+  state: string,
+  kind: MarketCheckSourceKind,
+  options: { pages: number; pageSize: number; now?: number },
+): MarketCheckListing[] | null {
+  const { pages, pageSize, now = Date.now() } = options;
+  const byStart = new Map<number, CachedMarketCheckRow>();
+  for (const row of rows) {
+    if (!row.expires_at || Date.parse(row.expires_at) <= now) continue;
+    let key: { v?: number; kind?: string; state?: string; start?: number };
+    try {
+      key = JSON.parse(row.cache_key) as typeof key;
+    } catch {
+      continue;
+    }
+    if (
+      key.v !== 3 ||
+      key.kind !== kind ||
+      key.state !== state ||
+      !Number.isInteger(key.start) ||
+      key.start < 0 ||
+      key.start % pageSize !== 0 ||
+      key.start / pageSize >= pages
+    )
+      continue;
+    // A duplicated page key is ambiguous; let the refresh path resolve it
+    // instead of silently choosing whichever row happened to arrive last.
+    if (byStart.has(key.start)) return null;
+    byStart.set(key.start, row);
+  }
+
+  const listings: MarketCheckListing[] = [];
+  for (let page = 0; page < pages; page += 1) {
+    const row = byStart.get(page * pageSize);
+    if (!row) return null;
+    const result = normalizeMarketCheckSearch(row.payload, kind);
+    const cachedPayload = asRecord(row.payload);
+    const numFound =
+      number(cachedPayload.numFound) ?? number(cachedPayload.num_found) ?? result.numFound;
+    listings.push(
+      ...result.listings.map((cached) => {
+        const listing = finalizeMarketCheckListing(cached);
+        return listing.location.state
+          ? listing
+          : { ...listing, location: { ...listing.location, state } };
+      }),
+    );
+    if (result.listings.length < pageSize || listings.length >= numFound) {
+      return listings;
+    }
+  }
+  return listings;
+}
+
 export function marketCheckImages(listing: MarketCheckListing): string[] {
   // MarketCheck exposes the same gallery twice: once through its cached image
   // host and once through the original photo links. Prefer the cached gallery
