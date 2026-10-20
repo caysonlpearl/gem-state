@@ -75,6 +75,7 @@ const savedSearchFilterLabels: Record<string, string> = {
   fulfillment: "Fulfillment",
   condition: "Condition",
   serviceSubcategory: "Service type",
+  itemDetailValue: "Subcategory",
 };
 
 export function formatSavedSearchFilter(key: string, value: unknown) {

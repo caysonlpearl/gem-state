@@ -1964,7 +1964,7 @@ function SavedSearchesSection({ searches }: { searches: SavedSearch[] }) {
           {visible.map((item) => {
             const filterEntries = Object.entries(item.search).filter(
               ([key, value]) =>
-                !["q", "sort", "view", "page", "savedSearchId"].includes(key) &&
+                !["q", "sort", "view", "page", "savedSearchId", "itemDetailKey"].includes(key) &&
                 value !== undefined &&
                 value !== "",
             );

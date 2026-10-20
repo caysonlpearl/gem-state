@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import vm from "node:vm";
+import ts from "typescript";
 import { readFileSync } from "node:fs";
 import { inferImportItemDetails, importedSubcategory } from "../src/lib/import-subcategories.ts";
 import {
@@ -180,4 +181,16 @@ test("subcategory review reload selects persisted metadata instead of re-guessin
     ),
     "Cranes",
   );
+});
+
+
+test("an imported subcategory is counted once and displayed in active filter badges", () => {
+  const source = readFileSync(new URL("../src/routes/browse.tsx", import.meta.url), "utf8");
+  const functions = source.slice(source.indexOf("function countActiveFilters("), source.indexOf("function FilterSection("));
+  const js = ts.transpile(functions, {target:ts.ScriptTarget.ES2022});
+  const sandbox = vm.createContext({classifiedCategories:[{slug:"industrial", name:"Industrial"}], fieldsForClassifiedItem:(c)=>classifiedItemFields[c]});
+  vm.runInContext(js, sandbox);
+  sandbox.search = classifiedSubcategorySearch("industrial", "Heavy Equipment/Tractors");
+  assert.equal(vm.runInContext("countActiveFilters(search, false, false, false)", sandbox), 2);
+  assert.deepEqual(JSON.parse(vm.runInContext("JSON.stringify(activeFilterLabels(search, false, false, false))", sandbox)), ["Industrial", "Industrial subcategory · Heavy Equipment/Tractors"]);
 });

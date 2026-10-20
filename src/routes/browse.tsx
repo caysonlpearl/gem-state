@@ -7840,7 +7840,8 @@ function countActiveFilters(search: Search, motors: boolean, pets: boolean, fire
     );
   if (firearms)
     keys.push("firearmListingType", "firearmType", "firearmBrand", "firearmAccessoryType");
-  return keys.filter((key) => search[key] !== undefined && search[key] !== "").length;
+  const detailCount = search.itemDetailKey && search.itemDetailValue ? 1 : 0;
+  return keys.filter((key) => search[key] !== undefined && search[key] !== "").length + detailCount;
 }
 
 function activeFilterLabels(search: Search, motors: boolean, pets: boolean, firearms: boolean) {
@@ -7863,6 +7864,12 @@ function activeFilterLabels(search: Search, motors: boolean, pets: boolean, fire
     labels.push(`${search.city} · within ${search.radiusMiles} miles`);
   else if (search.city) labels.push(`City · ${search.city}`);
   if (search.postalCode) labels.push(`ZIP · ${search.postalCode}`);
+  if (search.itemDetailKey && search.itemDetailValue) {
+    const field = fieldsForClassifiedItem(search.category ?? "general").find(
+      (entry) => entry.key === search.itemDetailKey,
+    );
+    labels.push(`${field?.label ?? "Subcategory"} · ${search.itemDetailValue}`);
+  }
   if (search.condition) labels.push(formatSavedSearchFilter("condition", search.condition));
   if (search.fulfillment) labels.push(formatSavedSearchFilter("fulfillment", search.fulfillment));
   if (search.priceMin != null || search.priceMax != null)
