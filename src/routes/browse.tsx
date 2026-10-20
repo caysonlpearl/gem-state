@@ -6255,6 +6255,8 @@ function VehicleResultsPage({
   onSell: () => void;
 }) {
   const [term, setTerm] = useState(search.q ?? "");
+  const subtypeField = classifiedSubcategoryField(search.category ?? "cars-trucks");
+  const [subtype, setSubtype] = useState(search.itemDetailValue ?? "");
   const [make, setMake] = useState(search.make ?? "");
   const [model, setModel] = useState(search.model ?? "");
   const [yearMin, setYearMin] = useState(search.yearMin == null ? "" : String(search.yearMin));
@@ -6289,6 +6291,7 @@ function VehicleResultsPage({
 
   useEffect(() => {
     setTerm(search.q ?? "");
+    setSubtype(search.itemDetailValue ?? "");
     setMake(search.make ?? "");
     setModel(search.model ?? "");
     setYearMin(search.yearMin == null ? "" : String(search.yearMin));
@@ -6329,6 +6332,8 @@ function VehicleResultsPage({
     const integerValue = (value: string) => optionalNonNegativeInteger(value);
     return {
       q: term.trim() || undefined,
+      itemDetailKey: subtype.trim() ? subtypeField.key : undefined,
+      itemDetailValue: subtype.trim() || undefined,
       make: make || undefined,
       model: model || undefined,
       yearMin: integerValue(yearMin),
@@ -6374,6 +6379,7 @@ function VehicleResultsPage({
 
     return () => clearTimeout(timer);
   }, [
+    subtype,
     bodyStyle,
     city,
     condition,
@@ -6419,7 +6425,9 @@ function VehicleResultsPage({
             <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
               Bluebird motors
             </p>
-            <h1 className="mt-1 text-[28px] font-bold tracking-tight">Cars & Trucks</h1>
+            <h1 className="mt-1 text-[28px] font-bold tracking-tight">
+              {classifiedCategories.find((category) => category.slug === search.category)?.name ?? "Vehicles"}
+            </h1>
           </div>
           <div className="grid w-full max-w-[330px] grid-cols-2 rounded-2xl bg-secondary p-1.5 ring-1 ring-border/70">
             <button
@@ -6486,6 +6494,11 @@ function VehicleResultsPage({
       <div className="mt-7 grid gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
         <ResponsiveBrowseFilters title="Vehicle filters" resetKey={JSON.stringify(search)}>
           <div className="space-y-3">
+            {search.category && (
+              <VehicleFilterGroup title="Category details">
+                <VehicleTextField label={subtypeField.label} value={subtype} onChange={setSubtype} placeholder="Any subcategory" />
+              </VehicleFilterGroup>
+            )}
             <VehicleFilterGroup title="Make / model">
               <VehicleCheckboxList
                 label="Makes"
