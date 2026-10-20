@@ -141,6 +141,9 @@ const roleLabels: Record<string, string> = {
   admin: "Administrator",
 };
 
+const notificationText = (value: string) =>
+  value.replaceAll("ParkVault", brand.name).replaceAll("Gem State", brand.name);
+
 const navItems: { section: AccountSection; label: string; icon: typeof UserCircle }[] = [
   { section: "overview", label: "Overview", icon: UserCircle },
   { section: "profile", label: "Profile", icon: UserCircle },
@@ -827,9 +830,9 @@ function OverviewSection({
             <ul className="divide-y divide-border">
               {notifications.slice(0, 4).map((item) => (
                 <li key={item.id} className="py-3 first:pt-0 last:pb-0">
-                  <p className="text-[12.5px] font-semibold">{item.title}</p>
+                  <p className="text-[12.5px] font-semibold">{notificationText(item.title)}</p>
                   <p className="mt-0.5 line-clamp-2 text-[12px] leading-relaxed text-muted-foreground">
-                    {item.body}
+                    {notificationText(item.body)}
                   </p>
                 </li>
               ))}
@@ -2542,8 +2545,6 @@ function NotificationsSection({
     listing_upgrade: "Listing promotion",
     review_request: "Review requests",
   };
-  const notificationText = (value: string) =>
-    value.replaceAll("ParkVault", brand.name).replaceAll("Gem State", brand.name);
   return (
     <div className="space-y-6">
       <SectionHeader
