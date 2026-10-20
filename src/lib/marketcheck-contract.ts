@@ -480,6 +480,17 @@ type CachedMarketCheckRow = {
   expires_at: string | null;
 };
 
+export function marketCheckCachePageKeys(
+  state: string,
+  kind: MarketCheckSourceKind,
+  pages: number,
+  pageSize: number,
+) {
+  return Array.from({ length: pages }, (_, page) =>
+    JSON.stringify({ v: 3, kind, state, start: page * pageSize }),
+  );
+}
+
 /**
  * Reassembles a complete, still-fresh state inventory from one cache read.
  * Returning null keeps the caller on its normal per-page refresh path when a

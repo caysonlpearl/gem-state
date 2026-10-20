@@ -23,6 +23,7 @@ import {
   normalizeMarketCheckSearch,
   parseMarketCheckId,
   freshMarketCheckInventory,
+  marketCheckCachePageKeys,
   type MarketCheckListing,
   type MarketCheckSourceKind,
 } from "./marketcheck-contract";
@@ -324,9 +325,7 @@ async function freshCachedStateInventory(state: string, kind: MarketCheckSourceK
   // Read exactly the page offsets this inventory needs. Ordering serialized
   // keys lexicographically before applying a limit can omit page 50 in favor
   // of later offsets (for example, 0, 100, 150, ...), forcing a slow refresh.
-  const pageKeys = Array.from({ length: pages }, (_, page) =>
-    JSON.stringify({ v: 3, kind, state, start: page * PAGE_SIZE }),
-  );
+  const pageKeys = marketCheckCachePageKeys(state, kind, pages, PAGE_SIZE);
   const { data } = await (db as any)
     .from("marketcheck_cache")
     .select("cache_key,payload,expires_at")

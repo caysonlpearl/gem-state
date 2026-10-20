@@ -4,6 +4,7 @@ import {
   MARKETCHECK_ID,
   dedupeMarketCheckImages,
   freshMarketCheckInventory,
+  marketCheckCachePageKeys,
   marketCheckImages,
   normalizeMarketCheckListing,
   normalizeMarketCheckSearch,
@@ -243,6 +244,25 @@ test("keeps cache-page order and ignores other states, providers, and out-of-ran
   assert.deepEqual(
     listings?.map((listing) => listing.heading),
     ["First page", "Second page", "Third page"],
+  );
+});
+
+test("selects exact numeric cache pages even when extra offsets sort before start 50", () => {
+  const pageKeys = marketCheckCachePageKeys("ID", "dealer", 6, 50);
+  const rows = [
+    ...pageKeys.map((cache_key) => ({ cache_key })),
+    ...[300, 350, 400, 450].map((start) => ({
+      cache_key: JSON.stringify({ v: 3, kind: "dealer", state: "ID", start }),
+    })),
+  ];
+  const lexicographicallyLimited = [...rows]
+    .sort((a, b) => a.cache_key.localeCompare(b.cache_key))
+    .slice(0, 6)
+    .map((row) => row.cache_key);
+  assert.ok(!lexicographicallyLimited.includes(pageKeys[1]));
+  assert.deepEqual(
+    rows.filter((row) => pageKeys.includes(row.cache_key)).map((row) => row.cache_key),
+    pageKeys,
   );
 });
 
