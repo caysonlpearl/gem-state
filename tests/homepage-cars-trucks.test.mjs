@@ -151,7 +151,7 @@ test("featured endpoint uses Cars & Trucks while the secondary homepage endpoint
   assert.equal(home.categoryCounts["auto-parts"], 1);
 });
 
-test("a car promoted to the featured row is excluded from already loaded Keep browsing items", () => {
+test("Keep browsing excludes the current full row allocation and deduplicates its remainder", () => {
   const route = readFileSync(new URL("../src/routes/index.tsx", import.meta.url), "utf8");
   const file = ts.createSourceFile(
     "index.tsx",
@@ -179,18 +179,26 @@ test("a car promoted to the featured row is excluded from already loaded Keep br
     context,
   );
   const props = {
-    initial: [{ id: "promoted-car" }, { id: "other-item" }],
+    initial: [
+      { id: "promoted-car" },
+      { id: "secondary-row-car" },
+      { id: "other-item" },
+      { id: "other-item" },
+    ],
     shownIds: new Set(),
     hasMore: false,
     location: {},
   };
-  const before = renderToStaticMarkup(
-    React.createElement(context.HomeFeed, { ...props, featuredIds: new Set() }),
-  );
+  const before = renderToStaticMarkup(React.createElement(context.HomeFeed, props));
   const after = renderToStaticMarkup(
-    React.createElement(context.HomeFeed, { ...props, featuredIds: new Set(["promoted-car"]) }),
+    React.createElement(context.HomeFeed, {
+      ...props,
+      shownIds: new Set(["promoted-car", "secondary-row-car"]),
+    }),
   );
   assert.match(before, /data-listing="promoted-car"/);
   assert.doesNotMatch(after, /data-listing="promoted-car"/);
+  assert.doesNotMatch(after, /data-listing="secondary-row-car"/);
   assert.match(after, /data-listing="other-item"/);
+  assert.equal([...after.matchAll(/data-listing="other-item"/g)].length, 1);
 });

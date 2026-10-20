@@ -7,7 +7,11 @@ import type {
 import { productionHomeLead } from "virtual:production-home-query";
 
 const mode = new URLSearchParams(location.search).get("fixture") ?? "success";
+const allocation = mode.startsWith("allocation");
+const paginated = mode === "allocation-pagination" || mode === "allocation-inflight";
 const calls: ClassifiedBrowseInput[] = [];
+const feedCalls: number[] = [];
+const feedWaiting = new Map<number, () => void>();
 let release: (() => void) | undefined;
 let attempts = 0;
 const make = (id: string, categorySlug: string): ClassifiedCard => ({
@@ -37,7 +41,7 @@ const make = (id: string, categorySlug: string): ClassifiedCard => ({
           model: "Synthetic",
           trim: null,
           mileage: 10000,
-          bodyStyle: "Pickup",
+          bodyStyle: allocation ? "Sedan" : "Pickup",
           transmission: null,
           drivetrain: null,
           fuelType: null,
@@ -55,11 +59,19 @@ const noise = Array.from({ length: 40 }, (_, i) =>
 const cars =
   mode === "empty"
     ? []
-    : Array.from({ length: 6 }, (_, i) => make(`Synthetic-car-${i + 1}`, "cars-trucks"));
-const rows = [...noise, ...cars, { ...make("Synthetic-far-car", "cars-trucks"), state: "UT" }];
+    : Array.from({ length: allocation ? (paginated ? 72 : 24) : 6 }, (_, i) =>
+        make(`Synthetic-car-${i + 1}`, "cars-trucks"),
+      );
+const rows = allocation
+  ? cars
+  : [...noise, ...cars, { ...make("Synthetic-far-car", "cars-trucks"), state: "UT" }];
 const categoryData = {
   totalActive: rows.length,
-  categoryCounts: { "cars-trucks": cars.length, "auto-parts": 20, trailers: 20 },
+  categoryCounts: {
+    "cars-trucks": cars.length,
+    "auto-parts": allocation ? 0 : 20,
+    trailers: allocation ? 0 : 20,
+  },
 };
 const cache = new Map<string, Promise<unknown>>();
 const shortCache = <T>(key: string, _ttl: number, load: () => Promise<T>): Promise<T> => {
@@ -72,7 +84,7 @@ const shortCache = <T>(key: string, _ttl: number, load: () => Promise<T>): Promi
 async function runBrowseClassifieds(input: ClassifiedBrowseInput): Promise<ClassifiedBrowseResult> {
   calls.push(input);
   attempts++;
-  if (mode === "loading" && attempts === 1)
+  if ((mode === "loading" || allocation) && attempts === 1)
     await new Promise<void>((resolve) => {
       release = resolve;
     });
@@ -84,6 +96,14 @@ async function runBrowseClassifieds(input: ClassifiedBrowseInput): Promise<Class
 }
 export const fixture = {
   calls,
+  feedCalls,
+  pendingFeedPages: () => [...feedWaiting.keys()],
+  releaseFeedPage(page: number) {
+    const resolve = feedWaiting.get(page);
+    if (!resolve) throw new Error(`No pending feed page ${page}`);
+    feedWaiting.delete(page);
+    resolve();
+  },
   release() {
     if (!release) throw new Error("Nothing pending");
     release();
@@ -101,11 +121,25 @@ export const getClassifiedsHomeLead = () =>
 // loads or fails. Keep their data synthetic and their wider Motors pool intact.
 export const getClassifiedsHome = async () => ({
   ...categoryData,
-  motors: [...noise.slice(0, 2), ...cars],
-  recent: [...noise.slice(0, 2), ...cars],
+  motors: allocation ? cars.slice(0, 24) : [...noise.slice(0, 2), ...cars],
+  recent: allocation ? cars.slice(0, 24) : [...noise.slice(0, 2), ...cars],
 });
-export const browseClassifieds = async () => {
-  throw new Error("Offline fixture refuses live browse requests");
+export const browseClassifieds = async ({
+  data,
+}: {
+  data: ClassifiedBrowseInput;
+}): Promise<ClassifiedBrowseResult> => {
+  if (!paginated) throw new Error("Offline fixture refuses live browse requests");
+  const page = data.page ?? 1;
+  feedCalls.push(page);
+  if (mode === "allocation-inflight" && page === 2)
+    await new Promise<void>((resolve) => feedWaiting.set(page, resolve));
+  return {
+    listings: cars.slice((page - 1) * 24, page * 24),
+    total: cars.length,
+    page,
+    pageSize: 24,
+  };
 };
 export const useServerFn = <T>(fn: T) => fn;
 export const trackEvent = async () => {};

@@ -1071,7 +1071,6 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
         key={JSON.stringify(feedLocation)}
         initial={feedStart}
         shownIds={shownIds}
-        featuredIds={new Set(leadMotors.map((listing) => listing.id))}
         hasMore={home.totalActive > home.recent.length}
         location={feedLocation}
       />
@@ -1153,18 +1152,19 @@ function HomepageListingRow({
 function HomeFeed({
   initial,
   shownIds,
-  featuredIds,
   hasMore,
   location,
 }: {
   initial: Awaited<ReturnType<typeof getClassifiedsHome>>["recent"];
   shownIds: Set<string>;
-  featuredIds: Set<string>;
   hasMore: boolean;
   location: Record<string, string | number | undefined>;
 }) {
   const fetchPage = useServerFn(browseClassifieds);
-  const [items, setItems] = useState(initial);
+  // The first-page remainder is derived from the current row allocation.
+  // Keep only explicitly loaded later pages in state so allocation changes
+  // neither retain stale first-page cards nor discard loaded pagination.
+  const [loadedItems, setLoadedItems] = useState<typeof initial>([]);
   const [nextPage, setNextPage] = useState(2);
   const [done, setDone] = useState(!hasMore);
   const [loading, setLoading] = useState(false);
@@ -1176,8 +1176,8 @@ function HomeFeed({
         Object.entries(location).filter(([, value]) => value !== undefined && value !== ""),
       );
       const result = await fetchPage({ data: { ...filters, sort: "newest", page: nextPage } });
-      setItems((current) => {
-        const seen = new Set([...shownIds, ...current.map((listing) => listing.id)]);
+      setLoadedItems((current) => {
+        const seen = new Set(current.map((listing) => listing.id));
         return [...current, ...result.listings.filter((listing) => !seen.has(listing.id))];
       });
       setNextPage(result.page + 1);
@@ -1189,8 +1189,15 @@ function HomeFeed({
     }
   }
 
-  // The independent featured query may resolve after this feed mounted.
-  const visibleItems = items.filter((listing) => !featuredIds.has(listing.id));
+  // The independent lead can shift every secondary row after mount. Exclude
+  // all currently allocated IDs, not just the featured ones. Retain fetched
+  // records even while allocated elsewhere, so they can reappear if released.
+  const seenIds = new Set(shownIds);
+  const visibleItems = [...initial, ...loadedItems].filter((listing) => {
+    if (seenIds.has(listing.id)) return false;
+    seenIds.add(listing.id);
+    return true;
+  });
   if (!visibleItems.length && done) return null;
 
   return (
