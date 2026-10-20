@@ -29,7 +29,7 @@ const PROFILE_RE = /\/marketplace\/profile\//;
 // vintedRefresh, runWhatnot/whatnotRefresh and their URL patterns).
 // Guarded so tests can load this file outside a service worker.
 if (typeof importScripts === "function") {
-  importScripts("paced-reader.js", "ksl.js", "vinted.js", "whatnot.js");
+  importScripts("paced-reader.js", "ksl.js", "vinted.js", "whatnot.js", "dealer.js");
 }
 
 function sleep(ms) {
@@ -632,54 +632,112 @@ const LISTING_URL_RE = /^https:\/\/www\.facebook\.com\/marketplace\/item\/\d+/;
 // Re-reads price and description for listings that are already imported.
 // Started by the admin clicking Refresh on the GemList page; no profile
 // scrolling and no debugger needed since the listing URLs are already known.
+function readerForSource(sourceUrl) {
+  if (LISTING_URL_RE.test(sourceUrl))
+    return { siteName: "Facebook", extract: extractListingDetailsInPage, idOf: listingIdFromUrl };
+  if (KSL_LISTING_RE.test(sourceUrl))
+    return { siteName: "KSL", extract: kslExtractListingInPage, idOf: kslListingId };
+  if (VINTED_ITEM_RE.test(sourceUrl))
+    return {
+      siteName: "Vinted",
+      extract: vintedExtractItemInPage,
+      idOf: vintedItemId,
+      settleMs: 1800,
+    };
+  if (WHATNOT_LISTING_RE.test(sourceUrl))
+    return {
+      siteName: "Whatnot",
+      extract: whatnotExtractListingInPage,
+      idOf: whatnotListingId,
+      settleMs: 2000,
+    };
+  if (dealerListingId(sourceUrl))
+    return { siteName: "Diesel Depot", extract: dealerExtractListingInPage, idOf: dealerListingId };
+  return null;
+}
+
 async function refreshListings(adminTabId, requestId, targets) {
   const send = (payload) =>
     chrome.tabs.sendMessage(adminTabId, { type: "gemlist-ext-event", payload }).catch(() => {});
-  const all = (Array.isArray(targets) ? targets : []).map((t) => ({
-    sourceUrl: String(t && t.sourceUrl),
-  }));
-  const items = all.filter((t) => LISTING_URL_RE.test(t.sourceUrl));
-  const kslItems = all.filter((t) => KSL_LISTING_RE.test(t.sourceUrl));
-  const vintedItems = all.filter((t) => VINTED_ITEM_RE.test(t.sourceUrl));
-  const whatnotItems = all.filter((t) => WHATNOT_LISTING_RE.test(t.sourceUrl));
-  const queue = items.slice();
-  const total = items.length + kslItems.length + vintedItems.length + whatnotItems.length;
-  let done = 0;
-  const onItemDone = () => {
-    done += 1;
-    send({ type: "gemlist-fb-refresh-progress", requestId, done, total });
-  };
-  const workerCount = Math.min(DETAIL_FETCH_CONCURRENCY, queue.length) || 1;
-  await Promise.all(Array.from({ length: workerCount }, () => runWorker(queue, onItemDone, false)));
-  const kslResults = kslItems.length ? await kslRefresh(kslItems, onItemDone) : [];
-  const vintedResults = vintedItems.length ? await vintedRefresh(vintedItems, onItemDone) : [];
-  const whatnotResults = whatnotItems.length ? await whatnotRefresh(whatnotItems, onItemDone) : [];
+  const unique = [
+    ...new Set((Array.isArray(targets) ? targets : []).map((t) => String(t?.sourceUrl || ""))),
+  ];
+  const jobs = unique.flatMap((sourceUrl) => {
+    const reader = readerForSource(sourceUrl);
+    return reader
+      ? [
+          {
+            item: { sourceUrl },
+            ...reader,
+            withPhotos: false,
+            notify: (message) =>
+              send({
+                type: "gemlist-fb-refresh-progress",
+                requestId,
+                done,
+                total: unique.length,
+                message,
+              }),
+          },
+        ]
+      : [];
+  });
+  if (!jobs.length)
+    throw new Error("These source URLs are not supported. Reload the updated extension and retry.");
+  let done = unique.length - jobs.length;
+  await readListingJobs(jobs, {
+    onItemDone: () =>
+      send({ type: "gemlist-fb-refresh-progress", requestId, done: ++done, total: unique.length }),
+  });
+  const results = jobs
+    .filter(({ item }) => !item.unreadable && !item.priceUnknown)
+    .map(({ item, siteName }) => ({
+      sourceUrl: item.sourceUrl,
+      title: item.title
+        ? siteName === "KSL"
+          ? kslCleanTitle(item.title, item.city)
+          : item.title
+        : undefined,
+      priceCents: item.priceCents,
+      description: item.description,
+      unavailable: item.unavailable === true,
+      sold: item.sold === true,
+    }));
   send({
     type: "gemlist-fb-refresh-result",
     requestId,
-    results: items
-      .map((item) => ({
-        sourceUrl: item.sourceUrl,
-        title: item.title,
-        priceCents: item.priceCents,
-        description: item.description,
-        unavailable: item.unavailable === true,
-        sold: item.sold === true,
-      }))
-      .concat(kslResults, vintedResults, whatnotResults),
+    results,
+    unreadable: unique.length - results.length,
   });
 }
 
+let importInProgress = false;
 chrome.runtime.onMessage.addListener((message, sender) => {
-  if (!message || message.type !== "refresh" || !sender.tab || !sender.tab.id) return;
-  refreshListings(sender.tab.id, message.requestId, message.targets).catch(() => {
+  if (!message || message.type !== "refresh" || !sender.tab?.id) return;
+  const sendError = (error) =>
     chrome.tabs
       .sendMessage(sender.tab.id, {
         type: "gemlist-ext-event",
-        payload: { type: "gemlist-fb-refresh-result", requestId: message.requestId, results: [] },
+        payload: {
+          type: "gemlist-fb-refresh-result",
+          requestId: message.requestId,
+          results: [],
+          error,
+        },
       })
       .catch(() => {});
-  });
+  if (importInProgress) {
+    sendError("An import or refresh is already running. Let it finish before starting another.");
+    return;
+  }
+  importInProgress = true;
+  refreshListings(sender.tab.id, message.requestId, message.targets)
+    .catch((error) =>
+      sendError(String(error?.message || "Refresh failed. Reload the extension and retry.")),
+    )
+    .finally(() => {
+      importInProgress = false;
+    });
 });
 
 async function run(tabId) {
@@ -743,6 +801,13 @@ async function run(tabId) {
 
 chrome.action.onClicked.addListener(async (tab) => {
   if (!tab.id) return;
+  if (importInProgress) {
+    await overlay(
+      tab.id,
+      "<strong>Bluebird import</strong><div>An import or refresh is already running. Let it finish first.</div>",
+    );
+    return;
+  }
   const paced = tab.url
     ? KSL_MEMBER_RE.test(tab.url)
       ? ["KSL", () => runKsl(tab.id)]
@@ -750,9 +815,12 @@ chrome.action.onClicked.addListener(async (tab) => {
         ? ["Vinted", () => runVinted(tab.id)]
         : WHATNOT_USER_RE.test(tab.url)
           ? ["Whatnot", () => runWhatnot(tab.id, tab.url)]
-          : null
+          : DEALER_INVENTORY_RE.test(tab.url)
+            ? ["Diesel Depot", () => runDealer(tab.id)]
+            : null
     : null;
   if (paced) {
+    importInProgress = true;
     try {
       await paced[1]();
     } catch (e) {
@@ -760,6 +828,8 @@ chrome.action.onClicked.addListener(async (tab) => {
         tab.id,
         `<strong>Bluebird import · ${paced[0]}</strong><div style="margin-top:6px;color:#f87171">Failed: ${String((e && e.message) || e)}</div>`,
       );
+    } finally {
+      importInProgress = false;
     }
     return;
   }
@@ -768,11 +838,12 @@ chrome.action.onClicked.addListener(async (tab) => {
       target: { tabId: tab.id },
       func: () =>
         alert(
-          "Open the seller's Facebook Marketplace profile, KSL listings page (classifieds.ksl.com/search/member/...), Vinted profile (vinted.com/member/...) or Whatnot profile (whatnot.com/user/...) first, then click this extension's icon.",
+          "Open the seller's Facebook Marketplace profile, KSL listings page (classifieds.ksl.com/search/member/...), Vinted profile (vinted.com/member/...) or Whatnot profile (whatnot.com/user/...), or Diesel Depot's inventory page first, then click this extension's icon.",
         ),
     });
     return;
   }
+  importInProgress = true;
   try {
     await run(tab.id);
   } catch (e) {
@@ -780,5 +851,7 @@ chrome.action.onClicked.addListener(async (tab) => {
       tab.id,
       `<strong>GemList import</strong><div style="margin-top:6px;color:#f87171">Failed: ${String((e && e.message) || e)}</div>`,
     );
+  } finally {
+    importInProgress = false;
   }
 });

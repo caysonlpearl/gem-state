@@ -8,7 +8,11 @@ import {
   normalizeFacebookCondition,
 } from "@/lib/fb-import-normalization";
 
-import { canonicalSellerSourceProfile } from "./seller-claims";
+import {
+  canonicalSellerSourceProfile,
+  dieselDepotListingId,
+  importAbsenceCanFlagRemoved,
+} from "./seller-claims";
 import { findIdahoPlace } from "@/config/idaho-places";
 
 /**
@@ -18,7 +22,9 @@ import { findIdahoPlace } from "@/config/idaho-places";
  * sent books to Cars & Trucks when guessed from.
  */
 function categoryHintFrom(sourceProfileUrl: string | null | undefined, description: unknown) {
-  return /facebook\.com/.test(String(sourceProfileUrl ?? "")) ? (description as string | null) : null;
+  return /facebook\.com/.test(String(sourceProfileUrl ?? ""))
+    ? (description as string | null)
+    : null;
 }
 
 const MAX_PHOTO_BYTES = 12 * 1024 * 1024;
@@ -172,22 +178,22 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
         // Idaho cities use the listed spelling, and that city's region.
         const place = /^(id|idaho)$/i.test(state) ? findIdahoPlace(city) : undefined;
         return {
-        sourceUrl: String(item.sourceUrl ?? "").trim(),
-        title: String(item.title ?? "")
-          .trim()
-          .slice(0, 120),
-        description: item.description ? String(item.description).trim().slice(0, 5000) : null,
-        priceCents: Math.max(0, Math.round(Number(item.priceCents) || 0)),
-        // Animals have no item condition.
-        condition:
-          categorySlug === "pets" ? "not_applicable" : normalizeFacebookCondition(item.condition),
-        categorySlug,
-        city: place ? place[0] : city,
-        state: place ? "ID" : state,
-        region: place ? place[1] : "",
-        photoUrls: (item.photoUrls ?? []).filter(Boolean).slice(0, 8),
-        unavailable: item.unavailable === true,
-        sold: item.sold === true,
+          sourceUrl: String(item.sourceUrl ?? "").trim(),
+          title: String(item.title ?? "")
+            .trim()
+            .slice(0, 120),
+          description: item.description ? String(item.description).trim().slice(0, 5000) : null,
+          priceCents: Math.max(0, Math.round(Number(item.priceCents) || 0)),
+          // Animals have no item condition.
+          condition:
+            categorySlug === "pets" ? "not_applicable" : normalizeFacebookCondition(item.condition),
+          categorySlug,
+          city: place ? place[0] : city,
+          state: place ? "ID" : state,
+          region: place ? place[1] : "",
+          photoUrls: (item.photoUrls ?? []).filter(Boolean).slice(0, 8),
+          unavailable: item.unavailable === true,
+          sold: item.sold === true,
         };
       });
       if (!items.length) throw new Error("No listings were provided.");
@@ -239,6 +245,13 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
       const priorByUrl = new Map<string, any>(
         (priorItems ?? []).map((row: any) => [row.source_url, row]),
       );
+      const dealerPrior = new Map<string, any>();
+      if (data.sourceProfileUrl === "https://www.diesel-depot.com/inventory/") {
+        for (const row of priorItems ?? []) {
+          const id = dieselDepotListingId(row.source_url);
+          if (id) dealerPrior.set(id, row);
+        }
+      }
       const seenUrls = new Set<string>();
 
       let staged = 0;
@@ -248,6 +261,9 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
       const isRefresh = data.mode === "refresh";
 
       for (const item of data.items) {
+        const priorDealer = dealerPrior.get(dieselDepotListingId(item.sourceUrl) ?? "");
+        if (priorDealer) item.sourceUrl = priorDealer.source_url;
+        if (seenUrls.has(item.sourceUrl)) continue;
         seenUrls.add(item.sourceUrl);
         const prior = priorByUrl.get(item.sourceUrl);
 
@@ -353,7 +369,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
       // Absence only means "removed" after a full profile scrape. A refresh
       // reads a handful of known listings, so a missing one just means it
       // wasn't read -- never a reason to flag it.
-      const vanished = isRefresh
+      const vanished = !importAbsenceCanFlagRemoved(data.sourceProfileUrl, isRefresh)
         ? []
         : (priorItems ?? []).filter(
             (row: any) => row.status === "published" && !seenUrls.has(row.source_url),
@@ -763,8 +779,7 @@ export const publishFacebookImportItems = createServerFn({ method: "POST" })
       const profiles = new Set(
         items.map((i: any) => canonicalSellerSourceProfile(i.source_profile_url)),
       );
-      if (profiles.size !== 1)
-        throw new Error("Select listings from one seller at a time.");
+      if (profiles.size !== 1) throw new Error("Select listings from one seller at a time.");
       // Whatnot doesn't show where a seller is; every listing needs a city.
       const noCity = items.filter(
         (i: any) => i.status !== "possibly_removed" && !String(i.city ?? "").trim(),

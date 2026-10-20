@@ -3,7 +3,7 @@
  *
  * Open a seller's Vinted profile (vinted.com/member/<id>) in your own browser
  * and click the extension. It scrolls their listings, then opens each item
- * one at a time (paced-reader.js) for its full title, description, photos,
+ * in two windows (paced-reader.js) for its full title, description, photos,
  * condition and status. Location comes from the seller's profile. Bluebird
  * listings are local pickup, whatever shipping the seller offers on Vinted.
  *

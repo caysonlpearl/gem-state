@@ -7,7 +7,10 @@ window.addEventListener("message", (event) => {
   const data = event.data;
   if (!data || typeof data.type !== "string") return;
   if (data.type === "gemlist-ext-ping") {
-    window.postMessage({ type: "gemlist-ext-pong" }, window.location.origin);
+    window.postMessage(
+      { type: "gemlist-ext-pong", version: chrome.runtime.getManifest().version },
+      window.location.origin,
+    );
   } else if (data.type === "gemlist-ext-refresh") {
     chrome.runtime.sendMessage({
       type: "refresh",
