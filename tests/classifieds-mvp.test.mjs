@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { allItemsSeeAllSearch } from "../src/lib/classifieds-query.ts";
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
@@ -1618,6 +1619,43 @@ test("all categories routes to its own general classifieds landing page", () => 
   ]) {
     assert.match(browseSource, new RegExp(row));
   }
+});
+
+test("All Items showcase See all searches retain location and sort across classifieds", () => {
+  const seeAllSearch = allItemsSeeAllSearch({
+    allCategories: true,
+    category: "general",
+    group: "motors",
+    page: 2,
+    city: "Boise",
+    state: "ID",
+    radiusMiles: 30,
+    latitude: 43.615,
+    longitude: -116.2023,
+    sort: "price_low",
+    q: "camera",
+    fulfillment: "pickup",
+    empty: "",
+    absent: undefined,
+  });
+
+  assert.deepEqual(seeAllSearch, {
+    group: "classifieds",
+    city: "Boise",
+    state: "ID",
+    radiusMiles: 30,
+    latitude: 43.615,
+    longitude: -116.2023,
+    sort: "price_low",
+    q: "camera",
+    fulfillment: "pickup",
+  });
+  assert.match(
+    browseSource,
+    /<GeneralClassifiedShowcase\s+listings=\{result\.listings\}\s+seeAllSearch=\{allItemsSeeAllSearch\(search\)\}\s+\/>/,
+  );
+  assert.match(browseSource, /title: "Top listings"[\s\S]*title: "Newest listings"/);
+  assert.match(browseSource, /search=\{seeAllSearch\}/);
 });
 
 test("advertising page explains local partner opportunities and links to contact", () => {

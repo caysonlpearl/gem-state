@@ -52,3 +52,30 @@ export function matchesLeaseLength(actual: unknown, requested: unknown) {
   }
   return actualLabel.includes(requestedLabel);
 }
+
+type AllItemsSeeAllSearchScope = {
+  allCategories?: boolean | undefined;
+  category?: string | undefined;
+  group?: "motors" | "classifieds" | undefined;
+  page?: number | undefined;
+};
+
+/**
+ * Open the full classifieds results represented by an All Items showcase row.
+ * Keep the visitor's filters and sort while leaving the landing/category scope
+ * and preview pagination behind.
+ */
+export function allItemsSeeAllSearch<T extends AllItemsSeeAllSearchScope>(
+  search: T,
+): Omit<T, "allCategories" | "category" | "group" | "page"> & { group: "classifieds" } {
+  const landingKeys = new Set(["allCategories", "category", "group", "page"]);
+  const preserved = Object.fromEntries(
+    Object.entries(search).filter(
+      ([key, value]) => !landingKeys.has(key) && value !== undefined && value !== "",
+    ),
+  );
+  return { ...preserved, group: "classifieds" } as Omit<
+    T,
+    "allCategories" | "category" | "group" | "page"
+  > & { group: "classifieds" };
+}

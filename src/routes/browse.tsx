@@ -91,6 +91,7 @@ import { SavedSearchNameDialog } from "@/components/classifieds/SavedSearchNameD
 import { BluebirdEmptyState } from "@/components/layout/BluebirdEmptyState";
 import { toast } from "sonner";
 import {
+  allItemsSeeAllSearch,
   comparableJobPay,
   isInvertedRange,
   optionalNonNegativeInteger,
@@ -2146,7 +2147,10 @@ function Browse() {
               })
             }
           />
-          <GeneralClassifiedShowcase listings={result.listings} />
+          <GeneralClassifiedShowcase
+            listings={result.listings}
+            seeAllSearch={allItemsSeeAllSearch(search)}
+          />
           <HomepageShowcaseRows
             topListings={result.listings}
             eyebrow="Bluebird Marketplace Classifieds"
@@ -3714,7 +3718,13 @@ function ClassifiedsLandingHero({
   );
 }
 
-function GeneralClassifiedShowcase({ listings }: { listings: ClassifiedBrowseResult["listings"] }) {
+function GeneralClassifiedShowcase({
+  listings,
+  seeAllSearch,
+}: {
+  listings: ClassifiedBrowseResult["listings"];
+  seeAllSearch: Search;
+}) {
   const generalListings = listings.filter((listing) => !listing.vehicle);
   const listingRows = [
     {
@@ -3782,7 +3792,7 @@ function GeneralClassifiedShowcase({ listings }: { listings: ClassifiedBrowseRes
             </div>
             <Link
               to="/browse"
-              search={{ category: "general" }}
+              search={seeAllSearch}
               className="inline-flex shrink-0 items-center gap-1 text-[12px] font-bold text-primary hover:underline"
             >
               See all <ArrowRight size={14} aria-hidden="true" />
