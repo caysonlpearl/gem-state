@@ -320,12 +320,19 @@ async function cachedOnly<T>(key: string): Promise<{ ok: true; value: T } | { ok
 async function freshCachedStateInventory(state: string, kind: MarketCheckSourceKind) {
   const db = cacheDb();
   if (!db) return null;
+  const pages = state === HOME_STATE ? BASE_PAGES[kind] : OTHER_STATE_PAGES;
+  // Cache keys are written in this stable JSON order. Matching the exact
+  // version/provider/state prefix keeps the bounded read to this inventory;
+  // selecting an arbitrary first N rows could pull unrelated payloads.
+  const keyPrefix = `{"v":3,"kind":"${kind}","state":"${state}",`;
   const { data } = await (db as any)
     .from("marketcheck_cache")
     .select("cache_key,payload,expires_at")
-    .limit(200);
+    .like("cache_key", `${keyPrefix}%`)
+    .order("cache_key", { ascending: true })
+    .limit(pages);
   return freshMarketCheckInventory((data ?? []) as any[], state, kind, {
-    pages: state === HOME_STATE ? BASE_PAGES[kind] : OTHER_STATE_PAGES,
+    pages,
     pageSize: PAGE_SIZE,
   });
 }
