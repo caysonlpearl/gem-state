@@ -18,6 +18,32 @@ function dealerListingId(value) {
   }
 }
 
+function dealerCatalogKind(value) {
+  const search = new URL(value).search.toLowerCase();
+  if (/category=(?:601|16063)/.test(search)) return "bodies";
+  if (search.includes("/truck-parts-and-components/")) return "parts";
+  if (search.includes("/construction-attachments/")) return "attachments";
+  if (search.includes("/construction-equipment/")) return "construction";
+  if (search.includes("/farm-equipment/")) return "farm";
+  if (search.includes("/trailers/")) return "trailers";
+  if (search.includes("/trucks/")) return "trucks";
+  if (search.includes("/other-items/")) return "other";
+  return null;
+}
+function dealerCatalogHeadingMatches(kind, heading) {
+  const patterns = {
+    bodies: /^Truck Bodies Only Trucks For Sale$/i,
+    parts: /^Truck Parts and Components For Sale$/i,
+    attachments: /^Construction Attachments For Sale$/i,
+    construction: /^Construction Equipment For Sale$/i,
+    farm: /^Equipment For Sale$/i,
+    trailers: /^Trailers For Sale$/i,
+    trucks: /^Trucks For Sale$/i,
+    other: /^Equipment For Sale$/i,
+  };
+  return !!patterns[kind]?.test(String(heading || "").trim());
+}
+
 function dealerCollectInventoryPage() {
   const structured = [...document.querySelectorAll('script[type="application/ld+json"]')].flatMap(
     (script) => {
@@ -70,6 +96,7 @@ function dealerCollectInventoryPage() {
     .find(Boolean);
   const counts = range ? range.slice(1).map((n) => Number(n.replaceAll(",", ""))) : null;
   return {
+    heading: document.querySelector("h1")?.textContent.trim() || "",
     items: [...byUrl.values()],
     sections: [...new Set(sections)],
     expected: counts ? counts[2] : Number(catalog?.offers?.offerCount) || 0,
@@ -223,40 +250,58 @@ async function runDealer(tabId) {
   const first = await exec(tabId, dealerCollectInventoryPage);
   if (!first.sections.length)
     throw new Error("Could not find the dealer's inventory sections. No batch was created.");
-  const pages = first.sections.filter((value) => {
-      try {
-        const url = new URL(value);
-        return (
-          url.origin === "https://www.diesel-depot.com" &&
-          url.pathname === "/inventory/" &&
-          url.search.startsWith("?/listings/")
-        );
-      } catch {
-        return false;
-      }
-    }),
+  const pages = first.sections
+      .filter((value) => {
+        try {
+          const url = new URL(value);
+          return (
+            url.origin === "https://www.diesel-depot.com" &&
+            url.pathname === "/inventory/" &&
+            url.search.startsWith("?/listings/")
+          );
+        } catch {
+          return false;
+        }
+      })
+      .map((url) => ({ url, kind: dealerCatalogKind(url) })),
     visited = new Set(),
     byId = new Map();
   let complete = true;
   while (pages.length && visited.size < 100) {
-    const url = pages.shift();
+    const { url, kind } = pages.shift();
     if (visited.has(url)) continue;
     visited.add(url);
     await chrome.tabs.update(tabId, { url });
-    const pageKey = new URL(url).search;
-    if (
-      !(await waitForPage(tabId, (current) => new URL(current).search === pageKey, 25000, 1500))
-    ) {
+    const isCatalog = (current) => {
+      try {
+        const u = new URL(current);
+        return (
+          u.origin === "https://www.diesel-depot.com" &&
+          u.pathname === "/inventory/" &&
+          /^\?\/listings\/(for-sale|search)\b/.test(u.search)
+        );
+      } catch {
+        return false;
+      }
+    };
+    if (!(await waitForPage(tabId, isCatalog, 25000, 1500))) {
       complete = false;
       break;
     }
     if (await exec(tabId, isBotCheckPage)) {
-      complete = false;
-      break;
+      const tab = await chrome.tabs.get(tabId);
+      if (
+        !(await waitForHuman({ id: tab.windowId }, tabId, "Diesel Depot", say, false)) ||
+        !(await waitForPage(tabId, isCatalog, 25000, 1500))
+      ) {
+        complete = false;
+        break;
+      }
     }
     const page = await exec(tabId, dealerCollectInventoryPage);
     if (
       !page?.recognized ||
+      !dealerCatalogHeadingMatches(kind, page.heading) ||
       (page.pageCount !== null && page.items.length < page.pageCount) ||
       (page.expected > page.items.length && !page.nextUrl && page.pageCount === page.expected)
     ) {
@@ -276,7 +321,7 @@ async function runDealer(tabId) {
         complete = false;
         break;
       }
-      if (!visited.has(page.nextUrl)) pages.push(page.nextUrl);
+      if (!visited.has(page.nextUrl)) pages.push({ url: page.nextUrl, kind });
     } else if (page.pageCount !== null && page.expected > page.pageCount) {
       complete = false;
       break;

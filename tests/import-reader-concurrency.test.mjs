@@ -226,3 +226,39 @@ test("waitForPage refuses a complete but wrong listing and cleans up its listene
   assert.equal(await c.waitForPage(1, (u) => u.endsWith("/old")), true);
   assert.equal(listeners, 0);
 });
+
+test("two challenged windows receive separate serialized manual handoffs without navigating again", async () => {
+  const h = harness();
+  const challengeUrls = new Set(["https://source.test/a", "https://source.test/b"]);
+  const originalExec = h.context.exec;
+  h.context.exec = async (tabId, fn) =>
+    fn.name === "isBotCheckPage"
+      ? challengeUrls.has(h.tabs.get(tabId).url)
+      : originalExec(tabId, fn);
+  let active = 0,
+    max = 0,
+    handoffs = 0,
+    navigations = 0;
+  const originalUpdate = h.context.chrome.tabs.update;
+  h.context.chrome.tabs.update = async (...args) => {
+    navigations++;
+    return originalUpdate(...args);
+  };
+  h.context.waitForHuman = async (_win, tabId) => {
+    handoffs++;
+    active++;
+    max = Math.max(max, active);
+    await delay(5);
+    challengeUrls.delete(h.tabs.get(tabId).url);
+    active--;
+    return true;
+  };
+  await h.context.readListingJobs(
+    [...challengeUrls].map((sourceUrl) => ({ ...jobs[0], item: { sourceUrl } })),
+  );
+  assert.equal(handoffs, 2);
+  assert.equal(max, 1);
+  assert.equal(navigations, 2);
+  assert.equal(h.seen.length, 2);
+  assert.equal(h.stats().open, 0);
+});

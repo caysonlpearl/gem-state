@@ -66,8 +66,10 @@ function waitForPage(tabId, sameListing, timeoutMs = 25000, settleMs = 1200) {
 }
 
 // Brings the window forward and waits for you to finish a site's check.
-async function waitForHuman(win, tabId, siteName, notify) {
-  await chrome.windows.update(win.id, { focused: true, width: 1000, height: 900 }).catch(() => {});
+async function waitForHuman(win, tabId, siteName, notify, resize = true) {
+  await chrome.windows
+    .update(win.id, { focused: true, ...(resize ? { width: 1000, height: 900 } : {}) })
+    .catch(() => {});
   notify &&
     notify(
       `${siteName} asked to verify you're human. Complete the check in the window that just opened; the import continues on its own.`,
@@ -132,7 +134,8 @@ async function readListingJobs(jobs, { onItemDone } = {}) {
             humanGate = ownGate;
             const passed = await ownGate;
             if (humanGate === ownGate) humanGate = null;
-            if (!passed || !(await open())) throw new Error("Verification incomplete.");
+            if (!passed || !(await waitForPage(tabId, matches, 25000, settleMs)))
+              throw new Error("Verification incomplete.");
           }
           const current = await chrome.tabs.get(tabId);
           if (

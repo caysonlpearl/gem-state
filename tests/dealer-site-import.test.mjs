@@ -26,7 +26,7 @@ function reader(data) {
     inferCategory: () => "general",
     document: {
       body: { innerText: data.body || "" },
-      querySelector: () => null,
+      querySelector: (selector) => (selector === "h1" ? { textContent: data.heading || "" } : null),
       querySelectorAll(selector) {
         if (selector.startsWith("script")) return scripts;
         if (selector === ".detail__specs-label")
@@ -164,4 +164,62 @@ test("wrong listing, verification, missing price, and explicit unavailability re
   assert.equal(value.priceUnknown, true);
   assert.equal(value.priceCents, null);
   assert.equal("photoUrls" in value, false);
+});
+
+test("whole-dealer scan accepts Sandhills URL rewrites but verifies each section heading", async () => {
+  const catalogs = fixture("catalogs");
+  const pages = new Map(
+    catalogs.map((data) => [data.url, reader(data)("dealerCollectInventoryPage()")]),
+  );
+  let current = catalogs[0].url;
+  let normalized = current;
+  let delivered;
+  let pagesByKind;
+  const context = vm.createContext({
+    URL,
+    isBotCheckPage: function isBotCheckPage() {},
+    overlay: async () => {},
+    chrome: {
+      tabs: {
+        async update(_id, { url }) {
+          current = url;
+          normalized =
+            "https://www.diesel-depot.com/inventory/?/listings/search?ScopeCategoryIDs=27&dlr=1";
+        },
+      },
+    },
+    async waitForPage(_id, matches) {
+      return matches(normalized);
+    },
+    async exec(_id, fn) {
+      return fn.name === "isBotCheckPage"
+        ? false
+        : (pages.get(current) ?? pagesByKind.get(context.dealerCatalogKind(current)));
+    },
+    async readListingsPaced(items) {
+      for (const item of items) {
+        item.priceCents = 100;
+        item.city = "Boise";
+        item.state = "ID";
+      }
+    },
+    async deliverImport(_id, _say, _seller, payload) {
+      delivered = payload;
+    },
+  });
+  vm.runInContext(source, context);
+  pagesByKind = new Map(
+    catalogs.map((data) => [
+      context.dealerCatalogKind(data.url),
+      reader(data)("dealerCollectInventoryPage()"),
+    ]),
+  );
+  await context.runDealer(1);
+  assert.equal(delivered.sourceProfileUrl, "https://www.diesel-depot.com/inventory/");
+  assert.equal(delivered.items.length, 68);
+  assert.equal(new Set(delivered.items.map((i) => dieselDepotListingId(i.sourceUrl))).size, 68);
+  assert.equal(
+    reader(catalogs[0])('dealerCatalogHeadingMatches("bodies","Trucks For Sale")'),
+    false,
+  );
 });
