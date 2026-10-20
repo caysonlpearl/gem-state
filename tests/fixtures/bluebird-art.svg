@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600">
+  <rect width="800" height="600" fill="#ede8df"/>
+  <rect x="250" y="100" width="300" height="390" rx="12" fill="#775738"/>
+  <rect x="270" y="120" width="260" height="350" fill="#f4eddc"/>
+  <path d="M400 420V250m0 90-78-68m78 100 83-70" stroke="#596b45" stroke-width="15" fill="none" stroke-linecap="round"/>
+  <circle cx="319" cy="269" r="40" fill="#d18470"/>
+  <circle cx="487" cy="268" r="43" fill="#dca653"/>
+  <circle cx="400" cy="223" r="45" fill="#d99b91"/>
+  <circle cx="400" cy="310" r="32" fill="#dec079"/>
+  <text x="400" y="550" text-anchor="middle" font-family="sans-serif" font-size="26" fill="#59472f">SYNTHETIC ART PHOTO</text>
+</svg>

@@ -2678,15 +2678,69 @@ export type ClassifiedsHome = {
   recent: ClassifiedCard[];
 };
 
+export type ClassifiedsHomeLead = {
+  totalActive: number;
+  categoryCounts: Record<string, number>;
+  motors: ClassifiedCard[];
+};
+
+async function loadClassifiedsHomeCategoryData() {
+  const { shortCache, PUBLIC_PAGE_CACHE_MS } = await import("./short-cache.server");
+  return shortCache("classifieds-home-category-data", PUBLIC_PAGE_CACHE_MS, async () => {
+    const client = publicServerClient();
+    const nowIso = new Date().toISOString();
+    const { data: rows } = await client
+      .from("asks")
+      .select(
+        "id, products!inner(status, categories!inner(slug)), classified_listing_details!inner(listing_id)",
+      )
+      .eq("status", "active")
+      .eq("is_demo", false)
+      .not("approved_at", "is", null)
+      .gt("expires_at", nowIso)
+      .eq("products.status", "published")
+      .limit(1000);
+
+    const categoryCounts: Record<string, number> = {};
+    for (const row of (rows ?? []) as Record<string, unknown>[]) {
+      const slug = (row["products"] as { categories: { slug: string } | null })?.categories?.slug;
+      if (slug) categoryCounts[slug] = (categoryCounts[slug] ?? 0) + 1;
+    }
+    return { totalActive: (rows ?? []).length, categoryCounts };
+  });
+}
+
+async function loadClassifiedsHomeMotors() {
+  const { shortCache, PUBLIC_PAGE_CACHE_MS } = await import("./short-cache.server");
+  return shortCache("classifieds-home-motors", PUBLIC_PAGE_CACHE_MS, async () => {
+    const result = await runBrowseClassifieds({
+      group: "motors",
+      state: "ID",
+      sort: "newest",
+      page: 1,
+    });
+    return result.listings;
+  });
+}
+
+async function loadClassifiedsHomeLead(): Promise<ClassifiedsHomeLead> {
+  const [categoryData, motors] = await Promise.all([
+    loadClassifiedsHomeCategoryData(),
+    loadClassifiedsHomeMotors(),
+  ]);
+  return { ...categoryData, motors };
+}
+
+export const getClassifiedsHomeLead = createServerFn({ method: "GET" }).handler(
+  async (): Promise<ClassifiedsHomeLead> => loadClassifiedsHomeLead(),
+);
+
 export const getClassifiedsHome = createServerFn({ method: "GET" }).handler(
   async (): Promise<ClassifiedsHome> => {
     const { shortCache, PUBLIC_PAGE_CACHE_MS } = await import("./short-cache.server");
     return shortCache("classifieds-home", PUBLIC_PAGE_CACHE_MS, async () => {
-      const client = publicServerClient();
-      const nowIso = new Date().toISOString();
-
       const [
-        { data: categoryRows },
+        categoryData,
         motors,
         recent,
         homes,
@@ -2697,21 +2751,8 @@ export const getClassifiedsHome = createServerFn({ method: "GET" }).handler(
         pets,
         firearms,
       ] = await Promise.all([
-        client
-          .from("asks")
-          .select(
-            "id, products!inner(status, categories!inner(slug)), classified_listing_details!inner(listing_id)",
-          )
-          .eq("status", "active")
-          .eq("is_demo", false)
-          .not("approved_at", "is", null)
-          .gt("expires_at", nowIso)
-          .eq("products.status", "published")
-          .limit(1000),
-        // The public homepage is intentionally local. The full vehicle
-        // browser can still widen its geography through its filters, but
-        // homepage rows should never lead with distant inventory.
-        runBrowseClassifieds({ group: "motors", state: "ID", sort: "newest", page: 1 }),
+        loadClassifiedsHomeCategoryData(),
+        loadClassifiedsHomeMotors(),
         runBrowseClassifieds({ sort: "newest", page: 1, includeAllMocks: true }),
         runBrowseClassifieds({
           category: "other-real-estate",
@@ -2742,19 +2783,14 @@ export const getClassifiedsHome = createServerFn({ method: "GET" }).handler(
         runBrowseClassifieds({ category: "firearms", state: "ID", sort: "newest", page: 1 }),
       ]);
 
-      const categoryCounts: Record<string, number> = {};
-      for (const row of (categoryRows ?? []) as Record<string, unknown>[]) {
-        const slug = (row["products"] as { categories: { slug: string } | null })?.categories?.slug;
-        if (!slug) continue;
-        categoryCounts[slug] = (categoryCounts[slug] ?? 0) + 1;
-      }
+      const categoryCounts = { ...categoryData.categoryCounts };
 
       const additionalJobs = Math.max(0, jobs.total - (categoryCounts.jobs ?? 0));
       categoryCounts.jobs = jobs.total;
       return {
-        totalActive: (categoryRows ?? []).length + additionalJobs,
+        totalActive: categoryData.totalActive + additionalJobs,
         categoryCounts,
-        motors: motors.listings,
+        motors,
         // Keep enough of the first page available for the homepage to build
         // several useful, non-identical curated rows without another round trip.
         recent: [

@@ -8,6 +8,7 @@ type BluebirdEmptyStateProps = {
   eyebrow?: string;
   children?: ReactNode;
   className?: string;
+  headingLevel?: "h1" | "h2";
 };
 
 /** A consistent, friendly illustration for empty, missing, and recoverable error states. */
@@ -17,7 +18,10 @@ export function BluebirdEmptyState({
   eyebrow = "Bluebird marketplace",
   children,
   className,
+  headingLevel = "h1",
 }: BluebirdEmptyStateProps) {
+  const Heading = headingLevel;
+
   return (
     <div className={cn("soft-card px-5 py-8 sm:px-8 sm:py-9", className)}>
       <div className="mx-auto flex max-w-2xl flex-col items-center gap-5 sm:flex-row sm:gap-7 sm:text-left">
@@ -41,7 +45,9 @@ export function BluebirdEmptyState({
               {eyebrow}
             </p>
           ) : null}
-          <h1 className="mt-1 text-[18px] font-semibold tracking-tight text-foreground">{title}</h1>
+          <Heading className="mt-1 text-[18px] font-semibold tracking-tight text-foreground">
+            {title}
+          </Heading>
           {description ? (
             <div className="mt-2 max-w-[52ch] text-[13px] leading-relaxed text-muted-foreground">
               {description}

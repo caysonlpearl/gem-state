@@ -28,10 +28,12 @@ function ListingLink({
   listing,
   className,
   children,
+  ariaLabel,
 }: {
   listing: ClassifiedCard;
   className: string;
   children: ReactNode;
+  ariaLabel?: string;
 }) {
   // Partner (Adzuna) jobs open on Bluebird's own job page like any listing;
   // the visitor leaves for Adzuna only from that page's Apply button.
@@ -40,6 +42,7 @@ function ListingLink({
       to="/listings/$listingId"
       params={{ listingId: listingParam(listing) }}
       className={className}
+      aria-label={ariaLabel}
     >
       {children}
     </Link>
@@ -159,10 +162,12 @@ function LogoImage({
   src,
   className,
   onMissing,
+  priority,
 }: {
   src: string;
   className: string;
   onMissing: () => void;
+  priority?: boolean;
 }) {
   const ref = useRef<HTMLImageElement>(null);
   useEffect(() => {
@@ -170,7 +175,15 @@ function LogoImage({
     if (img?.complete && img.naturalWidth === 0) onMissing();
   }, [onMissing]);
   return (
-    <img ref={ref} src={src} alt="" loading="lazy" onError={onMissing} className={className} />
+    <img
+      ref={ref}
+      src={src}
+      alt=""
+      loading={priority ? "eager" : "lazy"}
+      fetchPriority={priority ? "high" : undefined}
+      onError={onMissing}
+      className={className}
+    />
   );
 }
 
@@ -303,10 +316,12 @@ function LogoPhoto({
   listing,
   logoUrl,
   ratio,
+  priority,
 }: {
   listing: ClassifiedCard;
   logoUrl: string;
   ratio: string;
+  priority?: boolean;
 }) {
   const [missing, setMissing] = useState(false);
   if (missing) return <PlaceholderPhoto listing={withoutLogo(listing)} ratio={ratio} />;
@@ -314,6 +329,7 @@ function LogoPhoto({
     <div className={`relative ${ratio} overflow-hidden border-b border-border/60 bg-white p-3`}>
       <LogoImage
         src={logoUrl}
+        priority={priority}
         onMissing={() => setMissing(true)}
         className="h-full w-full object-contain transition-transform duration-300 group-hover:scale-[1.03]"
       />
@@ -321,7 +337,7 @@ function LogoPhoto({
   );
 }
 
-function Photo({
+export function ListingCardPhoto({
   listing,
   tall,
   priority,
@@ -333,7 +349,7 @@ function Photo({
   const ratio = tall ? "aspect-[4/3]" : "aspect-[4/3]";
   const logoUrl = listingLogoUrl(listing);
   if (!listing.imageUrl && logoUrl) {
-    return <LogoPhoto listing={listing} logoUrl={logoUrl} ratio={ratio} />;
+    return <LogoPhoto listing={listing} logoUrl={logoUrl} ratio={ratio} priority={priority} />;
   }
   if (!listing.imageUrl) {
     return <PlaceholderPhoto listing={listing} ratio={ratio} />;
@@ -469,8 +485,12 @@ export function ListingCard({
   return (
     <article className="group relative min-w-0 overflow-hidden rounded-2xl border border-transparent bg-card shadow-sm transition-shadow hover:shadow-md">
       <div className="relative">
-        <ListingLink listing={listing} className="block">
-          <Photo listing={listing} priority={priority} />
+        <ListingLink
+          listing={listing}
+          className="block"
+          ariaLabel={"View listing: " + listing.title}
+        >
+          <ListingCardPhoto listing={listing} priority={priority} />
         </ListingLink>
         {soldAt ? (
           <span className="absolute left-2 top-2 z-10 inline-flex rounded-full bg-foreground px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.08em] text-background shadow-sm">
@@ -599,7 +619,7 @@ export function ListingRow({ listing }: { listing: ClassifiedCard }) {
         listing={listing}
         className="grid grid-cols-[130px_minmax(0,1fr)] gap-3 sm:grid-cols-[210px_minmax(0,1fr)]"
       >
-        <Photo listing={listing} />
+        <ListingCardPhoto listing={listing} />
         <div className="min-w-0 py-3 pr-3">
           <div className="flex flex-wrap items-baseline justify-between gap-x-3">
             <h3 className="min-w-0 flex-1 truncate text-[14px] font-semibold group-hover:text-primary">

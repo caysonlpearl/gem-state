@@ -2658,7 +2658,10 @@ function Browse() {
               )}
             </div>
 
-            <section id="results" className="mt-6">
+            <section id="results" aria-labelledby="browse-results-heading" className="mt-6">
+              <h2 id="browse-results-heading" className="sr-only">
+                Search results
+              </h2>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className={motors ? "hidden" : "text-[12.5px] text-muted-foreground"}>
                   <span className="numeric">{result.total}</span>{" "}
@@ -2689,6 +2692,7 @@ function Browse() {
               {result.listings.length === 0 ? (
                 <BluebirdEmptyState
                   className="mt-5"
+                  headingLevel="h2"
                   title="No listings match these filters."
                   description={noResultsHint}
                 >
