@@ -247,3 +247,15 @@ test("motor subcategory destinations open results directly instead of the catego
   for (const category of ["cars-trucks","motorcycles","rvs-campers","powersports","auto-parts","trailers"])
     assert.equal(classifiedSubcategorySearch(category,"Imported subtype").vehicleMode,"results");
 });
+
+
+test("switching parent categories clears the previous category-specific subtype", () => {
+  const source = readFileSync(new URL("../src/routes/browse.tsx",import.meta.url),"utf8");
+  const expression = source.slice(source.indexOf("  const scoped ="),source.indexOf("  const clearSearch ="));
+  const sandbox = vm.createContext({search:{category:"industrial",itemDetailKey:"itemType",itemDetailValue:"Heavy Equipment/Tractors",city:"Boise"}});
+  vm.runInContext(ts.transpile(expression,{target:ts.ScriptTarget.ES2022}),sandbox);
+  const changed = JSON.parse(vm.runInContext('JSON.stringify(scoped({category:"furniture"}))',sandbox));
+  assert.deepEqual(changed,{category:"furniture",city:"Boise"});
+  const same = JSON.parse(vm.runInContext('JSON.stringify(scoped({sort:"price_low"}))',sandbox));
+  assert.equal(same.itemDetailValue,"Heavy Equipment/Tractors");
+});

@@ -1377,7 +1377,12 @@ function Browse() {
 
   const scoped = (patch: Partial<Search>): Search =>
     Object.fromEntries(
-      Object.entries({ ...search, ...patch, page: undefined }).filter(
+      Object.entries({
+        ...search, ...patch, page: undefined,
+        ...(Object.prototype.hasOwnProperty.call(patch, "category") && patch.category !== search.category
+          ? {itemDetailKey: undefined, itemDetailValue: undefined}
+          : {}),
+      }).filter(
         ([, value]) => value !== undefined && value !== "",
       ),
     ) as Search;
@@ -1610,11 +1615,11 @@ function Browse() {
           ? value("firearmAccessoryType")
           : undefined,
       itemDetailKey:
-        category && itemCategorySlugs.has(category) && !nextFirearms
+        category === search.category && category && itemCategorySlugs.has(category) && !nextFirearms
           ? value("itemDetailKey")
           : undefined,
       itemDetailValue:
-        category && itemCategorySlugs.has(category) && !nextFirearms
+        category === search.category && category && itemCategorySlugs.has(category) && !nextFirearms
           ? value("itemDetailValue")
           : undefined,
     };
