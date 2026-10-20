@@ -418,6 +418,15 @@ async function extractListingDetailsInPage(withPhotos = true) {
   const headerLines = detailsIdx >= 0 ? lines.slice(0, detailsIdx) : lines.slice(0, 6);
   if (headerLines.some((l) => /^sold$/i.test(l))) return { unavailable: true, sold: true };
 
+  const sourceSubcategory =
+    [
+      ...(document
+        .querySelector('[aria-label="Breadcrumb"]')
+        ?.querySelectorAll('a[href*="/marketplace/category/"]') || []),
+    ]
+      .map((a) => a.textContent.trim())
+      .filter(Boolean)
+      .at(-1) || "";
   if (!withPhotos) {
     const priceLine = lines.find((l) => /^\$[\d,]+$/.test(l));
     if (!priceLine || !lines[0]) return null;
@@ -425,6 +434,7 @@ async function extractListingDetailsInPage(withPhotos = true) {
       title: lines[0],
       priceCents: Math.round(parseFloat(priceLine.replace(/[$,]/g, "")) * 100) || 0,
       description,
+      sourceSubcategory,
     };
   }
 
@@ -501,6 +511,7 @@ async function extractListingDetailsInPage(withPhotos = true) {
 
   return {
     condition: mapCondition(condition),
+    sourceSubcategory,
     description,
     photoUrls: Array.from(new Set(photoUrls)).slice(0, 8),
   };
@@ -700,6 +711,12 @@ async function refreshListings(adminTabId, requestId, targets) {
         : undefined,
       priceCents: item.priceCents,
       description: item.description,
+      subcategory:
+        item.kslSubCategory ||
+        item.vintedCategories?.at(-1) ||
+        item.dealerCategory ||
+        item.sourceSubcategory ||
+        "",
       unavailable: item.unavailable === true,
       sold: item.sold === true,
     }));

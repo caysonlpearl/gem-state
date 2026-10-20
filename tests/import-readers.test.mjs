@@ -55,6 +55,7 @@ test("a Vinted item becomes a local-pickup import item at the seller's city", ()
       priceCents: 700,
       condition: "used_excellent",
       categorySlug: "apparel-accessories",
+      subcategory: "Jeans",
       city: "BOISE",
       state: "ID",
       photoUrls: ["https://images1.vinted.net/t/abc/f800/1.webp?s=sig"],

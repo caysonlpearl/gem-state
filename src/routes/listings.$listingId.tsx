@@ -49,6 +49,11 @@ import {
 } from "@phosphor-icons/react";
 
 import { brand } from "@/config/brand";
+import {
+  fieldsForClassifiedItem,
+  classifiedSubcategoryField,
+  classifiedSubcategorySearch,
+} from "@/config/classified-item-fields";
 import { formatUsd } from "@/config/fees";
 import { BluebirdEmptyState } from "@/components/layout/BluebirdEmptyState";
 import { ListingActions } from "@/components/classifieds/ListingActions";
@@ -3859,6 +3864,15 @@ function GeneralListingDetail({
   const [activeTab, setActiveTab] = useState<"description" | "location">("description");
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
 
+  const subcategoryField = classifiedSubcategoryField(listing.categorySlug ?? "general");
+  const subcategory = itemDetails[subcategoryField.key];
+  const fieldLabels = new Map(
+    fieldsForClassifiedItem(listing.categorySlug ?? "general").map((field) => [
+      field.key,
+      field.label,
+    ]),
+  );
+
   return (
     <main className="mx-auto max-w-[1360px] px-4 py-6 sm:px-7 sm:py-8 lg:px-10">
       <nav
@@ -3877,6 +3891,18 @@ function GeneralListingDetail({
               className="hover:text-foreground"
             >
               {listing.categoryName}
+            </Link>
+            <CaretRight size={13} />
+          </>
+        )}
+        {subcategory && listing.categorySlug !== "firearms" && (
+          <>
+            <Link
+              to="/browse"
+              search={classifiedSubcategorySearch(listing.categorySlug ?? "general", subcategory)}
+              className="hover:text-foreground"
+            >
+              {subcategory}
             </Link>
             <CaretRight size={13} />
           </>
@@ -3996,9 +4022,10 @@ function GeneralListingDetail({
                         {Object.entries(itemDetails).map(([key, value]) => (
                           <div key={key} className="rounded-xl bg-secondary/55 px-4 py-3">
                             <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-                              {key
-                                .replace(/[A-Z]/g, (letter) => ` ${letter}`)
-                                .replace(/^./, (letter) => letter.toUpperCase())}
+                              {fieldLabels.get(key) ??
+                                key
+                                  .replace(/[A-Z]/g, (letter) => ` ${letter}`)
+                                  .replace(/^./, (letter) => letter.toUpperCase())}
                             </p>
                             <p className="mt-1 text-[13px] font-semibold">{value}</p>
                           </div>

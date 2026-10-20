@@ -65,6 +65,7 @@ test("builds a local-pickup import item from a read KSL listing", () => {
     priceCents: 700000,
     condition: "not_applicable",
     categorySlug: "pets",
+    subcategory: "Horses",
     city: "Oakley",
     state: "ID",
     photoUrls: ["https://image.ksldigital.com/c0773373-038e-43f5-931e-77a17288a7ae.jpg"],

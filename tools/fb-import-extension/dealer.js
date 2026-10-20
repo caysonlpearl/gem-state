@@ -235,6 +235,7 @@ function dealerToImportItem(item) {
         ? "new_without_tags"
         : "used_good",
     categorySlug: dealerCategorySlug(item.dealerCategory, item.title),
+    subcategory: item.dealerCategory || "",
     city: item.city || "",
     state: item.state || "ID",
     photoUrls: item.photoUrls || [],

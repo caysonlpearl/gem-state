@@ -13,6 +13,7 @@ import {
   dieselDepotListingId,
   importAbsenceCanFlagRemoved,
 } from "./seller-claims";
+import { inferImportItemDetails } from "./import-subcategories";
 import { findIdahoPlace } from "@/config/idaho-places";
 
 /**
@@ -45,6 +46,8 @@ export type FbImportItemInput = {
   priceCents: number;
   condition?: string | null;
   categorySlug?: string;
+  subcategory?: string;
+  itemDetails?: Record<string, string>;
   city?: string | null;
   state?: string | null;
   photoUrls: string[];
@@ -63,6 +66,7 @@ export type FbImportItem = {
   priceCents: number;
   condition: string | null;
   categorySlug: string;
+  itemDetails: Record<string, string>;
   city: string;
   state: string;
   region: string;
@@ -188,6 +192,14 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
           condition:
             categorySlug === "pets" ? "not_applicable" : normalizeFacebookCondition(item.condition),
           categorySlug,
+          subcategory:
+            typeof item.subcategory === "string" ? item.subcategory.trim().slice(0, 200) : "",
+          itemDetails: inferImportItemDetails(
+            categorySlug,
+            item.subcategory,
+            item.itemDetails,
+            item.title,
+          ),
           city: place ? place[0] : city,
           state: place ? "ID" : state,
           region: place ? place[1] : "",
@@ -238,7 +250,9 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
 
       const { data: priorItems, error: priorError } = await admin
         .from("fb_marketplace_import_items")
-        .select("source_url, status, price_cents, description, listing_id, seller_id")
+        .select(
+          "source_url, status, price_cents, description, listing_id, seller_id, category_slug, item_details",
+        )
         .eq("source_profile_url", data.sourceProfileUrl)
         .in("status", ["draft", "needs_update", "possibly_removed", "published"]);
       if (priorError) throw new Error(priorError.message);
@@ -266,6 +280,15 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
         if (seenUrls.has(item.sourceUrl)) continue;
         seenUrls.add(item.sourceUrl);
         const prior = priorByUrl.get(item.sourceUrl);
+        if (isRefresh && prior)
+          item.itemDetails = inferImportItemDetails(
+            prior.category_slug,
+            item.subcategory,
+            prior.item_details,
+            item.title,
+          );
+        const classificationChanged =
+          JSON.stringify(prior?.item_details ?? {}) !== JSON.stringify(item.itemDetails);
 
         // A refresh only re-checks listings that are already published, and
         // only touches what Facebook can actually have changed. Category,
@@ -290,7 +313,8 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
           }
           const changed =
             prior.price_cents !== item.priceCents ||
-            (prior.description ?? "") !== (item.description ?? "");
+            (prior.description ?? "") !== (item.description ?? "") ||
+            classificationChanged;
           if (!changed) continue;
           const { error } = await admin
             .from("fb_marketplace_import_items")
@@ -299,6 +323,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
               title: item.title,
               description: item.description,
               price_cents: item.priceCents,
+              item_details: item.itemDetails,
               status: "needs_update",
               previous_price_cents: prior.price_cents,
               previous_description: prior.description,
@@ -313,7 +338,8 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
         if (prior && prior.status === "published") {
           const changed =
             prior.price_cents !== item.priceCents ||
-            (prior.description ?? "") !== (item.description ?? "");
+            (prior.description ?? "") !== (item.description ?? "") ||
+            classificationChanged;
           if (!changed) continue;
           const { error } = await admin
             .from("fb_marketplace_import_items")
@@ -324,6 +350,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
               price_cents: item.priceCents,
               condition: item.condition,
               category_slug: item.categorySlug,
+              item_details: item.itemDetails,
               status: "needs_update",
               previous_price_cents: prior.price_cents,
               previous_description: prior.description,
@@ -350,6 +377,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
               price_cents: item.priceCents,
               condition: item.condition,
               category_slug: item.categorySlug,
+              item_details: item.itemDetails,
               city: item.city,
               state: item.state,
               region: item.region,
@@ -397,7 +425,7 @@ export const getFacebookImportItems = createServerFn({ method: "GET" })
     const { data, error } = await admin
       .from("fb_marketplace_import_items")
       .select(
-        "id,batch_id,source_profile_url,source_url,title,description,price_cents,condition,category_slug,city,state,region,public_paths,status,previous_price_cents,previous_description,listing_id,created_at,sync_conflict",
+        "id,batch_id,source_profile_url,source_url,title,description,price_cents,condition,category_slug,city,state,region,public_paths,status,previous_price_cents,previous_description,listing_id,created_at,sync_conflict,item_details",
       )
       .in("status", ["draft", "needs_update", "possibly_removed"])
       .order("created_at", { ascending: false });
@@ -425,6 +453,12 @@ export const getFacebookImportItems = createServerFn({ method: "GET" })
           row.category_slug,
           row.title,
           categoryHintFrom(row.source_profile_url, row.description),
+        ),
+        itemDetails: inferImportItemDetails(
+          row.category_slug,
+          undefined,
+          row.item_details,
+          row.title,
         ),
         city: row.city ?? "",
         state: row.state ?? "",
@@ -560,6 +594,8 @@ export const updateFacebookImportItem = createServerFn({ method: "POST" })
       priceCents: number;
       condition: string;
       categorySlug: string;
+      subcategory?: string;
+      itemDetails?: Record<string, string>;
       city: string;
       state: string;
       region: string;
@@ -572,6 +608,12 @@ export const updateFacebookImportItem = createServerFn({ method: "POST" })
       priceCents: Math.max(0, Math.round(Number(input.priceCents) || 0)),
       condition: String(input.condition ?? "used_good"),
       categorySlug: String(input.categorySlug ?? "general"),
+      itemDetails: inferImportItemDetails(
+        String(input.categorySlug ?? "general"),
+        input.subcategory,
+        input.itemDetails,
+        input.title,
+      ),
       city: String(input.city ?? "")
         .trim()
         .slice(0, 80),
@@ -600,6 +642,7 @@ export const updateFacebookImportItem = createServerFn({ method: "POST" })
         price_cents: data.priceCents,
         condition: data.condition,
         category_slug: data.categorySlug,
+        item_details: data.itemDetails,
         city: data.city,
         state: data.state,
         region: data.region,
@@ -653,7 +696,7 @@ export const setFacebookImportItemsCategory = createServerFn({ method: "POST" })
     if (categoryError || !category) throw new Error("That category isn't set up.");
     const { data: items, error } = await admin
       .from("fb_marketplace_import_items")
-      .update({ category_slug: data.categorySlug })
+      .update({ category_slug: data.categorySlug, item_details: {} })
       .in("id", data.itemIds)
       .select("listing_id");
     if (error) throw new Error(error.message);
@@ -791,6 +834,21 @@ export const publishFacebookImportItems = createServerFn({ method: "POST" })
             .map((i: any) => i.title)
             .join("; ")}${noCity.length > 3 ? ` and ${noCity.length - 3} more` : ""}.`,
         );
+      for (const item of items) {
+        const details = inferImportItemDetails(
+          item.category_slug,
+          undefined,
+          item.item_details,
+          item.title,
+        );
+        if (JSON.stringify(details) !== JSON.stringify(item.item_details ?? {})) {
+          const { error: detailError } = await admin
+            .from("fb_marketplace_import_items")
+            .update({ item_details: details })
+            .eq("id", item.id);
+          if (detailError) throw new Error(detailError.message);
+        }
+      }
       const profile = canonicalSellerSourceProfile(items[0].source_profile_url);
       const { data: batch } = await admin
         .from("fb_marketplace_import_batches")

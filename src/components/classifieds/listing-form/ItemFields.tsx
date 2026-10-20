@@ -68,6 +68,7 @@ function ItemField({
           className={fieldClass}
         >
           <option value="">Choose an option</option>
+          {value && !field.options.includes(value) && <option value={value}>{value}</option>}
           {field.options.map((option) => (
             <option key={option} value={option}>
               {option}

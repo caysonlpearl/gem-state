@@ -73,7 +73,9 @@ function kslCollectFromMemberPage() {
   }
 
   const items = [];
-  const cards = Array.from(document.querySelectorAll("a.search-result[data-item-id], a[href*='/listing/'][data-item-id]"));
+  const cards = Array.from(
+    document.querySelectorAll("a.search-result[data-item-id], a[href*='/listing/'][data-item-id]"),
+  );
   const ids = new Set([...byId.keys(), ...cards.map((a) => a.getAttribute("data-item-id"))]);
   for (const id of ids) {
     if (!id) continue;
@@ -89,9 +91,7 @@ function kslCollectFromMemberPage() {
       kslCategory: obj ? obj.category || "" : "",
       kslSubCategory: obj ? obj.subCategory || "" : "",
       photoUrls:
-        obj && obj.primaryImage && obj.primaryImage.url
-          ? [obj.primaryImage.url.split("?")[0]]
-          : [],
+        obj && obj.primaryImage && obj.primaryImage.url ? [obj.primaryImage.url.split("?")[0]] : [],
     });
   }
 
@@ -206,14 +206,30 @@ function kslExtractListingInPage(withPhotos) {
     if (h3 && h3.nextElementSibling) conditionText = (h3.nextElementSibling.innerText || "").trim();
   }
 
+  let breadcrumbCategory = "",
+    breadcrumbSubcategory = "";
+  const trail = document.querySelector('a[href*="/search/cat/"][href*="/sub/"]');
+  if (trail) {
+    try {
+      const match = new URL(trail.href, location.href).pathname.match(
+        /\/search\/cat\/([^/]+)\/sub\/([^/]+)/,
+      );
+      if (match) {
+        breadcrumbCategory = decodeURIComponent(match[1]);
+        breadcrumbSubcategory = decodeURIComponent(match[2]);
+      }
+    } catch {
+      /* Keep the embedded category when a breadcrumb is malformed. */
+    }
+  }
   const place = listing.location || {};
   const result = {
     title: listing.title || "",
     priceCents: typeof listing.price === "number" ? Math.round(listing.price * 100) : null,
     description: description.slice(0, 5000),
     kslCondition: conditionText || String(listing.newUsed || listing.condition || ""),
-    kslCategory: listing.category || "",
-    kslSubCategory: listing.subCategory || "",
+    kslCategory: breadcrumbCategory || listing.category || "",
+    kslSubCategory: breadcrumbSubcategory || listing.subCategory || "",
     city: place.city || "",
     state: place.state || "",
   };
@@ -249,14 +265,23 @@ function kslMapCondition(text) {
 // KSL category and subcategory -> Bluebird category slug. Checked against
 // the subcategory first ("Livestock" / "Horses" -> pets).
 const KSL_CATEGORY_RULES = [
-  [/horse|livestock|cattle|goat|sheep|poultry|chicken|pig|llama|alpaca|\bpets?\b|dog|cat\b|bird|reptile|fish(?!ing)/, "pets"],
+  [
+    /horse|livestock|cattle|goat|sheep|poultry|chicken|pig|llama|alpaca|\bpets?\b|dog|cat\b|bird|reptile|fish(?!ing)/,
+    "pets",
+  ],
   [/motorcycle|dirt bike/, "motorcycles"],
   [/atv|utv|snowmobile|side.?by.?side|powersport/, "powersports"],
-  [/\brv\b|recreational vehicle|camper|motorhome|travel trailer|fifth wheel|toy hauler/, "rvs-campers"],
+  [
+    /\brv\b|recreational vehicle|camper|motorhome|travel trailer|fifth wheel|toy hauler/,
+    "rvs-campers",
+  ],
   [/trailer/, "trailers"],
   [/auto part|tire|wheel|car part|truck part|parts and accessories/, "auto-parts"],
   [/\bcars?\b|trucks?|suv|vans?\b|vehicle/, "cars-trucks"],
-  [/real estate|home for sale|land|lot\b|rental|apartment|condo|townhome|house/, "other-real-estate"],
+  [
+    /real estate|home for sale|land|lot\b|rental|apartment|condo|townhome|house/,
+    "other-real-estate",
+  ],
   [/\bjobs?\b|employment/, "jobs"],
   [/services?\b/, "services"],
   [/farm|ranch|agri|hay|tractor|garden equip/, "farm-garden"],
@@ -264,7 +289,10 @@ const KSL_CATEGORY_RULES = [
   [/tool/, "tools-equipment"],
   [/furniture|couch|sofa|table|chair|dresser|bed\b|mattress/, "furniture"],
   [/appliance|home and garden|home & garden|household|home decor|lawn/, "home-garden"],
-  [/computer|electronic|cell phone|phone|tv|television|camera|audio|video game|gaming/, "electronics"],
+  [
+    /computer|electronic|cell phone|phone|tv|television|camera|audio|video game|gaming/,
+    "electronics",
+  ],
   [/baby|kid|child|toddler|stroller/, "baby-kids"],
   [/book|media|movie|dvd|vinyl|record/, "books-media"],
   [/clothing|apparel|shoe|boot|jacket|accessor/, "apparel-accessories"],
@@ -275,10 +303,15 @@ const KSL_CATEGORY_RULES = [
   [/health|beauty|cosmetic/, "health-beauty"],
   [/office|business/, "office-business"],
   [/ticket|event/, "tickets-events"],
-  [/outdoor|sporting|sport|camping|hunting|fishing|bike|bicycle|exercise|fitness|golf|ski|boat|kayak|watercraft/, "outdoor-sporting"],
+  [
+    /outdoor|sporting|sport|camping|hunting|fishing|bike|bicycle|exercise|fitness|golf|ski|boat|kayak|watercraft/,
+    "outdoor-sporting",
+  ],
 ];
 
 function kslMapCategory(category, subCategory, title, description) {
+  if (/^industrial$/i.test(String(category).trim()) || /heavy equipment/i.test(String(subCategory)))
+    return "industrial";
   for (const haystack of [subCategory, category]) {
     const value = String(haystack || "").toLowerCase();
     if (!value) continue;
@@ -310,7 +343,13 @@ function kslToImportItem(item) {
     description: item.description || "",
     priceCents: item.priceCents == null ? 0 : item.priceCents,
     condition: kslMapCondition(item.kslCondition),
-    categorySlug: kslMapCategory(item.kslCategory, item.kslSubCategory, item.title, item.description),
+    categorySlug: kslMapCategory(
+      item.kslCategory,
+      item.kslSubCategory,
+      item.title,
+      item.description,
+    ),
+    subcategory: item.kslSubCategory || "",
     city: item.city || "",
     state: item.state || "",
     photoUrls: item.photoUrls || [],
@@ -319,7 +358,10 @@ function kslToImportItem(item) {
 
 async function runKsl(tabId) {
   const say = (body) =>
-    overlay(tabId, `<strong>Bluebird import · KSL</strong><div style="margin-top:6px">${body}</div>`);
+    overlay(
+      tabId,
+      `<strong>Bluebird import · KSL</strong><div style="margin-top:6px">${body}</div>`,
+    );
   await say("Reading this seller's listings…");
 
   // Follow the seller's result pages, if KSL splits them.
@@ -346,7 +388,9 @@ async function runKsl(tabId) {
     withPhotos: true,
     onItemDone: () => {
       done += 1;
-      say(`${seller}${items.length} listing(s) found.<br/>Reading listings… ${done}/${items.length}`);
+      say(
+        `${seller}${items.length} listing(s) found.<br/>Reading listings… ${done}/${items.length}`,
+      );
     },
     notify: (message) => say(`${seller}${message}`),
   });
@@ -365,7 +409,9 @@ async function runKsl(tabId) {
     },
     [
       ...(skipped ? [`${skipped} no longer active`] : []),
-      ...(unreadable ? [`${unreadable} couldn't be fully read (check photos and description)`] : []),
+      ...(unreadable
+        ? [`${unreadable} couldn't be fully read (check photos and description)`]
+        : []),
     ],
   );
 }
@@ -378,11 +424,11 @@ async function kslRefresh(targets, onItemDone) {
   return items
     .filter((item) => !item.unreadable)
     .map((item) => ({
-    sourceUrl: item.sourceUrl,
-    title: item.title ? kslCleanTitle(item.title, item.city) : undefined,
-    priceCents: item.priceCents,
-    description: item.description,
-    unavailable: item.unavailable === true,
-    sold: item.sold === true,
-  }));
+      sourceUrl: item.sourceUrl,
+      title: item.title ? kslCleanTitle(item.title, item.city) : undefined,
+      priceCents: item.priceCents,
+      description: item.description,
+      unavailable: item.unavailable === true,
+      sold: item.sold === true,
+    }));
 }

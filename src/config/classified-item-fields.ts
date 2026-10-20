@@ -8,6 +8,13 @@ export type ClassifiedItemField = {
 
 export const industrialSubcategories = [
   "Air Compressors",
+  "Cranes",
+  "Generators",
+  "Hydraulics",
+  "Pumps",
+  "Truck Bodies",
+  "Trailers",
+  "Welding Equipment",
   "Boom Lift",
   "Drills",
   "Excavators",
@@ -149,6 +156,11 @@ export const classifiedItemFields: Record<string, ClassifiedItemField[]> = {
   ],
   "books-media": [
     {
+      key: "itemType",
+      label: "Book or media type",
+      placeholder: "Fiction, textbooks, movies, music…",
+    },
+    {
       key: "format",
       label: "Format",
       options: ["Hardcover", "Paperback", "Audio", "DVD", "Vinyl", "Digital", "Other"],
@@ -256,6 +268,7 @@ export const classifiedItemFields: Record<string, ClassifiedItemField[]> = {
     { key: "dimensions", label: "Dimensions" },
   ],
   "tickets-events": [
+    { key: "itemType", label: "Event type", placeholder: "Concert, sports, theater…" },
     { key: "eventName", label: "Event", placeholder: "Event name", required: true },
     { key: "eventDate", label: "Event date", placeholder: "YYYY-MM-DD" },
     { key: "venue", label: "Venue" },
@@ -304,6 +317,23 @@ export const classifiedItemFields: Record<string, ClassifiedItemField[]> = {
 
 export function fieldsForClassifiedItem(category: string): ClassifiedItemField[] {
   return classifiedItemFields[category] ?? classifiedItemFields["general"] ?? [];
+}
+
+/** Canonical type field used by import review, editing, details and browse links. */
+export function classifiedSubcategoryField(category: string): ClassifiedItemField {
+  const fields = fieldsForClassifiedItem(category);
+  return (
+    fields.find((field) => ["itemType", "productType", "instrumentType"].includes(field.key)) ??
+    fields[0]!
+  );
+}
+
+export function classifiedSubcategorySearch(category: string, value: string) {
+  return {
+    category,
+    itemDetailKey: classifiedSubcategoryField(category).key,
+    itemDetailValue: value,
+  };
 }
 
 export function normalizeClassifiedItemDetails(

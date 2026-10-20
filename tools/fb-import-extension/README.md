@@ -1,4 +1,4 @@
-# Bluebird Listing Import 1.4
+# Bluebird Listing Import 1.4.2
 
 This is a manually operated Chrome extension. It reads public listing data in the browser session the operator is already using; it does not run scheduled imports or publish automatically.
 
@@ -33,3 +33,5 @@ node --experimental-strip-types --test tests/import-reader-concurrency.test.mjs 
 ```
 
 Dealer fixtures were captured from the public catalog and representative detail pages on October 20, 2026. They cover 68 visible inventory records across eight sections; they are test snapshots, not a claim about current stock or a live extension run.
+
+Source subcategories are carried into the admin review form and saved as category-specific listing details. KSL Industrial classifications take precedence over words such as Tractor or Semi Truck in the subcategory. Version 1.4.2 or newer is required to extract these fields.

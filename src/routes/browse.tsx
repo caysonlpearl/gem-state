@@ -53,6 +53,7 @@ import {
 } from "@/config/pets";
 import {
   fieldsForClassifiedItem,
+  classifiedSubcategoryField,
   firearmAccessoryTypes,
   firearmBrands,
   firearmListingTypes,
@@ -1731,7 +1732,12 @@ function Browse() {
                 className="filter-input"
               >
                 <option value="">All Industrial subcategories</option>
-                {industrialSubcategories.map((subcategory) => (
+                {Array.from(
+                  new Set([
+                    ...industrialSubcategories,
+                    ...(search.itemDetailValue ? [search.itemDetailValue] : []),
+                  ]),
+                ).map((subcategory) => (
                   <option key={subcategory} value={subcategory}>
                     {subcategory}
                   </option>
@@ -1742,7 +1748,9 @@ function Browse() {
             <>
               <select
                 name="itemDetailKey"
-                defaultValue={search.itemDetailKey ?? ""}
+                defaultValue={
+                  search.itemDetailKey ?? classifiedSubcategoryField(search.category).key
+                }
                 className="filter-input"
               >
                 <option value="">Any detail</option>

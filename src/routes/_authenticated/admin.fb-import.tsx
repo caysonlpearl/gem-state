@@ -10,6 +10,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 
+import { importedSubcategory, importSubcategoryField } from "@/lib/import-subcategories";
+import { fieldsForClassifiedItem } from "@/config/classified-item-fields";
 import { classifiedCategories } from "@/config/classifieds";
 import { findIdahoPlace } from "@/config/idaho-places";
 import { IdahoCityPicker } from "@/components/classifieds/IdahoCityPicker";
@@ -94,6 +96,7 @@ type ExtensionRefreshResult = {
   description?: string;
   unavailable?: boolean;
   sold?: boolean;
+  subcategory?: string;
 };
 
 function ImportedSellers() {
@@ -205,6 +208,7 @@ function ImportedSellers() {
           description: result.description ?? null,
           priceCents: result.unavailable ? target.priceCents : (result.priceCents ?? 0),
           categorySlug: "general",
+          subcategory: result.subcategory,
           photoUrls: [],
           unavailable: result.unavailable === true,
           sold: result.sold === true,
@@ -549,6 +553,13 @@ function ReviewRow({
   const [price, setPrice] = useState((item.priceCents / 100).toFixed(2));
   const [condition, setCondition] = useState(item.condition ?? "used_good");
   const [categorySlug, setCategorySlug] = useState(item.categorySlug);
+  const [subcategory, setSubcategory] = useState(
+    importedSubcategory(item.categorySlug, item.itemDetails),
+  );
+  const subcategoryOptions =
+    fieldsForClassifiedItem(categorySlug).find(
+      (field) => field.key === importSubcategoryField(categorySlug),
+    )?.options ?? [];
   const [city, setCity] = useState(item.city);
   const [state, setState] = useState(item.state);
   const unknownIdahoCity = state === "ID" && city.trim() !== "" && !findIdahoPlace(city);
@@ -568,6 +579,8 @@ function ReviewRow({
           priceCents: Math.round(Number(price) * 100),
           condition,
           categorySlug,
+          subcategory,
+          itemDetails: item.itemDetails,
           city,
           state,
           region,
@@ -676,6 +689,7 @@ function ReviewRow({
                 value={categorySlug}
                 onChange={(e) => {
                   setCategorySlug(e.target.value);
+                  setSubcategory("");
                   setDirty(true);
                 }}
                 className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-[12.5px]"
@@ -686,6 +700,25 @@ function ReviewRow({
                   </option>
                 ))}
               </select>
+            </label>
+            <label className="text-[11px] font-medium">
+              Subcategory
+              <input
+                value={subcategory}
+                list={`import-subcategory-${item.id}`}
+                onChange={(e) => {
+                  setSubcategory(e.target.value);
+                  setDirty(true);
+                }}
+                placeholder="Choose or enter a subcategory"
+                maxLength={200}
+                className="mt-1 h-9 w-full rounded-md border border-input bg-background px-2 text-[12.5px]"
+              />
+              <datalist id={`import-subcategory-${item.id}`}>
+                {subcategoryOptions.map((option) => (
+                  <option key={option} value={option} />
+                ))}
+              </datalist>
             </label>
             <label className="text-[11px] font-medium">
               Condition
@@ -1126,7 +1159,7 @@ function FbImportPage() {
               <ReviewRow
                 // Remount when the category or city changes elsewhere (bulk set) so
                 // the row's own form shows the new value.
-                key={`${item.id}:${item.categorySlug}:${item.city}`}
+                key={`${item.id}:${item.categorySlug}:${item.city}:${importedSubcategory(item.categorySlug, item.itemDetails)}`}
                 item={item}
                 selected={selectedIds.has(item.id)}
                 onToggleSelected={(checked) => toggleSelected(item.id, checked)}
