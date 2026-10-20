@@ -486,7 +486,7 @@ function StageForm() {
         }}
       >
         <label className="text-[12px] font-medium sm:col-span-2">
-          Seller's Facebook, KSL, Vinted or Whatnot page URL
+          Seller or dealer inventory URL
           <input
             required
             value={profileUrl}
