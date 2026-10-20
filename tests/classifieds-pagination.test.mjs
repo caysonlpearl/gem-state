@@ -5,9 +5,11 @@ import vm from "node:vm";
 import ts from "typescript";
 import {
   normalizeBrowsePage,
+  CLASSIFIEDS_MERGE_READ_LIMIT,
   assertNextBrowsePage,
   appendBrowseListings,
 } from "../src/lib/classifieds-pagination.ts";
+import { comparableJobPay } from "../src/lib/classifieds-query.ts";
 import { isOutOfRangePage, canonicalPagePath } from "../src/lib/seo-policy.ts";
 
 const serverSource = readFileSync(
@@ -60,7 +62,22 @@ const fixtures = Array.from({ length: 1201 }, (_, index) => ({
 
 // Runs the real server validator, paging/ranking handler and route loader.
 // Database, storage, cleanup and all providers are local test doubles only.
-function harness() {
+function harness({
+  records = fixtures,
+  filters = {},
+  enabled = [],
+  external = [],
+  directory = [],
+  rowLimit = Infinity,
+  radiusMatch = () => true,
+} = {}) {
+  const includes = new Set(enabled);
+  const adapterCalls = [];
+  const directoryCalls = [];
+  const cards = (name) => async () => {
+    adapterCalls.push(name);
+    return external;
+  };
   const ranges = [];
   const providerReads = [];
   const query = new Proxy(
@@ -70,19 +87,45 @@ function harness() {
         key === "range"
           ? async (from, to) => {
               ranges.push([from, to]);
-              return { data: fixtures.slice(from, to + 1), count: fixtures.length, error: null };
+              return {
+                data: records.slice(from, Math.min(to + 1, from + rowLimit)),
+                count: records.length,
+                error: null,
+              };
             }
           : () => query,
     },
   );
   const modules = {
-    "./adzuna-listings.server": { canIncludeAdzuna: () => false },
-    "./mashvisor-listings.server": { canIncludeMashvisor: () => false },
-    "./openwebninja-listings.server": { canIncludeOpenWebNinja: () => false },
-    "./openwebninja.server": { openWebNinjaConfigured: () => false },
-    "./marketcheck.server": { canIncludeMarketCheck: () => false },
-    "./rescuegroups.server": { canIncludeRescueGroups: () => false },
-    "./service-directory-contract": { canIncludeDirectory: () => false },
+    "./adzuna-listings.server": {
+      canIncludeAdzuna: () => includes.has("adzuna"),
+      adzunaCards: cards("adzuna"),
+    },
+    "./mashvisor-listings.server": {
+      canIncludeMashvisor: () => includes.has("mashvisor"),
+      mashvisorCards: cards("mashvisor"),
+    },
+    "./openwebninja-listings.server": {
+      canIncludeOpenWebNinja: () => includes.has("openwebninja"),
+      openWebNinjaCards: cards("openwebninja"),
+    },
+    "./openwebninja.server": { openWebNinjaConfigured: () => true },
+    "./marketcheck.server": {
+      canIncludeMarketCheck: () => includes.has("marketcheck"),
+      marketCheckCards: cards("marketcheck"),
+    },
+    "./rescuegroups.server": {
+      canIncludeRescueGroups: () => includes.has("rescuegroups"),
+      rescueGroupsConfigured: () => true,
+      rescueGroupsCards: cards("rescuegroups"),
+    },
+    "./service-directory-contract": { canIncludeDirectory: () => includes.has("directory") },
+    "./service-directory.server": {
+      directoryCards: async (_input, offset, limit) => {
+        directoryCalls.push({ offset, limit });
+        return { cards: directory.slice(offset, offset + limit), total: directory.length };
+      },
+    },
     "@/integrations/supabase/client.server": { supabaseAdmin: { rpc: async () => ({}) } },
   };
   const context = vm.createContext({
@@ -91,11 +134,23 @@ function harness() {
     Map,
     Set,
     normalizeBrowsePage,
+    CLASSIFIEDS_MERGE_READ_LIMIT,
+    comparableJobPay,
     PAGE_SIZE: 24,
     LISTING_SELECT: "synthetic",
     publicServerClient: () => ({ from: () => query }),
     clearExpiredFeaturedPlacements: async () => {},
-    classifiedCategories: [],
+    classifiedCategories: ["jobs", "services", "cars-trucks", "other-real-estate", "pets"].map(
+      (slug) => ({ slug }),
+    ),
+    categoryIdsBySlug: async () =>
+      new Map(
+        ["jobs", "services", "cars-trucks", "other-real-estate", "pets"].map((slug) => [
+          slug,
+          slug,
+        ]),
+      ),
+    regionOfListing: (listing) => listing.region ?? "Treasure Valley",
     mockClassifiedListings: [],
     mockVehicleListings: [],
     SHOW_PUBLIC_PREVIEW_FIXTURES: false,
@@ -105,7 +160,7 @@ function harness() {
     isReleaseQaListing: () => false,
     sortedMedia: () => [],
     toCard: (row) => row,
-    isWithinClassifiedRadius: () => true,
+    isWithinClassifiedRadius: radiusMatch,
     signListingThumbnails: async () => new Map(),
     text: (value) => (value == null ? undefined : String(value)),
     num: (value) => value,
@@ -159,20 +214,24 @@ function harness() {
     context,
   );
   const browse = (page) => {
-    context.rawPage = page;
-    return vm.runInContext("browseClassifieds({data:{page:rawPage}})", context);
+    context.browseInput = { ...filters, page };
+    return vm.runInContext("browseClassifieds({data:browseInput})", context);
   };
   context.routeContext = { queryClient: { ensureQueryData: (input) => browse(input.page) } };
   return {
     ranges,
     providerReads,
+    adapterCalls,
+    directoryCalls,
     browse,
     validate: (page) => {
       context.rawPage = page;
       return vm.runInContext("validateSearch({page:rawPage})", context);
     },
-    load: (page) =>
-      vm.runInContext(`routeLoader({context:routeContext,deps:{page:${page}}})`, context),
+    load: (page) => {
+      context.routeDeps = { ...filters, page };
+      return vm.runInContext("routeLoader({context:routeContext,deps:routeDeps})", context);
+    },
   };
 }
 
@@ -405,3 +464,148 @@ test("the final page cannot start another load-more request", async () => {
   await h.run();
   assert.deepEqual(h.state.requests, []);
 });
+
+const mergedScenarios = [
+  { name: "radius", filters: { city: "Boise", radiusMiles: 25 } },
+  { name: "region", filters: { region: "Treasure Valley" } },
+  { name: "hourly job pay low", filters: { category: "jobs", sort: "price_low" } },
+  { name: "hourly job pay high", filters: { category: "jobs", sort: "price_high" } },
+  { name: "Adzuna", enabled: ["adzuna"] },
+  { name: "Mashvisor", enabled: ["mashvisor"] },
+  { name: "OpenWebNinja", enabled: ["openwebninja"] },
+  { name: "MarketCheck", enabled: ["marketcheck"] },
+  { name: "RescueGroups", enabled: ["rescuegroups"] },
+  { name: "directory", enabled: ["directory"] },
+];
+const manyRecords = Array.from({ length: 6001 }, (_, index) => ({
+  ...fixtures[0],
+  id: String(index + 1).padStart(5, "0"),
+}));
+
+for (const scenario of mergedScenarios) {
+  test(`${scenario.name}: extreme pages never amplify the native read or substitute a page`, async () => {
+    const h = harness({ ...scenario, records: manyRecords });
+    for (const page of [1000000, 100000000000, 1, 51, 209, 210]) {
+      const result = await h.browse(page);
+      assert.deepEqual(h.ranges.at(-1), [0, 4999]);
+      assert.equal(result.page, page);
+      assert.equal(result.total, 5000);
+      assert.equal(result.limitedResults, true);
+      assert.equal(result.listings.length, page === 209 ? 8 : page >= 210 ? 0 : 24);
+    }
+    await assert.rejects(h.load(210), (error) => error.isNotFound === true);
+    await assert.rejects(h.load(1000000), (error) => error.isNotFound === true);
+    assert.deepEqual(h.providerReads, []);
+  });
+
+  test(`${scenario.name}: page 51 still reaches listing 1201 once and page 52 is notFound`, async () => {
+    const h = harness(scenario);
+    const result = await h.browse(51);
+    assert.equal(result.page, 51);
+    assert.equal(result.total, 1201);
+    assert.deepEqual(
+      Array.from(result.listings, (item) => item.id),
+      ["1201"],
+    );
+    assert.equal(result.limitedResults, false);
+    await assert.rejects(h.load(52), (error) => error.isNotFound === true);
+  });
+}
+
+test("merged totals reflect the actual returned window when the database imposes a smaller row cap", async () => {
+  const h = harness({ records: manyRecords, filters: { radiusMiles: 25 }, rowLimit: 1000 });
+  const last = await h.browse(42);
+  assert.equal(last.total, 1000);
+  assert.equal(last.listings.length, 16);
+  assert.equal(last.limitedResults, true);
+  await assert.rejects(h.load(43), (error) => error.isNotFound === true);
+});
+
+test("provider results remain pageable after the bounded native window without phantom native pages", async () => {
+  const external = Array.from({ length: 25 }, (_, index) => ({
+    ...fixtures[0],
+    id: `partner-${index}`,
+    createdAt: "2025-01-01T00:00:00Z",
+    externalVehicle: {},
+  }));
+  const h = harness({ records: manyRecords, enabled: ["marketcheck"], external });
+  const ids = [];
+  for (const page of [209, 210]) {
+    const result = await h.browse(page);
+    assert.equal(result.total, 5025);
+    ids.push(...result.listings.map((item) => item.id));
+  }
+  assert.equal(ids.length, 33);
+  assert.equal(new Set(ids).size, 33);
+  assert.equal(ids.filter((id) => id.startsWith("partner-")).length, 25);
+  await assert.rejects(h.load(211), (error) => error.isNotFound === true);
+});
+
+test("directory pagination crosses the bounded native window using at most one page of directory cards", async () => {
+  const directory = Array.from({ length: 50 }, (_, index) => ({
+    ...fixtures[0],
+    id: `directory-${index}`,
+    directory: {},
+  }));
+  const h = harness({ records: manyRecords, enabled: ["directory"], directory });
+  const ids = [];
+  for (const page of [209, 210, 211]) {
+    const result = await h.browse(page);
+    assert.equal(result.total, 5050);
+    ids.push(...result.listings.map((item) => item.id));
+  }
+  assert.equal(ids.length, 58);
+  assert.equal(new Set(ids).size, 58);
+  assert.deepEqual(h.directoryCalls, [
+    { offset: 0, limit: 16 },
+    { offset: 16, limit: 24 },
+    { offset: 40, limit: 24 },
+  ]);
+  await assert.rejects(h.load(212), (error) => error.isNotFound === true);
+  assert.ok(h.directoryCalls.every((call) => call.limit <= 24));
+});
+
+test("post-read filters count only eligible cards in the bounded search window", async () => {
+  const h = harness({
+    records: manyRecords,
+    filters: { radiusMiles: 25 },
+    radiusMatch: ({ listingCity }) => listingCity === "Boise",
+  });
+  assert.equal((await h.browse(1)).total, 0);
+  assert.equal((await h.browse(1)).limitedResults, true);
+  await assert.rejects(h.load(2), (error) => error.isNotFound === true);
+});
+
+test("ordinary native pagination remains uncapped and extreme pages request only 24 rows", async () => {
+  const h = harness({ records: manyRecords });
+  const last = await h.browse(251);
+  assert.equal(last.total, 6001);
+  assert.deepEqual(
+    Array.from(last.listings, (item) => item.id),
+    ["06001"],
+  );
+  assert.equal(last.limitedResults, false);
+  for (const page of [1000000, 100000000000]) {
+    const result = await h.browse(page);
+    assert.equal(result.page, page);
+    assert.equal(result.listings.length, 0);
+    assert.equal(h.ranges.at(-1)[1] - h.ranges.at(-1)[0] + 1, 24);
+    await assert.rejects(h.load(page), (error) => error.isNotFound === true);
+  }
+});
+
+for (const sort of ["price_low", "price_high"]) {
+  test(`bounded job ${sort} preserves the annualized hourly/salary comparator`, async () => {
+    const records = [
+      { ...fixtures[0], id: "hourly", job: { payType: "Hourly", payMin: 16 } },
+      { ...fixtures[0], id: "salary", job: { payType: "Salary", payMin: 30000 } },
+    ];
+    const h = harness({ records, filters: { category: "jobs", sort } });
+    const result = await h.browse(1);
+    assert.deepEqual(
+      Array.from(result.listings, (item) => item.id),
+      sort === "price_low" ? ["salary", "hourly"] : ["hourly", "salary"],
+    );
+    assert.deepEqual(h.ranges, [[0, 4999]]);
+  });
+}

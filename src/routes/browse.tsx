@@ -2173,6 +2173,15 @@ function Browse() {
 
   return (
     <main className="mx-auto max-w-[1400px] px-4 py-10 sm:px-8">
+      {result.limitedResults && (
+        <p
+          role="status"
+          className="mb-5 rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground"
+        >
+          This broad search covers a limited set of marketplace listings. Narrow your location or
+          filters to explore more.
+        </p>
+      )}
       {allCategoriesLanding && (
         <>
           <ClassifiedsLandingHero

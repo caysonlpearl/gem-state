@@ -37,7 +37,11 @@ import {
   optionalNonNegativeNumber,
 } from "@/lib/classifieds-query";
 import type { MarketCheckListing } from "./marketcheck-contract";
-import { CLASSIFIEDS_PAGE_SIZE, normalizeBrowsePage } from "./classifieds-pagination";
+import {
+  CLASSIFIEDS_MERGE_READ_LIMIT,
+  CLASSIFIEDS_PAGE_SIZE,
+  normalizeBrowsePage,
+} from "./classifieds-pagination";
 
 // Preview fixtures remain in source for regression coverage, but they must not
 // appear in the public marketplace once Bluebird is preparing for launch.
@@ -183,6 +187,8 @@ export type ClassifiedBrowseResult = {
   total: number;
   page: number;
   pageSize: number;
+  /** A bounded in-memory search omitted native rows; totals cover the pageable window only. */
+  limitedResults?: boolean;
 };
 
 export type ClassifiedCategoryOption = {
@@ -2144,7 +2150,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     // preview records so the selected sort is truthful for real listings too.
     const unitAwareJobSort =
       data.category === "jobs" && (data.sort === "price_low" || data.sort === "price_high");
-    const resultRange =
+    const mergeBeforePaging =
       includeAdzuna ||
       includeExternalHomes ||
       includeMarketCheck ||
@@ -2152,9 +2158,10 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
       includeDirectory ||
       unitAwareJobSort ||
       data.radiusMiles != null ||
-      data.region
-        ? { from: 0, to: Math.max(4_999, from + PAGE_SIZE - 1) }
-        : { from, to: from + PAGE_SIZE - 1 };
+      Boolean(data.region);
+    const resultRange = mergeBeforePaging
+      ? { from: 0, to: CLASSIFIEDS_MERGE_READ_LIMIT - 1 }
+      : { from, to: from + PAGE_SIZE - 1 };
     const {
       data: rows,
       count,
@@ -2246,17 +2253,9 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
         ? Math.max(PAGE_SIZE, mockSource.length)
         : PAGE_SIZE;
     const orderedListings = [...featuredListings, ...standardListings];
-    const nativePage =
-      includeAdzuna ||
-      includeExternalHomes ||
-      includeMarketCheck ||
-      includeRescueGroups ||
-      includeDirectory ||
-      unitAwareJobSort ||
-      data.radiusMiles != null ||
-      data.region
-        ? orderedListings.slice(from, from + resultLimit)
-        : orderedListings.slice(0, resultLimit);
+    const nativePage = mergeBeforePaging
+      ? orderedListings.slice(from, from + resultLimit)
+      : orderedListings.slice(0, resultLimit);
     const directory = includeDirectory
       ? await (
           await import("./service-directory.server")
@@ -2297,16 +2296,16 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     }
     return {
       listings: combinedListings,
+      // Only advertise cards that can actually be reached. In-memory filters
+      // and merged ranking cannot page native rows outside the fixed window.
+      // The directory remains independently database-paged after that window.
       total:
-        (data.radiusMiles != null || data.region ? listings.length : (count ?? listings.length)) +
-        mockListings.length +
-        externalJobs.length +
-        externalHomes.length +
-        externalVehicles.length +
-        externalPets.length +
-        directory.total,
+        (mergeBeforePaging
+          ? orderedListings.length
+          : (count ?? listings.length) + mockListings.length) + directory.total,
       page,
       pageSize: PAGE_SIZE,
+      limitedResults: mergeBeforePaging && (count ?? 0) > (rows?.length ?? 0),
     };
   }
 }

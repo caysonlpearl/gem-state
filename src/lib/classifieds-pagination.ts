@@ -1,4 +1,7 @@
 export const CLASSIFIEDS_PAGE_SIZE = 24;
+// Searches ranked or filtered in memory use one fixed native working set.
+// Page numbers may slice this set, but must never increase the database read.
+export const CLASSIFIEDS_MERGE_READ_LIMIT = 5_000;
 
 /** Shared by URL parsing and the server; never silently substitute another results page. */
 export function normalizeBrowsePage(value: unknown): number {
