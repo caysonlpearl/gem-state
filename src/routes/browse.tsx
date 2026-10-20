@@ -33,6 +33,11 @@ import {
 import { brand } from "@/config/brand";
 import { isIndexableCollection, isOutOfRangePage } from "@/lib/seo-policy";
 import {
+  appendBrowseListings,
+  assertNextBrowsePage,
+  normalizeBrowsePage,
+} from "@/lib/classifieds-pagination";
+import {
   classifiedCategories,
   marketplaceCities,
   idahoRegions,
@@ -1149,7 +1154,7 @@ export const Route = createFileRoute("/browse")({
     const firearmAccessoryType = stringParam(search, "firearmAccessoryType", 80);
     const category = stringParam(search, "category", 60);
     const savedSearchId = stringParam(search, "savedSearchId", 64);
-    const page = Number(search["page"]);
+    const page = normalizeBrowsePage(search["page"]);
     const parsed: Search = {
       // Undefined rather than false when absent: a false value gets written
       // back into the URL, which redirected every category link once.
@@ -1473,24 +1478,44 @@ function Browse() {
   const [extraListings, setExtraListings] = useState<typeof result.listings>([]);
   const [loadedThroughPage, setLoadedThroughPage] = useState(page);
   const [loadingMore, setLoadingMore] = useState(false);
+  const loadMoreScope = JSON.stringify([searchKey, page]);
+  const currentLoadMoreScope = useRef(loadMoreScope);
+  currentLoadMoreScope.current = loadMoreScope;
+  const loadMoreRequest = useRef<{ scope: string } | null>(null);
   useEffect(() => {
     setExtraListings([]);
     setLoadedThroughPage(page);
+    setLoadingMore(false);
+    loadMoreRequest.current = null;
+    return () => {
+      loadMoreRequest.current = null;
+    };
   }, [searchKey, page]);
   const shownListings = [...result.listings, ...extraListings];
   const canLoadMore = loadedThroughPage < pageCount;
   async function loadMore() {
+    // React state updates are asynchronous; a ref also blocks rapid double clicks.
+    if (loadMoreRequest.current || !canLoadMore) return;
+    const request = { scope: loadMoreScope };
+    loadMoreRequest.current = request;
     setLoadingMore(true);
     try {
       const next = await queryClient.fetchQuery(
         classifiedQuery({ ...inputFromSearch(search), page: loadedThroughPage + 1 }),
       );
-      setExtraListings((current) => [...current, ...next.listings]);
+      if (loadMoreRequest.current !== request || currentLoadMoreScope.current !== request.scope)
+        return;
+      assertNextBrowsePage(loadedThroughPage, result.pageSize, next);
+      setExtraListings((current) => appendBrowseListings(result.listings, current, next.listings));
       setLoadedThroughPage(next.page);
     } catch {
-      toast.error("Could not load more listings.");
+      if (loadMoreRequest.current === request && currentLoadMoreScope.current === request.scope)
+        toast.error("Could not load more listings.");
     } finally {
-      setLoadingMore(false);
+      if (loadMoreRequest.current === request) {
+        loadMoreRequest.current = null;
+        if (currentLoadMoreScope.current === request.scope) setLoadingMore(false);
+      }
     }
   }
   const alertSubject = search.q

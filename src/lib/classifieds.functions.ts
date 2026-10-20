@@ -37,6 +37,7 @@ import {
   optionalNonNegativeNumber,
 } from "@/lib/classifieds-query";
 import type { MarketCheckListing } from "./marketcheck-contract";
+import { CLASSIFIEDS_PAGE_SIZE, normalizeBrowsePage } from "./classifieds-pagination";
 
 // Preview fixtures remain in source for regression coverage, but they must not
 // appear in the public marketplace once Bluebird is preparing for launch.
@@ -799,7 +800,7 @@ export const updateClassifiedListing = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
-const PAGE_SIZE = 24;
+const PAGE_SIZE = CLASSIFIEDS_PAGE_SIZE;
 const conditionValues = [
   "new_with_tags",
   "new_without_tags",
@@ -1746,7 +1747,7 @@ export const browseClassifieds = createServerFn({ method: "GET" })
     )
       ? input.sort
       : "newest",
-    page: Math.max(1, Math.min(50, Number(input?.page ?? 1) || 1)),
+    page: normalizeBrowsePage(input?.page),
   }))
   .handler(async ({ data }): Promise<ClassifiedBrowseResult> => runBrowseClassifieds(data));
 
