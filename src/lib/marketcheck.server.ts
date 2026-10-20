@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- Supabase's generated client does not include the new cache tables yet. */
 import { createClient } from "@supabase/supabase-js";
 import { getRequest } from "@tanstack/react-start/server";
-import { serverEnv } from "./runtime-env.server";
+import { serverEnv } from "./runtime-env.server.ts";
 import {
   classifiedCoordinatesForCity,
   classifiedProviderSearchStates,
@@ -9,13 +9,13 @@ import {
   isWithinClassifiedRadius,
   usStates,
 } from "../config/classifieds.ts";
-import { regionOfListing } from "./market-stats";
+import { regionOfListing } from "./market-stats.ts";
 import type {
   ClassifiedBrowseInput,
   ClassifiedCard,
   ClassifiedDetail,
   ClassifiedVehicle,
-} from "./classifieds.functions";
+} from "./classifieds.functions.ts";
 import {
   finalizeMarketCheckListing,
   dedupeMarketCheckImages,
@@ -31,7 +31,7 @@ import {
   type MarketCheckListing,
   type MarketCheckLookupStatus,
   type MarketCheckSourceKind,
-} from "./marketcheck-contract";
+} from "./marketcheck-contract.ts";
 
 const API_BASE = "https://api.marketcheck.com/v2";
 const CACHE_MS = 7 * 24 * 60 * 60 * 1000;

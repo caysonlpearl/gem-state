@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { findIdahoPlace, idahoPlaces } from "../src/config/idaho-places.ts";
 import {
   classifiedCoordinatesForCity,
+  classifiedDistanceMiles,
   classifiedProviderSearchStates,
   hasClassifiedRadiusCenter,
   idahoCities,
@@ -111,4 +112,55 @@ test("same-named cities remain unique and radius searches use the selected state
     }),
     true,
   );
+});
+
+test("explicit states never borrow a different state's city center", () => {
+  assert.deepEqual(classifiedCoordinatesForCity("Boise", "ID"), [43.615, -116.2023]);
+  assert.equal(classifiedCoordinatesForCity("Boise", "UT"), undefined);
+  assert.equal(classifiedCoordinatesForCity("Portland", "ID"), undefined);
+  assert.equal(classifiedCoordinatesForCity("Sandy", "ID"), undefined);
+  assert.deepEqual(classifiedCoordinatesForCity("Sandy", "OR"), [45.3987472, -122.26971]);
+  assert.equal(classifiedCoordinatesForCity("Sandy"), undefined);
+});
+
+test("unmapped same-name cities in different states stay unresolved at every radius", () => {
+  for (const radiusMiles of [1, 500]) {
+    assert.equal(
+      isWithinClassifiedRadius({
+        city: "Unmapped Town, OR",
+        cityState: "OR",
+        listingCity: "Unmapped Town, UT",
+        listingState: "UT",
+        radiusMiles,
+      }),
+      false,
+    );
+  }
+  assert.deepEqual(
+    classifiedProviderSearchStates({ city: "Unmapped Town, OR", state: "OR", radiusMiles: 25 }),
+    [],
+  );
+});
+
+test("radius membership includes a point just inside and on the boundary only", () => {
+  const [centerLatitude, centerLongitude] = classifiedCoordinatesForCity("Boise", "ID");
+  const [pointLatitude, pointLongitude] = classifiedCoordinatesForCity("Nampa", "ID");
+  const distance = classifiedDistanceMiles(
+    centerLatitude,
+    centerLongitude,
+    pointLatitude,
+    pointLongitude,
+  );
+  const matches = (radiusMiles) =>
+    isWithinClassifiedRadius({
+      city: "Boise",
+      cityState: "ID",
+      listingCity: "Nampa",
+      listingState: "ID",
+      radiusMiles,
+    });
+
+  assert.equal(matches(distance + 0.01), true);
+  assert.equal(matches(distance), true);
+  assert.equal(matches(distance - 0.01), false);
 });
