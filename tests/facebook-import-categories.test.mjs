@@ -52,6 +52,7 @@ const samples = {
   "tools-equipment": "Cordless drill",
   industrial: "Forklift",
   "outdoor-sporting": "Camping tent",
+  firearms: "Ruger handgun",
   "farm-garden": "Farm tractor",
   general: "Miscellaneous mystery object",
   "other-real-estate": "Downtown condo",
@@ -82,6 +83,12 @@ test("category signals in titles take priority over incidental description words
     assert.equal(infer("Apple Watch", "Includes original jewelry style bracelet."), "electronics");
     assert.equal(infer("Ring light", "Great lighting for filming."), "electronics");
     assert.equal(infer("Mechanical keyboard", "Computer accessory."), "electronics");
+  }
+});
+test("firearm listings map to Firearms without absorbing archery gear", () => {
+  for (const infer of classify) {
+    assert.equal(infer("Ruger hunting rifle", "Used; includes scope."), "firearms");
+    assert.equal(infer("Hunting bow", "Compound bow for archery."), "outdoor-sporting");
   }
 });
 test("explicit valid categories and condition qualifiers survive server normalization", () => {

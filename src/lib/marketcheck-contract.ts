@@ -502,9 +502,12 @@ export function freshMarketCheckInventory(
       continue;
     }
     if (
+      !key ||
+      typeof key !== "object" ||
       key.v !== 3 ||
       key.kind !== kind ||
       key.state !== state ||
+      typeof key.start !== "number" ||
       !Number.isInteger(key.start) ||
       key.start < 0 ||
       key.start % pageSize !== 0 ||

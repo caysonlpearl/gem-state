@@ -115,7 +115,10 @@ function ImportedSellers() {
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== window.location.origin) return;
       if ((event.data as { type?: string } | null)?.type === "gemlist-ext-pong") {
-        setExtensionReady(true);
+        const version = String(event.data.version ?? "0")
+          .split(".")
+          .map(Number);
+        setExtensionReady(version[0] > 1 || (version[0] === 1 && version[1] >= 4));
       }
     };
     window.addEventListener("message", onMessage);
@@ -125,6 +128,10 @@ function ImportedSellers() {
 
   const refreshMutation = useMutation({
     mutationFn: async (profileUrl: string | null) => {
+      if (!extensionReady)
+        throw new Error(
+          "Reload Bluebird Listing Import 1.4 or newer in Chrome, then refresh this page.",
+        );
       const all = await fetchTargets();
       const targets = profileUrl ? all.filter((t) => t.sourceProfileUrl === profileUrl) : all;
       if (!targets.length) throw new Error("No published listings to refresh yet.");
@@ -151,13 +158,24 @@ function ImportedSellers() {
             done?: number;
             total?: number;
             results?: ExtensionRefreshResult[];
+            error?: string;
+            unreadable?: number;
+            message?: string;
           } | null;
           if (!message || message.requestId !== requestId) return;
           if (message.type === "gemlist-fb-refresh-progress") {
             setProgress({ done: message.done ?? 0, total: message.total ?? targets.length });
+            if (message.message) toast.info(message.message);
           } else if (message.type === "gemlist-fb-refresh-result") {
             cleanup();
-            resolve(message.results ?? []);
+            if (message.error) reject(new Error(message.error));
+            else {
+              if (message.unreadable)
+                toast.warning(
+                  `${message.unreadable} source listing(s) could not be read and were left unchanged.`,
+                );
+              resolve(message.results ?? []);
+            }
           }
         };
         window.addEventListener("message", onMessage);
@@ -228,7 +246,7 @@ function ImportedSellers() {
             are gone, and queues only what changed for your review below.
             {extensionReady
               ? ""
-              : " Extension not detected -- reload the extension, then reload this page."}
+              : " Extension 1.4 or newer not detected — reload the updated extension, then reload this page."}
           </p>
         </div>
         <button
@@ -411,9 +429,9 @@ function StageForm() {
     <section className="rounded-lg border border-border bg-card p-5">
       <h2 className="text-[14px] font-semibold">Stage a batch</h2>
       <p className="mt-1 max-w-[700px] text-[12.5px] leading-relaxed text-muted-foreground">
-        With a live browser session, walk the seller's Facebook Marketplace profile, KSL listings page, Vinted
-        profile or Whatnot shop and every listing's detail page, then hand the extracted data to
-        Bluebird below.
+        With a live browser session, walk the seller's Facebook Marketplace profile, KSL listings
+        page, Vinted profile, Whatnot shop or Diesel Depot inventory and every listing's detail
+        page, then hand the extracted data to Bluebird below.
       </p>
       <div className="mt-3 rounded-md border border-dashed border-border bg-secondary/40 p-3">
         <p className="text-[12px] font-semibold">
@@ -427,13 +445,14 @@ function StageForm() {
           <strong>Developer mode</strong> (top right), click <strong>Load unpacked</strong>, and
           select the <code>tools/fb-import-extension</code> folder from your local copy of this
           repo. Then, on a seller's Facebook Marketplace profile, KSL listings page
-          (classifieds.ksl.com/search/member/...), Vinted profile or Whatnot profile, click the extension's icon in
-          your toolbar -- it scrolls, fetches every listing's details, and copies the result to your
-          clipboard on its own. (Facebook's grid ignores a script-faked scroll, so the extension
-          uses Chrome's own debugger API to send a real one -- you'll see a brief "started debugging
-          this browser" notice each run; that's expected. On KSL, Vinted and Whatnot it opens one listing at
-          a time in a small window; if a site asks you to verify you're human, complete the check there and the
-          import carries on.)
+          (classifieds.ksl.com/search/member/...), Vinted profile, Whatnot profile or Diesel Depot
+          inventory page, click the extension's icon in your toolbar -- it scrolls, fetches every
+          listing's details, and copies the result to your clipboard on its own. (Facebook's grid
+          ignores a script-faked scroll, so the extension uses Chrome's own debugger API to send a
+          real one -- you'll see a brief "started debugging this browser" notice each run; that's
+          expected. Version 1.4 or newer uses two reusable reader windows for imports and all
+          Refresh actions; if a site asks you to verify you're human, complete the check there and
+          the import carries on.)
         </p>
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-3 rounded-md border border-dashed border-border bg-secondary/40 p-3">
@@ -467,7 +486,7 @@ function StageForm() {
         }}
       >
         <label className="text-[12px] font-medium sm:col-span-2">
-          Seller's Facebook, KSL, Vinted or Whatnot page URL
+          Seller or dealer inventory URL
           <input
             required
             value={profileUrl}
@@ -617,7 +636,9 @@ function ReviewRow({
                   ? "Vinted"
                   : item.sourceUrl.includes("whatnot.com")
                     ? "Whatnot"
-                    : "Facebook"}
+                    : item.sourceUrl.includes("diesel-depot.com")
+                      ? "Diesel Depot"
+                      : "Facebook"}
             </a>
           </div>
           {item.status === "needs_update" && item.previousPriceCents != null ? (

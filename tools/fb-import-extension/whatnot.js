@@ -2,8 +2,7 @@
  * Whatnot reader for the Bluebird listing import extension.
  *
  * Open a seller's Whatnot profile or shop (whatnot.com/user/<name>/shop) and
- * click the extension. It loads their shop, then opens each product one at a
- * time (paced-reader.js). Only fixed-price "Buy Now" products are imported:
+ * click the extension. It loads their shop, then opens each product in two windows (paced-reader.js). Only fixed-price "Buy Now" products are imported:
  * live-show auction lots list a $1 starting bid, which isn't a real price.
  * Whatnot doesn't show where a seller is, so the city is set during review.
  *

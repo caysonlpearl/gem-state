@@ -751,7 +751,7 @@ class HomepageLeadErrorBoundary extends Component<
   { children: ReactNode; onReset: () => void; where: ReturnType<typeof homeLocation> },
   { hasError: boolean }
 > {
-  state = { hasError: false };
+  override state = { hasError: false };
 
   static getDerivedStateFromError() {
     return { hasError: true };
@@ -762,7 +762,7 @@ class HomepageLeadErrorBoundary extends Component<
     this.setState({ hasError: false });
   };
 
-  render() {
+  override render() {
     if (this.state.hasError) {
       return (
         <section className="homepage-lead-vehicles mt-6 sm:mt-14">

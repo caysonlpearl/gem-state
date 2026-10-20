@@ -4,7 +4,7 @@
  * Same model as the Facebook reader: you open a seller's KSL listings page
  * (classifieds.ksl.com/search/member/<id>) in your own browser and click the
  * extension. It reads the listings the page already shows, then opens each
- * listing one at a time, slowly, to read its description, photos, condition
+ * listing in two windows, to read its description, photos, condition
  * and status. If KSL asks you to verify you're human, the extension brings
  * that window forward and waits for you; it never tries to get past the check
  * itself (see paced-reader.js).
@@ -291,7 +291,7 @@ function kslMapCategory(category, subCategory, title, description) {
 
 // --- Driving the browser -----------------------------------------------------
 
-// One window, one listing at a time (see paced-reader.js).
+// Two reusable reader windows (see paced-reader.js).
 function kslReadListings(items, { withPhotos, onItemDone, notify }) {
   return readListingsPaced(items, {
     siteName: "KSL",

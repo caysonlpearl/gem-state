@@ -1,7 +1,6 @@
 /**
- * Shared, slow, one-at-a-time listing reader for the sites that check for
- * bots (KSL, Vinted, Whatnot). It opens each listing in one small window,
- * reads it, pauses a few seconds, and moves on. If a site shows a "verify
+ * Shared two-window listing reader. Each window stays visible to Chrome
+ * while it reads a listing, then is reused for the next queued URL. If a site shows a "verify
  * you're human" page, the window comes forward and the import waits for you
  * to complete it; nothing here tries to get past a check on its own.
  *
@@ -10,7 +9,8 @@
  * must stay self-contained.
  */
 
-const PACED_PAUSE_MS = [1500, 3500];
+const LISTING_READER_CONCURRENCY = 2;
+const PACED_PAUSE_MS = [250, 600];
 const BOT_CHECK_WAIT_MS = 5 * 60 * 1000;
 
 // In-page: the common bot-check pages (PerimeterX, Cloudflare and similar).
@@ -18,36 +18,47 @@ function isBotCheckPage() {
   const title = document.title || "";
   const text = document.body ? document.body.innerText.slice(0, 1500) : "";
   return (
-    /access to this page has been denied|just a moment/i.test(title) ||
-    /press\s*&\s*hold|verify(ing)? (that )?you are (a )?human|are you a robot|checking your browser/i.test(
+    /access to this page has been denied|just a moment|security verification/i.test(title) ||
+    /press\s*&\s*hold|verify(ing)? (that )?you are (a )?human|are you a robot|checking your browser|performing security verification/i.test(
       text,
     )
   );
 }
 
-function waitForPage(tabId, sameListing, timeoutMs, settleMs) {
+function waitForPage(tabId, sameListing, timeoutMs = 25000, settleMs = 1200) {
   return new Promise((resolve) => {
     let settled = false;
-    const timer = setTimeout(finish, timeoutMs || 25000);
+    let settleTimer;
+    const timer = setTimeout(() => finish(false), timeoutMs);
+    const matches = (tab) =>
+      tab && tab.status === "complete" && (!sameListing || sameListing(tab.url));
     function check() {
       if (settled) return;
-      chrome.tabs.get(tabId, (t) => {
-        if (settled || !t) return;
-        if (t.status === "complete" && (!sameListing || sameListing(t.url))) {
-          // Give client-rendered parts of the page a moment.
-          setTimeout(finish, settleMs || 1200);
-        }
+      chrome.tabs.get(tabId, (tab) => {
+        if (settled || !matches(tab) || settleTimer) return;
+        settleTimer = setTimeout(() => {
+          settleTimer = undefined;
+          chrome.tabs.get(tabId, (current) => {
+            if (matches(current)) finish(true);
+          });
+        }, settleMs);
       });
     }
     function listener(id, info) {
-      if (id === tabId && info.status === "complete") check();
+      if (id !== tabId) return;
+      if (info.status === "loading") {
+        clearTimeout(settleTimer);
+        settleTimer = undefined;
+      }
+      if (info.status === "complete") check();
     }
-    function finish() {
+    function finish(ready) {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      clearTimeout(settleTimer);
       chrome.tabs.onUpdated.removeListener(listener);
-      resolve();
+      resolve(ready);
     }
     chrome.tabs.onUpdated.addListener(listener);
     check();
@@ -55,9 +66,9 @@ function waitForPage(tabId, sameListing, timeoutMs, settleMs) {
 }
 
 // Brings the window forward and waits for you to finish a site's check.
-async function waitForHuman(win, tabId, siteName, notify) {
+async function waitForHuman(win, tabId, siteName, notify, resize = true) {
   await chrome.windows
-    .update(win.id, { focused: true, width: 1000, height: 900 })
+    .update(win.id, { focused: true, ...(resize ? { width: 1000, height: 900 } : {}) })
     .catch(() => {});
   notify &&
     notify(
@@ -77,53 +88,104 @@ async function waitForHuman(win, tabId, siteName, notify) {
  * function) and merges what it returns into the item. `idOf(url)` tells the
  * reader when the tab has reached the right listing.
  */
-async function readListingsPaced(
-  items,
-  { siteName, extract, idOf, withPhotos, onItemDone, notify, settleMs },
-) {
-  const win = await chrome.windows.create({
-    url: "about:blank",
-    focused: false,
-    type: "popup",
-    width: 900,
-    height: 1000,
-  });
-  const tabId = win.tabs[0].id;
-  async function open(url) {
-    const expected = idOf(url);
-    await chrome.tabs.update(tabId, { url });
-    await waitForPage(tabId, (current) => !expected || idOf(current) === expected, 25000, settleMs);
-  }
-  try {
-    for (const item of items) {
-      try {
-        await open(item.sourceUrl);
-        if (await exec(tabId, isBotCheckPage).catch(() => false)) {
-          if (await waitForHuman(win, tabId, siteName, notify)) await open(item.sourceUrl);
-        }
-        const details = (await exec(tabId, isBotCheckPage).catch(() => false))
-          ? null
-          : await exec(tabId, extract, [withPhotos]);
-        if (details && !details.challenge) {
-          for (const [key, value] of Object.entries(details)) {
-            // Keep the seller page's data where the listing page had none.
-            if (value !== "" && value !== null && value !== undefined && !(Array.isArray(value) && !value.length)) {
-              item[key] = value;
-            }
+async function readListingsPaced(items, options) {
+  return readListingJobs(items.map((item) => ({ item, ...options })));
+}
+
+/** One bounded pool for a whole import or a mixed-source Refresh all. */
+async function readListingJobs(jobs, { onItemDone } = {}) {
+  const queue = jobs.slice();
+  let humanGate = null;
+  let interrupted = false;
+  async function worker() {
+    const win = await chrome.windows.create({
+      url: "about:blank",
+      focused: false,
+      type: "popup",
+      width: 900,
+      height: 1000,
+    });
+    const tabId = win.tabs[0].id;
+    try {
+      while (queue.length) {
+        if (humanGate) await humanGate;
+        const job = queue.shift();
+        if (!job) break;
+        const { item, siteName, extract, idOf, withPhotos, notify, settleMs } = job;
+        try {
+          if (interrupted) throw new Error("Human verification was not completed.");
+          const expected = idOf(item.sourceUrl);
+          if (!expected) throw new Error("Unsupported listing URL.");
+          const matches = (url) => idOf(url) === expected;
+          const open = async () => {
+            await chrome.tabs.update(tabId, { url: item.sourceUrl });
+            return waitForPage(tabId, matches, 25000, settleMs);
+          };
+          if (!(await open())) throw new Error("Listing did not finish loading.");
+          if (await exec(tabId, isBotCheckPage)) {
+            // Serialize manual handoffs; a second challenged window must get
+            // its own handoff after the first, rather than sharing its result.
+            if (humanGate) await humanGate;
+            if (interrupted) throw new Error("Verification incomplete.");
+            const ownGate = waitForHuman(win, tabId, siteName, notify).then((passed) => {
+              if (!passed) interrupted = true;
+              return passed;
+            });
+            humanGate = ownGate;
+            const passed = await ownGate;
+            if (humanGate === ownGate) humanGate = null;
+            if (!passed || !(await waitForPage(tabId, matches, 25000, settleMs)))
+              throw new Error("Verification incomplete.");
           }
-        } else {
+          const current = await chrome.tabs.get(tabId);
+          if (
+            !matches(current.url) ||
+            current.status !== "complete" ||
+            (await exec(tabId, isBotCheckPage))
+          )
+            throw new Error("Listing could not be verified.");
+          const details = await exec(tabId, extract, [withPhotos]);
+          if (!details || details.challenge) throw new Error("Listing could not be read.");
+          for (const [key, value] of Object.entries(details)) {
+            if (
+              value !== "" &&
+              value !== null &&
+              value !== undefined &&
+              !(Array.isArray(value) && !value.length)
+            )
+              item[key] = value;
+          }
+          delete item.unreadable;
+        } catch {
           item.unreadable = true;
+        } finally {
+          job.onItemDone && job.onItemDone();
+          onItemDone && onItemDone();
         }
-      } catch {
-        item.unreadable = true;
+        if (queue.length && !interrupted) {
+          const [min, max] = PACED_PAUSE_MS;
+          await sleep(min + Math.random() * (max - min));
+        }
       }
-      onItemDone && onItemDone();
-      const [min, max] = PACED_PAUSE_MS;
-      await sleep(min + Math.random() * (max - min));
+    } finally {
+      await chrome.windows.remove(win.id).catch(() => {});
     }
-  } finally {
-    await chrome.windows.remove(win.id).catch(() => {});
   }
+  // Wait for every worker to close before releasing the run lock. A popup
+  // creation failure must not leave another worker running behind a retry.
+  const workers = await Promise.allSettled(
+    Array.from({ length: Math.min(LISTING_READER_CONCURRENCY, queue.length) }, worker),
+  );
+  if (queue.length) {
+    for (const job of queue) {
+      job.item.unreadable = true;
+      job.onItemDone && job.onItemDone();
+      onItemDone && onItemDone();
+    }
+    throw new Error("Reader windows could not be opened. Allow them in Chrome, then retry.");
+  }
+  if (workers.length && workers.every((result) => result.status === "rejected"))
+    throw new Error("Reader windows closed unexpectedly. Retry the import.");
 }
 
 /** Copies the batch, hands it to the open admin import page, and reports. */
@@ -147,7 +209,8 @@ async function deliverImport(tabId, say, sellerLine, payload, notes) {
  * scrolling; used where the site loads more as you scroll normally.
  */
 async function scrollUntilLoaded(selector, expected) {
-  const count = () => new Set(Array.from(document.querySelectorAll(selector)).map((a) => a.href)).size;
+  const count = () =>
+    new Set(Array.from(document.querySelectorAll(selector)).map((a) => a.href)).size;
   let last = -1;
   let still = 0;
   for (let i = 0; i < 120 && still < 4; i++) {
