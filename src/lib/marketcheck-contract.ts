@@ -389,6 +389,20 @@ export function parseMarketCheckId(
   return { sourceKind: match[1] as MarketCheckSourceKind, providerId: match[2] };
 }
 
+export type MarketCheckLookupStatus = "not-found" | "limited" | "unavailable";
+
+/**
+ * Keep provider failures distinct from a confirmed missing listing. A 404 is
+ * the only response that means the provider could not find this listing;
+ * authentication, validation, throttling, and upstream failures leave its
+ * status unknown to the visitor.
+ */
+export function marketCheckLookupStatus(status: number): MarketCheckLookupStatus {
+  if (status === 404) return "not-found";
+  if (status === 429) return "limited";
+  return "unavailable";
+}
+
 /**
  * Return the stable listing ID for a MarketCheck URL.
  *

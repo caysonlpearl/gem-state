@@ -19,6 +19,7 @@ import {
   dedupeMarketCheckImages,
   marketCheckDescription,
   marketCheckImages,
+  marketCheckLookupStatus,
   normalizeMarketCheckListing,
   normalizeMarketCheckSearch,
   canonicalMarketCheckId,
@@ -26,6 +27,7 @@ import {
   freshMarketCheckInventory,
   marketCheckCachePageKeys,
   type MarketCheckListing,
+  type MarketCheckLookupStatus,
   type MarketCheckSourceKind,
 } from "./marketcheck-contract";
 
@@ -66,6 +68,22 @@ function cacheDb() {
 
 function configured() {
   return Boolean(serverEnv("MARKETCHECK_API_KEY"));
+}
+
+export class MarketCheckLookupError extends Error {
+  readonly status: MarketCheckLookupStatus;
+  readonly providerStatus: number | null;
+
+  constructor(status: Exclude<MarketCheckLookupStatus, "not-found">, providerStatus?: number) {
+    super(
+      status === "limited"
+        ? "Vehicle availability is temporarily rate limited. Try again shortly."
+        : "Vehicle availability could not be verified right now. Try again shortly.",
+    );
+    this.name = "MarketCheckLookupError";
+    this.status = status;
+    this.providerStatus = providerStatus ?? null;
+  }
 }
 
 export function marketCheckConfigured() {
@@ -249,12 +267,16 @@ function matchesProviderFilters(listing: MarketCheckListing, data: ClassifiedBro
   return true;
 }
 
+type CachedCallResult<T> =
+  | { ok: true; value: T }
+  | { ok: false; status: MarketCheckLookupStatus; providerStatus?: number };
+
 async function cachedCall<T>(
   key: string,
   endpoint: string,
   normalize: (payload: unknown) => T,
   options?: { forceRefresh?: boolean },
-): Promise<{ ok: true; value: T } | { ok: false; status: "unavailable" | "limited" }> {
+): Promise<CachedCallResult<T>> {
   const apiKey = serverEnv("MARKETCHECK_API_KEY");
   const db = cacheDb();
   if (!apiKey || !db) return { ok: false, status: "unavailable" };
@@ -275,9 +297,11 @@ async function cachedCall<T>(
   );
   if (reservationError || !reservation?.allowed) {
     const { data: stale } = await table.select("payload").eq("cache_key", key).maybeSingle();
-    return stale?.payload
-      ? { ok: true, value: stale.payload as T }
-      : { ok: false, status: "limited" };
+    if (stale?.payload) return { ok: true, value: stale.payload as T };
+    return {
+      ok: false,
+      status: reservationError ? "unavailable" : "limited",
+    };
   }
   try {
     const response = await fetch(
@@ -289,9 +313,12 @@ async function cachedCall<T>(
     );
     if (!response.ok) {
       const { data: stale } = await table.select("payload").eq("cache_key", key).maybeSingle();
-      return stale?.payload
-        ? { ok: true, value: stale.payload as T }
-        : { ok: false, status: response.status === 429 ? "limited" : "unavailable" };
+      if (stale?.payload) return { ok: true, value: stale.payload as T };
+      return {
+        ok: false,
+        status: marketCheckLookupStatus(response.status),
+        providerStatus: response.status,
+      };
     }
     const value = normalize(await response.json());
     await table.upsert({
@@ -565,6 +592,15 @@ export async function marketCheckDetail(listingId: string): Promise<ClassifiedDe
     result.ok && result.value
       ? result.value
       : await cachedSearchListing(parsed.sourceKind, parsed.providerId);
+  if (!found && !fromBot) {
+    const providerResult = result as CachedCallResult<MarketCheckListing | null>;
+    if (!providerResult.ok && providerResult.status !== "not-found") {
+      throw new MarketCheckLookupError(providerResult.status, providerResult.providerStatus);
+    }
+    // A successful response that cannot be normalized is also an upstream
+    // verification failure, rather than proof that the seller removed it.
+    if (providerResult.ok) throw new MarketCheckLookupError("unavailable");
+  }
   const normalized = found ? finalizeMarketCheckListing(found) : null;
   if (!normalized) return null;
   const card = marketCheckCard(normalized);
