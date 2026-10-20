@@ -630,12 +630,41 @@ async function handoffToAdmin(json) {
   const adminTab = tabs[0];
   await chrome.tabs.update(adminTab.id, { active: true });
   await chrome.windows.update(adminTab.windowId, { focused: true }).catch(() => {});
-  await exec(
-    adminTab.id,
-    (text) => window.postMessage({ type: "gemlist-fb-import", text }, window.location.origin),
-    [json],
-  );
-  return true;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const received = await exec(
+      adminTab.id,
+      async (text) => {
+        if (!document.querySelector("textarea")) return false;
+        const requestId = crypto.randomUUID();
+        return new Promise((resolve) => {
+          const timer = setTimeout(() => finish(false), 2500);
+          function finish(value) {
+            clearTimeout(timer);
+            window.removeEventListener("message", acknowledge);
+            resolve(value);
+          }
+          function acknowledge(event) {
+            if (
+              event.source === window &&
+              event.origin === window.location.origin &&
+              event.data?.type === "gemlist-fb-import-received" &&
+              event.data.requestId === requestId
+            )
+              finish(true);
+          }
+          window.addEventListener("message", acknowledge);
+          window.postMessage(
+            { type: "gemlist-fb-import", text, requestId },
+            window.location.origin,
+          );
+        });
+      },
+      [json],
+    ).catch(() => false);
+    if (received) return true;
+    await sleep(1000);
+  }
+  return false;
 }
 
 const LISTING_URL_RE = /^https:\/\/www\.facebook\.com\/marketplace\/item\/\d+/;
@@ -796,23 +825,18 @@ async function run(tabId) {
       priceCents: item.priceCents,
       condition: item.condition || "used_good",
       categorySlug: inferCategory(item.title, item.description),
+      subcategory: item.sourceSubcategory || "",
       city: item.city || "",
       state: item.state || "",
       photoUrls: item.photoUrls || [],
     })),
   };
-  const json = JSON.stringify(payload);
-  await exec(tabId, (text) => navigator.clipboard.writeText(text), [json]);
-  const handedOff = await handoffToAdmin(json).catch(() => false);
-  await overlay(
+  await deliverImport(
     tabId,
-    `<strong>GemList import</strong>
-     <div style="margin-top:6px">${sellerName ? "Seller: " + sellerName + "<br/>" : ""}Done — ${items.length} listing(s).</div>
-     <div style="margin-top:6px;opacity:.85">${
-       handedOff
-         ? "Sent to the GemList admin import page. Click Stage batch there."
-         : "Copied to clipboard. Open the GemList admin import page and use Paste from clipboard."
-     }</div>`,
+    (body) => overlay(tabId, `<strong>Bluebird import · Facebook</strong><div style="margin-top:6px">${body}</div>`),
+    "",
+    payload,
+    [],
   );
 }
 

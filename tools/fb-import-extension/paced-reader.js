@@ -193,13 +193,17 @@ async function deliverImport(tabId, say, sellerLine, payload, notes) {
   const json = JSON.stringify(payload);
   await exec(tabId, (text) => navigator.clipboard.writeText(text), [json]).catch(() => {});
   const handedOff = await handoffToAdmin(json).catch(() => false);
+  const escapedJson = json.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
   await say(
     `${sellerLine}Done — ${payload.items.length} listing(s)${notes.length ? `, ${notes.join(", ")}` : ""}.` +
       `<div style="margin-top:6px;opacity:.85">${
         handedOff
-          ? "Sent to the Bluebird admin import page."
-          : "Copied to clipboard. Open the Bluebird admin import page and use Paste from clipboard."
-      }</div>`,
+          ? "Batch received by the Bluebird admin form. Click Stage batch there."
+          : "Batch is ready below. Copy the data into the Bluebird admin import form."
+      }</div>` +
+      `<details style="margin-top:10px"><summary>Recover completed import data</summary>` +
+      `<p style="margin:6px 0">Keep this page open until your batch has been staged. Select and copy this data if the admin form was interrupted.</p>` +
+      `<textarea aria-label="Completed import data" readonly style="width:100%;height:100px;color:#111;background:white">${escapedJson}</textarea></details>`,
   );
 }
 

@@ -183,14 +183,43 @@ test("subcategory review reload selects persisted metadata instead of re-guessin
   );
 });
 
-
 test("an imported subcategory is counted once and displayed in active filter badges", () => {
   const source = readFileSync(new URL("../src/routes/browse.tsx", import.meta.url), "utf8");
-  const functions = source.slice(source.indexOf("function countActiveFilters("), source.indexOf("function FilterSection("));
-  const js = ts.transpile(functions, {target:ts.ScriptTarget.ES2022});
-  const sandbox = vm.createContext({classifiedCategories:[{slug:"industrial", name:"Industrial"}], fieldsForClassifiedItem:(c)=>classifiedItemFields[c]});
+  const functions = source.slice(
+    source.indexOf("function countActiveFilters("),
+    source.indexOf("function FilterSection("),
+  );
+  const js = ts.transpile(functions, { target: ts.ScriptTarget.ES2022 });
+  const sandbox = vm.createContext({
+    classifiedCategories: [{ slug: "industrial", name: "Industrial" }],
+    fieldsForClassifiedItem: (c) => classifiedItemFields[c],
+  });
   vm.runInContext(js, sandbox);
   sandbox.search = classifiedSubcategorySearch("industrial", "Heavy Equipment/Tractors");
   assert.equal(vm.runInContext("countActiveFilters(search, false, false, false)", sandbox), 2);
-  assert.deepEqual(JSON.parse(vm.runInContext("JSON.stringify(activeFilterLabels(search, false, false, false))", sandbox)), ["Industrial", "Industrial subcategory · Heavy Equipment/Tractors"]);
+  assert.deepEqual(
+    JSON.parse(
+      vm.runInContext("JSON.stringify(activeFilterLabels(search, false, false, false))", sandbox),
+    ),
+    ["Industrial", "Industrial subcategory · Heavy Equipment/Tractors"],
+  );
+});
+
+
+test("finished imports keep recoverable data when clipboard and handoff are unavailable", async () => {
+  let displayed = "";
+  const payload = {sourceProfileUrl:"https://classifieds.ksl.com/search/member/1",items:[{title:"</textarea><script>untrusted()</script>",subcategory:"Heavy Equipment/Tractors"}]};
+  const sandbox = vm.createContext({
+    exec:async()=>{throw new Error("Clipboard unavailable");},
+    handoffToAdmin:async()=>false,
+    payload,
+    say:async(html)=>{displayed=html;},
+  });
+  vm.runInContext(readFileSync(new URL("../tools/fb-import-extension/paced-reader.js",import.meta.url),"utf8"),sandbox);
+  await vm.runInContext('deliverImport(1,say,"",payload,[])',sandbox);
+  assert.match(displayed,/Recover completed import data/);
+  assert.match(displayed,/aria-label="Completed import data"/);
+  assert.match(displayed,/Heavy Equipment\/Tractors/);
+  assert.match(displayed,/&lt;\/textarea&gt;&lt;script&gt;/);
+  assert.doesNotMatch(displayed,/<script>/);
 });

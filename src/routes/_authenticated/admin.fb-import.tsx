@@ -393,13 +393,17 @@ function StageForm() {
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== window.location.origin) return;
-      const data = event.data as { type?: string; text?: unknown } | null;
+      const data = event.data as { type?: string; text?: unknown; requestId?: string } | null;
       if (data?.type !== "gemlist-fb-import" || typeof data.text !== "string") return;
       try {
         const parsed = JSON.parse(data.text) as { sourceProfileUrl?: string };
         const url = String(parsed?.sourceProfileUrl ?? "");
         setProfileUrl(url);
         setItemsJson(data.text);
+        window.postMessage(
+          { type: "gemlist-fb-import-received", requestId: data.requestId },
+          window.location.origin,
+        );
         toast.success("Batch received from the extension. Click Stage batch when ready.");
       } catch {
         toast.error("The extension sent data that wasn't valid JSON.");
