@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   MARKETCHECK_ID,
   dedupeMarketCheckImages,
+  freshMarketCheckInventory,
   marketCheckImages,
   normalizeMarketCheckListing,
   normalizeMarketCheckSearch,
@@ -161,4 +162,123 @@ test("never sends key-bearing photo links and fills a private seller's city", as
   const fixed = finalizeMarketCheckListing(stale);
   assert.equal(fixed.location.city, "Viola");
   assert.deepEqual(fixed.media.photoLinksCached, []);
+});
+
+test("reassembles a complete fresh inventory from one cache read", async () => {
+  const expiresAt = "2026-10-21T00:00:00.000Z";
+  const rows = [
+    {
+      cache_key: JSON.stringify({ v: 3, kind: "dealer", state: "ID", start: 0 }),
+      expires_at: expiresAt,
+      payload: { num_found: 1, listings: [payload] },
+    },
+  ];
+  const listings = freshMarketCheckInventory(rows, "ID", "dealer", {
+    pages: 6,
+    pageSize: 50,
+    now: Date.parse("2026-10-20T12:00:00Z"),
+  });
+  assert.equal(listings?.length, 1);
+  assert.equal(listings?.[0]?.location.state, "ID");
+});
+
+test("falls back to the per-page refresh when a fresh inventory is incomplete", async () => {
+  const expiresAt = "2026-10-21T00:00:00.000Z";
+  const fullPage = Array.from({ length: 50 }, () => payload);
+  const rows = [
+    {
+      cache_key: JSON.stringify({ v: 3, kind: "dealer", state: "ID", start: 0 }),
+      expires_at: expiresAt,
+      payload: { numFound: 51, listings: fullPage },
+    },
+  ];
+  assert.equal(
+    freshMarketCheckInventory(rows, "ID", "dealer", {
+      pages: 6,
+      pageSize: 50,
+      now: Date.parse("2026-10-20T12:00:00Z"),
+    }),
+    null,
+  );
+});
+
+test("keeps cache-page order and ignores other states, providers, and out-of-range pages", () => {
+  const expiresAt = "2026-10-21T00:00:00.000Z";
+  const pagePayload = (id, heading) => ({ ...payload, id, vin: `${id}-VIN`, heading });
+  const rows = [
+    {
+      cache_key: JSON.stringify({ v: 3, kind: "dealer", state: "ID", start: 2 }),
+      expires_at: expiresAt,
+      payload: { numFound: 3, listings: [pagePayload("C", "Third page")] },
+    },
+    {
+      cache_key: JSON.stringify({ v: 3, kind: "fsbo", state: "ID", start: 2 }),
+      expires_at: expiresAt,
+      payload: { numFound: 3, listings: [pagePayload("X", "Wrong provider")] },
+    },
+    {
+      cache_key: JSON.stringify({ v: 3, kind: "dealer", state: "CA", start: 0 }),
+      expires_at: expiresAt,
+      payload: { numFound: 1, listings: [pagePayload("Y", "Wrong state")] },
+    },
+    {
+      cache_key: JSON.stringify({ v: 3, kind: "dealer", state: "ID", start: 0 }),
+      expires_at: expiresAt,
+      payload: {
+        numFound: 3,
+        listings: [pagePayload("A", "First page"), pagePayload("B", "Second page")],
+      },
+    },
+    {
+      cache_key: JSON.stringify({ v: 3, kind: "dealer", state: "ID", start: 4 }),
+      expires_at: expiresAt,
+      payload: { numFound: 1, listings: [pagePayload("Z", "Out of range")] },
+    },
+  ];
+  const listings = freshMarketCheckInventory(rows, "ID", "dealer", {
+    pages: 2,
+    pageSize: 2,
+    now: Date.parse("2026-10-20T12:00:00Z"),
+  });
+  assert.deepEqual(
+    listings?.map((listing) => listing.heading),
+    ["First page", "Second page", "Third page"],
+  );
+});
+
+test("falls back when any required page is stale or a cache key is duplicated", () => {
+  const pagePayload = (id) => ({ ...payload, id, vin: `${id}-VIN` });
+  const staleRows = [
+    {
+      cache_key: JSON.stringify({ v: 3, kind: "dealer", state: "ID", start: 0 }),
+      expires_at: "2026-10-21T00:00:00.000Z",
+      payload: { numFound: 51, listings: Array.from({ length: 50 }, () => pagePayload("A")) },
+    },
+    {
+      cache_key: JSON.stringify({ v: 3, kind: "dealer", state: "ID", start: 50 }),
+      expires_at: "2026-10-20T11:59:00.000Z",
+      payload: { numFound: 51, listings: [pagePayload("B")] },
+    },
+  ];
+  assert.equal(
+    freshMarketCheckInventory(staleRows, "ID", "dealer", {
+      pages: 2,
+      pageSize: 50,
+      now: Date.parse("2026-10-20T12:00:00Z"),
+    }),
+    null,
+  );
+
+  const duplicateRows = [
+    staleRows[0],
+    { ...staleRows[0], payload: { numFound: 51, listings: [pagePayload("C")] } },
+  ];
+  assert.equal(
+    freshMarketCheckInventory(duplicateRows, "ID", "dealer", {
+      pages: 2,
+      pageSize: 50,
+      now: Date.parse("2026-10-20T12:00:00Z"),
+    }),
+    null,
+  );
 });

@@ -22,6 +22,7 @@ import {
   normalizeMarketCheckListing,
   normalizeMarketCheckSearch,
   parseMarketCheckId,
+  freshMarketCheckInventory,
   type MarketCheckListing,
   type MarketCheckSourceKind,
 } from "./marketcheck-contract";
@@ -316,6 +317,19 @@ async function cachedOnly<T>(key: string): Promise<{ ok: true; value: T } | { ok
   return data?.payload ? { ok: true, value: data.payload as T } : { ok: false };
 }
 
+async function freshCachedStateInventory(state: string, kind: MarketCheckSourceKind) {
+  const db = cacheDb();
+  if (!db) return null;
+  const { data } = await (db as any)
+    .from("marketcheck_cache")
+    .select("cache_key,payload,expires_at")
+    .limit(200);
+  return freshMarketCheckInventory((data ?? []) as any[], state, kind, {
+    pages: state === HOME_STATE ? BASE_PAGES[kind] : OTHER_STATE_PAGES,
+    pageSize: PAGE_SIZE,
+  });
+}
+
 async function inventoryPage(
   state: string,
   kind: MarketCheckSourceKind,
@@ -336,6 +350,10 @@ async function inventoryPage(
 
 /** A state's cached inventory for one source (dealer or private seller). */
 async function stateInventory(state: string, kind: MarketCheckSourceKind, forceRefresh = false) {
+  if (!forceRefresh) {
+    const cached = await freshCachedStateInventory(state, kind);
+    if (cached) return cached;
+  }
   const pages = state === HOME_STATE ? BASE_PAGES[kind] : OTHER_STATE_PAGES;
   const all: MarketCheckListing[] = [];
   for (let page = 0; page < pages; page += 1) {
