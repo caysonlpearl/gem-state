@@ -321,16 +321,16 @@ async function freshCachedStateInventory(state: string, kind: MarketCheckSourceK
   const db = cacheDb();
   if (!db) return null;
   const pages = state === HOME_STATE ? BASE_PAGES[kind] : OTHER_STATE_PAGES;
-  // Cache keys are written in this stable JSON order. Matching the exact
-  // version/provider/state prefix keeps the bounded read to this inventory;
-  // selecting an arbitrary first N rows could pull unrelated payloads.
-  const keyPrefix = `{"v":3,"kind":"${kind}","state":"${state}",`;
+  // Read exactly the page offsets this inventory needs. Ordering serialized
+  // keys lexicographically before applying a limit can omit page 50 in favor
+  // of later offsets (for example, 0, 100, 150, ...), forcing a slow refresh.
+  const pageKeys = Array.from({ length: pages }, (_, page) =>
+    JSON.stringify({ v: 3, kind, state, start: page * PAGE_SIZE }),
+  );
   const { data } = await (db as any)
     .from("marketcheck_cache")
     .select("cache_key,payload,expires_at")
-    .like("cache_key", `${keyPrefix}%`)
-    .order("cache_key", { ascending: true })
-    .limit(pages);
+    .in("cache_key", pageKeys);
   return freshMarketCheckInventory((data ?? []) as any[], state, kind, {
     pages,
     pageSize: PAGE_SIZE,
