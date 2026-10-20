@@ -738,9 +738,9 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
         </div>
         {leadMotors.length > 0 ? (
           <div className="no-scrollbar mt-5 flex gap-4 overflow-x-auto pb-2 lg:grid lg:grid-cols-4 lg:overflow-visible">
-            {leadMotors.map((listing) => (
+            {leadMotors.map((listing, index) => (
               <div key={listing.id} className="min-w-[235px] lg:min-w-0">
-                <ListingCard listing={listing} />
+                <ListingCard listing={listing} priority={index === 0} />
               </div>
             ))}
           </div>

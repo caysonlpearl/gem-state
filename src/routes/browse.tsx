@@ -2710,9 +2710,9 @@ function Browse() {
                 </ul>
               ) : (
                 <ul className="mt-5 grid grid-cols-2 gap-x-4 gap-y-9 md:grid-cols-3 xl:grid-cols-3">
-                  {shownListings.map((listing) => (
+                  {shownListings.map((listing, index) => (
                     <li key={listing.id}>
-                      <ListingCard listing={listing} />
+                      <ListingCard listing={listing} priority={index === 0} />
                     </li>
                   ))}
                 </ul>
@@ -3766,7 +3766,7 @@ function GeneralClassifiedShowcase({ listings }: { listings: ClassifiedBrowseRes
         </div>
       </section>
 
-      {listingRows.map((row) => (
+      {listingRows.map((row, rowIndex) => (
         <section key={row.title} aria-labelledby={row.title.replaceAll(" ", "-")}>
           <div className="mb-4 flex items-end justify-between gap-3 border-b border-border pb-3">
             <div>
@@ -3792,9 +3792,9 @@ function GeneralClassifiedShowcase({ listings }: { listings: ClassifiedBrowseRes
             <CategoryGettingStarted />
           ) : (
             <ul className="no-scrollbar grid grid-cols-1 gap-4 overflow-x-auto pb-2 sm:grid-cols-2 lg:grid-cols-4">
-              {row.listings.map((listing) => (
+              {row.listings.map((listing, index) => (
                 <li key={row.title + "-" + listing.id} className="min-w-0">
-                  <ListingCard listing={listing} />
+                  <ListingCard listing={listing} priority={rowIndex === 0 && index === 0} />
                 </li>
               ))}
             </ul>
@@ -3901,7 +3901,7 @@ function LandingListingsShowcase({
               key={listing.id}
               className={`min-w-0 ${compact && index === 4 ? "hidden lg:block" : ""}`}
             >
-              <ListingCard listing={listing} />
+              <ListingCard listing={listing} priority={index === 0} />
             </li>
           ))}
         </ul>

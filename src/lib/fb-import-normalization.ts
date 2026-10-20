@@ -145,6 +145,12 @@ export function inferFacebookCategorySlug(
     return "tools-equipment";
   if (
     matches(
+      /\b(firearms?|rifles?|handguns?|pistols?|revolvers?|shotguns?|ammunition|ammo|holsters?)\b|\bgun\s+(safe|case|lock|vault|cabinet)\b/,
+    )
+  )
+    return "firearms";
+  if (
+    matches(
       /\b(camping|tent|sleeping bag|fishing|tackle|hunting|rifle|bow|archery|golf|skis?|snowboard|kayak|canoe|bicycle|bike|fitness|exercise)\b/,
     )
   )
