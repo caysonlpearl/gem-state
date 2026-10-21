@@ -36,7 +36,9 @@ export function placePageHead(data: PlacePageData | null | undefined) {
           heading: data.heading,
           path: data.breadcrumbs.at(-1)?.path ?? "/browse",
           breadcrumbs: data.breadcrumbs,
-          listings: data.listings,
+          listings: data.regionGroups.length
+            ? data.regionGroups.flatMap((group) => group.listings)
+            : data.listings,
           faq: data.faq,
         }),
       ),

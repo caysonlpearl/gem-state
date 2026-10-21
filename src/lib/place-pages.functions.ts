@@ -65,6 +65,7 @@ export type PlacePageData = {
   title: string;
   description: string;
   lead: string;
+  statisticsNote: string;
   listings: ClassifiedCard[];
   total: number;
   indexable: boolean;
@@ -85,7 +86,7 @@ export type PlacePageData = {
   recentlySold: SoldCard[];
 };
 
-// Enough to compute honest stats for a local page without paging forever.
+// Bounded review sample, not a census. Qualify statistics and tallies below.
 const MAX_PAGES = 8;
 const SHOWN_LISTINGS = 24;
 const FOR_SALE_EXCEPTIONS = new Set(["jobs", "services", "other-real-estate", "pets"]);
@@ -195,6 +196,7 @@ export const getPlacePage = createServerFn({ method: "GET" })
                 ? { city: place.name, radiusMiles: SEO_CITY_RADIUS_MILES }
                 : {}),
               ...(place?.kind === "region" ? { region: place.name } : {}),
+              state: "ID",
               limit: 8,
             },
           }),
@@ -254,11 +256,11 @@ export const getPlacePage = createServerFn({ method: "GET" })
         const noun = phrase ? `listings for ${phrase.noun}` : "listings";
         const lead =
           main.total === 0
-            ? `No ${noun} ${where} right now. New ones show up here as soon as they're posted.`
-            : `There ${main.total === 1 ? "is" : "are"} ${main.total} ${
+            ? `No matching ${noun} were returned ${where}. Browse nearby places or check again later.`
+            : `The current search returns ${main.total} matching ${
                 main.total === 1 ? noun.replace("listings", "listing") : noun
               } ${where} right now${
-                price ? `, with a median asking price of ${wholeDollars(price.medianCents)}` : ""
+                price ? `, with a median asking price of ${wholeDollars(price.medianCents)} among ${price.count} priced listings reviewed` : ""
               }.`;
 
         const breadcrumbs: { label: string; path: string }[] = [
@@ -322,15 +324,15 @@ export const getPlacePage = createServerFn({ method: "GET" })
 
         const stats: PlacePageStat[] = [];
         if (main.total > 0) {
-          stats.push({ label: "Live listings", value: main.total.toLocaleString("en-US") });
+          stats.push({ label: "Matching search results", value: main.total.toLocaleString("en-US") });
           if (price) {
-            stats.push({ label: "Median asking price", value: wholeDollars(price.medianCents) });
+            stats.push({ label: "Reviewed median asking price", value: wholeDollars(price.medianCents) });
             stats.push({
-              label: price.typicalRange ? "Most listings" : "Price range",
+              label: price.typicalRange ? "Middle half of reviewed prices" : "Reviewed price range",
               value: `${wholeDollars(price.lowCents)} – ${wholeDollars(price.highCents)}`,
             });
           }
-          if (newest) stats.push({ label: "Newest listing", value: idahoDate(newest) });
+          if (newest) stats.push({ label: "Newest reviewed listing", value: idahoDate(newest) });
         }
 
         const faq = landingFaq({
@@ -351,6 +353,7 @@ export const getPlacePage = createServerFn({ method: "GET" })
           title: `${heading} — ${brand.name}`,
           description: `${lead} Contact local sellers directly on ${brand.name}.`,
           lead,
+          statisticsNote: `Prices, regional counts and rankings use up to ${MAX_PAGES} pages of retrieved listings, not a complete market census. ${main.listings.length} listings were reviewed for this page; related links may use a separate bounded sample. Matching totals come from the current search results and may be limited by source coverage.`,
           listings: main.listings.slice(0, SHOWN_LISTINGS),
           total: main.total,
           indexable,
@@ -457,7 +460,7 @@ export const getVehiclePage = createServerFn({ method: "GET" })
         mainRequest,
         model ? fetchListings({ category: "cars-trucks", state: "ID", make }) : mainRequest,
         getRecentlySoldListings({
-          data: { category: "cars-trucks", make, ...(model ? { model } : {}), limit: 8 },
+          data: { category: "cars-trucks", state: "ID", make, ...(model ? { model } : {}), limit: 8 },
         }),
       ]);
       const name = model ? `${make} ${model}` : make;
@@ -497,20 +500,20 @@ export const getVehiclePage = createServerFn({ method: "GET" })
       const heading = `${name} for sale in Idaho`;
       const lead =
         main.total === 0
-          ? `No ${noun} are listed in Idaho right now. New ones show up here as soon as they're posted.`
-          : `There ${main.total === 1 ? "is" : "are"} ${main.total} ${
+          ? `No matching ${noun} were returned in Idaho. Check again later for new listings.`
+          : `The current search returns ${main.total} matching ${
               main.total === 1 ? `${name} listing` : `${name} listings`
             } in Idaho right now${
-              price ? `, with a median asking price of ${wholeDollars(price.medianCents)}` : ""
+              price ? `, with a median asking price of ${wholeDollars(price.medianCents)} among ${price.count} priced listings reviewed` : ""
             }.`;
 
       const stats: PlacePageStat[] = [];
       if (main.total > 0) {
-        stats.push({ label: "Live listings", value: main.total.toLocaleString("en-US") });
+        stats.push({ label: "Matching search results", value: main.total.toLocaleString("en-US") });
         if (price) {
-          stats.push({ label: "Median asking price", value: wholeDollars(price.medianCents) });
+          stats.push({ label: "Reviewed median asking price", value: wholeDollars(price.medianCents) });
           stats.push({
-            label: price.typicalRange ? "Most listings" : "Price range",
+            label: price.typicalRange ? "Middle half of reviewed prices" : "Reviewed price range",
             value: `${wholeDollars(price.lowCents)} – ${wholeDollars(price.highCents)}`,
           });
         }
@@ -518,7 +521,7 @@ export const getVehiclePage = createServerFn({ method: "GET" })
           const low = Math.min(...years);
           const high = Math.max(...years);
           stats.push({
-            label: "Model years",
+            label: "Reviewed model years",
             value: low === high ? String(low) : `${low}–${high}`,
           });
         }
@@ -536,6 +539,7 @@ export const getVehiclePage = createServerFn({ method: "GET" })
         title: `${heading} — ${brand.name}`,
         description: `${lead} Contact local sellers directly on ${brand.name}.`,
         lead,
+        statisticsNote: `Prices, model years and city rankings use up to ${MAX_PAGES} pages of retrieved listings, not a complete market census. ${main.listings.length} listings were reviewed for this page; related models may use a separate bounded sample. Matching totals come from the current search results and may be limited by source coverage.`,
         listings: main.listings.slice(0, SHOWN_LISTINGS),
         total: main.total,
         indexable,
@@ -564,3 +568,4 @@ export const getVehiclePage = createServerFn({ method: "GET" })
       };
     });
   });
+
