@@ -229,7 +229,7 @@ test("actual apply preserves account gates and never rotates a claim on success 
     ["apply_managed_import_item"],
   );
   assert.equal(h.rpcs[0].args._item, row.id);
-  await assert.rejects(h.apply({ ...data, authorized: false }), /authorized/);
+  assert.throws(() => h.apply({ ...data, authorized: false }), /authorized/);
   const claimed = handlers([row], { claimed: true });
   await assert.rejects(claimed.apply(data), /already claimed/);
   assert.equal(claimed.rpcs.length, 0);

@@ -28,11 +28,11 @@ async function whatnotCollectFromShop() {
   const selector = "a[href^='/listing/'], a[href*='whatnot.com/listing/']";
   const accumulated = new Map();
   const capture = () => {
-    for (const a of document.querySelectorAll(selector))
+    for (const a of document.querySelectorAll(selector)) {
+      if (a.closest("header, nav, footer")) continue;
       accumulated.set(a.href.split("?")[0], a.cloneNode(true));
+    }
   };
-  const count = () =>
-    new Set(Array.from(document.querySelectorAll(selector)).map((a) => a.href.split("?")[0])).size;
   let last = -1;
   let still = 0;
   for (let i = 0; i < 150 && still < 4; i++) {

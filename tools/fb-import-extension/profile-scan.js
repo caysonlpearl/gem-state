@@ -245,6 +245,16 @@ async function refreshSellerProfiles(adminTabId, requestId, profiles) {
     ).length;
     report.scan.unreadable = unreadable;
     if (unreadable) report.scan.complete = false;
+    for (const { item } of jobs) {
+      if (
+        !item.unavailable &&
+        (!item.title || item.priceCents == null || !item.description) &&
+        !item.unreadable
+      ) {
+        item.unreadable = true;
+        item.unreadableReason = "price_or_details_missing";
+      }
+    }
     const results = jobs
       .filter(
         ({ item }) =>
@@ -264,7 +274,14 @@ async function refreshSellerProfiles(adminTabId, requestId, profiles) {
       scan: report.scan,
       scanned: done,
       discovered: report.items.length,
-      seenUrls: report.items.map((i) => i.sourceUrl),
+      seenUrls: [
+        ...new Set([
+          ...report.items.map((i) => i.sourceUrl),
+          ...jobs
+            .filter(({ item }) => !item.unreadable && !item.unavailable)
+            .map(({ item }) => item.sourceUrl),
+        ]),
+      ],
       results,
       unreadableReasons: refreshUnreadableReasons(
         [...byId.values()].map((i) => i.sourceUrl),

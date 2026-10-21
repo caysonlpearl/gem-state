@@ -35,11 +35,15 @@ async function vintedCollectFromProfile() {
     "[data-testid='grid-item'] a[href*='/items/'], a[data-testid$='--overlay-link'][href*='/items/']";
   const accumulated = new Map();
   const capture = () => {
-    for (const a of document.querySelectorAll(selector))
-      accumulated.set(a.href.split("?")[0], a.cloneNode(true));
+    for (const a of document.querySelectorAll(selector)) {
+      const card = a.closest("[data-testid='grid-item']");
+      const snapshot = card?.cloneNode(true);
+      accumulated.set(
+        a.href.split("?")[0],
+        snapshot?.querySelector("a[href*='/items/']") || a.cloneNode(true),
+      );
+    }
   };
-  const count = () =>
-    new Set(Array.from(document.querySelectorAll(selector)).map((a) => a.href)).size;
   let last = -1;
   let still = 0;
   for (let i = 0; i < 120 && still < 4; i++) {
