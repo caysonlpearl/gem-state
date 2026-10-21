@@ -365,7 +365,10 @@ async function freshCachedStateInventory(state: string, kind: MarketCheckSourceK
   const { data } = await (db as any)
     .from("marketcheck_cache")
     .select("cache_key,payload,expires_at")
-    .in("cache_key", pageKeys);
+    // Supabase's .in() adds outer quotes but does not escape the quotes
+    // inside these JSON keys. Build quoted literals explicitly so PostgREST
+    // does not reject the bulk lookup and trigger per-page fallback reads.
+    .filter("cache_key", "in", `(${pageKeys.map((key) => JSON.stringify(key)).join(",")})`);
   return freshMarketCheckInventory((data ?? []) as any[], state, kind, {
     pages,
     pageSize: PAGE_SIZE,
