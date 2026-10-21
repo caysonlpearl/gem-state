@@ -154,11 +154,13 @@ test("KSL follows seller-bound pagination and refuses cycles or wrong sellers", 
   const pages = {
     [p]: {
       recognized: true,
+      expected: 2,
       items: [{ sourceUrl: "https://classifieds.ksl.com/listing/1" }],
       nextUrl: p + "?page=2",
     },
     [p + "?page=2"]: {
       recognized: true,
+      expected: 2,
       items: [{ sourceUrl: "https://classifieds.ksl.com/listing/2" }],
     },
   };

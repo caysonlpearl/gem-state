@@ -103,10 +103,15 @@ function kslCollectFromMemberPage() {
   const sinceAt = lines.findIndex((line) => /^member since/i.test(line));
   const sellerName = sinceAt > 0 && lines[sinceAt - 1].length <= 60 ? lines[sinceAt - 1] : "";
   const next = document.querySelector('a[rel="next"], a[aria-label*="next" i]');
+  const countText = lines.join(" ");
+  const range = countText.match(/\b\d[\d,]*\s*[-–]\s*\d[\d,]*\s+(?:of)\s+(\d[\d,]*)\b/i);
+  const expected = range ? Number(range[1].replaceAll(",", "")) : 0;
   return {
     sellerName,
     sourceProfileUrl: `https://classifieds.ksl.com/search/member/${memberId}`,
     items,
+    expected,
+    explicitEnd: /no (?:listings|results)(?: found)?/i.test(countText),
     recognized:
       !!memberId && (items.length > 0 || /no (?:listings|results)/i.test(lines.join(" "))),
     nextUrl: next && next.href && next.href !== location.href ? next.href : null,
