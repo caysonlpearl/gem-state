@@ -1,3 +1,4 @@
+import { listingCardSummary, type ListingCardSummary } from "./listing-card-summary";
 /* eslint-disable @typescript-eslint/no-explicit-any -- the generated client types lag the classified listing RPC additions */
 import { originalListingFor, type OriginalListing } from "./import-original-listing";
 import { createServerFn } from "@tanstack/react-start";
@@ -2694,7 +2695,7 @@ export type ClassifiedsHome = {
 export type ClassifiedsHomeLead = {
   totalActive: number;
   categoryCounts: Record<string, number>;
-  motors: ClassifiedCard[];
+  motors: ListingCardSummary[];
 };
 
 async function loadClassifiedsHomeCategoryData() {
@@ -2741,7 +2742,7 @@ async function loadClassifiedsHomeLead(): Promise<ClassifiedsHomeLead> {
     loadClassifiedsHomeCategoryData(),
     loadClassifiedsHomeCarsTrucks(),
   ]);
-  return { ...categoryData, motors };
+  return { ...categoryData, motors: motors.map(listingCardSummary) };
 }
 
 async function loadClassifiedsHomeCarsTrucks() {

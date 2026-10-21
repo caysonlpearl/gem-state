@@ -23,7 +23,7 @@ import {
   postedAge,
   placeLabel,
 } from "@/lib/classifieds-display";
-import type { ClassifiedCard } from "@/lib/classifieds.functions";
+import type { ListingCardSummary } from "@/lib/listing-card-summary";
 
 function ListingLink({
   listing,
@@ -31,7 +31,7 @@ function ListingLink({
   children,
   ariaLabel,
 }: {
-  listing: ClassifiedCard;
+  listing: ListingCardSummary;
   className: string;
   children: ReactNode;
   ariaLabel?: string;
@@ -54,7 +54,7 @@ function ListingLink({
  * Adzuna's terms ask for it on pages showing their results; once per group
  * keeps the cards themselves clean. Job pages carry their own.
  */
-export function PartnerJobsCredit({ listings }: { listings: readonly ClassifiedCard[] }) {
+export function PartnerJobsCredit({ listings }: { listings: readonly ListingCardSummary[] }) {
   if (!listings.some((listing) => listing.externalJob)) return null;
   return (
     <p className="mt-3 text-right text-[10px] text-muted-foreground">
@@ -78,7 +78,7 @@ export function PartnerJobsCredit({ listings }: { listings: readonly ClassifiedC
 }
 
 /** A single source credit once under a group that includes feed homes. */
-export function PartnerHomesCredit({ listings }: { listings: readonly ClassifiedCard[] }) {
+export function PartnerHomesCredit({ listings }: { listings: readonly ListingCardSummary[] }) {
   const source = listings.find((listing) => listing.externalHome)?.externalHome;
   if (!source) return null;
   const providerUrl =
@@ -101,7 +101,7 @@ export function PartnerHomesCredit({ listings }: { listings: readonly Classified
 }
 
 /** A single source credit once under a group that includes MarketCheck vehicles. */
-export function PartnerVehiclesCredit({ listings }: { listings: readonly ClassifiedCard[] }) {
+export function PartnerVehiclesCredit({ listings }: { listings: readonly ListingCardSummary[] }) {
   if (!listings.some((listing) => listing.externalVehicle)) return null;
   return (
     <p className="mt-3 text-right text-[11px] text-muted-foreground">
@@ -235,7 +235,7 @@ function FeaturedBadge() {
  * A directory business has no prices, so its card leads with its Google
  * rating when we have one, and "Call for a quote" as the smaller line.
  */
-function DirectoryRating({ directory }: { directory: NonNullable<ClassifiedCard["directory"]> }) {
+function DirectoryRating({ directory }: { directory: NonNullable<ListingCardSummary["directory"]> }) {
   return (
     <div className="min-h-[34px]">
       {directory.rating != null ? (
@@ -267,7 +267,7 @@ function DirectoryRating({ directory }: { directory: NonNullable<ClassifiedCard[
  * The center of a photo-less card or listing gallery: the employer's logo
  * for a partner job when there is one, else the category art.
  */
-export function PlaceholderMark({ listing, large }: { listing: ClassifiedCard; large?: boolean }) {
+export function PlaceholderMark({ listing, large }: { listing: ListingCardSummary; large?: boolean }) {
   const [missing, setMissing] = useState(false);
   const logoUrl = listingLogoUrl(listing);
   if (logoUrl && !missing) {
@@ -295,7 +295,7 @@ export function PlaceholderMark({ listing, large }: { listing: ClassifiedCard; l
 }
 
 /** A photo-less listing: category art on a soft gradient. */
-function PlaceholderPhoto({ listing, ratio }: { listing: ClassifiedCard; ratio: string }) {
+function PlaceholderPhoto({ listing, ratio }: { listing: ListingCardSummary; ratio: string }) {
   return (
     <div
       className={`relative flex ${ratio} items-center justify-center overflow-hidden bg-gradient-to-br from-secondary via-card to-accent/25 text-muted-foreground`}
@@ -319,7 +319,7 @@ function LogoPhoto({
   ratio,
   priority,
 }: {
-  listing: ClassifiedCard;
+  listing: ListingCardSummary;
   logoUrl: string;
   ratio: string;
   priority?: boolean;
@@ -343,7 +343,7 @@ export function ListingCardPhoto({
   tall,
   priority,
 }: {
-  listing: ClassifiedCard;
+  listing: ListingCardSummary;
   tall?: boolean;
   priority?: boolean;
 }) {
@@ -387,7 +387,7 @@ export function ListingCardPhoto({
   );
 }
 
-function Facts({ listing }: { listing: ClassifiedCard }) {
+function Facts({ listing }: { listing: ListingCardSummary }) {
   if (listing.job) {
     return (
       <p className="mt-1 truncate text-[11.5px] text-muted-foreground">
@@ -448,7 +448,7 @@ function Facts({ listing }: { listing: ClassifiedCard }) {
   return <p className="mt-1 truncate text-[11.5px] text-muted-foreground">{bits.join(" · ")}</p>;
 }
 
-function vehicleSourceLabel(listing: ClassifiedCard) {
+function vehicleSourceLabel(listing: ListingCardSummary) {
   if (listing.externalVehicle?.sourceKind === "fsbo") return "Private seller";
   if (listing.externalVehicle?.sourceKind === "dealer") {
     return `${listing.dealer?.displayName ?? "Dealer"} · Dealer inventory`;
@@ -456,7 +456,7 @@ function vehicleSourceLabel(listing: ClassifiedCard) {
   return listing.dealer ? `${listing.dealer.displayName} · Dealer inventory` : null;
 }
 
-function Price({ listing }: { listing: ClassifiedCard }) {
+function Price({ listing }: { listing: ListingCardSummary }) {
   return (
     <>
       {listing.job
@@ -471,7 +471,7 @@ function Price({ listing }: { listing: ClassifiedCard }) {
   );
 }
 
-function cardActionLabel(listing: ClassifiedCard) {
+function cardActionLabel(listing: ListingCardSummary) {
   if (listing.job) return "Apply now";
   if (listing.service) return "Get a quote";
   if (listing.pet) return petPlacementLabels[listing.pet.placementType] ?? "Pet listing";
@@ -490,7 +490,7 @@ export function ListingCard({
   soldAt,
   priority,
 }: {
-  listing: ClassifiedCard;
+  listing: ListingCardSummary;
   soldAt?: string;
   /** Load this card's photo eagerly at high priority (the first cards above the fold). */
   priority?: boolean;
@@ -583,7 +583,7 @@ export function ListingCard({
  * Home cards read like Zillow's and KSL's: price, then "3 bds | 2 ba |
  * 1,487 sqft - House for sale", then the address.
  */
-function HomeCardBody({ listing, soldAt }: { listing: ClassifiedCard; soldAt?: string }) {
+function HomeCardBody({ listing, soldAt }: { listing: ListingCardSummary; soldAt?: string }) {
   const home = listing.home!;
   const facts = [
     home.bedrooms != null
@@ -625,7 +625,7 @@ function HomeCardBody({ listing, soldAt }: { listing: ClassifiedCard; soldAt?: s
   );
 }
 
-export function ListingRow({ listing }: { listing: ClassifiedCard }) {
+export function ListingRow({ listing }: { listing: ListingCardSummary }) {
   return (
     <article className="group relative overflow-hidden rounded-2xl border border-transparent bg-card shadow-sm transition-shadow hover:shadow-md">
       <ListingLink

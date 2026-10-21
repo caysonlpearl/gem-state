@@ -1,3 +1,4 @@
+import { listingCardSummary } from "../src/lib/listing-card-summary.ts";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -123,6 +124,7 @@ test("featured endpoint uses Cars & Trucks while the secondary homepage endpoint
     { id: "motor-parts", categorySlug: "auto-parts" },
   ];
   const context = vm.createContext({
+    listingCardSummary,
     createServerFn: () => ({ handler: (fn) => fn }),
     shortCache: (_key, _ttl, load) => load(),
     PUBLIC_PAGE_CACHE_MS: 0,
@@ -145,7 +147,7 @@ test("featured endpoint uses Cars & Trucks while the secondary homepage endpoint
   vm.runInContext(ts.transpile(code, { target: ts.ScriptTarget.ES2022 }), context);
   const lead = await vm.runInContext("loadClassifiedsHomeLead()", context);
   const home = await vm.runInContext("getClassifiedsHome()", context);
-  assert.equal(lead.motors, cars);
+  assert.deepEqual(JSON.parse(JSON.stringify(lead.motors)), cars);
   assert.equal(home.motors, motors);
   assert.equal(home.categoryCounts.trailers, 1);
   assert.equal(home.categoryCounts["auto-parts"], 1);
@@ -380,4 +382,24 @@ test("secondary feed errors stay local and can retry or use the server-rendered 
     .props.onClick();
   assert.equal(resets, 1);
   assert.equal(boundary.render(), "secondary");
+});
+
+
+test("lead summaries retain every location-filter candidate without detail-only vehicle payloads", () => {
+  const cards = Array.from({ length: 24 }, (_, i) => ({
+    id: `car-${i}`, city: `City ${i}`, state: "ID", region: "south-central",
+    postalCode: "83301", imageUrl: "https://images.craigslist.org/example_1200x900.jpg",
+    title: "Vehicle", price: 10000, vehicle: { year: 2020 }, dealer: { name: "Dealer" },
+    externalVehicle: { sourceKind: "dealer", media: { photo_links: Array(100).fill("photo") }, raw: { history: "x".repeat(1000) } },
+  }));
+  const before = JSON.stringify(cards);
+  const summaries = cards.map(listingCardSummary);
+  assert.equal(summaries.length, 24);
+  for (let i = 0; i < cards.length; i++) {
+    const { externalVehicle, ...expected } = cards[i];
+    assert.deepEqual(summaries[i], { ...expected, externalVehicle: { sourceKind: externalVehicle.sourceKind } });
+  }
+  assert.equal(JSON.stringify(cards), before);
+  assert.ok(JSON.stringify(summaries).length < before.length / 2);
+  assert.deepEqual(listingCardSummary({ id: "native", city: "Boise" }), { id: "native", city: "Boise" });
 });
