@@ -1,5 +1,10 @@
 # Gem State Classifieds conversion
 
+## Seller profile importer improvement
+- [ ] Implement profile discovery and completeness evidence for five supported sources.
+- [ ] Add bounded staging, full queue reads and safe retryable application without claim rotation.
+- [ ] Verify targeted tests, preview build and diff; no production mutations or deployment.
+
 ## Industrial category
 - [x] Add Industrial to every category selector and register it for listing creation.
 - [x] Add the 22 supplied subcategories to create/edit/display and browse filtering.
