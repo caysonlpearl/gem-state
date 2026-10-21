@@ -31,6 +31,17 @@ import {
 } from "@/lib/fb-import.functions";
 import bookmarkletSource from "../../../tools/facebook-import-bookmarklet.js?raw";
 import { sellerShareUrl } from "@/lib/seller-share";
+import {
+  UNREADABLE_REASON_LABELS,
+  describeAction,
+  groupQueueBySeller,
+  groupUnreadable,
+  publishBlocker,
+  queueProfileKey,
+  selectedProfiles,
+  sourceSiteName,
+  type UnreadableDiagnostic,
+} from "@/lib/fb-import-queue";
 
 const bookmarkletHref = `javascript:${encodeURIComponent(bookmarkletSource)}`;
 
@@ -141,7 +152,10 @@ function ImportedSellers() {
 
       const requestId = crypto.randomUUID();
       setProgress({ done: 0, total: targets.length });
-      const results = await new Promise<ExtensionRefreshResult[]>((resolve, reject) => {
+      const { results, reasons } = await new Promise<{
+        results: ExtensionRefreshResult[];
+        reasons: unknown;
+      }>((resolve, reject) => {
         const cleanup = () => {
           clearTimeout(timer);
           window.removeEventListener("message", onMessage);
@@ -163,6 +177,7 @@ function ImportedSellers() {
             results?: ExtensionRefreshResult[];
             error?: string;
             unreadable?: number;
+            unreadableReasons?: unknown;
             message?: string;
           } | null;
           if (!message || message.requestId !== requestId) return;
@@ -172,13 +187,7 @@ function ImportedSellers() {
           } else if (message.type === "gemlist-fb-refresh-result") {
             cleanup();
             if (message.error) reject(new Error(message.error));
-            else {
-              if (message.unreadable)
-                toast.warning(
-                  `${message.unreadable} source listing(s) could not be read and were left unchanged.`,
-                );
-              resolve(message.results ?? []);
-            }
+            else resolve({ results: message.results ?? [], reasons: message.unreadableReasons });
           }
         };
         window.addEventListener("message", onMessage);
@@ -196,11 +205,19 @@ function ImportedSellers() {
       // never treats "not read" as "removed", only an explicit unavailable page.
       const targetByUrl = new Map(targets.map((t) => [t.sourceUrl, t]));
       const groups = new Map<string, FbImportItemInput[]>();
+      const extraReasons: UnreadableDiagnostic[] = [];
       for (const result of results) {
         const target = targetByUrl.get(result.sourceUrl);
         if (!target) continue;
         const readable = result.unavailable || (result.title && result.priceCents != null);
-        if (!readable) continue;
+        if (!readable) {
+          extraReasons.push({
+            site: sourceSiteName(result.sourceUrl),
+            reason: "price_or_details_missing",
+            count: 1,
+          });
+          continue;
+        }
         const list = groups.get(target.sourceProfileUrl) ?? [];
         list.push({
           sourceUrl: result.sourceUrl,
@@ -224,14 +241,25 @@ function ImportedSellers() {
         removed += outcome.flaggedRemoved;
       }
       const checked = Array.from(groups.values()).reduce((sum, list) => sum + list.length, 0);
-      return { checked, changed, removed, unread: targets.length - checked };
+      const unread = targets.length - checked;
+      const reported = Array.isArray(reasons) ? (reasons as UnreadableDiagnostic[]) : [];
+      return {
+        checked,
+        changed,
+        removed,
+        unread,
+        unreadGroups: groupUnreadable([...reported, ...extraReasons], unread),
+      };
     },
     onSuccess: async (result) => {
       await queryClient.invalidateQueries({ queryKey: ["fb-import-items"] });
       await queryClient.invalidateQueries({ queryKey: ["fb-import-profiles"] });
+      setUnreadReport(result.unread ? result.unreadGroups : null);
       toast.success(
         `Checked ${result.checked} listing(s): ${result.changed} changed, ${result.removed} sold or removed` +
-          (result.unread ? `, ${result.unread} couldn't be read (left as-is).` : "."),
+          (result.unread
+            ? `. ${result.unread} couldn't be read and were left unchanged — see the breakdown under Imported sellers.`
+            : "."),
       );
     },
     onError: (error) => toast.error(error instanceof Error ? error.message : "Could not refresh."),
@@ -264,6 +292,27 @@ function ImportedSellers() {
             : "Refresh all"}
         </button>
       </div>
+      {unreadReport && (
+        <div role="status" className="border-b border-border bg-secondary/50 px-4 py-3 text-[12px]">
+          <div className="flex items-start justify-between gap-3">
+            <p className="font-semibold">
+              {unreadReport.reduce((sum, g) => sum + g.count, 0)} listing(s) couldn't be read. Those
+              records were left unchanged.
+            </p>
+            <button type="button" className="underline" onClick={() => setUnreadReport(null)}>
+              Hide
+            </button>
+          </div>
+          <ul className="mt-2 space-y-1">
+            {unreadReport.map((g) => (
+              <li key={`${g.site}-${g.reason}`}>
+                <span className="numeric font-medium">{g.count}</span> · {g.site} ·{" "}
+                {UNREADABLE_REASON_LABELS[g.reason] ?? g.reason}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <ul>
         {data.map((profile) => {
           const ageMs = Date.now() - new Date(profile.lastStagedAt).getTime();
