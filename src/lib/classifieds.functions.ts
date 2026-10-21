@@ -1813,7 +1813,12 @@ function categoryIdsBySlug(client: ReturnType<typeof publicServerClient>) {
   return ids;
 }
 
-async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<ClassifiedBrowseResult> {
+async function runBrowseClassifieds(
+  data: ClassifiedBrowseInput,
+  // Internal callers that discard totals can avoid the exact-count query.
+  // Public browse keeps accurate counts and limited-results warnings.
+  options: { includeExactCount?: boolean } = {},
+): Promise<ClassifiedBrowseResult> {
   {
     const client = publicServerClient();
     const page = data.page ?? 1;
@@ -1863,7 +1868,7 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
 
     let query = client
       .from("asks")
-      .select(LISTING_SELECT, { count: "exact" })
+      .select(LISTING_SELECT, options.includeExactCount === false ? {} : { count: "exact" })
       .eq("status", "active")
       .eq("is_demo", false)
       .not("approved_at", "is", null)
@@ -2762,12 +2767,10 @@ async function loadClassifiedsHomeCarsTrucks() {
   return shortCache("classifieds-home-cars-trucks", PUBLIC_PAGE_CACHE_MS, async () => {
     // Filter before paging: newer parts and trailers must not displace the
     // featured cars/trucks. The broader Motors browser and rows stay intact.
-    const result = await runBrowseClassifieds({
-      category: "cars-trucks",
-      state: "ID",
-      sort: "newest",
-      page: 1,
-    });
+    const result = await runBrowseClassifieds(
+      { category: "cars-trucks", state: "ID", sort: "newest", page: 1 },
+      { includeExactCount: false },
+    );
     return result.listings;
   });
 }

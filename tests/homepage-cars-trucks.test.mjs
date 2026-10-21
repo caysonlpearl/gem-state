@@ -56,7 +56,8 @@ test("homepage Cars & Trucks query excludes newer parts and trailers before pagi
     { id: "far-car", categorySlug: "cars-trucks", state: "UT" },
   ];
   const calls = [];
-  const load = loader("loadClassifiedsHomeCarsTrucks", async (input) => {
+  const load = loader("loadClassifiedsHomeCarsTrucks", async (input, options) => {
+    assert.equal(options.includeExactCount, false);
     calls.push(input);
     return {
       listings: rows
