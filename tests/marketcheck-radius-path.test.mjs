@@ -48,6 +48,7 @@ async function withMockMarketCheck({ initialCache = [], allowReservation, onProv
   const originalFetch = globalThis.fetch;
   const cache = new Map(initialCache.map((row) => [row.cache_key, row]));
   const cacheWrites = [];
+  const cacheReads = [];
   const reservations = [];
   const providerCalls = [];
 
@@ -72,9 +73,20 @@ async function withMockMarketCheck({ initialCache = [], allowReservation, onProv
       }
       if (url.pathname.endsWith("/marketcheck_cache") && method === "GET") {
         const filter = url.searchParams.get("cache_key");
-        const rows = filter?.startsWith("eq.")
+        cacheReads.push({ filter, selection: url.searchParams.get("select") });
+        let rows = filter?.startsWith("eq.")
           ? [cache.get(filter.slice(3))].filter(Boolean)
           : [...cache.values()];
+        if (filter?.startsWith("in.(")) {
+          let keys;
+          try {
+            // PostgREST quoted-list values require escaped inner quotes.
+            keys = JSON.parse(`[${filter.slice(4, -1)}]`);
+          } catch {
+            return Response.json({ code: "PGRST100", message: "Invalid quoted IN filter" }, { status: 400 });
+          }
+          rows = rows.filter((row) => keys.includes(row.cache_key));
+        }
         return Response.json(rows);
       }
       if (url.pathname.endsWith("/marketcheck_cache") && method === "POST") {
@@ -101,7 +113,7 @@ async function withMockMarketCheck({ initialCache = [], allowReservation, onProv
   };
 
   try {
-    await run({ cache, cacheWrites, reservations, providerCalls });
+    await run({ cache, cacheWrites, cacheReads, reservations, providerCalls });
   } finally {
     globalThis.fetch = originalFetch;
     for (const name of envNames) {
@@ -324,4 +336,29 @@ test("quota denials gate provider calls and repeated refreshes preserve stale ca
       }
     },
   );
+});
+
+
+test("fresh state inventory escapes JSON cache keys and stays on two bulk reads", async () => {
+  const initialCache = ["dealer", "fsbo"].flatMap((kind) => {
+    const pages = kind === "dealer" ? 6 : 4;
+    return Array.from({ length: pages }, (_, page) => ({
+      cache_key: JSON.stringify({ v: 3, kind, state: "ID", start: page * 50 }),
+      expires_at: new Date(Date.now() + 60000).toISOString(),
+      payload: normalizeMarketCheckSearch({ num_found: pages * 50, listings: Array.from({ length: 50 }, (_, i) => providerListing("ID", kind, page * 50, i)) }, kind),
+    }));
+  });
+  await withMockMarketCheck({ initialCache, allowReservation: () => { throw new Error("Fresh cache must not reserve provider calls"); }, onProvider: () => { throw new Error("Fresh cache must not call provider"); } }, async ({ cacheReads, providerCalls, reservations }) => {
+    const cards = await marketCheckCards({ category: "cars-trucks", state: "ID", sort: "newest", page: 1 });
+    assert.equal(cards.length, 500);
+    assert.equal(cacheReads.length, 2, "no sequential per-page fallback reads");
+    for (const read of cacheReads) {
+      assert.ok(read.filter.startsWith("in.("));
+      const keys = JSON.parse(`[${read.filter.slice(4, -1)}]`);
+      assert.ok(keys.every((key) => JSON.parse(key).state === "ID"));
+      assert.ok(keys.includes(initialCache.find((row) => JSON.parse(row.cache_key).kind === JSON.parse(keys[0]).kind).cache_key));
+    }
+    assert.deepEqual(providerCalls, []);
+    assert.deepEqual(reservations, []);
+  });
 });
