@@ -84,3 +84,18 @@ test("default scheduler preserves browser receiver bindings", () => {
     }
   }
 });
+
+
+test("absolute fallback releases even when either animation frame stalls", () => {
+  for (const stage of [0, 1]) {
+    const h = fixture(true);
+    if (stage) h.frame();
+    assert.equal(h.calls(), 0);
+    assert.equal(h.timers.size, 1, "fallback remains live after image readiness");
+    h.timeout();
+    assert.equal(h.calls(), 1, "timeout does not depend on an animation frame");
+    assert.equal(h.frames.size, 0);
+    h.frame(); h.timeout();
+    assert.equal(h.calls(), 1);
+  }
+});

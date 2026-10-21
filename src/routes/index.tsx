@@ -866,7 +866,7 @@ function DeferredHomeSections({ where, leadPainted }: { where: ReturnType<typeof
     </div>
   );
   return (
-    <div className="min-h-[600px]">
+    <div className="min-h-[600px]" data-secondary-ready={ready ? "true" : "false"}>
       <QueryErrorResetBoundary>
         {({ reset }) => (
           <HomepageSecondaryErrorBoundary onReset={reset}>
