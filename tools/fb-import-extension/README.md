@@ -1,10 +1,14 @@
-# Bluebird Listing Import 1.4.4
+# Bluebird Listing Import 1.5.0
 
 This is a manually operated Chrome extension. It reads public listing data in the browser session the operator is already using; it does not run scheduled imports or publish automatically.
 
 ## Update
 
-In Chrome's Extensions page, reload the installed unpacked extension from this folder, then reload the Bluebird admin import page. The admin page requires version 1.4 or later for Refresh. Updating the website does not update an unpacked Chrome extension.
+In Chrome's Extensions page, reload the installed unpacked extension from this folder, then reload the Bluebird admin import page. The admin page requires version 1.5 or later for profile Refresh. Updating the website does not update an unpacked Chrome extension.
+
+Refresh scans profiles for new listings and re-reads existing URLs through the two-window pool. Scrolling that merely stops producing cards is not proof of completion. Unknown totals, missing pages, challenges or unreadable details report an incomplete scan; unseen existing rows stay unchanged. Re-run Refresh to retry. Pending edits are preserved, never overwritten by another scan.
+
+Review loads exact-count pages with a visible Show next 50 control; selection covers the whole queue, not just visible rows. Staging and application use one-row requests, so large selections do not run as one long server request. Committed rows are safe to retry, failed rows stay selected. Application never generates/replaces a claim link. Use the explicit Prepare claim control only when a new link is actually needed; replacement intentionally invalidates the previous token.
 
 ## Supported seller pages
 
