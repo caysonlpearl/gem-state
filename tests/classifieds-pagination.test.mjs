@@ -71,6 +71,7 @@ function harness({
   rowLimit = Infinity,
   radiusMatch = () => true,
   beforeProvider = async () => {},
+  cleanup = async () => {},
   onNative = () => {},
 } = {}) {
   const includes = new Set(enabled);
@@ -150,7 +151,7 @@ function harness({
     PAGE_SIZE: 24,
     LISTING_SELECT: "synthetic",
     publicServerClient: () => ({ from: () => query }),
-    clearExpiredFeaturedPlacements: async () => {},
+    clearExpiredFeaturedPlacements: cleanup,
     classifiedCategories: ["jobs", "services", "cars-trucks", "other-real-estate", "pets"].map(
       (slug) => ({ slug }),
     ),
@@ -643,4 +644,23 @@ test("native inventory starts while an eligible provider is still pending", asyn
     release();
   }
   await pending;
+});
+
+
+test("provider cache reads overlap cleanup but native ranking waits for cleanup", async () => {
+  let release;
+  const gate = new Promise((resolve) => { release = resolve; });
+  let nativeStarted = false;
+  const h = harness({
+    enabled: ["marketcheck"], cleanup: () => gate,
+    onNative: () => { nativeStarted = true; },
+  });
+  const pending = h.browse(1);
+  try {
+    await new Promise(setImmediate);
+    assert.deepEqual(h.adapterCalls, ["marketcheck"]);
+    assert.equal(nativeStarted, false, "native ranking cannot see expired placements before cleanup");
+  } finally { release(); }
+  await pending;
+  assert.equal(nativeStarted, true);
 });

@@ -1835,19 +1835,21 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
           .map((category) => category.slug)
       : [];
     if (!data.category && data.group && groupSlugs.length === 0) return empty;
-    // The placement cleanup and the category lookup are independent, so they
-    // share one round trip before the listing query.
-    const [, idBySlug] = await Promise.all([
-      clearExpiredFeaturedPlacements(nowIso),
-      data.category || data.group ? categoryIdsBySlug(client) : null,
-    ]);
+    // Expired-placement cleanup must precede native ranking, but provider
+    // cache reads do not depend on that write. Start cleanup now, validate
+    // category IDs, and await cleanup only on the native read below.
+    const cleanup = clearExpiredFeaturedPlacements(nowIso);
+    const idBySlug = data.category || data.group ? await categoryIdsBySlug(client) : null;
     if (data.category) {
       const categoryId = idBySlug?.get(data.category);
       if (!categoryId) {
         mockOnlyCategory = [...mockClassifiedListings, ...mockVehicleListings].some(
           (listing) => listing.categorySlug === data.category,
         );
-        if (!mockOnlyCategory) return empty;
+        if (!mockOnlyCategory) {
+          await cleanup;
+          return empty;
+        }
       } else {
         categoryIds = [categoryId];
       }
@@ -1894,7 +1896,10 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
         .select("user_id")
         .eq("slug", data.sellerSlug)
         .maybeSingle();
-      if (!seller?.user_id) return empty;
+      if (!seller?.user_id) {
+        await cleanup;
+        return empty;
+      }
       query = query.eq("seller_id", seller.user_id);
     }
     if (data.dealerSlug) {
@@ -1905,7 +1910,10 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
         .eq("status", "ready")
         .not("agreements_accepted_at", "is", null)
         .maybeSingle();
-      if (!dealer?.id) return empty;
+      if (!dealer?.id) {
+        await cleanup;
+        return empty;
+      }
       query = query.eq("dealer_id", dealer.id);
     }
     if (data.condition) {
@@ -2159,9 +2167,11 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     // Independent reads must not form a provider → database waterfall.
     // Eligibility, provider budget guards, paging and merge ordering stay unchanged.
     const [native, jobCards, homeCards, externalVehicles, petCards] = await Promise.all([
-      mockOnlyCategory
-        ? { data: [], count: 0, error: null }
-        : query.range(resultRange.from, resultRange.to),
+      cleanup.then(() =>
+        mockOnlyCategory
+          ? { data: [], count: 0, error: null }
+          : query.range(resultRange.from, resultRange.to),
+      ),
       includeAdzuna ? adzuna.adzunaCards(data) : [],
       openWebNinjaEnabled
         ? openWebNinja.openWebNinjaCards(data)
