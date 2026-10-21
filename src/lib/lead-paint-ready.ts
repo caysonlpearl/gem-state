@@ -19,25 +19,32 @@ export function afterLeadPaint(
 ): () => void {
   let stopped = false;
   let queued = false;
+  let finished = false;
   let firstFrame: number | undefined;
   let secondFrame: number | undefined;
   const detach = () => {
     image?.removeEventListener("load", queuePaint);
     image?.removeEventListener("error", queuePaint);
   };
+  function finish() {
+    if (stopped || finished) return;
+    finished = true;
+    detach();
+    scheduler.clearDelay(timeout);
+    if (firstFrame !== undefined) scheduler.cancelFrame(firstFrame);
+    if (secondFrame !== undefined) scheduler.cancelFrame(secondFrame);
+    ready();
+  }
   function queuePaint() {
-    if (stopped || queued) return;
+    if (stopped || queued || finished) return;
     queued = true;
     detach();
-    if (timeout !== undefined) scheduler.clearDelay(timeout);
     firstFrame = scheduler.requestFrame(() => {
-      secondFrame = scheduler.requestFrame(() => {
-        if (!stopped) ready();
-      });
+      secondFrame = scheduler.requestFrame(finish);
     });
   }
-  // A hung image must not leave the rest of the marketplace inaccessible.
-  const timeout = scheduler.delay(queuePaint, 2000);
+  // Keep an absolute fallback until completion, including stalled RAFs.
+  const timeout = scheduler.delay(finish, 2000);
   if (!image || image.complete) queuePaint();
   else {
     image.addEventListener("load", queuePaint);
