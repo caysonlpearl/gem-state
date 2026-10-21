@@ -698,3 +698,16 @@ test("internal homepage count omission preserves merged cards while public brows
   assert.deepEqual(internal.ranges, publicBrowse.ranges);
   assert.deepEqual(internal.adapterCalls, publicBrowse.adapterCalls);
 });
+
+
+test("internal lead diagnostics contain only allowlisted finite nonnegative stage timings", async () => {
+  const h = harness({ enabled: ["marketcheck"], filters: { category: "cars-trucks" } });
+  const timingsMs = {};
+  await h.internal({ includeExactCount: false, timingsMs });
+  const stages = ["cleanup", "categoryIds", "adapterImports", "nativeRead", "vehicleRead", "thumbnailLinks"];
+  assert.deepEqual(Object.keys(timingsMs).sort(), stages.flatMap((key) => [key, `${key}Start`]).sort());
+  for (const value of Object.values(timingsMs)) {
+    assert.equal(typeof value, "number");
+    assert.ok(Number.isFinite(value) && value >= 0);
+  }
+});

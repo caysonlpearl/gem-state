@@ -1817,9 +1817,20 @@ async function runBrowseClassifieds(
   data: ClassifiedBrowseInput,
   // Internal callers that discard totals can avoid the exact-count query.
   // Public browse keeps accurate counts and limited-results warnings.
-  options: { includeExactCount?: boolean } = {},
+  options: { includeExactCount?: boolean; timingsMs?: Record<string, number>; timingOriginMs?: number } = {},
 ): Promise<ClassifiedBrowseResult> {
   {
+    const clock = () => typeof performance === "undefined" ? Date.now() : performance.now();
+    const origin = options.timingOriginMs ?? clock();
+    async function measure<T>(stage: string, work: () => T | PromiseLike<T>): Promise<T> {
+      const started = clock();
+      if (options.timingsMs) options.timingsMs[`${stage}Start`] = Math.max(0, Math.round(started - origin));
+      try {
+        return await work();
+      } finally {
+        if (options.timingsMs) options.timingsMs[stage] = Math.max(0, Math.round(clock() - started));
+      }
+    }
     const client = publicServerClient();
     const page = data.page ?? 1;
     const empty = { listings: [], total: 0, page, pageSize: PAGE_SIZE };
@@ -1843,8 +1854,8 @@ async function runBrowseClassifieds(
     // Expired-placement cleanup must precede native ranking, but provider
     // cache reads do not depend on that write. Start cleanup now, validate
     // category IDs, and await cleanup only on the native read below.
-    const cleanup = clearExpiredFeaturedPlacements(nowIso);
-    const idBySlug = data.category || data.group ? await categoryIdsBySlug(client) : null;
+    const cleanup = measure("cleanup", () => clearExpiredFeaturedPlacements(nowIso));
+    const idBySlug = data.category || data.group ? await measure("categoryIds", () => categoryIdsBySlug(client)) : null;
     if (data.category) {
       const categoryId = idBySlug?.get(data.category);
       if (!categoryId) {
@@ -2128,7 +2139,7 @@ async function runBrowseClassifieds(
       marketCheck,
       rescueGroups,
       directoryAdapter,
-    ] = await Promise.all([
+    ] = await measure("adapterImports", () => Promise.all([
       import("./adzuna-listings.server"),
       import("./mashvisor-listings.server"),
       import("./openwebninja-listings.server"),
@@ -2136,7 +2147,7 @@ async function runBrowseClassifieds(
       import("./marketcheck.server"),
       import("./rescuegroups.server"),
       import("./service-directory-contract"),
-    ]);
+    ]));
     const includeAdzuna = adzuna.canIncludeAdzuna(data);
     const includeMashvisor = mashvisor.canIncludeMashvisor(data);
     const includeOpenWebNinja = openWebNinja.canIncludeOpenWebNinja(data);
@@ -2176,7 +2187,7 @@ async function runBrowseClassifieds(
         await cleanup;
         return mockOnlyCategory
           ? { data: [], count: 0, error: null }
-          : await query.range(resultRange.from, resultRange.to);
+          : await measure("nativeRead", () => query.range(resultRange.from, resultRange.to));
       })(),
       includeAdzuna ? adzuna.adzunaCards(data) : [],
       openWebNinjaEnabled
@@ -2184,7 +2195,7 @@ async function runBrowseClassifieds(
         : includeMashvisor
           ? mashvisor.mashvisorCards(data)
           : [],
-      includeMarketCheck ? marketCheck.marketCheckCards(data) : [],
+      includeMarketCheck ? measure("vehicleRead", () => marketCheck.marketCheckCards(data)) : [],
       includeRescueGroups ? rescueGroups.rescueGroupsCards(data) : [],
     ]);
     const { data: rows, count, error } = native;
@@ -2292,12 +2303,12 @@ async function runBrowseClassifieds(
         )
       : { cards: [], total: 0 };
     const pageListings = [...nativePage, ...directory.cards];
-    const urlByPath = await signListingThumbnails(
+    const urlByPath = await measure("thumbnailLinks", () => signListingThumbnails(
       pageListings.flatMap((listing) => {
         const cover = coverPathById.get(listing.id);
         return cover ? [cover] : [];
       }),
-    );
+    ));
     const combinedListings = pageListings.map((listing) => {
       const cover = coverPathById.get(listing.id);
       return cover ? { ...listing, imageUrl: urlByPath.get(cover) ?? null } : listing;
@@ -2710,6 +2721,8 @@ export type ClassifiedsHome = {
 };
 
 export type ClassifiedsHomeLead = {
+  /** Temporary numeric diagnostics only; no user, query, or credential data. */
+  timingsMs?: Record<string, number>;
   totalActive: number;
   categoryCounts: Record<string, number>;
   motors: ListingCardSummary[];
@@ -2755,21 +2768,34 @@ async function loadClassifiedsHomeMotors() {
 }
 
 async function loadClassifiedsHomeLead(): Promise<ClassifiedsHomeLead> {
+  // Keep these per-request observations outside cached values. Missing deep
+  // stages mean this request reused the cached cars promise, not zero latency.
+  const timingsMs: Record<string, number> = {};
+  const clock = () => typeof performance === "undefined" ? Date.now() : performance.now();
+  const started = clock();
   const [categoryData, motors] = await Promise.all([
-    loadClassifiedsHomeCategoryData(),
-    loadClassifiedsHomeCarsTrucks(),
+    loadClassifiedsHomeCategoryData().then((value) => {
+      timingsMs["countsWait"] = Math.max(0, Math.round(clock() - started));
+      return value;
+    }),
+    loadClassifiedsHomeCarsTrucks(timingsMs, started).then((value) => {
+      timingsMs["motorsWait"] = Math.max(0, Math.round(clock() - started));
+      return value;
+    }),
   ]);
-  return { ...categoryData, motors: motors.map(listingCardSummary) };
+  const summaries = motors.map(listingCardSummary);
+  timingsMs["leadTotal"] = Math.max(0, Math.round(clock() - started));
+  return { ...categoryData, motors: summaries, timingsMs };
 }
 
-async function loadClassifiedsHomeCarsTrucks() {
+async function loadClassifiedsHomeCarsTrucks(timingsMs?: Record<string, number>, timingOriginMs?: number) {
   const { shortCache, PUBLIC_PAGE_CACHE_MS } = await import("./short-cache.server");
   return shortCache("classifieds-home-cars-trucks", PUBLIC_PAGE_CACHE_MS, async () => {
     // Filter before paging: newer parts and trailers must not displace the
     // featured cars/trucks. The broader Motors browser and rows stay intact.
     const result = await runBrowseClassifieds(
       { category: "cars-trucks", state: "ID", sort: "newest", page: 1 },
-      { includeExactCount: false },
+      { includeExactCount: false, timingsMs, timingOriginMs },
     );
     return result.listings;
   });
