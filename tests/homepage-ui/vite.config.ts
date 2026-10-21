@@ -46,7 +46,8 @@ export default defineConfig({
             })
             .join("\n");
           return ts.transpileModule(
-            `export function productionHomeLead(deps) {
+            `import { listingCardSummary } from "@/lib/listing-card-summary";
+            export function productionHomeLead(deps) {
             const { shortCache, PUBLIC_PAGE_CACHE_MS, runBrowseClassifieds, loadClassifiedsHomeCategoryData } = deps;
             ${functions}
             return loadClassifiedsHomeLead();
@@ -131,3 +132,4 @@ export default defineConfig({
     },
   },
 });
+

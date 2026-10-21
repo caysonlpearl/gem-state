@@ -1,3 +1,4 @@
+import { afterLeadPaint } from "@/lib/lead-paint-ready";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   QueryErrorResetBoundary,
@@ -5,7 +6,7 @@ import {
   useQuery,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { Component, Suspense, lazy, useEffect, useRef, useState, type ReactNode } from "react";
+import { Component, Suspense, lazy, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowRight, MagnifyingGlass, Car } from "@phosphor-icons/react";
 
 import { brand } from "@/config/brand";
@@ -218,6 +219,8 @@ function parseLocationSearch(value: string): ParsedLocationSearch {
 }
 
 function Home() {
+  const [leadPainted, setLeadPainted] = useState(false);
+  const onLeadPainted = useCallback(() => setLeadPainted(true), []);
   const navigate = useNavigate();
   const [headlineItems, setHeadlineItems] = useState<(typeof headlineOptions)[number]>(
     headlineOptions[0],
@@ -520,14 +523,14 @@ function Home() {
           homepage feeds cannot hold up the first vehicle image. */}
       <QueryErrorResetBoundary>
         {({ reset }) => (
-          <HomepageLeadErrorBoundary onReset={reset} where={where}>
+          <HomepageLeadErrorBoundary onReset={reset} where={where} onUnavailable={onLeadPainted}>
             <Suspense fallback={<HomepageLeadLoading where={where} />}>
-              <HomepageLeadVehicles where={where} />
+              <HomepageLeadVehicles where={where} onPainted={onLeadPainted} />
             </Suspense>
           </HomepageLeadErrorBoundary>
         )}
       </QueryErrorResetBoundary>
-      <DeferredHomeSections where={where} />
+      <DeferredHomeSections where={where} leadPainted={leadPainted} />
     </main>
   );
 }
@@ -659,13 +662,20 @@ function HomeSectionsLoading() {
   );
 }
 
-function HomepageLeadVehicles({ where }: { where: ReturnType<typeof homeLocation> }) {
+function HomepageLeadVehicles({ where, onPainted }: { where: ReturnType<typeof homeLocation>; onPainted: () => void }) {
   const { data: homeLead } = useSuspenseQuery(homeLeadQuery);
   const { motorCategories, matchesLocation, withLocation } = where;
   const leadMotors = homeLead.motors.filter(matchesLocation).slice(0, HOMEPAGE_ROW_SIZE);
+  const sectionRef = useRef<HTMLElement>(null);
+  const firstId = leadMotors[0]?.id;
+  const firstImage = leadMotors[0]?.imageUrl;
+  useEffect(() => afterLeadPaint(
+    sectionRef.current?.querySelector<HTMLImageElement>('img[fetchpriority="high"]') ?? null,
+    onPainted,
+  ), [firstId, firstImage, onPainted]);
 
   return (
-    <section className="homepage-lead-vehicles mt-6 sm:mt-14">
+    <section ref={sectionRef} className="homepage-lead-vehicles mt-6 sm:mt-14">
       <HomepageLeadHeader where={where} />
       {leadMotors.length > 0 ? (
         <div className="no-scrollbar mt-5 flex gap-4 overflow-x-auto pb-2 lg:grid lg:grid-cols-4 lg:overflow-visible">
@@ -755,10 +765,14 @@ function HomepageLeadLoading({ where }: { where: ReturnType<typeof homeLocation>
 }
 
 class HomepageLeadErrorBoundary extends Component<
-  { children: ReactNode; onReset: () => void; where: ReturnType<typeof homeLocation> },
+  { children: ReactNode; onReset: () => void; where: ReturnType<typeof homeLocation>; onUnavailable?: () => void },
   { hasError: boolean }
 > {
   override state = { hasError: false };
+
+  override componentDidCatch() {
+    this.props.onUnavailable?.();
+  }
 
   static getDerivedStateFromError() {
     return { hasError: true };
@@ -831,10 +845,12 @@ class HomepageSecondaryErrorBoundary extends Component<
   }
 }
 
-function DeferredHomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
+function DeferredHomeSections({ where, leadPainted }: { where: ReturnType<typeof homeLocation>; leadPainted: boolean }) {
   const hydrated = useHydrated();
   const lead = useQuery({ ...homeLeadQuery, enabled: false, throwOnError: false });
-  const ready = hydrated && (lead.isSuccess || lead.isError);
+  // Settled data alone can still leave the priority image waiting to paint.
+  // Query failures release the normal error path without waiting for an image.
+  const ready = hydrated && (leadPainted || lead.isError);
   // The plain link remains usable without JavaScript or while feeds are slow.
   const pending = (
     <div className="mt-16">
