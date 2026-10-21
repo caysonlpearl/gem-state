@@ -6,6 +6,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { getAuthRedirectUrl } from "@/lib/auth-redirect";
 import {
   safeAuthReturnPath,
+  authReturnSearch,
   listingReturnTarget,
   type AuthReturnPath,
   type StaticAuthRedirect,
@@ -64,6 +65,7 @@ function authIntent(redirect: AuthRedirect) {
   }
   if (
     redirect === "/create-listing" ||
+    redirect.startsWith("/create-listing?") ||
     redirect === "/create-missing-listing" ||
     redirect === "/seller-setup" ||
     redirect === "/selling"
@@ -81,7 +83,7 @@ function authIntent(redirect: AuthRedirect) {
       body: "Save listings and searches, and get alerts when something new matches.",
     };
   }
-  if (redirect === "/messages") {
+  if (redirect === "/messages" || authReturnSearch(redirect).section === "messages") {
     return {
       signinTitle: "Sign in to see your messages",
       signupTitle: "Create an account to message sellers",
@@ -114,6 +116,16 @@ function AuthPage() {
       return listing.edit
         ? navigate({ to: "/listings/$listingId/edit", params: { listingId: listing.listingId } })
         : navigate({ to: "/listings/$listingId", params: { listingId: listing.listingId } });
+    }
+    const query = authReturnSearch(redirect);
+    if (redirect.startsWith("/account?")) {
+      return navigate({
+        to: "/account",
+        search: { section: query.section ?? "overview", conversation: query.conversation },
+      });
+    }
+    if (redirect.startsWith("/create-listing?")) {
+      return navigate({ to: "/create-listing", search: { duplicateFrom: query.duplicateFrom } });
     }
     return navigate({ to: redirect as StaticRedirect });
   };

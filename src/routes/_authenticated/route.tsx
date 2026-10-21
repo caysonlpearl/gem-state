@@ -10,7 +10,9 @@ export const Route = createFileRoute("/_authenticated")({
 
 function AuthenticatedGate() {
   const navigate = useNavigate();
-  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname + state.location.searchStr,
+  });
   const { isSignedIn, loading } = useAuth();
   const [redirecting, setRedirecting] = useState(false);
 
