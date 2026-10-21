@@ -76,11 +76,11 @@ export const Route = createFileRoute("/")({
     ],
     scripts: [jsonLdScript(siteStructuredData())],
   }),
-  // Not awaited: the page shell and hero render right away and the listing
-  // rows stream in when the data is ready (same HTML response, so crawlers
-  // still get them).
+  // Stream the hero and first vehicle row. The large secondary feed starts
+  // after that row settles in the browser, instead of competing for its data
+  // and expanding the initial document. Category links and lead listings
+  // remain server-rendered; category/browse pages retain full SSR inventory.
   loader: ({ context }) => {
-    void context.queryClient.prefetchQuery(homeQuery);
     void context.queryClient.prefetchQuery(homeLeadQuery);
   },
   component: Home,
@@ -526,9 +526,7 @@ function Home() {
           </HomepageLeadErrorBoundary>
         )}
       </QueryErrorResetBoundary>
-      <Suspense fallback={null}>
-        <HomeSections where={where} />
-      </Suspense>
+      <DeferredHomeSections where={where} />
     </main>
   );
 }
@@ -794,6 +792,22 @@ class HomepageLeadErrorBoundary extends Component<
     }
     return this.props.children;
   }
+}
+
+function DeferredHomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
+  const hydrated = useHydrated();
+  const lead = useQuery({ ...homeLeadQuery, enabled: false, throwOnError: false });
+  const ready = hydrated && (lead.isSuccess || lead.isError);
+  const pending = (
+    <p className="mt-16 text-sm text-muted-foreground" role="status">
+      Loading more listings…
+    </p>
+  );
+  return (
+    <div className="min-h-[600px]">
+      <Suspense fallback={pending}>{ready ? <HomeSections where={where} /> : pending}</Suspense>
+    </div>
+  );
 }
 
 function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
