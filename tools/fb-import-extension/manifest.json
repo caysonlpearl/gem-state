@@ -3,12 +3,7 @@
   "name": "Bluebird Listing Import",
   "version": "1.5.0",
   "description": "With a seller's permission, imports Facebook, KSL, Vinted, Whatnot and Diesel Depot inventory in two reader windows. Runs only when requested.",
-  "permissions": [
-    "debugger",
-    "scripting",
-    "tabs",
-    "clipboardWrite"
-  ],
+  "permissions": ["debugger", "scripting", "tabs", "clipboardWrite"],
   "host_permissions": [
     "https://www.facebook.com/*",
     "https://classifieds.ksl.com/*",
@@ -35,13 +30,11 @@
     {
       "matches": [
         "https://onbluebird.com/*",
-    "https://www.onbluebird.com/*",
-    "https://gem-state.lovable.app/*",
+        "https://www.onbluebird.com/*",
+        "https://gem-state.lovable.app/*",
         "https://gemstateclassifieds.lovable.app/*"
       ],
-      "js": [
-        "bridge.js"
-      ],
+      "js": ["bridge.js"],
       "run_at": "document_start"
     }
   ]

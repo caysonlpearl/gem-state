@@ -8,7 +8,10 @@ export function canonicalImportSource(profile: string, value: string): string {
     throw new Error("Unsupported listing URL.");
   const host = url.hostname.toLowerCase();
   let id: string | undefined;
-  if (seller.includes("facebook.com") && ["facebook.com", "www.facebook.com", "m.facebook.com"].includes(host)) {
+  if (
+    seller.includes("facebook.com") &&
+    ["facebook.com", "www.facebook.com", "m.facebook.com"].includes(host)
+  ) {
     id = url.pathname.match(/^\/marketplace\/item\/(\d+)\/?$/)?.[1];
     if (id) return `https://www.facebook.com/marketplace/item/${id}/`;
   }
@@ -39,8 +42,12 @@ export type ScanEvidence = {
 };
 
 export function mayInferScanAbsence(scan: ScanEvidence): boolean {
-  return scan.complete === true && !scan.challenged && scan.unreadable === 0 &&
-    (scan.termination === "count" || scan.termination === "end");
+  return (
+    scan.complete === true &&
+    !scan.challenged &&
+    scan.unreadable === 0 &&
+    (scan.termination === "count" || scan.termination === "end")
+  );
 }
 
 /** Count-based paging continues even if PostgREST returns fewer than requested. */
@@ -53,7 +60,8 @@ export async function readAllImportPages<T>(
     const page = await fetchPage(rows.length, size);
     rows.push(...page.rows);
     if (rows.length >= page.total) return rows;
-    if (!page.rows.length) throw new Error("Import queue changed or could not be fully loaded. Retry.");
+    if (!page.rows.length)
+      throw new Error("Import queue changed or could not be fully loaded. Retry.");
   }
 }
 
@@ -67,8 +75,14 @@ export async function runImportRows<T>(
   const results: T[] = [];
   const failures: { itemId: string; message: string }[] = [];
   for (const [index, itemId] of unique.entries()) {
-    try { results.push(await apply(itemId)); }
-    catch { failures.push({ itemId, message: "Request interrupted. Retry this row; completed rows are safe to retry." }); }
+    try {
+      results.push(await apply(itemId));
+    } catch {
+      failures.push({
+        itemId,
+        message: "Request interrupted. Retry this row; completed rows are safe to retry.",
+      });
+    }
     progress?.(index + 1, unique.length);
   }
   return { results, failures };

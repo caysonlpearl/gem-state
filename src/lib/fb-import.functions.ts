@@ -8,10 +8,7 @@ import {
   normalizeFacebookCondition,
 } from "@/lib/fb-import-normalization";
 
-import {
-  canonicalSellerSourceProfile,
-  dieselDepotListingId,
-} from "./seller-claims";
+import { canonicalSellerSourceProfile, dieselDepotListingId } from "./seller-claims";
 import { inferImportItemDetails } from "./import-subcategories";
 import { findIdahoPlace } from "@/config/idaho-places";
 
@@ -177,8 +174,18 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
         String(input.sellerName ?? "")
           .trim()
           .slice(0, 120) || null;
-      const scan = input.scan ? z.object({ complete: z.boolean(), termination: z.enum(["count", "end", "incomplete"]), challenged: z.boolean(), unreadable: z.number().int().nonnegative() }).parse(input.scan) : undefined;
-      if (!Array.isArray(input.items) || input.items.length > 1) throw new Error("Stage one row per request; use the bounded batch operation.");
+      const scan = input.scan
+        ? z
+            .object({
+              complete: z.boolean(),
+              termination: z.enum(["count", "end", "incomplete"]),
+              challenged: z.boolean(),
+              unreadable: z.number().int().nonnegative(),
+            })
+            .parse(input.scan)
+        : undefined;
+      if (!Array.isArray(input.items) || input.items.length > 1)
+        throw new Error("Stage one row per request; use the bounded batch operation.");
       const items = (input.items ?? []).map((item) => {
         const categorySlug = inferFacebookCategorySlug(
           item.categorySlug,
@@ -219,7 +226,18 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
       if (!items.length && !input.finalizeScan) throw new Error("No listings were provided.");
       if (items.some((item) => !item.sourceUrl || !item.title))
         throw new Error("Every listing needs a source URL and a title.");
-      return { sourceProfileUrl, sellerName, mode: input.mode, items, scan, finalizeScan: input.finalizeScan === true, removalSourceUrl: input.removalSourceUrl ? canonicalImportSource(sourceProfileUrl, input.removalSourceUrl) : undefined, seenUrls: (input.seenUrls ?? []).map((url) => canonicalImportSource(sourceProfileUrl, url)) };
+      return {
+        sourceProfileUrl,
+        sellerName,
+        mode: input.mode,
+        items,
+        scan,
+        finalizeScan: input.finalizeScan === true,
+        removalSourceUrl: input.removalSourceUrl
+          ? canonicalImportSource(sourceProfileUrl, input.removalSourceUrl)
+          : undefined,
+        seenUrls: (input.seenUrls ?? []).map((url) => canonicalImportSource(sourceProfileUrl, url)),
+      };
     },
   )
   .handler(
@@ -257,12 +275,22 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
       if (batchError) throw new Error(batchError.message);
 
       const { allImportRows } = await import("./import-pagination.server");
-      const priorItems = await allImportRows(() => admin
-        .from("fb_marketplace_import_items")
-        .select("source_url,status,price_cents,title,description,listing_id,seller_id,category_slug,item_details", { count: "exact" })
-        .eq("source_profile_url", data.sourceProfileUrl)
-        .order("id"));
-      const priorByUrl = new Map<string, any>(priorItems.map((row: any) => [canonicalImportSource(data.sourceProfileUrl, row.source_url), row]));
+      const priorItems = await allImportRows(() =>
+        admin
+          .from("fb_marketplace_import_items")
+          .select(
+            "source_url,status,price_cents,title,description,listing_id,seller_id,category_slug,item_details",
+            { count: "exact" },
+          )
+          .eq("source_profile_url", data.sourceProfileUrl)
+          .order("id"),
+      );
+      const priorByUrl = new Map<string, any>(
+        priorItems.map((row: any) => [
+          canonicalImportSource(data.sourceProfileUrl, row.source_url),
+          row,
+        ]),
+      );
       const dealerPrior = new Map<string, any>();
       if (data.sourceProfileUrl === "https://www.diesel-depot.com/inventory/") {
         for (const row of priorItems ?? []) {
@@ -294,7 +322,8 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
             prior.item_details,
             item.title,
           );
-        if (prior && item.description === null && !item.unavailable) item.description = prior.description;
+        if (prior && item.description === null && !item.unavailable)
+          item.description = prior.description;
         if (!prior && item.unavailable) continue;
         const classificationChanged =
           JSON.stringify(prior?.item_details ?? {}) !== JSON.stringify(item.itemDetails);
@@ -372,7 +401,8 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
 
         try {
           const stagingPaths: string[] = [];
-          for (const url of item.photoUrls) stagingPaths.push(await downloadPhoto(admin, batch.id, url));
+          for (const url of item.photoUrls)
+            stagingPaths.push(await downloadPhoto(admin, batch.id, url));
           const { error } = await admin.from("fb_marketplace_import_items").upsert(
             {
               batch_id: batch.id,
@@ -404,11 +434,16 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
       // Absence only means "removed" after a full profile scrape. A refresh
       // reads a handful of known listings, so a missing one just means it
       // wasn't read -- never a reason to flag it.
-      const vanished = !data.finalizeScan || !data.scan || !mayInferScanAbsence(data.scan)
-        ? []
-        : (priorItems ?? []).filter(
-            (row: any) => row.status === "published" && canonicalImportSource(data.sourceProfileUrl, row.source_url) === data.removalSourceUrl && !seenUrls.has(canonicalImportSource(data.sourceProfileUrl, row.source_url)),
-          );
+      const vanished =
+        !data.finalizeScan || !data.scan || !mayInferScanAbsence(data.scan)
+          ? []
+          : (priorItems ?? []).filter(
+              (row: any) =>
+                row.status === "published" &&
+                canonicalImportSource(data.sourceProfileUrl, row.source_url) ===
+                  data.removalSourceUrl &&
+                !seenUrls.has(canonicalImportSource(data.sourceProfileUrl, row.source_url)),
+            );
       for (const row of vanished) {
         const { error } = await admin
           .from("fb_marketplace_import_items")
@@ -431,11 +466,16 @@ export const getFacebookImportItems = createServerFn({ method: "GET" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
     const { allImportRows } = await import("./import-pagination.server");
-    const rows = await allImportRows(() => admin
-      .from("fb_marketplace_import_items")
-      .select("id,batch_id,source_profile_url,source_url,title,description,price_cents,condition,category_slug,city,state,region,public_paths,status,previous_price_cents,previous_description,listing_id,created_at,sync_conflict,item_details", { count: "exact" })
-      .in("status", ["draft", "needs_update", "possibly_removed"])
-      .order("id"));
+    const rows = await allImportRows(() =>
+      admin
+        .from("fb_marketplace_import_items")
+        .select(
+          "id,batch_id,source_profile_url,source_url,title,description,price_cents,condition,category_slug,city,state,region,public_paths,status,previous_price_cents,previous_description,listing_id,created_at,sync_conflict,item_details",
+          { count: "exact" },
+        )
+        .in("status", ["draft", "needs_update", "possibly_removed"])
+        .order("id"),
+    );
     const allPaths = rows.flatMap((row: any) => (row.public_paths as string[] | null) ?? []);
     const signedByPath = await signStagedPhotos(admin, allPaths);
     return rows.map((row: any) => {
@@ -500,12 +540,20 @@ export const getFacebookImportProfiles = createServerFn({ method: "GET" })
     const admin = supabaseAdmin as any;
 
     const { allImportRows } = await import("./import-pagination.server");
-    const batches = await allImportRows(() => admin.from("fb_marketplace_import_batches")
-      .select("source_profile_url,seller_name,created_at,id", { count: "exact" })
-      .order("created_at", { ascending: false }).order("id"));
-    const items = await allImportRows(() => admin.from("fb_marketplace_import_items")
-      .select("source_profile_url,status,seller_id,id", { count: "exact" })
-      .neq("status", "discarded").order("id"));
+    const batches = await allImportRows(() =>
+      admin
+        .from("fb_marketplace_import_batches")
+        .select("source_profile_url,seller_name,created_at,id", { count: "exact" })
+        .order("created_at", { ascending: false })
+        .order("id"),
+    );
+    const items = await allImportRows(() =>
+      admin
+        .from("fb_marketplace_import_items")
+        .select("source_profile_url,status,seller_id,id", { count: "exact" })
+        .neq("status", "discarded")
+        .order("id"),
+    );
     const counts = new Map<string, { open: number; published: number }>();
     const sellerByProfile = new Map<string, string>();
     for (const row of items ?? []) {
@@ -563,10 +611,13 @@ export const getFacebookRefreshTargets = createServerFn({ method: "GET" })
     await requireAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { allImportRows } = await import("./import-pagination.server");
-    const data = await allImportRows(() => (supabaseAdmin as any)
-      .from("fb_marketplace_import_items")
-      .select("source_profile_url,source_url,title,price_cents,id", { count: "exact" })
-      .neq("status", "discarded").order("id"));
+    const data = await allImportRows(() =>
+      (supabaseAdmin as any)
+        .from("fb_marketplace_import_items")
+        .select("source_profile_url,source_url,title,price_cents,id", { count: "exact" })
+        .neq("status", "discarded")
+        .order("id"),
+    );
     const { data: paused, error: pauseError } = await (supabaseAdmin as any)
       .from("managed_import_sellers")
       .select("source_profile_url")
@@ -675,8 +726,7 @@ export const setFacebookImportItemsCategory = createServerFn({ method: "POST" })
   .validator((input: { itemIds: string[]; categorySlug: string }) => {
     const itemIds = (Array.isArray(input?.itemIds) ? input.itemIds : [])
       .map((id) => String(id))
-      .filter((id) => /^[0-9a-f-]{36}$/i.test(id))
-      ;
+      .filter((id) => /^[0-9a-f-]{36}$/i.test(id));
     if (itemIds.length > 100) throw new Error("Apply bulk edits in batches of at most 100 rows.");
     const categorySlug = String(input?.categorySlug ?? "");
     if (!classifiedCategories.some((category) => category.slug === categorySlug))
@@ -714,8 +764,7 @@ export const setFacebookImportItemsCity = createServerFn({ method: "POST" })
   .validator((input: { itemIds: string[]; city: string; onlyMissing?: boolean }) => {
     const itemIds = (Array.isArray(input?.itemIds) ? input.itemIds : [])
       .map((id) => String(id))
-      .filter((id) => /^[0-9a-f-]{36}$/i.test(id))
-      ;
+      .filter((id) => /^[0-9a-f-]{36}$/i.test(id));
     if (itemIds.length > 100) throw new Error("Apply bulk edits in batches of at most 100 rows.");
     const place = findIdahoPlace(String(input?.city ?? ""));
     if (!place) throw new Error("Choose a city from the list of Idaho cities and towns.");
@@ -840,8 +889,7 @@ export const publishFacebookImportItems = createServerFn({ method: "POST" })
         .limit(1)
         .maybeSingle();
       const name = data.sellerDisplayName || batch?.seller_name || "Seller";
-      const { ensureManagedImportSeller } =
-        await import("./seller-claims.server");
+      const { ensureManagedImportSeller } = await import("./seller-claims.server");
       // Existing-account publication resolves only a real account. It never creates
       // an account, confirms email, resets credentials, or accepts seller terms.
       if (data.mode === "linked") {
@@ -962,7 +1010,6 @@ export const publishFacebookImportItems = createServerFn({ method: "POST" })
         errors: failures.length,
         failures,
         itemFailures,
-
       };
     },
   );

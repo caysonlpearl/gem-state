@@ -33,6 +33,11 @@ async function vintedCollectFromProfile() {
   // Vinted loads more of the wardrobe as you scroll down the page.
   const selector =
     "[data-testid='grid-item'] a[href*='/items/'], a[data-testid$='--overlay-link'][href*='/items/']";
+  const accumulated = new Map();
+  const capture = () => {
+    for (const a of document.querySelectorAll(selector))
+      accumulated.set(a.href.split("?")[0], a.cloneNode(true));
+  };
   const count = () =>
     new Set(Array.from(document.querySelectorAll(selector)).map((a) => a.href)).size;
   let last = -1;
@@ -40,7 +45,8 @@ async function vintedCollectFromProfile() {
   for (let i = 0; i < 120 && still < 4; i++) {
     window.scrollTo(0, document.body.scrollHeight);
     await new Promise((resolve) => setTimeout(resolve, 900));
-    const now = count();
+    capture();
+    const now = accumulated.size;
     if (expected && now >= expected) break;
     still = now === last ? still + 1 : 0;
     last = now;
@@ -49,7 +55,8 @@ async function vintedCollectFromProfile() {
 
   const items = [];
   const seen = new Set();
-  for (const link of document.querySelectorAll(selector)) {
+  capture();
+  for (const link of accumulated.values()) {
     const id = (link.href.match(/\/items\/(\d+)/) || [])[1];
     if (!id || seen.has(id)) continue;
     seen.add(id);
@@ -77,6 +84,7 @@ async function vintedCollectFromProfile() {
     city: place[0] || "",
     state: /^[A-Za-z]{2}$/.test(place[1] || "") ? place[1].toUpperCase() : "",
     expected,
+    explicitEnd: /no (?:more )?(?:items|products)|wardrobe is empty/i.test(document.body.innerText),
     items,
   };
 }

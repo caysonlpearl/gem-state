@@ -107,7 +107,8 @@ function kslCollectFromMemberPage() {
     sellerName,
     sourceProfileUrl: `https://classifieds.ksl.com/search/member/${memberId}`,
     items,
-    recognized: !!memberId && (items.length > 0 || /no (?:listings|results)/i.test(lines.join(" "))),
+    recognized:
+      !!memberId && (items.length > 0 || /no (?:listings|results)/i.test(lines.join(" "))),
     nextUrl: next && next.href && next.href !== location.href ? next.href : null,
   };
 }
@@ -192,7 +193,11 @@ function kslExtractListingInPage(withPhotos) {
     // The visible breadcrumb remains authoritative when KSL's streamed JSON
     // is incomplete. Keep those facts, but flag price/photos for review.
     if (!breadcrumbCategory || !breadcrumbSubcategory) return null;
-    return { kslCategory: breadcrumbCategory, kslSubCategory: breadcrumbSubcategory, incomplete: true };
+    return {
+      kslCategory: breadcrumbCategory,
+      kslSubCategory: breadcrumbSubcategory,
+      incomplete: true,
+    };
   }
 
   const status = String(listing.status || "");

@@ -98,7 +98,12 @@ function BookmarkletLink() {
   );
 }
 
-import { canonicalImportSource, mayInferScanAbsence, runImportRows, type ScanEvidence } from "@/lib/import-refresh";
+import {
+  canonicalImportSource,
+  mayInferScanAbsence,
+  runImportRows,
+  type ScanEvidence,
+} from "@/lib/import-refresh";
 import { Button } from "@/components/ui/button";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -126,7 +131,19 @@ function ImportedSellers() {
 
   const [extensionReady, setExtensionReady] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
-  const [scanReports, setScanReports] = useState<Array<{ profile: string; scanned: number; discovered: number; newCount: number; changed: number; removed: number; unread: number; failed: number; complete: boolean }>>([]);
+  const [scanReports, setScanReports] = useState<
+    Array<{
+      profile: string;
+      scanned: number;
+      discovered: number;
+      newCount: number;
+      changed: number;
+      removed: number;
+      unread: number;
+      failed: number;
+      complete: boolean;
+    }>
+  >([]);
   const [scanAuthorized, setScanAuthorized] = useState(false);
   const [unreadReport, setUnreadReport] = useState<UnreadableDiagnostic[] | null>(null);
 
@@ -163,10 +180,31 @@ function ImportedSellers() {
       const reports = await new Promise<ProfileScanReport[]>((resolve, reject) => {
         const received: ProfileScanReport[] = [];
         let timer: ReturnType<typeof setTimeout>;
-        const cleanup = () => { clearTimeout(timer); window.removeEventListener("message", onMessage); };
-        const heartbeat = () => { clearTimeout(timer); timer = setTimeout(() => { cleanup(); reject(new Error("No scan progress received. Reload the extension and retry; unread records remain unchanged.")); }, 8 * 60 * 1000); };
+        const cleanup = () => {
+          clearTimeout(timer);
+          window.removeEventListener("message", onMessage);
+        };
+        const heartbeat = () => {
+          clearTimeout(timer);
+          timer = setTimeout(
+            () => {
+              cleanup();
+              reject(
+                new Error(
+                  "No scan progress received. Reload the extension and retry; unread records remain unchanged.",
+                ),
+              );
+            },
+            8 * 60 * 1000,
+          );
+        };
         const onMessage = (event: MessageEvent) => {
-          if (event.source !== window || event.origin !== window.location.origin || event.data?.requestId !== requestId) return;
+          if (
+            event.source !== window ||
+            event.origin !== window.location.origin ||
+            event.data?.requestId !== requestId
+          )
+            return;
           heartbeat();
           const m = event.data;
           if (m.type === "gemlist-fb-refresh-progress") {
@@ -181,39 +219,116 @@ function ImportedSellers() {
         };
         window.addEventListener("message", onMessage);
         heartbeat();
-        window.postMessage({ type: "gemlist-ext-refresh", requestId, profiles: profiles.map((p) => ({
-          sourceProfileUrl: p.sourceProfileUrl, targets: all.filter((t) => t.sourceProfileUrl === p.sourceProfileUrl),
-        })) }, window.location.origin);
+        window.postMessage(
+          {
+            type: "gemlist-ext-refresh",
+            requestId,
+            profiles: profiles.map((p) => ({
+              sourceProfileUrl: p.sourceProfileUrl,
+              targets: all.filter((t) => t.sourceProfileUrl === p.sourceProfileUrl),
+            })),
+          },
+          window.location.origin,
+        );
       });
-      let checked = 0, discovered = 0, newCount = 0, changed = 0, removed = 0, unread = 0, failed = 0;
+      let checked = 0,
+        discovered = 0,
+        newCount = 0,
+        changed = 0,
+        removed = 0,
+        unread = 0,
+        failed = 0;
       const diagnostics: UnreadableDiagnostic[] = [];
       for (const report of reports) {
-        let sellerNew = 0, sellerChanged = 0, sellerRemoved = 0, sellerFailed = 0;
-        const unique = new Map(report.results.map((item) => [canonicalImportSource(report.sourceProfileUrl, item.sourceUrl), item]));
+        let sellerNew = 0,
+          sellerChanged = 0,
+          sellerRemoved = 0,
+          sellerFailed = 0;
+        const unique = new Map(
+          report.results.map((item) => [
+            canonicalImportSource(report.sourceProfileUrl, item.sourceUrl),
+            item,
+          ]),
+        );
         for (const item of unique.values()) {
           try {
-            const result = await stage({ data: { sourceProfileUrl: report.sourceProfileUrl, sellerName: report.sellerName, mode: "refresh", items: [item] } });
-            sellerNew += result.staged; sellerChanged += result.updated; sellerRemoved += result.flaggedRemoved; sellerFailed += result.failed;
-          } catch { sellerFailed++; }
+            const result = await stage({
+              data: {
+                sourceProfileUrl: report.sourceProfileUrl,
+                sellerName: report.sellerName,
+                mode: "refresh",
+                items: [item],
+              },
+            });
+            sellerNew += result.staged;
+            sellerChanged += result.updated;
+            sellerRemoved += result.flaggedRemoved;
+            sellerFailed += result.failed;
+          } catch {
+            sellerFailed++;
+          }
         }
         const evidence = { ...report.scan, unreadable: report.scan.unreadable + sellerFailed };
         if (mayInferScanAbsence(evidence)) {
-          const seen = new Set(report.seenUrls.map((u) => canonicalImportSource(report.sourceProfileUrl, u)));
-          for (const target of all.filter((t) => t.sourceProfileUrl === report.sourceProfileUrl && !seen.has(canonicalImportSource(report.sourceProfileUrl, t.sourceUrl)))) {
+          const seen = new Set(
+            report.seenUrls.map((u) => canonicalImportSource(report.sourceProfileUrl, u)),
+          );
+          for (const target of all.filter(
+            (t) =>
+              t.sourceProfileUrl === report.sourceProfileUrl &&
+              !seen.has(canonicalImportSource(report.sourceProfileUrl, t.sourceUrl)),
+          )) {
             try {
-              const result = await stage({ data: { sourceProfileUrl: report.sourceProfileUrl, mode: "refresh", items: [], scan: evidence,
-                finalizeScan: true, seenUrls: report.seenUrls, removalSourceUrl: target.sourceUrl } });
+              const result = await stage({
+                data: {
+                  sourceProfileUrl: report.sourceProfileUrl,
+                  mode: "refresh",
+                  items: [],
+                  scan: evidence,
+                  finalizeScan: true,
+                  seenUrls: report.seenUrls,
+                  removalSourceUrl: target.sourceUrl,
+                },
+              });
               sellerRemoved += result.flaggedRemoved;
-            } catch { sellerFailed++; }
+            } catch {
+              sellerFailed++;
+            }
           }
         }
-        setScanReports((current) => [...current, { profile: report.sourceProfileUrl, scanned: report.scanned, discovered: report.discovered,
-          newCount: sellerNew, changed: sellerChanged, removed: sellerRemoved, unread: report.scan.unreadable, failed: sellerFailed, complete: mayInferScanAbsence(evidence) }]);
-        checked += report.scanned; discovered += report.discovered; newCount += sellerNew; changed += sellerChanged; removed += sellerRemoved; unread += report.scan.unreadable; failed += sellerFailed;
+        setScanReports((current) => [
+          ...current,
+          {
+            profile: report.sourceProfileUrl,
+            scanned: report.scanned,
+            discovered: report.discovered,
+            newCount: sellerNew,
+            changed: sellerChanged,
+            removed: sellerRemoved,
+            unread: report.scan.unreadable,
+            failed: sellerFailed,
+            complete: mayInferScanAbsence(evidence),
+          },
+        ]);
+        checked += report.scanned;
+        discovered += report.discovered;
+        newCount += sellerNew;
+        changed += sellerChanged;
+        removed += sellerRemoved;
+        unread += report.scan.unreadable;
+        failed += sellerFailed;
         diagnostics.push(...groupUnreadable(report.unreadableReasons, report.scan.unreadable));
       }
-      return { checked, discovered, newCount, changed, removed, unread, failed, unreadGroups: diagnostics };
-
+      return {
+        checked,
+        discovered,
+        newCount,
+        changed,
+        removed,
+        unread,
+        failed,
+        unreadGroups: diagnostics,
+      };
     },
     onSuccess: async (result) => {
       await queryClient.invalidateQueries({ queryKey: ["fb-import-items"] });
@@ -238,13 +353,21 @@ function ImportedSellers() {
         <div className="min-w-[240px] flex-1">
           <h2 className="text-[13px] font-semibold">Imported sellers</h2>
           <p className="mt-0.5 text-[11.5px] text-muted-foreground">
-            Scan seller profiles for new listings and changes. Incomplete scans leave unseen records unchanged. Nothing is published automatically.
+            Scan seller profiles for new listings and changes. Incomplete scans leave unseen records
+            unchanged. Nothing is published automatically.
             {extensionReady
               ? ""
               : " Extension 1.5 or newer not detected — reload the updated extension, then reload this page."}
           </p>
         </div>
-        <label className="text-xs"><input type="checkbox" checked={scanAuthorized} onChange={(e) => setScanAuthorized(e.target.checked)} /> Sellers authorized these scans.</label>
+        <label className="text-xs">
+          <input
+            type="checkbox"
+            checked={scanAuthorized}
+            onChange={(e) => setScanAuthorized(e.target.checked)}
+          />{" "}
+          Sellers authorized these scans.
+        </label>
         <Button
           type="button"
           onClick={() => refreshMutation.mutate(null)}
@@ -256,10 +379,24 @@ function ImportedSellers() {
             : "Refresh all"}
         </Button>
       </div>
-      {scanReports.length > 0 && <ul role="status" className="border-b border-border p-4 text-xs space-y-2">{scanReports.map((r) => <li key={r.profile}>
-        <span className="font-semibold">{sourceSiteName(r.profile)} · {r.profile}</span><br />
-        Scanned {r.scanned} · discovered {r.discovered} · new {r.newCount} · changed {r.changed} · removed {r.removed} · unreadable {r.unread} · staging failures {r.failed} · {r.complete ? "Complete" : "Incomplete — unseen records left unchanged; retry Refresh"}
-      </li>)}</ul>}
+      {scanReports.length > 0 && (
+        <ul role="status" className="border-b border-border p-4 text-xs space-y-2">
+          {scanReports.map((r) => (
+            <li key={r.profile}>
+              <span className="font-semibold">
+                {sourceSiteName(r.profile)} · {r.profile}
+              </span>
+              <br />
+              Scanned {r.scanned} · discovered {r.discovered} · new {r.newCount} · changed{" "}
+              {r.changed} · removed {r.removed} · unreadable {r.unread} · staging failures{" "}
+              {r.failed} ·{" "}
+              {r.complete
+                ? "Complete"
+                : "Incomplete — unseen records left unchanged; retry Refresh"}
+            </li>
+          ))}
+        </ul>
+      )}
       {unreadReport && (
         <div role="status" className="border-b border-border bg-secondary/50 px-4 py-3 text-[12px]">
           <div className="flex items-start justify-between gap-3">
@@ -387,9 +524,19 @@ function StageForm() {
       const totals = { staged: 0, updated: 0, failed: 0 };
       for (const item of items) {
         try {
-          const result = await stage({ data: { sourceProfileUrl, sellerName: sellerName || undefined, items: [item as FbImportItemInput] } });
-          totals.staged += result.staged; totals.updated += result.updated; totals.failed += result.failed;
-        } catch { totals.failed++; }
+          const result = await stage({
+            data: {
+              sourceProfileUrl,
+              sellerName: sellerName || undefined,
+              items: [item as FbImportItemInput],
+            },
+          });
+          totals.staged += result.staged;
+          totals.updated += result.updated;
+          totals.failed += result.failed;
+        } catch {
+          totals.failed++;
+        }
       }
       return totals;
     },
@@ -973,15 +1120,30 @@ function FbImportPage() {
   const publishMutation = useMutation({
     mutationFn: async () => {
       if (blocker) throw new Error(blocker);
-      const { results, failures } = await runImportRows([...selectedIds], (id) => publish({ data: {
-        itemIds: [id], sellerEmail, mode: publishMode, authorized, sellerDisplayName: sellerDisplayName || undefined,
-      } }), (done, total) => setApplyProgress({ done, total }));
+      const { results, failures } = await runImportRows(
+        [...selectedIds],
+        (id) =>
+          publish({
+            data: {
+              itemIds: [id],
+              sellerEmail,
+              mode: publishMode,
+              authorized,
+              sellerDisplayName: sellerDisplayName || undefined,
+            },
+          }),
+        (done, total) => setApplyProgress({ done, total }),
+      );
       const itemFailures = [...failures, ...results.flatMap((r) => r.itemFailures)];
-      return { created: results.reduce((n, r) => n + r.created, 0), updated: results.reduce((n, r) => n + r.updated, 0),
-        removed: results.reduce((n, r) => n + r.removed, 0), errors: itemFailures.length, itemFailures };
+      return {
+        created: results.reduce((n, r) => n + r.created, 0),
+        updated: results.reduce((n, r) => n + r.updated, 0),
+        removed: results.reduce((n, r) => n + r.removed, 0),
+        errors: itemFailures.length,
+        itemFailures,
+      };
     },
     onSuccess: async (result) => {
-
       setPublishErrors(
         Object.fromEntries(
           (result.itemFailures ?? []).map((failure) => [failure.itemId, failure.message]),
@@ -1011,7 +1173,12 @@ function FbImportPage() {
     mutationFn: async () => {
       let items = 0;
       const ids = [...selectedIds];
-      for (let i = 0; i < ids.length; i += 100) items += (await setCategory({ data: { itemIds: ids.slice(i, i + 100), categorySlug: bulkCategory } })).items;
+      for (let i = 0; i < ids.length; i += 100)
+        items += (
+          await setCategory({
+            data: { itemIds: ids.slice(i, i + 100), categorySlug: bulkCategory },
+          })
+        ).items;
       return { items };
     },
     onSuccess: async (result) => {
@@ -1029,7 +1196,16 @@ function FbImportPage() {
     mutationFn: async () => {
       let items = 0;
       const ids = [...selectedIds];
-      for (let i = 0; i < ids.length; i += 100) items += (await setCityFn({ data: { itemIds: ids.slice(i, i + 100), city: bulkCity, onlyMissing: bulkCityOnlyMissing } })).items;
+      for (let i = 0; i < ids.length; i += 100)
+        items += (
+          await setCityFn({
+            data: {
+              itemIds: ids.slice(i, i + 100),
+              city: bulkCity,
+              onlyMissing: bulkCityOnlyMissing,
+            },
+          })
+        ).items;
       return { items, city: bulkCity };
     },
     onSuccess: async (result) => {
@@ -1266,7 +1442,10 @@ function FbImportPage() {
           </p>
         ) : (
           <ul>
-            <li className="p-4 text-xs">Showing {Math.min(visibleRows, data.length)} of {data.length} rows · {selectedIds.size} selected across the full queue</li>
+            <li className="p-4 text-xs">
+              Showing {Math.min(visibleRows, data.length)} of {data.length} rows ·{" "}
+              {selectedIds.size} selected across the full queue
+            </li>
             {data.slice(0, visibleRows).map((item) => (
               <ReviewRow
                 // Remount when the category or city changes elsewhere (bulk set) so
@@ -1279,7 +1458,13 @@ function FbImportPage() {
                 publishError={publishErrors[item.id]}
               />
             ))}
-            {visibleRows < data.length && <li className="p-4"><Button variant="outline" onClick={() => setVisibleRows((n) => n + 50)}>Show next 50 ({data.length - visibleRows} remaining)</Button></li>}
+            {visibleRows < data.length && (
+              <li className="p-4">
+                <Button variant="outline" onClick={() => setVisibleRows((n) => n + 50)}>
+                  Show next 50 ({data.length - visibleRows} remaining)
+                </Button>
+              </li>
+            )}
           </ul>
         )}
       </section>

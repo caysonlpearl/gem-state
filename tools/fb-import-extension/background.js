@@ -29,7 +29,14 @@ const PROFILE_RE = /\/marketplace\/profile\//;
 // vintedRefresh, runWhatnot/whatnotRefresh and their URL patterns).
 // Guarded so tests can load this file outside a service worker.
 if (typeof importScripts === "function") {
-  importScripts("paced-reader.js", "ksl.js", "vinted.js", "whatnot.js", "dealer.js", "profile-scan.js");
+  importScripts(
+    "paced-reader.js",
+    "ksl.js",
+    "vinted.js",
+    "whatnot.js",
+    "dealer.js",
+    "profile-scan.js",
+  );
 }
 
 function sleep(ms) {
@@ -796,7 +803,10 @@ chrome.runtime.onMessage.addListener((message, sender) => {
     return;
   }
   importInProgress = true;
-  (message.profiles ? refreshSellerProfiles(sender.tab.id, message.requestId, message.profiles) : refreshListings(sender.tab.id, message.requestId, message.targets))
+  (message.profiles
+    ? refreshSellerProfiles(sender.tab.id, message.requestId, message.profiles)
+    : refreshListings(sender.tab.id, message.requestId, message.targets)
+  )
     .catch((error) =>
       sendError(String(error?.message || "Refresh failed. Reload the extension and retry.")),
     )
