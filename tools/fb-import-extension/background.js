@@ -851,7 +851,11 @@ async function run(tabId) {
   };
   await deliverImport(
     tabId,
-    (body) => overlay(tabId, `<strong>Bluebird import · Facebook</strong><div style="margin-top:6px">${body}</div>`),
+    (body) =>
+      overlay(
+        tabId,
+        `<strong>Bluebird import · Facebook</strong><div style="margin-top:6px">${body}</div>`,
+      ),
     "",
     payload,
     [],

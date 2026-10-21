@@ -976,9 +976,7 @@ function FbImportPage() {
   });
   const actionSummary = blocker ? null : describeAction(queueItems, selectedIds);
   const selectSeller = (profile: string) =>
-    setSelectedIds(
-      new Set(sellerGroups.find((g) => g.profile === profile)?.itemIds ?? []),
-    );
+    setSelectedIds(new Set(sellerGroups.find((g) => g.profile === profile)?.itemIds ?? []));
 
   // Nothing is preselected: publishing is one seller at a time. Items that
   // have been discarded or published drop out of the selection.

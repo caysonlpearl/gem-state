@@ -11,8 +11,16 @@ import {
 const vinted = "https://www.vinted.com/member/123-shop";
 const ksl = "https://classifieds.ksl.com/search/member/55";
 const items = [
-  ...Array.from({ length: 66 }, (_, i) => ({ id: `v${i}`, sourceProfileUrl: vinted, status: "needs_update" })),
-  ...Array.from({ length: 3 }, (_, i) => ({ id: `r${i}`, sourceProfileUrl: vinted, status: "possibly_removed" })),
+  ...Array.from({ length: 66 }, (_, i) => ({
+    id: `v${i}`,
+    sourceProfileUrl: vinted,
+    status: "needs_update",
+  })),
+  ...Array.from({ length: 3 }, (_, i) => ({
+    id: `r${i}`,
+    sourceProfileUrl: vinted,
+    status: "possibly_removed",
+  })),
   { id: "k1", sourceProfileUrl: ksl, status: "draft" },
   { id: "k2", sourceProfileUrl: `${ksl}/`, status: "needs_update" },
 ];
@@ -40,11 +48,17 @@ test("nothing selected tells the admin to pick a seller", () => {
 
 test("one seller with unsaved edits must save or revert first", () => {
   const selectedIds = new Set(["v0", "v1"]);
-  assert.match(publishBlocker({ ...base, selectedIds, dirtyIds: new Set(["v1"]) }), /Save or revert edits on 1/);
+  assert.match(
+    publishBlocker({ ...base, selectedIds, dirtyIds: new Set(["v1"]) }),
+    /Save or revert edits on 1/,
+  );
 });
 
 test("authorization must still be confirmed for a single seller", () => {
-  assert.match(publishBlocker({ ...base, authorized: false, selectedIds: new Set(["k1"]) }), /authorized/);
+  assert.match(
+    publishBlocker({ ...base, authorized: false, selectedIds: new Set(["k1"]) }),
+    /authorized/,
+  );
   assert.equal(publishBlocker({ ...base, selectedIds: new Set(["k1", "k2"]) }), null);
 });
 

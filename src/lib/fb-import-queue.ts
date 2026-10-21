@@ -127,10 +127,7 @@ export type UnreadableDiagnostic = { site: string; reason: string; count: number
 
 /** Merge and sanitize diagnostics; any unread rows not explained are counted
  * as "not_reported" so the UI never invents a cause. */
-export function groupUnreadable(
-  diagnostics: unknown,
-  totalUnread: number,
-): UnreadableDiagnostic[] {
+export function groupUnreadable(diagnostics: unknown, totalUnread: number): UnreadableDiagnostic[] {
   const merged = new Map<string, UnreadableDiagnostic>();
   let explained = 0;
   for (const raw of Array.isArray(diagnostics) ? diagnostics : []) {
