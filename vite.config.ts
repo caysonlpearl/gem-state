@@ -2,6 +2,17 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 
 export default defineConfig({
   tanstackStart: {
+    router: {
+      codeSplittingOptions: {
+        defaultBehavior: [
+          ["loader"],
+          ["component"],
+          ["pendingComponent"],
+          ["errorComponent"],
+          ["notFoundComponent"],
+        ],
+      },
+    },
     // Keep the protection boundary used by the standalone server-function
     // setup. Some server functions intentionally perform a dynamic import
     // of a .server module inside their server-only handler.

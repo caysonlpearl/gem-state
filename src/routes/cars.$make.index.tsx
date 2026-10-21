@@ -1,7 +1,8 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 
-import { PlacePage, placePageHead, vehiclePageQuery } from "@/components/classifieds/PlacePage";
+import { PlacePage } from "@/components/classifieds/PlacePage";
+import { placePageHead, vehiclePageQuery } from "@/lib/place-page-route";
 
 // /cars/toyota: every car or truck of one make listed in Idaho.
 export const Route = createFileRoute("/cars/$make/")({

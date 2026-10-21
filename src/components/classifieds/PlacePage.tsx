@@ -1,54 +1,10 @@
-import { queryOptions } from "@tanstack/react-query";
 import { ArrowRight, CaretRight, ShieldCheck } from "@phosphor-icons/react";
 
 import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { ListingCard } from "@/components/classifieds/ListingCard";
 import { BluebirdEmptyState } from "@/components/layout/BluebirdEmptyState";
 import { guidesForCategory } from "@/content/guides";
-import { getPlacePage, getVehiclePage, type PlacePageData } from "@/lib/place-pages.functions";
-import { jsonLdScript, placePageStructuredData } from "@/lib/structured-data";
-import { PUBLIC_PAGE_STALE_MS } from "@/lib/query-freshness";
-
-export const placePageQuery = (place: string, category?: string) =>
-  queryOptions({
-    queryKey: ["place-page", place, category ?? null],
-    staleTime: PUBLIC_PAGE_STALE_MS,
-    queryFn: () => getPlacePage({ data: { place, ...(category ? { category } : {}) } }),
-  });
-
-export const vehiclePageQuery = (make: string, model?: string) =>
-  queryOptions({
-    queryKey: ["vehicle-page", make, model ?? null],
-    staleTime: PUBLIC_PAGE_STALE_MS,
-    queryFn: () => getVehiclePage({ data: { make, ...(model ? { model } : {}) } }),
-  });
-
-export function placePageHead(data: PlacePageData | null | undefined) {
-  if (!data) return { meta: [{ name: "robots", content: "noindex" }] };
-  return {
-    meta: [
-      { title: data.title },
-      { name: "description", content: data.description },
-      // Below the inventory gate the page still works for visitors but stays
-      // out of the index, so thin pages never count against the site.
-      ...(data.indexable ? [] : [{ name: "robots", content: "noindex, follow" }]),
-      { property: "og:title", content: data.title },
-      { property: "og:description", content: data.description },
-      { property: "og:type", content: "website" },
-    ],
-    scripts: [
-      jsonLdScript(
-        placePageStructuredData({
-          heading: data.heading,
-          path: data.breadcrumbs.at(-1)?.path ?? "/browse",
-          breadcrumbs: data.breadcrumbs,
-          listings: data.listings,
-          faq: data.faq,
-        }),
-      ),
-    ],
-  };
-}
+import type { PlacePageData } from "@/lib/place-pages.functions";
 
 function browseHref(search: Record<string, string | number>) {
   const params = new URLSearchParams(

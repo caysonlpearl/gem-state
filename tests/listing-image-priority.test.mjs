@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import vm from "node:vm";
 import ts from "typescript";
 import React from "react";
+import { listingCardImageUrl } from "../src/lib/listing-card-image.ts";
 import { renderToStaticMarkup } from "react-dom/server";
 
 const homeSource = await readFile(new URL("../src/routes/index.tsx", import.meta.url), "utf8");
@@ -169,6 +170,7 @@ test("the rendered listing photo emits eager/high only for the first visible fix
   const ListingCardPhoto = vm.runInNewContext(`${compiled}\nListingCardPhoto`, {
     React,
     listingLogoUrl: () => undefined,
+    listingCardImageUrl,
     LogoPhoto: "LogoPhoto",
     PlaceholderPhoto: "PlaceholderPhoto",
   });
@@ -184,6 +186,24 @@ test("the rendered listing photo emits eager/high only for the first visible fix
   const followingImage = renderToStaticMarkup(
     React.createElement(ListingCardPhoto, { listing: { ...fixture, id: "synthetic-dog" } }),
   );
+
+  const original = "https://images.craigslist.org/00x0x_accRZPM5AdB_0CI0t2_1200x900.jpg";
+  const element = ListingCardPhoto({ listing: { ...fixture, imageUrl: original } });
+  const photoElement = element.props.children[0];
+  let assignments = 0;
+  const image = {
+    dataset: {},
+    set src(value) {
+      assignments += 1;
+      assert.equal(value, original);
+    },
+  };
+  photoElement.props.onError({ currentTarget: image });
+  photoElement.props.onError({ currentTarget: image });
+  assert.equal(assignments, 1, "failed thumbnail falls back only once");
+  const local = ListingCardPhoto({ listing: fixture }).props.children[0];
+  local.props.onError({ currentTarget: image });
+  assert.equal(assignments, 1, "relative originals never enter a retry loop");
 
   assert.match(firstImage, /loading="eager"/);
   assert.match(firstImage, /fetchPriority="high"|fetchpriority="high"/i);
