@@ -237,12 +237,15 @@ async function refreshSellerProfiles(adminTabId, requestId, profiles) {
     }).catch(() => {
       report.scan.complete = false;
     });
-    const unreadable = jobs.filter(
-      ({ item }) =>
-        item.unreadable ||
-        item.priceUnknown ||
-        (!item.unavailable && (!item.title || item.priceCents == null || !item.description)),
-    ).length;
+    const unsupported = byId.size - jobs.length;
+    const unreadable =
+      unsupported +
+      jobs.filter(
+        ({ item }) =>
+          item.unreadable ||
+          item.priceUnknown ||
+          (!item.unavailable && (!item.title || item.priceCents == null || !item.description)),
+      ).length;
     report.scan.unreadable = unreadable;
     if (unreadable) report.scan.complete = false;
     for (const { item } of jobs) {
@@ -272,7 +275,9 @@ async function refreshSellerProfiles(adminTabId, requestId, profiles) {
       sourceProfileUrl: report.sourceProfileUrl,
       sellerName: report.sellerName,
       scan: report.scan,
-      scanned: done,
+      scanned: jobs.length,
+      readable: results.length,
+      skipped: jobs.filter(({ item }) => item.auction).length,
       discovered: report.items.length,
       seenUrls: [
         ...new Set([

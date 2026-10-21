@@ -119,6 +119,8 @@ type ProfileScanReport = {
   sourceProfileUrl: string;
   sellerName?: string;
   scanned: number;
+  readable?: number;
+  skipped?: number;
   discovered: number;
   scan: ScanEvidence;
   seenUrls: string[];
@@ -272,6 +274,7 @@ function ImportedSellers() {
                 items: [item],
               },
             });
+            setActiveScan(`${report.sourceProfileUrl} · Staging ${unique.size} source results`);
             sellerNew += result.staged;
             sellerChanged += result.updated;
             sellerRemoved += result.flaggedRemoved;
@@ -331,6 +334,24 @@ function ImportedSellers() {
         unread += report.scan.unreadable;
         failed += sellerFailed;
         diagnostics.push(...groupUnreadable(report.unreadableReasons, report.scan.unreadable));
+      }
+      for (const profile of profiles.filter(
+        (p) => !reports.some((r) => r.sourceProfileUrl === p.sourceProfileUrl),
+      )) {
+        setScanReports((current) => [
+          ...current,
+          {
+            profile: profile.sourceProfileUrl,
+            scanned: 0,
+            discovered: 0,
+            newCount: 0,
+            changed: 0,
+            removed: 0,
+            unread: 0,
+            failed: 1,
+            complete: false,
+          },
+        ]);
       }
       return {
         checked,

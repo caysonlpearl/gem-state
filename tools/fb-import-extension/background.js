@@ -629,6 +629,8 @@ async function fetchAllDetails(items, tabId, sellerName) {
 // open (the clipboard copy is the fallback).
 const ADMIN_PAGE_PATTERNS = [
   "https://onbluebird.com/admin/fb-import*",
+  "https://www.onbluebird.com/admin/fb-import*",
+  "https://gem-state.lovable.app/admin/fb-import*",
   "https://gemstateclassifieds.lovable.app/admin/fb-import*",
 ];
 
