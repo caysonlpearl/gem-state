@@ -79,13 +79,13 @@ test("FAQ answers come from the numbers and skip what has no data", () => {
       "Where else in Idaho are trailers listed?",
     ],
   );
-  assert.match(faq[0].answer, /^The median asking price for trailers in and around Boise is \$3,000 across 5 priced listings/);
-  assert.match(faq[0].answer, /most are between \$2,500 and \$4,200 \(as of October 14, 2026\)/);
+  assert.match(faq[0].answer, /^Among 5 priced listings reviewed on Bluebird, the median asking price for trailers in and around Boise is \$3,000/);
+  assert.match(faq[0].answer, /the middle half of reviewed asking prices is between \$2,500 and \$4,200 \(as of October 14, 2026\)/);
   assert.equal(
     faq[1].answer,
-    "6 listings are live on Bluebird in and around Boise as of October 14, 2026; the newest was posted October 12, 2026.",
+    "The current Bluebird search returns 6 matching listings in and around Boise as of October 14, 2026; the newest reviewed listing was posted October 12, 2026. Search coverage may be limited.",
   );
-  assert.equal(faq[2].answer, "Elsewhere in Idaho, the most listings are in Nampa (4) and Meridian (2).");
+  assert.equal(faq[2].answer, "Among the listings reviewed elsewhere in Idaho, the most are in Nampa (4) and Meridian (2).");
 });
 
 test("the monthly report counts, prices and groups only what the listings support", async () => {
@@ -135,4 +135,30 @@ test("the monthly report counts, prices and groups only what the listings suppor
   assert.deepEqual(report.daysToSell, { medianDays: 3, sales: 5 });
   assert.equal(reportMonthOf("2026-11-01T05:00:00Z"), "2026-10", "Idaho time, not UTC");
   assert.equal(reportMonthLabel("2027-01"), "January 2027");
+});
+
+
+
+test("sold examples never claim a total sales count and rankings disclose the review sample", () => {
+  const faq = landingFaq({ noun: "cars", where: "in Idaho", total: 500,
+    newest: null, price: null, recentlySold: 8,
+    topMakes: [{ label: "Toyota", count: 15 }],
+    topCategories: [{ label: "Cars", count: 20 }],
+  });
+  const sold = faq.find((entry) => entry.question.startsWith("Have any"));
+  assert.match(sold.answer, /shows 8 listings.*marked sold by sellers/);
+  assert.match(sold.answer, /not a total sales count/);
+  for (const entry of faq.filter((entry) => /Which makes|What's for sale/.test(entry.question))) {
+    assert.match(entry.answer, /Among the listings reviewed/);
+  }
+});
+
+
+test("fewer sold examples do not imply a complete count either", () => {
+  for (const recentlySold of [1, 3, 8]) {
+    const faq = landingFaq({ noun: "cars", where: "in Idaho", total: 10, newest: null, price: null, recentlySold });
+    assert.match(faq.at(-1).answer, /recent examples, not a total sales count/);
+  }
+  const faq = landingFaq({ noun: "cars", where: "in Idaho", total: 10, newest: null, price: null, recentlySold: 0 });
+  assert.ok(faq.every((entry) => !entry.question.startsWith("Have any")));
 });

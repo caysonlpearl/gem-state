@@ -2514,6 +2514,7 @@ export const getRecentlySoldListings = createServerFn({ method: "GET" })
       }))
       .filter(({ card }) => {
         if (data.category && card.categorySlug !== data.category) return false;
+        if (data.state && !data.city && lower(card.state) !== lower(data.state)) return false;
         if (data.region && regionOfListing(card) !== data.region) return false;
         if (data.make && lower(card.vehicle?.make) !== lower(data.make)) return false;
         if (data.model && lower(card.vehicle?.model) !== lower(data.model)) return false;

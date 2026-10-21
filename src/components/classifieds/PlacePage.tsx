@@ -26,7 +26,7 @@ function LinkChips({ heading, links }: { heading: string; links: PlacePageData["
               className="inline-flex min-h-11 items-center gap-2 rounded-full border border-input bg-card px-4 text-[13px] font-medium hover:border-primary"
             >
               {link.label}
-              <span className="numeric text-muted-foreground">{link.count}</span>
+              <span className="numeric text-muted-foreground">{link.count} reviewed</span>
             </a>
           </li>
         ))}
@@ -104,7 +104,7 @@ function PriceTables({ tables }: { tables: PlacePageData["priceTables"] }) {
         ))}
       </div>
       <p className="mt-3 text-[12px] text-muted-foreground">
-        From the asking prices of live Bluebird listings; final prices are agreed between buyer and
+        From the asking prices of reviewed Bluebird listings, not a complete market census; final prices are agreed between buyer and
         seller.
       </p>
     </section>
@@ -123,7 +123,7 @@ function RegionGroups({ groups }: { groups: PlacePageData["regionGroups"] }) {
               </a>
             </h2>
             <p className="text-[13px] text-muted-foreground">
-              {group.count} {group.count === 1 ? "listing" : "listings"}
+              {group.count} {group.count === 1 ? "reviewed listing" : "reviewed listings"}
               {group.median ? ` · median ${group.median}` : ""}
             </p>
           </div>
@@ -139,7 +139,7 @@ function RegionGroups({ groups }: { groups: PlacePageData["regionGroups"] }) {
               href={group.path}
               className="mt-4 inline-flex min-h-11 items-center gap-1 text-[13.5px] font-semibold text-primary hover:underline"
             >
-              See all {group.count} in {group.region} <ArrowRight size={13} />
+              Browse listings in {group.region} <ArrowRight size={13} />
             </a>
           ) : null}
         </section>
@@ -154,7 +154,7 @@ function RecentlySold({ listings }: { listings: PlacePageData["recentlySold"] })
     <section className="border-t border-border/70 pt-8">
       <h2 className="text-[20px] font-bold tracking-tight">Recently sold</h2>
       <p className="mt-1 text-[13px] text-muted-foreground">
-        Sold on Bluebird in the last 60 days, with the last asking price.
+        Examples marked sold by their sellers in the last 60 days, with the last asking price. Not a total sales count.
       </p>
       <ul className="mt-4 grid grid-cols-2 gap-x-4 gap-y-9 md:grid-cols-3 xl:grid-cols-4">
         {listings.map((listing) => (
@@ -231,6 +231,7 @@ export function PlacePage({ data }: { data: PlacePageData }) {
           Search and filter these listings <ArrowRight size={13} />
         </a>
         <Stats stats={data.stats} />
+        <p className="mt-3 max-w-[85ch] text-[12px] text-muted-foreground">{data.statisticsNote}</p>
       </div>
 
       {isFirearmsPage ? (
@@ -278,7 +279,7 @@ export function PlacePage({ data }: { data: PlacePageData }) {
                 href={seeAll}
                 className="inline-flex h-11 items-center rounded-full border border-input bg-card px-6 text-[13.5px] font-semibold shadow-sm"
               >
-                See all {data.total.toLocaleString()} listings
+                Browse matching listings
               </a>
             </div>
           ) : null}

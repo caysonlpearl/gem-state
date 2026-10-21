@@ -165,29 +165,29 @@ export function landingFaq(input: {
   if (input.price) {
     const { price } = input;
     const range = price.typicalRange
-      ? `most are between ${wholeDollars(price.lowCents)} and ${wholeDollars(price.highCents)}`
-      : `they range from ${wholeDollars(price.lowCents)} to ${wholeDollars(price.highCents)}`;
+      ? `the middle half of reviewed asking prices is between ${wholeDollars(price.lowCents)} and ${wholeDollars(price.highCents)}`
+      : `reviewed asking prices range from ${wholeDollars(price.lowCents)} to ${wholeDollars(price.highCents)}`;
     faq.push({
       question: `How much do ${input.noun} cost ${input.where}?`,
-      answer: `The median asking price for ${input.noun} ${input.where} is ${wholeDollars(price.medianCents)} across ${price.count} priced listings on Bluebird, and ${range} (as of ${asOf}). Asking prices are what sellers list for; the final price is agreed between buyer and seller.`,
+      answer: `Among ${price.count} priced listings reviewed on Bluebird, the median asking price for ${input.noun} ${input.where} is ${wholeDollars(price.medianCents)}, and ${range} (as of ${asOf}). Asking prices are what sellers list for; the final price is agreed between buyer and seller.`,
     });
   }
   faq.push({
     question: `How many ${input.noun} are for sale ${input.where}?`,
-    answer: `${input.total} ${input.total === 1 ? "listing is" : "listings are"} live on Bluebird ${input.where} as of ${asOf}${
-      input.newest ? `; the newest was posted ${idahoDate(input.newest)}` : ""
-    }.`,
+    answer: `The current Bluebird search returns ${input.total} matching ${input.total === 1 ? "listing" : "listings"} ${input.where} as of ${asOf}${
+      input.newest ? `; the newest reviewed listing was posted ${idahoDate(input.newest)}` : ""
+    }. Search coverage may be limited.`,
   });
   if (input.topMakes?.length) {
     faq.push({
       question: `Which makes are listed most ${input.where}?`,
-      answer: `The most-listed makes ${input.where} right now are ${listPhrase(input.topMakes.slice(0, 3))}.`,
+      answer: `Among the listings reviewed, the most-listed makes ${input.where} are ${listPhrase(input.topMakes.slice(0, 3))}.`,
     });
   }
   if (input.topCategories?.length) {
     faq.push({
       question: `What's for sale ${input.where}?`,
-      answer: `The biggest categories ${input.where} right now are ${listPhrase(input.topCategories.slice(0, 3))}.`,
+      answer: `Among the listings reviewed, the largest categories ${input.where} are ${listPhrase(input.topCategories.slice(0, 3))}.`,
     });
   }
   if (input.otherPlaces?.length) {
@@ -196,13 +196,13 @@ export function landingFaq(input: {
       question: all
         ? `Where in Idaho are ${input.noun} listed?`
         : `Where else in Idaho are ${input.noun} listed?`,
-      answer: `${all ? "The most listings are" : "Elsewhere in Idaho, the most listings are"} in ${listPhrase(input.otherPlaces.slice(0, 3))}.`,
+      answer: `${all ? "Among the listings reviewed, the most are" : "Among the listings reviewed elsewhere in Idaho, the most are"} in ${listPhrase(input.otherPlaces.slice(0, 3))}.`,
     });
   }
   if (input.recentlySold) {
     faq.push({
       question: `Have any ${input.noun} sold ${input.where} recently?`,
-      answer: `${input.recentlySold} ${input.recentlySold === 1 ? "listing" : "listings"} ${input.where} sold on Bluebird in the last 60 days; they're shown under Recently sold on this page.`,
+      answer: `This page shows ${input.recentlySold} ${input.recentlySold === 1 ? "listing" : "listings"} ${input.where} marked sold by sellers in the last 60 days. These are recent examples, not a total sales count.`,
     });
   }
   return faq.slice(0, 5);
@@ -365,3 +365,4 @@ export function buildMarketReport(
       days.length >= 5 ? { medianDays: medianCents(days), sales: days.length } : null,
   };
 }
+
