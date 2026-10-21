@@ -74,6 +74,8 @@ function harness({
   beforeProvider = async () => {},
   cleanup = async () => {},
   onNative = () => {},
+  beforeCategory = async () => {},
+  prepareVehicleCache = () => undefined,
 } = {}) {
   const includes = new Set(enabled);
   const adapterCalls = [];
@@ -134,6 +136,7 @@ function harness({
     "./marketcheck.server": {
       canIncludeMarketCheck: () => includes.has("marketcheck"),
       marketCheckCards: cards("marketcheck"),
+      prepareHomeMarketCheckCache: prepareVehicleCache,
     },
     "./rescuegroups.server": {
       canIncludeRescueGroups: () => includes.has("rescuegroups"),
@@ -164,13 +167,15 @@ function harness({
     classifiedCategories: ["jobs", "services", "cars-trucks", "other-real-estate", "pets"].map(
       (slug) => ({ slug }),
     ),
-    categoryIdsBySlug: async () =>
-      new Map(
+    categoryIdsBySlug: async () => {
+      await beforeCategory();
+      return new Map(
         ["jobs", "services", "cars-trucks", "other-real-estate", "pets"].map((slug) => [
           slug,
           slug,
         ]),
-      ),
+      );
+    },
     regionOfListing: (listing) => listing.region ?? "Treasure Valley",
     mockClassifiedListings: [],
     mockVehicleListings: [],
@@ -710,4 +715,33 @@ test("internal lead diagnostics contain only allowlisted finite nonnegative stag
     assert.equal(typeof value, "number");
     assert.ok(Number.isFinite(value) && value >= 0);
   }
+});
+
+
+test("private home cache preparation overlaps category validation without invoking provider adapters", async () => {
+  let release;
+  const categoryGate = new Promise((resolve) => { release = resolve; });
+  let preparations = 0;
+  const h = harness({ filters: { category: "cars-trucks", state: "ID" }, enabled: ["marketcheck"], beforeCategory: () => categoryGate,
+    prepareVehicleCache: () => { preparations += 1; return { dealer: Promise.resolve([]), fsbo: Promise.resolve([]) }; },
+  });
+  const pending = h.internal({ prepareHomeVehicleCache: true });
+  try {
+    await new Promise(setImmediate);
+    assert.equal(preparations, 1);
+    assert.deepEqual(h.adapterCalls, [], "no full adapter or paid refresh before validation");
+  } finally { release(); }
+  await pending;
+  assert.deepEqual(h.adapterCalls, ["marketcheck"]);
+});
+
+test("invalid category discards preparation without invoking provider adapters", async () => {
+  let preparations = 0;
+  const h = harness({ filters: { category: "not-a-category", state: "ID" }, enabled: ["marketcheck"],
+    prepareVehicleCache: () => { preparations += 1; return { dealer: Promise.resolve([]), fsbo: Promise.resolve([]) }; },
+  });
+  const result = await h.internal({ prepareHomeVehicleCache: true });
+  assert.equal(preparations, 1);
+  assert.equal(result.listings.length, 0);
+  assert.deepEqual(h.adapterCalls, []);
 });

@@ -354,7 +354,7 @@ async function cachedOnly<T>(key: string): Promise<{ ok: true; value: T } | { ok
   return data?.payload ? { ok: true, value: data.payload as T } : { ok: false };
 }
 
-async function freshCachedStateInventory(state: string, kind: MarketCheckSourceKind) {
+async function readCachedStateRows(state: string, kind: MarketCheckSourceKind) {
   const db = cacheDb();
   if (!db) return null;
   const pages = state === HOME_STATE ? BASE_PAGES[kind] : OTHER_STATE_PAGES;
@@ -369,8 +369,26 @@ async function freshCachedStateInventory(state: string, kind: MarketCheckSourceK
     // inside these JSON keys. Build quoted literals explicitly so PostgREST
     // does not reject the bulk lookup and trigger per-page fallback reads.
     .filter("cache_key", "in", `(${pageKeys.map((key) => JSON.stringify(key)).join(",")})`);
-  return freshMarketCheckInventory((data ?? []) as any[], state, kind, {
-    pages,
+  return (data ?? []) as any[];
+}
+
+// Request-local preparation reads only existing cache rows, never the provider.
+export function prepareHomeMarketCheckCache() {
+  if (!configured()) return undefined;
+  return {
+    dealer: readCachedStateRows(HOME_STATE, "dealer").catch(() => null),
+    fsbo: readCachedStateRows(HOME_STATE, "fsbo").catch(() => null),
+  };
+}
+type PreparedHomeMarketCheckCache = ReturnType<typeof prepareHomeMarketCheckCache>;
+
+async function freshCachedStateInventory(
+  state: string, kind: MarketCheckSourceKind, prepared?: Promise<any[] | null>,
+) {
+  const rows = await (prepared ?? readCachedStateRows(state, kind));
+  // Evaluate expiry when consumed, not when preparation started.
+  return freshMarketCheckInventory(rows ?? [], state, kind, {
+    pages: state === HOME_STATE ? BASE_PAGES[kind] : OTHER_STATE_PAGES,
     pageSize: PAGE_SIZE,
   });
 }
@@ -394,9 +412,9 @@ async function inventoryPage(
 }
 
 /** A state's cached inventory for one source (dealer or private seller). */
-async function stateInventory(state: string, kind: MarketCheckSourceKind, forceRefresh = false) {
+async function stateInventory(state: string, kind: MarketCheckSourceKind, forceRefresh = false, prepared?: Promise<any[] | null>) {
   if (!forceRefresh) {
-    const cached = await freshCachedStateInventory(state, kind);
+    const cached = await freshCachedStateInventory(state, kind, prepared);
     if (cached) return cached;
   }
   const pages = state === HOME_STATE ? BASE_PAGES[kind] : OTHER_STATE_PAGES;
@@ -557,14 +575,14 @@ export function marketCheckCard(input: MarketCheckListing): ClassifiedCard {
 
 export async function marketCheckCards(
   data: ClassifiedBrowseInput,
-  options?: { forceRefresh?: boolean },
+  options?: { forceRefresh?: boolean; preparedHomeCache?: PreparedHomeMarketCheckCache },
 ) {
   if (!configured()) return [];
   const inventories = await Promise.all(
     marketCheckStatesForBrowse(data).map((state) =>
       Promise.all([
-        stateInventory(state, "dealer", options?.forceRefresh),
-        stateInventory(state, "fsbo", options?.forceRefresh),
+        stateInventory(state, "dealer", options?.forceRefresh, state === HOME_STATE ? options?.preparedHomeCache?.dealer : undefined),
+        stateInventory(state, "fsbo", options?.forceRefresh, state === HOME_STATE ? options?.preparedHomeCache?.fsbo : undefined),
       ]),
     ),
   );
