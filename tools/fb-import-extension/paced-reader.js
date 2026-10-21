@@ -92,6 +92,13 @@ async function readListingsPaced(items, options) {
   return readListingJobs(items.map((item) => ({ item, ...options })));
 }
 
+/** Reason-coded failure; codes only, never listing text or URLs. */
+function readFailure(reason) {
+  const error = new Error(reason);
+  error.reason = reason;
+  return error;
+}
+
 /** One bounded pool for a whole import or a mixed-source Refresh all. */
 async function readListingJobs(jobs, { onItemDone } = {}) {
   const queue = jobs.slice();
@@ -113,20 +120,20 @@ async function readListingJobs(jobs, { onItemDone } = {}) {
         if (!job) break;
         const { item, siteName, extract, idOf, withPhotos, notify, settleMs } = job;
         try {
-          if (interrupted) throw new Error("Human verification was not completed.");
+          if (interrupted) throw readFailure("verification_incomplete");
           const expected = idOf(item.sourceUrl);
-          if (!expected) throw new Error("Unsupported listing URL.");
+          if (!expected) throw readFailure("unsupported_url");
           const matches = (url) => idOf(url) === expected;
           const open = async () => {
             await chrome.tabs.update(tabId, { url: item.sourceUrl });
             return waitForPage(tabId, matches, 25000, settleMs);
           };
-          if (!(await open())) throw new Error("Listing did not finish loading.");
+          if (!(await open())) throw readFailure("page_timeout");
           if (await exec(tabId, isBotCheckPage)) {
             // Serialize manual handoffs; a second challenged window must get
             // its own handoff after the first, rather than sharing its result.
             if (humanGate) await humanGate;
-            if (interrupted) throw new Error("Verification incomplete.");
+            if (interrupted) throw readFailure("verification_incomplete");
             const ownGate = waitForHuman(win, tabId, siteName, notify).then((passed) => {
               if (!passed) interrupted = true;
               return passed;
@@ -135,7 +142,7 @@ async function readListingJobs(jobs, { onItemDone } = {}) {
             const passed = await ownGate;
             if (humanGate === ownGate) humanGate = null;
             if (!passed || !(await waitForPage(tabId, matches, 25000, settleMs)))
-              throw new Error("Verification incomplete.");
+              throw readFailure("verification_incomplete");
           }
           const current = await chrome.tabs.get(tabId);
           if (
@@ -143,9 +150,9 @@ async function readListingJobs(jobs, { onItemDone } = {}) {
             current.status !== "complete" ||
             (await exec(tabId, isBotCheckPage))
           )
-            throw new Error("Listing could not be verified.");
+            throw readFailure("page_not_verified");
           const details = await exec(tabId, extract, [withPhotos]);
-          if (!details || details.challenge) throw new Error("Listing could not be read.");
+          if (!details || details.challenge) throw readFailure("read_failed");
           for (const [key, value] of Object.entries(details)) {
             if (
               value !== "" &&
@@ -155,10 +162,16 @@ async function readListingJobs(jobs, { onItemDone } = {}) {
             )
               item[key] = value;
           }
-          if (details.incomplete) item.unreadable = true;
-          else delete item.unreadable;
-        } catch {
+          if (details.incomplete) {
+            item.unreadable = true;
+            item.unreadableReason = "price_or_details_missing";
+          } else {
+            delete item.unreadable;
+            delete item.unreadableReason;
+          }
+        } catch (error) {
           item.unreadable = true;
+          item.unreadableReason = error?.reason || "read_failed";
         } finally {
           job.onItemDone && job.onItemDone();
           onItemDone && onItemDone();
@@ -180,6 +193,7 @@ async function readListingJobs(jobs, { onItemDone } = {}) {
   if (queue.length) {
     for (const job of queue) {
       job.item.unreadable = true;
+      job.item.unreadableReason = "reader_window_failed";
       job.onItemDone && job.onItemDone();
       onItemDone && onItemDone();
     }
