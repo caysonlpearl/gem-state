@@ -74,6 +74,7 @@ export const Route = createFileRoute("/")({
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
+    links: [{ rel: "preconnect", href: "https://images.craigslist.org" }],
     scripts: [jsonLdScript(siteStructuredData())],
   }),
   // Stream the hero and first vehicle row. The large secondary feed starts
@@ -572,7 +573,7 @@ function HomepageFeaturedCategories({
 function homeLocation(location: string, mapPoint: LocationPoint | undefined, radiusMiles: number) {
   const motorCategories = classifiedCategories.filter((c) => c.group === "motors");
   const parsedLocation = parseLocationSearch(location);
-  const matchesLocation = (listing: ClassifiedsHome["recent"][number]) => {
+  const matchesLocation = (listing: Pick<ClassifiedsHome["recent"][number], "postalCode" | "city" | "state" | "region">) => {
     if (parsedLocation.postalCode) {
       return (listing.postalCode ?? "").startsWith(parsedLocation.postalCode);
     }
