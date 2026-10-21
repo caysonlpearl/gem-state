@@ -2167,11 +2167,12 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     // Independent reads must not form a provider → database waterfall.
     // Eligibility, provider budget guards, paging and merge ordering stay unchanged.
     const [native, jobCards, homeCards, externalVehicles, petCards] = await Promise.all([
-      cleanup.then(() =>
-        mockOnlyCategory
+      (async () => {
+        await cleanup;
+        return mockOnlyCategory
           ? { data: [], count: 0, error: null }
-          : query.range(resultRange.from, resultRange.to),
-      ),
+          : await query.range(resultRange.from, resultRange.to);
+      })(),
       includeAdzuna ? adzuna.adzunaCards(data) : [],
       openWebNinjaEnabled
         ? openWebNinja.openWebNinjaCards(data)
