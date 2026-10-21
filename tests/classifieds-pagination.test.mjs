@@ -1,3 +1,4 @@
+import { hasClassifiedRadiusCenter } from "../src/config/classifieds.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -82,13 +83,21 @@ function harness({
     await beforeProvider();
     return external;
   };
+  const selections = [];
+  let exactCount = true;
   const ranges = [];
   const providerReads = [];
   const query = new Proxy(
     {},
     {
       get: (_, key) =>
-        key === "range"
+        key === "select"
+          ? (_fields, options) => {
+              selections.push(options);
+              exactCount = options?.count === "exact";
+              return query;
+            }
+          : key === "range"
           ? (from, to) => ({
               // Supabase starts the read when its query thenable is consumed.
               then(resolve, reject) {
@@ -98,7 +107,7 @@ function harness({
                     ranges.push([from, to]);
                     return {
                       data: records.slice(from, Math.min(to + 1, from + rowLimit)),
-                      count: records.length,
+                      count: exactCount ? records.length : null,
                       error: null,
                     };
                   })
@@ -173,6 +182,7 @@ function harness({
     sortedMedia: () => [],
     toCard: (row) => row,
     isWithinClassifiedRadius: radiusMatch,
+    hasClassifiedRadiusCenter,
     signListingThumbnails: async () => new Map(),
     text: (value) => (value == null ? undefined : String(value)),
     num: (value) => value,
@@ -232,6 +242,12 @@ function harness({
   context.routeContext = { queryClient: { ensureQueryData: (input) => browse(input.page) } };
   return {
     ranges,
+    selections,
+    internal: (options) => {
+      context.browseInput = { ...filters, page: 1 };
+      context.internalOptions = options;
+      return vm.runInContext("runBrowseClassifieds(browseInput, internalOptions)", context);
+    },
     providerReads,
     adapterCalls,
     directoryCalls,
@@ -663,4 +679,22 @@ test("provider cache reads overlap cleanup but native ranking waits for cleanup"
   } finally { release(); }
   await pending;
   assert.equal(nativeStarted, true);
+});
+
+
+test("internal homepage count omission preserves merged cards while public browse retains counts", async () => {
+  const settings = {
+    filters: { category: "cars-trucks", state: "ID", sort: "newest" },
+    enabled: ["marketcheck"],
+    external: [{ id: "provider-car", title: "Provider car", createdAt: "2026-10-20T00:00:00Z", externalVehicle: { sourceKind: "marketcheck" } }],
+  };
+  const publicBrowse = harness(settings);
+  const publicResult = await publicBrowse.browse(1);
+  const internal = harness(settings);
+  const leadResult = await internal.internal({ includeExactCount: false });
+  assert.equal(publicBrowse.selections[0].count, "exact");
+  assert.equal(internal.selections[0].count, undefined);
+  assert.deepEqual(JSON.parse(JSON.stringify(leadResult.listings)), JSON.parse(JSON.stringify(publicResult.listings)));
+  assert.deepEqual(internal.ranges, publicBrowse.ranges);
+  assert.deepEqual(internal.adapterCalls, publicBrowse.adapterCalls);
 });
