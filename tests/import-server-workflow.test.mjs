@@ -234,3 +234,9 @@ test("actual apply preserves account gates and never rotates a claim on success 
   await assert.rejects(claimed.apply(data), /already claimed/);
   assert.equal(claimed.rpcs.length, 0);
 });
+
+test("actual handler enforces one-seller application and scan authorization", async () => {
+  const h = handlers([row]);
+  assert.throws(() => h.apply({ itemIds: [row.id, "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"], authorized: true }), /at most|Too big/i);
+  assert.throws(() => h.stage({ sourceProfileUrl: profile, mode: "refresh", items: [item] }), /authorization/);
+});

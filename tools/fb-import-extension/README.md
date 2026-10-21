@@ -26,7 +26,7 @@ Imports use two reusable reader windows. Refresh and Refresh all share a single 
 
 The importer follows the dealer's own inventory navigation for trucks, trailers, truck bodies, construction equipment, farm equipment, attachments, truck parts, and other stock. Manufacturer showrooms and recommendations are excluded. Listings are deduplicated by source ID, preserving existing Bluebird records when titles or tracking parameters change.
 
-Actual asking prices, conditions, machine locations, descriptions/specifications and up to eight gallery photos are collected. Price-on-request and rental-only listings are counted and skipped with a visible explanation, rather than creating false $0 sale ads. Interrupted or incomplete catalog discovery fails before a batch is delivered. Omission from a dealer catalog cannot mark previously imported stock removed; a successful explicit detail-page refresh must confirm unavailability.
+Actual asking prices, conditions, machine locations, descriptions/specifications and up to eight gallery photos are collected. Price-on-request and rental-only listings are counted and skipped rather than creating false $0 sale ads. Profile Refresh reconciles cumulative counts across catalog pages. Absence can queue removal only after proven complete discovery and zero unreadable details; readable existing detail pages remain seen even if omitted from the grid.
 
 ## Verification
 

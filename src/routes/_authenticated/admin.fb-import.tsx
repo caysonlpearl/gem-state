@@ -48,12 +48,16 @@ const bookmarkletHref = `javascript:${encodeURIComponent(bookmarkletSource)}`;
 export const Route = createFileRoute("/_authenticated/admin/fb-import")({
   head: () => ({
     meta: [
-      { title: "Facebook seller import · Gem State Classifieds" },
+      { title: "Seller profile import · Bluebird Marketplace" },
       {
         name: "description",
         content: "Import a consenting seller's Facebook Marketplace listings onto GemList.",
       },
       { name: "robots", content: "noindex" },
+      { property: "og:title", content: "Seller profile import · Bluebird Marketplace" },
+      { property: "og:description", content: "Review authorized seller-profile discoveries and listing updates on Bluebird." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: FbImportPage,
@@ -130,6 +134,7 @@ function ImportedSellers() {
   });
 
   const [extensionReady, setExtensionReady] = useState(false);
+  const [activeScan, setActiveScan] = useState("");
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [scanReports, setScanReports] = useState<
     Array<{
@@ -208,6 +213,7 @@ function ImportedSellers() {
           heartbeat();
           const m = event.data;
           if (m.type === "gemlist-fb-refresh-progress") {
+            setActiveScan(`${m.sourceProfileUrl ?? ""} · ${m.message ?? `Reading ${m.done ?? 0}/${m.total ?? 0}`}`);
             setProgress({ done: m.done ?? 0, total: m.total ?? profiles.length });
           } else if (m.type === "gemlist-fb-profile-result") {
             received.push(m.report);
@@ -381,6 +387,7 @@ function ImportedSellers() {
             : "Refresh all"}
         </Button>
       </div>
+      {refreshMutation.isPending && activeScan && <p role="status" className="p-4 text-xs break-words">{activeScan}</p>}
       {scanReports.length > 0 && (
         <ul role="status" className="border-b border-border p-4 text-xs space-y-2">
           {scanReports.map((r) => (
