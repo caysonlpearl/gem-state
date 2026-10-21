@@ -794,24 +794,76 @@ class HomepageLeadErrorBoundary extends Component<
   }
 }
 
+class HomepageSecondaryErrorBoundary extends Component<
+  { children: ReactNode; onReset: () => void },
+  { failed: boolean }
+> {
+  override state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  override render() {
+    if (!this.state.failed) return this.props.children;
+    return (
+      <div className="mt-16 rounded-2xl border border-border p-6">
+        <h2 className="text-lg font-semibold">More listings couldn’t load.</h2>
+        <p className="mt-2 text-sm text-muted-foreground">
+          The search and featured listings above are still available.
+        </p>
+        <button
+          className="mt-4 min-h-11 rounded-full border border-input px-5 text-sm font-semibold"
+          onClick={() => {
+            this.props.onReset();
+            this.setState({ failed: false });
+          }}
+        >
+          Try again
+        </button>
+        <a
+          href="/browse?allCategories=true"
+          className="ml-4 inline-flex min-h-11 items-center text-sm font-semibold text-primary underline"
+        >
+          Browse all listings
+        </a>
+      </div>
+    );
+  }
+}
+
 function DeferredHomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
   const hydrated = useHydrated();
   const lead = useQuery({ ...homeLeadQuery, enabled: false, throwOnError: false });
   const ready = hydrated && (lead.isSuccess || lead.isError);
+  // The plain link remains usable without JavaScript or while feeds are slow.
   const pending = (
-    <p className="mt-16 text-sm text-muted-foreground" role="status">
-      Loading more listings…
-    </p>
+    <div className="mt-16">
+      <p className="text-sm text-muted-foreground" role="status">
+        Loading more listings…
+      </p>
+      <a
+        href="/browse?allCategories=true"
+        className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-primary underline"
+      >
+        Browse all listings now
+      </a>
+    </div>
   );
   return (
     <div className="min-h-[600px]">
-      <Suspense fallback={pending}>{ready ? <HomeSections where={where} /> : pending}</Suspense>
+      <QueryErrorResetBoundary>
+        {({ reset }) => (
+          <HomepageSecondaryErrorBoundary onReset={reset}>
+            <Suspense fallback={pending}>
+              {ready ? <HomeSections where={where} /> : pending}
+            </Suspense>
+          </HomepageSecondaryErrorBoundary>
+        )}
+      </QueryErrorResetBoundary>
     </div>
   );
 }
 
 function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
-  const hydrated = useHydrated();
   const { data: home } = useSuspenseQuery(homeQuery);
   // Observe the independently loaded lead without fetching or throwing its
   // errors here. Once it resolves (including after retry), reserve those same
@@ -842,12 +894,8 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
       allLocalListings.push(listing);
     }
   }
-  // The independent query may settle between streamed SSR and hydration.
-  // Both initial renders must allocate the same cards; apply its reservation
-  // only after hydration, then keep observing it for retries/navigation.
-  const leadMotors = (hydrated ? (homeLead?.motors ?? []) : [])
-    .filter(matchesLocation)
-    .slice(0, HOMEPAGE_ROW_SIZE);
+  // This component mounts only after hydration and a settled lead query.
+  const leadMotors = (homeLead?.motors ?? []).filter(matchesLocation).slice(0, HOMEPAGE_ROW_SIZE);
   const shownIds = new Set<string>(leadMotors.map((listing) => listing.id));
   const pick = (candidates: ClassifiedsHome["recent"]) => {
     const unseen = candidates
