@@ -257,6 +257,7 @@ function ImportedSellers() {
                 sourceProfileUrl: report.sourceProfileUrl,
                 sellerName: report.sellerName,
                 mode: "refresh",
+                authorized: scanAuthorized,
                 items: [item],
               },
             });
@@ -283,6 +284,7 @@ function ImportedSellers() {
                 data: {
                   sourceProfileUrl: report.sourceProfileUrl,
                   mode: "refresh",
+                  authorized: scanAuthorized,
                   items: [],
                   scan: evidence,
                   finalizeScan: true,

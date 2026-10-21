@@ -145,7 +145,12 @@ async function collectSellerScan(profile, config, notify) {
         if (!page.nextUrl && !(expected > 0 && items.size >= expected) && !page.explicitEnd) {
           complete = false;
         }
-        termination = expected > 0 && items.size >= expected ? "count" : page.explicitEnd ? "end" : "incomplete";
+        termination =
+          expected > 0 && items.size >= expected
+            ? "count"
+            : page.explicitEnd
+              ? "end"
+              : "incomplete";
       } else {
         const countReached = page.expected > 0 && items.size >= page.expected;
         const ended = page.explicitEnd === true;

@@ -109,7 +109,17 @@ async function signStagedPhotos(admin: any, paths: string[]): Promise<Map<string
  * real `${sellerId}/...` path at publish time, once a seller is known.
  */
 async function downloadPhoto(admin: any, batchId: string, url: string): Promise<string> {
-  const response = await fetch(url);
+  const parsed = new URL(url);
+  const permitted = ["fbcdn.net", "ksldigital.com", "vinted.net", "whatnot.com", "sandhills.com"];
+  if (
+    parsed.protocol !== "https:" ||
+    parsed.username ||
+    parsed.password ||
+    parsed.port ||
+    !permitted.some((host) => parsed.hostname === host || parsed.hostname.endsWith(`.${host}`))
+  )
+    throw new Error("Unsupported source photo host.");
+  const response = await fetch(url, { signal: AbortSignal.timeout(20000) });
   if (!response.ok) throw new Error(`Could not download photo (${response.status})`);
   const contentType = response.headers.get("content-type")?.split(";")[0]?.trim() || "image/jpeg";
   if (!contentType.startsWith("image/")) throw new Error("URL did not return an image.");
@@ -162,6 +172,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
       sourceProfileUrl: string;
       sellerName?: string | undefined;
       mode?: "refresh" | undefined;
+      authorized?: boolean;
       items: FbImportItemInput[];
       scan?: ScanEvidence;
       seenUrls?: string[];
@@ -169,6 +180,8 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
       removalSourceUrl?: string;
     }) => {
       const sourceProfileUrl = canonicalSellerSourceProfile(String(input.sourceProfileUrl ?? ""));
+      if (input.mode === "refresh" && input.authorized !== true)
+        throw new Error("Confirm seller scan authorization.");
       if (!sourceProfileUrl) throw new Error("Enter the Facebook Marketplace profile URL.");
       const sellerName =
         String(input.sellerName ?? "")
@@ -186,7 +199,19 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
         : undefined;
       if (!Array.isArray(input.items) || input.items.length > 1)
         throw new Error("Stage one row per request; use the bounded batch operation.");
-      const items = (input.items ?? []).map((item) => {
+      const items = (input.items ?? []).map((raw) => {
+        const item = z
+          .object({
+            sourceUrl: z.string().url().max(2048),
+            title: z.string().max(1000),
+            description: z.string().max(10000).nullish(),
+            priceCents: z.number().int().min(0).max(1000000000),
+            photoUrls: z.array(z.string().url().max(4096)).max(8),
+            unavailable: z.boolean().optional(),
+            sold: z.boolean().optional(),
+          })
+          .passthrough()
+          .parse(raw) as FbImportItemInput;
         const categorySlug = inferFacebookCategorySlug(
           item.categorySlug,
           item.title,
@@ -337,7 +362,8 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
               .from("fb_marketplace_import_items")
               .update({ batch_id: batch.id, status: "possibly_removed" })
               .eq("source_profile_url", data.sourceProfileUrl)
-              .eq("source_url", item.sourceUrl);
+              .eq("source_url", item.sourceUrl)
+              .eq("status", "published");
             if (error) throw new Error(error.message);
             await recordRemovedReason(
               admin,
@@ -366,7 +392,8 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
               previous_description: prior.description,
             })
             .eq("source_profile_url", data.sourceProfileUrl)
-            .eq("source_url", item.sourceUrl);
+            .eq("source_url", item.sourceUrl)
+            .eq("status", "published");
           if (error) throw new Error(error.message);
           updated += 1;
           continue;
@@ -393,7 +420,8 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
               previous_description: prior.description,
             })
             .eq("source_profile_url", data.sourceProfileUrl)
-            .eq("source_url", item.sourceUrl);
+            .eq("source_url", item.sourceUrl)
+            .eq("status", "published");
           if (error) throw new Error(error.message);
           updated += 1;
           continue;
@@ -449,7 +477,8 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
           .from("fb_marketplace_import_items")
           .update({ batch_id: batch.id, status: "possibly_removed" })
           .eq("source_profile_url", data.sourceProfileUrl)
-          .eq("source_url", row.source_url);
+          .eq("source_url", row.source_url)
+          .eq("status", "published");
         if (error) throw new Error(error.message);
         await recordRemovedReason(admin, data.sourceProfileUrl, row.source_url, "missing");
         flaggedRemoved += 1;
