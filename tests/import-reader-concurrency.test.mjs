@@ -262,3 +262,35 @@ test("two challenged windows receive separate serialized manual handoffs without
   assert.equal(h.seen.length, 2);
   assert.equal(h.stats().open, 0);
 });
+test("Refresh all reports unreadable counts grouped by site and reason, without listing text", async () => {
+  const broken = "https://www.vinted.com/items/9-broken";
+  const h = harness({ unreadable: broken });
+  await h.context.refreshListings(
+    1,
+    "diag",
+    [
+      "https://www.vinted.com/items/3-test",
+      broken,
+      "https://unsupported.test/item",
+      "https://classifieds.ksl.com/listing/2",
+    ].map((sourceUrl) => ({ sourceUrl })),
+  );
+  const result = h.messages.find((m) => m.type === "gemlist-fb-refresh-result");
+  const reasons = JSON.parse(JSON.stringify(result.unreadableReasons)).sort((a, b) =>
+    a.site.localeCompare(b.site),
+  );
+  assert.equal(result.unreadable, 2);
+  assert.deepEqual(reasons, [
+    { site: "Unknown site", reason: "unsupported_url", count: 1 },
+    { site: "Vinted", reason: "read_failed", count: 1 },
+  ]);
+  assert.doesNotMatch(JSON.stringify(reasons), /https?:|broken|read /);
+});
+test("a page that never finishes loading is reported as a timeout", async () => {
+  const h = harness();
+  h.context.waitForPage = async () => false;
+  const input = [{ ...jobs[0], item: { sourceUrl: "https://source.test/slow" } }];
+  await h.context.readListingJobs(input);
+  assert.equal(input[0].item.unreadable, true);
+  assert.equal(input[0].item.unreadableReason, "page_timeout");
+});

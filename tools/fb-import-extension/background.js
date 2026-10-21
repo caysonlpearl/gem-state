@@ -696,6 +696,23 @@ function readerForSource(sourceUrl) {
   return null;
 }
 
+/** Grouped counts by source site and reason code only -- no listing text,
+ * URLs, or page content leave the extension in diagnostics. */
+function refreshUnreadableReasons(unique, jobs) {
+  const counts = new Map();
+  const add = (site, reason) => {
+    const key = `${site}|${reason}`;
+    counts.set(key, { site, reason, count: (counts.get(key)?.count || 0) + 1 });
+  };
+  const jobUrls = new Set(jobs.map((job) => job.item.sourceUrl));
+  for (const url of unique) if (!jobUrls.has(url)) add("Unknown site", "unsupported_url");
+  for (const { item, siteName } of jobs) {
+    if (item.unreadable) add(siteName, item.unreadableReason || "read_failed");
+    else if (item.priceUnknown) add(siteName, "price_or_details_missing");
+  }
+  return [...counts.values()];
+}
+
 async function refreshListings(adminTabId, requestId, targets) {
   const send = (payload) =>
     chrome.tabs.sendMessage(adminTabId, { type: "gemlist-ext-event", payload }).catch(() => {});
@@ -754,6 +771,7 @@ async function refreshListings(adminTabId, requestId, targets) {
     requestId,
     results,
     unreadable: unique.length - results.length,
+    unreadableReasons: refreshUnreadableReasons(unique, jobs),
   });
 }
 
@@ -833,7 +851,11 @@ async function run(tabId) {
   };
   await deliverImport(
     tabId,
-    (body) => overlay(tabId, `<strong>Bluebird import · Facebook</strong><div style="margin-top:6px">${body}</div>`),
+    (body) =>
+      overlay(
+        tabId,
+        `<strong>Bluebird import · Facebook</strong><div style="margin-top:6px">${body}</div>`,
+      ),
     "",
     payload,
     [],
