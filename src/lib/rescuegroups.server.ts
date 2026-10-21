@@ -1,3 +1,4 @@
+import { withCatalogReadDeadline } from "./catalog-read-deadline.ts";
 import { createClient } from "@supabase/supabase-js";
 import { getRequest } from "@tanstack/react-start/server";
 
@@ -83,11 +84,11 @@ async function centerPets(center: (typeof CENTERS)[number]): Promise<RescueGroup
   const key = apiKey();
   if (!db) return [];
   const cacheKey = `rescuegroups:v1:${center.key}`;
-  const { data: cached } = await db
+  const { data: cached } = await withCatalogReadDeadline<{ data: { payload?: { pets?: RescueGroupsPet[] }; expires_at: string } | null }>(db
     .from("rescuegroups_cache")
     .select("payload,expires_at")
     .eq("cache_key", cacheKey)
-    .maybeSingle();
+    .maybeSingle());
   const pets = (cached?.payload?.pets ?? []) as RescueGroupsPet[];
   const fresh = cached && Date.parse(cached.expires_at) > Date.now();
   // Crawlers and fresh caches never trigger provider calls.
@@ -263,3 +264,4 @@ export async function rescueGroupsDetail(listingId: string): Promise<ClassifiedD
     images: pet.photos.map((url) => ({ url, alt: pet.name })),
   };
 }
+

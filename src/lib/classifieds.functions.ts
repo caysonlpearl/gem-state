@@ -1,3 +1,4 @@
+import { withCatalogReadDeadline } from "./catalog-read-deadline";
 import { listingCardSummary, type ListingCardSummary } from "./listing-card-summary";
 /* eslint-disable @typescript-eslint/no-explicit-any -- the generated client types lag the classified listing RPC additions */
 import { originalListingFor, type OriginalListing } from "./import-original-listing";
@@ -1801,14 +1802,17 @@ function categoryIdsBySlug(client: ReturnType<typeof publicServerClient>) {
   if (categoryIdCache && Date.now() - categoryIdCache.loadedAt < CATEGORY_ID_CACHE_MS)
     return categoryIdCache.ids;
   const ids = (async () => {
-    const { data: rows, error } = await client.from("categories").select("id, slug");
+    const { data: rows, error } = await withCatalogReadDeadline(client.from("categories").select("id, slug"));
     if (error) {
       console.error("Could not load category ids", error.message);
       categoryIdCache = null;
       return new Map<string, string>();
     }
     return new Map((rows ?? []).map((row) => [row.slug, row.id]));
-  })();
+  })().catch((error) => {
+    if (categoryIdCache?.ids === ids) categoryIdCache = null;
+    throw error;
+  });
   categoryIdCache = { loadedAt: Date.now(), ids };
   return ids;
 }
@@ -2190,7 +2194,7 @@ async function runBrowseClassifieds(
         await cleanup;
         return mockOnlyCategory
           ? { data: [], count: 0, error: null }
-          : await measure("nativeRead", () => query.range(resultRange.from, resultRange.to));
+          : await measure("nativeRead", () => withCatalogReadDeadline(query.range(resultRange.from, resultRange.to)));
       })(),
       includeAdzuna ? adzuna.adzunaCards(data) : [],
       openWebNinjaEnabled
@@ -2736,7 +2740,7 @@ async function loadClassifiedsHomeCategoryData() {
   return shortCache("classifieds-home-category-data", PUBLIC_PAGE_CACHE_MS, async () => {
     const client = publicServerClient();
     const nowIso = new Date().toISOString();
-    const { data: rows } = await client
+    const { data: rows } = await withCatalogReadDeadline(client
       .from("asks")
       .select(
         "id, products!inner(status, categories!inner(slug)), classified_listing_details!inner(listing_id)",
@@ -2746,7 +2750,7 @@ async function loadClassifiedsHomeCategoryData() {
       .not("approved_at", "is", null)
       .gt("expires_at", nowIso)
       .eq("products.status", "published")
-      .limit(1000);
+      .limit(1000));
 
     const categoryCounts: Record<string, number> = {};
     for (const row of (rows ?? []) as Record<string, unknown>[]) {

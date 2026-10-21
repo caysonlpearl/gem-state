@@ -76,6 +76,7 @@ function harness({
   onNative = () => {},
   beforeCategory = async () => {},
   prepareVehicleCache = () => undefined,
+  deadlineRead = async (query) => await query,
 } = {}) {
   const includes = new Set(enabled);
   const adapterCalls = [];
@@ -163,6 +164,7 @@ function harness({
     PAGE_SIZE: 24,
     LISTING_SELECT: "synthetic",
     publicServerClient: () => ({ from: () => query }),
+    withCatalogReadDeadline: deadlineRead,
     clearExpiredFeaturedPlacements: cleanup,
     classifiedCategories: ["jobs", "services", "cars-trucks", "other-real-estate", "pets"].map(
       (slug) => ({ slug }),
@@ -744,4 +746,12 @@ test("invalid category discards preparation without invoking provider adapters",
   assert.equal(preparations, 1);
   assert.equal(result.listings.length, 0);
   assert.deepEqual(h.adapterCalls, []);
+});
+
+
+test("native browse deadline rejects instead of returning provider-only success", async () => {
+  const h = harness({ enabled: ["marketcheck"], external: [{ id: "provider" }],
+    deadlineRead: async () => { throw new Error("Catalog data took too long"); },
+  });
+  await assert.rejects(h.internal(), /Catalog data took too long/);
 });
