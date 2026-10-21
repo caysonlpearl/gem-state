@@ -298,7 +298,7 @@ test("Keep browsing reveals local cards before requesting a page and never loses
   assert.equal(nodes(tree).filter((n) => n.type === "button").length, 0);
 });
 
-test("secondary feeds wait for hydration and settled lead without removing SSR lead inventory", () => {
+test("secondary feeds wait for lead paint without removing SSR lead inventory", () => {
   const source = readFileSync(new URL("../src/routes/index.tsx", import.meta.url), "utf8");
   const file = ts.createSourceFile(
     "index.tsx",
@@ -329,14 +329,15 @@ test("secondary feeds wait for hydration and settled lead without removing SSR l
     ts.transpile(fn.getText(file), { target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React }),
     context,
   );
-  const render = () =>
-    renderToStaticMarkup(React.createElement(context.DeferredHomeSections, { where: {} }));
+  const render = (leadPainted = false) =>
+    renderToStaticMarkup(React.createElement(context.DeferredHomeSections, { where: {}, leadPainted }));
   assert.doesNotMatch(render(), /secondary-loaded/);
   hydrated = true;
   lead = { isSuccess: false, isError: false };
   assert.doesNotMatch(render(), /secondary-loaded/);
   lead = { isSuccess: true, isError: false };
-  assert.match(render(), /secondary-loaded/);
+  assert.doesNotMatch(render(), /secondary-loaded/);
+  assert.match(render(true), /secondary-loaded/);
   lead = { isSuccess: false, isError: true };
   assert.match(render(), /secondary-loaded/);
   assert.match(source, /prefetchQuery\(homeLeadQuery\)/);
@@ -438,4 +439,16 @@ test("joining in-flight homepage work does not receive another caller's build ti
   assert.equal(first, second);
   assert.deepEqual(owner, { vehicleRead: 9 });
   assert.deepEqual(joined, {});
+});
+
+test("lead render failures release the secondary feed instead of waiting forever", () => {
+  const source = readFileSync(new URL("../src/routes/index.tsx", import.meta.url), "utf8");
+  const file = ts.createSourceFile("index.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const node = file.statements.find((n) => ts.isClassDeclaration(n) && n.name?.text === "HomepageLeadErrorBoundary");
+  const context = vm.createContext({ Component: React.Component });
+  vm.runInContext(ts.transpile(node.getText(file), { target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React }) + ";globalThis.Boundary = HomepageLeadErrorBoundary;", context);
+  let releases = 0;
+  const boundary = new context.Boundary({ onUnavailable: () => releases++ });
+  boundary.componentDidCatch(new Error("Synthetic render failure"));
+  assert.equal(releases, 1);
 });
