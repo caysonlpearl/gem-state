@@ -16,6 +16,7 @@ window.addEventListener("message", (event) => {
       type: "refresh",
       requestId: data.requestId,
       targets: data.targets,
+      profiles: data.profiles,
     });
   }
 });

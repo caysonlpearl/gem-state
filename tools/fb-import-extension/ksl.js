@@ -107,6 +107,7 @@ function kslCollectFromMemberPage() {
     sellerName,
     sourceProfileUrl: `https://classifieds.ksl.com/search/member/${memberId}`,
     items,
+    recognized: !!memberId && (items.length > 0 || /no (?:listings|results)/i.test(lines.join(" "))),
     nextUrl: next && next.href && next.href !== location.href ? next.href : null,
   };
 }

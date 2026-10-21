@@ -29,7 +29,7 @@ const PROFILE_RE = /\/marketplace\/profile\//;
 // vintedRefresh, runWhatnot/whatnotRefresh and their URL patterns).
 // Guarded so tests can load this file outside a service worker.
 if (typeof importScripts === "function") {
-  importScripts("paced-reader.js", "ksl.js", "vinted.js", "whatnot.js", "dealer.js");
+  importScripts("paced-reader.js", "ksl.js", "vinted.js", "whatnot.js", "dealer.js", "profile-scan.js");
 }
 
 function sleep(ms) {
@@ -91,7 +91,7 @@ async function autoScroll(tabId, onProgress) {
       });
       await sleep(400);
       const count = await countOwnListings(tabId);
-      onProgress && onProgress(count);
+      if (onProgress) await onProgress(count);
       if (count === last) stagnant++;
       else stagnant = 0;
       last = count;
@@ -170,6 +170,7 @@ function collectListingsFromPage() {
     if (parsed && !byId.has(parsed.id)) byId.set(parsed.id, parsed);
   }
   return {
+    explicitEnd: /no more listings|has no listings/i.test(document.body?.innerText || ""),
     sellerName: findSellerName(),
     sourceProfileUrl: location.href.split("?")[0],
     items: Array.from(byId.values()),
@@ -795,7 +796,7 @@ chrome.runtime.onMessage.addListener((message, sender) => {
     return;
   }
   importInProgress = true;
-  refreshListings(sender.tab.id, message.requestId, message.targets)
+  (message.profiles ? refreshSellerProfiles(sender.tab.id, message.requestId, message.profiles) : refreshListings(sender.tab.id, message.requestId, message.targets))
     .catch((error) =>
       sendError(String(error?.message || "Refresh failed. Reload the extension and retry.")),
     )
