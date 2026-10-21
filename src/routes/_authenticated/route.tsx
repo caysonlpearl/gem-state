@@ -1,28 +1,12 @@
 import { createFileRoute, Outlet, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { safeAuthReturnPath } from "@/lib/auth-return-path";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   component: AuthenticatedGate,
 });
-
-const sellerRedirects = [
-  "/account",
-  "/selling",
-  "/seller-setup",
-  "/dealer-setup",
-  "/create-listing",
-  "/create-missing-listing",
-  "/buying",
-  "/notifications",
-  "/onboarding",
-  "/shopper",
-  "/shopper-payouts",
-  "/suggest",
-  "/watchlist",
-  "/messages",
-] as const;
 
 function AuthenticatedGate() {
   const navigate = useNavigate();
@@ -34,9 +18,7 @@ function AuthenticatedGate() {
     if (loading || isSignedIn || redirecting) return;
 
     setRedirecting(true);
-    const destination = sellerRedirects.includes(pathname as (typeof sellerRedirects)[number])
-      ? (pathname as (typeof sellerRedirects)[number])
-      : undefined;
+    const destination = safeAuthReturnPath(pathname);
 
     void navigate({ to: "/auth", search: { redirect: destination }, replace: true });
   }, [isSignedIn, loading, navigate, pathname, redirecting]);
@@ -68,7 +50,7 @@ function AuthenticatedGate() {
             were trying to take.
           </p>
           <a
-            href={`/auth?redirect=${encodeURIComponent(pathname)}`}
+            href={`/auth?redirect=${encodeURIComponent(safeAuthReturnPath(pathname))}`}
             className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground hover:opacity-90"
           >
             Sign in

@@ -757,7 +757,7 @@ test("step four protects authenticated, seller-owned, and admin-only surfaces", 
   assert.match(authenticatedRouteSource, /useAuth\(\)/);
   assert.match(authenticatedRouteSource, /navigate\(\{ to: "\/auth"/);
   assert.match(authenticatedRouteSource, /aria-label="Checking your account session"/);
-  assert.match(authenticatedRouteSource, /sellerRedirects = \[/);
+  assert.match(authenticatedRouteSource, /safeAuthReturnPath\(pathname\)/);
   assert.match(authMiddlewareSource, /getClaims/);
   assert.match(authMiddlewareSource, /userId: data\.claims\.sub/);
 
@@ -1824,3 +1824,4 @@ test("firearms are a first-class category with linked safety guidance", async ()
     assert.equal(variant.subarray(8, 12).toString(), "WEBP");
   }
 });
+
