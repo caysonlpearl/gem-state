@@ -169,6 +169,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
       scan?: ScanEvidence;
       seenUrls?: string[];
       finalizeScan?: boolean;
+      removalSourceUrl?: string;
     }) => {
       const sourceProfileUrl = canonicalSellerSourceProfile(String(input.sourceProfileUrl ?? ""));
       if (!sourceProfileUrl) throw new Error("Enter the Facebook Marketplace profile URL.");
@@ -218,7 +219,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
       if (!items.length && !input.finalizeScan) throw new Error("No listings were provided.");
       if (items.some((item) => !item.sourceUrl || !item.title))
         throw new Error("Every listing needs a source URL and a title.");
-      return { sourceProfileUrl, sellerName, mode: input.mode, items, scan, finalizeScan: input.finalizeScan === true, seenUrls: (input.seenUrls ?? []).map((url) => canonicalImportSource(sourceProfileUrl, url)) };
+      return { sourceProfileUrl, sellerName, mode: input.mode, items, scan, finalizeScan: input.finalizeScan === true, removalSourceUrl: input.removalSourceUrl ? canonicalImportSource(sourceProfileUrl, input.removalSourceUrl) : undefined, seenUrls: (input.seenUrls ?? []).map((url) => canonicalImportSource(sourceProfileUrl, url)) };
     },
   )
   .handler(
@@ -293,6 +294,8 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
             prior.item_details,
             item.title,
           );
+        if (prior && item.description === null && !item.unavailable) item.description = prior.description;
+        if (!prior && item.unavailable) continue;
         const classificationChanged =
           JSON.stringify(prior?.item_details ?? {}) !== JSON.stringify(item.itemDetails);
 
@@ -389,7 +392,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
               public_paths: stagingPaths,
               status: "draft",
             },
-            { onConflict: "source_profile_url,source_url" },
+            { onConflict: "source_profile_url,source_url", ignoreDuplicates: true },
           );
           if (error) throw new Error(error.message);
           staged += 1;
@@ -404,7 +407,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
       const vanished = !data.finalizeScan || !data.scan || !mayInferScanAbsence(data.scan)
         ? []
         : (priorItems ?? []).filter(
-            (row: any) => row.status === "published" && !seenUrls.has(canonicalImportSource(data.sourceProfileUrl, row.source_url)),
+            (row: any) => row.status === "published" && canonicalImportSource(data.sourceProfileUrl, row.source_url) === data.removalSourceUrl && !seenUrls.has(canonicalImportSource(data.sourceProfileUrl, row.source_url)),
           );
       for (const row of vanished) {
         const { error } = await admin
@@ -697,27 +700,7 @@ export const setFacebookImportItemsCategory = createServerFn({ method: "POST" })
       .in("id", data.itemIds)
       .select("listing_id");
     if (error) throw new Error(error.message);
-    const listingIds = ((items ?? []) as { listing_id: string | null }[])
-      .map((item) => item.listing_id)
-      .filter(Boolean) as string[];
-    let listingsUpdated = 0;
-    if (listingIds.length) {
-      const { data: asks, error: askError } = await admin
-        .from("asks")
-        .select("product_id")
-        .in("id", listingIds);
-      if (askError) throw new Error(askError.message);
-      const productIds = ((asks ?? []) as { product_id: string }[]).map((ask) => ask.product_id);
-      if (productIds.length) {
-        const { error: productError } = await admin
-          .from("products")
-          .update({ category_id: category.id })
-          .in("id", productIds);
-        if (productError) throw new Error(productError.message);
-        listingsUpdated = productIds.length;
-      }
-    }
-    return { items: (items ?? []).length, listingsUpdated };
+    return { items: (items ?? []).length, listingsUpdated: 0 };
   });
 
 /**
