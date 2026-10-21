@@ -30,15 +30,15 @@ function loader(name, runBrowseClassifieds) {
     runBrowseClassifieds,
   });
   vm.runInContext(
-    fn
+    ts.transpile(fn
       .getText(ast)
       .replace(
         /const \{ shortCache, PUBLIC_PAGE_CACHE_MS \} = await import\("\.\/short-cache.server"\);/,
         "",
-      ),
+      ), { target: ts.ScriptTarget.ES2022 }),
     context,
   );
-  return () => vm.runInContext(`${name}()`, context);
+  return (timings) => { context.timings = timings; return vm.runInContext(`${name}(timings)`, context); };
 }
 
 test("homepage Cars & Trucks query excludes newer parts and trailers before pagination", async () => {
@@ -403,4 +403,39 @@ test("lead summaries retain every location-filter candidate without detail-only 
   assert.equal(JSON.stringify(cards), before);
   assert.ok(JSON.stringify(summaries).length < before.length / 2);
   assert.deepEqual(listingCardSummary({ id: "native", city: "Boise" }), { id: "native", city: "Boise" });
+});
+
+
+test("homepage timing observations do not leak cached build timings into warm requests", async () => {
+  const load = loader("loadClassifiedsHomeCarsTrucks", async (_input, options) => {
+    options.timingsMs.vehicleRead = 7;
+    return { listings: [{ id: "car" }] };
+  });
+  const cold = {};
+  const warm = {};
+  const first = await load(cold);
+  const second = await load(warm);
+  assert.equal(first, second);
+  assert.deepEqual(cold, { vehicleRead: 7 });
+  assert.deepEqual(warm, {});
+});
+
+
+test("joining in-flight homepage work does not receive another caller's build timings", async () => {
+  let finish;
+  const gate = new Promise((resolve) => { finish = resolve; });
+  const load = loader("loadClassifiedsHomeCarsTrucks", async (_input, options) => {
+    await gate;
+    options.timingsMs.vehicleRead = 9;
+    return { listings: [{ id: "car" }] };
+  });
+  const owner = {};
+  const joined = {};
+  const a = load(owner);
+  const b = load(joined);
+  finish();
+  const [first, second] = await Promise.all([a, b]);
+  assert.equal(first, second);
+  assert.deepEqual(owner, { vehicleRead: 9 });
+  assert.deepEqual(joined, {});
 });
