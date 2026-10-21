@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { marketCheckCards } from "../src/lib/marketcheck.server.ts";
+import { marketCheckCards, prepareHomeMarketCheckCache } from "../src/lib/marketcheck.server.ts";
 import { normalizeMarketCheckSearch } from "../src/lib/marketcheck-contract.ts";
 
 const supportedStates = ["ID", "UT", "OR", "WA"];
@@ -360,5 +360,60 @@ test("fresh state inventory escapes JSON cache keys and stays on two bulk reads"
     }
     assert.deepEqual(providerCalls, []);
     assert.deepEqual(reservations, []);
+  });
+});
+
+
+test("home cache preparation performs only two reads and reuses them after validation", async () => {
+  const initialCache = ["dealer", "fsbo"].map((kind) => ({
+    cache_key: JSON.stringify({ v: 3, kind, state: "ID", start: 0 }),
+    expires_at: new Date(Date.now() + 60000).toISOString(),
+    payload: normalizeMarketCheckSearch({ num_found: 1, listings: [providerListing("ID", kind, 0, 0)] }, kind),
+  }));
+  await withMockMarketCheck({ initialCache, allowReservation: () => { throw new Error("No paid calls"); }, onProvider: () => { throw new Error("No provider calls"); } }, async ({ cacheReads, providerCalls, reservations }) => {
+    const preparedHomeCache = prepareHomeMarketCheckCache();
+    await Promise.all([preparedHomeCache.dealer, preparedHomeCache.fsbo]);
+    assert.equal(cacheReads.length, 2, "both reads start before card computation");
+    assert.equal(providerCalls.length, 0);
+    assert.equal(reservations.length, 0);
+    const input = { category: "cars-trucks", state: "ID", sort: "newest", page: 1 };
+    const cards = await marketCheckCards(input, { preparedHomeCache });
+    assert.equal(cacheReads.length, 2, "consume without duplicate bulk queries");
+    const control = await marketCheckCards(input);
+    assert.deepEqual(cards, control, "preparation preserves all card fields and ordering");
+    assert.equal(cacheReads.length, 4);
+  });
+});
+
+test("home preparation with missing inventory does not reserve until consumption", async () => {
+  await withMockMarketCheck({ allowReservation: () => false, onProvider: () => { throw new Error("Quota denial must prevent provider"); } }, async ({ cacheReads, reservations, providerCalls }) => {
+    const preparedHomeCache = prepareHomeMarketCheckCache();
+    await Promise.all([preparedHomeCache.dealer, preparedHomeCache.fsbo]);
+    assert.equal(cacheReads.length, 2);
+    assert.equal(reservations.length, 0);
+    const cards = await marketCheckCards({ category: "cars-trucks", state: "ID" }, { preparedHomeCache });
+    assert.deepEqual(cards, []);
+    assert.ok(reservations.length > 0, "existing quota path only runs after consumption");
+    assert.deepEqual(providerCalls, []);
+    assert.equal(cacheReads.filter((read) => read.filter?.startsWith("in.(")).length, 2);
+  });
+});
+
+test("prepared inventory expiry is checked on consumption, not preparation", async () => {
+  const now = Date.now();
+  const initialCache = ["dealer", "fsbo"].map((kind) => ({
+    cache_key: JSON.stringify({ v: 3, kind, state: "ID", start: 0 }),
+    expires_at: new Date(now + 60000).toISOString(),
+    payload: normalizeMarketCheckSearch({ num_found: 1, listings: [providerListing("ID", kind, 0, 0)] }, kind),
+  }));
+  await withMockMarketCheck({ initialCache, allowReservation: () => false, onProvider: () => { throw new Error("No provider calls"); } }, async ({ cacheReads }) => {
+    const preparedHomeCache = prepareHomeMarketCheckCache();
+    await Promise.all([preparedHomeCache.dealer, preparedHomeCache.fsbo]);
+    const originalNow = Date.now;
+    Date.now = () => now + 120000;
+    try {
+      await marketCheckCards({ category: "cars-trucks", state: "ID" }, { preparedHomeCache });
+      assert.ok(cacheReads.some((read) => read.filter?.startsWith("eq.")), "expired prepared rows enter existing per-page validation rather than being accepted");
+    } finally { Date.now = originalNow; }
   });
 });

@@ -1817,7 +1817,7 @@ async function runBrowseClassifieds(
   data: ClassifiedBrowseInput,
   // Internal callers that discard totals can avoid the exact-count query.
   // Public browse keeps accurate counts and limited-results warnings.
-  options: { includeExactCount?: boolean; timingsMs?: Record<string, number>; timingOriginMs?: number } = {},
+  options: { prepareHomeVehicleCache?: boolean; includeExactCount?: boolean; timingsMs?: Record<string, number>; timingOriginMs?: number } = {},
 ): Promise<ClassifiedBrowseResult> {
   {
     const clock = () => typeof performance === "undefined" ? Date.now() : performance.now();
@@ -1854,6 +1854,9 @@ async function runBrowseClassifieds(
     // Expired-placement cleanup must precede native ranking, but provider
     // cache reads do not depend on that write. Start cleanup now, validate
     // category IDs, and await cleanup only on the native read below.
+    const preparedHomeCache = options.prepareHomeVehicleCache
+      ? import("./marketcheck.server").then((adapter) => adapter.prepareHomeMarketCheckCache()).catch(() => undefined)
+      : undefined;
     const cleanup = measure("cleanup", () => clearExpiredFeaturedPlacements(nowIso));
     const idBySlug = data.category || data.group ? await measure("categoryIds", () => categoryIdsBySlug(client)) : null;
     if (data.category) {
@@ -2195,7 +2198,7 @@ async function runBrowseClassifieds(
         : includeMashvisor
           ? mashvisor.mashvisorCards(data)
           : [],
-      includeMarketCheck ? measure("vehicleRead", () => marketCheck.marketCheckCards(data)) : [],
+      includeMarketCheck ? measure("vehicleRead", async () => marketCheck.marketCheckCards(data, { preparedHomeCache: await preparedHomeCache })) : [],
       includeRescueGroups ? rescueGroups.rescueGroupsCards(data) : [],
     ]);
     const { data: rows, count, error } = native;
@@ -2795,7 +2798,7 @@ async function loadClassifiedsHomeCarsTrucks(timingsMs?: Record<string, number>,
     // featured cars/trucks. The broader Motors browser and rows stay intact.
     const result = await runBrowseClassifieds(
       { category: "cars-trucks", state: "ID", sort: "newest", page: 1 },
-      { includeExactCount: false, timingsMs, timingOriginMs },
+      { prepareHomeVehicleCache: true, includeExactCount: false, timingsMs, timingOriginMs },
     );
     return result.listings;
   });
