@@ -78,8 +78,8 @@ const groups: { title: string; events: string[] }[] = [
 
 const eventLabels: Record<string, string> = {
   page_view: "Page views",
-  search_performed: "Searches",
-  search_no_results: "Searches with no results",
+  search_performed: "Search result pages with results",
+  search_no_results: "Search result pages with no results",
   product_viewed: "Product views",
   variation_selected: "Variation selections",
   market_option_viewed: "Market data opened",

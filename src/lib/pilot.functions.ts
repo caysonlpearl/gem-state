@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- the generated Supabase client types lag the applied seller migration until the next linked type generation */
 import { createServerFn } from "@tanstack/react-start";
+import { searchOutcomeSummary } from "./search-outcome-summary";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { stripeAccountMatchesCurrentMode } from "./stripe-connect.server";
 import { getStripe } from "./stripe-marketplace.server";
@@ -1167,24 +1168,31 @@ export const getValidationSummary = createServerFn({ method: "GET" })
     }
 
     const r = summary.real;
+    const searches = searchOutcomeSummary(r["search_performed"] ?? 0, r["search_no_results"] ?? 0);
     const rate = (num: number, den: number) =>
       den > 0 ? `${Math.round((num / den) * 1000) / 10}% (${num} of ${den})` : null;
 
     summary.questions = [
       {
         question: "Are visitors searching?",
-        answer: r["search_performed"]! > 0 ? `${r["search_performed"]} searches` : null,
-        detail: "Real searches recorded. Search text is never stored.",
+        answer: searches.total > 0 ? `${searches.total} search result pages` : null,
+        detail:
+          "Nonempty and empty result pages combined. Repeat searches and filter changes can count again; search text is never stored.",
       },
       {
-        question: "What share of searches reach a product?",
-        answer: rate(r["product_viewed"]!, r["search_performed"]!),
-        detail: "Product views against searches. Not a per-session attribution.",
+        question: "How many product views are recorded alongside searches?",
+        answer:
+          searches.total > 0
+            ? `${r["product_viewed"] ?? 0} product views / ${searches.total} search result pages`
+            : null,
+        detail:
+          "Separate event totals, not an attributed conversion rate or a count of unique visitors.",
       },
       {
         question: "How often does a search return nothing?",
-        answer: rate(r["search_no_results"]!, r["search_performed"]!),
-        detail: "Empty result pages against searches — a catalog coverage signal.",
+        answer: searches.emptyRate,
+        detail:
+          "Empty result pages divided by all recorded search result pages, including those with results.",
       },
       {
         question: "Are buyers attempting offers or purchases?",

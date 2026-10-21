@@ -4,35 +4,16 @@ import { toast } from "sonner";
 import { brand } from "@/config/brand";
 import { supabase } from "@/integrations/supabase/client";
 import { getAuthRedirectUrl } from "@/lib/auth-redirect";
+import {
+  safeAuthReturnPath,
+  listingReturnTarget,
+  type AuthReturnPath,
+  type StaticAuthRedirect,
+} from "@/lib/auth-return-path";
 
 export const Route = createFileRoute("/auth")({
   validateSearch: (search: Record<string, unknown>): AuthSearch => {
-    const allowedRedirects = [
-      "/claim-seller",
-      "/account",
-      "/selling",
-      "/seller-setup",
-      "/dealer-setup",
-      "/create-listing",
-      "/create-missing-listing",
-      "/buying",
-      "/notifications",
-      "/onboarding",
-      "/shopper",
-      "/shopper-payouts",
-      "/suggest",
-      "/watchlist",
-      "/messages",
-    ] as const;
-    const requested = search["redirect"];
-    // A listing page can also send a buyer here (Google or new-account
-    // sign-in from the contact panel) and get them straight back to it.
-    const redirect: AuthRedirect =
-      typeof requested === "string" && LISTING_REDIRECT.test(requested)
-        ? (requested as ListingRedirect)
-        : allowedRedirects.includes(requested as StaticRedirect)
-          ? (requested as StaticRedirect)
-          : "/account";
+    const redirect = safeAuthReturnPath(search["redirect"]);
     return {
       redirect: redirect === "/account" ? undefined : redirect,
       mode:
@@ -59,31 +40,21 @@ export const Route = createFileRoute("/auth")({
 });
 
 type Mode = "signin" | "signup" | "forgot" | "reset";
-const LISTING_REDIRECT = /^\/listings\/[0-9a-f-]{36}$/i;
-type ListingRedirect = `/listings/${string}`;
-type AuthRedirect = StaticRedirect | ListingRedirect;
-type StaticRedirect =
-  | "/claim-seller"
-  | "/account"
-  | "/selling"
-  | "/seller-setup"
-  | "/dealer-setup"
-  | "/create-listing"
-  | "/create-missing-listing"
-  | "/buying"
-  | "/notifications"
-  | "/onboarding"
-  | "/shopper"
-  | "/shopper-payouts"
-  | "/suggest"
-  | "/watchlist"
-  | "/messages";
+type AuthRedirect = AuthReturnPath;
+type StaticRedirect = StaticAuthRedirect;
 type AuthSearch = { redirect?: AuthRedirect | undefined; mode?: Mode | undefined };
 
 // Tell people why they're being asked to sign in, based on where they were
 // headed -- a generic "sign in" at the moment of posting or messaging reads
 // as a wall rather than a step.
 function authIntent(redirect: AuthRedirect) {
+  if (listingReturnTarget(redirect)?.edit) {
+    return {
+      signinTitle: "Sign in to edit your listing",
+      signupTitle: "Sign in to edit your listing",
+      body: "We’ll bring you back to your listing after you sign in.",
+    };
+  }
   if (redirect.startsWith("/listings/")) {
     return {
       signinTitle: "Sign in to message the seller",
@@ -137,13 +108,15 @@ function AuthPage() {
   const [busy, setBusy] = useState(false);
   const [pendingConfirm, setPendingConfirm] = useState(false);
   const intent = authIntent(redirect);
-  const goToRedirect = () =>
-    redirect.startsWith("/listings/")
-      ? navigate({
-          to: "/listings/$listingId",
-          params: { listingId: redirect.slice("/listings/".length) },
-        })
-      : navigate({ to: redirect as StaticRedirect });
+  const goToRedirect = () => {
+    const listing = listingReturnTarget(redirect);
+    if (listing) {
+      return listing.edit
+        ? navigate({ to: "/listings/$listingId/edit", params: { listingId: listing.listingId } })
+        : navigate({ to: "/listings/$listingId", params: { listingId: listing.listingId } });
+    }
+    return navigate({ to: redirect as StaticRedirect });
+  };
 
   useEffect(() => {
     void supabase.auth.getSession().then(({ data }) => {

@@ -30,6 +30,7 @@ import {
 } from "@phosphor-icons/react";
 
 import { brand } from "@/config/brand";
+import { sellerListingState } from "@/lib/seller-listing-state";
 import { formatUsd } from "@/config/fees";
 import { SavedSearchNameDialog } from "@/components/classifieds/SavedSearchNameDialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -673,10 +674,10 @@ function OverviewSection({
 }) {
   const completion = Math.round(account.completion * 100);
   const activeListings = listings.filter(
-    (item) => item.status === "active" && item.approvedAt,
+    (item) => sellerListingState(item).group === "active",
   ).length;
   const pendingListings = listings.filter(
-    (item) => !item.approvedAt || item.status === "pending_review",
+    (item) => sellerListingState(item).group === "pending",
   ).length;
   const displayName = account.displayName || account.email?.split("@")[0] || "Bluebird member";
   return (
@@ -2656,9 +2657,8 @@ function ListingsSection({
   const [sort, setSort] = useState("newest");
   const matchesFilter = (item: MyListing) => {
     if (filter === "all") return true;
-    if (filter === "active") return item.status === "active" && Boolean(item.approvedAt);
-    if (filter === "pending") return !item.approvedAt || item.status === "pending_review";
-    if (filter === "inactive") return item.status !== "active" && Boolean(item.approvedAt);
+    if (["active", "pending", "inactive"].includes(filter))
+      return sellerListingState(item).group === filter;
     return filter === item.status;
   };
   const visible = listings
@@ -2826,19 +2826,9 @@ function SellerListingCard({
   onTakeDown: () => void;
   onRelist: () => void;
 }) {
-  const active = item.status === "active" && Boolean(item.approvedAt);
-  const statusLabel =
-    item.productStatus === "rejected"
-      ? "Needs changes"
-      : active
-        ? "Active"
-        : item.status === "pending_review" || !item.approvedAt
-          ? "Awaiting approval"
-          : item.status === "cancelled"
-            ? "Removed"
-            : item.status === "matched"
-              ? "Sold"
-              : item.status;
+  const state = sellerListingState(item);
+  const active = state.group === "active";
+  const statusLabel = state.label;
   return (
     <article className="grid gap-4 rounded-2xl border border-border bg-card p-4 shadow-sm md:grid-cols-[120px_minmax(0,1fr)_220px]">
       <div className="aspect-[4/3] overflow-hidden rounded-xl bg-secondary">
