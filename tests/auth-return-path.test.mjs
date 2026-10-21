@@ -103,3 +103,104 @@ test("admin sign-in return does not weaken role checks or swallow service errors
   outcome = new Error("Database unavailable");
   await assert.rejects(route.beforeLoad(input), (error) => error === outcome);
 });
+
+test("login return retains only bounded account and duplicate-listing intent", () => {
+  const id = "11111111-1111-4111-8111-111111111111";
+  assert.equal(
+    returnPaths.safeAuthReturnPath(`/create-listing?duplicateFrom=${id}`),
+    `/create-listing?duplicateFrom=${id}`,
+  );
+  assert.equal(
+    returnPaths.safeAuthReturnPath(`/account?section=messages&conversation=${id}`),
+    `/account?conversation=${id}&section=messages`,
+  );
+  assert.equal(
+    returnPaths.safeAuthReturnPath(`/account?conversation=${id}`),
+    `/account?conversation=${id}&section=messages`,
+  );
+  assert.equal(returnPaths.safeAuthReturnPath("/account?section=saved"), "/account?section=saved");
+  assert.deepEqual(returnPaths.authReturnSearch(`/create-listing?duplicateFrom=${id}`), {
+    section: null,
+    conversation: undefined,
+    duplicateFrom: id,
+  });
+  for (const path of [
+    "/account?section=admin",
+    "/account?section=messages&section=saved",
+    "/account?conversation=https://evil.example",
+    "/account?next=//evil.example",
+    "/create-listing?duplicateFrom=not-a-uuid",
+    `/create-listing?duplicateFrom=${id}&next=/admin`,
+    `/account?conversation=${id}#token`,
+    `/account?conversation=${id}?next=/admin`,
+    "/account?section=%0amessages",
+    "/account?section=messages\\evil",
+  ])
+    assert.equal(returnPaths.safeAuthReturnPath(path), "/account", path);
+});
+
+test("the authenticated gate captures query intent before sending users to login", async () => {
+  let navigated;
+  const route = await routeConfig("src/routes/_authenticated/route.tsx", {
+    "@tanstack/react-router": {
+      createFileRoute: () => (config) => config,
+      useNavigate: () => (options) => {
+        navigated = options;
+      },
+      useRouterState: ({ select }) =>
+        select({
+          location: {
+            pathname: "/account",
+            searchStr: "?section=messages&conversation=11111111-1111-4111-8111-111111111111",
+          },
+        }),
+    },
+    "@/hooks/useAuth": { useAuth: () => ({ isSignedIn: false, loading: false }) },
+    react: { useState: (initial) => [initial, () => {}], useEffect: (effect) => effect() },
+    "react/jsx-runtime": { jsx: () => null, jsxs: () => null },
+  });
+  route.component();
+  assert.equal(navigated.to, "/auth");
+  assert.equal(
+    navigated.search.redirect,
+    "/account?conversation=11111111-1111-4111-8111-111111111111&section=messages",
+  );
+});
+
+test("signed-in auth page navigates with typed conversation and duplicate search values", async () => {
+  const id = "11111111-1111-4111-8111-111111111111";
+  for (const [redirect, expected] of [
+    [
+      `/account?conversation=${id}&section=messages`,
+      { to: "/account", search: { section: "messages", conversation: id } },
+    ],
+    [
+      `/create-listing?duplicateFrom=${id}`,
+      { to: "/create-listing", search: { duplicateFrom: id } },
+    ],
+  ]) {
+    let navigated;
+    const route = await routeConfig("src/routes/auth.tsx", {
+      "@tanstack/react-router": {
+        createFileRoute: () => (config) => ({ ...config, useSearch: () => ({ redirect }) }),
+        useNavigate: () => (options) => {
+          navigated = options;
+        },
+      },
+      "@/config/brand": { brand: { name: "Bluebird" } },
+      "@/integrations/supabase/client": {
+        supabase: {
+          auth: {
+            getSession: async () => ({ data: { session: {} } }),
+            onAuthStateChange: () => ({ data: { subscription: { unsubscribe() {} } } }),
+          },
+        },
+      },
+      react: { useState: (initial) => [initial, () => {}], useEffect: (effect) => effect() },
+      "react/jsx-runtime": { jsx: () => null, jsxs: () => null },
+    });
+    route.component();
+    await Promise.resolve();
+    assert.deepEqual(navigated, expected);
+  }
+});
