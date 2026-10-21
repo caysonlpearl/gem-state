@@ -122,6 +122,7 @@ function ImportedSellers() {
 
   const [extensionReady, setExtensionReady] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [unreadReport, setUnreadReport] = useState<UnreadableDiagnostic[] | null>(null);
 
   // The extension's bridge script answers this ping; it's only present on
   // pages opened after the extension was (re)loaded.
@@ -892,6 +893,26 @@ function ReviewRow({
                 Save changes
               </button>
             ) : null}
+            {dirty ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setTitle(item.title);
+                  setDescription(item.description ?? "");
+                  setPrice((item.priceCents / 100).toFixed(2));
+                  setCondition(item.condition ?? "used_good");
+                  setCategorySlug(item.categorySlug);
+                  setSubcategory(importedSubcategory(item.categorySlug, item.itemDetails));
+                  setCity(item.city);
+                  setState(item.state);
+                  setRegion(item.region);
+                  setDirty(false);
+                }}
+                className="h-8 rounded-md border border-input px-3 text-[11.5px] font-medium hover:bg-secondary"
+              >
+                Revert edits
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => discardMutation.mutate()}
@@ -933,17 +954,40 @@ function FbImportPage() {
     });
   }, []);
   const hasUnsavedSelection = Array.from(selectedIds).some((id) => dirtyIds.has(id));
+  const fetchProfileNames = useServerFn(getFacebookImportProfiles);
+  const { data: profileRows } = useQuery({
+    queryKey: ["fb-import-profiles"],
+    queryFn: () => fetchProfileNames(),
+  });
+  const profileNames = Object.fromEntries(
+    (profileRows ?? [])
+      .filter((p) => p.sellerName)
+      .map((p) => [queueProfileKey(p.sourceProfileUrl), p.sellerName as string]),
+  );
+  const queueItems = data ?? [];
+  const sellerGroups = groupQueueBySeller(queueItems, profileNames);
+  const selectedSellerKeys = selectedProfiles(queueItems, selectedIds);
+  const blocker = publishBlocker({
+    items: queueItems,
+    selectedIds,
+    dirtyIds,
+    authorized,
+    linkedNeedsEmail: false,
+  });
+  const actionSummary = blocker ? null : describeAction(queueItems, selectedIds);
+  const selectSeller = (profile: string) =>
+    setSelectedIds(
+      new Set(sellerGroups.find((g) => g.profile === profile)?.itemIds ?? []),
+    );
 
-  // New items default to selected; items that have since been discarded or
-  // published drop out of `data` and should drop out of the selection too.
+  // Nothing is preselected: publishing is one seller at a time. Items that
+  // have been discarded or published drop out of the selection.
   useEffect(() => {
     if (!data) return;
     setSelectedIds((current) => {
-      const next = new Set<string>();
-      for (const item of data) {
-        if (current.has(item.id) || !current.size) next.add(item.id);
-      }
-      return next;
+      const live = new Set(data.map((item) => item.id));
+      const next = new Set([...current].filter((id) => live.has(id)));
+      return next.size === current.size ? current : next;
     });
     // Only re-run when the set of item ids actually changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1102,16 +1146,15 @@ function FbImportPage() {
             <button
               type="button"
               onClick={() => publishMutation.mutate()}
-              disabled={
-                publishMutation.isPending || !selectedIds.size || !authorized || hasUnsavedSelection
-              }
+              disabled={publishMutation.isPending || blocker !== null}
+              aria-describedby="publish-blocker"
               className="h-9 rounded-md bg-primary px-3 text-[12px] font-semibold text-primary-foreground disabled:opacity-50"
             >
               {publishMutation.isPending
                 ? "Applying…"
                 : publishMode === "managed"
-                  ? "Publish and create claim link"
-                  : "Publish for linked seller"}
+                  ? "Apply and create claim link"
+                  : "Apply for linked seller"}
             </button>
             <button
               type="button"
@@ -1132,9 +1175,59 @@ function FbImportPage() {
             </button>
           </div>
         </div>
-        <p className="px-4 pt-3 text-xs text-muted-foreground">
-          Admin publishing approves listings and makes them live immediately.
+        <p
+          id="publish-blocker"
+          role="status"
+          className={`px-4 pt-3 text-xs ${blocker ? "text-primary" : "text-muted-foreground"}`}
+        >
+          {blocker ??
+            `${actionSummary}. New listings go live immediately; updates apply to the existing Bluebird listings; possibly-removed listings are taken offline, not republished.`}
         </p>
+        {sellerGroups.length > 0 && (
+          <div className="px-4 pt-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[12px] font-medium">Choose one seller to apply</p>
+              <button
+                type="button"
+                className="text-[12px] underline disabled:opacity-50"
+                disabled={!selectedIds.size}
+                onClick={() => setSelectedIds(new Set())}
+              >
+                Clear selection
+              </button>
+            </div>
+            <ul className="mt-2 grid gap-2 sm:grid-cols-2">
+              {sellerGroups.map((g) => {
+                const active =
+                  selectedSellerKeys.length === 1 && selectedSellerKeys[0] === g.profile;
+                const picked = g.itemIds.filter((id) => selectedIds.has(id)).length;
+                return (
+                  <li
+                    key={g.profile}
+                    className={`rounded-md border p-3 text-[12px] ${active ? "border-primary" : "border-border"}`}
+                  >
+                    <p className="break-words font-semibold">
+                      {g.name} <span className="font-normal text-muted-foreground">· {g.site}</span>
+                    </p>
+                    <p className="mt-0.5 text-muted-foreground">
+                      {g.newCount} new · {g.updateCount} needs update · {g.removedCount} sold or
+                      removed{picked ? ` · ${picked} selected` : ""}
+                    </p>
+                    <button
+                      type="button"
+                      className="mt-2 h-8 rounded-md border border-input px-3 font-medium hover:bg-secondary"
+                      onClick={() => selectSeller(g.profile)}
+                    >
+                      {active && picked === g.itemIds.length
+                        ? "All selected"
+                        : `Select all ${g.itemIds.length} from this seller`}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
         <div className="flex flex-wrap items-center gap-2 px-4 pt-3">
           <span className="text-[12px] font-medium">Set category for selected</span>
           <select
@@ -1195,11 +1288,7 @@ function FbImportPage() {
             {bulkCityMutation.isPending ? "Applying…" : `Apply to ${selectedIds.size} selected`}
           </button>
         </div>
-        {hasUnsavedSelection && (
-          <p role="status" className="px-4 py-3 text-sm text-primary">
-            Save changes on the edited listings before publishing.
-          </p>
-        )}
+
         {isLoading ? (
           <p className="px-4 py-8 text-[12.5px] text-muted-foreground">Loading…</p>
         ) : !data?.length ? (
