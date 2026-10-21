@@ -1993,6 +1993,8 @@ export type Database = {
           evidence_paths: string[]
           fulfillment_mode: string
           id: string
+          item_details: Json
+          last_applied_item_details: Json | null
           last_applied_snapshot: Json | null
           listing_id: string | null
           previous_description: string | null
@@ -2021,6 +2023,8 @@ export type Database = {
           evidence_paths?: string[]
           fulfillment_mode?: string
           id?: string
+          item_details?: Json
+          last_applied_item_details?: Json | null
           last_applied_snapshot?: Json | null
           listing_id?: string | null
           previous_description?: string | null
@@ -2049,6 +2053,8 @@ export type Database = {
           evidence_paths?: string[]
           fulfillment_mode?: string
           id?: string
+          item_details?: Json
+          last_applied_item_details?: Json | null
           last_applied_snapshot?: Json | null
           listing_id?: string | null
           previous_description?: string | null
@@ -6920,6 +6926,10 @@ export type Database = {
         Returns: string
       }
       apply_managed_import_item: {
+        Args: { _actor: string; _item: string; _paths?: string[] }
+        Returns: string
+      }
+      apply_managed_import_item_core_20261020: {
         Args: { _actor: string; _item: string; _paths?: string[] }
         Returns: string
       }
