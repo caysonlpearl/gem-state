@@ -58,3 +58,29 @@ test("unmount clears listeners, timeout and queued frames", () => {
     assert.equal(h.listeners.size + h.frames.size + h.timers.size, 0);
   }
 });
+
+
+test("default scheduler preserves browser receiver bindings", () => {
+  const names = ["requestAnimationFrame", "cancelAnimationFrame", "setTimeout", "clearTimeout"];
+  const descriptors = names.map((name) => [name, Object.getOwnPropertyDescriptor(globalThis, name)]);
+  const frames = new Map();
+  const timers = new Map();
+  let id = 0;
+  let ready = 0;
+  try {
+    globalThis.requestAnimationFrame = function (callback) { assert.equal(this, globalThis); frames.set(++id, callback); return id; };
+    globalThis.cancelAnimationFrame = function (key) { assert.equal(this, globalThis); frames.delete(key); };
+    globalThis.setTimeout = function (callback) { assert.equal(this, globalThis); timers.set(++id, callback); return id; };
+    globalThis.clearTimeout = function (key) { assert.equal(this, globalThis); timers.delete(key); };
+    const stop = afterLeadPaint(null, () => ready++);
+    for (let i = 0; i < 2; i++) { const callbacks = [...frames.values()]; frames.clear(); callbacks.forEach((callback) => callback(0)); }
+    assert.equal(ready, 1);
+    stop();
+    assert.equal(timers.size + frames.size, 0);
+  } finally {
+    for (const [name, descriptor] of descriptors) {
+      if (descriptor) Object.defineProperty(globalThis, name, descriptor);
+      else delete globalThis[name];
+    }
+  }
+});

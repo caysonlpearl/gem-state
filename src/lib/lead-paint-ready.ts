@@ -11,10 +11,10 @@ export function afterLeadPaint(
   image: ImageReadiness | null,
   ready: () => void,
   scheduler: PaintScheduler = {
-    requestFrame: requestAnimationFrame,
-    cancelFrame: cancelAnimationFrame,
-    delay: setTimeout,
-    clearDelay: clearTimeout,
+    requestFrame: (callback) => globalThis.requestAnimationFrame(callback),
+    cancelFrame: (id) => globalThis.cancelAnimationFrame(id),
+    delay: (callback, ms) => globalThis.setTimeout(callback, ms),
+    clearDelay: (id) => globalThis.clearTimeout(id),
   },
 ): () => void {
   let stopped = false;
