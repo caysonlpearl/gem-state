@@ -294,3 +294,56 @@ test("Keep browsing reveals local cards before requesting a page and never loses
   assert.ok(cards(tree).includes("next-page"));
   assert.equal(nodes(tree).filter((n) => n.type === "button").length, 0);
 });
+
+test("secondary row allocation is stable while the independent lead hydrates", () => {
+  const source = readFileSync(new URL("../src/routes/index.tsx", import.meta.url), "utf8");
+  const file = ts.createSourceFile(
+    "index.tsx",
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  const fn = file.statements.find(
+    (n) => ts.isFunctionDeclaration(n) && n.name?.text === "HomeSections",
+  );
+  const body = fn.body.statements
+    .filter((n) => !ts.isReturnStatement(n))
+    .map((n) => n.getText(file))
+    .join("\n");
+  let lead;
+  let hydrated = false;
+  const home = {
+    recent: [
+      { id: "car", vehicle: { bodyStyle: "truck" }, title: "Car", priceCents: 5000 },
+      { id: "item", title: "Item", priceCents: 500 },
+    ],
+    motors: [],
+  };
+  const context = vm.createContext({
+    useHydrated: () => hydrated,
+    useSuspenseQuery: () => ({ data: home }),
+    useQuery: () => ({ data: lead }),
+    homeQuery: {},
+    homeLeadQuery: {},
+    HOMEPAGE_ROW_SIZE: 4,
+  });
+  vm.runInContext(
+    ts.transpile(`function allocate({where}) {${body}\nreturn {freshListings,feedStart};}`, {
+      target: ts.ScriptTarget.ES2022,
+    }),
+    context,
+  );
+  const props = {
+    where: { matchesLocation: () => true, withLocation: (x) => x, feedLocation: {} },
+  };
+  const snapshot = () => JSON.stringify(context.allocate(props));
+  const initial = snapshot();
+  lead = { motors: [home.recent[0]] };
+  assert.equal(snapshot(), initial);
+  hydrated = true;
+  assert.equal(
+    context.allocate(props).freshListings.some((x) => x.id === "car"),
+    false,
+  );
+});

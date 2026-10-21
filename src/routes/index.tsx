@@ -33,6 +33,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { trackEvent } from "@/lib/analytics";
 import { PUBLIC_PAGE_STALE_MS } from "@/lib/query-freshness";
+import { useHydrated } from "@/hooks/useHydrated";
 import { jsonLdScript, siteStructuredData } from "@/lib/structured-data";
 
 // The map (and its stylesheet) only loads when someone opens it, so it never
@@ -796,6 +797,7 @@ class HomepageLeadErrorBoundary extends Component<
 }
 
 function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
+  const hydrated = useHydrated();
   const { data: home } = useSuspenseQuery(homeQuery);
   // Observe the independently loaded lead without fetching or throwing its
   // errors here. Once it resolves (including after retry), reserve those same
@@ -826,7 +828,12 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
       allLocalListings.push(listing);
     }
   }
-  const leadMotors = (homeLead?.motors ?? []).filter(matchesLocation).slice(0, HOMEPAGE_ROW_SIZE);
+  // The independent query may settle between streamed SSR and hydration.
+  // Both initial renders must allocate the same cards; apply its reservation
+  // only after hydration, then keep observing it for retries/navigation.
+  const leadMotors = (hydrated ? (homeLead?.motors ?? []) : [])
+    .filter(matchesLocation)
+    .slice(0, HOMEPAGE_ROW_SIZE);
   const shownIds = new Set<string>(leadMotors.map((listing) => listing.id));
   const pick = (candidates: ClassifiedsHome["recent"]) => {
     const unseen = candidates
