@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { MapPin } from "@phosphor-icons/react";
 import { listingParam } from "@/lib/listing-url";
+import { listingCardImageUrl } from "@/lib/listing-card-image";
 
 import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { PartnerJobHeartButton } from "@/components/community/PartnerJobHeartButton";
@@ -357,7 +358,19 @@ export function ListingCardPhoto({
   return (
     <div className={`relative ${ratio} overflow-hidden bg-secondary`}>
       <img
-        src={listing.imageUrl}
+        src={listingCardImageUrl(listing.imageUrl)}
+        decoding="async"
+        onError={(event) => {
+          const image = event.currentTarget;
+          // A removed thumbnail must not hide an original image that still works.
+          if (
+            listingCardImageUrl(listing.imageUrl!) !== listing.imageUrl &&
+            image.dataset.originalFallback !== "1"
+          ) {
+            image.dataset.originalFallback = "1";
+            image.src = listing.imageUrl!;
+          }
+        }}
         alt={listing.title}
         // The first cards on a landing page are its largest paint; load them
         // right away instead of waiting for layout to decide they're visible.

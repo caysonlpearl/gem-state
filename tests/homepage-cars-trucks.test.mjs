@@ -201,4 +201,96 @@ test("Keep browsing excludes the current full row allocation and deduplicates it
   assert.doesNotMatch(after, /data-listing="secondary-row-car"/);
   assert.match(after, /data-listing="other-item"/);
   assert.equal([...after.matchAll(/data-listing="other-item"/g)].length, 1);
+  const bounded = renderToStaticMarkup(
+    React.createElement(context.HomeFeed, {
+      ...props,
+      initial: Array.from({ length: 70 }, (_, i) => ({ id: `item-${i}` })),
+    }),
+  );
+  assert.equal([...bounded.matchAll(/data-listing=/g)].length, 24);
+  assert.match(bounded, /Load more/);
+});
+
+test("Keep browsing reveals local cards before requesting a page and never loses its remainder", async () => {
+  const route = readFileSync(new URL("../src/routes/index.tsx", import.meta.url), "utf8");
+  const file = ts.createSourceFile(
+    "index.tsx",
+    route,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  const feed = file.statements.find(
+    (n) => ts.isFunctionDeclaration(n) && n.name?.text === "HomeFeed",
+  );
+  const states = [];
+  let cursor = 0;
+  let requests = 0;
+  const context = vm.createContext({
+    React,
+    useState(initial) {
+      const index = cursor++;
+      if (!(index in states)) states[index] = initial;
+      return [
+        states[index],
+        (value) => {
+          states[index] = typeof value === "function" ? value(states[index]) : value;
+        },
+      ];
+    },
+    useServerFn: (fn) => fn,
+    browseClassifieds: async () => {
+      requests++;
+      return { listings: [{ id: "next-page" }], page: 2, pageSize: 24, total: 48 };
+    },
+    ListingCard: "ListingCard",
+    toast: {
+      error(message) {
+        throw new Error(message);
+      },
+    },
+  });
+  vm.runInContext(
+    ts.transpile(feed.getText(file), { target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React }),
+    context,
+  );
+  const props = {
+    initial: Array.from({ length: 70 }, (_, i) => ({ id: `item-${i}` })),
+    shownIds: new Set(),
+    hasMore: true,
+    location: {},
+  };
+  const render = () => {
+    cursor = 0;
+    return context.HomeFeed(props);
+  };
+  const nodes = (node) =>
+    !node || typeof node !== "object"
+      ? []
+      : [node, ...React.Children.toArray(node.props?.children).flatMap(nodes)];
+  const click = (tree) =>
+    nodes(tree)
+      .find((n) => n.type === "button")
+      .props.onClick();
+  const cards = (tree) =>
+    nodes(tree)
+      .filter((n) => n.type === "ListingCard")
+      .map((n) => n.props.listing.id);
+  let tree = render();
+  assert.equal(cards(tree).length, 24);
+  click(tree);
+  tree = render();
+  assert.equal(cards(tree).length, 48);
+  assert.equal(requests, 0);
+  click(tree);
+  tree = render();
+  assert.equal(cards(tree).length, 70);
+  assert.equal(requests, 0);
+  click(tree);
+  await new Promise(setImmediate);
+  tree = render();
+  assert.equal(requests, 1);
+  assert.equal(cards(tree).length, 71);
+  assert.ok(cards(tree).includes("next-page"));
+  assert.equal(nodes(tree).filter((n) => n.type === "button").length, 0);
 });

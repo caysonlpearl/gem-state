@@ -1,11 +1,8 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 
-import {
-  MarketReport,
-  marketReportHead,
-  marketReportQuery,
-} from "@/components/classifieds/MarketReport";
+import { MarketReport } from "@/components/classifieds/MarketReport";
+import { marketReportHead, marketReportQuery } from "@/lib/market-report-route";
 
 // /idaho/market-report/2026-10: one month's report, kept at its own URL.
 export const Route = createFileRoute("/idaho/market-report/$month")({

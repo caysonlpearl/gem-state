@@ -1,5 +1,10 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { QueryErrorResetBoundary, queryOptions, useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import {
+  QueryErrorResetBoundary,
+  queryOptions,
+  useQuery,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
 import { Component, Suspense, lazy, useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowRight, MagnifyingGlass, Car } from "@phosphor-icons/react";
 
@@ -1167,11 +1172,18 @@ function HomeFeed({
   // Keep only explicitly loaded later pages in state so allocation changes
   // neither retain stale first-page cards nor discard loaded pagination.
   const [loadedItems, setLoadedItems] = useState<typeof initial>([]);
+  const [visibleLimit, setVisibleLimit] = useState(24);
   const [nextPage, setNextPage] = useState(2);
   const [done, setDone] = useState(!hasMore);
   const [loading, setLoading] = useState(false);
 
   async function loadMore() {
+    if (loading) return;
+    // Reveal already fetched cards before spending another inventory request.
+    if (visibleItems.length > visibleLimit) {
+      setVisibleLimit((current) => current + 24);
+      return;
+    }
     setLoading(true);
     try {
       const filters = Object.fromEntries(
@@ -1182,6 +1194,7 @@ function HomeFeed({
         const seen = new Set(current.map((listing) => listing.id));
         return [...current, ...result.listings.filter((listing) => !seen.has(listing.id))];
       });
+      setVisibleLimit((current) => current + 24);
       setNextPage(result.page + 1);
       if (!result.listings.length || result.page * result.pageSize >= result.total) setDone(true);
     } catch {
@@ -1211,12 +1224,12 @@ function HomeFeed({
       </div>
       {visibleItems.length > 0 && (
         <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
-          {visibleItems.map((listing) => (
+          {visibleItems.slice(0, visibleLimit).map((listing) => (
             <ListingCard key={listing.id} listing={listing} />
           ))}
         </div>
       )}
-      {!done && (
+      {(!done || visibleItems.length > visibleLimit) && (
         <div className="mt-6 flex justify-center">
           <button
             type="button"

@@ -1,7 +1,8 @@
 import { createFileRoute, notFound } from "@tanstack/react-router";
 import { useSuspenseQuery } from "@tanstack/react-query";
 
-import { PlacePage, placePageHead, placePageQuery } from "@/components/classifieds/PlacePage";
+import { PlacePage } from "@/components/classifieds/PlacePage";
+import { placePageHead, placePageQuery } from "@/lib/place-page-route";
 
 // /idaho/boise (a city or region hub) or /idaho/trailers (a category across Idaho).
 export const Route = createFileRoute("/idaho/$place/")({

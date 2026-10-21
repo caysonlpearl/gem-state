@@ -1,67 +1,11 @@
-import { queryOptions } from "@tanstack/react-query";
 import { CaretRight } from "@phosphor-icons/react";
 
 import { BluebirdEmptyState } from "@/components/layout/BluebirdEmptyState";
 import { brand } from "@/config/brand";
-import { getMarketReport, type MarketReportPage } from "@/lib/market-report.functions";
-import { idahoDate, reportMonthLabel, wholeDollars } from "@/lib/market-stats";
+import type { MarketReportPage } from "@/lib/market-report.functions";
+import { reportPath, reportTitle, reportLead } from "@/lib/market-report-route";
+import { reportMonthLabel, wholeDollars } from "@/lib/market-stats";
 import { categoryPagePath, placePath, vehiclePagePath } from "@/lib/place-pages";
-import { PUBLIC_PAGE_STALE_MS } from "@/lib/query-freshness";
-import { jsonLdScript } from "@/lib/structured-data";
-
-export const marketReportQuery = (month?: string) =>
-  queryOptions({
-    queryKey: ["market-report", month ?? null],
-    staleTime: PUBLIC_PAGE_STALE_MS,
-    queryFn: () => getMarketReport({ data: month ? { month } : {} }),
-  });
-
-const reportPath = (month: string) => `/idaho/market-report/${month}`;
-
-function reportTitle(page: MarketReportPage) {
-  return `Idaho marketplace report: ${page.report.label}`;
-}
-
-function reportLead(page: MarketReportPage) {
-  const { totals } = page.report;
-  return `${totals.live.toLocaleString("en-US")} listings were live on ${brand.name} ${
-    page.current ? "as of" : "at the end of"
-  } ${page.current ? idahoDate(page.report.generatedAt) : page.report.label}, with ${totals.newThisMonth.toLocaleString(
-    "en-US",
-  )} posted and ${totals.soldThisMonth.toLocaleString("en-US")} marked sold during the month.`;
-}
-
-export function marketReportHead(page: MarketReportPage | null | undefined) {
-  if (!page) return { meta: [{ name: "robots", content: "noindex" }] };
-  const title = `${reportTitle(page)} — ${brand.name}`;
-  const description = `${reportLead(page)} Median asking prices by category, listings by region, and the most-listed vehicles.`;
-  const url = `${brand.urls.siteUrl}${reportPath(page.report.month)}`;
-  return {
-    meta: [
-      { title },
-      { name: "description", content: description },
-      ...(page.indexable ? [] : [{ name: "robots", content: "noindex, follow" }]),
-      { property: "og:title", content: title },
-      { property: "og:description", content: description },
-      { property: "og:type", content: "article" },
-    ],
-    scripts: [
-      jsonLdScript({
-        "@context": "https://schema.org",
-        "@type": "Article",
-        headline: reportTitle(page),
-        description,
-        url,
-        mainEntityOfPage: url,
-        dateModified: page.report.generatedAt,
-        author: { "@type": "Organization", name: brand.name, url: brand.urls.siteUrl },
-        publisher: { "@type": "Organization", name: brand.name, url: brand.urls.siteUrl },
-        about: { "@type": "Place", name: "Idaho" },
-        inLanguage: "en-US",
-      }),
-    ],
-  };
-}
 
 function Table({
   caption,
@@ -159,8 +103,8 @@ export function MarketReport({ page }: { page: MarketReportPage }) {
         <section className="border-t border-border/70 pt-8">
           <h2 className="text-[20px] font-bold tracking-tight">Median asking price by category</h2>
           <p className="mt-1 text-[13px] text-muted-foreground">
-            Categories with at least three priced listings. &ldquo;Typical range&rdquo; is the middle
-            half of asking prices once a category has five or more.
+            Categories with at least three priced listings. &ldquo;Typical range&rdquo; is the
+            middle half of asking prices once a category has five or more.
           </p>
           <div className="mt-4">
             <Table
@@ -217,9 +161,8 @@ export function MarketReport({ page }: { page: MarketReportPage }) {
           Every figure comes from listings posted on {brand.name}: asking prices, not final sale
           prices, which buyers and sellers agree on directly. Jobs, services, homes and pets are
           counted but not priced, because pay, quotes, rent and pet fees don&apos;t make one
-          comparable price. Sales
-          are listings their sellers marked sold; time to sell is the median days from posting to
-          sold, shown once at least five listings sold in the month.{" "}
+          comparable price. Sales are listings their sellers marked sold; time to sell is the median
+          days from posting to sold, shown once at least five listings sold in the month.{" "}
           {page.current
             ? "This month's report updates as listings change and is kept as it stands at month's end."
             : `This report shows the numbers as they stood at the end of ${report.label}.`}
