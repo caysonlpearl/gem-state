@@ -2106,48 +2106,34 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     // Deterministic tiebreaker so paging never repeats or skips a listing.
     query = query.order("id", { ascending: true });
 
-    const { canIncludeAdzuna, adzunaCards } = await import("./adzuna-listings.server");
-    const includeAdzuna = canIncludeAdzuna(data);
-    const externalJobs = includeAdzuna
-      ? (await adzunaCards(data)).filter(
-          (listing) => !data.region || regionOfListing(listing) === data.region,
-        )
-      : [];
-    const { canIncludeMashvisor, mashvisorCards } = await import("./mashvisor-listings.server");
-    const includeMashvisor = canIncludeMashvisor(data);
-    const { canIncludeOpenWebNinja, openWebNinjaCards } =
-      await import("./openwebninja-listings.server");
-    const includeOpenWebNinja = canIncludeOpenWebNinja(data);
-    const { openWebNinjaConfigured } = await import("./openwebninja.server");
-    const openWebNinjaEnabled = includeOpenWebNinja && openWebNinjaConfigured();
-    const openWebNinjaHomes = openWebNinjaEnabled
-      ? (await openWebNinjaCards(data)).filter(
-          (listing) => !data.region || regionOfListing(listing) === data.region,
-        )
-      : [];
-    const externalHomes = openWebNinjaEnabled
-      ? openWebNinjaHomes
-      : includeMashvisor
-        ? (await mashvisorCards(data)).filter(
-            (listing) => !data.region || regionOfListing(listing) === data.region,
-          )
-        : [];
-    const { canIncludeMarketCheck, marketCheckCards } = await import("./marketcheck.server");
-    const includeMarketCheck = canIncludeMarketCheck(data);
-    const externalVehicles = includeMarketCheck ? await marketCheckCards(data) : [];
-    const { canIncludeRescueGroups, rescueGroupsCards, rescueGroupsConfigured } =
-      await import("./rescuegroups.server");
-    const includeRescueGroups = canIncludeRescueGroups(data) && rescueGroupsConfigured();
-    const externalPets = includeRescueGroups
-      ? (await rescueGroupsCards(data)).filter(
-          (listing) => !data.region || regionOfListing(listing) === data.region,
-        )
-      : [];
+    const [
+      adzuna,
+      mashvisor,
+      openWebNinja,
+      openWebNinjaConfig,
+      marketCheck,
+      rescueGroups,
+      directoryAdapter,
+    ] = await Promise.all([
+      import("./adzuna-listings.server"),
+      import("./mashvisor-listings.server"),
+      import("./openwebninja-listings.server"),
+      import("./openwebninja.server"),
+      import("./marketcheck.server"),
+      import("./rescuegroups.server"),
+      import("./service-directory-contract"),
+    ]);
+    const includeAdzuna = adzuna.canIncludeAdzuna(data);
+    const includeMashvisor = mashvisor.canIncludeMashvisor(data);
+    const includeOpenWebNinja = openWebNinja.canIncludeOpenWebNinja(data);
+    const openWebNinjaEnabled = includeOpenWebNinja && openWebNinjaConfig.openWebNinjaConfigured();
+    const includeMarketCheck = marketCheck.canIncludeMarketCheck(data);
+    const includeRescueGroups =
+      rescueGroups.canIncludeRescueGroups(data) && rescueGroups.rescueGroupsConfigured();
     const includeExternalHomes = includeMashvisor || includeOpenWebNinja;
-    const { canIncludeDirectory } = await import("./service-directory-contract");
     // Local businesses from the services directory follow members' service
     // listings, paged in the database rather than loaded all at once.
-    const includeDirectory = canIncludeDirectory(data);
+    const includeDirectory = directoryAdapter.canIncludeDirectory(data);
     const from = (page - 1) * PAGE_SIZE;
     // Pay units are deliberately normalized in `comparableJobPay` (hourly
     // annualized, salary/commission/contract kept in their stated units).
@@ -2169,13 +2155,27 @@ async function runBrowseClassifieds(data: ClassifiedBrowseInput): Promise<Classi
     const resultRange = mergeBeforePaging
       ? { from: 0, to: CLASSIFIEDS_MERGE_READ_LIMIT - 1 }
       : { from, to: from + PAGE_SIZE - 1 };
-    const {
-      data: rows,
-      count,
-      error,
-    } = mockOnlyCategory
-      ? { data: [], count: 0, error: null }
-      : await query.range(resultRange.from, resultRange.to);
+    // Independent reads must not form a provider → database waterfall.
+    // Eligibility, provider budget guards, paging and merge ordering stay unchanged.
+    const [native, jobCards, homeCards, externalVehicles, petCards] = await Promise.all([
+      mockOnlyCategory
+        ? { data: [], count: 0, error: null }
+        : query.range(resultRange.from, resultRange.to),
+      includeAdzuna ? adzuna.adzunaCards(data) : [],
+      openWebNinjaEnabled
+        ? openWebNinja.openWebNinjaCards(data)
+        : includeMashvisor
+          ? mashvisor.mashvisorCards(data)
+          : [],
+      includeMarketCheck ? marketCheck.marketCheckCards(data) : [],
+      includeRescueGroups ? rescueGroups.rescueGroupsCards(data) : [],
+    ]);
+    const { data: rows, count, error } = native;
+    const matchesRegion = (listing: ClassifiedCard) =>
+      !data.region || regionOfListing(listing) === data.region;
+    const externalJobs = jobCards.filter(matchesRegion);
+    const externalHomes = homeCards.filter(matchesRegion);
+    const externalPets = petCards.filter(matchesRegion);
     if (error) console.error("browseClassifieds failed; showing preview fixtures", error.message);
 
     const visibleRows = (rows ?? []).filter(

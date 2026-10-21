@@ -70,12 +70,15 @@ function harness({
   directory = [],
   rowLimit = Infinity,
   radiusMatch = () => true,
+  beforeProvider = async () => {},
+  onNative = () => {},
 } = {}) {
   const includes = new Set(enabled);
   const adapterCalls = [];
   const directoryCalls = [];
   const cards = (name) => async () => {
     adapterCalls.push(name);
+    await beforeProvider();
     return external;
   };
   const ranges = [];
@@ -85,14 +88,22 @@ function harness({
     {
       get: (_, key) =>
         key === "range"
-          ? async (from, to) => {
-              ranges.push([from, to]);
-              return {
-                data: records.slice(from, Math.min(to + 1, from + rowLimit)),
-                count: records.length,
-                error: null,
-              };
-            }
+          ? (from, to) => ({
+              // Supabase starts the read when its query thenable is consumed.
+              then(resolve, reject) {
+                return Promise.resolve()
+                  .then(() => {
+                    onNative();
+                    ranges.push([from, to]);
+                    return {
+                      data: records.slice(from, Math.min(to + 1, from + rowLimit)),
+                      count: records.length,
+                      error: null,
+                    };
+                  })
+                  .then(resolve, reject);
+              },
+            })
           : () => query,
     },
   );
@@ -609,3 +620,27 @@ for (const sort of ["price_low", "price_high"]) {
     assert.deepEqual(h.ranges, [[0, 4999]]);
   });
 }
+
+test("native inventory starts while an eligible provider is still pending", async () => {
+  let release;
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
+  let nativeStarted = false;
+  const h = harness({
+    enabled: ["marketcheck"],
+    beforeProvider: () => gate,
+    onNative: () => {
+      nativeStarted = true;
+    },
+  });
+  const pending = h.browse(1);
+  try {
+    await new Promise(setImmediate);
+    assert.equal(nativeStarted, true, "native read must not wait for provider completion");
+    assert.deepEqual(h.adapterCalls, ["marketcheck"]);
+  } finally {
+    release();
+  }
+  await pending;
+});
