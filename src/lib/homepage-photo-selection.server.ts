@@ -11,6 +11,18 @@ const PHOTO_HOSTS = new Set([
 type Verdict = "available" | "missing" | "unknown";
 const checks = new Map<string, { until: number; verdict: Promise<Verdict> }>();
 
+function hasCardSizedPhoto(card: { imageUrl: string | null; externalVehicle?: unknown }) {
+  if (!card.externalVehicle) return true; // native covers are signed at card width
+  try {
+    const host = new URL(card.imageUrl ?? "").hostname;
+    // These feeds have verified card variants. Other dealer hosts can send
+    // multi-megabyte originals; keep them behind working thumbnail sources.
+    return host === "images.craigslist.org" || host === "platform.cstatic-images.com";
+  } catch {
+    return false;
+  }
+}
+
 export async function checkHomepagePhoto(url: string): Promise<Verdict> {
   let parsed: URL;
   try {
@@ -69,7 +81,12 @@ export async function selectHomepagePhotoCards<
     ),
   );
   return [
-    ...candidates.filter((_, index) => statuses[index] === "available"),
+    ...candidates.filter(
+      (card, index) => statuses[index] === "available" && hasCardSizedPhoto(card),
+    ),
+    ...candidates.filter(
+      (card, index) => statuses[index] === "available" && !hasCardSizedPhoto(card),
+    ),
     ...candidates.filter((_, index) => statuses[index] === "unknown"),
     ...cards.slice(candidates.length),
   ];

@@ -29,6 +29,16 @@ test("unverified or absent photos remain reachable and native storage needs no e
   assert.deepEqual(calls, [cards[1].imageUrl]);
 });
 
+test("working thumbnails precede multi-megabyte dealer originals in the featured row", async () => {
+  const cards = [
+    { id: "original", imageUrl: "https://assets.cai-media-management.com/full-size.jpg", externalVehicle: {} },
+    { id: "thumbnail", imageUrl: "https://platform.cstatic-images.com/xxlarge/photo.jpg", externalVehicle: {} },
+    { id: "native", imageUrl: "https://storage.example/signed-thumbnail.jpg" },
+  ];
+  const result = await selectHomepagePhotoCards(cards, async () => "available");
+  assert.deepEqual(result.map((card) => card.id), ["thumbnail", "native", "original"]);
+});
+
 test("photo probes are bounded, cached and never follow redirects or fetch arbitrary hosts", async (t) => {
   const calls = [];
   t.mock.method(globalThis, "fetch", async (url, init) => {
