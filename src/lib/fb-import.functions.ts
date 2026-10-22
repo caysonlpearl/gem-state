@@ -617,6 +617,17 @@ export const getFacebookImportProfiles = createServerFn({ method: "GET" })
       (sellerRows ?? []).map((row: { user_id: string; slug: string }) => [row.user_id, row.slug]),
     );
 
+    // Paused sellers are surfaced so scans skip them before any source page
+    // is opened; staging still rejects them server-side as a backstop.
+    const { data: pausedRows, error: pausedError } = await admin
+      .from("managed_import_sellers")
+      .select("source_profile_url")
+      .eq("sync_enabled", false);
+    if (pausedError) throw new Error(pausedError.message);
+    const pausedProfiles = new Set<string>(
+      (pausedRows ?? []).map((row: { source_profile_url: string }) => row.source_profile_url),
+    );
+
     const profiles = new Map<string, FbImportProfile>();
     for (const batch of batches ?? []) {
       if (profiles.has(batch.source_profile_url)) continue;
@@ -628,6 +639,7 @@ export const getFacebookImportProfiles = createServerFn({ method: "GET" })
         openCount: entry.open,
         publishedCount: entry.published,
         sellerSlug: slugBySeller.get(sellerByProfile.get(batch.source_profile_url) ?? "") ?? null,
+        syncPaused: pausedProfiles.has(batch.source_profile_url),
       });
     }
     return Array.from(profiles.values());
