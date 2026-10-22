@@ -35,7 +35,7 @@ function providerListing(state, kind, start, index) {
   };
 }
 
-async function withMockMarketCheck({ initialCache = [], allowReservation, onProvider }, run) {
+async function withMockMarketCheck({ initialCache = [], allowReservation, onProvider, onCacheRead }, run) {
   const envNames = [
     "GEM_STATE_SUPABASE_URL",
     "SUPABASE_URL",
@@ -74,6 +74,8 @@ async function withMockMarketCheck({ initialCache = [], allowReservation, onProv
       if (url.pathname.endsWith("/marketcheck_cache") && method === "GET") {
         const filter = url.searchParams.get("cache_key");
         cacheReads.push({ filter, selection: url.searchParams.get("select") });
+        const override = await onCacheRead?.(init);
+        if (override) return override;
         let rows = filter?.startsWith("eq.")
           ? [cache.get(filter.slice(3))].filter(Boolean)
           : [...cache.values()];
@@ -415,5 +417,46 @@ test("prepared inventory expiry is checked on consumption, not preparation", asy
       await marketCheckCards({ category: "cars-trucks", state: "ID" }, { preparedHomeCache });
       assert.ok(cacheReads.some((read) => read.filter?.startsWith("eq.")), "expired prepared rows enter existing per-page validation rather than being accepted");
     } finally { Date.now = originalNow; }
+  });
+});
+
+
+test("failed bulk cache reads reject once without reserving provider budget, and a later read can recover", async () => {
+  let failed = true;
+  const initialCache = ["dealer", "fsbo"].map((kind) => ({
+    cache_key: JSON.stringify({ v: 3, kind, state: "ID", start: 0 }),
+    expires_at: new Date(Date.now() + 60000).toISOString(),
+    payload: normalizeMarketCheckSearch({ num_found: 1, listings: [providerListing("ID", kind, 0, 0)] }, kind),
+  }));
+  await withMockMarketCheck({ initialCache,
+    allowReservation: () => { throw new Error("Read failure must not reserve budget"); },
+    onProvider: () => { throw new Error("No provider calls"); },
+    onCacheRead: () => failed ? Response.json({ code: "TEST", message: "synthetic unavailable cache" }, { status: 503 }) : undefined,
+  }, async ({ cacheReads, providerCalls, reservations }) => {
+    const preparedHomeCache = prepareHomeMarketCheckCache();
+    await Promise.all([preparedHomeCache.dealer, preparedHomeCache.fsbo]);
+    await assert.rejects(marketCheckCards({ category: "cars-trucks", state: "ID" }, { preparedHomeCache }), /temporarily|could not be verified/i);
+    assert.equal(cacheReads.length, 2, "SDK retries must not multiply a failed bulk read");
+    assert.deepEqual(providerCalls, []); assert.deepEqual(reservations, []);
+    failed = false;
+    const recovered = await marketCheckCards({ category: "cars-trucks", state: "ID" });
+    assert.equal(recovered.length, 2); assert.equal(cacheReads.length, 4);
+  });
+});
+
+test("bulk read deadline reaches the actual transport signal and cannot fall into paid refresh", { timeout: 2000 }, async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  await withMockMarketCheck({
+    allowReservation: () => { throw new Error("No reservation after timeout"); },
+    onProvider: () => { throw new Error("No provider calls"); },
+    onCacheRead: (init) => new Promise((_resolve, reject) => init.signal.addEventListener("abort", () => reject(init.signal.reason), { once: true })),
+  }, async ({ cacheReads, reservations, providerCalls }) => {
+    const preparedHomeCache = prepareHomeMarketCheckCache();
+    for (let i = 0; i < 20; i++) await Promise.resolve();
+    assert.equal(cacheReads.length, 2);
+    t.mock.timers.tick(8001);
+    await Promise.all([preparedHomeCache.dealer, preparedHomeCache.fsbo]);
+    await assert.rejects(marketCheckCards({ category: "cars-trucks", state: "ID" }, { preparedHomeCache }), /could not be verified/i);
+    assert.equal(cacheReads.length, 2); assert.deepEqual(reservations, []); assert.deepEqual(providerCalls, []);
   });
 });

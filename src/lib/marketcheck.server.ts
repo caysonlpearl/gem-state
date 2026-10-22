@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- Supabase's generated client does not include the new cache tables yet. */
 import { createClient } from "@supabase/supabase-js";
+import { withCatalogReadDeadline } from "./catalog-read-deadline.ts";
 import { getRequest } from "@tanstack/react-start/server";
 import { serverEnv } from "./runtime-env.server.ts";
 import {
@@ -62,7 +63,7 @@ function cacheDb() {
         if (dbKey.startsWith("sb_") && headers.get("Authorization") === `Bearer ${dbKey}`)
           headers.delete("Authorization");
         headers.set("apikey", dbKey);
-        return fetch(url, { ...init, headers, signal: AbortSignal.timeout(8000) });
+        return fetch(url, { ...init, headers, signal: init?.signal ?? AbortSignal.timeout(8000) });
       },
     },
   });
@@ -362,30 +363,41 @@ async function readCachedStateRows(state: string, kind: MarketCheckSourceKind) {
   // keys lexicographically before applying a limit can omit page 50 in favor
   // of later offsets (for example, 0, 100, 150, ...), forcing a slow refresh.
   const pageKeys = marketCheckCachePageKeys(state, kind, pages, PAGE_SIZE);
-  const { data } = await (db as any)
+  const { data, error } = await withCatalogReadDeadline<{ data: any[] | null; error: unknown }>((db as any)
     .from("marketcheck_cache")
     .select("cache_key,payload,expires_at")
     // Supabase's .in() adds outer quotes but does not escape the quotes
     // inside these JSON keys. Build quoted literals explicitly so PostgREST
     // does not reject the bulk lookup and trigger per-page fallback reads.
-    .filter("cache_key", "in", `(${pageKeys.map((key) => JSON.stringify(key)).join(",")})`);
+    .filter("cache_key", "in", `(${pageKeys.map((key) => JSON.stringify(key)).join(",")})`));
+  if (error) throw new MarketCheckLookupError("unavailable");
   return (data ?? []) as any[];
 }
 
+type PreparedCacheRows = { ok: true; rows: any[] | null } | { ok: false };
+function prepareRows(work: Promise<any[] | null>): Promise<PreparedCacheRows> {
+  // Preparation may finish before its consumer is ready. Settle immediately
+  // without losing the distinction between a failed read and an empty cache.
+  return work.then((rows) => ({ ok: true, rows }), () => ({ ok: false }));
+}
 // Request-local preparation reads only existing cache rows, never the provider.
 export function prepareHomeMarketCheckCache() {
   if (!configured()) return undefined;
   return {
-    dealer: readCachedStateRows(HOME_STATE, "dealer").catch(() => null),
-    fsbo: readCachedStateRows(HOME_STATE, "fsbo").catch(() => null),
+    dealer: prepareRows(readCachedStateRows(HOME_STATE, "dealer")),
+    fsbo: prepareRows(readCachedStateRows(HOME_STATE, "fsbo")),
   };
 }
 type PreparedHomeMarketCheckCache = ReturnType<typeof prepareHomeMarketCheckCache>;
 
 async function freshCachedStateInventory(
-  state: string, kind: MarketCheckSourceKind, prepared?: Promise<any[] | null>,
+  state: string, kind: MarketCheckSourceKind, prepared?: Promise<PreparedCacheRows>,
 ) {
-  const rows = await (prepared ?? readCachedStateRows(state, kind));
+  const result: PreparedCacheRows = prepared
+    ? await prepared
+    : { ok: true, rows: await readCachedStateRows(state, kind) };
+  if (!result.ok) throw new MarketCheckLookupError("unavailable");
+  const rows = result.rows;
   // Evaluate expiry when consumed, not when preparation started.
   return freshMarketCheckInventory(rows ?? [], state, kind, {
     pages: state === HOME_STATE ? BASE_PAGES[kind] : OTHER_STATE_PAGES,
@@ -412,7 +424,7 @@ async function inventoryPage(
 }
 
 /** A state's cached inventory for one source (dealer or private seller). */
-async function stateInventory(state: string, kind: MarketCheckSourceKind, forceRefresh = false, prepared?: Promise<any[] | null>) {
+async function stateInventory(state: string, kind: MarketCheckSourceKind, forceRefresh = false, prepared?: Promise<PreparedCacheRows>) {
   if (!forceRefresh) {
     const cached = await freshCachedStateInventory(state, kind, prepared);
     if (cached) return cached;
