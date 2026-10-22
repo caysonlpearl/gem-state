@@ -45,6 +45,9 @@ import {
 
 const bookmarkletHref = `javascript:${encodeURIComponent(bookmarkletSource)}`;
 
+/** Rows per refresh staging request; matches the server per-request limit. */
+const REFRESH_STAGE_CHUNK = 50;
+
 export const Route = createFileRoute("/_authenticated/admin/fb-import")({
   head: () => ({
     meta: [
@@ -273,7 +276,15 @@ function ImportedSellers() {
             item,
           ]),
         );
-        for (const item of unique.values()) {
+        // Stage in bounded, idempotent chunks that share one batch, so a 300+
+        // inventory costs a handful of requests instead of one per listing.
+        const rows = [...unique.values()];
+        let batchId: string | undefined;
+        for (let i = 0; i < rows.length; i += REFRESH_STAGE_CHUNK) {
+          const chunk = rows.slice(i, i + REFRESH_STAGE_CHUNK);
+          setActiveScan(
+            `${report.sourceProfileUrl} · Staging ${Math.min(i + chunk.length, rows.length)}/${rows.length} source results`,
+          );
           try {
             const result = await stage({
               data: {
@@ -281,16 +292,18 @@ function ImportedSellers() {
                 sellerName: report.sellerName,
                 mode: "refresh",
                 authorized: scanAuthorized,
-                items: [item],
+                items: chunk,
+                ...(batchId ? { batchId } : {}),
               },
             });
-            setActiveScan(`${report.sourceProfileUrl} · Staging ${unique.size} source results`);
+            batchId = result.batchId;
             sellerNew += result.staged;
             sellerChanged += result.updated;
             sellerRemoved += result.flaggedRemoved;
             sellerFailed += result.failed;
           } catch {
-            sellerFailed++;
+            // A failed request leaves every row in the chunk unchanged and retryable.
+            sellerFailed += chunk.length;
           }
         }
         const evidence = { ...report.scan, unreadable: report.scan.unreadable + sellerFailed };
@@ -307,6 +320,7 @@ function ImportedSellers() {
                 scan: evidence,
                 finalizeScan: true,
                 seenUrls: report.seenUrls,
+                ...(batchId ? { batchId } : {}),
               },
             });
             sellerRemoved += result.flaggedRemoved;
