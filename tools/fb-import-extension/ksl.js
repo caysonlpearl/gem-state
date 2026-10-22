@@ -27,8 +27,37 @@ function kslListingId(url) {
 // Reads the seller's listings from the data KSL embeds in the page (a
 // Next.js payload with an "initialState" of search results), falling back to
 // the visible result cards. Returns the next page's URL when there is one.
-function kslCollectFromMemberPage() {
+async function kslCollectFromMemberPage() {
   const memberId = (location.pathname.match(/\/search\/member\/(\d+)/) || [])[1] || "";
+  // Page load completion precedes hydrated cards. Require stable identities,
+  // not merely a stable count, and retry a short advertised range.
+  const cardSelector = "a.search-result[data-item-id], a[href*='/listing/'][data-item-id]";
+  const countEvidence = () => {
+    const body = document.body?.innerText || "";
+    const range = body.match(/\b(\d[\d,]*)\s*[-–]\s*(\d[\d,]*)\s+of\s+(\d[\d,]*)\b/i);
+    const total = body.match(/\b(\d[\d,]*)\s+(?:results|listings)\b/i);
+    return {
+      expected: Number((range?.[3] || total?.[1] || "0").replaceAll(",", "")),
+      pageCount: range ? Number(range[2].replaceAll(",", "")) - Number(range[1].replaceAll(",", "")) + 1 : 0,
+    };
+  };
+  let lastSignature = "", stable = 0, settled = false;
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const ids = [...new Set(Array.from(document.querySelectorAll(cardSelector))
+      .map((a) => a.getAttribute("data-item-id")).filter((id) => /^\d+$/.test(id || "")))].sort();
+    const { expected, pageCount } = countEvidence();
+    const next = document.querySelector('a[rel="next"], a[aria-label*="next" i]');
+    const needed = pageCount || (!next ? expected : 0);
+    const signature = ids.join(",") + `|${expected}|${pageCount}`;
+    stable = signature === lastSignature ? stable + 1 : 0;
+    lastSignature = signature;
+    if (stable >= 3 && (ids.length > 0 || /no (?:listings|results)(?: found)?/i.test(document.body?.innerText || "")) && (!needed || ids.length === needed)) {
+      settled = true;
+      break;
+    }
+    window.scrollTo(0, document.body?.scrollHeight || 0);
+    await new Promise((resolve) => setTimeout(resolve, 600));
+  }
   const raw = Array.from(document.querySelectorAll("script"))
     .map((s) => s.textContent || "")
     .join("\n")
@@ -81,7 +110,9 @@ function kslCollectFromMemberPage() {
     if (!id) continue;
     const obj = byId.get(id);
     const card = cards.find((a) => a.getAttribute("data-item-id") === id);
-    if (obj && obj.marketType && !/^(sale|rent|for sale|for rent)$/i.test(obj.marketType)) continue;
+    // Visible seller cards are inventory evidence even if streamed metadata
+    // uses a new marketType value. Never drop one from the enumerated count.
+    if (!/^\d+$/.test(id)) continue;
     items.push({
       sourceUrl: `https://classifieds.ksl.com/listing/${id}`,
       title: obj ? obj.title : (card && card.getAttribute("aria-label")) || "",
@@ -104,13 +135,15 @@ function kslCollectFromMemberPage() {
   const sellerName = sinceAt > 0 && lines[sinceAt - 1].length <= 60 ? lines[sinceAt - 1] : "";
   const next = document.querySelector('a[rel="next"], a[aria-label*="next" i]');
   const countText = lines.join(" ");
-  const range = countText.match(/\b\d[\d,]*\s*[-–]\s*\d[\d,]*\s+(?:of)\s+(\d[\d,]*)\b/i);
-  const expected = range ? Number(range[1].replaceAll(",", "")) : 0;
+  const { expected, pageCount } = countEvidence();
+  window.scrollTo(0, 0);
   return {
     sellerName,
     sourceProfileUrl: `https://classifieds.ksl.com/search/member/${memberId}`,
     items,
     expected,
+    pageCount,
+    enumerationComplete: settled && (!pageCount || items.length === pageCount),
     explicitEnd: /no (?:listings|results)(?: found)?/i.test(countText),
     recognized:
       !!memberId && (items.length > 0 || /no (?:listings|results)/i.test(lines.join(" "))),

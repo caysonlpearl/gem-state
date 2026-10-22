@@ -142,7 +142,8 @@ async function collectSellerScan(profile, config, notify) {
         }
         termination = "end";
       } else if (config.site === "KSL") {
-        if (!page.recognized) {
+        if (!page.recognized || page.enumerationComplete === false ||
+            (page.pageCount > 0 && page.items.length !== page.pageCount)) {
           complete = false;
           break;
         }
