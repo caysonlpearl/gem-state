@@ -152,12 +152,7 @@ async function collectSellerScan(profile, config, notify) {
         if (!page.nextUrl && !countReached && !ended) {
           complete = false;
         }
-        termination =
-          countReached
-            ? "count"
-            : ended
-              ? "end"
-              : "incomplete";
+        termination = countReached ? "count" : ended ? "end" : "incomplete";
       } else {
         const countReached = expected > 0 && items.size === expected;
         const ended = expected === 0 && page.explicitEnd === true && items.size === 0;
@@ -177,7 +172,9 @@ async function collectSellerScan(profile, config, notify) {
     }
     if (pages.length) {
       complete = false;
-      notify(`${config.site}: scan incomplete — pagination stopped before all pages were read (safety ceiling ${SELLER_SCAN_PAGE_LIMIT}). Unseen listings stay unchanged.`);
+      notify(
+        `${config.site}: scan incomplete — pagination stopped before all pages were read (safety ceiling ${SELLER_SCAN_PAGE_LIMIT}). Unseen listings stay unchanged.`,
+      );
     }
   } catch {
     complete = false;
