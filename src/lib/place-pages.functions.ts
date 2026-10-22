@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 
 import { brand } from "@/config/brand";
+import { selectPlaceListingCards } from "@/lib/place-listing-selection";
 import {
   isIndexablePlaceInventory,
   placeInventoryFilters,
@@ -354,7 +355,10 @@ export const getPlacePage = createServerFn({ method: "GET" })
           description: `${lead} Contact local sellers directly on ${brand.name}.`,
           lead,
           statisticsNote: `Prices, regional counts and rankings use up to ${MAX_PAGES} pages of retrieved listings, not a complete market census. ${main.listings.length} listings were reviewed for this page; related links may use a separate bounded sample. Matching totals come from the current search results and may be limited by source coverage.`,
-          listings: main.listings.slice(0, SHOWN_LISTINGS),
+          listings:
+            place && !category
+              ? selectPlaceListingCards(main.listings, SHOWN_LISTINGS)
+              : main.listings.slice(0, SHOWN_LISTINGS),
           total: main.total,
           indexable,
           relatedCategories,
