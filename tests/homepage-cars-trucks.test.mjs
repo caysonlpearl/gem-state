@@ -149,7 +149,7 @@ test("featured endpoint uses Cars & Trucks while the secondary homepage endpoint
   const lead = await vm.runInContext("loadClassifiedsHomeLead()", context);
   const home = await vm.runInContext("getClassifiedsHome()", context);
   assert.deepEqual(JSON.parse(JSON.stringify(lead.motors)), cars);
-  assert.equal(home.motors, motors);
+  assert.deepEqual(JSON.parse(JSON.stringify(home.motors)), motors);
   assert.equal(home.categoryCounts.trailers, 1);
   assert.equal(home.categoryCounts["auto-parts"], 1);
 });
@@ -312,6 +312,7 @@ test("secondary feeds wait for lead paint without removing SSR lead inventory", 
   );
   let hydrated = false;
   let lead = { isSuccess: true, isError: false };
+  const queries = [];
   const context = vm.createContext({
     React,
     Suspense: React.Suspense,
@@ -319,10 +320,11 @@ test("secondary feeds wait for lead paint without removing SSR lead inventory", 
     HomepageSecondaryErrorBoundary: ({ children }) => children,
     useHydrated: () => hydrated,
     useQuery: (options) => {
-      assert.equal(options.enabled, false);
+      queries.push(options);
       return lead;
     },
     homeLeadQuery: {},
+    homeQuery: { queryKey: ["secondary"] },
     HomeSections: () => React.createElement("div", null, "secondary-loaded"),
   });
   vm.runInContext(
@@ -332,11 +334,13 @@ test("secondary feeds wait for lead paint without removing SSR lead inventory", 
   const render = (leadPainted = false) =>
     renderToStaticMarkup(React.createElement(context.DeferredHomeSections, { where: {}, leadPainted }));
   assert.doesNotMatch(render(), /secondary-loaded/);
+  assert.equal(queries.at(-1).enabled, false);
   hydrated = true;
   lead = { isSuccess: false, isError: false };
   assert.doesNotMatch(render(), /secondary-loaded/);
   lead = { isSuccess: true, isError: false };
   assert.doesNotMatch(render(), /secondary-loaded/);
+  assert.equal(queries.at(-1).enabled, true, "data starts loading while the first photo is still pending");
   assert.match(render(true), /secondary-loaded/);
   lead = { isSuccess: false, isError: true };
   assert.match(render(), /secondary-loaded/);

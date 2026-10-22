@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { MapPin } from "@phosphor-icons/react";
 import { listingParam } from "@/lib/listing-url";
@@ -347,30 +347,37 @@ export function ListingCardPhoto({
   tall?: boolean;
   priority?: boolean;
 }) {
+  const imageRef = useRef<HTMLImageElement>(null);
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const recoverPhoto = useCallback((image: HTMLImageElement) => {
+    if (listing.imageUrl && listingCardImageUrl(listing.imageUrl) !== listing.imageUrl && image.dataset.originalFallback !== "1") {
+      image.dataset.originalFallback = "1";
+      image.src = listing.imageUrl;
+      return;
+    }
+    setFailedUrl(listing.imageUrl);
+  }, [listing.imageUrl]);
+  // An SSR photo may have failed before React attached its error handler.
+  useEffect(() => {
+    const image = imageRef.current;
+    if (image?.complete && image.naturalWidth === 0) recoverPhoto(image);
+  }, [recoverPhoto]);
   const ratio = tall ? "aspect-[4/3]" : "aspect-[4/3]";
   const logoUrl = listingLogoUrl(listing);
   if (!listing.imageUrl && logoUrl) {
     return <LogoPhoto listing={listing} logoUrl={logoUrl} ratio={ratio} priority={priority} />;
   }
-  if (!listing.imageUrl) {
+  if (!listing.imageUrl || failedUrl === listing.imageUrl) {
     return <PlaceholderPhoto listing={listing} ratio={ratio} />;
   }
   return (
     <div className={`relative ${ratio} overflow-hidden bg-secondary`}>
       <img
+        key={listing.imageUrl}
+        ref={imageRef}
         src={listingCardImageUrl(listing.imageUrl)}
         decoding="async"
-        onError={(event) => {
-          const image = event.currentTarget;
-          // A removed thumbnail must not hide an original image that still works.
-          if (
-            listingCardImageUrl(listing.imageUrl!) !== listing.imageUrl &&
-            image.dataset.originalFallback !== "1"
-          ) {
-            image.dataset.originalFallback = "1";
-            image.src = listing.imageUrl!;
-          }
-        }}
+        onError={(event) => recoverPhoto(event.currentTarget)}
         alt={listing.title}
         // The first cards on a landing page are its largest paint; load them
         // right away instead of waiting for layout to decide they're visible.

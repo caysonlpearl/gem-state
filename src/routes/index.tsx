@@ -858,6 +858,9 @@ class HomepageSecondaryErrorBoundary extends Component<
 function DeferredHomeSections({ where, leadPainted }: { where: ReturnType<typeof homeLocation>; leadPainted: boolean }) {
   const hydrated = useHydrated();
   const lead = useQuery({ ...homeLeadQuery, enabled: false, throwOnError: false });
+  // Fetch data while the first image loads. Rendering still waits for its
+  // paint, so the rest of the page cannot crowd out the initial photo.
+  useQuery({ ...homeQuery, enabled: hydrated && (lead.isSuccess || lead.isError), throwOnError: false });
   // Settled data alone can still leave the priority image waiting to paint.
   // Query failures release the normal error path without waiting for an image.
   const ready = hydrated && (leadPainted || lead.isError);

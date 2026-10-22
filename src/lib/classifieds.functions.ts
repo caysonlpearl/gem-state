@@ -1823,7 +1823,7 @@ async function runBrowseClassifieds(
   data: ClassifiedBrowseInput,
   // Internal callers that discard totals can avoid the exact-count query.
   // Public browse keeps accurate counts and limited-results warnings.
-  options: { prepareHomeVehicleCache?: boolean; includeExactCount?: boolean; timingsMs?: Record<string, number>; timingOriginMs?: number } = {},
+  options: { prepareHomeVehicleCache?: boolean; selectHomePhotos?: boolean; includeExactCount?: boolean; timingsMs?: Record<string, number>; timingOriginMs?: number } = {},
 ): Promise<ClassifiedBrowseResult> {
   {
     const clock = () => typeof performance === "undefined" ? Date.now() : performance.now();
@@ -2344,7 +2344,9 @@ async function runBrowseClassifieds(
         .catch(() => undefined);
     }
     return {
-      listings: combinedListings,
+      listings: options.selectHomePhotos
+        ? await measure("leadPhotos", async () => (await import("./homepage-photo-selection.server")).selectHomepagePhotoCards(combinedListings))
+        : combinedListings,
       incomplete: Boolean(error) || jobsUnavailable,
       // Only advertise cards that can actually be reached. In-memory filters
       // and merged ranking cannot page native rows outside the fixed window.
@@ -2729,8 +2731,8 @@ export const getRelatedClassifieds = createServerFn({ method: "GET" })
 export type ClassifiedsHome = {
   totalActive: number;
   categoryCounts: Record<string, number>;
-  motors: ClassifiedCard[];
-  recent: ClassifiedCard[];
+  motors: ListingCardSummary[];
+  recent: ListingCardSummary[];
 };
 
 export type ClassifiedsHomeLead = {
@@ -2808,7 +2810,7 @@ async function loadClassifiedsHomeCarsTrucks(timingsMs?: Record<string, number>,
     // featured cars/trucks. The broader Motors browser and rows stay intact.
     const result = await runBrowseClassifieds(
       { category: "cars-trucks", state: "ID", sort: "newest", page: 1 },
-      { prepareHomeVehicleCache: true, includeExactCount: false, timingsMs, timingOriginMs },
+      { prepareHomeVehicleCache: true, selectHomePhotos: true, includeExactCount: false, timingsMs, timingOriginMs },
     );
     return result.listings;
   });
@@ -2873,7 +2875,7 @@ export const getClassifiedsHome = createServerFn({ method: "GET" }).handler(
       return {
         totalActive: categoryData.totalActive + additionalJobs,
         categoryCounts,
-        motors,
+        motors: motors.map(listingCardSummary),
         // Keep enough of the first page available for the homepage to build
         // several useful, non-identical curated rows without another round trip.
         recent: [
@@ -2889,7 +2891,7 @@ export const getClassifiedsHome = createServerFn({ method: "GET" }).handler(
               ...firearms.listings,
             ].map((listing) => [listing.id, listing]),
           ).values(),
-        ],
+        ].map(listingCardSummary),
       };
     });
   },

@@ -169,6 +169,10 @@ test("the rendered listing photo emits eager/high only for the first visible fix
   }).outputText;
   const ListingCardPhoto = vm.runInNewContext(`${compiled}\nListingCardPhoto`, {
     React,
+    useRef: () => ({ current: null }),
+    useState: () => [null, () => {}],
+    useEffect: () => {},
+    useCallback: (fn) => fn,
     listingLogoUrl: () => undefined,
     listingCardImageUrl,
     LogoPhoto: "LogoPhoto",
@@ -209,4 +213,30 @@ test("the rendered listing photo emits eager/high only for the first visible fix
   assert.match(firstImage, /fetchPriority="high"|fetchpriority="high"/i);
   assert.match(followingImage, /loading="lazy"/);
   assert.doesNotMatch(followingImage, /fetchPriority="high"|fetchpriority="high"/i);
+});
+
+test("a removed photo becomes a fallback even when its failure preceded hydration", () => {
+  const photo = componentSource(cardSource, "ListingCard.tsx", ["ListingCardPhoto"]);
+  const compiled = ts.transpileModule(photo.replace(/^export\s+/, ""), {
+    compilerOptions: { jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  let failed = null;
+  const effects = [];
+  const image = { complete: true, naturalWidth: 0, dataset: {} };
+  const Photo = vm.runInNewContext(`${compiled}\nListingCardPhoto`, {
+    React, listingCardImageUrl,
+    listingLogoUrl: () => undefined,
+    useRef: () => ({ current: image }),
+    useState: () => [failed, (value) => { failed = value; }],
+    useEffect: (fn) => effects.push(fn),
+    useCallback: (fn) => fn,
+    PlaceholderPhoto: "PlaceholderPhoto",
+    LogoPhoto: "LogoPhoto",
+  });
+  const listing = { title: "Vehicle", imageUrl: "https://example.com/removed.jpg" };
+  assert.equal(Photo({ listing }).type, "div");
+  effects.pop()();
+  assert.equal(Photo({ listing }).type, "PlaceholderPhoto");
+  const changed = { ...listing, imageUrl: "https://example.com/replaced.jpg" };
+  assert.equal(Photo({ listing: changed }).type, "div", "a replacement photo is retried");
 });
