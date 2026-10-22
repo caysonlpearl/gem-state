@@ -1,6 +1,6 @@
 ## Project guidance
 
-Seller profile refresh uses explicit completeness evidence, exact-count paged reads and one-row staging/application invocations; pending edits remain untouched and apply never rotates claim tokens, preserving retry safety and prior links.
+Seller profile refresh uses explicit completeness evidence, exact-count paged reads and one-row staging/application invocations; pending edits remain untouched and apply never rotates claim tokens, preserving retry safety and prior links. Standalone KSL imports reuse the profile scanner, and advertised totals must reconcile with distinct inventory before completeness; queued pages at the shared safety ceiling always mean incomplete, preventing false removals.
 
 This repository is deployed independently of the original hosted builder. Keep
 Supabase credentials server-side where required, preserve the generated route
