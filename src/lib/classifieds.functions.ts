@@ -1823,7 +1823,7 @@ async function runBrowseClassifieds(
   data: ClassifiedBrowseInput,
   // Internal callers that discard totals can avoid the exact-count query.
   // Public browse keeps accurate counts and limited-results warnings.
-  options: { prepareHomeVehicleCache?: boolean; selectHomePhotos?: boolean; includeExactCount?: boolean; timingsMs?: Record<string, number>; timingOriginMs?: number } = {},
+  options: { prepareHomeVehicleCache?: boolean; selectHomePhotos?: boolean; readOnlyHome?: boolean; includeExactCount?: boolean; timingsMs?: Record<string, number>; timingOriginMs?: number } = {},
 ): Promise<ClassifiedBrowseResult> {
   {
     const clock = () => typeof performance === "undefined" ? Date.now() : performance.now();
@@ -1863,7 +1863,11 @@ async function runBrowseClassifieds(
     const preparedHomeCache = options.prepareHomeVehicleCache
       ? import("./marketcheck.server").then((adapter) => adapter.prepareHomeMarketCheckCache()).catch(() => undefined)
       : undefined;
-    const cleanup = measure("cleanup", () => clearExpiredFeaturedPlacements(nowIso));
+    // Homepage rendering must not wait for a maintenance UPDATE. Its native
+    // pool is merged before paging below, using toCard's current expiry check.
+    const cleanup = options.readOnlyHome
+      ? Promise.resolve()
+      : measure("cleanup", () => clearExpiredFeaturedPlacements(nowIso));
     const idBySlug = data.category || data.group ? await measure("categoryIds", () => categoryIdsBySlug(client)) : null;
     if (data.category) {
       const categoryId = idBySlug?.get(data.category);
@@ -2178,6 +2182,7 @@ async function runBrowseClassifieds(
     const unitAwareJobSort =
       data.category === "jobs" && (data.sort === "price_low" || data.sort === "price_high");
     const mergeBeforePaging =
+      options.readOnlyHome ||
       includeAdzuna ||
       includeExternalHomes ||
       includeMarketCheck ||
@@ -2207,7 +2212,7 @@ async function runBrowseClassifieds(
         : includeMashvisor
           ? mashvisor.mashvisorCards(data)
           : [],
-      includeMarketCheck ? measure("vehicleRead", async () => marketCheck.marketCheckCards(data, { preparedHomeCache: await preparedHomeCache })) : [],
+      includeMarketCheck ? measure("vehicleRead", async () => marketCheck.marketCheckCards(data, { preparedHomeCache: await preparedHomeCache, cacheOnly: options.readOnlyHome })) : [],
       includeRescueGroups ? rescueGroups.rescueGroupsCards(data) : [],
     ]);
     const { data: rows, count, error } = native;
@@ -2777,7 +2782,7 @@ async function loadClassifiedsHomeMotors() {
       state: "ID",
       sort: "newest",
       page: 1,
-    });
+    }, { readOnlyHome: true });
     return result.listings;
   });
 }
@@ -2810,7 +2815,7 @@ async function loadClassifiedsHomeCarsTrucks(timingsMs?: Record<string, number>,
     // featured cars/trucks. The broader Motors browser and rows stay intact.
     const result = await runBrowseClassifieds(
       { category: "cars-trucks", state: "ID", sort: "newest", page: 1 },
-      { prepareHomeVehicleCache: true, selectHomePhotos: true, includeExactCount: false, timingsMs, timingOriginMs },
+      { prepareHomeVehicleCache: true, selectHomePhotos: true, readOnlyHome: true, includeExactCount: false, timingsMs, timingOriginMs },
     );
     return result.listings;
   });

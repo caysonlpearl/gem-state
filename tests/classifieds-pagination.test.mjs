@@ -688,6 +688,19 @@ test("provider cache reads overlap cleanup but native ranking waits for cleanup"
   assert.equal(nativeStarted, true);
 });
 
+test("homepage reads do not perform placement cleanup or wait for that maintenance write", async () => {
+  let cleanupCalls = 0;
+  let nativeStarted = false;
+  const h = harness({
+    filters: { category: "cars-trucks", state: "ID" },
+    cleanup: () => { cleanupCalls++; return new Promise(() => {}); },
+    onNative: () => { nativeStarted = true; },
+  });
+  await h.internal({ readOnlyHome: true });
+  assert.equal(cleanupCalls, 0);
+  assert.equal(nativeStarted, true);
+});
+
 
 test("internal homepage count omission preserves merged cards while public browse retains counts", async () => {
   const settings = {

@@ -35,7 +35,7 @@ function providerListing(state, kind, start, index) {
   };
 }
 
-async function withMockMarketCheck({ initialCache = [], allowReservation, onProvider }, run) {
+async function withMockMarketCheck({ initialCache = [], allowReservation, onProvider, stallCacheReads = false }, run) {
   const envNames = [
     "GEM_STATE_SUPABASE_URL",
     "SUPABASE_URL",
@@ -74,6 +74,9 @@ async function withMockMarketCheck({ initialCache = [], allowReservation, onProv
       if (url.pathname.endsWith("/marketcheck_cache") && method === "GET") {
         const filter = url.searchParams.get("cache_key");
         cacheReads.push({ filter, selection: url.searchParams.get("select") });
+        if (stallCacheReads) return new Promise((_resolve, reject) => {
+          init.signal.addEventListener("abort", () => reject(init.signal.reason), { once: true });
+        });
         let rows = filter?.startsWith("eq.")
           ? [cache.get(filter.slice(3))].filter(Boolean)
           : [...cache.values()];
@@ -382,6 +385,28 @@ test("home cache preparation performs only two reads and reuses them after valid
     const control = await marketCheckCards(input);
     assert.deepEqual(cards, control, "preparation preserves all card fields and ordering");
     assert.equal(cacheReads.length, 4);
+  });
+});
+
+test("homepage can read existing expired pages without a sequential provider refresh", async () => {
+  const initialCache = ["dealer", "fsbo"].map((kind) => ({
+    cache_key: JSON.stringify({ v: 3, kind, state: "ID", start: 0 }),
+    expires_at: new Date(Date.now() - 60000).toISOString(),
+    payload: normalizeMarketCheckSearch({ num_found: 1, listings: [providerListing("ID", kind, 0, 0)] }, kind),
+  }));
+  await withMockMarketCheck({ initialCache, allowReservation: () => { throw new Error("Homepage must not reserve provider calls"); }, onProvider: () => { throw new Error("Homepage must not refresh provider pages"); } }, async ({ cacheReads, providerCalls, reservations }) => {
+    const cards = await marketCheckCards({ category: "cars-trucks", state: "ID" }, { cacheOnly: true, preparedHomeCache: prepareHomeMarketCheckCache() });
+    assert.equal(cards.length, 2);
+    assert.equal(cacheReads.length, 2);
+    assert.deepEqual(providerCalls, []);
+    assert.deepEqual(reservations, []);
+  });
+});
+
+test("a stalled homepage cache read aborts once per source instead of hanging or multiplying retries", async () => {
+  await withMockMarketCheck({ stallCacheReads: true, allowReservation: () => { throw new Error("No provider calls"); }, onProvider: () => { throw new Error("No provider calls"); } }, async ({ cacheReads }) => {
+    await assert.rejects(marketCheckCards({ category: "cars-trucks", state: "ID" }, { cacheOnly: true, preparedHomeCache: prepareHomeMarketCheckCache() }), /Vehicle cache could not be read/);
+    assert.equal(cacheReads.length, 2);
   });
 });
 

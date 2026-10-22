@@ -2,6 +2,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { getRequest } from "@tanstack/react-start/server";
 import { serverEnv } from "./runtime-env.server.ts";
+import { withCatalogReadDeadline } from "./catalog-read-deadline.ts";
 import {
   classifiedCoordinatesForCity,
   classifiedProviderSearchStates,
@@ -62,7 +63,7 @@ function cacheDb() {
         if (dbKey.startsWith("sb_") && headers.get("Authorization") === `Bearer ${dbKey}`)
           headers.delete("Authorization");
         headers.set("apikey", dbKey);
-        return fetch(url, { ...init, headers, signal: AbortSignal.timeout(8000) });
+        return fetch(url, { ...init, headers, signal: init?.signal ?? AbortSignal.timeout(8000) });
       },
     },
   });
@@ -354,7 +355,7 @@ async function cachedOnly<T>(key: string): Promise<{ ok: true; value: T } | { ok
   return data?.payload ? { ok: true, value: data.payload as T } : { ok: false };
 }
 
-async function readCachedStateRows(state: string, kind: MarketCheckSourceKind) {
+async function readCachedStateRows(state: string, kind: MarketCheckSourceKind, timeoutMs = 8000) {
   const db = cacheDb();
   if (!db) return null;
   const pages = state === HOME_STATE ? BASE_PAGES[kind] : OTHER_STATE_PAGES;
@@ -362,13 +363,14 @@ async function readCachedStateRows(state: string, kind: MarketCheckSourceKind) {
   // keys lexicographically before applying a limit can omit page 50 in favor
   // of later offsets (for example, 0, 100, 150, ...), forcing a slow refresh.
   const pageKeys = marketCheckCachePageKeys(state, kind, pages, PAGE_SIZE);
-  const { data } = await (db as any)
+  const { data, error } = await withCatalogReadDeadline<any>((db as any)
     .from("marketcheck_cache")
     .select("cache_key,payload,expires_at")
     // Supabase's .in() adds outer quotes but does not escape the quotes
     // inside these JSON keys. Build quoted literals explicitly so PostgREST
     // does not reject the bulk lookup and trigger per-page fallback reads.
-    .filter("cache_key", "in", `(${pageKeys.map((key) => JSON.stringify(key)).join(",")})`);
+    .filter("cache_key", "in", `(${pageKeys.map((key) => JSON.stringify(key)).join(",")})`), timeoutMs);
+  if (error) throw new Error("Vehicle cache could not be read.");
   return (data ?? []) as any[];
 }
 
@@ -376,11 +378,24 @@ async function readCachedStateRows(state: string, kind: MarketCheckSourceKind) {
 export function prepareHomeMarketCheckCache() {
   if (!configured()) return undefined;
   return {
-    dealer: readCachedStateRows(HOME_STATE, "dealer").catch(() => null),
-    fsbo: readCachedStateRows(HOME_STATE, "fsbo").catch(() => null),
+    dealer: readCachedStateRows(HOME_STATE, "dealer", 2000).catch(() => null),
+    fsbo: readCachedStateRows(HOME_STATE, "fsbo", 2000).catch(() => null),
   };
 }
 type PreparedHomeMarketCheckCache = ReturnType<typeof prepareHomeMarketCheckCache>;
+
+async function homeCachedInventory(state: string, kind: MarketCheckSourceKind, prepared?: Promise<any[] | null>) {
+  const rows = await (prepared ?? readCachedStateRows(state, kind, 2000));
+  if (!rows) throw new Error("Vehicle cache could not be read.");
+  // Browse already permits stale cached inventory when a refresh is limited.
+  // The homepage can reuse those same records without triggering a multi-page
+  // paid-provider refresh in front of the first row. Scheduled/browse refresh
+  // and detail availability checks remain the normal freshness paths.
+  return rows.flatMap((row) => repairCachedSearch(row.payload, kind).listings).map((cached) => {
+    const listing = finalizeMarketCheckListing(cached);
+    return listing.location.state ? listing : { ...listing, location: { ...listing.location, state } };
+  });
+}
 
 async function freshCachedStateInventory(
   state: string, kind: MarketCheckSourceKind, prepared?: Promise<any[] | null>,
@@ -575,14 +590,18 @@ export function marketCheckCard(input: MarketCheckListing): ClassifiedCard {
 
 export async function marketCheckCards(
   data: ClassifiedBrowseInput,
-  options?: { forceRefresh?: boolean; preparedHomeCache?: PreparedHomeMarketCheckCache },
+  options?: { forceRefresh?: boolean; preparedHomeCache?: PreparedHomeMarketCheckCache; cacheOnly?: boolean },
 ) {
   if (!configured()) return [];
   const inventories = await Promise.all(
     marketCheckStatesForBrowse(data).map((state) =>
       Promise.all([
-        stateInventory(state, "dealer", options?.forceRefresh, state === HOME_STATE ? options?.preparedHomeCache?.dealer : undefined),
-        stateInventory(state, "fsbo", options?.forceRefresh, state === HOME_STATE ? options?.preparedHomeCache?.fsbo : undefined),
+        options?.cacheOnly
+          ? homeCachedInventory(state, "dealer", state === HOME_STATE ? options.preparedHomeCache?.dealer : undefined)
+          : stateInventory(state, "dealer", options?.forceRefresh, state === HOME_STATE ? options?.preparedHomeCache?.dealer : undefined),
+        options?.cacheOnly
+          ? homeCachedInventory(state, "fsbo", state === HOME_STATE ? options.preparedHomeCache?.fsbo : undefined)
+          : stateInventory(state, "fsbo", options?.forceRefresh, state === HOME_STATE ? options?.preparedHomeCache?.fsbo : undefined),
       ]),
     ),
   );
