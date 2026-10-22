@@ -274,7 +274,9 @@ test("standalone KSL import uses the same complete 25-page traversal", async () 
   let payload;
   h.c.overlay = async () => {};
   h.c.kslReadListings = async () => {};
-  h.c.deliverImport = async (_tab, _say, _seller, batch) => { payload = batch; };
+  h.c.deliverImport = async (_tab, _say, _seller, batch) => {
+    payload = batch;
+  };
   await h.c.chrome.tabs.update(1, { url: profile });
   await h.c.runKsl(1);
   assert.equal(payload.items.length, 25);
@@ -353,10 +355,17 @@ test("Diesel Depot retains earlier advertised catalog total when final page coun
 });
 
 test("Diesel Depot excess distinct inventory also fails catalog reconciliation", async () => {
-  const p = "https://www.diesel-depot.com/inventory/", a = p + "?/listings/for-sale/trucks";
+  const p = "https://www.diesel-depot.com/inventory/",
+    a = p + "?/listings/for-sale/trucks";
   const h = profileHarness("Diesel Depot", {
     [p]: { sections: [a], items: [] },
-    [a]: { recognized: true, heading: "Trucks", expected: 1, pageCount: 2, items: [{ sourceUrl: p + "1" }, { sourceUrl: p + "2" }] },
+    [a]: {
+      recognized: true,
+      heading: "Trucks",
+      expected: 1,
+      pageCount: 2,
+      items: [{ sourceUrl: p + "1" }, { sourceUrl: p + "2" }],
+    },
   });
   const result = await h.c.collectSellerScan(p, h.c.profileScanConfig(p), () => {});
   assert.equal(mayInferScanAbsence(result.scan), false);
