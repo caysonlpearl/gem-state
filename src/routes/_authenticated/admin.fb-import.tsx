@@ -607,7 +607,7 @@ function ImportedSellers() {
             return (
               <li
                 key={profile.sourceProfileUrl}
-                className="px-4 py-3"
+                className="relative px-4 py-3"
                 data-import-profile={profile.sourceProfileUrl}
               >
                 <div className="flex flex-wrap items-center gap-3">
@@ -630,6 +630,7 @@ function ImportedSellers() {
                   {profile.archivedAt ? (
                     <Button
                       size="sm"
+                      className="sm:mr-[128px]"
                       variant="outline"
                       disabled={archiveMutation.isPending}
                       onClick={() =>
@@ -644,6 +645,7 @@ function ImportedSellers() {
                   ) : (
                     <Button
                       size="sm"
+                      className="sm:mr-[128px]"
                       variant="outline"
                       onClick={() => refreshMutation.mutate(profile.sourceProfileUrl)}
                       disabled={
@@ -657,8 +659,8 @@ function ImportedSellers() {
                     </Button>
                   )}
                 </div>
-                <details className="group mt-2 text-xs">
-                  <summary className="w-fit cursor-pointer rounded-md border border-input bg-background px-3 py-1.5 font-medium hover:bg-secondary">
+                <details className="group mt-2 text-xs sm:mt-0">
+                  <summary className="w-fit cursor-pointer rounded-md border border-input bg-background px-3 py-1.5 font-medium hover:bg-secondary sm:absolute sm:top-3 sm:right-4">
                     Manage seller
                   </summary>
                   <div className="mt-3 space-y-3 rounded-xl bg-secondary/40 p-3">
@@ -1395,6 +1397,7 @@ function FbImportPage() {
   const publishMutation = useMutation({
     mutationFn: async () => {
       if (blocker) throw new Error(blocker);
+      setApplyProgress({ done: 0, total: selectedIds.size });
       const { results, failures } = await runImportRows(
         [...selectedIds],
         (id) =>
@@ -1536,8 +1539,8 @@ function FbImportPage() {
               onChange={(e) => setPublishMode(e.target.value as "managed" | "linked")}
               className="field text-sm"
             >
-              <option value="managed">Managed seller — keep existing claim link</option>
-              <option value="linked">Existing linked seller</option>
+              <option value="managed">Auto-detect seller account</option>
+              <option value="linked">Link existing account by email</option>
             </select>
             {publishMode === "linked" && (
               <input
@@ -1572,9 +1575,7 @@ function FbImportPage() {
             >
               {publishMutation.isPending
                 ? `Applying ${applyProgress?.done ?? 0}/${applyProgress?.total ?? selectedIds.size}…`
-                : publishMode === "managed"
-                  ? "Apply for managed seller"
-                  : "Apply for linked seller"}
+                : "Apply selected listings"}
             </button>
             <button
               type="button"
