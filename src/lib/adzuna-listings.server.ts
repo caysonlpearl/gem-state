@@ -1,4 +1,4 @@
-import type { AdzunaJob } from "./adzuna-contract";
+import type { AdzunaJob, AdzunaResult } from "./adzuna-contract";
 import { employerKey } from "./employer-logo-match.ts";
 import type {
   ClassifiedBrowseInput,
@@ -69,7 +69,10 @@ export function canIncludeAdzuna(data: ClassifiedBrowseInput) {
   );
 }
 
-export async function adzunaCards(data: ClassifiedBrowseInput): Promise<ClassifiedCard[]> {
+export async function adzunaCards(
+  data: ClassifiedBrowseInput,
+  reportStatus?: (status: AdzunaResult["status"]) => void,
+): Promise<ClassifiedCard[]> {
   const selectedCategories = data.jobCategory?.split("||").filter(Boolean) ?? [];
   if (selectedCategories.some((category) => !categories[category])) return [];
   const selectedTypes = data.jobEmploymentType?.split("||").filter(Boolean) ?? [];
@@ -95,6 +98,7 @@ export async function adzunaCards(data: ClassifiedBrowseInput): Promise<Classifi
     category: selectedCategories.length === 1 ? categories[selectedCategories[0]] : undefined,
     employment,
   });
+  reportStatus?.(result.status);
   const ageHours = data.postedWithin
     ? { hour: 1, day: 24, week: 168, month: 720 }[data.postedWithin]
     : undefined;
