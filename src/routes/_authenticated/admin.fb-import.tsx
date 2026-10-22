@@ -496,7 +496,10 @@ function ImportedSellers() {
                 type="button"
                 onClick={() => refreshMutation.mutate(profile.sourceProfileUrl)}
                 disabled={
-                  !extensionReady || !scanAuthorized || refreshMutation.isPending || profile.syncPaused
+                  !extensionReady ||
+                  !scanAuthorized ||
+                  refreshMutation.isPending ||
+                  profile.syncPaused
                 }
                 className="h-8 rounded-md border border-input px-3 text-[11.5px] font-medium hover:bg-secondary disabled:opacity-50"
               >
