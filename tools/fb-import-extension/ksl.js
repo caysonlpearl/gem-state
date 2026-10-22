@@ -383,18 +383,14 @@ async function runKsl(tabId) {
     );
   await say("Reading this seller's listings…");
 
-  // Follow the seller's result pages, if KSL splits them.
-  let page = await exec(tabId, kslCollectFromMemberPage);
-  const first = page;
-  const items = [...page.items];
-  for (let i = 0; i < 20 && page.nextUrl; i++) {
-    await chrome.tabs.update(tabId, { url: page.nextUrl });
-    await sleep(2500);
-    page = await exec(tabId, kslCollectFromMemberPage);
-    for (const item of page.items) {
-      if (!items.some((existing) => existing.sourceUrl === item.sourceUrl)) items.push(item);
-    }
-  }
+  const first = await exec(tabId, kslCollectFromMemberPage);
+  // Share the refresh scanner's seller-bound pagination and completeness gates.
+  const report = await collectSellerScan(
+    first.sourceProfileUrl,
+    profileScanConfig(first.sourceProfileUrl),
+    say,
+  );
+  const items = report.items;
   if (!items.length) {
     await say("No listings found on this page.");
     return;
@@ -425,8 +421,10 @@ async function runKsl(tabId) {
       sourceProfileUrl: first.sourceProfileUrl,
       sellerName: first.sellerName || undefined,
       items: usable.map(kslToImportItem),
+      scan: { ...report.scan, complete: report.scan.complete && unreadable === 0, unreadable },
     },
     [
+      ...(!report.scan.complete ? ["Seller scan incomplete; unseen listings stay unchanged"] : []),
       ...(skipped ? [`${skipped} no longer active`] : []),
       ...(unreadable
         ? [`${unreadable} couldn't be fully read (check photos and description)`]

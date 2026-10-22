@@ -1,4 +1,6 @@
 /** Human-triggered discovery only. Stagnant scrolling is NOT proof of absence. */
+const SELLER_SCAN_PAGE_LIMIT = 1000;
+
 function profileScanConfig(profile) {
   if (KSL_MEMBER_RE.test(profile))
     return { site: "KSL", collect: kslCollectFromMemberPage, map: kslToImportItem };
@@ -46,7 +48,8 @@ async function collectSellerScan(profile, config, notify) {
   const tabId = win.tabs[0].id;
   const items = new Map(),
     visited = new Set(),
-    sectionCounts = new Map();
+    sectionCounts = new Map(),
+    sectionExpected = new Map();
   let complete = true,
     challenged = false,
     termination = "incomplete",
@@ -54,7 +57,7 @@ async function collectSellerScan(profile, config, notify) {
     expected = 0;
   const pages = [{ url: config.site === "Whatnot" ? profile + "/shop" : profile, kind: null }];
   try {
-    while (pages.length && visited.size < 1000) {
+    while (pages.length && visited.size < SELLER_SCAN_PAGE_LIMIT) {
       const { url, kind } = pages.shift();
       if (visited.has(url)) {
         complete = false;
@@ -131,7 +134,9 @@ async function collectSellerScan(profile, config, notify) {
         const count = sectionCounts.get(kind) || new Set();
         for (const item of page.items) count.add(dealerListingId(item.sourceUrl));
         sectionCounts.set(kind, count);
-        if (!page.nextUrl && count.size < page.expected) {
+        const total = Math.max(sectionExpected.get(kind) || 0, page.expected || 0);
+        sectionExpected.set(kind, total);
+        if (!page.nextUrl && (count.size !== total || !(total > 0 || page.explicitEnd))) {
           complete = false;
           break;
         }
@@ -142,18 +147,20 @@ async function collectSellerScan(profile, config, notify) {
           break;
         }
         // A missing next link alone is not proof that pagination completed.
-        if (!page.nextUrl && !(expected > 0 && items.size >= expected) && !page.explicitEnd) {
+        const countReached = expected > 0 && items.size === expected;
+        const ended = expected === 0 && page.explicitEnd === true && items.size === 0;
+        if (!page.nextUrl && !countReached && !ended) {
           complete = false;
         }
         termination =
-          expected > 0 && items.size >= expected
+          countReached
             ? "count"
-            : page.explicitEnd
+            : ended
               ? "end"
               : "incomplete";
       } else {
-        const countReached = page.expected > 0 && items.size >= page.expected;
-        const ended = page.explicitEnd === true;
+        const countReached = expected > 0 && items.size === expected;
+        const ended = expected === 0 && page.explicitEnd === true && items.size === 0;
         if (!countReached && !ended) complete = false;
         termination = countReached ? "count" : ended ? "end" : "incomplete";
       }
@@ -168,7 +175,10 @@ async function collectSellerScan(profile, config, notify) {
         `${config.site}: ${visited.size} profile page(s), ${items.size} source listing(s) discovered`,
       );
     }
-    if (pages.length) complete = false;
+    if (pages.length) {
+      complete = false;
+      notify(`${config.site}: scan incomplete — pagination stopped before all pages were read (safety ceiling ${SELLER_SCAN_PAGE_LIMIT}). Unseen listings stay unchanged.`);
+    }
   } catch {
     complete = false;
   } finally {

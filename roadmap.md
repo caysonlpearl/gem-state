@@ -1,6 +1,7 @@
 # Gem State Classifieds conversion
 
 ## Seller profile importer improvement
+- [ ] Remove standalone KSL 20-page cap; verify safety ceiling and advertised count reconciliation for KSL, Vinted, Whatnot and Diesel Depot.
 - [x] Implement profile discovery and conservative completeness evidence for five supported sources.
 - [x] Add bounded staging, full queue reads and safe retryable application without claim rotation.
 - [x] Verify offline tests (428 passing), task lint, preview build and diff; no production mutations or deployment.
