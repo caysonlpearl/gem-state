@@ -122,6 +122,9 @@ export const UNREADABLE_REASON_LABELS: Record<string, string> = {
     "Listing details not found in page data or visible fields; retry after loading",
   structured_data_invalid: "Page listing data could not be parsed; retry after loading",
   read_failed: "Page couldn't be read",
+  injection_failed: "Reader couldn't run on the page; retry",
+  empty_result: "Page returned no listing data; retry after it loads",
+  challenge_detected: "Site check appeared while reading; retry",
   reader_window_failed: "Reader window couldn't open",
   not_reported: "Reason not reported (older extension or past run)",
 };

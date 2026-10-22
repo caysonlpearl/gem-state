@@ -117,7 +117,33 @@ function vintedExtractItemInPage(withPhotos) {
       text,
     ),
   );
-  if (unavailable) return { unavailable: true, sold: /^sold/i.test(unavailable) };
+  // Vinted also renders the exact status as a visually-hidden span inside the
+  // primary item-photos section (stale JSON-LD may still say InStock). Only
+  // the item's own gallery counts; similar/member grids are excluded.
+  const galleryStatus = (() => {
+    const exact = /^(removed|sold)!?$/i;
+    const roots = new Set();
+    for (const img of document.querySelectorAll("img[data-testid^='item-photo-']")) {
+      const root = img.closest?.("section, [data-testid*='item-photos']");
+      if (root) roots.add(root);
+    }
+    for (const el of document.querySelectorAll("[data-testid*='item-photos']")) roots.add(el);
+    for (const root of roots) {
+      if (
+        root.closest?.(
+          "[data-testid*='similar'], [data-testid*='closet'], [data-testid*='member-items'], [data-testid*='feed']",
+        )
+      )
+        continue;
+      for (const span of root.querySelectorAll?.(".u-visually-hidden, [class*='status']") || []) {
+        const text = (span.textContent || "").trim();
+        if (exact.test(text)) return text;
+      }
+    }
+    return "";
+  })();
+  const status = unavailable || galleryStatus;
+  if (status) return { unavailable: true, sold: /^sold/i.test(status) };
 
   const products = [];
   const walk = (node) => {
