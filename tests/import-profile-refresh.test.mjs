@@ -217,15 +217,22 @@ test("Vinted count shortfall is incomplete, not absence evidence", async () => {
 test("Whatnot verified count completion differs from a partial shop", async () => {
   const p = "https://www.whatnot.com/user/test";
   const items = [{ sourceUrl: "https://www.whatnot.com/listing/1" }];
-  const h = profileHarness("Whatnot", { [p + "/shop"]: { sourceProfileUrl: p, expected: 1, items } });
-  let result = await h.c.collectSellerScan(p, h.c.profileScanConfig(p), () => {});
+  const h = profileHarness("Whatnot", {
+    [p + "/shop"]: { sourceProfileUrl: p, expected: 1, items },
+  });
+  const result = await h.c.collectSellerScan(p, h.c.profileScanConfig(p), () => {});
   assert.equal(result.scan.complete, true);
   assert.equal(result.scan.termination, "count");
 });
 
 test("Facebook stagnation is incomplete even after finding listings", async () => {
   const p = "https://www.facebook.com/marketplace/profile/test/";
-  const h = profileHarness("Facebook", { [p]: { sourceProfileUrl: p, items: [{ sourceUrl: "https://www.facebook.com/marketplace/item/1" }] } });
+  const h = profileHarness("Facebook", {
+    [p]: {
+      sourceProfileUrl: p,
+      items: [{ sourceUrl: "https://www.facebook.com/marketplace/item/1" }],
+    },
+  });
   h.c.collectListingsFromPage = function collectListingsFromPage() {};
   h.c.autoScroll = async () => {};
   h.c.inferCategory = () => "general";
