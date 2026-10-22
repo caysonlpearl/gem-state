@@ -176,12 +176,21 @@ function kslExtractListingInPage(withPhotos) {
   ) {
     return { challenge: true };
   }
-  if (
-    /listing (is )?(no longer|not) (available|found)|page not found|listing has (been )?(removed|expired)/i.test(
-      title + " " + text.slice(0, 400),
-    )
-  ) {
-    return { unavailable: true };
+  // Only explicit page/primary listing status, never description or suggestions.
+  const unrelated =
+    'header, nav, footer, aside, [data-testid*="recommend" i], [class*="recommend" i], [class*="related" i], [aria-label*="similar" i]';
+  const visible = (el) => el && el.getClientRects().length > 0 && !el.closest(unrelated);
+  const main = document.querySelector("main, [role='main']");
+  const statusPattern =
+    /^(?:this )?listing (?:is )?(?:(?:no longer|not) (?:available|found)|has (?:been )?(?:removed|expired))[.!]?$/i;
+  if (/^page not found(?:\s*[|–-].*)?$/i.test(title.trim())) return { unavailable: true };
+  for (const el of Array.from(
+    (main || document).querySelectorAll('h1, h2, [role="alert"], [data-testid="listing-status"]'),
+  ).filter(visible)) {
+    const statusText = (el.innerText || "").trim();
+    if (statusPattern.test(statusText)) return { unavailable: true };
+    if (/^(?:sold|this listing (?:is|has been) sold)[.!]?$/i.test(statusText))
+      return { unavailable: true, sold: true };
   }
 
   const raw = Array.from(document.querySelectorAll("script"))
@@ -242,14 +251,98 @@ function kslExtractListingInPage(withPhotos) {
     }
   }
   if (!listing) {
-    // The visible breadcrumb remains authoritative when KSL's streamed JSON
-    // is incomplete. Keep those facts, but flag price/photos for review.
-    if (!breadcrumbCategory || !breadcrumbSubcategory) return null;
-    return {
+    // Current KSL pages can render all details without a parseable photos
+    // object. Stay inside primary content and explicit listing gallery regions.
+    // No global image/text sweep: search cards and suggestions are not evidence.
+    const all = (selector) =>
+      main ? Array.from(main.querySelectorAll(selector)).filter(visible) : [];
+    const value = (el) => (el?.innerText || el?.textContent || "").trim();
+    const firstText = (selector) => value(all(selector)[0]);
+    const heading = all('[role="tabpanel"] h2, h2').find(
+      (el) => /^description$/i.test(value(el)),
+    );
+    const panel = heading?.closest('[role="tabpanel"]') || heading?.parentElement;
+    const description = panel
+      ? Array.from(panel.querySelectorAll("p"))
+          .filter((el) => visible(el) && !el.closest('[data-testid="listing-condition"]'))
+          .filter((el) => !/^condition$/i.test(value(el.previousElementSibling)))
+          .map(value)
+          .filter(Boolean)
+          .join("\n\n")
+      : firstText('[data-testid="listing-description"], [itemprop="description"]');
+    const conditionHeading = all("h3, dt").find((el) => /^condition$/i.test(value(el)));
+    const condition =
+      firstText('[data-testid="listing-condition"], [itemprop="itemCondition"]') ||
+      (visible(conditionHeading?.nextElementSibling) ? value(conditionHeading.nextElementSibling) : "");
+    const listingTitle = firstText('h1, [data-testid="listing-title"]');
+    const priceNodes = all('[itemprop="price"], [data-testid="listing-price"], h2, h3, p, span, div');
+    let priceCents = null;
+    for (const el of priceNodes) {
+      // Generic containers must be leaves; a whole section may contain another
+      // listing's price. Explicit price attributes may provide numeric content.
+      const explicit = el.matches('[itemprop="price"], [data-testid="listing-price"]');
+      if (!explicit && el.children.length) continue;
+      const priceText = (explicit ? el.getAttribute("content") : "") || value(el);
+      const match = priceText.match(
+        explicit
+          ? /^\$?\s*((?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?)$/
+          : /^\$\s*((?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?)$/,
+      );
+      if (match) {
+        const cents = Math.round(Number(match[1].replaceAll(",", "")) * 100);
+        if (Number.isSafeInteger(cents) && cents >= 0) {
+          priceCents = cents;
+          break;
+        }
+      }
+    }
+    let city = firstText('[itemprop="addressLocality"], [data-testid="listing-city"]');
+    let state = firstText('[itemprop="addressRegion"], [data-testid="listing-state"]');
+    const placeText = firstText('[data-testid="listing-location"], [itemprop="address"]');
+    const place = (placeText || listingTitle.split("|").slice(1).join("|").trim()).match(
+      /^([A-Za-z .'-]+),\s*([A-Z]{2})(?:\s+\d{5})?$/,
+    );
+    if (place) {
+      city = city || place[1].trim();
+      state = state || place[2];
+    }
+    const result = {
+      title: listingTitle,
+      priceCents,
+      description: description.slice(0, 5000),
+      kslCondition: condition,
       kslCategory: breadcrumbCategory,
       kslSubCategory: breadcrumbSubcategory,
-      incomplete: true,
+      city,
+      state,
     };
+    if (withPhotos) {
+      const photos = all(
+        '[data-testid="listing-gallery"] img, [data-testid="listing-photos"] img, [aria-label="Listing photos" i] img, [aria-label="Image gallery" i] img, [class*="gallery" i] img, [class*="carousel" i] img',
+      );
+      result.photoUrls = [...new Set(photos.flatMap((img) => {
+        const rawUrl = img.currentSrc || img.getAttribute("src") || img.getAttribute("data-src");
+        try {
+          const url = new URL(rawUrl || "", location.href);
+          // KSL's listing media host only; excludes logos/avatars/ads even in a
+          // gallery wrapper. Preserve the normal eight-photo/query stripping.
+          return rawUrl && url.protocol === "https:" && url.hostname === "image.ksldigital.com"
+            ? [url.href.split("?")[0]]
+            : [];
+        } catch {
+          return [];
+        }
+      }))].slice(0, 8);
+    }
+    if (
+      !listingTitle || priceCents === null || !description || !condition ||
+      !breadcrumbCategory || !breadcrumbSubcategory ||
+      (withPhotos && !result.photoUrls.length)
+    ) {
+      result.incomplete = true;
+      result.unreadableReason = "price_or_details_missing";
+    }
+    return result;
   }
 
   const status = String(listing.status || "");
