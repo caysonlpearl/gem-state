@@ -4,7 +4,11 @@ import { readFile } from "node:fs/promises";
 import vm from "node:vm";
 import ts from "typescript";
 import React from "react";
-import { listingCardImageUrl } from "../src/lib/listing-card-image.ts";
+import {
+  listingCardImageUrl,
+  priorityListingCardImageUrl,
+  listingCardImageFallbacks,
+} from "../src/lib/listing-card-image.ts";
 import { renderToStaticMarkup } from "react-dom/server";
 
 const homeSource = await readFile(new URL("../src/routes/index.tsx", import.meta.url), "utf8");
@@ -171,6 +175,8 @@ test("the rendered listing photo emits eager/high only for the first visible fix
     React,
     listingLogoUrl: () => undefined,
     listingCardImageUrl,
+    priorityListingCardImageUrl,
+    listingCardImageFallbacks,
     LogoPhoto: "LogoPhoto",
     PlaceholderPhoto: "PlaceholderPhoto",
   });
@@ -204,6 +210,26 @@ test("the rendered listing photo emits eager/high only for the first visible fix
   const local = ListingCardPhoto({ listing: fixture }).props.children[0];
   local.props.onError({ currentTarget: image });
   assert.equal(assignments, 1, "relative originals never enter a retry loop");
+
+  const priorityPhoto = ListingCardPhoto({
+    listing: { ...fixture, imageUrl: original },
+    priority: true,
+  }).props.children[0];
+  assert.equal(priorityPhoto.props.src, priorityListingCardImageUrl(original));
+  assert.equal(
+    priorityPhoto.key,
+    priorityPhoto.props.src,
+    "changing the source resets fallback state",
+  );
+  const attempts = [];
+  const priorityImage = {
+    dataset: {},
+    set src(value) {
+      attempts.push(value);
+    },
+  };
+  for (let i = 0; i < 3; i++) priorityPhoto.props.onError({ currentTarget: priorityImage });
+  assert.deepEqual(attempts, [listingCardImageUrl(original), original]);
 
   assert.match(firstImage, /loading="eager"/);
   assert.match(firstImage, /fetchPriority="high"|fetchpriority="high"/i);

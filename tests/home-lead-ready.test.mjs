@@ -26,7 +26,10 @@ test("head preload uses the actual first default-location card and the same thum
   const source = readFileSync(new URL("../src/routes/index.tsx", import.meta.url), "utf8");
   assert.match(source, /waitForHomeLead\(context.queryClient.prefetchQuery\(homeLeadQuery\)\)/);
   assert.match(source, /lead\?\.motors.find\(\(listing\) => listing.state === "ID"\)\?\.imageUrl/);
-  assert.match(source, /leadImageUrl: firstImage \? listingCardImageUrl\(firstImage\) : null/);
+  assert.match(
+    source,
+    /leadImageUrl: firstImage \? priorityListingCardImageUrl\(firstImage\) : null/,
+  );
   assert.match(source, /href: loaderData.leadImageUrl/);
   assert.doesNotMatch(source, /prefetchQuery\(homeQuery\)/);
 });
@@ -34,7 +37,7 @@ test("head preload uses the actual first default-location card and the same thum
 test("real route loader and head agree on first image, empty inventory and missing data", async () => {
   const { default: ts } = await import("typescript");
   const vm = await import("node:vm");
-  const { listingCardImageUrl } = await import("../src/lib/listing-card-image.ts");
+  const { priorityListingCardImageUrl } = await import("../src/lib/listing-card-image.ts");
   const source = readFileSync(new URL("../src/routes/index.tsx", import.meta.url), "utf8");
   const file = ts.createSourceFile(
     "index.tsx",
@@ -57,7 +60,7 @@ test("real route loader and head agree on first image, empty inventory and missi
   const context = vm.createContext({
     createFileRoute: () => (options) => options,
     waitForHomeLead,
-    listingCardImageUrl,
+    priorityListingCardImageUrl,
     homeLeadQuery: { queryKey: ["lead"] },
     Home: () => null,
     brand: { name: "Bluebird" },
@@ -73,7 +76,7 @@ test("real route loader and head agree on first image, empty inventory and missi
           { state: "ID", imageUrl: "https://images.craigslist.org/abc_1200x900.jpg" },
         ],
       },
-      "https://images.craigslist.org/abc_600x450.jpg",
+      "/media/listing-card/abc_600x450.jpg",
     ],
     [
       {

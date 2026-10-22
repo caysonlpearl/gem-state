@@ -1,5 +1,5 @@
 import { waitForHomeLead } from "@/lib/home-lead-ready";
-import { listingCardImageUrl } from "@/lib/listing-card-image";
+import { priorityListingCardImageUrl } from "@/lib/listing-card-image";
 import { afterLeadPaint } from "@/lib/lead-paint-ready";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
@@ -68,7 +68,7 @@ export const Route = createFileRoute("/")({
     await waitForHomeLead(context.queryClient.prefetchQuery(homeLeadQuery));
     const lead = context.queryClient.getQueryData(homeLeadQuery.queryKey);
     const firstImage = lead?.motors.find((listing) => listing.state === "ID")?.imageUrl;
-    return { leadImageUrl: firstImage ? listingCardImageUrl(firstImage) : null };
+    return { leadImageUrl: firstImage ? priorityListingCardImageUrl(firstImage) : null };
   },
   head: ({ loaderData }) => ({
     meta: [
