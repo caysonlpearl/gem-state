@@ -189,6 +189,7 @@ export async function trackEvent(
   options: { isDemo?: boolean } = {},
 ): Promise<void> {
   if (typeof window === "undefined" || window.location.pathname === "/claim-seller") return;
+  const eventAt = Date.now();
   try {
     const supabase = await loadSupabase();
     const { data } = await supabase.auth.getSession();
@@ -211,6 +212,8 @@ export async function trackEvent(
             traffic_visit: visit.id,
             // Lets reports drop events from dev servers and preview builds.
             site_host: window.location.hostname,
+            device: window.matchMedia("(max-width: 767px)").matches ? "mobile" : "desktop",
+            event_at: eventAt,
             is_internal: internal,
             is_bot: isKnownAutomatedAgent(navigator.userAgent),
           }
@@ -296,3 +299,4 @@ export async function traceMutation<T>(
     throw error;
   }
 }
+
