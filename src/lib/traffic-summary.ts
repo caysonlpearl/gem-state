@@ -23,7 +23,7 @@ export type TrafficSummary = {
   conversions: { inquiriesSent: number; saveActions: number; listingsSubmitted: number };
 };
 
-export type TrafficEvent = { name: string; props: unknown; user_id: string | null };
+export type TrafficEvent = { name: string; props: unknown; user_id: string | null; occurred_at?: string };
 
 function emptyRow(channel: string, source: string): TrafficRow {
   return { channel, source, visits: 0, listingViews: 0, contacts: 0, contactingVisits: 0 };
@@ -150,3 +150,4 @@ export function summarizeTraffic(
     .slice(0, 20);
   return summary;
 }
+

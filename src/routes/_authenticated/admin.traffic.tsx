@@ -1,3 +1,4 @@
+import type { ConversionRow } from "@/lib/conversion-funnel";
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
@@ -87,6 +88,28 @@ function TrafficTable({ rows, label }: { rows: TrafficRow[]; label: "channel" | 
             </tr>
           ))}
         </tbody>
+      </table>
+    </div>
+  );
+}
+
+function ConversionTable({ rows }: { rows: ConversionRow[] }) {
+  return (
+    <div className="mt-3 overflow-x-auto rounded-lg border border-border">
+      <table className="w-full min-w-[980px] text-left text-xs">
+        <thead className="bg-secondary/60"><tr>
+          {["Segment", "Visits", "Results viewed", "Zero results", "Listing viewed", "Contact after view", "Inquiry after contact", "Submission attempted", "Submission accepted"].map((label) => (
+            <th key={label} scope="col" className="px-3 py-2 font-semibold">{label}</th>
+          ))}
+        </tr></thead>
+        <tbody>{rows.map((row) => (
+          <tr key={row.segment} className="border-t border-border">
+            <th scope="row" className="px-3 py-2 font-medium">{row.segment}</th>
+            {[row.visits, row.searched, row.noResults, row.viewed, row.contactedAfterView, row.inquiriesAfterContact, row.submissionAttempts, row.submittedAfterAttempt].map((value, index) => (
+              <td key={index} className="numeric px-3 py-2">{value}</td>
+            ))}
+          </tr>
+        ))}</tbody>
       </table>
     </div>
   );
@@ -201,6 +224,28 @@ function TrafficPage() {
               delivery. Inquiry tracking starts with this release. Approval, agreement, and claim
               counts come from saved marketplace records in this period and include
               operator-assisted activity.
+            </p>
+          </section>
+
+          <section className="mt-10">
+            <h2 className="text-[17px] font-semibold">Observed visit progression</h2>
+            <p className="mt-2 max-w-[90ch] text-xs leading-relaxed text-muted-foreground">
+              Each column counts distinct recorded visits, not people or sales. Contact must follow
+              a listing view; an inquiry must follow contact; an accepted submission must follow
+              an attempt. These actions can involve different listings in the same visit. Results
+              and zero-result views are separate signals, not required steps for a direct listing visitor.
+            </p>
+            <ConversionTable rows={[data.funnel.totals]} />
+            <h3 className="mt-5 text-sm font-semibold">By screen size</h3>
+            <ConversionTable rows={data.funnel.byDevice} />
+            <h3 className="mt-5 text-sm font-semibold">By landing template</h3>
+            <ConversionTable rows={data.funnel.byLandingTemplate} />
+            <p className="mt-3 max-w-[90ch] text-xs leading-relaxed text-muted-foreground">
+              Older visits may have unknown screen size. This report excludes {data.funnel.visitsWithoutStart}
+              {" "}visits without a recorded start in this period, {data.funnel.eventsWithoutVisit}
+              {" "}events without a visit ID, and {data.funnel.eventsWithoutTime} events without usable
+              timing. Delivery outside Bluebird cannot be confirmed. Small samples are descriptive,
+              not evidence that a design change improved conversion.
             </p>
           </section>
 
@@ -321,3 +366,4 @@ function TrafficPage() {
     </main>
   );
 }
+

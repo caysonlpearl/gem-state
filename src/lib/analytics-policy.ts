@@ -16,7 +16,7 @@ export function isInternalAnalyticsQuery(search: string) {
 }
 
 export function isKnownAutomatedAgent(agent: string) {
-  return /bot\b|spider|crawler|HeadlessChrome|Lighthouse|Google Page Speed/i.test(agent);
+  return /bot\b|spider|crawler|HeadlessChrome|Lighthouse|Google Page Speed|Google-InspectionTool/i.test(agent);
 }
 
 /** Explicit disposable fixtures only; a normal name containing "qa" is legitimate. */
@@ -74,3 +74,4 @@ export function summarizeVitals(events: { name: string; props: unknown }[]): Vit
     };
   });
 }
+

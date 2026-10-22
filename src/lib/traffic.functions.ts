@@ -1,3 +1,4 @@
+import { summarizeConversionVisits } from "./conversion-funnel";
 import { createServerFn } from "@tanstack/react-start";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -19,6 +20,8 @@ export type { TrafficRow, TrafficSummary } from "@/lib/traffic-summary";
  */
 const EVENTS = [
   "visit_started",
+  "search_completed",
+  "classified_listing_submit_started",
   "listing_viewed",
   "seller_contacted",
   "inquiry_completed",
@@ -39,6 +42,7 @@ export const getTrafficSummary = createServerFn({ method: "GET" })
       return {
         isAdmin: false,
         vitals: [],
+        funnel: summarizeConversionVisits([]),
         operations: { approvedListings: null, sellerSetups: null, claimedSellers: null },
         ...summarizeTraffic([], {
           staffIds: new Set(),
@@ -59,7 +63,7 @@ export const getTrafficSummary = createServerFn({ method: "GET" })
     for (let offset = 0; ; offset += 500) {
       const { data: batch, error } = await supabase
         .from("analytics_events")
-        .select("id, name, props, user_id")
+        .select("id, name, props, user_id, occurred_at")
         .in("name", [...EVENTS])
         .eq("is_demo", false)
         .gte("occurred_at", since)
@@ -125,6 +129,7 @@ export const getTrafficSummary = createServerFn({ method: "GET" })
       isAdmin: true,
       ...summarizeTraffic(events, options),
       vitals: summarizeVitals(eligibleTrafficEvents(events, options)),
+      funnel: summarizeConversionVisits(eligibleTrafficEvents(events, options)),
       operations: {
         approvedListings:
           approved?.filter((row) => {
@@ -141,3 +146,4 @@ export const getTrafficSummary = createServerFn({ method: "GET" })
       },
     };
   });
+
