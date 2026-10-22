@@ -151,7 +151,14 @@ async function readListingJobs(jobs, { onItemDone } = {}) {
             (await exec(tabId, isBotCheckPage))
           )
             throw readFailure("page_not_verified");
-          const details = await exec(tabId, extract, [withPhotos]);
+          let details;
+          // Hydrated detail content can arrive after navigation completes.
+          // Retry extraction in the same two windows; never open extra tabs.
+          for (let attempt = 0; attempt < 3; attempt++) {
+            details = await exec(tabId, extract, [withPhotos]);
+            if (details?.unavailable || (details && !details.incomplete && !details.challenge)) break;
+            if (attempt < 2) await sleep(1200);
+          }
           if (!details || details.challenge) throw readFailure("read_failed");
           for (const [key, value] of Object.entries(details)) {
             if (
@@ -164,7 +171,7 @@ async function readListingJobs(jobs, { onItemDone } = {}) {
           }
           if (details.incomplete) {
             item.unreadable = true;
-            item.unreadableReason = "price_or_details_missing";
+            item.unreadableReason = details.unreadableReason || "price_or_details_missing";
           } else {
             delete item.unreadable;
             delete item.unreadableReason;
