@@ -8,7 +8,7 @@ import { canonicalImportSource, mayInferScanAbsence } from "../src/lib/import-re
 import { canonicalSellerSourceProfile, dieselDepotListingId } from "../src/lib/seller-claims.ts";
 
 // Exercise actual handler bodies offline. Imports are replaced only at the boundary.
-function handlers(rows, { claimed = false } = {}) {
+function handlers(rows, { claimed = false, paused = false } = {}) {
   const writes = [],
     rpcs = [];
   const db = {
@@ -67,7 +67,7 @@ function handlers(rows, { claimed = false } = {}) {
           if (action) writes.push({ table, action, values, filters });
           const data =
             table === "managed_import_sellers"
-              ? { id: "seller", owner_user_id: "owner", sync_enabled: true }
+              ? { id: "seller", owner_user_id: "owner", sync_enabled: !paused }
               : table === "seller_profiles"
                 ? { terms_accepted_at: "accepted", status: "active" }
                 : table === "fb_marketplace_import_batches"
@@ -202,7 +202,7 @@ test("actual stage handler creates new source inventory as draft and preserves p
   assert.equal(outcome.updated, 0);
   assert.equal(h.writes.filter((w) => w.table === "fb_marketplace_import_items").length, 0);
 });
-test("actual absence handler leaves unread/incomplete scans unchanged, and flags only the requested missing row", async () => {
+test("actual absence handler leaves unread/incomplete scans unchanged, and bulk-flags only unseen published rows", async () => {
   const scan = { complete: true, termination: "end", challenged: false, unreadable: 0 };
   for (const evidence of [{ ...scan, unreadable: 31 }, { ...scan, complete: false }, scan]) {
     const h = handlers([row]);
@@ -214,10 +214,46 @@ test("actual absence handler leaves unread/incomplete scans unchanged, and flags
       scan: evidence,
       finalizeScan: true,
       seenUrls: [],
-      removalSourceUrl: row.source_url,
     });
     assert.equal(outcome.flaggedRemoved, evidence === scan ? 1 : 0);
   }
+  // One finalize call bulk-marks every unseen published row in a single update.
+  const missing = { ...row, source_url: `${row.source_url}?other` };
+  const bulk = handlers([row, missing]);
+  const bulkOutcome = await bulk.stage({
+    sourceProfileUrl: profile,
+    authorized: true,
+    mode: "refresh",
+    items: [],
+    scan,
+    finalizeScan: true,
+    seenUrls: [],
+  });
+  assert.equal(bulkOutcome.flaggedRemoved, 2);
+  const bulkUpdate = bulk.writes.find(
+    (w) => w.action === "update" && w.values.status === "possibly_removed",
+  );
+  assert.ok(bulkUpdate);
+  // A row the complete scan did see is never flagged.
+  const seen = handlers([row]);
+  const kept = await seen.stage({
+    sourceProfileUrl: profile,
+    authorized: true,
+    mode: "refresh",
+    items: [],
+    scan,
+    finalizeScan: true,
+    seenUrls: [row.source_url],
+  });
+  assert.equal(kept.flaggedRemoved, 0);
+});
+test("actual stage handler refuses a seller whose sync is paused", async () => {
+  const h = handlers([row], { paused: true });
+  await assert.rejects(
+    h.stage({ sourceProfileUrl: profile, authorized: true, mode: "refresh", items: [item] }),
+    /paused/,
+  );
+  assert.equal(h.writes.filter((w) => w.table === "fb_marketplace_import_items").length, 0);
 });
 test("actual apply preserves account gates and never rotates a claim on success or retry", async () => {
   const h = handlers([row]);
