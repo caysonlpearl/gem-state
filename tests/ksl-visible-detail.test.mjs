@@ -29,7 +29,11 @@ const html = `
 <footer><img src="https://image.ksldigital.com/footer.jpg"></footer>`;
 const scenarios = [
   { name: "full", html, photos: true },
-  { name: "refresh", html: html.replace(/<div data-testid="listing-gallery">[\s\S]*?<\/div>/, ""), photos: false },
+  {
+    name: "refresh",
+    html: html.replace(/<div data-testid="listing-gallery">[\s\S]*?<\/div>/, ""),
+    photos: false,
+  },
   ...[
     ["title", /<h1>Shop cabinet[^<]*<\/h1>/],
     ["price", /<span data-testid="listing-price">[^<]*<\/span>/],
@@ -38,15 +42,44 @@ const scenarios = [
     ["breadcrumb", /<a href=[^>]+>Shop Tools<\/a>/],
     ["gallery", /<div data-testid="listing-gallery">[\s\S]*?<\/div>/],
   ].map(([name, missing]) => ({ name, html: html.replace(missing, ""), photos: true })),
-  { name: "ambiguous", html: html.replace("Solid cabinet.", "The old tag says sold. Listing has been removed from my garage."), photos: true },
-  { name: "sold", html: html.replace("<main>", '<main><div data-testid="listing-status">Sold!</div>'), photos: true },
-  { name: "removed", html: html.replace("<main>", '<main><div role="alert">This listing is no longer available.</div>'), photos: true },
-  { name: "hidden", html: html.replace("<main>", '<main><div role="alert" hidden>This listing is no longer available.</div>'), photos: true },
+  {
+    name: "ambiguous",
+    html: html.replace(
+      "Solid cabinet.",
+      "The old tag says sold. Listing has been removed from my garage.",
+    ),
+    photos: true,
+  },
+  {
+    name: "sold",
+    html: html.replace("<main>", '<main><div data-testid="listing-status">Sold!</div>'),
+    photos: true,
+  },
+  {
+    name: "removed",
+    html: html.replace(
+      "<main>",
+      '<main><div role="alert">This listing is no longer available.</div>',
+    ),
+    photos: true,
+  },
+  {
+    name: "hidden",
+    html: html.replace(
+      "<main>",
+      '<main><div role="alert" hidden>This listing is no longer available.</div>',
+    ),
+    photos: true,
+  },
   { name: "zero", html: html.replace("$1,234.50", "$0"), photos: true },
   { name: "unknown-price", html: html.replace("$1,234.50", "Contact for price"), photos: true },
   { name: "no-location", html: html.replace(" | Boise, ID", ""), photos: true },
 ];
-const run = spawnSync("python3", ["-c", `
+const run = spawnSync(
+  "python3",
+  [
+    "-c",
+    `
 import sys, json, asyncio
 from playwright.async_api import async_playwright
 data = json.load(sys.stdin)
@@ -63,7 +96,10 @@ async def main():
         print(json.dumps(results))
         await browser.close()
 asyncio.run(main())
-`], { input: JSON.stringify({ script, scenarios }), encoding: "utf8", timeout: 60000 });
+`,
+  ],
+  { input: JSON.stringify({ script, scenarios }), encoding: "utf8", timeout: 60000 },
+);
 assert.equal(run.status, 0, run.stderr);
 const results = JSON.parse(run.stdout);
 
@@ -77,12 +113,23 @@ test("KSL no embedded object reads visible listing fields and listing-only galle
     kslSubCategory: "Shop Tools",
     city: "Boise",
     state: "ID",
-    photoUrls: ["https://image.ksldigital.com/cabinet.jpg", "https://image.ksldigital.com/detail.jpg"],
+    photoUrls: [
+      "https://image.ksldigital.com/cabinet.jpg",
+      "https://image.ksldigital.com/detail.jpg",
+    ],
   });
   assert.equal(results.zero.priceCents, 0);
   assert.equal(results.zero.incomplete, undefined);
 });
-for (const missing of ["title", "price", "description", "condition", "breadcrumb", "gallery", "unknown-price"]) {
+for (const missing of [
+  "title",
+  "price",
+  "description",
+  "condition",
+  "breadcrumb",
+  "gallery",
+  "unknown-price",
+]) {
   test(`KSL absent ${missing} stays incomplete, never unavailable`, () => {
     assert.equal(results[missing].incomplete, true);
     assert.equal(results[missing].unreadableReason, "price_or_details_missing");

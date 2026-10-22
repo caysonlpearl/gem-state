@@ -258,9 +258,7 @@ function kslExtractListingInPage(withPhotos) {
       main ? Array.from(main.querySelectorAll(selector)).filter(visible) : [];
     const value = (el) => (el?.innerText || el?.textContent || "").trim();
     const firstText = (selector) => value(all(selector)[0]);
-    const heading = all('[role="tabpanel"] h2, h2').find(
-      (el) => /^description$/i.test(value(el)),
-    );
+    const heading = all('[role="tabpanel"] h2, h2').find((el) => /^description$/i.test(value(el)));
     const panel = heading?.closest('[role="tabpanel"]') || heading?.parentElement;
     const description = panel
       ? Array.from(panel.querySelectorAll("p"))
@@ -273,9 +271,13 @@ function kslExtractListingInPage(withPhotos) {
     const conditionHeading = all("h3, dt").find((el) => /^condition$/i.test(value(el)));
     const condition =
       firstText('[data-testid="listing-condition"], [itemprop="itemCondition"]') ||
-      (visible(conditionHeading?.nextElementSibling) ? value(conditionHeading.nextElementSibling) : "");
+      (visible(conditionHeading?.nextElementSibling)
+        ? value(conditionHeading.nextElementSibling)
+        : "");
     const listingTitle = firstText('h1, [data-testid="listing-title"]');
-    const priceNodes = all('[itemprop="price"], [data-testid="listing-price"], h2, h3, p, span, div');
+    const priceNodes = all(
+      '[itemprop="price"], [data-testid="listing-price"], h2, h3, p, span, div',
+    );
     let priceCents = null;
     for (const el of priceNodes) {
       // Generic containers must be leaves; a whole section may contain another
@@ -320,23 +322,32 @@ function kslExtractListingInPage(withPhotos) {
       const photos = all(
         '[data-testid="listing-gallery"] img, [data-testid="listing-photos"] img, [aria-label="Listing photos" i] img, [aria-label="Image gallery" i] img, [class*="gallery" i] img, [class*="carousel" i] img',
       );
-      result.photoUrls = [...new Set(photos.flatMap((img) => {
-        const rawUrl = img.currentSrc || img.getAttribute("src") || img.getAttribute("data-src");
-        try {
-          const url = new URL(rawUrl || "", location.href);
-          // KSL's listing media host only; excludes logos/avatars/ads even in a
-          // gallery wrapper. Preserve the normal eight-photo/query stripping.
-          return rawUrl && url.protocol === "https:" && url.hostname === "image.ksldigital.com"
-            ? [url.href.split("?")[0]]
-            : [];
-        } catch {
-          return [];
-        }
-      }))].slice(0, 8);
+      result.photoUrls = [
+        ...new Set(
+          photos.flatMap((img) => {
+            const rawUrl =
+              img.currentSrc || img.getAttribute("src") || img.getAttribute("data-src");
+            try {
+              const url = new URL(rawUrl || "", location.href);
+              // KSL's listing media host only; excludes logos/avatars/ads even in a
+              // gallery wrapper. Preserve the normal eight-photo/query stripping.
+              return rawUrl && url.protocol === "https:" && url.hostname === "image.ksldigital.com"
+                ? [url.href.split("?")[0]]
+                : [];
+            } catch {
+              return [];
+            }
+          }),
+        ),
+      ].slice(0, 8);
     }
     if (
-      !listingTitle || priceCents === null || !description || !condition ||
-      !breadcrumbCategory || !breadcrumbSubcategory ||
+      !listingTitle ||
+      priceCents === null ||
+      !description ||
+      !condition ||
+      !breadcrumbCategory ||
+      !breadcrumbSubcategory ||
       (withPhotos && !result.photoUrls.length)
     ) {
       result.incomplete = true;
