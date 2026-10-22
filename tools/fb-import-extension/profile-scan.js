@@ -213,6 +213,13 @@ async function refreshSellerProfiles(adminTabId, requestId, profiles) {
     for (const [id, target] of known) if (id && !byId.has(id)) byId.set(id, { ...target });
     const jobs = [...byId.values()].flatMap((item) => {
       const reader = readerForSource(item.sourceUrl);
+      const prior = reader ? known.get(reader.idOf(item.sourceUrl)) : null;
+      // Sold detail pages may omit title/price; preserve the known identity
+      // so their explicit unavailability can still be queued for review.
+      if (prior) {
+        item.title ||= prior.title;
+        if (item.priceCents == null) item.priceCents = prior.priceCents;
+      }
       return reader
         ? [
             {
