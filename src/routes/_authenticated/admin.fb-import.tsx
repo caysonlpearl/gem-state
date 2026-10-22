@@ -48,12 +48,19 @@ const bookmarkletHref = `javascript:${encodeURIComponent(bookmarkletSource)}`;
 export const Route = createFileRoute("/_authenticated/admin/fb-import")({
   head: () => ({
     meta: [
-      { title: "Facebook seller import · Gem State Classifieds" },
+      { title: "Seller profile import · Bluebird Marketplace" },
       {
         name: "description",
         content: "Import a consenting seller's Facebook Marketplace listings onto GemList.",
       },
       { name: "robots", content: "noindex" },
+      { property: "og:title", content: "Seller profile import · Bluebird Marketplace" },
+      {
+        property: "og:description",
+        content: "Review authorized seller-profile discoveries and listing updates on Bluebird.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
   }),
   component: FbImportPage,
@@ -98,16 +105,27 @@ function BookmarkletLink() {
   );
 }
 
+import {
+  canonicalImportSource,
+  mayInferScanAbsence,
+  runImportRows,
+  type ScanEvidence,
+} from "@/lib/import-refresh";
+import { Button } from "@/components/ui/button";
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-type ExtensionRefreshResult = {
-  sourceUrl: string;
-  title?: string;
-  priceCents?: number;
-  description?: string;
-  unavailable?: boolean;
-  sold?: boolean;
-  subcategory?: string;
+type ProfileScanReport = {
+  sourceProfileUrl: string;
+  sellerName?: string;
+  scanned: number;
+  readable?: number;
+  skipped?: number;
+  discovered: number;
+  scan: ScanEvidence;
+  seenUrls: string[];
+  results: FbImportItemInput[];
+  unreadableReasons?: unknown;
 };
 
 function ImportedSellers() {
@@ -121,7 +139,22 @@ function ImportedSellers() {
   });
 
   const [extensionReady, setExtensionReady] = useState(false);
+  const [activeScan, setActiveScan] = useState("");
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const [scanReports, setScanReports] = useState<
+    Array<{
+      profile: string;
+      scanned: number;
+      discovered: number;
+      newCount: number;
+      changed: number;
+      removed: number;
+      unread: number;
+      failed: number;
+      complete: boolean;
+    }>
+  >([]);
+  const [scanAuthorized, setScanAuthorized] = useState(false);
   const [unreadReport, setUnreadReport] = useState<UnreadableDiagnostic[] | null>(null);
 
   // The extension's bridge script answers this ping; it's only present on
@@ -133,7 +166,7 @@ function ImportedSellers() {
         const version = String(event.data.version ?? "0")
           .split(".")
           .map(Number);
-        setExtensionReady(version[0] > 1 || (version[0] === 1 && version[1] >= 4));
+        setExtensionReady(version[0] > 1 || (version[0] === 1 && version[1] >= 5));
       }
     };
     window.addEventListener("message", onMessage);
@@ -145,111 +178,190 @@ function ImportedSellers() {
     mutationFn: async (profileUrl: string | null) => {
       if (!extensionReady)
         throw new Error(
-          "Reload Bluebird Listing Import 1.4 or newer in Chrome, then refresh this page.",
+          "Reload Bluebird Listing Import 1.5 or newer in Chrome, then refresh this page.",
         );
+      if (!scanAuthorized) throw new Error("Confirm permission to scan these sellers first.");
       const all = await fetchTargets();
-      const targets = profileUrl ? all.filter((t) => t.sourceProfileUrl === profileUrl) : all;
-      if (!targets.length) throw new Error("No published listings to refresh yet.");
-
+      const profiles = (data ?? []).filter((p) => !profileUrl || p.sourceProfileUrl === profileUrl);
+      if (!profiles.length) throw new Error("No seller profiles to scan.");
       const requestId = crypto.randomUUID();
-      setProgress({ done: 0, total: targets.length });
-      const { results, reasons } = await new Promise<{
-        results: ExtensionRefreshResult[];
-        reasons: unknown;
-      }>((resolve, reject) => {
+      setScanReports([]);
+      setProgress({ done: 0, total: profiles.length });
+      const reports = await new Promise<ProfileScanReport[]>((resolve, reject) => {
+        const received: ProfileScanReport[] = [];
+        let timer: ReturnType<typeof setTimeout>;
         const cleanup = () => {
           clearTimeout(timer);
           window.removeEventListener("message", onMessage);
         };
-        const timer = setTimeout(
-          () => {
-            cleanup();
-            reject(new Error("The extension didn't respond. Reload it and this page, then retry."));
-          },
-          20 * 60 * 1000,
-        );
+        const heartbeat = () => {
+          clearTimeout(timer);
+          timer = setTimeout(
+            () => {
+              cleanup();
+              reject(
+                new Error(
+                  "No scan progress received. Reload the extension and retry; unread records remain unchanged.",
+                ),
+              );
+            },
+            8 * 60 * 1000,
+          );
+        };
         const onMessage = (event: MessageEvent) => {
-          if (event.origin !== window.location.origin) return;
-          const message = event.data as {
-            type?: string;
-            requestId?: string;
-            done?: number;
-            total?: number;
-            results?: ExtensionRefreshResult[];
-            error?: string;
-            unreadable?: number;
-            unreadableReasons?: unknown;
-            message?: string;
-          } | null;
-          if (!message || message.requestId !== requestId) return;
-          if (message.type === "gemlist-fb-refresh-progress") {
-            setProgress({ done: message.done ?? 0, total: message.total ?? targets.length });
-            if (message.message) toast.info(message.message);
-          } else if (message.type === "gemlist-fb-refresh-result") {
+          if (
+            event.source !== window ||
+            event.origin !== window.location.origin ||
+            event.data?.requestId !== requestId
+          )
+            return;
+          heartbeat();
+          const m = event.data;
+          if (m.type === "gemlist-fb-refresh-progress") {
+            setActiveScan(
+              `${m.sourceProfileUrl ?? ""} · ${m.message ?? `Reading ${m.done ?? 0}/${m.total ?? 0}`}`,
+            );
+            setProgress({ done: m.done ?? 0, total: m.total ?? profiles.length });
+          } else if (m.type === "gemlist-fb-profile-result") {
+            received.push(m.report);
+          } else if (m.type === "gemlist-fb-refresh-result") {
             cleanup();
-            if (message.error) reject(new Error(message.error));
-            else resolve({ results: message.results ?? [], reasons: message.unreadableReasons });
+            if (m.error && !received.length) reject(new Error(m.error));
+            else resolve(received);
           }
         };
         window.addEventListener("message", onMessage);
+        heartbeat();
         window.postMessage(
           {
             type: "gemlist-ext-refresh",
             requestId,
-            targets: targets.map((t) => ({ sourceUrl: t.sourceUrl })),
+            profiles: profiles.map((p) => ({
+              sourceProfileUrl: p.sourceProfileUrl,
+              targets: all.filter((t) => t.sourceProfileUrl === p.sourceProfileUrl),
+            })),
           },
           window.location.origin,
         );
       });
-
-      // Anything the extension couldn't read is left out entirely -- a refresh
-      // never treats "not read" as "removed", only an explicit unavailable page.
-      const targetByUrl = new Map(targets.map((t) => [t.sourceUrl, t]));
-      const groups = new Map<string, FbImportItemInput[]>();
-      const extraReasons: UnreadableDiagnostic[] = [];
-      for (const result of results) {
-        const target = targetByUrl.get(result.sourceUrl);
-        if (!target) continue;
-        const readable = result.unavailable || (result.title && result.priceCents != null);
-        if (!readable) {
-          extraReasons.push({
-            site: sourceSiteName(result.sourceUrl),
-            reason: "price_or_details_missing",
-            count: 1,
-          });
-          continue;
+      let checked = 0,
+        discovered = 0,
+        newCount = 0,
+        changed = 0,
+        removed = 0,
+        unread = 0,
+        failed = 0;
+      const diagnostics: UnreadableDiagnostic[] = [];
+      for (const report of reports) {
+        let sellerNew = 0,
+          sellerChanged = 0,
+          sellerRemoved = 0,
+          sellerFailed = 0;
+        const unique = new Map(
+          report.results.map((item) => [
+            canonicalImportSource(report.sourceProfileUrl, item.sourceUrl),
+            item,
+          ]),
+        );
+        for (const item of unique.values()) {
+          try {
+            const result = await stage({
+              data: {
+                sourceProfileUrl: report.sourceProfileUrl,
+                sellerName: report.sellerName,
+                mode: "refresh",
+                authorized: scanAuthorized,
+                items: [item],
+              },
+            });
+            setActiveScan(`${report.sourceProfileUrl} · Staging ${unique.size} source results`);
+            sellerNew += result.staged;
+            sellerChanged += result.updated;
+            sellerRemoved += result.flaggedRemoved;
+            sellerFailed += result.failed;
+          } catch {
+            sellerFailed++;
+          }
         }
-        const list = groups.get(target.sourceProfileUrl) ?? [];
-        list.push({
-          sourceUrl: result.sourceUrl,
-          title: result.unavailable ? target.title : (result.title ?? target.title),
-          description: result.description ?? null,
-          priceCents: result.unavailable ? target.priceCents : (result.priceCents ?? 0),
-          categorySlug: "general",
-          subcategory: result.subcategory,
-          photoUrls: [],
-          unavailable: result.unavailable === true,
-          sold: result.sold === true,
-        });
-        groups.set(target.sourceProfileUrl, list);
+        const evidence = { ...report.scan, unreadable: report.scan.unreadable + sellerFailed };
+        if (mayInferScanAbsence(evidence)) {
+          const seen = new Set(
+            report.seenUrls.map((u) => canonicalImportSource(report.sourceProfileUrl, u)),
+          );
+          for (const target of all.filter(
+            (t) =>
+              t.sourceProfileUrl === report.sourceProfileUrl &&
+              !seen.has(canonicalImportSource(report.sourceProfileUrl, t.sourceUrl)),
+          )) {
+            try {
+              const result = await stage({
+                data: {
+                  sourceProfileUrl: report.sourceProfileUrl,
+                  mode: "refresh",
+                  authorized: scanAuthorized,
+                  items: [],
+                  scan: evidence,
+                  finalizeScan: true,
+                  seenUrls: report.seenUrls,
+                  removalSourceUrl: target.sourceUrl,
+                },
+              });
+              sellerRemoved += result.flaggedRemoved;
+            } catch {
+              sellerFailed++;
+            }
+          }
+        }
+        setScanReports((current) => [
+          ...current,
+          {
+            profile: report.sourceProfileUrl,
+            scanned: report.scanned,
+            discovered: report.discovered,
+            newCount: sellerNew,
+            changed: sellerChanged,
+            removed: sellerRemoved,
+            unread: report.scan.unreadable,
+            failed: sellerFailed,
+            complete: mayInferScanAbsence(evidence),
+          },
+        ]);
+        checked += report.scanned;
+        discovered += report.discovered;
+        newCount += sellerNew;
+        changed += sellerChanged;
+        removed += sellerRemoved;
+        unread += report.scan.unreadable;
+        failed += sellerFailed;
+        diagnostics.push(...groupUnreadable(report.unreadableReasons, report.scan.unreadable));
       }
-
-      let changed = 0;
-      let removed = 0;
-      for (const [sourceProfileUrl, items] of groups) {
-        const outcome = await stage({ data: { sourceProfileUrl, mode: "refresh", items } });
-        changed += outcome.updated;
-        removed += outcome.flaggedRemoved;
+      for (const profile of profiles.filter(
+        (p) => !reports.some((r) => r.sourceProfileUrl === p.sourceProfileUrl),
+      )) {
+        setScanReports((current) => [
+          ...current,
+          {
+            profile: profile.sourceProfileUrl,
+            scanned: 0,
+            discovered: 0,
+            newCount: 0,
+            changed: 0,
+            removed: 0,
+            unread: 0,
+            failed: 1,
+            complete: false,
+          },
+        ]);
       }
-      const checked = Array.from(groups.values()).reduce((sum, list) => sum + list.length, 0);
-      const unread = targets.length - checked;
-      const reported = Array.isArray(reasons) ? (reasons as UnreadableDiagnostic[]) : [];
       return {
         checked,
+        discovered,
+        newCount,
         changed,
         removed,
         unread,
-        unreadGroups: groupUnreadable([...reported, ...extraReasons], unread),
+        failed,
+        unreadGroups: diagnostics,
       };
     },
     onSuccess: async (result) => {
@@ -257,7 +369,7 @@ function ImportedSellers() {
       await queryClient.invalidateQueries({ queryKey: ["fb-import-profiles"] });
       setUnreadReport(result.unread ? result.unreadGroups : null);
       toast.success(
-        `Checked ${result.checked} listing(s): ${result.changed} changed, ${result.removed} sold or removed` +
+        `Scanned ${result.checked}; discovered ${result.discovered}; ${result.newCount} new, ${result.changed} changed, ${result.removed} removed, ${result.failed} staging failures (retry Refresh).` +
           (result.unread
             ? `. ${result.unread} couldn't be read and were left unchanged — see the breakdown under Imported sellers.`
             : "."),
@@ -275,24 +387,55 @@ function ImportedSellers() {
         <div className="min-w-[240px] flex-1">
           <h2 className="text-[13px] font-semibold">Imported sellers</h2>
           <p className="mt-0.5 text-[11.5px] text-muted-foreground">
-            Refresh re-checks each published listing for price/description changes and listings that
-            are gone, and queues only what changed for your review below.
+            Scan seller profiles for new listings and changes. Incomplete scans leave unseen records
+            unchanged. Nothing is published automatically.
             {extensionReady
               ? ""
-              : " Extension 1.4 or newer not detected — reload the updated extension, then reload this page."}
+              : " Extension 1.5 or newer not detected — reload the updated extension, then reload this page."}
           </p>
         </div>
-        <button
+        <label className="text-xs">
+          <input
+            type="checkbox"
+            checked={scanAuthorized}
+            onChange={(e) => setScanAuthorized(e.target.checked)}
+          />{" "}
+          Sellers authorized these scans.
+        </label>
+        <Button
           type="button"
           onClick={() => refreshMutation.mutate(null)}
-          disabled={!extensionReady || refreshMutation.isPending}
+          disabled={!extensionReady || !scanAuthorized || refreshMutation.isPending}
           className="h-9 rounded-md bg-primary px-3 text-[12px] font-semibold text-primary-foreground disabled:opacity-50"
         >
           {refreshMutation.isPending && progress
             ? `Checking ${progress.done}/${progress.total}…`
             : "Refresh all"}
-        </button>
+        </Button>
       </div>
+      {refreshMutation.isPending && activeScan && (
+        <p role="status" className="p-4 text-xs break-words">
+          {activeScan}
+        </p>
+      )}
+      {scanReports.length > 0 && (
+        <ul role="status" className="border-b border-border p-4 text-xs space-y-2">
+          {scanReports.map((r) => (
+            <li key={r.profile}>
+              <span className="font-semibold">
+                {sourceSiteName(r.profile)} · {r.profile}
+              </span>
+              <br />
+              Scanned {r.scanned} · discovered {r.discovered} · new {r.newCount} · changed{" "}
+              {r.changed} · removed {r.removed} · unreadable {r.unread} · staging failures{" "}
+              {r.failed} ·{" "}
+              {r.complete
+                ? "Complete"
+                : "Incomplete — unseen records left unchanged; retry Refresh"}
+            </li>
+          ))}
+        </ul>
+      )}
       {unreadReport && (
         <div role="status" className="border-b border-border bg-secondary/50 px-4 py-3 text-[12px]">
           <div className="flex items-start justify-between gap-3">
@@ -345,7 +488,7 @@ function ImportedSellers() {
               <button
                 type="button"
                 onClick={() => refreshMutation.mutate(profile.sourceProfileUrl)}
-                disabled={!extensionReady || refreshMutation.isPending || !profile.publishedCount}
+                disabled={!extensionReady || !scanAuthorized || refreshMutation.isPending}
                 className="h-8 rounded-md border border-input px-3 text-[11.5px] font-medium hover:bg-secondary disabled:opacity-50"
               >
                 Refresh
@@ -358,7 +501,7 @@ function ImportedSellers() {
                     type="button"
                     onClick={() => {
                       void navigator.clipboard
-                        .writeText(sellerShareUrl(profile.sellerSlug!))
+                        .writeText(sellerShareUrl(profile.sellerSlug ?? ""))
                         .then(() => toast.success("Share link copied."))
                         .catch(() => toast.error("Couldn't copy the link."));
                     }}
@@ -417,13 +560,24 @@ function StageForm() {
       const items = Array.isArray(parsed) ? parsed : (parsed as { items?: unknown }).items;
       if (!Array.isArray(items)) throw new Error("Expected a JSON array of listings.");
 
-      return stage({
-        data: {
-          sourceProfileUrl,
-          sellerName: sellerName || undefined,
-          items: items as never[],
-        },
-      });
+      const totals = { staged: 0, updated: 0, failed: 0 };
+      for (const item of items) {
+        try {
+          const result = await stage({
+            data: {
+              sourceProfileUrl,
+              sellerName: sellerName || undefined,
+              items: [item as FbImportItemInput],
+            },
+          });
+          totals.staged += result.staged;
+          totals.updated += result.updated;
+          totals.failed += result.failed;
+        } catch {
+          totals.failed++;
+        }
+      }
+      return totals;
     },
     onSuccess: async (result) => {
       await queryClient.invalidateQueries({ queryKey: ["fb-import-items"] });
@@ -431,7 +585,7 @@ function StageForm() {
       toast.success(
         `Staged ${result.staged} new, ${result.updated} changed. ${result.failed} failed.`,
       );
-      setItemsJson("");
+      if (!result.failed) setItemsJson("");
     },
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "Could not stage this batch."),
@@ -508,7 +662,7 @@ function StageForm() {
           listing's details, and copies the result to your clipboard on its own. (Facebook's grid
           ignores a script-faked scroll, so the extension uses Chrome's own debugger API to send a
           real one -- you'll see a brief "started debugging this browser" notice each run; that's
-          expected. Version 1.4 or newer uses two reusable reader windows for imports and all
+          expected. Version 1.5 or newer uses two reusable reader windows for imports and all
           Refresh actions; if a site asks you to verify you're human, complete the check there and
           the import carries on.)
         </p>
@@ -943,6 +1097,7 @@ function FbImportPage() {
   const [claimUrl, setClaimUrl] = useState("");
   const [sellerDisplayName, setSellerDisplayName] = useState("");
   const [dirtyIds, setDirtyIds] = useState<Set<string>>(new Set());
+  const [applyProgress, setApplyProgress] = useState<{ done: number; total: number } | null>(null);
   const [publishErrors, setPublishErrors] = useState<Record<string, string>>({});
   const onDirtyChange = useCallback((id: string, dirty: boolean) => {
     setDirtyIds((current) => {
@@ -964,6 +1119,7 @@ function FbImportPage() {
       .filter((p) => p.sellerName)
       .map((p) => [queueProfileKey(p.sourceProfileUrl), p.sellerName as string]),
   );
+  const [visibleRows, setVisibleRows] = useState(50);
   const queueItems = data ?? [];
   const sellerGroups = groupQueueBySeller(queueItems, profileNames);
   const selectedSellerKeys = selectedProfiles(queueItems, selectedIds);
@@ -1001,18 +1157,32 @@ function FbImportPage() {
   };
 
   const publishMutation = useMutation({
-    mutationFn: () =>
-      publish({
-        data: {
-          itemIds: Array.from(selectedIds),
-          sellerEmail,
-          mode: publishMode,
-          authorized,
-          sellerDisplayName: sellerDisplayName || undefined,
-        },
-      }),
+    mutationFn: async () => {
+      if (blocker) throw new Error(blocker);
+      const { results, failures } = await runImportRows(
+        [...selectedIds],
+        (id) =>
+          publish({
+            data: {
+              itemIds: [id],
+              sellerEmail,
+              mode: publishMode,
+              authorized,
+              sellerDisplayName: sellerDisplayName || undefined,
+            },
+          }),
+        (done, total) => setApplyProgress({ done, total }),
+      );
+      const itemFailures = [...failures, ...results.flatMap((r) => r.itemFailures)];
+      return {
+        created: results.reduce((n, r) => n + r.created, 0),
+        updated: results.reduce((n, r) => n + r.updated, 0),
+        removed: results.reduce((n, r) => n + r.removed, 0),
+        errors: itemFailures.length,
+        itemFailures,
+      };
+    },
     onSuccess: async (result) => {
-      if (result.claimUrl) setClaimUrl(result.claimUrl);
       setPublishErrors(
         Object.fromEntries(
           (result.itemFailures ?? []).map((failure) => [failure.itemId, failure.message]),
@@ -1039,8 +1209,17 @@ function FbImportPage() {
   const setCategory = useServerFn(setFacebookImportItemsCategory);
   const [bulkCategory, setBulkCategory] = useState("");
   const bulkCategoryMutation = useMutation({
-    mutationFn: () =>
-      setCategory({ data: { itemIds: Array.from(selectedIds), categorySlug: bulkCategory } }),
+    mutationFn: async () => {
+      let items = 0;
+      const ids = [...selectedIds];
+      for (let i = 0; i < ids.length; i += 100)
+        items += (
+          await setCategory({
+            data: { itemIds: ids.slice(i, i + 100), categorySlug: bulkCategory },
+          })
+        ).items;
+      return { items };
+    },
     onSuccess: async (result) => {
       await queryClient.invalidateQueries({ queryKey: ["fb-import-items"] });
       toast.success(`Set the category on ${result.items} listing(s).`);
@@ -1053,14 +1232,21 @@ function FbImportPage() {
   const [bulkCity, setBulkCity] = useState("");
   const [bulkCityOnlyMissing, setBulkCityOnlyMissing] = useState(true);
   const bulkCityMutation = useMutation({
-    mutationFn: () =>
-      setCityFn({
-        data: {
-          itemIds: Array.from(selectedIds),
-          city: bulkCity,
-          onlyMissing: bulkCityOnlyMissing,
-        },
-      }),
+    mutationFn: async () => {
+      let items = 0;
+      const ids = [...selectedIds];
+      for (let i = 0; i < ids.length; i += 100)
+        items += (
+          await setCityFn({
+            data: {
+              itemIds: ids.slice(i, i + 100),
+              city: bulkCity,
+              onlyMissing: bulkCityOnlyMissing,
+            },
+          })
+        ).items;
+      return { items, city: bulkCity };
+    },
     onSuccess: async (result) => {
       await queryClient.invalidateQueries({ queryKey: ["fb-import-items"] });
       toast.success(`Set ${result.city} on ${result.items} listing(s).`);
@@ -1114,7 +1300,7 @@ function FbImportPage() {
               onChange={(e) => setPublishMode(e.target.value as "managed" | "linked")}
               className="field text-sm"
             >
-              <option value="managed">New seller — create claim link</option>
+              <option value="managed">Managed seller — keep existing claim link</option>
               <option value="linked">Existing linked seller</option>
             </select>
             {publishMode === "linked" && (
@@ -1149,9 +1335,9 @@ function FbImportPage() {
               className="h-9 rounded-md bg-primary px-3 text-[12px] font-semibold text-primary-foreground disabled:opacity-50"
             >
               {publishMutation.isPending
-                ? "Applying…"
+                ? `Applying ${applyProgress?.done ?? 0}/${applyProgress?.total ?? selectedIds.size}…`
                 : publishMode === "managed"
-                  ? "Apply and create claim link"
+                  ? "Apply for managed seller"
                   : "Apply for linked seller"}
             </button>
             <button
@@ -1295,7 +1481,11 @@ function FbImportPage() {
           </p>
         ) : (
           <ul>
-            {data.map((item) => (
+            <li className="p-4 text-xs">
+              Showing {Math.min(visibleRows, data.length)} of {data.length} rows ·{" "}
+              {selectedIds.size} selected across the full queue
+            </li>
+            {data.slice(0, visibleRows).map((item) => (
               <ReviewRow
                 // Remount when the category or city changes elsewhere (bulk set) so
                 // the row's own form shows the new value.
@@ -1307,6 +1497,13 @@ function FbImportPage() {
                 publishError={publishErrors[item.id]}
               />
             ))}
+            {visibleRows < data.length && (
+              <li className="p-4">
+                <Button variant="outline" onClick={() => setVisibleRows((n) => n + 50)}>
+                  Show next 50 ({data.length - visibleRows} remaining)
+                </Button>
+              </li>
+            )}
           </ul>
         )}
       </section>

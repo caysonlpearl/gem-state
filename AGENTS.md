@@ -1,5 +1,7 @@
 ## Project guidance
 
+Seller profile refresh uses explicit completeness evidence, exact-count paged reads and one-row staging/application invocations; pending edits remain untouched and apply never rotates claim tokens, preserving retry safety and prior links.
+
 This repository is deployed independently of the original hosted builder. Keep
 Supabase credentials server-side where required, preserve the generated route
 tree when routes change, and verify production configuration before deployment.

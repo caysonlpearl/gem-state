@@ -26,14 +26,20 @@ async function whatnotCollectFromShop() {
       (document.body.innerText.match(/Products\s*\((\d[\d,]*)\)/) || [])[1]?.replace(/,/g, ""),
     ) || 0;
   const selector = "a[href^='/listing/'], a[href*='whatnot.com/listing/']";
-  const count = () =>
-    new Set(Array.from(document.querySelectorAll(selector)).map((a) => a.href.split("?")[0])).size;
+  const accumulated = new Map();
+  const capture = () => {
+    for (const a of document.querySelectorAll(selector)) {
+      if (a.closest("header, nav, footer")) continue;
+      accumulated.set(a.href.split("?")[0], a.cloneNode(true));
+    }
+  };
   let last = -1;
   let still = 0;
   for (let i = 0; i < 150 && still < 4; i++) {
     window.scrollTo(0, document.body.scrollHeight);
     await new Promise((resolve) => setTimeout(resolve, 900));
-    const now = count();
+    capture();
+    const now = accumulated.size;
     if (expected && now >= expected) break;
     still = now === last ? still + 1 : 0;
     last = now;
@@ -42,7 +48,8 @@ async function whatnotCollectFromShop() {
 
   const items = [];
   const seen = new Set();
-  for (const link of document.querySelectorAll(selector)) {
+  capture();
+  for (const link of accumulated.values()) {
     // Only the seller's own shop grid, not "More from" rails elsewhere.
     if (link.closest("header, nav, footer")) continue;
     const id = (link.href.match(/\/listing\/([^/?#]+)/) || [])[1];
@@ -59,6 +66,7 @@ async function whatnotCollectFromShop() {
     ).trim(),
     sourceProfileUrl: `https://www.whatnot.com/user/${username}`,
     expected,
+    explicitEnd: /no (?:more )?(?:items|products)|wardrobe is empty/i.test(document.body.innerText),
     items,
   };
 }

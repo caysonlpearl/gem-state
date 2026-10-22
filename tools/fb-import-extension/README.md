@@ -1,10 +1,14 @@
-# Bluebird Listing Import 1.4.4
+# Bluebird Listing Import 1.5.0
 
 This is a manually operated Chrome extension. It reads public listing data in the browser session the operator is already using; it does not run scheduled imports or publish automatically.
 
 ## Update
 
-In Chrome's Extensions page, reload the installed unpacked extension from this folder, then reload the Bluebird admin import page. The admin page requires version 1.4 or later for Refresh. Updating the website does not update an unpacked Chrome extension.
+In Chrome's Extensions page, reload the installed unpacked extension from this folder, then reload the Bluebird admin import page. The admin page requires version 1.5 or later for profile Refresh. Updating the website does not update an unpacked Chrome extension.
+
+Refresh scans profiles for new listings and re-reads existing URLs through the two-window pool. Scrolling that merely stops producing cards is not proof of completion. Unknown totals, missing pages, challenges or unreadable details report an incomplete scan; unseen existing rows stay unchanged. Re-run Refresh to retry. Pending edits are preserved, never overwritten by another scan.
+
+Review loads exact-count pages with a visible Show next 50 control; selection covers the whole queue, not just visible rows. Staging and application use one-row requests, so large selections do not run as one long server request. Committed rows are safe to retry, failed rows stay selected. Application never generates/replaces a claim link. Use the explicit Prepare claim control only when a new link is actually needed; replacement intentionally invalidates the previous token.
 
 ## Supported seller pages
 
@@ -22,7 +26,7 @@ Imports use two reusable reader windows. Refresh and Refresh all share a single 
 
 The importer follows the dealer's own inventory navigation for trucks, trailers, truck bodies, construction equipment, farm equipment, attachments, truck parts, and other stock. Manufacturer showrooms and recommendations are excluded. Listings are deduplicated by source ID, preserving existing Bluebird records when titles or tracking parameters change.
 
-Actual asking prices, conditions, machine locations, descriptions/specifications and up to eight gallery photos are collected. Price-on-request and rental-only listings are counted and skipped with a visible explanation, rather than creating false $0 sale ads. Interrupted or incomplete catalog discovery fails before a batch is delivered. Omission from a dealer catalog cannot mark previously imported stock removed; a successful explicit detail-page refresh must confirm unavailability.
+Actual asking prices, conditions, machine locations, descriptions/specifications and up to eight gallery photos are collected. Price-on-request and rental-only listings are counted and skipped rather than creating false $0 sale ads. Profile Refresh reconciles cumulative counts across catalog pages. Absence can queue removal only after proven complete discovery and zero unreadable details; readable existing detail pages remain seen even if omitted from the grid.
 
 ## Verification
 
