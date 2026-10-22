@@ -340,12 +340,13 @@ test("300+ discovered rows stage in 50-row chunks sharing one batch with one loo
   );
   assert.equal(batches.length, 1);
   await assert.rejects(
-    h.stage({
-      sourceProfileUrl: profile,
-      authorized: true,
-      mode: "refresh",
-      items: discovered.slice(0, 51),
-    }),
+    async () =>
+      h.stage({
+        sourceProfileUrl: profile,
+        authorized: true,
+        mode: "refresh",
+        items: discovered.slice(0, 51),
+      }),
     /at most 50/,
   );
 });
