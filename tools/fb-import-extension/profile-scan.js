@@ -142,7 +142,11 @@ async function collectSellerScan(profile, config, notify) {
         }
         termination = "end";
       } else if (config.site === "KSL") {
-        if (!page.recognized) {
+        if (
+          !page.recognized ||
+          page.enumerationComplete === false ||
+          (page.pageCount > 0 && page.items.length !== page.pageCount)
+        ) {
           complete = false;
           break;
         }
@@ -293,6 +297,7 @@ async function refreshSellerProfiles(adminTabId, requestId, profiles) {
       readable: results.length,
       skipped: jobs.filter(({ item }) => item.auction).length,
       discovered: report.items.length,
+      expected: report.expected,
       seenUrls: [
         ...new Set([
           ...report.items.map((i) => i.sourceUrl),

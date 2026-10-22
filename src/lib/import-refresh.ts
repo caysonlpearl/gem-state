@@ -97,3 +97,56 @@ export function scannableProfiles<T extends { sourceProfileUrl: string; syncPaus
   const requested = all.filter((p) => !profileUrl || p.sourceProfileUrl === profileUrl);
   return { requested, profiles: requested.filter((p) => !p.syncPaused) };
 }
+
+/** Allowlisted diagnostics only. Never reflect provider messages or row values. */
+export const STAGING_FAILURE_LABELS: Record<string, string> = {
+  invalid_row: "Invalid listing fields; re-read this detail page",
+  unsupported_source: "Listing URL does not match this source",
+  photo_download_failed: "Photo download failed; re-read photos and retry",
+  database_conflict: "Conflicting record; retry after reviewing the queue",
+  database_permission: "Staging permission denied; check importer access",
+  database_constraint: "Listing failed a data constraint; review fields and retry",
+  database_unavailable: "Staging service unavailable; retry",
+  staging_write_failed: "Staging write failed; retry this row",
+  request_interrupted: "Request interrupted; retry these rows safely",
+  finalization_failed: "Scan finalization failed; retry Refresh; unseen rows were not confirmed",
+};
+
+export type StagingFailure = { rowIndex: number; reason: string };
+
+export function stagingFailureCode(error: unknown, phase: "photo" | "write"): string {
+  if (phase === "photo") return "photo_download_failed";
+  const code =
+    typeof error === "object" && error !== null && "code" in error ? String(error.code) : "";
+  if (code === "23505") return "database_conflict";
+  if (code === "42501") return "database_permission";
+  if (["23502", "23503", "23514", "22P02"].includes(code)) return "database_constraint";
+  if (["57014", "53300", "PGRST000", "PGRST001", "PGRST002"].includes(code))
+    return "database_unavailable";
+  return "staging_write_failed";
+}
+
+/** Row numbers are local to a report, not seller IDs or source URLs. */
+export function sanitizeStagingFailures(
+  value: unknown,
+  rows: number,
+  offset = 0,
+): StagingFailure[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<number>();
+  return value.flatMap((raw) => {
+    if (
+      !raw ||
+      !Number.isInteger(raw.rowIndex) ||
+      raw.rowIndex < 0 ||
+      raw.rowIndex >= rows ||
+      seen.has(raw.rowIndex)
+    )
+      return [];
+    seen.add(raw.rowIndex);
+    const reason = Object.hasOwn(STAGING_FAILURE_LABELS, raw.reason)
+      ? raw.reason
+      : "staging_write_failed";
+    return [{ rowIndex: raw.rowIndex + offset, reason }];
+  });
+}

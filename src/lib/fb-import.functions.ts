@@ -24,7 +24,13 @@ function categoryHintFrom(sourceProfileUrl: string | null | undefined, descripti
     : null;
 }
 
-import { canonicalImportSource, mayInferScanAbsence, type ScanEvidence } from "./import-refresh";
+import {
+  canonicalImportSource,
+  mayInferScanAbsence,
+  type ScanEvidence,
+  stagingFailureCode,
+  type StagingFailure,
+} from "./import-refresh";
 import { z } from "zod";
 
 const MAX_PHOTO_BYTES = 12 * 1024 * 1024;
@@ -224,7 +230,9 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
       // Rows are validated one by one so a single malformed row is reported
       // as a retryable failure instead of rejecting the whole chunk.
       const invalidUrls: string[] = [];
-      const parsedItems = (input.items ?? []).map((raw) => {
+      const invalidFailures: StagingFailure[] = [];
+      const rowIndexes: number[] = [];
+      const parsedItems = (input.items ?? []).map((raw, rowIndex) => {
         const result = z
           .object({
             sourceUrl: z.string().url().max(2048),
@@ -238,11 +246,21 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
           .passthrough()
           .safeParse(raw);
         if (!result.success || !String(result.data.title ?? "").trim()) {
+          invalidFailures.push({ rowIndex, reason: "invalid_row" });
           invalidUrls.push(
             String((raw as { sourceUrl?: unknown })?.sourceUrl ?? "").slice(0, 2048),
           );
           return null;
         }
+        let canonicalUrl: string;
+        try {
+          canonicalUrl = canonicalImportSource(sourceProfileUrl, result.data.sourceUrl);
+        } catch {
+          invalidUrls.push(result.data.sourceUrl);
+          invalidFailures.push({ rowIndex, reason: "unsupported_source" });
+          return null;
+        }
+        rowIndexes.push(rowIndex);
         const item = result.data as FbImportItemInput;
         const categorySlug = inferFacebookCategorySlug(
           item.categorySlug,
@@ -254,7 +272,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
         // Idaho cities use the listed spelling, and that city's region.
         const place = /^(id|idaho)$/i.test(state) ? findIdahoPlace(city) : undefined;
         return {
-          sourceUrl: canonicalImportSource(sourceProfileUrl, String(item.sourceUrl ?? "")),
+          sourceUrl: canonicalUrl,
           title: String(item.title ?? "")
             .trim()
             .slice(0, 120),
@@ -285,8 +303,6 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
       );
       if (!items.length && !invalidUrls.length && !input.finalizeScan)
         throw new Error("No listings were provided.");
-      if (input.items.length === 1 && invalidUrls.length)
-        throw new Error("Every listing needs a source URL and a title.");
       return {
         sourceProfileUrl,
         sellerName,
@@ -299,6 +315,8 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
           : undefined,
         seenUrls: (input.seenUrls ?? []).map((url) => canonicalImportSource(sourceProfileUrl, url)),
         invalidUrls,
+        invalidFailures,
+        rowIndexes,
         batchId:
           typeof input.batchId === "string" && /^[0-9a-z-]{1,64}$/i.test(input.batchId)
             ? input.batchId
@@ -316,6 +334,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
       updated: number;
       failed: number;
       failedUrls: string[];
+      failures: StagingFailure[];
       flaggedRemoved: number;
     }> => {
       await requireAdmin(context);
@@ -391,10 +410,13 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
       let updated = 0;
       let failed = data.invalidUrls.length;
       const failedUrls: string[] = [...data.invalidUrls];
+      const failures: StagingFailure[] = [...data.invalidFailures];
       let flaggedRemoved = 0;
       const isRefresh = data.mode === "refresh";
 
-      for (const item of data.items) {
+      for (const [index, item] of data.items.entries()) {
+        const rowIndex = data.rowIndexes[index] ?? index;
+        let phase: "photo" | "write" = "write";
         // Per-row failures are isolated and reported by source URL so the
         // chunk stays retryable; every write below is idempotent.
         try {
@@ -430,7 +452,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
                 .eq("source_profile_url", data.sourceProfileUrl)
                 .eq("source_url", item.sourceUrl)
                 .eq("status", "published");
-              if (error) throw new Error(error.message);
+              if (error) throw error;
               await recordRemovedReason(
                 admin,
                 data.sourceProfileUrl,
@@ -460,7 +482,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
               .eq("source_profile_url", data.sourceProfileUrl)
               .eq("source_url", item.sourceUrl)
               .eq("status", "published");
-            if (error) throw new Error(error.message);
+            if (error) throw error;
             updated += 1;
             continue;
           }
@@ -488,15 +510,17 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
               .eq("source_profile_url", data.sourceProfileUrl)
               .eq("source_url", item.sourceUrl)
               .eq("status", "published");
-            if (error) throw new Error(error.message);
+            if (error) throw error;
             updated += 1;
             continue;
           }
 
           try {
+            phase = "photo";
             const stagingPaths: string[] = [];
             for (const url of item.photoUrls)
               stagingPaths.push(await downloadPhoto(admin, batch.id, url));
+            phase = "write";
             const { error } = await admin.from("fb_marketplace_import_items").upsert(
               {
                 batch_id: batch.id,
@@ -518,15 +542,17 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
               },
               { onConflict: "source_profile_url,source_url", ignoreDuplicates: true },
             );
-            if (error) throw new Error(error.message);
+            if (error) throw error;
             staged += 1;
-          } catch {
+          } catch (error) {
             failed += 1;
             failedUrls.push(item.sourceUrl);
+            failures.push({ rowIndex, reason: stagingFailureCode(error, phase) });
           }
-        } catch {
+        } catch (error) {
           failed += 1;
           failedUrls.push(item.sourceUrl);
+          failures.push({ rowIndex, reason: stagingFailureCode(error, phase) });
         }
       }
 
@@ -562,7 +588,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
         flaggedRemoved += chunk.length;
       }
 
-      return { batchId: batch.id, staged, updated, failed, failedUrls, flaggedRemoved };
+      return { batchId: batch.id, staged, updated, failed, failedUrls, failures, flaggedRemoved };
     },
   );
 
