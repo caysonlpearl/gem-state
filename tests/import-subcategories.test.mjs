@@ -107,9 +107,9 @@ test("KSL falls back to its visible URL breadcrumb when embedded taxonomy is mis
   ctx.document = {
     title: "2013 PETERBILT 388",
     body: { innerText: "2013 PETERBILT 388" },
-    querySelector: () => ({
+    querySelector: (selector) => selector.includes("/search/cat/") ? ({
       href: "https://classifieds.ksl.com/search/cat/Industrial/sub/Heavy%20Equipment%2FTractors",
-    }),
+    }) : null,
     querySelectorAll(selector) {
       return selector === "script"
         ? [
@@ -237,9 +237,14 @@ test("automotive accessory and generator subcategories do not fall into clothing
 
 
 test("visible KSL taxonomy survives incomplete embedded details without hiding the read failure", () => {
-  ctx.document = {title:"Example",body:{innerText:"Example"},querySelector:()=>({href:"https://classifieds.ksl.com/search/cat/Industrial/sub/Air%20Compressors"}),querySelectorAll:()=>[]};
+  ctx.document = {title:"Example",body:{innerText:"Example"},querySelector:(selector)=>selector.includes("/search/cat/") ? ({href:"https://classifieds.ksl.com/search/cat/Industrial/sub/Air%20Compressors"}) : null,querySelectorAll:()=>[]};
   ctx.location = {href:"https://classifieds.ksl.com/listing/80713052"};
-  assert.deepEqual(run("kslExtractListingInPage(false)"), {kslCategory:"Industrial",kslSubCategory:"Air Compressors",incomplete:true});
+  const result = run("kslExtractListingInPage(false)");
+  assert.equal(result.kslCategory, "Industrial");
+  assert.equal(result.kslSubCategory, "Air Compressors");
+  assert.equal(result.incomplete, true);
+  assert.equal(result.unreadableReason, "price_or_details_missing");
+  assert.equal(result.unavailable, undefined);
 });
 
 

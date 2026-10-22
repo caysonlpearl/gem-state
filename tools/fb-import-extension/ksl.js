@@ -178,7 +178,7 @@ function kslExtractListingInPage(withPhotos) {
   }
   // Only explicit page/primary listing status, never description or suggestions.
   const unrelated =
-    'header, nav, footer, aside, [data-testid*="recommend" i], [class*="recommend" i], [class*="related" i], [aria-label*="similar" i]';
+    'header, nav, footer, aside, a[href*="/listing/"], [data-testid*="recommend" i], [class*="recommend" i], [class*="related" i], [aria-label*="similar" i]';
   const visible = (el) => el && el.getClientRects().length > 0 && !el.closest(unrelated);
   const main = document.querySelector("main, [role='main']");
   const statusPattern =
@@ -284,6 +284,7 @@ function kslExtractListingInPage(withPhotos) {
       // listing's price. Explicit price attributes may provide numeric content.
       const explicit = el.matches('[itemprop="price"], [data-testid="listing-price"]');
       if (!explicit && el.children.length) continue;
+      if (!explicit && panel?.contains(el)) continue;
       const priceText = (explicit ? el.getAttribute("content") : "") || value(el);
       const match = priceText.match(
         explicit
@@ -357,7 +358,7 @@ function kslExtractListingInPage(withPhotos) {
   }
 
   const status = String(listing.status || "");
-  if (status && !/^active$/i.test(status)) {
+  if (/^(?:sold|removed|expired|unavailable|inactive)$/i.test(status)) {
     return { unavailable: true, sold: /sold/i.test(status) };
   }
 
