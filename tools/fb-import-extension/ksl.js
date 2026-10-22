@@ -324,8 +324,9 @@ function kslExtractListingInPage(withPhotos) {
         '[data-testid="listing-gallery"], [data-testid="listing-photos"], [aria-label="Listing photos" i], [aria-label="Image gallery" i]',
       );
       // Only the primary gallery; never accumulate images from other carousels.
-      const gallery = namedGalleries[0] || all('[class*="gallery" i], [class*="carousel" i]')
-        .find((el) => !panel?.contains(el));
+      const gallery =
+        namedGalleries[0] ||
+        all('[class*="gallery" i], [class*="carousel" i]').find((el) => !panel?.contains(el));
       const photos = gallery ? Array.from(gallery.querySelectorAll("img")).filter(visible) : [];
       result.photoUrls = [
         ...new Set(
