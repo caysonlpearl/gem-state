@@ -95,15 +95,6 @@ export default {
       if (hostPolicy.redirect && ["GET", "HEAD"].includes(request.method)) {
         return Response.redirect(hostPolicy.redirect, 301);
       }
-      if (url.pathname.startsWith("/media/listing-card/")) {
-        const { serveListingCardImage } = await import("./lib/listing-card-image.server");
-        const runtime = ctx as { waitUntil?: (work: Promise<unknown>) => void };
-        return serveListingCardImage(request, {
-          ...(typeof runtime?.waitUntil === "function"
-            ? { waitUntil: (work: Promise<unknown>) => runtime.waitUntil!(work) }
-            : {}),
-        });
-      }
       if (url.pathname === "/api/stripe/webhook") {
         if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
         return await handleStripeWebhook(request, env);

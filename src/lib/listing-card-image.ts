@@ -18,30 +18,3 @@ export function listingCardImageUrl(value: string): string {
     return value;
   }
 }
-
-/** Only the priority photo uses the same-origin cache; signed/unknown URLs never do. */
-export function priorityListingCardImageUrl(value: string): string {
-  const thumbnail = listingCardImageUrl(value);
-  try {
-    const url = new URL(thumbnail);
-    if (
-      url.protocol !== "https:" ||
-      url.hostname !== "images.craigslist.org" ||
-      url.username ||
-      url.password ||
-      url.port ||
-      url.search ||
-      url.hash ||
-      !/^\/[A-Za-z0-9_]{1,160}_600x450\.jpg$/.test(url.pathname)
-    )
-      return thumbnail;
-    return `/media/listing-card${url.pathname}`;
-  } catch {
-    return thumbnail;
-  }
-}
-
-export function listingCardImageFallbacks(original: string, priority = false): string[] {
-  const initial = priority ? priorityListingCardImageUrl(original) : listingCardImageUrl(original);
-  return [...new Set([listingCardImageUrl(original), original])].filter((url) => url !== initial);
-}

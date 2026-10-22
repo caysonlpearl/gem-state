@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
 import { MapPin } from "@phosphor-icons/react";
 import { listingParam } from "@/lib/listing-url";
-import { listingCardImageUrl, priorityListingCardImageUrl, listingCardImageFallbacks } from "@/lib/listing-card-image";
+import { listingCardImageUrl } from "@/lib/listing-card-image";
 
 import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { PartnerJobHeartButton } from "@/components/community/PartnerJobHeartButton";
@@ -358,17 +358,17 @@ export function ListingCardPhoto({
   return (
     <div className={`relative ${ratio} overflow-hidden bg-secondary`}>
       <img
-        key={priority ? priorityListingCardImageUrl(listing.imageUrl) : listingCardImageUrl(listing.imageUrl)}
-        src={priority ? priorityListingCardImageUrl(listing.imageUrl) : listingCardImageUrl(listing.imageUrl)}
+        src={listingCardImageUrl(listing.imageUrl)}
         decoding="async"
         onError={(event) => {
           const image = event.currentTarget;
-          const fallbacks = listingCardImageFallbacks(listing.imageUrl!, priority);
-          const attempt = Number(image.dataset.imageFallbackIndex ?? 0);
-          const next = fallbacks[attempt];
-          if (next) {
-            image.dataset.imageFallbackIndex = String(attempt + 1);
-            image.src = next;
+          // A removed thumbnail must not hide an original image that still works.
+          if (
+            listingCardImageUrl(listing.imageUrl!) !== listing.imageUrl &&
+            image.dataset.originalFallback !== "1"
+          ) {
+            image.dataset.originalFallback = "1";
+            image.src = listing.imageUrl!;
           }
         }}
         alt={listing.title}
