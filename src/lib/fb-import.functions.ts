@@ -609,9 +609,13 @@ export const getFacebookImportItems = createServerFn({ method: "GET" })
         .in("status", ["draft", "needs_update", "possibly_removed"])
         .order("id"),
     );
-    const allPaths = rows.flatMap((row: any) => (row.public_paths as string[] | null) ?? []);
+    const { data: archives, error: archiveError } = await admin.from("import_source_archives").select("source_profile_url").not("archived_at", "is", null);
+    if (archiveError) throw new Error(archiveError.message);
+    const archived = new Set((archives ?? []).map((r: any) => r.source_profile_url));
+    const visibleRows = rows.filter((r: any) => !archived.has(r.source_profile_url));
+    const allPaths = visibleRows.flatMap((row: any) => (row.public_paths as string[] | null) ?? []);
     const signedByPath = await signStagedPhotos(admin, allPaths);
-    return rows.map((row: any) => {
+    return visibleRows.map((row: any) => {
       const publicPaths: string[] = row.public_paths ?? [];
       return {
         id: row.id,
@@ -663,6 +667,7 @@ export type FbImportProfile = {
   sellerSlug: string | null;
   /** True when the seller paused sync; scans must skip them before opening any source page. */
   syncPaused: boolean;
+  archivedAt: string | null;
 };
 
 /** One row per Facebook profile that's been imported, with when it was last
@@ -727,6 +732,9 @@ export const getFacebookImportProfiles = createServerFn({ method: "GET" })
       (pausedRows ?? []).map((row: { source_profile_url: string }) => row.source_profile_url),
     );
 
+    const { data: archives, error: archiveError } = await admin.from("import_source_archives").select("source_profile_url,archived_at").not("archived_at", "is", null);
+    if (archiveError) throw new Error(archiveError.message);
+    const archivedByProfile = new Map<string, string>((archives ?? []).map((r: any) => [r.source_profile_url, r.archived_at]));
     const profiles = new Map<string, FbImportProfile>();
     for (const batch of batches ?? []) {
       if (profiles.has(batch.source_profile_url)) continue;
@@ -739,6 +747,7 @@ export const getFacebookImportProfiles = createServerFn({ method: "GET" })
         publishedCount: entry.published,
         sellerSlug: slugBySeller.get(sellerByProfile.get(batch.source_profile_url) ?? "") ?? null,
         syncPaused: pausedProfiles.has(batch.source_profile_url),
+        archivedAt: archivedByProfile.get(batch.source_profile_url) ?? null,
       });
     }
     return Array.from(profiles.values());
@@ -770,7 +779,9 @@ export const getFacebookRefreshTargets = createServerFn({ method: "GET" })
       .select("source_profile_url")
       .eq("sync_enabled", false);
     if (pauseError) throw new Error(pauseError.message);
-    const pausedProfiles = new Set((paused ?? []).map((p: any) => p.source_profile_url));
+    const { data: archives, error: archiveError } = await (supabaseAdmin as any).from("import_source_archives").select("source_profile_url").not("archived_at", "is", null);
+    if (archiveError) throw new Error(archiveError.message);
+    const pausedProfiles = new Set([...(paused ?? []), ...(archives ?? [])].map((p: any) => p.source_profile_url));
     return (data ?? [])
       .filter((row: any) => !pausedProfiles.has(row.source_profile_url))
       .map((row: any) => ({
@@ -1088,11 +1099,8 @@ export const publishFacebookImportItems = createServerFn({ method: "POST" })
         context.userId,
         data.mode === "linked",
       );
-      if (data.mode === "managed" && seller.claimed_at)
-        throw new Error(
-          "This seller already claimed their account. Choose Existing linked seller.",
-        );
-      if (data.mode === "linked") {
+      // Existing ownership determines routing; applying an update never reassigns it.
+      if (data.mode === "linked" || seller.claimed_at) {
         const [{ data: owner }, { data: setup }] = await Promise.all([
           admin.auth.admin.getUserById(seller.owner_user_id),
           admin
@@ -1160,3 +1168,20 @@ export const publishFacebookImportItems = createServerFn({ method: "POST" })
       };
     },
   );
+
+/** Reversible removal: only stops this source and hides its queue; public data stays intact. */
+export const setFacebookImportSourceArchived = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: { profile: string; archived: boolean }) => ({
+    profile: canonicalSellerSourceProfile(input.profile),
+    archived: z.boolean().parse(input.archived),
+  }))
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context);
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await (supabaseAdmin as any).rpc("set_import_source_archived", {
+      _profile: data.profile, _actor: context.userId, _archived: data.archived,
+    });
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });

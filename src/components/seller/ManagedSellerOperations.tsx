@@ -1,10 +1,11 @@
+import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import {
   createSellerClaimLink,
-  getManagedImportSellers,
+  type ManagedImportSeller,
   revokeSellerClaimLink,
   getManagedInbox,
   replyManagedConversation,
@@ -32,9 +33,14 @@ export function ClaimLinkResult({ url, onClose }: { url: string; onClose: () => 
         Send this private link to this seller in your existing conversation. It expires in 30 days.
         Replacing it invalidates the previous link.
       </p>
-      <input readOnly value={url} aria-label="Seller claim link" className="field w-full" />
-      <button
-        className="btn-primary mt-3"
+      <input
+        readOnly
+        value={url}
+        aria-label="Seller claim link"
+        className="h-10 w-full min-w-0 rounded-lg border border-input bg-background px-3 text-xs"
+      />
+      <Button
+        className="mt-3"
         onClick={async () => {
           try {
             await navigator.clipboard.writeText(url);
@@ -46,7 +52,7 @@ export function ClaimLinkResult({ url, onClose }: { url: string; onClose: () => 
         }}
       >
         {copied ? "Copied" : "Copy link"}
-      </button>
+      </Button>
       {error && (
         <p role="alert" className="mt-2 text-sm">
           {error}
@@ -55,27 +61,36 @@ export function ClaimLinkResult({ url, onClose }: { url: string; onClose: () => 
     </section>
   );
 }
-export function ManagedSellerOperations() {
-  const fetch = useServerFn(getManagedImportSellers);
+
+/** Compact actions live inside the imported seller's single expandable row. */
+export function SellerClaimControls({
+  seller,
+  profile,
+  name,
+}: {
+  seller?: ManagedImportSeller;
+  profile: string;
+  name: string;
+}) {
   const create = useServerFn(createSellerClaimLink);
   const revoke = useServerFn(revokeSellerClaimLink);
   const client = useQueryClient();
   const [link, setLink] = useState("");
-  const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
-  const sellers = useQuery({ queryKey: ["managed-import-sellers"], queryFn: () => fetch() });
+  const [confirm, setConfirm] = useState<"create" | "revoke" | null>(null);
+  const [authorized, setAuthorized] = useState(false);
   const createMutation = useMutation({
-    mutationFn: (s: { profile: string; name: string }) =>
-      create({ data: { profile: s.profile, displayName: s.name, authorized: true } }),
+    mutationFn: () => create({ data: { profile, displayName: name, authorized } }),
     onSuccess: (r) => {
       setLink(r.url);
+      setConfirm(null);
       void client.invalidateQueries({ queryKey: ["managed-import-sellers"] });
     },
     onError: (e) => toast.error(e.message),
   });
   const revokeMutation = useMutation({
-    mutationFn: (sellerId: string) => revoke({ data: { sellerId } }),
+    mutationFn: () => revoke({ data: { sellerId: seller!.id } }),
     onSuccess: () => {
-      setConfirmRevoke(null);
+      setConfirm(null);
       setLink("");
       void client.invalidateQueries({ queryKey: ["managed-import-sellers"] });
       toast.success("Claim link revoked.");
@@ -83,97 +98,89 @@ export function ManagedSellerOperations() {
     onError: (e) => toast.error(e.message),
   });
   return (
-    <div className="space-y-4">
-      {link && <ClaimLinkResult url={link} onClose={() => setLink("")} />}
-      <section className="rounded-lg border border-border bg-card">
-        <h2 className="border-b border-border p-4 text-sm font-semibold">Seller account claims</h2>
-        {sellers.isError ? (
-          <p role="alert" className="p-4 text-sm">
-            Claim status could not load.{" "}
-            <button onClick={() => void sellers.refetch()} className="underline">
-              Retry
-            </button>
-          </p>
-        ) : sellers.isLoading ? (
-          <p className="p-4 text-sm">Loading sellers…</p>
-        ) : !sellers.data?.length ? (
-          <p className="p-4 text-sm text-muted-foreground">
-            Publish for a new seller to create their managed profile and claim link.
-          </p>
-        ) : (
-          sellers.data.map(
-            (s: {
-              id: string;
-              profile: string;
-              name: string;
-              status: string;
-              syncEnabled: boolean;
-              expiresAt?: string;
-              audit: ImportAudit[];
-            }) => (
-              <div key={s.id} className="border-b border-border p-4 last:border-b-0">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <p className="font-semibold text-sm">{s.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {s.status} · Sync {s.syncEnabled ? "enabled" : "paused"}
-                      {s.expiresAt && s.status === "Unclaimed"
-                        ? ` · Link expires ${new Date(s.expiresAt).toLocaleDateString()}`
-                        : ""}
-                    </p>
-                  </div>
-                  {s.status !== "Claimed" && (
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        className="btn-secondary"
-                        disabled={createMutation.isPending}
-                        onClick={() => createMutation.mutate(s)}
-                      >
-                        Replace / create claim link
-                      </button>
-                      <button className="btn-secondary" onClick={() => setConfirmRevoke(s.id)}>
-                        Revoke link
-                      </button>
-                    </div>
-                  )}
-                </div>
-                {confirmRevoke === s.id && (
-                  <div className="mt-3 rounded-xl bg-secondary p-3 text-sm">
-                    <p>This link will stop working. Listings stay published and admin managed.</p>
-                    <div className="mt-2 flex gap-2">
-                      <button
-                        className="btn-secondary"
-                        disabled={revokeMutation.isPending}
-                        onClick={() => revokeMutation.mutate(s.id)}
-                      >
-                        Confirm revoke
-                      </button>
-                      <button className="btn-secondary" onClick={() => setConfirmRevoke(null)}>
-                        Cancel
-                      </button>
-                    </div>
-                  </div>
-                )}
-                <details className="mt-3 text-xs">
-                  <summary className="cursor-pointer">Activity history</summary>
-                  <ul className="mt-2 space-y-1">
-                    {s.audit.map((a: ImportAudit) => (
-                      <li key={`${a.action}-${a.created_at}`}>
-                        {a.action.replaceAll("_", " ")} · {new Date(a.created_at).toLocaleString()}{" "}
-                        · Actor {a.actor_id}
-                        {a.target_id ? ` · Record ${a.target_id}` : ""}
-                      </li>
-                    ))}
-                  </ul>
-                </details>
+    <div className="space-y-3">
+      {seller?.status === "Claimed" ? (
+        <p className="text-xs text-muted-foreground">
+          Account claimed. Listings and messages belong to this seller.
+        </p>
+      ) : (
+        <>
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={() => setConfirm("create")}>
+              {seller?.expiresAt ? "Replace claim link" : "Create claim link"}
+            </Button>
+            {seller?.status === "Unclaimed" && seller.expiresAt && (
+              <Button variant="outline" size="sm" onClick={() => setConfirm("revoke")}>
+                Revoke link
+              </Button>
+            )}
+          </div>
+          {confirm && (
+            <div className="rounded-xl border border-border bg-background p-3 text-xs space-y-3">
+              {confirm === "create" ? (
+                <>
+                  <p>
+                    {seller?.expiresAt
+                      ? "Replacing the link stops the previous link from working. "
+                      : ""}
+                    The new private link appears once for you to copy and share.
+                  </p>
+                  <label className="flex items-start gap-2">
+                    <input
+                      type="checkbox"
+                      checked={authorized}
+                      onChange={(e) => setAuthorized(e.target.checked)}
+                    />
+                    This seller authorized Bluebird to import and manage their listings.
+                  </label>
+                </>
+              ) : (
+                <p>
+                  The claim link will stop working. Listings, ownership and buyer messages stay
+                  intact.
+                </p>
+              )}
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  size="sm"
+                  disabled={
+                    confirm === "create"
+                      ? !authorized || createMutation.isPending
+                      : revokeMutation.isPending
+                  }
+                  onClick={() =>
+                    confirm === "create" ? createMutation.mutate() : revokeMutation.mutate()
+                  }
+                >
+                  {confirm === "create" ? "Create private claim link" : "Confirm revoke"}
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => setConfirm(null)}>
+                  Cancel
+                </Button>
               </div>
-            ),
-          )
-        )}
-      </section>
-      <ManagedSellerInbox />
+            </div>
+          )}
+        </>
+      )}
+      {link && <ClaimLinkResult url={link} onClose={() => setLink("")} />}
+      {!!seller?.audit.length && (
+        <details className="text-xs">
+          <summary className="cursor-pointer text-muted-foreground">Activity history</summary>
+          <ul className="mt-2 space-y-1">
+            {seller.audit.map((a: ImportAudit) => (
+              <li key={`${a.action}-${a.created_at}`}>
+                {a.action.replaceAll("_", " ")} · {new Date(a.created_at).toLocaleString()}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
     </div>
   );
+}
+
+export function ManagedSellerOperations() {
+  return <ManagedSellerInbox />;
 }
 function ManagedSellerInbox() {
   const fetch = useServerFn(getManagedInbox);
@@ -315,56 +322,5 @@ function ManagedSellerInbox() {
         </>
       )}
     </section>
-  );
-}
-export function PrepareSellerClaimButton({ profile, name }: { profile: string; name: string }) {
-  const create = useServerFn(createSellerClaimLink);
-  const client = useQueryClient();
-  const [open, setOpen] = useState(false);
-  const [authorized, setAuthorized] = useState(false);
-  const [url, setUrl] = useState("");
-  const mutation = useMutation({
-    mutationFn: () => create({ data: { profile, displayName: name, authorized } }),
-    onSuccess: (r) => {
-      setUrl(r.url);
-      setOpen(false);
-      void client.invalidateQueries({ queryKey: ["managed-import-sellers"] });
-    },
-    onError: (e) => toast.error(e.message),
-  });
-  return (
-    <div>
-      <button className="btn-secondary" onClick={() => setOpen(!open)}>
-        Prepare seller claim link
-      </button>
-      {open && (
-        <div className="mt-3 max-w-[360px] rounded-xl bg-secondary p-3 text-sm">
-          <label className="flex items-start gap-2">
-            <input
-              type="checkbox"
-              checked={authorized}
-              onChange={(e) => setAuthorized(e.target.checked)}
-            />
-            This seller authorized Bluebird to import and manage their listings.
-          </label>
-          <p className="my-2 text-xs text-muted-foreground">
-            Existing listings retain their current owner. A previously linked account must sign in
-            as that owner to claim.
-          </p>
-          <button
-            className="btn-primary"
-            disabled={!authorized || mutation.isPending}
-            onClick={() => mutation.mutate()}
-          >
-            {mutation.isPending ? "Preparing…" : "Create private claim link"}
-          </button>
-        </div>
-      )}
-      {url && (
-        <div className="mt-3">
-          <ClaimLinkResult url={url} onClose={() => setUrl("")} />
-        </div>
-      )}
-    </div>
   );
 }

@@ -77,10 +77,13 @@ export async function runImportRows<T>(
   for (const [index, itemId] of unique.entries()) {
     try {
       results.push(await apply(itemId));
-    } catch {
+    } catch (error) {
       failures.push({
         itemId,
-        message: "Request interrupted. Retry this row; completed rows are safe to retry.",
+        message:
+          error instanceof Error && error.message && !/fetch|network|abort/i.test(error.message)
+            ? error.message.slice(0, 500)
+            : "Request interrupted. Retry this row; completed rows are safe to retry.",
       });
     }
     progress?.(index + 1, unique.length);
@@ -90,12 +93,11 @@ export async function runImportRows<T>(
 
 /** Profiles a refresh may scan: the requested ones minus any whose sync is
  * paused. Callers must apply this before any source page is opened. */
-export function scannableProfiles<T extends { sourceProfileUrl: string; syncPaused: boolean }>(
-  all: T[],
-  profileUrl: string | null,
-): { requested: T[]; profiles: T[] } {
+export function scannableProfiles<
+  T extends { sourceProfileUrl: string; syncPaused: boolean; archivedAt?: string | null },
+>(all: T[], profileUrl: string | null): { requested: T[]; profiles: T[] } {
   const requested = all.filter((p) => !profileUrl || p.sourceProfileUrl === profileUrl);
-  return { requested, profiles: requested.filter((p) => !p.syncPaused) };
+  return { requested, profiles: requested.filter((p) => !p.syncPaused && !p.archivedAt) };
 }
 
 /** Allowlisted diagnostics only. Never reflect provider messages or row values. */

@@ -1,7 +1,7 @@
-import { keepBluebirdImportVersion } from "@/lib/seller-claims.functions";
+import { getManagedImportSellers, keepBluebirdImportVersion } from "@/lib/seller-claims.functions";
 import {
   ManagedSellerOperations,
-  PrepareSellerClaimButton,
+  SellerClaimControls,
   ClaimLinkResult,
 } from "@/components/seller/ManagedSellerOperations";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -22,6 +22,7 @@ import {
   discardFacebookImportItem,
   getFacebookImportItems,
   getFacebookImportProfiles,
+  setFacebookImportSourceArchived,
   getFacebookRefreshTargets,
   publishFacebookImportItems,
   stageFacebookImportBatch,
@@ -140,6 +141,29 @@ function ImportedSellers() {
   const queryClient = useQueryClient();
   const fetchProfiles = useServerFn(getFacebookImportProfiles);
   const fetchTargets = useServerFn(getFacebookRefreshTargets);
+  const fetchClaims = useServerFn(getManagedImportSellers);
+  const archiveSource = useServerFn(setFacebookImportSourceArchived);
+  const claims = useQuery({ queryKey: ["managed-import-sellers"], queryFn: () => fetchClaims() });
+  const [showRemoved, setShowRemoved] = useState(false);
+  const [sellerSearch, setSellerSearch] = useState("");
+  const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
+  const archiveMutation = useMutation({
+    mutationFn: (input: { profile: string; archived: boolean }) => archiveSource({ data: input }),
+    onSuccess: async (_r, input) => {
+      setConfirmRemove(null);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["fb-import-profiles"] }),
+        queryClient.invalidateQueries({ queryKey: ["fb-import-items"] }),
+        queryClient.invalidateQueries({ queryKey: ["managed-import-sellers"] }),
+      ]);
+      toast.success(
+        input.archived
+          ? "Import removed. You can restore it from Removed imports."
+          : "Import restored.",
+      );
+    },
+    onError: (e) => toast.error(e.message),
+  });
   const stage = useServerFn(stageFacebookImportBatch);
   const { data } = useQuery({
     queryKey: ["fb-import-profiles"],
@@ -195,7 +219,10 @@ function ImportedSellers() {
       const all = await fetchTargets();
       // Paused sellers are never scanned: skip them before the extension
       // opens any source page. Staging rejects them server-side too.
-      const { requested, profiles } = scannableProfiles(data ?? [], profileUrl);
+      const { requested, profiles } = scannableProfiles(
+        (data ?? []).filter((p) => !p.archivedAt),
+        profileUrl,
+      );
       if (!profiles.length)
         throw new Error(
           requested.length
@@ -523,90 +550,220 @@ function ImportedSellers() {
           </ul>
         </div>
       )}
-      <ul>
-        {data.map((profile) => {
-          const ageMs = Date.now() - new Date(profile.lastStagedAt).getTime();
-          const days = Math.floor(ageMs / DAY_MS);
-          const due = profile.publishedCount > 0 && ageMs >= DAY_MS;
-          return (
-            <li
-              key={profile.sourceProfileUrl}
-              className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-3 last:border-b-0"
-            >
-              <div className="min-w-[200px] flex-1">
-                <p className="text-[12.5px] font-medium">
-                  {profile.sellerName || profile.sourceProfileUrl}
-                </p>
-                <p className="text-[11px] text-muted-foreground">
-                  {profile.publishedCount} published · {profile.openCount} ready to publish · last
-                  refreshed {days === 0 ? "today" : `${days} day${days === 1 ? "" : "s"} ago`}
-                </p>
-              </div>
-              <PrepareSellerClaimButton
-                profile={profile.sourceProfileUrl}
-                name={profile.sellerName || "Seller"}
-              />
-              {due ? (
-                <span className="rounded-full border border-amber-500/50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-600">
-                  Due for refresh
-                </span>
-              ) : null}
-              {profile.syncPaused ? (
-                <span className="rounded-full border border-border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Sync paused
-                </span>
-              ) : null}
-              <button
-                type="button"
-                onClick={() => refreshMutation.mutate(profile.sourceProfileUrl)}
-                disabled={
-                  !extensionReady ||
-                  !scanAuthorized ||
-                  refreshMutation.isPending ||
-                  profile.syncPaused
-                }
-                className="h-8 rounded-md border border-input px-3 text-[11.5px] font-medium hover:bg-secondary disabled:opacity-50"
+      <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-3">
+        <input
+          aria-label="Search imported sellers"
+          placeholder="Search seller or platform"
+          value={sellerSearch}
+          onChange={(e) => setSellerSearch(e.target.value)}
+          className="h-9 min-w-0 flex-1 rounded-lg border border-input bg-background px-3 text-xs sm:max-w-xs"
+        />
+        <Button
+          variant={showRemoved ? "outline" : "secondary"}
+          size="sm"
+          onClick={() => setShowRemoved(false)}
+        >
+          Active imports ({data.filter((p) => !p.archivedAt).length})
+        </Button>
+        <Button
+          variant={showRemoved ? "secondary" : "outline"}
+          size="sm"
+          onClick={() => setShowRemoved(true)}
+        >
+          Removed imports ({data.filter((p) => p.archivedAt).length})
+        </Button>
+      </div>
+      {claims.isError && (
+        <p role="alert" className="p-4 text-xs">
+          Claim status could not load.{" "}
+          <button className="underline" onClick={() => void claims.refetch()}>
+            Retry
+          </button>
+        </p>
+      )}
+      <ul className="divide-y divide-border">
+        {data
+          .filter((p) => Boolean(p.archivedAt) === showRemoved)
+          .filter((p) => {
+            const claim = claims.data?.find(
+              (c) => queueProfileKey(c.profile) === queueProfileKey(p.sourceProfileUrl),
+            );
+            return `${claim?.name ?? p.sellerName ?? ""} ${sourceSiteName(p.sourceProfileUrl)} ${p.sourceProfileUrl}`
+              .toLowerCase()
+              .includes(sellerSearch.toLowerCase());
+          })
+          .map((profile) => {
+            const claim = claims.data?.find(
+              (c) => queueProfileKey(c.profile) === queueProfileKey(profile.sourceProfileUrl),
+            );
+            const name =
+              claim?.name ||
+              profile.sellerName ||
+              sourceSiteName(profile.sourceProfileUrl) + " seller";
+            const days = Math.max(
+              0,
+              Math.floor((Date.now() - new Date(profile.lastStagedAt).getTime()) / DAY_MS),
+            );
+            return (
+              <li
+                key={profile.sourceProfileUrl}
+                className="px-4 py-3"
+                data-import-profile={profile.sourceProfileUrl}
               >
-                Refresh
-              </button>
-              {profile.sellerSlug ? (
-                <>
-                  {/* For sending the seller their own share link, before they've claimed
-                      their account and can get it from the seller dashboard. */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void navigator.clipboard
-                        .writeText(sellerShareUrl(profile.sellerSlug ?? ""))
-                        .then(() => toast.success("Share link copied."))
-                        .catch(() => toast.error("Couldn't copy the link."));
-                    }}
-                    className="h-8 rounded-md border border-input px-3 text-[11.5px] font-medium hover:bg-secondary"
-                  >
-                    Copy share link
-                  </button>
-                  <a
-                    href={`/sellers/${profile.sellerSlug}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-[11.5px] text-primary hover:underline"
-                  >
-                    Storefront
-                  </a>
-                </>
-              ) : null}
-              <a
-                href={profile.sourceProfileUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="text-[11.5px] text-primary hover:underline"
-              >
-                Open profile
-              </a>
-            </li>
-          );
-        })}
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="min-w-0 flex-1 basis-52">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h3 className="text-sm font-semibold break-words">{name}</h3>
+                      <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground">
+                        {sourceSiteName(profile.sourceProfileUrl)}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground">
+                        {profile.archivedAt ? "Removed" : (claim?.status ?? "Not linked")}
+                        {profile.syncPaused && !profile.archivedAt ? " · Sync paused" : ""}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {profile.publishedCount} published · {profile.openCount} ready to publish ·
+                      refreshed {days === 0 ? "today" : `${days} days ago`}
+                    </p>
+                  </div>
+                  {profile.archivedAt ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={archiveMutation.isPending}
+                      onClick={() =>
+                        archiveMutation.mutate({
+                          profile: profile.sourceProfileUrl,
+                          archived: false,
+                        })
+                      }
+                    >
+                      Restore import
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => refreshMutation.mutate(profile.sourceProfileUrl)}
+                      disabled={
+                        !extensionReady ||
+                        !scanAuthorized ||
+                        refreshMutation.isPending ||
+                        profile.syncPaused
+                      }
+                    >
+                      Refresh
+                    </Button>
+                  )}
+                </div>
+                <details className="group mt-2 text-xs">
+                  <summary className="w-fit cursor-pointer rounded-md border border-input bg-background px-3 py-1.5 font-medium hover:bg-secondary">
+                    Manage seller
+                  </summary>
+                  <div className="mt-3 space-y-3 rounded-xl bg-secondary/40 p-3">
+                    {!profile.archivedAt && claims.isSuccess && (
+                      <SellerClaimControls
+                        seller={claim}
+                        profile={profile.sourceProfileUrl}
+                        name={name}
+                      />
+                    )}
+                    {claim?.expiresAt && claim.status === "Unclaimed" && (
+                      <p className="text-[11px] text-muted-foreground">
+                        Claim link expires {new Date(claim.expiresAt).toLocaleDateString()}
+                      </p>
+                    )}
+                    <div className="flex flex-wrap gap-2">
+                      {profile.sellerSlug && (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                              void navigator.clipboard
+                                .writeText(sellerShareUrl(profile.sellerSlug!))
+                                .then(() => toast.success("Storefront link copied."))
+                                .catch(() => toast.error("Couldn't copy the link."))
+                            }
+                          >
+                            Copy storefront link
+                          </Button>
+                          <Button size="sm" variant="outline" asChild>
+                            <a
+                              href={`/sellers/${profile.sellerSlug}`}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              View storefront
+                            </a>
+                          </Button>
+                        </>
+                      )}
+                      <Button size="sm" variant="outline" asChild>
+                        <a href={profile.sourceProfileUrl} target="_blank" rel="noreferrer">
+                          Open source profile
+                        </a>
+                      </Button>
+                      {!profile.archivedAt && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-destructive"
+                          onClick={() => setConfirmRemove(profile.sourceProfileUrl)}
+                        >
+                          Remove import
+                        </Button>
+                      )}
+                    </div>
+                    {confirmRemove === profile.sourceProfileUrl && (
+                      <div
+                        role="alert"
+                        className="space-y-3 rounded-lg border border-border bg-background p-3"
+                      >
+                        <p>
+                          Remove {name} from imports and stop refreshing this source? Its{" "}
+                          {profile.openCount} pending items will be hidden. Published listings,
+                          seller accounts, claim links and buyer messages stay intact. You can
+                          restore the import at any time.
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            disabled={archiveMutation.isPending}
+                            onClick={() =>
+                              archiveMutation.mutate({
+                                profile: profile.sourceProfileUrl,
+                                archived: true,
+                              })
+                            }
+                          >
+                            Confirm remove import
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setConfirmRemove(null)}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </details>
+              </li>
+            );
+          })}
       </ul>
+      {!data.some((p) => Boolean(p.archivedAt) === showRemoved) && (
+        <p className="p-4 text-xs text-muted-foreground">
+          {showRemoved
+            ? "No removed imports. Removed sources can be restored here."
+            : "No active imports."}
+        </p>
+      )}
     </section>
   );
 }
@@ -887,7 +1044,10 @@ function ReviewRow({
   });
 
   return (
-    <li className="border-b border-border p-4 last:border-b-0">
+    <li
+      id={`import-item-${item.id}`}
+      className="scroll-mt-24 border-b border-border p-4 last:border-b-0"
+    >
       <div className="flex flex-wrap items-start gap-4">
         <label className="mt-1 flex items-center">
           <input
@@ -1443,6 +1603,28 @@ function FbImportPage() {
           {blocker ??
             `${actionSummary}. New listings go live immediately; updates apply to the existing Bluebird listings; possibly-removed listings are taken offline, not republished.`}
         </p>
+        {data?.some((item) => publishErrors[item.id] || item.syncConflict) && (
+          <details
+            open
+            className="mx-4 mt-3 rounded-xl border border-amber-500/30 bg-amber-50/40 p-3 text-xs"
+          >
+            <summary className="cursor-pointer font-semibold">Listings needing attention</summary>
+            <ul className="mt-2 space-y-2">
+              {data
+                .filter((item) => publishErrors[item.id] || item.syncConflict)
+                .map((item) => (
+                  <li key={item.id}>
+                    <a className="font-medium underline" href={`#import-item-${item.id}`}>
+                      {item.title}
+                    </a>
+                    <p className="mt-0.5 text-muted-foreground">
+                      {publishErrors[item.id] || item.syncConflict}
+                    </p>
+                  </li>
+                ))}
+            </ul>
+          </details>
+        )}
         {sellerGroups.length > 0 && (
           <div className="px-4 pt-3">
             <div className="flex items-center justify-between gap-2">

@@ -13,7 +13,7 @@ import {
 import { canonicalSellerSourceProfile, dieselDepotListingId } from "../src/lib/seller-claims.ts";
 
 // Exercise actual handler bodies offline. Imports are replaced only at the boundary.
-function handlers(rows, { claimed = false, paused = false, writeError = null } = {}) {
+function handlers(rows, { claimed = false, paused = false, writeError = null, verified = true, setupActive = true } = {}) {
   const writes = [],
     rpcs = [],
     lookups = { count: 0 };
@@ -21,7 +21,7 @@ function handlers(rows, { claimed = false, paused = false, writeError = null } =
     auth: {
       admin: {
         getUserById: async () => ({
-          data: { user: { email_confirmed_at: "confirmed", app_metadata: {} } },
+          data: { user: { email_confirmed_at: verified ? "confirmed" : null, app_metadata: {} } },
         }),
       },
     },
@@ -76,7 +76,7 @@ function handlers(rows, { claimed = false, paused = false, writeError = null } =
             table === "managed_import_sellers"
               ? { id: "seller", owner_user_id: "owner", sync_enabled: !paused }
               : table === "seller_profiles"
-                ? { terms_accepted_at: "accepted", status: "active" }
+                ? { terms_accepted_at: setupActive ? "accepted" : null, status: "active" }
                 : table === "fb_marketplace_import_batches"
                   ? { id: "batch", seller_name: "Seller" }
                   : rows;
@@ -282,8 +282,8 @@ test("actual apply preserves account gates and never rotates a claim on success 
   assert.equal(h.rpcs[0].args._item, row.id);
   assert.throws(() => h.apply({ ...data, authorized: false }), /authorized/);
   const claimed = handlers([row], { claimed: true });
-  await assert.rejects(claimed.apply(data), /already claimed/);
-  assert.equal(claimed.rpcs.length, 0);
+  await claimed.apply(data);
+  assert.equal(claimed.rpcs.length, 1);
 });
 
 test("actual handler enforces one-seller application and scan authorization", async () => {
@@ -428,5 +428,14 @@ test("one finalization bulk-flags 300 confirmed-absent published rows in bounded
     });
     assert.equal(res.flaggedRemoved, 0);
     assert.equal(f.writes.filter((w) => w.table === "fb_marketplace_import_items").length, 0);
+  }
+});
+
+
+test("claimed seller auto-routing still enforces verified email and seller setup", async () => {
+  for (const option of [{claimed:true,verified:false}, {claimed:true,setupActive:false}]) {
+    const h=handlers([row],option);
+    await assert.rejects(h.apply({itemIds:[row.id],mode:"managed",authorized:true}), /verify their email and complete seller setup/);
+    assert.equal(h.rpcs.length,0);
   }
 });

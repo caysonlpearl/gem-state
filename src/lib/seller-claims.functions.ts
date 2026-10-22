@@ -148,9 +148,15 @@ export const revokeSellerClaimLink = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export type ManagedImportSeller = {
+  id: string; profile: string; name: string; status: string; syncEnabled: boolean;
+  expiresAt?: string;
+  audit: { action: string; actor_id: string; target_id: string | null; created_at: string }[];
+};
+
 export const getManagedImportSellers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .handler(async ({ context }) => {
+  .handler(async ({ context }): Promise<ManagedImportSeller[]> => {
     await operator(context);
     const db = await admin();
     const { data, error } = await db

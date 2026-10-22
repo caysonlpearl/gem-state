@@ -70,6 +70,7 @@ BEGIN
  UPDATE auth.users SET email_confirmed_at=now() WHERE id=outsider;
  INSERT INTO public.fb_marketplace_import_items(batch_id,seller_id,source_profile_url,source_url,title,price_cents,category_slug,evidence_paths,public_paths)
  VALUES(batch,owner,seller.source_profile_url,'https://www.facebook.com/marketplace/item/staged-'||owner||'/','QA staged claim item',1000,'general',ARRAY['_staging/'||owner||'/qa.jpg'],ARRAY['_staging/'||owner||'/qa.jpg']) RETURNING id INTO staged_item;
+ PERFORM public.set_import_source_archived(seller.source_profile_url,actor,true);
  transfer:=public.prepare_seller_claim(token,claimant);
  failed:=false;BEGIN INSERT INTO public.fb_marketplace_import_batches(imported_by,source_profile_url) VALUES(actor,seller.source_profile_url);EXCEPTION WHEN OTHERS THEN failed:=true;END;
  IF NOT failed THEN RAISE EXCEPTION 'Staging bypassed claim lease';END IF;
@@ -95,6 +96,7 @@ BEGIN
  IF NOT failed THEN RAISE EXCEPTION 'Routine admin inbox retained after claim';END IF;
  failed:=false;BEGIN PERFORM public.prepare_seller_claim(token,outsider);EXCEPTION WHEN OTHERS THEN failed:=true;END;
  IF NOT failed THEN RAISE EXCEPTION 'Consumed token reused by another account';END IF;
+ PERFORM public.set_import_source_archived(seller.source_profile_url,actor,false);
  -- Seller sync pause is effective for already-previewed items.
  UPDATE public.fb_marketplace_import_items SET status='needs_update',price_cents=4100 WHERE id=item;
  PERFORM public.set_import_sync(seller.id,claimant,false);

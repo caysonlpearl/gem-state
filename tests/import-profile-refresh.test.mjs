@@ -371,3 +371,20 @@ test("Diesel Depot excess distinct inventory also fails catalog reconciliation",
   const result = await h.c.collectSellerScan(p, h.c.profileScanConfig(p), () => {});
   assert.equal(mayInferScanAbsence(result.scan), false);
 });
+
+test("row application retains actionable server validation messages", async () => {
+  const { runImportRows } = await import("../src/lib/import-refresh.ts");
+  const result = await runImportRows(["claimed", "network"], async (id) => {
+    throw new Error(id === "claimed" ? "The linked seller must verify their email and complete seller setup first." : "Failed to fetch");
+  });
+  assert.match(result.failures[0].message, /must verify their email/);
+  assert.match(result.failures[1].message, /Request interrupted/);
+});
+
+
+test("removed import sources cannot be handed to Refresh All or single-seller scans", async () => {
+  const { scannableProfiles } = await import("../src/lib/import-refresh.ts");
+  const profiles=[{sourceProfileUrl:"removed",syncPaused:false,archivedAt:"2026-10-22"},{sourceProfileUrl:"active",syncPaused:false}];
+  assert.deepEqual(scannableProfiles(profiles,null).profiles.map(p=>p.sourceProfileUrl),["active"]);
+  assert.equal(scannableProfiles(profiles,"removed").profiles.length,0);
+});
