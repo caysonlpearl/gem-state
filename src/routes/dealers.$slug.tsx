@@ -3,6 +3,7 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 
 import { ListingCard } from "@/components/classifieds/ListingCard";
 import { BluebirdEmptyState } from "@/components/layout/BluebirdEmptyState";
+import { isIndexableStorefront } from "@/lib/seo-policy";
 import { getPublicDealer } from "@/lib/dealer.functions";
 
 const dealerQuery = (slug: string) =>
@@ -19,6 +20,9 @@ export const Route = createFileRoute("/dealers/$slug")({
   },
   head: ({ loaderData }) => ({
     meta: [
+      ...(isIndexableStorefront(loaderData?.dealer?.listings.length ?? 0)
+        ? []
+        : [{ name: "robots", content: "noindex, follow" }]),
       {
         title: loaderData?.dealer
           ? `${loaderData.dealer.displayName} · Bluebird Marketplace`

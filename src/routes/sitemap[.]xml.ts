@@ -3,6 +3,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { brand } from "@/config/brand";
 import { isSitemapAllowedPath } from "@/lib/seo-policy";
 import { guides } from "@/content/guides";
+import { dealerSitemapEntries } from "@/lib/dealer-sitemap.server";
 import { listingPath } from "@/lib/listing-url";
 import { fetchLiveListings, tallyLandingPages } from "@/lib/landing-pages.server";
 import { reportMonthOf } from "@/lib/market-stats";
@@ -50,6 +51,8 @@ export const Route = createFileRoute("/sitemap.xml")({
         const live = await fetchLiveListings(supabaseAdmin);
         if (!live) return new Response("Sitemap unavailable", { status: 503 });
         const listings = live;
+        const dealers = await dealerSitemapEntries(supabaseAdmin, listings);
+        if (!dealers) return new Response("Sitemap unavailable", { status: 503 });
 
         const pages = tallyLandingPages(listings);
         const sellerLastmod = new Map<string, string>();
@@ -116,6 +119,9 @@ export const Route = createFileRoute("/sitemap.xml")({
               { lastmod: row.updated_at, priority: "0.7" },
             );
           }),
+          ...dealers.map(({ path, lastmod }) =>
+            urlEntry(path, { lastmod, changefreq: "daily", priority: "0.5" }),
+          ),
           ...Array.from(sellerLastmod.entries())
             .filter(([sellerId]) => sellerSlugs.has(sellerId))
             .map(([sellerId, lastmod]) =>
