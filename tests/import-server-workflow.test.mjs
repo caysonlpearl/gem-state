@@ -4,13 +4,18 @@ import vm from "node:vm";
 import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
 import { z } from "zod";
-import { canonicalImportSource, mayInferScanAbsence } from "../src/lib/import-refresh.ts";
+import {
+  canonicalImportSource,
+  mayInferScanAbsence,
+  scannableProfiles,
+} from "../src/lib/import-refresh.ts";
 import { canonicalSellerSourceProfile, dieselDepotListingId } from "../src/lib/seller-claims.ts";
 
 // Exercise actual handler bodies offline. Imports are replaced only at the boundary.
 function handlers(rows, { claimed = false, paused = false } = {}) {
   const writes = [],
-    rpcs = [];
+    rpcs = [],
+    lookups = { count: 0 };
   const db = {
     auth: {
       admin: {
@@ -36,7 +41,8 @@ function handlers(rows, { claimed = false, paused = false } = {}) {
           filters.push([k, v]);
           return q;
         },
-        in() {
+        in(k, v) {
+          filters.push([k, v]);
           return q;
         },
         not() {
@@ -115,7 +121,10 @@ function handlers(rows, { claimed = false, paused = false } = {}) {
     },
     boundaries: {
       supabaseAdmin: db,
-      allImportRows: async () => rows,
+      allImportRows: async () => {
+        lookups.count++;
+        return rows;
+      },
       ensureManagedImportSeller: async () => ({
         id: "seller",
         owner_user_id: "owner",
@@ -140,6 +149,7 @@ function handlers(rows, { claimed = false, paused = false } = {}) {
     apply: (data) => c.apply({ data, context }),
     writes,
     rpcs,
+    lookups,
   };
 }
 const profile = "https://www.vinted.com/member/1";
@@ -281,4 +291,113 @@ test("actual handler enforces one-seller application and scan authorization", as
     () => h.stage({ sourceProfileUrl: profile, mode: "refresh", items: [item] }),
     /authorization/,
   );
+});
+
+test("paused profiles are never handed to the scanner, for Refresh all or a single seller", () => {
+  const all = [
+    { sourceProfileUrl: "a", syncPaused: false },
+    { sourceProfileUrl: "b", syncPaused: true },
+  ];
+  assert.deepEqual(
+    scannableProfiles(all, null).profiles.map((p) => p.sourceProfileUrl),
+    ["a"],
+  );
+  const single = scannableProfiles(all, "b");
+  assert.equal(single.requested.length, 1);
+  assert.equal(single.profiles.length, 0);
+});
+
+test("300+ discovered rows stage in 50-row chunks sharing one batch with one lookup per chunk", async () => {
+  const h = handlers([]);
+  const discovered = Array.from({ length: 320 }, (_, i) => ({
+    ...item,
+    sourceUrl: `https://www.vinted.com/items/${1000 + i}-n`,
+  }));
+  discovered[7] = { ...discovered[7], title: "" }; // malformed row
+  let staged = 0,
+    failed = 0,
+    batchId;
+  const failedUrls = [];
+  for (let i = 0; i < discovered.length; i += 50) {
+    const out = await h.stage({
+      sourceProfileUrl: profile,
+      authorized: true,
+      mode: "refresh",
+      items: discovered.slice(i, i + 50),
+      ...(batchId ? { batchId } : {}),
+    });
+    batchId = out.batchId;
+    staged += out.staged;
+    failed += out.failed;
+    failedUrls.push(...out.failedUrls);
+  }
+  assert.equal(staged, 319);
+  assert.equal(failed, 1);
+  assert.deepEqual(failedUrls, [discovered[7].sourceUrl]);
+  assert.equal(h.lookups.count, 7);
+  const batches = h.writes.filter(
+    (w) => w.table === "fb_marketplace_import_batches" && w.action === "insert",
+  );
+  assert.equal(batches.length, 1);
+  await assert.rejects(
+    h.stage({
+      sourceProfileUrl: profile,
+      authorized: true,
+      mode: "refresh",
+      items: discovered.slice(0, 51),
+    }),
+    /at most 50/,
+  );
+});
+
+test("one finalization bulk-flags 300 confirmed-absent published rows in bounded updates only", async () => {
+  const published = Array.from({ length: 300 }, (_, i) => ({
+    ...row,
+    source_url: `https://www.vinted.com/items/${5000 + i}-p`,
+  }));
+  const edited = { ...row, source_url: "https://www.vinted.com/items/9-e", status: "needs_update" };
+  const seen = { ...row, source_url: "https://www.vinted.com/items/8-s" };
+  const scan = { complete: true, termination: "end", challenged: false, unreadable: 0 };
+  const h = handlers([...published, edited, seen]);
+  const out = await h.stage({
+    sourceProfileUrl: profile,
+    authorized: true,
+    mode: "refresh",
+    items: [],
+    scan,
+    finalizeScan: true,
+    seenUrls: [seen.source_url],
+  });
+  assert.equal(out.flaggedRemoved, 300);
+  assert.equal(h.lookups.count, 1);
+  const flags = h.writes.filter(
+    (w) => w.action === "update" && w.values.status === "possibly_removed",
+  );
+  assert.equal(flags.length, 3);
+  const flagged = flags.flatMap((w) => w.filters.find(([k]) => k === "source_url")[1]);
+  assert.ok(flags.every((w) => w.filters.find(([k]) => k === "source_url")[1].length <= 100));
+  assert.ok(flags.every((w) => w.filters.some(([k, v]) => k === "status" && v === "published")));
+  assert.ok(!flagged.includes(edited.source_url) && !flagged.includes(seen.source_url));
+  const reasons = h.writes.filter(
+    (w) => w.action === "update" && w.values.removed_reason === "missing",
+  );
+  assert.equal(reasons.length, 3);
+
+  for (const bad of [
+    { ...scan, complete: false },
+    { ...scan, unreadable: 2 },
+  ]) {
+    const f = handlers([...published]);
+    const res = await f.stage({
+      sourceProfileUrl: profile,
+      authorized: true,
+      mode: "refresh",
+      items: [],
+      scan: bad,
+      finalizeScan: true,
+      seenUrls: [],
+    });
+    assert.equal(res.flaggedRemoved, 0);
+    assert.equal(f.writes.filter((w) => w.table === "fb_marketplace_import_items").length, 0);
+  }
 });

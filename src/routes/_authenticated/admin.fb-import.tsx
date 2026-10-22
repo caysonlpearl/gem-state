@@ -113,6 +113,7 @@ import {
   mayInferScanAbsence,
   runImportRows,
   type ScanEvidence,
+  scannableProfiles,
 } from "@/lib/import-refresh";
 import { Button } from "@/components/ui/button";
 
@@ -185,12 +186,9 @@ function ImportedSellers() {
         );
       if (!scanAuthorized) throw new Error("Confirm permission to scan these sellers first.");
       const all = await fetchTargets();
-      const requested = (data ?? []).filter(
-        (p) => !profileUrl || p.sourceProfileUrl === profileUrl,
-      );
       // Paused sellers are never scanned: skip them before the extension
       // opens any source page. Staging rejects them server-side too.
-      const profiles = requested.filter((p) => !p.syncPaused);
+      const { requested, profiles } = scannableProfiles(data ?? [], profileUrl);
       if (!profiles.length)
         throw new Error(
           requested.length
