@@ -240,3 +240,63 @@ test("Facebook stagnation is incomplete even after finding listings", async () =
   assert.equal(result.scan.complete, false);
   assert.equal(result.items.length, 1);
 });
+
+function kslPages(count) {
+  const profile = "https://classifieds.ksl.com/search/member/1";
+  const url = (n) => n === 1 ? profile : `${profile}?page=${n}`;
+  const pages = Object.fromEntries(Array.from({ length: count }, (_, i) => [url(i + 1), {
+    recognized: true,
+    expected: count,
+    items: [{ sourceUrl: `https://classifieds.ksl.com/listing/${i + 1}` }],
+    nextUrl: i + 1 < count ? url(i + 2) : null,
+  }]));
+  return { profile, pages };
+}
+
+test("KSL continues through all 25 advertised pages beyond the former 20-page cap", async () => {
+  const { profile, pages } = kslPages(25);
+  const h = profileHarness("KSL", pages);
+  const result = await h.c.collectSellerScan(profile, h.c.profileScanConfig(profile), () => {});
+  assert.equal(result.pages, 25);
+  assert.equal(result.items.length, 25);
+  assert.equal(mayInferScanAbsence(result.scan), true);
+});
+
+test("KSL 1000-page safety ceiling explicitly reports incomplete and forbids absence", async () => {
+  const { profile, pages } = kslPages(1001);
+  const h = profileHarness("KSL", pages);
+  const notices = [];
+  const result = await h.c.collectSellerScan(profile, h.c.profileScanConfig(profile), (s) => notices.push(s));
+  assert.equal(result.pages, 1000);
+  assert.equal(result.scan.termination, "incomplete");
+  assert.equal(mayInferScanAbsence(result.scan), false);
+  assert.equal(notices.some((s) => s.includes("safety ceiling 1000")), true);
+});
+
+for (const site of ["KSL", "Vinted", "Whatnot"]) {
+  for (const count of [1, 3]) {
+    test(`${site} advertised total 2 cannot be overridden by end marker with ${count} distinct items`, async () => {
+      const profile = site === "KSL" ? "https://classifieds.ksl.com/search/member/1" : site === "Vinted" ? "https://www.vinted.com/member/1" : "https://www.whatnot.com/user/test";
+      const url = site === "Whatnot" ? profile + "/shop" : profile;
+      const h = profileHarness(site, { [url]: {
+        recognized: true, expected: 2, explicitEnd: true,
+        items: Array.from({ length: count }, (_, i) => ({ sourceUrl: `https://example.test/listing/${i}` })),
+      } });
+      const result = await h.c.collectSellerScan(profile, h.c.profileScanConfig(profile), () => {});
+      assert.equal(result.scan.complete, false);
+      assert.equal(mayInferScanAbsence(result.scan), false);
+    });
+  }
+}
+
+test("Diesel Depot retains earlier advertised catalog total when final page count shrinks", async () => {
+  const p = "https://www.diesel-depot.com/inventory/", a = p + "?/listings/for-sale/trucks", b = a + "?page=2";
+  const h = profileHarness("Diesel Depot", {
+    [p]: { sections: [a], items: [] },
+    [a]: { recognized: true, heading: "Trucks", expected: 3, pageCount: 1, items: [{ sourceUrl: p + "1" }], nextUrl: b },
+    [b]: { recognized: true, heading: "Trucks", expected: 1, pageCount: 1, explicitEnd: true, items: [{ sourceUrl: p + "2" }] },
+  });
+  const result = await h.c.collectSellerScan(p, h.c.profileScanConfig(p), () => {});
+  assert.equal(result.scan.complete, false);
+  assert.equal(mayInferScanAbsence(result.scan), false);
+});
