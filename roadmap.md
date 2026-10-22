@@ -1,12 +1,5 @@
 # Gem State Classifieds conversion
 
-## Seller profile importer improvement
-- [x] Remove standalone KSL 20-page cap; verify 25-page traversal, explicit 1000-page ceiling, and advertised count reconciliation for KSL, Vinted, Whatnot and Diesel Depot (439 tests passing; no production scan/deploy).
-- [x] Implement profile discovery and conservative completeness evidence for five supported sources.
-- [x] Add bounded staging, full queue reads and safe retryable application without claim rotation.
-- [x] Verify offline tests (428 passing), task lint, preview build and diff; no production mutations or deployment.
-- [ ] Verify authorized live Chrome profile scans and authenticated review/application: blocked by unavailable external-Supabase session and prohibition on production refresh/apply.
-
 ## Industrial category
 - [x] Add Industrial to every category selector and register it for listing creation.
 - [x] Add the 22 supplied subcategories to create/edit/display and browse filtering.
