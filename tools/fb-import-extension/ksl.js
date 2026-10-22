@@ -38,20 +38,34 @@ async function kslCollectFromMemberPage() {
     const total = body.match(/\b(\d[\d,]*)\s+(?:results|listings)\b/i);
     return {
       expected: Number((range?.[3] || total?.[1] || "0").replaceAll(",", "")),
-      pageCount: range ? Number(range[2].replaceAll(",", "")) - Number(range[1].replaceAll(",", "")) + 1 : 0,
+      pageCount: range
+        ? Number(range[2].replaceAll(",", "")) - Number(range[1].replaceAll(",", "")) + 1
+        : 0,
     };
   };
-  let lastSignature = "", stable = 0, settled = false;
+  let lastSignature = "",
+    stable = 0,
+    settled = false;
   for (let attempt = 0; attempt < 20; attempt++) {
-    const ids = [...new Set(Array.from(document.querySelectorAll(cardSelector))
-      .map((a) => a.getAttribute("data-item-id")).filter((id) => /^\d+$/.test(id || "")))].sort();
+    const ids = [
+      ...new Set(
+        Array.from(document.querySelectorAll(cardSelector))
+          .map((a) => a.getAttribute("data-item-id"))
+          .filter((id) => /^\d+$/.test(id || "")),
+      ),
+    ].sort();
     const { expected, pageCount } = countEvidence();
     const next = document.querySelector('a[rel="next"], a[aria-label*="next" i]');
     const needed = pageCount || (!next ? expected : 0);
     const signature = ids.join(",") + `|${expected}|${pageCount}`;
     stable = signature === lastSignature ? stable + 1 : 0;
     lastSignature = signature;
-    if (stable >= 3 && (ids.length > 0 || /no (?:listings|results)(?: found)?/i.test(document.body?.innerText || "")) && (!needed || ids.length === needed)) {
+    if (
+      stable >= 3 &&
+      (ids.length > 0 ||
+        /no (?:listings|results)(?: found)?/i.test(document.body?.innerText || "")) &&
+      (!needed || ids.length === needed)
+    ) {
       settled = true;
       break;
     }

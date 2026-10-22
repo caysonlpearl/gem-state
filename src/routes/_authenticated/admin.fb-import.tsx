@@ -319,7 +319,9 @@ function ImportedSellers() {
           } catch {
             // A failed request leaves every row in the chunk unchanged and retryable.
             sellerFailed += chunk.length;
-            sellerFailures.push(...chunk.map((_, n) => ({ rowIndex: i + n, reason: "request_interrupted" })));
+            sellerFailures.push(
+              ...chunk.map((_, n) => ({ rowIndex: i + n, reason: "request_interrupted" })),
+            );
           }
         }
         const evidence = { ...report.scan, unreadable: report.scan.unreadable + sellerFailed };
@@ -472,7 +474,9 @@ function ImportedSellers() {
               {r.unreadGroups.length > 0 && (
                 <ul className="mt-1 space-y-1">
                   {r.unreadGroups.map((g) => (
-                    <li key={`${g.site}-${g.reason}`}>{g.count} · <code>{g.reason}</code> · {UNREADABLE_REASON_LABELS[g.reason]}</li>
+                    <li key={`${g.site}-${g.reason}`}>
+                      {g.count} · <code>{g.reason}</code> · {UNREADABLE_REASON_LABELS[g.reason]}
+                    </li>
                   ))}
                 </ul>
               )}
@@ -481,7 +485,10 @@ function ImportedSellers() {
                   <summary>Staging failure details · retry Refresh</summary>
                   <ul className="mt-1 space-y-1">
                     {r.failures.map((f) => (
-                      <li key={`${f.rowIndex}-${f.reason}`}>Result row {f.rowIndex + 1} · <code>{f.reason}</code> · {STAGING_FAILURE_LABELS[f.reason]}</li>
+                      <li key={`${f.rowIndex}-${f.reason}`}>
+                        Result row {f.rowIndex + 1} · <code>{f.reason}</code> ·{" "}
+                        {STAGING_FAILURE_LABELS[f.reason]}
+                      </li>
                     ))}
                   </ul>
                 </details>

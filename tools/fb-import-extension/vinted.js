@@ -97,42 +97,79 @@ async function vintedCollectFromProfile() {
 
 function vintedExtractItemInPage(withPhotos) {
   const body = document.body?.innerText || "";
-  const visibleText = (selector) => Array.from(document.querySelectorAll(selector))
-    .filter((el) => !el.hidden && el.getAttribute("aria-hidden") !== "true" &&
-      (typeof el.getClientRects !== "function" || el.getClientRects().length > 0))
-    .map((el) => (el.innerText || el.textContent || "").trim()).filter(Boolean);
+  const visibleText = (selector) =>
+    Array.from(document.querySelectorAll(selector))
+      .filter(
+        (el) =>
+          !el.hidden &&
+          el.getAttribute("aria-hidden") !== "true" &&
+          (typeof el.getClientRects !== "function" || el.getClientRects().length > 0),
+      )
+      .map((el) => (el.innerText || el.textContent || "").trim())
+      .filter(Boolean);
   // Explicit UI status overrides stale structured offers. Never search item
   // descriptions or recommendation text for a generic 'removed' substring.
-  const markers = visibleText("h1, h2, [role='alert'], [data-testid*='item-status'], [data-testid*='item-unavailable'], [data-testid*='item-removed']");
-  const unavailable = markers.find((text) => /^(?:removed!?|sold!?|item (?:is )?(?:no longer|not) available[.!]?|this item (?:was|has been) (?:deleted|removed)[.!]?|page (?:could not be|not) found[.!]?)$/i.test(text));
+  const markers = visibleText(
+    "h1, h2, [role='alert'], [data-testid*='item-status'], [data-testid*='item-unavailable'], [data-testid*='item-removed']",
+  );
+  const unavailable = markers.find((text) =>
+    /^(?:removed!?|sold!?|item (?:is )?(?:no longer|not) available[.!]?|this item (?:was|has been) (?:deleted|removed)[.!]?|page (?:could not be|not) found[.!]?)$/i.test(
+      text,
+    ),
+  );
   if (unavailable) return { unavailable: true, sold: /^sold/i.test(unavailable) };
 
   const products = [];
   const walk = (node) => {
-    if (Array.isArray(node)) { node.forEach(walk); return; }
+    if (Array.isArray(node)) {
+      node.forEach(walk);
+      return;
+    }
     if (!node || typeof node !== "object") return;
     const types = [].concat(node["@type"] || []);
     if (types.some((type) => /(?:^|[/#])Product$/.test(String(type)))) products.push(node);
-    for (const key of ["@graph", "mainEntity", "itemListElement", "item"]) if (node[key]) walk(node[key]);
+    for (const key of ["@graph", "mainEntity", "itemListElement", "item"])
+      if (node[key]) walk(node[key]);
   };
   let malformed = false;
   for (const script of document.querySelectorAll("script[type='application/ld+json']")) {
-    try { walk(JSON.parse(script.textContent || "")); } catch { malformed = true; }
+    try {
+      walk(JSON.parse(script.textContent || ""));
+    } catch {
+      malformed = true;
+    }
   }
   const currentId = (location.pathname.match(/\/items\/(\d+)/) || [])[1];
-  const product = products.find((p) => {
-    const id = String(p.url || p["@id"] || "").match(/\/items\/(\d+)/)?.[1];
-    return id && id === currentId;
-  }) || products.find((p) => !p.url && !p["@id"]) || {};
-  const offers = [].concat(product.offers || []).flatMap((offer) => [].concat(offer?.offers || offer || []));
-  const offer = offers.find((o) => o && (o.price != null || o.priceSpecification?.price != null)) || offers[0] || {};
-  const availability = String(offer.availability || "").split(/[/#]/).pop();
+  const product =
+    products.find((p) => {
+      const id = String(p.url || p["@id"] || "").match(/\/items\/(\d+)/)?.[1];
+      return id && id === currentId;
+    }) ||
+    products.find((p) => !p.url && !p["@id"]) ||
+    {};
+  const offers = []
+    .concat(product.offers || [])
+    .flatMap((offer) => [].concat(offer?.offers || offer || []));
+  const offer =
+    offers.find((o) => o && (o.price != null || o.priceSpecification?.price != null)) ||
+    offers[0] ||
+    {};
+  const availability = String(offer.availability || "")
+    .split(/[/#]/)
+    .pop();
   if (/^(Discontinued|SoldOut|OutOfStock)$/i.test(availability))
     return { unavailable: true, sold: /SoldOut|OutOfStock/i.test(availability) };
-  const domTitle = visibleText("[data-testid='item-title'], [data-testid='item-title--content'], h1")[0] || "";
-  const domDescription = visibleText("[data-testid='item-description'], [data-testid='item-description--content']")[0] || "";
-  const domPrice = visibleText("[data-testid='item-price'], [data-testid='item-price--content']")[0] || "";
-  const priceValue = offer.price ?? offer.priceSpecification?.price ?? domPrice.replace(/[^\d.,]/g, "").replaceAll(",", "");
+  const domTitle =
+    visibleText("[data-testid='item-title'], [data-testid='item-title--content'], h1")[0] || "";
+  const domDescription =
+    visibleText("[data-testid='item-description'], [data-testid='item-description--content']")[0] ||
+    "";
+  const domPrice =
+    visibleText("[data-testid='item-price'], [data-testid='item-price--content']")[0] || "";
+  const priceValue =
+    offer.price ??
+    offer.priceSpecification?.price ??
+    domPrice.replace(/[^\d.,]/g, "").replaceAll(",", "");
   const price = priceValue === "" || priceValue == null ? NaN : Number(priceValue);
   const conditionText = (body.match(/\nCondition\n([^\n]+)/) || [])[1] || "";
   // Category trail, top level first: Women › Clothing › Jeans.
@@ -144,7 +181,9 @@ function vintedExtractItemInPage(withPhotos) {
 
   const result = {
     title: String(product.name || domTitle).trim(),
-    description: String(product.description || domDescription).trim().slice(0, 5000),
+    description: String(product.description || domDescription)
+      .trim()
+      .slice(0, 5000),
     priceCents: Number.isFinite(price) && price >= 0 ? Math.round(price * 100) : null,
     vintedCondition: conditionText,
     vintedCategories: trail,
@@ -166,15 +205,25 @@ function vintedExtractItemInPage(withPhotos) {
       seen.add(key);
       photos.push(src);
     }
-    const ldImages = [].concat(product.image || []).map((image) => typeof image === "string" ? image : image?.url || image?.contentUrl).filter((url) => typeof url === "string" && /vinted\.net\/t\//.test(url));
+    const ldImages = []
+      .concat(product.image || [])
+      .map((image) => (typeof image === "string" ? image : image?.url || image?.contentUrl))
+      .filter((url) => typeof url === "string" && /vinted\.net\/t\//.test(url));
     result.photoUrls = (photos.length ? photos : ldImages).slice(0, 8);
   }
-  if (!result.title || result.priceCents == null || !result.description ||
-      (withPhotos && !result.photoUrls.length)) {
+  if (
+    !result.title ||
+    result.priceCents == null ||
+    !result.description ||
+    (withPhotos && !result.photoUrls.length)
+  ) {
     result.incomplete = true;
-    result.unreadableReason = !Object.keys(product).length && (!domTitle || !domDescription)
-      ? (malformed ? "structured_data_invalid" : "structured_data_missing")
-      : "price_or_details_missing";
+    result.unreadableReason =
+      !Object.keys(product).length && (!domTitle || !domDescription)
+        ? malformed
+          ? "structured_data_invalid"
+          : "structured_data_missing"
+        : "price_or_details_missing";
   }
   return result;
 }

@@ -24,7 +24,13 @@ function categoryHintFrom(sourceProfileUrl: string | null | undefined, descripti
     : null;
 }
 
-import { canonicalImportSource, mayInferScanAbsence, type ScanEvidence, stagingFailureCode, type StagingFailure } from "./import-refresh";
+import {
+  canonicalImportSource,
+  mayInferScanAbsence,
+  type ScanEvidence,
+  stagingFailureCode,
+  type StagingFailure,
+} from "./import-refresh";
 import { z } from "zod";
 
 const MAX_PHOTO_BYTES = 12 * 1024 * 1024;
@@ -247,8 +253,9 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
           return null;
         }
         let canonicalUrl: string;
-        try { canonicalUrl = canonicalImportSource(sourceProfileUrl, result.data.sourceUrl); }
-        catch {
+        try {
+          canonicalUrl = canonicalImportSource(sourceProfileUrl, result.data.sourceUrl);
+        } catch {
           invalidUrls.push(result.data.sourceUrl);
           invalidFailures.push({ rowIndex, reason: "unsupported_source" });
           return null;

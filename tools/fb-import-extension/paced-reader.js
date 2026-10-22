@@ -156,7 +156,8 @@ async function readListingJobs(jobs, { onItemDone } = {}) {
           // Retry extraction in the same two windows; never open extra tabs.
           for (let attempt = 0; attempt < 3; attempt++) {
             details = await exec(tabId, extract, [withPhotos]);
-            if (details?.unavailable || (details && !details.incomplete && !details.challenge)) break;
+            if (details?.unavailable || (details && !details.incomplete && !details.challenge))
+              break;
             if (attempt < 2) await sleep(1200);
           }
           if (!details || details.challenge) throw readFailure("read_failed");

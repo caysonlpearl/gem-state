@@ -80,7 +80,10 @@ function handlers(rows, { claimed = false, paused = false, writeError = null } =
                 : table === "fb_marketplace_import_batches"
                   ? { id: "batch", seller_name: "Seller" }
                   : rows;
-          resolve({ data, error: table === "fb_marketplace_import_items" && action ? writeError : null });
+          resolve({
+            data,
+            error: table === "fb_marketplace_import_items" && action ? writeError : null,
+          });
         },
       };
       return q;
@@ -355,11 +358,23 @@ test("300+ discovered rows stage in 50-row chunks sharing one batch with one loo
 
 test("actual staging reports sanitized per-row database failures, including singleton invalid rows", async () => {
   const h = handlers([], { writeError: { code: "23514", message: "private title and token" } });
-  const out = await h.stage({ sourceProfileUrl: profile, authorized: true, mode: "refresh", items: [item] });
+  const out = await h.stage({
+    sourceProfileUrl: profile,
+    authorized: true,
+    mode: "refresh",
+    items: [item],
+  });
   assert.equal(out.failed, 1);
-  assert.deepEqual(JSON.parse(JSON.stringify(out.failures)), [{ rowIndex: 0, reason: "database_constraint" }]);
+  assert.deepEqual(JSON.parse(JSON.stringify(out.failures)), [
+    { rowIndex: 0, reason: "database_constraint" },
+  ]);
   assert.doesNotMatch(JSON.stringify(out.failures), /private|token|title|sourceUrl/);
-  const invalid = await handlers([]).stage({ sourceProfileUrl: profile, authorized: true, mode: "refresh", items: [{ ...item, title: "" }] });
+  const invalid = await handlers([]).stage({
+    sourceProfileUrl: profile,
+    authorized: true,
+    mode: "refresh",
+    items: [{ ...item, title: "" }],
+  });
   assert.equal(invalid.failed, 1);
   assert.equal(invalid.failures[0].reason, "invalid_row");
 });

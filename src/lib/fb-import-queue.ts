@@ -118,7 +118,8 @@ export const UNREADABLE_REASON_LABELS: Record<string, string> = {
   verification_incomplete: "Human verification not completed",
   unsupported_url: "Unsupported listing URL",
   price_or_details_missing: "Price or details missing",
-  structured_data_missing: "Listing details not found in page data or visible fields; retry after loading",
+  structured_data_missing:
+    "Listing details not found in page data or visible fields; retry after loading",
   structured_data_invalid: "Page listing data could not be parsed; retry after loading",
   read_failed: "Page couldn't be read",
   reader_window_failed: "Reader window couldn't open",

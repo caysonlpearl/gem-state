@@ -116,8 +116,8 @@ export type StagingFailure = { rowIndex: number; reason: string };
 
 export function stagingFailureCode(error: unknown, phase: "photo" | "write"): string {
   if (phase === "photo") return "photo_download_failed";
-  const code = typeof error === "object" && error !== null && "code" in error
-    ? String(error.code) : "";
+  const code =
+    typeof error === "object" && error !== null && "code" in error ? String(error.code) : "";
   if (code === "23505") return "database_conflict";
   if (code === "42501") return "database_permission";
   if (["23502", "23503", "23514", "22P02"].includes(code)) return "database_constraint";
@@ -127,14 +127,26 @@ export function stagingFailureCode(error: unknown, phase: "photo" | "write"): st
 }
 
 /** Row numbers are local to a report, not seller IDs or source URLs. */
-export function sanitizeStagingFailures(value: unknown, rows: number, offset = 0): StagingFailure[] {
+export function sanitizeStagingFailures(
+  value: unknown,
+  rows: number,
+  offset = 0,
+): StagingFailure[] {
   if (!Array.isArray(value)) return [];
   const seen = new Set<number>();
   return value.flatMap((raw) => {
-    if (!raw || !Number.isInteger(raw.rowIndex) || raw.rowIndex < 0 || raw.rowIndex >= rows || seen.has(raw.rowIndex))
+    if (
+      !raw ||
+      !Number.isInteger(raw.rowIndex) ||
+      raw.rowIndex < 0 ||
+      raw.rowIndex >= rows ||
+      seen.has(raw.rowIndex)
+    )
       return [];
     seen.add(raw.rowIndex);
-    const reason = Object.hasOwn(STAGING_FAILURE_LABELS, raw.reason) ? raw.reason : "staging_write_failed";
+    const reason = Object.hasOwn(STAGING_FAILURE_LABELS, raw.reason)
+      ? raw.reason
+      : "staging_write_failed";
     return [{ rowIndex: raw.rowIndex + offset, reason }];
   });
 }
