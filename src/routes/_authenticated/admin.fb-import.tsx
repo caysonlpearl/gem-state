@@ -114,6 +114,9 @@ import {
   runImportRows,
   type ScanEvidence,
   scannableProfiles,
+  sanitizeStagingFailures,
+  STAGING_FAILURE_LABELS,
+  type StagingFailure,
 } from "@/lib/import-refresh";
 import { Button } from "@/components/ui/button";
 
@@ -156,6 +159,8 @@ function ImportedSellers() {
       unread: number;
       failed: number;
       complete: boolean;
+      failures: StagingFailure[];
+      unreadGroups: UnreadableDiagnostic[];
     }>
   >([]);
   const [scanAuthorized, setScanAuthorized] = useState(false);
@@ -264,6 +269,7 @@ function ImportedSellers() {
         failed = 0;
       const diagnostics: UnreadableDiagnostic[] = [];
       for (const report of reports) {
+        const sellerFailures: StagingFailure[] = [];
         let sellerNew = 0,
           sellerChanged = 0,
           sellerRemoved = 0,
@@ -299,9 +305,21 @@ function ImportedSellers() {
             sellerChanged += result.updated;
             sellerRemoved += result.flaggedRemoved;
             sellerFailed += result.failed;
+            const safe = sanitizeStagingFailures(result.failures, chunk.length, i);
+            sellerFailures.push(...safe);
+            // Older extension/server diagnostics never invent a cause.
+            if (safe.length < result.failed) {
+              const indexes = new Set(safe.map((f) => f.rowIndex));
+              for (let n = 0; n < chunk.length && indexes.size < result.failed; n++) {
+                if (indexes.has(i + n)) continue;
+                sellerFailures.push({ rowIndex: i + n, reason: "staging_write_failed" });
+                indexes.add(i + n);
+              }
+            }
           } catch {
             // A failed request leaves every row in the chunk unchanged and retryable.
             sellerFailed += chunk.length;
+            sellerFailures.push(...chunk.map((_, n) => ({ rowIndex: i + n, reason: "request_interrupted" })));
           }
         }
         const evidence = { ...report.scan, unreadable: report.scan.unreadable + sellerFailed };
@@ -324,6 +342,7 @@ function ImportedSellers() {
             sellerRemoved += result.flaggedRemoved;
           } catch {
             sellerFailed++;
+            sellerFailures.push({ rowIndex: rows.length, reason: "finalization_failed" });
           }
         }
         setScanReports((current) => [
@@ -338,6 +357,8 @@ function ImportedSellers() {
             unread: report.scan.unreadable,
             failed: sellerFailed,
             complete: mayInferScanAbsence(evidence),
+            failures: sellerFailures,
+            unreadGroups: groupUnreadable(report.unreadableReasons, report.scan.unreadable),
           },
         ]);
         checked += report.scanned;
@@ -364,6 +385,8 @@ function ImportedSellers() {
             unread: 0,
             failed: 1,
             complete: false,
+            failures: [{ rowIndex: 0, reason: "request_interrupted" }],
+            unreadGroups: [],
           },
         ]);
       }
@@ -446,6 +469,23 @@ function ImportedSellers() {
               {r.complete
                 ? "Complete"
                 : "Incomplete — unseen records left unchanged; retry Refresh"}
+              {r.unreadGroups.length > 0 && (
+                <ul className="mt-1 space-y-1">
+                  {r.unreadGroups.map((g) => (
+                    <li key={`${g.site}-${g.reason}`}>{g.count} · <code>{g.reason}</code> · {UNREADABLE_REASON_LABELS[g.reason]}</li>
+                  ))}
+                </ul>
+              )}
+              {r.failures.length > 0 && (
+                <details className="mt-1">
+                  <summary>Staging failure details · retry Refresh</summary>
+                  <ul className="mt-1 space-y-1">
+                    {r.failures.map((f) => (
+                      <li key={`${f.rowIndex}-${f.reason}`}>Result row {f.rowIndex + 1} · <code>{f.reason}</code> · {STAGING_FAILURE_LABELS[f.reason]}</li>
+                    ))}
+                  </ul>
+                </details>
+              )}
             </li>
           ))}
         </ul>
@@ -465,7 +505,7 @@ function ImportedSellers() {
             {unreadReport.map((g) => (
               <li key={`${g.site}-${g.reason}`}>
                 <span className="numeric font-medium">{g.count}</span> · {g.site} ·{" "}
-                {UNREADABLE_REASON_LABELS[g.reason] ?? g.reason}
+                <code>{g.reason}</code> · {UNREADABLE_REASON_LABELS[g.reason]}
               </li>
             ))}
           </ul>
