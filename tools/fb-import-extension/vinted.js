@@ -110,7 +110,7 @@ function vintedExtractItemInPage(withPhotos) {
   // Explicit UI status overrides stale structured offers. Never search item
   // descriptions or recommendation text for a generic 'removed' substring.
   const markers = visibleText(
-    "h1, h2, [role='alert'], [data-testid*='item-status'], [data-testid*='item-unavailable'], [data-testid*='item-removed']",
+    "h1, [role='alert'], [data-testid*='item-status'], [data-testid*='item-unavailable'], [data-testid*='item-removed'], [data-testid='item-details'] h2",
   );
   const unavailable = markers.find((text) =>
     /^(?:removed!?|sold!?|item (?:is )?(?:no longer|not) available[.!]?|this item (?:was|has been) (?:deleted|removed)[.!]?|page (?:could not be|not) found[.!]?)$/i.test(

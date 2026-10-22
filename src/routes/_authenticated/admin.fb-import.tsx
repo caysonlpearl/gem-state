@@ -129,6 +129,7 @@ type ProfileScanReport = {
   readable?: number;
   skipped?: number;
   discovered: number;
+  expected?: number;
   scan: ScanEvidence;
   seenUrls: string[];
   results: FbImportItemInput[];
@@ -153,6 +154,7 @@ function ImportedSellers() {
       profile: string;
       scanned: number;
       discovered: number;
+      expected: number;
       newCount: number;
       changed: number;
       removed: number;
@@ -353,6 +355,7 @@ function ImportedSellers() {
             profile: report.sourceProfileUrl,
             scanned: report.scanned,
             discovered: report.discovered,
+            expected: report.expected ?? 0,
             newCount: sellerNew,
             changed: sellerChanged,
             removed: sellerRemoved,
@@ -381,6 +384,7 @@ function ImportedSellers() {
             profile: profile.sourceProfileUrl,
             scanned: 0,
             discovered: 0,
+            expected: 0,
             newCount: 0,
             changed: 0,
             removed: 0,
@@ -471,6 +475,7 @@ function ImportedSellers() {
               {r.complete
                 ? "Complete"
                 : "Incomplete — unseen records left unchanged; retry Refresh"}
+              {r.expected > 0 && <span> · Source advertised {r.expected}</span>}
               {r.unreadGroups.length > 0 && (
                 <ul className="mt-1 space-y-1">
                   {r.unreadGroups.map((g) => (

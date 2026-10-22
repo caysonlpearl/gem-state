@@ -297,6 +297,7 @@ async function refreshSellerProfiles(adminTabId, requestId, profiles) {
       readable: results.length,
       skipped: jobs.filter(({ item }) => item.auction).length,
       discovered: report.items.length,
+      expected: report.expected,
       seenUrls: [
         ...new Set([
           ...report.items.map((i) => i.sourceUrl),
