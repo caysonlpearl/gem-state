@@ -47,7 +47,9 @@ test("KSL current 64-card range waits for newly hydrated last card, including ne
   assert.equal(result.expected, 64);
   assert.equal(result.pageCount, 64);
   assert.equal(result.items.length, 64);
-  assert.ok(result.items.some((item) => item.sourceUrl === "https://classifieds.ksl.com/listing/64"));
+  assert.ok(
+    result.items.some((item) => item.sourceUrl === "https://classifieds.ksl.com/listing/64"),
+  );
   assert.equal(result.enumerationComplete, true);
 });
 test("KSL stable short count or duplicate cards never certify full enumeration", async () => {
