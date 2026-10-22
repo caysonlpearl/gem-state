@@ -1,4 +1,4 @@
-# Bluebird Listing Import 1.5.0
+# Bluebird Listing Import 1.5.2
 
 This is a manually operated Chrome extension. It reads public listing data in the browser session the operator is already using; it does not run scheduled imports or publish automatically.
 

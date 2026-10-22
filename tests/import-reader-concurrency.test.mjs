@@ -282,7 +282,7 @@ test("Refresh all reports unreadable counts grouped by site and reason, without 
   assert.equal(result.unreadable, 2);
   assert.deepEqual(reasons, [
     { site: "Unknown site", reason: "unsupported_url", count: 1 },
-    { site: "Vinted", reason: "read_failed", count: 1 },
+    { site: "Vinted", reason: "empty_result", count: 1 },
   ]);
   assert.doesNotMatch(JSON.stringify(reasons), /https?:|broken|read /);
 });
@@ -293,4 +293,24 @@ test("a page that never finishes loading is reported as a timeout", async () => 
   await h.context.readListingJobs(input);
   assert.equal(input[0].item.unreadable, true);
   assert.equal(input[0].item.unreadableReason, "page_timeout");
+});
+test("extraction injection errors, empty results and challenges get distinct codes", async () => {
+  for (const [behavior, code] of [
+    [
+      () => {
+        throw new Error("Frame removed https://private");
+      },
+      "injection_failed",
+    ],
+    [() => null, "empty_result"],
+    [() => ({ challenge: true }), "challenge_detected"],
+  ]) {
+    const h = harness();
+    h.context.exec = async (_t, fn) => (fn.name === "isBotCheckPage" ? false : behavior());
+    const input = [{ ...jobs[0], item: { sourceUrl: "https://source.test/x" } }];
+    await h.context.readListingJobs(input);
+    assert.equal(input[0].item.unreadable, true);
+    assert.equal(input[0].item.unreadableReason, code);
+    assert.equal(input[0].item.title, undefined);
+  }
 });
