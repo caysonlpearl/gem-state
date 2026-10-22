@@ -87,3 +87,13 @@ export async function runImportRows<T>(
   }
   return { results, failures };
 }
+
+/** Profiles a refresh may scan: the requested ones minus any whose sync is
+ * paused. Callers must apply this before any source page is opened. */
+export function scannableProfiles<T extends { sourceProfileUrl: string; syncPaused: boolean }>(
+  all: T[],
+  profileUrl: string | null,
+): { requested: T[]; profiles: T[] } {
+  const requested = all.filter((p) => !profileUrl || p.sourceProfileUrl === profileUrl);
+  return { requested, profiles: requested.filter((p) => !p.syncPaused) };
+}

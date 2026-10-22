@@ -165,6 +165,27 @@ async function recordRemovedReason(
   if (error) console.warn("Could not record why an import was flagged", error.message);
 }
 
+/** Bulk variant: one reason write per bounded chunk of rows. */
+async function recordRemovedReasons(
+  admin: any,
+  sourceProfileUrl: string,
+  sourceUrls: string[],
+  reason: RemovedReason,
+) {
+  if (!sourceUrls.length) return;
+  const { error } = await admin
+    .from("fb_marketplace_import_items")
+    .update({ removed_reason: reason })
+    .eq("source_profile_url", sourceProfileUrl)
+    .in("source_url", sourceUrls);
+  if (error) console.warn("Could not record why imports were flagged", error.message);
+}
+
+/** Rows per staging request; the admin page chunks scan results to this size. */
+const STAGE_CHUNK_SIZE = 50;
+/** Rows per bulk absence update during per-profile finalization. */
+const FINALIZE_CHUNK_SIZE = 100;
+
 export const stageFacebookImportBatch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator(
@@ -178,6 +199,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
       seenUrls?: string[];
       finalizeScan?: boolean;
       removalSourceUrl?: string;
+      batchId?: string;
     }) => {
       const sourceProfileUrl = canonicalSellerSourceProfile(String(input.sourceProfileUrl ?? ""));
       if (input.mode === "refresh" && input.authorized !== true)
@@ -197,10 +219,13 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
             })
             .parse(input.scan)
         : undefined;
-      if (!Array.isArray(input.items) || input.items.length > 1)
-        throw new Error("Stage one row per request; use the bounded batch operation.");
-      const items = (input.items ?? []).map((raw) => {
-        const item = z
+      if (!Array.isArray(input.items) || input.items.length > STAGE_CHUNK_SIZE)
+        throw new Error(`Stage at most ${STAGE_CHUNK_SIZE} rows per request.`);
+      // Rows are validated one by one so a single malformed row is reported
+      // as a retryable failure instead of rejecting the whole chunk.
+      const invalidUrls: string[] = [];
+      const parsedItems = (input.items ?? []).map((raw) => {
+        const result = z
           .object({
             sourceUrl: z.string().url().max(2048),
             title: z.string().max(1000),
@@ -211,7 +236,14 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
             sold: z.boolean().optional(),
           })
           .passthrough()
-          .parse(raw) as FbImportItemInput;
+          .safeParse(raw);
+        if (!result.success || !String(result.data.title ?? "").trim()) {
+          invalidUrls.push(
+            String((raw as { sourceUrl?: unknown })?.sourceUrl ?? "").slice(0, 2048),
+          );
+          return null;
+        }
+        const item = result.data as FbImportItemInput;
         const categorySlug = inferFacebookCategorySlug(
           item.categorySlug,
           item.title,
@@ -248,8 +280,12 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
           sold: item.sold === true,
         };
       });
-      if (!items.length && !input.finalizeScan) throw new Error("No listings were provided.");
-      if (items.some((item) => !item.sourceUrl || !item.title))
+      const items = parsedItems.filter(
+        (item): item is NonNullable<(typeof parsedItems)[number]> => item !== null,
+      );
+      if (!items.length && !invalidUrls.length && !input.finalizeScan)
+        throw new Error("No listings were provided.");
+      if (input.items.length === 1 && invalidUrls.length)
         throw new Error("Every listing needs a source URL and a title.");
       return {
         sourceProfileUrl,
@@ -262,6 +298,11 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
           ? canonicalImportSource(sourceProfileUrl, input.removalSourceUrl)
           : undefined,
         seenUrls: (input.seenUrls ?? []).map((url) => canonicalImportSource(sourceProfileUrl, url)),
+        invalidUrls,
+        batchId:
+          typeof input.batchId === "string" && /^[0-9a-z-]{1,64}$/i.test(input.batchId)
+            ? input.batchId
+            : undefined,
       };
     },
   )
@@ -274,6 +315,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
       staged: number;
       updated: number;
       failed: number;
+      failedUrls: string[];
       flaggedRemoved: number;
     }> => {
       await requireAdmin(context);
@@ -288,17 +330,37 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
       if (managedError) throw new Error(managedError.message);
       if (managed?.sync_enabled === false) throw new Error("This seller paused Facebook sync.");
 
-      const { data: batch, error: batchError } = await admin
-        .from("fb_marketplace_import_batches")
-        .insert({
-          imported_by: context.userId,
-          source_profile_url: data.sourceProfileUrl,
-          seller_name: data.sellerName,
-        })
-        .select("id")
-        .single();
-      if (batchError) throw new Error(batchError.message);
+      // One batch per seller refresh: later chunks and the finalize call
+      // reuse it (scoped to this admin and profile) instead of creating
+      // hundreds of single-row batches.
+      let batch: { id: string } | null = null;
+      if (data.batchId) {
+        const { data: existing, error } = await admin
+          .from("fb_marketplace_import_batches")
+          .select("id")
+          .eq("id", data.batchId)
+          .eq("source_profile_url", data.sourceProfileUrl)
+          .eq("imported_by", context.userId)
+          .maybeSingle();
+        if (error) throw new Error(error.message);
+        batch = existing ?? null;
+      }
+      if (!batch) {
+        const { data: created, error: batchError } = await admin
+          .from("fb_marketplace_import_batches")
+          .insert({
+            imported_by: context.userId,
+            source_profile_url: data.sourceProfileUrl,
+            seller_name: data.sellerName,
+          })
+          .select("id")
+          .single();
+        if (batchError) throw new Error(batchError.message);
+        batch = created as { id: string };
+      }
 
+      // One prior-row lookup per request (a chunk of up to STAGE_CHUNK_SIZE
+      // rows, or the single per-profile finalize), never one per listing.
       const { allImportRows } = await import("./import-pagination.server");
       const priorItems = await allImportRows(() =>
         admin
@@ -327,135 +389,144 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
 
       let staged = 0;
       let updated = 0;
-      let failed = 0;
+      let failed = data.invalidUrls.length;
+      const failedUrls: string[] = [...data.invalidUrls];
       let flaggedRemoved = 0;
       const isRefresh = data.mode === "refresh";
 
       for (const item of data.items) {
-        const priorDealer = dealerPrior.get(dieselDepotListingId(item.sourceUrl) ?? "");
-        if (priorDealer) item.sourceUrl = priorDealer.source_url;
-        const key = canonicalImportSource(data.sourceProfileUrl, item.sourceUrl);
-        seenUrls.add(key);
-        const prior = priorByUrl.get(key);
-        if (prior) item.sourceUrl = prior.source_url;
-        // Pending/admin-edited and discarded rows are never overwritten by a scan.
-        if (prior && prior.status !== "published") continue;
-        if (isRefresh && prior)
-          item.itemDetails = inferImportItemDetails(
-            prior.category_slug,
-            item.subcategory,
-            prior.item_details,
-            item.title,
-          );
-        if (prior && item.description === null && !item.unavailable)
-          item.description = prior.description;
-        if (!prior && item.unavailable) continue;
-        const classificationChanged =
-          JSON.stringify(prior?.item_details ?? {}) !== JSON.stringify(item.itemDetails);
+        // Per-row failures are isolated and reported by source URL so the
+        // chunk stays retryable; every write below is idempotent.
+        try {
+          const priorDealer = dealerPrior.get(dieselDepotListingId(item.sourceUrl) ?? "");
+          if (priorDealer) item.sourceUrl = priorDealer.source_url;
+          const key = canonicalImportSource(data.sourceProfileUrl, item.sourceUrl);
+          seenUrls.add(key);
+          const prior = priorByUrl.get(key);
+          if (prior) item.sourceUrl = prior.source_url;
+          // Pending/admin-edited and discarded rows are never overwritten by a scan.
+          if (prior && prior.status !== "published") continue;
+          if (isRefresh && prior)
+            item.itemDetails = inferImportItemDetails(
+              prior.category_slug,
+              item.subcategory,
+              prior.item_details,
+              item.title,
+            );
+          if (prior && item.description === null && !item.unavailable)
+            item.description = prior.description;
+          if (!prior && item.unavailable) continue;
+          const classificationChanged =
+            JSON.stringify(prior?.item_details ?? {}) !== JSON.stringify(item.itemDetails);
 
-        // A refresh only re-checks listings that are already published, and
-        // only touches what Facebook can actually have changed. Category,
-        // condition and location are left exactly as the admin set them.
-        if (isRefresh && prior) {
-          if (item.unavailable) {
+          // A refresh only re-checks listings that are already published, and
+          // only touches what Facebook can actually have changed. Category,
+          // condition and location are left exactly as the admin set them.
+          if (isRefresh && prior) {
+            if (item.unavailable) {
+              const { error } = await admin
+                .from("fb_marketplace_import_items")
+                .update({ batch_id: batch.id, status: "possibly_removed" })
+                .eq("source_profile_url", data.sourceProfileUrl)
+                .eq("source_url", item.sourceUrl)
+                .eq("status", "published");
+              if (error) throw new Error(error.message);
+              await recordRemovedReason(
+                admin,
+                data.sourceProfileUrl,
+                item.sourceUrl,
+                item.sold ? "sold" : "unavailable",
+              );
+              flaggedRemoved += 1;
+              continue;
+            }
+            const changed =
+              prior.price_cents !== item.priceCents ||
+              (prior.description ?? "") !== (item.description ?? "") ||
+              classificationChanged;
+            if (!changed) continue;
             const { error } = await admin
               .from("fb_marketplace_import_items")
-              .update({ batch_id: batch.id, status: "possibly_removed" })
+              .update({
+                batch_id: batch.id,
+                title: item.title,
+                description: item.description,
+                price_cents: item.priceCents,
+                item_details: item.itemDetails,
+                status: "needs_update",
+                previous_price_cents: prior.price_cents,
+                previous_description: prior.description,
+              })
               .eq("source_profile_url", data.sourceProfileUrl)
               .eq("source_url", item.sourceUrl)
               .eq("status", "published");
             if (error) throw new Error(error.message);
-            await recordRemovedReason(
-              admin,
-              data.sourceProfileUrl,
-              item.sourceUrl,
-              item.sold ? "sold" : "unavailable",
-            );
-            flaggedRemoved += 1;
+            updated += 1;
             continue;
           }
-          const changed =
-            prior.price_cents !== item.priceCents ||
-            (prior.description ?? "") !== (item.description ?? "") ||
-            classificationChanged;
-          if (!changed) continue;
-          const { error } = await admin
-            .from("fb_marketplace_import_items")
-            .update({
-              batch_id: batch.id,
-              title: item.title,
-              description: item.description,
-              price_cents: item.priceCents,
-              item_details: item.itemDetails,
-              status: "needs_update",
-              previous_price_cents: prior.price_cents,
-              previous_description: prior.description,
-            })
-            .eq("source_profile_url", data.sourceProfileUrl)
-            .eq("source_url", item.sourceUrl)
-            .eq("status", "published");
-          if (error) throw new Error(error.message);
-          updated += 1;
-          continue;
-        }
 
-        if (prior && prior.status === "published") {
-          const changed =
-            prior.price_cents !== item.priceCents ||
-            (prior.description ?? "") !== (item.description ?? "") ||
-            classificationChanged;
-          if (!changed) continue;
-          const { error } = await admin
-            .from("fb_marketplace_import_items")
-            .update({
-              batch_id: batch.id,
-              title: item.title,
-              description: item.description,
-              price_cents: item.priceCents,
-              condition: item.condition,
-              category_slug: item.categorySlug,
-              item_details: item.itemDetails,
-              status: "needs_update",
-              previous_price_cents: prior.price_cents,
-              previous_description: prior.description,
-            })
-            .eq("source_profile_url", data.sourceProfileUrl)
-            .eq("source_url", item.sourceUrl)
-            .eq("status", "published");
-          if (error) throw new Error(error.message);
-          updated += 1;
-          continue;
-        }
+          if (prior && prior.status === "published") {
+            const changed =
+              prior.price_cents !== item.priceCents ||
+              (prior.description ?? "") !== (item.description ?? "") ||
+              classificationChanged;
+            if (!changed) continue;
+            const { error } = await admin
+              .from("fb_marketplace_import_items")
+              .update({
+                batch_id: batch.id,
+                title: item.title,
+                description: item.description,
+                price_cents: item.priceCents,
+                condition: item.condition,
+                category_slug: item.categorySlug,
+                item_details: item.itemDetails,
+                status: "needs_update",
+                previous_price_cents: prior.price_cents,
+                previous_description: prior.description,
+              })
+              .eq("source_profile_url", data.sourceProfileUrl)
+              .eq("source_url", item.sourceUrl)
+              .eq("status", "published");
+            if (error) throw new Error(error.message);
+            updated += 1;
+            continue;
+          }
 
-        try {
-          const stagingPaths: string[] = [];
-          for (const url of item.photoUrls)
-            stagingPaths.push(await downloadPhoto(admin, batch.id, url));
-          const { error } = await admin.from("fb_marketplace_import_items").upsert(
-            {
-              batch_id: batch.id,
-              source_profile_url: data.sourceProfileUrl,
-              seller_id: managed?.owner_user_id ?? prior?.seller_id ?? null,
-              source_url: item.sourceUrl,
-              title: item.title,
-              description: item.description,
-              price_cents: item.priceCents,
-              condition: item.condition,
-              category_slug: item.categorySlug,
-              item_details: item.itemDetails,
-              city: item.city,
-              state: item.state,
-              region: item.region,
-              evidence_paths: stagingPaths,
-              public_paths: stagingPaths,
-              status: "draft",
-            },
-            { onConflict: "source_profile_url,source_url", ignoreDuplicates: true },
-          );
-          if (error) throw new Error(error.message);
-          staged += 1;
+          try {
+            const stagingPaths: string[] = [];
+            for (const url of item.photoUrls)
+              stagingPaths.push(await downloadPhoto(admin, batch.id, url));
+            const { error } = await admin.from("fb_marketplace_import_items").upsert(
+              {
+                batch_id: batch.id,
+                source_profile_url: data.sourceProfileUrl,
+                seller_id: managed?.owner_user_id ?? prior?.seller_id ?? null,
+                source_url: item.sourceUrl,
+                title: item.title,
+                description: item.description,
+                price_cents: item.priceCents,
+                condition: item.condition,
+                category_slug: item.categorySlug,
+                item_details: item.itemDetails,
+                city: item.city,
+                state: item.state,
+                region: item.region,
+                evidence_paths: stagingPaths,
+                public_paths: stagingPaths,
+                status: "draft",
+              },
+              { onConflict: "source_profile_url,source_url", ignoreDuplicates: true },
+            );
+            if (error) throw new Error(error.message);
+            staged += 1;
+          } catch {
+            failed += 1;
+            failedUrls.push(item.sourceUrl);
+          }
         } catch {
           failed += 1;
+          failedUrls.push(item.sourceUrl);
         }
       }
 
@@ -475,21 +546,23 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
                     data.removalSourceUrl) &&
                 !seenUrls.has(canonicalImportSource(data.sourceProfileUrl, row.source_url)),
             );
-      const vanishedUrls = vanished.map((row: any) => row.source_url);
-      if (vanishedUrls.length) {
+      const vanishedUrls: string[] = vanished.map((row: any) => row.source_url);
+      // Bounded bulk writes: each update touches at most FINALIZE_CHUNK_SIZE
+      // rows, still guarded by status=published so a rerun is idempotent.
+      for (let i = 0; i < vanishedUrls.length; i += FINALIZE_CHUNK_SIZE) {
+        const chunk = vanishedUrls.slice(i, i + FINALIZE_CHUNK_SIZE);
         const { error } = await admin
           .from("fb_marketplace_import_items")
           .update({ batch_id: batch.id, status: "possibly_removed" })
           .eq("source_profile_url", data.sourceProfileUrl)
           .eq("status", "published")
-          .in("source_url", vanishedUrls);
+          .in("source_url", chunk);
         if (error) throw new Error(error.message);
-        for (const row of vanished)
-          await recordRemovedReason(admin, data.sourceProfileUrl, row.source_url, "missing");
-        flaggedRemoved += vanished.length;
+        await recordRemovedReasons(admin, data.sourceProfileUrl, chunk, "missing");
+        flaggedRemoved += chunk.length;
       }
 
-      return { batchId: batch.id, staged, updated, failed, flaggedRemoved };
+      return { batchId: batch.id, staged, updated, failed, failedUrls, flaggedRemoved };
     },
   );
 
