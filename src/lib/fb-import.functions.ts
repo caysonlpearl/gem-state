@@ -949,11 +949,16 @@ export const discardAllFacebookImportItems = createServerFn({ method: "POST" })
     await requireAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
-    const { data, error } = await admin
-      .from("fb_marketplace_import_items")
+    const { data: archives, error: archiveError } = await admin
+      .from("import_source_archives").select("source_profile_url").not("archived_at", "is", null);
+    if (archiveError) throw new Error(archiveError.message);
+    let query = admin.from("fb_marketplace_import_items")
       .update({ status: "discarded" })
-      .in("status", ["draft", "needs_update", "possibly_removed"])
-      .select("id");
+      .in("status", ["draft", "needs_update", "possibly_removed"]);
+    // Clear only the visible queue, so removed imports remain recoverable.
+    if (archives?.length) query = query.not("source_profile_url", "in",
+      `(${archives.map((r: any) => JSON.stringify(r.source_profile_url)).join(",")})`);
+    const { data, error } = await query.select("id");
     if (error) throw new Error(error.message);
     return { cleared: (data ?? []).length };
   });

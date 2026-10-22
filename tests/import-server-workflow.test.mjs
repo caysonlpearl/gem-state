@@ -13,7 +13,7 @@ import {
 import { canonicalSellerSourceProfile, dieselDepotListingId } from "../src/lib/seller-claims.ts";
 
 // Exercise actual handler bodies offline. Imports are replaced only at the boundary.
-function handlers(rows, { claimed = false, paused = false, writeError = null, verified = true, setupActive = true } = {}) {
+function handlers(rows, { claimed = false, paused = false, writeError = null, verified = true, setupActive = true, archivedProfiles = [] } = {}) {
   const writes = [],
     rpcs = [],
     lookups = { count: 0 };
@@ -46,7 +46,8 @@ function handlers(rows, { claimed = false, paused = false, writeError = null, ve
           filters.push([k, v]);
           return q;
         },
-        not() {
+        not(k, op, value) {
+          filters.push([k, op, value]);
           return q;
         },
         insert(v) {
@@ -73,7 +74,7 @@ function handlers(rows, { claimed = false, paused = false, writeError = null, ve
         then(resolve) {
           if (action) writes.push({ table, action, values, filters });
           const data =
-            table === "managed_import_sellers"
+            table === "import_source_archives" ? archivedProfiles.map(source_profile_url => ({source_profile_url})) : table === "managed_import_sellers"
               ? { id: "seller", owner_user_id: "owner", sync_enabled: !paused }
               : table === "seller_profiles"
                 ? { terms_accepted_at: setupActive ? "accepted" : null, status: "active" }
@@ -145,13 +146,14 @@ function handlers(rows, { claimed = false, paused = false, writeError = null, ve
   source = stripTypeScriptTypes(source, { mode: "transform" }).replaceAll("export ", "");
   vm.runInContext(
     source +
-      "\nglobalThis.stage = stageFacebookImportBatch; globalThis.apply = publishFacebookImportItems;",
+      "\nglobalThis.stage = stageFacebookImportBatch; globalThis.apply = publishFacebookImportItems; globalThis.clear = discardAllFacebookImportItems;",
     c,
   );
   const context = { userId: "admin", supabase: { rpc: async () => ({ data: true, error: null }) } };
   return {
     stage: (data) => c.stage({ data, context }),
     apply: (data) => c.apply({ data, context }),
+    clear: () => c.clear({ context }),
     writes,
     rpcs,
     lookups,
@@ -438,4 +440,12 @@ test("claimed seller auto-routing still enforces verified email and seller setup
     await assert.rejects(h.apply({itemIds:[row.id],mode:"managed",authorized:true}), /verify their email and complete seller setup/);
     assert.equal(h.rpcs.length,0);
   }
+});
+
+
+test("Clear list excludes recoverable removed import sources", async () => {
+  const h=handlers([row],{archivedProfiles:[profile]});
+  await h.clear();
+  const write=h.writes.find(w=>w.table==="fb_marketplace_import_items");
+  assert.ok(write.filters.some(f=>f[0]==="source_profile_url" && f[1]==="in" && f[2]===`(${JSON.stringify(profile)})`));
 });
