@@ -249,6 +249,7 @@ function kslPages(count) {
       url(i + 1),
       {
         recognized: true,
+            sourceProfileUrl: profile,
         expected: count,
         items: [{ sourceUrl: `https://classifieds.ksl.com/listing/${i + 1}` }],
         nextUrl: i + 1 < count ? url(i + 2) : null,
