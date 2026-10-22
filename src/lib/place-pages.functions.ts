@@ -1,3 +1,4 @@
+import { requireReliableIndexing } from "./catalog-availability";
 import { createServerFn } from "@tanstack/react-start";
 
 import { brand } from "@/config/brand";
@@ -119,13 +120,15 @@ function filtersFor(place: ResolvedPlace | null, categorySlug: string | null): F
 async function fetchListings(filters: Filters) {
   const listings: ClassifiedCard[] = [];
   let total = 0;
+  let incomplete = false;
   for (let page = 1; page <= MAX_PAGES; page += 1) {
     const result = await browseClassifieds({ data: { ...filters, sort: "newest", page } });
     total = result.total;
+    incomplete ||= result.incomplete === true;
     listings.push(...result.listings);
     if (page * result.pageSize >= result.total || result.listings.length === 0) break;
   }
-  return { listings, total };
+  return { listings, total, incomplete };
 }
 
 function countBy<T>(items: T[], key: (item: T) => string | null | undefined) {
@@ -238,6 +241,7 @@ export const getPlacePage = createServerFn({ method: "GET" })
           "",
         );
         const indexable = isIndexablePlaceInventory(main.total, newest);
+        requireReliableIndexing(indexable, main.incomplete);
 
         let heading: string;
         if (place && phrase && category) {
@@ -478,6 +482,7 @@ export const getVehiclePage = createServerFn({ method: "GET" })
       );
       const minimum = model ? MODEL_PAGE_MIN_LISTINGS : MAKE_PAGE_MIN_LISTINGS;
       const indexable = isIndexablePlaceInventory(main.total, newest, Date.now(), minimum);
+      requireReliableIndexing(indexable, main.incomplete);
 
       const cityCounts = countBy(main.listings, (listing) =>
         idahoCities.find((city) => city === listing.city),

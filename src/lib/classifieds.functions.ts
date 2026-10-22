@@ -189,6 +189,8 @@ export type ClassifiedDetail = ClassifiedCard & {
 };
 
 export type ClassifiedBrowseResult = {
+  /** A failed source read is not evidence that matching inventory is empty. */
+  incomplete?: boolean;
   listings: ClassifiedCard[];
   total: number;
   page: number;
@@ -2189,6 +2191,7 @@ async function runBrowseClassifieds(
       : { from, to: from + PAGE_SIZE - 1 };
     // Independent reads must not form a provider → database waterfall.
     // Eligibility, provider budget guards, paging and merge ordering stay unchanged.
+    let jobsUnavailable = false;
     const [native, jobCards, homeCards, externalVehicles, petCards] = await Promise.all([
       (async () => {
         await cleanup;
@@ -2196,7 +2199,9 @@ async function runBrowseClassifieds(
           ? { data: [], count: 0, error: null }
           : await measure("nativeRead", () => withCatalogReadDeadline(query.range(resultRange.from, resultRange.to)));
       })(),
-      includeAdzuna ? adzuna.adzunaCards(data) : [],
+      includeAdzuna
+        ? adzuna.adzunaCards(data, (status) => { jobsUnavailable = status !== "ok"; })
+        : [],
       openWebNinjaEnabled
         ? openWebNinja.openWebNinjaCards(data)
         : includeMashvisor
@@ -2211,7 +2216,7 @@ async function runBrowseClassifieds(
     const externalJobs = jobCards.filter(matchesRegion);
     const externalHomes = homeCards.filter(matchesRegion);
     const externalPets = petCards.filter(matchesRegion);
-    if (error) console.error("browseClassifieds failed; showing preview fixtures", error.message);
+    if (error) console.error("browseClassifieds native read failed", error.message);
 
     const visibleRows = (rows ?? []).filter(
       (row) => !isReleaseQaListing(row as unknown as Record<string, unknown>),
@@ -2340,6 +2345,7 @@ async function runBrowseClassifieds(
     }
     return {
       listings: combinedListings,
+      incomplete: Boolean(error) || jobsUnavailable,
       // Only advertise cards that can actually be reached. In-memory filters
       // and merged ranking cannot page native rows outside the fixed window.
       // The directory remains independently database-paged after that window.

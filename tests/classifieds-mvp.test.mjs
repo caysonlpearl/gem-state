@@ -1530,7 +1530,7 @@ test("preview catalog keeps complete home and vehicle rows available", () => {
   assert.equal(mockClassifiedListings.filter((listing) => listing.home?.mode === "rent").length, 4);
   assert.equal(mockClassifiedListings.filter((listing) => listing.job).length, 4);
   assert.equal(mockClassifiedListings.filter((listing) => listing.service).length, 4);
-  assert.match(classifiedsFunctionsSource, /showing preview fixtures/);
+  assert.match(classifiedsFunctionsSource, /SHOW_PUBLIC_PREVIEW_FIXTURES = false/);
   assert.match(classifiedsFunctionsSource, /mockVehicleListings/);
 });
 
