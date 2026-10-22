@@ -23,6 +23,7 @@ import { regionOfListing } from "@/lib/market-stats";
 export type LiveListingRow = {
   id: string;
   seller_id: string;
+  dealer_id?: string | null;
   created_at: string;
   updated_at: string;
   products: { name: string; categories: { slug: string } | null } | null;
@@ -72,7 +73,7 @@ export async function fetchLiveListings(admin: any): Promise<LiveListingRow[] | 
     const { data, error } = await admin
       .from("asks")
       .select(
-        "id, seller_id, created_at, updated_at, products!inner(name, status, categories!inner(slug)), classified_listing_details!inner(listing_id, city, region, state, vehicle_make, vehicle_model)",
+        "id, seller_id, dealer_id, created_at, updated_at, products!inner(name, status, categories!inner(slug)), classified_listing_details!inner(listing_id, city, region, state, vehicle_make, vehicle_model)",
       )
       .eq("status", "active")
       .eq("is_demo", false)
@@ -180,3 +181,4 @@ export async function pingListingChange(askId: string) {
     console.warn("IndexNow listing ping skipped", error);
   }
 }
+
