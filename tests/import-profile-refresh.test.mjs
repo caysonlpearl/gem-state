@@ -267,6 +267,20 @@ test("KSL continues through all 25 advertised pages beyond the former 20-page ca
   assert.equal(mayInferScanAbsence(result.scan), true);
 });
 
+test("standalone KSL import uses the same complete 25-page traversal", async () => {
+  const { profile, pages } = kslPages(25);
+  const h = profileHarness("KSL", pages);
+  vm.runInContext(load("ksl.js"), h.c);
+  let payload;
+  h.c.overlay = async () => {};
+  h.c.kslReadListings = async () => {};
+  h.c.deliverImport = async (_tab, _say, _seller, batch) => { payload = batch; };
+  await h.c.chrome.tabs.update(1, { url: profile });
+  await h.c.runKsl(1);
+  assert.equal(payload.items.length, 25);
+  assert.equal(payload.scan.complete, true);
+});
+
 test("KSL 1000-page safety ceiling explicitly reports incomplete and forbids absence", async () => {
   const { profile, pages } = kslPages(1001);
   const h = profileHarness("KSL", pages);
@@ -335,5 +349,15 @@ test("Diesel Depot retains earlier advertised catalog total when final page coun
   });
   const result = await h.c.collectSellerScan(p, h.c.profileScanConfig(p), () => {});
   assert.equal(result.scan.complete, false);
+  assert.equal(mayInferScanAbsence(result.scan), false);
+});
+
+test("Diesel Depot excess distinct inventory also fails catalog reconciliation", async () => {
+  const p = "https://www.diesel-depot.com/inventory/", a = p + "?/listings/for-sale/trucks";
+  const h = profileHarness("Diesel Depot", {
+    [p]: { sections: [a], items: [] },
+    [a]: { recognized: true, heading: "Trucks", expected: 1, pageCount: 2, items: [{ sourceUrl: p + "1" }, { sourceUrl: p + "2" }] },
+  });
+  const result = await h.c.collectSellerScan(p, h.c.profileScanConfig(p), () => {});
   assert.equal(mayInferScanAbsence(result.scan), false);
 });
