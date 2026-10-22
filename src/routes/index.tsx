@@ -1,3 +1,5 @@
+import { waitForHomeLead } from "@/lib/home-lead-ready";
+import { listingCardImageUrl } from "@/lib/listing-card-image";
 import { afterLeadPaint } from "@/lib/lead-paint-ready";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
@@ -58,7 +60,17 @@ const homeLeadQuery = queryOptions({
 });
 
 export const Route = createFileRoute("/")({
-  head: () => ({
+  // When the small lead query is ready promptly, put the actual first card's
+  // image in the head and render the row directly, without a streamed reveal.
+  // Keep a 1.2s ceiling on this wait: slow/error cases still stream normally.
+  // The secondary feed remains deferred and is never included in this wait.
+  loader: async ({ context }) => {
+    await waitForHomeLead(context.queryClient.prefetchQuery(homeLeadQuery));
+    const lead = context.queryClient.getQueryData(homeLeadQuery.queryKey);
+    const firstImage = lead?.motors.find((listing) => listing.state === "ID")?.imageUrl;
+    return { leadImageUrl: firstImage ? listingCardImageUrl(firstImage) : null };
+  },
+  head: ({ loaderData }) => ({
     meta: [
       { title: `${brand.name} — Idaho classifieds for cars, trucks and more` },
       {
@@ -75,16 +87,14 @@ export const Route = createFileRoute("/")({
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
-    links: [{ rel: "preconnect", href: "https://images.craigslist.org" }],
+    links: [
+      { rel: "preconnect", href: "https://images.craigslist.org" },
+      ...(loaderData?.leadImageUrl
+        ? [{ rel: "preload", as: "image", href: loaderData.leadImageUrl, fetchPriority: "high" as const }]
+        : []),
+    ],
     scripts: [jsonLdScript(siteStructuredData())],
   }),
-  // Stream the hero and first vehicle row. The large secondary feed starts
-  // after that row settles in the browser, instead of competing for its data
-  // and expanding the initial document. Category links and lead listings
-  // remain server-rendered; category/browse pages retain full SSR inventory.
-  loader: ({ context }) => {
-    void context.queryClient.prefetchQuery(homeLeadQuery);
-  },
   component: Home,
 });
 
