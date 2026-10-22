@@ -182,8 +182,18 @@ function ImportedSellers() {
         );
       if (!scanAuthorized) throw new Error("Confirm permission to scan these sellers first.");
       const all = await fetchTargets();
-      const profiles = (data ?? []).filter((p) => !profileUrl || p.sourceProfileUrl === profileUrl);
-      if (!profiles.length) throw new Error("No seller profiles to scan.");
+      const requested = (data ?? []).filter(
+        (p) => !profileUrl || p.sourceProfileUrl === profileUrl,
+      );
+      // Paused sellers are never scanned: skip them before the extension
+      // opens any source page. Staging rejects them server-side too.
+      const profiles = requested.filter((p) => !p.syncPaused);
+      if (!profiles.length)
+        throw new Error(
+          requested.length
+            ? "This seller paused sync. Resume sync before scanning their profile."
+            : "No seller profiles to scan.",
+        );
       const requestId = crypto.randomUUID();
       setScanReports([]);
       setProgress({ done: 0, total: profiles.length });
@@ -285,31 +295,23 @@ function ImportedSellers() {
         }
         const evidence = { ...report.scan, unreadable: report.scan.unreadable + sellerFailed };
         if (mayInferScanAbsence(evidence)) {
-          const seen = new Set(
-            report.seenUrls.map((u) => canonicalImportSource(report.sourceProfileUrl, u)),
-          );
-          for (const target of all.filter(
-            (t) =>
-              t.sourceProfileUrl === report.sourceProfileUrl &&
-              !seen.has(canonicalImportSource(report.sourceProfileUrl, t.sourceUrl)),
-          )) {
-            try {
-              const result = await stage({
-                data: {
-                  sourceProfileUrl: report.sourceProfileUrl,
-                  mode: "refresh",
-                  authorized: scanAuthorized,
-                  items: [],
-                  scan: evidence,
-                  finalizeScan: true,
-                  seenUrls: report.seenUrls,
-                  removalSourceUrl: target.sourceUrl,
-                },
-              });
-              sellerRemoved += result.flaggedRemoved;
-            } catch {
-              sellerFailed++;
-            }
+          // One finalize call per profile: the server bulk-marks every
+          // published row the complete scan did not see.
+          try {
+            const result = await stage({
+              data: {
+                sourceProfileUrl: report.sourceProfileUrl,
+                mode: "refresh",
+                authorized: scanAuthorized,
+                items: [],
+                scan: evidence,
+                finalizeScan: true,
+                seenUrls: report.seenUrls,
+              },
+            });
+            sellerRemoved += result.flaggedRemoved;
+          } catch {
+            sellerFailed++;
           }
         }
         setScanReports((current) => [
@@ -485,10 +487,20 @@ function ImportedSellers() {
                   Due for refresh
                 </span>
               ) : null}
+              {profile.syncPaused ? (
+                <span className="rounded-full border border-border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Sync paused
+                </span>
+              ) : null}
               <button
                 type="button"
                 onClick={() => refreshMutation.mutate(profile.sourceProfileUrl)}
-                disabled={!extensionReady || !scanAuthorized || refreshMutation.isPending}
+                disabled={
+                  !extensionReady ||
+                  !scanAuthorized ||
+                  refreshMutation.isPending ||
+                  profile.syncPaused
+                }
                 className="h-8 rounded-md border border-input px-3 text-[11.5px] font-medium hover:bg-secondary disabled:opacity-50"
               >
                 Refresh

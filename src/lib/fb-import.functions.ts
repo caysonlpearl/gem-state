@@ -461,27 +461,32 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
 
       // Absence only means "removed" after a full profile scrape. A refresh
       // reads a handful of known listings, so a missing one just means it
-      // wasn't read -- never a reason to flag it.
+      // wasn't read -- never a reason to flag it. Finalize once per profile:
+      // one bulk update marks every published row the complete scan did not
+      // see, instead of one request per missing row.
       const vanished =
         !data.finalizeScan || !data.scan || !mayInferScanAbsence(data.scan)
           ? []
           : (priorItems ?? []).filter(
               (row: any) =>
                 row.status === "published" &&
-                canonicalImportSource(data.sourceProfileUrl, row.source_url) ===
-                  data.removalSourceUrl &&
+                (!data.removalSourceUrl ||
+                  canonicalImportSource(data.sourceProfileUrl, row.source_url) ===
+                    data.removalSourceUrl) &&
                 !seenUrls.has(canonicalImportSource(data.sourceProfileUrl, row.source_url)),
             );
-      for (const row of vanished) {
+      const vanishedUrls = vanished.map((row: any) => row.source_url);
+      if (vanishedUrls.length) {
         const { error } = await admin
           .from("fb_marketplace_import_items")
           .update({ batch_id: batch.id, status: "possibly_removed" })
           .eq("source_profile_url", data.sourceProfileUrl)
-          .eq("source_url", row.source_url)
-          .eq("status", "published");
+          .eq("status", "published")
+          .in("source_url", vanishedUrls);
         if (error) throw new Error(error.message);
-        await recordRemovedReason(admin, data.sourceProfileUrl, row.source_url, "missing");
-        flaggedRemoved += 1;
+        for (const row of vanished)
+          await recordRemovedReason(admin, data.sourceProfileUrl, row.source_url, "missing");
+        flaggedRemoved += vanished.length;
       }
 
       return { batchId: batch.id, staged, updated, failed, flaggedRemoved };
@@ -557,6 +562,8 @@ export type FbImportProfile = {
   publishedCount: number;
   /** The seller's storefront slug once a listing has been published for them. */
   sellerSlug: string | null;
+  /** True when the seller paused sync; scans must skip them before opening any source page. */
+  syncPaused: boolean;
 };
 
 /** One row per Facebook profile that's been imported, with when it was last
@@ -610,6 +617,17 @@ export const getFacebookImportProfiles = createServerFn({ method: "GET" })
       (sellerRows ?? []).map((row: { user_id: string; slug: string }) => [row.user_id, row.slug]),
     );
 
+    // Paused sellers are surfaced so scans skip them before any source page
+    // is opened; staging still rejects them server-side as a backstop.
+    const { data: pausedRows, error: pausedError } = await admin
+      .from("managed_import_sellers")
+      .select("source_profile_url")
+      .eq("sync_enabled", false);
+    if (pausedError) throw new Error(pausedError.message);
+    const pausedProfiles = new Set<string>(
+      (pausedRows ?? []).map((row: { source_profile_url: string }) => row.source_profile_url),
+    );
+
     const profiles = new Map<string, FbImportProfile>();
     for (const batch of batches ?? []) {
       if (profiles.has(batch.source_profile_url)) continue;
@@ -621,6 +639,7 @@ export const getFacebookImportProfiles = createServerFn({ method: "GET" })
         openCount: entry.open,
         publishedCount: entry.published,
         sellerSlug: slugBySeller.get(sellerByProfile.get(batch.source_profile_url) ?? "") ?? null,
+        syncPaused: pausedProfiles.has(batch.source_profile_url),
       });
     }
     return Array.from(profiles.values());
