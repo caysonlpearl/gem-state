@@ -190,7 +190,11 @@ export async function merchandiseDetail(
         .limit(1),
     ),
   ]);
-  if (error || reportError || !row || removed?.length) return null;
+  // A transient read failure is not evidence that an item was removed.
+  // Let the shared query retry and retain its last good data on refetch.
+  if (error || reportError)
+    throw new Error("Could not load this retailer offer. Please try again.");
+  if (!row || removed?.length) return null;
   const p = normalizeMerchandise(row.payload?.raw);
   if (!p || p.id !== id) return null;
   return {
