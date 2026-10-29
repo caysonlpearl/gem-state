@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
-import { MapPin } from "@phosphor-icons/react";
+import { MapPin, Truck } from "@phosphor-icons/react";
 import { listingParam } from "@/lib/listing-url";
 import { listingCardImageUrl } from "@/lib/listing-card-image";
 
@@ -235,7 +235,11 @@ function FeaturedBadge() {
  * A directory business has no prices, so its card leads with its Google
  * rating when we have one, and "Call for a quote" as the smaller line.
  */
-function DirectoryRating({ directory }: { directory: NonNullable<ListingCardSummary["directory"]> }) {
+function DirectoryRating({
+  directory,
+}: {
+  directory: NonNullable<ListingCardSummary["directory"]>;
+}) {
   return (
     <div className="min-h-[34px]">
       {directory.rating != null ? (
@@ -267,7 +271,13 @@ function DirectoryRating({ directory }: { directory: NonNullable<ListingCardSumm
  * The center of a photo-less card or listing gallery: the employer's logo
  * for a partner job when there is one, else the category art.
  */
-export function PlaceholderMark({ listing, large }: { listing: ListingCardSummary; large?: boolean }) {
+export function PlaceholderMark({
+  listing,
+  large,
+}: {
+  listing: ListingCardSummary;
+  large?: boolean;
+}) {
   const [missing, setMissing] = useState(false);
   const logoUrl = listingLogoUrl(listing);
   if (logoUrl && !missing) {
@@ -349,14 +359,21 @@ export function ListingCardPhoto({
 }) {
   const imageRef = useRef<HTMLImageElement>(null);
   const [failedUrl, setFailedUrl] = useState<string | null>(null);
-  const recoverPhoto = useCallback((image: HTMLImageElement) => {
-    if (listing.imageUrl && listingCardImageUrl(listing.imageUrl) !== listing.imageUrl && image.dataset.originalFallback !== "1") {
-      image.dataset.originalFallback = "1";
-      image.src = listing.imageUrl;
-      return;
-    }
-    setFailedUrl(listing.imageUrl);
-  }, [listing.imageUrl]);
+  const recoverPhoto = useCallback(
+    (image: HTMLImageElement) => {
+      if (
+        listing.imageUrl &&
+        listingCardImageUrl(listing.imageUrl) !== listing.imageUrl &&
+        image.dataset.originalFallback !== "1"
+      ) {
+        image.dataset.originalFallback = "1";
+        image.src = listing.imageUrl;
+        return;
+      }
+      setFailedUrl(listing.imageUrl);
+    },
+    [listing.imageUrl],
+  );
   // An SSR photo may have failed before React attached its error handler.
   useEffect(() => {
     const image = imageRef.current;
@@ -479,7 +496,6 @@ function Price({ listing }: { listing: ListingCardSummary }) {
 }
 
 function cardActionLabel(listing: ListingCardSummary) {
-  if (listing.externalMerchandise) return "View retailer offer";
   if (listing.job) return "Apply now";
   if (listing.service) return "Get a quote";
   if (listing.pet) return petPlacementLabels[listing.pet.placementType] ?? "Pet listing";
@@ -519,7 +535,10 @@ export function ListingCard({
           </span>
         ) : (
           <div className="absolute right-2 top-2 z-10">
-            {listing.externalJob || listing.directory || listing.externalPet || listing.externalMerchandise ? (
+            {listing.externalJob ||
+            listing.directory ||
+            listing.externalPet ||
+            listing.externalMerchandise ? (
               <PartnerJobHeartButton listingId={listing.id} title={listing.title} />
             ) : listing.externalHome ? (
               <PartnerHomeHeartButton listingId={listing.id} title={listing.title} />
@@ -552,7 +571,9 @@ export function ListingCard({
               <Price listing={listing} />
             </p>
           )}
-          <h3 className="mt-1.5 line-clamp-2 min-h-[34px] text-[13px] font-semibold leading-[1.3] group-hover:text-primary">
+          <h3
+            className={`mt-1.5 line-clamp-2 font-semibold leading-[1.3] group-hover:text-primary ${listing.externalMerchandise ? "min-h-[39px] text-[15px]" : "min-h-[34px] text-[13px]"}`}
+          >
             {listing.title}
           </h3>
           <Facts listing={listing} />
@@ -562,25 +583,39 @@ export function ListingCard({
             </p>
           ) : null}
           <p className="mt-2 flex items-center gap-1 truncate text-[11.5px] text-muted-foreground">
-            <MapPin size={12} weight="fill" className="shrink-0 text-primary" />
-            {listing.externalMerchandise ? "Online retailer" : placeLabel(listing.city, listing.state)}
+            {listing.externalMerchandise ? (
+              <>
+                <Truck size={12} weight="fill" className="shrink-0 text-primary" />
+                Shipping Only
+                <span className="ml-auto shrink-0 text-[10.5px]">
+                  {postedAge(soldAt ?? listing.createdAt)}
+                </span>
+              </>
+            ) : (
+              <>
+                <MapPin size={12} weight="fill" className="shrink-0 text-primary" />
+                {placeLabel(listing.city, listing.state)}
+              </>
+            )}
           </p>
-          <div className="mt-2 flex items-center justify-between gap-2 text-[10.5px] text-muted-foreground">
-            <span className="truncate">
-              {soldAt
-                ? "Sold"
-                : listing.directory
-                  ? (listing.directory.phone ?? "Call for details")
-                  : cardActionLabel(listing)}
-            </span>
-            <span className="shrink-0">
-              {listing.directory
-                ? listing.directory.claimed
-                  ? "Owner verified"
-                  : "Local business"
-                : postedAge(soldAt ?? listing.createdAt)}
-            </span>
-          </div>
+          {!listing.externalMerchandise ? (
+            <div className="mt-2 flex items-center justify-between gap-2 text-[10.5px] text-muted-foreground">
+              <span className="truncate">
+                {soldAt
+                  ? "Sold"
+                  : listing.directory
+                    ? (listing.directory.phone ?? "Call for details")
+                    : cardActionLabel(listing)}
+              </span>
+              <span className="shrink-0">
+                {listing.directory
+                  ? listing.directory.claimed
+                    ? "Owner verified"
+                    : "Local business"
+                  : postedAge(soldAt ?? listing.createdAt)}
+              </span>
+            </div>
+          ) : null}
         </ListingLink>
       )}
     </article>
