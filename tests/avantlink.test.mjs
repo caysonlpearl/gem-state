@@ -271,6 +271,24 @@ test("browse pages past Supabase row caps and excludes reviewed inventory", asyn
   assert.deepEqual(blocked, { cards: [], limited: false });
 });
 
+test("temporary cache and moderation failures never masquerade as a removed listing", async () => {
+  const p = normalizeMerchandise(row);
+  for (const failedTable of ["avantlink_merchandise", "partner_job_reports"]) {
+    const db = database((call) =>
+      call.table === failedTable
+        ? { data: null, error: { message: "temporary read failure" } }
+        : {
+            data: call.table === "avantlink_merchandise" ? { payload: p, ...timestamps } : [],
+            error: null,
+          },
+    );
+    await assert.rejects(
+      merchandiseDetail("avantlink-1067506", db),
+      /Could not load this retailer offer/,
+    );
+  }
+});
+
 test("no provider call occurs when the DB budget or concurrent lease denies it", async () => {
   for (const reason of ["daily_budget", "hourly_budget", "fresh_or_in_progress"]) {
     const db = database(() => ({ data: { allowed: false, reason }, error: null }));
