@@ -84,6 +84,18 @@ export type ClassifiedCard = {
   id: string;
   title: string;
   externalJob?: { source: "Adzuna"; url: string; logoUrl?: string; employerSince?: string };
+  externalMerchandise?: {
+    source: "Guns.com";
+    buyUrl: string;
+    sku: string;
+    brand: string;
+    department: string;
+    category: string;
+    subcategory: string;
+    retailPriceCents: number;
+    variants: string;
+    refreshedAt: string;
+  };
   /** Provider homes: shown with attribution, never stored or sold here. */
   /** A local business from the services directory (not a member's listing). */
   directory?: {
@@ -222,7 +234,7 @@ export const reportClassifiedListing = createServerFn({ method: "POST" })
       !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
         listingId,
       ) &&
-      !/^adzuna-\d{1,20}$/.test(listingId) &&
+      !/^(?:adzuna|avantlink)-\d{1,20}$/.test(listingId) &&
       !/^(?:marketcheck-(?:dealer|fsbo)-[A-Za-z0-9._:-]{1,160}|fsq-[0-9a-f]{24})$/.test(listingId)
     ) {
       throw new Error("Listing not found.");
@@ -233,8 +245,10 @@ export const reportClassifiedListing = createServerFn({ method: "POST" })
   })
   .handler(async ({ data, context }) => {
     const client = context.supabase as any;
-    if (data.listingId.startsWith("adzuna-") || data.listingId.startsWith("fsq-")) {
-      const exists = data.listingId.startsWith("fsq-")
+    if (data.listingId.startsWith("adzuna-") || data.listingId.startsWith("fsq-") || data.listingId.startsWith("avantlink-")) {
+      const exists = data.listingId.startsWith("avantlink-")
+        ? await (await import("./avantlink-listings.server")).merchandiseDetail(data.listingId)
+        : data.listingId.startsWith("fsq-")
         ? await (await import("./service-directory.server")).directoryDetail(data.listingId)
         : await (await import("./adzuna-listings.server")).adzunaDetail(data.listingId);
       if (!exists) throw new Error("That listing is no longer available.");
@@ -390,6 +404,10 @@ export const resolveAdminClassifiedReport = createServerFn({ method: "POST" })
       if (!updated?.length) throw new Error("Listing report not found");
       // Removing a reported directory business hides it from Services.
       const listingId = String(updated[0].listing_id ?? "");
+      if (data.action === "reviewed" && listingId.startsWith("avantlink-")) {
+        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        await (supabaseAdmin as any).from("avantlink_merchandise").update({ active: false }).eq("id", listingId.slice("avantlink-".length));
+      }
       if (data.action === "reviewed" && listingId.startsWith("fsq-")) {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
         await (supabaseAdmin as any)
@@ -2152,6 +2170,7 @@ async function runBrowseClassifieds(
       marketCheck,
       rescueGroups,
       directoryAdapter,
+      merchandise,
     ] = await measure("adapterImports", () => Promise.all([
       import("./adzuna-listings.server"),
       import("./mashvisor-listings.server"),
@@ -2160,6 +2179,7 @@ async function runBrowseClassifieds(
       import("./marketcheck.server"),
       import("./rescuegroups.server"),
       import("./service-directory-contract"),
+      import("./avantlink-listings.server"),
     ]));
     const includeAdzuna = adzuna.canIncludeAdzuna(data);
     const includeMashvisor = mashvisor.canIncludeMashvisor(data);
@@ -2172,6 +2192,7 @@ async function runBrowseClassifieds(
     // Local businesses from the services directory follow members' service
     // listings, paged in the database rather than loaded all at once.
     const includeDirectory = directoryAdapter.canIncludeDirectory(data);
+    const includeMerchandise = merchandise.canIncludeMerchandise(data);
     const from = (page - 1) * PAGE_SIZE;
     // Pay units are deliberately normalized in `comparableJobPay` (hourly
     // annualized, salary/commission/contract kept in their stated units).
@@ -2188,6 +2209,7 @@ async function runBrowseClassifieds(
       includeMarketCheck ||
       includeRescueGroups ||
       includeDirectory ||
+      includeMerchandise ||
       unitAwareJobSort ||
       data.radiusMiles != null ||
       Boolean(data.region);
@@ -2197,7 +2219,7 @@ async function runBrowseClassifieds(
     // Independent reads must not form a provider → database waterfall.
     // Eligibility, provider budget guards, paging and merge ordering stay unchanged.
     let jobsUnavailable = false;
-    const [native, jobCards, homeCards, externalVehicles, petCards] = await Promise.all([
+    const [native, jobCards, homeCards, externalVehicles, petCards, merchandiseResult] = await Promise.all([
       (async () => {
         await cleanup;
         return mockOnlyCategory
@@ -2214,6 +2236,7 @@ async function runBrowseClassifieds(
           : [],
       includeMarketCheck ? measure("vehicleRead", async () => marketCheck.marketCheckCards(data, { preparedHomeCache: await preparedHomeCache, cacheOnly: options.readOnlyHome })) : [],
       includeRescueGroups ? rescueGroups.rescueGroupsCards(data) : [],
+      includeMerchandise ? merchandise.merchandiseCards(data) : { cards: [], limited: false },
     ]);
     const { data: rows, count, error } = native;
     const matchesRegion = (listing: ClassifiedCard) =>
@@ -2301,6 +2324,7 @@ async function runBrowseClassifieds(
       ...externalHomes,
       ...externalVehicles,
       ...externalPets,
+      ...merchandiseResult.cards,
     ].sort(compareListings);
     const resultLimit =
       data.includeAllMocks && SHOW_PUBLIC_PREVIEW_FIXTURES
@@ -2336,6 +2360,7 @@ async function runBrowseClassifieds(
           !listing.externalJob &&
           !listing.externalHome &&
           !listing.externalVehicle &&
+          !listing.externalMerchandise &&
           !listing.directory,
       )
       .map((listing) => listing.id);
@@ -2362,7 +2387,7 @@ async function runBrowseClassifieds(
           : (count ?? listings.length) + mockListings.length) + directory.total,
       page,
       pageSize: PAGE_SIZE,
-      limitedResults: mergeBeforePaging && (count ?? 0) > (rows?.length ?? 0),
+      limitedResults: merchandiseResult.limited || (mergeBeforePaging && (count ?? 0) > (rows?.length ?? 0)),
     };
   }
 }
@@ -2370,6 +2395,9 @@ async function runBrowseClassifieds(
 export const getClassifiedListing = createServerFn({ method: "GET" })
   .validator((input: { id: string }) => ({ id: String(input.id).slice(0, 64) }))
   .handler(async ({ data }): Promise<ClassifiedDetail | null> => {
+    if (data.id.startsWith("avantlink-")) {
+      return (await import("./avantlink-listings.server")).merchandiseDetail(data.id);
+    }
     // Local businesses from the services directory open on the service page.
     if (data.id.startsWith("fsq-")) {
       const { directoryDetail } = await import("./service-directory.server");
@@ -2734,6 +2762,7 @@ export const getRelatedClassifieds = createServerFn({ method: "GET" })
   });
 
 export type ClassifiedsHome = {
+  onlineMerchandise?: ListingCardSummary[];
   totalActive: number;
   categoryCounts: Record<string, number>;
   motors: ListingCardSummary[];
@@ -2840,6 +2869,7 @@ export const getClassifiedsHome = createServerFn({ method: "GET" }).handler(
         services,
         pets,
         firearms,
+        onlineMerchandise,
       ] = await Promise.all([
         loadClassifiedsHomeCategoryData(),
         loadClassifiedsHomeMotors(),
@@ -2871,6 +2901,7 @@ export const getClassifiedsHome = createServerFn({ method: "GET" }).handler(
         // Dedicated inventory keeps the Firearms homepage row independent
         // of what happens to appear in the general recent-listings page.
         runBrowseClassifieds({ category: "firearms", state: "ID", sort: "newest", page: 1 }),
+        import("./avantlink-listings.server").then((adapter) => adapter.merchandiseHomeCards()).catch(() => []),
       ]);
 
       const categoryCounts = { ...categoryData.categoryCounts };
@@ -2881,6 +2912,7 @@ export const getClassifiedsHome = createServerFn({ method: "GET" }).handler(
         totalActive: categoryData.totalActive + additionalJobs,
         categoryCounts,
         motors: motors.map(listingCardSummary),
+        onlineMerchandise: onlineMerchandise.map(listingCardSummary),
         // Keep enough of the first page available for the homepage to build
         // several useful, non-identical curated rows without another round trip.
         recent: [

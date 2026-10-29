@@ -44,10 +44,10 @@ export function PartnerJobHeartButton({
       await queryClient.invalidateQueries({ queryKey: ["partner-job-saved", listingId] });
       await queryClient.invalidateQueries({ queryKey: ["my-saved-partner-jobs"] });
       await queryClient.invalidateQueries({ queryKey: ["listing-stats"] });
-      toast.success(result.saved ? `Saved ${title}.` : `Removed ${title} from your saved jobs.`);
+      toast.success(result.saved ? `Saved ${title}.` : `Removed ${title} from your saved listings.`);
     },
     onError: (error) =>
-      toast.error(error instanceof Error ? error.message : "Could not update your saved jobs."),
+      toast.error(error instanceof Error ? error.message : "Could not update your saved listings."),
   });
 
   const saved = state.data?.saved ?? false;
@@ -59,7 +59,7 @@ export function PartnerJobHeartButton({
         !isSignedIn
           ? `Sign in to save ${title}`
           : saved
-            ? `Remove ${title} from saved jobs`
+            ? `Remove ${title} from saved listings`
             : `Save ${title}`
       }
       aria-pressed={isSignedIn ? saved : undefined}

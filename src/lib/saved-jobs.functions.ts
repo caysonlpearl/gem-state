@@ -10,7 +10,7 @@ import type { ClassifiedCard } from "./classifieds.functions";
  */
 const listingIdOf = (value: unknown) => {
   const id = String(value ?? "");
-  return /^(adzuna-\d{1,20}|fsq-[0-9a-f]{24}|rescuegroups-\d{1,20})$/.test(id) ? id : "";
+  return /^(adzuna-\d{1,20}|fsq-[0-9a-f]{24}|rescuegroups-\d{1,20}|avantlink-\d{1,20})$/.test(id) ? id : "";
 };
 
 export const getPartnerJobSaved = createServerFn({ method: "GET" })
@@ -31,7 +31,7 @@ export const setPartnerJobSaved = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: { listingId: string; saved: boolean }) => {
     const listingId = listingIdOf(input?.listingId);
-    if (!listingId) throw new Error("This job can't be saved.");
+    if (!listingId) throw new Error("This listing can't be saved.");
     return { listingId, saved: Boolean(input.saved) };
   })
   .handler(async ({ data, context }) => {
@@ -41,21 +41,23 @@ export const setPartnerJobSaved = createServerFn({ method: "POST" })
         .delete()
         .eq("user_id", context.userId)
         .eq("listing_id", data.listingId);
-      if (error) throw new Error("Could not remove this job. Try again.");
+      if (error) throw new Error("Could not remove this listing. Try again.");
       return { saved: false };
     }
-    const job = data.listingId.startsWith("fsq-")
+    const job = data.listingId.startsWith("avantlink-")
+      ? await (await import("./avantlink-listings.server")).merchandiseDetail(data.listingId)
+      : data.listingId.startsWith("fsq-")
       ? await (await import("./service-directory.server")).directoryDetail(data.listingId)
       : data.listingId.startsWith("rescuegroups-")
         ? await (await import("./rescuegroups.server")).rescueGroupsDetail(data.listingId)
         : await (await import("./adzuna-listings.server")).adzunaDetail(data.listingId);
-    if (!job) throw new Error("This job is no longer listed.");
+    if (!job) throw new Error("This listing is no longer available.");
     const { description: _d, seller: _s, images: _i, ...card } = job;
     const { error } = await table.upsert(
       { user_id: context.userId, listing_id: data.listingId, snapshot: card },
       { onConflict: "user_id,listing_id" },
     );
-    if (error) throw new Error("Could not save this job. Try again.");
+    if (error) throw new Error("Could not save this listing. Try again.");
     return { saved: true };
   });
 
@@ -70,5 +72,14 @@ export const getMySavedPartnerJobs = createServerFn({ method: "GET" })
       .limit(200);
     // Before the table exists (or on any read error) there's simply nothing saved.
     if (error) return [];
-    return ((data ?? []) as { snapshot: ClassifiedCard }[]).map((row) => row.snapshot);
+    const snapshots = ((data ?? []) as { snapshot: ClassifiedCard }[]).map((row) => row.snapshot);
+    // Validate partner merchandise against current inventory and moderation,
+    // rather than displaying a removed item from an old saved snapshot.
+    return (await Promise.all(snapshots.map(async (card) => {
+      if (!card.id.startsWith("avantlink-")) return card;
+      const current = await (await import("./avantlink-listings.server")).merchandiseDetail(card.id);
+      if (!current) return null;
+      const { description: _d, seller: _s, images: _i, ...freshCard } = current;
+      return freshCard;
+    }))).filter((card): card is ClassifiedCard => card !== null);
   });

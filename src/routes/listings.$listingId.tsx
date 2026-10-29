@@ -241,13 +241,14 @@ export const Route = createFileRoute("/listings/$listingId")({
       city: listing.city,
       state: listing.state,
       ended: listing.ended?.reason ?? null,
-      shareImage: listing.images.length ? `/media/listings/${listing.id}/0` : undefined,
+      shareImage: listing.externalMerchandise ? listing.images[0]?.url : listing.images.length ? `/media/listings/${listing.id}/0` : undefined,
       leadImage: listing.images[0]?.url,
       // Partner jobs and unclaimed directory businesses aren't Bluebird
       // content: followed, never indexed, no listing markup.
-      external: Boolean(listing.externalJob || listing.directory),
+      external: Boolean(listing.externalJob || listing.directory || listing.externalMerchandise),
+      onlineRetailer: Boolean(listing.externalMerchandise),
       structuredData:
-        listing.externalJob || listing.directory ? [] : listingStructuredData(listing),
+        listing.externalJob || listing.directory || listing.externalMerchandise ? [] : listingStructuredData(listing),
     };
   },
   head: ({ loaderData }) => {
@@ -261,10 +262,14 @@ export const Route = createFileRoute("/listings/$listingId")({
     }
     const endedLabel =
       loaderData.ended === "sold" ? "Sold" : loaderData.ended === "expired" ? "Expired" : null;
-    const title = endedLabel
+    const title = loaderData.onlineRetailer
+      ? `${loaderData.title} — ${loaderData.priceLabel} | ${brand.name}`
+      : endedLabel
       ? `${loaderData.title} (${endedLabel}) in ${loaderData.city}, ${loaderData.state}`
       : `${loaderData.title} — ${loaderData.priceLabel} in ${loaderData.city}, ${loaderData.state}`;
-    const description = endedLabel
+    const description = loaderData.onlineRetailer
+      ? `${loaderData.title}, listed online for ${loaderData.priceLabel}. View the retailer's offer and confirm current price and availability.`
+      : endedLabel
       ? `${loaderData.title} in ${loaderData.city}, ${loaderData.state} is no longer available. See similar listings from local sellers on ${brand.name}.`
       : `${loaderData.title} listed for ${loaderData.priceLabel} by a seller in ${loaderData.city}, ${loaderData.state} on ${brand.name}.`;
     return {
@@ -1043,7 +1048,7 @@ function MarketCheckSourceCredit({ listing }: { listing: ClassifiedDetail }) {
 }
 
 const STATS_LISTING_ID =
-  /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|adzuna-\d{1,20}|mashvisor-\d{1,15}|openwebninja-\d{1,20}|marketcheck-(?:dealer|fsbo)-[A-Za-z0-9._:-]{1,160}|fsq-[0-9a-f]{24})$/;
+  /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|avantlink-\d{1,20}|adzuna-\d{1,20}|mashvisor-\d{1,15}|openwebninja-\d{1,20}|marketcheck-(?:dealer|fsbo)-[A-Za-z0-9._:-]{1,160}|fsq-[0-9a-f]{24})$/;
 
 /** Records this page view and returns views and saves; one request per page. */
 function useListingStats(listing: ClassifiedDetail) {
@@ -1104,7 +1109,7 @@ function PageStatsCard({ listing }: { listing: ClassifiedDetail }) {
           <dd className="numeric text-right font-medium">{listing.listingNumber ?? listing.id}</dd>
         </div>
         <div className="flex items-center justify-between gap-4 py-2">
-          <dt className="text-muted-foreground">Posted</dt>
+          <dt className="text-muted-foreground">{listing.externalMerchandise ? "Added to Bluebird" : "Posted"}</dt>
           <dd className="text-right font-medium">{formatDate(listing.createdAt)}</dd>
         </div>
         {listing.expiresAt && (
@@ -3915,7 +3920,7 @@ function GeneralListingDetail({
             <CaretRight size={13} />
           </>
         )}
-        <span className="text-foreground">{placeLabel(listing.city, listing.state)}</span>
+        <span className="text-foreground">{listing.externalMerchandise ? "Online retailer" : placeLabel(listing.city, listing.state)}</span>
       </nav>
 
       {/* Photo first on phones; on desktop the grid places the header across
@@ -3933,16 +3938,16 @@ function GeneralListingDetail({
               </h1>
               <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-[12.5px] text-muted-foreground">
                 <span className="flex items-center gap-1.5 text-primary">
-                  <MapPin size={15} weight="fill" /> {placeLabel(listing.city, listing.state)}
+                  <MapPin size={15} weight="fill" /> {listing.externalMerchandise ? "Online retailer" : placeLabel(listing.city, listing.state)}
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <Clock size={15} /> Posted {postedAge(listing.createdAt).toLowerCase()}
+                  <Clock size={15} /> {listing.externalMerchandise ? "Added" : "Posted"} {postedAge(listing.createdAt).toLowerCase()}
                 </span>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <ListingStatsInline listing={listing} />
-              {listing.externalPet ? (
+              {listing.externalPet || listing.externalMerchandise ? (
                 <PartnerJobHeartButton
                   listingId={listing.id}
                   title={title}
@@ -3988,12 +3993,15 @@ function GeneralListingDetail({
             {adoptionPriceLabel(listing) ??
               formatClassifiedPrice(listing.priceCents, { wholeDollars: true })}
           </p>
+          {listing.externalMerchandise && listing.externalMerchandise.retailPriceCents > listing.priceCents ? (
+            <p className="mt-2 text-sm text-muted-foreground"><span className="sr-only">Retail price </span><s>{formatClassifiedPrice(listing.externalMerchandise.retailPriceCents)}</s></p>
+          ) : null}
         </header>
 
         <div className="min-w-0 space-y-7 lg:col-start-2 lg:row-start-3">
           <section className="soft-card overflow-hidden">
             <div className={listingTabListClass} role="tablist" aria-label="Listing information">
-              {(["description", "location"] as const).map((tab) => (
+              {(listing.externalMerchandise ? (["description"] as const) : (["description", "location"] as const)).map((tab) => (
                 <button
                   key={tab}
                   type="button"
@@ -4044,6 +4052,7 @@ function GeneralListingDetail({
                     <p className="mt-6 whitespace-pre-line text-[14px] leading-7 text-muted-foreground">
                       {description || "The seller has not added a description yet."}
                     </p>
+                    {listing.externalMerchandise ? <MerchandiseDetails listing={listing} /> : null}
                     {!descriptionExpanded && description.length > 560 && (
                       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-card to-transparent" />
                     )}
@@ -4096,11 +4105,11 @@ function GeneralListingDetail({
         </div>
 
         <aside className="min-w-0 space-y-5 lg:sticky lg:top-24 lg:col-start-1 lg:row-start-2 lg:row-span-2">
-          <SellerCard listing={listing} />
+          {listing.externalMerchandise ? <MerchandiseRetailerCard listing={listing} /> : <SellerCard listing={listing} />}
           <RescueCard listing={listing} />
           {/* Vinted/Whatnot imports: the seller card's Message seller button
               already links to the original listing, so no second card. */}
-          {listing.originalListing ? null : (
+          {listing.originalListing || listing.externalMerchandise ? null : (
             <ListingActions
               listing={listing}
               showPaymentCalculator={false}
@@ -4116,7 +4125,39 @@ function GeneralListingDetail({
           Pet data from RescueGroups.org.
         </p>
       ) : null}
+      {listing.externalMerchandise ? (
+        <p className="mt-12 border-t border-border/70 py-5 text-center text-[11px] text-muted-foreground">
+          Product information supplied by Guns.com through AvantLink. Bluebird may earn a commission from purchases made through affiliate links.
+        </p>
+      ) : null}
     </main>
+  );
+}
+
+function MerchandiseRetailerCard({ listing }: { listing: ClassifiedDetail }) {
+  const offer = listing.externalMerchandise;
+  if (!offer) return null;
+  return (
+    <section className="soft-card p-5 sm:p-6">
+      <h2 className="text-[15px] font-bold">Guns.com</h2>
+      <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">Online retailer. Choose available options and confirm current price, stock, delivery, and return terms on the retailer’s site.</p>
+      <a href={offer.buyUrl} target="_blank" rel="sponsored nofollow noopener noreferrer"
+        className="mt-4 flex min-h-11 items-center justify-center gap-1.5 rounded-md bg-primary px-4 text-[13px] font-semibold text-primary-foreground">
+        View retailer offer <ArrowSquareOut size={15} aria-hidden="true" />
+      </a>
+      <p className="mt-3 text-[11px] text-muted-foreground">Price checked {new Date(offer.refreshedAt).toLocaleString("en-US")}.</p>
+    </section>
+  );
+}
+
+function MerchandiseDetails({ listing }: { listing: ClassifiedDetail }) {
+  const offer = listing.externalMerchandise;
+  if (!offer) return null;
+  const rows = [["SKU", offer.sku], ["Brand", offer.brand], ["Department", offer.department], ["Category", offer.category], ["Product group", offer.subcategory], ["Options", offer.variants]].filter(([, value]) => value);
+  return (
+    <dl className="mt-6 divide-y divide-border/70 text-sm">
+      {rows.map(([label, value]) => <div key={label} className="grid gap-1 py-3 sm:grid-cols-[130px_1fr]"><dt className="font-medium">{label}</dt><dd className="whitespace-pre-line text-muted-foreground">{value}</dd></div>)}
+    </dl>
   );
 }
 

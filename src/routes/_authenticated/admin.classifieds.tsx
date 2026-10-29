@@ -316,7 +316,7 @@ function ClassifiedReportRow({ report }: { report: AdminClassifiedReport }) {
     <li className="border-b border-border p-4 last:border-b-0">
       <p className="text-[12.5px] font-semibold">{report.reason}</p>
       <p className="mt-1 text-[11.5px] text-muted-foreground">
-        {isDirectory ? "Directory business" : isPartnerJob ? "Adzuna job" : "Listing"}{" "}
+        {report.listingId.startsWith("avantlink-") ? "Retailer merchandise" : isDirectory ? "Directory business" : isPartnerJob ? "Adzuna job" : "Listing"}{" "}
         {report.listingId} · {new Date(report.createdAt).toLocaleString()}
       </p>
       <Link
