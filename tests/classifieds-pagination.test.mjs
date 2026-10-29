@@ -145,6 +145,10 @@ function harness({
       rescueGroupsCards: cards("rescuegroups"),
     },
     "./service-directory-contract": { canIncludeDirectory: () => includes.has("directory") },
+    "./avantlink-listings.server": {
+      canIncludeMerchandise: () => includes.has("avantlink"),
+      merchandiseCards: async () => ({ cards: await cards("avantlink")(), limited: false }),
+    },
     "./service-directory.server": {
       directoryCards: async (_input, offset, limit) => {
         directoryCalls.push({ offset, limit });
@@ -510,6 +514,7 @@ const mergedScenarios = [
   { name: "OpenWebNinja", enabled: ["openwebninja"] },
   { name: "MarketCheck", enabled: ["marketcheck"] },
   { name: "RescueGroups", enabled: ["rescuegroups"] },
+  { name: "AvantLink merchandise", enabled: ["avantlink"] },
   { name: "directory", enabled: ["directory"] },
 ];
 const manyRecords = Array.from({ length: 6001 }, (_, index) => ({

@@ -479,6 +479,7 @@ function Price({ listing }: { listing: ListingCardSummary }) {
 }
 
 function cardActionLabel(listing: ListingCardSummary) {
+  if (listing.externalMerchandise) return "View retailer offer";
   if (listing.job) return "Apply now";
   if (listing.service) return "Get a quote";
   if (listing.pet) return petPlacementLabels[listing.pet.placementType] ?? "Pet listing";
@@ -518,7 +519,7 @@ export function ListingCard({
           </span>
         ) : (
           <div className="absolute right-2 top-2 z-10">
-            {listing.externalJob || listing.directory || listing.externalPet ? (
+            {listing.externalJob || listing.directory || listing.externalPet || listing.externalMerchandise ? (
               <PartnerJobHeartButton listingId={listing.id} title={listing.title} />
             ) : listing.externalHome ? (
               <PartnerHomeHeartButton listingId={listing.id} title={listing.title} />
@@ -562,7 +563,7 @@ export function ListingCard({
           ) : null}
           <p className="mt-2 flex items-center gap-1 truncate text-[11.5px] text-muted-foreground">
             <MapPin size={12} weight="fill" className="shrink-0 text-primary" />
-            {placeLabel(listing.city, listing.state)}
+            {listing.externalMerchandise ? "Online retailer" : placeLabel(listing.city, listing.state)}
           </p>
           <div className="mt-2 flex items-center justify-between gap-2 text-[10.5px] text-muted-foreground">
             <span className="truncate">

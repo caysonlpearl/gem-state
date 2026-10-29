@@ -900,7 +900,7 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
   // IDs so the broader rows do not repeat the featured cars and trucks.
   const { data: homeLead } = useQuery({ ...homeLeadQuery, enabled: false, throwOnError: false });
   const { matchesLocation, withLocation, feedLocation } = where;
-  const localRecent = home.recent.filter(matchesLocation);
+  const localRecent = home.recent.filter((listing) => !listing.externalMerchandise && matchesLocation(listing));
   const localMotors = home.motors.filter(matchesLocation);
   // The homepage shows Idaho homes for now; browse still includes the
   // surrounding states.
@@ -940,7 +940,7 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
     localRecent.filter((listing) => listing.categorySlug === "firearms"),
   );
   const freshListings = pick(localRecent.filter((listing) => !listing.pet));
-  const fartherAwayListings = pick(home.recent.filter((listing) => !matchesLocation(listing)));
+  const fartherAwayListings = pick(home.recent.filter((listing) => !listing.externalMerchandise && !matchesLocation(listing)));
   const vehicleListings = pick(localMotors);
   const truckListings = pick(
     localMotors.filter((listing) =>
@@ -1148,6 +1148,20 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
         search={withLocation({ allCategories: true })}
         action="Browse all classifieds"
       />
+
+      {(home.onlineMerchandise?.length ?? 0) > 0 ? (
+        <>
+          <HomepageListingRow eyebrow="Online retailer offers" title="Outdoor gear available online"
+            listings={(home.onlineMerchandise ?? []).filter((listing) => listing.categorySlug === "outdoor-sporting").slice(0, HOMEPAGE_ROW_SIZE)}
+            search={{ category: "outdoor-sporting" }} action="Browse outdoor gear" />
+          <HomepageListingRow eyebrow="Online retailer offers" title="Apparel available online"
+            listings={(home.onlineMerchandise ?? []).filter((listing) => listing.categorySlug === "apparel-accessories").slice(0, HOMEPAGE_ROW_SIZE)}
+            search={{ category: "apparel-accessories" }} action="Browse apparel" />
+          <HomepageListingRow eyebrow="Online retailer offers" title="Tools and supplies available online"
+            listings={(home.onlineMerchandise ?? []).filter((listing) => listing.categorySlug === "tools-equipment").slice(0, HOMEPAGE_ROW_SIZE)}
+            search={{ category: "tools-equipment" }} action="Browse tools and supplies" />
+        </>
+      ) : null}
 
       <HomepageListingRow
         eyebrow="Bluebird classifieds"
