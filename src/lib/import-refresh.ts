@@ -73,6 +73,32 @@ export function isSettledImportRemoval(row: {
   );
 }
 
+/** Review-queue state does not determine visibility of an existing listing. */
+export function countImportedSellerListings(
+  rows: Array<{
+    source_profile_url: string;
+    status: string;
+    listing_id?: string | null;
+    listing?: { status: string } | null;
+    last_applied_snapshot?: { status?: string } | null;
+  }>,
+) {
+  const counts = new Map<string, { open: number; published: number; offline: number }>();
+  for (const row of rows) {
+    if (row.status === "discarded" && !row.listing_id) continue;
+    const entry = counts.get(row.source_profile_url) ?? { open: 0, published: 0, offline: 0 };
+    if (row.listing_id && row.listing?.status !== "active") entry.offline++;
+    if (row.listing?.status === "active") entry.published++;
+    if (
+      ["draft", "needs_update", "possibly_removed"].includes(row.status) &&
+      !isSettledImportRemoval(row)
+    )
+      entry.open++;
+    counts.set(row.source_profile_url, entry);
+  }
+  return counts;
+}
+
 /** Count-based paging continues even if PostgREST returns fewer than requested. */
 export async function readAllImportPages<T>(
   fetchPage: (offset: number, size: number) => Promise<{ rows: T[]; total: number }>,

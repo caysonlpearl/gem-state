@@ -184,6 +184,7 @@ function ImportedSellers() {
       changed: number;
       removed: number;
       preserved: number;
+      recaptured: number;
       unread: number;
       failed: number;
       complete: boolean;
@@ -302,6 +303,7 @@ function ImportedSellers() {
           sellerChanged = 0,
           sellerRemoved = 0,
           sellerPreserved = 0,
+          sellerRecaptured = 0,
           sellerFailed = 0;
         const unique = new Map(
           report.results.map((item) => [
@@ -334,6 +336,7 @@ function ImportedSellers() {
             sellerChanged += result.updated;
             sellerRemoved += result.flaggedRemoved;
             sellerPreserved += result.preservedActive ?? 0;
+            sellerRecaptured += result.recaptured ?? 0;
             sellerFailed += result.failed;
             const safe = sanitizeStagingFailures(result.failures, chunk.length, i);
             sellerFailures.push(...safe);
@@ -366,6 +369,7 @@ function ImportedSellers() {
             changed: sellerChanged,
             removed: sellerRemoved,
             preserved: sellerPreserved,
+            recaptured: sellerRecaptured,
             unread: report.scan.unreadable,
             failed: sellerFailed,
             complete: mayInferScanAbsence(evidence),
@@ -396,6 +400,7 @@ function ImportedSellers() {
             changed: 0,
             removed: 0,
             preserved: 0,
+            recaptured: 0,
             unread: 0,
             failed: 1,
             complete: false,
@@ -487,6 +492,11 @@ function ImportedSellers() {
                 Queued for review: {r.newCount} new · {r.changed} updates. Existing listing
                 visibility was preserved. Nothing applied automatically.
               </p>
+              {r.recaptured > 0 && (
+                <p className="mt-1">
+                  {r.recaptured} available, previously cleared items returned for review.
+                </p>
+              )}
               {r.preserved > 0 && (
                 <p className="mt-1">
                   Kept {r.preserved} existing listings live despite an unavailable source response.
@@ -1044,7 +1054,7 @@ function ReviewRow({
     mutationFn: () => discardItem({ data: { itemId: item.id } }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["fb-import-items"] });
-      toast.success("Discarded.");
+      toast.success("Cleared from review. An available, unpublished item can return on refresh.");
     },
   });
 
@@ -1314,7 +1324,7 @@ function ReviewRow({
               disabled={discardMutation.isPending}
               className="h-8 rounded-md border border-input px-3 text-[11.5px] font-medium text-destructive hover:bg-secondary"
             >
-              Discard
+              Clear from review
             </button>
           </div>
         </div>
@@ -1586,7 +1596,7 @@ function FbImportPage() {
                 if (!data?.length) return;
                 if (
                   !window.confirm(
-                    `Discard all ${data.length} staged listing(s)? This can't be undone -- nothing will be published.`,
+                    `Clear all ${data.length} items from review? Nothing will be published. Available, never-published items can return on a later refresh.`,
                   )
                 )
                   return;
@@ -1595,7 +1605,7 @@ function FbImportPage() {
               disabled={clearAllMutation.isPending || !data?.length}
               className="h-9 rounded-md border border-input px-3 text-[12px] font-medium text-destructive hover:bg-secondary disabled:opacity-50"
             >
-              {clearAllMutation.isPending ? "Clearing…" : "Clear list"}
+              {clearAllMutation.isPending ? "Clearing…" : "Clear review queue"}
             </button>
           </div>
         </div>
