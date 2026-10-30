@@ -1794,7 +1794,7 @@ test("firearms are a first-class category with linked safety guidance", async ()
   assert.match(browseSource, /title: "Targets and range gear"/);
   assert.match(
     browseSource,
-    /eyebrow="Bluebird Marketplace Firearms"[\s\S]*?rows=\{firearmShowcaseRows\}/,
+    /eyebrow="Bluebird Marketplace Firearms"[\s\S]*?rows=\{firearmShowcaseRows\.slice\(/,
   );
   assert.match(browseSource, /Firearms category home/);
   assert.match(browseSource, /search=\{\{ category: "firearms" \}\}/);

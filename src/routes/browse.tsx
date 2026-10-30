@@ -2318,6 +2318,22 @@ function Browse() {
             listings={result.listings}
           />
           <FirearmsCategoryShowcase
+            afterTypes={
+              <HomepageShowcaseRows
+                topListings={result.listings}
+                eyebrow="Bluebird Marketplace Firearms"
+                rows={firearmShowcaseRows.slice(0, 2)}
+                baseSearch={search}
+              />
+            }
+            afterBrands={
+              <HomepageShowcaseRows
+                topListings={result.listings}
+                eyebrow="Bluebird Marketplace Firearms"
+                rows={firearmShowcaseRows.slice(2, 4)}
+                baseSearch={search}
+              />
+            }
             onSelect={(patch) =>
               void navigate({
                 to: "/browse",
@@ -2336,7 +2352,7 @@ function Browse() {
           <HomepageShowcaseRows
             topListings={result.listings}
             eyebrow="Bluebird Marketplace Firearms"
-            rows={firearmShowcaseRows}
+            rows={firearmShowcaseRows.slice(4)}
             baseSearch={search}
           />
         </>
@@ -3027,7 +3043,11 @@ function FirearmsSafetyCallout() {
   );
 }
 
-function FirearmsCategoryShowcase({ onSelect }: { onSelect: (patch: Partial<Search>) => void }) {
+function FirearmsCategoryShowcase({ onSelect, afterTypes, afterBrands }: {
+  onSelect: (patch: Partial<Search>) => void;
+  afterTypes?: React.ReactNode;
+  afterBrands?: React.ReactNode;
+}) {
   const popularBrands = [
     "Browning",
     "Glock",
@@ -3055,6 +3075,8 @@ function FirearmsCategoryShowcase({ onSelect }: { onSelect: (patch: Partial<Sear
         ))}
       </FirearmBrowseSection>
 
+      {afterTypes}
+
       <FirearmBrowseSection title="Shop popular brands">
         {popularBrands.map((brandName) => (
           <FirearmBrowseButton
@@ -3064,6 +3086,8 @@ function FirearmsCategoryShowcase({ onSelect }: { onSelect: (patch: Partial<Sear
           />
         ))}
       </FirearmBrowseSection>
+
+      {afterBrands}
 
       <FirearmBrowseSection title="Firearm accessories">
         {firearmAccessoryTypes.map((type) => (
@@ -4014,9 +4038,8 @@ function JobShowcaseCards({
     if (container.current) observer.observe(container.current);
     return () => observer.disconnect();
   }, []);
-  const params = Object.fromEntries(new URL(row.href, "https://onbluebird.com").searchParams);
   const query = useQuery({
-    ...classifiedQuery(inputFromSearch({ ...search, ...params, page: 1 } as Search)),
+    ...classifiedQuery(inputFromSearch(showcaseSearch(search, row.href))),
     enabled: visible,
     staleTime: 60_000,
   });
@@ -4062,6 +4085,19 @@ function JobShowcaseCards({
       )}
     </div>
   );
+}
+
+function showcaseSearch(search: Search, href: string): Search {
+  const params = Object.fromEntries(new URL(href, "https://onbluebird.com").searchParams);
+  return {
+    ...search,
+    ...params,
+    // Row links target results, but these are still landing-page previews.
+    ...(search.category === "firearms" && search.firearmMode !== "results"
+      ? { firearmMode: "landing" as const }
+      : {}),
+    page: 1,
+  };
 }
 
 function HomepageShowcaseRows({
