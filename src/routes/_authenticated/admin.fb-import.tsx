@@ -183,6 +183,7 @@ function ImportedSellers() {
       newCount: number;
       changed: number;
       removed: number;
+      preserved: number;
       unread: number;
       failed: number;
       complete: boolean;
@@ -300,6 +301,7 @@ function ImportedSellers() {
         let sellerNew = 0,
           sellerChanged = 0,
           sellerRemoved = 0,
+          sellerPreserved = 0,
           sellerFailed = 0;
         const unique = new Map(
           report.results.map((item) => [
@@ -331,6 +333,7 @@ function ImportedSellers() {
             sellerNew += result.staged;
             sellerChanged += result.updated;
             sellerRemoved += result.flaggedRemoved;
+            sellerPreserved += result.preservedActive ?? 0;
             sellerFailed += result.failed;
             const safe = sanitizeStagingFailures(result.failures, chunk.length, i);
             sellerFailures.push(...safe);
@@ -352,28 +355,6 @@ function ImportedSellers() {
           }
         }
         const evidence = { ...report.scan, unreadable: report.scan.unreadable + sellerFailed };
-        if (mayInferScanAbsence(evidence)) {
-          // One finalize call per profile: the server bulk-marks every
-          // published row the complete scan did not see.
-          try {
-            const result = await stage({
-              data: {
-                sourceProfileUrl: report.sourceProfileUrl,
-                mode: "refresh",
-                authorized: scanAuthorized,
-                items: [],
-                scan: evidence,
-                finalizeScan: true,
-                seenUrls: report.seenUrls,
-                ...(batchId ? { batchId } : {}),
-              },
-            });
-            sellerRemoved += result.flaggedRemoved;
-          } catch {
-            sellerFailed++;
-            sellerFailures.push({ rowIndex: rows.length, reason: "finalization_failed" });
-          }
-        }
         setScanReports((current) => [
           ...current,
           {
@@ -384,6 +365,7 @@ function ImportedSellers() {
             newCount: sellerNew,
             changed: sellerChanged,
             removed: sellerRemoved,
+            preserved: sellerPreserved,
             unread: report.scan.unreadable,
             failed: sellerFailed,
             complete: mayInferScanAbsence(evidence),
@@ -413,6 +395,7 @@ function ImportedSellers() {
             newCount: 0,
             changed: 0,
             removed: 0,
+            preserved: 0,
             unread: 0,
             failed: 1,
             complete: false,
@@ -437,7 +420,7 @@ function ImportedSellers() {
       await queryClient.invalidateQueries({ queryKey: ["fb-import-profiles"] });
       setUnreadReport(result.unread ? result.unreadGroups : null);
       toast.success(
-        `Scan finished: ${result.newCount} new, ${result.changed} updates, ${result.removed} removal suggestions queued for review. No live listings changed.` +
+        `Scan finished: ${result.newCount} new and ${result.changed} updates queued for review. Refresh preserved existing listing visibility.` +
           (result.failed
             ? ` ${result.failed} results could not be saved; see details below.`
             : "") +
@@ -458,9 +441,10 @@ function ImportedSellers() {
         <div className="min-w-[240px] flex-1">
           <h2 className="text-[13px] font-semibold">Imported sellers</h2>
           <p className="mt-0.5 text-[11.5px] text-muted-foreground">
-            Scan seller profiles for new listings and changes. Refresh only prepares changes for
-            review; it does not publish listings or take them offline. Pages that cannot be read are
-            left unchanged.
+            Refresh finds new listings and prepares updates for review. It never queues removals or
+            takes existing listings offline. Missing, unavailable, blocked, or unreadable source
+            pages leave Bluebird listings live. Remove sold listings separately after checking their
+            status.
             {extensionReady
               ? ""
               : " Extension 1.5.9 or newer not detected — reload the updated extension, then reload this page."}
@@ -500,11 +484,16 @@ function ImportedSellers() {
                 · {sourceSiteName(r.profile)}
               </span>
               <p className="mt-1">
-                Queued for review: {r.newCount} new · {r.changed} updates · {r.removed} removal
-                suggestions. Nothing applied automatically.
+                Queued for review: {r.newCount} new · {r.changed} updates. Existing listing
+                visibility was preserved. Nothing applied automatically.
               </p>
+              {r.preserved > 0 && (
+                <p className="mt-1">
+                  Kept {r.preserved} existing listings live despite an unavailable source response.
+                </p>
+              )}
               <p className="mt-1 text-muted-foreground">
-                Checked {r.scanned} listing pages · Found {r.discovered} on the seller page
+                Processed {r.scanned} listing URLs · Found {r.discovered} on the seller page
                 {r.expected > 0 && <span> · Source reports {r.expected}</span>}
               </p>
               <p className="mt-1">

@@ -291,9 +291,9 @@ test("actual stage handler creates new source inventory as draft and preserves p
   assert.equal(outcome.updated, 0);
   assert.equal(h.writes.filter((w) => w.table === "fb_marketplace_import_items").length, 0);
 });
-test("actual absence handler leaves unread/incomplete scans unchanged, and bulk-flags only unseen published rows", async () => {
+test("even a claimed complete inventory scan cannot queue removal of unseen active listings", async () => {
   const scan = { complete: true, termination: "end", challenged: false, unreadable: 0 };
-  for (const evidence of [{ ...scan, unreadable: 31 }, { ...scan, complete: false }, scan]) {
+  for (const evidence of [scan, { ...scan, unreadable: 31 }, { ...scan, complete: false }]) {
     const h = handlers([row]);
     const outcome = await h.stage({
       sourceProfileUrl: profile,
@@ -304,38 +304,12 @@ test("actual absence handler leaves unread/incomplete scans unchanged, and bulk-
       finalizeScan: true,
       seenUrls: [],
     });
-    assert.equal(outcome.flaggedRemoved, evidence === scan ? 1 : 0);
+    assert.equal(outcome.flaggedRemoved, 0);
+    assert.equal(h.writes.filter((w) => w.table === "fb_marketplace_import_items").length, 0);
+    assert.equal(h.rpcs.length, 0);
   }
-  // One finalize call bulk-marks every unseen published row in a single update.
-  const missing = { ...row, source_url: `${row.source_url}?other` };
-  const bulk = handlers([row, missing]);
-  const bulkOutcome = await bulk.stage({
-    sourceProfileUrl: profile,
-    authorized: true,
-    mode: "refresh",
-    items: [],
-    scan,
-    finalizeScan: true,
-    seenUrls: [],
-  });
-  assert.equal(bulkOutcome.flaggedRemoved, 2);
-  const bulkUpdate = bulk.writes.find(
-    (w) => w.action === "update" && w.values.status === "possibly_removed",
-  );
-  assert.ok(bulkUpdate);
-  // A row the complete scan did see is never flagged.
-  const seen = handlers([row]);
-  const kept = await seen.stage({
-    sourceProfileUrl: profile,
-    authorized: true,
-    mode: "refresh",
-    items: [],
-    scan,
-    finalizeScan: true,
-    seenUrls: [row.source_url],
-  });
-  assert.equal(kept.flaggedRemoved, 0);
 });
+
 test("actual stage handler refuses a seller whose sync is paused", async () => {
   const h = handlers([row], { paused: true });
   await assert.rejects(
@@ -453,56 +427,24 @@ test("actual staging reports sanitized per-row database failures, including sing
   assert.equal(invalid.failures[0].reason, "invalid_row");
 });
 
-test("one finalization bulk-flags 300 confirmed-absent published rows in bounded updates only", async () => {
+test("a legacy client's finalization cannot remove 300 missing listings", async () => {
   const published = Array.from({ length: 300 }, (_, i) => ({
     ...row,
-    source_url: `https://www.vinted.com/items/${5000 + i}-p`,
+    source_url: `https://www.vinted.com/items/${5000 + i}`,
   }));
-  const edited = { ...row, source_url: "https://www.vinted.com/items/9-e", status: "needs_update" };
-  const seen = { ...row, source_url: "https://www.vinted.com/items/8-s" };
-  const scan = { complete: true, termination: "end", challenged: false, unreadable: 0 };
-  const h = handlers([...published, edited, seen]);
+  const h = handlers(published);
   const out = await h.stage({
     sourceProfileUrl: profile,
     authorized: true,
     mode: "refresh",
     items: [],
-    scan,
+    scan: { complete: true, termination: "count", challenged: false, unreadable: 0 },
     finalizeScan: true,
-    seenUrls: [seen.source_url],
+    seenUrls: [],
   });
-  assert.equal(out.flaggedRemoved, 300);
-  assert.equal(h.lookups.count, 1);
-  const flags = h.writes.filter(
-    (w) => w.action === "update" && w.values.status === "possibly_removed",
-  );
-  assert.equal(flags.length, 3);
-  const flagged = flags.flatMap((w) => w.filters.find(([k]) => k === "source_url")[1]);
-  assert.ok(flags.every((w) => w.filters.find(([k]) => k === "source_url")[1].length <= 100));
-  assert.ok(flags.every((w) => w.filters.some(([k, v]) => k === "status" && v === "published")));
-  assert.ok(!flagged.includes(edited.source_url) && !flagged.includes(seen.source_url));
-  const reasons = h.writes.filter(
-    (w) => w.action === "update" && w.values.removed_reason === "missing",
-  );
-  assert.equal(reasons.length, 3);
-
-  for (const bad of [
-    { ...scan, complete: false },
-    { ...scan, unreadable: 2 },
-  ]) {
-    const f = handlers([...published]);
-    const res = await f.stage({
-      sourceProfileUrl: profile,
-      authorized: true,
-      mode: "refresh",
-      items: [],
-      scan: bad,
-      finalizeScan: true,
-      seenUrls: [],
-    });
-    assert.equal(res.flaggedRemoved, 0);
-    assert.equal(f.writes.filter((w) => w.table === "fb_marketplace_import_items").length, 0);
-  }
+  assert.equal(out.flaggedRemoved, 0);
+  assert.equal(h.writes.filter((w) => w.table === "fb_marketplace_import_items").length, 0);
+  assert.equal(h.rpcs.length, 0);
 });
 
 test("claimed seller auto-routing still enforces verified email and seller setup", async () => {
@@ -550,16 +492,21 @@ test("actual queue getter excludes completed removals but preserves unresolved c
   );
 });
 
-test("explicit unavailable observations do not require the deleted page to retain title, price or photos", async () => {
-  const h = handlers([row]);
-  const result = await h.stage({
-    sourceProfileUrl: profile,
-    authorized: true,
-    mode: "refresh",
-    items: [{ sourceUrl: item.sourceUrl, unavailable: true }],
-  });
-  assert.equal(result.failed, 0);
-  assert.equal(result.flaggedRemoved, 1);
+test("source unavailable and sold observations preserve active listings and their snapshots", async () => {
+  for (const sold of [false, true]) {
+    const h = handlers([row]);
+    const result = await h.stage({
+      sourceProfileUrl: profile,
+      authorized: true,
+      mode: "refresh",
+      items: [{ sourceUrl: item.sourceUrl, unavailable: true, sold }],
+    });
+    assert.equal(result.failed, 0);
+    assert.equal(result.flaggedRemoved, 0);
+    assert.equal(result.preservedActive, 1);
+    assert.equal(h.writes.filter((w) => w.table === "fb_marketplace_import_items").length, 0);
+    assert.equal(h.rpcs.length, 0);
+  }
   const unknown = await handlers([]).stage({
     sourceProfileUrl: profile,
     authorized: true,
@@ -569,4 +516,14 @@ test("explicit unavailable observations do not require the deleted page to retai
   assert.equal(unknown.failed, 0);
   assert.equal(unknown.staged, 0);
   assert.equal(unknown.flaggedRemoved, 0);
+});
+
+test("legacy removal suggestions cannot reach the publication RPC", async () => {
+  const h = handlers([{ ...row, status: "possibly_removed", removed_reason: "unavailable" }]);
+  await assert.rejects(
+    h.apply({ itemIds: [row.id], mode: "managed", authorized: true }),
+    /separate removal action/,
+  );
+  assert.equal(h.rpcs.length, 0);
+  assert.equal(h.writes.length, 0);
 });
