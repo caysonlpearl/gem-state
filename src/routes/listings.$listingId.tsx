@@ -4174,7 +4174,7 @@ function MerchandiseRetailerCard({ listing }: { listing: ClassifiedDetail }) {
       <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">Online retailer. Choose available options and confirm current price, stock, delivery, and return terms on the retailer’s site.</p>
       <a href={offer.buyUrl} target="_blank" rel="sponsored nofollow noopener noreferrer"
         className="mt-4 flex min-h-11 items-center justify-center gap-1.5 rounded-md bg-primary px-4 text-[13px] font-semibold text-primary-foreground">
-        View retailer offer <ArrowSquareOut size={15} aria-hidden="true" />
+        Message Seller <ArrowSquareOut size={15} aria-hidden="true" />
       </a>
       <p className="mt-3 text-[11px] text-muted-foreground">Price checked {new Date(offer.refreshedAt).toLocaleString("en-US")}.</p>
     </section>
