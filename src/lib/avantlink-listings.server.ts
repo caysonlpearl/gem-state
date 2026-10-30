@@ -154,6 +154,10 @@ export async function merchandiseCards(
       if (!actual || !data.itemDetailValue.split(/\|{1,2}/).includes(actual)) continue;
     }
     const card = merchandiseCard(p, row);
+    if (data.category === "firearms" && card.categorySlug !== "firearms") {
+      card.categorySlug = "firearms";
+      card.categoryName = categories.firearms;
+    }
     const details = card.itemDetails as Record<string, string | undefined>;
     if (
       (
