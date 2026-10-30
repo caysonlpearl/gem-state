@@ -1039,7 +1039,7 @@ test("classified cards use category-aware price and fulfillment language", () =>
   assert.match(displaySource, /monthly \? `\$\{value\}\/month`/);
   assert.match(displaySource, /Vehicle transport available/);
   assert.match(displaySource, /Pickup or vehicle transport/);
-  assert.match(listingCardSource, /wholeDollars: Boolean\(listing\.vehicle \|\| listing\.home\)/);
+  assert.match(listingCardSource, /wholeDollars: Boolean\(listing\.vehicle \|\| listing\.home \|\| savings\)/);
   assert.match(listingCardSource, /monthly: listing\.home\?\.mode === "rent"/);
   assert.match(listingDetailSource, /payout identity verified through Bluebird/);
 });

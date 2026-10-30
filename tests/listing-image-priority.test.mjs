@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import vm from "node:vm";
 import ts from "typescript";
 import React from "react";
+import { retailSavings } from "../src/lib/retail-savings.ts";
 import { listingCardImageUrl } from "../src/lib/listing-card-image.ts";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -173,6 +174,7 @@ test("the rendered listing photo emits eager/high only for the first visible fix
     useState: () => [null, () => {}],
     useEffect: () => {},
     useCallback: (fn) => fn,
+    retailSavings,
     listingLogoUrl: () => undefined,
     listingCardImageUrl,
     LogoPhoto: "LogoPhoto",
@@ -225,6 +227,7 @@ test("a removed photo becomes a fallback even when its failure preceded hydratio
   const image = { complete: true, naturalWidth: 0, dataset: {} };
   const Photo = vm.runInNewContext(`${compiled}\nListingCardPhoto`, {
     React, listingCardImageUrl,
+    retailSavings,
     listingLogoUrl: () => undefined,
     useRef: () => ({ current: image }),
     useState: () => [failed, (value) => { failed = value; }],
