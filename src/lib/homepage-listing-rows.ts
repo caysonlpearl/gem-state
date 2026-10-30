@@ -20,6 +20,12 @@ export function isGeneralHomepageListing(listing: ListingCardSummary): boolean {
     !listing.job &&
     !listing.service &&
     !listing.pet &&
+    // Older dealer imports store trucks and tractors under Industrial with
+    // this subtype rather than supplying the normalized vehicle object.
+    !(
+      listing.categorySlug === "industrial" &&
+      listing.itemDetails?.itemType === "Heavy Equipment/Tractors"
+    ) &&
     !listing.externalMerchandise
   );
 }

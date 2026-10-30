@@ -89,6 +89,27 @@ test("Fresh local finds accepts general merchandise and rejects every dedicated 
     assert.equal(isGeneralHomepageListing(card(field, "general", { [field]: {} })), false, field);
 });
 
+test("legacy Industrial trucks and tractors stay out of general finds while shop tools remain eligible", () => {
+  assert.equal(
+    isGeneralHomepageListing(
+      card("2009 FREIGHTLINER COLUMBIA 112", "industrial", {
+        itemDetails: { itemType: "Heavy Equipment/Tractors" },
+        vehicle: null,
+      }),
+    ),
+    false,
+  );
+  assert.equal(
+    isGeneralHomepageListing(
+      card("Shop cabinet", "industrial", {
+        itemDetails: { itemType: "Shop Tools" },
+        vehicle: null,
+      }),
+    ),
+    true,
+  );
+});
+
 test("dedicated rows fill from statewide saved inventory without jobs displacing Fresh local finds", () => {
   const motors = Array.from({ length: 24 }, (_, i) =>
     card(`vehicle-${i}`, "cars-trucks", {
