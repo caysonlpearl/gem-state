@@ -26,6 +26,17 @@ const items = [
 ];
 const base = { items, dirtyIds: new Set(), authorized: true };
 
+test("a known sync conflict blocks another apply attempt", () => {
+  assert.match(
+    publishBlocker({
+      ...base,
+      items: [{ ...items[0], syncConflict: "Needs review" }],
+      selectedIds: new Set([items[0].id]),
+    }),
+    /Review the Bluebird conflict/,
+  );
+});
+
 test("queue groups by canonical seller profile with new/update/removed counts", () => {
   const groups = groupQueueBySeller(items, { [vinted.replace("-shop", "")]: "Vinted Shop" });
   assert.equal(groups.length, 2);

@@ -26,6 +26,7 @@ function categoryHintFrom(sourceProfileUrl: string | null | undefined, descripti
 
 import {
   canonicalImportSource,
+  isSettledImportRemoval,
   mayInferScanAbsence,
   type ScanEvidence,
   stagingFailureCode,
@@ -239,7 +240,8 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
             title: z.string().max(1000),
             description: z.string().max(10000).nullish(),
             priceCents: z.number().int().min(0).max(1000000000),
-            photoUrls: z.array(z.string().url().max(4096)).max(8),
+            // Existing listings are deliberately read without downloading photos.
+            photoUrls: z.array(z.string().url().max(4096)).max(8).default([]),
             unavailable: z.boolean().optional(),
             sold: z.boolean().optional(),
           })
@@ -385,7 +387,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
         admin
           .from("fb_marketplace_import_items")
           .select(
-            "source_url,status,price_cents,title,description,listing_id,seller_id,category_slug,item_details",
+            "source_url,status,price_cents,title,description,listing_id,seller_id,category_slug,item_details,listing:asks!listing_id(status)",
             { count: "exact" },
           )
           .eq("source_profile_url", data.sourceProfileUrl)
@@ -428,6 +430,9 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
           if (prior) item.sourceUrl = prior.source_url;
           // Pending/admin-edited and discarded rows are never overwritten by a scan.
           if (prior && prior.status !== "published") continue;
+          // A completed removal still has an import row for deduplication.
+          // Never requeue or refresh an offline listing, or reactivate it.
+          if (prior?.listing_id && prior.listing?.status !== "active") continue;
           if (isRefresh && prior)
             item.itemDetails = inferImportItemDetails(
               prior.category_slug,
@@ -567,6 +572,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
           : (priorItems ?? []).filter(
               (row: any) =>
                 row.status === "published" &&
+                row.listing?.status === "active" &&
                 (!data.removalSourceUrl ||
                   canonicalImportSource(data.sourceProfileUrl, row.source_url) ===
                     data.removalSourceUrl) &&
@@ -603,16 +609,21 @@ export const getFacebookImportItems = createServerFn({ method: "GET" })
       admin
         .from("fb_marketplace_import_items")
         .select(
-          "id,batch_id,source_profile_url,source_url,title,description,price_cents,condition,category_slug,city,state,region,public_paths,status,previous_price_cents,previous_description,listing_id,created_at,sync_conflict,item_details",
+          "id,batch_id,source_profile_url,source_url,title,description,price_cents,condition,category_slug,city,state,region,public_paths,status,previous_price_cents,previous_description,listing_id,created_at,sync_conflict,item_details,last_applied_snapshot,listing:asks!listing_id(status)",
           { count: "exact" },
         )
         .in("status", ["draft", "needs_update", "possibly_removed"])
         .order("id"),
     );
-    const { data: archives, error: archiveError } = await admin.from("import_source_archives").select("source_profile_url").not("archived_at", "is", null);
+    const { data: archives, error: archiveError } = await admin
+      .from("import_source_archives")
+      .select("source_profile_url")
+      .not("archived_at", "is", null);
     if (archiveError) throw new Error(archiveError.message);
     const archived = new Set((archives ?? []).map((r: any) => r.source_profile_url));
-    const visibleRows = rows.filter((r: any) => !archived.has(r.source_profile_url));
+    const visibleRows = rows.filter(
+      (r: any) => !archived.has(r.source_profile_url) && !isSettledImportRemoval(r),
+    );
     const allPaths = visibleRows.flatMap((row: any) => (row.public_paths as string[] | null) ?? []);
     const signedByPath = await signStagedPhotos(admin, allPaths);
     return visibleRows.map((row: any) => {
@@ -663,6 +674,7 @@ export type FbImportProfile = {
   lastStagedAt: string;
   openCount: number;
   publishedCount: number;
+  offlineCount: number;
   /** The seller's storefront slug once a listing has been published for them. */
   sellerSlug: string | null;
   /** True when the seller paused sync; scans must skip them before opening any source page. */
@@ -690,19 +702,23 @@ export const getFacebookImportProfiles = createServerFn({ method: "GET" })
     const items = await allImportRows(() =>
       admin
         .from("fb_marketplace_import_items")
-        .select("source_profile_url,status,seller_id,id", { count: "exact" })
+        .select(
+          "source_profile_url,status,seller_id,id,listing_id,last_applied_snapshot,listing:asks!listing_id(status)",
+          { count: "exact" },
+        )
         .neq("status", "discarded")
         .order("id"),
     );
-    const counts = new Map<string, { open: number; published: number }>();
+    const counts = new Map<string, { open: number; published: number; offline: number }>();
     const sellerByProfile = new Map<string, string>();
     for (const row of items ?? []) {
       if (row.seller_id && !sellerByProfile.has(row.source_profile_url)) {
         sellerByProfile.set(row.source_profile_url, row.seller_id);
       }
-      const entry = counts.get(row.source_profile_url) ?? { open: 0, published: 0 };
-      if (row.status === "published") entry.published += 1;
-      else entry.open += 1;
+      const entry = counts.get(row.source_profile_url) ?? { open: 0, published: 0, offline: 0 };
+      if (row.listing_id && row.listing?.status !== "active") entry.offline += 1;
+      if (row.listing?.status === "active") entry.published += 1;
+      if (row.status !== "published" && !isSettledImportRemoval(row)) entry.open += 1;
       counts.set(row.source_profile_url, entry);
     }
 
@@ -732,19 +748,25 @@ export const getFacebookImportProfiles = createServerFn({ method: "GET" })
       (pausedRows ?? []).map((row: { source_profile_url: string }) => row.source_profile_url),
     );
 
-    const { data: archives, error: archiveError } = await admin.from("import_source_archives").select("source_profile_url,archived_at").not("archived_at", "is", null);
+    const { data: archives, error: archiveError } = await admin
+      .from("import_source_archives")
+      .select("source_profile_url,archived_at")
+      .not("archived_at", "is", null);
     if (archiveError) throw new Error(archiveError.message);
-    const archivedByProfile = new Map<string, string>((archives ?? []).map((r: any) => [r.source_profile_url, r.archived_at]));
+    const archivedByProfile = new Map<string, string>(
+      (archives ?? []).map((r: any) => [r.source_profile_url, r.archived_at]),
+    );
     const profiles = new Map<string, FbImportProfile>();
     for (const batch of batches ?? []) {
       if (profiles.has(batch.source_profile_url)) continue;
-      const entry = counts.get(batch.source_profile_url) ?? { open: 0, published: 0 };
+      const entry = counts.get(batch.source_profile_url) ?? { open: 0, published: 0, offline: 0 };
       profiles.set(batch.source_profile_url, {
         sourceProfileUrl: batch.source_profile_url,
         sellerName: namesByProfile.get(batch.source_profile_url) ?? null,
         lastStagedAt: batch.created_at,
         openCount: entry.open,
         publishedCount: entry.published,
+        offlineCount: entry.offline,
         sellerSlug: slugBySeller.get(sellerByProfile.get(batch.source_profile_url) ?? "") ?? null,
         syncPaused: pausedProfiles.has(batch.source_profile_url),
         archivedAt: archivedByProfile.get(batch.source_profile_url) ?? null,
@@ -770,8 +792,11 @@ export const getFacebookRefreshTargets = createServerFn({ method: "GET" })
     const data = await allImportRows(() =>
       (supabaseAdmin as any)
         .from("fb_marketplace_import_items")
-        .select("source_profile_url,source_url,title,price_cents,id", { count: "exact" })
-        .neq("status", "discarded")
+        .select(
+          "source_profile_url,source_url,title,price_cents,id,listing:asks!listing_id(status)",
+          { count: "exact" },
+        )
+        .eq("status", "published")
         .order("id"),
     );
     const { data: paused, error: pauseError } = await (supabaseAdmin as any)
@@ -779,11 +804,19 @@ export const getFacebookRefreshTargets = createServerFn({ method: "GET" })
       .select("source_profile_url")
       .eq("sync_enabled", false);
     if (pauseError) throw new Error(pauseError.message);
-    const { data: archives, error: archiveError } = await (supabaseAdmin as any).from("import_source_archives").select("source_profile_url").not("archived_at", "is", null);
+    const { data: archives, error: archiveError } = await (supabaseAdmin as any)
+      .from("import_source_archives")
+      .select("source_profile_url")
+      .not("archived_at", "is", null);
     if (archiveError) throw new Error(archiveError.message);
-    const pausedProfiles = new Set([...(paused ?? []), ...(archives ?? [])].map((p: any) => p.source_profile_url));
+    const pausedProfiles = new Set(
+      [...(paused ?? []), ...(archives ?? [])].map((p: any) => p.source_profile_url),
+    );
     return (data ?? [])
-      .filter((row: any) => !pausedProfiles.has(row.source_profile_url))
+      .filter(
+        (row: any) =>
+          !pausedProfiles.has(row.source_profile_url) && row.listing?.status === "active",
+      )
       .map((row: any) => ({
         sourceProfileUrl: row.source_profile_url,
         sourceUrl: row.source_url,
@@ -950,14 +983,21 @@ export const discardAllFacebookImportItems = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
     const { data: archives, error: archiveError } = await admin
-      .from("import_source_archives").select("source_profile_url").not("archived_at", "is", null);
+      .from("import_source_archives")
+      .select("source_profile_url")
+      .not("archived_at", "is", null);
     if (archiveError) throw new Error(archiveError.message);
-    let query = admin.from("fb_marketplace_import_items")
+    let query = admin
+      .from("fb_marketplace_import_items")
       .update({ status: "discarded" })
       .in("status", ["draft", "needs_update", "possibly_removed"]);
     // Clear only the visible queue, so removed imports remain recoverable.
-    if (archives?.length) query = query.not("source_profile_url", "in",
-      `(${archives.map((r: any) => JSON.stringify(r.source_profile_url)).join(",")})`);
+    if (archives?.length)
+      query = query.not(
+        "source_profile_url",
+        "in",
+        `(${archives.map((r: any) => JSON.stringify(r.source_profile_url)).join(",")})`,
+      );
     const { data, error } = await query.select("id");
     if (error) throw new Error(error.message);
     return { cleared: (data ?? []).length };
@@ -1185,7 +1225,9 @@ export const setFacebookImportSourceArchived = createServerFn({ method: "POST" }
     await requireAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await (supabaseAdmin as any).rpc("set_import_source_archived", {
-      _profile: data.profile, _actor: context.userId, _archived: data.archived,
+      _profile: data.profile,
+      _actor: context.userId,
+      _archived: data.archived,
     });
     if (error) throw new Error(error.message);
     return { ok: true };

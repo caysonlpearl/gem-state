@@ -1,5 +1,12 @@
 import { canonicalSellerSourceProfile, dieselDepotListingId } from "./seller-claims.ts";
 
+/** Earlier readers confuse a Vinted favorite announcement with item removal. */
+export function supportsSafeSellerRefresh(value: unknown): boolean {
+  if (typeof value !== "string" || !/^\d+\.\d+\.\d+$/.test(value)) return false;
+  const [major, minor, patch] = value.split(".").map(Number);
+  return major > 1 || (major === 1 && (minor > 5 || (minor === 5 && patch >= 3)));
+}
+
 /** Stable source identity; tracking, slugs and dealer titles are not identity. */
 export function canonicalImportSource(profile: string, value: string): string {
   const seller = canonicalSellerSourceProfile(profile);
@@ -47,6 +54,22 @@ export function mayInferScanAbsence(scan: ScanEvidence): boolean {
     !scan.challenged &&
     scan.unreadable === 0 &&
     (scan.termination === "count" || scan.termination === "end")
+  );
+}
+
+/** Applying a removal keeps the import record for source deduplication. It is
+ * not a live listing, and must not be queued for removal again on every scan. */
+export function isSettledImportRemoval(row: {
+  status: string;
+  listing_id?: string | null;
+  listing?: { status: string } | null;
+  last_applied_snapshot?: { status?: string } | null;
+}): boolean {
+  return (
+    row.status === "possibly_removed" &&
+    !!row.listing_id &&
+    row.listing?.status === "cancelled" &&
+    row.last_applied_snapshot?.status === "cancelled"
   );
 }
 

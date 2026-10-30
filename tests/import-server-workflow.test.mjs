@@ -9,11 +9,22 @@ import {
   mayInferScanAbsence,
   scannableProfiles,
   stagingFailureCode,
+  isSettledImportRemoval,
 } from "../src/lib/import-refresh.ts";
 import { canonicalSellerSourceProfile, dieselDepotListingId } from "../src/lib/seller-claims.ts";
 
 // Exercise actual handler bodies offline. Imports are replaced only at the boundary.
-function handlers(rows, { claimed = false, paused = false, writeError = null, verified = true, setupActive = true, archivedProfiles = [] } = {}) {
+function handlers(
+  rows,
+  {
+    claimed = false,
+    paused = false,
+    writeError = null,
+    verified = true,
+    setupActive = true,
+    archivedProfiles = [],
+  } = {},
+) {
   const writes = [],
     rpcs = [],
     lookups = { count: 0 };
@@ -74,13 +85,15 @@ function handlers(rows, { claimed = false, paused = false, writeError = null, ve
         then(resolve) {
           if (action) writes.push({ table, action, values, filters });
           const data =
-            table === "import_source_archives" ? archivedProfiles.map(source_profile_url => ({source_profile_url})) : table === "managed_import_sellers"
-              ? { id: "seller", owner_user_id: "owner", sync_enabled: !paused }
-              : table === "seller_profiles"
-                ? { terms_accepted_at: setupActive ? "accepted" : null, status: "active" }
-                : table === "fb_marketplace_import_batches"
-                  ? { id: "batch", seller_name: "Seller" }
-                  : rows;
+            table === "import_source_archives"
+              ? archivedProfiles.map((source_profile_url) => ({ source_profile_url }))
+              : table === "managed_import_sellers"
+                ? { id: "seller", owner_user_id: "owner", sync_enabled: !paused }
+                : table === "seller_profiles"
+                  ? { terms_accepted_at: setupActive ? "accepted" : null, status: "active" }
+                  : table === "fb_marketplace_import_batches"
+                    ? { id: "batch", seller_name: "Seller" }
+                    : rows;
           resolve({
             data,
             error: table === "fb_marketplace_import_items" && action ? writeError : null,
@@ -103,6 +116,7 @@ function handlers(rows, { claimed = false, paused = false, writeError = null, ve
     canonicalImportSource,
     mayInferScanAbsence,
     stagingFailureCode,
+    isSettledImportRemoval,
     canonicalSellerSourceProfile,
     dieselDepotListingId,
     requireSupabaseAuth: {},
@@ -146,7 +160,7 @@ function handlers(rows, { claimed = false, paused = false, writeError = null, ve
   source = stripTypeScriptTypes(source, { mode: "transform" }).replaceAll("export ", "");
   vm.runInContext(
     source +
-      "\nglobalThis.stage = stageFacebookImportBatch; globalThis.apply = publishFacebookImportItems; globalThis.clear = discardAllFacebookImportItems;",
+      "\nglobalThis.stage = stageFacebookImportBatch; globalThis.apply = publishFacebookImportItems; globalThis.clear = discardAllFacebookImportItems; globalThis.queue = getFacebookImportItems;",
     c,
   );
   const context = { userId: "admin", supabase: { rpc: async () => ({ data: true, error: null }) } };
@@ -154,6 +168,7 @@ function handlers(rows, { claimed = false, paused = false, writeError = null, ve
     stage: (data) => c.stage({ data, context }),
     apply: (data) => c.apply({ data, context }),
     clear: () => c.clear({ context }),
+    queue: () => c.queue({ context }),
     writes,
     rpcs,
     lookups,
@@ -169,6 +184,7 @@ const row = {
   price_cents: 500,
   status: "published",
   listing_id: "listing",
+  listing: { status: "active" },
   seller_id: "owner",
   category_slug: "general",
   item_details: {},
@@ -182,6 +198,62 @@ const item = {
   priceCents: 600,
   photoUrls: [],
 };
+
+test("refresh accepts a known listing without photos and preserves stored media", async () => {
+  const h = handlers([row]);
+  const { photoUrls, ...withoutPhotos } = item;
+  const out = await h.stage({
+    sourceProfileUrl: profile,
+    authorized: true,
+    mode: "refresh",
+    items: [withoutPhotos],
+  });
+  assert.equal(out.failed, 0);
+  assert.equal(out.updated, 1);
+  assert.equal(
+    h.writes.some((w) => w.values?.public_paths),
+    false,
+  );
+});
+
+test("refresh and complete-scan finalization never queue an offline listing again", async () => {
+  const h = handlers([{ ...row, listing: { status: "cancelled" } }]);
+  const out = await h.stage({
+    sourceProfileUrl: profile,
+    authorized: true,
+    mode: "refresh",
+    items: [{ ...item, unavailable: true }],
+  });
+  assert.equal(out.flaggedRemoved, 0);
+  assert.equal(out.updated, 0);
+  const final = await h.stage({
+    sourceProfileUrl: profile,
+    authorized: true,
+    mode: "refresh",
+    items: [],
+    finalizeScan: true,
+    scan: { complete: true, termination: "count", challenged: false, unreadable: 0 },
+    seenUrls: [],
+  });
+  assert.equal(final.flaggedRemoved, 0);
+  assert.equal(h.writes.filter((w) => w.table === "fb_marketplace_import_items").length, 0);
+});
+
+test("only previously applied removals disappear from the pending review queue", () => {
+  const settled = {
+    status: "possibly_removed",
+    listing_id: "listing",
+    listing: { status: "cancelled" },
+    last_applied_snapshot: { status: "cancelled" },
+  };
+  assert.equal(isSettledImportRemoval(settled), true);
+  assert.equal(
+    isSettledImportRemoval({ ...settled, last_applied_snapshot: { status: "active" } }),
+    false,
+  );
+  assert.equal(isSettledImportRemoval({ ...settled, listing: { status: "active" } }), false);
+  assert.equal(isSettledImportRemoval({ ...settled, listing: null }), false);
+});
 
 test("actual stage handler dedupes an existing slug and queues update without changing identity/photos", async () => {
   const h = handlers([row]);
@@ -433,19 +505,47 @@ test("one finalization bulk-flags 300 confirmed-absent published rows in bounded
   }
 });
 
-
 test("claimed seller auto-routing still enforces verified email and seller setup", async () => {
-  for (const option of [{claimed:true,verified:false}, {claimed:true,setupActive:false}]) {
-    const h=handlers([row],option);
-    await assert.rejects(h.apply({itemIds:[row.id],mode:"managed",authorized:true}), /verify their email and complete seller setup/);
-    assert.equal(h.rpcs.length,0);
+  for (const option of [
+    { claimed: true, verified: false },
+    { claimed: true, setupActive: false },
+  ]) {
+    const h = handlers([row], option);
+    await assert.rejects(
+      h.apply({ itemIds: [row.id], mode: "managed", authorized: true }),
+      /verify their email and complete seller setup/,
+    );
+    assert.equal(h.rpcs.length, 0);
   }
 });
 
-
 test("Clear list excludes recoverable removed import sources", async () => {
-  const h=handlers([row],{archivedProfiles:[profile]});
+  const h = handlers([row], { archivedProfiles: [profile] });
   await h.clear();
-  const write=h.writes.find(w=>w.table==="fb_marketplace_import_items");
-  assert.ok(write.filters.some(f=>f[0]==="source_profile_url" && f[1]==="in" && f[2]===`(${JSON.stringify(profile)})`));
+  const write = h.writes.find((w) => w.table === "fb_marketplace_import_items");
+  assert.ok(
+    write.filters.some(
+      (f) =>
+        f[0] === "source_profile_url" && f[1] === "in" && f[2] === `(${JSON.stringify(profile)})`,
+    ),
+  );
+});
+
+test("actual queue getter excludes completed removals but preserves unresolved conflicts", async () => {
+  const settled = {
+    ...row,
+    status: "possibly_removed",
+    listing: { status: "cancelled" },
+    last_applied_snapshot: { status: "cancelled" },
+  };
+  const h = handlers([
+    settled,
+    { ...settled, id: "unresolved", last_applied_snapshot: { status: "active" } },
+    { ...row, id: "new", status: "draft", listing_id: null },
+  ]);
+  const queue = await h.queue();
+  assert.deepEqual(
+    Array.from(queue, (r) => r.id),
+    ["unresolved", "new"],
+  );
 });

@@ -86,8 +86,10 @@ function vinted({ data = [], marker = "", dom = {}, body = "", malformed = false
             : data.map((node) => ({ textContent: JSON.stringify(node) }));
         if (selector.includes("[role='alert']")) return marker ? [element(marker)] : [];
         if (selector.includes("item-title")) return dom.title ? [element(dom.title)] : [];
-        if (selector.includes("item-description"))
-          return dom.description ? [element(dom.description)] : [];
+        if (selector.includes("item-description") || selector.includes("itemprop"))
+          return dom.description || dom.itempropDescription
+            ? [element(dom.description || dom.itempropDescription)]
+            : [];
         if (selector.includes("item-price")) return dom.price ? [element(dom.price)] : [];
         if (selector.includes("item-photo-")) return dom.photo ? [{ src: dom.photo }] : [];
         return [];
@@ -201,4 +203,18 @@ test("staging diagnostics expose allowlisted codes and report row numbers only",
     { rowIndex: 53, reason: "staging_write_failed" },
   ]);
   assert.doesNotMatch(JSON.stringify(safe), /private|token|secret|sourceUrl|title/);
+});
+
+test("Vinted current itemprop description remains readable without structured product data", () => {
+  const result = vinted({
+    dom: {
+      title: "Salt and pepper shakers",
+      itempropDescription: "Vintage ceramic Christmas shakers",
+      price: "$10.00",
+      photo: product.image,
+    },
+  });
+  assert.equal(result.description, "Vintage ceramic Christmas shakers");
+  assert.equal(result.priceCents, 1000);
+  assert.equal(result.incomplete, undefined);
 });
