@@ -188,3 +188,30 @@ test("Facebook jewelry descriptions remain readable when the seller omitted Cond
   assert.equal(r.priceCents, 1200);
   assert.equal(r.description, "Beautiful natural blue goldstone bracelet.");
 });
+
+test("Whatnot positive quantities ending in zero are available; only an actual zero or explicit notice marks unavailable", () => {
+  for (const quantity of ["1", "10", "20", "80", "100", "1,000", "0"]) {
+    const product = {
+      "@type": "Product",
+      name: "Collector card",
+      description: "A physical card, not a sold out status notice",
+      offers: { price: 10 },
+    };
+    const text = `Collector card\n${quantity} Available • New\n$10.00 + shipping\n612\nSold\nProduct Details\nA description mentioning sold out\nMore from the Seller\n0 available`;
+    const c = vm.createContext({
+      document: {
+        querySelector: () => ({ innerText: text }),
+        body: { innerText: text },
+        querySelectorAll: () => [{ textContent: JSON.stringify(product) }],
+      },
+    });
+    vm.runInContext(load("whatnot.js"), c);
+    const result = c.whatnotExtractListingInPage(false);
+    if (quantity === "0") assert.equal(result.unavailable, true);
+    else {
+      assert.equal(result.unavailable, undefined);
+      assert.equal(result.title, product.name);
+      assert.equal(result.priceCents, 1000);
+    }
+  }
+});

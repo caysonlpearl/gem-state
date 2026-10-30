@@ -26,6 +26,7 @@ function categoryHintFrom(sourceProfileUrl: string | null | undefined, descripti
 
 import {
   canonicalImportSource,
+  countImportedSellerListings,
   isSettledImportRemoval,
   type ScanEvidence,
   stagingFailureCode,
@@ -313,6 +314,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
       failures: StagingFailure[];
       flaggedRemoved: number;
       preservedActive: number;
+      recaptured: number;
     }> => {
       await requireAdmin(context);
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -362,7 +364,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
         admin
           .from("fb_marketplace_import_items")
           .select(
-            "source_url,status,price_cents,title,description,listing_id,seller_id,category_slug,item_details,listing:asks!listing_id(status)",
+            "id,source_url,status,price_cents,title,description,listing_id,seller_id,category_slug,item_details,city,state,region,listing:asks!listing_id(status)",
             { count: "exact" },
           )
           .eq("source_profile_url", data.sourceProfileUrl)
@@ -389,6 +391,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
       const failures: StagingFailure[] = [...data.invalidFailures];
       const flaggedRemoved = 0;
       let preservedActive = 0;
+      let recaptured = 0;
       const isRefresh = data.mode === "refresh";
 
       for (const [index, item] of data.items.entries()) {
@@ -402,19 +405,22 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
           const key = canonicalImportSource(data.sourceProfileUrl, item.sourceUrl);
           const prior = priorByUrl.get(key);
           if (prior) item.sourceUrl = prior.source_url;
-          // Pending/admin-edited and discarded rows are never overwritten by a scan.
-          if (prior && prior.status !== "published") continue;
+          // Clearing an unpublished review row is not a permanent source exclusion.
+          // Only fresh available data may recapture it; published/offline records,
+          // pending edits and paused/archived sellers retain their separate guards.
+          const recapture = prior?.status === "discarded" && !prior.listing_id;
+          if (prior && prior.status !== "published" && !recapture) continue;
           // A completed removal still has an import row for deduplication.
           // Never requeue or refresh an offline listing, or reactivate it.
           if (prior?.listing_id && prior.listing?.status !== "active") continue;
-          if (isRefresh && prior)
+          if (isRefresh && prior && !recapture)
             item.itemDetails = inferImportItemDetails(
               prior.category_slug,
               item.subcategory,
               prior.item_details,
               item.title,
             );
-          if (prior && item.description === null && !item.unavailable)
+          if (prior && !recapture && item.description === null && !item.unavailable)
             item.description = prior.description;
           // Source failures/status hints never change marketplace visibility.
           // This server-side rule also protects older extension clients.
@@ -428,7 +434,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
           // A refresh only re-checks listings that are already published, and
           // only touches what Facebook can actually have changed. Category,
           // condition and location are left exactly as the admin set them.
-          if (isRefresh && prior) {
+          if (isRefresh && prior && !recapture) {
             const changed =
               prior.price_cents !== item.priceCents ||
               (prior.description ?? "") !== (item.description ?? "") ||
@@ -483,33 +489,51 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
           }
 
           try {
+            if (recapture && !item.description)
+              throw new Error("Fresh source description required to recapture this listing.");
             phase = "photo";
+            if (recapture && item.photoUrls.length === 0)
+              throw new Error("Fresh source photos required to recapture this listing.");
             const stagingPaths: string[] = [];
             for (const url of item.photoUrls)
               stagingPaths.push(await downloadPhoto(admin, batch.id, url));
             phase = "write";
-            const { error } = await admin.from("fb_marketplace_import_items").upsert(
-              {
-                batch_id: batch.id,
-                source_profile_url: data.sourceProfileUrl,
-                seller_id: managed?.owner_user_id ?? prior?.seller_id ?? null,
-                source_url: item.sourceUrl,
-                title: item.title,
-                description: item.description,
-                price_cents: item.priceCents,
-                condition: item.condition,
-                category_slug: item.categorySlug,
-                item_details: item.itemDetails,
-                city: item.city,
-                state: item.state,
-                region: item.region,
-                evidence_paths: stagingPaths,
-                public_paths: stagingPaths,
-                status: "draft",
-              },
-              { onConflict: "source_profile_url,source_url", ignoreDuplicates: true },
-            );
-            if (error) throw error;
+            const draft = {
+              batch_id: batch.id,
+              source_profile_url: data.sourceProfileUrl,
+              seller_id: managed?.owner_user_id ?? prior?.seller_id ?? null,
+              source_url: item.sourceUrl,
+              title: item.title,
+              description: item.description,
+              price_cents: item.priceCents,
+              condition: item.condition,
+              category_slug: item.categorySlug,
+              item_details: item.itemDetails,
+              city: item.city || (recapture ? prior.city : ""),
+              state: item.state || (recapture ? prior.state : ""),
+              region: item.region || (recapture ? prior.region : ""),
+              evidence_paths: stagingPaths,
+              public_paths: stagingPaths,
+              status: "draft",
+            };
+            if (recapture) {
+              const { data: changedRows, error } = await admin
+                .from("fb_marketplace_import_items")
+                .update({ ...draft, removed_reason: null, sync_conflict: null })
+                .eq("id", prior.id)
+                .eq("status", "discarded")
+                .is("listing_id", null)
+                .select("id");
+              if (error) throw error;
+              if (!changedRows?.length) continue;
+              recaptured++;
+            } else {
+              const { error } = await admin.from("fb_marketplace_import_items").upsert(draft, {
+                onConflict: "source_profile_url,source_url",
+                ignoreDuplicates: true,
+              });
+              if (error) throw error;
+            }
             staged += 1;
           } catch (error) {
             failed += 1;
@@ -534,6 +558,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
         failures,
         flaggedRemoved,
         preservedActive,
+        recaptured,
       };
     },
   );
@@ -646,20 +671,14 @@ export const getFacebookImportProfiles = createServerFn({ method: "GET" })
           "source_profile_url,status,seller_id,id,listing_id,last_applied_snapshot,listing:asks!listing_id(status)",
           { count: "exact" },
         )
-        .neq("status", "discarded")
         .order("id"),
     );
-    const counts = new Map<string, { open: number; published: number; offline: number }>();
+    const counts = countImportedSellerListings(items ?? []);
     const sellerByProfile = new Map<string, string>();
     for (const row of items ?? []) {
       if (row.seller_id && !sellerByProfile.has(row.source_profile_url)) {
         sellerByProfile.set(row.source_profile_url, row.seller_id);
       }
-      const entry = counts.get(row.source_profile_url) ?? { open: 0, published: 0, offline: 0 };
-      if (row.listing_id && row.listing?.status !== "active") entry.offline += 1;
-      if (row.listing?.status === "active") entry.published += 1;
-      if (row.status !== "published" && !isSettledImportRemoval(row)) entry.open += 1;
-      counts.set(row.source_profile_url, entry);
     }
 
     const namesByProfile = new Map<string, string>();

@@ -4,6 +4,7 @@ import vm from "node:vm";
 import { readFileSync } from "node:fs";
 import {
   canonicalImportSource,
+  countImportedSellerListings,
   mayInferScanAbsence,
   readAllImportPages,
   runImportRows,
@@ -21,11 +22,12 @@ test("refresh blocks the older reader that misreads Vinted favorite announcement
     "1.5.6",
     "1.5.7",
     "1.5.8",
+    "1.5.9",
     "1.4.9",
     "bogus",
   ])
     assert.equal(supportsSafeSellerRefresh(version), false);
-  for (const version of ["1.5.9", "1.6.0", "2.0.0"])
+  for (const version of ["1.5.10", "1.6.0", "2.0.0"])
     assert.equal(supportsSafeSellerRefresh(version), true);
 });
 
@@ -470,4 +472,26 @@ test("seller profiles accept matching hydrated content while subresources keep l
   assert.equal(checked, true);
   assert.equal(result.items.length, 1);
   assert.equal(result.scan.complete, true);
+});
+
+test("clearing a review row does not hide its still-live listing from seller counts", () => {
+  const profile = "https://www.facebook.com/marketplace/profile/1/";
+  const rows = [
+    { status: "published", listing_id: "a", listing: { status: "active" } },
+    { status: "discarded", listing_id: "b", listing: { status: "active" } },
+    { status: "discarded", listing_id: null, listing: null },
+    { status: "draft", listing_id: null, listing: null },
+    { status: "needs_update", listing_id: "c", listing: { status: "active" } },
+    {
+      status: "possibly_removed",
+      listing_id: "d",
+      listing: { status: "cancelled" },
+      last_applied_snapshot: { status: "cancelled" },
+    },
+  ].map((row) => ({ ...row, source_profile_url: profile }));
+  assert.deepEqual(countImportedSellerListings(rows).get(profile), {
+    published: 3,
+    offline: 1,
+    open: 2,
+  });
 });

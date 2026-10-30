@@ -78,17 +78,20 @@ function whatnotExtractListingInPage(withPhotos) {
     .flat()
     .find((data) => data && data["@type"] === "Product");
   const body = (document.querySelector("main") || document.body || {}).innerText || "";
-  if (!product) {
-    if (
-      /listing (is )?(no longer|not) available|page not found|sold out/i.test(body.slice(0, 1500))
-    ) {
-      return { unavailable: true, sold: /sold out/i.test(body.slice(0, 1500)) };
-    }
-    return null;
-  }
-  const head = body.slice(0, 800);
-  if (/sold out|no longer available|0 available/i.test(head))
-    return { unavailable: true, sold: true };
+  // Read only product-level status before details/recommendations. A substring
+  // like "0 available" also occurs inside "80 Available" and is not a sale.
+  const lead = body.split(/\bProduct Details\b/i)[0].slice(0, 1500);
+  const quantity = lead.match(/(?:^|\n)\s*([\d,]+)\s+Available\b/i);
+  const statusLines = lead.split("\n").map((line) => line.trim());
+  const soldOut =
+    statusLines.some((line) => /^sold out[.!]?$/i.test(line)) ||
+    (quantity && Number(quantity[1].replaceAll(",", "")) === 0);
+  const unavailable = statusLines.some((line) =>
+    /^(?:(?:this )?listing (?:is )?(?:no longer|not) available|page not found)[.!]?$/i.test(line),
+  );
+  if (soldOut || unavailable) return { unavailable: true, sold: !!soldOut };
+  if (!product) return null;
+  const head = lead.slice(0, 800);
   // Auction lots: a starting bid, not a price.
   const auction =
     /pre-?bid|place (a )?bid|starting bid|current bid/i.test(head) && !/buy (it )?now/i.test(head);
