@@ -263,6 +263,17 @@ export function normalizeMerchandise(
   for (const image of [r.strLargeImage, r.strMediumImage, r.strThumbnailImage]) {
     const url = httpsUrl(image, ["images.guns.com", "www.guns.com", "guns.com"]);
     if (!url) continue;
+    // Guns.com's public image service delivers sized photos, while bare
+    // /prod URLs can return a 403. Use its supported sizing parameter for
+    // original images; retain explicit provider sizing/policies unchanged.
+    // Applied on cache reads too, so existing inventory needs no refresh.
+    if (
+      url.hostname === "images.guns.com" &&
+      !url.searchParams.has("imwidth") &&
+      !url.searchParams.has("impolicy")
+    ) {
+      url.searchParams.set("imwidth", "1200");
+    }
     // The three feed image fields are often different sizes of one photograph.
     const identity = `${url.hostname.toLowerCase()}${url.pathname.toLowerCase()}`;
     if (!seen.has(identity)) {

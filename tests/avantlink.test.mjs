@@ -85,7 +85,7 @@ test("normalizes real field names, exact cents, complete descriptions, options a
   assert.equal(p.retailPriceCents, 2899);
   assert.equal(p.description, "A comfortable cotton shirt.");
   assert.equal(p.variants, "Size M");
-  assert.deepEqual(p.images, [row.strLargeImage]);
+  assert.deepEqual(p.images, [`${row.strLargeImage}?imwidth=1200`]);
   assert.equal(p.sku, "68721");
   assert.equal(p.location, null);
   assert.equal(p.raw.strActionCommission, "5.50%");
@@ -103,6 +103,45 @@ test("accepts firearm components without weakening merchant or scope validation"
   assert.equal(normalizeMerchandise({ ...row, strDepartmentName: "Unknown" }), null);
   assert.equal(approvedMerchandise({ ...row, strProductName: "RIFLE LOGO TEE" }), true);
   assert.equal(normalizeMerchandise(row, ["Gear", "Hats"]), null);
+});
+
+test("cached firearm and gear photos use Guns.com's working sized-image endpoint in browse and detail", async () => {
+  const photo = "https://images.guns.com/prod/2022/02/02/61fac8e727d7ad3eeb2d22fd6fe364b2bf4ae5f7b0556.jpg";
+  for (const [department, category, categorySlug] of [
+    ["Handguns", "Semi Auto", "firearms"],
+    ["Optics", "Rifle Scopes", "firearms"],
+    ["Gear", "Apparel", "apparel-accessories"],
+  ]) {
+    const raw = { ...row, strDepartmentName: department, strCategoryName: category,
+      strLargeImage: photo, strMediumImage: `${photo}?imwidth=600`, strThumbnailImage: `${photo}?impolicy=thumb` };
+    const p = normalizeMerchandise(raw);
+    assert.deepEqual(p.images, [`${photo}?imwidth=1200`]);
+    assert.equal(p.raw.strLargeImage, photo);
+    const db = database((call) => ({
+      data: call.table === "partner_job_reports" ? [] :
+        call.ops.some((op) => op.method === "maybeSingle")
+          ? { payload: { raw }, ...timestamps } : [{ payload: { raw }, ...timestamps }],
+      count: 1, error: null,
+    }));
+    const browse = await merchandiseCards({ category: categorySlug, hasPhotos: true }, db);
+    assert.equal(browse.cards.length, 1);
+    assert.equal(browse.cards[0].categorySlug, categorySlug);
+    assert.equal(browse.cards[0].imageUrl, `${photo}?imwidth=1200`);
+    const detail = await merchandiseDetail("avantlink-1067506", db);
+    assert.deepEqual(detail.images, [{ url: `${photo}?imwidth=1200`, alt: raw.strProductName }]);
+    assert.equal(db.calls.some((call) => call.rpc), false);
+  }
+});
+
+test("image sizing preserves explicit provider policies and existing query parameters", () => {
+  for (const photo of [
+    "https://images.guns.com/prod/front.jpg?imwidth=600",
+    "https://images.guns.com/prod/front.jpg?impolicy=og-image",
+  ]) {
+    assert.equal(normalizeMerchandise({ ...row, strLargeImage: photo }).images[0], photo);
+  }
+  assert.equal(normalizeMerchandise({ ...row, strLargeImage: "https://images.guns.com/prod/front.jpg?w=400" }).images[0],
+    "https://images.guns.com/prod/front.jpg?w=400&imwidth=1200");
 });
 
 test("rejects spoofed merchants, affiliate links and unsafe destinations", () => {
