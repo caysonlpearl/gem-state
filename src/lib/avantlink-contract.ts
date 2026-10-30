@@ -35,7 +35,49 @@ export const MERCHANDISE_SCOPES = [
   ["Range Gear", "Targets"],
   ["Range Gear", "Traps And Clay Throwers"],
   ["Knives And Tools", "Knife Accessories"],
+  ["Rifles", "Bolt Action"],
+  ["Rifles", "Semi Auto"],
+  ["Rifles", "Lever Action"],
+  ["Rifles", "Single Shot"],
+  ["Rifles", "Pump Action"],
+  ["Handguns", "Semi Auto"],
+  ["Handguns", "Revolver"],
+  ["Handguns", "Bolt Action"],
+  ["Handguns", "Lever Action"],
+  ["Handguns", "Single Shot"],
+  ["Shotguns", "Pump Action"],
+  ["Shotguns", "Over Under"],
+  ["Shotguns", "Semi Auto"],
+  ["Shotguns", "Side By Side"],
+  ["Shotguns", "Single Shot"],
+  ["Shotguns", "Lever Action"],
+  ["Shotguns", "Bolt Action"],
+  ["Ammo", "Rifle Ammo"],
+  ["Ammo", "Handgun Ammo"],
+  ["Ammo", "Shotgun Ammo"],
+  ["Ammo", "Rimfire Ammo"],
 ] as const;
+/** Guns.com departments whose products are firearms or ammunition. */
+export const FIREARM_DEPARTMENTS = ["Rifles", "Handguns", "Shotguns", "Ammo"] as const;
+const firearmDepartments = new Set<string>(FIREARM_DEPARTMENTS);
+
+/** Maps a Guns.com department/category onto the site's Firearms filters. */
+export function firearmDetails(
+  department: string,
+  category: string,
+): { listingType: "Firearm" | "Accessory"; firearmType?: string; accessoryType?: string } | null {
+  if (!firearmDepartments.has(department)) return null;
+  if (department === "Ammo") return { listingType: "Accessory", accessoryType: "Ammunition" };
+  const firearmType =
+    department === "Rifles"
+      ? "Rifle"
+      : department === "Shotguns"
+        ? "Shotgun"
+        : category === "Revolver"
+          ? "Revolver"
+          : "Handgun";
+  return { listingType: "Firearm", firearmType };
+}
 export type MerchandiseScope = (typeof MERCHANDISE_SCOPES)[number];
 export const scopeKey = (scope: readonly [string, string]) => scope.join("/");
 const approvedScopes = new Set(MERCHANDISE_SCOPES.map(scopeKey));
@@ -50,7 +92,7 @@ export type AffiliateMerchandise = {
   department: string;
   category: string;
   subcategory: string;
-  categorySlug: "apparel-accessories" | "outdoor-sporting" | "tools-equipment";
+  categorySlug: "apparel-accessories" | "outdoor-sporting" | "tools-equipment" | "firearms";
   retailPriceCents: number;
   priceCents: number;
   images: string[];
@@ -113,6 +155,8 @@ export function approvedMerchandise(row: Record<string, unknown>): boolean {
   const department = merchandiseText(row.strDepartmentName, 120);
   const category = merchandiseText(row.strCategoryName, 120);
   if (!approvedScopes.has(scopeKey([department, category]))) return false;
+  // Firearm and ammunition departments are the merchant's core catalog.
+  if (firearmDepartments.has(department)) return true;
   const title = merchandiseText(row.strProductName, 300);
   const productUrl = String(row.strProductURL ?? "");
   if (/\/(?:firearms|ammo|ammunition|gun-parts|silencers|magazines)\//i.test(productUrl))
@@ -209,7 +253,9 @@ export function normalizeMerchandise(
     brand: merchandiseText(r.strBrandName, 160),
     description: merchandiseText(r.txtLongDescription),
     shortDescription: merchandiseText(r.txtShortDescription || r.txtAbbreviatedDescription, 2000),
-    categorySlug: ["Apparel", "Hats", "Shirts", "Belts"].includes(category)
+    categorySlug: firearmDepartments.has(department)
+      ? "firearms"
+      : ["Apparel", "Hats", "Shirts", "Belts"].includes(category)
       ? "apparel-accessories"
       : department === "Cleaning Supplies" || department === "Knives And Tools"
         ? "tools-equipment"
