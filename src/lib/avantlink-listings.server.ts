@@ -16,9 +16,6 @@ const categories = {
   "tools-equipment": "Tools & Equipment",
   firearms: "Firearms",
 };
-/** Guns.com's image CDN bot-screens browsers; serve approved photos via Bluebird. */
-export const retailerImagePath = (id: string, index: number) =>
-  `/api/public/retailer-image/${id}/${index}`;
 const firearmFilters = ["firearmListingType", "firearmType", "firearmBrand", "firearmAccessoryType"];
 const maxAge = () => new Date(Date.now() - 7 * 86400000).toISOString();
 const present = (v: unknown) => v !== undefined && v !== null && v !== false && v !== "";
@@ -85,7 +82,7 @@ export function merchandiseCard(
     fulfillmentMode: "",
     createdAt: row.first_seen_at,
     isFeatured: false,
-    imageUrl: product.images.length ? retailerImagePath(product.id, 0) : null,
+    imageUrl: product.images[0] ?? null,
     vehicle: null,
     itemDetails: {
       itemType: product.category,
@@ -232,6 +229,6 @@ export async function merchandiseDetail(
     variantId: "",
     seller: null,
     listingNumber: p.sku,
-    images: p.images.map((_, index) => ({ url: retailerImagePath(p.id, index), alt: p.title })),
+    images: p.images.map((url) => ({ url, alt: p.title })),
   };
 }
