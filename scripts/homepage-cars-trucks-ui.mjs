@@ -182,7 +182,12 @@ try {
         assert.equal(target.searchParams.get("group"), "motors");
         check.checks.push("five-category production header retains broader Vehicles destination");
       }
-      await page.getByRole("combobox", { name: "City or ZIP code", exact: true }).fill("Boise");
+      const beforeLocation = await cards().evaluateAll((links) =>
+        links.map((link) => link.getAttribute("href")),
+      );
+      await page
+        .getByRole("combobox", { name: "City or ZIP code", exact: true })
+        .fill("Twin Falls");
       await page.getByRole("combobox", { name: "City or ZIP code", exact: true }).press("Tab");
       const local = new URL(
         await lead
@@ -190,12 +195,28 @@ try {
           .getAttribute("href"),
         origin,
       );
-      assert.equal(local.searchParams.get("city"), "Boise");
-      assert.equal(local.searchParams.get("radiusMiles"), "25");
+      assert.equal(local.searchParams.get("state"), "ID");
+      assert.equal(local.searchParams.has("city"), false);
+      assert.equal(local.searchParams.has("radiusMiles"), false);
+      assert.deepEqual(
+        await cards().evaluateAll((links) => links.map((link) => link.getAttribute("href"))),
+        beforeLocation,
+      );
       await readyCars();
       check.checks.push(
-        "chosen Boise/25-mile location is retained in featured and category destinations",
+        "choosing Twin Falls does not filter homepage cards or category destinations",
       );
+
+      await page
+        .locator("form")
+        .filter({ has: page.getByRole("combobox", { name: "City or ZIP code", exact: true }) })
+        .getByRole("button", { name: "Search", exact: true })
+        .click();
+      await page.waitForURL((url) => url.pathname === "/browse");
+      const submitted = new URL(page.url());
+      assert.equal(submitted.searchParams.get("city"), "Twin Falls");
+      assert.equal(submitted.searchParams.get("radiusMiles"), "25");
+      check.checks.push("only submitting the hero search applies the city and radius");
 
       await page.goto(origin + "/?fixture=empty");
       await lead.getByText("Bluebird is just getting started.", { exact: true }).waitFor();

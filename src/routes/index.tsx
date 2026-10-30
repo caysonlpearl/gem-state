@@ -2,6 +2,7 @@ import { waitForHomeLead } from "@/lib/home-lead-ready";
 import { listingCardImageUrl } from "@/lib/listing-card-image";
 import { afterLeadPaint } from "@/lib/lead-paint-ready";
 import { homepageDistanceRow } from "@/lib/homepage-distance-row";
+import { isGeneralHomepageListing } from "@/lib/homepage-listing-rows";
 import { requestHomepageLocation } from "@/lib/homepage-geolocation";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
@@ -10,7 +11,16 @@ import {
   useQuery,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { Component, Suspense, lazy, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  Component,
+  Suspense,
+  lazy,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { ArrowRight, MagnifyingGlass, Car } from "@phosphor-icons/react";
 
 import { brand } from "@/config/brand";
@@ -93,7 +103,14 @@ export const Route = createFileRoute("/")({
     links: [
       { rel: "preconnect", href: "https://images.craigslist.org" },
       ...(loaderData?.leadImageUrl
-        ? [{ rel: "preload", as: "image", href: loaderData.leadImageUrl, fetchPriority: "high" as const }]
+        ? [
+            {
+              rel: "preload",
+              as: "image",
+              href: loaderData.leadImageUrl,
+              fetchPriority: "high" as const,
+            },
+          ]
         : []),
     ],
     scripts: [jsonLdScript(siteStructuredData())],
@@ -280,13 +297,20 @@ function Home() {
   const locateVisitor = useCallback(
     async (automatic: boolean, active: () => boolean = () => true) => {
       setLocating(true);
-      const point = await requestHomepageLocation({
-        geolocation: navigator.geolocation,
-        permissions: navigator.permissions,
-        storage: (() => {
-          try { return window.localStorage; } catch { return undefined; }
-        })(),
-      }, automatic);
+      const point = await requestHomepageLocation(
+        {
+          geolocation: navigator.geolocation,
+          permissions: navigator.permissions,
+          storage: (() => {
+            try {
+              return window.localStorage;
+            } catch {
+              return undefined;
+            }
+          })(),
+        },
+        automatic,
+      );
       if (!active()) return;
       setLocating(false);
       // A late GPS result must not replace a city the visitor just selected.
@@ -306,7 +330,9 @@ function Home() {
   useEffect(() => {
     let active = true;
     void locateVisitor(true, () => active);
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [locateVisitor]);
 
   useEffect(() => {
@@ -341,8 +367,10 @@ function Home() {
     return () => window.clearInterval(headlineRotation);
   }, []);
 
-  const where = homeLocation(location, mapPoint, radiusMiles);
-  const { parsedLocation, locationSummary } = where;
+  // The hero fields prepare a search; changing them (or receiving GPS) must
+  // never shrink the homepage's saved statewide inventory or its row links.
+  const where = homeLocation("", undefined, 25);
+  const { parsedLocation, locationSummary } = homeLocation(location, mapPoint, radiusMiles);
 
   const defaultingRef = useRef(false);
   function openMapWithDefault() {
@@ -637,7 +665,9 @@ function HomepageFeaturedCategories({
 function homeLocation(location: string, mapPoint: LocationPoint | undefined, radiusMiles: number) {
   const motorCategories = classifiedCategories.filter((c) => c.group === "motors");
   const parsedLocation = parseLocationSearch(location);
-  const matchesLocation = (listing: Pick<ClassifiedsHome["recent"][number], "postalCode" | "city" | "state" | "region">) => {
+  const matchesLocation = (
+    listing: Pick<ClassifiedsHome["recent"][number], "postalCode" | "city" | "state" | "region">,
+  ) => {
     if (parsedLocation.postalCode) {
       return (listing.postalCode ?? "").startsWith(parsedLocation.postalCode);
     }
@@ -703,7 +733,9 @@ function homeLocation(location: string, mapPoint: LocationPoint | undefined, rad
   return {
     motorCategories,
     parsedLocation,
-    hasLocalArea: Boolean(parsedLocation.city || parsedLocation.postalCode || parsedLocation.region || mapPoint),
+    hasLocalArea: Boolean(
+      parsedLocation.city || parsedLocation.postalCode || parsedLocation.region || mapPoint,
+    ),
     matchesLocation,
     locationSummary,
     withLocation,
@@ -724,17 +756,27 @@ function HomeSectionsLoading() {
   );
 }
 
-function HomepageLeadVehicles({ where, onPainted }: { where: ReturnType<typeof homeLocation>; onPainted: () => void }) {
+function HomepageLeadVehicles({
+  where,
+  onPainted,
+}: {
+  where: ReturnType<typeof homeLocation>;
+  onPainted: () => void;
+}) {
   const { data: homeLead } = useSuspenseQuery(homeLeadQuery);
   const { motorCategories, matchesLocation, withLocation } = where;
   const leadMotors = homeLead.motors.filter(matchesLocation).slice(0, HOMEPAGE_ROW_SIZE);
   const sectionRef = useRef<HTMLElement>(null);
   const firstId = leadMotors[0]?.id;
   const firstImage = leadMotors[0]?.imageUrl;
-  useEffect(() => afterLeadPaint(
-    sectionRef.current?.querySelector<HTMLImageElement>('img[fetchpriority="high"]') ?? null,
-    onPainted,
-  ), [firstId, firstImage, onPainted]);
+  useEffect(
+    () =>
+      afterLeadPaint(
+        sectionRef.current?.querySelector<HTMLImageElement>('img[fetchpriority="high"]') ?? null,
+        onPainted,
+      ),
+    [firstId, firstImage, onPainted],
+  );
 
   return (
     <section ref={sectionRef} className="homepage-lead-vehicles mt-6 sm:mt-14">
@@ -827,7 +869,12 @@ function HomepageLeadLoading({ where }: { where: ReturnType<typeof homeLocation>
 }
 
 class HomepageLeadErrorBoundary extends Component<
-  { children: ReactNode; onReset: () => void; where: ReturnType<typeof homeLocation>; onUnavailable?: () => void },
+  {
+    children: ReactNode;
+    onReset: () => void;
+    where: ReturnType<typeof homeLocation>;
+    onUnavailable?: () => void;
+  },
   { hasError: boolean }
 > {
   override state = { hasError: false };
@@ -959,7 +1006,9 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
   // IDs so the broader rows do not repeat the featured cars and trucks.
   const { data: homeLead } = useQuery({ ...homeLeadQuery, enabled: false, throwOnError: false });
   const { matchesLocation, withLocation, feedLocation, hasLocalArea } = where;
-  const localRecent = home.recent.filter((listing) => !listing.externalMerchandise && matchesLocation(listing));
+  const localRecent = home.recent.filter(
+    (listing) => !listing.externalMerchandise && matchesLocation(listing),
+  );
   const localMotors = home.motors.filter(matchesLocation);
   // The homepage shows Idaho homes for now; browse still includes the
   // surrounding states.
@@ -968,10 +1017,7 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
   );
   const jobListings = localRecent.filter((listing) => listing.job);
   const serviceSource = localRecent.filter((listing) => listing.service);
-  const generalSource = localRecent.filter(
-    (listing) =>
-      !listing.vehicle && !listing.pet && !listing.home && !listing.job && !listing.service,
-  );
+  const generalSource = localRecent.filter(isGeneralHomepageListing);
 
   // Every row below draws from the same small pool, so without this the same
   // few listings repeat row after row. Each listing appears at most once on
@@ -1000,8 +1046,13 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
     ...localRecent.filter((listing) => listing.categorySlug === "firearms"),
     ...(home.onlineMerchandise ?? []).filter((listing) => listing.categorySlug === "firearms"),
   ]);
-  const freshListings = pick(localRecent.filter((listing) => !listing.pet));
-  const distanceRow = homepageDistanceRow([...home.recent, ...home.motors], hasLocalArea, matchesLocation, shownIds);
+  const freshListings = pick(generalSource);
+  const distanceRow = homepageDistanceRow(
+    [...home.recent, ...home.motors],
+    hasLocalArea,
+    matchesLocation,
+    shownIds,
+  );
   const fartherAwayListings = pick(distanceRow.listings);
   const vehicleListings = pick(localMotors);
   const truckListings = pick(
@@ -1213,15 +1264,33 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
 
       {(home.onlineMerchandise?.length ?? 0) > 0 ? (
         <>
-          <HomepageListingRow eyebrow="Online retailer offers" title="Outdoor gear available online"
-            listings={(home.onlineMerchandise ?? []).filter((listing) => listing.categorySlug === "outdoor-sporting").slice(0, HOMEPAGE_ROW_SIZE)}
-            search={{ category: "outdoor-sporting" }} action="Browse outdoor gear" />
-          <HomepageListingRow eyebrow="Online retailer offers" title="Apparel available online"
-            listings={(home.onlineMerchandise ?? []).filter((listing) => listing.categorySlug === "apparel-accessories").slice(0, HOMEPAGE_ROW_SIZE)}
-            search={{ category: "apparel-accessories" }} action="Browse apparel" />
-          <HomepageListingRow eyebrow="Online retailer offers" title="Tools and supplies available online"
-            listings={(home.onlineMerchandise ?? []).filter((listing) => listing.categorySlug === "tools-equipment").slice(0, HOMEPAGE_ROW_SIZE)}
-            search={{ category: "tools-equipment" }} action="Browse tools and supplies" />
+          <HomepageListingRow
+            eyebrow="Online retailer offers"
+            title="Outdoor gear available online"
+            listings={(home.onlineMerchandise ?? [])
+              .filter((listing) => listing.categorySlug === "outdoor-sporting")
+              .slice(0, HOMEPAGE_ROW_SIZE)}
+            search={{ category: "outdoor-sporting" }}
+            action="Browse outdoor gear"
+          />
+          <HomepageListingRow
+            eyebrow="Online retailer offers"
+            title="Apparel available online"
+            listings={(home.onlineMerchandise ?? [])
+              .filter((listing) => listing.categorySlug === "apparel-accessories")
+              .slice(0, HOMEPAGE_ROW_SIZE)}
+            search={{ category: "apparel-accessories" }}
+            action="Browse apparel"
+          />
+          <HomepageListingRow
+            eyebrow="Online retailer offers"
+            title="Tools and supplies available online"
+            listings={(home.onlineMerchandise ?? [])
+              .filter((listing) => listing.categorySlug === "tools-equipment")
+              .slice(0, HOMEPAGE_ROW_SIZE)}
+            search={{ category: "tools-equipment" }}
+            action="Browse tools and supplies"
+          />
         </>
       ) : null}
 
