@@ -117,7 +117,11 @@ export async function merchandiseCards(
     .select("id,payload,first_seen_at,source_refreshed_at", { count: "exact" })
     .eq("active", true)
     .gte("source_refreshed_at", maxAge());
-  if (data.category) query = query.eq("category_slug", data.category);
+  // Guns.com "Range Gear" (cases, locks, targets) is filed under Outdoor &
+  // Sporting but also belongs on Firearms, where its accessory rows live.
+  if (data.category === "firearms")
+    query = query.or('category_slug.eq.firearms,scope_key.like."Range Gear/*"');
+  else if (data.category) query = query.eq("category_slug", data.category);
   if (data.priceMin != null) query = query.gte("price_cents", Math.round(data.priceMin * 100));
   if (data.priceMax != null) query = query.lte("price_cents", Math.round(data.priceMax * 100));
   if (data.q) query = query.ilike("title", `%${data.q.replace(/[\\%_]/g, "\\$&")}%`);
