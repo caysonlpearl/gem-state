@@ -247,7 +247,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
           })
           .passthrough()
           .safeParse(
-            raw && raw.unavailable === true
+            input.mode === "refresh" && raw && raw.unavailable === true
               ? {
                   sourceUrl: raw.sourceUrl,
                   unavailable: true,
