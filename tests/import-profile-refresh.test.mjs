@@ -439,3 +439,21 @@ test("Whatnot keeps real-wheel pagination and detaches its debugger after reachi
   assert.ok(calls.includes("Input.dispatchMouseEvent"));
   assert.equal(calls.at(-1), "detach");
 });
+
+
+test("seller profiles accept matching hydrated content while subresources keep loading", async () => {
+  const profile = "https://www.vinted.com/member/1";
+  const h = profileHarness("Vinted", { [profile]: { expected: 1, items: [{ sourceUrl: "https://www.vinted.com/items/1" }] } });
+  let checked = false;
+  h.c.waitForPage = async (_tab, sameProfile, _timeout, _settle, allowInteractive) => {
+    checked = true;
+    assert.equal(allowInteractive, true);
+    assert.equal(sameProfile(profile), true);
+    assert.equal(sameProfile("https://www.vinted.com/member/2"), false);
+    return true;
+  };
+  const result = await h.c.collectSellerScan(profile, h.c.profileScanConfig(profile), () => {});
+  assert.equal(checked, true);
+  assert.equal(result.items.length, 1);
+  assert.equal(result.scan.complete, true);
+});

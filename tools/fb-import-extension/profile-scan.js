@@ -65,7 +65,7 @@ async function collectSellerScan(profile, config, notify) {
       }
       visited.add(url);
       await chrome.tabs.update(tabId, { url });
-      if (!(await waitForPage(tabId, (current) => current === url, 25000, 2000))) {
+      if (!(await waitForPage(tabId, (current) => current === url, 25000, 2000, true))) {
         complete = false;
         break;
       }
