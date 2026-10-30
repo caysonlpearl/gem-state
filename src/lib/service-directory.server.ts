@@ -27,7 +27,7 @@ async function db() {
   return supabaseAdmin as any;
 }
 
-function logoFor(row: DirectoryRow) {
+export function logoFor(row: DirectoryRow) {
   const key = serverEnv("LOGO_DEV_PUBLISHABLE_KEY");
   const domain = websiteDomain(row.enrichment?.website ?? row.website);
   return key && domain ? logoImageUrl(domain, key) : null;

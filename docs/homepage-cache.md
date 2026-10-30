@@ -21,3 +21,11 @@ The protected `POST /api/internal/homepage-refresh` endpoint uses the existing c
 A failed refresh holds its five-minute lease until the next slot. For a confirmed abandoned refresh only, an operator can run the seed with `--retry` to remove that slot's lease. Do not use this while another refresh is running. Old files under `leases/` are disposable coordination records and can be removed after their slot ends.
 
 If the snapshot cannot be read and an instance has a usable in-memory copy, it serves that copy. With no usable snapshot, the existing error/retry UI remains honest; it does not fabricate listings or fall back to paid provider calls.
+
+## Homepage location and logos
+
+The first browser visit requests geolocation permission after hydration, without delaying inventory. A grant centers the existing radius filters; a denial, dismissal or unsupported browser leaves the statewide feed available. Only the fact that a prompt was requested is stored locally; coordinates stay in page memory. Visitors can retry with Use my location or choose a city manually. Late geolocation results do not replace manual selections.
+
+The distance row shows Around Idaho before a local origin is chosen, then Farther away outside the chosen area. It uses the same saved Idaho inventory and a wider Idaho browse link.
+
+Job logos reuse fresh employer_logo_matches in cache-only mode. Service logos use the directory website domain. Snapshot refreshes do not search Logo.dev for unknown employers, and missing or unmatched logos retain the existing initials fallback.
