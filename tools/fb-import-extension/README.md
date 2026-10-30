@@ -1,8 +1,10 @@
-# Bluebird Listing Import 1.5.8
+# Bluebird Listing Import 1.5.9
 
 This is a manually operated Chrome extension. It reads public listing data in the browser session the operator is already using; it does not run scheduled imports or publish automatically.
 
 ## Update
+
+Version 1.5.9 stops requests to a source when it returns an explicit rate-limit page and leaves unread listings unchanged. Vinted uses one reader with a 3–5 second pause between listings; other sources retain two readers. A rate limit is separate from a human-verification check and does not trigger automatic retries.
 
 Version 1.5.8 also allows seller-profile discovery to use a matching hydrated document while ads or other resources keep the browser tab loading. This uses the same readiness check as detail readers; source identity and incomplete-scan protections still apply.
 

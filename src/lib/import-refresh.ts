@@ -1,10 +1,10 @@
 import { canonicalSellerSourceProfile, dieselDepotListingId } from "./seller-claims.ts";
 
-/** Earlier readers confuse a Vinted favorite announcement with item removal. */
+/** Require source-status fixes and rate-limit stops before running refresh. */
 export function supportsSafeSellerRefresh(value: unknown): boolean {
   if (typeof value !== "string" || !/^\d+\.\d+\.\d+$/.test(value)) return false;
   const [major, minor, patch] = value.split(".").map(Number);
-  return major > 1 || (major === 1 && (minor > 5 || (minor === 5 && patch >= 6)));
+  return major > 1 || (major === 1 && (minor > 5 || (minor === 5 && patch >= 9)));
 }
 
 /** Stable source identity; tracking, slugs and dealer titles are not identity. */

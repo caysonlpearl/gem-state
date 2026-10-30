@@ -116,6 +116,7 @@ export function describeAction(items: QueueItem[], selectedIds: Set<string>): st
 
 /** Reason codes the extension reports for listings it couldn't read. */
 export const UNREADABLE_REASON_LABELS: Record<string, string> = {
+  rate_limited: "Source paused access after too many requests; scan stopped. Wait before retrying.",
   page_timeout: "Page didn't finish loading",
   page_not_verified: "Page couldn't be verified as the listing",
   verification_incomplete: "Human verification not completed",
