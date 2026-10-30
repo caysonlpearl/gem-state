@@ -61,20 +61,22 @@ function run(root) {
 const photo = (n = 1) =>
   el("img", { testid: `item-photo-${n}`, src: "https://images1.vinted.net/t/abc/a.webp" });
 
-test("Vinted hidden 'Removed!' in primary item-photos section overrides stale InStock", () => {
+test("Vinted gallery favorite-removal announcement never means inventory was removed", () => {
   const r = run(
     el("section", { cls: "web_ui__x_9f3a" }, [
       el("span", { cls: "u-visually-hidden", text: "Removed!" }),
       photo(),
     ]),
   );
-  assert.deepEqual(r, { unavailable: true, sold: false });
+  assert.equal(r.unavailable, undefined);
+  assert.equal(r.priceCents, 1250);
 });
-test("Vinted hidden exact 'Sold' in primary gallery is sold", () => {
+test("Vinted unverified hidden gallery text never overrides inventory data", () => {
   const r = run(
     el("section", {}, [el("span", { cls: "u-visually-hidden", text: "Sold" }), photo()]),
   );
-  assert.deepEqual(r, { unavailable: true, sold: true });
+  assert.equal(r.unavailable, undefined);
+  assert.equal(r.priceCents, 1250);
 });
 test("Removed/sold in similar or member item grids never marks the listing unavailable", () => {
   for (const testid of ["similar-items", "closet-items", "member-items"]) {

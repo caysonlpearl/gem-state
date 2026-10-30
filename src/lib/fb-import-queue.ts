@@ -6,6 +6,7 @@ export type QueueItem = {
   id: string;
   sourceProfileUrl: string;
   status: string;
+  syncConflict?: string | null;
 };
 
 export type SellerQueueGroup = {
@@ -94,6 +95,8 @@ export function publishBlocker(input: {
     return `Selection spans ${sellers} sellers. Choose one seller — listings publish one seller at a time.`;
   const dirty = selected.filter((i) => input.dirtyIds.has(i.id)).length;
   if (dirty) return `Save or revert edits on ${dirty} selected listing(s) first.`;
+  if (selected.some((item) => item.syncConflict))
+    return "Review the Bluebird conflict on the selected listing before applying it.";
   if (input.linkedNeedsEmail) return "Enter the linked seller's email.";
   if (!input.authorized) return "Confirm the seller authorized Bluebird to manage these listings.";
   return null;

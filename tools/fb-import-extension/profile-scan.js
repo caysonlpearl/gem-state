@@ -82,6 +82,13 @@ async function collectSellerScan(profile, config, notify) {
         await autoScroll(tabId, async () => {
           facebookPages.push(await exec(tabId, collectListingsFromPage));
         });
+      } else if (config.site === "Whatnot") {
+        const scroll = await autoScrollWhatnot(tabId, (state) =>
+          notify(
+            `Whatnot: loaded ${state.count}${state.expected ? `/${state.expected}` : ""} shop products`,
+          ),
+        );
+        if (!scroll.complete) complete = false;
       }
       const page = await exec(tabId, config.collect);
       if (!page || (await exec(tabId, isBotCheckPage))) {

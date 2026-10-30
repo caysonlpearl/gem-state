@@ -117,33 +117,9 @@ function vintedExtractItemInPage(withPhotos) {
       text,
     ),
   );
-  // Vinted also renders the exact status as a visually-hidden span inside the
-  // primary item-photos section (stale JSON-LD may still say InStock). Only
-  // the item's own gallery counts; similar/member grids are excluded.
-  const galleryStatus = (() => {
-    const exact = /^(removed|sold)!?$/i;
-    const roots = new Set();
-    for (const img of document.querySelectorAll("img[data-testid^='item-photo-']")) {
-      const root = img.closest?.("section, [data-testid*='item-photos']");
-      if (root) roots.add(root);
-    }
-    for (const el of document.querySelectorAll("[data-testid*='item-photos']")) roots.add(el);
-    for (const root of roots) {
-      if (
-        root.closest?.(
-          "[data-testid*='similar'], [data-testid*='closet'], [data-testid*='member-items'], [data-testid*='feed']",
-        )
-      )
-        continue;
-      for (const span of root.querySelectorAll?.(".u-visually-hidden, [class*='status']") || []) {
-        const text = (span.textContent || "").trim();
-        if (exact.test(text)) return text;
-      }
-    }
-    return "";
-  })();
-  const status = unavailable || galleryStatus;
-  if (status) return { unavailable: true, sold: /^sold/i.test(status) };
+  // The gallery's hidden aria-live “Removed!” is a favorite-button
+  // announcement, even on an available item. It is never inventory status.
+  if (unavailable) return { unavailable: true, sold: /^sold/i.test(unavailable) };
 
   const products = [];
   const walk = (node) => {
@@ -188,8 +164,9 @@ function vintedExtractItemInPage(withPhotos) {
   const domTitle =
     visibleText("[data-testid='item-title'], [data-testid='item-title--content'], h1")[0] || "";
   const domDescription =
-    visibleText("[data-testid='item-description'], [data-testid='item-description--content']")[0] ||
-    "";
+    visibleText(
+      "[data-testid='item-description'], [data-testid='item-description--content'], [itemprop='description']",
+    )[0] || "";
   const domPrice =
     visibleText("[data-testid='item-price'], [data-testid='item-price--content']")[0] || "";
   const priceValue =

@@ -7,7 +7,15 @@ import {
   mayInferScanAbsence,
   readAllImportPages,
   runImportRows,
+  supportsSafeSellerRefresh,
 } from "../src/lib/import-refresh.ts";
+
+test("refresh blocks the older reader that misreads Vinted favorite announcements", () => {
+  for (const version of [undefined, "1.5", "1.5.2", "1.5.3", "1.5.4", "1.4.9", "bogus"])
+    assert.equal(supportsSafeSellerRefresh(version), false);
+  for (const version of ["1.5.5", "1.6.0", "2.0.0"])
+    assert.equal(supportsSafeSellerRefresh(version), true);
+});
 
 test("new discovery deduplicates tracking and changed source titles across all five sites", () => {
   const pairs = [
@@ -143,6 +151,7 @@ function profileHarness(site, pages) {
         },
       },
     },
+    autoScrollWhatnot: async () => ({ complete: true }),
     waitForPage: async () => true,
     exec: async (_id, fn) => (fn.name === "isBotCheckPage" ? false : pages[current]),
   });
@@ -375,16 +384,58 @@ test("Diesel Depot excess distinct inventory also fails catalog reconciliation",
 test("row application retains actionable server validation messages", async () => {
   const { runImportRows } = await import("../src/lib/import-refresh.ts");
   const result = await runImportRows(["claimed", "network"], async (id) => {
-    throw new Error(id === "claimed" ? "The linked seller must verify their email and complete seller setup first." : "Failed to fetch");
+    throw new Error(
+      id === "claimed"
+        ? "The linked seller must verify their email and complete seller setup first."
+        : "Failed to fetch",
+    );
   });
   assert.match(result.failures[0].message, /must verify their email/);
   assert.match(result.failures[1].message, /Request interrupted/);
 });
 
-
 test("removed import sources cannot be handed to Refresh All or single-seller scans", async () => {
   const { scannableProfiles } = await import("../src/lib/import-refresh.ts");
-  const profiles=[{sourceProfileUrl:"removed",syncPaused:false,archivedAt:"2026-10-22"},{sourceProfileUrl:"active",syncPaused:false}];
-  assert.deepEqual(scannableProfiles(profiles,null).profiles.map(p=>p.sourceProfileUrl),["active"]);
-  assert.equal(scannableProfiles(profiles,"removed").profiles.length,0);
+  const profiles = [
+    { sourceProfileUrl: "removed", syncPaused: false, archivedAt: "2026-10-22" },
+    { sourceProfileUrl: "active", syncPaused: false },
+  ];
+  assert.deepEqual(
+    scannableProfiles(profiles, null).profiles.map((p) => p.sourceProfileUrl),
+    ["active"],
+  );
+  assert.equal(scannableProfiles(profiles, "removed").profiles.length, 0);
+});
+
+test("Whatnot keeps real-wheel pagination and detaches its debugger after reaching the advertised count", async () => {
+  let count = 1;
+  const calls = [];
+  const c = vm.createContext({
+    exec: async () => ({ expected: 3, count, y: 100, max: 100, width: 1000, height: 1000 }),
+    sleep: async () => {},
+    chrome: {
+      debugger: {
+        attach: async () => calls.push("attach"),
+        sendCommand: async (_target, method, args) => {
+          calls.push(method);
+          if (args.deltaY > 0) count++;
+        },
+        detach: async () => calls.push("detach"),
+      },
+    },
+  });
+  const background = load("background.js");
+  vm.runInContext(
+    background.slice(
+      background.indexOf("function whatnotShopStatus("),
+      background.indexOf("// Runs inside the profile page."),
+    ),
+    c,
+  );
+  const result = await c.autoScrollWhatnot(1);
+  assert.equal(result.complete, true);
+  assert.equal(result.count, 3);
+  assert.equal(calls[0], "attach");
+  assert.ok(calls.includes("Input.dispatchMouseEvent"));
+  assert.equal(calls.at(-1), "detach");
 });

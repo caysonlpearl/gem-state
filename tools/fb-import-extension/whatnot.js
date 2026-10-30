@@ -33,18 +33,11 @@ async function whatnotCollectFromShop() {
       accumulated.set(a.href.split("?")[0], a.cloneNode(true));
     }
   };
-  let last = -1;
-  let still = 0;
-  for (let i = 0; i < 150 && still < 4; i++) {
-    window.scrollTo(0, document.body.scrollHeight);
-    await new Promise((resolve) => setTimeout(resolve, 900));
-    capture();
-    const now = accumulated.size;
-    if (expected && now >= expected) break;
-    still = now === last ? still + 1 : 0;
-    last = now;
-  }
-  window.scrollTo(0, 0);
+  // Scrolling is driven by the extension service worker with Chrome's real
+  // wheel input. Whatnot only advances its paginated shop grid after genuine
+  // wheel movement; jumping straight to scrollHeight can strand the scan on
+  // the first 40 products.
+  capture();
 
   const items = [];
   const seen = new Set();
@@ -122,7 +115,10 @@ function whatnotExtractListingInPage(withPhotos) {
         return "";
       }
     })();
-    const ldImages = [].concat(product.image || []).filter(Boolean);
+    const ldImages = []
+      .concat(product.image || [])
+      .map((image) => (typeof image === "string" ? image : image?.url || image?.contentUrl || ""))
+      .filter((url) => typeof url === "string" && /^https:\/\//i.test(url));
     const gallery = numeric
       ? Array.from(document.querySelectorAll("img"))
           .map((img) => img.currentSrc || img.src || "")
@@ -246,6 +242,17 @@ async function runWhatnot(tabId, url) {
     await waitForPage(tabId, (current) => /\/shop\b/.test(current), 25000, 2500);
   }
   await say("Scrolling to load this seller's shop…");
+  const scroll = await autoScrollWhatnot(tabId, (state) =>
+    say(
+      `Scrolling to load this seller's shop… ${state.count}${state.expected ? `/${state.expected}` : ""}`,
+    ),
+  );
+  if (scroll.expected > 0 && !scroll.complete) {
+    await say(
+      `Shop scan incomplete — loaded ${scroll.count} of ${scroll.expected} products. No batch was sent. Retry after the shop finishes loading.`,
+    );
+    return;
+  }
   const shop = await exec(tabId, whatnotCollectFromShop);
   if (!shop || !shop.items.length) {
     await say("No products found in this seller's shop.");

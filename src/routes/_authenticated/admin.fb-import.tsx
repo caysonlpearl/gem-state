@@ -117,6 +117,7 @@ import {
   scannableProfiles,
   sanitizeStagingFailures,
   STAGING_FAILURE_LABELS,
+  supportsSafeSellerRefresh,
   type StagingFailure,
 } from "@/lib/import-refresh";
 import { Button } from "@/components/ui/button";
@@ -198,10 +199,7 @@ function ImportedSellers() {
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== window.location.origin) return;
       if ((event.data as { type?: string } | null)?.type === "gemlist-ext-pong") {
-        const version = String(event.data.version ?? "0")
-          .split(".")
-          .map(Number);
-        setExtensionReady(version[0] > 1 || (version[0] === 1 && version[1] >= 5));
+        setExtensionReady(supportsSafeSellerRefresh(event.data.version));
       }
     };
     window.addEventListener("message", onMessage);
@@ -213,7 +211,7 @@ function ImportedSellers() {
     mutationFn: async (profileUrl: string | null) => {
       if (!extensionReady)
         throw new Error(
-          "Reload Bluebird Listing Import 1.5 or newer in Chrome, then refresh this page.",
+          "Reload Bluebird Listing Import 1.5.5 or newer in Chrome, then refresh this page.",
         );
       if (!scanAuthorized) throw new Error("Confirm permission to scan these sellers first.");
       const all = await fetchTargets();
@@ -439,7 +437,10 @@ function ImportedSellers() {
       await queryClient.invalidateQueries({ queryKey: ["fb-import-profiles"] });
       setUnreadReport(result.unread ? result.unreadGroups : null);
       toast.success(
-        `Scanned ${result.checked}; discovered ${result.discovered}; ${result.newCount} new, ${result.changed} changed, ${result.removed} removed, ${result.failed} staging failures (retry Refresh).` +
+        `Scan finished: ${result.newCount} new, ${result.changed} updates, ${result.removed} removal suggestions queued for review. No live listings changed.` +
+          (result.failed
+            ? ` ${result.failed} results could not be saved; see details below.`
+            : "") +
           (result.unread
             ? `. ${result.unread} couldn't be read and were left unchanged — see the breakdown under Imported sellers.`
             : "."),
@@ -457,11 +458,12 @@ function ImportedSellers() {
         <div className="min-w-[240px] flex-1">
           <h2 className="text-[13px] font-semibold">Imported sellers</h2>
           <p className="mt-0.5 text-[11.5px] text-muted-foreground">
-            Scan seller profiles for new listings and changes. Incomplete scans leave unseen records
-            unchanged. Nothing is published automatically.
+            Scan seller profiles for new listings and changes. Refresh only prepares changes for
+            review; it does not publish listings or take them offline. Pages that cannot be read are
+            left unchanged.
             {extensionReady
               ? ""
-              : " Extension 1.5 or newer not detected — reload the updated extension, then reload this page."}
+              : " Extension 1.5.5 or newer not detected — reload the updated extension, then reload this page."}
           </p>
         </div>
         <label className="text-xs">
@@ -491,35 +493,46 @@ function ImportedSellers() {
       {scanReports.length > 0 && (
         <ul role="status" className="border-b border-border p-4 text-xs space-y-2">
           {scanReports.map((r) => (
-            <li key={r.profile}>
+            <li key={r.profile} className="rounded-md border border-border p-3">
               <span className="font-semibold">
-                {sourceSiteName(r.profile)} · {r.profile}
+                {data?.find((p) => p.sourceProfileUrl === r.profile)?.sellerName ||
+                  sourceSiteName(r.profile)}{" "}
+                · {sourceSiteName(r.profile)}
               </span>
-              <br />
-              Scanned {r.scanned} · discovered {r.discovered} · new {r.newCount} · changed{" "}
-              {r.changed} · removed {r.removed} · unreadable {r.unread} · staging failures{" "}
-              {r.failed} ·{" "}
-              {r.complete
-                ? "Complete"
-                : "Incomplete — unseen records left unchanged; retry Refresh"}
-              {r.expected > 0 && <span> · Source advertised {r.expected}</span>}
+              <p className="mt-1">
+                Queued for review: {r.newCount} new · {r.changed} updates · {r.removed} removal
+                suggestions. Nothing applied automatically.
+              </p>
+              <p className="mt-1 text-muted-foreground">
+                Checked {r.scanned} listing pages · Found {r.discovered} on the seller page
+                {r.expected > 0 && <span> · Source reports {r.expected}</span>}
+              </p>
+              <p className="mt-1">
+                {r.complete
+                  ? "Full scan completed."
+                  : r.unread || r.failed
+                    ? `${r.unread} pages could not be read; ${r.failed} results could not be saved. Retry this seller after checking the details below.`
+                    : "Could not confirm the end of the seller's inventory. Unseen listings were left unchanged."}
+              </p>
               {r.unreadGroups.length > 0 && (
-                <ul className="mt-1 space-y-1">
-                  {r.unreadGroups.map((g) => (
-                    <li key={`${g.site}-${g.reason}`}>
-                      {g.count} · <code>{g.reason}</code> · {UNREADABLE_REASON_LABELS[g.reason]}
-                    </li>
-                  ))}
-                </ul>
+                <details className="mt-2">
+                  <summary>Why {r.unread} pages could not be read</summary>
+                  <ul className="mt-1 space-y-1">
+                    {r.unreadGroups.map((g) => (
+                      <li key={`${g.site}-${g.reason}`}>
+                        {g.count} · {UNREADABLE_REASON_LABELS[g.reason]}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
               )}
               {r.failures.length > 0 && (
                 <details className="mt-1">
-                  <summary>Staging failure details · retry Refresh</summary>
+                  <summary>Why {r.failed} results could not be saved</summary>
                   <ul className="mt-1 space-y-1">
                     {r.failures.map((f) => (
                       <li key={`${f.rowIndex}-${f.reason}`}>
-                        Result row {f.rowIndex + 1} · <code>{f.reason}</code> ·{" "}
-                        {STAGING_FAILURE_LABELS[f.reason]}
+                        Result row {f.rowIndex + 1} · {STAGING_FAILURE_LABELS[f.reason]}
                       </li>
                     ))}
                   </ul>
@@ -623,8 +636,9 @@ function ImportedSellers() {
                       </span>
                     </div>
                     <p className="mt-1 text-[11px] text-muted-foreground">
-                      {profile.publishedCount} published · {profile.openCount} ready to publish ·
-                      refreshed {days === 0 ? "today" : `${days} days ago`}
+                      {profile.publishedCount} live · {profile.offlineCount} offline ·{" "}
+                      {profile.openCount} pending review · refreshed{" "}
+                      {days === 0 ? "today" : `${days} days ago`}
                     </p>
                   </div>
                   {profile.archivedAt ? (
@@ -1529,7 +1543,7 @@ function FbImportPage() {
       <section className="rounded-lg border border-border bg-card">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
           <h2 className="text-[13px] font-semibold">
-            Ready to publish{" "}
+            Pending review{" "}
             <span className="numeric text-muted-foreground">{data?.length ?? 0}</span>
           </h2>
           <div className="flex flex-wrap items-center gap-2">
