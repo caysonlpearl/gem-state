@@ -264,7 +264,7 @@ test("temporary cache and moderation failures never masquerade as a removed list
 test("no provider call occurs when the DB budget or concurrent lease denies it", async () => {
   for (const reason of ["daily_budget", "hourly_budget", "fresh_or_in_progress"]) {
     const db = database(() => ({ data: { allowed: false, reason }, error: null }));
-    const result = await refreshMerchandisePage(MERCHANDISE_SCOPES[0], db, () => {
+    const result = await refreshMerchandisePage(["Gear", "Apparel"], db, () => {
       throw new Error("provider must not run");
     });
     assert.equal(result.skipped, true);
@@ -278,7 +278,7 @@ test("successful refresh deduplicates products and retires absent rows only afte
       ? { data: { allowed: true, offset: 0, generation: timestamps.first_seen_at }, error: null }
       : { error: null },
   );
-  const result = await refreshMerchandisePage(MERCHANDISE_SCOPES[0], db, async () =>
+  const result = await refreshMerchandisePage(["Gear", "Apparel"], db, async () =>
     Response.json([row, row, { ...row, strDepartmentName: "Rifles" }]),
   );
   assert.equal(result.received, 3);
@@ -301,7 +301,7 @@ test("malformed/provider failures preserve previous cache and a full page advanc
         ? { data: { allowed: true, offset: 0, generation: timestamps.first_seen_at }, error: null }
         : { error: null },
     );
-    const r = await refreshMerchandisePage(MERCHANDISE_SCOPES[0], db, async () =>
+    const r = await refreshMerchandisePage(["Gear", "Apparel"], db, async () =>
       Response.json(body),
     );
     assert.ok(r.error);
@@ -315,7 +315,7 @@ test("malformed/provider failures preserve previous cache and a full page advanc
       ? { data: { allowed: true, offset: 0, generation: timestamps.first_seen_at }, error: null }
       : { error: null },
   );
-  const result = await refreshMerchandisePage(MERCHANDISE_SCOPES[0], db, async () =>
+  const result = await refreshMerchandisePage(["Gear", "Apparel"], db, async () =>
     Response.json(Array(MERCHANDISE_PAGE_SIZE).fill(row)),
   );
   assert.equal(result.complete, false);
@@ -342,17 +342,35 @@ test("Guns.com firearms and ammunition are included and mapped to Firearms filte
   const p = normalizeMerchandise(rifle, ["Rifles", "Bolt Action"]);
   assert.ok(p);
   assert.equal(p.categorySlug, "firearms");
-  const card = merchandiseCard(p, { first_seen_at: "2026-01-01", source_refreshed_at: "2026-01-01" });
+  const card = merchandiseCard(p, {
+    first_seen_at: "2026-01-01",
+    source_refreshed_at: "2026-01-01",
+  });
   assert.equal(card.itemDetails.listingType, "Firearm");
   assert.equal(card.itemDetails.firearmType, "Rifle");
-  const ammo = normalizeMerchandise({ ...row, strDepartmentName: "Ammo", strCategoryName: "Handgun Ammo", strProductName: "9mm 115gr FMJ 50 rounds" });
+  const ammo = normalizeMerchandise({
+    ...row,
+    strDepartmentName: "Ammo",
+    strCategoryName: "Handgun Ammo",
+    strProductName: "9mm 115gr FMJ 50 rounds",
+  });
   assert.ok(ammo);
-  assert.equal(merchandiseCard(ammo, { first_seen_at: "x", source_refreshed_at: "x" }).itemDetails.accessoryType, "Ammunition");
+  assert.equal(
+    merchandiseCard(ammo, { first_seen_at: "x", source_refreshed_at: "x" }).itemDetails
+      .accessoryType,
+    "Ammunition",
+  );
   assert.equal(canIncludeMerchandise({ category: "firearms", firearmType: "Rifle" }), true);
   assert.equal(canIncludeMerchandise({ category: "firearms", state: "ID" }), false);
-  assert.equal(approvedMerchandise({ ...row, strDepartmentName: "Silencers", strCategoryName: "Rimfire Suppressors" }), true);
+  assert.equal(
+    approvedMerchandise({
+      ...row,
+      strDepartmentName: "Silencers",
+      strCategoryName: "Rimfire Suppressors",
+    }),
+    true,
+  );
 });
-
 
 test("suppression, parts, magazines and optics enter Firearms with existing accessory filters", () => {
   for (const [department, category, accessoryType] of [
@@ -364,7 +382,12 @@ test("suppression, parts, magazines and optics enter Firearms with existing acce
     ["Cleaning Supplies", "Cleaning Kits", "Cleaning & maintenance"],
     ["Holsters And Holders", "Holsters", "Holsters"],
   ]) {
-    const p = normalizeMerchandise({ ...row, strDepartmentName: department, strCategoryName: category, strProductName: "SUPPRESSOR UPPER RECEIVER RIFLE SCOPE" });
+    const p = normalizeMerchandise({
+      ...row,
+      strDepartmentName: department,
+      strCategoryName: category,
+      strProductName: "SUPPRESSOR UPPER RECEIVER RIFLE SCOPE",
+    });
     assert.ok(p, department);
     assert.equal(p.categorySlug, "firearms");
     const card = merchandiseCard(p, timestamps);
@@ -377,21 +400,47 @@ test("department scopes retain merchant pinning and accept actual returned categ
   const scope = ["Silencers", ""];
   const url = merchandiseSearchUrl(scope);
   assert.equal(url.searchParams.has("search_category"), false);
-  const db = database(c => c.rpc ? { data: { allowed: true, offset: 0, generation: timestamps.first_seen_at }, error: null } : { error: null });
-  const result = await refreshMerchandisePage(scope, db, async () => Response.json([
-    { ...row, strDepartmentName: "Silencers", strCategoryName: "Rifle Suppressors" },
-    { ...row, strDepartmentName: "Silencers", strCategoryName: "Rimfire Suppressors", lngProductId: "1067507", strBuyURL: row.strBuyURL.replace("1067506", "1067507") },
-    row,
-  ]));
+  const db = database((c) =>
+    c.rpc
+      ? { data: { allowed: true, offset: 0, generation: timestamps.first_seen_at }, error: null }
+      : { error: null },
+  );
+  const result = await refreshMerchandisePage(scope, db, async () =>
+    Response.json([
+      { ...row, strDepartmentName: "Silencers", strCategoryName: "Rifle Suppressors" },
+      {
+        ...row,
+        strDepartmentName: "Silencers",
+        strCategoryName: "Rimfire Suppressors",
+        lngProductId: "1067507",
+        strBuyURL: row.strBuyURL.replace("1067506", "1067507"),
+      },
+      row,
+    ]),
+  );
   assert.equal(result.accepted, 2);
 });
 
 test("failed and unfinished pages yield to other scopes without retiring unseen cache", async () => {
-  for (const response of [() => { throw new Error("timeout"); }, () => Response.json(Array(250).fill(row))]) {
-    const db = database(c => c.rpc ? { data: { allowed: true, offset: 0, generation: timestamps.first_seen_at }, error: null } : { error: null });
+  for (const response of [
+    () => {
+      throw new Error("timeout");
+    },
+    () => Response.json(Array(250).fill(row)),
+  ]) {
+    const db = database((c) =>
+      c.rpc
+        ? { data: { allowed: true, offset: 0, generation: timestamps.first_seen_at }, error: null }
+        : { error: null },
+    );
     await refreshMerchandisePage(["Gear", "Apparel"], db, response);
-    const update = db.calls.findLast(c => c.table === "avantlink_merchandise_scopes").ops.find(o => o.method === "update").args[0];
+    const update = db.calls
+      .findLast((c) => c.table === "avantlink_merchandise_scopes")
+      .ops.find((o) => o.method === "update").args[0];
     assert.ok(Date.parse(update.lease_until) > Date.now() + 30 * 60000);
-    assert.equal(db.calls.some(c => c.ops?.some(o => o.method === "lt")), false);
+    assert.equal(
+      db.calls.some((c) => c.ops?.some((o) => o.method === "lt")),
+      false,
+    );
   }
 });

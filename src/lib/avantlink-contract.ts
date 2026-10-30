@@ -67,7 +67,19 @@ export const MERCHANDISE_SCOPES = [
 /** Guns.com departments whose products are firearms or ammunition. */
 export const FIREARM_DEPARTMENTS = ["Rifles", "Handguns", "Shotguns", "Ammo"] as const;
 const firearmDepartments = new Set<string>(FIREARM_DEPARTMENTS);
-const accessoryDepartments = new Set(["Silencers", "Silencer Accessories", "Gun Parts", "Magazines", "Optics", "Reloading", "Cleaning Supplies", "Holsters And Holders", "Range Gear", "Hunting Gear", "Knives And Tools"]);
+const accessoryDepartments = new Set([
+  "Silencers",
+  "Silencer Accessories",
+  "Gun Parts",
+  "Magazines",
+  "Optics",
+  "Reloading",
+  "Cleaning Supplies",
+  "Holsters And Holders",
+  "Range Gear",
+  "Hunting Gear",
+  "Knives And Tools",
+]);
 
 /** Maps a Guns.com department/category onto the site's Firearms filters. */
 export function firearmDetails(
@@ -75,14 +87,28 @@ export function firearmDetails(
   category: string,
 ): { listingType: "Firearm" | "Accessory"; firearmType?: string; accessoryType?: string } | null {
   if (accessoryDepartments.has(department)) {
-    const accessoryType = department === "Magazines" ? "Magazines"
-      : department === "Optics" ? "Optics & sights"
-      : department === "Reloading" ? "Reloading equipment"
-      : department === "Cleaning Supplies" ? "Cleaning & maintenance"
-      : department === "Holsters And Holders" ? "Holsters"
-      : department === "Range Gear" ? (category === "Gun Cases" || category === "Carrying Bags" ? "Cases & storage" : category === "Locks" ? "Safes & locks" : "Targets & range gear")
-      : department === "Gun Parts" || department === "Silencers" || department === "Silencer Accessories" ? "Parts"
-      : "Other accessories";
+    const accessoryType =
+      department === "Magazines"
+        ? "Magazines"
+        : department === "Optics"
+          ? "Optics & sights"
+          : department === "Reloading"
+            ? "Reloading equipment"
+            : department === "Cleaning Supplies"
+              ? "Cleaning & maintenance"
+              : department === "Holsters And Holders"
+                ? "Holsters"
+                : department === "Range Gear"
+                  ? category === "Gun Cases" || category === "Carrying Bags"
+                    ? "Cases & storage"
+                    : category === "Locks"
+                      ? "Safes & locks"
+                      : "Targets & range gear"
+                  : department === "Gun Parts" ||
+                      department === "Silencers" ||
+                      department === "Silencer Accessories"
+                    ? "Parts"
+                    : "Other accessories";
     return { listingType: "Accessory", accessoryType };
   }
   if (!firearmDepartments.has(department)) return null;
@@ -173,7 +199,10 @@ function price(value: unknown): number | null {
 export function approvedMerchandise(row: Record<string, unknown>): boolean {
   const department = merchandiseText(row.strDepartmentName, 120);
   const category = merchandiseText(row.strCategoryName, 120);
-  return approvedScopes.has(scopeKey([department, category])) || approvedScopes.has(scopeKey([department, ""]));
+  return (
+    approvedScopes.has(scopeKey([department, category])) ||
+    approvedScopes.has(scopeKey([department, ""]))
+  );
 }
 
 export function normalizeMerchandise(
@@ -190,7 +219,11 @@ export function normalizeMerchandise(
     return null;
   const department = merchandiseText(r.strDepartmentName, 120);
   const category = merchandiseText(r.strCategoryName, 120);
-  if (expectedScope && (expectedScope[0] !== department || (expectedScope[1] && expectedScope[1] !== category))) return null;
+  if (
+    expectedScope &&
+    (expectedScope[0] !== department || (expectedScope[1] && expectedScope[1] !== category))
+  )
+    return null;
   const id = String(r.lngProductId ?? "");
   const sku = merchandiseText(r.strProductSKU, 100);
   const title = merchandiseText(r.strProductName, 300);
@@ -250,13 +283,14 @@ export function normalizeMerchandise(
     brand: merchandiseText(r.strBrandName, 160),
     description: merchandiseText(r.txtLongDescription),
     shortDescription: merchandiseText(r.txtShortDescription || r.txtAbbreviatedDescription, 2000),
-    categorySlug: firearmDepartments.has(department) || accessoryDepartments.has(department)
-      ? "firearms"
-      : ["Apparel", "Hats", "Shirts", "Belts"].includes(category)
-      ? "apparel-accessories"
-      : department === "Cleaning Supplies" || department === "Knives And Tools"
-        ? "tools-equipment"
-        : "outdoor-sporting",
+    categorySlug:
+      firearmDepartments.has(department) || accessoryDepartments.has(department)
+        ? "firearms"
+        : ["Apparel", "Hats", "Shirts", "Belts"].includes(category)
+          ? "apparel-accessories"
+          : department === "Cleaning Supplies" || department === "Knives And Tools"
+            ? "tools-equipment"
+            : "outdoor-sporting",
     retailPriceCents: validPrice,
     priceCents: sale && (!retail || sale < retail) ? sale : validPrice,
     images,

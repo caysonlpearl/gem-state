@@ -40,7 +40,8 @@ export async function refreshMerchandisePage(
     });
     if (!response.ok) throw new Error("provider_unavailable");
     const body: unknown = await response.json();
-    if (!Array.isArray(body) || body.length > MERCHANDISE_PAGE_SIZE) throw new Error("invalid_response");
+    if (!Array.isArray(body) || body.length > MERCHANDISE_PAGE_SIZE)
+      throw new Error("invalid_response");
     const byId = new Map(
       body
         .map((r) => normalizeMerchandise(r, scope))
@@ -107,7 +108,10 @@ export async function refreshMerchandisePage(
     await bounded(
       db
         .from("avantlink_merchandise_scopes")
-        .update({ lease_until: new Date(Date.now() + 31 * 60000).toISOString(), last_error: "refresh_failed" })
+        .update({
+          lease_until: new Date(Date.now() + 31 * 60000).toISOString(),
+          last_error: "refresh_failed",
+        })
         .eq("scope_key", key),
     );
     return {

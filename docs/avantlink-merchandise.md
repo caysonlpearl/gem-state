@@ -66,5 +66,6 @@ native classifieds. Inspect `avantlink_merchandise_scopes` for per-category
 completion/cursors/errors before calling a refresh complete.
 
 Official module documentation:
+
 - https://www.avantlink.com/api.php?help=1&module=ProductSearch
 - https://www.avantlink.com/api.php?help=1&module=ProductTaxonomy
