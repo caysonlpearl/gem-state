@@ -9,6 +9,7 @@ import {
   normalizeMerchandise,
   type AffiliateMerchandise,
 } from "./avantlink-contract.ts";
+import { merchandiseImagePath } from "./avantlink-images.server.ts";
 
 const categories = {
   "apparel-accessories": "Apparel & Accessories",
@@ -82,7 +83,7 @@ export function merchandiseCard(
     fulfillmentMode: "",
     createdAt: row.first_seen_at,
     isFeatured: false,
-    imageUrl: product.images[0] ?? null,
+    imageUrl: product.images.length ? merchandiseImagePath(`avantlink-${product.id}`) : null,
     vehicle: null,
     itemDetails: {
       itemType: product.category,
@@ -190,6 +191,7 @@ export async function merchandiseHomeCards(): Promise<ClassifiedCard[]> {
 export async function merchandiseDetail(
   listingId: string,
   injectedDb?: any,
+  sourceImages = false,
 ): Promise<ClassifiedDetail | null> {
   const id = /^avantlink-(\d{1,20})$/.exec(listingId)?.[1];
   if (!id) return null;
@@ -229,6 +231,8 @@ export async function merchandiseDetail(
     variantId: "",
     seller: null,
     listingNumber: p.sku,
-    images: p.images.map((url) => ({ url, alt: p.title })),
+    images: p.images.map((url, index) => ({
+      url: sourceImages ? url : merchandiseImagePath(listingId, index), alt: p.title,
+    })),
   };
 }

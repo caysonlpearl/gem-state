@@ -1,6 +1,7 @@
 # Gem State Classifieds conversion
 
 ## Guns.com firearms and gear
+- [x] Correct blocked retailer photos using bounded same-origin delivery; 21 focused tests and automatic checks pass, with 28 real firearm/gear browse photos and both detail galleries verified. Member listings and location rules unchanged; not deployed.
 - [x] Expand merchant catalog coverage and fix stalled large feed requests.
 - [x] Verify 16 focused tests, 542 full-suite tests, lint, automatic build and 1,500 real cached retailer items in browse/detail without changing member listings.
 
