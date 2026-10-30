@@ -126,9 +126,11 @@ test("cached firearm and gear photos use Guns.com's working sized-image endpoint
     const browse = await merchandiseCards({ category: categorySlug, hasPhotos: true }, db);
     assert.equal(browse.cards.length, 1);
     assert.equal(browse.cards[0].categorySlug, categorySlug);
-    assert.equal(browse.cards[0].imageUrl, `${photo}?imwidth=1200`);
+    assert.equal(browse.cards[0].imageUrl, "/api/public/retailer-image/avantlink-1067506/0");
     const detail = await merchandiseDetail("avantlink-1067506", db);
-    assert.deepEqual(detail.images, [{ url: `${photo}?imwidth=1200`, alt: raw.strProductName }]);
+    assert.deepEqual(detail.images, [{ url: "/api/public/retailer-image/avantlink-1067506/0", alt: raw.strProductName }]);
+    const source = await merchandiseDetail("avantlink-1067506", db, true);
+    assert.equal(source.images[0].url, `${photo}?imwidth=1200`);
     assert.equal(db.calls.some((call) => call.rpc), false);
   }
 });
