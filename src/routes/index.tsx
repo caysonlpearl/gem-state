@@ -995,9 +995,11 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
   };
   // Reserve dedicated-category inventory before broad rows consume it.
   const petListings = pick(localRecent.filter((listing) => listing.pet));
-  const firearmListings = pick(
-    localRecent.filter((listing) => listing.categorySlug === "firearms"),
-  );
+  // Member firearms lead; online retailer firearms and gear fill the rest.
+  const firearmListings = pick([
+    ...localRecent.filter((listing) => listing.categorySlug === "firearms"),
+    ...(home.onlineMerchandise ?? []).filter((listing) => listing.categorySlug === "firearms"),
+  ]);
   const freshListings = pick(localRecent.filter((listing) => !listing.pet));
   const distanceRow = homepageDistanceRow([...home.recent, ...home.motors], hasLocalArea, matchesLocation, shownIds);
   const fartherAwayListings = pick(distanceRow.listings);
