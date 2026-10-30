@@ -1,9 +1,9 @@
 # Gem State Classifieds conversion
 
 ## Firearms showcase rows
-- [ ] Ignore carried geography in firearm landing subcategory previews while keeping each row's type filters.
-- [ ] Interleave listing rows between firearm type, popular brands and accessory navigation sections.
-- [ ] Verify focused tests and real inventory in each visible row.
+- [x] Ignore carried geography in firearm landing subcategory previews while keeping each row's type filters.
+- [x] Interleave listing rows between firearm type, popular brands and accessory navigation sections.
+- [x] Verify 114 tests and populated rifle, handgun and optics rows in the browser; database confirms no cached shotguns, ammunition, cases, safes or range gear, so those rows retain honest empty states.
 
 ## Firearms landing location
 - [x] Ignore carried geographic filters on the Firearms landing page; retain results filtering.
