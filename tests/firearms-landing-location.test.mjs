@@ -17,6 +17,12 @@ const context = vm.createContext({
   postedWindow: () => undefined,
 });
 vm.runInContext(ts.transpile(declaration.getText(file), { target: ts.ScriptTarget.ES2022 }), context);
+const showcaseDeclaration = file.statements.find(
+  (node) => ts.isFunctionDeclaration(node) && node.name?.text === "showcaseSearch",
+);
+assert.ok(showcaseDeclaration);
+context.URL = URL;
+vm.runInContext(ts.transpile(showcaseDeclaration.getText(file), { target: ts.ScriptTarget.ES2022 }), context);
 const inputFromSearch = (search) => context.inputFromSearch(search);
 const location = {
   state: "ID", region: "Magic Valley", city: "Twin Falls", postalCode: "83301",
@@ -43,4 +49,36 @@ test("Other categories keep their existing geographic filtering", () => {
     const result = inputFromSearch({ category, ...location });
     for (const [key, value] of Object.entries(location)) assert.equal(result[key], value, key);
   }
+});
+
+test("Every Firearms showcase row keeps its specific inventory filter without carried location", () => {
+  const rowsDeclaration = file.statements.find(
+    (node) => ts.isVariableStatement(node) && node.declarationList.declarations.some(
+      (item) => item.name.getText(file) === "firearmShowcaseRows",
+    ),
+  );
+  assert.ok(rowsDeclaration);
+  vm.runInContext(ts.transpile(rowsDeclaration.getText(file), { target: ts.ScriptTarget.ES2022 }), context);
+  const rows = vm.runInContext("firearmShowcaseRows", context);
+  assert.equal(rows.length, 8);
+  for (const row of rows) {
+    const preview = context.showcaseSearch({ category: "firearms", ...location }, row.href);
+    const input = inputFromSearch(preview);
+    for (const key of Object.keys(location)) assert.equal(input[key], undefined, `${row.title}: ${key}`);
+    const params = new URL(row.href, "https://onbluebird.com").searchParams;
+    assert.equal(params.get("firearmMode"), "results");
+    for (const key of ["firearmListingType", "firearmType", "firearmAccessoryType"]) {
+      if (params.has(key)) assert.equal(input[key], params.get(key), `${row.title}: ${key}`);
+    }
+  }
+});
+
+test("Showcase queries on results pages still retain location filters", () => {
+  const preview = context.showcaseSearch(
+    { category: "firearms", firearmMode: "results", ...location },
+    "/browse?category=firearms&firearmMode=results&firearmType=Rifle",
+  );
+  const input = inputFromSearch(preview);
+  for (const [key, value] of Object.entries(location)) assert.equal(input[key], value, key);
+  assert.equal(input.firearmType, "Rifle");
 });
