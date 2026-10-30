@@ -49,14 +49,15 @@ const sources: Sources = {
   async jobs() {
     const { adzunaCard } = await import("./adzuna-listings.server");
     const rows = await cachedRows("adzuna_search_cache");
-    return {
-      cards: rows.flatMap((row: any) =>
-        (row.payload?.jobs ?? []).filter((job: any) => job.state === "ID").map(adzunaCard),
-      ),
-    };
+    const cards = rows.flatMap((row: any) =>
+      (row.payload?.jobs ?? []).filter((job: any) => job.state === "ID").map(adzunaCard),
+    );
+    const { withEmployerLogos } = await import("./employer-logos.server");
+    return { cards: await withEmployerLogos(cards, { cacheOnly: true }) };
   },
   async services() {
     const { DIRECTORY_COLUMNS, directoryCard } = await import("./service-directory-contract");
+    const { logoFor } = await import("./service-directory.server");
     const { data, error } = await bounded(
       (await db())
         .from("service_directory")
@@ -68,7 +69,7 @@ const sources: Sources = {
         .limit(64),
     );
     if (error) throw new Error("Services could not be read.");
-    return { cards: (data ?? []).map((row: any) => directoryCard(row)) };
+    return { cards: (data ?? []).map((row: any) => directoryCard(row, logoFor(row))) };
   },
   async pets() {
     const { rescueGroupsCard } = await import("./rescuegroups.server");

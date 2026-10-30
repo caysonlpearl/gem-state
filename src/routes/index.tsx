@@ -1,6 +1,8 @@
 import { waitForHomeLead } from "@/lib/home-lead-ready";
 import { listingCardImageUrl } from "@/lib/listing-card-image";
 import { afterLeadPaint } from "@/lib/lead-paint-ready";
+import { homepageDistanceRow } from "@/lib/homepage-distance-row";
+import { requestHomepageLocation } from "@/lib/homepage-geolocation";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
   QueryErrorResetBoundary,
@@ -272,6 +274,40 @@ function Home() {
   const [radiusMiles, setRadiusMiles] = useState(25);
   const [mapPoint, setMapPoint] = useState<LocationPoint>();
   const [mapOpen, setMapOpen] = useState(false);
+  const [locating, setLocating] = useState(false);
+  const manualLocationRef = useRef(false);
+
+  const locateVisitor = useCallback(
+    async (automatic: boolean, active: () => boolean = () => true) => {
+      setLocating(true);
+      const point = await requestHomepageLocation({
+        geolocation: navigator.geolocation,
+        permissions: navigator.permissions,
+        storage: (() => {
+          try { return window.localStorage; } catch { return undefined; }
+        })(),
+      }, automatic);
+      if (!active()) return;
+      setLocating(false);
+      // A late GPS result must not replace a city the visitor just selected.
+      if (manualLocationRef.current) return;
+      if (!point) {
+        if (!automatic) toast.info("Enter a city, or allow location access in your browser.");
+        return;
+      }
+      const nearest = nearestClassifiedCity(point.latitude, point.longitude);
+      const city = nearest && nearest.distanceMiles <= 20 ? nearest.city : undefined;
+      setMapPoint({ ...point, city });
+      setLocation(city ?? "");
+    },
+    [],
+  );
+
+  useEffect(() => {
+    let active = true;
+    void locateVisitor(true, () => active);
+    return () => { active = false; };
+  }, [locateVisitor]);
 
   useEffect(() => {
     void trackEvent("page_view", { route: "/" });
@@ -310,6 +346,7 @@ function Home() {
 
   const defaultingRef = useRef(false);
   function openMapWithDefault() {
+    manualLocationRef.current = true;
     if (mapOpen || defaultingRef.current) return;
     setMapOpen(true);
     if (mapPoint || parsedLocation.city) return;
@@ -461,6 +498,7 @@ function Home() {
             <HomeSearchDropdown
               value={location}
               onChange={(next) => {
+                manualLocationRef.current = true;
                 setLocation(next);
                 setMapPoint(undefined);
               }}
@@ -479,6 +517,17 @@ function Home() {
           </form>
           <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-0 text-[12px] sm:mt-3 sm:gap-y-2 text-muted-foreground">
             <span className="font-semibold text-foreground">Search area: {locationSummary}</span>
+            <button
+              type="button"
+              disabled={locating}
+              onClick={() => {
+                manualLocationRef.current = false;
+                void locateVisitor(false);
+              }}
+              className="inline-flex min-h-9 items-center font-semibold text-primary sm:min-h-11 underline-offset-2 hover:underline disabled:opacity-60"
+            >
+              {locating ? "Finding location…" : "Use my location"}
+            </button>
             <button
               type="button"
               onClick={() => setMapOpen((open) => !open)}
@@ -518,6 +567,7 @@ function Home() {
                 longitude={mapPoint?.longitude}
                 radiusMiles={radiusMiles}
                 onChange={(point) => {
+                  manualLocationRef.current = true;
                   setMapPoint(point);
                   setLocation(point.city ?? "");
                 }}
@@ -653,6 +703,7 @@ function homeLocation(location: string, mapPoint: LocationPoint | undefined, rad
   return {
     motorCategories,
     parsedLocation,
+    hasLocalArea: Boolean(parsedLocation.city || parsedLocation.postalCode || parsedLocation.region || mapPoint),
     matchesLocation,
     locationSummary,
     withLocation,
@@ -907,7 +958,7 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
   // errors here. Once it resolves (including after retry), reserve those same
   // IDs so the broader rows do not repeat the featured cars and trucks.
   const { data: homeLead } = useQuery({ ...homeLeadQuery, enabled: false, throwOnError: false });
-  const { matchesLocation, withLocation, feedLocation } = where;
+  const { matchesLocation, withLocation, feedLocation, hasLocalArea } = where;
   const localRecent = home.recent.filter((listing) => !listing.externalMerchandise && matchesLocation(listing));
   const localMotors = home.motors.filter(matchesLocation);
   // The homepage shows Idaho homes for now; browse still includes the
@@ -948,7 +999,8 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
     localRecent.filter((listing) => listing.categorySlug === "firearms"),
   );
   const freshListings = pick(localRecent.filter((listing) => !listing.pet));
-  const fartherAwayListings = pick(home.recent.filter((listing) => !listing.externalMerchandise && !matchesLocation(listing)));
+  const distanceRow = homepageDistanceRow([...home.recent, ...home.motors], hasLocalArea, matchesLocation, shownIds);
+  const fartherAwayListings = pick(distanceRow.listings);
   const vehicleListings = pick(localMotors);
   const truckListings = pick(
     localMotors.filter((listing) =>
@@ -1019,10 +1071,10 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
 
       <HomepageListingRow
         eyebrow="Bluebird distance"
-        title="Farther away"
+        title={distanceRow.title}
         listings={fartherAwayListings}
-        search={withLocation({ allCategories: true })}
-        action="Browse farther-away listings"
+        search={distanceRow.search}
+        action={distanceRow.action}
       />
 
       <HomepageListingRow

@@ -878,7 +878,7 @@ test("homepage hero uses the expanded headline width and updated subline", () =>
   assert.doesNotMatch(homeSource, /live.*listings.*right now/);
 });
 
-test("main homepage presents category-curated listing rows", () => {
+test("main homepage presents category-curated listing rows", async () => {
   assert.match(homeSource, /function HomepageListingRow/);
   for (const title of [
     "Fresh local finds",
@@ -911,7 +911,10 @@ test("main homepage presents category-curated listing rows", () => {
   assert.match(homeSource, /localRecent\.filter\(\(listing\) => listing\.service\)/);
   assert.match(homeSource, /City or ZIP code/);
   assert.match(homeSource, /Search area:/);
-  assert.match(homeSource, /Farther away/);
+  assert.match(homeSource, /homepageDistanceRow/);
+  const distanceRowSource = await read("src/lib/homepage-distance-row.ts");
+  assert.match(distanceRowSource, /Farther away/);
+  assert.match(distanceRowSource, /Around Idaho/);
   assert.match(homeSource, /no-scrollbar mt-5 flex gap-4/);
 });
 

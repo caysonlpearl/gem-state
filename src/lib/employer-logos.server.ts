@@ -1,6 +1,7 @@
 import { serverEnv } from "./runtime-env.server";
 import { employerKey, logoImageUrl, pickLogoDomain } from "./employer-logo-match";
 import type { ClassifiedCard } from "./classifieds.functions";
+import { withCatalogReadDeadline } from "./catalog-read-deadline.ts";
 
 /**
  * Employer logos for partner job cards, from logo.dev. Each employer name is
@@ -34,10 +35,13 @@ async function searchDomain(
   }
 }
 
-export async function withEmployerLogos<T extends ClassifiedCard>(cards: T[]): Promise<T[]> {
+export async function withEmployerLogos<T extends ClassifiedCard>(
+  cards: T[],
+  options: { cacheOnly?: boolean } = {},
+): Promise<T[]> {
   const publishableKey = serverEnv("LOGO_DEV_PUBLISHABLE_KEY");
   const secretKey = serverEnv("LOGO_DEV_SECRET_KEY");
-  if (!publishableKey || !secretKey) return cards;
+  if (!publishableKey || (!secretKey && !options.cacheOnly)) return cards;
   const names = new Map<string, string>();
   for (const card of cards) {
     const name = card.externalJob ? card.job?.employerName : null;
@@ -54,12 +58,12 @@ export async function withEmployerLogos<T extends ClassifiedCard>(cards: T[]): P
   }
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const db = (supabaseAdmin as any).from("employer_logo_matches");
+    const db = supabaseAdmin.from("employer_logo_matches");
     const unknown = [...names.keys()].filter((key) => !domains.has(key));
     if (unknown.length) {
-      const { data: rows } = await db
-        .select("name_key, domain, checked_at")
-        .in("name_key", unknown);
+      const { data: rows } = await withCatalogReadDeadline<{
+        data: { name_key: string; domain: string | null; checked_at: string }[] | null;
+      }>(db.select("name_key, domain, checked_at").in("name_key", unknown));
       for (const row of (rows ?? []) as {
         name_key: string;
         domain: string | null;
@@ -72,7 +76,7 @@ export async function withEmployerLogos<T extends ClassifiedCard>(cards: T[]): P
       }
     }
     const toSearch = [...names.keys()]
-      .filter((key) => !domains.has(key))
+      .filter((key) => !options.cacheOnly && !domains.has(key))
       .slice(0, MAX_LOOKUPS_PER_REQUEST);
     const found = await Promise.all(
       toSearch.map(async (key) => [key, await searchDomain(names.get(key)!, secretKey)] as const),
