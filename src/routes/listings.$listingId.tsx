@@ -4006,7 +4006,7 @@ function GeneralListingDetail({
                   </p>
                   {savings ? (
                     <>
-                      <s className="numeric text-lg text-muted-foreground">
+                      <s className="numeric text-lg text-destructive">
                         <span className="sr-only">Retail price </span>
                         {formatClassifiedPrice(savings.retailCents, { wholeDollars: true })}
                       </s>
@@ -4016,14 +4016,6 @@ function GeneralListingDetail({
                     </>
                   ) : null}
                 </div>
-                {savings ? (
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    MSRP <s>{formatClassifiedPrice(savings.retailCents)}</s> ·{" "}
-                    <strong className="font-semibold text-primary">
-                      You save {formatClassifiedPrice(savings.savedCents)} below retail
-                    </strong>
-                  </p>
-                ) : null}
               </>
             );
           })()}
