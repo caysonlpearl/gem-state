@@ -1,8 +1,8 @@
 # Gem State Classifieds conversion
 
 ## Firearms landing location
-- [ ] Ignore carried geographic filters on the Firearms landing page; retain results filtering.
-- [ ] Run focused regression tests and verify landing-to-results navigation in the browser.
+- [x] Ignore carried geographic filters on the Firearms landing page; retain results filtering.
+- [x] Verify 50 regression tests, automatic build checks, four real retailer cards with Twin Falls carried into the landing URL, and Browse all opening the full results filters.
 
 ## Guns.com firearms and gear
 - [x] Expand merchant catalog coverage and fix stalled large feed requests.
