@@ -25,21 +25,46 @@ function isBotCheckPage() {
   );
 }
 
-function waitForPage(tabId, sameListing, timeoutMs = 25000, settleMs = 1200) {
+function readerDocumentState() {
+  return {
+    url: location.href,
+    ready: document.readyState,
+    hasBody: !!document.body?.innerText?.trim(),
+  };
+}
+
+function waitForPage(
+  tabId,
+  sameListing,
+  timeoutMs = 25000,
+  settleMs = 1200,
+  allowInteractive = false,
+) {
   return new Promise((resolve) => {
     let settled = false;
     let settleTimer;
     const timer = setTimeout(() => finish(false), timeoutMs);
-    const matches = (tab) =>
-      tab && tab.status === "complete" && (!sameListing || sameListing(tab.url));
+    const matches = async (tab) => {
+      if (!tab || (sameListing && !sameListing(tab.url))) return false;
+      if (tab.status === "complete") return true;
+      if (!allowInteractive) return false;
+      const state = await exec(tabId, readerDocumentState).catch(() => null);
+      return (
+        state &&
+        state.hasBody &&
+        ["interactive", "complete"].includes(state.ready) &&
+        (!sameListing || sameListing(state.url))
+      );
+    };
+    const poll = allowInteractive ? setInterval(check, 500) : null;
     function check() {
       if (settled) return;
-      chrome.tabs.get(tabId, (tab) => {
-        if (settled || !matches(tab) || settleTimer) return;
+      chrome.tabs.get(tabId, async (tab) => {
+        if (settled || settleTimer || !(await matches(tab)) || settled) return;
         settleTimer = setTimeout(() => {
           settleTimer = undefined;
-          chrome.tabs.get(tabId, (current) => {
-            if (matches(current)) finish(true);
+          chrome.tabs.get(tabId, async (current) => {
+            if (await matches(current)) finish(true);
           });
         }, settleMs);
       });
@@ -57,6 +82,7 @@ function waitForPage(tabId, sameListing, timeoutMs = 25000, settleMs = 1200) {
       settled = true;
       clearTimeout(timer);
       clearTimeout(settleTimer);
+      if (poll) clearInterval(poll);
       chrome.tabs.onUpdated.removeListener(listener);
       resolve(ready);
     }
@@ -126,7 +152,7 @@ async function readListingJobs(jobs, { onItemDone } = {}) {
           const matches = (url) => idOf(url) === expected;
           const open = async () => {
             await chrome.tabs.update(tabId, { url: item.sourceUrl });
-            return waitForPage(tabId, matches, 25000, settleMs);
+            return waitForPage(tabId, matches, 25000, settleMs, true);
           };
           if (!(await open())) throw readFailure("page_timeout");
           if (await exec(tabId, isBotCheckPage)) {
@@ -141,15 +167,11 @@ async function readListingJobs(jobs, { onItemDone } = {}) {
             humanGate = ownGate;
             const passed = await ownGate;
             if (humanGate === ownGate) humanGate = null;
-            if (!passed || !(await waitForPage(tabId, matches, 25000, settleMs)))
+            if (!passed || !(await waitForPage(tabId, matches, 25000, settleMs, true)))
               throw readFailure("verification_incomplete");
           }
           const current = await chrome.tabs.get(tabId);
-          if (
-            !matches(current.url) ||
-            current.status !== "complete" ||
-            (await exec(tabId, isBotCheckPage))
-          )
+          if (!matches(current.url) || (await exec(tabId, isBotCheckPage)))
             throw readFailure("page_not_verified");
           let details;
           // Hydrated detail content can arrive after navigation completes.
@@ -157,7 +179,8 @@ async function readListingJobs(jobs, { onItemDone } = {}) {
           // Distinct codes for injection errors, empty results and in-page
           // challenges. Codes only: no listing text, URLs or error messages.
           let failure = "";
-          for (let attempt = 0; attempt < 3; attempt++) {
+          const attempts = siteName === "Facebook" ? 3 : 6;
+          for (let attempt = 0; attempt < attempts; attempt++) {
             try {
               details = await exec(tabId, extract, [withPhotos]);
               failure = !details ? "empty_result" : details.challenge ? "challenge_detected" : "";
@@ -167,7 +190,7 @@ async function readListingJobs(jobs, { onItemDone } = {}) {
             }
             if (details?.unavailable || (details && !details.incomplete && !details.challenge))
               break;
-            if (attempt < 2) await sleep(1200);
+            if (attempt < attempts - 1) await sleep(1500);
           }
           if (failure) throw readFailure(failure);
           for (const [key, value] of Object.entries(details)) {

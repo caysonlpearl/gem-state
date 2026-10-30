@@ -246,7 +246,18 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
             sold: z.boolean().optional(),
           })
           .passthrough()
-          .safeParse(raw);
+          .safeParse(
+            input.mode === "refresh" && raw && raw.unavailable === true
+              ? {
+                  sourceUrl: raw.sourceUrl,
+                  unavailable: true,
+                  sold: raw.sold === true,
+                  title: "Unavailable listing",
+                  priceCents: 0,
+                  photoUrls: [],
+                }
+              : raw,
+          );
         if (!result.success || !String(result.data.title ?? "").trim()) {
           invalidFailures.push({ rowIndex, reason: "invalid_row" });
           invalidUrls.push(

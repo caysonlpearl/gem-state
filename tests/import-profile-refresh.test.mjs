@@ -11,9 +11,9 @@ import {
 } from "../src/lib/import-refresh.ts";
 
 test("refresh blocks the older reader that misreads Vinted favorite announcements", () => {
-  for (const version of [undefined, "1.5", "1.5.2", "1.5.3", "1.5.4", "1.4.9", "bogus"])
+  for (const version of [undefined, "1.5", "1.5.2", "1.5.3", "1.5.4", "1.5.5", "1.4.9", "bogus"])
     assert.equal(supportsSafeSellerRefresh(version), false);
-  for (const version of ["1.5.5", "1.6.0", "2.0.0"])
+  for (const version of ["1.5.6", "1.6.0", "2.0.0"])
     assert.equal(supportsSafeSellerRefresh(version), true);
 });
 

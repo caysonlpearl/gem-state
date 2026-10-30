@@ -1,12 +1,14 @@
-# Bluebird Listing Import 1.5.5
+# Bluebird Listing Import 1.5.6
 
 This is a manually operated Chrome extension. It reads public listing data in the browser session the operator is already using; it does not run scheduled imports or publish automatically.
 
 ## Update
 
-Version 1.5.5 stops treating the gallery favorite button's hidden “Removed!” announcement as an inventory removal. Only item-status notices and structured availability establish removal. It also reads the current itemprop description fallback. Previously applied removals are not automatically reversed; verify their source pages before restoring listings.
+Version 1.5.6 waits for Vinted wardrobe hydration and captures cards before incremental scrolling, accepts a verified interactive listing document while ads load, retries delayed details, and reads current discounted/decimal Facebook prices. Unreadable pages remain unchanged.
 
-In Chrome's Extensions page, reload the installed unpacked extension from this folder, then reload the Bluebird admin import page. The admin page requires version 1.5.5 or later for profile Refresh. Updating the website does not update an unpacked Chrome extension.
+Version 1.5.6 stops treating the gallery favorite button's hidden “Removed!” announcement as an inventory removal. Only item-status notices and structured availability establish removal. It also reads the current itemprop description fallback. Previously applied removals are not automatically reversed; verify their source pages before restoring listings.
+
+In Chrome's Extensions page, reload the installed unpacked extension from this folder, then reload the Bluebird admin import page. The admin page requires version 1.5.6 or later for profile Refresh. Updating the website does not update an unpacked Chrome extension.
 
 Refresh scans profiles for new listings and re-reads existing URLs through the two-window pool. Scrolling that merely stops producing cards is not proof of completion. Unknown totals, missing pages, challenges or unreadable details report an incomplete scan; unseen existing rows stay unchanged. Re-run Refresh to retry. Pending edits are preserved, never overwritten by another scan.
 
