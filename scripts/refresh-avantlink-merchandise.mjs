@@ -2,7 +2,7 @@
 // This invokes the same DB-budgeted refresh used by the production scheduler.
 import { createClient } from "@supabase/supabase-js";
 import { setDefaultResultOrder } from "node:dns";
-import { MERCHANDISE_SCOPES } from "../src/lib/avantlink-contract.ts";
+import { MERCHANDISE_SCOPES, MERCHANDISE_PAGE_SIZE } from "../src/lib/avantlink-contract.ts";
 import { refreshMerchandisePage } from "../src/lib/avantlink.server.ts";
 
 const url = process.env.GEM_STATE_SUPABASE_URL || process.env.SUPABASE_URL;
@@ -26,7 +26,7 @@ const db = createClient(url, key, {
   },
 });
 for (const scope of MERCHANDISE_SCOPES) {
-  for (let page = 0; page < 10; page++) {
+  for (let page = 0; page < 10000 / MERCHANDISE_PAGE_SIZE; page++) {
     const result = await refreshMerchandisePage(scope, db);
     console.log(JSON.stringify(result));
     if (result.error) process.exitCode = 1;

@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- new provider tables predate generated types */
 import {
   MERCHANDISE_SCOPES,
+  MERCHANDISE_PAGE_SIZE,
   merchandiseSearchUrl,
   normalizeMerchandise,
   scopeKey,
@@ -35,11 +36,12 @@ export async function refreshMerchandisePage(
     const response = await request(merchandiseSearchUrl(scope, offset), {
       headers: { Accept: "application/json" },
       redirect: "error",
-      signal: AbortSignal.timeout(25000),
+      signal: AbortSignal.timeout(55000),
     });
     if (!response.ok) throw new Error("provider_unavailable");
     const body: unknown = await response.json();
-    if (!Array.isArray(body) || body.length > 1000) throw new Error("invalid_response");
+    if (!Array.isArray(body) || body.length > MERCHANDISE_PAGE_SIZE)
+      throw new Error("invalid_response");
     const byId = new Map(
       body
         .map((r) => normalizeMerchandise(r, scope))
@@ -68,7 +70,7 @@ export async function refreshMerchandisePage(
       );
       if (error) throw new Error("cache_write_failed");
     }
-    const complete = body.length < 1000;
+    const complete = body.length < MERCHANDISE_PAGE_SIZE;
     // Only a complete, successful scan can retire missing inventory. A failed
     // or truncated refresh leaves the last good records intact.
     if (complete) {
@@ -85,10 +87,10 @@ export async function refreshMerchandisePage(
       db
         .from("avantlink_merchandise_scopes")
         .update({
-          lease_until: null,
-          next_offset: complete ? 0 : offset + 1000,
+          lease_until: complete ? null : new Date(Date.now() + 31 * 60000).toISOString(),
+          next_offset: complete ? 0 : offset + MERCHANDISE_PAGE_SIZE,
           ...(complete ? { completed_at: now } : {}),
-          last_error: !complete && offset >= 9000 ? "scope_limit" : null,
+          last_error: !complete && offset + MERCHANDISE_PAGE_SIZE >= 10000 ? "scope_limit" : null,
           received_count: Number(reservation.received ?? 0) + body.length,
           accepted_count: Number(reservation.accepted ?? 0) + products.length,
         })
@@ -106,7 +108,10 @@ export async function refreshMerchandisePage(
     await bounded(
       db
         .from("avantlink_merchandise_scopes")
-        .update({ lease_until: null, last_error: "refresh_failed" })
+        .update({
+          lease_until: new Date(Date.now() + 31 * 60000).toISOString(),
+          last_error: "refresh_failed",
+        })
         .eq("scope_key", key),
     );
     return {

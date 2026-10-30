@@ -1,5 +1,9 @@
 # Gem State Classifieds conversion
 
+## Guns.com firearms and gear
+- [x] Expand merchant catalog coverage and fix stalled large feed requests.
+- [x] Verify 16 focused tests, 542 full-suite tests, lint, automatic build and 1,500 real cached retailer items in browse/detail without changing member listings.
+
 ## Industrial category
 - [x] Add Industrial to every category selector and register it for listing creation.
 - [x] Add the 22 supplied subcategories to create/edit/display and browse filtering.

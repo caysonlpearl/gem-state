@@ -20,3 +20,4 @@ codebase is deliberately written against `strict: true` only. If a fresh
 typecheck floods with TS4111/TS2375/TS18048 errors, restore these settings to
 `false` before hand-fixing files.
 - External listing feeds (Adzuna jobs, Mashvisor homes) are merged into browse at read time, cached in service-role-only tables with a DB-enforced request budget, and never written as marketplace listings — keeps provider quotas and terms safe.
+- Guns.com uses pinned merchant/feed scopes, bounded small pages and cooldowns after incomplete/failed requests; retailer cache refreshes never create or alter member listings.
