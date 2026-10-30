@@ -4010,7 +4010,7 @@ function GeneralListingDetail({
                         <span className="sr-only">Retail price </span>
                         {formatClassifiedPrice(savings.retailCents, { wholeDollars: true })}
                       </s>
-                      <span className="inline-flex items-center rounded-full bg-success/15 px-2.5 py-1 text-xs font-bold text-success">
+                      <span className="inline-flex items-center rounded-full bg-primary/12 px-2.5 py-1 text-xs font-bold text-primary">
                         Save {formatClassifiedPrice(savings.savedCents, { wholeDollars: true })} ({savings.percent}% off)
                       </span>
                     </>
@@ -4019,7 +4019,7 @@ function GeneralListingDetail({
                 {savings ? (
                   <p className="mt-2 text-sm text-muted-foreground">
                     MSRP <s>{formatClassifiedPrice(savings.retailCents)}</s> ·{" "}
-                    <strong className="font-semibold text-success">
+                    <strong className="font-semibold text-primary">
                       You save {formatClassifiedPrice(savings.savedCents)} below retail
                     </strong>
                   </p>
