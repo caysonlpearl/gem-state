@@ -406,6 +406,10 @@ export function ListingCardPhoto({
         <span className="absolute left-2 top-2 z-10">
           <FeaturedBadge />
         </span>
+      ) : retailSavings(listing) ? (
+        <span className="absolute left-2 top-2 z-10 rounded-full bg-destructive px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-destructive-foreground shadow-sm">
+          {retailSavings(listing)!.percent}% off
+        </span>
       ) : null}
     </div>
   );
@@ -481,6 +485,7 @@ function vehicleSourceLabel(listing: ListingCardSummary) {
 }
 
 function Price({ listing }: { listing: ListingCardSummary }) {
+  const savings = retailSavings(listing);
   return (
     <>
       {listing.job
@@ -488,9 +493,15 @@ function Price({ listing }: { listing: ListingCardSummary }) {
         : (listing.service?.pricing ??
           adoptionPriceLabel(listing) ??
           formatClassifiedPrice(listing.priceCents, {
-            wholeDollars: Boolean(listing.vehicle || listing.home),
+            wholeDollars: Boolean(listing.vehicle || listing.home || savings),
             monthly: listing.home?.mode === "rent",
           }))}
+      {savings ? (
+        <s className="ml-1.5 text-[0.75em] font-medium text-muted-foreground">
+          <span className="sr-only">Retail price </span>
+          {formatClassifiedPrice(savings.retailCents, { wholeDollars: true })}
+        </s>
+      ) : null}
     </>
   );
 }
