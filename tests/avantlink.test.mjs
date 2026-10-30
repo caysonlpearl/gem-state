@@ -179,7 +179,7 @@ test("every upstream request is pinned to the account and a positive merchandise
     assert.equal(p.get("search_results_count"), "1000");
     assert.equal(p.has("auth_key"), false);
   }
-  assert.throws(() => merchandiseSearchUrl(["Rifles", "Semi Auto"]));
+  assert.throws(() => merchandiseSearchUrl(["Silencers", "Rimfire Suppressors"]));
   assert.throws(() => merchandiseSearchUrl(MERCHANDISE_SCOPES[0], 10000));
 });
 
@@ -201,11 +201,9 @@ test("strict geographic and other unsupported filters never fabricate a local ma
     { fulfillment: "local_pickup" },
     { condition: "new_with_tags" },
     { sellerSlug: "someone" },
-    { category: "firearms" },
     { jobPayMin: 0 },
     { petSpecies: "dog" },
     { postedWithin: "day" },
-    { firearmBrand: "anything" },
   ]) {
     assert.equal(canIncludeMerchandise(filter), false, JSON.stringify(filter));
   }
@@ -357,4 +355,27 @@ test("malformed/provider failures preserve previous cache and a full page advanc
       .ops.find((o) => o.method === "update").args[0].next_offset,
     1000,
   );
+});
+
+test("Guns.com firearms and ammunition are included and mapped to Firearms filters", async () => {
+  const rifle = {
+    ...row,
+    strDepartmentName: "Rifles",
+    strCategoryName: "Bolt Action",
+    strProductName: "Bergara B-14 Hunter 6.5 Creedmoor Rifle",
+    strProductURL: "https://www.guns.com/firearms/bergara-b14/p/123",
+  };
+  const p = normalizeMerchandise(rifle, ["Rifles", "Bolt Action"]);
+  assert.ok(p);
+  assert.equal(p.categorySlug, "firearms");
+  const card = merchandiseCard(p, { first_seen_at: "2026-01-01", source_refreshed_at: "2026-01-01" });
+  assert.equal(card.itemDetails.listingType, "Firearm");
+  assert.equal(card.itemDetails.firearmType, "Rifle");
+  const ammo = normalizeMerchandise({ ...row, strDepartmentName: "Ammo", strCategoryName: "Handgun Ammo", strProductName: "9mm 115gr FMJ 50 rounds" });
+  assert.ok(ammo);
+  assert.equal(merchandiseCard(ammo, { first_seen_at: "x", source_refreshed_at: "x" }).itemDetails.accessoryType, "Ammunition");
+  assert.equal(canIncludeMerchandise({ category: "firearms", firearmType: "Rifle" }), true);
+  assert.equal(canIncludeMerchandise({ category: "firearms", state: "ID" }), false);
+  // Suppressors stay out: not an approved scope.
+  assert.equal(approvedMerchandise({ ...row, strDepartmentName: "Silencers", strCategoryName: "Rimfire Suppressors" }), false);
 });

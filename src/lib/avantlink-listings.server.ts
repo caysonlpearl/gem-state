@@ -4,13 +4,19 @@ import type {
   ClassifiedCard,
   ClassifiedDetail,
 } from "./classifieds.functions";
-import { normalizeMerchandise, type AffiliateMerchandise } from "./avantlink-contract.ts";
+import {
+  firearmDetails,
+  normalizeMerchandise,
+  type AffiliateMerchandise,
+} from "./avantlink-contract.ts";
 
 const categories = {
   "apparel-accessories": "Apparel & Accessories",
   "outdoor-sporting": "Outdoor & Sporting",
   "tools-equipment": "Tools & Equipment",
+  firearms: "Firearms",
 };
+const firearmFilters = ["firearmListingType", "firearmType", "firearmBrand", "firearmAccessoryType"];
 const maxAge = () => new Date(Date.now() - 7 * 86400000).toISOString();
 const present = (v: unknown) => v !== undefined && v !== null && v !== false && v !== "";
 const bounded = (query: any) =>
@@ -29,7 +35,7 @@ export function canIncludeMerchandise(data: ClassifiedBrowseInput): boolean {
   return !Object.entries(data).some(
     ([key, value]) =>
       present(value) &&
-      (/^(?:home|job|pet|service|firearm)/.test(key) ||
+      ((/^(?:home|job|pet|service|firearm)/.test(key) && !firearmFilters.includes(key)) ||
         [
           "state",
           "city",
@@ -78,7 +84,11 @@ export function merchandiseCard(
     isFeatured: false,
     imageUrl: product.images[0] ?? null,
     vehicle: null,
-    itemDetails: { itemType: product.category, ...(product.brand ? { brand: product.brand } : {}) },
+    itemDetails: {
+      itemType: product.category,
+      ...(product.brand ? { brand: product.brand } : {}),
+      ...(firearmDetails(product.department, product.category) ?? {}),
+    },
     externalMerchandise: {
       source: "Guns.com",
       buyUrl: product.buyUrl,
@@ -139,7 +149,20 @@ export async function merchandiseCards(
       ];
       if (!actual || !data.itemDetailValue.split(/\|{1,2}/).includes(actual)) continue;
     }
-    cards.push(merchandiseCard(p, row));
+    const card = merchandiseCard(p, row);
+    const details = card.itemDetails as Record<string, string | undefined>;
+    if (
+      (
+        [
+          [data.firearmListingType, "listingType"],
+          [data.firearmType, "firearmType"],
+          [data.firearmBrand, "brand"],
+          [data.firearmAccessoryType, "accessoryType"],
+        ] as const
+      ).some(([filter, key]) => filter && details[key]?.toLowerCase() !== filter.toLowerCase())
+    )
+      continue;
+    cards.push(card);
   }
   const { data: reports, error: reportsError } = await bounded(
     db
