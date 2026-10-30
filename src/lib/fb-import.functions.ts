@@ -27,7 +27,6 @@ function categoryHintFrom(sourceProfileUrl: string | null | undefined, descripti
 import {
   canonicalImportSource,
   isSettledImportRemoval,
-  mayInferScanAbsence,
   type ScanEvidence,
   stagingFailureCode,
   type StagingFailure,
@@ -154,44 +153,8 @@ async function claimPhotosForSeller(
   return prepareImportPhotos(admin, sellerId, stagingPaths);
 }
 
-type RemovedReason = "sold" | "unavailable" | "missing";
-
-// removed_reason is read and written on its own and failures are ignored, so
-// imports keep working (as plain take-downs) if its migration hasn't run.
-async function recordRemovedReason(
-  admin: any,
-  sourceProfileUrl: string,
-  sourceUrl: string,
-  reason: RemovedReason,
-) {
-  const { error } = await admin
-    .from("fb_marketplace_import_items")
-    .update({ removed_reason: reason })
-    .eq("source_profile_url", sourceProfileUrl)
-    .eq("source_url", sourceUrl);
-  if (error) console.warn("Could not record why an import was flagged", error.message);
-}
-
-/** Bulk variant: one reason write per bounded chunk of rows. */
-async function recordRemovedReasons(
-  admin: any,
-  sourceProfileUrl: string,
-  sourceUrls: string[],
-  reason: RemovedReason,
-) {
-  if (!sourceUrls.length) return;
-  const { error } = await admin
-    .from("fb_marketplace_import_items")
-    .update({ removed_reason: reason })
-    .eq("source_profile_url", sourceProfileUrl)
-    .in("source_url", sourceUrls);
-  if (error) console.warn("Could not record why imports were flagged", error.message);
-}
-
 /** Rows per staging request; the admin page chunks scan results to this size. */
 const STAGE_CHUNK_SIZE = 50;
-/** Rows per bulk absence update during per-profile finalization. */
-const FINALIZE_CHUNK_SIZE = 100;
 
 export const stageFacebookImportBatch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -349,6 +312,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
       failedUrls: string[];
       failures: StagingFailure[];
       flaggedRemoved: number;
+      preservedActive: number;
     }> => {
       await requireAdmin(context);
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -417,14 +381,14 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
           if (id) dealerPrior.set(id, row);
         }
       }
-      const seenUrls = new Set<string>(data.seenUrls);
 
       let staged = 0;
       let updated = 0;
       let failed = data.invalidUrls.length;
       const failedUrls: string[] = [...data.invalidUrls];
       const failures: StagingFailure[] = [...data.invalidFailures];
-      let flaggedRemoved = 0;
+      const flaggedRemoved = 0;
+      let preservedActive = 0;
       const isRefresh = data.mode === "refresh";
 
       for (const [index, item] of data.items.entries()) {
@@ -436,7 +400,6 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
           const priorDealer = dealerPrior.get(dieselDepotListingId(item.sourceUrl) ?? "");
           if (priorDealer) item.sourceUrl = priorDealer.source_url;
           const key = canonicalImportSource(data.sourceProfileUrl, item.sourceUrl);
-          seenUrls.add(key);
           const prior = priorByUrl.get(key);
           if (prior) item.sourceUrl = prior.source_url;
           // Pending/admin-edited and discarded rows are never overwritten by a scan.
@@ -453,7 +416,12 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
             );
           if (prior && item.description === null && !item.unavailable)
             item.description = prior.description;
-          if (!prior && item.unavailable) continue;
+          // Source failures/status hints never change marketplace visibility.
+          // This server-side rule also protects older extension clients.
+          if (item.unavailable) {
+            if (isRefresh && prior?.listing?.status === "active") preservedActive++;
+            continue;
+          }
           const classificationChanged =
             JSON.stringify(prior?.item_details ?? {}) !== JSON.stringify(item.itemDetails);
 
@@ -461,23 +429,6 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
           // only touches what Facebook can actually have changed. Category,
           // condition and location are left exactly as the admin set them.
           if (isRefresh && prior) {
-            if (item.unavailable) {
-              const { error } = await admin
-                .from("fb_marketplace_import_items")
-                .update({ batch_id: batch.id, status: "possibly_removed" })
-                .eq("source_profile_url", data.sourceProfileUrl)
-                .eq("source_url", item.sourceUrl)
-                .eq("status", "published");
-              if (error) throw error;
-              await recordRemovedReason(
-                admin,
-                data.sourceProfileUrl,
-                item.sourceUrl,
-                item.sold ? "sold" : "unavailable",
-              );
-              flaggedRemoved += 1;
-              continue;
-            }
             const changed =
               prior.price_cents !== item.priceCents ||
               (prior.description ?? "") !== (item.description ?? "") ||
@@ -572,40 +523,18 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
         }
       }
 
-      // Absence only means "removed" after a full profile scrape. A refresh
-      // reads a handful of known listings, so a missing one just means it
-      // wasn't read -- never a reason to flag it. Finalize once per profile:
-      // one bulk update marks every published row the complete scan did not
-      // see, instead of one request per missing row.
-      const vanished =
-        !data.finalizeScan || !data.scan || !mayInferScanAbsence(data.scan)
-          ? []
-          : (priorItems ?? []).filter(
-              (row: any) =>
-                row.status === "published" &&
-                row.listing?.status === "active" &&
-                (!data.removalSourceUrl ||
-                  canonicalImportSource(data.sourceProfileUrl, row.source_url) ===
-                    data.removalSourceUrl) &&
-                !seenUrls.has(canonicalImportSource(data.sourceProfileUrl, row.source_url)),
-            );
-      const vanishedUrls: string[] = vanished.map((row: any) => row.source_url);
-      // Bounded bulk writes: each update touches at most FINALIZE_CHUNK_SIZE
-      // rows, still guarded by status=published so a rerun is idempotent.
-      for (let i = 0; i < vanishedUrls.length; i += FINALIZE_CHUNK_SIZE) {
-        const chunk = vanishedUrls.slice(i, i + FINALIZE_CHUNK_SIZE);
-        const { error } = await admin
-          .from("fb_marketplace_import_items")
-          .update({ batch_id: batch.id, status: "possibly_removed" })
-          .eq("source_profile_url", data.sourceProfileUrl)
-          .eq("status", "published")
-          .in("source_url", chunk);
-        if (error) throw new Error(error.message);
-        await recordRemovedReasons(admin, data.sourceProfileUrl, chunk, "missing");
-        flaggedRemoved += chunk.length;
-      }
-
-      return { batchId: batch.id, staged, updated, failed, failedUrls, failures, flaggedRemoved };
+      // Legacy clients may still send finalizeScan/seenUrls. They are accepted
+      // for compatibility, but absence can never queue or apply a removal.
+      return {
+        batchId: batch.id,
+        staged,
+        updated,
+        failed,
+        failedUrls,
+        failures,
+        flaggedRemoved,
+        preservedActive,
+      };
     },
   );
 
@@ -1063,6 +992,10 @@ export const publishFacebookImportItems = createServerFn({ method: "POST" })
       if (error) throw new Error(error.message);
       if (items?.length !== data.itemIds.length)
         throw new Error("Some selected items are no longer available. Refresh and retry.");
+      if (items.some((item: any) => item.status === "possibly_removed"))
+        throw new Error(
+          "Import refresh cannot take listings offline. Review the original listing and use Bluebird's separate removal action.",
+        );
       const profiles = new Set(
         items.map((i: any) => canonicalSellerSourceProfile(i.source_profile_url)),
       );

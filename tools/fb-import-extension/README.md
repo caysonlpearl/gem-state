@@ -14,7 +14,9 @@ Version 1.5.6 waits for Vinted wardrobe hydration and captures cards before incr
 
 Version 1.5.6 stops treating the gallery favorite button's hidden “Removed!” announcement as an inventory removal. Only item-status notices and structured availability establish removal. It also reads the current itemprop description fallback. Previously applied removals are not automatically reversed; verify their source pages before restoring listings.
 
-In Chrome's Extensions page, reload the installed unpacked extension from this folder, then reload the Bluebird admin import page. The admin page requires version 1.5.6 or later for profile Refresh. Updating the website does not update an unpacked Chrome extension.
+In Chrome's Extensions page, reload the installed unpacked extension from this folder, then reload the Bluebird admin import page. The admin page requires version 1.5.9 or later for profile Refresh. Updating the website does not update an unpacked Chrome extension.
+
+Server-side refresh safeguards preserve existing listing visibility even when a source reports unavailable or omits an item.
 
 Refresh scans profiles for new listings and re-reads existing URLs through the two-window pool. Scrolling that merely stops producing cards is not proof of completion. Unknown totals, missing pages, challenges or unreadable details report an incomplete scan; unseen existing rows stay unchanged. Re-run Refresh to retry. Pending edits are preserved, never overwritten by another scan.
 
@@ -36,7 +38,7 @@ Imports use two reusable reader windows. Refresh and Refresh all share a single 
 
 The importer follows the dealer's own inventory navigation for trucks, trailers, truck bodies, construction equipment, farm equipment, attachments, truck parts, and other stock. Manufacturer showrooms and recommendations are excluded. Listings are deduplicated by source ID, preserving existing Bluebird records when titles or tracking parameters change.
 
-Actual asking prices, conditions, machine locations, descriptions/specifications and up to eight gallery photos are collected. Price-on-request and rental-only listings are counted and skipped rather than creating false $0 sale ads. Profile Refresh reconciles cumulative counts across catalog pages. Absence can queue removal only after proven complete discovery and zero unreadable details; readable existing detail pages remain seen even if omitted from the grid.
+Actual asking prices, conditions, machine locations, descriptions/specifications and up to eight gallery photos are collected. Price-on-request and rental-only listings are counted and skipped rather than creating false $0 sale ads. Profile Refresh reconciles cumulative counts across catalog pages. Refresh never queues removals from absence or unavailable/sold reader responses. It stages additions and content updates only; verified sales/removals must be handled separately on Bluebird. The server also rejects legacy removal suggestions during publication.
 
 ## Verification
 
