@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -488,6 +488,99 @@ export type Database = {
             referencedColumns: ["variant_id"]
           },
         ]
+      }
+      avantlink_merchandise: {
+        Row: {
+          active: boolean
+          category_slug: string
+          description: string
+          first_seen_at: string
+          id: string
+          payload: Json
+          price_cents: number
+          scope_key: string
+          sku: string
+          source_refreshed_at: string
+          title: string
+        }
+        Insert: {
+          active?: boolean
+          category_slug: string
+          description?: string
+          first_seen_at?: string
+          id: string
+          payload: Json
+          price_cents: number
+          scope_key: string
+          sku: string
+          source_refreshed_at?: string
+          title: string
+        }
+        Update: {
+          active?: boolean
+          category_slug?: string
+          description?: string
+          first_seen_at?: string
+          id?: string
+          payload?: Json
+          price_cents?: number
+          scope_key?: string
+          sku?: string
+          source_refreshed_at?: string
+          title?: string
+        }
+        Relationships: []
+      }
+      avantlink_merchandise_requests: {
+        Row: {
+          created_at: string
+          id: number
+          scope_key: string
+        }
+        Insert: {
+          created_at?: string
+          id?: never
+          scope_key: string
+        }
+        Update: {
+          created_at?: string
+          id?: never
+          scope_key?: string
+        }
+        Relationships: []
+      }
+      avantlink_merchandise_scopes: {
+        Row: {
+          accepted_count: number
+          completed_at: string | null
+          generation_started_at: string | null
+          last_error: string | null
+          lease_until: string | null
+          next_offset: number
+          received_count: number
+          scope_key: string
+        }
+        Insert: {
+          accepted_count?: number
+          completed_at?: string | null
+          generation_started_at?: string | null
+          last_error?: string | null
+          lease_until?: string | null
+          next_offset?: number
+          received_count?: number
+          scope_key: string
+        }
+        Update: {
+          accepted_count?: number
+          completed_at?: string | null
+          generation_started_at?: string | null
+          last_error?: string | null
+          lease_until?: string | null
+          next_offset?: number
+          received_count?: number
+          scope_key?: string
+        }
+        Relationships: []
       }
       bid_events: {
         Row: {
@@ -2194,6 +2287,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      import_source_archives: {
+        Row: {
+          archived_at: string | null
+          changed_at: string
+          changed_by: string
+          source_profile_url: string
+        }
+        Insert: {
+          archived_at?: string | null
+          changed_at?: string
+          changed_by: string
+          source_profile_url: string
+        }
+        Update: {
+          archived_at?: string | null
+          changed_at?: string
+          changed_by?: string
+          source_profile_url?: string
+        }
+        Relationships: []
       }
       job_applications: {
         Row: {
@@ -7327,6 +7441,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      import_listing_description: {
+        Args: { _description: string; _title: string }
+        Returns: string
+      }
       is_staff: { Args: { _user_id: string }; Returns: boolean }
       is_trusted_operation: { Args: never; Returns: boolean }
       keep_bluebird_import_version: {
@@ -7589,6 +7707,10 @@ export type Database = {
         Args: { _offer_id: string; _seller_id: string }
         Returns: Json
       }
+      reserve_avantlink_merchandise_page: {
+        Args: { p_scope_key: string }
+        Returns: Json
+      }
       reserve_exact_ask_for_stripe: {
         Args: {
           _ask_id: string
@@ -7758,6 +7880,10 @@ export type Database = {
           n: number
           trade: string
         }[]
+      }
+      set_import_source_archived: {
+        Args: { _actor: string; _archived: boolean; _profile: string }
+        Returns: undefined
       }
       set_import_sync: {
         Args: { _enabled: boolean; _seller: string; _user: string }
