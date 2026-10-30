@@ -1,8 +1,10 @@
-# Bluebird Listing Import 1.5.9
+# Bluebird Listing Import 1.5.10
 
 This is a manually operated Chrome extension. It reads public listing data in the browser session the operator is already using; it does not run scheduled imports or publish automatically.
 
 ## Update
+
+Version 1.5.10 distinguishes actual zero availability from quantities ending in zero (10, 20, 80, 100, and 1,000). Status checks stop before product descriptions and recommendation text.
 
 Version 1.5.9 stops requests to a source when it returns an explicit rate-limit page and leaves unread listings unchanged. Vinted uses one reader with a 3–5 second pause between listings; other sources retain two readers. A rate limit is separate from a human-verification check and does not trigger automatic retries.
 
@@ -14,11 +16,11 @@ Version 1.5.6 waits for Vinted wardrobe hydration and captures cards before incr
 
 Version 1.5.6 stops treating the gallery favorite button's hidden “Removed!” announcement as an inventory removal. Only item-status notices and structured availability establish removal. It also reads the current itemprop description fallback. Previously applied removals are not automatically reversed; verify their source pages before restoring listings.
 
-In Chrome's Extensions page, reload the installed unpacked extension from this folder, then reload the Bluebird admin import page. The admin page requires version 1.5.9 or later for profile Refresh. Updating the website does not update an unpacked Chrome extension.
+In Chrome's Extensions page, reload the installed unpacked extension from this folder, then reload the Bluebird admin import page. The admin page requires version 1.5.10 or later for profile Refresh. Updating the website does not update an unpacked Chrome extension.
 
 Server-side refresh safeguards preserve existing listing visibility even when a source reports unavailable or omits an item.
 
-Refresh scans profiles for new listings and re-reads existing URLs through the two-window pool. Scrolling that merely stops producing cards is not proof of completion. Unknown totals, missing pages, challenges or unreadable details report an incomplete scan; unseen existing rows stay unchanged. Re-run Refresh to retry. Pending edits are preserved, never overwritten by another scan.
+Refresh scans profiles for new listings and re-reads existing URLs through the two-window pool. Scrolling that merely stops producing cards is not proof of completion. Unknown totals, missing pages, challenges or unreadable details report an incomplete scan; unseen existing rows stay unchanged. Re-run Refresh to retry. Pending edits are preserved, never overwritten by another scan. Clearing an item from review does not permanently exclude an unpublished source listing: a fresh available read with photos and a description can return it as a draft. Existing published/offline listings are never recreated this way. Live/offline counts come from the actual listing state, including listings whose older review changes were cleared.
 
 Review loads exact-count pages with a visible Show next 50 control; selection covers the whole queue, not just visible rows. Staging sends idempotent chunks of up to 50 rows, so a large selection is never one long server request and a failed row stays retryable on its own. Application then applies one row per resumable request and reports progress as it goes. Committed rows are safe to retry, failed rows stay selected. Application never generates/replaces a claim link. Use the explicit Prepare claim control only when a new link is actually needed; replacement intentionally invalidates the previous token.
 

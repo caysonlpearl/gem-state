@@ -29,6 +29,14 @@ function handlers(
     rpcs = [],
     lookups = { count: 0 };
   const db = {
+    storage: {
+      from: (bucket) => ({
+        upload: async (path) => {
+          writes.push({ table: "storage:" + bucket, action: "upload", values: { path } });
+          return { error: null };
+        },
+      }),
+    },
     auth: {
       admin: {
         getUserById: async () => ({
@@ -55,6 +63,10 @@ function handlers(
         },
         in(k, v) {
           filters.push([k, v]);
+          return q;
+        },
+        is(k, value) {
+          filters.push([k, value]);
           return q;
         },
         not(k, op, value) {
@@ -110,6 +122,13 @@ function handlers(
   const c = vm.createContext({
     z,
     console,
+    crypto: { randomUUID: () => "fresh-photo" },
+    AbortSignal,
+    fetch: async () => ({
+      ok: true,
+      headers: { get: () => "image/jpeg" },
+      arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer,
+    }),
     URL,
     Map,
     Set,
@@ -526,4 +545,77 @@ test("legacy removal suggestions cannot reach the publication RPC", async () => 
   );
   assert.equal(h.rpcs.length, 0);
   assert.equal(h.writes.length, 0);
+});
+
+test("fresh source data recaptures a cleared never-published item for review, never auto-publishes", async () => {
+  const h = handlers([
+    {
+      ...row,
+      status: "discarded",
+      listing_id: null,
+      listing: null,
+      public_paths: ["old/wrong.jpg"],
+    },
+  ]);
+  const out = await h.stage({
+    sourceProfileUrl: profile,
+    authorized: true,
+    mode: "refresh",
+    items: [{ ...item, photoUrls: ["https://images1.vinted.net/t/photo/test.jpg"] }],
+  });
+  assert.equal(out.recaptured, 1);
+  assert.equal(out.staged, 1);
+  assert.equal(out.updated, 0);
+  assert.equal(out.flaggedRemoved, 0);
+  const write = h.writes.find((w) => w.table === "fb_marketplace_import_items");
+  assert.equal(write.action, "update");
+  assert.equal(write.values.status, "draft");
+  assert.equal(write.values.city, "Boise");
+  assert.equal(write.values.title, item.title);
+  assert.match(write.values.public_paths[0], /^_staging\/batch\/fresh-photo/);
+  assert.ok(write.filters.some((f) => f[0] === "status" && f[1] === "discarded"));
+  assert.ok(write.filters.some((f) => f[0] === "listing_id" && f[1] === null));
+  assert.equal(h.rpcs.length, 0);
+});
+
+test("cleared published rows, offline listings, unavailable pages and incomplete recaptures stay untouched", async () => {
+  for (const prior of [
+    { ...row, status: "discarded" },
+    { ...row, status: "discarded", listing: { status: "cancelled" } },
+  ]) {
+    const h = handlers([prior]);
+    const out = await h.stage({
+      sourceProfileUrl: profile,
+      authorized: true,
+      mode: "refresh",
+      items: [{ ...item, photoUrls: ["https://images1.vinted.net/t/photo/test.jpg"] }],
+    });
+    assert.equal(out.recaptured, 0);
+    assert.equal(h.writes.filter((w) => w.table === "fb_marketplace_import_items").length, 0);
+  }
+  for (const observation of [
+    { sourceUrl: item.sourceUrl, unavailable: true },
+    { ...item, photoUrls: [] },
+  ]) {
+    const h = handlers([{ ...row, status: "discarded", listing_id: null, listing: null }]);
+    const out = await h.stage({
+      sourceProfileUrl: profile,
+      authorized: true,
+      mode: "refresh",
+      items: [observation],
+    });
+    assert.equal(out.recaptured, 0);
+    assert.equal(h.writes.filter((w) => w.table === "fb_marketplace_import_items").length, 0);
+  }
+});
+
+test("an explicit fresh manual batch can also recapture a never-published cleared row", async () => {
+  const h = handlers([{ ...row, status: "discarded", listing_id: null, listing: null }]);
+  const out = await h.stage({
+    sourceProfileUrl: profile,
+    items: [{ ...item, photoUrls: ["https://images1.vinted.net/t/photo/test.jpg"] }],
+  });
+  assert.equal(out.recaptured, 1);
+  assert.equal(out.staged, 1);
+  assert.equal(h.rpcs.length, 0);
 });
