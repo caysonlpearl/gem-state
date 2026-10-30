@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   AVANTLINK_ACCOUNT,
   MERCHANDISE_SCOPES,
+  MERCHANDISE_PAGE_SIZE,
   approvedMerchandise,
   merchandiseSearchUrl,
   normalizeMerchandise,
@@ -98,35 +99,8 @@ test("normalizes real field names, exact cents, complete descriptions, options a
   assert.equal(card.raw, undefined);
 });
 
-test("vetoes unsupported categories and miscategorized weapons/components", () => {
-  for (const department of [
-    "Handguns",
-    "Rifles",
-    "Shotguns",
-    "Ammo",
-    "Gun Parts",
-    "Magazines",
-    "Silencers",
-    "Silencer Accessories",
-    "Unknown",
-  ]) {
-    assert.equal(normalizeMerchandise({ ...row, strDepartmentName: department }), null);
-  }
-  for (const title of [
-    "UPPER RECEIVER",
-    "TRIGGER ASSEMBLY",
-    "RIFLE SCOPE",
-    "CARTRIDGES",
-    "COMBAT KNIFE",
-    "FOLDING STOCK",
-    "9mm HANDGUN",
-  ]) {
-    assert.equal(normalizeMerchandise({ ...row, strProductName: title }), null);
-  }
-  assert.equal(
-    normalizeMerchandise({ ...row, strProductURL: "https://www.guns.com/firearms/p/incorrect" }),
-    null,
-  );
+test("accepts firearm components without weakening merchant or scope validation", () => {
+  assert.equal(normalizeMerchandise({ ...row, strDepartmentName: "Unknown" }), null);
   assert.equal(approvedMerchandise({ ...row, strProductName: "RIFLE LOGO TEE" }), true);
   assert.equal(normalizeMerchandise(row, ["Gear", "Hats"]), null);
 });
@@ -174,12 +148,12 @@ test("every upstream request is pinned to the account and a positive merchandise
     assert.equal(p.get("website_id"), AVANTLINK_ACCOUNT.websiteId);
     assert.equal(p.get("datafeed_ids"), "6417");
     assert.equal(p.get("search_department"), scope[0]);
-    assert.equal(p.get("search_category"), scope[1]);
+    assert.equal(p.get("search_category"), scope[1] || null);
     assert.equal(p.get("search_results_base"), "1000");
-    assert.equal(p.get("search_results_count"), "1000");
+    assert.equal(p.get("search_results_count"), "250");
     assert.equal(p.has("auth_key"), false);
   }
-  assert.throws(() => merchandiseSearchUrl(["Silencers", "Rimfire Suppressors"]));
+  assert.throws(() => merchandiseSearchUrl(["Unknown", ""]));
   assert.throws(() => merchandiseSearchUrl(MERCHANDISE_SCOPES[0], 10000));
 });
 
@@ -321,7 +295,7 @@ test("successful refresh deduplicates products and retires absent rows only afte
 });
 
 test("malformed/provider failures preserve previous cache and a full page advances pagination", async () => {
-  for (const body of [{ error: "bad" }, Array(1001).fill(row)]) {
+  for (const body of [{ error: "bad" }, Array(MERCHANDISE_PAGE_SIZE + 1).fill(row)]) {
     const db = database((c) =>
       c.rpc
         ? { data: { allowed: true, offset: 0, generation: timestamps.first_seen_at }, error: null }
@@ -342,7 +316,7 @@ test("malformed/provider failures preserve previous cache and a full page advanc
       : { error: null },
   );
   const result = await refreshMerchandisePage(MERCHANDISE_SCOPES[0], db, async () =>
-    Response.json(Array(1000).fill(row)),
+    Response.json(Array(MERCHANDISE_PAGE_SIZE).fill(row)),
   );
   assert.equal(result.complete, false);
   assert.equal(
@@ -353,7 +327,7 @@ test("malformed/provider failures preserve previous cache and a full page advanc
     db.calls
       .findLast((c) => c.table === "avantlink_merchandise_scopes")
       .ops.find((o) => o.method === "update").args[0].next_offset,
-    1000,
+    250,
   );
 });
 
@@ -376,6 +350,48 @@ test("Guns.com firearms and ammunition are included and mapped to Firearms filte
   assert.equal(merchandiseCard(ammo, { first_seen_at: "x", source_refreshed_at: "x" }).itemDetails.accessoryType, "Ammunition");
   assert.equal(canIncludeMerchandise({ category: "firearms", firearmType: "Rifle" }), true);
   assert.equal(canIncludeMerchandise({ category: "firearms", state: "ID" }), false);
-  // Suppressors stay out: not an approved scope.
-  assert.equal(approvedMerchandise({ ...row, strDepartmentName: "Silencers", strCategoryName: "Rimfire Suppressors" }), false);
+  assert.equal(approvedMerchandise({ ...row, strDepartmentName: "Silencers", strCategoryName: "Rimfire Suppressors" }), true);
+});
+
+
+test("suppression, parts, magazines and optics enter Firearms with existing accessory filters", () => {
+  for (const [department, category, accessoryType] of [
+    ["Silencers", "Rifle Suppressors", "Parts"],
+    ["Silencer Accessories", "Mounts", "Parts"],
+    ["Gun Parts", "Lower Receivers", "Parts"],
+    ["Magazines", "", "Magazines"],
+    ["Optics", "Rifle Scopes", "Optics & sights"],
+    ["Cleaning Supplies", "Cleaning Kits", "Cleaning & maintenance"],
+    ["Holsters And Holders", "Holsters", "Holsters"],
+  ]) {
+    const p = normalizeMerchandise({ ...row, strDepartmentName: department, strCategoryName: category, strProductName: "SUPPRESSOR UPPER RECEIVER RIFLE SCOPE" });
+    assert.ok(p, department);
+    assert.equal(p.categorySlug, "firearms");
+    const card = merchandiseCard(p, timestamps);
+    assert.equal(card.itemDetails.listingType, "Accessory");
+    assert.equal(card.itemDetails.accessoryType, accessoryType);
+  }
+});
+
+test("department scopes retain merchant pinning and accept actual returned categories", async () => {
+  const scope = ["Silencers", ""];
+  const url = merchandiseSearchUrl(scope);
+  assert.equal(url.searchParams.has("search_category"), false);
+  const db = database(c => c.rpc ? { data: { allowed: true, offset: 0, generation: timestamps.first_seen_at }, error: null } : { error: null });
+  const result = await refreshMerchandisePage(scope, db, async () => Response.json([
+    { ...row, strDepartmentName: "Silencers", strCategoryName: "Rifle Suppressors" },
+    { ...row, strDepartmentName: "Silencers", strCategoryName: "Rimfire Suppressors", lngProductId: "1067507", strBuyURL: row.strBuyURL.replace("1067506", "1067507") },
+    row,
+  ]));
+  assert.equal(result.accepted, 2);
+});
+
+test("failed and unfinished pages yield to other scopes without retiring unseen cache", async () => {
+  for (const response of [() => { throw new Error("timeout"); }, () => Response.json(Array(250).fill(row))]) {
+    const db = database(c => c.rpc ? { data: { allowed: true, offset: 0, generation: timestamps.first_seen_at }, error: null } : { error: null });
+    await refreshMerchandisePage(["Gear", "Apparel"], db, response);
+    const update = db.calls.findLast(c => c.table === "avantlink_merchandise_scopes").ops.find(o => o.method === "update").args[0];
+    assert.ok(Date.parse(update.lease_until) > Date.now() + 30 * 60000);
+    assert.equal(db.calls.some(c => c.ops?.some(o => o.method === "lt")), false);
+  }
 });
