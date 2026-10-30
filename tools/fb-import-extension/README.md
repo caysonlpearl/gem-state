@@ -1,8 +1,10 @@
-# Bluebird Listing Import 1.5.6
+# Bluebird Listing Import 1.5.7
 
 This is a manually operated Chrome extension. It reads public listing data in the browser session the operator is already using; it does not run scheduled imports or publish automatically.
 
 ## Update
+
+Version 1.5.7 also reads Facebook rental and home-sale layouts using Unit Details or Property Details, without requiring a Condition field. Property facts and the description stay inside the listing content, excluding school and recommendation sections.
 
 Version 1.5.6 waits for Vinted wardrobe hydration and captures cards before incremental scrolling, accepts a verified interactive listing document while ads load, retries delayed details, and reads current discounted/decimal Facebook prices. Unreadable pages remain unchanged.
 

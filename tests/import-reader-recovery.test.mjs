@@ -121,3 +121,38 @@ test("a matching interactive document is readable even if ads keep the Chrome ta
     assert.equal(listeners, 0);
   }
 });
+
+test("Facebook rental and home-sale details do not require a Condition field", async () => {
+  for (const kind of ["Unit", "Property"]) {
+    const text = `3 Beds 2.5 Baths - House\n$2,700 / Month\n${kind} Details\nHouse\n3 beds · 2 baths\nParking available\nDescription\nFully furnished home with flexible lease terms.\nGetting Around\nUnrelated walk scores`;
+    const block = { innerText: text, parentElement: null };
+    const leaf = {
+      children: [],
+      childNodes: [{ nodeType: 3, textContent: "$2,700 / Month" }],
+      textContent: "$2,700 / Month",
+      parentElement: block,
+    };
+    const c = vm.createContext({
+      document: {
+        body: { innerText: text },
+        querySelectorAll: () => [leaf],
+        querySelector: () => null,
+      },
+      setTimeout,
+      Date,
+    });
+    const src = load("background.js");
+    vm.runInContext(
+      src.slice(
+        src.indexOf("async function extractListingDetailsInPage"),
+        src.indexOf("\nfunction listingIdFromUrl"),
+      ),
+      c,
+    );
+    const result = await c.extractListingDetailsInPage(false);
+    assert.equal(result.priceCents, 270000);
+    assert.match(result.description, /3 beds/);
+    assert.match(result.description, /Fully furnished/);
+    assert.doesNotMatch(result.description, /walk scores/);
+  }
+});

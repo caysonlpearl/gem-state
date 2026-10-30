@@ -441,7 +441,11 @@ async function extractListingDetailsInPage(withPhotos = true) {
       let node = leaf;
       while (node) {
         const text = node.innerText || "";
-        if (/Condition/.test(text) && /Details/.test(text)) return node;
+        if (
+          (/Condition/.test(text) && /Details/.test(text)) ||
+          (/(?:Unit|Property) Details/i.test(text) && /Description/.test(text))
+        )
+          return node;
         node = node.parentElement;
       }
     }
@@ -462,7 +466,8 @@ async function extractListingDetailsInPage(withPhotos = true) {
   const start = Date.now();
   while (Date.now() - start < 15000) {
     block = findDetailsBlock();
-    if (block && conditionLineValue(block)) break;
+    if (block && (conditionLineValue(block) || /(?:Unit|Property) Details/i.test(block.innerText)))
+      break;
     await sleep(400);
   }
   if (!block) block = findDetailsBlock();
@@ -494,7 +499,18 @@ async function extractListingDetailsInPage(withPhotos = true) {
           conditionLineIdx + (inlineCondition ? 1 : 2),
           locationIdx >= 0 ? locationIdx : lines.length,
         )
-      : [];
+      : (() => {
+          const start = lines.findIndex((l) => /^(?:Unit|Property) Details$/i.test(l));
+          if (start < 0) return [];
+          const stop = lines.findIndex(
+            (l, i) =>
+              i > start &&
+              /^(?:Getting Around|Nearby Schools|Seller information|Seller details|See more)$/i.test(
+                l,
+              ),
+          );
+          return lines.slice(start, stop < 0 ? lines.length : stop);
+        })();
   const description = descLines.join("\n\n").trim();
 
   // A sold listing shows a standalone "Sold" badge at the top of this block
