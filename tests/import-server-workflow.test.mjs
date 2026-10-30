@@ -549,3 +549,24 @@ test("actual queue getter excludes completed removals but preserves unresolved c
     ["unresolved", "new"],
   );
 });
+
+test("explicit unavailable observations do not require the deleted page to retain title, price or photos", async () => {
+  const h = handlers([row]);
+  const result = await h.stage({
+    sourceProfileUrl: profile,
+    authorized: true,
+    mode: "refresh",
+    items: [{ sourceUrl: item.sourceUrl, unavailable: true }],
+  });
+  assert.equal(result.failed, 0);
+  assert.equal(result.flaggedRemoved, 1);
+  const unknown = await handlers([]).stage({
+    sourceProfileUrl: profile,
+    authorized: true,
+    mode: "refresh",
+    items: [{ sourceUrl: item.sourceUrl, unavailable: true }],
+  });
+  assert.equal(unknown.failed, 0);
+  assert.equal(unknown.staged, 0);
+  assert.equal(unknown.flaggedRemoved, 0);
+});

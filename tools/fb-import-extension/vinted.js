@@ -26,57 +26,57 @@ async function vintedCollectFromProfile() {
     const element = document.querySelector(selector);
     return element ? element.innerText.trim() : "";
   };
-  const expected =
+  const readExpected = () =>
     Number((document.body.innerText.match(/(\d[\d,]*)\s+items?\b/) || [])[1]?.replace(/,/g, "")) ||
     0;
-
-  // Vinted loads more of the wardrobe as you scroll down the page.
+  let expected = readExpected();
   const selector =
     "[data-testid='grid-item'] a[href*='/items/'], a[data-testid$='--overlay-link'][href*='/items/']";
   const accumulated = new Map();
   const capture = () => {
+    expected = Math.max(expected, readExpected());
     for (const a of document.querySelectorAll(selector)) {
-      const card = a.closest("[data-testid='grid-item']");
-      const snapshot = card?.cloneNode(true);
-      accumulated.set(
-        a.href.split("?")[0],
-        snapshot?.querySelector("a[href*='/items/']") || a.cloneNode(true),
-      );
+      if (a.closest("header, nav, footer, [data-testid*='similar']")) continue;
+      const id = a.href.match(/\/items\/(\d+)/)?.[1];
+      if (!id) continue;
+      const card =
+        a.closest("[data-testid='grid-item'], [class*='new-item-box__container']") ||
+        a.parentElement;
+      const label = a.getAttribute("title") || a.getAttribute("aria-label") || "";
+      const title = (
+        card?.querySelector("[data-testid$='--description-title']")?.textContent ||
+        label.split(/, brand:|, condition:/)[0]
+      ).trim();
+      const priceText = card?.querySelector("[data-testid$='--price-text']")?.textContent || label;
+      const match = priceText.match(/\$\s*([\d,]+(?:\.\d{1,2})?)/);
+      accumulated.set(id, {
+        sourceUrl: `https://www.vinted.com/items/${id}`,
+        title,
+        priceCents: match ? Math.round(Number(match[1].replace(/,/g, "")) * 100) : null,
+      });
     }
   };
-  let last = -1;
-  let still = 0;
-  for (let i = 0; i < 120 && still < 4; i++) {
-    window.scrollTo(0, document.body.scrollHeight);
+  // Navigation completion is earlier than the asynchronously hydrated wardrobe.
+  // Capture before scrolling so the first virtualized cards are never lost.
+  for (let i = 0; i < 30; i++) {
+    capture();
+    if (accumulated.size || /wardrobe is empty|no items yet/i.test(document.body.innerText)) break;
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  let last = accumulated.size,
+    still = 0;
+  for (let i = 0; i < 400 && still < 8; i++) {
+    capture();
+    if (expected > 0 && accumulated.size >= expected) break;
+    window.scrollBy(0, Math.max(400, window.innerHeight * 0.8));
     await new Promise((resolve) => setTimeout(resolve, 900));
     capture();
-    const now = accumulated.size;
-    if (expected && now >= expected) break;
-    still = now === last ? still + 1 : 0;
-    last = now;
+    const atEnd = window.scrollY + window.innerHeight >= document.body.scrollHeight - 40;
+    still = atEnd && accumulated.size === last ? still + 1 : 0;
+    last = accumulated.size;
   }
+  const items = [...accumulated.values()];
   window.scrollTo(0, 0);
-
-  const items = [];
-  const seen = new Set();
-  capture();
-  for (const link of accumulated.values()) {
-    const id = (link.href.match(/\/items\/(\d+)/) || [])[1];
-    if (!id || seen.has(id)) continue;
-    seen.add(id);
-    const card = link.closest("[data-testid='grid-item']") || link.parentElement;
-    const priceText = card
-      ? (card.querySelector("[data-testid$='--price-text']") || {}).innerText || ""
-      : "";
-    const price = Number((priceText.match(/[\d,.]+/) || [""])[0].replace(/,/g, ""));
-    items.push({
-      sourceUrl: `https://www.vinted.com/items/${id}`,
-      title: card
-        ? (card.querySelector("[data-testid$='--description-title']") || {}).innerText || ""
-        : "",
-      priceCents: Number.isFinite(price) && price > 0 ? Math.round(price * 100) : null,
-    });
-  }
 
   // "BLOOMINGTON, IN, United States"
   const place = text("[data-testid='profile-location-info--content']")

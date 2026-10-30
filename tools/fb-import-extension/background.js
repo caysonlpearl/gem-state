@@ -428,8 +428,14 @@ async function extractListingDetailsInPage(withPhotos = true) {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
   function findDetailsBlock() {
-    const candidates = Array.from(document.querySelectorAll("*")).filter(
-      (el) => el.children.length === 0 && /^\$[\d,]+$/.test((el.textContent || "").trim()),
+    const candidates = Array.from(document.querySelectorAll("*")).filter((el) =>
+      /^\$[\d,]+(?:\.\d{1,2})?(?:\s*\/\s*(?:month|mo|week|day))?$/i.test(
+        Array.from(el.childNodes || [])
+          .filter((n) => n.nodeType === 3)
+          .map((n) => n.textContent)
+          .join("")
+          .trim() || (el.children.length === 0 ? (el.textContent || "").trim() : ""),
+      ),
     );
     for (const leaf of candidates) {
       let node = leaf;
@@ -510,11 +516,16 @@ async function extractListingDetailsInPage(withPhotos = true) {
       .filter(Boolean)
       .at(-1) || "";
   if (!withPhotos) {
-    const priceLine = lines.find((l) => /^\$[\d,]+$/.test(l));
+    const priceLine = lines.find((l) =>
+      /^\$[\d,]+(?:\.\d{1,2})?(?:\s*\$[\d,.]+)?(?:\s*\/\s*(?:month|mo|week|day))?$/i.test(l),
+    );
     if (!priceLine || !lines[0]) return null;
     return {
       title: lines[0],
-      priceCents: Math.round(parseFloat(priceLine.replace(/[$,]/g, "")) * 100) || 0,
+      priceCents:
+        Math.round(
+          Number(priceLine.match(/^\$([\d,]+(?:\.\d{1,2})?)/)[1].replace(/,/g, "")) * 100,
+        ) || 0,
       description,
       sourceSubcategory,
     };
