@@ -442,3 +442,18 @@ test("prepared inventory expiry is checked on consumption, not preparation", asy
     } finally { Date.now = originalNow; }
   });
 });
+
+test("saved homepage vehicles do not require a live provider API credential", async () => {
+  const initialCache = ["dealer", "fsbo"].map((kind) => ({
+    cache_key: JSON.stringify({ v: 3, kind, state: "ID", start: 0 }),
+    expires_at: new Date(Date.now() + 60000).toISOString(),
+    payload: normalizeMarketCheckSearch({ num_found: 1, listings: [providerListing("ID", kind, 0, 0)] }, kind),
+  }));
+  await withMockMarketCheck({ initialCache, allowReservation: () => { throw new Error("No paid calls"); }, onProvider: () => { throw new Error("No provider calls"); } }, async ({ providerCalls, reservations }) => {
+    delete process.env.MARKETCHECK_API_KEY;
+    const cards = await marketCheckCards({ state: "ID" }, { cacheOnly: true, preparedHomeCache: prepareHomeMarketCheckCache(8000, true) });
+    assert.equal(cards.length, 2);
+    assert.deepEqual(providerCalls, []);
+    assert.deepEqual(reservations, []);
+  });
+});

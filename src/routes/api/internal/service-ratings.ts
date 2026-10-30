@@ -14,14 +14,21 @@ export const Route = createFileRoute("/api/internal/service-ratings")({
         const { rateNextTradeCity } = await import("@/lib/service-directory.server");
         const { advanceHomeFeed } = await import("@/lib/openwebninja-listings.server");
         const { advanceMerchandiseFeed } = await import("@/lib/avantlink.server");
+        const { refreshHomepageSnapshot } = await import("@/lib/homepage-snapshot.server");
         // The same schedule also advances the homes feed: at most one Zillow
         // call per run, paced to about three a day.
-        const [ratings, homes, merchandise] = await Promise.all([
+        const [ratings, homes, merchandise, homepage] = await Promise.all([
           rateNextTradeCity().catch(() => null),
           advanceHomeFeed().catch((error) => ({ error: String(error?.message ?? error) })),
           advanceMerchandiseFeed().catch(() => ({ skipped: true, reason: "unavailable" })),
+          refreshHomepageSnapshot().catch(() => ({ refreshed: false, reason: "unavailable" })),
         ]);
-        return Response.json({ ratings: ratings ?? { skipped: true }, homes, merchandise });
+        return Response.json({
+          ratings: ratings ?? { skipped: true },
+          homes,
+          merchandise,
+          homepage,
+        });
       },
     },
   },

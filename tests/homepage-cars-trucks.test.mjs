@@ -30,15 +30,21 @@ function loader(name, runBrowseClassifieds) {
     runBrowseClassifieds,
   });
   vm.runInContext(
-    ts.transpile(fn
-      .getText(ast)
-      .replace(
-        /const \{ shortCache, PUBLIC_PAGE_CACHE_MS \} = await import\("\.\/short-cache.server"\);/,
-        "",
-      ), { target: ts.ScriptTarget.ES2022 }),
+    ts.transpile(
+      fn
+        .getText(ast)
+        .replace(
+          /const \{ shortCache, PUBLIC_PAGE_CACHE_MS \} = await import\("\.\/short-cache.server"\);/,
+          "",
+        ),
+      { target: ts.ScriptTarget.ES2022 },
+    ),
     context,
   );
-  return (timings) => { context.timings = timings; return vm.runInContext(`${name}(timings)`, context); };
+  return (timings) => {
+    context.timings = timings;
+    return vm.runInContext(`${name}(timings)`, context);
+  };
 }
 
 test("homepage Cars & Trucks query excludes newer parts and trailers before pagination", async () => {
@@ -108,50 +114,45 @@ test("broader Motors taxonomy and query still include parts and trailers", async
   assert.equal(query.category, undefined);
 });
 
-test("featured endpoint uses Cars & Trucks while the secondary homepage endpoint stays broad", async () => {
-  const names = ["loadClassifiedsHomeLead", "getClassifiedsHome"];
-  const selected = ast.statements.filter(
-    (node) =>
-      (ts.isFunctionDeclaration(node) && names.includes(node.name?.text)) ||
-      (ts.isVariableStatement(node) &&
-        node.declarationList.declarations.some(
-          (decl) => decl.name.getText(ast) === "getClassifiedsHome",
-        )),
-  );
-  assert.equal(selected.length, 2);
-  const cars = [{ id: "featured-car", categorySlug: "cars-trucks" }];
-  const motors = [
-    { id: "motor-trailer", categorySlug: "trailers" },
-    { id: "motor-parts", categorySlug: "auto-parts" },
+test("both homepage endpoints use saved snapshots, keeping Cars & Trucks distinct from other motors", async () => {
+  const { homepagePayload } = await import("../src/lib/homepage-snapshot-contract.ts");
+  const now = Date.now();
+  const cars = [
+    {
+      id: "featured-car",
+      categorySlug: "cars-trucks",
+      state: "ID",
+      vehicle: {},
+      createdAt: "2026-10-30",
+      isFeatured: false,
+    },
   ];
-  const context = vm.createContext({
-    listingCardSummary,
-    createServerFn: () => ({ handler: (fn) => fn }),
-    shortCache: (_key, _ttl, load) => load(),
-    PUBLIC_PAGE_CACHE_MS: 0,
-    loadClassifiedsHomeCarsTrucks: async () => cars,
-    loadClassifiedsHomeMotors: async () => motors,
-    loadClassifiedsHomeCategoryData: async () => ({
-      totalActive: 3,
-      categoryCounts: { trailers: 1, "auto-parts": 1, "cars-trucks": 1 },
-    }),
-    runBrowseClassifieds: async () => ({ listings: [], total: 0 }),
-  });
-  const code = selected
-    .map((node) => node.getText(ast))
-    .join("\n")
-    .replaceAll("export ", "")
-    .replace(
-      /const \{ shortCache, PUBLIC_PAGE_CACHE_MS \} = await import\("\.\/short-cache.server"\);/g,
-      "",
-    );
-  vm.runInContext(ts.transpile(code, { target: ts.ScriptTarget.ES2022 }), context);
-  const lead = await vm.runInContext("loadClassifiedsHomeLead()", context);
-  const home = await vm.runInContext("getClassifiedsHome()", context);
-  assert.deepEqual(JSON.parse(JSON.stringify(lead.motors)), cars);
-  assert.deepEqual(JSON.parse(JSON.stringify(home.motors)), motors);
-  assert.equal(home.categoryCounts.trailers, 1);
-  assert.equal(home.categoryCounts["auto-parts"], 1);
+  const motors = [
+    {
+      id: "motor-trailer",
+      categorySlug: "trailers",
+      state: "ID",
+      vehicle: {},
+      createdAt: "2026-10-30",
+      isFeatured: false,
+    },
+  ];
+  const payload = homepagePayload(
+    {
+      version: 1,
+      generatedAt: now,
+      sections: { native: { updatedAt: now, cards: [...cars, ...motors] } },
+    },
+    now,
+  );
+  assert.deepEqual(
+    payload.lead.motors.map((c) => c.id),
+    ["featured-car"],
+  );
+  assert.deepEqual(payload.home.motors.map((c) => c.id).sort(), ["featured-car", "motor-trailer"]);
+  const endpointSource = source.slice(source.indexOf("export const getClassifiedsHomeLead"));
+  assert.match(endpointSource, /readHomepageSnapshot/);
+  assert.doesNotMatch(endpointSource, /runBrowseClassifieds|loadClassifiedsHomeCategoryData/);
 });
 
 test("Keep browsing excludes the current full row allocation and deduplicates its remainder", () => {
@@ -298,7 +299,7 @@ test("Keep browsing reveals local cards before requesting a page and never loses
   assert.equal(nodes(tree).filter((n) => n.type === "button").length, 0);
 });
 
-test("secondary feeds wait for lead paint without removing SSR lead inventory", () => {
+test("secondary cached feeds load independently of a slow or failed lead", () => {
   const source = readFileSync(new URL("../src/routes/index.tsx", import.meta.url), "utf8");
   const file = ts.createSourceFile(
     "index.tsx",
@@ -332,20 +333,26 @@ test("secondary feeds wait for lead paint without removing SSR lead inventory", 
     context,
   );
   const render = (leadPainted = false) =>
-    renderToStaticMarkup(React.createElement(context.DeferredHomeSections, { where: {}, leadPainted }));
+    renderToStaticMarkup(
+      React.createElement(context.DeferredHomeSections, { where: {}, leadPainted }),
+    );
   assert.doesNotMatch(render(), /secondary-loaded/);
   assert.equal(queries.at(-1).enabled, false);
   hydrated = true;
   lead = { isSuccess: false, isError: false };
-  assert.doesNotMatch(render(), /secondary-loaded/);
+  assert.match(render(), /secondary-loaded/);
   lead = { isSuccess: true, isError: false };
-  assert.doesNotMatch(render(), /secondary-loaded/);
-  assert.equal(queries.at(-1).enabled, true, "data starts loading while the first photo is still pending");
+  assert.match(render(), /secondary-loaded/);
+  assert.equal(
+    queries.at(-1).enabled,
+    true,
+    "data starts loading while the first photo is still pending",
+  );
   assert.match(render(true), /secondary-loaded/);
   lead = { isSuccess: false, isError: true };
   assert.match(render(), /secondary-loaded/);
   assert.match(source, /prefetchQuery\(homeLeadQuery\)/);
-  assert.doesNotMatch(source, /prefetchQuery\(homeQuery\)/);
+  assert.match(source, /prefetchQuery\(homeQuery\)/);
 });
 
 test("secondary feed errors stay local and can retry or use the server-rendered browse link", () => {
@@ -390,26 +397,41 @@ test("secondary feed errors stay local and can retry or use the server-rendered 
   assert.equal(boundary.render(), "secondary");
 });
 
-
 test("lead summaries retain every location-filter candidate without detail-only vehicle payloads", () => {
   const cards = Array.from({ length: 24 }, (_, i) => ({
-    id: `car-${i}`, city: `City ${i}`, state: "ID", region: "south-central",
-    postalCode: "83301", imageUrl: "https://images.craigslist.org/example_1200x900.jpg",
-    title: "Vehicle", price: 10000, vehicle: { year: 2020 }, dealer: { name: "Dealer" },
-    externalVehicle: { sourceKind: "dealer", media: { photo_links: Array(100).fill("photo") }, raw: { history: "x".repeat(1000) } },
+    id: `car-${i}`,
+    city: `City ${i}`,
+    state: "ID",
+    region: "south-central",
+    postalCode: "83301",
+    imageUrl: "https://images.craigslist.org/example_1200x900.jpg",
+    title: "Vehicle",
+    price: 10000,
+    vehicle: { year: 2020 },
+    dealer: { name: "Dealer" },
+    externalVehicle: {
+      sourceKind: "dealer",
+      media: { photo_links: Array(100).fill("photo") },
+      raw: { history: "x".repeat(1000) },
+    },
   }));
   const before = JSON.stringify(cards);
   const summaries = cards.map(listingCardSummary);
   assert.equal(summaries.length, 24);
   for (let i = 0; i < cards.length; i++) {
     const { externalVehicle, ...expected } = cards[i];
-    assert.deepEqual(summaries[i], { ...expected, externalVehicle: { sourceKind: externalVehicle.sourceKind } });
+    assert.deepEqual(summaries[i], {
+      ...expected,
+      externalVehicle: { sourceKind: externalVehicle.sourceKind },
+    });
   }
   assert.equal(JSON.stringify(cards), before);
   assert.ok(JSON.stringify(summaries).length < before.length / 2);
-  assert.deepEqual(listingCardSummary({ id: "native", city: "Boise" }), { id: "native", city: "Boise" });
+  assert.deepEqual(listingCardSummary({ id: "native", city: "Boise" }), {
+    id: "native",
+    city: "Boise",
+  });
 });
-
 
 test("homepage timing observations do not leak cached build timings into warm requests", async () => {
   const load = loader("loadClassifiedsHomeCarsTrucks", async (_input, options) => {
@@ -425,10 +447,11 @@ test("homepage timing observations do not leak cached build timings into warm re
   assert.deepEqual(warm, {});
 });
 
-
 test("joining in-flight homepage work does not receive another caller's build timings", async () => {
   let finish;
-  const gate = new Promise((resolve) => { finish = resolve; });
+  const gate = new Promise((resolve) => {
+    finish = resolve;
+  });
   const load = loader("loadClassifiedsHomeCarsTrucks", async (_input, options) => {
     await gate;
     options.timingsMs.vehicleRead = 9;
@@ -447,10 +470,22 @@ test("joining in-flight homepage work does not receive another caller's build ti
 
 test("lead render failures release the secondary feed instead of waiting forever", () => {
   const source = readFileSync(new URL("../src/routes/index.tsx", import.meta.url), "utf8");
-  const file = ts.createSourceFile("index.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-  const node = file.statements.find((n) => ts.isClassDeclaration(n) && n.name?.text === "HomepageLeadErrorBoundary");
+  const file = ts.createSourceFile(
+    "index.tsx",
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  const node = file.statements.find(
+    (n) => ts.isClassDeclaration(n) && n.name?.text === "HomepageLeadErrorBoundary",
+  );
   const context = vm.createContext({ Component: React.Component });
-  vm.runInContext(ts.transpile(node.getText(file), { target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React }) + ";globalThis.Boundary = HomepageLeadErrorBoundary;", context);
+  vm.runInContext(
+    ts.transpile(node.getText(file), { target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React }) +
+      ";globalThis.Boundary = HomepageLeadErrorBoundary;",
+    context,
+  );
   let releases = 0;
   const boundary = new context.Boundary({ onUnavailable: () => releases++ });
   boundary.componentDidCatch(new Error("Synthetic render failure"));

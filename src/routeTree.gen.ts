@@ -59,6 +59,7 @@ import { Route as AuthenticatedAdminTrafficRouteImport } from './routes/_authent
 import { Route as AuthenticatedAdminValidationRouteImport } from './routes/_authenticated/admin.validation'
 import { Route as AuthenticatedOrdersOrderIdRouteImport } from './routes/_authenticated/orders.$orderId'
 import { Route as ApiInternalDealerInventoryRouteImport } from './routes/api/internal/dealer-inventory'
+import { Route as ApiInternalHomepageRefreshRouteImport } from './routes/api/internal/homepage-refresh'
 import { Route as ApiInternalSavedSearchesRouteImport } from './routes/api/internal/saved-searches'
 import { Route as ApiInternalServiceRatingsRouteImport } from './routes/api/internal/service-ratings'
 import { Route as ApiInternalVehicleFeedRouteImport } from './routes/api/internal/vehicle-feed'
@@ -344,6 +345,12 @@ const ApiInternalDealerInventoryRoute =
     path: '/api/internal/dealer-inventory',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiInternalHomepageRefreshRoute =
+  ApiInternalHomepageRefreshRouteImport.update({
+    id: '/api/internal/homepage-refresh',
+    path: '/api/internal/homepage-refresh',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiInternalSavedSearchesRoute =
   ApiInternalSavedSearchesRouteImport.update({
     id: '/api/internal/saved-searches',
@@ -481,6 +488,7 @@ export interface FileRoutesByFullPath {
   '/admin/validation': typeof AuthenticatedAdminValidationRoute
   '/orders/$orderId': typeof AuthenticatedOrdersOrderIdRoute
   '/api/internal/dealer-inventory': typeof ApiInternalDealerInventoryRoute
+  '/api/internal/homepage-refresh': typeof ApiInternalHomepageRefreshRoute
   '/api/internal/saved-searches': typeof ApiInternalSavedSearchesRoute
   '/api/internal/service-ratings': typeof ApiInternalServiceRatingsRoute
   '/api/internal/vehicle-feed': typeof ApiInternalVehicleFeedRoute
@@ -547,6 +555,7 @@ export interface FileRoutesByTo {
   '/admin/validation': typeof AuthenticatedAdminValidationRoute
   '/orders/$orderId': typeof AuthenticatedOrdersOrderIdRoute
   '/api/internal/dealer-inventory': typeof ApiInternalDealerInventoryRoute
+  '/api/internal/homepage-refresh': typeof ApiInternalHomepageRefreshRoute
   '/api/internal/saved-searches': typeof ApiInternalSavedSearchesRoute
   '/api/internal/service-ratings': typeof ApiInternalServiceRatingsRoute
   '/api/internal/vehicle-feed': typeof ApiInternalVehicleFeedRoute
@@ -616,6 +625,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/validation': typeof AuthenticatedAdminValidationRoute
   '/_authenticated/orders/$orderId': typeof AuthenticatedOrdersOrderIdRoute
   '/api/internal/dealer-inventory': typeof ApiInternalDealerInventoryRoute
+  '/api/internal/homepage-refresh': typeof ApiInternalHomepageRefreshRoute
   '/api/internal/saved-searches': typeof ApiInternalSavedSearchesRoute
   '/api/internal/service-ratings': typeof ApiInternalServiceRatingsRoute
   '/api/internal/vehicle-feed': typeof ApiInternalVehicleFeedRoute
@@ -685,6 +695,7 @@ export interface FileRouteTypes {
     | '/admin/validation'
     | '/orders/$orderId'
     | '/api/internal/dealer-inventory'
+    | '/api/internal/homepage-refresh'
     | '/api/internal/saved-searches'
     | '/api/internal/service-ratings'
     | '/api/internal/vehicle-feed'
@@ -751,6 +762,7 @@ export interface FileRouteTypes {
     | '/admin/validation'
     | '/orders/$orderId'
     | '/api/internal/dealer-inventory'
+    | '/api/internal/homepage-refresh'
     | '/api/internal/saved-searches'
     | '/api/internal/service-ratings'
     | '/api/internal/vehicle-feed'
@@ -819,6 +831,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/validation'
     | '/_authenticated/orders/$orderId'
     | '/api/internal/dealer-inventory'
+    | '/api/internal/homepage-refresh'
     | '/api/internal/saved-searches'
     | '/api/internal/service-ratings'
     | '/api/internal/vehicle-feed'
@@ -862,6 +875,7 @@ export interface RootRouteChildren {
   ShoppersSlugRoute: typeof ShoppersSlugRoute
   GuidesIndexRoute: typeof GuidesIndexRoute
   ApiInternalDealerInventoryRoute: typeof ApiInternalDealerInventoryRoute
+  ApiInternalHomepageRefreshRoute: typeof ApiInternalHomepageRefreshRoute
   ApiInternalSavedSearchesRoute: typeof ApiInternalSavedSearchesRoute
   ApiInternalServiceRatingsRoute: typeof ApiInternalServiceRatingsRoute
   ApiInternalVehicleFeedRoute: typeof ApiInternalVehicleFeedRoute
@@ -1230,6 +1244,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiInternalDealerInventoryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/internal/homepage-refresh': {
+      id: '/api/internal/homepage-refresh'
+      path: '/api/internal/homepage-refresh'
+      fullPath: '/api/internal/homepage-refresh'
+      preLoaderRoute: typeof ApiInternalHomepageRefreshRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/internal/saved-searches': {
       id: '/api/internal/saved-searches'
       path: '/api/internal/saved-searches'
@@ -1449,6 +1470,7 @@ const rootRouteChildren: RootRouteChildren = {
   ShoppersSlugRoute: ShoppersSlugRoute,
   GuidesIndexRoute: GuidesIndexRoute,
   ApiInternalDealerInventoryRoute: ApiInternalDealerInventoryRoute,
+  ApiInternalHomepageRefreshRoute: ApiInternalHomepageRefreshRoute,
   ApiInternalSavedSearchesRoute: ApiInternalSavedSearchesRoute,
   ApiInternalServiceRatingsRoute: ApiInternalServiceRatingsRoute,
   ApiInternalVehicleFeedRoute: ApiInternalVehicleFeedRoute,

@@ -28,7 +28,7 @@ test("head preload uses the actual first default-location card and the same thum
   assert.match(source, /lead\?\.motors.find\(\(listing\) => listing.state === "ID"\)\?\.imageUrl/);
   assert.match(source, /leadImageUrl: firstImage \? listingCardImageUrl\(firstImage\) : null/);
   assert.match(source, /href: loaderData.leadImageUrl/);
-  assert.doesNotMatch(source, /prefetchQuery\(homeQuery\)/);
+  assert.match(source, /prefetchQuery\(homeQuery\)/);
 });
 
 test("real route loader and head agree on first image, empty inventory and missing data", async () => {
@@ -59,6 +59,7 @@ test("real route loader and head agree on first image, empty inventory and missi
     waitForHomeLead,
     listingCardImageUrl,
     homeLeadQuery: { queryKey: ["lead"] },
+    homeQuery: { queryKey: ["home"] },
     Home: () => null,
     brand: { name: "Bluebird" },
     jsonLdScript: (x) => x,
@@ -98,7 +99,7 @@ test("real route loader and head agree on first image, empty inventory and missi
         },
       },
     });
-    assert.equal(reads, 1);
+    assert.equal(reads, 2);
     assert.equal(loaderData.leadImageUrl, expected);
     const links = context.route.head({ loaderData }).links.filter((x) => x.rel === "preload");
     assert.equal(links.length, expected ? 1 : 0);
