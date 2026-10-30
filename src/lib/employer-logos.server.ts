@@ -58,7 +58,7 @@ export async function withEmployerLogos<T extends ClassifiedCard>(
   }
   try {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const db = (supabaseAdmin as any).from("employer_logo_matches");
+    const db = supabaseAdmin.from("employer_logo_matches");
     const unknown = [...names.keys()].filter((key) => !domains.has(key));
     if (unknown.length) {
       const { data: rows } = await withCatalogReadDeadline<{
