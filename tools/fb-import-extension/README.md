@@ -1,8 +1,10 @@
-# Bluebird Listing Import 1.5.9
+# Bluebird Listing Import 1.5.10
 
 This is a manually operated Chrome extension. It reads public listing data in the browser session the operator is already using; it does not run scheduled imports or publish automatically.
 
 ## Update
+
+Version 1.5.10 distinguishes actual zero availability from quantities ending in zero (10, 20, 80, 100, and 1,000). Status checks stop before product descriptions and recommendation text.
 
 Version 1.5.9 stops requests to a source when it returns an explicit rate-limit page and leaves unread listings unchanged. Vinted uses one reader with a 3–5 second pause between listings; other sources retain two readers. A rate limit is separate from a human-verification check and does not trigger automatic retries.
 
@@ -14,7 +16,7 @@ Version 1.5.6 waits for Vinted wardrobe hydration and captures cards before incr
 
 Version 1.5.6 stops treating the gallery favorite button's hidden “Removed!” announcement as an inventory removal. Only item-status notices and structured availability establish removal. It also reads the current itemprop description fallback. Previously applied removals are not automatically reversed; verify their source pages before restoring listings.
 
-In Chrome's Extensions page, reload the installed unpacked extension from this folder, then reload the Bluebird admin import page. The admin page requires version 1.5.9 or later for profile Refresh. Updating the website does not update an unpacked Chrome extension.
+In Chrome's Extensions page, reload the installed unpacked extension from this folder, then reload the Bluebird admin import page. The admin page requires version 1.5.10 or later for profile Refresh. Updating the website does not update an unpacked Chrome extension.
 
 Server-side refresh safeguards preserve existing listing visibility even when a source reports unavailable or omits an item.
 

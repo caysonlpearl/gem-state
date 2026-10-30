@@ -22,11 +22,12 @@ test("refresh blocks the older reader that misreads Vinted favorite announcement
     "1.5.6",
     "1.5.7",
     "1.5.8",
+    "1.5.9",
     "1.4.9",
     "bogus",
   ])
     assert.equal(supportsSafeSellerRefresh(version), false);
-  for (const version of ["1.5.9", "1.6.0", "2.0.0"])
+  for (const version of ["1.5.10", "1.6.0", "2.0.0"])
     assert.equal(supportsSafeSellerRefresh(version), true);
 });
 

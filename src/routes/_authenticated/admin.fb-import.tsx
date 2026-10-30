@@ -213,7 +213,7 @@ function ImportedSellers() {
     mutationFn: async (profileUrl: string | null) => {
       if (!extensionReady)
         throw new Error(
-          "Reload Bluebird Listing Import 1.5.9 or newer in Chrome, then refresh this page.",
+          "Reload Bluebird Listing Import 1.5.10 or newer in Chrome, then refresh this page.",
         );
       if (!scanAuthorized) throw new Error("Confirm permission to scan these sellers first.");
       const all = await fetchTargets();
@@ -452,7 +452,7 @@ function ImportedSellers() {
             status.
             {extensionReady
               ? ""
-              : " Extension 1.5.9 or newer not detected — reload the updated extension, then reload this page."}
+              : " Extension 1.5.10 or newer not detected — reload the updated extension, then reload this page."}
           </p>
         </div>
         <label className="text-xs">
