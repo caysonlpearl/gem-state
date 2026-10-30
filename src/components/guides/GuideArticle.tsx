@@ -2,6 +2,11 @@ import type { ReactNode } from "react";
 import { ArrowSquareOut, CaretRight, Info } from "@phosphor-icons/react";
 
 import type { Guide, GuideBlock } from "@/content/guides";
+import {
+  EditorialCta,
+  EditorialRelatedListings,
+  EditorialReadTracker,
+} from "@/components/editorial/EditorialCta";
 
 const linkClass = "font-medium text-primary underline underline-offset-2 hover:no-underline";
 
@@ -84,6 +89,7 @@ function formatDate(date: string) {
 export function GuideArticle({ guide }: { guide: Guide }) {
   return (
     <main className="mx-auto max-w-[760px] px-4 py-8 sm:px-6 sm:py-12">
+      <EditorialReadTracker articleId={`guide:${guide.slug}`} />
       <nav
         aria-label="Breadcrumb"
         className="flex items-center gap-1.5 text-[12.5px] text-muted-foreground"
@@ -109,9 +115,17 @@ export function GuideArticle({ guide }: { guide: Guide }) {
         <p className="mt-6 rounded-2xl border border-primary/20 bg-primary/5 px-5 py-4 text-[16px] leading-relaxed">
           {guide.answer}
         </p>
+        <div className="mt-5">
+          <EditorialCta
+            articleId={`guide:${guide.slug}`}
+            categorySlugs={guide.categories}
+            placement="guide_intro"
+            compact
+          />
+        </div>
 
         <div className="mt-8 space-y-10 text-[15.5px] leading-relaxed text-foreground/90">
-          {guide.sections.map((section) => (
+          {guide.sections.map((section, index) => (
             <section key={section.heading} className="space-y-4">
               <h2 className="text-[22px] font-bold tracking-tight text-foreground">
                 {section.heading}
@@ -119,6 +133,17 @@ export function GuideArticle({ guide }: { guide: Guide }) {
               {section.blocks.map((block, index) => (
                 <Block key={index} block={block} />
               ))}
+              {guide.sections.length >= 4 &&
+                index === Math.floor(guide.sections.length / 2) - 1 && (
+                  <div className="pt-4">
+                    <EditorialCta
+                      articleId={`guide:${guide.slug}`}
+                      categorySlugs={guide.categories}
+                      placement="guide_middle"
+                      compact
+                    />
+                  </div>
+                )}
             </section>
           ))}
 
@@ -176,6 +201,17 @@ export function GuideArticle({ guide }: { guide: Guide }) {
             ))}
           </nav>
         ) : null}
+        <div className="mt-8">
+          <EditorialCta
+            articleId={`guide:${guide.slug}`}
+            categorySlugs={guide.categories}
+            placement="guide_end"
+          />
+        </div>
+        <EditorialRelatedListings
+          articleId={`guide:${guide.slug}`}
+          categorySlugs={guide.categories}
+        />
       </article>
     </main>
   );

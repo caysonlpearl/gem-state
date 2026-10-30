@@ -139,6 +139,9 @@ export default {
       import("./lib/dealer-inventory.functions").then(
         ({ processScheduledDealerInventorySources }) => processScheduledDealerInventorySources(),
       ),
+      import("./lib/editorial-store.server")
+        .then(({ refreshEditorialSources }) => refreshEditorialSources())
+        .catch(() => console.warn("Bluebird Local refresh deferred; stored stories retained.")),
 
       ...(typeof controller === "object" &&
       controller !== null &&

@@ -357,7 +357,6 @@
   }
 }
 
-
 @utility product-placeholder {
   background-color: var(--color-product-well);
   background-image: repeating-linear-gradient(
@@ -683,7 +682,8 @@
   /* The homepage search card carries its own compact type, so its fields
      opt out of the 16px floor and keep the size the card was designed at.
      Same :not() chain as the rule above so this one outranks it. */
-  .classifieds-hero-shell input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]) {
+  .classifieds-hero-shell
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]) {
     font-size: 13px !important;
   }
 }
@@ -697,6 +697,76 @@
 }
 
 /* Room for the phone tab bar so it never covers the end of a page. */
+.news-prose {
+  color: var(--foreground);
+  font-size: 16px;
+  line-height: 1.85;
+  overflow-wrap: anywhere;
+}
+.news-prose > * + * {
+  margin-top: 1.25rem;
+}
+.news-prose h2 {
+  margin-top: 2rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.025em;
+}
+.news-prose h3,
+.news-prose h4 {
+  margin-top: 1.5rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.news-prose a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.news-prose ul,
+.news-prose ol {
+  padding-left: 1.4rem;
+}
+.news-prose ul {
+  list-style: disc;
+}
+.news-prose ol {
+  list-style: decimal;
+}
+.news-prose li + li {
+  margin-top: 0.5rem;
+}
+.news-prose blockquote {
+  border-left: 3px solid var(--primary);
+  padding-left: 1.2rem;
+  font-style: italic;
+}
+.news-prose img {
+  width: 100%;
+  height: auto;
+  border-radius: 1rem;
+}
+.news-prose figcaption {
+  font-size: 0.75rem;
+  line-height: 1.5;
+  opacity: 0.75;
+  margin-top: 0.5rem;
+}
+.news-prose table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+.news-prose td,
+.news-prose th {
+  padding: 0.6rem;
+  border: 1px solid var(--border);
+}
+
 @media (max-width: 1023px) {
   html.has-mobile-tab-bar body {
     padding-bottom: calc(60px + env(safe-area-inset-bottom));

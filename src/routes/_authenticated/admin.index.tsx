@@ -214,6 +214,12 @@ function AdminPage() {
         </p>
         {data.isAdmin && (
           <div className="mt-3 flex flex-wrap gap-2">
+            <a
+              href="/admin/news"
+              className="inline-flex h-9 items-center rounded-md border border-input px-3 text-[12.5px] font-medium hover:bg-secondary"
+            >
+              Bluebird Local editor
+            </a>
             <Link
               to="/admin/classifieds"
               className="inline-flex h-9 items-center rounded-md bg-primary px-3 text-[12.5px] font-medium text-primary-foreground hover:opacity-90"

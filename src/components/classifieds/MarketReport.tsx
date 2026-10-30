@@ -6,6 +6,11 @@ import type { MarketReportPage } from "@/lib/market-report.functions";
 import { reportPath, reportTitle, reportLead } from "@/lib/market-report-route";
 import { reportMonthLabel, wholeDollars } from "@/lib/market-stats";
 import { categoryPagePath, placePath, vehiclePagePath } from "@/lib/place-pages";
+import {
+  EditorialCta,
+  EditorialRelatedListings,
+  EditorialReadTracker,
+} from "@/components/editorial/EditorialCta";
 
 function Table({
   caption,
@@ -57,6 +62,9 @@ export function MarketReport({ page }: { page: MarketReportPage }) {
   const priced = report.categories.filter((row) => row.medianCents != null);
   return (
     <main className="mx-auto max-w-[1000px] space-y-10 px-4 py-6 sm:px-7 sm:py-8">
+      {page.indexable && (
+        <EditorialReadTracker articleId={`report:${report.month}`} topic="market-report" />
+      )}
       <div>
         <nav
           aria-label="Breadcrumb"
@@ -98,6 +106,9 @@ export function MarketReport({ page }: { page: MarketReportPage }) {
           description="This report fills in from live Bluebird listings as they're posted."
         />
       ) : null}
+      {page.indexable && (
+        <EditorialCta articleId={`report:${report.month}`} placement="report_intro" compact />
+      )}
 
       {priced.length ? (
         <section className="border-t border-border/70 pt-8">
@@ -169,6 +180,12 @@ export function MarketReport({ page }: { page: MarketReportPage }) {
         </p>
       </section>
 
+      {page.indexable && (
+        <>
+          <EditorialCta articleId={`report:${report.month}`} placement="report_end" />
+          <EditorialRelatedListings articleId={`report:${report.month}`} />
+        </>
+      )}
       {page.months.length > 1 ? (
         <section className="border-t border-border/70 pt-8">
           <h2 className="text-[16px] font-semibold">Other months</h2>

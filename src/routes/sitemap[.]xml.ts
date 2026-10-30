@@ -8,6 +8,7 @@ import { listingPath } from "@/lib/listing-url";
 import { fetchLiveListings, tallyLandingPages } from "@/lib/landing-pages.server";
 import { reportMonthOf } from "@/lib/market-stats";
 import { MARKET_REPORT_MIN_LISTINGS } from "@/lib/market-report.functions";
+import { newsSitemapArticles } from "@/lib/editorial.functions";
 
 const STATIC_PATHS: { path: string; changefreq: string; priority: string }[] = [
   { path: "/", changefreq: "daily", priority: "1.0" },
@@ -17,6 +18,8 @@ const STATIC_PATHS: { path: string; changefreq: string; priority: string }[] = [
   { path: "/firearms-safety", changefreq: "monthly", priority: "0.5" },
   { path: "/glossary", changefreq: "monthly", priority: "0.5" },
   { path: "/guides", changefreq: "weekly", priority: "0.6" },
+  { path: "/news", changefreq: "daily", priority: "0.7" },
+  { path: "/news/about", changefreq: "monthly", priority: "0.4" },
   { path: "/policies", changefreq: "monthly", priority: "0.3" },
   { path: "/contact", changefreq: "yearly", priority: "0.3" },
 ];
@@ -77,6 +80,7 @@ export const Route = createFileRoute("/sitemap.xml")({
         const currentMonth = reportMonthOf(new Date());
         if (listings.length >= MARKET_REPORT_MIN_LISTINGS)
           reportMonths.push({ month: currentMonth, lastmod: nowIso });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Report snapshots are not in the generated Supabase types.
         const { data: savedReports } = await (supabaseAdmin as any)
           .from("market_report_snapshots")
           .select("month, updated_at, report->totals->live")
@@ -91,7 +95,15 @@ export const Route = createFileRoute("/sitemap.xml")({
             reportMonths.push({ month: saved.month, lastmod: saved.updated_at });
         }
 
+        const articles = await newsSitemapArticles().catch(() => []);
         const entries = [
+          ...articles.map((article) =>
+            urlEntry(`/news/${article.slug}`, {
+              lastmod: article.modifiedAt,
+              changefreq: "weekly",
+              priority: "0.7",
+            }),
+          ),
           ...STATIC_PATHS.filter(({ path }) => isSitemapAllowedPath(path)).map(
             ({ path, changefreq, priority }) => urlEntry(path, { changefreq, priority }),
           ),

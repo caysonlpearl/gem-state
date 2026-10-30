@@ -80,6 +80,11 @@ export function SiteFooter() {
             <h2 className={headingClass}>Buying and selling</h2>
             <ul className="mt-2">
               <li>
+                <a href="/news" className={linkClass}>
+                  Bluebird Local news &amp; guides
+                </a>
+              </li>
+              <li>
                 <Link to="/create-listing" className={linkClass} {...pinned}>
                   Post a listing
                 </Link>

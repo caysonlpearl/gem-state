@@ -23,7 +23,7 @@ import { MobileTabBar } from "@/components/layout/MobileTabBar";
 import { PilotBanner } from "@/components/layout/PilotBanner";
 import { BluebirdEmptyState } from "@/components/layout/BluebirdEmptyState";
 import { Toaster } from "@/components/ui/sonner";
-import { trackBrowserError, ensureVisit } from "@/lib/analytics";
+import { trackBrowserError, ensureVisit, flushEditorialAttribution } from "@/lib/analytics";
 import { startWebVitals } from "@/lib/web-vitals";
 
 function NotFoundComponent() {
@@ -156,6 +156,10 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
+  const currentPath = useRouterState({ select: (state) => state.location.pathname });
+  useEffect(() => {
+    flushEditorialAttribution();
+  }, [currentPath]);
 
   // Classify where this visit came from on its first page (search, AI
   // assistant, social, another site or direct).

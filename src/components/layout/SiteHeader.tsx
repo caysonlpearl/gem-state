@@ -212,6 +212,12 @@ export function SiteHeader() {
           aria-label="Account and utilities"
           className="flex min-w-0 shrink-0 items-center justify-end gap-1.5"
         >
+          <a
+            href="/news"
+            className="hidden min-h-11 items-center rounded-full px-3 text-[12px] font-semibold text-primary hover:bg-secondary lg:inline-flex"
+          >
+            News &amp; guides
+          </a>
           <Link
             to="/create-listing"
             className="hidden h-11 items-center gap-1.5 rounded-full bg-accent px-4 text-[12.5px] font-semibold text-accent-foreground transition-opacity hover:opacity-90 sm:inline-flex"
@@ -459,6 +465,12 @@ export function SiteHeader() {
               </Link>
             </div>
 
+            <a
+              href="/news"
+              className="mb-3 flex min-h-11 items-center justify-between rounded-xl border border-border bg-card px-4 text-sm font-semibold text-primary"
+            >
+              Bluebird Local · News &amp; guides <span aria-hidden="true">→</span>
+            </a>
             <ul className="grid grid-cols-2 gap-2" aria-label="Main categories">
               {mobilePrimaryCategories.map((category) => (
                 <li key={category.slug} className={category.slug === "general" ? "col-span-2" : ""}>

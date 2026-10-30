@@ -2,6 +2,8 @@
 export function performancePageTemplate(path: string) {
   if (path === "/") return "home";
   if (path === "/browse") return "browse";
+  if (path === "/news" || path === "/news/") return "news";
+  if (path.startsWith("/news/")) return "news-article";
   if (path.startsWith("/listings/")) return "listing";
   if (path.startsWith("/idaho/market-report")) return "market-report";
   if (path.startsWith("/idaho/") || path.startsWith("/cars/")) return "location";
@@ -16,7 +18,9 @@ export function isInternalAnalyticsQuery(search: string) {
 }
 
 export function isKnownAutomatedAgent(agent: string) {
-  return /bot\b|spider|crawler|HeadlessChrome|Lighthouse|Google Page Speed|Google-InspectionTool/i.test(agent);
+  return /bot\b|spider|crawler|HeadlessChrome|Lighthouse|Google Page Speed|Google-InspectionTool/i.test(
+    agent,
+  );
 }
 
 /** Explicit disposable fixtures only; a normal name containing "qa" is legitimate. */
@@ -74,4 +78,3 @@ export function summarizeVitals(events: { name: string; props: unknown }[]): Vit
     };
   });
 }
-

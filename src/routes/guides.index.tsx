@@ -4,6 +4,7 @@ import { ArrowRight } from "@phosphor-icons/react";
 import { brand } from "@/config/brand";
 import { guides } from "@/content/guides";
 import { GUIDE_COVER_IMAGE } from "@/lib/structured-data";
+import { EditorialCta } from "@/components/editorial/EditorialCta";
 
 const title = `Idaho buying and selling guides — ${brand.name}`;
 const description =
@@ -34,6 +35,9 @@ function GuidesIndex() {
         Step-by-step help with the paperwork and safety side of buying and selling locally. Every
         fee, form and deadline links to the official Idaho source it came from.
       </p>
+      <div className="mt-6">
+        <EditorialCta articleId="guides-index" placement="guides_index_intro" compact />
+      </div>
       <ul className="mt-8 space-y-4">
         {guides.map((guide) => (
           <li key={guide.slug}>
@@ -54,6 +58,12 @@ function GuidesIndex() {
           </li>
         ))}
       </ul>
+      <div className="mt-8">
+        <EditorialCta articleId="guides-index" placement="guides_index_end" />
+      </div>
+      <a href="/news?topic=guides" className="mt-5 inline-flex text-sm font-semibold text-primary">
+        More guides &amp; local stories →
+      </a>
     </main>
   );
 }

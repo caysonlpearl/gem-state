@@ -11,6 +11,8 @@ import { isInternalAnalyticsQuery, isKnownAutomatedAgent } from "@/lib/analytics
  * the user typed. Names, ids, counts, lengths and price buckets only.
  */
 export type AnalyticsEventName =
+  | "media_article_viewed"
+  | "media_cta_clicked"
   | "page_view"
   | "glossary_viewed"
   | "onboarding_started"
@@ -195,6 +197,35 @@ export async function trackEvent(
     const { data } = await supabase.auth.getSession();
     const userId = data.session?.user.id ?? null;
     const visit = ensureVisit();
+    if (
+      [
+        "search_completed",
+        "listing_viewed",
+        "seller_contacted",
+        "inquiry_completed",
+        "classified_listing_submit_started",
+        "classified_listing_submit_succeeded",
+      ].includes(name)
+    ) {
+      try {
+        const origin = JSON.parse(
+          window.sessionStorage.getItem("bluebird_editorial_origin") || "null",
+        ) as { article?: string; placement?: string; category?: string; at?: number } | null;
+        if (
+          origin?.article &&
+          typeof origin.at === "number" &&
+          eventAt - origin.at < 2 * 60 * 60_000
+        )
+          props = {
+            ...props,
+            media_article: origin.article.slice(0, 150),
+            media_placement: origin.placement?.slice(0, 80) || "",
+            media_category: origin.category?.slice(0, 80) || "",
+          };
+      } catch {
+        /* Optional attribution must never affect browsing or posting. */
+      }
+    }
     let internal = isInternalAnalyticsQuery(window.location.search);
     try {
       if (internal) window.sessionStorage.setItem("bb_internal_traffic", "1");
@@ -226,6 +257,31 @@ export async function trackEvent(
   } catch (error) {
     // Analytics must never break a user flow.
     console.warn("analytics event dropped", name, error);
+  }
+}
+
+export function flushEditorialAttribution() {
+  try {
+    const raw = window.sessionStorage.getItem("bluebird_editorial_pending_click");
+    if (!raw) return;
+    window.sessionStorage.removeItem("bluebird_editorial_pending_click");
+    const click = JSON.parse(raw);
+    if (
+      typeof click.article !== "string" ||
+      typeof click.placement !== "string" ||
+      typeof click.destination !== "string" ||
+      typeof click.at !== "number" ||
+      Date.now() - click.at > 120_000
+    )
+      return;
+    void trackEvent("media_cta_clicked", {
+      article: click.article.slice(0, 150),
+      placement: click.placement.slice(0, 80),
+      category: typeof click.category === "string" ? click.category.slice(0, 80) : "",
+      destination: click.destination.slice(0, 1000),
+    });
+  } catch {
+    /* Optional analytics never blocks reading or navigating. */
   }
 }
 
@@ -299,4 +355,3 @@ export async function traceMutation<T>(
     throw error;
   }
 }
-

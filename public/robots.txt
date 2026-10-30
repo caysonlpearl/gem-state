@@ -8,3 +8,4 @@ Disallow: /api/internal/
 Disallow: /messages
 
 Sitemap: https://onbluebird.com/sitemap.xml
+Sitemap: https://onbluebird.com/news-sitemap.xml

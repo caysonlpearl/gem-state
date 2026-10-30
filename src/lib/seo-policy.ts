@@ -106,6 +106,10 @@ export function isIndexablePlaceInventory(
 /** Never collapse distinct pages of a collection into its first page. */
 export function canonicalPagePath(pathname: string, search: Record<string, unknown> = {}) {
   const path = pathname === "/" ? "/" : pathname.replace(/\/+$/, "");
+  if (path === "/news") {
+    const page = Number(search.page);
+    return Number.isSafeInteger(page) && page > 1 ? `/news?page=${page}` : "/news";
+  }
   if (path !== "/browse") return path;
   const params = new URLSearchParams();
   if (typeof search.category === "string" && search.category)
