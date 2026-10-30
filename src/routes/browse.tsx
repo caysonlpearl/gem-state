@@ -869,6 +869,20 @@ function normalizedCondition(value: string | undefined) {
 }
 
 function inputFromSearch(search: Search): ClassifiedBrowseInput {
+  // Landing pages have no location controls. Keep carried location in URL
+  // state for results navigation, but never let it hide landing inventory.
+  if (search.category === "firearms" && search.firearmMode !== "results") {
+    search = {
+      ...search,
+      state: undefined,
+      region: undefined,
+      city: undefined,
+      postalCode: undefined,
+      radiusMiles: undefined,
+      latitude: undefined,
+      longitude: undefined,
+    };
+  }
   const hasExplicitVehicleLocation = Boolean(
     search.state ||
     search.region ||
