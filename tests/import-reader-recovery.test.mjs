@@ -156,3 +156,35 @@ test("Facebook rental and home-sale details do not require a Condition field", a
     assert.doesNotMatch(result.description, /walk scores/);
   }
 });
+
+test("Facebook jewelry descriptions remain readable when the seller omitted Condition", async () => {
+  const text =
+    "8mm Blue Goldstone Bracelet\n$12\nDetails\nBeautiful natural blue goldstone bracelet.\nEagle, ID · Location is approximate\nSeller information";
+  const block = { innerText: text, parentElement: null };
+  const leaf = {
+    children: [],
+    childNodes: [{ nodeType: 3, textContent: "$12" }],
+    textContent: "$12",
+    parentElement: block,
+  };
+  const c = vm.createContext({
+    document: {
+      body: { innerText: text },
+      querySelectorAll: () => [leaf],
+      querySelector: () => null,
+    },
+    setTimeout,
+    Date,
+  });
+  const src = load("background.js");
+  vm.runInContext(
+    src.slice(
+      src.indexOf("async function extractListingDetailsInPage"),
+      src.indexOf("\nfunction listingIdFromUrl"),
+    ),
+    c,
+  );
+  const r = await c.extractListingDetailsInPage(false);
+  assert.equal(r.priceCents, 1200);
+  assert.equal(r.description, "Beautiful natural blue goldstone bracelet.");
+});

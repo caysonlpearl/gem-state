@@ -443,7 +443,8 @@ async function extractListingDetailsInPage(withPhotos = true) {
         const text = node.innerText || "";
         if (
           (/Condition/.test(text) && /Details/.test(text)) ||
-          (/(?:Unit|Property) Details/i.test(text) && /Description/.test(text))
+          (/(?:Unit|Property) Details/i.test(text) && /Description/.test(text)) ||
+          (/^Details$/m.test(text) && /Location is approximate/.test(text))
         )
           return node;
         node = node.parentElement;
@@ -466,7 +467,12 @@ async function extractListingDetailsInPage(withPhotos = true) {
   const start = Date.now();
   while (Date.now() - start < 15000) {
     block = findDetailsBlock();
-    if (block && (conditionLineValue(block) || /(?:Unit|Property) Details/i.test(block.innerText)))
+    if (
+      block &&
+      (conditionLineValue(block) ||
+        /(?:Unit|Property) Details/i.test(block.innerText) ||
+        (/^Details$/m.test(block.innerText) && /Location is approximate/.test(block.innerText)))
+    )
       break;
     await sleep(400);
   }
@@ -500,7 +506,10 @@ async function extractListingDetailsInPage(withPhotos = true) {
           locationIdx >= 0 ? locationIdx : lines.length,
         )
       : (() => {
-          const start = lines.findIndex((l) => /^(?:Unit|Property) Details$/i.test(l));
+          const propertyStart = lines.findIndex((l) => /^(?:Unit|Property) Details$/i.test(l));
+          const detailsStart = lines.findIndex((l) => /^Details$/i.test(l));
+          const start =
+            propertyStart >= 0 ? propertyStart : detailsStart >= 0 ? detailsStart + 1 : -1;
           if (start < 0) return [];
           const stop = lines.findIndex(
             (l, i) =>
@@ -509,7 +518,11 @@ async function extractListingDetailsInPage(withPhotos = true) {
                 l,
               ),
           );
-          return lines.slice(start, stop < 0 ? lines.length : stop);
+          const end = stop < 0 ? lines.length : stop;
+          return lines.slice(
+            start,
+            propertyStart < 0 && locationIdx >= start ? Math.min(end, locationIdx) : end,
+          );
         })();
   const description = descLines.join("\n\n").trim();
 
