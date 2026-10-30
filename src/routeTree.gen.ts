@@ -76,6 +76,7 @@ import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/em
 import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/email/auth/webhook'
 import { Route as LovableEmailTransactionalPreviewRouteImport } from './routes/lovable/email/transactional/preview'
 import { Route as MediaListingsListingIdPhotoRouteImport } from './routes/media.listings.$listingId.$photo'
+import { Route as ApiPublicRetailerImageIdIndexRouteImport } from './routes/api/public/retailer-image.$id.$index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -438,6 +439,12 @@ const MediaListingsListingIdPhotoRoute =
     path: '/media/listings/$listingId/$photo',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiPublicRetailerImageIdIndexRoute =
+  ApiPublicRetailerImageIdIndexRouteImport.update({
+    id: '/api/public/retailer-image/$id/$index',
+    path: '/api/public/retailer-image/$id/$index',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -506,6 +513,7 @@ export interface FileRoutesByFullPath {
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
   '/media/listings/$listingId/$photo': typeof MediaListingsListingIdPhotoRoute
+  '/api/public/retailer-image/$id/$index': typeof ApiPublicRetailerImageIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -573,6 +581,7 @@ export interface FileRoutesByTo {
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
   '/media/listings/$listingId/$photo': typeof MediaListingsListingIdPhotoRoute
+  '/api/public/retailer-image/$id/$index': typeof ApiPublicRetailerImageIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -643,6 +652,7 @@ export interface FileRoutesById {
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
   '/lovable/email/transactional/preview': typeof LovableEmailTransactionalPreviewRoute
   '/media/listings/$listingId/$photo': typeof MediaListingsListingIdPhotoRoute
+  '/api/public/retailer-image/$id/$index': typeof ApiPublicRetailerImageIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -713,6 +723,7 @@ export interface FileRouteTypes {
     | '/lovable/email/auth/webhook'
     | '/lovable/email/transactional/preview'
     | '/media/listings/$listingId/$photo'
+    | '/api/public/retailer-image/$id/$index'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -780,6 +791,7 @@ export interface FileRouteTypes {
     | '/lovable/email/auth/webhook'
     | '/lovable/email/transactional/preview'
     | '/media/listings/$listingId/$photo'
+    | '/api/public/retailer-image/$id/$index'
   id:
     | '__root__'
     | '/'
@@ -849,6 +861,7 @@ export interface FileRouteTypes {
     | '/lovable/email/auth/webhook'
     | '/lovable/email/transactional/preview'
     | '/media/listings/$listingId/$photo'
+    | '/api/public/retailer-image/$id/$index'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -890,6 +903,7 @@ export interface RootRouteChildren {
   LovableEmailAuthWebhookRoute: typeof LovableEmailAuthWebhookRoute
   LovableEmailTransactionalPreviewRoute: typeof LovableEmailTransactionalPreviewRoute
   MediaListingsListingIdPhotoRoute: typeof MediaListingsListingIdPhotoRoute
+  ApiPublicRetailerImageIdIndexRoute: typeof ApiPublicRetailerImageIdIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1363,6 +1377,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MediaListingsListingIdPhotoRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/retailer-image/$id/$index': {
+      id: '/api/public/retailer-image/$id/$index'
+      path: '/api/public/retailer-image/$id/$index'
+      fullPath: '/api/public/retailer-image/$id/$index'
+      preLoaderRoute: typeof ApiPublicRetailerImageIdIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -1485,6 +1506,7 @@ const rootRouteChildren: RootRouteChildren = {
   LovableEmailAuthWebhookRoute: LovableEmailAuthWebhookRoute,
   LovableEmailTransactionalPreviewRoute: LovableEmailTransactionalPreviewRoute,
   MediaListingsListingIdPhotoRoute: MediaListingsListingIdPhotoRoute,
+  ApiPublicRetailerImageIdIndexRoute: ApiPublicRetailerImageIdIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
