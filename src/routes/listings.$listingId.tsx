@@ -1,3 +1,4 @@
+import { retailSavings } from "@/lib/retail-savings";
 import { createFileRoute, Link, notFound, redirect } from "@tanstack/react-router";
 import {
   queryOptions,
@@ -439,6 +440,11 @@ function Gallery({ listing }: { listing: ClassifiedDetail }) {
             fetchPriority="high"
           />
           <div className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-black/55 to-transparent" />
+          {retailSavings(listing) ? (
+            <span className="absolute left-4 top-4 z-10 rounded-full bg-destructive px-3 py-1.5 text-xs font-bold uppercase tracking-wide text-destructive-foreground shadow">
+              {retailSavings(listing)!.percent}% off
+            </span>
+          ) : null}
           {images.length > 1 && (
             <>
               <div className="absolute bottom-4 left-4 rounded-full bg-black/65 px-3 py-1 text-[11px] font-medium text-white">
@@ -3989,13 +3995,38 @@ function GeneralListingDetail({
               </button>
             </div>
           </div>
-          <p className="numeric mt-4 text-[30px] font-bold leading-none text-primary sm:text-[34px]">
-            {adoptionPriceLabel(listing) ??
-              formatClassifiedPrice(listing.priceCents, { wholeDollars: true })}
-          </p>
-          {listing.externalMerchandise && listing.externalMerchandise.retailPriceCents > listing.priceCents ? (
-            <p className="mt-2 text-sm text-muted-foreground"><span className="sr-only">Retail price </span><s>{formatClassifiedPrice(listing.externalMerchandise.retailPriceCents)}</s></p>
-          ) : null}
+          {(() => {
+            const savings = retailSavings(listing);
+            return (
+              <>
+                <div className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-2">
+                  <p className="numeric text-[30px] font-bold leading-none text-primary sm:text-[34px]">
+                    {adoptionPriceLabel(listing) ??
+                      formatClassifiedPrice(listing.priceCents, { wholeDollars: true })}
+                  </p>
+                  {savings ? (
+                    <>
+                      <s className="numeric text-lg text-muted-foreground">
+                        <span className="sr-only">Retail price </span>
+                        {formatClassifiedPrice(savings.retailCents, { wholeDollars: true })}
+                      </s>
+                      <span className="inline-flex items-center rounded-full bg-primary/12 px-2.5 py-1 text-xs font-bold text-primary">
+                        Save {formatClassifiedPrice(savings.savedCents, { wholeDollars: true })} ({savings.percent}% off)
+                      </span>
+                    </>
+                  ) : null}
+                </div>
+                {savings ? (
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    MSRP <s>{formatClassifiedPrice(savings.retailCents)}</s> ·{" "}
+                    <strong className="font-semibold text-primary">
+                      You save {formatClassifiedPrice(savings.savedCents)} below retail
+                    </strong>
+                  </p>
+                ) : null}
+              </>
+            );
+          })()}
         </header>
 
         <div className="min-w-0 space-y-7 lg:col-start-2 lg:row-start-3">
