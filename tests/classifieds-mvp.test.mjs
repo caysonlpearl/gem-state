@@ -911,7 +911,10 @@ test("main homepage presents category-curated listing rows", () => {
   assert.match(homeSource, /localRecent\.filter\(\(listing\) => listing\.service\)/);
   assert.match(homeSource, /City or ZIP code/);
   assert.match(homeSource, /Search area:/);
-  assert.match(homeSource, /Farther away/);
+  assert.match(homeSource, /homepageDistanceRow/);
+  const distanceRowSource = readFileSync(new URL("../src/lib/homepage-distance-row.ts", import.meta.url), "utf8");
+  assert.match(distanceRowSource, /Farther away/);
+  assert.match(distanceRowSource, /Around Idaho/);
   assert.match(homeSource, /no-scrollbar mt-5 flex gap-4/);
 });
 
