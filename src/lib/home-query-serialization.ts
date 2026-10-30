@@ -9,5 +9,8 @@ type QueryState = {
  * pages retain their existing streaming behavior.
  */
 export function shouldDehydrateHomepageQuery(query: QueryState) {
-  return query.queryKey[0] !== "classifieds-home-lead" || query.state.status !== "pending";
+  return (
+    !["classifieds-home-lead", "classifieds-home"].includes(String(query.queryKey[0])) ||
+    query.state.status !== "pending"
+  );
 }

@@ -99,6 +99,19 @@ export default {
         if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
         return await handleStripeWebhook(request, env);
       }
+      if (request.method === "GET" && url.pathname === "/") {
+        // Refresh outside the response lifetime. Saved public cards render
+        // immediately even when a source query or photo signer is slow.
+        const runtime = ctx as { waitUntil?: (task: Promise<unknown>) => void } | undefined;
+        const extended = request as Request & { waitUntil?: (task: Promise<unknown>) => void };
+        const background = runtime?.waitUntil?.bind(runtime) ?? extended.waitUntil?.bind(extended);
+        if (background)
+          background(
+            import("./lib/homepage-snapshot.server")
+              .then((module) => module.refreshHomepageSnapshot())
+              .catch(() => console.warn("Homepage refresh deferred; saved inventory retained.")),
+          );
+      }
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       const normalized = lowerModulePreloadPriority(
@@ -117,6 +130,9 @@ export default {
   async scheduled(controller: unknown, env: unknown, ctx: unknown) {
     registerRuntimeBindings(env);
     const task = Promise.all([
+      import("./lib/homepage-snapshot.server")
+        .then((module) => module.refreshHomepageSnapshot())
+        .catch(() => null),
       import("./lib/saved-search-worker.server").then(({ processSavedSearchAlerts }) =>
         processSavedSearchAlerts(),
       ),

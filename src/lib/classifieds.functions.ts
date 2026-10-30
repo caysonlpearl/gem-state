@@ -2777,6 +2777,56 @@ export type ClassifiedsHomeLead = {
   motors: ListingCardSummary[];
 };
 
+/** Background snapshot builder only. Explicit public-visibility predicates
+ * replace costly repeated anon RLS joins; no account/evidence data is returned. */
+export async function loadNativeHomepageInventory() {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const selection = LISTING_SELECT.replace(
+    "dealer_profiles(display_name,",
+    "dealer_profiles(status,agreements_accepted_at,display_name,",
+  );
+  const { data, error, count } = await withCatalogReadDeadline(
+    supabaseAdmin
+      .from("asks")
+      .select(selection, { count: "exact" })
+      .eq("status", "active")
+      .eq("is_demo", false)
+      .not("approved_at", "is", null)
+      .gt("expires_at", new Date().toISOString())
+      .eq("products.status", "published")
+      .order("featured_until", { ascending: false, nullsFirst: false })
+      .order("ranking_at", { ascending: false })
+      .order("id")
+      .limit(1000),
+  );
+  if (error) throw new Error("Native homepage inventory could not be read.");
+  const rows = ((data ?? []) as unknown as Record<string, unknown>[]).filter(
+    (row) => !isReleaseQaListing(row),
+  );
+  const categoryCounts: Record<string, number> = {};
+  const allocated = new Map<string, number>();
+  const selected = rows
+    .filter((row) => {
+      const r = row as unknown as Record<string, any>;
+      const category = r.products?.categories?.slug ?? "general";
+      categoryCounts[category] = (categoryCounts[category] ?? 0) + 1;
+      if ((allocated.get(category) ?? 0) >= 16) return false;
+      allocated.set(category, (allocated.get(category) ?? 0) + 1);
+      return true;
+    })
+    .slice(0, 240);
+  const urls = await signListingThumbnails(
+    selected.flatMap((row) => sortedMedia(row as unknown as Record<string, unknown>).slice(0, 1)),
+  );
+  const listings = selected.map((row) => {
+    const r = { ...row } as unknown as Record<string, any>;
+    if (r.dealer_profiles?.status !== "ready" || !r.dealer_profiles?.agreements_accepted_at)
+      r.dealer_profiles = null;
+    return toCard(r, urls);
+  });
+  return { listings, total: count ?? rows.length, categoryCounts };
+}
+
 async function loadClassifiedsHomeCategoryData() {
   const { shortCache, PUBLIC_PAGE_CACHE_MS } = await import("./short-cache.server");
   return shortCache("classifieds-home-category-data", PUBLIC_PAGE_CACHE_MS, async () => {
@@ -2851,85 +2901,21 @@ async function loadClassifiedsHomeCarsTrucks(timingsMs?: Record<string, number>,
 }
 
 export const getClassifiedsHomeLead = createServerFn({ method: "GET" }).handler(
-  async (): Promise<ClassifiedsHomeLead> => loadClassifiedsHomeLead(),
+  async (): Promise<ClassifiedsHomeLead> => {
+    const [{ readHomepageSnapshot }, { homepagePayload }] = await Promise.all([
+      import("./homepage-snapshot.server"),
+      import("./homepage-snapshot-contract"),
+    ]);
+    return homepagePayload(await readHomepageSnapshot()).lead;
+  },
 );
 
 export const getClassifiedsHome = createServerFn({ method: "GET" }).handler(
   async (): Promise<ClassifiedsHome> => {
-    const { shortCache, PUBLIC_PAGE_CACHE_MS } = await import("./short-cache.server");
-    return shortCache("classifieds-home", PUBLIC_PAGE_CACHE_MS, async () => {
-      const [
-        categoryData,
-        motors,
-        recent,
-        homes,
-        jobs,
-        flexibleJobs,
-        rentals,
-        services,
-        pets,
-        firearms,
-        onlineMerchandise,
-      ] = await Promise.all([
-        loadClassifiedsHomeCategoryData(),
-        loadClassifiedsHomeMotors(),
-        runBrowseClassifieds({ sort: "newest", page: 1, includeAllMocks: true }),
-        runBrowseClassifieds({
-          category: "other-real-estate",
-          homeTab: "buy",
-          sort: "newest",
-          page: 1,
-        }),
-        runBrowseClassifieds({ category: "jobs", sort: "newest", page: 1 }),
-        runBrowseClassifieds({
-          category: "jobs",
-          jobEmploymentType: "Part-time",
-          sort: "newest",
-          page: 1,
-        }),
-        // Rentals and services rows on the homepage need their own pull;
-        // the general "recent" read leaves out partner feeds and directories.
-        runBrowseClassifieds({
-          category: "other-real-estate",
-          homeTab: "rent",
-          sort: "newest",
-          page: 1,
-        }),
-        runBrowseClassifieds({ category: "services", sort: "newest", page: 1 }),
-        // Adoptable pets for the homepage's pets row.
-        runBrowseClassifieds({ category: "pets", state: "ID", sort: "newest", page: 1 }),
-        // Dedicated inventory keeps the Firearms homepage row independent
-        // of what happens to appear in the general recent-listings page.
-        runBrowseClassifieds({ category: "firearms", state: "ID", sort: "newest", page: 1 }),
-        import("./avantlink-listings.server").then((adapter) => adapter.merchandiseHomeCards()).catch(() => []),
-      ]);
-
-      const categoryCounts = { ...categoryData.categoryCounts };
-
-      const additionalJobs = Math.max(0, jobs.total - (categoryCounts.jobs ?? 0));
-      categoryCounts.jobs = jobs.total;
-      return {
-        totalActive: categoryData.totalActive + additionalJobs,
-        categoryCounts,
-        motors: motors.map(listingCardSummary),
-        onlineMerchandise: onlineMerchandise.map(listingCardSummary),
-        // Keep enough of the first page available for the homepage to build
-        // several useful, non-identical curated rows without another round trip.
-        recent: [
-          ...new Map(
-            [
-              ...recent.listings,
-              ...homes.listings,
-              ...rentals.listings,
-              ...jobs.listings,
-              ...flexibleJobs.listings,
-              ...services.listings,
-              ...pets.listings,
-              ...firearms.listings,
-            ].map((listing) => [listing.id, listing]),
-          ).values(),
-        ].map(listingCardSummary),
-      };
-    });
+    const [{ readHomepageSnapshot }, { homepagePayload }] = await Promise.all([
+      import("./homepage-snapshot.server"),
+      import("./homepage-snapshot-contract"),
+    ]);
+    return homepagePayload(await readHomepageSnapshot()).home;
   },
 );

@@ -375,11 +375,11 @@ async function readCachedStateRows(state: string, kind: MarketCheckSourceKind, t
 }
 
 // Request-local preparation reads only existing cache rows, never the provider.
-export function prepareHomeMarketCheckCache() {
-  if (!configured()) return undefined;
+export function prepareHomeMarketCheckCache(timeoutMs = 2000, cacheOnly = false) {
+  if (!configured() && !cacheOnly) return undefined;
   return {
-    dealer: readCachedStateRows(HOME_STATE, "dealer", 2000).catch(() => null),
-    fsbo: readCachedStateRows(HOME_STATE, "fsbo", 2000).catch(() => null),
+    dealer: readCachedStateRows(HOME_STATE, "dealer", timeoutMs).catch(() => null),
+    fsbo: readCachedStateRows(HOME_STATE, "fsbo", timeoutMs).catch(() => null),
   };
 }
 type PreparedHomeMarketCheckCache = ReturnType<typeof prepareHomeMarketCheckCache>;
@@ -592,7 +592,7 @@ export async function marketCheckCards(
   data: ClassifiedBrowseInput,
   options?: { forceRefresh?: boolean; preparedHomeCache?: PreparedHomeMarketCheckCache; cacheOnly?: boolean },
 ) {
-  if (!configured()) return [];
+  if (!configured() && !options?.cacheOnly) return [];
   const inventories = await Promise.all(
     marketCheckStatesForBrowse(data).map((state) =>
       Promise.all([

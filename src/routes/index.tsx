@@ -65,6 +65,7 @@ export const Route = createFileRoute("/")({
   // Keep a 1.2s ceiling on this wait: slow/error cases still stream normally.
   // The secondary feed remains deferred and is never included in this wait.
   loader: async ({ context }) => {
+    void context.queryClient.prefetchQuery(homeQuery);
     await waitForHomeLead(context.queryClient.prefetchQuery(homeLeadQuery));
     const lead = context.queryClient.getQueryData(homeLeadQuery.queryKey);
     const firstImage = lead?.motors.find((listing) => listing.state === "ID")?.imageUrl;
@@ -855,15 +856,18 @@ class HomepageSecondaryErrorBoundary extends Component<
   }
 }
 
-function DeferredHomeSections({ where, leadPainted }: { where: ReturnType<typeof homeLocation>; leadPainted: boolean }) {
+function DeferredHomeSections({
+  where,
+  leadPainted,
+}: {
+  where: ReturnType<typeof homeLocation>;
+  leadPainted: boolean;
+}) {
   const hydrated = useHydrated();
-  const lead = useQuery({ ...homeLeadQuery, enabled: false, throwOnError: false });
-  // Fetch data while the first image loads. Rendering still waits for its
-  // paint, so the rest of the page cannot crowd out the initial photo.
-  useQuery({ ...homeQuery, enabled: hydrated && (lead.isSuccess || lead.isError), throwOnError: false });
-  // Settled data alone can still leave the priority image waiting to paint.
-  // Query failures release the normal error path without waiting for an image.
-  const ready = hydrated && (leadPainted || lead.isError);
+  // Both endpoints read the same saved snapshot. A failed or unpainted lead
+  // must never prevent the remaining rows from loading.
+  useQuery({ ...homeQuery, enabled: hydrated, throwOnError: false });
+  const ready = hydrated;
   // The plain link remains usable without JavaScript or while feeds are slow.
   const pending = (
     <div className="mt-16">
@@ -879,7 +883,11 @@ function DeferredHomeSections({ where, leadPainted }: { where: ReturnType<typeof
     </div>
   );
   return (
-    <div className="min-h-[600px]" data-secondary-ready={ready ? "true" : "false"}>
+    <div
+      className="min-h-[600px]"
+      data-secondary-ready={ready ? "true" : "false"}
+      data-lead-painted={leadPainted ? "true" : "false"}
+    >
       <QueryErrorResetBoundary>
         {({ reset }) => (
           <HomepageSecondaryErrorBoundary onReset={reset}>
