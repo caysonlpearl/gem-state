@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Bluebird Listing Import",
-  "version": "1.5.3",
+  "version": "1.5.5",
   "description": "With a seller's permission, imports Facebook, KSL, Vinted, Whatnot and Diesel Depot inventory in two reader windows. Runs only when requested.",
   "permissions": ["debugger", "scripting", "tabs", "clipboardWrite"],
   "host_permissions": [
