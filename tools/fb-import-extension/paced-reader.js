@@ -25,6 +25,17 @@ function isBotCheckPage() {
   );
 }
 
+// Rate limiting is not a CAPTCHA. Stop requests for this source; never retry it
+// as missing listing data or treat it as inventory unavailability.
+function readerAccessRestriction() {
+  const title = (document.title || "").trim();
+  const heading = (document.querySelector("h1")?.innerText || "").trim();
+  return /^(?:you are rate limited|too many requests)\b/i.test(title) ||
+    /^(?:you are rate limited|too many requests)[.!]?$/i.test(heading)
+    ? "rate_limited"
+    : null;
+}
+
 function readerDocumentState() {
   return {
     url: location.href,
@@ -126,7 +137,7 @@ function readFailure(reason) {
 }
 
 /** One bounded pool for a whole import or a mixed-source Refresh all. */
-async function readListingJobs(jobs, { onItemDone } = {}) {
+async function readListingJobs(jobs, { onItemDone, blockedSites = new Map() } = {}) {
   const queue = jobs.slice();
   let humanGate = null;
   let interrupted = false;
@@ -147,14 +158,27 @@ async function readListingJobs(jobs, { onItemDone } = {}) {
         const { item, siteName, extract, idOf, withPhotos, notify, settleMs } = job;
         try {
           if (interrupted) throw readFailure("verification_incomplete");
+          if (blockedSites.has(siteName)) throw readFailure(blockedSites.get(siteName));
           const expected = idOf(item.sourceUrl);
           if (!expected) throw readFailure("unsupported_url");
           const matches = (url) => idOf(url) === expected;
           const open = async () => {
+            if (blockedSites.has(siteName)) throw readFailure(blockedSites.get(siteName));
             await chrome.tabs.update(tabId, { url: item.sourceUrl });
             return waitForPage(tabId, matches, 25000, settleMs, true);
           };
           if (!(await open())) throw readFailure("page_timeout");
+          const checkAccess = async () => {
+            const reason = await exec(tabId, readerAccessRestriction).catch(() => null);
+            if (reason !== "rate_limited") return;
+            if (!blockedSites.has(siteName))
+              notify?.(
+                `${siteName} paused access because of too many requests. Stopping this source; wait before trying again. Unread listings stay unchanged.`,
+              );
+            blockedSites.set(siteName, reason);
+            throw readFailure(reason);
+          };
+          await checkAccess();
           if (await exec(tabId, isBotCheckPage)) {
             // Serialize manual handoffs; a second challenged window must get
             // its own handoff after the first, rather than sharing its result.
@@ -181,6 +205,7 @@ async function readListingJobs(jobs, { onItemDone } = {}) {
           let failure = "";
           const attempts = siteName === "Facebook" ? 3 : 6;
           for (let attempt = 0; attempt < attempts; attempt++) {
+            await checkAccess();
             try {
               details = await exec(tabId, extract, [withPhotos]);
               failure = !details ? "empty_result" : details.challenge ? "challenge_detected" : "";
@@ -216,8 +241,8 @@ async function readListingJobs(jobs, { onItemDone } = {}) {
           job.onItemDone && job.onItemDone();
           onItemDone && onItemDone();
         }
-        if (queue.length && !interrupted) {
-          const [min, max] = PACED_PAUSE_MS;
+        if (queue.length && !interrupted && !blockedSites.has(siteName)) {
+          const [min, max] = siteName === "Vinted" ? [3000, 5000] : PACED_PAUSE_MS;
           await sleep(min + Math.random() * (max - min));
         }
       }
@@ -228,7 +253,15 @@ async function readListingJobs(jobs, { onItemDone } = {}) {
   // Wait for every worker to close before releasing the run lock. A popup
   // creation failure must not leave another worker running behind a retry.
   const workers = await Promise.allSettled(
-    Array.from({ length: Math.min(LISTING_READER_CONCURRENCY, queue.length) }, worker),
+    Array.from(
+      {
+        length: Math.min(
+          jobs.every((job) => job.siteName === "Vinted") ? 1 : LISTING_READER_CONCURRENCY,
+          queue.length,
+        ),
+      },
+      worker,
+    ),
   );
   if (queue.length) {
     for (const job of queue) {

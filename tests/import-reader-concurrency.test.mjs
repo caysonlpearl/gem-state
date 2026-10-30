@@ -68,6 +68,7 @@ function harness({ failCreate = false, unreadable = "", challenge = "" } = {}) {
     async exec(tabId, fn) {
       const url = tabs.get(tabId).url;
       if (fn.name === "isBotCheckPage") return url === challenge;
+      if (fn.name === "readerAccessRestriction") return null;
       active++;
       maxActive = Math.max(maxActive, active);
       seen.push(url);
@@ -89,6 +90,7 @@ function harness({ failCreate = false, unreadable = "", challenge = "" } = {}) {
   context.exec = async (tabId, fn) => {
     const url = tabs.get(tabId).url;
     if (fn.name === "isBotCheckPage") return url === challenge;
+    if (fn.name === "readerAccessRestriction") return null;
     active++;
     maxActive = Math.max(maxActive, active);
     seen.push(url);
@@ -313,4 +315,44 @@ test("extraction injection errors, empty results and challenges get distinct cod
     assert.equal(input[0].item.unreadableReason, code);
     assert.equal(input[0].item.title, undefined);
   }
+});
+
+test("rate-limited pages stop subsequent source requests without marking listings unavailable", async () => {
+  const h = harness();
+  const originalExec = h.context.exec;
+  const navigated = [];
+  const update = h.context.chrome.tabs.update;
+  h.context.chrome.tabs.update = async (id, value) => {
+    navigated.push(value.url);
+    return update(id, value);
+  };
+  h.context.exec = async (id, fn) =>
+    fn.name === "readerAccessRestriction" ? "rate_limited" : originalExec(id, fn);
+  const input = jobs.map((job) => ({ ...job, siteName: "Vinted", item: { ...job.item } }));
+  const blockedSites = new Map();
+  await h.context.readListingJobs(input, { blockedSites });
+  assert.equal(navigated.length, 1);
+  assert.equal(h.stats().maxOpen, 1);
+  assert.equal(h.stats().open, 0);
+  assert.equal(blockedSites.get("Vinted"), "rate_limited");
+  assert.ok(input.every(({ item }) => item.unreadableReason === "rate_limited"));
+  assert.ok(input.every(({ item }) => item.unavailable === undefined));
+  await h.context.readListingJobs(
+    [{ ...input[0], item: { sourceUrl: "https://source.test/next" } }],
+    { blockedSites },
+  );
+  assert.equal(navigated.length, 1);
+});
+
+test("rate-limit recognition uses the actual page heading, not product-description words", () => {
+  const c = vm.createContext({
+    document: { title: "You are rate limited | Vinted", querySelector: () => null },
+  });
+  vm.runInContext(load("paced-reader.js"), c);
+  assert.equal(c.readerAccessRestriction(), "rate_limited");
+  c.document = {
+    title: "Vintage watch | Vinted",
+    querySelector: () => ({ innerText: "Vintage watch" }),
+  };
+  assert.equal(c.readerAccessRestriction(), null);
 });

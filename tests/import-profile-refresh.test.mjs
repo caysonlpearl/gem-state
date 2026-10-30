@@ -11,9 +11,21 @@ import {
 } from "../src/lib/import-refresh.ts";
 
 test("refresh blocks the older reader that misreads Vinted favorite announcements", () => {
-  for (const version of [undefined, "1.5", "1.5.2", "1.5.3", "1.5.4", "1.5.5", "1.4.9", "bogus"])
+  for (const version of [
+    undefined,
+    "1.5",
+    "1.5.2",
+    "1.5.3",
+    "1.5.4",
+    "1.5.5",
+    "1.5.6",
+    "1.5.7",
+    "1.5.8",
+    "1.4.9",
+    "bogus",
+  ])
     assert.equal(supportsSafeSellerRefresh(version), false);
-  for (const version of ["1.5.6", "1.6.0", "2.0.0"])
+  for (const version of ["1.5.9", "1.6.0", "2.0.0"])
     assert.equal(supportsSafeSellerRefresh(version), true);
 });
 
@@ -125,6 +137,7 @@ function profileHarness(site, pages) {
     WHATNOT_USER_RE: /whatnot/,
     DEALER_INVENTORY_RE: /diesel/,
     isBotCheckPage() {},
+    readerAccessRestriction() {},
     kslCollectFromMemberPage() {},
     vintedCollectFromProfile() {},
     whatnotCollectFromShop() {},
@@ -440,10 +453,11 @@ test("Whatnot keeps real-wheel pagination and detaches its debugger after reachi
   assert.equal(calls.at(-1), "detach");
 });
 
-
 test("seller profiles accept matching hydrated content while subresources keep loading", async () => {
   const profile = "https://www.vinted.com/member/1";
-  const h = profileHarness("Vinted", { [profile]: { expected: 1, items: [{ sourceUrl: "https://www.vinted.com/items/1" }] } });
+  const h = profileHarness("Vinted", {
+    [profile]: { expected: 1, items: [{ sourceUrl: "https://www.vinted.com/items/1" }] },
+  });
   let checked = false;
   h.c.waitForPage = async (_tab, sameProfile, _timeout, _settle, allowInteractive) => {
     checked = true;

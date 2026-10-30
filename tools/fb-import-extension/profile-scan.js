@@ -54,6 +54,7 @@ async function collectSellerScan(profile, config, notify) {
     challenged = false,
     termination = "incomplete",
     sellerName = "",
+    blockedReason = "",
     expected = 0;
   const pages = [{ url: config.site === "Whatnot" ? profile + "/shop" : profile, kind: null }];
   try {
@@ -67,6 +68,14 @@ async function collectSellerScan(profile, config, notify) {
       await chrome.tabs.update(tabId, { url });
       if (!(await waitForPage(tabId, (current) => current === url, 25000, 2000, true))) {
         complete = false;
+        break;
+      }
+      if ((await exec(tabId, readerAccessRestriction)) === "rate_limited") {
+        blockedReason = "rate_limited";
+        complete = false;
+        notify(
+          `${config.site} paused access because of too many requests. Stopping this source; wait before trying again. Unread listings stay unchanged.`,
+        );
         break;
       }
       if (await exec(tabId, isBotCheckPage)) {
@@ -195,6 +204,7 @@ async function collectSellerScan(profile, config, notify) {
   return {
     sourceProfileUrl: profile,
     sellerName,
+    blockedReason,
     items: [...items.values()],
     expected,
     pages: visited.size,
@@ -211,6 +221,7 @@ async function refreshSellerProfiles(adminTabId, requestId, profiles) {
   const send = (payload) =>
     chrome.tabs.sendMessage(adminTabId, { type: "gemlist-ext-event", payload }).catch(() => {});
   const reports = [];
+  const blockedSites = new Map();
   for (const profile of profiles) {
     const config = profileScanConfig(profile.sourceProfileUrl);
     const progress = (message) =>
@@ -220,7 +231,18 @@ async function refreshSellerProfiles(adminTabId, requestId, profiles) {
         sourceProfileUrl: profile.sourceProfileUrl,
         message,
       });
-    const report = await collectSellerScan(profile.sourceProfileUrl, config, progress);
+    const report = blockedSites.has(config.site)
+      ? {
+          sourceProfileUrl: profile.sourceProfileUrl,
+          sellerName: "",
+          items: [],
+          expected: 0,
+          pages: 0,
+          blockedReason: blockedSites.get(config.site),
+          scan: { complete: false, challenged: false, termination: "incomplete", unreadable: 0 },
+        }
+      : await collectSellerScan(profile.sourceProfileUrl, config, progress);
+    if (report.blockedReason) blockedSites.set(config.site, report.blockedReason);
     const known = new Map(
       (profile.targets || []).map((t) => [readerForSource(t.sourceUrl)?.idOf(t.sourceUrl), t]),
     );
@@ -251,6 +273,7 @@ async function refreshSellerProfiles(adminTabId, requestId, profiles) {
     });
     let done = 0;
     await readListingJobs(jobs, {
+      blockedSites,
       onItemDone: () =>
         send({
           type: "gemlist-fb-refresh-progress",
