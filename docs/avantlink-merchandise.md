@@ -8,12 +8,13 @@ to be added to the browser or deployment for this integration.
 
 ## Inventory and display
 
-`avantlink-contract.ts` contains an explicit allowlist of department/category
-pairs, verified against ProductTaxonomy. Each provider request includes one
-approved pair and both the Guns.com merchant and feed identifiers. Every row
-is classified again before caching and at read time. Unknown, prohibited, or
-miscategorized inventory is excluded. There is no configuration switch for
-turning this feed into a firearm/ammunition/component catalog.
+`avantlink-contract.ts` accepts Guns.com firearms, ammunition, suppressors,
+suppressor accessories, gun parts, magazines, optics and related gear. Requests
+are pinned to the merchant/feed and an approved department/category; department
+scopes include all returned subcategories. Each row is validated again before
+caching and at read time. Unknown departments and spoofed merchant/link data
+remain excluded. Firearms and related accessories map into Firearms; apparel
+retains its clothing category. Suppressors use the existing Parts accessory filter.
 
 Approved records retain their original fields server-side, excluding the
 executable widget script. The normal listing card/detail route presents real
@@ -46,7 +47,9 @@ half-hour `POST /api/internal/service-ratings` schedule advances one eligible
 category page per run, with a 24-hour successful-refresh interval per category.
 An atomic DB lease prevents simultaneous refreshes of the same page. The
 shared limits are 200 requests per rolling day and 60 per rolling hour; pages
-request 1,000 records, up to ten pages per category. A cap or failed refresh
+request 250 records, up to 10,000 records per scope. Incomplete pages and failed
+requests receive a 31-minute cooldown so one slow scope cannot monopolize the
+half-hour scheduler. Requests allow 55 seconds for the provider to respond. A cap or failed refresh
 preserves the previous good inventory and records the incomplete state.
 The published provider ProductSearch limits are 3,600/hour and 15,000/day;
 Bluebird's smaller refresh budget is sufficient for the configured scopes.
