@@ -139,10 +139,15 @@ export async function advanceMerchandiseFeed(db?: Database) {
       Number(s?.next_offset ?? 0) < 10000 &&
       (s?.next_offset || !s?.completed_at || Date.parse(s.completed_at) < Date.now() - 86400000)
     );
-  }).sort(
-    (a, b) =>
+  }).sort((a, b) => {
+    // Never-fetched sections first, so deep pagination of one large section
+    // cannot starve others (e.g. shotguns, ammunition) for days.
+    const started = (s: MerchandiseScope) => (states.has(scopeKey(s)) ? 1 : 0);
+    return (
+      started(a) - started(b) ||
       (Date.parse(states.get(scopeKey(a))?.completed_at ?? "") || 0) -
-      (Date.parse(states.get(scopeKey(b))?.completed_at ?? "") || 0),
-  );
+        (Date.parse(states.get(scopeKey(b))?.completed_at ?? "") || 0)
+    );
+  });
   return due[0] ? refreshMerchandisePage(due[0], db) : { skipped: true, reason: "fresh" };
 }
