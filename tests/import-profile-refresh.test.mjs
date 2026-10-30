@@ -151,6 +151,7 @@ function profileHarness(site, pages) {
         },
       },
     },
+    autoScrollWhatnot: async () => ({ complete: true }),
     waitForPage: async () => true,
     exec: async (_id, fn) => (fn.name === "isBotCheckPage" ? false : pages[current]),
   });
@@ -404,4 +405,37 @@ test("removed import sources cannot be handed to Refresh All or single-seller sc
     ["active"],
   );
   assert.equal(scannableProfiles(profiles, "removed").profiles.length, 0);
+});
+
+test("Whatnot keeps real-wheel pagination and detaches its debugger after reaching the advertised count", async () => {
+  let count = 1;
+  const calls = [];
+  const c = vm.createContext({
+    exec: async () => ({ expected: 3, count, y: 100, max: 100, width: 1000, height: 1000 }),
+    sleep: async () => {},
+    chrome: {
+      debugger: {
+        attach: async () => calls.push("attach"),
+        sendCommand: async (_target, method, args) => {
+          calls.push(method);
+          if (args.deltaY > 0) count++;
+        },
+        detach: async () => calls.push("detach"),
+      },
+    },
+  });
+  const background = load("background.js");
+  vm.runInContext(
+    background.slice(
+      background.indexOf("function whatnotShopStatus("),
+      background.indexOf("// Runs inside the profile page."),
+    ),
+    c,
+  );
+  const result = await c.autoScrollWhatnot(1);
+  assert.equal(result.complete, true);
+  assert.equal(result.count, 3);
+  assert.equal(calls[0], "attach");
+  assert.ok(calls.includes("Input.dispatchMouseEvent"));
+  assert.equal(calls.at(-1), "detach");
 });

@@ -108,6 +108,80 @@ async function autoScroll(tabId, onProgress) {
   }
 }
 
+function whatnotShopStatus(tabId) {
+  return exec(tabId, () => {
+    const expected =
+      Number(
+        (document.body.innerText.match(/Products\s*\((\d[\d,]*)\)/) || [])[1]?.replace(/,/g, ""),
+      ) || 0;
+    const selector = "a[href^='/listing/'], a[href*='whatnot.com/listing/']";
+    const count = new Set(
+      Array.from(document.querySelectorAll(selector))
+        .filter((a) => !a.closest("header, nav, footer"))
+        .map((a) => a.href.split("?")[0]),
+    ).size;
+    return {
+      expected,
+      count,
+      y: window.scrollY,
+      max: Math.max(0, document.documentElement.scrollHeight - window.innerHeight),
+      width: window.innerWidth,
+      height: window.innerHeight,
+    };
+  });
+}
+
+/** Whatnot's shop advances only after real wheel input reaches its lazy-load sentinel. */
+async function autoScrollWhatnot(tabId, onProgress) {
+  let status = await whatnotShopStatus(tabId);
+  if (status.expected > 0 && status.count >= status.expected) return { ...status, complete: true };
+
+  await chrome.debugger.attach({ tabId }, "1.3");
+  let stagnantAtEnd = 0;
+  try {
+    for (let i = 0; i < 160; i++) {
+      // At the end of the currently loaded page, move away and back so each
+      // page of results gets a fresh trusted scroll event after it is appended.
+      if (status.y >= status.max - 12) {
+        await chrome.debugger.sendCommand({ tabId }, "Input.dispatchMouseEvent", {
+          type: "mouseWheel",
+          x: Math.max(80, Math.min(400, status.width - 40)),
+          y: Math.max(100, Math.min(400, status.height - 40)),
+          deltaX: 0,
+          deltaY: -500,
+        });
+        await sleep(150);
+      }
+      await chrome.debugger.sendCommand({ tabId }, "Input.dispatchMouseEvent", {
+        type: "mouseWheel",
+        x: Math.max(80, Math.min(400, status.width - 40)),
+        y: Math.max(100, Math.min(400, status.height - 40)),
+        deltaX: 0,
+        deltaY: 700,
+      });
+      await sleep(850);
+
+      const next = await whatnotShopStatus(tabId);
+      if (next.count > status.count) stagnantAtEnd = 0;
+      else if (next.y >= next.max - 12) stagnantAtEnd++;
+      else stagnantAtEnd = 0;
+      status = next;
+      if (onProgress) await onProgress(status);
+
+      if (status.expected > 0 && status.count >= status.expected)
+        return { ...status, complete: true };
+      if (stagnantAtEnd >= 5) break;
+    }
+  } finally {
+    await chrome.debugger.detach({ tabId }).catch(() => {});
+  }
+
+  return {
+    ...status,
+    complete: status.expected > 0 ? status.count >= status.expected : stagnantAtEnd >= 5,
+  };
+}
+
 // Runs inside the profile page. Facebook mixes unrelated recommendations
 // into the same grid once you scroll past a seller's real listings, but
 // tags them apart in the link itself (confirmed live): the seller's own
