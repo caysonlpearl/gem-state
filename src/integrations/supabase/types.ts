@@ -2030,6 +2030,284 @@ export type Database = {
         }
         Relationships: []
       }
+      editorial_articles: {
+        Row: {
+          author_name: string
+          author_url: string | null
+          body_html: string
+          category_slugs: string[]
+          city: string | null
+          content_modified_at: string
+          created_at: string
+          draft_text: string | null
+          excerpt: string
+          featured: boolean
+          guide_path: string | null
+          id: string
+          image_credit: string | null
+          image_rights: string | null
+          image_url: string | null
+          kind: string
+          manual_revision: number
+          pending_update: Json | null
+          published_at: string
+          review_reason: string | null
+          slug: string
+          source_hash: string | null
+          source_id: string | null
+          source_name: string | null
+          source_published_at: string | null
+          source_url: string | null
+          state: string
+          status: string
+          title: string
+          topic: string
+          updated_at: string
+        }
+        Insert: {
+          author_name?: string
+          author_url?: string | null
+          body_html?: string
+          category_slugs?: string[]
+          city?: string | null
+          content_modified_at?: string
+          created_at?: string
+          draft_text?: string | null
+          excerpt?: string
+          featured?: boolean
+          guide_path?: string | null
+          id?: string
+          image_credit?: string | null
+          image_rights?: string | null
+          image_url?: string | null
+          kind: string
+          manual_revision?: number
+          pending_update?: Json | null
+          published_at?: string
+          review_reason?: string | null
+          slug: string
+          source_hash?: string | null
+          source_id?: string | null
+          source_name?: string | null
+          source_published_at?: string | null
+          source_url?: string | null
+          state?: string
+          status?: string
+          title: string
+          topic?: string
+          updated_at?: string
+        }
+        Update: {
+          author_name?: string
+          author_url?: string | null
+          body_html?: string
+          category_slugs?: string[]
+          city?: string | null
+          content_modified_at?: string
+          created_at?: string
+          draft_text?: string | null
+          excerpt?: string
+          featured?: boolean
+          guide_path?: string | null
+          id?: string
+          image_credit?: string | null
+          image_rights?: string | null
+          image_url?: string | null
+          kind?: string
+          manual_revision?: number
+          pending_update?: Json | null
+          published_at?: string
+          review_reason?: string | null
+          slug?: string
+          source_hash?: string | null
+          source_id?: string | null
+          source_name?: string | null
+          source_published_at?: string | null
+          source_url?: string | null
+          state?: string
+          status?: string
+          title?: string
+          topic?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "editorial_articles_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "editorial_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      editorial_audit_events: {
+        Row: {
+          action: string
+          actor_user_id: string | null
+          article_id: string | null
+          created_at: string
+          details: Json
+          id: string
+          source_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_user_id?: string | null
+          article_id?: string | null
+          created_at?: string
+          details?: Json
+          id?: string
+          source_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_user_id?: string | null
+          article_id?: string | null
+          created_at?: string
+          details?: Json
+          id?: string
+          source_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "editorial_audit_events_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "editorial_articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "editorial_audit_events_article_id_fkey"
+            columns: ["article_id"]
+            isOneToOne: false
+            referencedRelation: "editorial_public_articles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "editorial_audit_events_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "editorial_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      editorial_refresh_runs: {
+        Row: {
+          created: number
+          discovered: number
+          error: string | null
+          finished_at: string | null
+          id: string
+          review_count: number
+          source_id: string | null
+          started_at: string
+          status: string
+          updated: number
+        }
+        Insert: {
+          created?: number
+          discovered?: number
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          review_count?: number
+          source_id?: string | null
+          started_at?: string
+          status?: string
+          updated?: number
+        }
+        Update: {
+          created?: number
+          discovered?: number
+          error?: string | null
+          finished_at?: string | null
+          id?: string
+          review_count?: number
+          source_id?: string | null
+          started_at?: string
+          status?: string
+          updated?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "editorial_refresh_runs_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "editorial_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      editorial_sources: {
+        Row: {
+          auto_publish: boolean
+          enabled: boolean
+          etag: string | null
+          feed_url: string
+          id: string
+          images_permitted: boolean
+          key: string
+          last_attempt_at: string | null
+          last_error: string | null
+          last_modified: string | null
+          last_success_at: string | null
+          name: string
+          next_refresh_at: string
+          permission_note: string
+          refresh_lease_until: string | null
+          refresh_token: string | null
+          state: string
+          updated_at: string
+          usage: string
+          website: string
+        }
+        Insert: {
+          auto_publish?: boolean
+          enabled?: boolean
+          etag?: string | null
+          feed_url: string
+          id?: string
+          images_permitted?: boolean
+          key: string
+          last_attempt_at?: string | null
+          last_error?: string | null
+          last_modified?: string | null
+          last_success_at?: string | null
+          name: string
+          next_refresh_at?: string
+          permission_note?: string
+          refresh_lease_until?: string | null
+          refresh_token?: string | null
+          state: string
+          updated_at?: string
+          usage?: string
+          website: string
+        }
+        Update: {
+          auto_publish?: boolean
+          enabled?: boolean
+          etag?: string | null
+          feed_url?: string
+          id?: string
+          images_permitted?: boolean
+          key?: string
+          last_attempt_at?: string | null
+          last_error?: string | null
+          last_modified?: string | null
+          last_success_at?: string | null
+          name?: string
+          next_refresh_at?: string
+          permission_note?: string
+          refresh_lease_until?: string | null
+          refresh_token?: string | null
+          state?: string
+          updated_at?: string
+          usage?: string
+          website?: string
+        }
+        Relationships: []
+      }
       employer_logo_matches: {
         Row: {
           checked_at: string
@@ -6494,6 +6772,51 @@ export type Database = {
           },
         ]
       }
+      editorial_public_articles: {
+        Row: {
+          author_name: string | null
+          author_url: string | null
+          body_html: string | null
+          category_slugs: string[] | null
+          city: string | null
+          content_modified_at: string | null
+          created_at: string | null
+          draft_text: string | null
+          excerpt: string | null
+          featured: boolean | null
+          guide_path: string | null
+          id: string | null
+          image_credit: string | null
+          image_rights: string | null
+          image_url: string | null
+          kind: string | null
+          manual_revision: number | null
+          pending_update: Json | null
+          published_at: string | null
+          review_reason: string | null
+          slug: string | null
+          source_hash: string | null
+          source_id: string | null
+          source_images_permitted: boolean | null
+          source_name: string | null
+          source_published_at: string | null
+          source_url: string | null
+          state: string | null
+          status: string | null
+          title: string | null
+          topic: string | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "editorial_articles_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "editorial_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       public_profile_display: {
         Row: {
           avatar_url: string | null
@@ -7710,6 +8033,10 @@ export type Database = {
       reserve_avantlink_merchandise_page: {
         Args: { p_scope_key: string }
         Returns: Json
+      }
+      reserve_editorial_refresh: {
+        Args: { _force?: boolean; _source_id: string }
+        Returns: string
       }
       reserve_exact_ask_for_stripe: {
         Args: {
