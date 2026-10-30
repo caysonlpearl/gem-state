@@ -184,7 +184,7 @@ test("the cached payload keeps Idaho cars in the first row and the wider motors 
   const now = Date.now();
   const s = snapshot(now, [
     card("native-car", { categorySlug: "cars-trucks", vehicle: { make: "Toyota" } }),
-    card("trailer", { categorySlug: "trailers", vehicle: { make: "Utility" } }),
+    card("trailer", { categorySlug: "trailers", vehicle: null }),
   ]);
   s.sections.vehicles = {
     updatedAt: now,

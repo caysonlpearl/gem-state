@@ -1,5 +1,6 @@
 import type { ClassifiedCard, ClassifiedsHome, ClassifiedsHomeLead } from "./classifieds.functions";
 import type { ListingCardSummary } from "./listing-card-summary";
+import { classifiedCategories } from "../config/classifieds.ts";
 
 export const HOME_SNAPSHOT_VERSION = 1;
 export const HOME_REFRESH_MS = 5 * 60_000;
@@ -127,6 +128,11 @@ const newest = (a: ListingCardSummary, b: ListingCardSummary) =>
   Number(b.isFeatured) - Number(a.isFeatured) ||
   (Date.parse(b.createdAt) || 0) - (Date.parse(a.createdAt) || 0) ||
   a.id.localeCompare(b.id);
+const motorCategories = new Set<string>(
+  classifiedCategories
+    .filter((category) => category.group === "motors")
+    .map((category) => category.slug),
+);
 export function uniqueHomeCards(cards: ListingCardSummary[]) {
   return [...new Map(cards.map((card) => [card.id, card])).values()];
 }
@@ -142,7 +148,10 @@ export function homepagePayload(
     return section && now - section.updatedAt <= HOME_MAX_STALE_MS ? section.cards : [];
   };
   const native = rows("native");
-  const motors = uniqueHomeCards([...native.filter((c) => c.vehicle), ...rows("vehicles")])
+  const motors = uniqueHomeCards([
+    ...native.filter((c) => motorCategories.has(c.categorySlug ?? "")),
+    ...rows("vehicles"),
+  ])
     .filter((c) => c.state === "ID")
     .sort(newest);
   const recent = uniqueHomeCards([
