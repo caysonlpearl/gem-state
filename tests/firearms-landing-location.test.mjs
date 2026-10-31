@@ -81,6 +81,20 @@ test("Latest-only restriction does not change ammunition previews or full browse
   assert.deepEqual(context.latestListingsInput({ category: "pets", ...location }), inputFromSearch({ category: "pets", ...location }));
 });
 
+test("Latest firearm selection mixes available firearm types and rejects ammunition and gear", () => {
+  for (const name of ["varietyOf", "varietyOfFirearms"]) {
+    const node = file.statements.find((node) => ts.isFunctionDeclaration(node) && node.name?.text === name);
+    assert.ok(node);
+    vm.runInContext(ts.transpile(node.getText(file), { target: ts.ScriptTarget.ES2022 }), context);
+  }
+  const card = (id, listingType, firearmType) => ({ id, title: id, itemDetails: { listingType, firearmType } });
+  const inventory = [card("ammo", "Accessory"), card("case", "Accessory"),
+    card("shotgun1", "Firearm", "Shotgun"), card("shotgun2", "Firearm", "Shotgun"),
+    card("rifle", "Firearm", "Rifle"), card("handgun", "Firearm", "Handgun")];
+  assert.deepEqual(Array.from(context.varietyOfFirearms(inventory, 4), (card) => card.id),
+    ["shotgun1", "rifle", "handgun", "shotgun2"]);
+});
+
 test("Every Firearms showcase row keeps its specific inventory filter without carried location", () => {
   const rowsDeclaration = file.statements.find(
     (node) => ts.isVariableStatement(node) && node.declarationList.declarations.some(

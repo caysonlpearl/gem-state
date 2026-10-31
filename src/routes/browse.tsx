@@ -2329,7 +2329,7 @@ function Browse() {
             title="Latest firearm listings"
             action="Browse all firearms"
             browseSearch={{ category: "firearms", firearmMode: "results" }}
-            listings={result.listings}
+            listings={varietyOfFirearms(result.listings, 4)}
             mobileCarousel
           />
           <FirearmsCategoryShowcase
@@ -3946,6 +3946,21 @@ function varietyOf<T extends { id: string; title: string }>(listings: readonly T
     if (!picked.includes(listing)) picked.push(listing);
   }
   return picked;
+}
+
+function varietyOfFirearms(listings: readonly ClassifiedCard[], count: number): ClassifiedCard[] {
+  const firearms = listings.filter((listing) => listing.itemDetails?.listingType === "Firearm");
+  const seenTypes = new Set<string>();
+  const differentTypes = firearms.filter((listing) => {
+    const type = String(listing.itemDetails?.firearmType ?? "Other firearm");
+    if (seenTypes.has(type)) return false;
+    seenTypes.add(type);
+    return true;
+  }).slice(0, count);
+  return [
+    ...differentTypes,
+    ...varietyOf(firearms.filter((listing) => !differentTypes.includes(listing)), count - differentTypes.length),
+  ];
 }
 
 function LandingListingsShowcase({
