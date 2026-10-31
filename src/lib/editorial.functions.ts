@@ -77,7 +77,10 @@ export const getNewsIndex = createServerFn({ method: "GET" })
       .order("id")
       .range((data.page - 1) * NEWS_PAGE_SIZE, data.page * NEWS_PAGE_SIZE - 1)
       .abortSignal(AbortSignal.timeout(4000));
-    if (error) throw new Error("Bluebird Local is temporarily unavailable. Please try again.");
+    // PostgREST reports an out-of-range page as 416 rather than an empty
+    // result. Let the route return its normal 404 for that page.
+    if (error && !(data.page > 1 && error.code === "PGRST103"))
+      throw new Error("Bluebird Local is temporarily unavailable. Please try again.");
     return {
       cards: ((rows || []) as any[]).map((row: any) =>
         publicCard({ ...articleFromRow(row), sourceImagesPermitted: row.source_images_permitted }),
