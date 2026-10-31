@@ -1,4 +1,4 @@
-import { createFileRoute, notFound } from "@tanstack/react-router";
+import { createFileRoute, notFound, useRouter } from "@tanstack/react-router";
 import { ArrowRight } from "@phosphor-icons/react";
 import { brand } from "@/config/brand";
 import { newsFilters, NEWS_TOPICS, type NewsFilters } from "@/lib/editorial-contract";
@@ -39,7 +39,36 @@ export const Route = createFileRoute("/news/")({
     ],
   }),
   component: NewsIndex,
+  errorComponent: NewsIndexUnavailable,
 });
+function NewsIndexUnavailable({ reset }: { reset: () => void }) {
+  const router = useRouter();
+  return (
+    <section className="mx-auto max-w-[820px] px-4 py-12 sm:px-6">
+      <h1 className="text-3xl font-bold">Bluebird Local</h1>
+      <p className="mt-4 text-muted-foreground">
+        Stories are taking longer to load. You can still explore the classifieds and our buying
+        guides.
+      </p>
+      <div className="my-6 flex flex-wrap gap-4 text-sm font-semibold">
+        <button
+          type="button"
+          className="underline"
+          onClick={() => {
+            void router.invalidate();
+            reset();
+          }}
+        >
+          Try again
+        </button>
+        <a className="underline" href="/guides">
+          Read Bluebird buying guides
+        </a>
+      </div>
+      <EditorialCta articleId="news-index" placement="news_unavailable" />
+    </section>
+  );
+}
 function pageHref(search: NewsFilters, page: number) {
   const params = new URLSearchParams();
   if (search.topic) params.set("topic", search.topic);
