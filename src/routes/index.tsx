@@ -20,7 +20,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { ArrowRight, MagnifyingGlass, Car } from "@phosphor-icons/react";
+import { ArrowRight, MagnifyingGlass, Car, Crosshair, MapTrifold } from "@phosphor-icons/react";
 
 import { brand } from "@/config/brand";
 import {
@@ -56,6 +56,9 @@ const LocationRadiusPicker = lazy(() =>
     default: module.LocationRadiusPicker,
   })),
 );
+
+const locationActionClass =
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-primary/30 bg-card/95 px-3.5 py-2 font-semibold text-primary shadow-sm transition-colors hover:border-primary/60 hover:bg-card disabled:cursor-wait disabled:opacity-60";
 
 const homeQuery = queryOptions({
   queryKey: ["classifieds-home"],
@@ -542,8 +545,10 @@ function Home() {
               Search
             </button>
           </form>
-          <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-0 text-[12px] sm:mt-3 sm:gap-y-2 text-muted-foreground">
-            <span className="font-semibold text-foreground">Search area: {locationSummary}</span>
+          <div className="mt-3 flex flex-wrap items-center gap-3 text-[12px] text-muted-foreground sm:mt-4">
+            <span className="basis-full font-semibold leading-relaxed text-foreground sm:mr-1 sm:basis-auto">
+              Search area: {locationSummary}
+            </span>
             <button
               type="button"
               disabled={locating}
@@ -551,16 +556,18 @@ function Home() {
                 manualLocationRef.current = false;
                 void locateVisitor(false);
               }}
-              className="inline-flex min-h-9 items-center font-semibold text-primary sm:min-h-11 underline-offset-2 hover:underline disabled:opacity-60"
+              className={locationActionClass}
             >
+              <Crosshair size={16} aria-hidden="true" />
               {locating ? "Finding location…" : "Use my location"}
             </button>
             <button
               type="button"
               onClick={() => setMapOpen((open) => !open)}
-              className="inline-flex min-h-9 items-center font-semibold text-primary sm:min-h-11 underline-offset-2 hover:underline"
+              className={locationActionClass}
               aria-expanded={mapOpen}
             >
+              <MapTrifold size={16} aria-hidden="true" />
               {mapOpen ? "Hide map" : "Choose anywhere on map"}
             </button>
             {/* The radius only means something around a chosen city or map
