@@ -2961,7 +2961,7 @@ function FirearmsLandingHero({
   return (
     <section
       aria-label="Bluebird Marketplace firearms"
-      className="classifieds-hero-shell relative isolate flex flex-col justify-center sm:min-h-[430px] overflow-hidden rounded-[32px] border border-brand-blue/20 bg-secondary px-4 pb-5 pt-4 shadow-xl sm:px-10 sm:pb-12 sm:pt-20"
+      className="classifieds-hero-shell relative isolate flex flex-col justify-center overflow-hidden rounded-[32px] border border-brand-blue/20 bg-secondary px-4 pb-5 pt-4 shadow-xl sm:px-10 sm:pb-8 sm:pt-[72px] xl:pt-12"
     >
       <span
         className="classifieds-hero-orb classifieds-hero-orb--blue absolute -right-20 -top-24 h-72 w-72 rounded-full bg-brand-blue/12"
@@ -2975,7 +2975,7 @@ function FirearmsLandingHero({
         className="classifieds-hero-sheen pointer-events-none absolute inset-y-0 -left-1/3 z-0 w-1/3 skew-x-[-18deg] bg-white/20"
         aria-hidden="true"
       />
-      <div className="relative z-20 mb-4 flex justify-end sm:absolute sm:right-10 sm:top-6 sm:mb-0">
+      <div className="relative z-20 mb-4 flex justify-end sm:absolute sm:right-10 sm:top-4 sm:mb-0">
         <SponsoredHeroBadge />
       </div>
       <div className="relative z-10 mx-auto w-full max-w-[920px] text-center">
