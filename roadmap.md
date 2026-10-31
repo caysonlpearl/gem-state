@@ -1,5 +1,8 @@
 # Gem State Classifieds conversion
 
+## Missing shotguns and ammunition
+- [ ] Diagnose current refresh attempts and provider responses, correct the blocker, and verify real inventory in both rows.
+
 ## Firearms showcase rows
 - [x] Ignore carried geography in firearm landing subcategory previews while keeping each row's type filters.
 - [x] Interleave listing rows between firearm type, popular brands and accessory navigation sections.
