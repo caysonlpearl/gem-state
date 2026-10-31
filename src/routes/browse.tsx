@@ -3856,18 +3856,29 @@ function HomepageShowcaseRows({
   );
 }
 
-function SponsoredHeroBadge() {
+function SponsoredHeroBadge({ compact = false }: { compact?: boolean } = {}) {
   return (
     <Link
       to="/advertise"
       aria-label="Sponsored by Bluebird Marketplace — learn about advertising with us"
-      className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-accent/70 bg-primary/90 px-2 py-1 text-left text-primary-foreground shadow-lg backdrop-blur-md transition-transform hover:-translate-y-0.5 sm:gap-2.5 sm:px-3.5 sm:py-2"
+      className={`inline-flex max-w-full items-center rounded-full border border-accent/70 bg-primary/90 text-left text-primary-foreground backdrop-blur-md transition-transform hover:-translate-y-0.5 ${compact ? "max-w-[190px] gap-1.5 px-2 py-1 shadow-sm sm:max-w-none sm:px-2.5" : "gap-1.5 px-2 py-1 shadow-lg sm:gap-2.5 sm:px-3.5 sm:py-2"}`}
     >
-      <span className="grid size-5 shrink-0 sm:size-7 place-items-center rounded-full bg-accent text-accent-foreground">
-        <Megaphone size={15} className="size-3 sm:size-[15px]" weight="fill" aria-hidden="true" />
+      <span
+        className={`grid size-5 shrink-0 place-items-center rounded-full bg-accent text-accent-foreground ${compact ? "" : "sm:size-7"}`}
+      >
+        <Megaphone
+          size={15}
+          className={compact ? "size-3" : "size-3 sm:size-[15px]"}
+          weight="fill"
+          aria-hidden="true"
+        />
       </span>
-      <span className="min-w-0 flex-1 whitespace-normal text-[9px] font-bold uppercase leading-snug tracking-[0.1em] text-accent sm:text-[10px] sm:tracking-[0.12em]">
-        <span className="sm:hidden">SPONSORED BY BLUEBIRD MARKETPLACE</span>
+      <span
+        className={`min-w-0 flex-1 whitespace-normal font-bold uppercase leading-snug text-accent ${compact ? "text-[9px] tracking-[0.04em]" : "text-[9px] tracking-[0.1em] sm:text-[10px] sm:tracking-[0.12em]"}`}
+      >
+        <span className="sm:hidden">
+          {compact ? "SPONSORED BY BLUEBIRD" : "SPONSORED BY BLUEBIRD MARKETPLACE"}
+        </span>
         <span className="hidden sm:inline">SPONSORED BY BLUEBIRD MARKETPLACE</span>
       </span>
       <ArrowRight
@@ -6855,23 +6866,50 @@ function VehicleBrowseHero({
     }
   }
 
+  const filterIsActive = (key: VehicleHeroFilter) => {
+    switch (key) {
+      case "makeModel":
+        return Boolean(search.make || search.model);
+      case "year":
+        return search.yearMin != null || search.yearMax != null;
+      case "price":
+        return search.priceMin != null || search.priceMax != null;
+      case "mileage":
+        return Boolean(search.mileageBands) || search.mileageMax != null;
+      case "location":
+        return Boolean(
+          search.city ||
+          search.state ||
+          search.region ||
+          search.postalCode ||
+          search.latitude != null ||
+          search.longitude != null,
+        );
+      default:
+        return Boolean(search[key]);
+    }
+  };
+
   return (
-    <section className="floating-card relative overflow-visible bg-surface px-4 py-4 sm:px-8 sm:py-14">
+    <section
+      aria-label="Bluebird Motors vehicle search"
+      className="floating-card relative overflow-visible bg-surface px-4 py-4 sm:px-8 sm:py-6"
+    >
       <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]">
-        <div className="absolute -right-24 -top-32 h-72 w-72 rounded-full bg-brand-warm/35" />
-        <div className="absolute -bottom-36 left-1/3 h-64 w-64 rounded-full bg-primary/5" />
+        <div className="absolute -right-24 -top-32 h-72 w-72 rounded-full bg-brand-blue/12" />
+        <div className="absolute -bottom-40 left-1/3 h-64 w-64 rounded-full bg-brand-warm/20" />
       </div>
-      <div className="relative z-20 mb-3 flex justify-end sm:absolute sm:right-7 sm:top-7 sm:mb-0">
-        <SponsoredHeroBadge />
+      <div className="relative flex items-center justify-between gap-3">
+        <p className="shrink-0 font-mono text-[9px] font-semibold uppercase tracking-[0.18em] text-primary sm:text-[10px]">
+          Bluebird motors
+        </p>
+        <SponsoredHeroBadge compact />
       </div>
 
-      <div className="relative pt-0 sm:pt-10">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
-              Bluebird motors
-            </p>
-            <h1 className="mt-2 max-w-[22ch] text-[30px] font-bold leading-tight tracking-tight sm:text-[38px]">
+      <div className="relative mt-5 sm:mt-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="max-w-[22ch] text-[30px] font-bold leading-tight tracking-tight sm:text-[38px]">
               Find your next gem on wheels.
             </h1>
             <p className="mt-2 max-w-[52ch] text-[13.5px] leading-relaxed text-muted-foreground">
@@ -6879,10 +6917,10 @@ function VehicleBrowseHero({
             </p>
           </div>
 
-          <div className="grid w-full max-w-[360px] grid-cols-2 rounded-2xl bg-card p-1.5 shadow-sm ring-1 ring-border/70">
+          <div className="grid w-[184px] shrink-0 grid-cols-2 self-start rounded-full border border-primary/15 bg-white p-1 shadow-sm sm:self-auto">
             <button
               type="button"
-              className="h-14 rounded-xl bg-primary px-5 text-[16px] font-bold text-primary-foreground shadow-sm"
+              className="h-9 rounded-full bg-primary px-4 text-[13px] font-bold text-primary-foreground"
               aria-pressed="true"
             >
               Buy
@@ -6890,7 +6928,7 @@ function VehicleBrowseHero({
             <button
               type="button"
               onClick={onSell}
-              className="h-14 rounded-xl px-5 text-[16px] font-bold text-foreground transition-colors hover:bg-secondary"
+              className="h-9 rounded-full px-4 text-[13px] font-semibold text-primary transition-colors hover:bg-brand-blue/10"
             >
               Sell
             </button>
@@ -6898,18 +6936,17 @@ function VehicleBrowseHero({
         </div>
 
         <form
-          className="mt-7 grid gap-2 rounded-2xl bg-card p-2 shadow-sm ring-1 ring-border/60 sm:grid-cols-2 lg:grid-cols-4"
+          aria-label="Vehicle quick search"
+          className="mt-5 grid grid-cols-2 gap-2 rounded-2xl border border-brand-blue/15 bg-brand-blue/5 p-2 sm:gap-3 sm:p-3 lg:grid-cols-4"
           onSubmit={(event) => {
             event.preventDefault();
             onSearch();
           }}
         >
-          <label className="relative flex h-14 items-center rounded-xl border border-transparent bg-secondary/55 px-3 focus-within:border-primary/40 focus-within:bg-card">
-            <MagnifyingGlass
-              size={18}
-              className="shrink-0 text-muted-foreground"
-              aria-hidden="true"
-            />
+          <label
+            className={`relative flex h-12 min-w-0 items-center rounded-xl border px-3 shadow-sm transition-colors focus-within:border-brand-blue focus-within:ring-2 focus-within:ring-brand-blue/15 ${term ? "border-brand-blue/50 bg-brand-blue/10" : "border-primary/15 bg-white"}`}
+          >
+            <MagnifyingGlass size={18} className="shrink-0 text-brand-blue" aria-hidden="true" />
             <span className="sr-only">Search vehicles</span>
             <input
               type="search"
@@ -6917,90 +6954,98 @@ function VehicleBrowseHero({
               onChange={(event) => onTermChange(event.target.value)}
               placeholder="Search for..."
               aria-label="Search vehicles"
-              className="min-w-0 flex-1 bg-transparent px-2 text-[13.5px] outline-none placeholder:text-muted-foreground"
+              className="w-full min-w-0 flex-1 bg-transparent px-2 text-[16px] text-primary outline-none placeholder:text-muted-foreground sm:text-[13.5px]"
             />
             {term && (
               <button
                 type="button"
                 onClick={() => onTermChange("")}
                 aria-label="Clear vehicle search"
-                className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-card hover:text-foreground"
+                className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-muted-foreground hover:bg-brand-blue/10 hover:text-primary"
               >
                 <X size={14} aria-hidden="true" />
               </button>
             )}
           </label>
-          {quickFilters.map(({ key, label }, index) => (
+          {quickFilters.map(({ key, label }) => (
             <VehicleQuickFilter
               key={key}
               label={label}
+              active={filterIsActive(key)}
               expanded={expandedFilter === key}
               onClick={() => toggleFilter(key)}
             >
               {filterPanel(key)}
             </VehicleQuickFilter>
           ))}
-          {showAllFilters &&
-            additionalFilters.map(({ key, label }, index) => (
-              <VehicleQuickFilter
-                key={key}
-                label={label}
-                expanded={expandedFilter === key}
-                onClick={() => toggleFilter(key)}
-              >
-                {filterPanel(key)}
-              </VehicleQuickFilter>
-            ))}
+          <VehicleQuickFilter
+            label={locationLabel === "Any location" ? "Location" : locationLabel}
+            ariaLabel="Select location"
+            icon={
+              <MapPin
+                size={18}
+                weight="duotone"
+                className="shrink-0 text-brand-blue"
+                aria-hidden="true"
+              />
+            }
+            active={filterIsActive("location")}
+            expanded={expandedFilter === "location"}
+            alignEnd
+            onClick={() => toggleFilter("location")}
+          >
+            {filterPanel("location")}
+          </VehicleQuickFilter>
+          {showAllFilters && (
+            <div className="col-span-full grid grid-cols-2 gap-2 border-t border-brand-blue/15 pt-3 sm:grid-cols-3 sm:gap-3">
+              {additionalFilters.map(({ key, label }) => (
+                <VehicleQuickFilter
+                  key={key}
+                  label={label}
+                  active={filterIsActive(key)}
+                  expanded={expandedFilter === key}
+                  onClick={() => toggleFilter(key)}
+                >
+                  {filterPanel(key)}
+                </VehicleQuickFilter>
+              ))}
+            </div>
+          )}
         </form>
 
-        <div className="mt-5 flex flex-col gap-3 text-[12.5px] sm:flex-row sm:items-center sm:justify-between">
-          <div className="relative self-start">
-            <button
-              type="button"
-              onClick={() =>
-                setExpandedFilter((current) => (current === "location" ? null : "location"))
-              }
-              className="inline-flex items-center gap-2 text-primary hover:underline"
-            >
-              <MapPin size={18} weight="duotone" aria-hidden="true" />
-              <span className="flex flex-col items-start leading-tight">
-                <span className="text-[10px] font-bold uppercase tracking-[0.08em]">
-                  Select location
-                </span>
-                <span className="mt-0.5 text-[12.5px] font-semibold">{locationLabel}</span>
-              </span>
-            </button>
-            {expandedFilter === "location" && (
-              <div className="absolute left-0 top-[calc(100%+8px)] z-40 w-[280px] rounded-xl bg-card p-4 text-left shadow-xl ring-1 ring-border/70">
-                <InlineLocationFilter search={search} onApply={applyInlineFilter} />
-              </div>
-            )}
-          </div>
-          <div className="flex flex-wrap items-center gap-4">
-            <button
-              type="button"
-              onClick={() => {
-                setShowAllFilters((current) => !current);
-                setExpandedFilter(null);
-              }}
-              className="inline-flex items-center gap-2 font-semibold text-primary hover:underline"
-            >
-              <FunnelSimple size={17} weight="duotone" aria-hidden="true" />
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-[12.5px]">
+          <button
+            type="button"
+            onClick={() => {
+              setShowAllFilters((current) => !current);
+              setExpandedFilter(null);
+            }}
+            className="inline-flex items-center gap-2 font-semibold text-primary underline-offset-4 hover:underline"
+          >
+            <FunnelSimple
+              size={17}
+              weight="duotone"
+              className="text-brand-blue"
+              aria-hidden="true"
+            />
+            <span className="sm:hidden">{showAllFilters ? "Fewer filters" : "All filters"}</span>
+            <span className="hidden sm:inline">
               {showAllFilters ? "Hide all search filters" : "Show all search filters"}
-              {activeFilterCount > 0 && (
-                <span className="grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1.5 text-[10px] font-bold text-accent-foreground">
-                  {activeFilterCount}
-                </span>
-              )}
-            </button>
-            <button
-              type="button"
-              onClick={onSearch}
-              className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2.5 font-bold text-primary-foreground shadow-sm transition-transform hover:-translate-y-0.5"
-            >
-              Show {resultCount.toLocaleString()} {resultCount === 1 ? "result" : "results"}
-            </button>
-          </div>
+            </span>
+            {activeFilterCount > 0 && (
+              <span className="grid h-5 min-w-5 place-items-center rounded-full bg-accent px-1.5 text-[10px] font-bold text-accent-foreground">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={onSearch}
+            className="ml-auto inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-sky-700 px-4 font-bold text-white shadow-sm transition-colors hover:bg-sky-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue sm:px-5"
+          >
+            <MagnifyingGlass size={17} aria-hidden="true" />
+            Show {resultCount.toLocaleString()} {resultCount === 1 ? "result" : "results"}
+          </button>
         </div>
       </div>
     </section>
@@ -7011,31 +7056,44 @@ function VehicleQuickFilter({
   label,
   onClick,
   expanded,
+  active = false,
+  icon,
+  ariaLabel,
+  alignEnd = false,
   children,
 }: {
   label: string;
   onClick: () => void;
   expanded: boolean;
+  active?: boolean;
+  icon?: React.ReactNode;
+  ariaLabel?: string;
+  alignEnd?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <div className={`relative ${expanded ? "z-30" : ""}`}>
+    <div className={`relative min-w-0 ${expanded ? "z-30" : ""}`}>
       <button
         type="button"
         onClick={onClick}
+        aria-label={ariaLabel ? `${ariaLabel}: ${label}` : undefined}
         aria-expanded={expanded}
-        className="flex h-[70px] w-full items-center justify-between rounded-xl border border-transparent bg-secondary/55 px-4 text-left text-[13.5px] font-semibold transition-colors hover:border-primary/40 hover:bg-card"
+        title={label}
+        className={`flex h-12 w-full items-center justify-between gap-2 rounded-xl border px-3 text-left text-[13.5px] font-semibold text-primary shadow-sm transition-colors hover:border-brand-blue/60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-blue ${active || expanded ? "border-brand-blue/50 bg-brand-blue/10" : "border-primary/15 bg-white hover:bg-brand-blue/5"}`}
       >
-        <span className="truncate">{label}</span>
+        {icon}
+        <span className="min-w-0 flex-1 truncate">{label}</span>
         <CaretDown
           size={16}
           weight="bold"
           aria-hidden="true"
-          className={`ml-2 shrink-0 text-muted-foreground transition-transform ${expanded ? "rotate-180" : ""}`}
+          className={`shrink-0 text-brand-blue transition-transform ${expanded ? "rotate-180" : ""}`}
         />
       </button>
       {expanded && (
-        <div className="absolute left-0 top-[calc(100%+8px)] z-40 w-full rounded-xl bg-card p-4 shadow-xl ring-1 ring-border/70">
+        <div
+          className={`absolute top-[calc(100%+8px)] z-40 w-full rounded-xl border border-brand-blue/20 bg-white p-3 shadow-xl ${alignEnd ? "right-0 min-w-[280px] max-w-[calc(100vw-3rem)]" : "left-0"}`}
+        >
           {children}
         </div>
       )}

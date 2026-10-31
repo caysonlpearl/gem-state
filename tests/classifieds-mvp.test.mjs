@@ -920,7 +920,7 @@ test("main homepage presents category-curated listing rows", async () => {
 });
 
 test("browse heroes surface the Bluebird sponsorship opportunity", () => {
-  assert.match(browseSource, /function SponsoredHeroBadge\(\)/);
+  assert.match(browseSource, /function SponsoredHeroBadge\(/);
   assert.match(browseSource, /Sponsored by Bluebird Marketplace/);
   assert.doesNotMatch(browseSource, /Your business could be here/);
   assert.doesNotMatch(browseSource, /eyebrow\.replace\("GemList ", ""\)/);
