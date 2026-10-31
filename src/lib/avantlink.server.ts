@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- new provider tables predate generated types */
 import {
   MERCHANDISE_SCOPES,
-  MERCHANDISE_PAGE_SIZE,
+  merchandisePageSize,
   merchandiseSearchUrl,
   normalizeMerchandise,
   scopeKey,
@@ -32,6 +32,7 @@ export async function refreshMerchandisePage(
   if (!reservation?.allowed)
     return { scope: key, skipped: true, reason: reservation?.reason ?? "unavailable" };
   const offset = Number(reservation.offset);
+  const pageSize = merchandisePageSize(scope);
   try {
     const response = await request(merchandiseSearchUrl(scope, offset), {
       headers: { Accept: "application/json" },
@@ -40,7 +41,7 @@ export async function refreshMerchandisePage(
     });
     if (!response.ok) throw new Error("provider_unavailable");
     const body: unknown = await response.json();
-    if (!Array.isArray(body) || body.length > MERCHANDISE_PAGE_SIZE)
+    if (!Array.isArray(body) || body.length > pageSize)
       throw new Error("invalid_response");
     const byId = new Map(
       body
@@ -70,7 +71,7 @@ export async function refreshMerchandisePage(
       );
       if (error) throw new Error("cache_write_failed");
     }
-    const complete = body.length < MERCHANDISE_PAGE_SIZE;
+    const complete = body.length < pageSize;
     // Only a complete, successful scan can retire missing inventory. A failed
     // or truncated refresh leaves the last good records intact.
     if (complete) {
@@ -88,9 +89,9 @@ export async function refreshMerchandisePage(
         .from("avantlink_merchandise_scopes")
         .update({
           lease_until: complete ? null : new Date(Date.now() + 31 * 60000).toISOString(),
-          next_offset: complete ? 0 : offset + MERCHANDISE_PAGE_SIZE,
+          next_offset: complete ? 0 : offset + pageSize,
           ...(complete ? { completed_at: now } : {}),
-          last_error: !complete && offset + MERCHANDISE_PAGE_SIZE >= 10000 ? "scope_limit" : null,
+          last_error: !complete && offset + pageSize >= 10000 ? "scope_limit" : null,
           received_count: Number(reservation.received ?? 0) + body.length,
           accepted_count: Number(reservation.accepted ?? 0) + products.length,
         })

@@ -1,5 +1,9 @@
 # Gem State Classifieds conversion
 
+## Missing shotguns and ammunition
+- [x] Confirmed scheduled shotgun requests timed out; reduced shotgun/ammo pages to ten items while retaining budgets, leases and safe pagination.
+- [x] Refreshed ten real products in each section; verified both rows on onbluebird.com with carried Twin Falls location. All 22 focused tests and automatic code checks passed. Code change not published.
+
 ## Firearms showcase rows
 - [x] Ignore carried geography in firearm landing subcategory previews while keeping each row's type filters.
 - [x] Interleave listing rows between firearm type, popular brands and accessory navigation sections.

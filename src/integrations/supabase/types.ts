@@ -2053,6 +2053,7 @@ export type Database = {
           published_at: string
           review_reason: string | null
           slug: string
+          source_fingerprint: string | null
           source_hash: string | null
           source_id: string | null
           source_name: string | null
@@ -2086,6 +2087,7 @@ export type Database = {
           published_at?: string
           review_reason?: string | null
           slug: string
+          source_fingerprint?: string | null
           source_hash?: string | null
           source_id?: string | null
           source_name?: string | null
@@ -2119,6 +2121,7 @@ export type Database = {
           published_at?: string
           review_reason?: string | null
           slug?: string
+          source_fingerprint?: string | null
           source_hash?: string | null
           source_id?: string | null
           source_name?: string | null
@@ -6795,6 +6798,7 @@ export type Database = {
           published_at: string | null
           review_reason: string | null
           slug: string | null
+          source_fingerprint: string | null
           source_hash: string | null
           source_id: string | null
           source_images_permitted: boolean | null
@@ -7630,6 +7634,7 @@ export type Database = {
       }
       delete_seller_review: { Args: { _seller_id: string }; Returns: undefined }
       dispatch_review_email_worker: { Args: never; Returns: undefined }
+      editorial_performance: { Args: { _days?: number }; Returns: Json }
       effective_fee_schedule: {
         Args: { _currency: string; _resort_id?: string }
         Returns: {
