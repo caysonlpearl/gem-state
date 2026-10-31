@@ -1,5 +1,10 @@
 # Gem State Classifieds conversion
 
+## Latest firearms row
+- [ ] Restrict Latest firearm listings to firearms, excluding ammunition and accessories.
+- [ ] Make this row smaller and horizontally swipeable on phones; preserve desktop and other categories.
+- [ ] Verify focused regression tests and the populated phone row.
+
 ## Missing shotguns and ammunition
 - [x] Confirmed scheduled shotgun requests timed out; reduced shotgun/ammo pages to ten items while retaining budgets, leases and safe pagination.
 - [x] Refreshed ten real products in each section; verified both rows on onbluebird.com with carried Twin Falls location. All 22 focused tests and automatic code checks passed. Code change not published.
