@@ -1,9 +1,9 @@
 # Gem State Classifieds conversion
 
 ## Latest firearms row
-- [ ] Restrict Latest firearm listings to firearms, excluding ammunition and accessories.
-- [ ] Make this row smaller and horizontally swipeable on phones; preserve desktop and other categories.
-- [ ] Verify focused regression tests and the populated phone row.
+- [x] Restrict Latest firearm listings to firearms, excluding ammunition and accessories, and prefer different available firearm types.
+- [x] Make this row smaller and horizontally swipeable on phones; preserve desktop and other categories.
+- [x] Verified 118 focused tests, automatic code checks and real firearm cards in a 220px swipeable phone row. Retailer photos remain blocked in the automated browser; not published.
 
 ## Missing shotguns and ammunition
 - [x] Confirmed scheduled shotgun requests timed out; reduced shotgun/ammo pages to ten items while retaining budgets, leases and safe pagination.
