@@ -1,3 +1,4 @@
+import { firearmShowcaseRows } from "../src/config/landing-preview-rows.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -96,14 +97,7 @@ test("Latest firearm selection mixes available firearm types and rejects ammunit
 });
 
 test("Every Firearms showcase row keeps its specific inventory filter without carried location", () => {
-  const rowsDeclaration = file.statements.find(
-    (node) => ts.isVariableStatement(node) && node.declarationList.declarations.some(
-      (item) => item.name.getText(file) === "firearmShowcaseRows",
-    ),
-  );
-  assert.ok(rowsDeclaration);
-  vm.runInContext(ts.transpile(rowsDeclaration.getText(file), { target: ts.ScriptTarget.ES2022 }), context);
-  const rows = vm.runInContext("firearmShowcaseRows", context);
+  const rows = firearmShowcaseRows;
   assert.equal(rows.length, 8);
   for (const row of rows) {
     const preview = context.showcaseSearch({ category: "firearms", ...location }, row.href);

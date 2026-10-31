@@ -53,6 +53,7 @@ export function matchesLandingCard(listing: ListingCardSummary, data: Classified
   if (data.q) {
     const needle = data.q.toLowerCase();
     if (
+      !listing.landingKeywords?.includes(needle) &&
       !`${listing.title} ${listing.job?.jobSummary ?? ""} ${listing.job?.employerName ?? ""} ${listing.service?.serviceSummary ?? ""}`
         .toLowerCase()
         .includes(needle)

@@ -4,11 +4,11 @@ import {
   HOME_MAX_STALE_MS,
   HOME_CACHE_LAYOUT_VERSION,
   HOME_SOURCE_KEYS,
-  uniqueHomeCards,
   type HomeSection,
   type HomeSourceKey,
   type HomepageSnapshot,
 } from "./homepage-snapshot-contract.ts";
+import { selectLandingCoverage } from "./landing-coverage.ts";
 import type { ClassifiedCard } from "./classifieds.functions";
 type Result = { cards: ClassifiedCard[]; total?: number; categoryCounts?: Record<string, number> };
 type Sources = Record<HomeSourceKey, () => Promise<Result>>;
@@ -60,7 +60,7 @@ const sources: Sources = {
     const { directoryCards } = await import("./service-directory.server");
     const { servicesShowcaseRows } = await import("../config/landing-service-rows.ts");
     const cards: ClassifiedCard[] = [];
-    const signal = AbortSignal.timeout(8000);
+    const signal = AbortSignal.timeout(20_000);
     // Background only: three bounded indexed trade reads at a time. A busy
     // trade cannot displace every plumber/electrician from the saved page.
     for (let index = 0; index < servicesShowcaseRows.length; index += 3) {
@@ -139,28 +139,10 @@ export async function buildHomepageSnapshot(
     let section: HomeSection | undefined;
     if (result.status === "fulfilled") {
       const value = result.value;
-      // Keep a useful category mix rather than filling all rows with one feed.
-      const counts = new Map<string, number>();
-      const cards = uniqueHomeCards(value.cards.map(homepageCard))
-        .filter((card) => {
-          const group = [
-            card.categorySlug,
-            card.home?.mode,
-            card.home?.propertyType,
-            card.job?.category,
-            card.job?.employmentType,
-            card.service?.subcategory,
-            card.pet?.subcategory,
-            card.vehicle?.bodyStyle,
-          ]
-            .filter(Boolean)
-            .join("/");
-          const limit = key === "native" ? 64 : key === "vehicles" ? 40 : 24;
-          if ((counts.get(group) ?? 0) >= limit) return false;
-          counts.set(group, (counts.get(group) ?? 0) + 1);
-          return true;
-        })
-        .slice(0, key === "native" ? 400 : key === "vehicles" ? 200 : 120);
+      const cards = selectLandingCoverage(
+        value.cards,
+        key === "native" ? 400 : key === "vehicles" ? 200 : 120,
+      ).map(homepageCard);
       section = { updatedAt: now, cards, total: value.total, categoryCounts: value.categoryCounts };
     } else {
       const saved = previous?.sections[key];

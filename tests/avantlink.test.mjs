@@ -12,6 +12,7 @@ import {
   canIncludeMerchandise,
   merchandiseCard,
   merchandiseCards,
+  merchandiseHomeCards,
   merchandiseDetail,
 } from "../src/lib/avantlink-listings.server.ts";
 import { refreshMerchandisePage } from "../src/lib/avantlink.server.ts";
@@ -460,4 +461,32 @@ test("shotgun and ammo refreshes use ten-item pages without prematurely retiring
     assert.equal(update.next_offset, 30);
     assert.equal(db.calls.some((c) => c.ops?.some((o) => o.method === "lt")), false);
   }
+});
+
+
+test("background previews sample every existing scope with compact fields and no provider requests", async (t) => {
+  t.mock.method(globalThis, "fetch", () => { throw Error("upstream request forbidden"); });
+  const scopes = ["Gear/Apparel", "Gear/Shirts", "Gear/Hats", "Gear/Drinkware", "Gear/Patches And Stickers"];
+  const db = database(call => {
+    if (call.table === "avantlink_merchandise_scopes") return {data: scopes.map(scope_key => ({scope_key}))};
+    assert.equal(call.table, "avantlink_merchandise");
+    return {data: [{...row, ...timestamps}]};
+  });
+  const cards = await merchandiseHomeCards(db);
+  assert.equal(cards.length, scopes.length);
+  const reads = db.calls.filter(c => c.table === "avantlink_merchandise");
+  assert.deepEqual(reads.map(c => c.ops.find(o => o.method === "eq" && o.args[0] === "scope_key").args[1]), scopes);
+  for (const read of reads) {
+    const selection = read.ops.find(o => o.method === "select").args[0];
+    assert.doesNotMatch(selection, /txtLongDescription|txtShortDescription|strProductContentWidgetScript/);
+    assert.match(selection, /strProductName:payload->raw->strProductName/);
+    assert.equal(read.ops.find(o => o.method === "limit").args[0], 12);
+    assert.ok(read.ops.some(o => o.method === "eq" && o.args[0] === "active" && o.args[1] === true));
+  }
+});
+
+test("a failed saved-scope read rejects so the builder retains last-good previews", async () => {
+  const db = database(call => call.table === "avantlink_merchandise_scopes"
+    ? {data:[{scope_key:"Gear/Apparel"}]} : {error:{message:"temporary failure"}});
+  await assert.rejects(merchandiseHomeCards(db), /Saved product previews/);
 });
