@@ -41,13 +41,16 @@ export async function directoryCards(
   data: ClassifiedBrowseInput,
   offset: number,
   limit: number,
+  options: { failOnError?: boolean; includeExactCount?: boolean; signal?: AbortSignal } = {},
 ): Promise<{ cards: ClassifiedCard[]; total: number }> {
   try {
     let query = (await db())
       .from("service_directory")
-      .select(DIRECTORY_COLUMNS, { count: "exact" })
+      .select(DIRECTORY_COLUMNS, options.includeExactCount === false ? {} : { count: "exact" })
       .eq("hidden", false)
-      .eq("state", "ID");
+      .eq("state", "ID")
+      .abortSignal(options.signal ?? AbortSignal.timeout(8000))
+      .retry(false);
     // The directory only covers Idaho.
     if (data.state && !/^(id|idaho)$/i.test(data.state)) return { cards: [], total: 0 };
     // A distance search centers on the chosen map point, or the chosen city.
@@ -85,7 +88,10 @@ export async function directoryCards(
       count,
       error,
     } = limit > 0 ? await query.range(offset, offset + limit - 1) : await query.limit(1);
-    if (error) return { cards: [], total: 0 };
+    if (error) {
+      if (options.failOnError) throw new Error("Saved services could not be read.");
+      return { cards: [], total: 0 };
+    }
     return {
       cards:
         limit > 0
@@ -94,6 +100,7 @@ export async function directoryCards(
       total: count ?? 0,
     };
   } catch {
+    if (options.failOnError) throw new Error("Saved services could not be read.");
     return { cards: [], total: 0 };
   }
 }

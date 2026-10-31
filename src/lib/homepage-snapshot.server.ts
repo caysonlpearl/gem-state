@@ -1,6 +1,7 @@
 import { serverEnv } from "./runtime-env.server.ts";
 import {
   HOME_MAX_STALE_MS,
+  HOME_CACHE_LAYOUT_VERSION,
   HOME_REFRESH_MS,
   validHomepageSnapshot,
   type HomepageSnapshot,
@@ -52,7 +53,11 @@ export function createHomepageSnapshotCache(store: Store, build: Builder, clock 
     if (refreshing) return refreshing;
     refreshing = (async () => {
       const previous = await read().catch(() => null);
-      if (!force && previous && clock() - previous.generatedAt < HOME_REFRESH_MS)
+      if (
+        !force &&
+        previous?.layoutVersion === HOME_CACHE_LAYOUT_VERSION &&
+        clock() - previous.generatedAt < HOME_REFRESH_MS
+      )
         return { refreshed: false, reason: "fresh" };
       if (!(await store.acquire(Math.floor(clock() / HOME_REFRESH_MS))))
         return { refreshed: false, reason: "in_progress" };
@@ -111,7 +116,10 @@ const shared = createHomepageSnapshotCache(
         await db()
       ).storage
         .from(HOMEPAGE_BUCKET)
-        .upload(`leases/${slot}.json`, "{}", { contentType: "application/json", upsert: false });
+        .upload(`leases/layout-${HOME_CACHE_LAYOUT_VERSION}/${slot}.json`, "{}", {
+          contentType: "application/json",
+          upsert: false,
+        });
       if (error && !/already exists|duplicate/i.test(error.message))
         throw new Error("Homepage refresh lease is unavailable.");
       return !error;

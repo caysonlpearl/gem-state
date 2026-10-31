@@ -2,6 +2,7 @@
 import {
   homepageCard,
   HOME_MAX_STALE_MS,
+  HOME_CACHE_LAYOUT_VERSION,
   HOME_SOURCE_KEYS,
   uniqueHomeCards,
   type HomeSection,
@@ -56,20 +57,29 @@ const sources: Sources = {
     return { cards: await withEmployerLogos(cards, { cacheOnly: true }) };
   },
   async services() {
-    const { DIRECTORY_COLUMNS, directoryCard } = await import("./service-directory-contract");
-    const { logoFor } = await import("./service-directory.server");
-    const { data, error } = await bounded(
-      (await db())
-        .from("service_directory")
-        .select(DIRECTORY_COLUMNS)
-        .eq("hidden", false)
-        .eq("state", "ID")
-        .order("priority")
-        .order("source_refreshed_at", { ascending: false })
-        .limit(64),
-    );
-    if (error) throw new Error("Services could not be read.");
-    return { cards: (data ?? []).map((row: any) => directoryCard(row, logoFor(row))) };
+    const { directoryCards } = await import("./service-directory.server");
+    const { servicesShowcaseRows } = await import("../config/landing-service-rows.ts");
+    const cards: ClassifiedCard[] = [];
+    const signal = AbortSignal.timeout(8000);
+    // Background only: three bounded indexed trade reads at a time. A busy
+    // trade cannot displace every plumber/electrician from the saved page.
+    for (let index = 0; index < servicesShowcaseRows.length; index += 3) {
+      const batch = await Promise.all(
+        servicesShowcaseRows.slice(index, index + 3).map(async (row) => {
+          const trade = new URL(row.href, "https://onbluebird.com").searchParams.get(
+            "serviceSubcategory",
+          )!;
+          return directoryCards(
+            { category: "services", state: "ID", serviceSubcategory: trade },
+            0,
+            8,
+            { failOnError: true, includeExactCount: false, signal },
+          );
+        }),
+      );
+      cards.push(...batch.flatMap((result) => result.cards));
+    }
+    return { cards };
   },
   async pets() {
     const { rescueGroupsCard } = await import("./rescuegroups.server");
@@ -133,15 +143,24 @@ export async function buildHomepageSnapshot(
       const counts = new Map<string, number>();
       const cards = uniqueHomeCards(value.cards.map(homepageCard))
         .filter((card) => {
-          const group = [card.categorySlug, card.home?.mode, card.job?.employmentType]
+          const group = [
+            card.categorySlug,
+            card.home?.mode,
+            card.home?.propertyType,
+            card.job?.category,
+            card.job?.employmentType,
+            card.service?.subcategory,
+            card.pet?.subcategory,
+            card.vehicle?.bodyStyle,
+          ]
             .filter(Boolean)
             .join("/");
-          const limit = key === "native" ? 16 : key === "vehicles" ? 80 : 24;
+          const limit = key === "native" ? 64 : key === "vehicles" ? 40 : 24;
           if ((counts.get(group) ?? 0) >= limit) return false;
           counts.set(group, (counts.get(group) ?? 0) + 1);
           return true;
         })
-        .slice(0, key === "native" ? 240 : 100);
+        .slice(0, key === "native" ? 400 : key === "vehicles" ? 200 : 120);
       section = { updatedAt: now, cards, total: value.total, categoryCounts: value.categoryCounts };
     } else {
       const saved = previous?.sections[key];
@@ -152,5 +171,10 @@ export async function buildHomepageSnapshot(
       sections[key] = { ...section, cards: section.cards.filter((card) => !removed.has(card.id)) };
   }
   if (!Object.keys(sections).length) throw new Error("No homepage sources could be refreshed.");
-  return { version: 1 as const, generatedAt: now, sections };
+  return {
+    version: 1 as const,
+    layoutVersion: HOME_CACHE_LAYOUT_VERSION,
+    generatedAt: now,
+    sections,
+  };
 }

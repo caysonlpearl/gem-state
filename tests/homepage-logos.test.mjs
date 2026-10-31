@@ -120,5 +120,10 @@ test("the shared homepage builder applies both existing logo decorators", () => 
     "utf8",
   );
   assert.match(builder, /withEmployerLogos\(cards,\s*\{ cacheOnly: true \}\)/);
-  assert.match(builder, /directoryCard\(row, logoFor\(row\)\)/);
+  assert.match(builder, /directoryCards\(/);
+  const directory = readFileSync(
+    new URL("../src/lib/service-directory.server.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(directory, /directoryCard\(row, logoFor\(row\)\)/);
 });

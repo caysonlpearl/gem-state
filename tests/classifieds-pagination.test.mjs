@@ -237,6 +237,8 @@ function harness({
     isOutOfRangePage,
     notFound: () => Object.assign(new Error("notFound"), { isNotFound: true }),
     classifiedQuery: (input) => input,
+    // This harness exercises result pagination; landing-cache behavior has its own tests.
+    isLandingPage: () => false,
     inputFromSearch: (input) => input,
     stringParam: () => undefined,
     integerParam: () => undefined,
@@ -324,6 +326,8 @@ function clientHarness(fetchPage, { canLoadMore = true } = {}) {
     currentLoadMoreScope: { current: "original" },
     loadMoreRequest: { current: null },
     classifiedQuery: (input) => input,
+    // This harness exercises result pagination; landing-cache behavior has its own tests.
+    isLandingPage: () => false,
     inputFromSearch: (input) => input,
     queryClient: {
       fetchQuery: (input) => {
