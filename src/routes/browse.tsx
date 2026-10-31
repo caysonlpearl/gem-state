@@ -2941,10 +2941,10 @@ function FirearmsLandingHero({
         <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">
           Bluebird Marketplace Firearms
         </p>
-        <h1 className="mx-auto mt-2 max-w-[22ch] text-[28px] font-bold leading-[1.05] tracking-tight sm:text-[56px]">
-          Firearms{" "}
+        <h1 className="mx-auto mt-2 max-w-[16ch] text-[28px] font-bold leading-[1.05] tracking-tight sm:max-w-none sm:whitespace-nowrap sm:text-[44px]">
+          Firearms, gear, and{" "}
           <span className="relative inline-block text-brand-blue">
-            &amp; Gear
+            everything in between.
             <span
               className="absolute -bottom-2 left-1/4 h-1 w-1/2 rounded-full bg-brand-warm/80 sm:-bottom-3"
               aria-hidden="true"
@@ -2952,7 +2952,7 @@ function FirearmsLandingHero({
           </span>
         </h1>
         <p className="mx-auto mt-3 max-w-[54ch] text-[13px] leading-relaxed text-muted-foreground sm:text-[15px]">
-          Category listings and safety resources.
+          Explore firearms, optics, ammunition, and gear from local sellers and trusted retailers.
         </p>
         <div className="mx-auto mt-5 hidden w-fit sm:flex items-center gap-1.5" aria-hidden="true">
           <span className="h-1.5 w-9 rounded-full bg-brand-blue" />
