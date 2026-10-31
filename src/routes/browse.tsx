@@ -2992,7 +2992,7 @@ function FirearmsLandingHero({
             />
           </span>
         </h1>
-        <p className="mx-auto mt-3 max-w-[54ch] text-[13px] leading-relaxed text-muted-foreground sm:text-[15px]">
+        <p className="mx-auto mt-4 max-w-none text-[13px] leading-relaxed text-muted-foreground sm:mt-5 sm:whitespace-nowrap sm:text-[15px]">
           Explore firearms, optics, ammunition, and gear from local sellers and trusted retailers.
         </p>
         <div className="mx-auto mt-5 hidden w-fit sm:flex items-center gap-1.5" aria-hidden="true">
