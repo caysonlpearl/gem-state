@@ -3041,7 +3041,7 @@ function FirearmsLandingHero({
 
 function FirearmsSafetyCallout() {
   return (
-    <div className="mt-3 flex flex-col gap-2 rounded-xl border border-brand-blue/20 bg-brand-blue/5 px-3 py-2.5 sm:mt-5 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:rounded-2xl sm:px-5 sm:py-4">
+    <div className="mt-3 flex items-center justify-between gap-2 rounded-xl border border-brand-blue/20 bg-brand-blue/5 px-3 py-2 sm:mt-5 sm:gap-3 sm:rounded-2xl sm:px-5 sm:py-4">
       <div className="flex min-w-0 items-start gap-2 sm:gap-3">
         <ShieldCheck
           size={21}
