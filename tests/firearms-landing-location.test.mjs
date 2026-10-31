@@ -24,6 +24,11 @@ assert.ok(showcaseDeclaration);
 context.URL = URL;
 vm.runInContext(ts.transpile(showcaseDeclaration.getText(file), { target: ts.ScriptTarget.ES2022 }), context);
 const inputFromSearch = (search) => context.inputFromSearch(search);
+const latestDeclaration = file.statements.find(
+  (node) => ts.isFunctionDeclaration(node) && node.name?.text === "latestListingsInput",
+);
+assert.ok(latestDeclaration);
+vm.runInContext(ts.transpile(latestDeclaration.getText(file), { target: ts.ScriptTarget.ES2022 }), context);
 const location = {
   state: "ID", region: "Magic Valley", city: "Twin Falls", postalCode: "83301",
   radiusMiles: 25, latitude: 42.5629, longitude: -114.4609,
@@ -49,6 +54,31 @@ test("Other categories keep their existing geographic filtering", () => {
     const result = inputFromSearch({ category, ...location });
     for (const [key, value] of Object.entries(location)) assert.equal(result[key], value, key);
   }
+});
+
+test("Latest firearms requests firearms only and allows a variety of firearm types", () => {
+  const search = {
+    category: "firearms", ...location, firearmListingType: "Accessory",
+    firearmAccessoryType: "Ammunition", firearmType: "Rifle", firearmBrand: "Glock",
+  };
+  const input = context.latestListingsInput(search);
+  assert.equal(input.firearmListingType, "Firearm");
+  assert.equal(input.firearmType, undefined);
+  assert.equal(input.firearmBrand, undefined);
+  assert.equal(input.firearmAccessoryType, undefined);
+  assert.equal(input.page, 1);
+  for (const key of Object.keys(location)) assert.equal(input[key], undefined, key);
+  assert.equal(search.firearmListingType, "Accessory");
+});
+
+test("Latest-only restriction does not change ammunition previews or full browse results", () => {
+  const results = { category: "firearms", firearmMode: "results", firearmListingType: "Accessory", firearmAccessoryType: "Ammunition", ...location };
+  assert.deepEqual(context.latestListingsInput(results), context.inputFromSearch(results));
+  const preview = context.showcaseSearch({ category: "firearms", ...location },
+    "/browse?category=firearms&firearmMode=results&firearmListingType=Accessory&firearmAccessoryType=Ammunition");
+  assert.equal(inputFromSearch(preview).firearmListingType, "Accessory");
+  assert.equal(inputFromSearch(preview).firearmAccessoryType, "Ammunition");
+  assert.deepEqual(context.latestListingsInput({ category: "pets", ...location }), inputFromSearch({ category: "pets", ...location }));
 });
 
 test("Every Firearms showcase row keeps its specific inventory filter without carried location", () => {

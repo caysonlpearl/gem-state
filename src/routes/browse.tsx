@@ -982,6 +982,20 @@ function inputFromSearch(search: Search): ClassifiedBrowseInput {
   };
 }
 
+function latestListingsInput(search: Search): ClassifiedBrowseInput {
+  const input = inputFromSearch(search);
+  return search.category === "firearms" && search.firearmMode !== "results"
+    ? {
+        ...input,
+        firearmListingType: "Firearm",
+        firearmType: undefined,
+        firearmBrand: undefined,
+        firearmAccessoryType: undefined,
+        page: 1,
+      }
+    : input;
+}
+
 const vehicleSearchKeys: readonly (keyof Search)[] = [
   "make",
   "model",
@@ -1308,7 +1322,7 @@ export const Route = createFileRoute("/browse")({
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
     const result = await context.queryClient.ensureQueryData(
-      classifiedQuery(inputFromSearch(deps)),
+      classifiedQuery(latestListingsInput(deps)),
     );
     if (isOutOfRangePage(deps.page ?? 1, result.total, result.pageSize)) throw notFound();
     return { total: result.total };
@@ -1360,7 +1374,7 @@ export const Route = createFileRoute("/browse")({
 function Browse() {
   const search = Route.useSearch();
   const navigate = useNavigate({ from: Route.fullPath });
-  const { data: result } = useSuspenseQuery(classifiedQuery(inputFromSearch(search)));
+  const { data: result } = useSuspenseQuery(classifiedQuery(latestListingsInput(search)));
   const [term, setTerm] = useState(search.q ?? "");
   const [saveSearchDialogOpen, setSaveSearchDialogOpen] = useState(false);
   const [saveSearchName, setSaveSearchName] = useState("");
@@ -2316,6 +2330,7 @@ function Browse() {
             action="Browse all firearms"
             browseSearch={{ category: "firearms", firearmMode: "results" }}
             listings={result.listings}
+            mobileCarousel
           />
           <FirearmsCategoryShowcase
             afterTypes={
@@ -3940,6 +3955,7 @@ function LandingListingsShowcase({
   browseSearch,
   listings,
   compact,
+  mobileCarousel,
 }: {
   eyebrow: string;
   title: string;
@@ -3947,6 +3963,7 @@ function LandingListingsShowcase({
   browseSearch: Search;
   listings: ClassifiedBrowseResult["listings"];
   compact?: boolean;
+  mobileCarousel?: boolean;
 }) {
   // This showcase is a single curated row. Keep it to the desktop row width
   // so a short second row can never appear beneath it.
@@ -3957,8 +3974,8 @@ function LandingListingsShowcase({
       className="mt-10 sm:mt-14"
       aria-labelledby={`${eyebrow}-${title}`.replaceAll(" ", "-").toLowerCase()}
     >
-      <div className="mb-4 flex items-end justify-between gap-3 border-b border-border pb-3">
-        <div>
+      <div className="mb-4 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-3 border-b border-border pb-3 sm:flex sm:justify-between">
+        <div className="min-w-0">
           <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">{eyebrow}</p>
           <h2
             id={`${eyebrow}-${title}`.replaceAll(" ", "-").toLowerCase()}
@@ -3980,7 +3997,9 @@ function LandingListingsShowcase({
       {visibleListings.length > 0 ? (
         <ul
           className={
-            compact
+            mobileCarousel
+              ? "no-scrollbar grid auto-cols-[220px] grid-flow-col gap-3 overflow-x-auto overscroll-x-contain snap-x snap-mandatory pb-2 sm:auto-cols-auto sm:grid-flow-row sm:grid-cols-2 sm:gap-4 sm:overflow-visible lg:grid-cols-4"
+              : compact
               ? "grid grid-cols-2 gap-3 lg:grid-cols-5"
               : "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
           }
@@ -3989,7 +4008,7 @@ function LandingListingsShowcase({
             // Compact rows show four (2 × 2) below desktop, five across on it.
             <li
               key={listing.id}
-              className={`min-w-0 ${compact && index === 4 ? "hidden lg:block" : ""}`}
+              className={`min-w-0 ${mobileCarousel ? "snap-start" : ""} ${compact && index === 4 ? "hidden lg:block" : ""}`}
             >
               <ListingCard listing={listing} priority={index === 0} />
             </li>
