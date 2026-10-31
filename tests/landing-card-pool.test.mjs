@@ -58,7 +58,7 @@ test("every landing page awaits its shared saved pool; results never add a landi
       .find((d) => d.name.getText(ast) === "landingHomeQuery");
     const context = vm.createContext({
       queryOptions: (options) => options,
-      getClassifiedsHome: async () => {
+      getClassifiedsLandingHome: async () => {
         throw new Error("Temporary CDN failure");
       },
     });

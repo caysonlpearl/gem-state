@@ -2897,3 +2897,15 @@ export const getClassifiedsHome = createServerFn({ method: "GET" }).handler(
     return homepagePayload(await readHomepageSnapshot()).home;
   },
 );
+
+/** Category previews may be unfiltered or cross a state boundary. Keep their
+ * saved candidate pool separate from the Idaho-focused main homepage. */
+export const getClassifiedsLandingHome = createServerFn({ method: "GET" }).handler(
+  async (): Promise<ClassifiedsHome> => {
+    const [{ readHomepageSnapshot }, { homepagePayload }] = await Promise.all([
+      import("./homepage-snapshot.server"),
+      import("./homepage-snapshot-contract"),
+    ]);
+    return homepagePayload(await readHomepageSnapshot(), Date.now(), true).home;
+  },
+);

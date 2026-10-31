@@ -277,3 +277,17 @@ test("public snapshot cards never retain raw payloads, private account data or d
     assert.equal(key in output, false);
   assert.deepEqual(output.externalVehicle, { sourceKind: "dealer" });
 });
+
+test("regional category previews keep nearby-state matches while the main homepage stays Idaho-focused", () => {
+  const now = Date.now();
+  const saved = snapshot(now, []);
+  saved.sections.pets = {updatedAt:now, cards:[
+    card("idaho-cat", {categorySlug:"pets", pet:{subcategory:"cats"}}),
+    card("nearby-rabbit", {categorySlug:"pets", state:"MT", pet:{subcategory:"other-pets"}}),
+  ]};
+  const main = homepagePayload(saved, now).home;
+  const category = homepagePayload(saved, now, true).home;
+  assert.deepEqual(main.recent.map(c => c.id), ["idaho-cat"]);
+  assert.equal(category.recent.length, 2);
+  assert.ok(category.recent.some(c => c.id === "nearby-rabbit"));
+});

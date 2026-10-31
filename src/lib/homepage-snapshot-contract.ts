@@ -5,7 +5,7 @@ import { matchesLandingCard } from "./landing-card-pool.ts";
 import { classifiedCategories } from "../config/classifieds.ts";
 
 export const HOME_SNAPSHOT_VERSION = 1;
-export const HOME_CACHE_LAYOUT_VERSION = 3;
+export const HOME_CACHE_LAYOUT_VERSION = 4;
 export const HOME_REFRESH_MS = 5 * 60_000;
 export const HOME_MAX_STALE_MS = 6 * 60 * 60_000;
 export const HOME_SOURCE_KEYS = [
@@ -154,11 +154,14 @@ export function uniqueHomeCards(cards: ListingCardSummary[]) {
 export function homepagePayload(
   snapshot: HomepageSnapshot,
   now = Date.now(),
+  regionalPreviews = false,
 ): { home: ClassifiedsHome; lead: ClassifiedsHomeLead } {
   const rows = (key: HomeSourceKey) => {
     const section = snapshot.sections[key];
     return section && now - section.updatedAt <= HOME_MAX_STALE_MS ? section.cards : [];
   };
+  const regionalRows = (key: HomeSourceKey) =>
+    rows(key).filter((card) => regionalPreviews || card.state === "ID");
   const native = rows("native");
   const motors = uniqueHomeCards([
     ...native.filter((c) => motorCategories.has(c.categorySlug ?? "")),
@@ -168,10 +171,10 @@ export function homepagePayload(
     .sort(newest);
   const recent = uniqueHomeCards([
     ...native,
-    ...rows("homes"),
-    ...rows("jobs"),
+    ...regionalRows("homes"),
+    ...regionalRows("jobs"),
     ...rows("services"),
-    ...rows("pets"),
+    ...regionalRows("pets"),
   ]).sort(newest);
   const categoryCounts = {
     ...(native.length ? (snapshot.sections.native?.categoryCounts ?? {}) : {}),
@@ -179,7 +182,8 @@ export function homepagePayload(
   const jobs = recent.filter((c) => c.job).length;
   categoryCounts.jobs = jobs;
   const totalActive =
-    (native.length ? (snapshot.sections.native?.total ?? native.length) : 0) + rows("jobs").length;
+    (native.length ? (snapshot.sections.native?.total ?? native.length) : 0) +
+    regionalRows("jobs").length;
   return {
     home: { categoryCounts, totalActive, motors, recent, onlineMerchandise: rows("merchandise") },
     lead: {
