@@ -93,6 +93,8 @@ export function publishBlocker(input: {
   const sellers = selectedProfiles(input.items, input.selectedIds).length;
   if (sellers > 1)
     return `Selection spans ${sellers} sellers. Choose one seller — listings publish one seller at a time.`;
+  if (selected.some((item) => item.status === "possibly_removed"))
+    return "Review removals separately on the listing. Import review cannot take listings offline.";
   const dirty = selected.filter((i) => input.dirtyIds.has(i.id)).length;
   if (dirty) return `Save or revert edits on ${dirty} selected listing(s) first.`;
   if (selected.some((item) => item.syncConflict))
@@ -106,10 +108,10 @@ export function publishBlocker(input: {
 export function describeAction(items: QueueItem[], selectedIds: Set<string>): string {
   const [group] = groupQueueBySeller(items.filter((i) => selectedIds.has(i.id)));
   if (!group) return "Nothing selected";
+  if (group.removedCount) return "Review removals separately on the listing";
   const parts: string[] = [];
   if (group.newCount) parts.push(`publish ${group.newCount} new`);
   if (group.updateCount) parts.push(`update ${group.updateCount} Bluebird listing(s)`);
-  if (group.removedCount) parts.push(`take ${group.removedCount} offline`);
   const text = parts.join(", ");
   return text.charAt(0).toUpperCase() + text.slice(1);
 }

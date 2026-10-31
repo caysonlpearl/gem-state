@@ -580,7 +580,7 @@ test("fresh source data recaptures a cleared never-published item for review, ne
 
 test("cleared published rows, offline listings, unavailable pages and incomplete recaptures stay untouched", async () => {
   for (const prior of [
-    { ...row, status: "discarded" },
+    { ...row, status: "discarded", price_cents: item.priceCents, description: item.description },
     { ...row, status: "discarded", listing: { status: "cancelled" } },
   ]) {
     const h = handlers([prior]);
@@ -618,4 +618,31 @@ test("an explicit fresh manual batch can also recapture a never-published cleare
   assert.equal(out.recaptured, 1);
   assert.equal(out.staged, 1);
   assert.equal(h.rpcs.length, 0);
+});
+
+test("a cleared live review row can stage a genuinely new source update without recreating or removing its listing", async () => {
+  const h = handlers([{ ...row, status: "discarded" }]);
+  const out = await h.stage({
+    sourceProfileUrl: profile,
+    authorized: true,
+    mode: "refresh",
+    items: [item],
+  });
+  assert.equal(out.updated, 1);
+  assert.equal(out.staged, 0);
+  assert.equal(out.recaptured, 0);
+  assert.equal(out.flaggedRemoved, 0);
+  const write = h.writes.find((w) => w.table === "fb_marketplace_import_items");
+  assert.equal(write.values.status, "needs_update");
+  assert.ok(write.filters.some(([key, value]) => key === "status" && value === "discarded"));
+  assert.equal(h.rpcs.length, 0);
+  const missing = handlers([{ ...row, status: "discarded" }]);
+  const kept = await missing.stage({
+    sourceProfileUrl: profile,
+    authorized: true,
+    mode: "refresh",
+    items: [{ sourceUrl: item.sourceUrl, unavailable: true }],
+  });
+  assert.equal(kept.preservedActive, 1);
+  assert.equal(missing.writes.filter((w) => w.table === "fb_marketplace_import_items").length, 0);
 });

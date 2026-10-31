@@ -409,7 +409,12 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
           // Only fresh available data may recapture it; published/offline records,
           // pending edits and paused/archived sellers retain their separate guards.
           const recapture = prior?.status === "discarded" && !prior.listing_id;
-          if (prior && prior.status !== "published" && !recapture) continue;
+          const clearedActive =
+            isRefresh &&
+            prior?.status === "discarded" &&
+            !!prior.listing_id &&
+            prior.listing?.status === "active";
+          if (prior && prior.status !== "published" && !recapture && !clearedActive) continue;
           // A completed removal still has an import row for deduplication.
           // Never requeue or refresh an offline listing, or reactivate it.
           if (prior?.listing_id && prior.listing?.status !== "active") continue;
@@ -454,7 +459,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
               })
               .eq("source_profile_url", data.sourceProfileUrl)
               .eq("source_url", item.sourceUrl)
-              .eq("status", "published");
+              .eq("status", prior.status);
             if (error) throw error;
             updated += 1;
             continue;
@@ -755,7 +760,7 @@ export const getFacebookRefreshTargets = createServerFn({ method: "GET" })
           "source_profile_url,source_url,title,price_cents,id,listing:asks!listing_id(status)",
           { count: "exact" },
         )
-        .eq("status", "published")
+        .in("status", ["published", "discarded"])
         .order("id"),
     );
     const { data: paused, error: pauseError } = await (supabaseAdmin as any)
