@@ -2775,11 +2775,11 @@ export async function loadNativeHomepageInventory() {
       const r = row as unknown as Record<string, any>;
       const category = r.products?.categories?.slug ?? "general";
       categoryCounts[category] = (categoryCounts[category] ?? 0) + 1;
-      if ((allocated.get(category) ?? 0) >= 16) return false;
+      if ((allocated.get(category) ?? 0) >= 64) return false;
       allocated.set(category, (allocated.get(category) ?? 0) + 1);
       return true;
     })
-    .slice(0, 240);
+    .slice(0, 500);
   const urls = await signListingThumbnails(
     selected.flatMap((row) => sortedMedia(row as unknown as Record<string, unknown>).slice(0, 1)),
   );

@@ -1,21 +1,7 @@
 import { createFileRoute, Link, notFound, useNavigate, useRouter } from "@tanstack/react-router";
-import {
-  queryOptions,
-  useQueries,
-  useQuery,
-  useQueryClient,
-  useSuspenseQuery,
-} from "@tanstack/react-query";
+import { queryOptions, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -30,6 +16,9 @@ import {
   X,
 } from "@phosphor-icons/react";
 
+import { landingCards } from "@/lib/landing-card-pool";
+import type { ListingCardSummary } from "@/lib/listing-card-summary";
+import { servicesShowcaseRows } from "@/config/landing-service-rows";
 import { brand } from "@/config/brand";
 import { isIndexableCollection, isOutOfRangePage } from "@/lib/seo-policy";
 import {
@@ -86,6 +75,7 @@ import {
 } from "@/lib/classifieds-display";
 import {
   browseClassifieds,
+  getClassifiedsHome,
   type ClassifiedBrowseInput,
   type ClassifiedCard,
   type ClassifiedBrowseResult,
@@ -812,6 +802,36 @@ const serviceTimeOnSiteOptions = [
   "Last 30 days",
 ] as const;
 
+const landingHomeQuery = queryOptions({
+  queryKey: ["classifieds-landing-cache"],
+  staleTime: (query) => (query.state.data ? 60_000 : 5_000),
+  retry: false,
+  // The primary query remains authoritative. If the optional wider cache is
+  // temporarily unavailable, curate from its real results rather than fail
+  // an otherwise healthy category page or start a search for every row.
+  queryFn: () => getClassifiedsHome().catch(() => null),
+});
+
+function isLandingPage(search: Search) {
+  if ((search.page ?? 1) !== 1) return false;
+  if (search.allCategories) return true;
+  if (search.group === "motors" || isMotorsCategory(search.category))
+    return search.vehicleMode !== "results";
+  const mode = (
+    {
+      "other-real-estate": search.homeMode,
+      jobs: search.jobMode,
+      services: search.serviceMode,
+      pets: search.petMode,
+      firearms: search.firearmMode,
+    } as Record<string, string | undefined>
+  )[search.category ?? ""];
+  return (
+    ["other-real-estate", "jobs", "services", "pets", "firearms"].includes(search.category ?? "") &&
+    mode !== "results"
+  );
+}
+
 const classifiedQuery = (input: ClassifiedBrowseInput) =>
   queryOptions({
     staleTime: 60_000,
@@ -1322,9 +1342,10 @@ export const Route = createFileRoute("/browse")({
   },
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
-    const result = await context.queryClient.ensureQueryData(
-      classifiedQuery(latestListingsInput(deps)),
-    );
+    const [result] = await Promise.all([
+      context.queryClient.ensureQueryData(classifiedQuery(latestListingsInput(deps))),
+      isLandingPage(deps) ? context.queryClient.ensureQueryData(landingHomeQuery) : undefined,
+    ]);
     if (isOutOfRangePage(deps.page ?? 1, result.total, result.pageSize)) throw notFound();
     return { total: result.total };
   },
@@ -3050,7 +3071,9 @@ function FirearmsSafetyCallout() {
           aria-hidden="true"
         />
         <div>
-          <p className="text-[11px] font-semibold text-foreground sm:text-[13px]">Buy and sell responsibly</p>
+          <p className="text-[11px] font-semibold text-foreground sm:text-[13px]">
+            Buy and sell responsibly
+          </p>
           <p className="mt-0.5 text-[10px] leading-snug text-muted-foreground sm:text-[12px] sm:leading-relaxed">
             Review Bluebird’s guidance for safe, lawful firearm listings and private transactions.
           </p>
@@ -3060,7 +3083,8 @@ function FirearmsSafetyCallout() {
         to="/firearms-safety"
         className="inline-flex h-7 shrink-0 items-center justify-center gap-1 rounded-full border border-primary/40 bg-card px-2.5 text-[10px] font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground sm:h-9 sm:gap-1.5 sm:px-3.5 sm:text-[12px]"
       >
-        Firearm safety statement <ArrowRight size={14} weight="bold" aria-hidden="true" className="max-sm:h-3 max-sm:w-3" />
+        Firearm safety statement{" "}
+        <ArrowRight size={14} weight="bold" aria-hidden="true" className="max-sm:h-3 max-sm:w-3" />
       </Link>
     </div>
   );
@@ -3677,92 +3701,6 @@ const jobsShowcaseRows: HomepagePreviewRow[] = [
 ];
 
 // Each row is one trade, filled from members' listings and the services directory.
-const servicesShowcaseRows: HomepagePreviewRow[] = [
-  showcaseRow(
-    "Plumbing & water",
-    "Find a plumber",
-    "/browse?category=services&serviceMode=results&serviceSubcategory=Plumbers",
-    [],
-  ),
-  showcaseRow(
-    "Electrical & lighting",
-    "Find an electrician",
-    "/browse?category=services&serviceMode=results&serviceSubcategory=Electricians",
-    [],
-  ),
-  showcaseRow(
-    "Heating & cooling",
-    "Find HVAC service",
-    "/browse?category=services&serviceMode=results&serviceSubcategory=Heating%20%26%20Air%20Conditioning",
-    [],
-  ),
-  showcaseRow(
-    "Roofing",
-    "Find a roofer",
-    "/browse?category=services&serviceMode=results&serviceSubcategory=Roofing",
-    [],
-  ),
-  showcaseRow(
-    "Lawn & landscaping",
-    "Find lawn care",
-    "/browse?category=services&serviceMode=results&serviceSubcategory=Landscape%20Contractors",
-    [],
-  ),
-  showcaseRow(
-    "Cleaning & move-out",
-    "Find a cleaner",
-    "/browse?category=services&serviceMode=results&serviceSubcategory=House%20Cleaning",
-    [],
-  ),
-  showcaseRow(
-    "Handyman & repairs",
-    "Find a handyman",
-    "/browse?category=services&serviceMode=results&serviceSubcategory=Handyman",
-    [],
-  ),
-  showcaseRow(
-    "Home improvement pros",
-    "Find a contractor",
-    "/browse?category=services&serviceMode=results&serviceSubcategory=General%20Contractors",
-    [],
-  ),
-  showcaseRow(
-    "Painting",
-    "Find a painter",
-    "/browse?category=services&serviceMode=results&serviceSubcategory=Painters",
-    [],
-  ),
-  showcaseRow(
-    "Pest control",
-    "Find pest control",
-    "/browse?category=services&serviceMode=results&serviceSubcategory=Pest%20Control",
-    [],
-  ),
-  showcaseRow(
-    "Moving & hauling",
-    "Find movers",
-    "/browse?category=services&serviceMode=results&serviceSubcategory=Movers",
-    [],
-  ),
-  showcaseRow(
-    "Automotive & mobile repair",
-    "Find auto service",
-    "/browse?category=services&serviceMode=results&serviceSubcategory=Automotive",
-    [],
-  ),
-  showcaseRow(
-    "Pet care",
-    "Find pet care",
-    "/browse?category=services&serviceMode=results&serviceSubcategory=Pet%20Care",
-    [],
-  ),
-  showcaseRow(
-    "Technology & business help",
-    "Find local tech help",
-    "/browse?category=services&serviceMode=results&serviceSubcategory=IT%20Services",
-    [],
-  ),
-];
 
 function ClassifiedsLandingHero({
   term,
@@ -3940,6 +3878,16 @@ function GeneralClassifiedShowcase({ listings }: { listings: ClassifiedBrowseRes
   );
 }
 
+function CategoryPreviewEmpty() {
+  return (
+    <BluebirdEmptyState
+      headingLevel="h2"
+      title="No matches in this preview."
+      description="Use the browse link above to search the full category."
+    />
+  );
+}
+
 function CategoryGettingStarted() {
   return (
     <BluebirdEmptyState
@@ -4071,91 +4019,6 @@ function LandingListingsShowcase({
   );
 }
 
-/**
- * Rows on one landing page share what they show: each row skips listings a
- * row above it already shows, and only repeats one when it has nothing new
- * left to fill its five places.
- */
-type ShownRows = {
-  claims: Record<number, string[]>;
-  claim: (index: number, ids: string[]) => void;
-};
-const ShownRowsContext = createContext<ShownRows | null>(null);
-
-function JobShowcaseCards({
-  row,
-  search,
-  index = 0,
-}: {
-  row: HomepagePreviewRow;
-  search: Search;
-  index?: number;
-}) {
-  const shown = useContext(ShownRowsContext);
-  const container = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setVisible(true);
-          observer.disconnect();
-        }
-      },
-      { rootMargin: "400px" },
-    );
-    if (container.current) observer.observe(container.current);
-    return () => observer.disconnect();
-  }, []);
-  const query = useQuery({
-    ...classifiedQuery(inputFromSearch(showcaseSearch(search, row.href))),
-    enabled: visible,
-    staleTime: 60_000,
-  });
-  const shownAbove = new Set(
-    Object.entries(shown?.claims ?? {})
-      .filter(([rowIndex]) => Number(rowIndex) < index)
-      .flatMap(([, ids]) => ids),
-  );
-  const listings = query.data?.listings ?? [];
-  const fresh = varietyOf(
-    listings.filter((listing) => !shownAbove.has(listing.id)),
-    5,
-  );
-  const picks =
-    fresh.length >= 5
-      ? fresh
-      : [
-          ...fresh,
-          ...varietyOf(
-            listings.filter((listing) => !fresh.some((pick) => pick.id === listing.id)),
-            5 - fresh.length,
-          ),
-        ];
-  const pickKey = picks.map((listing) => listing.id).join(",");
-  const claim = shown?.claim;
-  useEffect(() => {
-    if (claim && pickKey) claim(index, pickKey.split(","));
-  }, [claim, index, pickKey]);
-  return (
-    <div ref={container} className="min-h-32">
-      {query.isPending ? (
-        <p className="py-8 text-sm text-muted-foreground">Loading…</p>
-      ) : !query.data?.listings.length ? (
-        <CategoryGettingStarted />
-      ) : (
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-          {picks.map((listing, index) => (
-            <div key={listing.id} className={index === 4 ? "hidden min-w-0 lg:block" : "min-w-0"}>
-              <ListingCard listing={listing} />
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function showcaseSearch(search: Search, href: string): Search {
   const params = Object.fromEntries(new URL(href, "https://onbluebird.com").searchParams);
   return {
@@ -4184,49 +4047,76 @@ function HomepageShowcaseRows({
   topListings?: readonly ClassifiedCard[];
 }) {
   const querySearch = jobSearch ?? baseSearch;
-  const [claims, setClaims] = useState<Record<number, string[]>>(() => ({
-    [-1]: varietyOf(topListings ?? [], 5).map((listing) => listing.id),
-  }));
-  const claim = useCallback((index: number, ids: string[]) => {
-    setClaims((current) =>
-      current[index]?.join(",") === ids.join(",") ? current : { ...current, [index]: ids },
+  const { data: saved } = useSuspenseQuery(landingHomeQuery);
+  const pool = [
+    ...(saved?.recent ?? []),
+    ...(saved?.motors ?? []),
+    ...(saved?.onlineMerchandise ?? []),
+    ...(topListings ?? []),
+  ];
+  const shownIds = new Set(varietyOf(topListings ?? [], 5).map((listing) => listing.id));
+  const allocated = rows.map((row) => {
+    const matching = querySearch
+      ? landingCards(pool, inputFromSearch(showcaseSearch(querySearch, row.href)))
+      : [];
+    const fresh = varietyOf(
+      matching.filter((listing) => !shownIds.has(listing.id)),
+      5,
     );
-  }, []);
-  const shown = useMemo(() => ({ claims, claim }), [claims, claim]);
+    const picks =
+      fresh.length >= 5
+        ? fresh
+        : [
+            ...fresh,
+            ...varietyOf(
+              matching.filter((listing) => !fresh.some((pick) => pick.id === listing.id)),
+              5 - fresh.length,
+            ),
+          ];
+    for (const listing of picks) shownIds.add(listing.id);
+    return { row, picks };
+  });
   return (
-    <ShownRowsContext.Provider value={shown}>
-      <div className="mt-10 space-y-12 sm:mt-14 sm:space-y-16">
-        {rows.map((row, rowIndex) => (
-          <section key={row.title} aria-labelledby={row.title.replaceAll(" ", "-").toLowerCase()}>
-            <div className="mb-4 flex items-end justify-between gap-3 border-b border-border pb-3">
-              <div>
-                <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
-                  {eyebrow}
-                </p>
-                <h2
-                  id={row.title.replaceAll(" ", "-").toLowerCase()}
-                  className="mt-1 text-[22px] font-bold tracking-tight sm:text-[27px]"
-                >
-                  {row.title}
-                </h2>
-              </div>
-              <a
-                href={row.href}
-                className="inline-flex shrink-0 items-center gap-1 text-[12px] font-bold text-primary hover:underline"
+    <div className="mt-10 space-y-12 sm:mt-14 sm:space-y-16">
+      {allocated.map(({ row, picks }) => (
+        <section key={row.title} aria-labelledby={row.title.replaceAll(" ", "-").toLowerCase()}>
+          <div className="mb-4 flex items-end justify-between gap-3 border-b border-border pb-3">
+            <div>
+              <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
+                {eyebrow}
+              </p>
+              <h2
+                id={row.title.replaceAll(" ", "-").toLowerCase()}
+                className="mt-1 text-[22px] font-bold tracking-tight sm:text-[27px]"
               >
-                {row.action}
-                <ArrowRight size={14} aria-hidden="true" />
-              </a>
+                {row.title}
+              </h2>
             </div>
-            {querySearch ? (
-              <JobShowcaseCards row={row} search={querySearch} index={rowIndex} />
-            ) : (
-              <CategoryGettingStarted />
-            )}
-          </section>
-        ))}
-      </div>
-    </ShownRowsContext.Provider>
+            <a
+              href={row.href}
+              className="inline-flex shrink-0 items-center gap-1 text-[12px] font-bold text-primary hover:underline"
+            >
+              {row.action}
+              <ArrowRight size={14} aria-hidden="true" />
+            </a>
+          </div>
+          {picks.length > 0 ? (
+            <div className="min-h-32 grid grid-cols-2 gap-3 lg:grid-cols-5">
+              {picks.map((listing, index) => (
+                <div
+                  key={listing.id}
+                  className={index === 4 ? "hidden min-w-0 lg:block" : "min-w-0"}
+                >
+                  <ListingCard listing={listing} />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <CategoryPreviewEmpty />
+          )}
+        </section>
+      ))}
+    </div>
   );
 }
 
@@ -4366,12 +4256,12 @@ function HomesLandingHero({
   );
 }
 
-const homeTypeIs = (listing: ClassifiedCard, pattern: RegExp) =>
+const homeTypeIs = (listing: ListingCardSummary, pattern: RegExp) =>
   pattern.test(listing.home?.propertyType ?? "");
 
 /** What qualifies a home for each homes-landing row. Rows not listed here
  * (like price drops, which the listing data can't show yet) stay hidden. */
-const homeRowFilters: Record<string, (listing: ClassifiedCard) => boolean> = {
+const homeRowFilters: Record<string, (listing: ListingCardSummary) => boolean> = {
   "Featured homes for sale": (l) => l.isFeatured && l.home?.mode === "buy",
   "Starter homes": (l) => l.home?.mode === "buy" && l.priceCents > 0 && l.priceCents <= 40_000_000,
   "Condos & townhomes": (l) => l.home?.mode === "buy" && homeTypeIs(l, /condo|town/i),
@@ -4398,22 +4288,8 @@ function HomeShowcaseRows({
   listings: ClassifiedCard[];
   search: Search;
 }) {
-  // The first page alone is too few homes to fill several rows without
-  // repeats, so the rows read a few more pages of the same search.
-  const morePages = useQueries({
-    queries: [2, 3, 4].map((page) => ({
-      ...classifiedQuery(inputFromSearch({ ...search, page } as Search)),
-      staleTime: 60_000,
-    })),
-  });
-  const pool = [
-    ...new Map(
-      [...listings, ...morePages.flatMap((query) => query.data?.listings ?? [])].map((listing) => [
-        listing.id,
-        listing,
-      ]),
-    ).values(),
-  ];
+  const { data: saved } = useSuspenseQuery(landingHomeQuery);
+  const pool = landingCards([...(saved?.recent ?? []), ...listings], inputFromSearch(search));
   // Each row shows only homes that match its heading and that no row above
   // (or the "Buy listings" showcase) already shows; it repeats a home only
   // when it has fewer than four new ones. A row with nothing that fits stays

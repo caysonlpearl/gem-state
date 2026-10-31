@@ -3,6 +3,7 @@ import type { ListingCardSummary } from "./listing-card-summary";
 import { classifiedCategories } from "../config/classifieds.ts";
 
 export const HOME_SNAPSHOT_VERSION = 1;
+export const HOME_CACHE_LAYOUT_VERSION = 2;
 export const HOME_REFRESH_MS = 5 * 60_000;
 export const HOME_MAX_STALE_MS = 6 * 60 * 60_000;
 export const HOME_SOURCE_KEYS = [
@@ -23,6 +24,7 @@ export type HomeSection = {
 };
 export type HomepageSnapshot = {
   version: 1;
+  layoutVersion?: number;
   generatedAt: number;
   sections: Partial<Record<HomeSourceKey, HomeSection>>;
 };

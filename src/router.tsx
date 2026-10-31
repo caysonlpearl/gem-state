@@ -14,26 +14,8 @@ export const getRouter = () => {
     context: { queryClient },
     scrollRestoration: true,
     defaultPreloadStaleTime: 0,
-    defaultPendingMs: 150,
-    defaultPendingMinMs: 150,
-    defaultPendingComponent: () => (
-      <main className="mx-auto max-w-[1440px] px-4 py-10 sm:px-6" aria-busy="true">
-        <p role="status" className="text-sm text-muted-foreground">
-          Loading page…
-        </p>
-        <div
-          className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4"
-          aria-hidden="true"
-        >
-          {Array.from({ length: 8 }, (_, index) => (
-            <div
-              key={index}
-              className="h-64 animate-pulse rounded-2xl bg-muted motion-reduce:animate-none"
-            />
-          ))}
-        </div>
-      </main>
-    ),
+    // Keep the current page visible until the next route's cached data is ready.
+    // RootComponent supplies a small progress bar without replacing its cards.
   });
 
   // Hands the queries fetched during server rendering to the browser, so a

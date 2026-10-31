@@ -157,6 +157,7 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   const router = useRouter();
   const currentPath = useRouterState({ select: (state) => state.location.pathname });
+  const isNavigating = useRouterState({ select: (state) => state.isLoading });
   useEffect(() => {
     flushEditorialAttribution();
   }, [currentPath]);
@@ -208,7 +209,16 @@ function RootComponent() {
       <div className="flex min-h-screen flex-col">
         <PilotBanner />
         <SiteHeader />
-        <main id="main-content" className="flex-1">
+        {isNavigating && (
+          <div
+            role="progressbar"
+            aria-label="Opening page"
+            className="fixed inset-x-0 top-0 z-[100] h-1 bg-brand-blue/20"
+          >
+            <div className="h-full w-1/3 animate-pulse bg-brand-blue motion-reduce:animate-none" />
+          </div>
+        )}
+        <main id="main-content" className="flex-1" aria-busy={isNavigating}>
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
           <Outlet />
         </main>

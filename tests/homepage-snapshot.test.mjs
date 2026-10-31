@@ -7,6 +7,7 @@ import {
 import { buildHomepageSnapshot } from "../src/lib/homepage-snapshot-build.server.ts";
 import {
   HOME_MAX_STALE_MS,
+  HOME_CACHE_LAYOUT_VERSION,
   HOME_SOURCE_KEYS,
   homepagePayload,
   homepageCard,
@@ -34,6 +35,7 @@ const card = (id, extra = {}) => ({
 });
 const snapshot = (now, cards = [card("saved")]) => ({
   version: 1,
+  layoutVersion: HOME_CACHE_LAYOUT_VERSION,
   generatedAt: now,
   sections: {
     native: {
@@ -103,6 +105,44 @@ test("a cold server reads shared saved data without building, signing or request
   assert.equal(builds, 0);
   assert.equal((await cache.refresh()).reason, "fresh");
   assert.equal(builds, 0);
+});
+
+test("an older cache layout stays readable while the background refresh upgrades it", async () => {
+  const old = snapshot(1000);
+  delete old.layoutVersion;
+  const storage = store(old);
+  let builds = 0;
+  const cache = createHomepageSnapshotCache(
+    storage,
+    async () => {
+      builds++;
+      return snapshot(1001);
+    },
+    () => 1001,
+  );
+  assert.equal((await cache.read()).sections.native.cards[0].id, "saved");
+  assert.equal(builds, 0, "a page read never builds inventory");
+  assert.equal((await cache.refresh()).refreshed, true);
+  assert.equal(builds, 1);
+  assert.equal((await cache.refresh()).reason, "fresh");
+});
+
+test("the saved services pool retains all landing trades instead of stopping after 24 businesses", async () => {
+  const now = Date.now();
+  const sources = Object.fromEntries(
+    HOME_SOURCE_KEYS.map((key) => [key, async () => ({ cards: [] })]),
+  );
+  sources.services = async () => ({
+    cards: Array.from({ length: 112 }, (_, index) =>
+      card(`service-${index}`, {
+        categorySlug: "services",
+        service: { subcategory: `trade-${Math.floor(index / 8)}` },
+      }),
+    ),
+  });
+  const saved = await buildHomepageSnapshot(null, { sources, removed: async () => new Set(), now });
+  assert.equal(saved.sections.services.cards.length, 112);
+  assert.equal(new Set(saved.sections.services.cards.map((c) => c.service.subcategory)).size, 14);
 });
 
 test("stale data survives database/build failures and failed refreshes never overwrite it", async () => {

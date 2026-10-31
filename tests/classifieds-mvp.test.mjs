@@ -8,6 +8,7 @@ const configSource = await read("src/config/classifieds.ts");
 const petsConfigSource = await read("src/config/pets.ts");
 const itemFieldsConfigSource = await read("src/config/classified-item-fields.ts");
 const browseSource = await read("src/routes/browse.tsx");
+const serviceRowsSource = await read("src/config/landing-service-rows.ts");
 const displaySource = await read("src/lib/classifieds-display.ts");
 const querySource = await read("src/lib/classifieds-query.ts");
 const createSource = await read("src/routes/_authenticated/create-listing.tsx");
@@ -1437,7 +1438,7 @@ test("services browse has a category-led landing page", () => {
     ["Pet care", "Pet%20Care"],
   ]) {
     assert.match(
-      browseSource,
+      serviceRowsSource,
       new RegExp(`"${row}",\\s+"[^"]+",\\s+"[^"]*serviceSubcategory=${trade}"`),
     );
   }

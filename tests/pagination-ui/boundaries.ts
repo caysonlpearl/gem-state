@@ -76,3 +76,7 @@ export const createSavedSearch = async () => {
   throw new Error("Saving searches is outside the offline pagination fixture");
 };
 export const updateSavedSearch = createSavedSearch;
+
+export const getClassifiedsHome = async () => {
+  throw new Error("Pagination fixtures must not read landing inventory");
+};
