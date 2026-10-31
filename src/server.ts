@@ -112,10 +112,19 @@ export default {
               .catch(() => console.warn("Homepage refresh deferred; saved inventory retained.")),
           );
       }
+      const entryStarted = performance.now();
       const handler = await getServerEntry();
+      const entryMs = performance.now() - entryStarted;
+      const renderStarted = performance.now();
       const response = await handler.fetch(request, env, ctx);
+      const renderMs = performance.now() - renderStarted;
       const normalized = lowerModulePreloadPriority(
         await normalizeCatastrophicSsrResponse(response),
+      );
+      // Numeric timings only: no queries, user IDs, headers or credentials.
+      normalized.headers.append(
+        "Server-Timing",
+        `app-entry;dur=${entryMs.toFixed(1)}, app-render;dur=${renderMs.toFixed(1)}`,
       );
       if (hostPolicy.preview) normalized.headers.set("X-Robots-Tag", "noindex, nofollow");
       return normalized;

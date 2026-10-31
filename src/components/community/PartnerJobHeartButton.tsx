@@ -1,13 +1,14 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Heart } from "@phosphor-icons/react";
 import { toast } from "sonner";
 
+import { useListingSavedState } from "@/hooks/useListingSavedState";
 import { brand } from "@/config/brand";
 import { useAuth } from "@/hooks/useAuth";
 import { trackEvent } from "@/lib/analytics";
-import { getPartnerJobSaved, setPartnerJobSaved } from "@/lib/saved-jobs.functions";
+import { setPartnerJobSaved } from "@/lib/saved-jobs.functions";
 
 /**
  * The save heart for partner (Adzuna) jobs: same look and behavior as
@@ -23,17 +24,12 @@ export function PartnerJobHeartButton({
   title: string;
   className?: string;
 }) {
-  const { isSignedIn } = useAuth();
+  const { isSignedIn, user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const fetchState = useServerFn(getPartnerJobSaved);
   const setState = useServerFn(setPartnerJobSaved);
 
-  const state = useQuery({
-    queryKey: ["partner-job-saved", listingId],
-    queryFn: () => fetchState({ data: { listingId } }),
-    enabled: isSignedIn,
-  });
+  const state = useListingSavedState("jobs", listingId, user?.id);
 
   const mutation = useMutation({
     mutationFn: (saved: boolean) => setState({ data: { listingId, saved } }),
@@ -44,13 +40,15 @@ export function PartnerJobHeartButton({
       await queryClient.invalidateQueries({ queryKey: ["partner-job-saved", listingId] });
       await queryClient.invalidateQueries({ queryKey: ["my-saved-partner-jobs"] });
       await queryClient.invalidateQueries({ queryKey: ["listing-stats"] });
-      toast.success(result.saved ? `Saved ${title}.` : `Removed ${title} from your saved listings.`);
+      toast.success(
+        result.saved ? `Saved ${title}.` : `Removed ${title} from your saved listings.`,
+      );
     },
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "Could not update your saved listings."),
   });
 
-  const saved = state.data?.saved ?? false;
+  const saved = state.data ?? false;
 
   return (
     <button

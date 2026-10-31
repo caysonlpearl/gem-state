@@ -1,13 +1,14 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Heart } from "@phosphor-icons/react";
 import { toast } from "sonner";
 
+import { useListingSavedState } from "@/hooks/useListingSavedState";
 import { brand } from "@/config/brand";
 import { useAuth } from "@/hooks/useAuth";
 import { trackEvent } from "@/lib/analytics";
-import { getProductWatchState, setProductWatchState } from "@/lib/community.functions";
+import { setProductWatchState } from "@/lib/community.functions";
 
 /**
  * Compact heart control for product cards. One tap saves the product to the
@@ -27,17 +28,12 @@ export function WatchHeartButton({
   isDemo: boolean;
   className?: string;
 }) {
-  const { isSignedIn } = useAuth();
+  const { isSignedIn, user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const fetchState = useServerFn(getProductWatchState);
   const setState = useServerFn(setProductWatchState);
 
-  const state = useQuery({
-    queryKey: ["product-watch-state", productId],
-    queryFn: () => fetchState({ data: { productId } }),
-    enabled: isSignedIn && !isDemo,
-  });
+  const state = useListingSavedState("products", productId, user?.id, !isDemo);
 
   const mutation = useMutation({
     mutationFn: (watching: boolean) => setState({ data: { productId, watching } }),
@@ -62,7 +58,7 @@ export function WatchHeartButton({
 
   if (isDemo) return null;
 
-  const watching = state.data?.watching ?? false;
+  const watching = state.data ?? false;
 
   return (
     <button
