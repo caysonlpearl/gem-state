@@ -150,7 +150,7 @@ test("every upstream request is pinned to the account and a positive merchandise
     assert.equal(p.get("search_department"), scope[0]);
     assert.equal(p.get("search_category"), scope[1] || null);
     assert.equal(p.get("search_results_base"), "1000");
-    assert.equal(p.get("search_results_count"), "250");
+    assert.equal(p.get("search_results_count"), ["Shotguns", "Ammo"].includes(scope[0]) ? "10" : "250");
     assert.equal(p.has("auth_key"), false);
   }
   assert.throws(() => merchandiseSearchUrl(["Unknown", ""]));
@@ -442,5 +442,22 @@ test("failed and unfinished pages yield to other scopes without retiring unseen 
       db.calls.some((c) => c.ops?.some((o) => o.method === "lt")),
       false,
     );
+  }
+});
+
+test("shotgun and ammo refreshes use ten-item pages without prematurely retiring inventory", async () => {
+  for (const scope of [["Shotguns", "Pump Action"], ["Ammo", "Rifle Ammo"]]) {
+    const db = database((c) => c.rpc
+      ? { data: { allowed: true, offset: 20, generation: timestamps.first_seen_at }, error: null }
+      : { error: null });
+    const result = await refreshMerchandisePage(scope, db, async (url) => {
+      assert.equal(url.searchParams.get("search_results_count"), "10");
+      assert.equal(url.searchParams.get("search_results_base"), "20");
+      return Response.json(Array(10).fill({ ...row, strDepartmentName: scope[0], strCategoryName: scope[1] }));
+    });
+    assert.equal(result.complete, false);
+    const update = db.calls.findLast((c) => c.table === "avantlink_merchandise_scopes").ops.find((o) => o.method === "update").args[0];
+    assert.equal(update.next_offset, 30);
+    assert.equal(db.calls.some((c) => c.ops?.some((o) => o.method === "lt")), false);
   }
 });

@@ -124,6 +124,9 @@ export function firearmDetails(
   return { listingType: "Firearm", firearmType };
 }
 export type MerchandiseScope = (typeof MERCHANDISE_SCOPES)[number];
+// These sections time out on full-size requests; small pages return reliably.
+export const merchandisePageSize = (scope: MerchandiseScope) =>
+  scope[0] === "Shotguns" || scope[0] === "Ammo" ? 10 : MERCHANDISE_PAGE_SIZE;
 export const scopeKey = (scope: readonly [string, string]) => scope.join("/");
 const approvedScopes = new Set(MERCHANDISE_SCOPES.map(scopeKey));
 
@@ -322,7 +325,7 @@ export function merchandiseSearchUrl(scope: MerchandiseScope, offset = 0): URL {
     search_department: scope[0],
     ...(scope[1] ? { search_category: scope[1] } : {}),
     search_results_base: String(offset),
-    search_results_count: String(MERCHANDISE_PAGE_SIZE),
+    search_results_count: String(merchandisePageSize(scope)),
     search_results_fields: "*|Variants XML|Google Categorization|Product URL",
     output: "json",
     search_results_sort_order: "Product Id|asc",
