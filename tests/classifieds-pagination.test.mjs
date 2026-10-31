@@ -42,6 +42,7 @@ const validator = sourceNode(
   (node) => ts.isVariableDeclaration(node) && node.name.getText() === "browseClassifieds",
 );
 const loadMore = declaration(routeSource, "loadMore");
+const latestInput = declaration(routeSource, "latestListingsInput");
 const searchValidator = sourceNode(
   routeSource,
   (node) => ts.isPropertyAssignment(node) && node.name.getText() === "validateSearch",
@@ -101,23 +102,23 @@ function harness({
               return query;
             }
           : key === "range"
-          ? (from, to) => ({
-              // Supabase starts the read when its query thenable is consumed.
-              then(resolve, reject) {
-                return Promise.resolve()
-                  .then(() => {
-                    onNative();
-                    ranges.push([from, to]);
-                    return {
-                      data: records.slice(from, Math.min(to + 1, from + rowLimit)),
-                      count: exactCount ? records.length : null,
-                      error: null,
-                    };
-                  })
-                  .then(resolve, reject);
-              },
-            })
-          : () => query,
+            ? (from, to) => ({
+                // Supabase starts the read when its query thenable is consumed.
+                then(resolve, reject) {
+                  return Promise.resolve()
+                    .then(() => {
+                      onNative();
+                      ranges.push([from, to]);
+                      return {
+                        data: records.slice(from, Math.min(to + 1, from + rowLimit)),
+                        count: exactCount ? records.length : null,
+                        error: null,
+                      };
+                    })
+                    .then(resolve, reject);
+                },
+              })
+            : () => query,
     },
   );
   const modules = {
@@ -242,7 +243,7 @@ function harness({
   });
   vm.runInContext(
     compile(
-      `${runner}\nconst ${validator};\nconst routeLoader = ${loader};\nconst validateSearch = ${searchValidator};`,
+      `${latestInput}\n${runner}\nconst ${validator};\nconst routeLoader = ${loader};\nconst validateSearch = ${searchValidator};`,
     ),
     context,
   );
@@ -674,21 +675,31 @@ test("native inventory starts while an eligible provider is still pending", asyn
   await pending;
 });
 
-
 test("provider cache reads overlap cleanup but native ranking waits for cleanup", async () => {
   let release;
-  const gate = new Promise((resolve) => { release = resolve; });
+  const gate = new Promise((resolve) => {
+    release = resolve;
+  });
   let nativeStarted = false;
   const h = harness({
-    enabled: ["marketcheck"], cleanup: () => gate,
-    onNative: () => { nativeStarted = true; },
+    enabled: ["marketcheck"],
+    cleanup: () => gate,
+    onNative: () => {
+      nativeStarted = true;
+    },
   });
   const pending = h.browse(1);
   try {
     await new Promise(setImmediate);
     assert.deepEqual(h.adapterCalls, ["marketcheck"]);
-    assert.equal(nativeStarted, false, "native ranking cannot see expired placements before cleanup");
-  } finally { release(); }
+    assert.equal(
+      nativeStarted,
+      false,
+      "native ranking cannot see expired placements before cleanup",
+    );
+  } finally {
+    release();
+  }
   await pending;
   assert.equal(nativeStarted, true);
 });
@@ -698,20 +709,31 @@ test("homepage reads do not perform placement cleanup or wait for that maintenan
   let nativeStarted = false;
   const h = harness({
     filters: { category: "cars-trucks", state: "ID" },
-    cleanup: () => { cleanupCalls++; return new Promise(() => {}); },
-    onNative: () => { nativeStarted = true; },
+    cleanup: () => {
+      cleanupCalls++;
+      return new Promise(() => {});
+    },
+    onNative: () => {
+      nativeStarted = true;
+    },
   });
   await h.internal({ readOnlyHome: true });
   assert.equal(cleanupCalls, 0);
   assert.equal(nativeStarted, true);
 });
 
-
 test("internal homepage count omission preserves merged cards while public browse retains counts", async () => {
   const settings = {
     filters: { category: "cars-trucks", state: "ID", sort: "newest" },
     enabled: ["marketcheck"],
-    external: [{ id: "provider-car", title: "Provider car", createdAt: "2026-10-20T00:00:00Z", externalVehicle: { sourceKind: "marketcheck" } }],
+    external: [
+      {
+        id: "provider-car",
+        title: "Provider car",
+        createdAt: "2026-10-20T00:00:00Z",
+        externalVehicle: { sourceKind: "marketcheck" },
+      },
+    ],
   };
   const publicBrowse = harness(settings);
   const publicResult = await publicBrowse.browse(1);
@@ -719,46 +741,72 @@ test("internal homepage count omission preserves merged cards while public brows
   const leadResult = await internal.internal({ includeExactCount: false });
   assert.equal(publicBrowse.selections[0].count, "exact");
   assert.equal(internal.selections[0].count, undefined);
-  assert.deepEqual(JSON.parse(JSON.stringify(leadResult.listings)), JSON.parse(JSON.stringify(publicResult.listings)));
+  assert.deepEqual(
+    JSON.parse(JSON.stringify(leadResult.listings)),
+    JSON.parse(JSON.stringify(publicResult.listings)),
+  );
   assert.deepEqual(internal.ranges, publicBrowse.ranges);
   assert.deepEqual(internal.adapterCalls, publicBrowse.adapterCalls);
 });
-
 
 test("internal lead diagnostics contain only allowlisted finite nonnegative stage timings", async () => {
   const h = harness({ enabled: ["marketcheck"], filters: { category: "cars-trucks" } });
   const timingsMs = {};
   await h.internal({ includeExactCount: false, timingsMs });
-  const stages = ["cleanup", "categoryIds", "adapterImports", "nativeRead", "vehicleRead", "thumbnailLinks"];
-  assert.deepEqual(Object.keys(timingsMs).sort(), stages.flatMap((key) => [key, `${key}Start`]).sort());
+  const stages = [
+    "cleanup",
+    "categoryIds",
+    "adapterImports",
+    "nativeRead",
+    "vehicleRead",
+    "thumbnailLinks",
+  ];
+  assert.deepEqual(
+    Object.keys(timingsMs).sort(),
+    stages.flatMap((key) => [key, `${key}Start`]).sort(),
+  );
   for (const value of Object.values(timingsMs)) {
     assert.equal(typeof value, "number");
     assert.ok(Number.isFinite(value) && value >= 0);
   }
 });
 
-
 test("private home cache preparation overlaps category validation without invoking provider adapters", async () => {
   let release;
-  const categoryGate = new Promise((resolve) => { release = resolve; });
+  const categoryGate = new Promise((resolve) => {
+    release = resolve;
+  });
   let preparations = 0;
-  const h = harness({ filters: { category: "cars-trucks", state: "ID" }, enabled: ["marketcheck"], beforeCategory: () => categoryGate,
-    prepareVehicleCache: () => { preparations += 1; return { dealer: Promise.resolve([]), fsbo: Promise.resolve([]) }; },
+  const h = harness({
+    filters: { category: "cars-trucks", state: "ID" },
+    enabled: ["marketcheck"],
+    beforeCategory: () => categoryGate,
+    prepareVehicleCache: () => {
+      preparations += 1;
+      return { dealer: Promise.resolve([]), fsbo: Promise.resolve([]) };
+    },
   });
   const pending = h.internal({ prepareHomeVehicleCache: true });
   try {
     await new Promise(setImmediate);
     assert.equal(preparations, 1);
     assert.deepEqual(h.adapterCalls, [], "no full adapter or paid refresh before validation");
-  } finally { release(); }
+  } finally {
+    release();
+  }
   await pending;
   assert.deepEqual(h.adapterCalls, ["marketcheck"]);
 });
 
 test("invalid category discards preparation without invoking provider adapters", async () => {
   let preparations = 0;
-  const h = harness({ filters: { category: "not-a-category", state: "ID" }, enabled: ["marketcheck"],
-    prepareVehicleCache: () => { preparations += 1; return { dealer: Promise.resolve([]), fsbo: Promise.resolve([]) }; },
+  const h = harness({
+    filters: { category: "not-a-category", state: "ID" },
+    enabled: ["marketcheck"],
+    prepareVehicleCache: () => {
+      preparations += 1;
+      return { dealer: Promise.resolve([]), fsbo: Promise.resolve([]) };
+    },
   });
   const result = await h.internal({ prepareHomeVehicleCache: true });
   assert.equal(preparations, 1);
@@ -766,10 +814,13 @@ test("invalid category discards preparation without invoking provider adapters",
   assert.deepEqual(h.adapterCalls, []);
 });
 
-
 test("native browse deadline rejects instead of returning provider-only success", async () => {
-  const h = harness({ enabled: ["marketcheck"], external: [{ id: "provider" }],
-    deadlineRead: async () => { throw new Error("Catalog data took too long"); },
+  const h = harness({
+    enabled: ["marketcheck"],
+    external: [{ id: "provider" }],
+    deadlineRead: async () => {
+      throw new Error("Catalog data took too long");
+    },
   });
   await assert.rejects(h.internal(), /Catalog data took too long/);
 });
