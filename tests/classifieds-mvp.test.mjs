@@ -1195,7 +1195,7 @@ test("browse filters remain complete in responsive category sidebars", () => {
 
 test("vehicle browse uses a branded buy and category-accurate discovery filters", () => {
   assert.match(browseSource, /function VehicleBrowseHero/);
-  assert.match(browseSource, /Good roads start here/);
+  assert.match(browseSource, /Find your next gem on wheels/);
   assert.match(browseSource, /setShowAllFilters/);
   assert.match(browseSource, /expandedFilter/);
   assert.match(browseSource, /function InlineVehicleMakeModelFilter/);

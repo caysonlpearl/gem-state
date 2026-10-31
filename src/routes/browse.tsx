@@ -6872,10 +6872,10 @@ function VehicleBrowseHero({
               Bluebird motors
             </p>
             <h1 className="mt-2 max-w-[22ch] text-[30px] font-bold leading-tight tracking-tight sm:text-[38px]">
-              Good roads start here.
+              Find your next gem on wheels.
             </h1>
             <p className="mt-2 max-w-[52ch] text-[13.5px] leading-relaxed text-muted-foreground">
-              Local rides. New adventures.
+              Shop cars, trucks, powersports, trailers, and more from local sellers.
             </p>
           </div>
 
