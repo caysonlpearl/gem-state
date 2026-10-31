@@ -3143,7 +3143,7 @@ function FirearmBrowseSection({ title, children }: { title: string; children: Re
           {title}
         </h2>
       </div>
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{children}</div>
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-2 lg:grid-cols-4">{children}</div>
     </section>
   );
 }
@@ -3153,7 +3153,7 @@ function FirearmBrowseButton({ label, onClick }: { label: string; onClick: () =>
     <button
       type="button"
       onClick={onClick}
-      className="group flex min-h-12 items-center justify-between rounded-xl border border-border bg-card px-4 py-3 text-left text-[13px] font-semibold shadow-sm transition hover:border-primary hover:text-primary"
+      className="group flex min-h-11 items-center justify-between gap-1.5 rounded-xl border border-border bg-card px-3 py-2.5 text-left text-[12px] font-semibold shadow-sm transition hover:border-primary hover:text-primary sm:min-h-12 sm:px-4 sm:py-3 sm:text-[13px]"
     >
       <span>{label}</span>
       <ArrowRight
