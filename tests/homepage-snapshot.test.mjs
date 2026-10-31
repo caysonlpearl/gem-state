@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createHomepageSnapshotCache } from "../src/lib/homepage-snapshot.server.ts";
+import {
+  createHomepageSnapshotCache,
+  readHomepageSnapshot,
+} from "../src/lib/homepage-snapshot.server.ts";
 import { buildHomepageSnapshot } from "../src/lib/homepage-snapshot-build.server.ts";
 import {
   HOME_MAX_STALE_MS,
@@ -62,6 +65,24 @@ function store(initial) {
     },
   };
 }
+
+test("cold homepage reads reuse the shared CDN URL instead of bypassing its cache every minute", async (t) => {
+  const before = process.env.GEM_STATE_SUPABASE_URL;
+  process.env.GEM_STATE_SUPABASE_URL = "https://homepage-cache.example";
+  t.after(() => {
+    if (before === undefined) delete process.env.GEM_STATE_SUPABASE_URL;
+    else process.env.GEM_STATE_SUPABASE_URL = before;
+  });
+  const requests = [];
+  t.mock.method(globalThis, "fetch", async (url) => {
+    requests.push(String(url));
+    return new Response(JSON.stringify(snapshot(Date.now())), { status: 200 });
+  });
+  await readHomepageSnapshot();
+  assert.deepEqual(requests, [
+    "https://homepage-cache.example/storage/v1/object/public/homepage-snapshots/v1/home.json",
+  ]);
+});
 
 test("a cold server reads shared saved data without building, signing or requesting providers", async () => {
   const saved = snapshot(1000);

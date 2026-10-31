@@ -82,7 +82,7 @@ const shared = createHomepageSnapshotCache(
       // Public card data only. No auth header, so the storage CDN can share this
       // small response across visitors instead of hitting Postgres every time.
       const response = await fetch(
-        `${base}/storage/v1/object/public/${HOMEPAGE_BUCKET}/${HOMEPAGE_OBJECT}?minute=${Math.floor(Date.now() / 60_000)}`,
+        `${base}/storage/v1/object/public/${HOMEPAGE_BUCKET}/${HOMEPAGE_OBJECT}`,
         { signal: AbortSignal.timeout(2500) },
       );
       if (!response.ok) throw new Error("Homepage cache could not be read.");

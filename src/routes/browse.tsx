@@ -3041,26 +3041,26 @@ function FirearmsLandingHero({
 
 function FirearmsSafetyCallout() {
   return (
-    <div className="mt-5 flex flex-col gap-3 rounded-2xl border border-brand-blue/20 bg-brand-blue/5 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
-      <div className="flex min-w-0 items-start gap-3">
+    <div className="mt-3 flex flex-col gap-2 rounded-xl border border-brand-blue/20 bg-brand-blue/5 px-3 py-2.5 sm:mt-5 sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:rounded-2xl sm:px-5 sm:py-4">
+      <div className="flex min-w-0 items-start gap-2 sm:gap-3">
         <ShieldCheck
           size={21}
           weight="fill"
-          className="mt-0.5 shrink-0 text-primary"
+          className="mt-0.5 shrink-0 text-primary max-sm:h-4 max-sm:w-4"
           aria-hidden="true"
         />
         <div>
-          <p className="text-[13px] font-semibold text-foreground">Buy and sell responsibly</p>
-          <p className="mt-0.5 text-[12px] leading-relaxed text-muted-foreground">
+          <p className="text-[11px] font-semibold text-foreground sm:text-[13px]">Buy and sell responsibly</p>
+          <p className="mt-0.5 text-[10px] leading-snug text-muted-foreground sm:text-[12px] sm:leading-relaxed">
             Review Bluebird’s guidance for safe, lawful firearm listings and private transactions.
           </p>
         </div>
       </div>
       <Link
         to="/firearms-safety"
-        className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-full border border-primary/40 bg-card px-3.5 text-[12px] font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground"
+        className="inline-flex h-7 shrink-0 items-center justify-center gap-1 rounded-full border border-primary/40 bg-card px-2.5 text-[10px] font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground sm:h-9 sm:gap-1.5 sm:px-3.5 sm:text-[12px]"
       >
-        Firearm safety statement <ArrowRight size={14} weight="bold" aria-hidden="true" />
+        Firearm safety statement <ArrowRight size={14} weight="bold" aria-hidden="true" className="max-sm:h-3 max-sm:w-3" />
       </Link>
     </div>
   );
