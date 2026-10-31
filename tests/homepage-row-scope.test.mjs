@@ -179,12 +179,12 @@ function renderedHome(location, point) {
     HomepageLeadErrorBoundary: "HomepageLeadErrorBoundary",
     HomepageLeadLoading: "HomepageLeadLoading",
     HomepageLeadVehicles: "HomepageLeadVehicles",
-    DeferredHomeSections: "DeferredHomeSections",
+    HomepageSections: "HomepageSections",
     Suspense: "Suspense",
     LocationRadiusPicker: "LocationRadiusPicker",
   });
   const tree = c.Home();
-  const where = nodes(tree).find((n) => n.type === "DeferredHomeSections").props.where;
+  const where = nodes(tree).find((n) => n.type === "HomepageSections").props.where;
   nodes(tree)
     .find((n) => n.type === "form")
     .props.onSubmit({ preventDefault() {} });

@@ -35,10 +35,17 @@ function FixtureRoot() {
     </QueryClientProvider>
   );
 }
+const mode = new URLSearchParams(location.search).get("fixture") ?? "success";
 const homeRoute = productionHomeRoute.update({
   id: "/",
   path: "/",
   getParentRoute: () => rootRoute,
+  // Fault fixtures exercise a cache miss after navigation independently of
+  // the initial read barrier. Success/empty fixtures use the real loader.
+  loader:
+    mode === "loading" || mode.startsWith("allocation")
+      ? async () => ({ leadImageUrl: null })
+      : productionHomeRoute.options.loader,
 } as never);
 const router = createRouter({
   routeTree: rootRoute.addChildren([homeRoute]),

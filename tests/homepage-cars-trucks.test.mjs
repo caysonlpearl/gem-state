@@ -299,7 +299,7 @@ test("Keep browsing reveals local cards before requesting a page and never loses
   assert.equal(nodes(tree).filter((n) => n.type === "button").length, 0);
 });
 
-test("secondary cached feeds load independently of a slow or failed lead", () => {
+test("all secondary rows render in the server HTML before browser hydration or image paint", () => {
   const source = readFileSync(new URL("../src/routes/index.tsx", import.meta.url), "utf8");
   const file = ts.createSourceFile(
     "index.tsx",
@@ -309,50 +309,26 @@ test("secondary cached feeds load independently of a slow or failed lead", () =>
     ts.ScriptKind.TSX,
   );
   const fn = file.statements.find(
-    (n) => ts.isFunctionDeclaration(n) && n.name?.text === "DeferredHomeSections",
+    (n) => ts.isFunctionDeclaration(n) && n.name?.text === "HomepageSections",
   );
-  let hydrated = false;
-  let lead = { isSuccess: true, isError: false };
-  const queries = [];
   const context = vm.createContext({
     React,
     Suspense: React.Suspense,
     QueryErrorResetBoundary: ({ children }) => children({ reset: () => {} }),
     HomepageSecondaryErrorBoundary: ({ children }) => children,
-    useHydrated: () => hydrated,
-    useQuery: (options) => {
-      queries.push(options);
-      return lead;
-    },
-    homeLeadQuery: {},
-    homeQuery: { queryKey: ["secondary"] },
+    HomeSectionsLoading: () => React.createElement("div", null, "pending"),
     HomeSections: () => React.createElement("div", null, "secondary-loaded"),
   });
   vm.runInContext(
     ts.transpile(fn.getText(file), { target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.React }),
     context,
   );
-  const render = (leadPainted = false) =>
-    renderToStaticMarkup(
-      React.createElement(context.DeferredHomeSections, { where: {}, leadPainted }),
-    );
-  assert.doesNotMatch(render(), /secondary-loaded/);
-  assert.equal(queries.at(-1).enabled, false);
-  hydrated = true;
-  lead = { isSuccess: false, isError: false };
-  assert.match(render(), /secondary-loaded/);
-  lead = { isSuccess: true, isError: false };
-  assert.match(render(), /secondary-loaded/);
-  assert.equal(
-    queries.at(-1).enabled,
-    true,
-    "data starts loading while the first photo is still pending",
+  const html = renderToStaticMarkup(
+    React.createElement(context.HomepageSections, { where: {}, leadPainted: false }),
   );
-  assert.match(render(true), /secondary-loaded/);
-  lead = { isSuccess: false, isError: true };
-  assert.match(render(), /secondary-loaded/);
-  assert.match(source, /prefetchQuery\(homeLeadQuery\)/);
-  assert.match(source, /prefetchQuery\(homeQuery\)/);
+  assert.match(html, /secondary-loaded/);
+  assert.doesNotMatch(html, /pending|Loading more listings/);
+  assert.doesNotMatch(fn.getText(file), /useHydrated|enabled: hydrated/);
 });
 
 test("secondary feed errors stay local and can retry or use the server-rendered browse link", () => {
