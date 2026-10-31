@@ -1,3 +1,4 @@
+import { selectLandingCoverage } from "./landing-coverage";
 import { withCatalogReadDeadline } from "./catalog-read-deadline";
 import { listingCardSummary, type ListingCardSummary } from "./listing-card-summary";
 /* eslint-disable @typescript-eslint/no-explicit-any -- the generated client types lag the classified listing RPC additions */
@@ -2769,17 +2770,14 @@ export async function loadNativeHomepageInventory() {
     (row) => !isReleaseQaListing(row),
   );
   const categoryCounts: Record<string, number> = {};
-  const allocated = new Map<string, number>();
-  const selected = rows
-    .filter((row) => {
-      const r = row as unknown as Record<string, any>;
-      const category = r.products?.categories?.slug ?? "general";
-      categoryCounts[category] = (categoryCounts[category] ?? 0) + 1;
-      if ((allocated.get(category) ?? 0) >= 64) return false;
-      allocated.set(category, (allocated.get(category) ?? 0) + 1);
-      return true;
-    })
-    .slice(0, 500);
+  for (const row of rows) {
+    const r = row as unknown as Record<string, any>;
+    const category = r.products?.categories?.slug ?? "general";
+    categoryCounts[category] = (categoryCounts[category] ?? 0) + 1;
+  }
+  const cards = rows.map((row) => toCard(row, new Map()));
+  const selectedIds = new Set(selectLandingCoverage(cards, 400).map((card) => card.id));
+  const selected = rows.filter((row) => selectedIds.has(row["id"] as string));
   const urls = await signListingThumbnails(
     selected.flatMap((row) => sortedMedia(row as unknown as Record<string, unknown>).slice(0, 1)),
   );

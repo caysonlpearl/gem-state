@@ -1,3 +1,11 @@
+import { homeRowFilters } from "@/lib/landing-home-filters";
+import {
+  firearmShowcaseRows,
+  petShowcaseRows,
+  classifiedShowcaseRows,
+  vehicleShowcaseRows,
+  jobsShowcaseRows,
+} from "@/config/landing-preview-rows";
 import { createFileRoute, Link, notFound, useNavigate, useRouter } from "@tanstack/react-router";
 import { queryOptions, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -3383,84 +3391,6 @@ const generalCategoryHighlights = [
   { slug: "pets", name: "Pets", description: "Dogs, cats, and supplies" },
 ] as const;
 
-const firearmShowcaseRows: HomepagePreviewRow[] = [
-  {
-    title: "Rifles near you",
-    action: "Browse rifles",
-    href: "/browse?category=firearms&firearmMode=results&firearmListingType=Firearm&firearmType=Rifle",
-    cards: [],
-  },
-  {
-    title: "Handguns near you",
-    action: "Browse handguns",
-    href: "/browse?category=firearms&firearmMode=results&firearmListingType=Firearm&firearmType=Handgun",
-    cards: [],
-  },
-  {
-    title: "Shotguns near you",
-    action: "Browse shotguns",
-    href: "/browse?category=firearms&firearmMode=results&firearmListingType=Firearm&firearmType=Shotgun",
-    cards: [],
-  },
-  {
-    title: "Ammunition",
-    action: "Shop ammunition",
-    href: "/browse?category=firearms&firearmMode=results&firearmListingType=Accessory&firearmAccessoryType=Ammunition",
-    cards: [],
-  },
-  {
-    title: "Optics and sights",
-    action: "Shop optics",
-    href: "/browse?category=firearms&firearmMode=results&firearmListingType=Accessory&firearmAccessoryType=Optics%20%26%20sights",
-    cards: [],
-  },
-  {
-    title: "Cases and secure storage",
-    action: "Shop cases and storage",
-    href: "/browse?category=firearms&firearmMode=results&firearmListingType=Accessory&firearmAccessoryType=Cases%20%26%20storage",
-    cards: [],
-  },
-  {
-    title: "Safes and locks",
-    action: "Shop safes and locks",
-    href: "/browse?category=firearms&firearmMode=results&firearmListingType=Accessory&firearmAccessoryType=Safes%20%26%20locks",
-    cards: [],
-  },
-  {
-    title: "Targets and range gear",
-    action: "Shop range gear",
-    href: "/browse?category=firearms&firearmMode=results&firearmListingType=Accessory&firearmAccessoryType=Targets%20%26%20range%20gear",
-    cards: [],
-  },
-];
-
-const petShowcaseRows: HomepagePreviewRow[] = [
-  {
-    title: "Pets and companions near you",
-    action: "Browse all pets",
-    href: "/browse?category=pets&petMode=results",
-    cards: [],
-  },
-  {
-    title: "Dogs for adoption",
-    action: "See adoptable dogs",
-    href: "/browse?category=pets&petMode=results&petSubcategory=dogs&petPlacementType=adoption",
-    cards: [],
-  },
-  {
-    title: "Cats for adoption",
-    action: "See adoptable cats",
-    href: "/browse?category=pets&petMode=results&petSubcategory=cats&petPlacementType=adoption",
-    cards: [],
-  },
-  {
-    title: "Other pets looking for a home",
-    action: "See other pets",
-    href: "/browse?category=pets&petMode=results&petSubcategory=other-pets&petPlacementType=adoption",
-    cards: [],
-  },
-];
-
 type HomepagePreviewCard = {
   title: string;
   location: string;
@@ -3505,200 +3435,6 @@ function showcaseRow(
 } {
   return { title, action, href, cards };
 }
-
-const classifiedShowcaseRows: HomepagePreviewRow[] = [
-  {
-    title: "Popular near you",
-    action: "See popular listings",
-    href: "/browse?allCategories=true",
-    cards: [],
-  },
-  {
-    title: "Everyday finds",
-    action: "Browse seasonal finds",
-    href: "/browse?category=general",
-    cards: [],
-  },
-  {
-    title: "Clothing & accessories",
-    action: "Shop clothing",
-    href: "/browse?category=general&q=clothing",
-    cards: [],
-  },
-  {
-    title: "Lowest prices",
-    action: "See all price drops",
-    href: "/browse?allCategories=true&sort=price_low",
-    cards: [],
-  },
-  showcaseRow("Furniture & home refresh", "Shop furniture", "/browse?category=furniture", []),
-  showcaseRow("Electronics & gaming", "Browse electronics", "/browse?category=electronics", []),
-  showcaseRow("Outdoor & recreation", "Shop outdoor gear", "/browse?category=outdoor-sporting", []),
-  showcaseRow("Tools & shop equipment", "Find tools", "/browse?category=tools-equipment", []),
-  showcaseRow("Farm & garden finds", "Browse farm and garden", "/browse?category=farm-garden", []),
-];
-
-const vehicleShowcaseRows: HomepagePreviewRow[] = [
-  {
-    title: "Newest in Idaho",
-    action: "See the newest vehicles",
-    href: "/browse?group=motors&vehicleMode=results&state=ID",
-    cards: [],
-  },
-  {
-    title: "Adventure-ready rides",
-    action: "Explore outdoor vehicles",
-    href: "/browse?group=motors&vehicleMode=results&state=ID&bodyStyle=SUV||Truck",
-    cards: [],
-  },
-  {
-    title: "Lowest prices",
-    action: "See the lowest prices",
-    href: "/browse?group=motors&vehicleMode=results&state=ID&sort=price_low",
-    cards: [],
-  },
-  showcaseRow(
-    "Fuel-efficient commuters",
-    "Shop efficient cars",
-    "/browse?group=motors&vehicleMode=results&state=ID&fuelType=Hybrid||Electric",
-    [],
-  ),
-  showcaseRow(
-    "Family SUVs & crossovers",
-    "Find family SUVs",
-    "/browse?group=motors&vehicleMode=results&state=ID&bodyStyle=SUV",
-    [],
-  ),
-  showcaseRow(
-    "Work trucks & vans",
-    "Shop work-ready vehicles",
-    "/browse?group=motors&vehicleMode=results&state=ID&bodyStyle=Truck||Van",
-    [],
-  ),
-  showcaseRow(
-    "RVs, campers & trailers",
-    "Explore campers and trailers",
-    "/browse?group=motors&vehicleMode=results&state=ID&bodyStyle=RV||Trailer",
-    [],
-  ),
-  showcaseRow(
-    "Motorcycles & powersports",
-    "Shop powersports",
-    "/browse?group=motors&vehicleMode=results&state=ID&bodyStyle=Motorcycle||ATV",
-    [],
-  ),
-  showcaseRow(
-    "Cars under $20,000",
-    "Find affordable cars",
-    "/browse?group=motors&vehicleMode=results&state=ID&priceMax=20000",
-    [],
-  ),
-  showcaseRow(
-    "Late-model local vehicles",
-    "Browse newer vehicles",
-    "/browse?group=motors&vehicleMode=results&state=ID&yearMin=2022",
-    [],
-  ),
-  showcaseRow(
-    "Classic & enthusiast vehicles",
-    "Explore classic rides",
-    "/browse?group=motors&vehicleMode=results&state=ID&yearMax=1995",
-    [],
-  ),
-  showcaseRow(
-    "Minivans & people movers",
-    "Find minivans",
-    "/browse?group=motors&vehicleMode=results&state=ID&bodyStyle=Minivan",
-    [],
-  ),
-  showcaseRow(
-    "AWD & winter-ready rides",
-    "Shop all-weather vehicles",
-    "/browse?group=motors&vehicleMode=results&state=ID&drivetrain=AWD||4WD",
-    [],
-  ),
-];
-
-const jobsShowcaseRows: HomepagePreviewRow[] = [
-  {
-    title: "New opportunities",
-    action: "See newest jobs",
-    href: "/browse?category=jobs&jobMode=results",
-    cards: [],
-  },
-  {
-    title: "Part-time & flexible",
-    action: "Find flexible work",
-    href: "/browse?category=jobs&jobMode=results&jobType=Part-time",
-    cards: [],
-  },
-  {
-    title: "Skilled trades & hands-on work",
-    action: "Browse skilled trades",
-    href: "/browse?category=jobs&jobMode=results&jobCategory=Construction",
-    cards: [],
-  },
-  showcaseRow(
-    "Healthcare & caregiving",
-    "Browse healthcare jobs",
-    "/browse?category=jobs&jobMode=results&jobCategory=Healthcare",
-    [],
-  ),
-  showcaseRow(
-    "Hospitality & food service",
-    "Find hospitality jobs",
-    "/browse?category=jobs&jobMode=results&jobCategory=Hospitality",
-    [],
-  ),
-  showcaseRow(
-    "Office & administrative",
-    "Browse office jobs",
-    "/browse?category=jobs&jobMode=results&jobCategory=Administrative",
-    [],
-  ),
-  showcaseRow(
-    "Sales & customer experience",
-    "Find sales jobs",
-    "/browse?category=jobs&jobMode=results&jobCategory=Retail",
-    [],
-  ),
-  showcaseRow(
-    "Education & childcare",
-    "Browse education jobs",
-    "/browse?category=jobs&jobMode=results&jobCategory=Education",
-    [],
-  ),
-  showcaseRow(
-    "Remote-friendly roles",
-    "Find flexible remote work",
-    "/browse?category=jobs&jobMode=results&q=remote",
-    [],
-  ),
-  showcaseRow(
-    "Seasonal & event work",
-    "Find seasonal jobs",
-    "/browse?category=jobs&jobMode=results&jobType=Seasonal",
-    [],
-  ),
-  showcaseRow(
-    "Finance & accounting",
-    "Browse finance jobs",
-    "/browse?category=jobs&jobMode=results&jobCategory=Accounting%20%26%20Finance",
-    [],
-  ),
-  showcaseRow(
-    "Transportation & delivery",
-    "Find driving jobs",
-    "/browse?category=jobs&jobMode=results&q=driver",
-    [],
-  ),
-  showcaseRow(
-    "Engineering & technical",
-    "Browse technical jobs",
-    "/browse?category=jobs&jobMode=results&jobCategory=Architecture%20%26%20Engineering",
-    [],
-  ),
-];
 
 // Each row is one trade, filled from members' listings and the services directory.
 
@@ -4255,29 +3991,6 @@ function HomesLandingHero({
     </section>
   );
 }
-
-const homeTypeIs = (listing: ListingCardSummary, pattern: RegExp) =>
-  pattern.test(listing.home?.propertyType ?? "");
-
-/** What qualifies a home for each homes-landing row. Rows not listed here
- * (like price drops, which the listing data can't show yet) stay hidden. */
-const homeRowFilters: Record<string, (listing: ListingCardSummary) => boolean> = {
-  "Featured homes for sale": (l) => l.isFeatured && l.home?.mode === "buy",
-  "Starter homes": (l) => l.home?.mode === "buy" && l.priceCents > 0 && l.priceCents <= 40_000_000,
-  "Condos & townhomes": (l) => l.home?.mode === "buy" && homeTypeIs(l, /condo|town/i),
-  "Homes with space to grow": (l) =>
-    l.home?.mode === "buy" && ((l.home.bedrooms ?? 0) >= 4 || (l.home.squareFeet ?? 0) >= 2500),
-  "New builds to explore": (l) => l.home?.mode === "build",
-  "New build communities": (l) => l.home?.mode === "build" && Boolean(l.home.community),
-  "Rentals worth a look": (l) => l.home?.mode === "rent",
-  "Pet-friendly rentals": (l) =>
-    l.home?.mode === "rent" && /allowed|yes|cats?|dogs?|friendly/i.test(l.home.pets ?? ""),
-  "Apartments under $1,800": (l) =>
-    l.home?.mode === "rent" && homeTypeIs(l, /apartment|condo/i) && l.priceCents <= 180_000,
-  "Rentals with room to spread out": (l) => l.home?.mode === "rent" && (l.home.bedrooms ?? 0) >= 3,
-  "Short-term & flexible stays": (l) =>
-    l.home?.mode === "rent" && /month-to-month|short/i.test(l.home.leaseLength ?? ""),
-};
 
 function HomeShowcaseRows({
   activeTab,

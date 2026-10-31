@@ -16,7 +16,12 @@ const categories = {
   "tools-equipment": "Tools & Equipment",
   firearms: "Firearms",
 };
-const firearmFilters = ["firearmListingType", "firearmType", "firearmBrand", "firearmAccessoryType"];
+const firearmFilters = [
+  "firearmListingType",
+  "firearmType",
+  "firearmBrand",
+  "firearmAccessoryType",
+];
 const maxAge = () => new Date(Date.now() - 7 * 86400000).toISOString();
 const present = (v: unknown) => v !== undefined && v !== null && v !== false && v !== "";
 const bounded = (query: any) =>
@@ -188,11 +193,79 @@ export async function merchandiseCards(
   };
 }
 
-export async function merchandiseHomeCards(): Promise<ClassifiedCard[]> {
-  const results = await Promise.all(
-    Object.keys(categories).map((category) => merchandiseCards({ category }, undefined, 8)),
-  );
-  return results.flatMap((result) => result.cards);
+/** Background-only, compact samples from EVERY already-cached scope. Reading
+ * eight newest items from a broad category misses older subcategories. No
+ * scope is added or refreshed here, and no upstream API request is made. */
+export async function merchandiseHomeCards(injectedDb?: any): Promise<ClassifiedCard[]> {
+  const db = injectedDb ?? (await import("@/integrations/supabase/client.server")).supabaseAdmin;
+  const signal = AbortSignal.timeout(20_000);
+  const { data: scopes, error } = await db
+    .from("avantlink_merchandise_scopes")
+    .select("scope_key")
+    .gt("accepted_count", 0)
+    .order("scope_key")
+    .limit(1000)
+    .abortSignal(signal)
+    .retry(false);
+  if (error) throw new Error("Saved product categories could not be read.");
+  // Keep only fields needed by the existing normalizer/card. Descriptions,
+  // provider raw payloads and detail galleries never cross into the snapshot.
+  const fields = [
+    "lngDatafeedId",
+    "lngMerchantId",
+    "lngProductId",
+    "strProductSKU",
+    "strProductName",
+    "strDepartmentName",
+    "strCategoryName",
+    "strSubCategoryName",
+    "strBrandName",
+    "dblProductPrice",
+    "dblProductSalePrice",
+    "strBuyURL",
+    "strLargeImage",
+    "strMediumImage",
+    "strThumbnailImage",
+    "txtVariants",
+  ];
+  const selection = [
+    "id",
+    "first_seen_at",
+    "source_refreshed_at",
+    ...fields.map((field) => `${field}:payload->raw->${field}`),
+  ].join(",");
+  const cards: ClassifiedCard[] = [];
+  for (let index = 0; index < (scopes?.length ?? 0); index += 4) {
+    const batch = await Promise.all(
+      scopes.slice(index, index + 4).map(async (scope: any) => {
+        const result = await db
+          .from("avantlink_merchandise")
+          .select(selection)
+          .eq("scope_key", scope.scope_key)
+          .eq("active", true)
+          .gte("source_refreshed_at", maxAge())
+          .order("first_seen_at", { ascending: false })
+          .order("id")
+          .limit(12)
+          .abortSignal(signal)
+          .retry(false);
+        if (result.error) throw new Error("Saved product previews could not be read.");
+        return (result.data ?? []).flatMap((row: any) => {
+          const product = normalizeMerchandise(row);
+          if (!product) return [];
+          const card = merchandiseCard(product, row);
+          // Preserve the existing browse adapter's cross-listed category.
+          if (product.department === "Range Gear") {
+            card.categorySlug = "firearms";
+            card.categoryName = categories.firearms;
+          }
+          return [card];
+        });
+      }),
+    );
+    cards.push(...batch.flat());
+  }
+  return cards;
 }
 
 export async function merchandiseDetail(

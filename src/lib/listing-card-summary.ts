@@ -2,6 +2,7 @@ import type { ClassifiedCard } from "./classifieds.functions";
 
 // Card rendering needs the source badge, not detail-page media/history/raw data.
 export type ListingCardSummary = Omit<ClassifiedCard, "externalVehicle"> & {
+  landingKeywords?: string[];
   externalVehicle?: Pick<NonNullable<ClassifiedCard["externalVehicle"]>, "sourceKind">;
 };
 

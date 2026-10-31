@@ -7,7 +7,7 @@ const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 const configSource = await read("src/config/classifieds.ts");
 const petsConfigSource = await read("src/config/pets.ts");
 const itemFieldsConfigSource = await read("src/config/classified-item-fields.ts");
-const browseSource = await read("src/routes/browse.tsx");
+const browseSource = (await read("src/routes/browse.tsx")) + "\n" + (await read("src/config/landing-preview-rows.ts"));
 const serviceRowsSource = await read("src/config/landing-service-rows.ts");
 const displaySource = await read("src/lib/classifieds-display.ts");
 const querySource = await read("src/lib/classifieds-query.ts");
@@ -1791,7 +1791,7 @@ test("firearms are a first-class category with linked safety guidance", async ()
   assert.match(browseSource, /Shop popular brands/);
   assert.match(browseSource, /Firearm accessories/);
   assert.match(browseSource, /title="Latest firearm listings"/);
-  assert.match(browseSource, /const firearmShowcaseRows: HomepagePreviewRow\[\] = \[/);
+  assert.match(browseSource, /const firearmShowcaseRows: LandingPreviewRow\[\] = \[/);
   assert.match(browseSource, /title: "Rifles near you"/);
   assert.match(browseSource, /title: "Handguns near you"/);
   assert.match(browseSource, /title: "Shotguns near you"/);
