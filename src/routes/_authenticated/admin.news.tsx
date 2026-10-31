@@ -362,7 +362,7 @@ function NewsAdmin() {
   const original = !selected || selected.kind === "original";
   const guide = Boolean(selected?.guidePath);
   return (
-    <main className="mx-auto max-w-[1400px] px-4 py-7 sm:px-7 sm:py-10">
+    <div className="mx-auto max-w-[1400px] px-4 py-7 sm:px-7 sm:py-10">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <a href="/admin" className="text-xs font-semibold text-primary">
@@ -887,6 +887,6 @@ function NewsAdmin() {
           )}
         </>
       )}
-    </main>
+    </div>
   );
 }

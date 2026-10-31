@@ -449,6 +449,36 @@ test("publisher credits and photo captions cannot turn national stories into Ida
   );
   assert.equal(story.status, "review");
 });
+test("general news does not inherit shopping categories from incidental body mentions", async () => {
+  const [story] = await parseEditorialFeed(
+    feed(
+      item({
+        title: "Idaho residents speak about a statewide health initiative",
+        content:
+          "<p>One Idaho resident left her job to attend the hearing. A business owner also spoke.</p>",
+      }),
+    ),
+    source(),
+    now,
+  );
+  assert.equal(story.topic, "local-news");
+  assert.deepEqual(story.categorySlugs, []);
+});
+test("an explicit headline state overrides the publisher's home state", async () => {
+  const [story] = await parseEditorialFeed(
+    feed(
+      item({
+        title: "Utah files charges over operations in Salt Lake City",
+        content: "<p>The report was also shared with Idaho readers.</p>",
+      }),
+    ),
+    source(),
+    now,
+  );
+  assert.equal(story.state, "UT");
+  assert.equal(story.city, "Salt Lake City");
+  assert.equal(story.status, "published");
+});
 test("the article city follows its first mention instead of the city's position in a dictionary", async () => {
   const [story] = await parseEditorialFeed(
     feed(item({ content: body + "<p>The state department in Boise shared the announcement.</p>" })),

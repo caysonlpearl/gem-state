@@ -55,7 +55,7 @@ function NewsIndex() {
   const latest = rest.slice(3);
   const pages = Math.max(1, Math.ceil(data.total / data.pageSize));
   return (
-    <main className="mx-auto max-w-[1240px] px-4 py-7 sm:px-7 sm:py-10">
+    <div className="mx-auto max-w-[1240px] px-4 py-7 sm:px-7 sm:py-10">
       <header className="border-b border-border pb-6">
         <div className="flex flex-wrap items-end justify-between gap-5">
           <div>
@@ -235,6 +235,6 @@ function NewsIndex() {
           How we select and publish stories
         </a>
       </p>
-    </main>
+    </div>
   );
 }

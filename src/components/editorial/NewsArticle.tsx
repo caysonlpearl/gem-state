@@ -157,7 +157,7 @@ export function NewsArticleView({
   };
   const sections = article.bodySections?.length ? article.bodySections : [article.bodyHtml];
   return (
-    <main className="mx-auto max-w-[1160px] px-4 py-7 sm:px-6 sm:py-12">
+    <div className="mx-auto max-w-[1160px] px-4 py-7 sm:px-6 sm:py-12">
       {preview && (
         <p className="mb-6 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
           Private preview · This does not publish your article.
@@ -256,6 +256,6 @@ export function NewsArticleView({
         </nav>
       </article>
       {!preview && <EditorialRelatedListings {...scope} />}
-    </main>
+    </div>
   );
 }

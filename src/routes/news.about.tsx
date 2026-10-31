@@ -13,7 +13,7 @@ export const Route = createFileRoute("/news/about")({
     ],
   }),
   component: () => (
-    <main className="mx-auto max-w-[820px] px-4 py-10 sm:px-6 sm:py-14">
+    <div className="mx-auto max-w-[820px] px-4 py-10 sm:px-6 sm:py-14">
       <a href="/news" className="text-sm font-semibold text-primary">
         ← Bluebird Local
       </a>
@@ -63,6 +63,6 @@ export const Route = createFileRoute("/news/about")({
       <div className="mt-9">
         <EditorialCta articleId="news-about" placement="news_about" />
       </div>
-    </main>
+    </div>
   ),
 });

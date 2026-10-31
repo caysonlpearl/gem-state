@@ -142,7 +142,7 @@ export async function ingestEditorialStories(
 ) {
   const counts = { created: 0, updated: 0, review: 0 };
   if (!stories.length) return counts;
-  if (source.state === "UT") {
+  if (stories.some((story) => story.state === "UT")) {
     const prior = await db
       .from("editorial_articles")
       .select("source_url,published_at")

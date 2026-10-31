@@ -259,7 +259,7 @@ export function classifyNews(text: string): { topic: NewsTopic; categories: stri
   )
     return { topic: "cars-transport", categories: ["cars-trucks"] };
   if (
-    /\b(jobs?|employment|hiring|business(?:es)?|econom(?:y|ic)|workforce|job fair|unemployment)\b/i.test(
+    /\b(jobs?|employment|employers?|hiring|business(?:es)?|econom(?:y|ic)|workforce|job fair|unemployment)\b/i.test(
       text,
     )
   )
@@ -275,9 +275,13 @@ export function classifyNews(text: string): { topic: NewsTopic; categories: stri
 export function detectNewsPlace(
   text: string,
   sourceKey: string,
+  headline = "",
 ): { state: "ID" | "UT"; city: string | null; certain: boolean } {
   const source = NEWS_SOURCE_DEFINITIONS.find((s) => s.key === sourceKey);
-  const state = source?.state || "ID";
+  const headlineIdaho = /\bIdaho(?:ans?)?\b/i.test(headline);
+  const headlineUtah = /\bUtah(?:ns?)?\b/i.test(headline);
+  const state =
+    headlineIdaho !== headlineUtah ? (headlineUtah ? "UT" : "ID") : source?.state || "ID";
   const cities =
     state === "ID"
       ? idahoCities.filter((c) => c.length >= 5)

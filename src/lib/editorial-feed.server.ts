@@ -199,8 +199,10 @@ export async function parseEditorialFeed(
       .replace(/<p\b[^>]*>\s*The post[\s\S]*?appeared first on[\s\S]*?<\/p>/gi, " ");
     const analysisText = editorialPlainText(analysisHtml);
     const text = `${title} ${analysisText.slice(0, 8000)} ${[item.category].flat().map(string).join(" ")}`;
-    const location = detectNewsPlace(text, source.key);
-    const classification = classifyNews(title + " " + analysisText.slice(0, 500));
+    const location = detectNewsPlace(text, source.key, title);
+    // An incidental job, business, or vehicle mentioned in a general-news
+    // article must not turn it into a shopping topic or an irrelevant CTA.
+    const classification = classifyNews(title);
     const licensed = source.usage === "full" && source.permissionNote.trim().length >= 12;
     const body = licensed
       ? sanitizeEditorialHtml(rawBody, source.imagesPermitted, source.name, source.website)
@@ -222,7 +224,16 @@ export async function parseEditorialFeed(
     const excerpt = licensed
       ? editorialPlainText(body).slice(0, 240)
       : `Local reporting from ${source.name}. Read the full story at its original source.`;
-    const fingerprint = JSON.stringify({ title, body, authorName, publishedAt, kind, excerpt });
+    const fingerprint = JSON.stringify({
+      title,
+      body,
+      authorName,
+      publishedAt,
+      kind,
+      excerpt,
+      location,
+      classification,
+    });
     const contentHash = [
       ...new Uint8Array(
         await crypto.subtle.digest("SHA-256", new TextEncoder().encode(fingerprint)),
