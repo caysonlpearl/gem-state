@@ -83,7 +83,7 @@ import {
 } from "@/lib/classifieds-display";
 import {
   browseClassifieds,
-  getClassifiedsHome,
+  getClassifiedsLandingHome,
   type ClassifiedBrowseInput,
   type ClassifiedCard,
   type ClassifiedBrowseResult,
@@ -817,7 +817,7 @@ const landingHomeQuery = queryOptions({
   // The primary query remains authoritative. If the optional wider cache is
   // temporarily unavailable, curate from its real results rather than fail
   // an otherwise healthy category page or start a search for every row.
-  queryFn: () => getClassifiedsHome().catch(() => null),
+  queryFn: () => getClassifiedsLandingHome().catch(() => null),
 });
 
 function isLandingPage(search: Search) {

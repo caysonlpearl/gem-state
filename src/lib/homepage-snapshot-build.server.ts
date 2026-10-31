@@ -42,17 +42,13 @@ const sources: Sources = {
     const { openWebNinjaCard } = await import("./openwebninja-listings.server");
     const rows = await cachedRows("openwebninja_cache", '%"kind":"area-search"%');
     return {
-      cards: rows.flatMap((row: any) =>
-        (row.payload?.homes ?? []).filter((home: any) => home.state === "ID").map(openWebNinjaCard),
-      ),
+      cards: rows.flatMap((row: any) => (row.payload?.homes ?? []).map(openWebNinjaCard)),
     };
   },
   async jobs() {
     const { adzunaCard } = await import("./adzuna-listings.server");
     const rows = await cachedRows("adzuna_search_cache");
-    const cards = rows.flatMap((row: any) =>
-      (row.payload?.jobs ?? []).filter((job: any) => job.state === "ID").map(adzunaCard),
-    );
+    const cards = rows.flatMap((row: any) => (row.payload?.jobs ?? []).map(adzunaCard));
     const { withEmployerLogos } = await import("./employer-logos.server");
     return { cards: await withEmployerLogos(cards, { cacheOnly: true }) };
   },
@@ -85,11 +81,7 @@ const sources: Sources = {
     const { rescueGroupsCard } = await import("./rescuegroups.server");
     const rows = await cachedRows("rescuegroups_cache", "rescuegroups:v1:%");
     return {
-      cards: rows.flatMap((row: any) =>
-        (row.payload?.pets ?? [])
-          .filter((pet: any) => pet.org?.state === "ID")
-          .map(rescueGroupsCard),
-      ),
+      cards: rows.flatMap((row: any) => (row.payload?.pets ?? []).map(rescueGroupsCard)),
     };
   },
   async merchandise() {

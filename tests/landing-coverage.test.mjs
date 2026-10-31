@@ -39,3 +39,11 @@ test("keyword eligibility survives public-card projection without exposing job d
   assert.equal(landingCards([saved], {category:"jobs",q:"remote"})[0].id, full.id);
   assert.equal(landingCards([saved], {category:"jobs",q:"driver"}).length, 0);
 });
+
+test("a regional feed reserves both unfiltered and Idaho matches before trimming", () => {
+  const regional = Array.from({length:250},(_,n) => card(`regional-${n}`, {state:"UT",categorySlug:"jobs",job:{category:"Healthcare"}}));
+  const local = card("idaho-role", {categorySlug:"jobs", job:{category:"Healthcare"},createdAt:"2020-01-01T00:00:00Z"});
+  const selected = selectLandingCoverage([...regional,local],120);
+  assert.equal(landingCards(selected,{category:"jobs",state:"ID",jobCategory:"Healthcare"})[0].id,local.id);
+  assert.ok(landingCards(selected,{category:"jobs",jobCategory:"Healthcare"}).length >= 13);
+});
