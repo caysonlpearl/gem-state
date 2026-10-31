@@ -368,6 +368,7 @@ export type Database = {
           status: Database["public"]["Enums"]["listing_status"]
           updated_at: string
           variant_id: string
+          catalog_is_featured: boolean | null
         }
         Insert: {
           acquired_location_id?: string | null
@@ -7412,6 +7413,12 @@ export type Database = {
         Returns: undefined
       }
       capture_price_snapshots: { Args: never; Returns: number }
+      catalog_is_featured: {
+        Args: { "": Database["public"]["Tables"]["asks"]["Row"] }
+        Returns: {
+          error: true
+        } & "the function public.catalog_is_featured with parameter or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache"
+      }
       claim_sourcing_tip_payment: {
         Args: {
           _amount_cents: number

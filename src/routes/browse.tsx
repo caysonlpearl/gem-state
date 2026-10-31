@@ -4229,7 +4229,7 @@ function SponsoredHeroBadge() {
         <Megaphone size={15} className="size-3 sm:size-[15px]" weight="fill" aria-hidden="true" />
       </span>
       <span className="min-w-0 flex-1 whitespace-normal text-[9px] font-bold uppercase leading-snug tracking-[0.1em] text-accent sm:text-[10px] sm:tracking-[0.12em]">
-        <span className="sm:hidden">SPONSORED BY BLUEBIRD MARKETPLA</span>
+        <span className="sm:hidden">SPONSORED BY BLUEBIRD MARKETPLACE</span>
         <span className="hidden sm:inline">SPONSORED BY BLUEBIRD MARKETPLACE</span>
       </span>
       <ArrowRight
