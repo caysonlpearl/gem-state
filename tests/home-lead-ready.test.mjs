@@ -24,7 +24,8 @@ test("query finishing before deadline can be rendered in initial HTML", async ()
 });
 test("head preload uses the actual first default-location card and the same thumbnail transform", () => {
   const source = readFileSync(new URL("../src/routes/index.tsx", import.meta.url), "utf8");
-  assert.match(source, /waitForHomeLead\(context.queryClient.prefetchQuery\(homeLeadQuery\)\)/);
+  assert.match(source, /await Promise\.all\(/);
+  assert.doesNotMatch(source, /waitForHomeLead/);
   assert.match(source, /lead\?\.motors.find\(\(listing\) => listing.state === "ID"\)\?\.imageUrl/);
   assert.match(source, /leadImageUrl: firstImage \? listingCardImageUrl\(firstImage\) : null/);
   assert.match(source, /href: loaderData.leadImageUrl/);
@@ -109,4 +110,26 @@ test("real route loader and head agree on first image, empty inventory and missi
       assert.equal(links[0].as, "image");
     }
   }
+
+  const waiting = new Map();
+  let rendered = false;
+  const loading = context.route
+    .loader({
+      context: {
+        queryClient: {
+          prefetchQuery: ({ queryKey }) =>
+            new Promise((resolve) => waiting.set(queryKey[0], resolve)),
+          getQueryData: () => ({ motors: [] }),
+        },
+      },
+    })
+    .then(() => {
+      rendered = true;
+    });
+  waiting.get("lead")();
+  await new Promise(setImmediate);
+  assert.equal(rendered, false, "the first row alone cannot release a partially loaded page");
+  waiting.get("home")();
+  await loading;
+  assert.equal(rendered, true, "the cached secondary rows settle before initial rendering");
 });

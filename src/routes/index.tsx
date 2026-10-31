@@ -1,4 +1,3 @@
-import { waitForHomeLead } from "@/lib/home-lead-ready";
 import { listingCardImageUrl } from "@/lib/listing-card-image";
 import { afterLeadPaint } from "@/lib/lead-paint-ready";
 import { homepageDistanceRow } from "@/lib/homepage-distance-row";
@@ -48,7 +47,6 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { trackEvent } from "@/lib/analytics";
 import { PUBLIC_PAGE_STALE_MS } from "@/lib/query-freshness";
-import { useHydrated } from "@/hooks/useHydrated";
 import { jsonLdScript, siteStructuredData } from "@/lib/structured-data";
 
 // The map (and its stylesheet) only loads when someone opens it, so it never
@@ -72,13 +70,14 @@ const homeLeadQuery = queryOptions({
 });
 
 export const Route = createFileRoute("/")({
-  // When the small lead query is ready promptly, put the actual first card's
-  // image in the head and render the row directly, without a streamed reveal.
-  // Keep a 1.2s ceiling on this wait: slow/error cases still stream normally.
-  // The secondary feed remains deferred and is never included in this wait.
+  // Both reads use the same saved CDN snapshot. Settle them before rendering
+  // so every initial row is in the HTML and hydration reuses the loaded data.
+  // This never refreshes inventory or calls a listing provider.
   loader: async ({ context }) => {
-    void context.queryClient.prefetchQuery(homeQuery);
-    await waitForHomeLead(context.queryClient.prefetchQuery(homeLeadQuery));
+    await Promise.all([
+      context.queryClient.prefetchQuery(homeQuery),
+      context.queryClient.prefetchQuery(homeLeadQuery),
+    ]);
     const lead = context.queryClient.getQueryData(homeLeadQuery.queryKey);
     const firstImage = lead?.motors.find((listing) => listing.state === "ID")?.imageUrl;
     return { leadImageUrl: firstImage ? listingCardImageUrl(firstImage) : null };
@@ -608,8 +607,8 @@ function Home() {
 
       <HomepageFeaturedCategories withLocation={where.withLocation} />
 
-      {/* The lead photos use their own cached data query so the rest of the
-          homepage feeds cannot hold up the first vehicle image. */}
+      {/* All initial rows are ready before rendering; photos below the first
+          row remain lazy-loaded so they do not compete with its main image. */}
       <QueryErrorResetBoundary>
         {({ reset }) => (
           <HomepageLeadErrorBoundary onReset={reset} where={where} onUnavailable={onLeadPainted}>
@@ -619,7 +618,7 @@ function Home() {
           </HomepageLeadErrorBoundary>
         )}
       </QueryErrorResetBoundary>
-      <DeferredHomeSections where={where} leadPainted={leadPainted} />
+      <HomepageSections where={where} leadPainted={leadPainted} />
     </main>
   );
 }
@@ -954,43 +953,24 @@ class HomepageSecondaryErrorBoundary extends Component<
   }
 }
 
-function DeferredHomeSections({
+function HomepageSections({
   where,
   leadPainted,
 }: {
   where: ReturnType<typeof homeLocation>;
   leadPainted: boolean;
 }) {
-  const hydrated = useHydrated();
-  // Both endpoints read the same saved snapshot. A failed or unpainted lead
-  // must never prevent the remaining rows from loading.
-  useQuery({ ...homeQuery, enabled: hydrated, throwOnError: false });
-  const ready = hydrated;
-  // The plain link remains usable without JavaScript or while feeds are slow.
-  const pending = (
-    <div className="mt-16">
-      <p className="text-sm text-muted-foreground" role="status">
-        Loading more listings…
-      </p>
-      <a
-        href="/browse?allCategories=true"
-        className="mt-3 inline-flex min-h-11 items-center text-sm font-semibold text-primary underline"
-      >
-        Browse all listings now
-      </a>
-    </div>
-  );
   return (
     <div
       className="min-h-[600px]"
-      data-secondary-ready={ready ? "true" : "false"}
+      data-secondary-ready="true"
       data-lead-painted={leadPainted ? "true" : "false"}
     >
       <QueryErrorResetBoundary>
         {({ reset }) => (
           <HomepageSecondaryErrorBoundary onReset={reset}>
-            <Suspense fallback={pending}>
-              {ready ? <HomeSections where={where} /> : pending}
+            <Suspense fallback={<HomeSectionsLoading />}>
+              <HomeSections where={where} />
             </Suspense>
           </HomepageSecondaryErrorBoundary>
         )}
@@ -1029,7 +1009,7 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
       allLocalListings.push(listing);
     }
   }
-  // This component mounts only after hydration and a settled lead query.
+  // The route loader has settled both snapshot queries before this renders.
   const leadMotors = (homeLead?.motors ?? []).filter(matchesLocation).slice(0, HOMEPAGE_ROW_SIZE);
   const shownIds = new Set<string>(leadMotors.map((listing) => listing.id));
   const pick = (candidates: ClassifiedsHome["recent"]) => {
