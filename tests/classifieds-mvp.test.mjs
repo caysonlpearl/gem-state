@@ -934,10 +934,13 @@ test("browse heroes surface the Bluebird sponsorship opportunity", () => {
   assert.match(browseSource, /Bluebird motors/);
   // The jobs hero is compact, and its badge sits in its own row above the
   // card so the two can't overlap.
-  assert.match(browseSource, /min-h-\[480px\] flex-col/);
+  assert.match(browseSource, /relative flex flex-col px-4 pb-8 pt-4 sm:min-h-\[520px\]/);
   assert.match(browseSource, /relative z-20 flex justify-end/);
-  // The sponsorship badge sits in the hero's top-right corner.
-  assert.match(browseSource, /absolute right-5 top-5 z-20 sm:right-10 sm:top-6/);
+  // On mobile the badge stays in flow; desktop keeps its corner placement.
+  assert.match(
+    browseSource,
+    /relative z-20 mb-4 flex justify-end sm:absolute sm:right-10 sm:top-6/,
+  );
 });
 
 test("shared category icons and no-photo cards have deterministic presentation", () => {
@@ -1039,7 +1042,10 @@ test("classified cards use category-aware price and fulfillment language", () =>
   assert.match(displaySource, /monthly \? `\$\{value\}\/month`/);
   assert.match(displaySource, /Vehicle transport available/);
   assert.match(displaySource, /Pickup or vehicle transport/);
-  assert.match(listingCardSource, /wholeDollars: Boolean\(listing\.vehicle \|\| listing\.home \|\| savings\)/);
+  assert.match(
+    listingCardSource,
+    /wholeDollars: Boolean\(listing\.vehicle \|\| listing\.home \|\| savings\)/,
+  );
   assert.match(listingCardSource, /monthly: listing\.home\?\.mode === "rent"/);
   assert.match(listingDetailSource, /payout identity verified through Bluebird/);
 });
@@ -1188,7 +1194,7 @@ test("browse filters remain complete in responsive category sidebars", () => {
 
 test("vehicle browse uses a branded buy and category-accurate discovery filters", () => {
   assert.match(browseSource, /function VehicleBrowseHero/);
-  assert.match(browseSource, /Find your next gem on wheels/);
+  assert.match(browseSource, /Good roads start here/);
   assert.match(browseSource, /setShowAllFilters/);
   assert.match(browseSource, /expandedFilter/);
   assert.match(browseSource, /function InlineVehicleMakeModelFilter/);
@@ -1240,7 +1246,7 @@ test("homes browse has a large landing hero and tab-specific filter views", () =
   const normalizedBrowseSource = browseSource.replace(/\s+/g, " ");
   assert.match(browseSource, /function HomesLandingHero/);
   assert.match(browseSource, /function HomesFilterPage/);
-  assert.match(browseSource, /Build\. Buy\. Rent\./);
+  assert.match(browseSource, /Your next chapter\./);
   assert.match(browseSource, /County, city, neighborhood, or ZIP/);
   assert.match(browseSource, /More filters/);
   assert.match(browseSource, /homeMode: "results"/);
@@ -1325,12 +1331,9 @@ test("jobs browse has a landing hero and expanded local job filters", () => {
   assert.match(browseSource, /next\.join\("\|\|"\)/);
   assert.match(
     browseSource,
-    /Find <span className="text-accent">local<\/span> work that fits your life/,
+    /Your next move\. <span className="text-accent">Starts here\.<\/span>/,
   );
-  assert.match(
-    browseSource,
-    /Search jobs from local employers across Idaho and surrounding states/,
-  );
+  assert.match(browseSource, /Local jobs\. New possibilities\./);
   assert.match(browseSource, /Search Jobs/);
   assert.match(browseSource, /Post a Job/);
   assert.match(browseSource, /More filters/);
@@ -1827,4 +1830,3 @@ test("firearms are a first-class category with linked safety guidance", async ()
     assert.equal(variant.subarray(8, 12).toString(), "WEBP");
   }
 });
-

@@ -1411,13 +1411,14 @@ function Browse() {
   const scoped = (patch: Partial<Search>): Search =>
     Object.fromEntries(
       Object.entries({
-        ...search, ...patch, page: undefined,
-        ...(Object.prototype.hasOwnProperty.call(patch, "category") && patch.category !== search.category
-          ? {itemDetailKey: undefined, itemDetailValue: undefined}
+        ...search,
+        ...patch,
+        page: undefined,
+        ...(Object.prototype.hasOwnProperty.call(patch, "category") &&
+        patch.category !== search.category
+          ? { itemDetailKey: undefined, itemDetailValue: undefined }
           : {}),
-      }).filter(
-        ([, value]) => value !== undefined && value !== "",
-      ),
+      }).filter(([, value]) => value !== undefined && value !== ""),
     ) as Search;
 
   const clearSearch = (): Search => {
@@ -2919,7 +2920,7 @@ function FirearmsLandingHero({
   return (
     <section
       aria-label="Bluebird Marketplace firearms"
-      className="classifieds-hero-shell relative isolate flex min-h-[430px] flex-col justify-center overflow-hidden rounded-[32px] border border-brand-blue/20 bg-secondary px-5 pb-8 pt-20 shadow-xl sm:px-10 sm:pb-12 sm:pt-20"
+      className="classifieds-hero-shell relative isolate flex flex-col justify-center sm:min-h-[430px] overflow-hidden rounded-[32px] border border-brand-blue/20 bg-secondary px-4 pb-5 pt-4 shadow-xl sm:px-10 sm:pb-12 sm:pt-20"
     >
       <span
         className="classifieds-hero-orb classifieds-hero-orb--blue absolute -right-20 -top-24 h-72 w-72 rounded-full bg-brand-blue/12"
@@ -2933,46 +2934,41 @@ function FirearmsLandingHero({
         className="classifieds-hero-sheen pointer-events-none absolute inset-y-0 -left-1/3 z-0 w-1/3 skew-x-[-18deg] bg-white/20"
         aria-hidden="true"
       />
-      <div className="absolute right-5 top-5 z-20 sm:right-10 sm:top-6">
+      <div className="relative z-20 mb-4 flex justify-end sm:absolute sm:right-10 sm:top-6 sm:mb-0">
         <SponsoredHeroBadge />
       </div>
       <div className="relative z-10 mx-auto w-full max-w-[920px] text-center">
         <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">
           Bluebird Marketplace Firearms
         </p>
-        <h1 className="mx-auto mt-3 max-w-[22ch] text-[36px] font-bold leading-[1.05] tracking-tight sm:text-[56px]">
-          Find{" "}
+        <h1 className="mx-auto mt-2 max-w-[22ch] text-[28px] font-bold leading-[1.05] tracking-tight sm:text-[56px]">
+          Great finds.{" "}
           <span className="relative inline-block text-brand-blue">
-            firearms and gear.
+            Closer to home.
             <span
               className="absolute -bottom-2 left-1/4 h-1 w-1/2 rounded-full bg-brand-warm/80 sm:-bottom-3"
               aria-hidden="true"
             />
           </span>
         </h1>
-        <p className="mx-auto mt-4 max-w-[54ch] text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">
-          Browse local rifles, handguns, shotguns, and accessories by type, brand, price, and
-          distance.
+        <p className="mx-auto mt-3 max-w-[54ch] text-[13px] leading-relaxed text-muted-foreground sm:text-[15px]">
+          Browse local listings in one place.
         </p>
-        <div className="mx-auto mt-5 flex w-fit items-center gap-1.5" aria-hidden="true">
+        <div className="mx-auto mt-5 hidden w-fit sm:flex items-center gap-1.5" aria-hidden="true">
           <span className="h-1.5 w-9 rounded-full bg-brand-blue" />
           <span className="h-1.5 w-5 rounded-full bg-brand-warm" />
           <span className="h-1.5 w-2.5 rounded-full bg-brand-blue/60" />
         </div>
 
         <form
-          className="mx-auto mt-7 flex max-w-[860px] flex-col gap-2 rounded-[24px] border border-brand-blue/20 bg-card p-2 shadow-[0_20px_45px_-28px_rgb(31_53_87_/_55%)] ring-1 ring-brand-warm/10 sm:flex-row"
+          className="mx-auto mt-5 grid max-w-[860px] grid-cols-[minmax(0,1fr)_auto] gap-2 sm:mt-7 sm:flex sm:flex-row rounded-[24px] border border-brand-blue/20 bg-card p-2 shadow-[0_20px_45px_-28px_rgb(31_53_87_/_55%)] ring-1 ring-brand-warm/10 sm:flex-row"
           onSubmit={(event) => {
             event.preventDefault();
             onSearch();
           }}
         >
-          <label className="flex min-w-0 flex-1 items-center gap-2 px-3">
-            <MagnifyingGlass
-              size={19}
-              className="shrink-0 text-brand-blue"
-              aria-hidden="true"
-            />
+          <label className="flex min-w-0 flex-1 items-center gap-2 px-2 sm:px-3">
+            <MagnifyingGlass size={19} className="shrink-0 text-brand-blue" aria-hidden="true" />
             <span className="sr-only">Search firearm listings</span>
             <input
               type="search"
@@ -2980,12 +2976,12 @@ function FirearmsLandingHero({
               onChange={(event) => onTermChange(event.target.value)}
               placeholder="Search firearms"
               aria-label="Search firearm listings"
-              className="h-12 min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground"
+              className="h-11 w-full min-w-0 flex-1 bg-transparent text-[16px] sm:h-12 sm:text-[13px] outline-none placeholder:text-muted-foreground"
             />
           </label>
           <button
             type="submit"
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-7 text-[13px] font-bold text-primary-foreground transition-transform hover:-translate-y-0.5"
+            className="inline-flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-primary px-3 sm:h-12 sm:gap-2 sm:px-7 text-[13px] font-bold text-primary-foreground transition-transform hover:-translate-y-0.5"
           >
             <MagnifyingGlass size={16} aria-hidden="true" /> Search
           </button>
@@ -2993,7 +2989,7 @@ function FirearmsLandingHero({
             <PopoverTrigger asChild>
               <button
                 type="button"
-                className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-full border border-primary px-6 text-[13px] font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground sm:w-auto"
+                className="col-span-2 inline-flex h-10 w-full items-center justify-center sm:h-12 gap-2 rounded-full border border-primary px-6 text-[13px] font-semibold text-primary transition-colors hover:bg-primary hover:text-primary-foreground sm:w-auto"
               >
                 Browse Firearms
                 <CaretDown size={15} weight="bold" aria-hidden="true" />
@@ -3058,7 +3054,11 @@ function FirearmsSafetyCallout() {
   );
 }
 
-function FirearmsCategoryShowcase({ onSelect, afterTypes, afterBrands }: {
+function FirearmsCategoryShowcase({
+  onSelect,
+  afterTypes,
+  afterBrands,
+}: {
   onSelect: (patch: Partial<Search>) => void;
   afterTypes?: React.ReactNode;
   afterBrands?: React.ReactNode;
@@ -3178,35 +3178,53 @@ function PetsLandingHero({
   ];
 
   return (
-    <section aria-label="Bluebird Marketplace pets" className="classifieds-hero-shell relative isolate flex min-h-[360px] flex-col justify-start overflow-hidden rounded-[32px] border border-brand-blue/20 bg-secondary px-5 py-6 shadow-xl sm:min-h-[430px] sm:justify-center sm:px-10 sm:py-12">
-      <span className="classifieds-hero-orb classifieds-hero-orb--blue absolute -right-20 -top-24 h-72 w-72 rounded-full bg-brand-blue/12" aria-hidden="true" />
-      <span className="classifieds-hero-orb classifieds-hero-orb--warm absolute -bottom-36 left-1/3 h-80 w-80 rounded-full bg-brand-warm/18" aria-hidden="true" />
-      <span className="classifieds-hero-sheen pointer-events-none absolute inset-y-0 -left-1/3 z-0 w-1/3 skew-x-[-18deg] bg-white/20" aria-hidden="true" />
+    <section
+      aria-label="Bluebird Marketplace pets"
+      className="classifieds-hero-shell relative isolate flex flex-col justify-start overflow-hidden rounded-[32px] border border-brand-blue/20 bg-secondary px-4 py-5 shadow-xl sm:min-h-[430px] sm:justify-center sm:px-10 sm:py-12"
+    >
+      <span
+        className="classifieds-hero-orb classifieds-hero-orb--blue absolute -right-20 -top-24 h-72 w-72 rounded-full bg-brand-blue/12"
+        aria-hidden="true"
+      />
+      <span
+        className="classifieds-hero-orb classifieds-hero-orb--warm absolute -bottom-36 left-1/3 h-80 w-80 rounded-full bg-brand-warm/18"
+        aria-hidden="true"
+      />
+      <span
+        className="classifieds-hero-sheen pointer-events-none absolute inset-y-0 -left-1/3 z-0 w-1/3 skew-x-[-18deg] bg-white/20"
+        aria-hidden="true"
+      />
       <div className="relative z-10 mx-auto w-full max-w-[920px] text-center">
         <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">
           Bluebird Marketplace Pets
         </p>
-        <h1 className="mx-auto mt-3 max-w-[22ch] text-[36px] font-bold leading-[1.05] tracking-tight sm:text-[56px]">
-          Find the{" "}
+        <h1 className="mx-auto mt-2 max-w-[22ch] text-[28px] font-bold leading-[1.05] tracking-tight sm:text-[56px]">
+          Meet your{" "}
           <span className="relative inline-block text-brand-blue">
-            right pet
-            <span className="absolute -bottom-2 left-1/4 h-1 w-1/2 rounded-full bg-brand-warm/80 sm:-bottom-3" aria-hidden="true" />
-          </span>{" "}
-          for your home.
+            new sidekick.
+            <span
+              className="absolute -bottom-2 left-1/4 h-1 w-1/2 rounded-full bg-brand-warm/80 sm:-bottom-3"
+              aria-hidden="true"
+            />
+          </span>
         </h1>
         <p className="mx-auto mt-3 max-w-[42ch] text-[13px] leading-snug text-muted-foreground sm:hidden">
-          Find pets and supplies. Filter by animal, breed, placement, and seller.
+          Pets, supplies, and new beginnings.
         </p>
         <p className="mx-auto mt-4 hidden max-w-[54ch] text-[15px] leading-relaxed text-muted-foreground sm:block">
           Browse local pets, supplies, and rehoming listings with filters for the animal, breed,
           placement type, and seller.
         </p>
-        <div className="mx-auto mt-5 flex w-fit items-center gap-1.5" aria-hidden="true">
+        <div className="mx-auto mt-5 hidden w-fit sm:flex items-center gap-1.5" aria-hidden="true">
           <span className="h-1.5 w-9 rounded-full bg-brand-blue" />
           <span className="h-1.5 w-5 rounded-full bg-brand-warm" />
           <span className="h-1.5 w-2.5 rounded-full bg-brand-blue/60" />
         </div>
-        <div className="mx-auto mt-4 flex max-w-[860px] rounded-full border border-brand-blue/20 bg-card p-1 shadow-[0_20px_45px_-28px_rgb(31_53_87_/_55%)] ring-1 ring-brand-warm/10 sm:hidden" role="group" aria-label="Pet listing actions">
+        <div
+          className="mx-auto mt-4 flex max-w-[860px] rounded-full border border-brand-blue/20 bg-card p-1 shadow-[0_20px_45px_-28px_rgb(31_53_87_/_55%)] ring-1 ring-brand-warm/10 sm:hidden"
+          role="group"
+          aria-label="Pet listing actions"
+        >
           <button
             type="button"
             aria-pressed={mobileMode === "search"}
@@ -3746,7 +3764,7 @@ function ClassifiedsLandingHero({
   return (
     <section
       aria-label="Bluebird Marketplace all classifieds"
-      className="classifieds-hero-shell relative isolate flex min-h-[430px] flex-col justify-center overflow-hidden rounded-[32px] border border-brand-blue/20 bg-secondary px-5 pb-8 pt-20 shadow-xl sm:px-10 sm:pb-12 sm:pt-20"
+      className="classifieds-hero-shell relative isolate flex flex-col justify-center sm:min-h-[430px] overflow-hidden rounded-[32px] border border-brand-blue/20 bg-secondary px-4 pb-5 pt-4 shadow-xl sm:px-10 sm:pb-12 sm:pt-20"
     >
       <span
         className="classifieds-hero-orb classifieds-hero-orb--blue absolute -right-20 -top-24 h-72 w-72 rounded-full bg-brand-blue/12"
@@ -3760,40 +3778,40 @@ function ClassifiedsLandingHero({
         className="classifieds-hero-sheen pointer-events-none absolute inset-y-0 -left-1/3 z-0 w-1/3 skew-x-[-18deg] bg-white/20"
         aria-hidden="true"
       />
-      <div className="absolute right-5 top-5 z-20 sm:right-10 sm:top-6">
+      <div className="relative z-20 mb-4 flex justify-end sm:absolute sm:right-10 sm:top-6 sm:mb-0">
         <SponsoredHeroBadge />
       </div>
       <div className="relative z-10 mx-auto w-full max-w-[920px] text-center">
         <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">
           Bluebird Marketplace Classifieds
         </p>
-        <h1 className="mx-auto mt-3 max-w-[22ch] text-[36px] font-bold leading-[1.05] tracking-tight sm:text-[56px]">
-          Discover{" "}
+        <h1 className="mx-auto mt-2 max-w-[22ch] text-[28px] font-bold leading-[1.05] tracking-tight sm:text-[56px]">
+          Good finds.{" "}
           <span className="relative inline-block text-brand-blue">
-            local gems.
+            Great neighbors.
             <span
               className="absolute -bottom-2 left-1/4 h-1 w-1/2 rounded-full bg-brand-warm/80 sm:-bottom-3"
               aria-hidden="true"
             />
           </span>
         </h1>
-        <p className="mx-auto mt-4 max-w-[54ch] text-[14px] leading-relaxed text-muted-foreground sm:text-[15px]">
-          Browse local listings from people and businesses across Idaho and surrounding states.
+        <p className="mx-auto mt-3 max-w-[54ch] text-[13px] leading-relaxed text-muted-foreground sm:text-[15px]">
+          Local listings. Plenty to discover.
         </p>
-        <div className="mx-auto mt-5 flex w-fit items-center gap-1.5" aria-hidden="true">
+        <div className="mx-auto mt-5 hidden w-fit sm:flex items-center gap-1.5" aria-hidden="true">
           <span className="h-1.5 w-9 rounded-full bg-brand-blue" />
           <span className="h-1.5 w-5 rounded-full bg-brand-warm" />
           <span className="h-1.5 w-2.5 rounded-full bg-brand-blue/60" />
         </div>
 
         <form
-          className="mx-auto mt-7 flex max-w-[860px] flex-col gap-2 rounded-[24px] border border-brand-blue/20 bg-card p-2 shadow-[0_20px_45px_-28px_rgb(31_53_87_/_55%)] ring-1 ring-brand-warm/10 sm:flex-row"
+          className="mx-auto mt-5 grid max-w-[860px] grid-cols-[minmax(0,1fr)_auto] gap-2 sm:mt-7 sm:flex sm:flex-row rounded-[24px] border border-brand-blue/20 bg-card p-2 shadow-[0_20px_45px_-28px_rgb(31_53_87_/_55%)] ring-1 ring-brand-warm/10 sm:flex-row"
           onSubmit={(event) => {
             event.preventDefault();
             onSearch();
           }}
         >
-          <label className="flex min-w-0 flex-1 items-center gap-2 px-3">
+          <label className="flex min-w-0 flex-1 items-center gap-2 px-2 sm:px-3">
             <MagnifyingGlass size={19} className="shrink-0 text-brand-blue" aria-hidden="true" />
             <span className="sr-only">Search classifieds</span>
             <input
@@ -3802,17 +3820,17 @@ function ClassifiedsLandingHero({
               onChange={(event) => onTermChange(event.target.value)}
               placeholder="Search classifieds"
               aria-label="Search classifieds"
-              className="h-12 min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground"
+              className="h-11 w-full min-w-0 flex-1 bg-transparent text-[16px] sm:h-12 sm:text-[13px] outline-none placeholder:text-muted-foreground"
             />
           </label>
           <button
             type="submit"
-            className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-7 text-[13px] font-bold text-primary-foreground transition-transform hover:-translate-y-0.5"
+            className="inline-flex h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-primary px-3 sm:h-12 sm:gap-2 sm:px-7 text-[13px] font-bold text-primary-foreground transition-transform hover:-translate-y-0.5"
           >
             <MagnifyingGlass size={17} aria-hidden="true" />
             Search
           </button>
-          <AllCategoriesPopover className="w-full sm:w-auto" />
+          <AllCategoriesPopover className="col-span-2 w-full sm:w-auto" />
         </form>
       </div>
     </section>
@@ -3951,15 +3969,20 @@ function varietyOf<T extends { id: string; title: string }>(listings: readonly T
 function varietyOfFirearms(listings: readonly ClassifiedCard[], count: number): ClassifiedCard[] {
   const firearms = listings.filter((listing) => listing.itemDetails?.listingType === "Firearm");
   const seenTypes = new Set<string>();
-  const differentTypes = firearms.filter((listing) => {
-    const type = String(listing.itemDetails?.firearmType ?? "Other firearm");
-    if (seenTypes.has(type)) return false;
-    seenTypes.add(type);
-    return true;
-  }).slice(0, count);
+  const differentTypes = firearms
+    .filter((listing) => {
+      const type = String(listing.itemDetails?.firearmType ?? "Other firearm");
+      if (seenTypes.has(type)) return false;
+      seenTypes.add(type);
+      return true;
+    })
+    .slice(0, count);
   return [
     ...differentTypes,
-    ...varietyOf(firearms.filter((listing) => !differentTypes.includes(listing)), count - differentTypes.length),
+    ...varietyOf(
+      firearms.filter((listing) => !differentTypes.includes(listing)),
+      count - differentTypes.length,
+    ),
   ];
 }
 
@@ -4015,8 +4038,8 @@ function LandingListingsShowcase({
             mobileCarousel
               ? "no-scrollbar grid auto-cols-[220px] grid-flow-col gap-3 overflow-x-auto overscroll-x-contain snap-x snap-mandatory pb-2 sm:auto-cols-auto sm:grid-flow-row sm:grid-cols-2 sm:gap-4 sm:overflow-visible lg:grid-cols-4"
               : compact
-              ? "grid grid-cols-2 gap-3 lg:grid-cols-5"
-              : "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+                ? "grid grid-cols-2 gap-3 lg:grid-cols-5"
+                : "grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
           }
         >
           {visibleListings.map((listing, index) => (
@@ -4200,18 +4223,19 @@ function SponsoredHeroBadge() {
     <Link
       to="/advertise"
       aria-label="Sponsored by Bluebird Marketplace — learn about advertising with us"
-      className="inline-flex max-w-full items-center gap-2 rounded-full border border-accent/70 bg-primary/90 px-3 py-2 text-left text-primary-foreground shadow-lg backdrop-blur-md transition-transform hover:-translate-y-0.5 sm:gap-2.5 sm:px-3.5"
+      className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-accent/70 bg-primary/90 px-2 py-1 text-left text-primary-foreground shadow-lg backdrop-blur-md transition-transform hover:-translate-y-0.5 sm:gap-2.5 sm:px-3.5 sm:py-2"
     >
-      <span className="grid size-7 shrink-0 place-items-center rounded-full bg-accent text-accent-foreground">
-        <Megaphone size={15} weight="fill" aria-hidden="true" />
+      <span className="grid size-5 shrink-0 sm:size-7 place-items-center rounded-full bg-accent text-accent-foreground">
+        <Megaphone size={15} className="size-3 sm:size-[15px]" weight="fill" aria-hidden="true" />
       </span>
       <span className="min-w-0 flex-1 whitespace-normal text-[9px] font-bold uppercase leading-snug tracking-[0.1em] text-accent sm:text-[10px] sm:tracking-[0.12em]">
-        Sponsored by Bluebird Marketplace
+        <span className="sm:hidden">Sponsored</span>
+        <span className="hidden sm:inline">Sponsored by Bluebird Marketplace</span>
       </span>
       <ArrowRight
         size={15}
         weight="bold"
-        className="ml-1 shrink-0 text-accent"
+        className="ml-1 hidden shrink-0 text-accent sm:block"
         aria-hidden="true"
       />
     </Link>
@@ -4240,31 +4264,30 @@ function HomesLandingHero({
   return (
     <section
       aria-label="Bluebird Marketplace Homes"
-      className="relative isolate min-h-[610px] overflow-hidden rounded-[32px] bg-primary bg-cover bg-center shadow-xl sm:min-h-[680px]"
+      className="relative isolate overflow-hidden rounded-[32px] bg-primary bg-cover bg-center shadow-xl sm:min-h-[680px]"
       style={{
         backgroundImage:
           "linear-gradient(90deg, rgb(11 26 38 / 72%), rgb(11 26 38 / 38%) 52%, rgb(11 26 38 / 18%)), url(https://images.unsplash.com/photo-1600607687920-4e2a09cf159d?auto=format&fit=crop&w=2200&q=85)",
       }}
     >
       <div className="absolute inset-0 bg-gradient-to-t from-primary/55 via-transparent to-primary/15" />
-      <div className="absolute right-5 top-5 z-20 sm:right-7 sm:top-7">
+      <div className="relative z-20 flex justify-end px-4 pt-4 sm:absolute sm:right-7 sm:top-7 sm:p-0">
         <SponsoredHeroBadge />
       </div>
-      <div className="relative flex min-h-[610px] items-center justify-center px-4 pb-12 pt-24 sm:min-h-[680px] sm:px-8 sm:pb-12 sm:pt-16">
-        <div className="w-full max-w-[650px] rounded-[28px] border border-white/20 bg-primary/80 p-5 text-primary-foreground shadow-2xl backdrop-blur-md sm:p-8">
+      <div className="relative flex items-center justify-center px-4 pb-5 pt-3 sm:min-h-[680px] sm:px-8 sm:pb-12 sm:pt-16">
+        <div className="w-full max-w-[650px] rounded-[28px] border border-white/20 bg-primary/80 p-4 text-primary-foreground shadow-2xl backdrop-blur-md sm:p-8">
           <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">
             Bluebird Marketplace Homes
           </p>
-          <h1 className="mt-3 text-center font-display text-[34px] font-bold leading-[1.05] tracking-tight sm:text-[52px]">
-            Build. Buy. Rent.
-            <span className="block text-accent">All in one place.</span>
+          <h1 className="mt-2 text-center font-display text-[28px] font-bold leading-[1.05] tracking-tight sm:text-[52px]">
+            Your next chapter.
+            <span className="block text-accent">Starts at home.</span>
           </h1>
-          <p className="mx-auto mt-4 max-w-[43ch] text-center text-[14px] leading-relaxed text-white/80 sm:text-[15px]">
-            Find your next home, discover new communities, and explore rentals from local sellers in
-            Idaho and surrounding states.
+          <p className="mx-auto mt-3 max-w-[43ch] text-center text-[13px] leading-relaxed text-white/80 sm:text-[15px]">
+            Buy, rent, or build your next home.
           </p>
 
-          <div className="mt-7 grid grid-cols-3 rounded-2xl bg-white/10 p-1.5 ring-1 ring-white/20">
+          <div className="mt-4 grid sm:mt-7 grid-cols-3 rounded-2xl bg-white/10 p-1.5 ring-1 ring-white/20">
             {homeTabs.map((tab) => (
               <button
                 key={tab.value}
@@ -4279,13 +4302,13 @@ function HomesLandingHero({
           </div>
 
           <form
-            className="mt-3 flex flex-col gap-2 rounded-2xl bg-card p-2 text-foreground sm:flex-row"
+            className="mt-3 flex gap-2 rounded-2xl bg-card p-2 text-foreground sm:flex-row"
             onSubmit={(event) => {
               event.preventDefault();
               onSearch(draft);
             }}
           >
-            <label className="flex min-w-0 flex-1 items-center gap-2 px-3">
+            <label className="flex min-w-0 flex-1 items-center gap-2 px-2 sm:px-3">
               <MapPin
                 size={19}
                 weight="duotone"
@@ -4297,17 +4320,18 @@ function HomesLandingHero({
                 type="search"
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
-                placeholder="County, city, neighborhood, or ZIP"
+                placeholder="City or ZIP code"
                 aria-label="County, city, neighborhood, or ZIP"
-                className="h-12 min-w-0 flex-1 bg-transparent text-[13px] outline-none placeholder:text-muted-foreground"
+                className="h-12 w-full min-w-0 flex-1 bg-transparent text-[16px] sm:text-[13px] outline-none placeholder:text-muted-foreground"
               />
             </label>
             <button
               type="submit"
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-primary px-5 text-[13px] font-bold text-primary-foreground transition-transform hover:-translate-y-0.5"
+              className="inline-flex h-12 shrink-0 items-center justify-center gap-1.5 rounded-xl bg-primary px-3 sm:gap-2 sm:px-5 text-[13px] font-bold text-primary-foreground transition-transform hover:-translate-y-0.5"
             >
               <MagnifyingGlass size={17} aria-hidden="true" />
-              Search homes
+              <span className="sm:hidden">Search</span>
+              <span className="hidden sm:inline">Search homes</span>
             </button>
           </form>
 
@@ -4450,30 +4474,29 @@ function ServicesLandingHero({
   return (
     <section
       aria-label="Bluebird Marketplace Services"
-      className="relative isolate min-h-[610px] overflow-hidden rounded-[32px] bg-primary bg-cover bg-center shadow-xl sm:min-h-[680px]"
+      className="relative isolate overflow-hidden rounded-[32px] bg-primary bg-cover bg-center shadow-xl sm:min-h-[680px]"
       style={{
         backgroundImage:
           "linear-gradient(90deg, rgb(11 26 38 / 64%), rgb(11 26 38 / 30%) 58%, rgb(11 26 38 / 12%)), url(https://images.unsplash.com/photo-1556912167-f556f1f39fdf?auto=format&fit=crop&w=2200&q=85)",
       }}
     >
       <div className="absolute inset-0 bg-gradient-to-t from-primary/60 via-transparent to-primary/10" />
-      <div className="absolute right-5 top-5 z-20 sm:right-7 sm:top-7">
+      <div className="relative z-20 flex justify-end px-4 pt-4 sm:absolute sm:right-7 sm:top-7 sm:p-0">
         <SponsoredHeroBadge />
       </div>
-      <div className="relative flex min-h-[610px] items-center justify-center px-4 pb-12 pt-24 sm:min-h-[680px] sm:px-8 sm:pb-12 sm:pt-16">
-        <div className="w-full max-w-[720px] rounded-[28px] border border-white/20 bg-primary/80 p-5 text-primary-foreground shadow-2xl backdrop-blur-md sm:p-8">
+      <div className="relative flex items-center justify-center px-4 pb-5 pt-3 sm:min-h-[680px] sm:px-8 sm:pb-12 sm:pt-16">
+        <div className="w-full max-w-[720px] rounded-[28px] border border-white/20 bg-primary/80 p-4 text-primary-foreground shadow-2xl backdrop-blur-md sm:p-8">
           <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">
             Bluebird Marketplace Services
           </p>
-          <h1 className="mt-3 text-center font-display text-[34px] font-bold leading-[1.05] tracking-tight sm:text-[54px]">
-            Find qualified <span className="text-accent">local pros.</span>
+          <h1 className="mt-2 text-center font-display text-[28px] font-bold leading-[1.05] tracking-tight sm:text-[54px]">
+            Big plans. <span className="text-accent">Local hands.</span>
           </h1>
-          <p className="mx-auto mt-4 max-w-[46ch] text-center text-[14px] leading-relaxed text-white/80 sm:text-[15px]">
-            Connect with trusted service providers across Idaho and surrounding states — or share
-            what you do with local customers.
+          <p className="mx-auto mt-3 max-w-[46ch] text-center text-[13px] leading-relaxed text-white/80 sm:text-[15px]">
+            Local help for your next project.
           </p>
 
-          <div className="mt-7 grid grid-cols-2 rounded-2xl bg-white/10 p-1.5 ring-1 ring-white/20">
+          <div className="mt-4 grid sm:mt-7 grid-cols-2 rounded-2xl bg-white/10 p-1.5 ring-1 ring-white/20">
             <button
               type="button"
               aria-pressed={mode === "search"}
@@ -4494,7 +4517,7 @@ function ServicesLandingHero({
 
           {mode === "search" ? (
             <form
-              className="mt-3"
+              className="mt-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 sm:block"
               onSubmit={(event) => {
                 event.preventDefault();
                 onSearch(subcategory.trim());
@@ -4503,10 +4526,13 @@ function ServicesLandingHero({
               <ServiceCategoryPicker value={subcategory} onChange={setSubcategory} />
               <button
                 type="submit"
-                className="mx-auto mt-4 inline-flex h-12 items-center justify-center gap-2 rounded-xl bg-accent px-6 text-[13px] font-bold text-accent-foreground shadow-sm transition-transform hover:-translate-y-0.5"
+                className="mx-auto inline-flex h-12 sm:mt-4 items-center justify-center gap-2 rounded-xl bg-accent px-3 text-[13px] sm:px-6 font-bold text-accent-foreground shadow-sm transition-transform hover:-translate-y-0.5"
               >
                 <MagnifyingGlass size={17} aria-hidden="true" />
-                Show {resultCount.toLocaleString()} results
+                <span className="sm:hidden">Search</span>
+                <span className="hidden sm:inline">
+                  Show {resultCount.toLocaleString()} results
+                </span>
               </button>
             </form>
           ) : (
@@ -5151,7 +5177,7 @@ function JobsLandingHero({
     >
       <div className="absolute inset-0 bg-gradient-to-t from-primary/60 via-transparent to-primary/10" />
       {/* The badge gets its own row above the card, so the two never overlap. */}
-      <div className="relative flex min-h-[480px] flex-col px-4 pb-8 pt-4 sm:min-h-[520px] sm:px-8 sm:pb-10 sm:pt-6">
+      <div className="relative flex flex-col px-4 pb-8 pt-4 sm:min-h-[520px] sm:px-8 sm:pb-10 sm:pt-6">
         <div className="relative z-20 flex justify-end">
           <SponsoredHeroBadge />
         </div>
@@ -5160,12 +5186,11 @@ function JobsLandingHero({
             <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">
               Bluebird Marketplace Jobs
             </p>
-            <h1 className="mt-2 text-center font-display text-[30px] font-bold leading-[1.05] tracking-tight sm:text-[44px]">
-              Find <span className="text-accent">local</span> work that fits your life.
+            <h1 className="mt-2 text-center font-display text-[28px] font-bold leading-[1.05] tracking-tight sm:text-[44px]">
+              Your next move. <span className="text-accent">Starts here.</span>
             </h1>
             <p className="mx-auto mt-3 max-w-[46ch] text-center text-[13.5px] leading-relaxed text-white/80 sm:text-[14.5px]">
-              Search jobs from local employers across Idaho and surrounding states — or post your
-              next opportunity.
+              Local jobs. New possibilities.
             </p>
 
             <div className="mt-5 grid grid-cols-2 rounded-2xl bg-white/10 p-1.5 ring-1 ring-white/20">
@@ -5224,8 +5249,8 @@ function JobsLandingHero({
                     </button>
                   </label>
                 </form>
-                <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                  <label className="relative block min-w-0">
+                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  <label className="relative col-span-2 block min-w-0 sm:col-span-1">
                     <span className="sr-only">City or ZIP code</span>
                     <MapPin
                       size={16}
@@ -6544,7 +6569,8 @@ function VehicleResultsPage({
               Bluebird motors
             </p>
             <h1 className="mt-1 text-[28px] font-bold tracking-tight">
-              {classifiedCategories.find((category) => category.slug === search.category)?.name ?? "Vehicles"}
+              {classifiedCategories.find((category) => category.slug === search.category)?.name ??
+                "Vehicles"}
             </h1>
           </div>
           <div className="grid w-full max-w-[330px] grid-cols-2 rounded-2xl bg-secondary p-1.5 ring-1 ring-border/70">
@@ -6614,7 +6640,12 @@ function VehicleResultsPage({
           <div className="space-y-3">
             {search.category && (
               <VehicleFilterGroup title="Category details">
-                <VehicleTextField label={subtypeField.label} value={subtype} onChange={setSubtype} placeholder="Any subcategory" />
+                <VehicleTextField
+                  label={subtypeField.label}
+                  value={subtype}
+                  onChange={setSubtype}
+                  placeholder="Any subcategory"
+                />
               </VehicleFilterGroup>
             )}
             <VehicleFilterGroup title="Make / model">
@@ -7224,26 +7255,26 @@ function VehicleBrowseHero({
   }
 
   return (
-    <section className="floating-card relative overflow-visible bg-surface px-5 py-12 sm:px-8 sm:py-14">
+    <section className="floating-card relative overflow-visible bg-surface px-4 py-4 sm:px-8 sm:py-14">
       <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]">
         <div className="absolute -right-24 -top-32 h-72 w-72 rounded-full bg-brand-warm/35" />
         <div className="absolute -bottom-36 left-1/3 h-64 w-64 rounded-full bg-primary/5" />
       </div>
-      <div className="absolute right-5 top-5 z-20 sm:right-7 sm:top-7">
+      <div className="relative z-20 mb-3 flex justify-end sm:absolute sm:right-7 sm:top-7 sm:mb-0">
         <SponsoredHeroBadge />
       </div>
 
-      <div className="relative pt-12 sm:pt-10">
+      <div className="relative pt-0 sm:pt-10">
         <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
               Bluebird motors
             </p>
             <h1 className="mt-2 max-w-[22ch] text-[30px] font-bold leading-tight tracking-tight sm:text-[38px]">
-              Find your next gem on wheels.
+              Good roads start here.
             </h1>
             <p className="mt-2 max-w-[52ch] text-[13.5px] leading-relaxed text-muted-foreground">
-              Shop cars, trucks, powersports, trailers, and more from local sellers.
+              Local rides. New adventures.
             </p>
           </div>
 

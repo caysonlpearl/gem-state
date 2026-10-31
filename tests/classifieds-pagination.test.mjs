@@ -42,6 +42,7 @@ const validator = sourceNode(
   (node) => ts.isVariableDeclaration(node) && node.name.getText() === "browseClassifieds",
 );
 const loadMore = declaration(routeSource, "loadMore");
+const latestInput = declaration(routeSource, "latestListingsInput");
 const searchValidator = sourceNode(
   routeSource,
   (node) => ts.isPropertyAssignment(node) && node.name.getText() === "validateSearch",
@@ -242,7 +243,7 @@ function harness({
   });
   vm.runInContext(
     compile(
-      `${runner}\nconst ${validator};\nconst routeLoader = ${loader};\nconst validateSearch = ${searchValidator};`,
+      `${latestInput}\n${runner}\nconst ${validator};\nconst routeLoader = ${loader};\nconst validateSearch = ${searchValidator};`,
     ),
     context,
   );
