@@ -1615,7 +1615,7 @@ function FbImportPage() {
           className={`px-4 pt-3 text-xs ${blocker ? "text-primary" : "text-muted-foreground"}`}
         >
           {blocker ??
-            `${actionSummary}. New listings go live immediately; updates apply to the existing Bluebird listings; possibly-removed listings are taken offline, not republished.`}
+            `${actionSummary}. New listings go live immediately; updates apply to existing Bluebird listings. Import refresh never takes listings offline.`}
         </p>
         {data?.some((item) => publishErrors[item.id] || item.syncConflict) && (
           <details

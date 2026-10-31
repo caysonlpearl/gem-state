@@ -73,10 +73,11 @@ test("authorization must still be confirmed for a single seller", () => {
   assert.equal(publishBlocker({ ...base, selectedIds: new Set(["k1", "k2"]) }), null);
 });
 
-test("action copy updates and takes offline, never republishes removed rows", () => {
+test("action copy directs legacy removals to separate review", () => {
   const selectedIds = new Set(items.filter((i) => i.sourceProfileUrl === vinted).map((i) => i.id));
   const text = describeAction(items, selectedIds);
-  assert.equal(text, "Update 66 Bluebird listing(s), take 3 offline");
+  assert.equal(text, "Review removals separately on the listing");
+  assert.doesNotMatch(text, /take.*offline/);
   assert.doesNotMatch(text, /republish/i);
 });
 
@@ -102,4 +103,13 @@ test("a past run with only an aggregate count claims no cause", () => {
   assert.deepEqual(groupUnreadable(undefined, 55), [
     { site: "All sites", reason: "not_reported", count: 55 },
   ]);
+});
+
+test("legacy removal suggestions cannot be applied alone or mixed with updates", () => {
+  for (const ids of [["r0"], ["v0", "r0"]])
+    assert.match(
+      publishBlocker({ ...base, selectedIds: new Set(ids) }),
+      /cannot take listings offline/,
+    );
+  assert.equal(publishBlocker({ ...base, selectedIds: new Set(["v0"]) }), null);
 });
