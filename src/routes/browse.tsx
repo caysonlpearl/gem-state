@@ -1,4 +1,4 @@
-import { createFileRoute, Link, notFound, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound, useNavigate, useRouter } from "@tanstack/react-router";
 import {
   queryOptions,
   useQueries,
@@ -814,6 +814,7 @@ const serviceTimeOnSiteOptions = [
 
 const classifiedQuery = (input: ClassifiedBrowseInput) =>
   queryOptions({
+    staleTime: 60_000,
     queryKey: ["classified-browse", input],
     queryFn: () =>
       traceMutation(
@@ -1353,7 +1354,13 @@ export const Route = createFileRoute("/browse")({
     };
   },
   component: Browse,
-  errorComponent: ({ reset }) => (
+  errorComponent: BrowseLoadError,
+});
+
+function BrowseLoadError({ reset }: { reset: () => void }) {
+  const queryClient = useQueryClient();
+  const router = useRouter();
+  return (
     <main className="mx-auto max-w-[760px] px-4 py-14 sm:px-6">
       <BluebirdEmptyState
         title="The classifieds did not load"
@@ -1361,15 +1368,20 @@ export const Route = createFileRoute("/browse")({
       >
         <button
           type="button"
-          onClick={reset}
+          onClick={() => {
+            void queryClient.resetQueries({ queryKey: ["classified-browse"] }).then(() => {
+              reset();
+              void router.invalidate();
+            });
+          }}
           className="inline-flex h-10 items-center rounded-md border border-input px-4 text-[13px] font-semibold hover:bg-secondary"
         >
           Retry
         </button>
       </BluebirdEmptyState>
     </main>
-  ),
-});
+  );
+}
 
 function Browse() {
   const search = Route.useSearch();

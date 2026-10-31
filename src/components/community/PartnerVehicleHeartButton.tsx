@@ -1,12 +1,13 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Heart } from "@phosphor-icons/react";
 import { toast } from "sonner";
 
+import { useListingSavedState } from "@/hooks/useListingSavedState";
 import { brand } from "@/config/brand";
 import { useAuth } from "@/hooks/useAuth";
-import { getPartnerVehicleSaved, setPartnerVehicleSaved } from "@/lib/saved-vehicles.functions";
+import { setPartnerVehicleSaved } from "@/lib/saved-vehicles.functions";
 
 export function PartnerVehicleHeartButton({
   listingId,
@@ -17,16 +18,11 @@ export function PartnerVehicleHeartButton({
   title: string;
   className?: string;
 }) {
-  const { isSignedIn } = useAuth();
+  const { isSignedIn, user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const getSaved = useServerFn(getPartnerVehicleSaved);
   const setSaved = useServerFn(setPartnerVehicleSaved);
-  const state = useQuery({
-    queryKey: ["partner-vehicle-saved", listingId],
-    queryFn: () => getSaved({ data: { listingId } }),
-    enabled: isSignedIn,
-  });
+  const state = useListingSavedState("vehicles", listingId, user?.id);
   const mutation = useMutation({
     mutationFn: (saved: boolean) => setSaved({ data: { listingId, saved } }),
     onSuccess: async (result) => {
@@ -38,7 +34,7 @@ export function PartnerVehicleHeartButton({
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "Could not update saved vehicles."),
   });
-  const saved = state.data?.saved ?? false;
+  const saved = state.data ?? false;
   return (
     <button
       type="button"

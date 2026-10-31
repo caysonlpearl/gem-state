@@ -1,12 +1,13 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Heart } from "@phosphor-icons/react";
 import { toast } from "sonner";
 
+import { useListingSavedState } from "@/hooks/useListingSavedState";
 import { brand } from "@/config/brand";
 import { useAuth } from "@/hooks/useAuth";
-import { getPartnerHomeSaved, setPartnerHomeSaved } from "@/lib/saved-homes.functions";
+import { setPartnerHomeSaved } from "@/lib/saved-homes.functions";
 
 export function PartnerHomeHeartButton({
   listingId,
@@ -17,16 +18,11 @@ export function PartnerHomeHeartButton({
   title: string;
   className?: string;
 }) {
-  const { isSignedIn } = useAuth();
+  const { isSignedIn, user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const fetchState = useServerFn(getPartnerHomeSaved);
   const setState = useServerFn(setPartnerHomeSaved);
-  const state = useQuery({
-    queryKey: ["partner-home-saved", listingId],
-    queryFn: () => fetchState({ data: { listingId } }),
-    enabled: isSignedIn,
-  });
+  const state = useListingSavedState("homes", listingId, user?.id);
   const mutation = useMutation({
     mutationFn: (saved: boolean) => setState({ data: { listingId, saved } }),
     onSuccess: async (result) => {
@@ -38,7 +34,7 @@ export function PartnerHomeHeartButton({
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "Could not update saved homes."),
   });
-  const saved = state.data?.saved ?? false;
+  const saved = state.data ?? false;
   return (
     <button
       type="button"

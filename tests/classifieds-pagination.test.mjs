@@ -88,6 +88,8 @@ function harness({
     return external;
   };
   const selections = [];
+  const nativeFilters = [];
+  const nativeSelections = [];
   let exactCount = true;
   const ranges = [];
   const providerReads = [];
@@ -98,6 +100,7 @@ function harness({
         key === "select"
           ? (_fields, options) => {
               selections.push(options);
+              nativeSelections.push(_fields);
               exactCount = options?.count === "exact";
               return query;
             }
@@ -118,6 +121,8 @@ function harness({
                   .then(resolve, reject);
               },
             })
+          : key === "in" || key === "eq"
+          ? (field, value) => { nativeFilters.push([field,value]); return query; }
           : () => query,
     },
   );
@@ -167,7 +172,7 @@ function harness({
     CLASSIFIEDS_MERGE_READ_LIMIT,
     comparableJobPay,
     PAGE_SIZE: 24,
-    LISTING_SELECT: "synthetic",
+    LISTING_SELECT: "synthetic,categories(slug, name)",
     publicServerClient: () => ({ from: () => query }),
     withCatalogReadDeadline: deadlineRead,
     clearExpiredFeaturedPlacements: cleanup,
@@ -255,6 +260,8 @@ function harness({
   return {
     ranges,
     selections,
+    nativeFilters,
+    nativeSelections,
     internal: (options) => {
       context.browseInput = { ...filters, page: 1 };
       context.internalOptions = options;
@@ -676,23 +683,19 @@ test("native inventory starts while an eligible provider is still pending", asyn
 });
 
 
-test("provider cache reads overlap cleanup but native ranking waits for cleanup", async () => {
-  let release;
-  const gate = new Promise((resolve) => { release = resolve; });
+test("public browse reads never wait for or invoke a maintenance write", async () => {
   let nativeStarted = false;
+  let cleanupCalls = 0;
   const h = harness({
-    enabled: ["marketcheck"], cleanup: () => gate,
+    enabled: ["marketcheck"], cleanup: () => { cleanupCalls++; return new Promise(() => {}); },
     onNative: () => { nativeStarted = true; },
   });
-  const pending = h.browse(1);
-  try {
-    await new Promise(setImmediate);
-    assert.deepEqual(h.adapterCalls, ["marketcheck"]);
-    assert.equal(nativeStarted, false, "native ranking cannot see expired placements before cleanup");
-  } finally { release(); }
-  await pending;
+  await h.browse(1);
   assert.equal(nativeStarted, true);
+  assert.equal(cleanupCalls, 0);
+  assert.deepEqual(h.adapterCalls, ["marketcheck"]);
 });
+
 
 test("homepage reads do not perform placement cleanup or wait for that maintenance write", async () => {
   let cleanupCalls = 0;
@@ -730,7 +733,7 @@ test("internal lead diagnostics contain only allowlisted finite nonnegative stag
   const h = harness({ enabled: ["marketcheck"], filters: { category: "cars-trucks" } });
   const timingsMs = {};
   await h.internal({ includeExactCount: false, timingsMs });
-  const stages = ["cleanup", "categoryIds", "adapterImports", "nativeRead", "vehicleRead", "thumbnailLinks"];
+  const stages = ["adapterImports", "nativeRead", "vehicleRead", "thumbnailLinks"];
   assert.deepEqual(Object.keys(timingsMs).sort(), stages.flatMap((key) => [key, `${key}Start`]).sort());
   for (const value of Object.values(timingsMs)) {
     assert.equal(typeof value, "number");
@@ -739,22 +742,21 @@ test("internal lead diagnostics contain only allowlisted finite nonnegative stag
 });
 
 
-test("private home cache preparation overlaps category validation without invoking provider adapters", async () => {
-  let release;
-  const categoryGate = new Promise((resolve) => { release = resolve; });
+test("category browse uses its joined slug filter without a separate metadata read", async () => {
+  let categoryReads = 0;
   let preparations = 0;
-  const h = harness({ filters: { category: "cars-trucks", state: "ID" }, enabled: ["marketcheck"], beforeCategory: () => categoryGate,
-    prepareVehicleCache: () => { preparations += 1; return { dealer: Promise.resolve([]), fsbo: Promise.resolve([]) }; },
+  const h = harness({ filters: { category: "cars-trucks", state: "ID" }, enabled: ["marketcheck"],
+    beforeCategory: () => { categoryReads++; throw Error("Separate metadata read must not run"); },
+    prepareVehicleCache: () => { preparations++; return { dealer: Promise.resolve([]), fsbo: Promise.resolve([]) }; },
   });
-  const pending = h.internal({ prepareHomeVehicleCache: true });
-  try {
-    await new Promise(setImmediate);
-    assert.equal(preparations, 1);
-    assert.deepEqual(h.adapterCalls, [], "no full adapter or paid refresh before validation");
-  } finally { release(); }
-  await pending;
+  await h.internal({ prepareHomeVehicleCache: true });
+  assert.equal(categoryReads, 0);
+  assert.equal(preparations, 1);
+  assert.match(h.nativeSelections[0], /categories!inner\(slug, name\)/);
+  assert.deepEqual(JSON.parse(JSON.stringify(h.nativeFilters.find(([key]) => key === "products.categories.slug"))), ["products.categories.slug", ["cars-trucks"]]);
   assert.deepEqual(h.adapterCalls, ["marketcheck"]);
 });
+
 
 test("invalid category discards preparation without invoking provider adapters", async () => {
   let preparations = 0;

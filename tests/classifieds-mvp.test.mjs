@@ -727,7 +727,7 @@ test("seller billing is catalog-backed and settles upgrades through Stripe webho
   assert.match(simplifiedUpgradeMigrationSource, /amount_cents = 1000/);
   assert.match(simplifiedUpgradeMigrationSource, /duration_days = 1/);
   assert.match(simplifiedUpgradeMigrationSource, /where code not in \('bump', 'featured'\)/);
-  assert.match(classifiedsFunctionsSource, /order\("featured_until"/);
+  assert.match(classifiedsFunctionsSource, /order\("catalog_is_featured"/);
   assert.match(classifiedsFunctionsSource, /order\("ranking_at"/);
   assert.match(stripeServerSource, /listingUpdate\["ranking_at"\] = paidAt/);
   assert.match(listingCardSource, />\s*Featured\s*</);

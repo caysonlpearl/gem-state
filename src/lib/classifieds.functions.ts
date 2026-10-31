@@ -245,12 +245,16 @@ export const reportClassifiedListing = createServerFn({ method: "POST" })
   })
   .handler(async ({ data, context }) => {
     const client = context.supabase as any;
-    if (data.listingId.startsWith("adzuna-") || data.listingId.startsWith("fsq-") || data.listingId.startsWith("avantlink-")) {
+    if (
+      data.listingId.startsWith("adzuna-") ||
+      data.listingId.startsWith("fsq-") ||
+      data.listingId.startsWith("avantlink-")
+    ) {
       const exists = data.listingId.startsWith("avantlink-")
         ? await (await import("./avantlink-listings.server")).merchandiseDetail(data.listingId)
         : data.listingId.startsWith("fsq-")
-        ? await (await import("./service-directory.server")).directoryDetail(data.listingId)
-        : await (await import("./adzuna-listings.server")).adzunaDetail(data.listingId);
+          ? await (await import("./service-directory.server")).directoryDetail(data.listingId)
+          : await (await import("./adzuna-listings.server")).adzunaDetail(data.listingId);
       if (!exists) throw new Error("That listing is no longer available.");
       const { error } = await client.from("partner_job_reports").insert({
         listing_id: data.listingId,
@@ -406,7 +410,10 @@ export const resolveAdminClassifiedReport = createServerFn({ method: "POST" })
       const listingId = String(updated[0].listing_id ?? "");
       if (data.action === "reviewed" && listingId.startsWith("avantlink-")) {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        await (supabaseAdmin as any).from("avantlink_merchandise").update({ active: false }).eq("id", listingId.slice("avantlink-".length));
+        await (supabaseAdmin as any)
+          .from("avantlink_merchandise")
+          .update({ active: false })
+          .eq("id", listingId.slice("avantlink-".length));
       }
       if (data.action === "reviewed" && listingId.startsWith("fsq-")) {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -1785,74 +1792,31 @@ export const browseClassifieds = createServerFn({ method: "GET" })
   }))
   .handler(async ({ data }): Promise<ClassifiedBrowseResult> => runBrowseClassifieds(data));
 
-// Expired placements are cleared before ranking so an old purchase can never
-// remain above ordinary results. This does not touch the immutable
-// purchase/receipt history shown in Seller Billing. It runs at most once a
-// minute per server instance (concurrent requests share the run) rather than
-// as a write in front of every page view.
-const FEATURED_CLEANUP_INTERVAL_MS = 60_000;
-let featuredCleanup: { startedAt: number; done: Promise<void> } | null = null;
-
-function clearExpiredFeaturedPlacements(nowIso: string) {
-  if (featuredCleanup && Date.now() - featuredCleanup.startedAt < FEATURED_CLEANUP_INTERVAL_MS)
-    return featuredCleanup.done;
-  const done = (async () => {
-    try {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { error } = await (supabaseAdmin as any)
-        .from("asks")
-        .update({ featured_until: null })
-        .not("featured_until", "is", null)
-        .lte("featured_until", nowIso);
-      if (error) console.error("Could not clear expired featured placements", error.message);
-    } catch (error) {
-      console.error("Could not clear expired featured placements", error);
-    }
-  })();
-  featuredCleanup = { startedAt: Date.now(), done };
-  return done;
-}
-
-// Category ids change only when an admin edits categories; a short cache
-// saves a lookup on every category and group search.
-const CATEGORY_ID_CACHE_MS = 10 * 60_000;
-let categoryIdCache: { loadedAt: number; ids: Promise<Map<string, string>> } | null = null;
-
-function categoryIdsBySlug(client: ReturnType<typeof publicServerClient>) {
-  if (categoryIdCache && Date.now() - categoryIdCache.loadedAt < CATEGORY_ID_CACHE_MS)
-    return categoryIdCache.ids;
-  const ids = (async () => {
-    const { data: rows, error } = await withCatalogReadDeadline(client.from("categories").select("id, slug"));
-    if (error) {
-      console.error("Could not load category ids", error.message);
-      categoryIdCache = null;
-      return new Map<string, string>();
-    }
-    return new Map((rows ?? []).map((row) => [row.slug, row.id]));
-  })().catch((error) => {
-    if (categoryIdCache?.ids === ids) categoryIdCache = null;
-    throw error;
-  });
-  categoryIdCache = { loadedAt: Date.now(), ids };
-  return ids;
-}
-
 async function runBrowseClassifieds(
   data: ClassifiedBrowseInput,
   // Internal callers that discard totals can avoid the exact-count query.
   // Public browse keeps accurate counts and limited-results warnings.
-  options: { prepareHomeVehicleCache?: boolean; selectHomePhotos?: boolean; readOnlyHome?: boolean; includeExactCount?: boolean; timingsMs?: Record<string, number>; timingOriginMs?: number } = {},
+  options: {
+    prepareHomeVehicleCache?: boolean;
+    selectHomePhotos?: boolean;
+    readOnlyHome?: boolean;
+    includeExactCount?: boolean;
+    timingsMs?: Record<string, number>;
+    timingOriginMs?: number;
+  } = {},
 ): Promise<ClassifiedBrowseResult> {
   {
-    const clock = () => typeof performance === "undefined" ? Date.now() : performance.now();
+    const clock = () => (typeof performance === "undefined" ? Date.now() : performance.now());
     const origin = options.timingOriginMs ?? clock();
     async function measure<T>(stage: string, work: () => T | PromiseLike<T>): Promise<T> {
       const started = clock();
-      if (options.timingsMs) options.timingsMs[`${stage}Start`] = Math.max(0, Math.round(started - origin));
+      if (options.timingsMs)
+        options.timingsMs[`${stage}Start`] = Math.max(0, Math.round(started - origin));
       try {
         return await work();
       } finally {
-        if (options.timingsMs) options.timingsMs[stage] = Math.max(0, Math.round(clock() - started));
+        if (options.timingsMs)
+          options.timingsMs[stage] = Math.max(0, Math.round(clock() - started));
       }
     }
     const client = publicServerClient();
@@ -1867,57 +1831,42 @@ async function runBrowseClassifieds(
     }
     const nowIso = new Date().toISOString();
 
-    let categoryIds: string[] | null = null;
-    let mockOnlyCategory = false;
     const groupSlugs = data.group
       ? classifiedCategories
           .filter((category) => category.group === data.group)
           .map((category) => category.slug)
       : [];
     if (!data.category && data.group && groupSlugs.length === 0) return empty;
-    // Expired-placement cleanup must precede native ranking, but provider
-    // cache reads do not depend on that write. Start cleanup now, validate
-    // category IDs, and await cleanup only on the native read below.
+    // Public reads never perform maintenance writes. Featured ordering uses
+    // a caller-invoked computed boolean, so expired purchases cannot rank first.
     const preparedHomeCache = options.prepareHomeVehicleCache
-      ? import("./marketcheck.server").then((adapter) => adapter.prepareHomeMarketCheckCache()).catch(() => undefined)
+      ? import("./marketcheck.server")
+          .then((adapter) => adapter.prepareHomeMarketCheckCache())
+          .catch(() => undefined)
       : undefined;
-    // Homepage rendering must not wait for a maintenance UPDATE. Its native
-    // pool is merged before paging below, using toCard's current expiry check.
-    const cleanup = options.readOnlyHome
-      ? Promise.resolve()
-      : measure("cleanup", () => clearExpiredFeaturedPlacements(nowIso));
-    const idBySlug = data.category || data.group ? await measure("categoryIds", () => categoryIdsBySlug(client)) : null;
-    if (data.category) {
-      const categoryId = idBySlug?.get(data.category);
-      if (!categoryId) {
-        mockOnlyCategory = [...mockClassifiedListings, ...mockVehicleListings].some(
-          (listing) => listing.categorySlug === data.category,
-        );
-        if (!mockOnlyCategory) {
-          await cleanup;
-          return empty;
-        }
-      } else {
-        categoryIds = [categoryId];
-      }
-    } else if (data.group) {
-      categoryIds = groupSlugs.flatMap((slug) => {
-        const id = idBySlug?.get(slug);
-        return id ? [id] : [];
-      });
-      if (categoryIds.length === 0) mockOnlyCategory = true;
+    // Filter through the existing category join in the native SELECT. A
+    // separate slug-to-ID request doubled the cold category-page round trips.
+    if (
+      data.category &&
+      !classifiedCategories.some((category) => category.slug === data.category)
+    ) {
+      return empty;
     }
+    const categorySlugs = data.category ? [data.category] : groupSlugs;
+    const selection = categorySlugs.length
+      ? LISTING_SELECT.replace("categories(slug, name)", "categories!inner(slug, name)")
+      : LISTING_SELECT;
 
     let query = client
       .from("asks")
-      .select(LISTING_SELECT, options.includeExactCount === false ? {} : { count: "exact" })
+      .select(selection, options.includeExactCount === false ? {} : { count: "exact" })
       .eq("status", "active")
       .eq("is_demo", false)
       .not("approved_at", "is", null)
       .gt("expires_at", nowIso)
       .eq("products.status", "published");
 
-    if (categoryIds) query = query.in("products.category_id", categoryIds);
+    if (categorySlugs.length) query = query.in("products.categories.slug", categorySlugs);
     if (data.q) {
       const q = escapeFilterValue(data.q);
       query = query.or(`name.ilike.%${q}%,description.ilike.%${q}%`, {
@@ -1944,7 +1893,6 @@ async function runBrowseClassifieds(
         .eq("slug", data.sellerSlug)
         .maybeSingle();
       if (!seller?.user_id) {
-        await cleanup;
         return empty;
       }
       query = query.eq("seller_id", seller.user_id);
@@ -1958,7 +1906,6 @@ async function runBrowseClassifieds(
         .not("agreements_accepted_at", "is", null)
         .maybeSingle();
       if (!dealer?.id) {
-        await cleanup;
         return empty;
       }
       query = query.eq("dealer_id", dealer.id);
@@ -2126,7 +2073,7 @@ async function runBrowseClassifieds(
 
     // Featured listings always appear before standard results. Within each
     // group, the selected browse sort still applies.
-    query = query.order("featured_until", { ascending: false, nullsFirst: false });
+    query = query.order("catalog_is_featured", { ascending: false });
     switch (data.sort) {
       case "price_low":
         query =
@@ -2171,16 +2118,18 @@ async function runBrowseClassifieds(
       rescueGroups,
       directoryAdapter,
       merchandise,
-    ] = await measure("adapterImports", () => Promise.all([
-      import("./adzuna-listings.server"),
-      import("./mashvisor-listings.server"),
-      import("./openwebninja-listings.server"),
-      import("./openwebninja.server"),
-      import("./marketcheck.server"),
-      import("./rescuegroups.server"),
-      import("./service-directory-contract"),
-      import("./avantlink-listings.server"),
-    ]));
+    ] = await measure("adapterImports", () =>
+      Promise.all([
+        import("./adzuna-listings.server"),
+        import("./mashvisor-listings.server"),
+        import("./openwebninja-listings.server"),
+        import("./openwebninja.server"),
+        import("./marketcheck.server"),
+        import("./rescuegroups.server"),
+        import("./service-directory-contract"),
+        import("./avantlink-listings.server"),
+      ]),
+    );
     const includeAdzuna = adzuna.canIncludeAdzuna(data);
     const includeMashvisor = mashvisor.canIncludeMashvisor(data);
     const includeOpenWebNinja = openWebNinja.canIncludeOpenWebNinja(data);
@@ -2219,25 +2168,34 @@ async function runBrowseClassifieds(
     // Independent reads must not form a provider → database waterfall.
     // Eligibility, provider budget guards, paging and merge ordering stay unchanged.
     let jobsUnavailable = false;
-    const [native, jobCards, homeCards, externalVehicles, petCards, merchandiseResult] = await Promise.all([
-      (async () => {
-        await cleanup;
-        return mockOnlyCategory
-          ? { data: [], count: 0, error: null }
-          : await measure("nativeRead", () => withCatalogReadDeadline(query.range(resultRange.from, resultRange.to)));
-      })(),
-      includeAdzuna
-        ? adzuna.adzunaCards(data, (status) => { jobsUnavailable = status !== "ok"; })
-        : [],
-      openWebNinjaEnabled
-        ? openWebNinja.openWebNinjaCards(data)
-        : includeMashvisor
-          ? mashvisor.mashvisorCards(data)
+    const [native, jobCards, homeCards, externalVehicles, petCards, merchandiseResult] =
+      await Promise.all([
+        (async () => {
+          return await measure("nativeRead", () =>
+            withCatalogReadDeadline(query.range(resultRange.from, resultRange.to)),
+          );
+        })(),
+        includeAdzuna
+          ? adzuna.adzunaCards(data, (status) => {
+              jobsUnavailable = status !== "ok";
+            })
           : [],
-      includeMarketCheck ? measure("vehicleRead", async () => marketCheck.marketCheckCards(data, { preparedHomeCache: await preparedHomeCache, cacheOnly: options.readOnlyHome })) : [],
-      includeRescueGroups ? rescueGroups.rescueGroupsCards(data) : [],
-      includeMerchandise ? merchandise.merchandiseCards(data) : { cards: [], limited: false },
-    ]);
+        openWebNinjaEnabled
+          ? openWebNinja.openWebNinjaCards(data)
+          : includeMashvisor
+            ? mashvisor.mashvisorCards(data)
+            : [],
+        includeMarketCheck
+          ? measure("vehicleRead", async () =>
+              marketCheck.marketCheckCards(data, {
+                preparedHomeCache: await preparedHomeCache,
+                cacheOnly: options.readOnlyHome,
+              }),
+            )
+          : [],
+        includeRescueGroups ? rescueGroups.rescueGroupsCards(data) : [],
+        includeMerchandise ? merchandise.merchandiseCards(data) : { cards: [], limited: false },
+      ]);
     const { data: rows, count, error } = native;
     const matchesRegion = (listing: ClassifiedCard) =>
       !data.region || regionOfListing(listing) === data.region;
@@ -2344,12 +2302,14 @@ async function runBrowseClassifieds(
         )
       : { cards: [], total: 0 };
     const pageListings = [...nativePage, ...directory.cards];
-    const urlByPath = await measure("thumbnailLinks", () => signListingThumbnails(
-      pageListings.flatMap((listing) => {
-        const cover = coverPathById.get(listing.id);
-        return cover ? [cover] : [];
-      }),
-    ));
+    const urlByPath = await measure("thumbnailLinks", () =>
+      signListingThumbnails(
+        pageListings.flatMap((listing) => {
+          const cover = coverPathById.get(listing.id);
+          return cover ? [cover] : [];
+        }),
+      ),
+    );
     const combinedListings = pageListings.map((listing) => {
       const cover = coverPathById.get(listing.id);
       return cover ? { ...listing, imageUrl: urlByPath.get(cover) ?? null } : listing;
@@ -2375,7 +2335,11 @@ async function runBrowseClassifieds(
     }
     return {
       listings: options.selectHomePhotos
-        ? await measure("leadPhotos", async () => (await import("./homepage-photo-selection.server")).selectHomepagePhotoCards(combinedListings))
+        ? await measure("leadPhotos", async () =>
+            (await import("./homepage-photo-selection.server")).selectHomepagePhotoCards(
+              combinedListings,
+            ),
+          )
         : combinedListings,
       incomplete: Boolean(error) || jobsUnavailable,
       // Only advertise cards that can actually be reached. In-memory filters
@@ -2387,7 +2351,8 @@ async function runBrowseClassifieds(
           : (count ?? listings.length) + mockListings.length) + directory.total,
       page,
       pageSize: PAGE_SIZE,
-      limitedResults: merchandiseResult.limited || (mergeBeforePaging && (count ?? 0) > (rows?.length ?? 0)),
+      limitedResults:
+        merchandiseResult.limited || (mergeBeforePaging && (count ?? 0) > (rows?.length ?? 0)),
     };
   }
 }
@@ -2794,7 +2759,7 @@ export async function loadNativeHomepageInventory() {
       .not("approved_at", "is", null)
       .gt("expires_at", new Date().toISOString())
       .eq("products.status", "published")
-      .order("featured_until", { ascending: false, nullsFirst: false })
+      .order("catalog_is_featured", { ascending: false })
       .order("ranking_at", { ascending: false })
       .order("id")
       .limit(1000),
@@ -2832,17 +2797,19 @@ async function loadClassifiedsHomeCategoryData() {
   return shortCache("classifieds-home-category-data", PUBLIC_PAGE_CACHE_MS, async () => {
     const client = publicServerClient();
     const nowIso = new Date().toISOString();
-    const { data: rows } = await withCatalogReadDeadline(client
-      .from("asks")
-      .select(
-        "id, products!inner(status, categories!inner(slug)), classified_listing_details!inner(listing_id)",
-      )
-      .eq("status", "active")
-      .eq("is_demo", false)
-      .not("approved_at", "is", null)
-      .gt("expires_at", nowIso)
-      .eq("products.status", "published")
-      .limit(1000));
+    const { data: rows } = await withCatalogReadDeadline(
+      client
+        .from("asks")
+        .select(
+          "id, products!inner(status, categories!inner(slug)), classified_listing_details!inner(listing_id)",
+        )
+        .eq("status", "active")
+        .eq("is_demo", false)
+        .not("approved_at", "is", null)
+        .gt("expires_at", nowIso)
+        .eq("products.status", "published")
+        .limit(1000),
+    );
 
     const categoryCounts: Record<string, number> = {};
     for (const row of (rows ?? []) as Record<string, unknown>[]) {
@@ -2856,12 +2823,15 @@ async function loadClassifiedsHomeCategoryData() {
 async function loadClassifiedsHomeMotors() {
   const { shortCache, PUBLIC_PAGE_CACHE_MS } = await import("./short-cache.server");
   return shortCache("classifieds-home-motors", PUBLIC_PAGE_CACHE_MS, async () => {
-    const result = await runBrowseClassifieds({
-      group: "motors",
-      state: "ID",
-      sort: "newest",
-      page: 1,
-    }, { readOnlyHome: true });
+    const result = await runBrowseClassifieds(
+      {
+        group: "motors",
+        state: "ID",
+        sort: "newest",
+        page: 1,
+      },
+      { readOnlyHome: true },
+    );
     return result.listings;
   });
 }
@@ -2870,7 +2840,7 @@ async function loadClassifiedsHomeLead(): Promise<ClassifiedsHomeLead> {
   // Keep these per-request observations outside cached values. Missing deep
   // stages mean this request reused the cached cars promise, not zero latency.
   const timingsMs: Record<string, number> = {};
-  const clock = () => typeof performance === "undefined" ? Date.now() : performance.now();
+  const clock = () => (typeof performance === "undefined" ? Date.now() : performance.now());
   const started = clock();
   const [categoryData, motors] = await Promise.all([
     loadClassifiedsHomeCategoryData().then((value) => {
@@ -2887,14 +2857,24 @@ async function loadClassifiedsHomeLead(): Promise<ClassifiedsHomeLead> {
   return { ...categoryData, motors: summaries, timingsMs };
 }
 
-async function loadClassifiedsHomeCarsTrucks(timingsMs?: Record<string, number>, timingOriginMs?: number) {
+async function loadClassifiedsHomeCarsTrucks(
+  timingsMs?: Record<string, number>,
+  timingOriginMs?: number,
+) {
   const { shortCache, PUBLIC_PAGE_CACHE_MS } = await import("./short-cache.server");
   return shortCache("classifieds-home-cars-trucks", PUBLIC_PAGE_CACHE_MS, async () => {
     // Filter before paging: newer parts and trailers must not displace the
     // featured cars/trucks. The broader Motors browser and rows stay intact.
     const result = await runBrowseClassifieds(
       { category: "cars-trucks", state: "ID", sort: "newest", page: 1 },
-      { prepareHomeVehicleCache: true, selectHomePhotos: true, readOnlyHome: true, includeExactCount: false, timingsMs, timingOriginMs },
+      {
+        prepareHomeVehicleCache: true,
+        selectHomePhotos: true,
+        readOnlyHome: true,
+        includeExactCount: false,
+        timingsMs,
+        timingOriginMs,
+      },
     );
     return result.listings;
   });

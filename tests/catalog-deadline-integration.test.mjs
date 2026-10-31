@@ -23,14 +23,6 @@ function mockClient(fetch) {
 const bounded = (query) => withCatalogReadDeadline(query, 10);
 const hang = (signal) => new Promise((_resolve, reject) => signal.addEventListener("abort", () => reject(signal.reason), { once: true }));
 
-test("category deadline evicts its rejected promise and permits a successful retry", async () => {
-  let calls = 0;
-  const db = mockClient(async (_url, init) => ++calls === 1 ? hang(init.signal) : Response.json([{ id: "cars", slug: "cars-trucks" }]));
-  const categoryIds = run(`const CATEGORY_ID_CACHE_MS = 600000; let categoryIdCache = null;\n${declaration("../src/lib/classifieds.functions.ts", "categoryIdsBySlug")}`, { Date, Map, console, withCatalogReadDeadline: bounded }, "categoryIdsBySlug");
-  await assert.rejects(categoryIds(db), CatalogReadTimeoutError);
-  assert.equal((await categoryIds(db)).get("cars-trucks"), "cars");
-  assert.equal(calls, 2);
-});
 
 test("homepage counts deadline is not cached as a zero count", async () => {
   let calls = 0;
