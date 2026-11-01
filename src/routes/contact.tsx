@@ -68,6 +68,16 @@ function ContactPage() {
       <p className="mt-2 text-[13.5px] leading-relaxed text-muted-foreground">
         {description} Include your order number if your question is about a purchase or a sale.
       </p>
+      <p className="mt-3 text-[13.5px] leading-relaxed text-muted-foreground">
+        Email us directly at{" "}
+        <a
+          className="break-all font-semibold text-primary underline underline-offset-4"
+          href={`mailto:${brand.supportEmail}`}
+        >
+          {brand.supportEmail}
+        </a>
+        , or use the form below.
+      </p>
 
       {sent ? (
         <div

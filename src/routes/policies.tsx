@@ -164,8 +164,12 @@ function policyBodies(): Record<string, React.ReactNode> {
     "contact-takedown": (
       <>
         <p>
-          Use the contact us form for support, account questions, or a rights-holder takedown
-          request. Include the listing URL and the specific content at issue.
+          Use the contact us form or email{" "}
+          <a className="text-foreground underline break-all" href={`mailto:${brand.supportEmail}`}>
+            {brand.supportEmail}
+          </a>{" "}
+          for support, account questions, or a rights-holder takedown request. Include the listing
+          URL and the specific content at issue.
         </p>
         <p>
           Listings may be removed when they violate these policies, applicable law, or a

@@ -1,4 +1,5 @@
 import * as React from "react";
+import { brand } from "../../config/brand";
 import {
   Body,
   Button,
@@ -110,6 +111,12 @@ export function EmailShell({
             Bluebird Marketplace is an independent marketplace. Listings are created by individual
             sellers, who are responsible for their descriptions, photos, pricing, and legal right to
             sell each item.
+          </Text>
+          <Text style={footer}>
+            Need help?{" "}
+            <Link href={`mailto:${brand.supportEmail}`} style={{ color: colors.ink }}>
+              {brand.supportEmail}
+            </Link>
           </Text>
         </Container>
       </Body>

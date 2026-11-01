@@ -274,8 +274,8 @@ function AdvertisePage() {
               Useful attention beats empty impressions.
             </h2>
             <p className="mt-4 max-w-[470px] text-[14px] leading-relaxed text-muted-foreground">
-              Bluebird Marketplace is designed around the next local action: compare an option, ask a question,
-              schedule a conversation, apply, or find the right help.
+              Bluebird Marketplace is designed around the next local action: compare an option, ask
+              a question, schedule a conversation, apply, or find the right help.
             </p>
           </div>
           <ul className="grid gap-3 rounded-2xl border border-border bg-surface p-5 sm:grid-cols-2 sm:p-7">
@@ -390,8 +390,8 @@ function AdvertisePage() {
             Tell us what you want local customers to do next.
           </h2>
           <p className="mx-auto mt-4 max-w-[600px] text-[14px] leading-relaxed text-primary-foreground/70">
-            We will help you choose a focused starting point for Bluebird Marketplace instead of sending you a
-            generic media kit.
+            We will help you choose a focused starting point for Bluebird Marketplace instead of
+            sending you a generic media kit.
           </p>
           <Link
             to="/contact"
@@ -400,6 +400,16 @@ function AdvertisePage() {
             Contact the Bluebird Marketplace team
             <ArrowRight size={16} weight="bold" aria-hidden="true" />
           </Link>
+          <p className="mt-4 text-[13px] text-primary-foreground/80">
+            Or email{" "}
+            <a
+              className="break-all underline underline-offset-4"
+              href={`mailto:${brand.pressEmail}`}
+            >
+              {brand.pressEmail}
+            </a>
+            .
+          </p>
         </section>
       </main>
     </div>
