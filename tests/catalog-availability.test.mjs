@@ -32,17 +32,22 @@ test("an unavailable thin result is evicted rather than cached as a noindex page
   assert.equal(calls, 2);
 });
 
-test("the actual landing fetch retains source failure across multiple pages", async () => {
+test("the actual landing fetch retains source failure in its single bounded review read", async () => {
   const source = extract("../src/lib/place-pages.functions.ts", "fetchListings");
   let calls = 0;
-  const fetchListings = vm.runInNewContext(ts.transpile(`(${source})`, { target: ts.ScriptTarget.ES2022 }), {
-    MAX_PAGES: 8,
-    browseClassifieds: async () => ({ listings: [{ id: ++calls }], total: 48, pageSize: 24, incomplete: calls === 1 }),
-  });
+  const fetchListings = vm.runInNewContext(
+    ts.transpile(`(${source})`, { target: ts.ScriptTarget.ES2022 }),
+    {
+      loadSeoBrowseInventory: async () => {
+        calls++;
+        return { listings: [{ id: 1 }, { id: 2 }], total: 48, pageSize: 192, incomplete: true };
+      },
+    },
+  );
   const result = await fetchListings({ state: "ID" });
   assert.equal(result.incomplete, true);
   assert.equal(result.listings.length, 2);
-  assert.equal(calls, 2);
+  assert.equal(calls, 1);
 });
 
 test("the actual jobs adapter distinguishes provider failure from successful empty results", async () => {

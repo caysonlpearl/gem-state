@@ -4,16 +4,23 @@ import { createServerFn } from "@tanstack/react-start";
 import { brand } from "@/config/brand";
 import { selectPlaceListingCards } from "@/lib/place-listing-selection";
 import {
+  collectionAvailableIn,
+  collectionMatches,
+  seoCollections,
+  type SeoCollection,
+} from "./seo-collections";
+import type { ListingCardSummary } from "./listing-card-summary";
+import {
   isIndexablePlaceInventory,
   placeInventoryFilters,
   SEO_CITY_RADIUS_MILES,
 } from "@/lib/seo-policy";
 import { classifiedCategories, idahoCities, idahoRegions } from "@/config/classifieds";
 import {
-  browseClassifieds,
+  loadSeoBrowseInventory,
   getRecentlySoldListings,
   type ClassifiedCard,
-  type SoldCard,
+  type ClassifiedBrowseInput,
 } from "@/lib/classifieds.functions";
 import {
   idahoDate,
@@ -43,6 +50,7 @@ import {
   placePath,
   vehiclePagePath,
   type ResolvedPlace,
+  isKnownPlacePage,
 } from "@/lib/place-pages";
 
 export type PlacePageLink = { label: string; path: string; count: number };
@@ -59,7 +67,7 @@ export type PlaceRegionGroup = {
   path: string;
   count: number;
   median: string | null;
-  listings: ClassifiedCard[];
+  listings: ListingCardSummary[];
 };
 
 export type PlacePageData = {
@@ -68,7 +76,7 @@ export type PlacePageData = {
   description: string;
   lead: string;
   statisticsNote: string;
-  listings: ClassifiedCard[];
+  listings: ListingCardSummary[];
   total: number;
   indexable: boolean;
   relatedCategories: PlacePageLink[];
@@ -85,7 +93,8 @@ export type PlacePageData = {
   /** Extra link rows, such as popular makes on car pages. */
   extraLinks: { heading: string; links: PlacePageLink[] }[];
   faq: FaqEntry[];
-  recentlySold: SoldCard[];
+  recentlySold: (ListingCardSummary & { soldAt: string })[];
+  advice?: { heading: string; text: string }[];
 };
 
 // Bounded review sample, not a census. Qualify statistics and tallies below.
@@ -103,32 +112,19 @@ const VEHICLE_TABLE_CATEGORIES = new Set([
 ]);
 const REGION_GROUP_LISTINGS = 4;
 
-type Filters = {
-  make?: string;
-  model?: string;
-  category?: string;
-  city?: string;
-  region?: string;
-  state?: string;
-  radiusMiles?: number;
-};
+type Filters = ClassifiedBrowseInput;
 
-function filtersFor(place: ResolvedPlace | null, categorySlug: string | null): Filters {
-  return placeInventoryFilters(place, categorySlug);
+function filtersFor(
+  place: ResolvedPlace | null,
+  categorySlug: string | null,
+  collection?: SeoCollection,
+): Filters {
+  return { ...placeInventoryFilters(place, categorySlug), ...collection?.filters };
 }
 
 async function fetchListings(filters: Filters) {
-  const listings: ClassifiedCard[] = [];
-  let total = 0;
-  let incomplete = false;
-  for (let page = 1; page <= MAX_PAGES; page += 1) {
-    const result = await browseClassifieds({ data: { ...filters, sort: "newest", page } });
-    total = result.total;
-    incomplete ||= result.incomplete === true;
-    listings.push(...result.listings);
-    if (page * result.pageSize >= result.total || result.listings.length === 0) break;
-  }
-  return { listings, total, incomplete };
+  const result = await loadSeoBrowseInventory(filters);
+  return { listings: result.listings, total: result.total, incomplete: result.incomplete === true };
 }
 
 function countBy<T>(items: T[], key: (item: T) => string | null | undefined) {
@@ -158,11 +154,11 @@ export const getPlacePage = createServerFn({ method: "GET" })
     category: String(input?.category ?? "").slice(0, 60),
   }))
   .handler(async ({ data }): Promise<PlacePageData | null> => {
+    if (!isKnownPlacePage(data.place, data.category)) return null;
     const { shortCache, PUBLIC_PAGE_CACHE_MS } = await import("./short-cache.server");
-    return shortCache(
-      `place-page:${data.place}:${data.category}`,
-      PUBLIC_PAGE_CACHE_MS,
-      async () => {
+    const { preparedSeoPage } = await import("./seo-page-cache.server");
+    return shortCache(`place-page:${data.place}:${data.category}`, PUBLIC_PAGE_CACHE_MS, () =>
+      preparedSeoPage(`place-page:${data.place}:${data.category}`, async () => {
         // One slug segment can be a place or a category (/idaho/boise,
         // /idaho/trailers); two are always place then category.
         let place: ResolvedPlace | null = null;
@@ -181,31 +177,45 @@ export const getPlacePage = createServerFn({ method: "GET" })
           return null;
         }
 
+        const collection = category?.collection;
+        if (
+          collection &&
+          (place?.kind === "region" || !collectionAvailableIn(collection, place?.name))
+        )
+          return null;
+        const routeCategory = collection?.slug ?? category?.slug;
         // The page's listings, the wider sets its related links count from
         // (other categories here, other cities for this category) and recent
         // sales don't depend on each other, so they load together.
-        const mainRequest = fetchListings(filtersFor(place, category?.slug ?? null));
+        const mainRequest = fetchListings(filtersFor(place, category?.slug ?? null, collection));
         const [main, placeWide, categoryWide, recentlySold] = await Promise.all([
           mainRequest,
-          place && category ? fetchListings(filtersFor(place, null)) : mainRequest,
+          collection
+            ? fetchListings(filtersFor(place, category!.slug))
+            : place && category && category.slug !== "other-real-estate"
+              ? fetchListings(filtersFor(place, null))
+              : mainRequest,
           category
             ? place
-              ? fetchListings(filtersFor(null, category.slug))
+              ? fetchListings(filtersFor(null, category.slug, collection))
               : mainRequest
             : fetchListings(filtersFor(null, null)),
-          getRecentlySoldListings({
-            data: {
-              ...(category ? { category: category.slug } : {}),
-              ...(place?.kind === "city"
-                ? { city: place.name, radiusMiles: SEO_CITY_RADIUS_MILES }
-                : {}),
-              ...(place?.kind === "region" ? { region: place.name } : {}),
-              state: "ID",
-              limit: 8,
-            },
-          }),
+          collection
+            ? []
+            : getRecentlySoldListings({
+                data: {
+                  ...(category ? { category: category.slug } : {}),
+                  ...(place?.kind === "city"
+                    ? { city: place.name, radiusMiles: SEO_CITY_RADIUS_MILES }
+                    : {}),
+                  ...(place?.kind === "region" ? { region: place.name } : {}),
+                  state: "ID",
+                  limit: 8,
+                },
+              }),
         ]);
-        const phrase = category ? categoryPhrase(category.slug, category.name) : null;
+        const phrase =
+          collection ?? (category ? categoryPhrase(category.slug, category.name) : null);
         const where = whereText(place);
 
         const categoryCounts = countBy(placeWide.listings, (listing) => listing.categorySlug);
@@ -226,9 +236,10 @@ export const getPlacePage = createServerFn({ method: "GET" })
           .filter(([city]) => !(place?.kind === "city" && place.name === city))
           .map(([city, count]) => ({
             label: city,
-            path: placePath(city, category?.slug),
+            path: placePath(city, routeCategory),
             count,
           }))
+          .filter(({ label }) => !collection || collectionAvailableIn(collection, label))
           .sort((a, b) => b.count - a.count)
           .slice(0, 10);
 
@@ -240,7 +251,11 @@ export const getPlacePage = createServerFn({ method: "GET" })
           (latest, listing) => (listing.createdAt > latest ? listing.createdAt : latest),
           "",
         );
-        const indexable = isIndexablePlaceInventory(main.total, newest);
+        const freshnessEvidence = main.listings.reduce((latest, listing) => {
+          const observed = listing.directory?.verifiedAt ?? listing.createdAt;
+          return observed > latest ? observed : latest;
+        }, "");
+        const indexable = isIndexablePlaceInventory(main.total, freshnessEvidence);
         requireReliableIndexing(indexable, main.incomplete);
 
         let heading: string;
@@ -265,7 +280,9 @@ export const getPlacePage = createServerFn({ method: "GET" })
             : `The current search returns ${main.total} matching ${
                 main.total === 1 ? noun.replace("listings", "listing") : noun
               } ${where} right now${
-                price ? `, with a median asking price of ${wholeDollars(price.medianCents)} among ${price.count} priced listings reviewed` : ""
+                price
+                  ? `, with a median asking price of ${wholeDollars(price.medianCents)} among ${price.count} priced listings reviewed`
+                  : ""
               }.`;
 
         const breadcrumbs: { label: string; path: string }[] = [
@@ -273,9 +290,9 @@ export const getPlacePage = createServerFn({ method: "GET" })
         ];
         if (place) breadcrumbs.push({ label: place.name, path: placePath(place.name) });
         if (category && place)
-          breadcrumbs.push({ label: phrase!.heading, path: placePath(place.name, category.slug) });
+          breadcrumbs.push({ label: phrase!.heading, path: placePath(place.name, routeCategory) });
         if (category && !place)
-          breadcrumbs.push({ label: phrase!.heading, path: categoryPagePath(category.slug) });
+          breadcrumbs.push({ label: phrase!.heading, path: categoryPagePath(routeCategory!) });
 
         const browseSearch: Record<string, string | number> = {
           ...(category ? { category: category.slug } : { allCategories: "true" }),
@@ -284,11 +301,19 @@ export const getPlacePage = createServerFn({ method: "GET" })
             : {}),
           ...(place?.kind === "region" ? { region: place.name } : {}),
           ...(!place ? { state: "ID" } : {}),
+          ...(Object.fromEntries(
+            Object.entries(collection?.filters ?? {}).filter(
+              ([, value]) => typeof value === "string" || typeof value === "number",
+            ),
+          ) as Record<string, string | number>),
+          ...(category?.slug === "other-real-estate" ? { homeMode: "results" } : {}),
+          ...(category?.slug === "services" ? { serviceMode: "results" } : {}),
+          ...(category?.slug === "jobs" ? { jobMode: "results" } : {}),
         };
 
         // Statewide category pages group their listings by region.
         const regionGroups: PlaceRegionGroup[] =
-          category && !place
+          category && !place && !collection
             ? idahoRegions
                 .map((region) => {
                   const inRegion = main.listings.filter(
@@ -299,7 +324,7 @@ export const getPlacePage = createServerFn({ method: "GET" })
                     .filter((cents) => cents > 0);
                   return {
                     region,
-                    path: placePath(region, category.slug),
+                    path: placePath(region, routeCategory),
                     count: inRegion.length,
                     median:
                       !NO_PRICE_STATS.has(category.slug) && regionPrices.length >= 3
@@ -326,12 +351,34 @@ export const getPlacePage = createServerFn({ method: "GET" })
         const topMakes = Array.from(makeCounts.entries())
           .map(([make, count]) => ({ label: make, path: vehiclePagePath(make), count }))
           .sort((a, b) => b.count - a.count);
+        const focusedLinks = category
+          ? seoCollections
+              .filter(
+                (option) =>
+                  option.category === category.slug &&
+                  option.slug !== collection?.slug &&
+                  place?.kind !== "region" &&
+                  collectionAvailableIn(option, place?.name),
+              )
+              .map((option) => ({
+                label: option.heading,
+                path: place ? placePath(place.name, option.slug) : categoryPagePath(option.slug),
+                count: placeWide.listings.filter((card) => collectionMatches(option, card)).length,
+              }))
+              .filter((link) => link.count > 0)
+          : [];
 
         const stats: PlacePageStat[] = [];
         if (main.total > 0) {
-          stats.push({ label: "Matching search results", value: main.total.toLocaleString("en-US") });
+          stats.push({
+            label: "Matching search results",
+            value: main.total.toLocaleString("en-US"),
+          });
           if (price) {
-            stats.push({ label: "Reviewed median asking price", value: wholeDollars(price.medianCents) });
+            stats.push({
+              label: "Reviewed median asking price",
+              value: wholeDollars(price.medianCents),
+            });
             stats.push({
               label: price.typicalRange ? "Middle half of reviewed prices" : "Reviewed price range",
               value: `${wholeDollars(price.lowCents)} – ${wholeDollars(price.highCents)}`,
@@ -377,13 +424,34 @@ export const getPlacePage = createServerFn({ method: "GET" })
           stats,
           priceTables,
           regionGroups,
-          extraLinks: topMakes.length
-            ? [{ heading: "Popular makes", links: topMakes.slice(0, 16) }]
-            : [],
+          extraLinks: [
+            ...(topMakes.length
+              ? [{ heading: "Popular makes", links: topMakes.slice(0, 16) }]
+              : []),
+            ...(focusedLinks.length ? [{ heading: "Focused searches", links: focusedLinks }] : []),
+          ],
+          ...(collection
+            ? { advice: collection.advice }
+            : category?.slug === "cars-trucks" &&
+                place?.kind === "city" &&
+                ["Boise", "Idaho Falls"].includes(place.name)
+              ? {
+                  advice: [
+                    {
+                      heading: `Buying a used vehicle around ${place.name}`,
+                      text: "Compare the model year, mileage, title status and available equipment before contacting a seller. Check the VIN against the vehicle and paperwork, request service records and consider an independent inspection. A low asking price alone does not establish the vehicle's condition.",
+                    },
+                    {
+                      heading: "Keep location and seller type clear",
+                      text: `This page reviews Idaho inventory within ${SEO_CITY_RADIUS_MILES} miles of ${place.name}, so nearby towns may appear. Dealer and private-seller labels identify the source of each offer. Use the matching search to narrow make, model, mileage and budget, then confirm availability with the listing contact.`,
+                    },
+                  ],
+                }
+              : {}),
           faq,
           recentlySold,
         };
-      },
+      }),
     );
   });
 
@@ -455,126 +523,142 @@ export const getVehiclePage = createServerFn({ method: "GET" })
     if (data.model && !model) return null;
 
     const { shortCache, PUBLIC_PAGE_CACHE_MS } = await import("./short-cache.server");
-    return shortCache(`vehicle-page:${make}:${model ?? ""}`, PUBLIC_PAGE_CACHE_MS, async () => {
-      // This make (and model), the whole make for sibling links, and recent
-      // sales load together.
-      const mainRequest = fetchListings({
-        category: "cars-trucks",
-        state: "ID",
-        make,
-        ...(model ? { model } : {}),
-      });
-      const [main, makeWide, recentlySold] = await Promise.all([
-        mainRequest,
-        model ? fetchListings({ category: "cars-trucks", state: "ID", make }) : mainRequest,
-        getRecentlySoldListings({
-          data: { category: "cars-trucks", state: "ID", make, ...(model ? { model } : {}), limit: 8 },
-        }),
-      ]);
-      const name = model ? `${make} ${model}` : make;
-      const noun = model ? pluralModel(name) : `${make} cars and trucks`;
-      const where = "in Idaho";
+    const { preparedSeoPage } = await import("./seo-page-cache.server");
+    return shortCache(`vehicle-page:${make}:${model ?? ""}`, PUBLIC_PAGE_CACHE_MS, () =>
+      preparedSeoPage(`vehicle-page:${make}:${model ?? ""}`, async () => {
+        // This make (and model), the whole make for sibling links, and recent
+        // sales load together.
+        const mainRequest = fetchListings({
+          category: "cars-trucks",
+          state: "ID",
+          make,
+          ...(model ? { model } : {}),
+        });
+        const [main, makeWide, recentlySold] = await Promise.all([
+          mainRequest,
+          model ? fetchListings({ category: "cars-trucks", state: "ID", make }) : mainRequest,
+          getRecentlySoldListings({
+            data: {
+              category: "cars-trucks",
+              state: "ID",
+              make,
+              ...(model ? { model } : {}),
+              limit: 8,
+            },
+          }),
+        ]);
+        const name = model ? `${make} ${model}` : make;
+        const noun = model ? pluralModel(name) : `${make} cars and trucks`;
+        const where = "in Idaho";
 
-      const price = priceSummary(main.listings.map((listing) => listing.priceCents));
-      const newest = main.listings.reduce(
-        (latest, listing) => (listing.createdAt > latest ? listing.createdAt : latest),
-        "",
-      );
-      const minimum = model ? MODEL_PAGE_MIN_LISTINGS : MAKE_PAGE_MIN_LISTINGS;
-      const indexable = isIndexablePlaceInventory(main.total, newest, Date.now(), minimum);
-      requireReliableIndexing(indexable, main.incomplete);
+        const price = priceSummary(main.listings.map((listing) => listing.priceCents));
+        const newest = main.listings.reduce(
+          (latest, listing) => (listing.createdAt > latest ? listing.createdAt : latest),
+          "",
+        );
+        const minimum = model ? MODEL_PAGE_MIN_LISTINGS : MAKE_PAGE_MIN_LISTINGS;
+        const indexable = isIndexablePlaceInventory(main.total, newest, Date.now(), minimum);
+        requireReliableIndexing(indexable, main.incomplete);
 
-      const cityCounts = countBy(main.listings, (listing) =>
-        idahoCities.find((city) => city === listing.city),
-      );
-      const cities: PlacePageLink[] = Array.from(cityCounts.entries())
-        .map(([city, count]) => ({ label: city, path: placePath(city, "cars-trucks"), count }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 10);
+        const cityCounts = countBy(main.listings, (listing) =>
+          idahoCities.find((city) => city === listing.city),
+        );
+        const cities: PlacePageLink[] = Array.from(cityCounts.entries())
+          .map(([city, count]) => ({ label: city, path: placePath(city, "cars-trucks"), count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 10);
 
-      // The make page links to each model listed; a model page to its siblings.
-      const modelCounts = countBy(makeWide.listings, (listing) =>
-        canonicalModel(make, listing.vehicle?.model),
-      );
-      const models: PlacePageLink[] = Array.from(modelCounts.entries())
-        .filter(([other]) => other !== model)
-        .map(([other, count]) => ({ label: other, path: vehiclePagePath(make, other), count }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 16);
+        // The make page links to each model listed; a model page to its siblings.
+        const modelCounts = countBy(makeWide.listings, (listing) =>
+          canonicalModel(make, listing.vehicle?.model),
+        );
+        const models: PlacePageLink[] = Array.from(modelCounts.entries())
+          .filter(([other]) => other !== model)
+          .map(([other, count]) => ({ label: other, path: vehiclePagePath(make, other), count }))
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 16);
 
-      const years = main.listings
-        .map((listing) => listing.vehicle?.year)
-        .filter((year): year is number => typeof year === "number");
+        const years = main.listings
+          .map((listing) => listing.vehicle?.year)
+          .filter((year): year is number => typeof year === "number");
 
-      const heading = `${name} for sale in Idaho`;
-      const lead =
-        main.total === 0
-          ? `No matching ${noun} were returned in Idaho. Check again later for new listings.`
-          : `The current search returns ${main.total} matching ${
-              main.total === 1 ? `${name} listing` : `${name} listings`
-            } in Idaho right now${
-              price ? `, with a median asking price of ${wholeDollars(price.medianCents)} among ${price.count} priced listings reviewed` : ""
-            }.`;
+        const heading = `${name} for sale in Idaho`;
+        const lead =
+          main.total === 0
+            ? `No matching ${noun} were returned in Idaho. Check again later for new listings.`
+            : `The current search returns ${main.total} matching ${
+                main.total === 1 ? `${name} listing` : `${name} listings`
+              } in Idaho right now${
+                price
+                  ? `, with a median asking price of ${wholeDollars(price.medianCents)} among ${price.count} priced listings reviewed`
+                  : ""
+              }.`;
 
-      const stats: PlacePageStat[] = [];
-      if (main.total > 0) {
-        stats.push({ label: "Matching search results", value: main.total.toLocaleString("en-US") });
-        if (price) {
-          stats.push({ label: "Reviewed median asking price", value: wholeDollars(price.medianCents) });
+        const stats: PlacePageStat[] = [];
+        if (main.total > 0) {
           stats.push({
-            label: price.typicalRange ? "Middle half of reviewed prices" : "Reviewed price range",
-            value: `${wholeDollars(price.lowCents)} – ${wholeDollars(price.highCents)}`,
+            label: "Matching search results",
+            value: main.total.toLocaleString("en-US"),
           });
+          if (price) {
+            stats.push({
+              label: "Reviewed median asking price",
+              value: wholeDollars(price.medianCents),
+            });
+            stats.push({
+              label: price.typicalRange ? "Middle half of reviewed prices" : "Reviewed price range",
+              value: `${wholeDollars(price.lowCents)} – ${wholeDollars(price.highCents)}`,
+            });
+          }
+          if (years.length) {
+            const low = Math.min(...years);
+            const high = Math.max(...years);
+            stats.push({
+              label: "Reviewed model years",
+              value: low === high ? String(low) : `${low}–${high}`,
+            });
+          }
         }
-        if (years.length) {
-          const low = Math.min(...years);
-          const high = Math.max(...years);
-          stats.push({
-            label: "Reviewed model years",
-            value: low === high ? String(low) : `${low}–${high}`,
-          });
-        }
-      }
 
-      const breadcrumbs = [
-        { label: "Idaho", path: "/browse" },
-        { label: "Cars & Trucks", path: categoryPagePath("cars-trucks") },
-        { label: make, path: vehiclePagePath(make) },
-        ...(model ? [{ label: model, path: vehiclePagePath(make, model) }] : []),
-      ];
+        const breadcrumbs = [
+          { label: "Idaho", path: "/browse" },
+          { label: "Cars & Trucks", path: categoryPagePath("cars-trucks") },
+          { label: make, path: vehiclePagePath(make) },
+          ...(model ? [{ label: model, path: vehiclePagePath(make, model) }] : []),
+        ];
 
-      return {
-        heading,
-        title: `${heading} — ${brand.name}`,
-        description: `${lead} Contact local sellers directly on ${brand.name}.`,
-        lead,
-        statisticsNote: `Prices, model years and city rankings use up to ${MAX_PAGES} pages of retrieved listings, not a complete market census. ${main.listings.length} listings were reviewed for this page; related models may use a separate bounded sample. Matching totals come from the current search results and may be limited by source coverage.`,
-        listings: main.listings.slice(0, SHOWN_LISTINGS),
-        total: main.total,
-        indexable,
-        relatedCategories: [],
-        relatedPlaces: cities,
-        relatedPlacesHeading: `${name} listings by city`,
-        browseSearch: { category: "cars-trucks", state: "ID", make, ...(model ? { model } : {}) },
-        breadcrumbs,
-        stats,
-        priceTables: vehiclePriceTables(main.listings),
-        regionGroups: [],
-        extraLinks: models.length
-          ? [{ heading: model ? `Other ${make} models` : `${make} models`, links: models }]
-          : [],
-        faq: landingFaq({
-          noun,
-          where,
+        return {
+          heading,
+          title: `${heading} — ${brand.name}`,
+          description: `${lead} Contact local sellers directly on ${brand.name}.`,
+          lead,
+          statisticsNote: `Prices, model years and city rankings use up to ${MAX_PAGES} pages of retrieved listings, not a complete market census. ${main.listings.length} listings were reviewed for this page; related models may use a separate bounded sample. Matching totals come from the current search results and may be limited by source coverage.`,
+          listings: main.listings.slice(0, SHOWN_LISTINGS),
           total: main.total,
-          newest: newest || null,
-          price,
-          otherPlaces: cities,
-          placesScope: "all",
-          recentlySold: recentlySold.length,
-        }),
-        recentlySold,
-      };
-    });
+          indexable,
+          relatedCategories: [],
+          relatedPlaces: cities,
+          relatedPlacesHeading: `${name} listings by city`,
+          browseSearch: { category: "cars-trucks", state: "ID", make, ...(model ? { model } : {}) },
+          breadcrumbs,
+          stats,
+          priceTables: vehiclePriceTables(main.listings),
+          regionGroups: [],
+          extraLinks: models.length
+            ? [{ heading: model ? `Other ${make} models` : `${make} models`, links: models }]
+            : [],
+          faq: landingFaq({
+            noun,
+            where,
+            total: main.total,
+            newest: newest || null,
+            price,
+            otherPlaces: cities,
+            placesScope: "all",
+            recentlySold: recentlySold.length,
+          }),
+          recentlySold,
+        };
+      }),
+    );
   });
-

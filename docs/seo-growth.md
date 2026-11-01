@@ -57,3 +57,46 @@ vehicle sitemap work and all unrelated worktrees. No Lovable AI prompts/credits.
 Each release requires relevant regression checks, a production build, a pushed
 commit, publishing and live HTTP/rendered verification. This file is a checklist,
 not proof that its requirements have been completed.
+
+### Release 1 — verified November 1
+
+- PR 60 merged as 0fd64606aab99c5873777c3757c2e135ac41cb45 and published.
+- The public Idaho homes SEO page returned HTTP 200, displayed 28 distinct
+  provider home links and no noindex directive. Chrome confirmed 572 matching
+  results in the underlying saved inventory, with a 192-record review sample.
+- The Twin Falls rental results URL returned HTTP 200 with 24 distinct cached
+  provider-home links. Filtered browse appropriately remained noindex.
+- 76 targeted tests, TypeScript, scoped lint and a production build passed;
+  the full required GitHub regression workflow also passed.
+
+### Provider review
+
+On November 1 the owner confirmed separate agreements cover MarketCheck
+data-feed/caching and Adzuna commercial use. The actual agreements have not
+been inspected here; do not invent or increase their allowance. Existing
+provider budgets remain unchanged. Standard public terms were reviewed at
+https://developers.marketcheck.com/terms and
+https://developer.adzuna.com/docs/terms_of_service .
+OpenWeb Ninja's API Data license and Foursquare source attribution remain
+applicable to directory use. Job snippets and affiliate copies remain noindex;
+recently verified, useful directory facts are evaluated independently of claim status.
+
+### Prepared public page cache
+
+Place and vehicle SEO page data is projected to public card fields and stored
+under the existing homepage-snapshots bucket. The HTML shell/session is never
+cached. Five-minute refresh leases are shared across workers; stored pages can
+serve for up to six hours during refresh failures. A successful empty read
+replaces old inventory. Background refreshes use saved data only, and SEO
+reads do not record listing impressions or call provider APIs.
+
+The first targeted set is finite and demand-led. Inventory/freshness gates still
+control indexing; an unsupported city/collection combination is not a new page.
+Sale/rent modes, house/apartment types, service trades and part-time employment
+are propagated into the browse destination and shared sitemap predicates.
+
+Remaining verification includes publishing release 2, live cache timing and
+source-failure behavior, sitemap/detail policy checks, content review/publication,
+earned links and the recurring measurement workflow. The legacy homes adapter's
+relative days-on-market calculation also needs a stable source-date review; do
+not represent a cache read as a new publication date.

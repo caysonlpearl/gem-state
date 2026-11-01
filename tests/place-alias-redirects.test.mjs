@@ -19,7 +19,9 @@ function getLoader(path) {
   const slug = (value) => value.toLowerCase().replaceAll(" ", "-");
   return vm.runInNewContext(`(${loader})`, {
     categoryFromUrlSlug: (value) => categories[value] ?? null,
-    categoryUrlSlug: (value) => value === "other-real-estate" ? "homes" : value,
+    categoryUrlSlug: (value) => (value === "other-real-estate" ? "homes" : value),
+    resolvedCategoryUrlSlug: (value) =>
+      value.collection?.slug ?? (value.slug === "other-real-estate" ? "homes" : value.slug),
     categoryPagePath: () => "/idaho/homes",
     placeFromSlug: (value) => places[value] ?? null,
     placePath: (name) => `/idaho/${slug(name)}/homes`,

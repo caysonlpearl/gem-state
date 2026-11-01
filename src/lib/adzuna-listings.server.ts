@@ -72,6 +72,7 @@ export function canIncludeAdzuna(data: ClassifiedBrowseInput) {
 export async function adzunaCards(
   data: ClassifiedBrowseInput,
   reportStatus?: (status: AdzunaResult["status"]) => void,
+  options?: { cacheOnly?: boolean },
 ): Promise<ClassifiedCard[]> {
   const selectedCategories = data.jobCategory?.split("||").filter(Boolean) ?? [];
   if (selectedCategories.some((category) => !categories[category])) return [];
@@ -90,14 +91,16 @@ export async function adzunaCards(
           supportedTypes[0] as "Full-time" | "Part-time" | "Contract"
         ]
       : undefined;
-  const { searchJobs } = await import("./adzuna.server");
-  const result = await searchJobs({
-    what: data.q ?? "",
-    where,
-    page: 1,
-    category: selectedCategories.length === 1 ? categories[selectedCategories[0]] : undefined,
-    employment,
-  });
+  const { searchJobs, cachedJobs } = await import("./adzuna.server");
+  const result = options?.cacheOnly
+    ? await cachedJobs()
+    : await searchJobs({
+        what: data.q ?? "",
+        where,
+        page: 1,
+        category: selectedCategories.length === 1 ? categories[selectedCategories[0]] : undefined,
+        employment,
+      });
   reportStatus?.(result.status);
   const ageHours = data.postedWithin
     ? { hour: 1, day: 24, week: 168, month: 720 }[data.postedWithin]
@@ -105,6 +108,11 @@ export async function adzunaCards(
   const cards = result.jobs
     .filter(
       (job) =>
+        (!options?.cacheOnly ||
+          !data.q ||
+          `${job.title} ${job.description} ${job.company}`
+            .toLowerCase()
+            .includes(data.q.toLowerCase())) &&
         (!(state && !hasClassifiedRadiusCenter(data)) || job.state === state[0]) &&
         (!data.city ||
           data.radiusMiles != null ||
@@ -125,10 +133,14 @@ export async function adzunaCards(
         (!ageHours || Date.parse(job.createdAt) >= Date.now() - ageHours * 3600000),
     )
     .map(adzunaCard);
-  await notePartnerEmployers(cards.map((card) => card.job?.employerName ?? ""));
+  if (!options?.cacheOnly)
+    await notePartnerEmployers(cards.map((card) => card.job?.employerName ?? ""));
   const removed = await removedPartnerJobIds(cards.map((card) => card.id));
   const { withEmployerLogos } = await import("./employer-logos.server");
-  return withEmployerLogos(cards.filter((card) => !removed.has(card.id)));
+  return withEmployerLogos(
+    cards.filter((card) => !removed.has(card.id)),
+    { cacheOnly: options?.cacheOnly },
+  );
 }
 
 /** An Adzuna job as a Bluebird listing card (id "adzuna-<adzuna id>"). */

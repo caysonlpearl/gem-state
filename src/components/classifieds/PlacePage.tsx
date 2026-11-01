@@ -288,6 +288,35 @@ export function PlacePage({ data }: { data: PlacePageData }) {
       )}
 
       <PriceTables tables={data.priceTables} />
+      {data.advice?.length ? (
+        <section className="border-t border-border/70 pt-8">
+          <h2 className="text-[20px] font-bold">Before you contact a listing</h2>
+          <div className="mt-4 grid gap-6 md:grid-cols-2">
+            {data.advice.map((section) => (
+              <div key={section.heading}>
+                <h3 className="text-[15px] font-semibold">{section.heading}</h3>
+                <p className="mt-2 max-w-[70ch] text-[14px] leading-relaxed text-muted-foreground">
+                  {section.text}
+                </p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-5 flex flex-wrap gap-3 text-[13.5px] font-semibold">
+            <a
+              href={seeAll}
+              className="inline-flex min-h-11 items-center rounded-full bg-primary px-5 text-primary-foreground"
+            >
+              Browse matching listings
+            </a>
+            <a
+              href="/create-listing"
+              className="inline-flex min-h-11 items-center rounded-full border border-input px-5"
+            >
+              Post a listing
+            </a>
+          </div>
+        </section>
+      ) : null}
       {isBoiseHub ? (
         <section className="border-t border-border/70 pt-8">
           <h2 className="text-[20px] font-bold">Buying and selling in Boise</h2>

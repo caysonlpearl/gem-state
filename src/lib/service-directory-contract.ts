@@ -150,6 +150,8 @@ export function directoryCard(input: DirectoryRow, logoUrl?: string | null): Cla
       reviewCount: row.enrichment?.reviewCount ?? null,
       googleUrl: row.enrichment?.googleUrl ?? null,
       hours: row.enrichment?.hours ?? [],
+      verifiedAt: row.enriched_at ?? row.source_refreshed_at,
+      address: row.address,
     },
   } as ClassifiedCard;
 }

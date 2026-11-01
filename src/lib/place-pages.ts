@@ -5,6 +5,11 @@ import {
   vehicleModelsByMake,
   vehicleOptions,
 } from "@/config/classifieds";
+import {
+  seoCollectionFromSlug,
+  collectionAvailableIn,
+  type SeoCollection,
+} from "./seo-collections";
 
 /**
  * URL shapes for the search landing pages:
@@ -28,10 +33,37 @@ export function categoryUrlSlug(slug: string) {
   return CATEGORY_URL_ALIASES[slug] ?? slug;
 }
 
-export function categoryFromUrlSlug(urlSlug: string) {
+export type ResolvedCategory = (typeof classifiedCategories)[number] & {
+  collection?: SeoCollection;
+};
+export function categoryFromUrlSlug(urlSlug: string): ResolvedCategory | null {
+  const collection = seoCollectionFromSlug(urlSlug);
+  if (collection) {
+    const category = classifiedCategories.find((option) => option.slug === collection.category);
+    return category ? { ...category, collection } : null;
+  }
   const internal =
     Object.entries(CATEGORY_URL_ALIASES).find(([, alias]) => alias === urlSlug)?.[0] ?? urlSlug;
   return classifiedCategories.find((category) => category.slug === internal) ?? null;
+}
+
+export function resolvedCategoryUrlSlug(category: ResolvedCategory) {
+  return category.collection?.slug ?? categoryUrlSlug(category.slug);
+}
+
+export function isKnownPlacePage(placeSlug: string, categorySlug = "") {
+  const place = placeFromSlug(placeSlug);
+  const category = categorySlug
+    ? categoryFromUrlSlug(categorySlug)
+    : place
+      ? null
+      : categoryFromUrlSlug(placeSlug);
+  if (categorySlug && (!place || !category)) return false;
+  if (!place && !category) return false;
+  return (
+    !category?.collection ||
+    (place?.kind !== "region" && collectionAvailableIn(category.collection, place?.name))
+  );
 }
 
 export type ResolvedPlace = { kind: "city"; name: string } | { kind: "region"; name: string };

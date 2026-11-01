@@ -111,6 +111,8 @@ export type ClassifiedCard = {
     reviewCount: number | null;
     googleUrl: string | null;
     hours: { day: string; hours: string }[];
+    verifiedAt?: string | null;
+    address?: string | null;
   };
   externalHome?: {
     source: "Mashvisor" | "OpenWeb Ninja";
@@ -1793,6 +1795,18 @@ export const browseClassifieds = createServerFn({ method: "GET" })
   }))
   .handler(async ({ data }): Promise<ClassifiedBrowseResult> => runBrowseClassifieds(data));
 
+/** Internal public SEO sample: one merged read, never a provider fetch or an impression write. */
+export async function loadSeoBrowseInventory(data: ClassifiedBrowseInput) {
+  return runBrowseClassifieds(
+    { ...data, page: 1, sort: "newest" },
+    {
+      pageSize: 192,
+      readOnlyProviders: true,
+      readOnlyHome: true,
+    },
+  );
+}
+
 async function runBrowseClassifieds(
   data: ClassifiedBrowseInput,
   // Internal callers that discard totals can avoid the exact-count query.
@@ -1801,12 +1815,15 @@ async function runBrowseClassifieds(
     prepareHomeVehicleCache?: boolean;
     selectHomePhotos?: boolean;
     readOnlyHome?: boolean;
+    readOnlyProviders?: boolean;
+    pageSize?: number;
     includeExactCount?: boolean;
     timingsMs?: Record<string, number>;
     timingOriginMs?: number;
   } = {},
 ): Promise<ClassifiedBrowseResult> {
   {
+    const pageSize = options.pageSize ?? PAGE_SIZE;
     const clock = () => (typeof performance === "undefined" ? Date.now() : performance.now());
     const origin = options.timingOriginMs ?? clock();
     async function measure<T>(stage: string, work: () => T | PromiseLike<T>): Promise<T> {
@@ -1822,7 +1839,7 @@ async function runBrowseClassifieds(
     }
     const client = publicServerClient();
     const page = data.page ?? 1;
-    const empty = { listings: [], total: 0, page, pageSize: PAGE_SIZE };
+    const empty = { listings: [], total: 0, page, pageSize: pageSize };
     if (
       isInvertedRange(data.priceMin, data.priceMax) ||
       isInvertedRange(data.yearMin, data.yearMax) ||
@@ -1878,7 +1895,7 @@ async function runBrowseClassifieds(
     // the Idaho city's), so older listings saved as "ID" still count; like
     // radius search, that filter runs after the fetch.
     if (data.region) query = query.eq("classified_listing_details.state", "ID");
-    if (data.state && !hasClassifiedRadiusCenter(data))
+    if (data.state && (options.readOnlyProviders || !hasClassifiedRadiusCenter(data)))
       query = query.eq("classified_listing_details.state", data.state);
     if (data.city && data.radiusMiles == null)
       query = query.ilike("classified_listing_details.city", `%${escapeLikeValue(data.city)}%`);
@@ -2134,7 +2151,9 @@ async function runBrowseClassifieds(
     const includeAdzuna = adzuna.canIncludeAdzuna(data);
     const includeMashvisor = mashvisor.canIncludeMashvisor(data);
     const includeOpenWebNinja = openWebNinja.canIncludeOpenWebNinja(data);
-    const openWebNinjaEnabled = includeOpenWebNinja && openWebNinjaConfig.openWebNinjaConfigured();
+    const openWebNinjaEnabled =
+      includeOpenWebNinja &&
+      (options.readOnlyProviders || openWebNinjaConfig.openWebNinjaConfigured());
     const includeMarketCheck = marketCheck.canIncludeMarketCheck(data);
     const includeRescueGroups =
       rescueGroups.canIncludeRescueGroups(data) && rescueGroups.rescueGroupsConfigured();
@@ -2143,7 +2162,7 @@ async function runBrowseClassifieds(
     // listings, paged in the database rather than loaded all at once.
     const includeDirectory = directoryAdapter.canIncludeDirectory(data);
     const includeMerchandise = merchandise.canIncludeMerchandise(data);
-    const from = (page - 1) * PAGE_SIZE;
+    const from = (page - 1) * pageSize;
     // Pay units are deliberately normalized in `comparableJobPay` (hourly
     // annualized, salary/commission/contract kept in their stated units).
     // A raw SQL order on job_pay_min would put $16/hour beside $16/year and
@@ -2165,7 +2184,7 @@ async function runBrowseClassifieds(
       Boolean(data.region);
     const resultRange = mergeBeforePaging
       ? { from: 0, to: CLASSIFIEDS_MERGE_READ_LIMIT - 1 }
-      : { from, to: from + PAGE_SIZE - 1 };
+      : { from, to: from + pageSize - 1 };
     // Independent reads must not form a provider → database waterfall.
     // Eligibility, provider budget guards, paging and merge ordering stay unchanged.
     let jobsUnavailable = false;
@@ -2177,9 +2196,13 @@ async function runBrowseClassifieds(
           );
         })(),
         includeAdzuna
-          ? adzuna.adzunaCards(data, (status) => {
-              jobsUnavailable = status !== "ok";
-            })
+          ? adzuna.adzunaCards(
+              data,
+              (status) => {
+                jobsUnavailable = status !== "ok";
+              },
+              { cacheOnly: options.readOnlyProviders },
+            )
           : [],
         openWebNinjaEnabled
           ? openWebNinja.openWebNinjaCards(data)
@@ -2190,16 +2213,19 @@ async function runBrowseClassifieds(
           ? measure("vehicleRead", async () =>
               marketCheck.marketCheckCards(data, {
                 preparedHomeCache: await preparedHomeCache,
-                cacheOnly: options.readOnlyHome,
+                cacheOnly: options.readOnlyHome || options.readOnlyProviders,
               }),
             )
           : [],
-        includeRescueGroups ? rescueGroups.rescueGroupsCards(data) : [],
+        includeRescueGroups
+          ? rescueGroups.rescueGroupsCards(data, { cacheOnly: options.readOnlyProviders })
+          : [],
         includeMerchandise ? merchandise.merchandiseCards(data) : { cards: [], limited: false },
       ]);
     const { data: rows, count, error } = native;
     const matchesRegion = (listing: ClassifiedCard) =>
-      !data.region || regionOfListing(listing) === data.region;
+      (!data.region || regionOfListing(listing) === data.region) &&
+      (!options.readOnlyProviders || !data.state || listing.state === data.state);
     const externalJobs = jobCards.filter(matchesRegion);
     const externalHomes = homeCards.filter(matchesRegion);
     const externalPets = petCards.filter(matchesRegion);
@@ -2281,14 +2307,14 @@ async function runBrowseClassifieds(
       ...mockListings,
       ...externalJobs,
       ...externalHomes,
-      ...externalVehicles,
+      ...externalVehicles.filter(matchesRegion),
       ...externalPets,
-      ...merchandiseResult.cards,
+      ...merchandiseResult.cards.filter(matchesRegion),
     ].sort(compareListings);
     const resultLimit =
       data.includeAllMocks && SHOW_PUBLIC_PREVIEW_FIXTURES
-        ? Math.max(PAGE_SIZE, mockSource.length)
-        : PAGE_SIZE;
+        ? Math.max(pageSize, mockSource.length)
+        : pageSize;
     const orderedListings = [...featuredListings, ...standardListings];
     const nativePage = mergeBeforePaging
       ? orderedListings.slice(from, from + resultLimit)
@@ -2325,7 +2351,7 @@ async function runBrowseClassifieds(
           !listing.directory,
       )
       .map((listing) => listing.id);
-    if (nativePageIds.length > 0) {
+    if (!options.readOnlyProviders && nativePageIds.length > 0) {
       void import("@/integrations/supabase/client.server")
         .then(({ supabaseAdmin }) =>
           (supabaseAdmin as any).rpc("record_classified_listing_impressions", {
@@ -2351,7 +2377,7 @@ async function runBrowseClassifieds(
           ? orderedListings.length
           : (count ?? listings.length) + mockListings.length) + directory.total,
       page,
-      pageSize: PAGE_SIZE,
+      pageSize: pageSize,
       limitedResults:
         merchandiseResult.limited || (mergeBeforePaging && (count ?? 0) > (rows?.length ?? 0)),
     };

@@ -3,6 +3,7 @@ import { withCatalogReadDeadline } from "./catalog-read-deadline.ts";
 import { findIdahoPlace, idahoPlaces } from "../config/idaho-places.ts";
 import { serverEnv } from "./runtime-env.server.ts";
 import { logoImageUrl } from "./employer-logo-match.ts";
+import { isIndexablePartnerDetail } from "./partner-seo.ts";
 import {
   DIRECTORY_COLUMNS,
   DIRECTORY_ID,
@@ -196,6 +197,52 @@ export async function directoryTradeCounts(): Promise<Record<string, number>> {
   } catch {
     return {};
   }
+}
+
+/** Compact references from saved directory data only. Page batches avoid a
+ * database row cap silently dropping towns; no provider/rating API is called. */
+export async function directorySeoReferences() {
+  const client = await db();
+  const rows: {
+    id: string;
+    title: string;
+    city: string;
+    state: string;
+    createdAt: string;
+    verifiedAt: string | null;
+    indexable: boolean;
+    trade: string;
+    trades: string[];
+  }[] = [];
+  for (let offset = 0; ; offset += 500) {
+    const { data, error } = await withCatalogReadDeadline<any>(
+      client
+        .from("service_directory")
+        .select(DIRECTORY_COLUMNS)
+        .eq("hidden", false)
+        .eq("state", "ID")
+        .order("id")
+        .range(offset, offset + 499),
+    );
+    if (error) throw new Error("Directory sitemap is temporarily unavailable.");
+    const batch = (data ?? []) as DirectoryRow[];
+    for (const row of batch) {
+      const card = directoryCard(row);
+      rows.push({
+        id: card.id,
+        title: card.title,
+        city: card.city,
+        state: card.state,
+        createdAt: card.createdAt,
+        verifiedAt: card.directory?.verifiedAt ?? null,
+        indexable: isIndexablePartnerDetail(card),
+        trade: row.trade,
+        trades: row.trades,
+      });
+    }
+    if (batch.length < 500) break;
+  }
+  return rows;
 }
 
 /**

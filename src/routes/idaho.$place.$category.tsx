@@ -4,14 +4,19 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { PlacePage } from "@/components/classifieds/PlacePage";
 import { placePageHead, placePageQuery } from "@/lib/place-page-route";
 
-import { categoryFromUrlSlug, categoryUrlSlug, placeFromSlug, placePath } from "@/lib/place-pages";
+import {
+  categoryFromUrlSlug,
+  resolvedCategoryUrlSlug,
+  placeFromSlug,
+  placePath,
+} from "@/lib/place-pages";
 
 // /idaho/boise/trailers: one category in one city or region.
 export const Route = createFileRoute("/idaho/$place/$category")({
   loader: async ({ context, params }) => {
     const place = placeFromSlug(params.place);
     const category = categoryFromUrlSlug(params.category);
-    if (place && category && params.category !== categoryUrlSlug(category.slug)) {
+    if (place && category && params.category !== resolvedCategoryUrlSlug(category)) {
       throw redirect({ href: placePath(place.name, category.slug), statusCode: 301 });
     }
     const data = await context.queryClient.ensureQueryData(
