@@ -1,5 +1,7 @@
 ## Project guidance
 
+Boise hub editorial content is scoped to the uncategorized Boise page; shared inventory queries and SEO eligibility gates remain authoritative so content work cannot manufacture inventory or index thin pages.
+
 This repository is deployed independently of the original hosted builder. Keep
 Supabase credentials server-side where required, preserve the generated route
 tree when routes change, and verify production configuration before deployment.

@@ -757,9 +757,9 @@ export const guides: Guide[] = [
   },
   {
     slug: "new-to-idaho-title-and-register-your-vehicle",
-    title: "New to Idaho? How to title and register your vehicle",
+    title: "Idaho vehicle title and registration: a new-resident checklist",
     description:
-      "Moved to Idaho? You have 30 days to title and register your vehicle and get an Idaho driver's license. What to bring, the VIN inspection, and what's not required.",
+      "Moving to Idaho? Check the 30-day vehicle title and registration deadline, DMV documents, VIN inspection, insurance and how to find the right county office.",
     answer:
       "If you've moved to Idaho, you have 30 days to title and register your vehicle here, even if your old state's registration hasn't expired, and 30 days to get an Idaho driver's license or ID card. Take the vehicle, its current title and registration, and your ID to a county assessor's motor vehicle office, where an employee will inspect the VIN. Fees depend on the vehicle and your county. Idaho doesn't require emissions testing.",
     published: "2026-10-13",
@@ -782,10 +782,28 @@ export const guides: Guide[] = [
             items: [
               "**The vehicle itself,** for the VIN inspection (required for any vehicle not already titled in Idaho).",
               "**Its current title and registration.** If a lender holds the title, bring the lender's name and address.",
+              "**Lost your title?** Apply for a duplicate from the state that issued it before your Idaho visit; ITD's new-resident guidance specifically calls this out.",
               "**Your ID.**",
               "**If the title isn't in your name,** it must be signed over to you, and you'll need a bill of sale if the price isn't on the title.",
-              "**A way to pay:** cash, check or card. Fees and taxes depend on the vehicle type, its age, the purchase price and your county.",
+              "**A way to pay:** confirm accepted payment methods with your county office. Fees and taxes depend on the vehicle type, its age, the purchase price and your county.",
             ],
+          },
+        ],
+      },
+      {
+        heading: "Insurance and the right DMV office",
+        blocks: [
+          {
+            kind: "p",
+            text: "Tell your insurance company that you have moved to Idaho and confirm your liability coverage is with a carrier admitted in Idaho. ITD verifies coverage electronically, so changing your registration does not replace updating your insurance.",
+          },
+          {
+            kind: "p",
+            text: "Use the [Idaho DMV office finder](https://itd.idaho.gov/guide/new-to-idaho/) linked from ITD's new-resident page to check services and appointments before you go. Some county offices handle only driver's licenses, some only motor vehicles, and some both. Ask the office which fees and payment methods apply to your vehicle.",
+          },
+          {
+            kind: "note",
+            text: "The document checklist, insurance guidance and office-selection advice above were checked against ITD's New to Idaho page on November 1, 2026. If you are buying a vehicle rather than bringing one you already own, use the [used-car buying checklist](/guides/how-to-buy-a-used-car-in-idaho) for the sale and title handoff.",
           },
         ],
       },
@@ -861,6 +879,7 @@ export const guides: Guide[] = [
     related: [
       { label: "Homes and rentals in Idaho", path: "/idaho/homes" },
       { label: "How to buy a used car in Idaho", path: "/guides/how-to-buy-a-used-car-in-idaho" },
+      { label: "Browse Boise classifieds", path: "/idaho/boise" },
       { label: "Furniture for sale in Idaho", path: "/idaho/furniture" },
     ],
     categories: ["cars-trucks", "other-real-estate"],

@@ -17,7 +17,16 @@ export const Route = createFileRoute("/idaho/$place/")({
     if (!data) throw notFound();
     return data;
   },
-  head: ({ loaderData }) => placePageHead(loaderData),
+  head: ({ loaderData }) => placePageHead(
+    loaderData?.browseSearch.city === "Boise" && !loaderData.browseSearch.category
+      ? {
+          ...loaderData,
+          title: "Boise Marketplace Classifieds — Bluebird",
+          description:
+            "Browse Boise-area classifieds on Bluebird. Explore current listings by category, narrow your search by price and location, and contact sellers directly.",
+        }
+      : loaderData,
+  ),
   component: PlaceRoute,
 });
 
