@@ -1,6 +1,7 @@
 # Gem State Classifieds conversion
 
 ## Search growth follow-up
+- [ ] Recheck remaining SEO findings and vehicle discoverability; correct the unsupported recommendation to add inventory.
 - [x] Improve the existing Boise page's search summary and links to buyer resources without changing inventory or indexing thresholds.
 - [x] Improve the existing Idaho registration guide using current official DMV guidance.
 - [x] Verify both pages and mark preview-only work in the marketing plan; 22 tests and browser checks passed. No outreach, advertising or publishing performed.
