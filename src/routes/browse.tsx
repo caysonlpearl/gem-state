@@ -1,3 +1,4 @@
+import { FirearmsConsentDialog } from "@/components/FirearmsConsentDialog";
 import { homeRowFilters } from "@/lib/landing-home-filters";
 import {
   firearmShowcaseRows,
@@ -2330,6 +2331,7 @@ function Browse() {
         </>
       )}
 
+      {firearms && <FirearmsConsentDialog />}
       {firearms && firearmLanding && (
         <FirearmsLandingHero
           term={term}
