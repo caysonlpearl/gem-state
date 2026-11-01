@@ -173,7 +173,7 @@ export function landingFaq(input: {
     });
   }
   faq.push({
-    question: `How many ${input.noun} are for sale ${input.where}?`,
+    question: `How many ${input.noun} are listed ${input.where}?`,
     answer: `The current Bluebird search returns ${input.total} matching ${input.total === 1 ? "listing" : "listings"} ${input.where} as of ${asOf}${
       input.newest ? `; the newest reviewed listing was posted ${idahoDate(input.newest)}` : ""
     }. Search coverage may be limited.`,

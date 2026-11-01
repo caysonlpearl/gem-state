@@ -3,17 +3,18 @@ import type {
   ClassifiedCard,
   ClassifiedDetail,
 } from "./classifieds.functions";
-import { isWithinClassifiedRadius, usStates } from "../config/classifieds.ts";
+import { matchesLandingCard } from "./landing-card-pool";
 import {
   dedupeImageUrls,
   OPENWEBNINJA_ID,
   listedAt,
+  canonicalHomePropertyType,
   type OpenWebNinjaHome,
-  type OpenWebNinjaMode,
 } from "./openwebninja-contract";
 import { searchHomesArea, type HomeProvider } from "./openwebninja.server";
 
-/** City/mode searches remain available for an explicitly selected city. */
+/** Legacy city searches can still be refreshed by an operator. Public
+ * inventory is selected from all saved searches rather than this allowlist. */
 export const OPENWEBNINJA_CITIES = ["Boise", "Meridian", "Nampa", "Idaho Falls", "Coeur d'Alene"];
 
 /** Geographic areas included in the statewide home feed. Each area is one
@@ -65,22 +66,7 @@ export const OPENWEBNINJA_AREAS = [
 
 export function canIncludeOpenWebNinja(data: ClassifiedBrowseInput) {
   if (data.includeAllMocks || data.sellerSlug || data.dealerSlug || data.group) return false;
-  return (
-    data.category === "other-real-estate" && (data.homeTab === "buy" || data.homeTab === "rent")
-  );
-}
-
-function providerCity(data: ClassifiedBrowseInput) {
-  const state = usStates.find(([code, name]) => code === data.state || name === data.state);
-  if (state && state[0] !== "ID") return null;
-  if (!data.city) return null;
-  return (
-    OPENWEBNINJA_CITIES.find((city) => city.toLowerCase() === data.city!.toLowerCase()) ?? null
-  );
-}
-
-function modeFor(data: ClassifiedBrowseInput): OpenWebNinjaMode {
-  return data.homeTab === "rent" ? "rent" : "buy";
+  return data.category === "other-real-estate" && data.homeTab !== "build";
 }
 
 export function openWebNinjaCard(home: OpenWebNinjaHome): ClassifiedCard {
@@ -106,7 +92,7 @@ export function openWebNinjaCard(home: OpenWebNinjaHome): ClassifiedCard {
     externalHome: { source: "OpenWeb Ninja", sourceUrl: home.sourceUrl },
     home: {
       mode: home.mode,
-      propertyType: home.propertyType ?? "Home",
+      propertyType: canonicalHomePropertyType(home.propertyType) ?? "Home",
       bedrooms: home.beds,
       bathrooms: home.baths,
       squareFeet: home.sqft,
@@ -118,47 +104,16 @@ export function openWebNinjaCard(home: OpenWebNinjaHome): ClassifiedCard {
 }
 
 export async function openWebNinjaCards(data: ClassifiedBrowseInput): Promise<ClassifiedCard[]> {
-  const city = providerCity(data);
-  const state = usStates.find(([code, name]) => code === data.state || name === data.state);
-  const areas = !data.city && (!state || state[0] === "ID") ? OPENWEBNINJA_AREAS : [];
-  let result;
-  if (city) {
-    result = await (await import("./openwebninja.server")).searchHomes("ID", city, modeFor(data));
-  } else {
-    if (!areas.length) return [];
-    const responses = await Promise.all(
-      areas.map((area) => searchHomesArea("ID", area, modeFor(data))),
-    );
-    const homes = Array.from(
-      new Map(
-        responses.flatMap((response) => response.homes).map((home) => [home.id, home]),
-      ).values(),
-    );
-    result = { homes };
-  }
+  if (!canIncludeOpenWebNinja(data)) return [];
+  const homes = await (await import("./openwebninja.server")).cachedHomes();
   const q = data.q?.trim().toLowerCase();
-  return result.homes
+  return homes
     .filter(
       (home) =>
-        (data.priceMin == null || home.priceCents >= data.priceMin * 100) &&
-        (data.priceMax == null || home.priceCents <= data.priceMax * 100) &&
-        (data.homeBedroomsMin == null || (home.beds ?? -1) >= data.homeBedroomsMin) &&
-        (data.homeBathroomsMin == null || (home.baths ?? -1) >= data.homeBathroomsMin) &&
-        (data.homeSquareFeetMin == null || (home.sqft ?? -1) >= data.homeSquareFeetMin) &&
-        (!data.postalCode || home.zip === data.postalCode) &&
-        (!q ||
-          `${home.address} ${home.city} ${home.propertyType ?? ""}`.toLowerCase().includes(q)) &&
-        isWithinClassifiedRadius({
-          city: data.city,
-          cityState: data.state,
-          listingCity: home.city,
-          listingState: home.state,
-          latitude: data.latitude,
-          longitude: data.longitude,
-          radiusMiles: data.radiusMiles,
-        }),
+        !q || `${home.address} ${home.city} ${home.propertyType ?? ""}`.toLowerCase().includes(q),
     )
-    .map(openWebNinjaCard);
+    .map(openWebNinjaCard)
+    .filter((card) => matchesLandingCard(card, { ...data, q: undefined }));
 }
 
 /** Each area's for-sale and rental lists refresh weekly (prices, new and
@@ -195,7 +150,7 @@ export async function advanceHomeFeed() {
 
 async function advanceHomeFeedFor(provider: HomeProvider) {
   const ninja = await import("./openwebninja.server");
-  const db = ninja.cacheDb() as any;
+  const db = ninja.cacheDb();
   if (!db || !ninja.openWebNinjaConfigured()) return { skipped: "not configured" };
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const { count, error: paceError } = await db
@@ -220,7 +175,7 @@ async function advanceHomeFeedFor(provider: HomeProvider) {
     // A pattern, not .in(): the JSON keys contain commas, which break
     // PostgREST's in-list and silently match nothing.
     .like("cache_key", '%"kind":"area-search"%');
-  const rowByKey = new Map<string, any>((searchRows ?? []).map((row: any) => [row.cache_key, row]));
+  const rowByKey = new Map((searchRows ?? []).map((row) => [row.cache_key, row]));
 
   // 1. This subscription's most overdue area list.
   const due = searchKeys

@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { serverEnv } from "./runtime-env.server";
+import { homesFromSavedSearches, type SavedHomeSearch } from "./openwebninja-cache";
 import {
   normalizeOpenWebNinjaProperty,
   normalizeOpenWebNinjaResult,
@@ -126,6 +127,22 @@ async function cachedCall<T>(
 
 export function openWebNinjaConfigured() {
   return Boolean(serverEnv("OPENWEBNINJA_API_KEY"));
+}
+
+/** Public reads never reserve provider calls. Regional inventory also covers
+ * cities without a separate paid city search, such as Twin Falls. */
+export async function cachedHomes(): Promise<OpenWebNinjaHome[]> {
+  const db = cacheDb();
+  if (!db) return [];
+  const { data, error } = await db
+    .from("openwebninja_cache")
+    .select("cache_key,payload,expires_at")
+    .like("cache_key", '%search"%')
+    .gt("expires_at", new Date().toISOString())
+    .order("expires_at", { ascending: false })
+    .limit(100);
+  if (error) throw new Error("Saved homes are temporarily unavailable.");
+  return homesFromSavedSearches((data ?? []) as SavedHomeSearch[]);
 }
 
 export type OpenWebNinjaSearchArea = {
