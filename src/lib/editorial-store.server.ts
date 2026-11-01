@@ -86,6 +86,7 @@ export async function seedEditorialGuides(db: any) {
     status: "published",
     topic: "guides",
     state: "ID",
+    city: guide.city ?? null,
     category_slugs: guide.categories,
     author_name: "Bluebird Marketplace editorial team",
     author_url: "https://onbluebird.com/news/about",

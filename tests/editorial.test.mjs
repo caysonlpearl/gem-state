@@ -78,6 +78,65 @@ test("CTA destinations use real categories, home aliases, cities, and state", ()
   assert.match(editorialDestinations(["furniture"], "Logan", "UT")[0].href, /state=UT&city=Logan/);
   assert.equal(editorialDestinations(["javascript:alert(1)"])[0].href, "/browse?state=ID");
 });
+test("local guide CTAs use validated collection routes without broadening their category", () => {
+  const destinations = editorialDestinations(
+    ["other-real-estate", "furniture"],
+    "Twin Falls",
+    "ID",
+    "houses-for-rent",
+  );
+  assert.equal(destinations[0].href, "/idaho/twin-falls/houses-for-rent");
+  assert.match(destinations[0].label, /houses for rent near Twin Falls/);
+  assert.equal(destinations[1].href, "/idaho/twin-falls/furniture");
+  assert.equal(
+    editorialDestinations(["services"], "Boise", "ID", "plumbers")[0].href,
+    "/idaho/boise/plumbers",
+  );
+  assert.equal(
+    editorialDestinations(["services"], "Twin Falls", "ID", "plumbers")[0].href,
+    "/idaho/twin-falls/services",
+  );
+  assert.equal(
+    editorialDestinations(["services"], "Logan", "UT", "plumbers")[0].href,
+    "/browse?category=services&state=UT&city=Logan",
+  );
+  assert.equal(
+    editorialDestinations(["jobs"], "Boise", "ID", "plumbers")[0].href,
+    "/idaho/boise/jobs",
+  );
+});
+test("collection related cards exclude for-sale, other property types, distant cities and states", () => {
+  const card = {
+    categorySlug: "other-real-estate",
+    state: "ID",
+    city: "Twin Falls",
+    createdAt: "2026-10-30",
+    home: { mode: "rent", propertyType: "Single-family home" },
+  };
+  const cards = [
+    { ...card, id: "rental" },
+    { ...card, id: "rental" },
+    { ...card, id: "nearby", city: "Kimberly" },
+    { ...card, id: "sale", home: { ...card.home, mode: "buy" } },
+    { ...card, id: "apartment", home: { ...card.home, propertyType: "Apartment" } },
+    { ...card, id: "distant", city: "Boise" },
+    { ...card, id: "other-state", state: "UT" },
+  ];
+  assert.deepEqual(
+    relatedEditorialListings(
+      cards,
+      ["other-real-estate"],
+      "Twin Falls",
+      "ID",
+      "houses-for-rent",
+    ).map((c) => c.id),
+    ["rental", "nearby"],
+  );
+  assert.deepEqual(
+    relatedEditorialListings(cards, ["other-real-estate"], "Unknown", "ID", "houses-for-rent"),
+    [],
+  );
+});
 test("public originals alone are indexable and external headlines have no local stub", () => {
   const article = {
     slug: "test-story",

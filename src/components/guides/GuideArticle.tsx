@@ -119,6 +119,8 @@ export function GuideArticle({ guide }: { guide: Guide }) {
           <EditorialCta
             articleId={`guide:${guide.slug}`}
             categorySlugs={guide.categories}
+            city={guide.city}
+            collectionSlug={guide.collectionSlug}
             placement="guide_intro"
             compact
           />
@@ -139,6 +141,8 @@ export function GuideArticle({ guide }: { guide: Guide }) {
                     <EditorialCta
                       articleId={`guide:${guide.slug}`}
                       categorySlugs={guide.categories}
+                      city={guide.city}
+                      collectionSlug={guide.collectionSlug}
                       placement="guide_middle"
                       compact
                     />
@@ -167,9 +171,8 @@ export function GuideArticle({ guide }: { guide: Guide }) {
         <section className="mt-12 border-t border-border pt-6">
           <h2 className="text-[15px] font-bold">Sources</h2>
           <p className="mt-1 text-[13px] text-muted-foreground">
-            Fees and forms change. Check with the Idaho Transportation Department or your county
-            assessor&apos;s motor vehicle office before you file. This guide is general information,
-            not legal advice.
+            {guide.sourcesNote ||
+              "Fees and forms change. Check with the Idaho Transportation Department or your county assessor's motor vehicle office before you file. This guide is general information, not legal advice."}
           </p>
           <ul className="mt-3 space-y-1.5 text-[13.5px]">
             {guide.sources.map((source) => (
@@ -205,12 +208,16 @@ export function GuideArticle({ guide }: { guide: Guide }) {
           <EditorialCta
             articleId={`guide:${guide.slug}`}
             categorySlugs={guide.categories}
+            city={guide.city}
+            collectionSlug={guide.collectionSlug}
             placement="guide_end"
           />
         </div>
         <EditorialRelatedListings
           articleId={`guide:${guide.slug}`}
           categorySlugs={guide.categories}
+          city={guide.city}
+          collectionSlug={guide.collectionSlug}
         />
       </article>
     </main>
