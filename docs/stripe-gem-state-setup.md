@@ -26,7 +26,7 @@ for QA, Live mode only when launching):
 
 1. Set the public business name to **Gem State Classifieds**.
 2. Add the website `https://gemstateclassifieds.com` and support email
-   `support@gemstateclassifieds.com`.
+   `bluebirdmarketplaceid@gmail.com`.
 3. Upload `public/images/brand/gem-state-classifieds-logo.png` as the Stripe
    business/checkout logo.
 4. Use the Gem State palette for Checkout branding: deep teal `#14544B`,

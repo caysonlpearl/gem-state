@@ -2,6 +2,7 @@
 import * as React from "react";
 import { render } from "@react-email/render";
 import { TEMPLATES } from "./registry";
+import { brand } from "../../config/brand";
 
 // Server-only: reads email provider secrets. Never import from client components.
 
@@ -62,7 +63,7 @@ export async function sendTemplateEmail(
       subject,
       html,
       text,
-      ...(options.replyTo ? { reply_to: options.replyTo } : {}),
+      reply_to: options.replyTo || brand.supportEmail,
       ...(options.idempotencyKey ? { idempotency_key: options.idempotencyKey } : {}),
     }),
   });

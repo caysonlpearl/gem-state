@@ -13,8 +13,8 @@ export const brand = {
   description:
     "Idaho classifieds for cars, trucks, outdoor gear, tools, home goods, and more from local sellers.",
   domain: "onbluebird.com",
-  supportEmail: "support@gemstateclassifieds.com",
-  pressEmail: "hello@gemstateclassifieds.com",
+  supportEmail: "bluebirdmarketplaceid@gmail.com",
+  pressEmail: "bluebirdmarketplaceid@gmail.com",
   urls: {
     home: "/",
     auth: "/auth",
