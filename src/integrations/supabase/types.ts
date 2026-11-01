@@ -7776,6 +7776,52 @@ export type Database = {
         }
         Returns: boolean
       }
+      homepage_merchandise_previews: {
+        Args: { p_per_scope?: number }
+        Returns: {
+          first_seen_at: string
+          id: string
+          product: Json
+          source_refreshed_at: string
+        }[]
+      }
+      homepage_service_previews: {
+        Args: { p_per_trade?: number; p_trades: string[] }
+        Returns: {
+          address: string | null
+          category_labels: string[]
+          city: string
+          claimed_at: string | null
+          claimed_by: string | null
+          email: string | null
+          enriched_at: string | null
+          enrichment: Json | null
+          facebook_id: string | null
+          hidden: boolean
+          id: string
+          imported_at: string
+          instagram: string | null
+          latitude: number | null
+          longitude: number | null
+          name: string
+          phone: string | null
+          phone_digits: string | null
+          postcode: string | null
+          priority: number
+          source_refreshed_at: string | null
+          state: string
+          trade: string
+          trades: string[]
+          updated_at: string
+          website: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "service_directory"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       import_listing_description: {
         Args: { _description: string; _title: string }
         Returns: string
