@@ -18,6 +18,7 @@ type Scope = {
   categorySlugs?: readonly string[];
   city?: string | null;
   state?: "ID" | "UT";
+  collectionSlug?: string | null;
 };
 function trackEditorialClick(
   articleId: string,
@@ -60,10 +61,11 @@ export function EditorialCta({
   categorySlugs = [],
   city = null,
   state = "ID",
+  collectionSlug = null,
   placement,
   compact = false,
 }: Scope & { placement: string; compact?: boolean }) {
-  const destinations = editorialDestinations(categorySlugs, city, state);
+  const destinations = editorialDestinations(categorySlugs, city, state, collectionSlug);
   return (
     <aside
       aria-label="Explore Bluebird classifieds"
@@ -112,11 +114,13 @@ function HydratedRelatedListings({
   categorySlugs = [],
   city = null,
   state = "ID",
+  collectionSlug = null,
 }: Scope) {
   const getRelated = useServerFn(getNewsRelatedListings);
   const query = useQuery({
-    queryKey: ["editorial-related", categorySlugs, city, state],
-    queryFn: () => getRelated({ data: { categorySlugs: [...categorySlugs], city, state } }),
+    queryKey: ["editorial-related", categorySlugs, city, state, collectionSlug],
+    queryFn: () =>
+      getRelated({ data: { categorySlugs: [...categorySlugs], city, state, collectionSlug } }),
     staleTime: 60_000,
     retry: false,
   });
@@ -132,7 +136,7 @@ function HydratedRelatedListings({
           <h2 className="mt-1 text-2xl font-bold tracking-tight">Explore related listings</h2>
         </div>
         <a
-          href={editorialDestinations(categorySlugs, city, state)[0].href}
+          href={editorialDestinations(categorySlugs, city, state, collectionSlug)[0].href}
           className="text-sm font-semibold text-primary"
           onClick={(event) =>
             trackEditorialClick(

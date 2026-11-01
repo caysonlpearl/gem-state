@@ -1,5 +1,14 @@
-import { classifiedCategories, idahoCities } from "../config/classifieds.ts";
+import {
+  classifiedCategories,
+  idahoCities,
+  isWithinClassifiedRadius,
+} from "../config/classifieds.ts";
 import type { ListingCardSummary } from "./listing-card-summary";
+import {
+  collectionAvailableIn,
+  collectionMatches,
+  seoCollectionFromSlug,
+} from "./seo-collections.ts";
 
 export const NEWS_TOPICS = [
   { slug: "local-news", label: "Local news" },
@@ -213,23 +222,42 @@ const categoryNames: Record<string, string> = {
   services: "local services",
   "outdoor-sporting": "outdoor gear",
 };
+export function editorialCollection(
+  categories: readonly string[],
+  city?: string | null,
+  state: "ID" | "UT" = "ID",
+  collectionSlug?: string | null,
+) {
+  const collection = collectionSlug ? seoCollectionFromSlug(collectionSlug) : null;
+  return collection &&
+    state === "ID" &&
+    categories.includes(collection.category) &&
+    (!city || idahoCities.some((name) => name === city)) &&
+    collectionAvailableIn(collection, city || undefined)
+    ? collection
+    : null;
+}
+
 export function editorialDestinations(
   categories: readonly string[],
   city?: string | null,
   state: "ID" | "UT" = "ID",
+  collectionSlug?: string | null,
 ) {
+  const collection = editorialCollection(categories, city, state, collectionSlug);
   const valid = [...new Set(categories)].flatMap((slug) => {
     const category = classifiedCategories.find((c) => c.slug === slug);
     if (!category) return [];
     const knownCity = state === "ID" && idahoCities.some((c) => c === city);
-    const urlSlug = slug === "other-real-estate" ? "homes" : slug;
+    const specific = collection?.category === slug ? collection : null;
+    const urlSlug = specific?.slug || (slug === "other-real-estate" ? "homes" : slug);
     const citySlug = city ? newsSlug(city) : "";
     const params = new URLSearchParams({ category: slug, state });
     if (city && !knownCity) params.set("city", city);
     return [
       {
         category: slug,
-        label: `Browse ${categoryNames[slug] || category.name.toLowerCase()} ${city ? `in ${city}` : state === "UT" ? "in Utah" : "in Idaho"}`,
+        label: `Browse ${specific?.heading.toLowerCase() || categoryNames[slug] || category.name.toLowerCase()} ${city ? `near ${city}` : state === "UT" ? "in Utah" : "in Idaho"}`,
         href:
           state === "ID"
             ? knownCity
@@ -308,11 +336,24 @@ export function relatedEditorialListings(
   categories: readonly string[],
   city: string | null,
   state: "ID" | "UT",
+  collectionSlug?: string | null,
 ) {
+  const collection = editorialCollection(categories, city, state, collectionSlug);
+  if (collectionSlug && !collection) return [];
   const allowed = new Set(categories);
   const candidates = cards.filter(
     (c) =>
       c.state === state &&
+      (!collection || collectionMatches(collection, c)) &&
+      (!collection ||
+        !city ||
+        isWithinClassifiedRadius({
+          city,
+          cityState: state,
+          listingCity: c.city,
+          listingState: c.state,
+          radiusMiles: 25,
+        })) &&
       (allowed.size
         ? Boolean(c.categorySlug && allowed.has(c.categorySlug))
         : !c.externalMerchandise),

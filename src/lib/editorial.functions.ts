@@ -5,6 +5,8 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { classifiedCategories, marketplaceCities } from "@/config/classifieds";
 import {
   articleIsIndexable,
+  editorialCollection,
+  newsSlug,
   newsCard,
   newsFilters,
   NEWS_PAGE_SIZE,
@@ -138,11 +140,45 @@ export const getNewsArticle = createServerFn({ method: "GET" })
   });
 
 export const getNewsRelatedListings = createServerFn({ method: "GET" })
-  .validator((input: unknown) => scope.parse(input))
+  .validator((input: unknown) =>
+    scope
+      .extend({
+        collectionSlug: z.string().trim().max(60).nullable().default(null),
+      })
+      .parse(input),
+  )
   .handler(async ({ data }) => {
     const { readHomepageSnapshot } = await import("@/lib/homepage-snapshot.server");
     const { HOME_MAX_STALE_MS } = await import("@/lib/homepage-snapshot-contract");
     try {
+      if (data.collectionSlug) {
+        const collection = editorialCollection(
+          data.categorySlugs,
+          data.city,
+          data.state,
+          data.collectionSlug,
+        );
+        if (!collection) return [];
+        // Reuse the prepared public inventory, never a provider search. This
+        // also avoids a rental article inheriting unrelated homepage cards.
+        const { getPlacePage } = await import("@/lib/place-pages.functions");
+        const page = await getPlacePage({
+          data: {
+            place: data.city ? newsSlug(data.city) : collection.slug,
+            category: data.city ? collection.slug : "",
+          },
+        });
+        const cards = page
+          ? [...page.listings, ...page.regionGroups.flatMap((group) => group.listings)]
+          : [];
+        return relatedEditorialListings(
+          cards,
+          data.categorySlugs,
+          data.city,
+          data.state,
+          data.collectionSlug,
+        );
+      }
       const snapshot = await readHomepageSnapshot();
       const cards = Object.values(snapshot.sections).flatMap((section) =>
         section && Date.now() - section.updatedAt < HOME_MAX_STALE_MS ? section.cards : [],

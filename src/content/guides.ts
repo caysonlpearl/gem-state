@@ -27,9 +27,269 @@ export type Guide = {
   related: { label: string; path: string }[];
   /** Category landing pages that link to this guide. */
   categories: string[];
+  /** Optional local collection; validated against the finite SEO collection set. */
+  city?: string;
+  collectionSlug?: string;
+  sourcesNote?: string;
 };
 
 export const guides: Guide[] = [
+  {
+    slug: "twin-falls-house-rental-move-in-cost-checklist",
+    title: "Renting a house in Twin Falls: compare the full move-in cost",
+    description:
+      "Compare Twin Falls rental houses by monthly costs, move-in cash, lease terms and the details to confirm before applying.",
+    answer:
+      "When comparing houses for rent in Twin Falls, separate the advertised rent from the full monthly cost and the money due before move-in. Put each property's quoted terms in the same checklist, verify the listing contact, and confirm the written lease before committing.",
+    city: "Twin Falls",
+    collectionSlug: "houses-for-rent",
+    categories: ["other-real-estate", "furniture", "services"],
+    sourcesNote:
+      "Rental terms vary by property. These sources were checked November 1, 2026; confirm the current lease and charges with the property contact.",
+    sections: [
+      {
+        heading: "Start with the address and the kind of home",
+        blocks: [
+          {
+            kind: "p",
+            text: "A rental house, a duplex and an apartment can have different space, parking and maintenance arrangements even when their advertised rents look similar. Check the property type, bedrooms, bathrooms and usable living area before putting two listings side by side.",
+          },
+          {
+            kind: "p",
+            text: "Bluebird's [Twin Falls house-rental search](/idaho/twin-falls/houses-for-rent) includes nearby places within the stated search radius. Read the city on each listing: a home in Filer, Kimberly or Jerome may suit your plans, but it is a different trip to work, errands or the places you visit regularly. Use the actual address when comparing options.",
+          },
+        ],
+      },
+      {
+        heading: "Write down two totals for each property",
+        blocks: [
+          {
+            kind: "p",
+            text: "The first total is the recurring monthly cost: rent plus any utilities and recurring charges you would pay separately. The second is the cash needed to move in. Keeping those totals apart helps avoid mistaking a refundable deposit for an ongoing expense, or overlooking a small charge that repeats every month.",
+          },
+          {
+            kind: "list",
+            items: [
+              "**Monthly:** quoted rent, utilities you are responsible for, recurring pet or parking charges, and any other required recurring costs.",
+              "**Before move-in:** the quoted rent payment or proration, security deposit, application or other one-time charges, and any utility setup or moving costs that apply.",
+              "**For every charge:** record the amount, when it is due, whether it is refundable, and where the term appears in writing.",
+              "**For an unanswered item:** write “confirm” rather than $0. A blank listing field is not a promise that the cost is included.",
+            ],
+          },
+          {
+            kind: "p",
+            text: "The Idaho Attorney General's [Landlord and Tenant Manual](https://www.ag.idaho.gov/content/uploads/2026/07/LandlordTenant.pdf) recommends getting the costs of a rental disclosed upfront and in writing. Use the manual's pre-rental and move-in checklists alongside the property's actual agreement.",
+          },
+        ],
+      },
+      {
+        heading: "Compare the terms that affect everyday living",
+        blocks: [
+          {
+            kind: "p",
+            text: "Ask who handles yard care and snow removal, which appliances come with the home, how parking works, and what maintenance reporting looks like. Confirm the lease length, available move-in date and the property's stated pet rules. These are questions for the property contact when the listing does not answer them.",
+          },
+          {
+            kind: "p",
+            text: "If two homes have different lease lengths, compare the period you actually expect to live there. Ask how renewal, notice and any early departure would be handled under the agreement. Keep a written copy of the answers instead of relying on a phone conversation.",
+          },
+        ],
+      },
+      {
+        heading: "Verify the person behind the listing",
+        blocks: [
+          {
+            kind: "p",
+            text: "The FTC warns that scammers copy real rental photos and change the contact details. Check the address and management company independently. A tour helps, but it does not by itself prove that the person asking for payment is authorized to rent the home. Slow down if names conflict or you are pressured to pay through gift cards, cryptocurrency or a wire transfer. Read the [FTC's rental-listing scam guidance](https://consumer.ftc.gov/articles/rental-listing-scams) before sending money or sensitive application information.",
+          },
+        ],
+      },
+      {
+        heading: "Plan the move after you choose the home",
+        blocks: [
+          {
+            kind: "p",
+            text: "Record the agreed move-in date, take dated photos of the property's condition and keep the inspection notes with your lease. Measure rooms and doorways before buying large furniture. Start with the pieces you need immediately rather than filling every room at once.",
+          },
+          {
+            kind: "p",
+            text: "You can compare [furniture listings around Twin Falls](/idaho/twin-falls/furniture) and [moving services in the Twin Falls area](/browse?category=services&serviceMode=results&serviceSubcategory=Movers&city=Twin%20Falls&state=ID&radiusMiles=25). Confirm dimensions, pickup arrangements and the service quote directly with the seller or business.",
+          },
+        ],
+      },
+    ],
+    faqs: [
+      {
+        question: "Does the listed rent include utilities or pet charges?",
+        answer:
+          "Only if the property's stated terms say so. Ask the listing contact for a written breakdown of rent, deposits, utilities and recurring charges before comparing the full cost.",
+      },
+      {
+        question: "Why do nearby towns appear in a Twin Falls search?",
+        answer:
+          "Bluebird's city search uses the stated distance radius. Read each card's city and confirm the address so you can compare the location that matters to you.",
+      },
+    ],
+    sources: [
+      {
+        label: "Idaho Attorney General: Landlord and Tenant Manual, July 2026",
+        url: "https://www.ag.idaho.gov/content/uploads/2026/07/LandlordTenant.pdf",
+      },
+      {
+        label: "Federal Trade Commission: Rental Listing Scams",
+        url: "https://consumer.ftc.gov/articles/rental-listing-scams",
+      },
+    ],
+    related: [
+      {
+        label: "Houses for rent near Twin Falls",
+        path: "/idaho/twin-falls/houses-for-rent",
+      },
+      {
+        label: "Rental homes and apartments across Idaho",
+        path: "/idaho/rentals",
+      },
+      {
+        label: "Twin Falls furniture",
+        path: "/idaho/twin-falls/furniture",
+      },
+    ],
+    published: "2026-11-01",
+    reviewed: "2026-11-01",
+  },
+  {
+    slug: "boise-meridian-plumber-quote-checklist",
+    title: "Hiring a plumber in Boise or Meridian: compare the same job",
+    description:
+      "A practical checklist for comparing Boise and Meridian plumbing quotes, checking Idaho license records and confirming the work before you book.",
+    answer:
+      "Before choosing a plumber in Boise or Meridian, describe the same job to each business, check the relevant Idaho license record, and compare written quotes for the same scope. Confirm service-area coverage, charges, materials and who handles any required permits before scheduling.",
+    city: "Boise",
+    collectionSlug: "plumbers",
+    categories: ["services"],
+    sourcesNote:
+      "This checklist does not verify or endorse an individual business. Confirm current qualifications, scope and terms with the business and the relevant authority.",
+    sections: [
+      {
+        heading: "Describe the job so businesses can quote the same work",
+        blocks: [
+          {
+            kind: "p",
+            text: "“Fix a leak” can mean very different work depending on where the leak is, what is accessible and what needs to be replaced. Start with a short description of the problem, the fixture or equipment involved, and whether the work is a repair, replacement or a larger change.",
+          },
+          {
+            kind: "p",
+            text: "Share clear photos and any model information you can read without taking equipment apart. Explain access constraints, parking and the times someone can be present. That gives each business the same starting point and makes differences in the quotes easier to understand.",
+          },
+          {
+            kind: "p",
+            text: "Use Bluebird to [browse plumbers around Boise](/idaho/boise/plumbers) or [plumbers around Meridian](/idaho/meridian/plumbers). A business's listed city is a starting point, not a guarantee that it serves every nearby address.",
+          },
+        ],
+      },
+      {
+        heading: "Check qualifications using the state's records",
+        blocks: [
+          {
+            kind: "p",
+            text: "Ask for the business name and the license information relevant to the people and work you are hiring. Follow the [Idaho Division of Occupational and Professional Licenses](https://dopl.idaho.gov/) link to its public license search and compare the record with the details the business provides. Contact DOPL if you cannot tell which license or status applies to your project.",
+          },
+          {
+            kind: "p",
+            text: "Also ask the business for current insurance information appropriate to the work. A Bluebird directory entry, a logo or a customer rating is not a substitute for checking qualifications. Directory information and services can change.",
+          },
+        ],
+      },
+      {
+        heading: "Put the quotes beside each other",
+        blocks: [
+          {
+            kind: "p",
+            text: "For a planned job, ask multiple businesses for a written quote or estimate. The FTC recommends comparing written estimates and asking about significant price differences rather than automatically choosing the lowest number. Read its [home-improvement guidance](https://consumer.ftc.gov/articles/how-avoid-home-improvement-scam) for the wider consumer checklist.",
+          },
+          {
+            kind: "list",
+            items: [
+              "**Work:** the specific repair or installation, what is excluded, and what assumptions the price relies on.",
+              "**Equipment and materials:** the proposed item or model, who supplies it, and whether substitutions need approval.",
+              "**Charges:** labor, materials, travel or call-out charges, disposal and other quoted costs; ask which figures are fixed and which can change.",
+              "**Permits and coordination:** whether permits or inspections apply, who handles them, and what other work must be completed first.",
+              "**Finish and follow-up:** cleanup, access restoration, expected timing and the written terms for any warranty or return visit.",
+            ],
+          },
+          {
+            kind: "p",
+            text: "A cheaper quote may cover less work or rely on a different assumption. Ask each business to explain the difference in the scope before you decide. Keep the revised answer in writing so you are comparing what will actually be done.",
+          },
+        ],
+      },
+      {
+        heading: "Confirm coverage and scheduling for your address",
+        blocks: [
+          {
+            kind: "p",
+            text: "Boise and Meridian searches can show businesses in nearby Treasure Valley towns because the collection uses a stated radius. Tell the business where the job is and ask whether that address is in its service area. Confirm any travel charge and the appointment window instead of assuming the nearest office determines the final price.",
+          },
+          {
+            kind: "p",
+            text: "Ask what happens if the plumber finds additional work after arriving. Agree on how you will be told about a change, what information you need before approving it and who can authorize the extra work. That is more useful than trying to settle every possible repair over the first phone call.",
+          },
+        ],
+      },
+      {
+        heading: "Keep a short record of what you agree",
+        blocks: [
+          {
+            kind: "p",
+            text: "Before the appointment, save the agreed scope, quote, business contact and schedule in one place. Read the payment terms before paying and keep receipts and any warranty documents afterward. If something in the conversation matters to your decision, ask for it to be included in the written agreement.",
+          },
+          {
+            kind: "p",
+            text: "Ready to compare options? Return to [Boise plumbing services](/idaho/boise/plumbers) or [Meridian plumbing services](/idaho/meridian/plumbers). If you operate a local service business, [post a service listing on Bluebird](/sell) with a clear service area and useful information about the work you offer.",
+          },
+        ],
+      },
+    ],
+    faqs: [
+      {
+        question:
+          "Does a Bluebird directory listing mean the plumber has been approved by Bluebird?",
+        answer:
+          "No. Use the listing to find contact information, then check qualifications, service-area coverage and the proposed terms independently.",
+      },
+      {
+        question: "What should I do if two plumbing quotes have very different prices?",
+        answer:
+          "Compare the specific work, equipment, exclusions and assumptions, then ask the businesses to explain the differences in writing. A lower total alone does not establish that the quotes cover the same job.",
+      },
+    ],
+    sources: [
+      {
+        label: "Idaho DOPL: public license and registration search",
+        url: "https://dopl.idaho.gov/",
+      },
+      {
+        label: "Federal Trade Commission: How To Avoid a Home Improvement Scam",
+        url: "https://consumer.ftc.gov/articles/how-avoid-home-improvement-scam",
+      },
+    ],
+    related: [
+      {
+        label: "Plumbers near Boise",
+        path: "/idaho/boise/plumbers",
+      },
+      {
+        label: "Plumbers near Meridian",
+        path: "/idaho/meridian/plumbers",
+      },
+      {
+        label: "Idaho local services",
+        path: "/idaho/services",
+      },
+    ],
+    published: "2026-11-01",
+    reviewed: "2026-11-01",
+  },
   {
     slug: "how-to-sell-a-car-in-idaho",
     title: "How to sell a car in Idaho: title, release of liability and plates",
