@@ -75,7 +75,7 @@ test("FAQ answers come from the numbers and skip what has no data", () => {
     faq.map((entry) => entry.question),
     [
       "How much do trailers cost in and around Boise?",
-      "How many trailers are for sale in and around Boise?",
+      "How many trailers are listed in and around Boise?",
       "Where else in Idaho are trailers listed?",
     ],
   );

@@ -291,9 +291,21 @@ function cents(value: unknown) {
   return amount != null && amount > 0 ? Math.round(amount * 100) : null;
 }
 
-function propertyType(value: unknown) {
+export function canonicalHomePropertyType(value: unknown) {
   const label = scalarText(value);
   if (!label) return null;
+  const canonical: Record<string, string> = {
+    singlefamily: "Single-family home",
+    singlefamilyhome: "Single-family home",
+    house: "Single-family home",
+    townhouse: "Townhome",
+    townhome: "Townhome",
+    manufactured: "Manufactured home",
+    manufacturedhome: "Manufactured home",
+    lot: "Land",
+  };
+  const known = canonical[label.toLowerCase().replace(/[^a-z]/g, "")];
+  if (known) return known;
   return label
     .replace(/_/g, " ")
     .toLowerCase()
@@ -318,7 +330,7 @@ export function normalizeOpenWebNinjaHome(
     city,
     state,
     zip: parts.zip,
-    propertyType: propertyType(
+    propertyType: canonicalHomePropertyType(
       firstValue(record, "homeType", "propertyTypeDimension", "property_type"),
     ),
     priceCents: price,
@@ -414,7 +426,7 @@ export function normalizeOpenWebNinjaProperty(payload: unknown): OpenWebNinjaPro
     images: imageList(record),
     yearBuilt: num(firstValue(record, "yearBuilt", "year_built", "yearBuiltValue")),
     source: scalarText(firstValue(record, "listingDataSource", "source", "brokerName")),
-    propertyType: propertyType(
+    propertyType: canonicalHomePropertyType(
       firstValue(record, "homeType", "propertyTypeDimension", "property_type"),
     ),
     bedrooms: num(firstValue(record, "bedrooms", "beds")),
