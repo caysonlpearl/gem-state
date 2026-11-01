@@ -76,6 +76,57 @@ export const Route = createFileRoute("/sitemap.xml")({
             pages.add(path, reference.createdAt, "", minimum);
           }
         }
+        let cachedHomes, cachedJobCards, directoryReferences;
+        try {
+          const [homes, jobs, directory] = await Promise.all([
+            import("@/lib/openwebninja-listings.server").then((module) =>
+              module.openWebNinjaCards({ category: "other-real-estate", state: "ID" }),
+            ),
+            import("@/lib/adzuna.server").then((module) => module.cachedJobs()),
+            import("@/lib/service-directory.server").then((module) =>
+              module.directorySeoReferences(),
+            ),
+          ]);
+          if (jobs.status !== "ok") return new Response("Sitemap unavailable", { status: 503 });
+          const { adzunaCard } = await import("@/lib/adzuna-listings.server");
+          cachedHomes = homes;
+          cachedJobCards = jobs.jobs.map(adzunaCard).filter((card) => card.state === "ID");
+          directoryReferences = directory;
+        } catch {
+          return new Response("Sitemap unavailable", { status: 503 });
+        }
+        for (const card of [...cachedHomes, ...cachedJobCards]) {
+          const details = {
+            city: card.city,
+            state: card.state,
+            region: card.region,
+            vehicle_make: null,
+            vehicle_model: null,
+            home_mode: card.home?.mode,
+            home_property_type: card.home?.propertyType,
+            job_employment_type: card.job?.employmentType,
+          };
+          for (const { path, minimum } of landingPathsFor(card.categorySlug, details))
+            pages.add(path, card.createdAt, "", minimum);
+        }
+        for (const row of directoryReferences) {
+          // Count every saved business toward the broad service collections,
+          // while each focused trade uses the same primary/secondary taxonomy.
+          const paths = new Map<string, number>();
+          for (const trade of new Set([row.trade, ...row.trades])) {
+            for (const { path, minimum } of landingPathsFor("services", {
+              city: row.city,
+              state: row.state,
+              region: null,
+              vehicle_make: null,
+              vehicle_model: null,
+              service_subcategory: trade,
+            }))
+              paths.set(path, minimum);
+          }
+          for (const [path, minimum] of paths)
+            pages.add(path, row.verifiedAt ?? row.createdAt, "", minimum);
+        }
         const sellerLastmod = new Map<string, string>();
         for (const row of listings) {
           if (!sellerLastmod.has(row.seller_id)) sellerLastmod.set(row.seller_id, row.updated_at);
@@ -122,6 +173,12 @@ export const Route = createFileRoute("/sitemap.xml")({
           return new Response("Sitemap unavailable", { status: 503 });
         }
         const entries = [
+          ...[...cachedVehicles, ...cachedHomes].map((card) =>
+            urlEntry(listingPath(card), { priority: "0.7" }),
+          ),
+          ...directoryReferences
+            .filter((row) => row.indexable)
+            .map((row) => urlEntry(listingPath(row), { priority: "0.6" })),
           ...articles.map((article) =>
             urlEntry(`/news/${article.slug}`, {
               lastmod: article.modifiedAt,

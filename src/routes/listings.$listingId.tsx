@@ -50,6 +50,7 @@ import {
 } from "@phosphor-icons/react";
 
 import { brand } from "@/config/brand";
+import { isIndexablePartnerDetail } from "@/lib/partner-seo";
 import {
   fieldsForClassifiedItem,
   classifiedSubcategoryField,
@@ -242,14 +243,20 @@ export const Route = createFileRoute("/listings/$listingId")({
       city: listing.city,
       state: listing.state,
       ended: listing.ended?.reason ?? null,
-      shareImage: listing.externalMerchandise ? listing.images[0]?.url : listing.images.length ? `/media/listings/${listing.id}/0` : undefined,
+      shareImage: listing.externalMerchandise
+        ? listing.images[0]?.url
+        : listing.images.length
+          ? `/media/listings/${listing.id}/0`
+          : undefined,
       leadImage: listing.images[0]?.url,
-      // Partner jobs and unclaimed directory businesses aren't Bluebird
-      // content: followed, never indexed, no listing markup.
-      external: Boolean(listing.externalJob || listing.directory || listing.externalMerchandise),
+      // Rich, recently verified directory facts may be useful search results.
+      // Truncated jobs and affiliate copies remain followed/noindex.
+      external: !isIndexablePartnerDetail(listing),
       onlineRetailer: Boolean(listing.externalMerchandise),
       structuredData:
-        listing.externalJob || listing.directory || listing.externalMerchandise ? [] : listingStructuredData(listing),
+        listing.externalJob || listing.directory || listing.externalMerchandise
+          ? []
+          : listingStructuredData(listing),
     };
   },
   head: ({ loaderData }) => {

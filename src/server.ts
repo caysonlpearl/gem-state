@@ -117,6 +117,16 @@ export default {
       const entryMs = performance.now() - entryStarted;
       const renderStarted = performance.now();
       const response = await handler.fetch(request, env, ctx);
+      if (request.method === "GET") {
+        const runtime = ctx as { waitUntil?: (task: Promise<unknown>) => void } | undefined;
+        if (runtime?.waitUntil) {
+          runtime.waitUntil(
+            import("./lib/seo-page-cache.server")
+              .then((module) => Promise.all(module.pendingSeoPageRefreshes()))
+              .catch(() => null),
+          );
+        }
+      }
       const renderMs = performance.now() - renderStarted;
       const normalized = lowerModulePreloadPriority(
         await normalizeCatastrophicSsrResponse(response),

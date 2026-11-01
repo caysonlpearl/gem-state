@@ -13,6 +13,7 @@ import { isReleaseQaListing } from "@/lib/classifieds.functions";
 import { isIndexablePlaceInventory, isSeoTestListing, matchesSeoPlace } from "@/lib/seo-policy";
 import { listingPath } from "@/lib/listing-url";
 import { regionOfListing } from "@/lib/market-stats";
+import { seoCollections, collectionMatches, collectionAvailableIn } from "./seo-collections";
 
 /**
  * Which landing pages (city, region, category, make and model) each live
@@ -36,6 +37,10 @@ type ListingPlace = {
   state: string | null;
   vehicle_make: string | null;
   vehicle_model: string | null;
+  home_mode?: string | null;
+  home_property_type?: string | null;
+  service_subcategory?: string | null;
+  job_employment_type?: string | null;
 };
 
 /**
@@ -73,7 +78,7 @@ export async function fetchLiveListings(admin: any): Promise<LiveListingRow[] | 
     const { data, error } = await admin
       .from("asks")
       .select(
-        "id, seller_id, dealer_id, created_at, updated_at, products!inner(name, status, categories!inner(slug)), classified_listing_details!inner(listing_id, city, region, state, vehicle_make, vehicle_model)",
+        "id, seller_id, dealer_id, created_at, updated_at, products!inner(name, status, categories!inner(slug)), classified_listing_details!inner(listing_id, city, region, state, vehicle_make, vehicle_model, home_mode, home_property_type, service_subcategory, job_employment_type)",
       )
       .eq("status", "active")
       .eq("is_demo", false)
@@ -124,6 +129,24 @@ export function landingPathsFor(
   const model = make ? canonicalModel(make, details?.vehicle_model) : null;
   if (make) add(vehiclePagePath(make), MAKE_PAGE_MIN_LISTINGS);
   if (make && model) add(vehiclePagePath(make, model), MODEL_PAGE_MIN_LISTINGS);
+  const collections = seoCollections.filter((collection) =>
+    collectionMatches(collection, {
+      categorySlug,
+      home: { mode: details?.home_mode, propertyType: details?.home_property_type },
+      service: { subcategory: details?.service_subcategory },
+      job: { employmentType: details?.job_employment_type },
+    }),
+  );
+  for (const collection of collections) {
+    add(categoryPagePath(collection.slug));
+    for (const city of idahoCities) {
+      if (
+        collectionAvailableIn(collection, city) &&
+        matchesSeoPlace({ kind: "city", name: city }, geography, isWithinClassifiedCityRadius)
+      )
+        add(placePath(city, collection.slug));
+    }
+  }
   return paths;
 }
 

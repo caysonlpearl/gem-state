@@ -81,12 +81,16 @@ function harness({
 } = {}) {
   const includes = new Set(enabled);
   const adapterCalls = [];
+  const adapterArguments = [];
   const directoryCalls = [];
-  const cards = (name) => async () => {
-    adapterCalls.push(name);
-    await beforeProvider();
-    return external;
-  };
+  const cards =
+    (name) =>
+    async (...args) => {
+      adapterCalls.push(name);
+      adapterArguments.push({ name, args });
+      await beforeProvider();
+      return external;
+    };
   const selections = [];
   const nativeFilters = [];
   const nativeSelections = [];
@@ -271,6 +275,7 @@ function harness({
     },
     providerReads,
     adapterCalls,
+    adapterArguments,
     directoryCalls,
     browse,
     validate: (page) => {
@@ -775,8 +780,58 @@ test("invalid category discards preparation without invoking provider adapters",
 
 
 test("native browse deadline rejects instead of returning provider-only success", async () => {
-  const h = harness({ enabled: ["marketcheck"], external: [{ id: "provider" }],
-    deadlineRead: async () => { throw new Error("Catalog data took too long"); },
+  const h = harness({
+    enabled: ["marketcheck"],
+    external: [{ id: "provider" }],
+    deadlineRead: async () => {
+      throw new Error("Catalog data took too long");
+    },
   });
   await assert.rejects(h.internal(), /Catalog data took too long/);
+});
+
+test("SEO review loads 192 cards in one native read and forces cached provider operations", async () => {
+  const h = harness({
+    records: fixtures.map((row) => ({ ...row, state: "ID", city: "Boise" })),
+    filters: { state: "ID", city: "Boise", radiusMiles: 25 },
+    enabled: ["adzuna", "marketcheck", "rescuegroups"],
+  });
+  const result = await h.internal({ pageSize: 192, readOnlyProviders: true, readOnlyHome: true });
+  assert.equal(result.listings.length, 192);
+  assert.equal(result.pageSize, 192);
+  assert.equal(h.ranges.length, 1);
+  assert.ok(
+    h.nativeFilters.some(
+      ([field, value]) => field === "classified_listing_details.state" && value === "ID",
+    ),
+  );
+  assert.equal(h.adapterArguments.find((x) => x.name === "adzuna").args[2].cacheOnly, true);
+  assert.equal(h.adapterArguments.find((x) => x.name === "marketcheck").args[1].cacheOnly, true);
+  assert.equal(h.adapterArguments.find((x) => x.name === "rescuegroups").args[1].cacheOnly, true);
+  assert.deepEqual(h.providerReads, []);
+});
+
+test("SEO city radius never counts nearby out-of-state partner inventory as Idaho", async () => {
+  const h = harness({
+    records: [],
+    filters: { category: "cars-trucks", state: "ID", city: "Coeur d'Alene", radiusMiles: 25 },
+    enabled: ["marketcheck"],
+    external: [
+      {
+        ...fixtures[0],
+        state: "ID",
+        city: "Coeur d'Alene",
+        externalVehicle: { sourceKind: "dealer" },
+      },
+      {
+        ...fixtures[1],
+        state: "WA",
+        city: "Liberty Lake",
+        externalVehicle: { sourceKind: "dealer" },
+      },
+    ],
+  });
+  const result = await h.internal({ pageSize: 192, readOnlyProviders: true, readOnlyHome: true });
+  assert.equal(result.total, 1);
+  assert.equal(result.listings[0].state, "ID");
 });

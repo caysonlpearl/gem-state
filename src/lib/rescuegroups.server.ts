@@ -79,21 +79,29 @@ export function canIncludeRescueGroups(data: ClassifiedBrowseInput) {
 }
 
 /** One center's pets: cached, refreshed about twice a day, stale on failure. */
-async function centerPets(center: (typeof CENTERS)[number]): Promise<RescueGroupsPet[]> {
+async function centerPets(
+  center: (typeof CENTERS)[number],
+  cacheOnly = false,
+): Promise<RescueGroupsPet[]> {
   const db = cacheDb() as any;
   const key = apiKey();
   if (!db) return [];
   const cacheKey = `rescuegroups:v1:${center.key}`;
-  const { data: cached } = await withCatalogReadDeadline<{ data: { payload?: { pets?: RescueGroupsPet[] }; expires_at: string } | null }>(db
-    .from("rescuegroups_cache")
-    .select("payload,expires_at")
-    .eq("cache_key", cacheKey)
-    .maybeSingle());
+  const { data: cached } = await withCatalogReadDeadline<{
+    data: { payload?: { pets?: RescueGroupsPet[] }; expires_at: string } | null;
+  }>(
+    db
+      .from("rescuegroups_cache")
+      .select("payload,expires_at")
+      .eq("cache_key", cacheKey)
+      .maybeSingle(),
+  );
   const pets = (cached?.payload?.pets ?? []) as RescueGroupsPet[];
   const fresh = cached && Date.parse(cached.expires_at) > Date.now();
   // Crawlers and fresh caches never trigger provider calls.
+  if (fresh || !key || cacheOnly) return pets;
   const fromBot = BOT.test(getRequest()?.headers.get("user-agent") ?? "");
-  if (fresh || fromBot || !key) return pets;
+  if (fromBot) return pets;
 
   const { data: reservation } = await db.rpc("reserve_rescuegroups_call", {
     p_cache_key: cacheKey,
@@ -130,8 +138,8 @@ async function centerPets(center: (typeof CENTERS)[number]): Promise<RescueGroup
   }
 }
 
-async function allPets() {
-  const lists = await Promise.all(CENTERS.map((center) => centerPets(center)));
+async function allPets(cacheOnly = false) {
+  const lists = await Promise.all(CENTERS.map((center) => centerPets(center, cacheOnly)));
   return [...new Map(lists.flat().map((pet) => [pet.id, pet])).values()];
 }
 
@@ -201,7 +209,10 @@ export function rescueGroupsCard(pet: RescueGroupsPet): ClassifiedCard {
   } as ClassifiedCard;
 }
 
-export async function rescueGroupsCards(data: ClassifiedBrowseInput): Promise<ClassifiedCard[]> {
+export async function rescueGroupsCards(
+  data: ClassifiedBrowseInput,
+  options?: { cacheOnly?: boolean },
+): Promise<ClassifiedCard[]> {
   if (!canIncludeRescueGroups(data)) return [];
   const q = data.q?.trim().toLowerCase();
   // A state-only filter constrains rescues to that state. For a city-radius
@@ -210,7 +221,7 @@ export async function rescueGroupsCards(data: ClassifiedBrowseInput): Promise<Cl
     ? (usStates.find(([code, name]) => code === data.state || name === data.state)?.[0] ??
       data.state.toUpperCase())
     : null;
-  return (await allPets())
+  return (await allPets(options?.cacheOnly))
     .filter(
       (pet) =>
         (!(state && !hasClassifiedRadiusCenter(data)) || pet.org?.state === state) &&

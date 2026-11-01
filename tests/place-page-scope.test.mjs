@@ -40,5 +40,5 @@ test("landing metadata lists the same region cards displayed and exposes statist
   assert.match(page, /Not a total sales count/);
   const functions = read("../src/lib/place-pages.functions.ts");
   assert.equal((functions.match(/statisticsNote: `/g) ?? []).length, 2);
-  assert.match(functions, /category: "cars-trucks", state: "ID", make,.*limit: 8/);
+  assert.match(functions, /category:\s*"cars-trucks",\s*state:\s*"ID",\s*make,[\s\S]*?limit:\s*8/);
 });

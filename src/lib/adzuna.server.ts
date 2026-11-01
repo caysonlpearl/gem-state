@@ -4,6 +4,27 @@ import { normalizeAdzunaResult, type AdzunaSearch, type AdzunaResult } from "./a
 
 const empty = (status: "unavailable" | "limited"): AdzunaResult => ({ status, jobs: [], total: 0 });
 
+/** Search landing pages use already-purchased jobs and cannot reserve calls. */
+export async function cachedJobs(): Promise<AdzunaResult> {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Provider cache tables are not generated yet.
+  const { data, error } = await (supabaseAdmin as any)
+    .from("adzuna_search_cache")
+    .select("payload")
+    .gt("expires_at", new Date().toISOString())
+    .order("expires_at", { ascending: false })
+    .limit(100);
+  if (error) return empty("unavailable");
+  const jobs = [
+    ...new Map(
+      (data ?? [])
+        .flatMap((row: { payload: AdzunaResult }) => row.payload.jobs ?? [])
+        .map((job: AdzunaResult["jobs"][number]) => [job.id, job] as const),
+    ).values(),
+  ] as AdzunaResult["jobs"];
+  return { status: "ok", jobs, total: jobs.length };
+}
+
 export async function searchJobs(input: AdzunaSearch): Promise<AdzunaResult> {
   const appId = serverEnv("ADZUNA_APP_ID");
   const appKey = serverEnv("ADZUNA_APP_KEY");
