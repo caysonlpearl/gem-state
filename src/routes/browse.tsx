@@ -2330,6 +2330,7 @@ function Browse() {
         </>
       )}
 
+      {firearms && <FirearmsConsentDialog />}
       {firearms && firearmLanding && (
         <FirearmsLandingHero
           term={term}
