@@ -127,6 +127,12 @@ async function fetchListings(filters: Filters) {
   return { listings: result.listings, total: result.total, incomplete: result.incomplete === true };
 }
 
+// Related categories/cities are optional navigation. An unrelated source
+// outage must not discard the successful main inventory or its indexability.
+async function optionalListings(filters: Filters) {
+  return fetchListings(filters).catch(() => ({ listings: [], total: 0, incomplete: true }));
+}
+
 function countBy<T>(items: T[], key: (item: T) => string | null | undefined) {
   const counts = new Map<string, number>();
   for (const item of items) {
@@ -191,15 +197,15 @@ export const getPlacePage = createServerFn({ method: "GET" })
         const [main, placeWide, categoryWide, recentlySold] = await Promise.all([
           mainRequest,
           collection
-            ? fetchListings(filtersFor(place, category!.slug))
+            ? optionalListings(filtersFor(place, category!.slug))
             : place && category && category.slug !== "other-real-estate"
-              ? fetchListings(filtersFor(place, null))
+              ? optionalListings(filtersFor(place, null))
               : mainRequest,
           category
             ? place
-              ? fetchListings(filtersFor(null, category.slug, collection))
+              ? optionalListings(filtersFor(null, category.slug, collection))
               : mainRequest
-            : fetchListings(filtersFor(null, null)),
+            : optionalListings(filtersFor(null, null)),
           collection
             ? []
             : getRecentlySoldListings({
@@ -212,7 +218,7 @@ export const getPlacePage = createServerFn({ method: "GET" })
                   state: "ID",
                   limit: 8,
                 },
-              }),
+              }).catch(() => []),
         ]);
         const phrase =
           collection ?? (category ? categoryPhrase(category.slug, category.name) : null);
@@ -536,7 +542,7 @@ export const getVehiclePage = createServerFn({ method: "GET" })
         });
         const [main, makeWide, recentlySold] = await Promise.all([
           mainRequest,
-          model ? fetchListings({ category: "cars-trucks", state: "ID", make }) : mainRequest,
+          model ? optionalListings({ category: "cars-trucks", state: "ID", make }) : mainRequest,
           getRecentlySoldListings({
             data: {
               category: "cars-trucks",
@@ -545,7 +551,7 @@ export const getVehiclePage = createServerFn({ method: "GET" })
               ...(model ? { model } : {}),
               limit: 8,
             },
-          }),
+          }).catch(() => []),
         ]);
         const name = model ? `${make} ${model}` : make;
         const noun = model ? pluralModel(name) : `${make} cars and trucks`;

@@ -107,9 +107,14 @@ export default {
         const background = runtime?.waitUntil?.bind(runtime) ?? extended.waitUntil?.bind(extended);
         if (background)
           background(
-            import("./lib/homepage-snapshot.server")
-              .then((module) => module.refreshHomepageSnapshot())
-              .catch(() => console.warn("Homepage refresh deferred; saved inventory retained.")),
+            Promise.all([
+              import("./lib/homepage-snapshot.server")
+                .then((module) => module.refreshHomepageSnapshot())
+                .catch(() => console.warn("Homepage refresh deferred; saved inventory retained.")),
+              import("./lib/seo-prewarm.server")
+                .then((module) => module.prewarmSeoPages())
+                .catch(() => null),
+            ]),
           );
       }
       const entryStarted = performance.now();
@@ -149,6 +154,9 @@ export default {
   async scheduled(controller: unknown, env: unknown, ctx: unknown) {
     registerRuntimeBindings(env);
     const task = Promise.all([
+      import("./lib/seo-prewarm.server")
+        .then((module) => module.prewarmSeoPages())
+        .catch(() => null),
       import("./lib/homepage-snapshot.server")
         .then((module) => module.refreshHomepageSnapshot())
         .catch(() => null),
