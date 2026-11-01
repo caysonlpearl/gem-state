@@ -1,6 +1,7 @@
 ## Project guidance
 
 Boise hub editorial content is scoped to the uncategorized Boise page; shared inventory queries and SEO eligibility gates remain authoritative so content work cannot manufacture inventory or index thin pages.
+Vehicle sitemap landing eligibility includes the existing public cached provider inventory without provider calls or member writes; seen dates are freshness evidence, not lastmod, and failed source reads return an unavailable sitemap rather than partial XML.
 
 This repository is deployed independently of the original hosted builder. Keep
 Supabase credentials server-side where required, preserve the generated route
