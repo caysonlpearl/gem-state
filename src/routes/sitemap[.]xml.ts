@@ -5,7 +5,8 @@ import { isSitemapAllowedPath } from "@/lib/seo-policy";
 import { guides } from "@/content/guides";
 import { dealerSitemapEntries } from "@/lib/dealer-sitemap.server";
 import { listingPath } from "@/lib/listing-url";
-import { fetchLiveListings, tallyLandingPages } from "@/lib/landing-pages.server";
+import { fetchLiveListings, tallyLandingPages, landingPathsFor } from "@/lib/landing-pages.server";
+import { vehicleLandingReferences } from "@/lib/vehicle-sitemap";
 import { reportMonthOf } from "@/lib/market-stats";
 import { MARKET_REPORT_MIN_LISTINGS } from "@/lib/market-report.functions";
 import { newsSitemapArticles } from "@/lib/editorial.functions";
@@ -49,7 +50,6 @@ export const Route = createFileRoute("/sitemap.xml")({
     handlers: {
       GET: async () => {
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const nowIso = new Date().toISOString();
 
         const live = await fetchLiveListings(supabaseAdmin);
         if (!live) return new Response("Sitemap unavailable", { status: 503 });
@@ -58,6 +58,24 @@ export const Route = createFileRoute("/sitemap.xml")({
         if (!dealers) return new Response("Sitemap unavailable", { status: 503 });
 
         const pages = tallyLandingPages(listings);
+        // Public browse includes cached dealer/private vehicles that are not asks.
+        // Reuse that cache without provider requests or writes. Failure is not an empty catalog.
+        const { marketCheckCards } = await import("@/lib/marketcheck.server");
+        let cachedVehicles;
+        try {
+          cachedVehicles = await marketCheckCards(
+            { category: "cars-trucks", state: "ID" },
+            { cacheOnly: true },
+          );
+        } catch {
+          return new Response("Sitemap unavailable", { status: 503 });
+        }
+        for (const reference of vehicleLandingReferences(cachedVehicles)) {
+          for (const { path, minimum } of landingPathsFor("cars-trucks", reference.details)) {
+            // Seen dates qualify freshness but are not content-modification timestamps.
+            pages.add(path, reference.createdAt, "", minimum);
+          }
+        }
         const sellerLastmod = new Map<string, string>();
         for (const row of listings) {
           if (!sellerLastmod.has(row.seller_id)) sellerLastmod.set(row.seller_id, row.updated_at);
@@ -66,26 +84,28 @@ export const Route = createFileRoute("/sitemap.xml")({
         const sellerIds = Array.from(sellerLastmod.keys());
         const sellerSlugs = new Map<string, string>();
         for (let i = 0; i < sellerIds.length; i += 500) {
-          const { data: sellers } = await supabaseAdmin
+          const { data: sellers, error } = await supabaseAdmin
             .from("seller_profiles")
             .select("user_id, slug")
             .in("user_id", sellerIds.slice(i, i + 500))
             .eq("status", "active");
+          if (error) return new Response("Sitemap unavailable", { status: 503 });
           for (const seller of sellers ?? []) sellerSlugs.set(seller.user_id, seller.slug);
         }
 
         // Monthly market reports: this month's once enough listings are live,
         // and past months whose saved report passed the same bar.
-        const reportMonths: { month: string; lastmod: string }[] = [];
+        const reportMonths: { month: string; lastmod?: string }[] = [];
         const currentMonth = reportMonthOf(new Date());
         if (listings.length >= MARKET_REPORT_MIN_LISTINGS)
-          reportMonths.push({ month: currentMonth, lastmod: nowIso });
+          reportMonths.push({ month: currentMonth });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Report snapshots are not in the generated Supabase types.
-        const { data: savedReports } = await (supabaseAdmin as any)
+        const { data: savedReports, error: reportsError } = await (supabaseAdmin as any)
           .from("market_report_snapshots")
           .select("month, updated_at, report->totals->live")
           .neq("month", currentMonth)
           .limit(120);
+        if (reportsError) return new Response("Sitemap unavailable", { status: 503 });
         for (const saved of (savedReports ?? []) as {
           month: string;
           updated_at: string;
@@ -95,7 +115,12 @@ export const Route = createFileRoute("/sitemap.xml")({
             reportMonths.push({ month: saved.month, lastmod: saved.updated_at });
         }
 
-        const articles = await newsSitemapArticles().catch(() => []);
+        let articles;
+        try {
+          articles = await newsSitemapArticles();
+        } catch {
+          return new Response("Sitemap unavailable", { status: 503 });
+        }
         const entries = [
           ...articles.map((article) =>
             urlEntry(`/news/${article.slug}`, {
