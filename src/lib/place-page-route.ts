@@ -29,6 +29,7 @@ export function placePageHead(data: PlacePageData | null | undefined) {
       { property: "og:title", content: data.title },
       { property: "og:description", content: data.description },
       { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
     ],
     scripts: [
       jsonLdScript(

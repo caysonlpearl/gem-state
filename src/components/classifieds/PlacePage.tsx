@@ -189,6 +189,7 @@ export function PlacePage({ data }: { data: PlacePageData }) {
   const seeAll = browseHref(data.browseSearch);
   const categorySlug = String(data.browseSearch["category"] ?? "");
   const isFirearmsPage = categorySlug === "firearms";
+  const isBoiseHub = data.browseSearch["city"] === "Boise" && !categorySlug;
   return (
     <main className="mx-auto max-w-[1360px] space-y-10 px-4 py-6 sm:px-7 sm:py-8 lg:px-10">
       <div>
@@ -287,6 +288,29 @@ export function PlacePage({ data }: { data: PlacePageData }) {
       )}
 
       <PriceTables tables={data.priceTables} />
+      {isBoiseHub ? (
+        <section className="border-t border-border/70 pt-8">
+          <h2 className="text-[20px] font-bold">Buying and selling in Boise</h2>
+          <p className="mt-2 max-w-[70ch] text-[14px] leading-relaxed text-muted-foreground">
+            Compare the listing details and asking price before contacting a seller. For a vehicle,
+            check the title, VIN and condition before paying. Plan a public meeting and keep payment
+            details and verification codes private.
+          </p>
+          <ul className="mt-4 space-y-2 text-[14px] font-semibold text-primary">
+            {[
+              { path: "/guides/how-to-buy-a-used-car-in-idaho", label: "Buying a used car: title checks and paperwork" },
+              { path: "/guides/new-to-idaho-title-and-register-your-vehicle", label: "New to Idaho: vehicle title and registration checklist" },
+              { path: "/guides/marketplace-scams-to-watch-for", label: "Marketplace scams and warning signs" },
+            ].map((link) => (
+              <li key={link.path}>
+                <a href={link.path} className="inline-flex min-h-11 items-center gap-1 hover:underline">
+                  {link.label} <ArrowRight size={13} aria-hidden="true" />
+                </a>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       <RecentlySold listings={data.recentlySold} />
       {data.extraLinks.map((row) => (
         <LinkChips key={row.heading} heading={row.heading} links={row.links} />
