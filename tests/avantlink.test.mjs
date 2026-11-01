@@ -51,9 +51,12 @@ function database(handler) {
   const calls = [];
   const db = {
     calls,
-    async rpc(name, args) {
+    rpc(name, args) {
       calls.push({ rpc: name, args });
-      return handler({ rpc: name, args });
+      const query = Promise.resolve(handler({ rpc: name, args }));
+      query.abortSignal = () => query;
+      query.retry = () => query;
+      return query;
     },
     from(table) {
       const call = { table, ops: [] };
@@ -464,29 +467,21 @@ test("shotgun and ammo refreshes use ten-item pages without prematurely retiring
 });
 
 
-test("background previews sample every existing scope with compact fields and no provider requests", async (t) => {
+test("background previews use one bulk read and make no provider requests", async (t) => {
   t.mock.method(globalThis, "fetch", () => { throw Error("upstream request forbidden"); });
-  const scopes = ["Gear/Apparel", "Gear/Shirts", "Gear/Hats", "Gear/Drinkware", "Gear/Patches And Stickers"];
   const db = database(call => {
-    if (call.table === "avantlink_merchandise_scopes") return {data: scopes.map(scope_key => ({scope_key}))};
-    assert.equal(call.table, "avantlink_merchandise");
-    return {data: [{...row, ...timestamps}]};
+    assert.equal(call.rpc, "homepage_merchandise_previews");
+    assert.equal(call.args.p_per_scope, 12);
+    return {data:[{...timestamps,product:row}]};
   });
   const cards = await merchandiseHomeCards(db);
-  assert.equal(cards.length, scopes.length);
-  const reads = db.calls.filter(c => c.table === "avantlink_merchandise");
-  assert.deepEqual(reads.map(c => c.ops.find(o => o.method === "eq" && o.args[0] === "scope_key").args[1]), scopes);
-  for (const read of reads) {
-    const selection = read.ops.find(o => o.method === "select").args[0];
-    assert.doesNotMatch(selection, /txtLongDescription|txtShortDescription|strProductContentWidgetScript/);
-    assert.match(selection, /strProductName:payload->raw->strProductName/);
-    assert.equal(read.ops.find(o => o.method === "limit").args[0], 12);
-    assert.ok(read.ops.some(o => o.method === "eq" && o.args[0] === "active" && o.args[1] === true));
-  }
+  assert.equal(cards.length, 1);
+  assert.equal(cards[0].id, "avantlink-1067506");
+  assert.equal(cards[0].priceCents, 2499);
+  assert.equal(db.calls.length, 1, "scope count cannot increase outbound requests");
 });
 
-test("a failed saved-scope read rejects so the builder retains last-good previews", async () => {
-  const db = database(call => call.table === "avantlink_merchandise_scopes"
-    ? {data:[{scope_key:"Gear/Apparel"}]} : {error:{message:"temporary failure"}});
+test("a failed bulk read rejects so the builder retains last-good previews", async () => {
+  const db = database(() => ({error:{message:"temporary failure"}}));
   await assert.rejects(merchandiseHomeCards(db), /Saved product previews/);
 });

@@ -5,7 +5,7 @@ import { matchesLandingCard } from "./landing-card-pool.ts";
 import { classifiedCategories } from "../config/classifieds.ts";
 
 export const HOME_SNAPSHOT_VERSION = 1;
-export const HOME_CACHE_LAYOUT_VERSION = 4;
+export const HOME_CACHE_LAYOUT_VERSION = 5;
 export const HOME_REFRESH_MS = 5 * 60_000;
 export const HOME_MAX_STALE_MS = 6 * 60 * 60_000;
 export const HOME_SOURCE_KEYS = [
@@ -29,6 +29,9 @@ export type HomepageSnapshot = {
   layoutVersion?: number;
   generatedAt: number;
   sections: Partial<Record<HomeSourceKey, HomeSection>>;
+  sourceFailures?: Partial<
+    Record<HomeSourceKey, { at: number; reason: "timeout" | "request_limit" | "unavailable" }>
+  >;
 };
 
 /** Explicit public-card projection: never persist raw provider payloads, seller

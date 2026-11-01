@@ -1,6 +1,7 @@
+import { withCatalogReadDeadline } from "./catalog-read-deadline.ts";
 /* eslint-disable @typescript-eslint/no-explicit-any -- tables added after the generated types */
 import { findIdahoPlace, idahoPlaces } from "../config/idaho-places.ts";
-import { serverEnv } from "./runtime-env.server";
+import { serverEnv } from "./runtime-env.server.ts";
 import { logoImageUrl } from "./employer-logo-match.ts";
 import {
   DIRECTORY_COLUMNS,
@@ -31,6 +32,22 @@ export function logoFor(row: DirectoryRow) {
   const key = serverEnv("LOGO_DEV_PUBLISHABLE_KEY");
   const domain = websiteDomain(row.enrichment?.website ?? row.website);
   return key && domain ? logoImageUrl(domain, key) : null;
+}
+
+/** Saved homepage candidates, sampled by trade in one read. This must not
+ * fan out across the network during a hosted background refresh. */
+export async function directoryHomeCards(
+  trades: string[],
+  injectedDb?: any,
+): Promise<ClassifiedCard[]> {
+  const client = injectedDb ?? (await db());
+  const { data, error } = await withCatalogReadDeadline<any>(
+    client
+      .rpc("homepage_service_previews", { p_trades: [...new Set(trades)], p_per_trade: 8 })
+      .select(DIRECTORY_COLUMNS),
+  );
+  if (error) throw new Error("Saved services could not be read.");
+  return ((data ?? []) as DirectoryRow[]).map((row) => directoryCard(row, logoFor(row)));
 }
 
 /**
