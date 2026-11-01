@@ -53,29 +53,12 @@ const sources: Sources = {
     return { cards: await withEmployerLogos(cards, { cacheOnly: true }) };
   },
   async services() {
-    const { directoryCards } = await import("./service-directory.server");
+    const { directoryHomeCards } = await import("./service-directory.server");
     const { servicesShowcaseRows } = await import("../config/landing-service-rows.ts");
-    const cards: ClassifiedCard[] = [];
-    const signal = AbortSignal.timeout(20_000);
-    // Background only: three bounded indexed trade reads at a time. A busy
-    // trade cannot displace every plumber/electrician from the saved page.
-    for (let index = 0; index < servicesShowcaseRows.length; index += 3) {
-      const batch = await Promise.all(
-        servicesShowcaseRows.slice(index, index + 3).map(async (row) => {
-          const trade = new URL(row.href, "https://onbluebird.com").searchParams.get(
-            "serviceSubcategory",
-          )!;
-          return directoryCards(
-            { category: "services", state: "ID", serviceSubcategory: trade },
-            0,
-            8,
-            { failOnError: true, includeExactCount: false, signal },
-          );
-        }),
-      );
-      cards.push(...batch.flatMap((result) => result.cards));
-    }
-    return { cards };
+    const trades = servicesShowcaseRows.map((row) =>
+      new URL(row.href, "https://onbluebird.com").searchParams.get("serviceSubcategory")!,
+    );
+    return { cards: await directoryHomeCards(trades) };
   },
   async pets() {
     const { rescueGroupsCard } = await import("./rescuegroups.server");
@@ -126,6 +109,7 @@ export async function buildHomepageSnapshot(
     (injected?.removed ?? moderatedIds)(),
   ]);
   const sections: HomepageSnapshot["sections"] = {};
+  const sourceFailures: NonNullable<HomepageSnapshot["sourceFailures"]> = {};
   for (const [index, key] of HOME_SOURCE_KEYS.entries()) {
     const result = results[index];
     let section: HomeSection | undefined;
@@ -139,7 +123,16 @@ export async function buildHomepageSnapshot(
     } else {
       const saved = previous?.sections[key];
       if (saved && now - saved.updatedAt <= HOME_MAX_STALE_MS) section = saved;
-      console.warn(`Homepage source temporarily unavailable: ${key}`);
+      const message = result.reason instanceof Error ? result.reason.message : "";
+      const reason = /subrequests|request limit/i.test(message)
+        ? "request_limit"
+        : /timeout|aborted|too long|deadline/i.test(message)
+          ? "timeout"
+          : "unavailable";
+      sourceFailures[key] = { at: now, reason };
+      // Keep diagnostics machine-readable without leaking provider payloads,
+      // credentials, SQL, or raw database errors into the public snapshot.
+      console.warn(`Homepage source temporarily unavailable: ${key} (${reason})`);
     }
     if (section)
       sections[key] = { ...section, cards: section.cards.filter((card) => !removed.has(card.id)) };
@@ -150,5 +143,6 @@ export async function buildHomepageSnapshot(
     layoutVersion: HOME_CACHE_LAYOUT_VERSION,
     generatedAt: now,
     sections,
+    sourceFailures,
   };
 }
