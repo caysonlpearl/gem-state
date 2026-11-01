@@ -53,7 +53,7 @@ export function FirearmsConsentDialog() {
           </DialogDescription>
         </DialogHeader>
         <ul className="list-disc space-y-1.5 pl-5 text-sm text-muted-foreground">
-          <li>Follow all federal, Idaho, and local laws, including background checks and transfer rules.</li>
+          <li>Follow all federal, state, and local laws, including background checks and transfer rules.</li>
           <li>Meet in safe public places and verify the buyer is legally allowed to own a firearm.</li>
           <li>Store and transport firearms unloaded and secured.</li>
           <li>Bluebird does not handle or ship firearms, run background checks, or verify buyers.</li>
