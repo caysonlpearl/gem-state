@@ -10,6 +10,21 @@ const source = {
   contentType: "image/jpeg",
   url: "https://offline.invalid/private",
 };
+test("the default fetch adapter does not rebind the browser's native function to its dependency object", async () => {
+  const original = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = function () {
+    if (this !== undefined && this !== globalThis) throw new TypeError("Illegal invocation");
+    calls++;
+    return Promise.resolve(new Response("", { status: 503 }));
+  };
+  try {
+    await assert.rejects(() => prepareMigrationPreview(source), /source could not be read/);
+    assert.equal(calls, 1);
+  } finally {
+    globalThis.fetch = original;
+  }
+});
 test("preview performs exactly one reserved GET and binds its small result to the failed source", async () => {
   let calls = 0;
   const result = await prepareMigrationPreview(source, {
