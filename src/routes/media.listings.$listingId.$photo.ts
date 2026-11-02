@@ -2,6 +2,7 @@ import { getPhotoStorageModule } from "@/lib/photo-storage-access";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { ENDED_LISTING_RETENTION_DAYS } from "@/lib/classifieds.functions";
+import { withCatalogReadDeadline } from "@/lib/catalog-read-deadline";
 
 const MAX_PHOTOS = 20;
 
@@ -17,65 +18,81 @@ export const Route = createFileRoute("/media/listings/$listingId/$photo")({
   server: {
     handlers: {
       GET: async ({ params }) => {
-        const notFound = () => new Response("Not found", { status: 404 });
+        const notFound = () =>
+          new Response("Not found", {
+            status: 404,
+            headers: { "Cache-Control": "no-store" },
+          });
         const index = Number(params.photo);
-        if (!/^[0-9a-f-]{36}$/i.test(params.listingId)) return notFound();
+        if (
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(params.listingId)
+        )
+          return notFound();
         if (!Number.isInteger(index) || index < 0 || index >= MAX_PHOTOS) return notFound();
 
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { data: row, error } = await supabaseAdmin
-          .from("asks")
-          .select(
-            "id, status, expires_at, updated_at, products!inner(status), listing_media(storage_path, position)",
-          )
-          .eq("id", params.listingId)
-          .in("status", ["active", "expired", "cancelled"])
-          .eq("is_demo", false)
-          .not("approved_at", "is", null)
-          .eq("products.status", "published")
-          .maybeSingle();
-        if (error) console.error("listing photo lookup failed", error.message);
-        if (!row) return notFound();
+        try {
+          const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+          const { data: row, error } = await withCatalogReadDeadline((signal) =>
+            supabaseAdmin
+              .from("asks")
+              .select(
+                "id, status, expires_at, sold_at, products!inner(status), listing_media(storage_path, position)",
+              )
+              .eq("id", params.listingId)
+              .in("status", ["active", "expired", "cancelled"])
+              .eq("is_demo", false)
+              .not("approved_at", "is", null)
+              .eq("products.status", "published")
+              .abortSignal(signal)
+              .retry(false)
+              .maybeSingle(),
+          );
+          if (error) throw new Error("Listing photo source is unavailable.");
+          if (!row) return notFound();
 
-        const record = row as unknown as {
-          status: string;
-          expires_at: string;
-          updated_at: string;
-          listing_media: { storage_path: string; position: number | null }[] | null;
-        };
-        const retentionMs = ENDED_LISTING_RETENTION_DAYS * 86_400_000;
-        let endedAt: string | null = null;
-        if (record.status === "expired" || Date.parse(record.expires_at) <= Date.now())
-          endedAt = record.expires_at;
-        if (record.status === "cancelled") {
-          // Only a listing its seller marked sold stays visible; a take-down doesn't.
-          const { data: sold } = await supabaseAdmin
-            .from("asks")
-            .select("sold_at")
-            .eq("id", params.listingId)
-            .maybeSingle();
-          if (!sold?.sold_at) return notFound();
-          endedAt = sold.sold_at;
+          const record = row as unknown as {
+            status: string;
+            expires_at: string;
+            sold_at: string | null;
+            listing_media: { storage_path: string; position: number | null }[] | null;
+          };
+          const retentionMs = ENDED_LISTING_RETENTION_DAYS * 86_400_000;
+          let endedAt: string | null = null;
+          if (record.status === "expired" || Date.parse(record.expires_at) <= Date.now())
+            endedAt = record.expires_at;
+          if (record.status === "cancelled") {
+            // Only a listing its seller marked sold stays visible; a take-down doesn't.
+            if (!record.sold_at) return notFound();
+            endedAt = record.sold_at;
+          }
+          if (endedAt && Date.parse(endedAt) + retentionMs <= Date.now()) return notFound();
+
+          const path = [...(record.listing_media ?? [])].sort(
+            (a, b) => Number(a.position ?? 0) - Number(b.position ?? 0),
+          )[index]?.storage_path;
+          if (!path) return notFound();
+
+          const { signPrivatePhotoUrls } = await getPhotoStorageModule();
+          const signed = (await signPrivatePhotoUrls("listing-media", [path])).get(path);
+          if (!signed) throw new Error("Listing photo signing is unavailable.");
+          return new Response(null, {
+            status: 302,
+            headers: {
+              Location: signed,
+              // Well inside the signed URL's hour, so a cached redirect never
+              // points at an expired link.
+              "Cache-Control": "public, max-age=600",
+            },
+          });
+        } catch {
+          // A temporary backend failure is not evidence that an indexed photo
+          // was removed. Do not cache a false 404 or expose signing details.
+          console.error("Listing photo is temporarily unavailable.");
+          return new Response("Photo temporarily unavailable. Please try again.", {
+            status: 503,
+            headers: { "Cache-Control": "no-store", "Retry-After": "60" },
+          });
         }
-        if (endedAt && Date.parse(endedAt) + retentionMs <= Date.now()) return notFound();
-
-        const path = [...(record.listing_media ?? [])].sort(
-          (a, b) => Number(a.position ?? 0) - Number(b.position ?? 0),
-        )[index]?.storage_path;
-        if (!path) return notFound();
-
-        const { signPrivatePhotoUrls } = await getPhotoStorageModule();
-        const signed = (await signPrivatePhotoUrls("listing-media", [path])).get(path);
-        if (!signed) return notFound();
-        return new Response(null, {
-          status: 302,
-          headers: {
-            Location: signed,
-            // Well inside the signed URL's hour, so a cached redirect never
-            // points at an expired link.
-            "Cache-Control": "public, max-age=600",
-          },
-        });
       },
     },
   },
