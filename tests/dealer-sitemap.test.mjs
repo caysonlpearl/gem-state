@@ -112,7 +112,7 @@ test("route indexability and sitemap integration use visible inventory and fail 
   );
   assert.match(
     source("routes/sitemap[.]xml.ts"),
-    /if \(!dealers\) return new Response\("Sitemap unavailable", \{ status: 503 \}\)/,
+    /if \(!dealers\) return unavailable\("dealers"\)/,
   );
   assert.match(source("lib/landing-pages.server.ts"), /id, seller_id, dealer_id, created_at/);
 });

@@ -51,14 +51,21 @@ type ListingPlace = {
 export class PageTally {
   private pages = new Map<
     string,
-    { count: number; minimum: number; newest: string; lastmod: string }
+    { count: number; minimum: number; newest: string; lastmod: string; currentCache: boolean }
   >();
 
-  add(path: string, createdAt: string, updatedAt: string, minimum = PLACE_PAGE_MIN_LISTINGS) {
+  add(
+    path: string,
+    createdAt: string,
+    updatedAt: string,
+    minimum = PLACE_PAGE_MIN_LISTINGS,
+    currentCache = false,
+  ) {
     const current = this.pages.get(path);
     this.pages.set(path, {
       minimum,
       count: (current?.count ?? 0) + 1,
+      currentCache: currentCache || current?.currentCache === true,
       newest: current && current.newest > createdAt ? current.newest : createdAt,
       lastmod: current && current.lastmod > updatedAt ? current.lastmod : updatedAt,
     });
@@ -66,7 +73,13 @@ export class PageTally {
 
   passing() {
     return Array.from(this.pages.entries()).filter(([, info]) =>
-      isIndexablePlaceInventory(info.count, info.newest, Date.now(), info.minimum),
+      isIndexablePlaceInventory(
+        info.count,
+        info.newest,
+        Date.now(),
+        info.minimum,
+        info.currentCache,
+      ),
     );
   }
 }
@@ -204,4 +217,3 @@ export async function pingListingChange(askId: string) {
     console.warn("IndexNow listing ping skipped", error);
   }
 }
-

@@ -55,14 +55,26 @@ async function cachedCall<T>(
   if (!apiKey || !db) return { ok: false, status: "unavailable" };
   const forceRefresh = options?.forceRefresh === true;
   let previousPayload: T | null = null;
+  let previousExpiresAt: string | null = null;
+  const restorePrevious = async () => {
+    if (!previousPayload || !previousExpiresAt) return;
+    try {
+      await db
+        .from("openwebninja_cache")
+        .upsert({ cache_key: key, payload: previousPayload, expires_at: previousExpiresAt });
+    } catch {
+      /* Retain the in-memory fallback if storage is unavailable. */
+    }
+  };
   try {
     if (forceRefresh) {
       const { data: previous } = await db
         .from("openwebninja_cache")
-        .select("payload")
+        .select("payload,expires_at")
         .eq("cache_key", key)
         .maybeSingle();
       previousPayload = (previous?.payload as T | undefined) ?? null;
+      previousExpiresAt = previous?.expires_at ?? null;
       await db.from("openwebninja_cache").delete().eq("cache_key", key);
     }
     const { data: reservation, error } =
@@ -72,10 +84,12 @@ async function cachedCall<T>(
             p_cache_key: key,
             p_provider: provider,
           });
-    if (error || !reservation)
+    if (error || !reservation) {
+      await restorePrevious();
       return previousPayload
         ? { ok: true, value: previousPayload }
         : { ok: false, status: "unavailable" };
+    }
     if (reservation.cached) return { ok: true, value: reservation.payload as T };
     if (!reservation.allowed) {
       const { data: stale } = await db
@@ -86,11 +100,7 @@ async function cachedCall<T>(
       if (stale) return { ok: true, value: stale.payload as T };
       if (previousPayload) {
         // A forced refresh removed the saved copy; put it back unchanged.
-        await db.from("openwebninja_cache").upsert({
-          cache_key: key,
-          payload: previousPayload,
-          expires_at: new Date(Date.now() + ttlMs).toISOString(),
-        });
+        await restorePrevious();
         return { ok: true, value: previousPayload };
       }
       return { ok: false, status: "limited" };
@@ -101,11 +111,7 @@ async function cachedCall<T>(
     });
     if (!response.ok) {
       if (previousPayload) {
-        await db.from("openwebninja_cache").upsert({
-          cache_key: key,
-          payload: previousPayload,
-          expires_at: new Date(Date.now() + ttlMs).toISOString(),
-        });
+        await restorePrevious();
         return { ok: true, value: previousPayload };
       }
       return { ok: false, status: response.status === 429 ? "limited" : "unavailable" };
@@ -119,6 +125,7 @@ async function cachedCall<T>(
     return { ok: true, value };
   } catch {
     // Provider errors must not expose request details or the API key.
+    await restorePrevious();
     return previousPayload
       ? { ok: true, value: previousPayload }
       : { ok: false, status: "unavailable" };
@@ -237,26 +244,15 @@ export async function propertyDetails(
 }
 
 export async function cachedHome(id: string) {
-  const db = cacheDb();
-  if (!db) return null;
-  const { data } = await db
-    .from("openwebninja_cache")
-    .select("cache_key,payload")
-    // Only the home lists; saved details (kept a year) would crowd them out.
-    .like("cache_key", '%search"%')
-    .order("expires_at", { ascending: false })
-    .limit(100);
-  for (const row of data ?? []) {
-    let key: { kind?: string } | null = null;
-    try {
-      key = JSON.parse(String(row.cache_key)) as { kind?: string };
-    } catch {
-      continue;
-    }
-    if (key?.kind !== "search" && key?.kind !== "area-search") continue;
-    const payload = row.payload as { homes?: OpenWebNinjaHome[] };
-    const home = payload.homes?.find((item) => item.id === id);
-    if (home) return { home, siblings: payload.homes ?? [] };
-  }
-  return null;
+  // Detail visibility and sale/rent mode agree with the current browse cache.
+  const homes = await cachedHomes();
+  const home = homes.find((item) => item.id === id);
+  return home
+    ? {
+        home,
+        siblings: homes.filter(
+          (item) => item.city === home.city && item.state === home.state && item.mode === home.mode,
+        ),
+      }
+    : null;
 }

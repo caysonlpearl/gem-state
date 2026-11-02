@@ -117,6 +117,8 @@ export type ClassifiedCard = {
   externalHome?: {
     source: "Mashvisor" | "OpenWeb Ninja";
     sourceUrl?: string | null;
+    /** Inventory-cache validity, never a source publication timestamp. */
+    cacheExpiresAt?: string;
     listedBy?: {
       agentName: string | null;
       agentPhone: string | null;

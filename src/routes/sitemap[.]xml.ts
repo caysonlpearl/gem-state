@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { brand } from "@/config/brand";
-import { isSitemapAllowedPath } from "@/lib/seo-policy";
+import { isSitemapAllowedPath, hasCurrentHomeCache } from "@/lib/seo-policy";
 import { guides } from "@/content/guides";
 import { dealerSitemapEntries } from "@/lib/dealer-sitemap.server";
 import { listingPath } from "@/lib/listing-url";
@@ -44,6 +44,18 @@ function urlEntry(
   return `  <url>${parts.join("")}</url>`;
 }
 
+function unavailable(stage: string) {
+  // Fixed stage names only; never expose backend errors, keys or request data.
+  return new Response("Sitemap unavailable", {
+    status: 503,
+    headers: {
+      "Cache-Control": "no-store",
+      "Retry-After": "120",
+      "X-Bluebird-Sitemap-Stage": stage,
+    },
+  });
+}
+
 /** Generated from live inventory on every request (cached for an hour). */
 export const Route = createFileRoute("/sitemap.xml")({
   server: {
@@ -52,10 +64,10 @@ export const Route = createFileRoute("/sitemap.xml")({
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
         const live = await fetchLiveListings(supabaseAdmin);
-        if (!live) return new Response("Sitemap unavailable", { status: 503 });
+        if (!live) return unavailable("native-inventory");
         const listings = live;
         const dealers = await dealerSitemapEntries(supabaseAdmin, listings);
-        if (!dealers) return new Response("Sitemap unavailable", { status: 503 });
+        if (!dealers) return unavailable("dealers");
 
         const pages = tallyLandingPages(listings);
         // Public browse includes cached dealer/private vehicles that are not asks.
@@ -68,7 +80,7 @@ export const Route = createFileRoute("/sitemap.xml")({
             { cacheOnly: true },
           );
         } catch {
-          return new Response("Sitemap unavailable", { status: 503 });
+          return unavailable("vehicles");
         }
         for (const reference of vehicleLandingReferences(cachedVehicles)) {
           for (const { path, minimum } of landingPathsFor("cars-trucks", reference.details)) {
@@ -87,13 +99,13 @@ export const Route = createFileRoute("/sitemap.xml")({
               module.directorySeoReferences(),
             ),
           ]);
-          if (jobs.status !== "ok") return new Response("Sitemap unavailable", { status: 503 });
+          if (jobs.status !== "ok") return unavailable("jobs");
           const { adzunaCard } = await import("@/lib/adzuna-listings.server");
           cachedHomes = homes;
           cachedJobCards = jobs.jobs.map(adzunaCard).filter((card) => card.state === "ID");
           directoryReferences = directory;
         } catch {
-          return new Response("Sitemap unavailable", { status: 503 });
+          return unavailable("provider-inventory");
         }
         for (const card of [...cachedHomes, ...cachedJobCards]) {
           const details = {
@@ -107,7 +119,7 @@ export const Route = createFileRoute("/sitemap.xml")({
             job_employment_type: card.job?.employmentType,
           };
           for (const { path, minimum } of landingPathsFor(card.categorySlug, details))
-            pages.add(path, card.createdAt, "", minimum);
+            pages.add(path, card.createdAt, "", minimum, hasCurrentHomeCache(card));
         }
         for (const row of directoryReferences) {
           // Count every saved business toward the broad service collections,
@@ -140,7 +152,7 @@ export const Route = createFileRoute("/sitemap.xml")({
             .select("user_id, slug")
             .in("user_id", sellerIds.slice(i, i + 500))
             .eq("status", "active");
-          if (error) return new Response("Sitemap unavailable", { status: 503 });
+          if (error) return unavailable("sellers");
           for (const seller of sellers ?? []) sellerSlugs.set(seller.user_id, seller.slug);
         }
 
@@ -156,7 +168,7 @@ export const Route = createFileRoute("/sitemap.xml")({
           .select("month, updated_at, report->totals->live")
           .neq("month", currentMonth)
           .limit(120);
-        if (reportsError) return new Response("Sitemap unavailable", { status: 503 });
+        if (reportsError) return unavailable("market-reports");
         for (const saved of (savedReports ?? []) as {
           month: string;
           updated_at: string;
@@ -170,7 +182,7 @@ export const Route = createFileRoute("/sitemap.xml")({
         try {
           articles = await newsSitemapArticles();
         } catch {
-          return new Response("Sitemap unavailable", { status: 503 });
+          return unavailable("articles");
         }
         const entries = [
           ...[...cachedVehicles, ...cachedHomes].map((card) =>

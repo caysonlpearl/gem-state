@@ -134,3 +134,17 @@ observations, even after the workflow is configured and tested.
 
 Local-link outreach remains drafted and unsent. A public editorial link must
 be observed on the third party's site before it counts as an earned-link result.
+
+### Home dates and visibility
+
+New upstream searches capture their observation timestamp. Days-on-market can
+then supply a stable derived listing date; reads no longer subtract a saved age
+from the visitor's current clock. Legacy records without a source date or an
+observation anchor omit posting-age claims and posting-date structured data.
+Current inventory-cache validity can qualify collection recency independently;
+it is never represented as datePosted or lastmod. Failed forced refreshes put
+back the original expiry, so a failed request does not renew stale inventory.
+Detail pages now use the same unexpired, deduplicated search inventory as browse.
+Coeur D Alene is displayed and matched as Coeur d'Alene for Idaho source rows.
+Prepared SEO cache storage advances to v2 and homepage layout revision advances
+so old derived dates are rebuilt from stored data without provider calls.

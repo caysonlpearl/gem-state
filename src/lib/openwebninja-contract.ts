@@ -20,6 +20,9 @@ export type OpenWebNinjaHome = {
   sqft: number | null;
   imageUrl: string | null;
   daysOnMarket: number | null;
+  listedAt?: string | null;
+  observedAt?: string | null;
+  cacheExpiresAt?: string;
   latitude: number | null;
   longitude: number | null;
   mode: OpenWebNinjaMode;
@@ -327,7 +330,7 @@ export function normalizeOpenWebNinjaHome(
   return {
     id,
     address: parts.address,
-    city,
+    city: canonicalHomeCity(city, state),
     state,
     zip: parts.zip,
     propertyType: canonicalHomePropertyType(
@@ -339,6 +342,9 @@ export function normalizeOpenWebNinjaHome(
     sqft: num(firstValue(record, "livingArea", "livingAreaValue", "squareFeet", "sqft")),
     imageUrl: httpsImage(firstValue(record, "imgSrc", "imageUrl", "image_url", "photo")),
     daysOnMarket: num(firstValue(record, "daysOnZillow", "daysOnMarket", "days_on_market")),
+    listedAt: normalizeDate(
+      firstValue(record, "datePosted", "dateListed", "listingDate", "dateOnMarket"),
+    ),
     latitude: num(record.latitude),
     longitude: num(record.longitude),
     mode,
@@ -350,12 +356,23 @@ export function normalizeOpenWebNinjaHome(
   };
 }
 
-export function normalizeOpenWebNinjaResult(payload: unknown, mode: OpenWebNinjaMode) {
+export function canonicalHomeCity(city: string, state: string) {
+  return state === "ID" && city.toLowerCase().replace(/[^a-z]/g, "") === "coeurdalene"
+    ? "Coeur d'Alene"
+    : city;
+}
+
+export function normalizeOpenWebNinjaResult(
+  payload: unknown,
+  mode: OpenWebNinjaMode,
+  observedAt = Date.now(),
+) {
   return {
     status: "ok" as const,
     homes: searchRows(payload)
       .map((item) => normalizeOpenWebNinjaHome(item, mode))
-      .filter((home): home is OpenWebNinjaHome => !!home),
+      .filter((home): home is OpenWebNinjaHome => !!home)
+      .map((home) => ({ ...home, observedAt: new Date(observedAt).toISOString() })),
   };
 }
 
@@ -494,7 +511,18 @@ function listedBy(record: Record<string, unknown>): OpenWebNinjaListedBy | null 
 export const OPENWEBNINJA_ID = /^openwebninja-\d{1,20}$/;
 
 export function listedAt(home: OpenWebNinjaHome, now = Date.now()) {
-  return home.daysOnMarket != null && home.daysOnMarket >= 0
-    ? new Date(now - home.daysOnMarket * 86_400_000).toISOString()
-    : new Date(0).toISOString();
+  const source = Date.parse(home.listedAt ?? "");
+  if (Number.isFinite(source) && source >= Date.UTC(2000, 0, 1) && source <= now)
+    return new Date(source).toISOString();
+  const observed = Date.parse(home.observedAt ?? "");
+  const estimate =
+    Number.isFinite(observed) &&
+    observed <= now &&
+    home.daysOnMarket != null &&
+    home.daysOnMarket >= 0
+      ? observed - home.daysOnMarket * 86_400_000
+      : NaN;
+  return Number.isFinite(estimate) && estimate >= Date.UTC(2000, 0, 1)
+    ? new Date(estimate).toISOString()
+    : "";
 }
