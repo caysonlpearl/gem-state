@@ -15,6 +15,15 @@ const permitSchema = z
     expiresAt: z.string().datetime({ offset: true }),
   })
   .strict();
+type PhotoMigrationLease = {
+  run_id: string;
+  ordinal: number;
+  status: string;
+  lease_token: string;
+  lease_until: string | null;
+  source_bytes: number;
+  entries: PhotoInventoryObject[];
+};
 export function photoMigrationPermit(raw: string, runId: string, digest: string, now = Date.now()) {
   try {
     const value = permitSchema.parse(JSON.parse(raw));
@@ -81,6 +90,8 @@ export function createPhotoMigrationRunner(
         throw new Error(
           "Copy completion was not confirmed. Refresh saved state before continuing.",
         );
+      if (name === "lease_photo_migration_item")
+        throw new Error("Copy lease was not confirmed. Refresh saved state before continuing.");
       throw new Error("Photo transfer state is unavailable. Stop and review before retrying.");
     }
     return data;
@@ -172,6 +183,32 @@ export function createPhotoMigrationRunner(
     );
     return read(String(id));
   }
+  async function confirmedLease(id: string, lease: string) {
+    // Observe the exact token from this request. Never acquire another lease to
+    // recover an acknowledgement, and never continue from a different token.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const { data, error } = await db
+          .from("photo_migration_items")
+          .select("run_id,ordinal,status,lease_token,lease_until,source_bytes,entries")
+          .eq("run_id", id)
+          .eq("lease_token", lease)
+          .abortSignal(AbortSignal.timeout(3000))
+          .retry(false)
+          .maybeSingle();
+        if (error) throw error;
+        return data?.run_id === id && data.lease_token === lease
+          ? (data as PhotoMigrationLease)
+          : null;
+      } catch {
+        if (attempt === 1)
+          throw new Error(
+            "Saved copy lease could not be read. Refresh saved state before continuing.",
+          );
+      }
+    }
+    return null;
+  }
   async function step(id: string, retry = false) {
     const run = await read(id);
     const rawPermit = readPermit();
@@ -181,16 +218,34 @@ export function createPhotoMigrationRunner(
         "Photo copying is disabled. A matching, unexpired server permit is required.",
       );
     const lease = crypto.randomUUID();
-    const result = await rpc("lease_photo_migration_item", {
-      _run: id,
-      _actor: actor,
-      _lease: lease,
-      _digest: run.digest,
-      _max_groups: permit.maxGroups,
-      _max_bytes: permit.maxSourceBytes,
-      _expires: permit.expiresAt,
-      _retry: retry,
-    });
+    let result;
+    try {
+      result = await rpc("lease_photo_migration_item", {
+        _run: id,
+        _actor: actor,
+        _lease: lease,
+        _digest: run.digest,
+        _max_groups: permit.maxGroups,
+        _max_bytes: permit.maxSourceBytes,
+        _expires: permit.expiresAt,
+        _retry: retry,
+      });
+    } catch (error) {
+      const saved = await confirmedLease(id, lease);
+      if (
+        !saved ||
+        saved.status !== "running" ||
+        Date.parse(saved.lease_until ?? "") <= Date.now() ||
+        !Number.isFinite(Date.parse(saved.lease_until ?? "")) ||
+        !Number.isInteger(saved.ordinal) ||
+        saved.ordinal < 0 ||
+        saved.ordinal >= permit.maxGroups ||
+        readPermit() !== rawPermit ||
+        !photoMigrationPermit(readPermit(), id, run.digest)
+      )
+        throw error;
+      result = { state: "leased", item: saved };
+    }
     if (result.state !== "leased")
       return {
         state: result.state as "busy" | "stopped" | "complete",
@@ -235,7 +290,12 @@ export function createPhotoMigrationRunner(
     }
     // A missing completion acknowledgement or subsequent status read is not a
     // failed photo copy. Leave uncertain leases/receipts for saved-state review.
-    await rpc("finish_photo_migration_item", { ...identity, _downloaded: downloadedBytes });
+    try {
+      await rpc("finish_photo_migration_item", { ...identity, _downloaded: downloadedBytes });
+    } catch (error) {
+      const saved = await confirmedLease(id, lease);
+      if (!saved || saved.ordinal !== item.ordinal || saved.status !== "complete") throw error;
+    }
     return { state: "copied" as const, reason: null, status: await read(id) };
   }
   return { list, prepare, step };
