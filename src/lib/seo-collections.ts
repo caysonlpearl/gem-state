@@ -199,3 +199,25 @@ export function collectionMatches(collection: SeoCollection, card: CollectionEvi
       ))
   );
 }
+
+/** Rotate a bounded pair through researched public destinations on the
+ * maintenance runs and homepage background work. These reads never refresh providers. */
+export function seoPrewarmTargets(slot: number) {
+  const citySlug = (city: string) =>
+    city
+      .toLowerCase()
+      .replace(/'/g, "")
+      .replace(/[^a-z0-9]+/g, "-");
+  const targets = [
+    { place: "boise", category: "cars-trucks" },
+    { place: "idaho-falls", category: "cars-trucks" },
+    { place: "homes", category: "" },
+    { place: "services", category: "" },
+    ...seoCollections.flatMap((collection) => [
+      { place: collection.slug, category: "" },
+      ...collection.cities.map((city) => ({ place: citySlug(city), category: collection.slug })),
+    ]),
+  ];
+  const start = (((Math.floor(slot) * 2) % targets.length) + targets.length) % targets.length;
+  return [targets[start], targets[(start + 1) % targets.length]];
+}

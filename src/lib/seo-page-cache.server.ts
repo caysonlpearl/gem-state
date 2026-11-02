@@ -10,6 +10,7 @@ type Store = {
   read(key: string): Promise<unknown>;
   write(key: string, entry: Entry): Promise<void>;
   acquire(key: string, slot: number): Promise<boolean>;
+  release?(key: string, slot: number): Promise<void>;
 };
 type Load = () => Promise<PlacePageData | null>;
 const queued = new Map<string, () => Promise<unknown>>();
@@ -40,6 +41,7 @@ export function createSeoPageCache(
     queued.set(key, task);
     if (queued.size > 300) queued.delete(queued.keys().next().value!);
   },
+  pause = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)),
 ) {
   const memory = new Map<string, { entry: Entry; checkedAt: number }>();
   const reading = new Map<string, Promise<PlacePageData | null>>();
@@ -65,8 +67,9 @@ export function createSeoPageCache(
   };
   async function refresh(key: string, load: Load) {
     let acquired;
+    const slot = Math.floor(clock() / SEO_REFRESH_MS);
     try {
-      acquired = await store.acquire(key, Math.floor(clock() / SEO_REFRESH_MS));
+      acquired = await store.acquire(key, slot);
     } catch {
       // A cache outage need not take down otherwise available public inventory.
       // This fallback still reads stored sources only and spends no API quota.
@@ -77,17 +80,23 @@ export function createSeoPageCache(
       return entry.value;
     }
     if (!acquired) return null;
-    const loaded = await load();
-    if (!loaded) return null;
-    const entry: Entry = { version: 1, key, generatedAt: clock(), value: publicSeoPage(loaded) };
+    let persisted = false;
     try {
-      await store.write(key, entry);
-    } catch {
-      // The successful public read is usable even if persistence is down;
-      // failed writes leave the remote last-good object untouched.
+      const loaded = await load();
+      if (!loaded) return null;
+      const entry: Entry = { version: 1, key, generatedAt: clock(), value: publicSeoPage(loaded) };
+      try {
+        await store.write(key, entry);
+        persisted = true;
+      } catch {
+        // Failed writes leave the remote last-good object untouched.
+      }
+      remember(key, entry);
+      return entry.value;
+    } finally {
+      // A failed first build must not lock an empty page for five minutes.
+      if (!persisted) await store.release?.(key, slot).catch(() => undefined);
     }
-    remember(key, entry);
-    return entry.value;
   }
   async function read(key: string, load: Load): Promise<PlacePageData | null> {
     const inFlight = reading.get(key);
@@ -111,8 +120,16 @@ export function createSeoPageCache(
       }
       const built = await refresh(key, load);
       if (built) return built;
-      const remote = await store.read(key);
-      if (usable(remote, key)) return remote.value;
+      // Another worker may be preparing this page for the first time. Give
+      // its stored result a bounded chance to arrive instead of an instant 500.
+      for (const delay of [0, 250, 500, 1000, 2000, 4000]) {
+        if (delay) await pause(delay);
+        const remote = await store.read(key).catch(() => null);
+        if (usable(remote, key)) {
+          remember(key, remote);
+          return remote.value;
+        }
+      }
       throw new Error("Search listings are temporarily unavailable. Please try again.");
     })().finally(() => reading.delete(key));
     reading.set(key, task);
@@ -163,6 +180,12 @@ const shared = createSeoPageCache({
     if (error && !/already exists|duplicate/i.test(error.message))
       throw new Error("SEO refresh lease unavailable.");
     return !error;
+  },
+  async release(key, slot) {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await supabaseAdmin.storage
+      .from(bucket)
+      .remove([`seo-page-leases/v1/${await objectKey(key)}/${slot}.json`]);
   },
 });
 export const preparedSeoPage = (key: string, load: Load) => shared.read(key, load);

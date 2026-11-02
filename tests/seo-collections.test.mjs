@@ -52,6 +52,26 @@ const base = {
   vehicle: null,
 };
 
+test("maintenance warming is bounded and rotates through only supported public pages", () => {
+  const seen = new Set();
+  for (let slot = 0; slot < 100; slot++) {
+    const targets = collections.seoPrewarmTargets(slot);
+    assert.equal(targets.length, 2);
+    for (const target of targets) {
+      assert.equal(places.isKnownPlacePage(target.place, target.category), true);
+      seen.add(`${target.place}:${target.category}`);
+    }
+  }
+  for (const key of [
+    "boise:cars-trucks",
+    "idaho-falls:cars-trucks",
+    "twin-falls:houses-for-rent",
+    "boise:plumbers",
+    "rentals:",
+  ])
+    assert.ok(seen.has(key), key);
+});
+
 test("the finite collection URLs resolve without collapsing onto their parent categories", () => {
   for (const c of collections.seoCollections) {
     const category = places.categoryFromUrlSlug(c.slug);

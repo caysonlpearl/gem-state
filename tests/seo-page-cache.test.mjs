@@ -71,6 +71,9 @@ function fixture() {
       leases.add(id);
       return true;
     },
+    async release(key, slot) {
+      leases.delete(key + slot);
+    },
   };
   const cache = createSeoPageCache(
     store,
@@ -125,6 +128,45 @@ test("stale reads return immediately, enqueue refresh and retain the prior page 
   await assert.rejects(f.queued[0](), /source unavailable/);
   assert.equal(f.entry(), saved);
   assert.equal(f.writes(), 1);
+});
+test("a failed cold build releases its lease so the next request can recover immediately", async () => {
+  const f = fixture();
+  await assert.rejects(
+    f.cache.read("home", async () => {
+      throw new Error("temporary source outage");
+    }),
+    /temporary source outage/,
+  );
+  assert.equal((await f.cache.read("home", f.load)).heading, "Homes in Idaho");
+  assert.equal(f.writes(), 1);
+});
+test("another cold worker waits for the stored first build without querying inventory", async () => {
+  let reads = 0,
+    pauses = 0;
+  const entry = { version: 1, key: "home", generatedAt: 1000000, value: page() };
+  const cache = createSeoPageCache(
+    {
+      async read() {
+        return ++reads >= 4 ? entry : null;
+      },
+      async write() {
+        throw new Error("second worker wrote a duplicate");
+      },
+      async acquire() {
+        return false;
+      },
+    },
+    () => 1000000,
+    () => {},
+    async () => {
+      pauses++;
+    },
+  );
+  const result = await cache.read("home", async () => {
+    throw new Error("second worker queried inventory");
+  });
+  assert.equal(result.heading, "Homes in Idaho");
+  assert.equal(pauses, 2);
 });
 test("successful empty inventory replaces stale cards rather than retaining phantom inventory", async () => {
   const f = fixture();
