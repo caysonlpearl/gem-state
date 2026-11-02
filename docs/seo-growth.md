@@ -366,3 +366,32 @@ continuation chat. Its date, prompt and notification behavior are unchanged.
 The approved photo transfer has resumed after Chrome access was restored.
 Copying, receipt verification and eventual serving/upload cutover remain
 distinct steps; the source-retention and explicit deletion gates still apply.
+
+### November 2: inquiry test and current performance boundary
+
+The owner asked what the proposed inquiry test meant. The live seller-message
+test is deferred; do not keep asking for a listing or send a test message.
+No current article-attributed completed inquiry is claimed. Offline regression
+coverage now exercises the actual message-form mutation callbacks and analytics
+writer together: pending/rejected requests cannot record success, an accepted
+acknowledgement retains article/placement/organic attribution and its stable
+record ID, duplicate acknowledgements count once, expired attribution is omitted,
+internal QA is excluded, message contents are not logged, and analytics failures
+do not interrupt an accepted interaction. These checks use local fakes and prove
+the code path, not production delivery or organic conversions.
+
+The recovered photo transfer remains in progress under its original permit;
+Supabase originals, reads and uploads remain unchanged. At 20:46 UTC, 3,661 of
+6,379 primary groups were verified with no current failures. This is a dated
+checkpoint, not completion or read/upload cutover evidence.
+
+An anonymous compressed homepage sample returned 200 with 103 unique listing
+links, about 252 KB transferred and 1.57 MB decoded HTML. About 1.18 MB of that
+decoded HTML was inline script, largely the router's serialized data. The shared
+saved snapshot contained 1,119 cards across seven sections, including cards not
+initially displayed. This is a concrete payload-reduction opportunity, but the
+larger pools also support distinct category rows and Load more. Preserve those
+behaviors and the independent category-preview/SEO inventory when optimizing.
+The measured 2.47-second first byte was not explained by a 106-ms handler-return
+timing: that timing excludes subsequent streaming and browser paint. No full
+browser speed guarantee or homepage payload fix is claimed from these samples.
