@@ -192,33 +192,3 @@ Detailed dated evidence lives in the workspace research directory
 `research/seo/2026-11-01`, including `collections-live-audit.json`,
 `collections-recovery-live.json`, `discovery-live.json`,
 `saved-report-live.json` and `gsc-sitemap-submission.json`.
-
-### Discovered URLs and contact measurement follow-up
-
-The actual Search Console discovered/not-indexed export contains 352 URLs,
-from its October 22 snapshot: 278 native listing URLs, 64 collection URLs and
-10 guide/static/seller URLs. A full November 1 anonymous HTML reconciliation
-found 330 successful self-canonical responses and 22 removed listings that
-redirected to broad collections. The report is historical; these HTTP results
-do not establish Google's current indexing decisions.
-
-Removed listings now return the existing unavailable page with a real 404 and
-a useful browse link. A broad category is not an equivalent replacement for a
-specific removed item. Same-listing title aliases retain their 301 redirects.
-Retained sold/expired archives remain readable and noindex, with their existing
-closed-listing controls and structured-data exclusions. Detail-source database
-errors stay errors rather than becoming false missing pages; partner job
-details use the same current cache-expiry gate as browse.
-
-The marked internal article test recorded article view, introduction CTA and
-the matching rental detail view, carrying the guide and placement attribution
-through navigation. Desktop partner-home phone and external contact links now
-use the existing contact-action tracker, matching mobile behavior. An external
-page click is labeled as an opened contact/application page, not a completed
-application. Actual acknowledged messages/applications retain their separate
-inquiry-completion event. No messages or applications were sent by the audit.
-
-Reference: Google's removed-page guidance at
-https://developers.google.com/search/docs/crawling-indexing/troubleshoot-crawling-errors
-recommends a 404/410 when no equivalent replacement exists, and useful onward
-links on the custom error page.
