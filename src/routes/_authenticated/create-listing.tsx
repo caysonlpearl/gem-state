@@ -2,6 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowRight } from "@phosphor-icons/react";
+import { useEffect, useRef } from "react";
+import { trackEvent } from "@/lib/analytics";
 
 import { SellerCenterNav } from "@/components/seller/SellerCenterNav";
 import {
@@ -36,6 +38,13 @@ function CreateListingPage() {
   // agreement -- not the shipping-method/handling-days setup that only
   // matters for Bluebird's own checkout-marketplace listings.
   const profileReady = Boolean(setup.data?.exists && setup.data?.termsAccepted);
+  const started = useRef(false);
+  useEffect(() => {
+    if (profileReady && !started.current) {
+      started.current = true;
+      void trackEvent("classified_listing_started", { duplicated: Boolean(duplicateFrom) });
+    }
+  }, [profileReady, duplicateFrom]);
 
   if (!setup.isLoading && !profileReady) {
     return (

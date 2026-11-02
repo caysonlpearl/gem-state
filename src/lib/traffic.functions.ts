@@ -22,6 +22,7 @@ const EVENTS = [
   "visit_started",
   "search_completed",
   "classified_listing_submit_started",
+  "classified_listing_started",
   "listing_viewed",
   "seller_contacted",
   "inquiry_completed",
@@ -146,4 +147,3 @@ export const getTrafficSummary = createServerFn({ method: "GET" })
       },
     };
   });
-

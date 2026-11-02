@@ -3,6 +3,23 @@ import assert from "node:assert/strict";
 
 import { classifyTrafficSource } from "../src/lib/traffic-source.ts";
 
+test("ad click identifiers never inflate organic search and are not retained", () => {
+  for (const key of ["gclid", "gbraid", "wbraid"]) {
+    assert.deepEqual(
+      classifyTrafficSource(
+        "https://www.google.com/",
+        `?${key}=private-click-id`,
+        "onbluebird.com",
+      ),
+      { source: "google", channel: "paid" },
+    );
+  }
+  assert.deepEqual(
+    classifyTrafficSource("https://www.bing.com/", "?msclkid=private-click-id", "onbluebird.com"),
+    { source: "bing", channel: "paid" },
+  );
+});
+
 const own = "onbluebird.com";
 const from = (referrer, search = "") => classifyTrafficSource(referrer, search, own);
 

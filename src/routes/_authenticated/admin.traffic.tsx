@@ -97,19 +97,50 @@ function ConversionTable({ rows }: { rows: ConversionRow[] }) {
   return (
     <div className="mt-3 overflow-x-auto rounded-lg border border-border">
       <table className="w-full min-w-[980px] text-left text-xs">
-        <thead className="bg-secondary/60"><tr>
-          {["Segment", "Visits", "Results viewed", "Zero results", "Listing viewed", "Contact after view", "Inquiry after contact", "Submission attempted", "Submission accepted"].map((label) => (
-            <th key={label} scope="col" className="px-3 py-2 font-semibold">{label}</th>
-          ))}
-        </tr></thead>
-        <tbody>{rows.map((row) => (
-          <tr key={row.segment} className="border-t border-border">
-            <th scope="row" className="px-3 py-2 font-medium">{row.segment}</th>
-            {[row.visits, row.searched, row.noResults, row.viewed, row.contactedAfterView, row.inquiriesAfterContact, row.submissionAttempts, row.submittedAfterAttempt].map((value, index) => (
-              <td key={index} className="numeric px-3 py-2">{value}</td>
+        <thead className="bg-secondary/60">
+          <tr>
+            {[
+              "Segment",
+              "Visits",
+              "Results viewed",
+              "Zero results",
+              "Listing viewed",
+              "Contact after view",
+              "Inquiry after contact",
+              "Posting started",
+              "Submission attempted",
+              "Submission accepted",
+            ].map((label) => (
+              <th key={label} scope="col" className="px-3 py-2 font-semibold">
+                {label}
+              </th>
             ))}
           </tr>
-        ))}</tbody>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.segment} className="border-t border-border">
+              <th scope="row" className="px-3 py-2 font-medium">
+                {row.segment}
+              </th>
+              {[
+                row.visits,
+                row.searched,
+                row.noResults,
+                row.viewed,
+                row.contactedAfterView,
+                row.inquiriesAfterContact,
+                row.postingStarts,
+                row.submissionAttempts,
+                row.submittedAfterAttempt,
+              ].map((value, index) => (
+                <td key={index} className="numeric px-3 py-2">
+                  {value}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
       </table>
     </div>
   );
@@ -231,21 +262,39 @@ function TrafficPage() {
             <h2 className="text-[17px] font-semibold">Observed visit progression</h2>
             <p className="mt-2 max-w-[90ch] text-xs leading-relaxed text-muted-foreground">
               Each column counts distinct recorded visits, not people or sales. Contact must follow
-              a listing view; an inquiry must follow contact; an accepted submission must follow
-              an attempt. These actions can involve different listings in the same visit. Results
-              and zero-result views are separate signals, not required steps for a direct listing visitor.
+              a listing view; an inquiry must follow contact; an accepted submission must follow an
+              attempt. These actions can involve different listings in the same visit. Results and
+              zero-result views are separate signals, not required steps for a direct listing
+              visitor.
             </p>
             <ConversionTable rows={[data.funnel.totals]} />
+            <h3 className="mt-5 text-sm font-semibold">Organic search progression</h3>
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              Search-engine visits only. Paid ads, AI referrals and direct visits are reported
+              separately. Posting starts mean the listing form opened after seller setup; submission
+              attempts are a later action. Older visits have no posting-start event.
+            </p>
+            <ConversionTable rows={[data.funnel.organic]} />
+            <h3 className="mt-5 text-sm font-semibold">Organic landing pages</h3>
+            <ConversionTable rows={data.funnel.byOrganicLandingPage} />
+            <h3 className="mt-5 text-sm font-semibold">By acquisition channel</h3>
+            <ConversionTable
+              rows={data.funnel.byChannel.map((row) => ({
+                ...row,
+                segment: CHANNEL_LABELS[row.segment] ?? row.segment,
+              }))}
+            />
             <h3 className="mt-5 text-sm font-semibold">By screen size</h3>
             <ConversionTable rows={data.funnel.byDevice} />
             <h3 className="mt-5 text-sm font-semibold">By landing template</h3>
             <ConversionTable rows={data.funnel.byLandingTemplate} />
             <p className="mt-3 max-w-[90ch] text-xs leading-relaxed text-muted-foreground">
-              Older visits may have unknown screen size. This report excludes {data.funnel.visitsWithoutStart}
-              {" "}visits without a recorded start in this period, {data.funnel.eventsWithoutVisit}
-              {" "}events without a visit ID, and {data.funnel.eventsWithoutTime} events without usable
-              timing. Delivery outside Bluebird cannot be confirmed. Small samples are descriptive,
-              not evidence that a design change improved conversion.
+              Older visits may have unknown screen size. This report excludes{" "}
+              {data.funnel.visitsWithoutStart} visits without a recorded start in this period,{" "}
+              {data.funnel.eventsWithoutVisit} events without a visit ID, and{" "}
+              {data.funnel.eventsWithoutTime} events without usable timing. Delivery outside
+              Bluebird cannot be confirmed. Small samples are descriptive, not evidence that a
+              design change improved conversion.
             </p>
           </section>
 
@@ -366,4 +415,3 @@ function TrafficPage() {
     </main>
   );
 }
-
