@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- the generated Supabase client types lag the applied seller migration until the next linked type generation */
 import { createServerFn } from "@tanstack/react-start";
 import { searchOutcomeSummary } from "./search-outcome-summary";
+import { isNewListingAction } from "./analytics-policy";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { stripeAccountMatchesCurrentMode } from "./stripe-connect.server";
 import { getStripe } from "./stripe-marketplace.server";
@@ -1148,22 +1149,30 @@ export const getValidationSummary = createServerFn({ method: "GET" })
     const [{ data: events }, { data: staff }] = await Promise.all([
       supabase
         .from("analytics_events")
-        .select("name, is_demo, user_id, occurred_at")
+        .select("name, mode:props->>mode, event_id:props->>event_id, is_demo, user_id, occurred_at")
         .gte("occurred_at", since)
         .limit(50_000),
       supabase.from("user_roles").select("user_id"),
     ]);
 
     const staffIds = new Set((staff ?? []).map((r) => r.user_id as string));
+    const acknowledgements = new Set<string>();
     for (const e of events ?? []) {
       const rawName = String(e.name);
+      if (rawName in VALIDATION_EVENT_ALIASES && !isNewListingAction({ mode: e.mode })) continue;
+      const bucketName = e.is_demo
+        ? "demo"
+        : e.user_id && staffIds.has(e.user_id as string)
+          ? "internal"
+          : "real";
+      if (rawName === "classified_listing_submit_succeeded" && e.event_id) {
+        const key = `${bucketName}:${e.event_id}`;
+        if (acknowledgements.has(key)) continue;
+        acknowledgements.add(key);
+      }
       const name = VALIDATION_EVENT_ALIASES[rawName] ?? rawName;
       if (!(name in summary.real)) continue;
-      const bucket = e.is_demo
-        ? summary.demo
-        : e.user_id && staffIds.has(e.user_id as string)
-          ? summary.internal
-          : summary.real;
+      const bucket = summary[bucketName];
       bucket[name] = (bucket[name] ?? 0) + 1;
     }
 

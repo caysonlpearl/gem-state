@@ -1,3 +1,5 @@
+import { isNewListingAction } from "./analytics-policy.ts";
+
 /**
  * Pure aggregation behind the admin traffic page, kept free of app imports so
  * it can be unit-tested. See traffic.functions.ts for how events are loaded.
@@ -23,7 +25,12 @@ export type TrafficSummary = {
   conversions: { inquiriesSent: number; saveActions: number; listingsSubmitted: number };
 };
 
-export type TrafficEvent = { name: string; props: unknown; user_id: string | null; occurred_at?: string };
+export type TrafficEvent = {
+  name: string;
+  props: unknown;
+  user_id: string | null;
+  occurred_at?: string;
+};
 
 function emptyRow(channel: string, source: string): TrafficRow {
   return { channel, source, visits: 0, listingViews: 0, contacts: 0, contactingVisits: 0 };
@@ -89,7 +96,7 @@ export function summarizeTraffic(
   for (const event of eligibleTrafficEvents(events, options)) {
     if (event.name === "inquiry_completed") summary.conversions.inquiriesSent += 1;
     if (event.name === "watchlist_added") summary.conversions.saveActions += 1;
-    if (event.name === "classified_listing_submit_succeeded")
+    if (event.name === "classified_listing_submit_succeeded" && isNewListingAction(event.props))
       summary.conversions.listingsSubmitted += 1;
     if (!["visit_started", "listing_viewed", "seller_contacted"].includes(event.name)) continue;
     if (event.user_id && staffIds.has(event.user_id)) continue;
@@ -150,4 +157,3 @@ export function summarizeTraffic(
     .slice(0, 20);
   return summary;
 }
-

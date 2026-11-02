@@ -1,4 +1,4 @@
-import { performancePageTemplate } from "./analytics-policy.ts";
+import { isNewListingAction, performancePageTemplate } from "./analytics-policy.ts";
 import type { TrafficEvent } from "./traffic-summary";
 
 export type ConversionRow = {
@@ -103,12 +103,16 @@ export function summarizeConversionVisits(events: TrafficEvent[]) {
         contactedAt = Math.min(contactedAt, time);
       }
       if (event.name === "inquiry_completed" && time > contactedAt) flags.inquiriesAfterContact = 1;
-      if (event.name === "classified_listing_submit_started") {
+      if (event.name === "classified_listing_submit_started" && isNewListingAction(props)) {
         flags.submissionAttempts = 1;
         attemptedAt = Math.min(attemptedAt, time);
       }
       if (event.name === "classified_listing_started") flags.postingStarts = 1;
-      if (event.name === "classified_listing_submit_succeeded" && time > attemptedAt)
+      if (
+        event.name === "classified_listing_submit_succeeded" &&
+        isNewListingAction(props) &&
+        time > attemptedAt
+      )
         flags.submittedAfterAttempt = 1;
     }
     const deviceRow = devices.get(String(device)) ?? row(String(device));

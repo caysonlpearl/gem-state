@@ -106,7 +106,10 @@ test("staff, marked QA, preview and duplicate exclusions remain in force", () =>
 
 test("admin reads include stage events and timestamps without weakening the role check", () => {
   const source = readFileSync(new URL("../src/lib/traffic.functions.ts", import.meta.url), "utf8");
-  const reader = readFileSync(new URL("../src/lib/traffic-report.server.ts", import.meta.url), "utf8");
+  const reader = readFileSync(
+    new URL("../src/lib/traffic-report.server.ts", import.meta.url),
+    "utf8",
+  );
   assert.match(source, /has_role/);
   assert.match(source, /if \(isAdmin !== true\)/);
   assert.match(source, /loadTrafficReport\(supabase as unknown as SupabaseClient/);
@@ -156,4 +159,17 @@ test("organic cohorts retain the original landing and exclude paid, AI and unkno
   assert.equal(report.byOrganicLandingPage.length, 1);
   assert.equal(report.byOrganicLandingPage[0].segment, "/idaho/boise/plumbers");
   assert.equal(report.byChannel.find((row) => row.segment === "paid").postingStarts, 1);
+});
+
+test("editing does not start or complete the new-listing funnel", () => {
+  const report = summarizeConversionVisits([
+    event("visit_started", 0, { traffic_channel: "search" }),
+    event("classified_listing_submit_started", 1, { mode: "edit" }),
+    event("classified_listing_submit_succeeded", 2, { mode: "edit" }),
+    event("visit_started", 0, { traffic_channel: "search" }, "create"),
+    event("classified_listing_submit_started", 1, { mode: "create" }, "create"),
+    event("classified_listing_submit_succeeded", 2, { mode: "edit" }, "create"),
+  ]);
+  assert.equal(report.organic.submissionAttempts, 1);
+  assert.equal(report.organic.submittedAfterAttempt, 0);
 });

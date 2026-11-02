@@ -50,3 +50,23 @@ test("completed inquiries deduplicate by acknowledgement and internal visits sta
   );
   assert.equal(rows[0].inquiries, 1);
 });
+
+test("article submission counts retain real creates without treating edits as new supply", () => {
+  const event = (props) => ({
+    name: "classified_listing_submit_succeeded",
+    user_id: null,
+    props: { site_host: "onbluebird.com", media_article: "guide:rental", ...props },
+  });
+  const rows = summarizeEditorialTraffic(
+    eligibleTrafficEvents(
+      [
+        event({ mode: "create", event_id: "create:listing-1" }),
+        event({ mode: "create", event_id: "create:listing-1" }),
+        event({ mode: "edit", event_id: "edit:listing-1" }),
+        event({ mode: "create", is_internal: true, event_id: "create:qa" }),
+      ],
+      { domain: "onbluebird.com", staffIds: new Set() },
+    ),
+  );
+  assert.equal(rows[0].submissions, 1);
+});

@@ -330,3 +330,22 @@ CORS for future native R2 uploads, and verified earned links remain outstanding.
 A Supabase support request and the directory request remain unsent. No future
 rank improvement, completed customer inquiry or public listing submission is
 claimed from internal QA. The full steps 2–8 objective remains active.
+
+### Submission measurement follow-up
+
+The native form previously emitted a successful submission for both creation
+and editing, omitted its accepted listing ID, and did not emit the submission-
+attempt event required by the conversion funnel. The form now records an
+attempt before work and the server-returned listing ID after acceptance, with
+a stable create acknowledgement ID so duplicate telemetry is counted once.
+Traffic, organic funnel, editorial and validation reports exclude explicit
+edits from new-listing totals. Legacy events without a mode remain eligible.
+
+An additive `editorial_performance` function migration applies the same rule
+to the news administration counters and deduplicates acknowledged inquiries.
+It has no listing, photo, permission-expansion or provider-call operation.
+Actual form callback tests cover a pending acknowledgement, successful create,
+failed photo validation and an existing-listing edit. PostgreSQL tests execute
+the function and verify member/public access remains denied. Production
+installation and actual accepted-record reconciliation still require working
+database access; offline tests do not establish those outcomes.

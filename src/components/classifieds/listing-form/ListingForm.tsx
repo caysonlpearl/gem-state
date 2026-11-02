@@ -241,8 +241,9 @@ export function ListingForm(props: ListingFormProps) {
         : "Price (USD)";
 
   const mutation = useMutation({
-    mutationFn: () =>
-      traceMutation(
+    mutationFn: () => {
+      void trackEvent("classified_listing_submit_started", { mode: props.mode, kind });
+      return traceMutation(
         {
           flow: "classified_listing_submit",
           props: { mode: props.mode, kind },
@@ -340,11 +341,16 @@ export function ListingForm(props: ListingFormProps) {
             },
           });
         },
-      ),
-    onSuccess: async () => {
+      );
+    },
+    onSuccess: async (result) => {
+      const listingId =
+        props.mode === "edit" ? props.listingId : "listingId" in result ? result.listingId : null;
       void trackEvent("classified_listing_submit_succeeded", {
         mode: props.mode,
         kind,
+        listing_id: listingId ?? null,
+        ...(props.mode === "create" && listingId ? { event_id: `create:${listingId}` } : {}),
       });
       if (props.mode === "edit") {
         await queryClient.invalidateQueries({

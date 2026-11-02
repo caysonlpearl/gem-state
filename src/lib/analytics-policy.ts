@@ -30,6 +30,12 @@ export function isOperationalTestRecord(label: unknown) {
   );
 }
 
+/** Old events omitted mode; an explicit edit is never a new listing. */
+export function isNewListingAction(props: unknown) {
+  const mode = (props as Record<string, unknown> | null)?.mode;
+  return mode == null || mode === "create";
+}
+
 export type VitalSample = {
   metric: "LCP" | "INP" | "CLS";
   template: string;
