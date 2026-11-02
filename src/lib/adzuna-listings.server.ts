@@ -193,12 +193,14 @@ export async function adzunaDetail(listingId: string): Promise<ClassifiedDetail 
   const id = listingId.match(/^adzuna-(\d{1,20})$/)?.[1];
   if (!id) return null;
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data: rows } = await (supabaseAdmin as any)
+  const { data: rows, error } = await (supabaseAdmin as any)
     .from("adzuna_search_cache")
     .select("payload")
     .contains("payload", { jobs: [{ id }] })
+    .gt("expires_at", new Date().toISOString())
     .order("expires_at", { ascending: false })
     .limit(1);
+  if (error) throw new Error("This job is temporarily unavailable. Please try again.");
   const cached = (rows?.[0]?.payload?.jobs ?? []) as AdzunaJob[];
   const found = cached.find((job) => job.id === id);
   if (!found) return null;

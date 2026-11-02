@@ -2435,7 +2435,10 @@ export const getClassifiedListing = createServerFn({ method: "GET" })
       .eq("products.status", "published")
       .maybeSingle();
 
-    if (error) console.error("getClassifiedListing failed", error.message);
+    if (error) {
+      console.error("getClassifiedListing failed", error.message);
+      throw new Error("This listing is temporarily unavailable. Please try again.");
+    }
     if (!row || isReleaseQaListing(row as unknown as Record<string, unknown>)) return null;
 
     const record = row as unknown as Record<string, unknown>;
@@ -2463,7 +2466,7 @@ async function importedOriginalListing(listingId: string): Promise<OriginalListi
   return originalListingFor(data?.source_url);
 }
 
-/** How long a sold or expired listing keeps its page before redirecting. */
+/** How long a sold or expired listing keeps its read-only archive page. */
 export const ENDED_LISTING_RETENTION_DAYS = 60;
 
 /**
@@ -2471,7 +2474,7 @@ export const ENDED_LISTING_RETENTION_DAYS = 60;
  * search results still land somewhere useful: the details and photos, a
  * banner saying it has ended, and similar live listings. Listings a seller
  * or moderator took down (without marking them sold) are never shown here;
- * they redirect right away.
+ * they receive the unavailable page right away.
  * Contact details are left out, since the seller is no longer taking offers.
  */
 export const getEndedClassifiedListing = createServerFn({ method: "GET" })
@@ -2490,22 +2493,27 @@ export const getEndedClassifiedListing = createServerFn({ method: "GET" })
       .not("approved_at", "is", null)
       .eq("products.status", "published")
       .maybeSingle();
-    if (error) console.error("getEndedClassifiedListing failed", error.message);
+    if (error) {
+      console.error("getEndedClassifiedListing failed", error.message);
+      throw new Error("This listing is temporarily unavailable. Please try again.");
+    }
     if (!row || isReleaseQaListing(row as unknown as Record<string, unknown>)) return null;
 
     const record = row as unknown as Record<string, unknown>;
     const status = record["status"] as string;
     const expiresAt = record["expires_at"] as string;
     // A cancelled listing only counts as ended if the seller marked it sold;
-    // a plain take-down is left to redirect. Read on its own so the page
+    // a plain take-down remains unavailable. Read on its own so the page
     // still works while the sold_at migration is pending.
     let soldAt: string | null = null;
     if (status === "cancelled") {
-      const { data: soldRow } = await supabaseAdmin
+      const { data: soldRow, error: soldError } = await supabaseAdmin
         .from("asks")
         .select("sold_at")
         .eq("id", data.id)
         .maybeSingle();
+      if (soldError && soldError.code !== "42703")
+        throw new Error("This listing is temporarily unavailable. Please try again.");
       soldAt = soldRow?.sold_at ?? null;
     }
     const ended = soldAt

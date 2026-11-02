@@ -40,7 +40,7 @@ const METHOD_LABELS: Record<string, string> = {
   text: "Text",
   email: "Email",
   apply: "Applied on Bluebird",
-  apply_external: "Applied on employer's site",
+  apply_external: "Opened external contact or application page",
 };
 
 const WINDOWS = [7, 30, 90] as const;
