@@ -1,4 +1,5 @@
 import type { AdzunaJob, AdzunaResult } from "./adzuna-contract";
+import { withCatalogReadDeadline } from "./catalog-read-deadline.ts";
 import { employerKey } from "./employer-logo-match.ts";
 import type {
   ClassifiedBrowseInput,
@@ -193,13 +194,18 @@ export async function adzunaDetail(listingId: string): Promise<ClassifiedDetail 
   const id = listingId.match(/^adzuna-(\d{1,20})$/)?.[1];
   if (!id) return null;
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data: rows, error } = await (supabaseAdmin as any)
-    .from("adzuna_search_cache")
-    .select("payload")
-    .contains("payload", { jobs: [{ id }] })
-    .gt("expires_at", new Date().toISOString())
-    .order("expires_at", { ascending: false })
-    .limit(1);
+  const { data: rows, error } = await withCatalogReadDeadline<{
+    data: { payload: { jobs?: AdzunaJob[] } }[] | null;
+    error: { message: string } | null;
+  }>(
+    (supabaseAdmin as any)
+      .from("adzuna_search_cache")
+      .select("payload")
+      .contains("payload", { jobs: [{ id }] })
+      .gt("expires_at", new Date().toISOString())
+      .order("expires_at", { ascending: false })
+      .limit(1),
+  );
   if (error) throw new Error("This job is temporarily unavailable. Please try again.");
   const cached = (rows?.[0]?.payload?.jobs ?? []) as AdzunaJob[];
   const found = cached.find((job) => job.id === id);

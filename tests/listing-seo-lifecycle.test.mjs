@@ -4,6 +4,10 @@ import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import ts from "typescript";
 import * as jsx from "react/jsx-runtime";
+import { createClient } from "@supabase/supabase-js";
+import { withCatalogReadDeadline } from "../src/lib/catalog-read-deadline.ts";
+import { shortCache } from "../src/lib/short-cache.server.ts";
+import { homesFromSavedSearches } from "../src/lib/openwebninja-cache.ts";
 
 function compile(file, name, globals = {}) {
   const source = ts.createSourceFile(
@@ -33,6 +37,9 @@ function compile(file, name, globals = {}) {
     {
       exports,
       console: { error() {} },
+      URLSearchParams,
+      withCatalogReadDeadline: (query) =>
+        typeof query === "function" ? query(new AbortController().signal) : query,
       require(name) {
         if (name === "react/jsx-runtime") return jsx;
         if (name === "@/integrations/supabase/client.server")
@@ -206,7 +213,8 @@ test("the unavailable page preserves browse navigation without accepting externa
 test("native live and archive database errors cannot become false missing responses", async () => {
   for (const name of ["getClassifiedListing", "getEndedClassifiedListing"]) {
     const query = {};
-    for (const method of ["select", "eq", "not", "gt", "in"]) query[method] = () => query;
+    for (const method of ["select", "eq", "not", "gt", "in", "abortSignal", "retry"])
+      query[method] = () => query;
     query.maybeSingle = async () => ({ data: null, error: { message: "offline" } });
     const database = { from: () => query };
     const handler = compile("../src/lib/classifieds.functions.ts", name, {
@@ -268,7 +276,7 @@ test("partner job detail expiry matches browse eligibility and database failures
 test("a failed sold-status read cannot turn a retained listing into a false 404", async () => {
   const query = {};
   let selected;
-  for (const method of ["eq", "not", "in"]) query[method] = () => query;
+  for (const method of ["eq", "not", "in", "abortSignal", "retry"]) query[method] = () => query;
   query.select = (value) => {
     selected = value;
     return query;
@@ -296,7 +304,7 @@ test("a failed sold-status read cannot turn a retained listing into a false 404"
 
 test("unavailable directory and removed-listing lookup failures remain errors", async () => {
   const query = {};
-  for (const method of ["select", "eq"]) query[method] = () => query;
+  for (const method of ["select", "eq", "abortSignal", "retry"]) query[method] = () => query;
   query.maybeSingle = async () => ({ data: null, error: { message: "offline" } });
   const database = { from: () => query };
   const detail = compile("../src/lib/service-directory.server.ts", "directoryDetail", {
@@ -318,4 +326,180 @@ test("unavailable directory and removed-listing lookup failures remain errors", 
     fallback({ data: { id: "306d4309-9968-4710-9b52-207a4d2cadc3" } }),
     /temporarily unavailable/,
   );
+});
+
+test("native and archive detail reads cancel a stalled request once without returning false missing data", async () => {
+  for (const name of [
+    "getClassifiedListing",
+    "getEndedClassifiedListing",
+    "getRemovedListingBrowsePath",
+  ]) {
+    let requests = 0;
+    const database = createClient("https://fixture.invalid", "fixture-key", {
+      auth: { persistSession: false },
+      global: {
+        fetch: async (_url, init) => {
+          requests++;
+          return new Promise((_resolve, reject) =>
+            init.signal.addEventListener("abort", () => reject(init.signal.reason), { once: true }),
+          );
+        },
+      },
+    });
+    const handler = compile(
+      name === "getRemovedListingBrowsePath"
+        ? "../src/lib/place-pages.functions.ts"
+        : "../src/lib/classifieds.functions.ts",
+      name,
+      {
+        database,
+        publicServerClient: () => database,
+        createServerFn: () => ({
+          validator() {
+            return this;
+          },
+          handler: (value) => value,
+        }),
+        mockClassifiedListings: [],
+        mockVehicleListings: [],
+        LISTING_SELECT: "id",
+        withCatalogReadDeadline: (query) => withCatalogReadDeadline(query, 15),
+      },
+    );
+    await assert.rejects(
+      handler({ data: { id: "306d4309-9968-4710-9b52-207a4d2cadc3" } }),
+      /took too long/,
+    );
+    assert.equal(requests, 1, name + " must not retry an expired read");
+  }
+});
+
+test("concurrent saved-home reads share one request while source expiry is checked on each memory hit", async () => {
+  let requests = 0;
+  let now = Date.now();
+  const expires = now + 1000;
+  const database = createClient("https://fixture.invalid", "fixture-key", {
+    auth: { persistSession: false },
+    global: {
+      fetch: async () => {
+        requests++;
+        return Response.json([
+          {
+            cache_key: '{"kind":"area-search","mode":"rent"}',
+            expires_at: new Date(expires).toISOString(),
+            payload: { homes: [{ id: "1", mode: "rent", city: "Twin Falls", state: "ID" }] },
+          },
+        ]);
+      },
+    },
+  });
+  const read = compile("../src/lib/openwebninja.server.ts", "cachedHomes", {
+    cacheDb: () => database,
+    withCatalogReadDeadline,
+    shortCache: (key, ttl, load) => shortCache("homes-expiry-fixture:" + key, ttl, load),
+    PUBLIC_PAGE_CACHE_MS: 60000,
+    homesFromSavedSearches: (rows) => homesFromSavedSearches(rows, now),
+  });
+  const [first, second] = await Promise.all([read(), read()]);
+  assert.equal(first.length, 1);
+  assert.equal(second.length, 1);
+  assert.equal(requests, 1);
+  now = expires + 1;
+  assert.deepEqual(Array.from(await read()), []);
+  assert.equal(requests, 1, "expiry filtering must not require a paid provider request");
+});
+
+test("a failed saved-home read is evicted and successful empty inventory is not mistaken for an outage", async () => {
+  let requests = 0;
+  const database = createClient("https://fixture.invalid", "fixture-key", {
+    auth: { persistSession: false },
+    global: {
+      fetch: async () =>
+        ++requests === 1
+          ? Response.json({ message: "source offline" }, { status: 503 })
+          : Response.json([]),
+    },
+  });
+  const read = compile("../src/lib/openwebninja.server.ts", "cachedHomes", {
+    cacheDb: () => database,
+    withCatalogReadDeadline,
+    shortCache: (key, ttl, load) => shortCache("homes-recovery-fixture:" + key, ttl, load),
+    PUBLIC_PAGE_CACHE_MS: 60000,
+    homesFromSavedSearches,
+  });
+  await assert.rejects(read(), /temporarily unavailable/);
+  assert.deepEqual(Array.from(await read()), []);
+  assert.deepEqual(Array.from(await read()), []);
+  assert.equal(requests, 2);
+});
+
+test("property-detail cache outages are not presented as a missing description and never call the provider", async () => {
+  let requests = 0;
+  const database = createClient("https://fixture.invalid", "fixture-key", {
+    auth: { persistSession: false },
+    global: {
+      fetch: async () => {
+        requests++;
+        return Response.json({ message: "source offline" }, { status: 503 });
+      },
+    },
+  });
+  const read = compile("../src/lib/openwebninja.server.ts", "propertyDetails", {
+    cacheDb: () => database,
+    propertyKey: (id) => JSON.stringify({ v: 3, kind: "property", id }),
+    withCatalogReadDeadline,
+    cachedCall: () => {
+      throw new Error("Unexpected upstream provider request");
+    },
+  });
+  await assert.rejects(read("123", null, { cacheOnly: true }), /temporarily unavailable/);
+  assert.equal(requests, 1);
+});
+
+test("malformed saved-home payloads are evicted so the next read can recover", async () => {
+  let requests = 0;
+  const database = createClient("https://fixture.invalid", "fixture-key", {
+    auth: { persistSession: false },
+    global: {
+      fetch: async () =>
+        Response.json(
+          ++requests === 1
+            ? [
+                {
+                  cache_key: '{"kind":"area-search","mode":"rent"}',
+                  expires_at: new Date(Date.now() + 60000).toISOString(),
+                  payload: {},
+                },
+              ]
+            : [],
+        ),
+    },
+  });
+  const read = compile("../src/lib/openwebninja.server.ts", "cachedHomes", {
+    cacheDb: () => database,
+    withCatalogReadDeadline,
+    shortCache: (key, ttl, load) => shortCache("homes-malformed-fixture:" + key, ttl, load),
+    PUBLIC_PAGE_CACHE_MS: 60000,
+    homesFromSavedSearches,
+  });
+  await assert.rejects(read(), /unavailable/);
+  assert.deepEqual(Array.from(await read()), []);
+  assert.equal(requests, 2);
+});
+
+test("home database transport preserves the caller's cancellation signal", async () => {
+  let observed;
+  const factory = compile("../src/lib/openwebninja.server.ts", "cacheDb", {
+    createClient,
+    serverEnv: (name) => (name.includes("URL") ? "https://fixture.invalid" : "fixture-key"),
+    Headers,
+    AbortSignal,
+    fetch: async (_url, init) => {
+      observed = init.signal;
+      return Response.json([]);
+    },
+  });
+  const controller = new AbortController();
+  await factory().from("openwebninja_cache").select("cache_key").abortSignal(controller.signal);
+  assert.equal(observed, controller.signal);
 });

@@ -2424,16 +2424,20 @@ export const getClassifiedListing = createServerFn({ method: "GET" })
     if (mockListing && SHOW_PUBLIC_PREVIEW_FIXTURES) return mockDetail(mockListing);
 
     const client = publicServerClient();
-    const { data: row, error } = await client
-      .from("asks")
-      .select(LISTING_SELECT)
-      .eq("id", data.id)
-      .eq("status", "active")
-      .eq("is_demo", false)
-      .not("approved_at", "is", null)
-      .gt("expires_at", new Date().toISOString())
-      .eq("products.status", "published")
-      .maybeSingle();
+    const { data: row, error } = await withCatalogReadDeadline((signal) =>
+      client
+        .from("asks")
+        .select(LISTING_SELECT)
+        .eq("id", data.id)
+        .eq("status", "active")
+        .eq("is_demo", false)
+        .not("approved_at", "is", null)
+        .gt("expires_at", new Date().toISOString())
+        .eq("products.status", "published")
+        .abortSignal(signal)
+        .retry(false)
+        .maybeSingle(),
+    );
 
     if (error) {
       console.error("getClassifiedListing failed", error.message);
@@ -2482,17 +2486,21 @@ export const getEndedClassifiedListing = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<ClassifiedDetail | null> => {
     if (!/^[0-9a-f-]{36}$/i.test(data.id)) return null;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: row, error } = await supabaseAdmin
-      .from("asks")
-      .select(`${LISTING_SELECT}, status, updated_at`)
-      .eq("id", data.id)
-      // "matched" is an old checkout state Bluebird's direct-contact sales
-      // never reach; those rows are test data, so they redirect like take-downs.
-      .in("status", ["active", "expired", "cancelled"])
-      .eq("is_demo", false)
-      .not("approved_at", "is", null)
-      .eq("products.status", "published")
-      .maybeSingle();
+    const { data: row, error } = await withCatalogReadDeadline((signal) =>
+      supabaseAdmin
+        .from("asks")
+        .select(`${LISTING_SELECT}, status, updated_at`)
+        .eq("id", data.id)
+        // "matched" is an old checkout state Bluebird's direct-contact sales
+        // never reach; those rows are test data, so they remain unavailable.
+        .in("status", ["active", "expired", "cancelled"])
+        .eq("is_demo", false)
+        .not("approved_at", "is", null)
+        .eq("products.status", "published")
+        .abortSignal(signal)
+        .retry(false)
+        .maybeSingle(),
+    );
     if (error) {
       console.error("getEndedClassifiedListing failed", error.message);
       throw new Error("This listing is temporarily unavailable. Please try again.");
@@ -2507,11 +2515,15 @@ export const getEndedClassifiedListing = createServerFn({ method: "GET" })
     // still works while the sold_at migration is pending.
     let soldAt: string | null = null;
     if (status === "cancelled") {
-      const { data: soldRow, error: soldError } = await supabaseAdmin
-        .from("asks")
-        .select("sold_at")
-        .eq("id", data.id)
-        .maybeSingle();
+      const { data: soldRow, error: soldError } = await withCatalogReadDeadline((signal) =>
+        supabaseAdmin
+          .from("asks")
+          .select("sold_at")
+          .eq("id", data.id)
+          .abortSignal(signal)
+          .retry(false)
+          .maybeSingle(),
+      );
       if (soldError && soldError.code !== "42703")
         throw new Error("This listing is temporarily unavailable. Please try again.");
       soldAt = soldRow?.sold_at ?? null;

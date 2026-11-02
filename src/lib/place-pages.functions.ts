@@ -1,4 +1,5 @@
 import { requireReliableIndexing } from "./catalog-availability";
+import { withCatalogReadDeadline } from "./catalog-read-deadline";
 import { createServerFn } from "@tanstack/react-start";
 
 import { brand } from "@/config/brand";
@@ -494,11 +495,15 @@ export const getRemovedListingBrowsePath = createServerFn({ method: "GET" })
   .handler(async ({ data }): Promise<string | null> => {
     if (!/^[0-9a-f-]{36}$/i.test(data.id)) return null;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: row, error } = await supabaseAdmin
-      .from("asks")
-      .select("id, products(categories(slug)), classified_listing_details(city, state)")
-      .eq("id", data.id)
-      .maybeSingle();
+    const { data: row, error } = await withCatalogReadDeadline((signal) =>
+      supabaseAdmin
+        .from("asks")
+        .select("id, products(categories(slug)), classified_listing_details(city, state)")
+        .eq("id", data.id)
+        .abortSignal(signal)
+        .retry(false)
+        .maybeSingle(),
+    );
     if (error) throw new Error("Listing information is temporarily unavailable. Please try again.");
     if (!row) return null;
     const record = row as unknown as {

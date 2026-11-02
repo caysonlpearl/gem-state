@@ -165,12 +165,14 @@ async function nearbyCards(
 export async function directoryDetail(listingId: string): Promise<ClassifiedDetail | null> {
   if (!DIRECTORY_ID.test(listingId)) return null;
   const client = await db();
-  const { data, error } = await client
-    .from("service_directory")
-    .select(DIRECTORY_COLUMNS)
-    .eq("id", listingId)
-    .eq("hidden", false)
-    .maybeSingle();
+  const { data, error } = await withCatalogReadDeadline<any>(
+    client
+      .from("service_directory")
+      .select(DIRECTORY_COLUMNS)
+      .eq("id", listingId)
+      .eq("hidden", false)
+      .maybeSingle(),
+  );
   if (error) throw new Error("This business is temporarily unavailable. Please try again.");
   const row = data as DirectoryRow | null;
   if (!row) return null;
