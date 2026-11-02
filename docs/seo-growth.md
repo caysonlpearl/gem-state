@@ -223,7 +223,8 @@ controlled checks do not replace live verification.
 Desktop home phone/external contact links use the existing contact event. The
 admin label describes an opened contact/application page, not a completed
 application. Internal live QA already observed article read, intro CTA and
-listing-view events; desktop contact verification remains a separate gate.
+listing-view events. The later contact and posting-start checks below complete
+those particular live attribution paths.
 
 The owner chose to keep Supabase Free. No billing upgrade is authorized. A
 read-only bucket audit found 6,379 files / 1,248.52 MiB in each of ask-evidence
@@ -262,3 +263,42 @@ Reference: Google's removed-page guidance at
 https://developers.google.com/search/docs/crawling-indexing/troubleshoot-crawling-errors
 recommends a 404/410 when no equivalent replacement exists, and useful onward
 links on the custom error page.
+
+### Latest verification and Free-storage preflight
+
+PR69 and PR70 are merged. The final production URL audit passed all 33 checks:
+22 removed native listings return 404 with browse navigation, malformed native
+and home IDs return 404, active sampled details and approved guides render,
+same-listing canonical redirects remain 301, and the main sitemap returns 200
+with 2,070 unique URLs. Required CI for PR70 passed 709 tests, TypeScript, the
+production build and 10 compiled SSR cases. PR69's publishing receipt was
+observed; PR70's final publishing UI receipt was not, so its public behavior
+rather than an editor status is the recorded live proof.
+
+Internal browser QA recorded the guide introduction CTA, matching rental
+detail view and external contact action with article/placement preserved. The
+expected Zillow source page opened; no tour or message was submitted. A second
+path recorded the ending post CTA and entry to the ready listing-creation form;
+no listing was submitted. All these QA events are marked internal. They are
+neither organic growth nor completed inquiries or listing submissions.
+
+The owner kept Supabase Free and approved R2 Standard activation and its
+renewing usage terms. The active empty R2 overview is verified. A metadata-only
+capture contains 12,758 objects totaling 2,618,329,958 bytes across the listing
+and evidence photo stores. All 6,379 same-path pairs match size, content type
+and ETag. A candidate paired-download plan requires 1,309,164,979 source bytes,
+but no photo bytes have been downloaded or verified. See
+[the migration preparation](photo-storage-migration.md). The local preflight
+tool has no network, credential, bucket-creation, copy or deletion code.
+
+The source-transfer allowance and November 15 grace / November 17 reset gap
+must be resolved before any bulk photo copy. R2 activation does not reset
+Supabase's already-consumed transfer or billing-period storage average. Bucket
+access, photo migration and exact permanent deletion remain separate gates.
+
+Built in Idaho's public business directory explicitly invites missing companies
+to contact it and does not list Bluebird Marketplace. A complete directory
+request is prepared using the owner-supplied public business number. The owner
+asked its purpose; it remains unsent without submit authorization. The earlier
+CSI Housing and Gem State Realty emails remain parked. Verified public earned
+links remain zero.
