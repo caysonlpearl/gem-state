@@ -1,9 +1,9 @@
 import { seoPrewarmTargets } from "./seo-collections";
-import { SEO_REFRESH_MS, pendingSeoPageRefreshes } from "./seo-page-cache.server";
+import { pendingSeoPageRefreshes } from "./seo-page-cache.server";
 
 export async function prewarmSeoPages(now = Date.now()) {
   const { getPlacePage } = await import("./place-pages.functions");
-  const targets = seoPrewarmTargets(now / SEO_REFRESH_MS);
+  const targets = seoPrewarmTargets(now);
   const results = await Promise.allSettled(targets.map((data) => getPlacePage({ data })));
   await Promise.allSettled(pendingSeoPageRefreshes());
   return {

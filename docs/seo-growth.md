@@ -95,11 +95,11 @@ control indexing; an unsupported city/collection combination is not a new page.
 Sale/rent modes, house/apartment types, service trades and part-time employment
 are propagated into the browse destination and shared sitemap predicates.
 
-Remaining verification includes publishing release 2, live cache timing and
-source-failure behavior, sitemap/detail policy checks, content review/publication,
-earned links and the recurring measurement workflow. The legacy homes adapter's
-relative days-on-market calculation also needs a stable source-date review; do
-not represent a cache read as a new publication date.
+Releases 2–6 are merged and published through e65931e. Shared cache objects,
+stored/warm responses, approved originals, sitemap policy and private baseline
+storage have been checked live. Source-failure retention, successful-empty
+replacement and concurrent cold reads have regression coverage; production
+sources were not deliberately interrupted to simulate an outage.
 
 ### Editorial and measurement rhythm
 
@@ -148,3 +148,47 @@ Detail pages now use the same unexpired, deduplicated search inventory as browse
 Coeur D Alene is displayed and matched as Coeur d'Alene for Idaho source rows.
 Prepared SEO cache storage advances to v2 and homepage layout revision advances
 so old derived dates are rebuilt from stored data without provider calls.
+
+### Live verification — November 1, 2026, Boise time
+
+- The main sitemap returned HTTP 200 with 2,074 unique canonical-domain URLs.
+  Google Search Console accepted its resubmission in the existing
+  `sc-domain:onbluebird.com` property. The receipt proves submission, not that
+  Google has indexed the new URLs. Robots advertises both sitemap endpoints;
+  the news sitemap also returned HTTP 200.
+- All 25 supported first-batch collection routes were checked. Two statewide
+  sale/rental pages initially returned 500 during the cold-cache rollout, then
+  recovered to HTTP 200 with 24 cards each and stored v2 objects. This initial
+  failure remains recorded; warm-cache performance does not prove every cold
+  request is fast or reliable. Remaining supported routes returned HTTP 200.
+- Prepared home cards retained sale/rent and property-type filters, Idaho
+  locations and actual cache expiry. Unknown legacy publication dates were
+  absent. Trades and part-time employment matched their requested collections.
+  Idaho Falls part-time jobs had one result, remained noindex and was absent
+  from the sitemap. Unsupported city/collection combinations returned 404.
+- Both approved originals appear in Bluebird Local and have server-rendered
+  article copy and crawlable CTAs. Native Chrome verified four matching Twin
+  Falls rental cards and four Boise plumbing businesses after hydration.
+- The administrator saved and downloaded `baseline-2026-11-02`, a rolling
+  seven-day report (UTC key; still November 1 in Boise). Anonymous access to
+  its public Storage URL was denied. It recorded 1,077 visits, 412 listing-view
+  events and zero recorded organic visits for this shorter period. Keep it
+  separate from the prior 30-day baseline: 2,113 visits, nine search visits,
+  three search listing-view events and one search contact action.
+- Read-only inspection of the installed database job confirmed
+  `bluebird-local-refresh` is active every 15 minutes. Its 00:30 UTC November 2
+  HTTP response was 200 and reported successful saves of `weekly-2026-10-26`
+  and `monthly-2026-11-01`; these are observed scheduled saves. Cache warming
+  is now attached to this installed endpoint and rotates with its actual
+  quarter-hour cadence, covering the 29 configured destinations within four
+  hours, ahead of the six-hour stale bound. The standalone homepage-refresh
+  endpoint has no separate installed database schedule.
+- No outreach has been sent. CSI Housing, Built in Idaho and Gem State Realty
+  have tailored drafts. The owner asked how this supports SEO; actual send
+  authorization and any third-party editorial decision remain outstanding.
+  Verified earned links: zero. The overall steps 2–8 goal is not complete.
+
+Detailed dated evidence lives in the workspace research directory
+`research/seo/2026-11-01`, including `collections-live-audit.json`,
+`collections-recovery-live.json`, `discovery-live.json`,
+`saved-report-live.json` and `gsc-sitemap-submission.json`.
