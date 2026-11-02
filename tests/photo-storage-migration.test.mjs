@@ -442,6 +442,14 @@ test("interrupted copy attempts retain their byte reservations and require expli
     await f.prepare();
     await f.lease();
     await f.reserve();
+    await f.prepare();
+    const retained = (
+      await f.db.query(
+        "select source_bytes_reserved,running_groups from public.photo_migration_runs",
+      )
+    ).rows[0];
+    assert.equal(Number(retained.source_bytes_reserved), 100);
+    assert.equal(retained.running_groups, 1);
     await f.db.exec(
       "update public.photo_migration_items set lease_until=now()-interval '1 second' where status='running'",
     );

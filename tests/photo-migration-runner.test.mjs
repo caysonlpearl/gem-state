@@ -32,7 +32,13 @@ function fixture() {
     running_groups: 0,
     last_failure: null,
   };
-  const state = { permit: "", calls: [], failReserve: false, revokeAfterLease: false };
+  const state = {
+    permit: "",
+    calls: [],
+    failReserve: false,
+    revokeAfterLease: false,
+    prepareDelay: 0,
+  };
   const validPermit = () =>
     JSON.stringify({
       runId: id,
@@ -42,10 +48,26 @@ function fixture() {
       expiresAt: "2099-01-01T00:00:00Z",
     });
   function query(fn) {
+    let signal;
     const q = {
-      abortSignal: () => q,
+      abortSignal: (value) => {
+        signal = value;
+        return q;
+      },
       retry: () => q,
-      then: (resolve) => Promise.resolve(fn()).then(resolve),
+      then: (resolve, reject) =>
+        new Promise((done, fail) => {
+          if (signal?.aborted) {
+            fail(signal.reason);
+            return;
+          }
+          const abort = () => fail(signal.reason);
+          signal?.addEventListener("abort", abort, { once: true });
+          Promise.resolve()
+            .then(fn)
+            .then(done, fail)
+            .finally(() => signal?.removeEventListener("abort", abort));
+        }).then(resolve, reject),
     };
     return q;
   }
@@ -64,7 +86,12 @@ function fixture() {
     rpc(name, args) {
       return query(() => {
         state.calls.push({ name, args });
-        if (name === "prepare_photo_migration") return { data: id, error: null };
+        if (name === "prepare_photo_migration")
+          return state.prepareDelay
+            ? new Promise((resolve) =>
+                setTimeout(() => resolve({ data: id, error: null }), state.prepareDelay),
+              )
+            : { data: id, error: null };
         if (name === "lease_photo_migration_item") {
           row.running_groups = 1;
           return {
@@ -118,6 +145,16 @@ test("metadata review uses the same canonical plan as the offline CLI and perfor
   assert.equal(f.state.calls[0].args._digest, f.plan.inventorySha256);
   assert.equal(f.photos.state.sourceDownloads, 0);
   assert.equal(f.photos.state.receiptReads, 0);
+  assert.equal(f.photos.state.puts.length, 0);
+});
+
+test("metadata preparation can acknowledge a slow commit beyond the copy-control deadline", async () => {
+  const f = fixture();
+  f.state.prepareDelay = 6000;
+  const result = await f.runner.prepare(f.inventory);
+  assert.equal(result.id, id);
+  assert.equal(f.state.calls.length, 1);
+  assert.equal(f.photos.state.sourceDownloads, 0);
   assert.equal(f.photos.state.puts.length, 0);
 });
 test("missing, malformed, expired, wrong-run and wrong-digest permits deny copying before leases or R2 operations", async () => {

@@ -157,6 +157,15 @@ project and recomputes the exact same digest as the local CLI before storing
 one private review. Preparing or refreshing it performs no photo operations.
 An existing digest reuses its review; it does not reset budgets or progress.
 
+The first live 6,379-group preparation committed successfully but returned no
+confirmation to the page. Authoritative database inspection found one complete
+metadata review, no active preparation, zero reserved photo bytes and zero photo
+receipts. The page recovered the saved review after reload. Preparation now has
+a 20-second response window; copy-control RPCs retain five seconds. Saved
+reviews refresh after preparation settles, with a separate refresh control
+available even when confirmation fails. A six-second delayed-acknowledgment
+regression and actual SQL duplicate-review tests protect this recovery behavior.
+
 Execution remains disabled with `BLUEBIRD_PHOTO_MIGRATION_PERMIT` unset. Only
 after separate owner approval and resolution of source allowance/grace timing,
 set that server-only value to a JSON object with all five reviewed fields:
@@ -249,7 +258,6 @@ Sources reviewed November 1, 2026:
 - [Supabase transfer usage](https://supabase.com/docs/guides/platform/manage-your-usage/egress)
 - [Supabase storage averaging](https://supabase.com/docs/guides/platform/manage-your-usage/storage-size)
 - [Supabase fair-use restrictions and reset timing](https://supabase.com/docs/guides/platform/billing-faq#fair-use-policy)
-
 
 Operator preparation validation: 765 repository tests passed, including actual
 PostgreSQL tests for private review permissions, lease replay, stale workers,

@@ -32,9 +32,11 @@ function MigrationControls() {
       if (!inventory) throw new Error("Choose the metadata inventory first.");
       return prepare({ data: inventory });
     },
-    onSuccess: async (value) => {
+    onSuccess: (value) => {
       setActive(value);
-      await runs.refetch();
+    },
+    onSettled: () => {
+      void runs.refetch();
     },
   });
   const batch = useMutation({
@@ -109,6 +111,16 @@ function MigrationControls() {
         onClick={() => prep.mutate()}
       >
         Prepare transfer review
+      </button>
+      <button
+        type="button"
+        className="btn-secondary ml-2"
+        disabled={busy}
+        onClick={() => {
+          void runs.refetch();
+        }}
+      >
+        Refresh saved reviews
       </button>
       {(fileError || prep.error || runs.error || batch.error) && (
         <p role="alert" className="text-destructive">
