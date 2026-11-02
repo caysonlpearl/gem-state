@@ -48,9 +48,6 @@ export function SiteFooter() {
           <Link to="/contact" className={quickLinkClass} {...pinned}>
             Contact us
           </Link>
-          <a href={`mailto:${brand.supportEmail}`} className={`${quickLinkClass} break-all`}>
-            {brand.supportEmail}
-          </a>
           <Link to="/policies" className={quickLinkClass} {...pinned}>
             Privacy &amp; terms
           </Link>
