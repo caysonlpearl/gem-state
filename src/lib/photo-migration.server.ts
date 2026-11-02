@@ -1,9 +1,17 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { Buffer } from "node:buffer";
 import { z } from "zod";
 
 import { buildPhotoMigrationPlan } from "./photo-migration-plan.server.mjs";
-import type { PhotoInventory, PhotoInventoryObject, PhotoMigrationStatus } from "./photo-migration";
-import { getPhotoStorage } from "./photo-storage.server";
+import type {
+  PhotoInventory,
+  PhotoInventoryObject,
+  PhotoMigrationStatus,
+  PreparedMigrationPreview,
+} from "./photo-migration";
+import { MAX_THUMBNAIL_BYTES, canonicalPhotoEtag } from "./photo-storage";
+import { getPhotoStorage, createSupabasePhotoSource } from "./photo-storage.server";
+import type { PhotoSource } from "./photo-storage-core.server";
 import { serverEnv } from "./runtime-env.server";
 
 const permitSchema = z
@@ -69,6 +77,7 @@ export function createPhotoMigrationRunner(
     permit?: () => string;
     project?: () => string;
     store?: typeof getPhotoStorage;
+    previewSource?: () => Pick<PhotoSource, "sign">;
   } = {},
 ) {
   const readPermit = deps.permit ?? (() => serverEnv("BLUEBIRD_PHOTO_MIGRATION_PERMIT"));
@@ -209,7 +218,54 @@ export function createPhotoMigrationRunner(
     }
     return null;
   }
-  async function step(id: string, retry = false) {
+  async function preparePreview(id: string) {
+    const run = await read(id);
+    const rawPermit = readPermit();
+    const permit = photoMigrationPermit(rawPermit, id, run.digest);
+    if (!permit) throw new Error("A matching, unexpired photo-copy permit is required.");
+    // This mutation is never retried. The reservation remains charged if the
+    // acknowledgement, signing or browser download fails.
+    const item = (await rpc("reserve_photo_migration_preview", {
+      _run: id,
+      _actor: actor,
+      _digest: run.digest,
+      _max_groups: permit.maxGroups,
+      _max_bytes: permit.maxSourceBytes,
+      _expires: permit.expiresAt,
+    })) as { ordinal: number; sourceBytes: number; entries: PhotoInventoryObject[] };
+    const first = item.entries.find((entry) => entry.bucket === "listing-media") ?? item.entries[0];
+    if (!first || first.bytes !== item.sourceBytes || !canonicalPhotoEtag(first.etag))
+      throw new Error("Preview source metadata is incomplete. Stop and review.");
+    // Always read the retained source here, independently of the serving mode.
+    // Browser preparation must not require enabling R2 GET CORS/public access.
+    const source = deps.previewSource?.() ?? createSupabasePhotoSource(db);
+    const seconds = Math.min(60, Math.floor((Date.parse(permit.expiresAt) - Date.now()) / 1000));
+    if (seconds < 1 || rawPermit !== readPermit())
+      throw new Error("Photo-copy approval changed or expired.");
+    const urls = await source.sign(first.bucket, [first.path], seconds, false);
+    const url = urls.get(first.path);
+    if (!url || rawPermit !== readPermit() || !photoMigrationPermit(readPermit(), id, run.digest))
+      throw new Error("Preview source could not be prepared under the current approval.");
+    return {
+      ordinal: item.ordinal,
+      sourceEtag: canonicalPhotoEtag(first.etag)!,
+      bytes: first.bytes,
+      contentType: first.contentType,
+      url,
+    };
+  }
+  async function step(id: string, retry = false, preparedPreview?: PreparedMigrationPreview) {
+    let thumbnail;
+    if (preparedPreview) {
+      if (!retry) throw new Error("Prepared previews are only accepted for an explicit retry.");
+      const bytes = Uint8Array.from(Buffer.from(preparedPreview.base64, "base64"));
+      if (!bytes.length || bytes.length > MAX_THUMBNAIL_BYTES)
+        throw new Error("Prepared preview exceeds its size limit.");
+      const { makePhotoThumbnail } = await import("./photo-thumbnail.server");
+      // Re-decode the small preview on the server. Original decoding remains
+      // bounded at 8MP; client-supplied dimensions or MIME are never trusted.
+      thumbnail = await makePhotoThumbnail(bytes, preparedPreview.contentType);
+    }
     const run = await read(id);
     const rawPermit = readPermit();
     const permit = photoMigrationPermit(rawPermit, id, run.digest);
@@ -260,6 +316,14 @@ export function createPhotoMigrationRunner(
     const identity = { _run: id, _ordinal: item.ordinal, _lease: lease, _actor: actor };
     let downloadedBytes: number;
     try {
+      if (
+        preparedPreview &&
+        (preparedPreview.ordinal !== item.ordinal ||
+          item.entries.some(
+            (entry) => canonicalPhotoEtag(entry.etag) !== preparedPreview.sourceEtag,
+          ))
+      )
+        throw new Error("Prepared preview source changed. Stop and review.");
       const photos = await store(true);
       const ready = await Promise.all(
         [...new Set(item.entries.map((entry) => entry.bucket))].map((bucket) =>
@@ -270,7 +334,7 @@ export function createPhotoMigrationRunner(
       const migrated = await photos.migrate(
         item.entries.map(({ bucket, path, ...expected }) => ({ bucket, path, expected })),
         item.source_bytes,
-        undefined,
+        thumbnail,
         async (bytes) => {
           if (readPermit() !== rawPermit || !photoMigrationPermit(readPermit(), id, run.digest))
             throw new Error("Source download budget permit changed or expired.");
@@ -298,5 +362,5 @@ export function createPhotoMigrationRunner(
     }
     return { state: "copied" as const, reason: null, status: await read(id) };
   }
-  return { list, prepare, step };
+  return { list, prepare, preparePreview, step };
 }

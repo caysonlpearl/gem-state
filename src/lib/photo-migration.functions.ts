@@ -2,7 +2,8 @@ import { createServerFn, createServerOnlyFn } from "@tanstack/react-start";
 import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { MAX_PHOTO_BYTES, photoPath } from "./photo-storage";
+import { MAX_PHOTO_BYTES, MAX_THUMBNAIL_BYTES, photoPath } from "./photo-storage";
+import type { PreparedMigrationPreview } from "./photo-migration";
 
 const inventorySchema = z.object({
   schemaVersion: z.literal(1),
@@ -49,7 +50,33 @@ export const preparePhotoMigration = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => (await adminRunner(context)).prepare(data));
 export const stepPhotoMigration = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input: { id: string; retry?: boolean }) =>
-    z.object({ id: z.string().uuid(), retry: z.boolean().default(false) }).parse(input),
+  .validator((input: { id: string; retry?: boolean; preparedPreview?: PreparedMigrationPreview }) =>
+    z
+      .object({
+        id: z.string().uuid(),
+        retry: z.boolean().default(false),
+        preparedPreview: z
+          .object({
+            ordinal: z.number().int().min(0).max(19999),
+            sourceEtag: z.string().regex(/^[a-f0-9]{32}$/i),
+            contentType: z.enum(["image/jpeg", "image/webp", "image/png"]),
+            base64: z
+              .string()
+              .min(4)
+              .max(4 * Math.ceil(MAX_THUMBNAIL_BYTES / 3))
+              .regex(/^[A-Za-z0-9+/]+={0,2}$/),
+          })
+          .strict()
+          .optional(),
+      })
+      .strict()
+      .parse(input),
   )
-  .handler(async ({ data, context }) => (await adminRunner(context)).step(data.id, data.retry));
+  .handler(async ({ data, context }) =>
+    (await adminRunner(context)).step(data.id, data.retry, data.preparedPreview),
+  );
+
+export const preparePhotoMigrationPreview = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: { id: string }) => z.object({ id: z.string().uuid() }).strict().parse(input))
+  .handler(async ({ data, context }) => (await adminRunner(context)).preparePreview(data.id));
