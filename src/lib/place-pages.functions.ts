@@ -1,4 +1,5 @@
 import { requireReliableIndexing } from "./catalog-availability";
+import { withCatalogReadDeadline } from "./catalog-read-deadline";
 import { createServerFn } from "@tanstack/react-start";
 
 import { brand } from "@/config/brand";
@@ -486,20 +487,24 @@ export function vehiclePriceTables(listings: ClassifiedCard[]): PlacePriceTable[
 }
 
 /**
- * Where a listing that's no longer live should send its visitors: its city
- * and category page, or the statewide category page. Only the category and
- * city are read; nothing else about the removed listing is exposed.
+ * An onward browse link for the unavailable-listing page, not a redirect.
+ * Only the category and city are read; removed details are never exposed.
  */
-export const getRemovedListingRedirect = createServerFn({ method: "GET" })
+export const getRemovedListingBrowsePath = createServerFn({ method: "GET" })
   .validator((input: { id: string }) => ({ id: String(input?.id ?? "").slice(0, 64) }))
   .handler(async ({ data }): Promise<string | null> => {
     if (!/^[0-9a-f-]{36}$/i.test(data.id)) return null;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data: row } = await supabaseAdmin
-      .from("asks")
-      .select("id, products(categories(slug)), classified_listing_details(city, state)")
-      .eq("id", data.id)
-      .maybeSingle();
+    const { data: row, error } = await withCatalogReadDeadline((signal) =>
+      supabaseAdmin
+        .from("asks")
+        .select("id, products(categories(slug)), classified_listing_details(city, state)")
+        .eq("id", data.id)
+        .abortSignal(signal)
+        .retry(false)
+        .maybeSingle(),
+    );
+    if (error) throw new Error("Listing information is temporarily unavailable. Please try again.");
     if (!row) return null;
     const record = row as unknown as {
       products: { categories: { slug: string } | null } | null;

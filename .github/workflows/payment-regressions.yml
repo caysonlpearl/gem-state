@@ -24,3 +24,5 @@ jobs:
           python -m playwright install --with-deps chromium
       - run: npm run test:payments
       - run: npx tsc --noEmit
+      - run: npm run build
+      - run: npm run test:seo:ssr

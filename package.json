@@ -16,6 +16,7 @@
     "test:phase5": "node --experimental-strip-types --test tests/phase5-release-gate.test.mjs",
     "test:release-gate": "node scripts/phase5-regression.mjs",
     "test:payments": "node --experimental-strip-types --test tests/*.test.mjs",
+    "test:seo:ssr": "node scripts/seo-listing-ssr-smoke.mjs",
     "build:dev": "vite build --mode development",
     "build:preview": "NITRO_PRESET=node-server vite build",
     "models:generate": "node scripts/3d/model-workflow.mjs generate",

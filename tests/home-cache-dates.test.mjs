@@ -120,6 +120,10 @@ function cacheFixture(mode) {
       console,
       require(name) {
         if (name === "@supabase/supabase-js") return { createClient: () => db };
+        if (name === "./catalog-read-deadline")
+          return { withCatalogReadDeadline: (query) => query };
+        if (name === "./short-cache.server")
+          return { shortCache: (_key, _ttl, load) => load(), PUBLIC_PAGE_CACHE_MS: 60000 };
         if (name === "./runtime-env.server") return { serverEnv: () => "test-only-value" };
         if (name === "./openwebninja-cache") return { homesFromSavedSearches };
         if (name === "./openwebninja-contract") return contract;

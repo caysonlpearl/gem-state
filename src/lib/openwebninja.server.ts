@@ -1,4 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
+import { withCatalogReadDeadline } from "./catalog-read-deadline";
+import { shortCache, PUBLIC_PAGE_CACHE_MS } from "./short-cache.server";
 import { serverEnv } from "./runtime-env.server";
 import { homesFromSavedSearches, type SavedHomeSearch } from "./openwebninja-cache";
 import {
@@ -36,7 +38,7 @@ export function cacheDb() {
         if (dbKey.startsWith("sb_") && headers.get("Authorization") === `Bearer ${dbKey}`)
           headers.delete("Authorization");
         headers.set("apikey", dbKey);
-        return fetch(url, { ...init, headers, signal: AbortSignal.timeout(8000) });
+        return fetch(url, { ...init, headers, signal: init?.signal ?? AbortSignal.timeout(8000) });
       },
     },
   });
@@ -141,15 +143,24 @@ export function openWebNinjaConfigured() {
 export async function cachedHomes(): Promise<OpenWebNinjaHome[]> {
   const db = cacheDb();
   if (!db) return [];
-  const { data, error } = await db
-    .from("openwebninja_cache")
-    .select("cache_key,payload,expires_at")
-    .like("cache_key", '%search"%')
-    .gt("expires_at", new Date().toISOString())
-    .order("expires_at", { ascending: false })
-    .limit(100);
-  if (error) throw new Error("Saved homes are temporarily unavailable.");
-  return homesFromSavedSearches((data ?? []) as SavedHomeSearch[]);
+  const rows = await shortCache("openwebninja-public-searches", PUBLIC_PAGE_CACHE_MS, async () => {
+    const { data, error } = await withCatalogReadDeadline(
+      db
+        .from("openwebninja_cache")
+        .select("cache_key,payload,expires_at")
+        .like("cache_key", '%search"%')
+        .gt("expires_at", new Date().toISOString())
+        .order("expires_at", { ascending: false })
+        .limit(100),
+    );
+    if (error) throw new Error("Saved homes are temporarily unavailable.");
+    const saved = (data ?? []) as SavedHomeSearch[];
+    homesFromSavedSearches(saved); // Reject malformed payloads before storing a memory hit.
+    return saved;
+  });
+  // Recheck source expiry on every read, including memory hits. A failed
+  // load is evicted; a successful empty search replaces the previous rows.
+  return homesFromSavedSearches(rows);
 }
 
 export type OpenWebNinjaSearchArea = {
@@ -224,12 +235,15 @@ export async function propertyDetails(
   // daily budget is used up).
   const db = cacheDb();
   if (db) {
-    const { data: rows } = await db
-      .from("openwebninja_cache")
-      .select("cache_key,payload")
-      // A pattern, not .in(): these JSON keys contain commas, which break
-      // PostgREST's in-list and silently match nothing.
-      .like("cache_key", `%"kind":"property","id":"${id.replace(/[^0-9A-Za-z_-]/g, "")}"}`);
+    const { data: rows, error } = await withCatalogReadDeadline(
+      db
+        .from("openwebninja_cache")
+        .select("cache_key,payload")
+        // A pattern, not .in(): these JSON keys contain commas, which break
+        // PostgREST's in-list and silently match nothing.
+        .like("cache_key", `%"kind":"property","id":"${id.replace(/[^0-9A-Za-z_-]/g, "")}"}`),
+    );
+    if (error) throw new Error("Saved property details are temporarily unavailable.");
     const current = (rows ?? []).find((row: { cache_key: string }) => row.cache_key === key);
     const legacy = (rows ?? []).find((row: { cache_key: string }) => row.cache_key !== key);
     const saved = current?.payload ?? legacy?.payload;

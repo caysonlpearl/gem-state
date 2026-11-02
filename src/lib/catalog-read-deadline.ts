@@ -13,7 +13,7 @@ type CatalogRead<T> = PromiseLike<T> & {
 
 /** SELECTs only. Never use this to cancel a write or reservation RPC. */
 export async function withCatalogReadDeadline<T>(
-  query: CatalogRead<T>,
+  query: CatalogRead<T> | ((signal: AbortSignal) => PromiseLike<T>),
   timeoutMs = 8_000,
 ): Promise<T> {
   const controller = new AbortController();
@@ -21,7 +21,12 @@ export async function withCatalogReadDeadline<T>(
   try {
     // Await the query, including response-body parsing, under one deadline.
     // SDK retries would otherwise multiply a single read's wait.
-    const result = await query.abortSignal(controller.signal).retry(false);
+    // Terminal SDK transforms such as maybeSingle() hide abortSignal from
+    // their return type. Their factory attaches this signal and disables
+    // retries before applying the terminal transform.
+    const result = await (typeof query === "function"
+      ? query(controller.signal)
+      : query.abortSignal(controller.signal).retry(false));
     if (controller.signal.aborted) throw new CatalogReadTimeoutError();
     return result;
   } catch (error) {
