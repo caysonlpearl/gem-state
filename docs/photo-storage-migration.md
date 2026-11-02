@@ -167,7 +167,7 @@ available even when confirmation fails. A six-second delayed-acknowledgment
 regression and actual SQL duplicate-review tests protect this recovery behavior.
 
 Execution remains disabled with `BLUEBIRD_PHOTO_MIGRATION_PERMIT` unset. Only
-after separate owner approval and resolution of source allowance/grace timing,
+after owner approval of the exact copy scope and review of source enforcement,
 set that server-only value to a JSON object with all five reviewed fields:
 
 - `runId`: the generated review UUID;
@@ -197,6 +197,13 @@ group**, closing the review, or leaving the page prevents further client request
 a current server request can finish. A retry handles one failed group. No
 scheduler runs copies. The runner has no source-deletion or cutover operation.
 
+**Continue approved batches** repeats those same bounded batches while the admin
+page remains open. After every 25 groups it reloads the saved review before
+continuing. It stops on a failed group, active lease, unavailable acknowledgement,
+changed/expired permit, user stop or page exit. It cannot silently widen or renew
+the permit, and the retry control still attempts only one group. This is a
+one-time operator action, not a recurring schedule or automatic page-load action.
+
 The displayed reserved and confirmed-successful bytes have different meanings:
 reservations bound the app's expected photo-body downloads, including uncertain
 failed attempts; confirmed bytes count successful completed downloads only.
@@ -224,8 +231,10 @@ assumed to hit the CDN cache. R2 activation does not change this source limit.
 
 Storage enforcement also uses a billing-period average. Removing current bytes
 does not erase prior usage. The current reset is November 17, while the account
-notice names November 15 as the end of its grace period. Resolve that gap with
-Supabase or an explicitly approved alternative before transferring/cutting over.
+notice names November 15 as the end of its grace period. Small owner-approved
+batches can run while the Free-plan grace period permits normal operations;
+unused monthly quota is not a technical prerequisite for such a batch. Resolve
+the deadline gap before relying on continued service or a source-removal cutover.
 Do not promise that deleting photos immediately clears the current restriction.
 
 R2's approved terms include 10 GB-month, 1 million Class A and 10 million Class B
@@ -266,3 +275,28 @@ verified zero-download resumes and retry limits. Server orchestration tests
 exercise the real copy core with offline stores. TypeScript, scoped lint and
 production build passed. No live copy or billing-cap guarantee follows from
 these checks; the permit remains unset and source-capacity approval is pending.
+
+### November 2 pilot and remaining-copy approval
+
+The owner approved the four-format pilot. Its four groups completed with no
+failures: eight original R2 objects and four listing previews passed byte-length
+and SHA-256 verification after 1,054,946 source-photo download bytes. Production
+metadata confirms all eight Supabase sources remain unchanged. The temporary
+pilot permit was disabled afterward; reads and uploads still use Supabase.
+
+Full metadata reconciliation found all 12,758 original objects unchanged plus
+the two 2,791-byte objects from the approved private posting QA. The reconciled
+inventory has 6,380 pairs and digest
+`af4789fed617bd931b581c19ae5fcef943ae91baec2b5781f5ed141ea709f0e3`.
+The owner approved copying the remaining 6,376 pairs within a combined
+1,500,000,000-byte photo-download ceiling and 24 hours, retaining source files
+and both existing serving modes. Metadata and ordinary app traffic are additional.
+
+The new full preparation failed without creating a run or leaving an active
+preparation. Execution therefore reuses the unchanged 6,379-group review with
+a 1,499,990,000-byte ceiling and a separate one-pair QA review with a 10,000-byte
+ceiling. Their sum remains the owner's approved limit. Already verified pilot
+objects are checked and skipped without another source download. The remaining
+expected photo downloads total 1,308,112,824 bytes. Remaining-copy approval does
+not authorize read/upload cutover or permanent source deletion. Completion still
+requires authoritative run, receipt and retained-source verification.

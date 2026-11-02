@@ -7,6 +7,7 @@ import {
   stepPhotoMigration,
 } from "@/lib/photo-migration.functions";
 import type { PhotoInventory, PhotoMigrationStatus } from "@/lib/photo-migration";
+import { runPhotoMigrationBatches } from "@/lib/photo-migration-batches";
 
 function size(bytes: number) {
   return `${(bytes / 1024 / 1024).toLocaleString(undefined, { maximumFractionDigits: 2 })} MiB`;
@@ -40,29 +41,45 @@ function MigrationControls() {
     },
   });
   const batch = useMutation({
-    mutationFn: async ({ run, retry }: { run: PhotoMigrationStatus; retry: boolean }) => {
+    mutationFn: async ({
+      run,
+      retry,
+      continuous = false,
+    }: {
+      run: PhotoMigrationStatus;
+      retry: boolean;
+      continuous?: boolean;
+    }) => {
       stop.current = false;
-      for (let n = 0; n < (retry ? 1 : 25); n++) {
-        if (stop.current) break;
-        const result = await step({ data: { id: run.id, retry } });
-        setActive(result.status);
-        if (result.state !== "copied") {
-          setNote(
-            result.state === "complete"
-              ? "The approved range is verified."
-              : result.state === "busy"
-                ? "Another transfer request is running. Refresh the state after it finishes."
-                : result.reason === "retry-limit"
-                  ? "This group reached its retry allowance. Review it before making further changes."
-                  : "Stopped. Review the transfer state before retrying.",
-          );
-          return;
-        }
-      }
+      const reason = await runPhotoMigrationBatches({
+        run,
+        retry,
+        continuous,
+        step: (input) => step({ data: input }),
+        refresh: async () => {
+          const result = await runs.refetch();
+          if (result.error) throw result.error;
+          const updated = result.data?.runs.find((value) => value.id === run.id);
+          if (!updated) throw new Error("Photo-transfer review is unavailable. Stop and refresh.");
+          return updated;
+        },
+        onStatus: setActive,
+        shouldStop: () => stop.current,
+      });
       setNote(
-        stop.current
-          ? "Stopped after the current group."
-          : "Batch finished. Review the totals before continuing.",
+        reason === "complete"
+          ? "The approved range is verified."
+          : reason === "busy"
+            ? "Another transfer request is running. Refresh the state after it finishes."
+            : reason === "retry-limit"
+              ? "This group reached its retry allowance. Review it before making further changes."
+              : reason === "user-stop"
+                ? "Stopped after the current group."
+                : reason === "permit-changed"
+                  ? "The transfer approval changed or expired. Stopped before the next group."
+                  : reason === "batch-finished"
+                    ? "Batch finished. Review the totals before continuing."
+                    : "Stopped. Review the transfer state before retrying.",
       );
     },
     onSettled: () => {
@@ -188,6 +205,8 @@ function MigrationControls() {
             One group runs at a time. A batch handles at most 25 groups. Reservations include
             interrupted downloads and are not automatically refunded. Metadata traffic is separate;
             these counters are not the provider’s account billing meter. Source photos are retained.
+            Continuing approved batches checks the saved state after each batch and stops if the
+            approval changes, expires, fails or you leave this page.
           </p>
           <div className="flex flex-wrap gap-2">
             <button
@@ -200,6 +219,17 @@ function MigrationControls() {
               }}
             >
               Run approved batch
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={!selected.permit || busy || selected.failedGroups > 0}
+              onClick={() => {
+                setNote("");
+                batch.mutate({ run: selected, retry: false, continuous: true });
+              }}
+            >
+              Continue approved batches
             </button>
             <button
               type="button"
