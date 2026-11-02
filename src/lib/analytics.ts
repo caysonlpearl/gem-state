@@ -78,6 +78,7 @@ export type AnalyticsEventName =
   | "review_submitted"
   | "notifications_viewed"
   | "classified_listing_submit_started"
+  | "classified_listing_started"
   | "classified_listing_submit_succeeded"
   | "classified_listing_submit_failed"
   | "search_completed"
@@ -204,6 +205,7 @@ export async function trackEvent(
         "seller_contacted",
         "inquiry_completed",
         "classified_listing_submit_started",
+        "classified_listing_started",
         "classified_listing_submit_succeeded",
       ].includes(name)
     ) {

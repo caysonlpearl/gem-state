@@ -67,6 +67,11 @@ export function classifyTrafficSource(
   pathname = "",
 ): TrafficSource {
   const params = new URLSearchParams(search);
+  // Retain only the channel, never the advertising click identifier itself.
+  // Without this check, an auto-tagged Google ad could look like organic search.
+  if (["gclid", "gbraid", "wbraid"].some((key) => params.has(key)))
+    return { source: "google", channel: "paid" };
+  if (params.has("msclkid")) return { source: "bing", channel: "paid" };
   // A seller's own share link (?ref=share) or website badge (?ref=badge) on
   // their storefront; the source is the seller, taken from the path.
   const ref = params.get("ref");

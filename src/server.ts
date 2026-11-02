@@ -154,6 +154,9 @@ export default {
   async scheduled(controller: unknown, env: unknown, ctx: unknown) {
     registerRuntimeBindings(env);
     const task = Promise.all([
+      import("./lib/seo-review-reports.server")
+        .then((module) => module.refreshSeoReviewReports())
+        .catch(() => null),
       import("./lib/seo-prewarm.server")
         .then((module) => module.prewarmSeoPages())
         .catch(() => null),
