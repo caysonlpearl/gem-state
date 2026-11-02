@@ -493,7 +493,8 @@ export function vehiclePriceTables(listings: ClassifiedCard[]): PlacePriceTable[
 export const getRemovedListingBrowsePath = createServerFn({ method: "GET" })
   .validator((input: { id: string }) => ({ id: String(input?.id ?? "").slice(0, 64) }))
   .handler(async ({ data }): Promise<string | null> => {
-    if (!/^[0-9a-f-]{36}$/i.test(data.id)) return null;
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.id))
+      return null;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: row, error } = await withCatalogReadDeadline((signal) =>
       supabaseAdmin
