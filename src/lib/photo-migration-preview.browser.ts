@@ -13,7 +13,10 @@ export type MigrationPreviewSource = {
 /** One explicitly reserved source GET, no automatic retries or persistence. */
 export async function prepareMigrationPreview(
   source: MigrationPreviewSource,
-  deps = { fetch, thumbnail: browserPhotoThumbnail },
+  deps = {
+    fetch: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, init),
+    thumbnail: browserPhotoThumbnail,
+  },
 ): Promise<PreparedMigrationPreview> {
   if (!Number.isSafeInteger(source.bytes) || source.bytes < 1 || source.bytes > MAX_PHOTO_BYTES)
     throw new Error("Invalid preview source size.");
