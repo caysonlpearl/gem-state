@@ -616,3 +616,135 @@ test("migration retry limit prevents repeated failing copies without hiding thei
     await f.db.close();
   }
 });
+
+const reuseSourceMigration = readFileSync(
+  new URL("../supabase/migrations/20261102230000_reuse_prepared_photo_source.sql", import.meta.url),
+  "utf8",
+);
+test("prepared-source SQL reuses charged preparation without refunding bytes or resetting attempts", async () => {
+  const f = await runnerFixture();
+  try {
+    await f.db.exec(previewMigration);
+    await f.db.exec(reuseSourceMigration);
+    await f.db.exec(reuseSourceMigration);
+    await f.prepare();
+    await f.lease();
+    await f.reserve();
+    await f.fail("processing");
+    await f.db.query("select public.reserve_photo_migration_preview($1,$2,$3,2,300,$4)", [
+      runId,
+      owner,
+      digest,
+      future,
+    ]);
+    await f.lease({ retry: true, maxBytes: 300 });
+    const ack = () =>
+      f.db.query(
+        "select public.acknowledge_photo_migration_prepared_source($1,0,$2,$3,$4,2,300,$5,100)",
+        [runId, leaseId, owner, digest, future],
+      );
+    await ack();
+    await assert.rejects(ack, /rejected/);
+    let item = (await f.db.query("select * from public.photo_migration_items where ordinal=0"))
+      .rows[0];
+    assert.equal(item.lease_source_reserved, true);
+    assert.equal(item.attempts, 2);
+    assert.equal(item.preview_reservations, 1);
+    assert.equal(
+      Number(
+        (await f.db.query("select source_bytes_reserved from public.photo_migration_runs")).rows[0]
+          .source_bytes_reserved,
+      ),
+      200,
+    );
+    await f.receipts();
+    await assert.rejects(() => f.finish({ bytes: 0 }), /completion lease/);
+    await f.finish();
+    assert.equal(
+      Number(
+        (await f.db.query("select confirmed_download_bytes from public.photo_migration_runs"))
+          .rows[0].confirmed_download_bytes,
+      ),
+      100,
+    );
+  } finally {
+    await f.db.close();
+  }
+});
+
+test("prepared-source SQL requires a prior charged preparation, admin, scope, exact bytes and a live matching lease", async () => {
+  const f = await runnerFixture();
+  try {
+    await f.db.exec(previewMigration);
+    await f.db.exec(reuseSourceMigration);
+    await f.prepare();
+    await f.lease();
+    const ack = (changes = {}) => {
+      const a = {
+        ordinal: 0,
+        token: leaseId,
+        hash: digest,
+        groups: 2,
+        cap: 300,
+        expires: future,
+        bytes: 100,
+        ...changes,
+      };
+      return f.db.query(
+        "select public.acknowledge_photo_migration_prepared_source($1,$2,$3,$4,$5,$6,$7,$8,$9)",
+        [runId, a.ordinal, a.token, owner, a.hash, a.groups, a.cap, a.expires, a.bytes],
+      );
+    };
+    await assert.rejects(() => ack(), /rejected/);
+    await f.fail("processing");
+    await f.db.query("select public.reserve_photo_migration_preview($1,$2,$3,2,300,$4)", [
+      runId,
+      owner,
+      digest,
+      future,
+    ]);
+    await f.lease({ retry: true, maxBytes: 300 });
+    for (const change of [
+      { ordinal: 1 },
+      { token: owner },
+      { hash: "b".repeat(64) },
+      { groups: 0 },
+      { groups: 3 },
+      { cap: 99 },
+      { cap: null },
+      { expires: "2020-01-01T00:00:00Z" },
+      { bytes: 99 },
+      { bytes: null },
+    ])
+      await assert.rejects(() => ack(change), /rejected/);
+    await f.db.exec("select set_config('test.is_admin','no',false)");
+    await assert.rejects(() => ack(), /admin/i);
+    await f.db.exec("select set_config('test.is_admin','yes',false)");
+    for (const role of ["anon", "authenticated"]) {
+      await f.db.exec(`SET ROLE ${role}`);
+      await assert.rejects(() => ack(), /permission denied/);
+      await f.db.exec("RESET ROLE");
+    }
+    await f.db.exec(
+      "update public.photo_migration_items set lease_until=now()-interval '1 second' where ordinal=0",
+    );
+    await assert.rejects(() => ack(), /rejected/);
+    assert.equal(
+      Number(
+        (await f.db.query("select source_bytes_reserved from public.photo_migration_runs")).rows[0]
+          .source_bytes_reserved,
+      ),
+      100,
+    );
+    assert.equal(
+      (
+        await f.db.query(
+          "select lease_source_reserved from public.photo_migration_items where ordinal=0",
+        )
+      ).rows[0].lease_source_reserved,
+      false,
+    );
+  } finally {
+    await f.db.close();
+  }
+});

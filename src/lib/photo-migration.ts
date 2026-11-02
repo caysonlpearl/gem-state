@@ -1,10 +1,14 @@
 import type { PhotoBucket, PhotoSourceMetadata } from "./photo-storage";
 
+// Only bounded originals already charged to preview preparation may be reused.
+export const MAX_PREPARED_MIGRATION_SOURCE_BYTES = 5 * 1024 * 1024;
+
 export type PreparedMigrationPreview = {
   ordinal: number;
   sourceEtag: string;
   contentType: "image/webp" | "image/jpeg" | "image/png";
   base64: string;
+  sourceBase64?: string;
 };
 
 export type PhotoInventoryObject = Omit<PhotoSourceMetadata, "updatedAt"> & {

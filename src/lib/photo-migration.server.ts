@@ -3,6 +3,7 @@ import { Buffer } from "node:buffer";
 import { z } from "zod";
 
 import { buildPhotoMigrationPlan } from "./photo-migration-plan.server.mjs";
+import { MAX_PREPARED_MIGRATION_SOURCE_BYTES } from "./photo-migration";
 import type {
   PhotoInventory,
   PhotoInventoryObject,
@@ -30,6 +31,7 @@ type PhotoMigrationLease = {
   lease_token: string;
   lease_until: string | null;
   source_bytes: number;
+  lease_source_reserved: boolean;
   entries: PhotoInventoryObject[];
 };
 export function photoMigrationPermit(raw: string, runId: string, digest: string, now = Date.now()) {
@@ -199,7 +201,9 @@ export function createPhotoMigrationRunner(
       try {
         const { data, error } = await db
           .from("photo_migration_items")
-          .select("run_id,ordinal,status,lease_token,lease_until,source_bytes,entries")
+          .select(
+            "run_id,ordinal,status,lease_token,lease_until,source_bytes,lease_source_reserved,entries",
+          )
           .eq("run_id", id)
           .eq("lease_token", lease)
           .abortSignal(AbortSignal.timeout(3000))
@@ -256,8 +260,19 @@ export function createPhotoMigrationRunner(
   }
   async function step(id: string, retry = false, preparedPreview?: PreparedMigrationPreview) {
     let thumbnail;
+    let preparedSource: Uint8Array | undefined;
     if (preparedPreview) {
       if (!retry) throw new Error("Prepared previews are only accepted for an explicit retry.");
+      if (preparedPreview.sourceBase64 !== undefined) {
+        if (
+          preparedPreview.sourceBase64.length >
+          4 * Math.ceil(MAX_PREPARED_MIGRATION_SOURCE_BYTES / 3)
+        )
+          throw new Error("Prepared source exceeds its size limit.");
+        preparedSource = Uint8Array.from(Buffer.from(preparedPreview.sourceBase64, "base64"));
+        if (!preparedSource.length || preparedSource.length > MAX_PREPARED_MIGRATION_SOURCE_BYTES)
+          throw new Error("Prepared source exceeds its size limit.");
+      }
       const bytes = Uint8Array.from(Buffer.from(preparedPreview.base64, "base64"));
       if (!bytes.length || bytes.length > MAX_THUMBNAIL_BYTES)
         throw new Error("Prepared preview exceeds its size limit.");
@@ -324,6 +339,8 @@ export function createPhotoMigrationRunner(
           ))
       )
         throw new Error("Prepared preview source changed. Stop and review.");
+      if (preparedSource && preparedSource.byteLength !== item.source_bytes)
+        throw new Error("Prepared source photo size changed.");
       const photos = await store(true);
       const ready = await Promise.all(
         [...new Set(item.entries.map((entry) => entry.bucket))].map((bucket) =>
@@ -338,14 +355,41 @@ export function createPhotoMigrationRunner(
         async (bytes) => {
           if (readPermit() !== rawPermit || !photoMigrationPermit(readPermit(), id, run.digest))
             throw new Error("Source download budget permit changed or expired.");
-          await rpc("reserve_photo_migration_download", {
+          const args = {
             ...identity,
             _digest: run.digest,
             _max_bytes: permit.maxSourceBytes,
             _expires: permit.expiresAt,
             _bytes: bytes,
-          });
+          };
+          if (preparedSource) {
+            // The browser preparation was already charged. No second source
+            // GET, refund or new allowance; acknowledge only this exact lease.
+            try {
+              await rpc("acknowledge_photo_migration_prepared_source", {
+                ...args,
+                _max_groups: permit.maxGroups,
+              });
+            } catch (error) {
+              const saved = await confirmedLease(id, lease);
+              if (
+                !saved ||
+                saved.ordinal !== item.ordinal ||
+                saved.status !== "running" ||
+                !saved.lease_source_reserved ||
+                saved.source_bytes !== bytes ||
+                !Number.isFinite(Date.parse(saved.lease_until ?? "")) ||
+                Date.parse(saved.lease_until ?? "") <= Date.now() ||
+                readPermit() !== rawPermit ||
+                !photoMigrationPermit(readPermit(), id, run.digest)
+              )
+                throw error;
+            }
+          } else {
+            await rpc("reserve_photo_migration_download", args);
+          }
         },
+        preparedSource,
       );
       downloadedBytes = migrated.downloadedBytes;
     } catch (error) {

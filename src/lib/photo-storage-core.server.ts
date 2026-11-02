@@ -259,6 +259,7 @@ export function createPhotoStorage(deps: {
     maxDownloadBytes: number,
     preparedThumbnail?: PhotoThumbnail,
     reserveSourceDownload?: (bytes: number) => Promise<void>,
+    preparedSourceBytes?: Uint8Array,
   ) {
     if (!deps.r2) throw new Error("Private photo storage is not configured.");
     if (!Number.isSafeInteger(maxDownloadBytes) || maxDownloadBytes <= 0)
@@ -339,7 +340,9 @@ export function createPhotoStorage(deps: {
     if (complete.size === entries.length)
       return { downloadedBytes: 0, receipts: entries.map((entry) => complete.get(entry.bucket)!) };
     await reserveSourceDownload?.(first.expected.bytes);
-    const bytes = await deps.source.download(first.bucket, first.path, first.expected.bytes);
+    const bytes =
+      preparedSourceBytes ??
+      (await deps.source.download(first.bucket, first.path, first.expected.bytes));
     if (bytes.byteLength !== first.expected.bytes) throw new Error("Source photo size changed.");
     // Pairing is limited to ordinary single-part MD5 ETags and requires an
     // actual MD5 check; multipart/opaque ETags cannot justify one download.

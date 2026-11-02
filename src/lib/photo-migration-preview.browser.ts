@@ -1,4 +1,14 @@
-import type { PreparedMigrationPreview } from "./photo-migration";
+import {
+  MAX_PREPARED_MIGRATION_SOURCE_BYTES,
+  type PreparedMigrationPreview,
+} from "./photo-migration.ts";
+
+function base64(bytes: Uint8Array) {
+  const chunks: string[] = [];
+  for (let offset = 0; offset < bytes.length; offset += 0x8000)
+    chunks.push(String.fromCharCode(...bytes.subarray(offset, offset + 0x8000)));
+  return btoa(chunks.join(""));
+}
 import { MAX_PHOTO_BYTES, MAX_THUMBNAIL_BYTES } from "./photo-storage.ts";
 import { browserPhotoThumbnail } from "./photo-thumbnail.browser.ts";
 
@@ -54,12 +64,13 @@ export async function prepareMigrationPreview(
   )
     throw new Error("Prepared preview is invalid or too large.");
   const bytes = new Uint8Array(await preview.arrayBuffer());
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
   return {
     ordinal: source.ordinal,
     sourceEtag: source.sourceEtag,
     contentType: preview.type as PreparedMigrationPreview["contentType"],
-    base64: btoa(binary),
+    base64: base64(bytes),
+    ...(blob.size <= MAX_PREPARED_MIGRATION_SOURCE_BYTES
+      ? { sourceBase64: base64(new Uint8Array(await blob.arrayBuffer())) }
+      : {}),
   };
 }
