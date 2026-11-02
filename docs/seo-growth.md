@@ -349,3 +349,20 @@ failed photo validation and an existing-listing edit. PostgreSQL tests execute
 the function and verify member/public access remains denied. Production
 installation and actual accepted-record reconciliation still require working
 database access; offline tests do not establish those outcomes.
+
+### November 2 follow-up
+
+The submission counter migration is installed and the native private posting
+test completed with article attribution; its accepted listing was cancelled
+without approval or publication. This verifies the internal posting path, not
+organic growth. A current article-attributed completed inquiry is still unverified.
+
+The owner declined the proposed local outreach on November 2. All messages and
+the directory request remain unsent. Remove outreach from the active execution
+list; no earned-link outcome or future ranking improvement is claimed.
+
+The November 29 read-only Bluebird Local review automation now targets the
+continuation chat. Its date, prompt and notification behavior are unchanged.
+The approved photo transfer has resumed after Chrome access was restored.
+Copying, receipt verification and eventual serving/upload cutover remain
+distinct steps; the source-retention and explicit deletion gates still apply.

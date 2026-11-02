@@ -100,6 +100,20 @@ export function createR2PhotoStore(config: R2PhotoConfig, fetcher: typeof fetch 
       });
       return result.ok;
     },
+    async matches(bucket: PhotoBucket, key: string, bytes: number, sha256: string) {
+      if (!Number.isSafeInteger(bytes) || bytes <= 0 || !/^[a-f0-9]{64}$/.test(sha256))
+        return false;
+      const result = await request(bucket, key, {
+        method: "HEAD",
+        signal: AbortSignal.timeout(2000),
+      });
+      await result.body?.cancel();
+      return (
+        result.ok &&
+        result.headers.get("content-length") === String(bytes) &&
+        result.headers.get("x-amz-meta-sha256") === sha256
+      );
+    },
     async sign(bucket: PhotoBucket, key: string, expiresIn: number) {
       return (await signedUrl(bucket, key, expiresIn, { method: "GET" })).url;
     },

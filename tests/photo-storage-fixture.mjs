@@ -76,11 +76,14 @@ export function photoStorageFixture(mode = "r2") {
     reservations: [],
     puts: [],
     checks: [],
+    objectChecks: [],
     warnings: [],
     healthy: true,
     failVerify: false,
     failReserve: false,
     failReceipts: false,
+    failObjectCheck: false,
+    now: 1793491200000,
     info: () => ({ ...metadata }),
   };
   const source = {
@@ -121,6 +124,12 @@ export function photoStorageFixture(mode = "r2") {
     async available() {
       return state.healthy;
     },
+    async matches(bucket, key, size, hash) {
+      state.objectChecks.push([bucket, key]);
+      if (state.failObjectCheck) throw new Error("offline");
+      const actual = state.r2.get(`${bucket}/${key}`);
+      return !!actual && actual.length === size && photoSha256(actual) === hash;
+    },
     async sign(bucket, key) {
       return `private://${bucket}/${key}`;
     },
@@ -140,7 +149,7 @@ export function photoStorageFixture(mode = "r2") {
     source,
     receipts,
     r2,
-    now: () => 1793491200000,
+    now: () => state.now,
     thumbnail: async () => ({
       bytes: thumbnail,
       contentType: "image/webp",

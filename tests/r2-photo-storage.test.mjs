@@ -82,3 +82,37 @@ test("network errors do not disclose a signed request or automatically retry", a
   );
   assert.equal(calls, 1);
 });
+
+test("per-object availability uses a bounded HEAD and requires receipt-matching metadata", async () => {
+  const sha256 = "d".repeat(64);
+  for (const [status, length, hash, expected] of [
+    [200, "5", sha256, true],
+    [404, "5", sha256, false],
+    [403, "5", sha256, false],
+    [200, "6", sha256, false],
+    [200, null, sha256, false],
+    [200, "5", null, false],
+    [200, "5", "e".repeat(64), false],
+  ]) {
+    const seen = [];
+    const store = m.createR2PhotoStore(config, async (request) => {
+      seen.push(request);
+      const headers = {};
+      if (length !== null) headers["content-length"] = length;
+      if (hash !== null) headers["x-amz-meta-sha256"] = hash;
+      return new Response(null, { status, headers });
+    });
+    assert.equal(await store.matches("listing-media", "original/v1/key", 5, sha256), expected);
+    assert.equal(seen.length, 1);
+    assert.equal(seen[0].method, "HEAD");
+    assert.ok(seen[0].signal);
+  }
+});
+
+test("invalid object-check metadata performs no network request", async () => {
+  const store = m.createR2PhotoStore(config, async () => {
+    throw new Error("must not fetch");
+  });
+  assert.equal(await store.matches("listing-media", "original/v1/key", 0, "d".repeat(64)), false);
+  assert.equal(await store.matches("listing-media", "original/v1/key", 5, "invalid"), false);
+});

@@ -86,6 +86,56 @@ test("outages and missing receipts retain source images rather than losing all c
   assert.equal((await f.store.sign("ask-evidence", [f.path])).size, 1);
 });
 
+test("missing and altered R2 objects fall back independently while the bucket is healthy", async () => {
+  for (const small of [false, true]) {
+    const f = photoStorageFixture();
+    await f.store.upload(f.path, f.content, "image/jpeg");
+    const receipt = f.state.records.get(`listing-media/${f.path}`);
+    const key = small ? receipt.thumbnailKey : receipt.key;
+    f.state.r2.delete(`listing-media/${key}`);
+    assert.match(
+      (await f.store.sign("listing-media", [f.path], 600, small)).get(f.path),
+      /^source:/,
+    );
+    // A missing preview does not force the available original onto Supabase, or vice versa.
+    assert.match(
+      (await f.store.sign("listing-media", [f.path], 600, !small)).get(f.path),
+      /^private:/,
+    );
+    f.state.r2.set(`listing-media/${key}`, new TextEncoder().encode("changed"));
+    f.state.now += 30_001;
+    assert.match(
+      (await f.store.sign("listing-media", [f.path], 600, small)).get(f.path),
+      /^source:/,
+    );
+    assert.equal(f.state.sourceDownloads, 0);
+  }
+});
+
+test("object checks coalesce concurrent reads and expire before signing stale copies", async () => {
+  const f = photoStorageFixture();
+  await f.store.upload(f.path, f.content, "image/jpeg");
+  const results = await Promise.all(
+    Array.from({ length: 5 }, () => f.store.sign("listing-media", [f.path])),
+  );
+  assert.ok(results.every((urls) => urls.get(f.path).startsWith("private:")));
+  assert.equal(f.state.objectChecks.length, 1);
+  const receipt = f.state.records.get(`listing-media/${f.path}`);
+  f.state.r2.delete(`listing-media/${receipt.key}`);
+  f.state.now += 30_001;
+  assert.match((await f.store.sign("listing-media", [f.path])).get(f.path), /^source:/);
+  assert.equal(f.state.objectChecks.length, 2);
+  assert.equal(f.state.sourceDownloads, 0);
+});
+
+test("object-check outages retain source links without downloading originals", async () => {
+  const f = photoStorageFixture();
+  await f.store.upload(f.path, f.content, "image/jpeg");
+  f.state.failObjectCheck = true;
+  assert.match((await f.store.sign("listing-media", [f.path])).get(f.path), /^source:/);
+  assert.equal(f.state.sourceDownloads, 0);
+});
+
 test("unverified or wrong-store rows cannot publish private R2 links", async () => {
   const f = photoStorageFixture();
   await f.store.upload(f.path, f.content, "image/jpeg");

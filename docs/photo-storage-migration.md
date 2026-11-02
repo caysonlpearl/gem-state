@@ -1,11 +1,13 @@
 # Photo storage migration preflight
 
-Status: R2 Standard activation is owner-approved and the active empty overview
-was verified on November 1, 2026 (Boise). The owner chose to keep Supabase Free.
-The owner subsequently approved and created the two private Standard buckets
-and their bucket-restricted server credential. Their five server secrets are
-saved in the existing Bluebird deployment. No photo transfer, cutover or
-deletion has been performed.
+Current status (November 2): the four-format pilot is verified and the owner
+approved the remaining copy within 24 hours and a shared 1.5 GB photo-download
+ceiling. The primary review is now copying through the manual continuation
+control. Completion requires the saved run and receipt checks; it is not yet
+claimed. Reads and uploads remain Supabase, and no source deletion has occurred.
+The owner chose to keep Supabase Free. Both private R2 Standard buckets and
+their restricted server credential are configured in the deployment secret store.
+Earlier preparation observations below retain their original scope and date.
 
 The application adapter is prepared with both production mode flags unset.
 The default remains Supabase, including native uploads. The admin seller-import
@@ -102,6 +104,12 @@ double the download volume.
 - `BLUEBIRD_PHOTO_STORAGE_MODE`: unset/`supabase` keeps existing reads;
   `mirror` still reads Supabase; `r2` uses verified R2 receipts with retained-source
   fallback. No browser can set this flag.
+- R2 reads check each original or preview's existence, length and saved SHA-256
+  metadata with a two-second HEAD before signing. A reachable bucket alone is
+  insufficient. Missing/mismatched objects and failed checks use the retained
+  source independently of other photos. Checks share a bounded 30-second worker
+  cache; a missing object can remain undetected until that cache expires. These
+  metadata requests do not download originals or replace copy-time byte checks.
 - `BLUEBIRD_PHOTO_UPLOAD_MODE`: unset keeps Supabase while reads are Supabase,
   and uses mirror writes while R2 reads are being validated. R2-only writes
   require both flags explicitly set to `r2`. Rollback to Supabase-only reads
@@ -300,3 +308,13 @@ objects are checked and skipped without another source download. The remaining
 expected photo downloads total 1,308,112,824 bytes. Remaining-copy approval does
 not authorize read/upload cutover or permanent source deletion. Completion still
 requires authoritative run, receipt and retained-source verification.
+
+### Cutover preparation while copying
+
+Complete both approved reviews, reconcile all current source metadata and
+receipts, and disable the copy permit. Then present the exact serving/upload
+flag change and rollback path for review. Existing source files remain intact.
+R2-only browser uploads also require an origin-restricted CORS rule, a real
+native upload/finalization check, and private review/claim verification before
+they can replace Supabase writes. Preparation or successful offline tests do
+not authorize switching the production flags.
