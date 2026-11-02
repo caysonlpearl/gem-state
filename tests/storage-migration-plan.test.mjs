@@ -12,7 +12,7 @@ const row = {
   bucket: "listing-media",
   path: "seller/photo.jpg",
   bytes: 100,
-  etag: '"same-etag"',
+  etag: '"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"',
   contentType: "image/jpeg",
   updatedAt: "2026-11-01T00:00:00Z",
 };
@@ -45,6 +45,7 @@ test("changed sizes, content types, missing ETags and unrelated paths never coll
     { contentType: "image/png" },
     { etag: null },
     { etag: "different" },
+    { etag: "opaque-multipart-2" },
     { path: "seller/other.jpg" },
   ]) {
     const plan = buildPhotoMigrationPlan(

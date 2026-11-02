@@ -1,5 +1,6 @@
 import { getManagedImportSellers, keepBluebirdImportVersion } from "@/lib/seller-claims.functions";
 import { PhotoStorageStatus } from "@/components/admin/PhotoStorageStatus";
+import { PhotoMigrationRunner } from "@/components/admin/PhotoMigrationRunner";
 import {
   ManagedSellerOperations,
   SellerClaimControls,
@@ -80,6 +81,7 @@ function ImportOrStoragePage() {
       <main className="mx-auto max-w-[720px] space-y-5 px-4 py-10 sm:px-6">
         <h1 className="text-[22px] font-semibold">Photo storage</h1>
         <PhotoStorageStatus />
+        <PhotoMigrationRunner />
       </main>
     );
   return <FbImportPage />;

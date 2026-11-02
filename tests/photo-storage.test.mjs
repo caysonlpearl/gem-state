@@ -22,6 +22,32 @@ test("completed migrations resume from verified receipts without repeating sourc
   assert.equal(f.state.sourceDownloads, 1);
 });
 
+test("migration reserves source allowance once, immediately before the actual download", async () => {
+  const f = photoStorageFixture();
+  const entries = [{ bucket: "listing-media", path: f.path, expected: f.metadata }];
+  await assert.rejects(
+    () =>
+      f.store.migrate(entries, f.content.length, undefined, async () => {
+        throw new Error("source budget denied");
+      }),
+    /source budget denied/,
+  );
+  assert.equal(f.state.sourceDownloads, 0);
+  assert.equal(f.state.puts.length, 0);
+  let reservations = 0;
+  const reserve = async (bytes) => {
+    assert.equal(bytes, f.content.length);
+    assert.equal(f.state.sourceDownloads, 0);
+    reservations++;
+  };
+  await f.store.migrate(entries, f.content.length, undefined, reserve);
+  await f.store.migrate(entries, f.content.length, undefined, () => {
+    throw new Error("verified resume must not reserve again");
+  });
+  assert.equal(reservations, 1);
+  assert.equal(f.state.sourceDownloads, 1);
+});
+
 test("Supabase mode does not read migration tables, touch R2 or generate thumbnails", async () => {
   const f = photoStorageFixture("supabase");
   await f.store.upload(f.path, f.content, "image/jpeg");
