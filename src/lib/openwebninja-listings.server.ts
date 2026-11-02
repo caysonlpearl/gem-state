@@ -89,7 +89,11 @@ export function openWebNinjaCard(home: OpenWebNinjaHome): ClassifiedCard {
     isFeatured: home.isFeatured,
     imageUrl: home.imageUrl,
     vehicle: null,
-    externalHome: { source: "OpenWeb Ninja", sourceUrl: home.sourceUrl },
+    externalHome: {
+      source: "OpenWeb Ninja",
+      sourceUrl: home.sourceUrl,
+      cacheExpiresAt: home.cacheExpiresAt,
+    },
     home: {
       mode: home.mode,
       propertyType: canonicalHomePropertyType(home.propertyType) ?? "Home",
@@ -275,6 +279,7 @@ export async function openWebNinjaDetail(listingId: string): Promise<ClassifiedD
   return {
     ...card,
     externalHome: {
+      ...card.externalHome,
       source: "OpenWeb Ninja",
       sourceUrl: extra?.url ?? home.sourceUrl,
       // Details cached before attribution was kept have none.

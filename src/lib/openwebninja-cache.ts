@@ -1,4 +1,5 @@
 import type { OpenWebNinjaHome } from "./openwebninja-contract.ts";
+import { canonicalHomeCity } from "./openwebninja-contract.ts";
 
 export type SavedHomeSearch = {
   cache_key: string;
@@ -26,7 +27,12 @@ export function homesFromSavedSearches(rows: SavedHomeSearch[], now = Date.now()
       // The public detail route is keyed by property id, so even a property
       // moving between sale and rent must appear only once, in its newest mode.
       const identity = home.id;
-      if (!homes.has(identity)) homes.set(identity, home);
+      if (!homes.has(identity))
+        homes.set(identity, {
+          ...home,
+          city: canonicalHomeCity(home.city, home.state),
+          cacheExpiresAt: row.expires_at,
+        });
     }
   }
   return [...homes.values()];

@@ -12,6 +12,7 @@ import {
 import type { ListingCardSummary } from "./listing-card-summary";
 import {
   isIndexablePlaceInventory,
+  hasCurrentHomeCache,
   placeInventoryFilters,
   SEO_CITY_RADIUS_MILES,
 } from "@/lib/seo-policy";
@@ -261,7 +262,13 @@ export const getPlacePage = createServerFn({ method: "GET" })
           const observed = listing.directory?.verifiedAt ?? listing.createdAt;
           return observed > latest ? observed : latest;
         }, "");
-        const indexable = isIndexablePlaceInventory(main.total, freshnessEvidence);
+        const indexable = isIndexablePlaceInventory(
+          main.total,
+          freshnessEvidence,
+          Date.now(),
+          undefined,
+          main.listings.some((card) => hasCurrentHomeCache(card)),
+        );
         requireReliableIndexing(indexable, main.incomplete);
 
         let heading: string;

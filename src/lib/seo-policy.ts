@@ -99,8 +99,26 @@ export function isIndexablePlaceInventory(
   newestCreatedAt: string,
   now = Date.now(),
   minimum = SEO_MIN_LISTINGS,
+  currentInventoryCache = false,
 ) {
-  return total >= minimum && Date.parse(newestCreatedAt) >= now - SEO_FRESH_DAYS * 86_400_000;
+  return (
+    total >= minimum &&
+    (currentInventoryCache || Date.parse(newestCreatedAt) >= now - SEO_FRESH_DAYS * 86_400_000)
+  );
+}
+
+/** Current saved inventory can qualify a collection without inventing a
+ * posting date for a legacy provider row. Expiry is not lastmod or datePosted. */
+export function hasCurrentHomeCache(
+  listing: { externalHome?: { source?: string; cacheExpiresAt?: string } },
+  now = Date.now(),
+) {
+  const expires = Date.parse(listing.externalHome?.cacheExpiresAt ?? "");
+  return (
+    listing.externalHome?.source === "OpenWeb Ninja" &&
+    expires > now &&
+    expires <= now + 31 * 86_400_000
+  );
 }
 
 /** Never collapse distinct pages of a collection into its first page. */

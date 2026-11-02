@@ -88,7 +88,7 @@ function offer(listing: ClassifiedDetail, url: string, extra: JsonLd = {}) {
     priceCurrency: listing.currency || brand.defaultCurrency,
     availability: "https://schema.org/InStock",
     itemCondition: itemCondition(listing.condition),
-    validFrom: listing.createdAt,
+    validFrom: Number.isFinite(Date.parse(listing.createdAt)) ? listing.createdAt : undefined,
     priceValidUntil: listing.expiresAt?.slice(0, 10),
     availableAtOrFrom: { "@type": "Place", address: address(listing) },
     seller: seller(listing),
@@ -192,7 +192,9 @@ function realEstate(listing: ClassifiedDetail, url: string): JsonLd {
     description: listing.description ?? undefined,
     url,
     image: photoUrls(listing),
-    datePosted: listing.createdAt.slice(0, 10),
+    datePosted: Number.isFinite(Date.parse(listing.createdAt))
+      ? listing.createdAt.slice(0, 10)
+      : undefined,
     about: compact({
       "@type": "Accommodation",
       accommodationCategory: home.propertyType || undefined,

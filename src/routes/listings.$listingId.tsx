@@ -1109,6 +1109,7 @@ function PageStatsCard({ listing }: { listing: ClassifiedDetail }) {
   const daysBetween = (from: string, to: number) =>
     Math.max(0, Math.round((to - new Date(from).getTime()) / (1000 * 60 * 60 * 24)));
   const now = Date.now();
+  const hasPostedDate = Number.isFinite(Date.parse(listing.createdAt));
   const daysOnline = daysBetween(listing.createdAt, now);
   const daysLeft = listing.expiresAt
     ? daysBetween(listing.createdAt, new Date(listing.expiresAt).getTime()) - daysOnline
@@ -1121,21 +1122,27 @@ function PageStatsCard({ listing }: { listing: ClassifiedDetail }) {
           <dt className="text-muted-foreground">Listing number</dt>
           <dd className="numeric text-right font-medium">{listing.listingNumber ?? listing.id}</dd>
         </div>
-        <div className="flex items-center justify-between gap-4 py-2">
-          <dt className="text-muted-foreground">{listing.externalMerchandise ? "Added to Bluebird" : "Posted"}</dt>
-          <dd className="text-right font-medium">{formatDate(listing.createdAt)}</dd>
-        </div>
+        {hasPostedDate && (
+          <div className="flex items-center justify-between gap-4 py-2">
+            <dt className="text-muted-foreground">
+              {listing.externalMerchandise ? "Added to Bluebird" : "Posted"}
+            </dt>
+            <dd className="text-right font-medium">{formatDate(listing.createdAt)}</dd>
+          </div>
+        )}
         {listing.expiresAt && (
           <div className="flex items-center justify-between gap-4 py-2">
             <dt className="text-muted-foreground">Expires</dt>
             <dd className="text-right font-medium">{formatDate(listing.expiresAt)}</dd>
           </div>
         )}
-        <div className="flex items-center justify-between gap-4 py-2">
-          <dt className="text-muted-foreground">Days online</dt>
-          <dd className="numeric text-right font-medium">{daysOnline}</dd>
-        </div>
-        {daysLeft != null && (
+        {hasPostedDate && (
+          <div className="flex items-center justify-between gap-4 py-2">
+            <dt className="text-muted-foreground">Days online</dt>
+            <dd className="numeric text-right font-medium">{daysOnline}</dd>
+          </div>
+        )}
+        {hasPostedDate && daysLeft != null && (
           <div className="flex items-center justify-between gap-4 py-2">
             <dt className="text-muted-foreground">Days left</dt>
             <dd className="numeric text-right font-medium">{Math.max(0, daysLeft)}</dd>
@@ -2692,9 +2699,11 @@ function HomeListingDetail({
                     </span>
                   </span>
                 ) : null}
-                <span className="inline-flex items-center gap-1.5 text-muted-foreground">
-                  <Clock size={14} /> Listed {postedAge(listing.createdAt).toLowerCase()}
-                </span>
+                {postedAge(listing.createdAt) && (
+                  <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                    <Clock size={14} /> Listed {postedAge(listing.createdAt).toLowerCase()}
+                  </span>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-2">

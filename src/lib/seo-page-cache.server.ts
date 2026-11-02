@@ -148,7 +148,7 @@ const shared = createSeoPageCache({
     const base = serverEnv("GEM_STATE_SUPABASE_URL") || serverEnv("SUPABASE_URL");
     if (!base) throw new Error("SEO cache is not configured.");
     const response = await fetch(
-      `${base}/storage/v1/object/public/${bucket}/seo-pages/v1/${await objectKey(key)}.json`,
+      `${base}/storage/v1/object/public/${bucket}/seo-pages/v2/${await objectKey(key)}.json`,
       { signal: AbortSignal.timeout(2000) },
     );
     if (!response.ok) throw new Error("Saved SEO page unavailable.");
@@ -162,7 +162,7 @@ const shared = createSeoPageCache({
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.storage
       .from(bucket)
-      .upload(`seo-pages/v1/${await objectKey(key)}.json`, body, {
+      .upload(`seo-pages/v2/${await objectKey(key)}.json`, body, {
         contentType: "application/json",
         cacheControl: "60",
         upsert: true,
@@ -173,7 +173,7 @@ const shared = createSeoPageCache({
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin.storage
       .from(bucket)
-      .upload(`seo-page-leases/v1/${await objectKey(key)}/${slot}.json`, "{}", {
+      .upload(`seo-page-leases/v2/${await objectKey(key)}/${slot}.json`, "{}", {
         contentType: "application/json",
         upsert: false,
       });
@@ -185,7 +185,7 @@ const shared = createSeoPageCache({
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     await supabaseAdmin.storage
       .from(bucket)
-      .remove([`seo-page-leases/v1/${await objectKey(key)}/${slot}.json`]);
+      .remove([`seo-page-leases/v2/${await objectKey(key)}/${slot}.json`]);
   },
 });
 export const preparedSeoPage = (key: string, load: Load) => shared.read(key, load);
