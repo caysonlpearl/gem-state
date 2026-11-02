@@ -55,7 +55,7 @@ const base = {
 test("maintenance warming is bounded and rotates through only supported public pages", () => {
   const seen = new Set();
   for (let slot = 0; slot < 100; slot++) {
-    const targets = collections.seoPrewarmTargets(slot);
+    const targets = collections.seoPrewarmTargets(slot * 15 * 60_000);
     assert.equal(targets.length, 2);
     for (const target of targets) {
       assert.equal(places.isKnownPlacePage(target.place, target.category), true);
@@ -70,6 +70,27 @@ test("maintenance warming is bounded and rotates through only supported public p
     "rentals:",
   ])
     assert.ok(seen.has(key), key);
+});
+
+test("the installed quarter-hour cadence reaches every target before the six-hour stale limit", () => {
+  const expected = new Set([
+    "boise:cars-trucks",
+    "idaho-falls:cars-trucks",
+    "homes:",
+    "services:",
+    ...collections.seoCollections.flatMap((collection) => [
+      `${collection.slug}:`,
+      ...collection.cities.map((city) => `${places.placeSlug(city)}:${collection.slug}`),
+    ]),
+  ]);
+  // Start midway through the rotation, not at the first configured page.
+  const start = Date.parse("2026-11-02T00:37:00Z");
+  const seen = new Set();
+  for (let minutes = 0; minutes < 240; minutes += 15) {
+    for (const target of collections.seoPrewarmTargets(start + minutes * 60_000))
+      seen.add(`${target.place}:${target.category}`);
+  }
+  assert.deepEqual([...seen].sort(), [...expected].sort());
 });
 
 test("the finite collection URLs resolve without collapsing onto their parent categories", () => {

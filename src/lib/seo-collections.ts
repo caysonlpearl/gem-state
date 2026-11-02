@@ -202,7 +202,7 @@ export function collectionMatches(collection: SeoCollection, card: CollectionEvi
 
 /** Rotate a bounded pair through researched public destinations on the
  * maintenance runs and homepage background work. These reads never refresh providers. */
-export function seoPrewarmTargets(slot: number) {
+export function seoPrewarmTargets(now = Date.now()) {
   const citySlug = (city: string) =>
     city
       .toLowerCase()
@@ -218,6 +218,10 @@ export function seoPrewarmTargets(slot: number) {
       ...collection.cities.map((city) => ({ place: citySlug(city), category: collection.slug })),
     ]),
   ];
-  const start = (((Math.floor(slot) * 2) % targets.length) + targets.length) % targets.length;
+  // Match the installed quarter-hour maintenance job. Rotating with the
+  // five-minute refresh lease skips ahead by six positions on each cron run
+  // and can leave some pages unvisited longer than the six-hour stale bound.
+  const slot = Math.floor(now / (15 * 60_000));
+  const start = (((slot * 2) % targets.length) + targets.length) % targets.length;
   return [targets[start], targets[(start + 1) % targets.length]];
 }
