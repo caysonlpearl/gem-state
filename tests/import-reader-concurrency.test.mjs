@@ -356,3 +356,58 @@ test("rate-limit recognition uses the actual page heading, not product-descripti
   };
   assert.equal(c.readerAccessRestriction(), null);
 });
+
+test("failed verification stops later sellers on the same source while other sources continue", async () => {
+  const h = harness();
+  const originalExec = h.context.exec;
+  const navigated = [];
+  const update = h.context.chrome.tabs.update;
+  h.context.chrome.tabs.update = async (id, value) => {
+    navigated.push(value.url);
+    return update(id, value);
+  };
+  h.context.exec = async (id, fn) =>
+    fn.name === "isBotCheckPage" ? h.tabs.get(id).url.includes("/ksl-") : originalExec(id, fn);
+  h.context.waitForHuman = async () => false;
+  const blockedSites = new Map();
+  const input = ["ksl-a", "ksl-b", "facebook-a"].map((name) => ({
+    ...jobs[0],
+    siteName: name.startsWith("ksl") ? "KSL" : "Facebook",
+    item: { sourceUrl: `https://source.test/${name}` },
+  }));
+  await h.context.readListingJobs(input, { blockedSites });
+  assert.equal(blockedSites.get("KSL"), "verification_incomplete");
+  assert.ok(
+    input.slice(0, 2).every(({ item }) => item.unreadableReason === "verification_incomplete"),
+  );
+  assert.equal(input[2].item.unreadable, undefined);
+  assert.ok(h.seen.includes(input[2].item.sourceUrl));
+  const before = navigated.length;
+  const later = { ...input[0], item: { sourceUrl: "https://source.test/ksl-next-seller" } };
+  await h.context.readListingJobs([later], { blockedSites });
+  assert.equal(navigated.length, before);
+  assert.equal(later.item.unreadableReason, "verification_incomplete");
+  assert.equal(later.item.unavailable, undefined);
+  assert.equal(h.stats().open, 0);
+});
+
+test("a challenge returned by extraction stops that source after the first read", async () => {
+  const h = harness();
+  let extracts = 0;
+  h.context.exec = async (_id, fn) => {
+    if (fn.name === "isBotCheckPage") return false;
+    if (fn.name === "readerAccessRestriction") return null;
+    extracts++;
+    return { challenge: true };
+  };
+  const blockedSites = new Map();
+  const first = { ...jobs[0], siteName: "KSL", item: { sourceUrl: "https://source.test/ksl-a" } };
+  await h.context.readListingJobs([first], { blockedSites });
+  assert.equal(extracts, 1);
+  assert.equal(blockedSites.get("KSL"), "challenge_detected");
+  await h.context.readListingJobs(
+    [{ ...first, item: { sourceUrl: "https://source.test/ksl-b" } }],
+    { blockedSites },
+  );
+  assert.equal(extracts, 1);
+});

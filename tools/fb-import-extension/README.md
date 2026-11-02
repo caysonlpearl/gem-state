@@ -36,6 +36,8 @@ Open the source seller/catalog page and click the extension's toolbar icon. Revi
 
 Imports use two reusable reader windows. Refresh and Refresh all share a single two-window pool across all supported sources. Only one import or refresh runs at a time. If the site asks for human verification, complete it manually in the foreground window; readers pause instead of treating the challenge as a removed listing.
 
+Version 1.5.11 stops requests to a source for the remainder of the run if verification fails or a challenge returns. Later sellers on that source are skipped, other sources can continue, and unread listings stay unchanged. It does not retry through another browser or session.
+
 ## Diesel Depot
 
 The importer follows the dealer's own inventory navigation for trucks, trailers, truck bodies, construction equipment, farm equipment, attachments, truck parts, and other stock. Manufacturer showrooms and recommendations are excluded. Listings are deduplicated by source ID, preserving existing Bluebird records when titles or tracking parameters change.
