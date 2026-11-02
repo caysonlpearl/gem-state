@@ -1,4 +1,5 @@
 import { getManagedImportSellers, keepBluebirdImportVersion } from "@/lib/seller-claims.functions";
+import { PhotoStorageStatus } from "@/components/admin/PhotoStorageStatus";
 import {
   ManagedSellerOperations,
   SellerClaimControls,
@@ -1533,6 +1534,7 @@ function FbImportPage() {
         </p>
       </div>
 
+      <PhotoStorageStatus />
       <StageForm />
 
       <ImportedSellers />

@@ -14,12 +14,23 @@ export async function prepareImportPhotos(
   admin: ImportPhotoStorage,
   sellerId: string,
   stagingPaths: string[],
+  migratedStore?: {
+    copy(
+      bucket: "ask-evidence" | "listing-media",
+      source: string,
+      destination: string,
+    ): Promise<void>;
+  },
 ) {
   const prepared: string[] = [];
   for (const path of stagingPaths) {
     const extension = path.split(".").pop() || "jpg";
     const destination = `${sellerId}/import-${createHash("sha256").update(path).digest("hex")}.${extension}`;
-    for (const bucket of ["ask-evidence", "listing-media"]) {
+    for (const bucket of ["ask-evidence", "listing-media"] as const) {
+      if (migratedStore) {
+        await migratedStore.copy(bucket, path, destination);
+        continue;
+      }
       const existing = await admin.storage.from(bucket).info(destination);
       if (existing.error) {
         const copy = await admin.storage.from(bucket).copy(path, destination);

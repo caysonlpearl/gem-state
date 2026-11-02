@@ -1,3 +1,4 @@
+import { getPhotoStorageModule } from "./photo-storage-access";
 /* eslint-disable @typescript-eslint/no-explicit-any -- newly added migration */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -59,10 +60,11 @@ export const inspectSellerClaim = createServerFn({ method: "POST" })
     const previews = await Promise.all(
       (items ?? []).slice(0, 3).map(async (i: any) => {
         const path = i.evidence_paths?.[0];
-        const signed = path
-          ? await db.storage.from("ask-evidence").createSignedUrl(path, 600)
+        const { signPrivatePhotoUrls } = await getPhotoStorageModule();
+        const url = path
+          ? (await signPrivatePhotoUrls("ask-evidence", [path], 600)).get(path)
           : null;
-        return { title: i.title as string, imageUrl: signed?.data?.signedUrl ?? null };
+        return { title: i.title as string, imageUrl: url ?? null };
       }),
     );
     return {
@@ -91,8 +93,16 @@ export const completeSellerClaim = createServerFn({ method: "POST" })
     });
     if (error) throw new Error(error.message);
     if (prepared.complete) return { ok: true };
+    const { currentPhotoUploadMode, getPhotoStorage } = await getPhotoStorageModule();
+    const migratedStore = currentPhotoUploadMode() === "supabase" ? null : await getPhotoStorage();
     // Deterministic destinations make retries safe. Never overwrite an unrelated object.
     for (const asset of prepared.manifest as { bucket: string; old: string; new: string }[]) {
+      if (migratedStore) {
+        if (asset.bucket !== "ask-evidence" && asset.bucket !== "listing-media")
+          throw new Error("Unexpected seller photo store.");
+        await migratedStore.copy(asset.bucket, asset.old, asset.new);
+        continue;
+      }
       const existing = await db.storage.from(asset.bucket).info(asset.new);
       if (existing.error) {
         const { error: copyError } = await db.storage.from(asset.bucket).copy(asset.old, asset.new);
@@ -149,7 +159,11 @@ export const revokeSellerClaimLink = createServerFn({ method: "POST" })
   });
 
 export type ManagedImportSeller = {
-  id: string; profile: string; name: string; status: string; syncEnabled: boolean;
+  id: string;
+  profile: string;
+  name: string;
+  status: string;
+  syncEnabled: boolean;
   expiresAt?: string;
   audit: { action: string; actor_id: string; target_id: string | null; created_at: string }[];
 };
@@ -217,13 +231,14 @@ export const getMyImportSync = createServerFn({ method: "GET" })
         const pendingListings = await Promise.all(
           (items ?? []).map(async (item: any) => {
             const path = item.public_paths?.[0];
-            const signed = path
-              ? await db.storage.from("listing-media").createSignedUrl(path, 600)
+            const { signPrivatePhotoUrls } = await getPhotoStorageModule();
+            const url = path
+              ? (await signPrivatePhotoUrls("listing-media", [path], 600)).get(path)
               : null;
             return {
               id: String(item.id),
               title: String(item.title),
-              imageUrl: signed?.data?.signedUrl as string | undefined,
+              imageUrl: url ?? undefined,
             };
           }),
         );

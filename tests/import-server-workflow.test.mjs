@@ -139,6 +139,10 @@ function handlers(
     canonicalSellerSourceProfile,
     dieselDepotListingId,
     requireSupabaseAuth: {},
+    getPhotoStorageModule: async () => ({
+      currentPhotoMode: () => "supabase",
+      currentPhotoUploadMode: () => "supabase",
+    }),
     classifiedCategories: [{ slug: "general" }],
     inferFacebookCategorySlug: (slug) => slug || "general",
     normalizeFacebookCondition: (v) => v || "used_good",

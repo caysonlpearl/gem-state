@@ -9,6 +9,7 @@ import { SellerCenterNav } from "@/components/seller/SellerCenterNav";
 import { getCatalogFacets } from "@/lib/catalog.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { getSellerSetup, submitMissingProductListing } from "@/lib/seller.functions";
+import { usePhotoUploader } from "@/lib/use-photo-uploader";
 
 export const Route = createFileRoute("/_authenticated/create-missing-listing")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -38,6 +39,7 @@ function CreateMissingListingPage() {
   const fetchFacets = useServerFn(getCatalogFacets);
   const fetchSetup = useServerFn(getSellerSetup);
   const submit = useServerFn(submitMissingProductListing);
+  const uploadPhoto = usePhotoUploader();
   const facets = useQuery({ queryKey: ["catalog-facets"], queryFn: () => fetchFacets() });
   const setup = useQuery({ queryKey: ["seller-setup"], queryFn: () => fetchSetup() });
 
@@ -73,24 +75,7 @@ function CreateMissingListingPage() {
       const evidencePaths: string[] = [];
       const publicMediaPaths: string[] = [];
       for (const file of files.slice(0, 8)) {
-        const ext =
-          file.name
-            .split(".")
-            .pop()
-            ?.toLowerCase()
-            .replace(/[^a-z0-9]/g, "") || "jpg";
-        const fileId = crypto.randomUUID();
-        const path = `${uid}/${fileId}.${ext}`;
-        const evidence = await supabase.storage.from("ask-evidence").upload(path, file, {
-          contentType: file.type || "image/jpeg",
-        });
-        if (evidence.error)
-          throw new Error(`Private photo upload failed: ${evidence.error.message}`);
-        const publicPhoto = await supabase.storage.from("listing-media").upload(path, file, {
-          contentType: file.type || "image/jpeg",
-        });
-        if (publicPhoto.error)
-          throw new Error(`Listing photo upload failed: ${publicPhoto.error.message}`);
+        const path = await uploadPhoto(file, uid);
         evidencePaths.push(path);
         publicMediaPaths.push(path);
       }

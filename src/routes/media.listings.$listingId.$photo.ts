@@ -1,3 +1,4 @@
+import { getPhotoStorageModule } from "@/lib/photo-storage-access";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { ENDED_LISTING_RETENTION_DAYS } from "@/lib/classifieds.functions";
@@ -63,14 +64,13 @@ export const Route = createFileRoute("/media/listings/$listingId/$photo")({
         )[index]?.storage_path;
         if (!path) return notFound();
 
-        const { data: signed } = await supabaseAdmin.storage
-          .from("listing-media")
-          .createSignedUrl(path, 60 * 60);
-        if (!signed?.signedUrl) return notFound();
+        const { signPrivatePhotoUrls } = await getPhotoStorageModule();
+        const signed = (await signPrivatePhotoUrls("listing-media", [path])).get(path);
+        if (!signed) return notFound();
         return new Response(null, {
           status: 302,
           headers: {
-            Location: signed.signedUrl,
+            Location: signed,
             // Well inside the signed URL's hour, so a cached redirect never
             // points at an expired link.
             "Cache-Control": "public, max-age=600",

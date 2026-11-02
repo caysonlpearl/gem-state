@@ -1,6 +1,23 @@
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import { fileURLToPath } from "node:url";
 
 export default defineConfig({
+  plugins: [
+    {
+      name: "photon-compiled-wasm-module",
+      enforce: "pre",
+      resolveId(source) {
+        // Keep this module import for Nitro's unwasm pass. Vite's initial
+        // server pass cannot parse the binary or instantiate wasm-bindgen.
+        if (source === "@cf-wasm/photon/photon.wasm?module")
+          return {
+            id: `${fileURLToPath(new URL("./node_modules/@cf-wasm/photon/dist/lib/photon_rs_bg.wasm", import.meta.url))}?module`,
+            external: true,
+          };
+        return null;
+      },
+    },
+  ],
   tanstackStart: {
     router: {
       codeSplittingOptions: {

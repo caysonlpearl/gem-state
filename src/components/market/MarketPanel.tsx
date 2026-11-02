@@ -16,6 +16,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { trackEvent } from "@/lib/analytics";
+import { usePhotoUploader } from "@/lib/use-photo-uploader";
 import { getSellerSetup, getActiveListingsForVariant } from "@/lib/seller.functions";
 import { ParkVaultCheckoutFlow } from "@/components/market/ParkVaultCheckoutFlow";
 
@@ -71,6 +72,7 @@ export function MarketPanel({
   const runSellNow = useServerFn(sellNow);
   const submitBid = useServerFn(placeBid);
   const submitAsk = useServerFn(placeAsk);
+  const uploadPhoto = usePhotoUploader();
   const fetchSettings = useServerFn(getMarketSettings);
   const fetchSellerSetup = useServerFn(getSellerSetup);
 
@@ -218,26 +220,9 @@ export function MarketPanel({
       const evidencePaths: string[] = [];
       const publicMediaPaths: string[] = [];
       for (const file of files.slice(0, 8)) {
-        const ext =
-          file.name
-            .split(".")
-            .pop()
-            ?.toLowerCase()
-            .replace(/[^a-z0-9]/g, "") || "jpg";
-        const fileId = crypto.randomUUID();
-        const evidencePath = `${uid}/${fileId}.${ext}`;
-        const publicPath = `${uid}/${fileId}.${ext}`;
-        const { error } = await supabase.storage.from("ask-evidence").upload(evidencePath, file, {
-          contentType: file.type || "image/jpeg",
-        });
-        if (error) throw new Error(`Photo upload failed: ${error.message}`);
-        const publicUpload = await supabase.storage.from("listing-media").upload(publicPath, file, {
-          contentType: file.type || "image/jpeg",
-        });
-        if (publicUpload.error)
-          throw new Error(`Public photo upload failed: ${publicUpload.error.message}`);
-        evidencePaths.push(evidencePath);
-        publicMediaPaths.push(publicPath);
+        const path = await uploadPhoto(file, uid);
+        evidencePaths.push(path);
+        publicMediaPaths.push(path);
       }
       await trackEvent("ask_evidence_uploaded", { photos: evidencePaths.length }, { isDemo });
 

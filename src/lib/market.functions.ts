@@ -1,3 +1,4 @@
+import { getPhotoStorageModule } from "./photo-storage-access";
 /* eslint-disable @typescript-eslint/no-explicit-any -- the generated Supabase client types lag the applied seller migration until the next linked type generation */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -704,14 +705,9 @@ export const getMyListings = createServerFn({ method: "GET" })
     const thumbnailByAsk = new Map<string, string>();
     if (firstPathByAsk.size > 0) {
       try {
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+        const { signPrivatePhotoUrls } = await getPhotoStorageModule();
         const paths = [...firstPathByAsk.values()];
-        const { data: signed } = await supabaseAdmin.storage
-          .from("listing-media")
-          .createSignedUrls(paths, 60 * 60);
-        const urlByPath = new Map(
-          (signed ?? []).map((item: any) => [item.path as string, item.signedUrl as string]),
-        );
+        const urlByPath = await signPrivatePhotoUrls("listing-media", paths);
         for (const [askId, path] of firstPathByAsk) {
           const url = urlByPath.get(path);
           if (url) thumbnailByAsk.set(askId, url);
