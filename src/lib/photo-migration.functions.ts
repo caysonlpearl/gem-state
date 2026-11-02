@@ -3,7 +3,10 @@ import { z } from "zod";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { MAX_PHOTO_BYTES, MAX_THUMBNAIL_BYTES, photoPath } from "./photo-storage";
-import type { PreparedMigrationPreview } from "./photo-migration";
+import {
+  MAX_PREPARED_MIGRATION_SOURCE_BYTES,
+  type PreparedMigrationPreview,
+} from "./photo-migration";
 
 const inventorySchema = z.object({
   schemaVersion: z.literal(1),
@@ -65,6 +68,12 @@ export const stepPhotoMigration = createServerFn({ method: "POST" })
               .min(4)
               .max(4 * Math.ceil(MAX_THUMBNAIL_BYTES / 3))
               .regex(/^[A-Za-z0-9+/]+={0,2}$/),
+            sourceBase64: z
+              .string()
+              .min(4)
+              .max(4 * Math.ceil(MAX_PREPARED_MIGRATION_SOURCE_BYTES / 3))
+              .regex(/^[A-Za-z0-9+/]+={0,2}$/)
+              .optional(),
           })
           .strict()
           .optional(),

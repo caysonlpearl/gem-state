@@ -413,3 +413,20 @@ preflight verified a public native-photo redirect and denial of the cancelled,
 unapproved QA photo without following either redirect or downloading originals.
 The source change is prepared for the next deployment after the active primary
 copy finishes; local and CI checks alone do not establish its live behavior.
+
+### Reusing a bounded browser-prepared original
+
+Large-image recovery can hand back the original already read by the browser
+alongside its small preview, for originals up to 5 MiB. Larger photos retain the
+existing preview-only path and the original 50 MiB storage limit. Every handed
+body is checked against the exact failed ordinal, source length and MD5 ETag,
+with fresh metadata reads before either target write. Nothing is persisted in
+browser storage and no additional source URL is issued by this path.
+
+The private service/admin-only acknowledgement requires an already-charged
+preview preparation, the matching current lease, unchanged permit digest,
+range, byte cap and expiry. It never refunds reservations, increases allowances
+or resets attempts. A lost acknowledgement is observed by its exact token,
+never replayed. Already-complete verified targets return zero without making a
+reservation or acknowledgement. This preparation is not live verification or
+completion of the remaining transfer.

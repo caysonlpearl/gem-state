@@ -374,3 +374,61 @@ test("path and source timestamp normalization preserve legitimate keys and rejec
     true,
   );
 });
+
+test("prepared original reuse verifies both sources and hashes without another source GET", async () => {
+  const f = photoStorageFixture();
+  const entries = ["listing-media", "ask-evidence"].map((bucket) => ({
+    bucket,
+    path: f.path,
+    expected: f.metadata,
+  }));
+  let acknowledgements = 0;
+  const result = await f.store.migrate(
+    entries,
+    f.content.length,
+    undefined,
+    async (bytes) => {
+      acknowledgements++;
+      assert.equal(bytes, f.content.length);
+    },
+    f.content,
+  );
+  assert.equal(result.downloadedBytes, f.content.length);
+  assert.equal(f.state.sourceDownloads, 0);
+  assert.equal(acknowledgements, 1);
+  assert.equal(f.state.records.size, 2);
+  const resumed = await f.store.migrate(
+    entries,
+    f.content.length,
+    undefined,
+    () => assert.fail("Completed targets cannot reserve or acknowledge again"),
+    f.content,
+  );
+  assert.equal(resumed.downloadedBytes, 0);
+  assert.equal(f.state.sourceDownloads, 0);
+});
+
+test("prepared original reuse rejects wrong bytes, lengths and changed source metadata before writes", async () => {
+  for (const fault of ["length", "hash", "source"]) {
+    const f = photoStorageFixture();
+    const bytes = f.content.slice();
+    if (fault === "hash") bytes[0] ^= 1;
+    const expected = {
+      ...f.metadata,
+      ...(fault === "source" ? { updatedAt: "2020-01-01T00:00:00Z" } : {}),
+    };
+    await assert.rejects(
+      () =>
+        f.store.migrate(
+          [{ bucket: "listing-media", path: f.path, expected }],
+          f.content.length,
+          undefined,
+          async () => {},
+          fault === "length" ? bytes.subarray(1) : bytes,
+        ),
+      /changed|ETag/,
+    );
+    assert.equal(f.state.sourceDownloads, 0);
+    assert.equal(f.state.puts.length, 0);
+  }
+});

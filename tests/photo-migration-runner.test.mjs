@@ -48,6 +48,7 @@ function fixture() {
     itemOverride: undefined,
     leasedItem: null,
     failPreviewReservation: false,
+    preparedAck: "ok",
   };
   const validPermit = () =>
     JSON.stringify({
@@ -157,6 +158,7 @@ function fixture() {
               lease_token: args._lease,
               lease_until: "2099-01-01T00:00:00Z",
               source_bytes: photos.content.length,
+              lease_source_reserved: false,
               entries: inventory.objects,
             };
           }
@@ -169,6 +171,11 @@ function fixture() {
             },
             error: null,
           };
+        }
+        if (name === "acknowledge_photo_migration_prepared_source") {
+          if (state.preparedAck !== "uncommitted") state.leasedItem.lease_source_reserved = true;
+          if (state.preparedAck !== "ok")
+            return { data: null, error: { message: "acknowledgement lost" } };
         }
         if (name === "reserve_photo_migration_download") {
           assert.equal(photos.state.sourceDownloads, 0, "reservation must precede source GET");
@@ -570,4 +577,106 @@ test("prepared previews cannot widen a normal batch or apply to a different fail
     /size limit/,
   );
   assert.equal(g.state.calls.length, 0);
+});
+
+test("prepared source reuses its charged body with one acknowledgement and no second GET or reservation", async () => {
+  for (const ack of ["ok", "committed", "uncommitted"]) {
+    const f = fixture();
+    f.state.permit = f.validPermit();
+    await f.runner.preparePreview(id);
+    const charged = f.row.source_bytes_reserved;
+    f.state.preparedAck = ack;
+    const result = await f.runner.step(id, true, {
+      ...smallPreview(f.photos.metadata.etag),
+      sourceBase64: Buffer.from(f.photos.content).toString("base64"),
+    });
+    assert.equal(result.state, ack === "uncommitted" ? "stopped" : "copied");
+    assert.equal(f.photos.state.sourceDownloads, 0);
+    assert.equal(f.row.source_bytes_reserved, charged);
+    assert.equal(
+      f.state.calls.filter((c) => c.name === "acknowledge_photo_migration_prepared_source").length,
+      1,
+    );
+    assert.equal(
+      f.state.calls.filter((c) => c.name === "reserve_photo_migration_download").length,
+      0,
+    );
+    if (ack !== "uncommitted") assert.equal(f.photos.state.records.size, 2);
+    else assert.equal(f.photos.state.puts.length, 0);
+  }
+});
+
+test("lost prepared-source acknowledgement requires the exact live reserved lease", async () => {
+  for (const change of [
+    { ordinal: 9 },
+    { lease_source_reserved: false },
+    { status: "complete" },
+    { lease_token: "other" },
+    { lease_until: "2020-01-01T00:00:00Z" },
+    { lease_until: null },
+    { source_bytes: 1 },
+  ]) {
+    const f = fixture();
+    f.state.permit = f.validPermit();
+    f.state.preparedAck = "committed";
+    f.state.itemOverride = (item) => ({ ...item, ...change });
+    const result = await f.runner.step(id, true, {
+      ...smallPreview(f.photos.metadata.etag),
+      sourceBase64: Buffer.from(f.photos.content).toString("base64"),
+    });
+    assert.equal(result.state, "stopped");
+    assert.equal(f.photos.state.puts.length, 0);
+    assert.equal(f.photos.state.sourceDownloads, 0);
+  }
+});
+
+test("prepared source limits and length mismatches never fetch a replacement original", async () => {
+  const f = fixture();
+  f.state.permit = f.validPermit();
+  await assert.rejects(
+    () =>
+      f.runner.step(id, true, {
+        ...smallPreview(f.photos.metadata.etag),
+        sourceBase64: Buffer.alloc(5 * 1024 * 1024 + 1).toString("base64"),
+      }),
+    /size limit/,
+  );
+  assert.equal(f.state.calls.length, 0);
+  const result = await f.runner.step(id, true, {
+    ...smallPreview(f.photos.metadata.etag),
+    sourceBase64: "AQID",
+  });
+  assert.equal(result.state, "stopped");
+  assert.equal(f.photos.state.sourceDownloads, 0);
+  assert.equal(f.photos.state.puts.length, 0);
+});
+
+test("verified targets finish with zero bytes and never acknowledge a prepared source twice", async () => {
+  const f = fixture();
+  const entries = f.inventory.objects.map(({ bucket, path, ...expected }) => ({
+    bucket,
+    path,
+    expected,
+  }));
+  await f.photos.store.migrate(entries, f.photos.content.length);
+  f.photos.state.sourceDownloads = 0;
+  f.state.permit = f.validPermit();
+  const result = await f.runner.step(id, true, {
+    ...smallPreview(f.photos.metadata.etag),
+    sourceBase64: Buffer.from(f.photos.content).toString("base64"),
+  });
+  assert.equal(result.state, "copied");
+  assert.equal(
+    f.state.calls.some(
+      (c) =>
+        c.name === "acknowledge_photo_migration_prepared_source" ||
+        c.name === "reserve_photo_migration_download",
+    ),
+    false,
+  );
+  assert.equal(
+    f.state.calls.find((c) => c.name === "finish_photo_migration_item").args._downloaded,
+    0,
+  );
+  assert.equal(f.photos.state.sourceDownloads, 0);
 });
