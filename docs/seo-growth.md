@@ -395,3 +395,21 @@ behaviors and the independent category-preview/SEO inventory when optimizing.
 The measured 2.47-second first byte was not explained by a 106-ms handler-return
 timing: that timing excludes subsequent streaming and browser paint. No full
 browser speed guarantee or homepage payload fix is claimed from these samples.
+
+### Stable photo URL reliability preparation
+
+The stable `/media/listings/{id}/{index}` handler now rejects malformed UUIDs
+before source reads and uses the existing eight-second SELECT deadline without
+SDK retries. Sold-at data comes from that same lookup, preserving the previous
+sold/expired retention and public-visibility predicates without a second query.
+Missing or removed photos remain 404; source/signing failures return an
+uncacheable 503 with a retry hint rather than a false removal. Negative results
+are not cached. Existing successful photo redirects retain their ten-minute
+cache policy and use the shared R2/retained-source signer.
+
+Six focused handler tests and three additional compiled production-route cases
+cover these boundaries, including the actual cancelled SELECT. Anonymous live
+preflight verified a public native-photo redirect and denial of the cancelled,
+unapproved QA photo without following either redirect or downloading originals.
+The source change is prepared for the next deployment after the active primary
+copy finishes; local and CI checks alone do not establish its live behavior.

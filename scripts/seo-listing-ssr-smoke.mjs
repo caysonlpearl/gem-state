@@ -134,6 +134,37 @@ try {
   await render("/listings/openwebninja-111261092", 500, "home-offline");
   await render(native, 500, "stalled");
   await render("/listings/openwebninja-111261092", 200);
+  // Stable photo routes have their own server handler, outside listing-page
+  // loaders. Exercise the actual built handler rather than only its mock.
+  for (const [path, expected, photoMode] of [
+    ["/media/listings/------------------------------------/0", 404, "malformed"],
+    ["/media/listings/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee/0", 503, "native-offline"],
+    ["/media/listings/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee/0", 503, "stalled"],
+  ]) {
+    mode = photoMode;
+    calls.length = 0;
+    const started = performance.now();
+    const response = await worker.fetch(
+      new Request("https://onbluebird.com" + path),
+      {},
+      {
+        waitUntil: (task) => pending.push(task),
+      },
+    );
+    const body = await response.text();
+    const milliseconds = Math.round(performance.now() - started);
+    assert.equal(response.status, expected, path + ": " + mode);
+    assert.equal(response.headers.get("Cache-Control"), "no-store");
+    assert.equal(response.headers.get("location"), null);
+    assert.equal(body.includes("sb_secret_fixture"), false);
+    if (mode === "malformed") assert.equal(calls.length, 0);
+    else {
+      assert.equal(response.headers.get("Retry-After"), "60");
+      assert.equal(calls.filter((call) => call.path === "/rest/v1/asks").length, 1);
+    }
+    if (mode === "stalled") assert.ok(milliseconds < 12000);
+    results.push({ path, mode, status: response.status, milliseconds });
+  }
   assert.deepEqual(external, [], "SSR must not contact a provider or other external host");
   console.log(
     JSON.stringify(
