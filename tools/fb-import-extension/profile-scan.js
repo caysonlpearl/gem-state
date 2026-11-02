@@ -81,6 +81,7 @@ async function collectSellerScan(profile, config, notify) {
       if (await exec(tabId, isBotCheckPage)) {
         challenged = true;
         if (!(await waitForHuman(win, tabId, config.site, notify))) {
+          blockedReason = "verification_incomplete";
           complete = false;
           break;
         }
@@ -100,9 +101,11 @@ async function collectSellerScan(profile, config, notify) {
         if (!scroll.complete) complete = false;
       }
       const page = await exec(tabId, config.collect);
-      if (!page || (await exec(tabId, isBotCheckPage))) {
+      const stillChallenged = await exec(tabId, isBotCheckPage);
+      if (!page || stillChallenged) {
         complete = false;
         challenged = true;
+        if (stillChallenged) blockedReason = "verification_incomplete";
         break;
       }
       if (

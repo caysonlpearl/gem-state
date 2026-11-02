@@ -173,6 +173,38 @@ function profileHarness(site, pages) {
   vm.runInContext(load("profile-scan.js"), c);
   return { c, profile, stats: () => ({ visits, removed }) };
 }
+
+test("a failed profile check skips the next KSL seller and still reports another source", async () => {
+  const h = profileHarness("KSL", {});
+  let current = "";
+  const update = h.c.chrome.tabs.update;
+  h.c.chrome.tabs.update = async (id, value) => {
+    current = value.url;
+    return update(id, value);
+  };
+  h.c.exec = async (_id, fn) => {
+    if (fn.name === "readerAccessRestriction") return null;
+    if (fn.name === "isBotCheckPage") return current.includes("ksl.com");
+    return { expected: 0, explicitEnd: true, items: [] };
+  };
+  h.c.waitForHuman = async () => false;
+  h.c.readListingJobs = async () => {};
+  h.c.refreshUnreadableReasons = () => [];
+  const reports = [];
+  h.c.chrome.tabs.sendMessage = async (_id, message) => reports.push(message.payload);
+  await h.c.refreshSellerProfiles(1, "test", [
+    { sourceProfileUrl: h.profile, targets: [] },
+    { sourceProfileUrl: "https://classifieds.ksl.com/search/member/2", targets: [] },
+    { sourceProfileUrl: "https://www.vinted.com/member/1", targets: [] },
+  ]);
+  assert.equal(h.stats().visits, 2);
+  const results = reports.filter((r) => r.type === "gemlist-fb-profile-result");
+  assert.equal(results.length, 3);
+  assert.equal(results[0].report.scan.challenged, true);
+  assert.equal(results[1].report.scan.complete, false);
+  assert.equal(results[2].report.scan.complete, true);
+  assert.equal(reports.at(-1).type, "gemlist-fb-refresh-result");
+});
 test("KSL follows seller-bound pagination and refuses cycles or wrong sellers", async () => {
   const p = "https://classifieds.ksl.com/search/member/1";
   const pages = {

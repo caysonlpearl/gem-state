@@ -140,7 +140,6 @@ function readFailure(reason) {
 async function readListingJobs(jobs, { onItemDone, blockedSites = new Map() } = {}) {
   const queue = jobs.slice();
   let humanGate = null;
-  let interrupted = false;
   async function worker() {
     const win = await chrome.windows.create({
       url: "about:blank",
@@ -157,7 +156,6 @@ async function readListingJobs(jobs, { onItemDone, blockedSites = new Map() } = 
         if (!job) break;
         const { item, siteName, extract, idOf, withPhotos, notify, settleMs } = job;
         try {
-          if (interrupted) throw readFailure("verification_incomplete");
           if (blockedSites.has(siteName)) throw readFailure(blockedSites.get(siteName));
           const expected = idOf(item.sourceUrl);
           if (!expected) throw readFailure("unsupported_url");
@@ -183,9 +181,9 @@ async function readListingJobs(jobs, { onItemDone, blockedSites = new Map() } = 
             // Serialize manual handoffs; a second challenged window must get
             // its own handoff after the first, rather than sharing its result.
             if (humanGate) await humanGate;
-            if (interrupted) throw readFailure("verification_incomplete");
+            if (blockedSites.has(siteName)) throw readFailure(blockedSites.get(siteName));
             const ownGate = waitForHuman(win, tabId, siteName, notify).then((passed) => {
-              if (!passed) interrupted = true;
+              if (!passed) blockedSites.set(siteName, "verification_incomplete");
               return passed;
             });
             humanGate = ownGate;
@@ -195,8 +193,8 @@ async function readListingJobs(jobs, { onItemDone, blockedSites = new Map() } = 
               throw readFailure("verification_incomplete");
           }
           const current = await chrome.tabs.get(tabId);
-          if (!matches(current.url) || (await exec(tabId, isBotCheckPage)))
-            throw readFailure("page_not_verified");
+          if (!matches(current.url)) throw readFailure("page_not_verified");
+          if (await exec(tabId, isBotCheckPage)) throw readFailure("challenge_detected");
           let details;
           // Hydrated detail content can arrive after navigation completes.
           // Retry extraction in the same two windows; never open extra tabs.
@@ -213,6 +211,7 @@ async function readListingJobs(jobs, { onItemDone, blockedSites = new Map() } = 
               details = undefined;
               failure = "injection_failed";
             }
+            if (failure === "challenge_detected") throw readFailure(failure);
             if (details?.unavailable || (details && !details.incomplete && !details.challenge))
               break;
             if (attempt < attempts - 1) await sleep(1500);
@@ -237,11 +236,18 @@ async function readListingJobs(jobs, { onItemDone, blockedSites = new Map() } = 
         } catch (error) {
           item.unreadable = true;
           item.unreadableReason = error?.reason || "read_failed";
+          if (["verification_incomplete", "challenge_detected"].includes(item.unreadableReason)) {
+            if (!blockedSites.has(siteName))
+              notify?.(
+                `${siteName} verification did not finish. Stopping this source for this run; unread listings stay unchanged.`,
+              );
+            blockedSites.set(siteName, item.unreadableReason);
+          }
         } finally {
           job.onItemDone && job.onItemDone();
           onItemDone && onItemDone();
         }
-        if (queue.length && !interrupted && !blockedSites.has(siteName)) {
+        if (queue.length && !blockedSites.has(siteName)) {
           const [min, max] = siteName === "Vinted" ? [3000, 5000] : PACED_PAUSE_MS;
           await sleep(min + Math.random() * (max - min));
         }
