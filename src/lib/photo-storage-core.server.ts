@@ -195,21 +195,28 @@ export function createPhotoStorage(deps: {
     if (oldPath === newPath) return;
     if (uploadMode !== "r2") await deps.source.copy(bucket, oldPath, newPath);
     if (uploadMode === "supabase") return;
-    const [source] = await deps.receipts.read(bucket, [oldPath]);
-    if (!source?.verifiedAt) {
-      // Legacy objects without receipts continue through their original store.
-      if (uploadMode === "r2") await deps.source.copy(bucket, oldPath, newPath);
-      return;
+    try {
+      const [source] = await deps.receipts.read(bucket, [oldPath]);
+      if (!source?.verifiedAt) {
+        // Legacy objects without receipts continue through their original store.
+        if (uploadMode === "r2") await deps.source.copy(bucket, oldPath, newPath);
+        return;
+      }
+      if (source.bucket !== bucket || source.path !== oldPath)
+        throw new Error("Seller photo verification does not match its source.");
+      // Reuse immutable, verified bytes within the same private bucket. The
+      // caller's seller-claim manifest still controls the new logical path.
+      await deps.receipts.record({
+        ...source,
+        path: newPath,
+        sourceEtag: null,
+        sourceUpdatedAt: null,
+        verifiedAt: new Date(now()).toISOString(),
+      });
+    } catch (error) {
+      if (uploadMode === "r2") throw error;
+      warn("Photo mirror transfer is incomplete; the retained source copy is available.");
     }
-    // Reuse immutable, verified bytes within the same private bucket. The
-    // caller's seller-claim manifest still controls the new logical path.
-    await deps.receipts.record({
-      ...source,
-      path: newPath,
-      sourceEtag: null,
-      sourceUpdatedAt: null,
-      verifiedAt: new Date(now()).toISOString(),
-    });
   }
   async function migrate(
     entries: { bucket: PhotoBucket; path: string; expected: PhotoSourceMetadata }[],

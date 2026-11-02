@@ -108,6 +108,14 @@ test("seller claim copies preserve private buckets and reuse verified immutable 
   assert.equal(f.state.sourceCopies.length, 1);
 });
 
+test("mirror receipt outages preserve a verified legacy seller-claim copy", async () => {
+  const f = photoStorageFixture("mirror");
+  f.state.failReceipts = true;
+  await f.store.copy("ask-evidence", f.path, "new/claimed.jpg");
+  assert.equal(f.state.sourceCopies.length, 1);
+  assert.equal(f.state.warnings.length, 1);
+});
+
 test("one matching photo pair downloads once, checks its source ETag and verifies both targets", async () => {
   const f = photoStorageFixture("supabase");
   const entries = ["ask-evidence", "listing-media"].map((bucket) => ({
