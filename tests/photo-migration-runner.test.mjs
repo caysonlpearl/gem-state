@@ -42,6 +42,11 @@ function fixture() {
     readErrors: new Set(),
     readOverride: undefined,
     finishAck: "ok",
+    leaseAck: "ok",
+    itemReads: 0,
+    itemReadErrors: new Set(),
+    itemOverride: undefined,
+    leasedItem: null,
   };
   const validPermit = () =>
     JSON.stringify({
@@ -77,9 +82,29 @@ function fixture() {
   }
   const db = {
     from(table) {
-      assert.equal(table, "photo_migration_runs");
+      assert.ok(["photo_migration_runs", "photo_migration_items"].includes(table));
       let single = false;
+      const filters = {};
       const q = query(() => {
+        if (table === "photo_migration_items") {
+          state.itemReads++;
+          assert.equal(filters.run_id, id);
+          assert.equal(
+            filters.lease_token,
+            state.calls.find((c) => c.name === "lease_photo_migration_item").args._lease,
+          );
+          return {
+            data:
+              state.itemOverride === undefined
+                ? state.leasedItem
+                : typeof state.itemOverride === "function"
+                  ? state.itemOverride(state.leasedItem)
+                  : state.itemOverride,
+            error: state.itemReadErrors.has(state.itemReads)
+              ? { message: "database unavailable" }
+              : null,
+          };
+        }
         state.reads++;
         return state.readErrors.has(state.reads)
           ? { data: null, error: { message: "database unavailable" } }
@@ -92,7 +117,11 @@ function fixture() {
               error: null,
             };
       });
-      for (const name of ["select", "eq", "order", "limit"]) q[name] = () => q;
+      for (const name of ["select", "order", "limit"]) q[name] = () => q;
+      q.eq = (key, value) => {
+        filters[key] = value;
+        return q;
+      };
       q.maybeSingle = () => {
         single = true;
         return q;
@@ -109,11 +138,24 @@ function fixture() {
               )
             : { data: id, error: null };
         if (name === "lease_photo_migration_item") {
-          row.running_groups = 1;
+          if (state.leaseAck !== "uncommitted") {
+            row.running_groups = 1;
+            state.leasedItem = {
+              run_id: id,
+              ordinal: 0,
+              status: "running",
+              lease_token: args._lease,
+              lease_until: "2099-01-01T00:00:00Z",
+              source_bytes: photos.content.length,
+              entries: inventory.objects,
+            };
+          }
+          if (state.leaseAck !== "ok")
+            return { data: null, error: { message: "acknowledgement lost" } };
           return {
             data: {
               state: "leased",
-              item: { ordinal: 0, source_bytes: photos.content.length, entries: inventory.objects },
+              item: state.leasedItem,
             },
             error: null,
           };
@@ -128,6 +170,7 @@ function fixture() {
             row.completed_groups++;
             row.running_groups = 0;
             row.confirmed_download_bytes += args._downloaded;
+            state.leasedItem.status = "complete";
           }
           if (state.finishAck !== "ok")
             return { data: null, error: { message: "acknowledgement lost" } };
@@ -265,12 +308,13 @@ test("status-read failure after acknowledged completion never marks the copied p
   assert.equal(f.photos.state.sourceDownloads, 1);
 });
 
-test("lost finish acknowledgement leaves committed or pending state for review without a failure mutation", async () => {
+test("lost finish acknowledgement observes the exact committed lease without replaying completion", async () => {
   for (const outcome of ["committed", "uncommitted"]) {
     const f = fixture();
     f.state.permit = f.validPermit();
     f.state.finishAck = outcome;
-    await assert.rejects(() => f.runner.step(id), /completion was not confirmed/);
+    if (outcome === "committed") assert.equal((await f.runner.step(id)).state, "copied");
+    else await assert.rejects(() => f.runner.step(id), /completion was not confirmed/);
     assert.equal(
       f.state.calls.some((c) => c.name === "fail_photo_migration_item"),
       false,
@@ -278,7 +322,74 @@ test("lost finish acknowledgement leaves committed or pending state for review w
     assert.equal(f.row.completed_groups, outcome === "committed" ? 1 : 0);
     assert.equal(f.row.running_groups, outcome === "committed" ? 0 : 1);
     assert.equal(f.photos.state.sourceDownloads, 1);
+    assert.equal(f.state.itemReads, 1);
+    assert.equal(f.state.calls.filter((c) => c.name === "finish_photo_migration_item").length, 1);
   }
+});
+
+test("lost lease acknowledgement observes its saved token and copies once without a second lease RPC", async () => {
+  const f = fixture();
+  f.state.permit = f.validPermit();
+  f.state.leaseAck = "committed";
+  f.state.itemReadErrors.add(1);
+  assert.equal((await f.runner.step(id)).state, "copied");
+  assert.equal(f.state.itemReads, 2);
+  assert.equal(f.state.calls.filter((c) => c.name === "lease_photo_migration_item").length, 1);
+  assert.equal(f.photos.state.sourceDownloads, 1);
+  assert.equal(f.row.completed_groups, 1);
+});
+
+test("unconfirmed, mismatched, expired or out-of-range leases stop before all photo operations", async () => {
+  for (const change of [
+    null,
+    { run_id: "wrong" },
+    { lease_token: "wrong" },
+    { status: "failed" },
+    { lease_until: "2000-01-01T00:00:00Z" },
+    { lease_until: null },
+    { lease_until: "invalid" },
+    { ordinal: 1 },
+    { ordinal: -1 },
+  ]) {
+    const f = fixture();
+    f.state.permit = f.validPermit();
+    f.state.leaseAck = "committed";
+    f.state.itemOverride = (item) => (change === null ? null : { ...item, ...change });
+    await assert.rejects(() => f.runner.step(id), /lease was not confirmed/);
+    assert.equal(f.state.calls.length, 1);
+    assert.equal(f.photos.state.sourceDownloads, 0);
+    assert.equal(f.photos.state.receiptReads, 0);
+    assert.equal(f.photos.state.puts.length, 0);
+  }
+});
+
+test("a lease that was never saved or cannot be observed is not replayed", async () => {
+  for (const outcome of ["uncommitted", "unreadable"]) {
+    const f = fixture();
+    f.state.permit = f.validPermit();
+    f.state.leaseAck = outcome === "uncommitted" ? outcome : "committed";
+    if (outcome === "unreadable") f.state.itemReadErrors = new Set([1, 2]);
+    await assert.rejects(
+      () => f.runner.step(id),
+      /lease was not confirmed|lease could not be read/,
+    );
+    assert.equal(f.state.calls.length, 1);
+    assert.equal(f.photos.state.sourceDownloads, 0);
+    assert.equal(f.photos.state.puts.length, 0);
+  }
+});
+
+test("a permit revoked during lease confirmation stops before photo operations", async () => {
+  const f = fixture();
+  f.state.permit = f.validPermit();
+  f.state.leaseAck = "committed";
+  f.state.itemOverride = (item) => {
+    f.state.permit = "";
+    return item;
+  };
+  await assert.rejects(() => f.runner.step(id), /lease was not confirmed/);
+  assert.equal(f.photos.state.sourceDownloads, 0);
+  assert.equal(f.photos.state.puts.length, 0);
 });
 test("reservation failures, target outages and revoked permits stop before downloading", async () => {
   for (const mode of ["failReserve", "unhealthy", "revokeAfterLease"]) {

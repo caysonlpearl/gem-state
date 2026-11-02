@@ -228,6 +228,14 @@ saved lease/receipts for review; a status-read failure after an acknowledged
 completion cannot mark an already copied pair failed. Connectivity failures
 are reported separately from missing reviews or incorrect source projects.
 
+When a lease-acquisition or completion response is lost, the runner can confirm
+that exact run and lease token with a bounded read-only lookup. It continues only
+from its own unexpired running lease within the unchanged permit; completion is
+accepted only for that token and ordinal already marked complete. Missing,
+expired, mismatched or unreadable leases stop without replaying the mutation or
+performing photo operations. This does not reset or increase the three-attempt
+database ceiling, source allowance, batch size or approval expiry.
+
 The displayed reserved and confirmed-successful bytes have different meanings:
 reservations bound the app's expected photo-body downloads, including uncertain
 failed attempts; confirmed bytes count successful completed downloads only.
