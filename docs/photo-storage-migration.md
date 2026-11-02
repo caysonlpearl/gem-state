@@ -220,6 +220,14 @@ its lease while its other write is still in flight. The database continues to
 serialize aggregate storage-byte reservations. One group at a time, batch size,
 source-download reservations, retry limits and permit scope remain unchanged.
 
+Status lookup retries at most one read-only SELECT after a transient failure,
+with a three-second bound on each attempt. A missing or wrong-project review
+still stops immediately. Leases, source downloads, writes and completion RPCs
+are never automatically retried. A lost completion acknowledgement leaves the
+saved lease/receipts for review; a status-read failure after an acknowledged
+completion cannot mark an already copied pair failed. Connectivity failures
+are reported separately from missing reviews or incorrect source projects.
+
 The displayed reserved and confirmed-successful bytes have different meanings:
 reservations bound the app's expected photo-body downloads, including uncertain
 failed attempts; confirmed bytes count successful completed downloads only.

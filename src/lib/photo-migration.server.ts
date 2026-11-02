@@ -77,6 +77,10 @@ export function createPhotoMigrationRunner(
         );
       if (name === "reserve_photo_migration_download")
         throw new Error("Approved source download budget or lease is unavailable.");
+      if (name === "finish_photo_migration_item")
+        throw new Error(
+          "Copy completion was not confirmed. Refresh saved state before continuing.",
+        );
       throw new Error("Photo transfer state is unavailable. Stop and review before retrying.");
     }
     return data;
@@ -118,18 +122,35 @@ export function createPhotoMigrationRunner(
       .limit(5)
       .abortSignal(AbortSignal.timeout(3000))
       .retry(false);
-    if (error) throw new Error("The photo-transfer review tables are not available yet.");
+    if (error)
+      throw new Error(
+        "Saved photo-transfer reviews could not be read. Refresh saved reviews before continuing.",
+      );
     return (data ?? []).map(status);
   }
   async function read(id: string) {
-    const { data, error } = await db
-      .from("photo_migration_runs")
-      .select(columns)
-      .eq("id", id)
-      .abortSignal(AbortSignal.timeout(3000))
-      .retry(false)
-      .maybeSingle();
-    if (error || !data || data.project_ref !== sourceProject())
+    let data: Record<string, unknown> | null = null;
+    // Retry only this read-only SELECT, never a lease, source GET or copy step.
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const result = await db
+          .from("photo_migration_runs")
+          .select(columns)
+          .eq("id", id)
+          .abortSignal(AbortSignal.timeout(3000))
+          .retry(false)
+          .maybeSingle();
+        if (result.error) throw result.error;
+        data = result.data;
+        break;
+      } catch {
+        if (attempt === 1)
+          throw new Error(
+            "Saved photo-transfer state could not be read. Refresh state before continuing.",
+          );
+      }
+    }
+    if (!data || data.project_ref !== sourceProject())
       throw new Error("Photo-transfer review is unavailable for this source project.");
     return status(data);
   }
@@ -182,6 +203,7 @@ export function createPhotoMigrationRunner(
       entries: PhotoInventoryObject[];
     };
     const identity = { _run: id, _ordinal: item.ordinal, _lease: lease, _actor: actor };
+    let downloadedBytes: number;
     try {
       const photos = await store(true);
       const ready = await Promise.all(
@@ -206,15 +228,15 @@ export function createPhotoMigrationRunner(
           });
         },
       );
-      await rpc("finish_photo_migration_item", {
-        ...identity,
-        _downloaded: migrated.downloadedBytes,
-      });
-      return { state: "copied" as const, reason: null, status: await read(id) };
+      downloadedBytes = migrated.downloadedBytes;
     } catch (error) {
       await rpc("fail_photo_migration_item", { ...identity, _reason: failureCode(error) });
       return { state: "stopped" as const, reason: null, status: await read(id) };
     }
+    // A missing completion acknowledgement or subsequent status read is not a
+    // failed photo copy. Leave uncertain leases/receipts for saved-state review.
+    await rpc("finish_photo_migration_item", { ...identity, _downloaded: downloadedBytes });
+    return { state: "copied" as const, reason: null, status: await read(id) };
   }
   return { list, prepare, step };
 }

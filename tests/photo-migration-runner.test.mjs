@@ -38,6 +38,10 @@ function fixture() {
     failReserve: false,
     revokeAfterLease: false,
     prepareDelay: 0,
+    reads: 0,
+    readErrors: new Set(),
+    readOverride: undefined,
+    finishAck: "ok",
   };
   const validPermit = () =>
     JSON.stringify({
@@ -75,7 +79,19 @@ function fixture() {
     from(table) {
       assert.equal(table, "photo_migration_runs");
       let single = false;
-      const q = query(() => ({ data: single ? { ...row } : [{ ...row }], error: null }));
+      const q = query(() => {
+        state.reads++;
+        return state.readErrors.has(state.reads)
+          ? { data: null, error: { message: "database unavailable" } }
+          : {
+              data: single
+                ? state.readOverride === undefined
+                  ? { ...row }
+                  : state.readOverride
+                : [{ ...row }],
+              error: null,
+            };
+      });
       for (const name of ["select", "eq", "order", "limit"]) q[name] = () => q;
       q.maybeSingle = () => {
         single = true;
@@ -108,9 +124,13 @@ function fixture() {
           row.source_bytes_reserved += args._bytes;
         }
         if (name === "finish_photo_migration_item") {
-          row.completed_groups++;
-          row.running_groups = 0;
-          row.confirmed_download_bytes += args._downloaded;
+          if (state.finishAck !== "uncommitted") {
+            row.completed_groups++;
+            row.running_groups = 0;
+            row.confirmed_download_bytes += args._downloaded;
+          }
+          if (state.finishAck !== "ok")
+            return { data: null, error: { message: "acknowledgement lost" } };
         }
         if (name === "fail_photo_migration_item") {
           row.failed_groups++;
@@ -133,7 +153,7 @@ function fixture() {
       return photos.store;
     },
   });
-  return { runner, state, photos, inventory, plan, validPermit, photoMigrationPermit };
+  return { runner, state, row, photos, inventory, plan, validPermit, photoMigrationPermit };
 }
 
 test("metadata review uses the same canonical plan as the offline CLI and performs no photo operations", async () => {
@@ -195,6 +215,70 @@ test("approved runner leases one group, reserves source bytes before download an
   assert.equal(f.photos.state.records.size, 2);
   assert.equal(result.status.sourceBytesReserved, f.photos.content.length);
   assert.equal(result.status.confirmedDownloadBytes, f.photos.content.length);
+});
+
+test("one transient state-read failure retries only the SELECT and copies once", async () => {
+  const f = fixture();
+  f.state.permit = f.validPermit();
+  f.state.readErrors.add(1);
+  const result = await f.runner.step(id);
+  assert.equal(result.state, "copied");
+  assert.equal(f.state.reads, 3);
+  assert.equal(f.state.calls.filter((c) => c.name === "lease_photo_migration_item").length, 1);
+  assert.equal(f.photos.state.sourceDownloads, 1);
+});
+
+test("two failed state reads stop before any lease, photo download or write", async () => {
+  const f = fixture();
+  f.state.permit = f.validPermit();
+  f.state.readErrors = new Set([1, 2]);
+  await assert.rejects(() => f.runner.step(id), /state could not be read/);
+  assert.equal(f.state.reads, 2);
+  assert.equal(f.state.calls.length, 0);
+  assert.equal(f.photos.state.sourceDownloads, 0);
+  assert.equal(f.photos.state.puts.length, 0);
+});
+
+test("missing or wrong-project reviews are not treated as transient read failures", async () => {
+  for (const missing of [true, false]) {
+    const f = fixture();
+    f.state.permit = f.validPermit();
+    f.state.readOverride = missing ? null : { ...f.row, project_ref: "wrong" };
+    await assert.rejects(() => f.runner.step(id), /source project/);
+    assert.equal(f.state.reads, 1);
+    assert.equal(f.state.calls.length, 0);
+    assert.equal(f.photos.state.sourceDownloads, 0);
+  }
+});
+
+test("status-read failure after acknowledged completion never marks the copied pair failed", async () => {
+  const f = fixture();
+  f.state.permit = f.validPermit();
+  f.state.readErrors = new Set([2, 3]);
+  await assert.rejects(() => f.runner.step(id), /state could not be read/);
+  assert.equal(f.row.completed_groups, 1);
+  assert.equal(f.row.failed_groups, 0);
+  assert.equal(
+    f.state.calls.some((c) => c.name === "fail_photo_migration_item"),
+    false,
+  );
+  assert.equal(f.photos.state.sourceDownloads, 1);
+});
+
+test("lost finish acknowledgement leaves committed or pending state for review without a failure mutation", async () => {
+  for (const outcome of ["committed", "uncommitted"]) {
+    const f = fixture();
+    f.state.permit = f.validPermit();
+    f.state.finishAck = outcome;
+    await assert.rejects(() => f.runner.step(id), /completion was not confirmed/);
+    assert.equal(
+      f.state.calls.some((c) => c.name === "fail_photo_migration_item"),
+      false,
+    );
+    assert.equal(f.row.completed_groups, outcome === "committed" ? 1 : 0);
+    assert.equal(f.row.running_groups, outcome === "committed" ? 0 : 1);
+    assert.equal(f.photos.state.sourceDownloads, 1);
+  }
 });
 test("reservation failures, target outages and revoked permits stop before downloading", async () => {
   for (const mode of ["failReserve", "unhealthy", "revokeAfterLease"]) {
