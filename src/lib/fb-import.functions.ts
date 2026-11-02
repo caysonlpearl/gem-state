@@ -35,7 +35,25 @@ import {
 } from "./import-refresh";
 import { z } from "zod";
 
-const MAX_PHOTO_BYTES = 12 * 1024 * 1024;
+import {
+  MAX_IMPORT_PHOTO_BYTES,
+  MAX_IMPORT_PREVIEW_BYTES,
+  type PreparedImportPhoto,
+  type ImportPhotoPreviewRequest,
+} from "./import-photo-preview";
+const MAX_PHOTO_BYTES = MAX_IMPORT_PHOTO_BYTES;
+const preparedImportPhotoSchema = z
+  .object({
+    url: z.string().url().max(4096),
+    sourceSha256: z.string().regex(/^[a-f0-9]{64}$/),
+    contentType: z.enum(["image/jpeg", "image/png", "image/webp", "image/svg+xml"]),
+    base64: z
+      .string()
+      .min(4)
+      .max(4 * Math.ceil(MAX_IMPORT_PREVIEW_BYTES / 3))
+      .regex(/^[A-Za-z0-9+/]+={0,2}$/),
+  })
+  .strict();
 
 async function requireAdmin(context: { supabase: unknown; userId: string }) {
   const { data, error } = await (context.supabase as any).rpc("has_role", {
@@ -58,6 +76,7 @@ export type FbImportItemInput = {
   city?: string | null;
   state?: string | null;
   photoUrls: string[];
+  preparedPhotoPreviews?: PreparedImportPhoto[];
   unavailable?: boolean | undefined;
   /** Facebook shows the Sold badge (implies unavailable). */
   sold?: boolean | undefined;
@@ -176,150 +195,153 @@ async function claimPhotosForSeller(
 /** Rows per staging request; the admin page chunks scan results to this size. */
 const STAGE_CHUNK_SIZE = 50;
 
+export type StageImportInput = {
+  sourceProfileUrl: string;
+  sellerName?: string | undefined;
+  mode?: "refresh" | undefined;
+  authorized?: boolean;
+  items: FbImportItemInput[];
+  scan?: ScanEvidence;
+  seenUrls?: string[];
+  finalizeScan?: boolean;
+  removalSourceUrl?: string;
+  batchId?: string;
+};
+
 export const stageFacebookImportBatch = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator(
-    (input: {
-      sourceProfileUrl: string;
-      sellerName?: string | undefined;
-      mode?: "refresh" | undefined;
-      authorized?: boolean;
-      items: FbImportItemInput[];
-      scan?: ScanEvidence;
-      seenUrls?: string[];
-      finalizeScan?: boolean;
-      removalSourceUrl?: string;
-      batchId?: string;
-    }) => {
-      const sourceProfileUrl = canonicalSellerSourceProfile(String(input.sourceProfileUrl ?? ""));
-      if (input.mode === "refresh" && input.authorized !== true)
-        throw new Error("Confirm seller scan authorization.");
-      if (!sourceProfileUrl) throw new Error("Enter the Facebook Marketplace profile URL.");
-      const sellerName =
-        String(input.sellerName ?? "")
-          .trim()
-          .slice(0, 120) || null;
-      const scan = input.scan
-        ? z
-            .object({
-              complete: z.boolean(),
-              termination: z.enum(["count", "end", "incomplete"]),
-              challenged: z.boolean(),
-              unreadable: z.number().int().nonnegative(),
-            })
-            .parse(input.scan)
-        : undefined;
-      if (!Array.isArray(input.items) || input.items.length > STAGE_CHUNK_SIZE)
-        throw new Error(`Stage at most ${STAGE_CHUNK_SIZE} rows per request.`);
-      // Rows are validated one by one so a single malformed row is reported
-      // as a retryable failure instead of rejecting the whole chunk.
-      const invalidUrls: string[] = [];
-      const invalidFailures: StagingFailure[] = [];
-      const rowIndexes: number[] = [];
-      const parsedItems = (input.items ?? []).map((raw, rowIndex) => {
-        const result = z
+  .validator((input: StageImportInput) => {
+    const sourceProfileUrl = canonicalSellerSourceProfile(String(input.sourceProfileUrl ?? ""));
+    if (input.mode === "refresh" && input.authorized !== true)
+      throw new Error("Confirm seller scan authorization.");
+    if (!sourceProfileUrl) throw new Error("Enter the Facebook Marketplace profile URL.");
+    const sellerName =
+      String(input.sellerName ?? "")
+        .trim()
+        .slice(0, 120) || null;
+    const scan = input.scan
+      ? z
           .object({
-            sourceUrl: z.string().url().max(2048),
-            title: z.string().max(1000),
-            description: z.string().max(10000).nullish(),
-            priceCents: z.number().int().min(0).max(1000000000),
-            // Existing listings are deliberately read without downloading photos.
-            photoUrls: z.array(z.string().url().max(4096)).max(8).default([]),
-            unavailable: z.boolean().optional(),
-            sold: z.boolean().optional(),
+            complete: z.boolean(),
+            termination: z.enum(["count", "end", "incomplete"]),
+            challenged: z.boolean(),
+            unreadable: z.number().int().nonnegative(),
           })
-          .passthrough()
-          .safeParse(
-            input.mode === "refresh" && raw && raw.unavailable === true
-              ? {
-                  sourceUrl: raw.sourceUrl,
-                  unavailable: true,
-                  sold: raw.sold === true,
-                  title: "Unavailable listing",
-                  priceCents: 0,
-                  photoUrls: [],
-                }
-              : raw,
-          );
-        if (!result.success || !String(result.data.title ?? "").trim()) {
-          invalidFailures.push({ rowIndex, reason: "invalid_row" });
-          invalidUrls.push(
-            String((raw as { sourceUrl?: unknown })?.sourceUrl ?? "").slice(0, 2048),
-          );
-          return null;
-        }
-        let canonicalUrl: string;
-        try {
-          canonicalUrl = canonicalImportSource(sourceProfileUrl, result.data.sourceUrl);
-        } catch {
-          invalidUrls.push(result.data.sourceUrl);
-          invalidFailures.push({ rowIndex, reason: "unsupported_source" });
-          return null;
-        }
-        rowIndexes.push(rowIndex);
-        const item = result.data as FbImportItemInput;
-        const categorySlug = inferFacebookCategorySlug(
-          item.categorySlug,
-          item.title,
-          categoryHintFrom(sourceProfileUrl, item.description),
+          .parse(input.scan)
+      : undefined;
+    if (!Array.isArray(input.items) || input.items.length > STAGE_CHUNK_SIZE)
+      throw new Error(`Stage at most ${STAGE_CHUNK_SIZE} rows per request.`);
+    // Rows are validated one by one so a single malformed row is reported
+    // as a retryable failure instead of rejecting the whole chunk.
+    const invalidUrls: string[] = [];
+    const invalidFailures: StagingFailure[] = [];
+    const rowIndexes: number[] = [];
+    const parsedItems = (input.items ?? []).map((raw, rowIndex) => {
+      const result = z
+        .object({
+          sourceUrl: z.string().url().max(2048),
+          title: z.string().max(1000),
+          description: z.string().max(10000).nullish(),
+          priceCents: z.number().int().min(0).max(1000000000),
+          // Existing listings are deliberately read without downloading photos.
+          photoUrls: z.array(z.string().url().max(4096)).max(8).default([]),
+          preparedPhotoPreviews: z
+            .array(preparedImportPhotoSchema)
+            .max(input.items.length > 1 ? 0 : 8)
+            .optional(),
+          unavailable: z.boolean().optional(),
+          sold: z.boolean().optional(),
+        })
+        .passthrough()
+        .safeParse(
+          input.mode === "refresh" && raw && raw.unavailable === true
+            ? {
+                sourceUrl: raw.sourceUrl,
+                unavailable: true,
+                sold: raw.sold === true,
+                title: "Unavailable listing",
+                priceCents: 0,
+                photoUrls: [],
+              }
+            : raw,
         );
-        const state = item.state ? String(item.state).trim().slice(0, 80) : "";
-        const city = item.city ? String(item.city).trim().slice(0, 80) : "";
-        // Idaho cities use the listed spelling, and that city's region.
-        const place = /^(id|idaho)$/i.test(state) ? findIdahoPlace(city) : undefined;
-        return {
-          sourceUrl: canonicalUrl,
-          title: String(item.title ?? "")
-            .trim()
-            .slice(0, 120),
-          description: item.description ? String(item.description).trim().slice(0, 5000) : null,
-          priceCents: Math.max(0, Math.round(Number(item.priceCents) || 0)),
-          // Animals have no item condition.
-          condition:
-            categorySlug === "pets" ? "not_applicable" : normalizeFacebookCondition(item.condition),
-          categorySlug,
-          subcategory:
-            typeof item.subcategory === "string" ? item.subcategory.trim().slice(0, 200) : "",
-          itemDetails: inferImportItemDetails(
-            categorySlug,
-            item.subcategory,
-            item.itemDetails,
-            item.title,
-          ),
-          city: place ? place[0] : city,
-          state: place ? "ID" : state,
-          region: place ? place[1] : "",
-          photoUrls: (item.photoUrls ?? []).filter(Boolean).slice(0, 8),
-          unavailable: item.unavailable === true,
-          sold: item.sold === true,
-        };
-      });
-      const items = parsedItems.filter(
-        (item): item is NonNullable<(typeof parsedItems)[number]> => item !== null,
+      if (!result.success || !String(result.data.title ?? "").trim()) {
+        invalidFailures.push({ rowIndex, reason: "invalid_row" });
+        invalidUrls.push(String((raw as { sourceUrl?: unknown })?.sourceUrl ?? "").slice(0, 2048));
+        return null;
+      }
+      let canonicalUrl: string;
+      try {
+        canonicalUrl = canonicalImportSource(sourceProfileUrl, result.data.sourceUrl);
+      } catch {
+        invalidUrls.push(result.data.sourceUrl);
+        invalidFailures.push({ rowIndex, reason: "unsupported_source" });
+        return null;
+      }
+      rowIndexes.push(rowIndex);
+      const item = result.data as FbImportItemInput;
+      const categorySlug = inferFacebookCategorySlug(
+        item.categorySlug,
+        item.title,
+        categoryHintFrom(sourceProfileUrl, item.description),
       );
-      if (!items.length && !invalidUrls.length && !input.finalizeScan)
-        throw new Error("No listings were provided.");
+      const state = item.state ? String(item.state).trim().slice(0, 80) : "";
+      const city = item.city ? String(item.city).trim().slice(0, 80) : "";
+      // Idaho cities use the listed spelling, and that city's region.
+      const place = /^(id|idaho)$/i.test(state) ? findIdahoPlace(city) : undefined;
       return {
-        sourceProfileUrl,
-        sellerName,
-        mode: input.mode,
-        items,
-        scan,
-        finalizeScan: input.finalizeScan === true,
-        removalSourceUrl: input.removalSourceUrl
-          ? canonicalImportSource(sourceProfileUrl, input.removalSourceUrl)
-          : undefined,
-        seenUrls: (input.seenUrls ?? []).map((url) => canonicalImportSource(sourceProfileUrl, url)),
-        invalidUrls,
-        invalidFailures,
-        rowIndexes,
-        batchId:
-          typeof input.batchId === "string" && /^[0-9a-z-]{1,64}$/i.test(input.batchId)
-            ? input.batchId
-            : undefined,
+        sourceUrl: canonicalUrl,
+        title: String(item.title ?? "")
+          .trim()
+          .slice(0, 120),
+        description: item.description ? String(item.description).trim().slice(0, 5000) : null,
+        priceCents: Math.max(0, Math.round(Number(item.priceCents) || 0)),
+        // Animals have no item condition.
+        condition:
+          categorySlug === "pets" ? "not_applicable" : normalizeFacebookCondition(item.condition),
+        categorySlug,
+        subcategory:
+          typeof item.subcategory === "string" ? item.subcategory.trim().slice(0, 200) : "",
+        itemDetails: inferImportItemDetails(
+          categorySlug,
+          item.subcategory,
+          item.itemDetails,
+          item.title,
+        ),
+        city: place ? place[0] : city,
+        state: place ? "ID" : state,
+        region: place ? place[1] : "",
+        photoUrls: [...new Set((item.photoUrls ?? []).filter(Boolean))].slice(0, 8),
+        preparedPhotoPreviews: item.preparedPhotoPreviews ?? [],
+        unavailable: item.unavailable === true,
+        sold: item.sold === true,
       };
-    },
-  )
+    });
+    const items = parsedItems.filter(
+      (item): item is NonNullable<(typeof parsedItems)[number]> => item !== null,
+    );
+    if (!items.length && !invalidUrls.length && !input.finalizeScan)
+      throw new Error("No listings were provided.");
+    return {
+      sourceProfileUrl,
+      sellerName,
+      mode: input.mode,
+      items,
+      scan,
+      finalizeScan: input.finalizeScan === true,
+      removalSourceUrl: input.removalSourceUrl
+        ? canonicalImportSource(sourceProfileUrl, input.removalSourceUrl)
+        : undefined,
+      seenUrls: (input.seenUrls ?? []).map((url) => canonicalImportSource(sourceProfileUrl, url)),
+      invalidUrls,
+      invalidFailures,
+      rowIndexes,
+      batchId:
+        typeof input.batchId === "string" && /^[0-9a-z-]{1,64}$/i.test(input.batchId)
+          ? input.batchId
+          : undefined,
+    };
+  })
   .handler(
     async ({
       data,
@@ -334,6 +356,7 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
       flaggedRemoved: number;
       preservedActive: number;
       recaptured: number;
+      photoPreviewRequests: ImportPhotoPreviewRequest[];
     }> => {
       await requireAdmin(context);
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -408,6 +431,8 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
       let failed = data.invalidUrls.length;
       const failedUrls: string[] = [...data.invalidUrls];
       const failures: StagingFailure[] = [...data.invalidFailures];
+      const photoPreviewRequests: ImportPhotoPreviewRequest[] = [];
+      let inlinePreviewBudget = 4 * 1024 * 1024;
       const flaggedRemoved = 0;
       let preservedActive = 0;
       let recaptured = 0;
@@ -518,9 +543,35 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
             phase = "photo";
             if (recapture && item.photoUrls.length === 0)
               throw new Error("Fresh source photos required to recapture this listing.");
-            const stagingPaths: string[] = [];
-            for (const url of item.photoUrls)
-              stagingPaths.push(await downloadPhoto(admin, batch.id, url));
+            let stagingPaths: string[] = [];
+            const storageModule = await getPhotoStorageModule();
+            if (storageModule.currentPhotoUploadMode() === "supabase") {
+              for (const url of item.photoUrls)
+                stagingPaths.push(await downloadPhoto(admin, batch.id, url));
+            } else {
+              const { stageImportedPhotos, ImportPhotoPreviewRequired } =
+                await import("./import-photo-preview.server");
+              try {
+                stagingPaths = await stageImportedPhotos(
+                  batch.id,
+                  item.photoUrls,
+                  item.preparedPhotoPreviews,
+                  await storageModule.getPhotoStorage(),
+                );
+              } catch (error) {
+                if (error instanceof ImportPhotoPreviewRequired) {
+                  const size = error.prepared.reduce((sum, value) => sum + value.base64.length, 0);
+                  const inline = size <= inlinePreviewBudget;
+                  if (inline) inlinePreviewBudget -= size;
+                  photoPreviewRequests.push({
+                    rowIndex,
+                    prepared: inline ? error.prepared : [],
+                    sources: inline ? error.sources : error.allSources,
+                  });
+                }
+                throw error;
+              }
+            }
             phase = "write";
             const draft = {
               batch_id: batch.id,
@@ -562,7 +613,12 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
           } catch (error) {
             failed += 1;
             failedUrls.push(item.sourceUrl);
-            failures.push({ rowIndex, reason: stagingFailureCode(error, phase) });
+            failures.push({
+              rowIndex,
+              reason: photoPreviewRequests.some((value) => value.rowIndex === rowIndex)
+                ? "photo_preview_required"
+                : stagingFailureCode(error, phase),
+            });
           }
         } catch (error) {
           failed += 1;
@@ -583,9 +639,36 @@ export const stageFacebookImportBatch = createServerFn({ method: "POST" })
         flaggedRemoved,
         preservedActive,
         recaptured,
+        photoPreviewRequests,
       };
     },
   );
+
+export type StageImportResult = Awaited<ReturnType<typeof stageFacebookImportBatch>>;
+
+export const prepareFacebookImportPhotoPreviewSource = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: { url: string; sourceSha256: string; bytes: number; contentType: string }) =>
+    z
+      .object({
+        url: z.string().url().max(4096),
+        sourceSha256: z.string().regex(/^[a-f0-9]{64}$/),
+        bytes: z.number().int().positive().max(MAX_IMPORT_PHOTO_BYTES),
+        contentType: z
+          .string()
+          .max(100)
+          .regex(/^image\/[a-z0-9.+-]+$/i),
+      })
+      .strict()
+      .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    await requireAdmin(context);
+    const { setResponseHeader } = await import("@tanstack/react-start/server");
+    setResponseHeader("Cache-Control", "private, no-store");
+    const { importPreviewSource } = await import("./import-photo-preview.server");
+    return importPreviewSource(data);
+  });
 
 export const getFacebookImportItems = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])

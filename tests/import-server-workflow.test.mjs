@@ -23,8 +23,13 @@ function handlers(
     verified = true,
     setupActive = true,
     archivedProfiles = [],
+    photoMode = "supabase",
+    photoBackend = {},
+    photoStore = null,
+    isAdmin = true,
   } = {},
 ) {
+  const headers = [];
   const writes = [],
     rpcs = [],
     lookups = { count: 0 };
@@ -121,6 +126,8 @@ function handlers(
   };
   const c = vm.createContext({
     z,
+    MAX_IMPORT_PHOTO_BYTES: 12 * 1024 * 1024,
+    MAX_IMPORT_PREVIEW_BYTES: 512 * 1024,
     console,
     crypto: { randomUUID: () => "fresh-photo" },
     AbortSignal,
@@ -141,7 +148,8 @@ function handlers(
     requireSupabaseAuth: {},
     getPhotoStorageModule: async () => ({
       currentPhotoMode: () => "supabase",
-      currentPhotoUploadMode: () => "supabase",
+      currentPhotoUploadMode: () => photoMode,
+      getPhotoStorage: async () => photoStore,
     }),
     classifiedCategories: [{ slug: "general" }],
     inferFacebookCategorySlug: (slug) => slug || "general",
@@ -163,6 +171,8 @@ function handlers(
       return builder;
     },
     boundaries: {
+      ...photoBackend,
+      setResponseHeader: (...value) => headers.push(value),
       supabaseAdmin: db,
       allImportRows: async () => {
         lookups.count++;
@@ -183,12 +193,17 @@ function handlers(
   source = stripTypeScriptTypes(source, { mode: "transform" }).replaceAll("export ", "");
   vm.runInContext(
     source +
-      "\nglobalThis.stage = stageFacebookImportBatch; globalThis.apply = publishFacebookImportItems; globalThis.clear = discardAllFacebookImportItems; globalThis.queue = getFacebookImportItems;",
+      "\nglobalThis.stage = stageFacebookImportBatch; globalThis.apply = publishFacebookImportItems; globalThis.clear = discardAllFacebookImportItems; globalThis.queue = getFacebookImportItems; globalThis.previewSource = prepareFacebookImportPhotoPreviewSource;",
     c,
   );
-  const context = { userId: "admin", supabase: { rpc: async () => ({ data: true, error: null }) } };
+  const context = {
+    userId: "admin",
+    supabase: { rpc: async () => ({ data: isAdmin, error: null }) },
+  };
   return {
     stage: (data) => c.stage({ data, context }),
+    previewSource: (data) => c.previewSource({ data, context }),
+    headers,
     apply: (data) => c.apply({ data, context }),
     clear: () => c.clear({ context }),
     queue: () => c.queue({ context }),
@@ -649,4 +664,211 @@ test("a cleared live review row can stage a genuinely new source update without 
   });
   assert.equal(kept.preservedActive, 1);
   assert.equal(missing.writes.filter((w) => w.table === "fb_marketplace_import_items").length, 0);
+});
+
+test("R2 staging returns confirmed photo-preview needs without a draft write and preserves supplied previews on retry", async () => {
+  class ImportPhotoPreviewRequired extends Error {
+    constructor() {
+      super("Browser preview required");
+      this.prepared = [];
+      this.sources = [
+        {
+          url: "https://images.vinted.net/photo.jpg",
+          sourceSha256: "a".repeat(64),
+          bytes: 10,
+          contentType: "image/jpeg",
+        },
+      ];
+    }
+  }
+  let photoCalls = 0;
+  const f = handlers([], {
+    photoMode: "r2",
+    photoStore: {},
+    photoBackend: {
+      ImportPhotoPreviewRequired,
+      stageImportedPhotos: async (_batch, urls, previews) => {
+        photoCalls++;
+        assert.deepEqual([...urls], ["https://images.vinted.net/photo.jpg"]);
+        if (!previews.length) throw new ImportPhotoPreviewRequired();
+        assert.equal(previews[0].sourceSha256, "a".repeat(64));
+        return ["_staging/batch/photo.jpg"];
+      },
+    },
+  });
+  const item = {
+    sourceUrl: "https://www.vinted.com/items/99-new",
+    title: "New item",
+    description: "A useful item description",
+    priceCents: 1000,
+    photoUrls: ["https://images.vinted.net/photo.jpg"],
+  };
+  const first = await f.stage({ sourceProfileUrl: profile, items: [item] });
+  assert.equal(first.staged, 0);
+  assert.equal(first.failed, 1);
+  assert.equal(first.failures[0].reason, "photo_preview_required");
+  assert.equal(first.photoPreviewRequests[0].rowIndex, 0);
+  assert.equal(
+    f.writes.some((w) => w.table === "fb_marketplace_import_items"),
+    false,
+  );
+  const second = await f.stage({
+    sourceProfileUrl: profile,
+    batchId: first.batchId,
+    items: [
+      {
+        ...item,
+        preparedPhotoPreviews: [
+          {
+            url: item.photoUrls[0],
+            sourceSha256: "a".repeat(64),
+            contentType: "image/png",
+            base64: "AQID",
+          },
+        ],
+      },
+    ],
+  });
+  assert.equal(second.staged, 1);
+  assert.equal(second.failed, 0);
+  assert.equal(photoCalls, 2);
+  const draft = f.writes.find((w) => w.table === "fb_marketplace_import_items").values;
+  assert.deepEqual([...draft.public_paths], ["_staging/batch/photo.jpg"]);
+  assert.deepEqual([...draft.evidence_paths], ["_staging/batch/photo.jpg"]);
+});
+
+test("unchanged published refresh rows never request or prepare R2 photos", async () => {
+  const f = handlers([row], {
+    photoMode: "r2",
+    photoBackend: {
+      stageImportedPhotos: () =>
+        assert.fail("Existing unchanged listings must not download or prepare photos"),
+    },
+  });
+  const result = await f.stage({
+    sourceProfileUrl: profile,
+    mode: "refresh",
+    authorized: true,
+    items: [
+      {
+        sourceUrl: row.source_url,
+        title: row.title,
+        description: row.description,
+        priceCents: row.price_cents,
+        photoUrls: ["https://images.vinted.net/photo.jpg"],
+      },
+    ],
+  });
+  assert.equal(result.failed, 0);
+  assert.equal(result.photoPreviewRequests.length, 0);
+  assert.equal(f.writes.filter((w) => w.table.startsWith("storage:")).length, 0);
+});
+
+test("original handoff requires admin before reading any photo and explicitly disables caching", async () => {
+  let calls = 0;
+  const input = {
+    url: "https://images.vinted.net/photo.jpg",
+    sourceSha256: "a".repeat(64),
+    bytes: 3,
+    contentType: "image/jpeg",
+  };
+  const backend = {
+    importPreviewSource: async (data) => {
+      calls++;
+      return { ...data, base64: "AQID" };
+    },
+  };
+  const denied = handlers([], { isAdmin: false, photoBackend: backend });
+  await assert.rejects(() => denied.previewSource(input), /Administrator/);
+  assert.equal(calls, 0);
+  const allowed = handlers([], { photoBackend: backend });
+  const source = await allowed.previewSource(input);
+  assert.equal(calls, 1);
+  assert.equal(source.base64, "AQID");
+  assert.deepEqual(allowed.headers, [["Cache-Control", "private, no-store"]]);
+  assert.throws(() => allowed.previewSource({ ...input, bytes: 12 * 1024 * 1024 + 1 }));
+  assert.equal(calls, 1);
+});
+
+test("large preview responses stay bounded by handing remaining originals to the browser individually", async () => {
+  const urls = Array.from({ length: 8 }, (_, i) => `https://images.vinted.net/${i}.jpg`);
+  class ImportPhotoPreviewRequired extends Error {
+    constructor() {
+      super("Needs browser");
+      this.allSources = urls.map((url) => ({
+        url,
+        sourceSha256: "a".repeat(64),
+        bytes: 100,
+        contentType: "image/jpeg",
+      }));
+      this.sources = this.allSources.slice(7);
+      this.prepared = urls
+        .slice(0, 7)
+        .map((url) => ({
+          url,
+          sourceSha256: "a".repeat(64),
+          contentType: "image/png",
+          base64: "A".repeat(700000),
+        }));
+    }
+  }
+  const f = handlers([], {
+    photoMode: "r2",
+    photoStore: {},
+    photoBackend: {
+      ImportPhotoPreviewRequired,
+      stageImportedPhotos: async () => {
+        throw new ImportPhotoPreviewRequired();
+      },
+    },
+  });
+  const result = await f.stage({
+    sourceProfileUrl: profile,
+    items: [
+      {
+        sourceUrl: "https://www.vinted.com/items/99-new",
+        title: "New item",
+        priceCents: 100,
+        photoUrls: urls,
+      },
+    ],
+  });
+  assert.equal(result.failed, 1);
+  assert.equal(result.photoPreviewRequests[0].prepared.length, 0);
+  assert.equal(result.photoPreviewRequests[0].sources.length, 8);
+  assert.ok(JSON.stringify(result).length < 10000);
+  assert.equal(
+    f.writes.some((w) => w.table === "fb_marketplace_import_items"),
+    false,
+  );
+});
+test("prepared rows are bounded to single-row retries without rejecting other valid batch rows", async () => {
+  const f = handlers([]);
+  const item = {
+    sourceUrl: "https://www.vinted.com/items/99-new",
+    title: "New item",
+    priceCents: 100,
+    photoUrls: [],
+  };
+  const result = await f.stage({
+    sourceProfileUrl: profile,
+    items: [
+      {
+        ...item,
+        preparedPhotoPreviews: [
+          {
+            url: "https://images.vinted.net/photo.jpg",
+            sourceSha256: "a".repeat(64),
+            contentType: "image/png",
+            base64: "AQID",
+          },
+        ],
+      },
+      { ...item, sourceUrl: "https://www.vinted.com/items/100-other" },
+    ],
+  });
+  assert.equal(result.failed, 1);
+  assert.equal(result.staged, 1);
+  assert.equal(result.failures[0].rowIndex, 0);
+  assert.equal(result.failures[0].reason, "invalid_row");
 });

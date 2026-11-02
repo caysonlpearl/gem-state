@@ -153,6 +153,8 @@ export function scannableProfiles<
 export const STAGING_FAILURE_LABELS: Record<string, string> = {
   invalid_row: "Invalid listing fields; re-read this detail page",
   unsupported_source: "Listing URL does not match this source",
+  photo_preview_required: "Photo preview preparation is required; retry this row",
+  photo_preview_failed: "Could not prepare a photo preview; retry this row",
   photo_download_failed: "Photo download failed; re-read photos and retry",
   database_conflict: "Conflicting record; retry after reviewing the queue",
   database_permission: "Staging permission denied; check importer access",
