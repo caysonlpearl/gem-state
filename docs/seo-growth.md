@@ -100,3 +100,37 @@ source-failure behavior, sitemap/detail policy checks, content review/publicatio
 earned links and the recurring measurement workflow. The legacy homes adapter's
 relative days-on-market calculation also needs a stable source-date review; do
 not represent a cache read as a new publication date.
+
+### Editorial and measurement rhythm
+
+The owner reviewed and approved the full Twin Falls rental-cost checklist and
+Boise/Meridian plumbing-quote checklist on November 1. Their canonical homes
+are guide URLs; they are registered in Bluebird Local without duplicate thin
+news pages. Local collection buttons and related cards enforce the same mode,
+property type, trade, state and radius as their destination.
+
+Each Tuesday, select two original topics using Search Console queries with
+impressions but weak clicks, the researched Idaho demand ranges, and actual
+matching inventory. Research primary sources and prepare complete drafts.
+Review on Thursday, then publish only the approved drafts. If a review is late,
+keep drafts private rather than fabricating a publication or backdating one.
+The first two approved originals satisfy this initial two-article batch.
+
+Review search and classified outcomes each Monday after 9am Boise time. Keep
+Google Search Console's available-date range separate from first-party traffic.
+Compare completed periods and segment organic search from paid, AI and direct
+visits. Track article reads and CTA placements through listing views, contact
+attempts, acknowledged inquiries, posting starts and accepted submissions.
+The first day of each month adds a closed calendar-month review and inventory-
+matched reprioritization. Keyword Planner ranges are revisited when choosing a
+new batch, not automatically summed into an invented traffic forecast.
+
+Stored weekly/monthly analytics use a private Storage bucket, administrator-only
+server functions, immutable period keys and retryable leases. Existing news and
+worker maintenance trigger due reports; no marketplace provider requests or
+writing subscription are added. The rolling seven-day baseline can be saved
+from the traffic report. Future scheduled runs and search gains remain future
+observations, even after the workflow is configured and tested.
+
+Local-link outreach remains drafted and unsent. A public editorial link must
+be observed on the third party's site before it counts as an earned-link result.

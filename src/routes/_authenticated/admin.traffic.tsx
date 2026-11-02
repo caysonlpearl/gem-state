@@ -1,10 +1,15 @@
 import type { ConversionRow } from "@/lib/conversion-funnel";
 import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 
-import { getTrafficSummary, type TrafficRow } from "@/lib/traffic.functions";
+import {
+  getTrafficSummary,
+  getSeoReviewReports,
+  saveSeoBaseline,
+  type TrafficRow,
+} from "@/lib/traffic.functions";
 
 export const Route = createFileRoute("/_authenticated/admin/traffic")({
   head: () => ({
@@ -154,11 +159,27 @@ function TrafficPage() {
     queryFn: () => fetchSummary({ data: { windowDays } }),
   });
   const data = summary.data;
+  const readReviews = useServerFn(getSeoReviewReports);
+  const reviews = useQuery({
+    queryKey: ["admin-seo-reviews"],
+    queryFn: () => readReviews(),
+    enabled: data?.isAdmin === true,
+  });
+  const saveBaseline = useServerFn(saveSeoBaseline);
+  const baseline = useMutation({
+    mutationFn: () => saveBaseline(),
+    onSuccess: () => {
+      void reviews.refetch();
+    },
+  });
 
   function downloadReport() {
     if (!data?.isAdmin) return;
+    downloadSavedReport({ capturedAt: new Date().toISOString(), ...data });
+  }
+  function downloadSavedReport(report: unknown) {
     const url = URL.createObjectURL(
-      new Blob([JSON.stringify({ capturedAt: new Date().toISOString(), ...data }, null, 2)], {
+      new Blob([JSON.stringify(report, null, 2)], {
         type: "application/json",
       }),
     );
@@ -258,6 +279,59 @@ function TrafficPage() {
             </p>
           </section>
 
+          <section
+            className="mt-10 rounded-xl border border-border p-5"
+            aria-label="Saved SEO reviews"
+          >
+            <h2 className="text-[17px] font-semibold">Weekly and monthly SEO reviews</h2>
+            <p className="mt-2 max-w-[90ch] text-xs leading-relaxed text-muted-foreground">
+              Weekly reports save after 9am Boise time on Mondays; calendar-month reports save on
+              the first. They cover completed UTC periods, exclude marked internal traffic, and
+              remain private to administrators. Search Console indexing and keyword impressions are
+              reviewed alongside these reports.
+            </p>
+            <button
+              type="button"
+              onClick={() => baseline.mutate()}
+              disabled={baseline.isPending}
+              className="mt-4 min-h-10 rounded-full border border-input px-4 text-sm disabled:opacity-50"
+            >
+              {baseline.isPending ? "Saving…" : "Save current 7-day baseline"}
+            </button>
+            {(baseline.error || reviews.error) && (
+              <p className="mt-3 text-sm text-destructive">
+                Saved SEO reviews are temporarily unavailable. Current traffic data is still shown
+                below.
+              </p>
+            )}
+            {baseline.isSuccess && (
+              <p className="mt-3 text-sm">Baseline saved or already available for today.</p>
+            )}
+            <ul className="mt-4 space-y-3">
+              {(reviews.data || []).map((report) => (
+                <li
+                  key={report.review}
+                  className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3 text-sm"
+                >
+                  <span>
+                    <strong>{report.review}</strong>
+                    <br />
+                    {report.period.since.slice(0, 10)} to {report.period.until.slice(0, 10)} UTC ·{" "}
+                    {report.funnel.organic.visits} organic visits ·{" "}
+                    {report.funnel.organic.contactedAfterView} contacted after a view
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => downloadSavedReport(report)}
+                    className="min-h-10 rounded-full border border-input px-4 text-xs"
+                  >
+                    Download saved report
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+
           <section className="mt-10">
             <h2 className="text-[17px] font-semibold">Observed visit progression</h2>
             <p className="mt-2 max-w-[90ch] text-xs leading-relaxed text-muted-foreground">
@@ -296,6 +370,66 @@ function TrafficPage() {
               Bluebird cannot be confirmed. Small samples are descriptive, not evidence that a
               design change improved conversion.
             </p>
+          </section>
+
+          <section className="mt-10">
+            <h2 className="text-[17px] font-semibold">Articles to classifieds</h2>
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              Attributed actions follow an article button in the same browser session for up to two
+              hours. A contact action is distinct from a completed inquiry.
+            </p>
+            {data.editorial.length ? (
+              <div className="mt-3 overflow-x-auto rounded-lg border border-border">
+                <table className="w-full min-w-[800px] text-left text-xs">
+                  <thead className="bg-secondary/60">
+                    <tr>
+                      {[
+                        "Article",
+                        "Reads",
+                        "CTA clicks",
+                        "Clicking visits",
+                        "Listing views",
+                        "Contacts",
+                        "Inquiries",
+                        "Posting starts",
+                        "Submissions",
+                      ].map((label) => (
+                        <th scope="col" key={label} className="px-3 py-2">
+                          {label}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.editorial.map((row) => (
+                      <tr key={row.article} className="border-t border-border">
+                        <th scope="row" className="px-3 py-2 font-medium">
+                          {row.article}
+                        </th>
+                        {[
+                          row.views,
+                          row.clicks,
+                          row.clickingVisits,
+                          row.listingViews,
+                          row.contacts,
+                          row.inquiries,
+                          row.postingStarts,
+                          row.submissions,
+                        ].map((value, index) => (
+                          <td key={index} className="px-3 py-2">
+                            {value}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="mt-3 text-sm text-muted-foreground">
+                No eligible article activity recorded in this period yet.
+              </p>
+            )}
           </section>
 
           <section className="mt-10">

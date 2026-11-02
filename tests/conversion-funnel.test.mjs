@@ -106,12 +106,15 @@ test("staff, marked QA, preview and duplicate exclusions remain in force", () =>
 
 test("admin reads include stage events and timestamps without weakening the role check", () => {
   const source = readFileSync(new URL("../src/lib/traffic.functions.ts", import.meta.url), "utf8");
+  const reader = readFileSync(new URL("../src/lib/traffic-report.server.ts", import.meta.url), "utf8");
   assert.match(source, /has_role/);
   assert.match(source, /if \(isAdmin !== true\)/);
-  assert.match(source, /"search_completed"/);
-  assert.match(source, /"classified_listing_submit_started"/);
-  assert.match(source, /user_id, occurred_at/);
-  assert.match(source, /summarizeConversionVisits\(eligibleTrafficEvents\(events, options\)\)/);
+  assert.match(source, /loadTrafficReport\(supabase as unknown as SupabaseClient/);
+  assert.match(reader, /"search_completed"/);
+  assert.match(reader, /"classified_listing_submit_started"/);
+  assert.match(reader, /"classified_listing_started"/);
+  assert.match(reader, /user_id, occurred_at/);
+  assert.match(reader, /summarizeConversionVisits\(eligibleTrafficEvents\(events, options\)\)/);
 });
 
 test("organic cohorts retain the original landing and exclude paid, AI and unknown visits", () => {
