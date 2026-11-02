@@ -65,12 +65,16 @@ export function createPhotoMigrationRunner(
   const readPermit = deps.permit ?? (() => serverEnv("BLUEBIRD_PHOTO_MIGRATION_PERMIT"));
   const sourceProject = deps.project ?? projectRef;
   const store = deps.store ?? getPhotoStorage;
-  async function rpc(name: string, args: Record<string, unknown>) {
+  async function rpc(name: string, args: Record<string, unknown>, timeout = 5000) {
     const { data, error } = await db
       .rpc(name, args)
-      .abortSignal(AbortSignal.timeout(5000))
+      .abortSignal(AbortSignal.timeout(timeout))
       .retry(false);
     if (error) {
+      if (name === "prepare_photo_migration")
+        throw new Error(
+          "Preparation was not confirmed. Refresh saved reviews before retrying; this operation does not copy photos.",
+        );
       if (name === "reserve_photo_migration_download")
         throw new Error("Approved source download budget or lease is unavailable.");
       throw new Error("Photo transfer state is unavailable. Stop and review before retrying.");
@@ -131,14 +135,20 @@ export function createPhotoMigrationRunner(
   }
   async function prepare(inventory: PhotoInventory) {
     const plan = buildPhotoMigrationPlan(inventory, sourceProject());
-    const id = await rpc("prepare_photo_migration", {
-      _id: crypto.randomUUID(),
-      _actor: actor,
-      _project: plan.projectRef,
-      _digest: plan.inventorySha256,
-      _captured: plan.capturedAt,
-      _groups: plan.groups,
-    });
+    // A full metadata-ledger insert can outlast a small control request.
+    // Copy leases and source reservations retain their shorter deadlines.
+    const id = await rpc(
+      "prepare_photo_migration",
+      {
+        _id: crypto.randomUUID(),
+        _actor: actor,
+        _project: plan.projectRef,
+        _digest: plan.inventorySha256,
+        _captured: plan.capturedAt,
+        _groups: plan.groups,
+      },
+      20_000,
+    );
     return read(String(id));
   }
   async function step(id: string, retry = false) {
