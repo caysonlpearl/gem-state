@@ -382,3 +382,29 @@ no draft writes before preparation, source drift, authorization, interrupted
 responses, row accounting and a real isolated-browser 640x480 preview. These
 checks do not prove production R2-mode import completion. Verify that path as
 part of the approved cutover; current photo read/upload modes remain Supabase.
+
+
+### Ending retained-source fallback before permanent deletion
+
+`BLUEBIRD_PHOTO_SOURCE_FALLBACK_UNTIL` is an optional, absolute ISO timestamp
+with an explicit timezone. It is unset by default and has no effect on current
+Supabase reads/uploads. In R2 read mode, the shared signer clips fallback TTLs
+to that deadline and checks the returned Supabase token's actual `exp` claim.
+A response with an unknown, invalid, expired or later token is not returned.
+After the deadline, no fallback signing request is started. Verified R2 links
+continue normally. A malformed explicit setting disables R2 fallback rather
+than silently restoring an unlimited window. The admin storage check displays
+this policy. The existing store observes expiry without a new deployment.
+
+Enable this only in the reviewed cutover after R2 verification, final uploads
+and catch-up for every still-required source photo. Choose a deadline that also
+covers outstanding legacy signed links: native card URLs may last 24 hours,
+other galleries/evidence links up to one hour, and prepared page objects may
+retain existing links. Refresh caches and verify the resulting URLs. A rollback
+to source reads, a renewed cutoff, or explicit migration-source signing restarts
+the retention review. Disable migration permits before deletion review.
+
+No cutoff is configured by this source change. No files are deleted. The cutoff
+controls normal R2 fallback only; exact permanent deletion remains a separately
+reviewed and approved action after copy integrity, serving, uploads, private
+access, claim behavior and the legacy-link retention window are verified.

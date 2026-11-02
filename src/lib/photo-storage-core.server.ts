@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 import {
   MAX_PHOTO_BYTES,
   canonicalPhotoEtag,
@@ -52,6 +53,7 @@ async function settlePhotoOperations<T>(operations: Promise<T>[]): Promise<T[]> 
 export function createPhotoStorage(deps: {
   mode: PhotoStorageMode;
   uploadMode?: PhotoStorageMode;
+  sourceFallbackExpiresAt?: number | null;
   source: PhotoSource;
   receipts: PhotoReceipts;
   r2?: R2PhotoStore;
@@ -97,8 +99,33 @@ export function createPhotoStorage(deps: {
     thumbnail: boolean,
   ) {
     if (!paths.length) return new Map<string, string>();
+    const cutoff = deps.mode === "r2" ? (deps.sourceFallbackExpiresAt ?? null) : null;
+    if (cutoff !== null) {
+      if (!Number.isFinite(cutoff)) return new Map<string, string>();
+      seconds = Math.min(Math.floor(seconds), Math.floor((cutoff - now()) / 1000));
+      if (!Number.isSafeInteger(seconds) || seconds < 1) return new Map<string, string>();
+    }
     try {
-      return await deps.source.sign(bucket, paths, seconds, thumbnail);
+      const signed = await deps.source.sign(bucket, paths, seconds, thumbnail);
+      if (cutoff === null) return signed;
+      // Supabase signs with its own clock after the request arrives. Inspect
+      // actual expiry so latency/clock skew cannot extend the fallback window.
+      // These URLs come only from the trusted source signer; this is an expiry
+      // guard, not a replacement for source authentication/signature checking.
+      return new Map(
+        [...signed].filter(([, url]) => {
+          try {
+            const token = new URL(url).searchParams.get("token")?.split(".");
+            if (!token || token.length !== 3 || token[1].length > 8192) return false;
+            const expires = JSON.parse(Buffer.from(token[1], "base64url").toString("utf8")).exp;
+            return (
+              Number.isSafeInteger(expires) && expires * 1000 <= cutoff && expires * 1000 > now()
+            );
+          } catch {
+            return false;
+          }
+        }),
+      );
     } catch {
       warn("Photo source signing is temporarily unavailable.");
       return new Map<string, string>();
