@@ -208,6 +208,116 @@ test("one matching photo pair downloads once, checks its source ETag and verifie
   assert.equal(f.state.sourceCopies.length, 0);
 });
 
+test(
+  "both pair metadata checks run together before the single source download",
+  { timeout: 2000 },
+  async () => {
+    const f = photoStorageFixture("supabase");
+    const gates = Array.from({ length: 2 }, () => {
+      let release;
+      const promise = new Promise((resolve) => {
+        release = resolve;
+      });
+      return { promise, release, started: 0 };
+    });
+    let calls = 0;
+    f.state.info = async () => {
+      const gate = gates[Math.floor(calls++ / 2)];
+      if (++gate.started === 2) gate.release();
+      await gate.promise;
+      return { ...f.metadata };
+    };
+    const result = await f.store.migrate(
+      ["ask-evidence", "listing-media"].map((bucket) => ({
+        bucket,
+        path: f.path,
+        expected: f.metadata,
+      })),
+      f.content.length,
+    );
+    assert.equal(calls, 4);
+    assert.equal(result.receipts.length, 2);
+    assert.equal(f.state.sourceDownloads, 1);
+  },
+);
+
+test("a changed second source prevents either target write after downloading", async () => {
+  const f = photoStorageFixture("supabase");
+  const counts = new Map();
+  f.state.info = (bucket) => {
+    const count = (counts.get(bucket) ?? 0) + 1;
+    counts.set(bucket, count);
+    return bucket === "listing-media" && count === 2
+      ? { ...f.metadata, etag: "changed" }
+      : { ...f.metadata };
+  };
+  await assert.rejects(
+    () =>
+      f.store.migrate(
+        ["ask-evidence", "listing-media"].map((bucket) => ({
+          bucket,
+          path: f.path,
+          expected: f.metadata,
+        })),
+        f.content.length,
+      ),
+    /changed during copying/,
+  );
+  assert.equal(f.state.sourceDownloads, 1);
+  assert.equal(f.state.puts.length, 0);
+  assert.equal(f.state.records.size, 0);
+});
+
+test(
+  "a failed target waits for its paired write to settle before migration rejects",
+  { timeout: 2000 },
+  async () => {
+    const f = photoStorageFixture("supabase");
+    let releaseWrite, listingStarted;
+    const writeGate = new Promise((resolve) => {
+      releaseWrite = resolve;
+    });
+    const started = new Promise((resolve) => {
+      listingStarted = resolve;
+    });
+    f.state.beforePut = async (bucket, key) => {
+      if (bucket === "ask-evidence") throw new Error("planned evidence failure");
+      if (key.startsWith("original/")) {
+        listingStarted();
+        await writeGate;
+      }
+    };
+    let settled = false;
+    const attempt = f.store
+      .migrate(
+        ["ask-evidence", "listing-media"].map((bucket) => ({
+          bucket,
+          path: f.path,
+          expected: f.metadata,
+        })),
+        f.content.length,
+      )
+      .then(
+        () => {
+          settled = true;
+        },
+        (error) => {
+          settled = true;
+          throw error;
+        },
+      );
+    const rejection = assert.rejects(attempt, /planned evidence failure/);
+    await started;
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(settled, false);
+    releaseWrite();
+    await rejection;
+    assert.equal(f.state.sourceDownloads, 1);
+    assert.equal(f.state.records.has(`listing-media/${f.path}`), true);
+    assert.equal(f.state.records.has(`ask-evidence/${f.path}`), false);
+  },
+);
+
 test("changed source metadata and insufficient/invalid budgets prevent source-photo downloads", async () => {
   for (const budget of [0, 1, Infinity, NaN]) {
     const f = photoStorageFixture();

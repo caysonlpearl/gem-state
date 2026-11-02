@@ -83,6 +83,7 @@ export function photoStorageFixture(mode = "r2") {
     failReserve: false,
     failReceipts: false,
     failObjectCheck: false,
+    beforePut: null,
     now: 1793491200000,
     info: () => ({ ...metadata }),
   };
@@ -135,6 +136,7 @@ export function photoStorageFixture(mode = "r2") {
     },
     async put(bucket, key, bytes) {
       state.puts.push([bucket, key]);
+      await state.beforePut?.(bucket, key, bytes);
       state.r2.set(`${bucket}/${key}`, bytes);
     },
     async verify(bucket, key, size, hash) {
