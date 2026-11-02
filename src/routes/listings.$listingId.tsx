@@ -102,7 +102,7 @@ import {
 import { canonicalMake, canonicalModel, nearbyPagePath, vehiclePagePath } from "@/lib/place-pages";
 import { jsonLdScript, listingStructuredData } from "@/lib/structured-data";
 import { isSeoTestListing, socialImageMeta } from "@/lib/seo-policy";
-import { getRemovedListingRedirect } from "@/lib/place-pages.functions";
+import { getRemovedListingBrowsePath } from "@/lib/place-pages.functions";
 import type { ClassifiedCard, ClassifiedDetail } from "@/lib/classifieds.functions";
 import {
   Dialog,
@@ -199,24 +199,18 @@ export const Route = createFileRoute("/listings/$listingId")({
     }
     const listingId = listingIdFromParam(params.listingId);
     const listing = await context.queryClient.ensureQueryData(listingQuery(listingId));
-    if (!listing && (listingId.startsWith("mashvisor-") || listingId.startsWith("openwebninja-"))) {
-      // Feed homes come and go with the weekly refresh.
-      throw redirect({ href: "/browse?category=other-real-estate", statusCode: 302 });
-    }
-    if (!listing && listingId.startsWith("fsq-")) {
-      // Hidden (closed or removed) directory businesses go to Services.
-      throw redirect({ href: "/browse?category=services", statusCode: 302 });
-    }
-    if (!listing && listingId.startsWith("adzuna-")) {
-      // Partner job postings come and go; an old link goes to today's jobs.
-      throw redirect({ href: "/browse?category=jobs", statusCode: 302 });
-    }
     if (!listing) {
-      // A removed or expired listing sends its visitors (and whatever search
-      // value it earned) to the closest live page instead of a dead end.
-      const fallback = await getRemovedListingRedirect({ data: { id: listingId } });
-      if (fallback) throw redirect({ href: fallback, statusCode: 301 });
-      throw notFound();
+      // A category is useful onward navigation, not a replacement for this
+      // removed item. Keep a real 404 and offer the category as a link.
+      const browseHref =
+        listingId.startsWith("mashvisor-") || listingId.startsWith("openwebninja-")
+          ? "/browse?category=other-real-estate"
+          : listingId.startsWith("fsq-")
+            ? "/browse?category=services"
+            : listingId.startsWith("adzuna-")
+              ? "/browse?category=jobs"
+              : await getRemovedListingBrowsePath({ data: { id: listingId } });
+      throw notFound({ data: { browseHref } });
     }
     // One URL per listing: bare-ID and outdated-title URLs redirect to it.
     const canonicalParam = listingParam(listing);
@@ -286,7 +280,7 @@ export const Route = createFileRoute("/listings/$listingId")({
         { name: "description", content: description },
         ...(isSeoTestListing(loaderData.title)
           ? [{ name: "robots", content: "noindex, nofollow" }]
-          : loaderData.external
+          : loaderData.external || loaderData.ended
             ? [{ name: "robots", content: "noindex, follow" }]
             : []),
         { property: "og:title", content: title },
@@ -305,20 +299,27 @@ export const Route = createFileRoute("/listings/$listingId")({
   notFoundComponent: ListingMissing,
 });
 
-function ListingMissing() {
+function ListingMissing({ data }: { data?: unknown }) {
+  const candidate =
+    data && typeof data === "object" && "browseHref" in data ? data.browseHref : null;
+  const browseHref =
+    typeof candidate === "string" &&
+    (/^\/idaho\/[a-z0-9-]+(?:\/[a-z0-9-]+)?$/.test(candidate) ||
+      /^\/browse(?:\?category=[a-z0-9-]+)?$/.test(candidate))
+      ? candidate
+      : "/browse";
   return (
     <main className="mx-auto max-w-[760px] px-4 py-14 sm:px-6">
       <BluebirdEmptyState
         title="This listing is no longer live"
         description="It may have sold, expired, or been removed by the seller."
       >
-        <Link
-          to="/browse"
-          search={{}}
+        <a
+          href={browseHref}
           className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-[13px] font-semibold text-primary-foreground"
         >
-          Browse all listings
-        </Link>
+          {browseHref === "/browse" ? "Browse all listings" : "Browse similar listings"}
+        </a>
       </BluebirdEmptyState>
     </main>
   );
@@ -2521,6 +2522,7 @@ function PartnerHomeContactCard({
           {listedBy?.agentPhone || listedBy?.brokerPhone ? (
             <a
               href={`tel:${(listedBy.agentPhone || listedBy.brokerPhone)!.replace(/[^\d+]/g, "")}`}
+              onClick={() => trackSellerContact("call", listing)}
               className="mt-1 inline-flex items-center gap-1 font-semibold text-primary hover:underline"
             >
               <Phone size={13} aria-hidden="true" /> {listedBy.agentPhone || listedBy.brokerPhone}
@@ -2537,6 +2539,7 @@ function PartnerHomeContactCard({
           href={sourceUrl}
           target="_blank"
           rel="noopener noreferrer nofollow"
+          onClick={() => trackSellerContact("apply_external", listing)}
           className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-nav-accent text-[14.5px] font-semibold text-primary transition-opacity hover:opacity-90"
         >
           {isRental ? "Request a tour" : "Contact agent"}{" "}
