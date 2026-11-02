@@ -4,10 +4,16 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   getPhotoMigrations,
   preparePhotoMigration,
+  preparePhotoMigrationPreview,
   stepPhotoMigration,
 } from "@/lib/photo-migration.functions";
-import type { PhotoInventory, PhotoMigrationStatus } from "@/lib/photo-migration";
+import type {
+  PhotoInventory,
+  PhotoMigrationStatus,
+  PreparedMigrationPreview,
+} from "@/lib/photo-migration";
 import { runPhotoMigrationBatches } from "@/lib/photo-migration-batches";
+import { prepareMigrationPreview } from "@/lib/photo-migration-preview.browser";
 
 function size(bytes: number) {
   return `${(bytes / 1024 / 1024).toLocaleString(undefined, { maximumFractionDigits: 2 })} MiB`;
@@ -15,12 +21,16 @@ function size(bytes: number) {
 function MigrationControls() {
   const list = useServerFn(getPhotoMigrations),
     prepare = useServerFn(preparePhotoMigration),
+    previewSource = useServerFn(preparePhotoMigrationPreview),
     step = useServerFn(stepPhotoMigration);
   const runs = useQuery({ queryKey: ["photo-migrations"], queryFn: () => list(), retry: false });
   const [inventory, setInventory] = useState<PhotoInventory | null>(null);
   const [fileError, setFileError] = useState("");
   const [active, setActive] = useState<PhotoMigrationStatus | null>(null);
   const [note, setNote] = useState("");
+  const [preview, setPreview] = useState<{ runId: string; data: PreparedMigrationPreview } | null>(
+    null,
+  );
   const stop = useRef(false);
   useEffect(
     () => () => {
@@ -55,7 +65,15 @@ function MigrationControls() {
         run,
         retry,
         continuous,
-        step: (input) => step({ data: input }),
+        step: (input) =>
+          step({
+            data: {
+              ...input,
+              ...(input.retry && preview?.runId === run.id
+                ? { preparedPreview: preview.data }
+                : {}),
+            },
+          }),
         refresh: async () => {
           const result = await runs.refetch();
           if (result.error) throw result.error;
@@ -63,7 +81,10 @@ function MigrationControls() {
           if (!updated) throw new Error("Photo-transfer review is unavailable. Stop and refresh.");
           return updated;
         },
-        onStatus: setActive,
+        onStatus: (value) => {
+          setActive(value);
+          if (value.failedGroups === 0) setPreview(null);
+        },
         shouldStop: () => stop.current,
       });
       setNote(
@@ -86,8 +107,26 @@ function MigrationControls() {
       void runs.refetch();
     },
   });
+  const previewPreparation = useMutation({
+    retry: false,
+    mutationFn: async (run: PhotoMigrationStatus) => {
+      setPreview(null);
+      const source = await previewSource({ data: { id: run.id } });
+      return { runId: run.id, data: await prepareMigrationPreview(source) };
+    },
+    onSuccess: (value) => {
+      setPreview(value);
+      setNote("Preview prepared in this browser. Review it, then retry the failed group once.");
+    },
+    onSettled: (_value, _error, run) => {
+      void runs.refetch().then((result) => {
+        const updated = result.data?.runs.find((value) => value.id === run.id);
+        if (updated) setActive(updated);
+      });
+    },
+  });
   const selected = active ?? runs.data?.runs[0];
-  const busy = prep.isPending || batch.isPending;
+  const busy = prep.isPending || batch.isPending || previewPreparation.isPending;
   async function load(file: File | undefined) {
     setInventory(null);
     setFileError("");
@@ -139,9 +178,10 @@ function MigrationControls() {
       >
         Refresh saved reviews
       </button>
-      {(fileError || prep.error || runs.error || batch.error) && (
+      {(fileError || prep.error || runs.error || batch.error || previewPreparation.error) && (
         <p role="alert" className="text-destructive">
-          {fileError || (prep.error ?? runs.error ?? batch.error)?.message}
+          {fileError ||
+            (prep.error ?? runs.error ?? batch.error ?? previewPreparation.error)?.message}
         </p>
       )}
       {!!runs.data?.runs.length && (
@@ -154,6 +194,7 @@ function MigrationControls() {
             onChange={(event) => {
               setActive(runs.data!.runs.find((run) => run.id === event.target.value) ?? null);
               setNote("");
+              setPreview(null);
             }}
           >
             {runs.data.runs.map((run) => (
@@ -209,6 +250,16 @@ function MigrationControls() {
             approval changes, expires, fails or you leave this page.
           </p>
           <div className="flex flex-wrap gap-2">
+            {selected.lastFailure === "processing" && (
+              <button
+                type="button"
+                className="btn-secondary"
+                disabled={!selected.permit || busy || selected.failedGroups === 0}
+                onClick={() => previewPreparation.mutate(selected)}
+              >
+                Prepare preview in browser
+              </button>
+            )}
             <button
               type="button"
               className="btn-primary"
@@ -265,6 +316,20 @@ function MigrationControls() {
               Refresh state
             </button>
           </div>
+          {selected.lastFailure === "processing" && (
+            <p className="text-[12px] text-muted-foreground">
+              Browser preparation downloads the failed photo once against the same approved byte
+              allowance. At most two preparation downloads are permitted. The small preview stays in
+              this tab; the original is retained and the normal copy retry remains separate.
+            </p>
+          )}
+          {preview?.runId === selected.id && (
+            <img
+              src={`data:${preview.data.contentType};base64,${preview.data.base64}`}
+              alt="Prepared preview of the failed photo"
+              className="max-h-64 max-w-64 rounded border"
+            />
+          )}
         </>
       )}
       {note && <p role="status">{note}</p>}

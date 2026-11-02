@@ -1,5 +1,12 @@
 import type { PhotoBucket, PhotoSourceMetadata } from "./photo-storage";
 
+export type PreparedMigrationPreview = {
+  ordinal: number;
+  sourceEtag: string;
+  contentType: "image/webp" | "image/jpeg" | "image/png";
+  base64: string;
+};
+
 export type PhotoInventoryObject = Omit<PhotoSourceMetadata, "updatedAt"> & {
   bucket: PhotoBucket;
   path: string;

@@ -47,6 +47,7 @@ function fixture() {
     itemReadErrors: new Set(),
     itemOverride: undefined,
     leasedItem: null,
+    failPreviewReservation: false,
   };
   const validPermit = () =>
     JSON.stringify({
@@ -137,6 +138,15 @@ function fixture() {
                 setTimeout(() => resolve({ data: id, error: null }), state.prepareDelay),
               )
             : { data: id, error: null };
+        if (name === "reserve_photo_migration_preview") {
+          if (state.failPreviewReservation)
+            return { data: null, error: { message: "budget reached" } };
+          row.source_bytes_reserved += photos.content.length;
+          return {
+            data: { ordinal: 0, sourceBytes: photos.content.length, entries: inventory.objects },
+            error: null,
+          };
+        }
         if (name === "lease_photo_migration_item") {
           if (state.leaseAck !== "uncommitted") {
             row.running_groups = 1;
@@ -194,6 +204,10 @@ function fixture() {
     store: async () => {
       if (state.revokeAfterLease) state.permit = "";
       return photos.store;
+    },
+    previewSource: () => {
+      if (state.revokeAfterLease) state.permit = "";
+      return { sign: (...args) => photos.store.sign(...args) };
     },
   });
   return { runner, state, row, photos, inventory, plan, validPermit, photoMigrationPermit };
@@ -447,7 +461,12 @@ test("all migration endpoints require auth and deny nonadmins before privileged 
       },
     ),
   })("./photo-migration.functions");
-  for (const name of ["getPhotoMigrations", "preparePhotoMigration", "stepPhotoMigration"]) {
+  for (const name of [
+    "getPhotoMigrations",
+    "preparePhotoMigration",
+    "stepPhotoMigration",
+    "preparePhotoMigrationPreview",
+  ]) {
     assert.equal(module[name].middleware[0], auth);
     await assert.rejects(
       () =>
@@ -469,4 +488,86 @@ test("all migration endpoints require auth and deny nonadmins before privileged 
       }),
     /path/,
   );
+});
+
+test("preview preparation reserves before issuing a short-lived source URL without copying or retrying", async () => {
+  const f = fixture();
+  f.state.permit = f.validPermit();
+  const originalSign = f.photos.store.sign;
+  f.photos.store.sign = async (...args) => {
+    assert.equal(f.row.source_bytes_reserved, f.photos.content.length);
+    assert.ok(args[2] > 0 && args[2] <= 60);
+    assert.equal(args[3], false);
+    return originalSign(...args);
+  };
+  const preview = await f.runner.preparePreview(id);
+  assert.equal(preview.ordinal, 0);
+  assert.equal(preview.bytes, f.photos.content.length);
+  assert.equal(preview.sourceEtag, f.photos.metadata.etag);
+  assert.equal(f.photos.state.sourceDownloads, 0);
+  assert.equal(f.photos.state.puts.length, 0);
+  assert.equal(f.state.calls.length, 1);
+  assert.equal(f.state.calls[0].name, "reserve_photo_migration_preview");
+});
+
+test("missing approval, revoked approval or failed preview reservation never issues a source URL", async () => {
+  for (const reason of ["missing", "reservation", "revoked"]) {
+    const f = fixture();
+    if (reason !== "missing") f.state.permit = f.validPermit();
+    if (reason === "reservation") f.state.failPreviewReservation = true;
+    if (reason === "revoked") f.state.revokeAfterLease = true;
+    await assert.rejects(() => f.runner.preparePreview(id));
+    assert.equal(f.photos.state.sourceSigns.length, 0);
+    assert.equal(f.photos.state.sourceDownloads, 0);
+  }
+});
+
+const smallPreview = (sourceEtag, ordinal = 0) => ({
+  ordinal,
+  sourceEtag,
+  contentType: "image/png",
+  base64:
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAEElEQVR4AQEFAPr/AACVz/8EYQJkPACksAAAAABJRU5ErkJggg==",
+});
+test("explicit prepared-preview retry revalidates its small image and retains original copy verification", async () => {
+  const f = fixture();
+  f.state.permit = f.validPermit();
+  const migrate = f.photos.store.migrate;
+  f.photos.store.migrate = async (...args) => {
+    assert.ok(args[2].bytes.length > 0);
+    assert.equal(args[2].width, 1);
+    assert.equal(args[2].height, 1);
+    return migrate(...args);
+  };
+  const r = await f.runner.step(id, true, smallPreview(f.photos.metadata.etag));
+  assert.equal(r.state, "copied");
+  assert.equal(f.photos.state.sourceDownloads, 1);
+  assert.equal(f.photos.state.records.size, 2);
+});
+test("prepared previews cannot widen a normal batch or apply to a different failed source", async () => {
+  const f = fixture();
+  f.state.permit = f.validPermit();
+  await assert.rejects(
+    () => f.runner.step(id, false, smallPreview(f.photos.metadata.etag)),
+    /explicit retry/,
+  );
+  assert.equal(f.state.calls.length, 0);
+  for (const p of [smallPreview(f.photos.metadata.etag, 5), smallPreview("b".repeat(32))]) {
+    const g = fixture();
+    g.state.permit = g.validPermit();
+    assert.equal((await g.runner.step(id, true, p)).state, "stopped");
+    assert.equal(g.photos.state.sourceDownloads, 0);
+    assert.equal(g.photos.state.puts.length, 0);
+  }
+  const g = fixture();
+  g.state.permit = g.validPermit();
+  await assert.rejects(
+    () =>
+      g.runner.step(id, true, {
+        ...smallPreview(g.photos.metadata.etag),
+        base64: Buffer.alloc(524289).toString("base64"),
+      }),
+    /size limit/,
+  );
+  assert.equal(g.state.calls.length, 0);
 });

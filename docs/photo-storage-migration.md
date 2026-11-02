@@ -120,6 +120,19 @@ double the download volume.
   is guarded at 8 million source pixels on the deployed worker; larger images
   require a prepared preview before server imports or migration can proceed.
   Browser native uploads prepare their previews locally.
+  A failed migration preview can now be prepared in the administrator's browser
+  using that same native decoder, without increasing the worker's pixel guard.
+  The server first reserves one full source-file download against the unchanged
+  run/digest/range/expiry/byte permit, then issues a private URL lasting at most
+  60 seconds and never beyond the permit expiry. Lost acknowledgements remain
+  charged. At most two preview reservations are allowed per failed item; only
+  `processing` failures below the existing three-copy-attempt ceiling qualify.
+  Browser fetch/processing is never automatically retried. Its small preview
+  stays in the current tab and is re-decoded under the worker's existing limits
+  before an explicit retry. The run ordinal and source ETag must match the
+  leased item; original-byte checks, target verification and normal copy-byte
+  reservations still apply. Preparation does not mark anything complete, reset
+  attempts, renew the approval, change serving or delete any original.
 - Native uploads use authenticated, expiring tickets, immutable signed PUTs,
   byte/SHA-256 checks, and private server-only receipts. Ticket verification
   leases prevent simultaneous replay; six attempts per ticket, 256 tickets

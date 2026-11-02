@@ -287,6 +287,13 @@ const leaseId = "66666666-6666-4666-8666-666666666666";
 const otherLease = "77777777-7777-4777-8777-777777777777";
 const digest = "a".repeat(64);
 const future = "2099-01-01T00:00:00Z";
+const previewMigration = readFileSync(
+  new URL(
+    "../supabase/migrations/20261102220000_bounded_photo_preview_preparation.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 function group(n = 0) {
   return {
     source: { bytes: 100 },
@@ -381,6 +388,109 @@ async function runnerFixture() {
   };
   return { db, prepare, lease, reserve, finish, fail, receipts };
 }
+
+test("preview SQL charges the original byte cap before signing, caps preparations and preserves copy attempts", async () => {
+  const f = await runnerFixture();
+  try {
+    await f.db.exec(previewMigration);
+    await f.db.exec(previewMigration);
+    await f.prepare();
+    await f.lease();
+    await f.reserve();
+    await f.fail("processing");
+    const prepare = (cap = 400) =>
+      f.db.query("select public.reserve_photo_migration_preview($1,$2,$3,$4,$5,$6) p", [
+        runId,
+        owner,
+        digest,
+        2,
+        cap,
+        future,
+      ]);
+    await assert.rejects(() => prepare(199), /budget reached/);
+    const first = (await prepare()).rows[0].p;
+    assert.equal(first.ordinal, 0);
+    assert.equal(first.sourceBytes, 100);
+    assert.equal(first.entries.length, 2);
+    assert.equal("lease_token" in first, false);
+    let item = (await f.db.query("select * from public.photo_migration_items where ordinal=0"))
+      .rows[0];
+    assert.equal(item.status, "failed");
+    assert.equal(item.attempts, 1);
+    assert.equal(item.preview_reservations, 1);
+    await prepare();
+    await assert.rejects(() => prepare(), /eligible/);
+    const run = (await f.db.query("select * from public.photo_migration_runs")).rows[0];
+    assert.equal(Number(run.source_bytes_reserved), 300);
+    assert.equal(run.failed_groups, 1);
+    assert.equal(run.running_groups, 0);
+    await f.lease({ retry: true, maxBytes: 400 });
+    await f.reserve({ maxBytes: 400 });
+    assert.equal(
+      Number(
+        (await f.db.query("select source_bytes_reserved from public.photo_migration_runs")).rows[0]
+          .source_bytes_reserved,
+      ),
+      400,
+    );
+  } finally {
+    await f.db.close();
+  }
+});
+
+test("preview SQL rejects members, nonadmins, changed scope, active copies and nonprocessing failures", async () => {
+  const f = await runnerFixture();
+  try {
+    await f.db.exec(previewMigration);
+    await f.prepare();
+    const prepare = (changes = {}) => {
+      const a = { digest, maxGroups: 2, maxBytes: 500, expires: future, ...changes };
+      return f.db.query("select public.reserve_photo_migration_preview($1,$2,$3,$4,$5,$6)", [
+        runId,
+        owner,
+        a.digest,
+        a.maxGroups,
+        a.maxBytes,
+        a.expires,
+      ]);
+    };
+    await assert.rejects(() => prepare(), /eligible/);
+    await f.lease();
+    await assert.rejects(() => prepare(), /still running/);
+    await f.fail();
+    await assert.rejects(() => prepare(), /eligible/);
+    await f.db.exec(
+      "update public.photo_migration_items set last_failure='processing' where ordinal=0",
+    );
+    for (const change of [
+      { digest: "b".repeat(64) },
+      { expires: "2020-01-01T00:00:00Z" },
+      { maxGroups: 0 },
+      { maxGroups: 3 },
+      { maxBytes: null },
+    ])
+      await assert.rejects(() => prepare(change), /invalid or expired/);
+    await f.db.exec("select set_config('test.is_admin','no',false)");
+    await assert.rejects(() => prepare(), /admin/i);
+    await f.db.exec("select set_config('test.is_admin','yes',false)");
+    for (const role of ["anon", "authenticated"]) {
+      await f.db.exec(`SET ROLE ${role}`);
+      await assert.rejects(() => prepare(), /permission denied/);
+      await f.db.exec("RESET ROLE");
+    }
+    assert.equal(
+      Number(
+        (await f.db.query("select source_bytes_reserved from public.photo_migration_runs")).rows[0]
+          .source_bytes_reserved,
+      ),
+      0,
+    );
+    await f.db.exec("update public.photo_migration_items set attempts=3 where ordinal=0");
+    await assert.rejects(() => prepare(), /eligible/);
+  } finally {
+    await f.db.close();
+  }
+});
 test("migration SQL prepares immutable private reviews without granting execution to members", async () => {
   const f = await runnerFixture();
   try {
