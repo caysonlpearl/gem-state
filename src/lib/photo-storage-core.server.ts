@@ -36,6 +36,19 @@ export type PhotoReceipts = {
   reserve(id: string, bytes: number): Promise<void>;
 };
 
+/** Settle the whole pair before returning an error so no writes outlive its lease. */
+async function settlePhotoOperations<T>(operations: Promise<T>[]): Promise<T[]> {
+  const results = await Promise.allSettled(operations);
+  const values: T[] = [];
+  let failure: PromiseRejectedResult | undefined;
+  for (const result of results) {
+    if (result.status === "fulfilled") values.push(result.value);
+    else failure ??= result;
+  }
+  if (failure) throw failure.reason;
+  return values;
+}
+
 export function createPhotoStorage(deps: {
   mode: PhotoStorageMode;
   uploadMode?: PhotoStorageMode;
@@ -273,42 +286,56 @@ export function createPhotoStorage(deps: {
     if (first.expected.bytes > maxDownloadBytes || first.expected.bytes > MAX_PHOTO_BYTES)
       throw new Error("Photo exceeds the approved download budget.");
     // Check both stores before consuming source-photo egress.
-    for (const entry of entries) {
-      const actual = await deps.source.info(entry.bucket, entry.path);
-      if (!actual || !samePhotoSource(actual, entry.expected))
-        throw new Error("Source photo changed; rebuild the migration plan.");
-    }
+    await settlePhotoOperations(
+      entries.map(async (entry) => {
+        const actual = await deps.source.info(entry.bucket, entry.path);
+        if (!actual || !samePhotoSource(actual, entry.expected))
+          throw new Error("Source photo changed; rebuild the migration plan.");
+      }),
+    );
     const complete = new Map<PhotoBucket, PhotoReceipt>();
-    for (const entry of entries) {
-      const [receipt] = await deps.receipts.read(entry.bucket, [entry.path]);
-      if (!receipt?.verifiedAt) continue;
-      if (
-        receipt.bucket !== entry.bucket ||
-        receipt.path !== entry.path ||
-        !samePhotoSource(
-          {
-            bytes: receipt.bytes,
-            contentType: receipt.contentType,
-            etag: receipt.sourceEtag,
-            updatedAt: receipt.sourceUpdatedAt,
-          },
-          entry.expected,
+    const saved = await settlePhotoOperations(
+      entries.map((entry) => deps.receipts.read(entry.bucket, [entry.path])),
+    );
+    const verified = await settlePhotoOperations(
+      entries.map(async (entry, index) => {
+        const [receipt] = saved[index];
+        if (!receipt?.verifiedAt) return null;
+        if (
+          receipt.bucket !== entry.bucket ||
+          receipt.path !== entry.path ||
+          !samePhotoSource(
+            {
+              bytes: receipt.bytes,
+              contentType: receipt.contentType,
+              etag: receipt.sourceEtag,
+              updatedAt: receipt.sourceUpdatedAt,
+            },
+            entry.expected,
+          )
         )
-      )
-        throw new Error("Saved migration receipt differs; review before resuming.");
-      await r2().verify(entry.bucket, receipt.key, receipt.bytes, receipt.sha256);
-      if (entry.bucket === "listing-media") {
-        if (!receipt.thumbnailKey || !receipt.thumbnailBytes || !receipt.thumbnailSha256)
+          throw new Error("Saved migration receipt differs; review before resuming.");
+        if (
+          entry.bucket === "listing-media" &&
+          (!receipt.thumbnailKey || !receipt.thumbnailBytes || !receipt.thumbnailSha256)
+        )
           throw new Error("Saved photo preview is incomplete.");
-        await r2().verify(
-          entry.bucket,
-          receipt.thumbnailKey,
-          receipt.thumbnailBytes,
-          receipt.thumbnailSha256,
-        );
-      }
-      complete.set(entry.bucket, receipt);
-    }
+        const checks = [r2().verify(entry.bucket, receipt.key, receipt.bytes, receipt.sha256)];
+        if (entry.bucket === "listing-media") {
+          checks.push(
+            r2().verify(
+              entry.bucket,
+              receipt.thumbnailKey!,
+              receipt.thumbnailBytes!,
+              receipt.thumbnailSha256!,
+            ),
+          );
+        }
+        await settlePhotoOperations(checks);
+        return receipt;
+      }),
+    );
+    for (const receipt of verified) if (receipt) complete.set(receipt.bucket, receipt);
     if (complete.size === entries.length)
       return { downloadedBytes: 0, receipts: entries.map((entry) => complete.get(entry.bucket)!) };
     await reserveSourceDownload?.(first.expected.bytes);
@@ -320,29 +347,35 @@ export function createPhotoStorage(deps: {
       throw new Error("Source photo bytes did not match their ETag.");
     const thumbnail =
       preparedThumbnail ?? (await deps.thumbnail(bytes, first.expected.contentType));
-    const receipts: PhotoReceipt[] = [];
     for (const entry of entries) {
       const prior = complete.get(entry.bucket);
-      if (prior) {
-        if (prior.sha256 !== photoSha256(bytes))
-          throw new Error("Copied photo differs from its receipt.");
-        receipts.push(prior);
-        continue;
-      }
-      const current = await deps.source.info(entry.bucket, entry.path);
-      if (!current || !samePhotoSource(current, entry.expected))
-        throw new Error("Source photo changed during copying.");
-      receipts.push(
-        await verifiedWrite(
-          entry.bucket,
-          entry.path,
-          bytes,
-          entry.expected.contentType,
-          entry.bucket === "listing-media" ? thumbnail : null,
-          entry.expected,
-        ),
-      );
+      if (prior && prior.sha256 !== photoSha256(bytes))
+        throw new Error("Copied photo differs from its receipt.");
     }
+    // Recheck both sources before starting either target write.
+    await settlePhotoOperations(
+      entries.map(async (entry) => {
+        if (complete.has(entry.bucket)) return;
+        const current = await deps.source.info(entry.bucket, entry.path);
+        if (!current || !samePhotoSource(current, entry.expected))
+          throw new Error("Source photo changed during copying.");
+      }),
+    );
+    const receipts = await settlePhotoOperations(
+      entries.map((entry) => {
+        const prior = complete.get(entry.bucket);
+        return prior
+          ? Promise.resolve(prior)
+          : verifiedWrite(
+              entry.bucket,
+              entry.path,
+              bytes,
+              entry.expected.contentType,
+              entry.bucket === "listing-media" ? thumbnail : null,
+              entry.expected,
+            );
+      }),
+    );
     return { downloadedBytes: bytes.byteLength, receipts };
   }
   return { mode: deps.mode, sign: signed, upload, copy, migrate, available };

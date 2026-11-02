@@ -212,6 +212,14 @@ changed/expired permit, user stop or page exit. It cannot silently widen or rene
 the permit, and the retry control still attempts only one group. This is a
 one-time operator action, not a recurring schedule or automatic page-load action.
 
+Independent operations inside one leased pair overlap: source metadata checks,
+receipt reads, saved-target verification and the two isolated target writes.
+Both source rechecks finish before either new target write starts. Every started
+operation settles before a failure is returned, so a failed pair cannot release
+its lease while its other write is still in flight. The database continues to
+serialize aggregate storage-byte reservations. One group at a time, batch size,
+source-download reservations, retry limits and permit scope remain unchanged.
+
 The displayed reserved and confirmed-successful bytes have different meanings:
 reservations bound the app's expected photo-body downloads, including uncertain
 failed attempts; confirmed bytes count successful completed downloads only.
