@@ -11,6 +11,13 @@ const migration = readFileSync(
   "utf8",
 );
 const owner = "11111111-1111-4111-8111-111111111111";
+const runnerMigration = readFileSync(
+  new URL(
+    "../supabase/migrations/20261102110000_bounded_photo_migration_runs.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
 async function fixture(
   guard = "IF NOT EXISTS(SELECT 1 FROM storage.objects WHERE bucket_id=m->>'bucket' AND name=m->>'new') THEN",
 ) {
@@ -272,5 +279,222 @@ test("native upload tickets reserve both private stores and enforce the daily by
     );
   } finally {
     await db.close();
+  }
+});
+
+const runId = "55555555-5555-4555-8555-555555555555";
+const leaseId = "66666666-6666-4666-8666-666666666666";
+const otherLease = "77777777-7777-4777-8777-777777777777";
+const digest = "a".repeat(64);
+const future = "2099-01-01T00:00:00Z";
+function group(n = 0) {
+  return {
+    source: { bytes: 100 },
+    expectedSourceMetadata: ["listing-media", "ask-evidence"].map((bucket) => ({
+      bucket,
+      path: `seller/photo-${n}.jpg`,
+      bytes: 100,
+      etag: "d".repeat(32),
+      contentType: "image/jpeg",
+      updatedAt: "2026-11-01T00:00:00Z",
+    })),
+  };
+}
+async function runnerFixture() {
+  const db = await fixture();
+  await db.exec(migration);
+  await db.exec(
+    "CREATE FUNCTION public.has_role(uuid,text) RETURNS boolean LANGUAGE sql AS $$ SELECT current_setting('test.is_admin',true)='yes' $$; SELECT set_config('test.is_admin','yes',false)",
+  );
+  await db.query("insert into auth.users(id) values($1)", [owner]);
+  await db.exec(runnerMigration);
+  const prepare = async (groups = [group(), group(1)]) =>
+    (
+      await db.query("select public.prepare_photo_migration($1,$2,$3,$4,$5,$6::jsonb) as id", [
+        runId,
+        owner,
+        "abcdefghijklmnopqrst",
+        digest,
+        "2026-11-01T00:00:00Z",
+        JSON.stringify(groups),
+      ])
+    ).rows[0].id;
+  const lease = async ({
+    token = leaseId,
+    maxGroups = 2,
+    maxBytes = 200,
+    expires = future,
+    retry = false,
+    hash = digest,
+  } = {}) =>
+    (
+      await db.query(
+        "select public.lease_photo_migration_item($1,$2,$3,$4,$5,$6,$7,$8) as result",
+        [runId, owner, token, hash, maxGroups, maxBytes, expires, retry],
+      )
+    ).rows[0].result;
+  const reserve = async ({
+    ordinal = 0,
+    token = leaseId,
+    bytes = 100,
+    maxBytes = 200,
+    hash = digest,
+    expires = future,
+  } = {}) =>
+    db.query("select public.reserve_photo_migration_download($1,$2,$3,$4,$5,$6,$7,$8)", [
+      runId,
+      ordinal,
+      token,
+      owner,
+      hash,
+      maxBytes,
+      expires,
+      bytes,
+    ]);
+  const finish = async ({ ordinal = 0, token = leaseId, bytes = 100 } = {}) =>
+    db.query("select public.finish_photo_migration_item($1,$2,$3,$4,$5)", [
+      runId,
+      ordinal,
+      token,
+      owner,
+      bytes,
+    ]);
+  const fail = async (reason = "copy-failed") =>
+    db.query("select public.fail_photo_migration_item($1,0,$2,$3,$4)", [
+      runId,
+      leaseId,
+      owner,
+      reason,
+    ]);
+  const receipts = async (n = 0) => {
+    for (const bucket of ["listing-media", "ask-evidence"])
+      await db.query("select public.record_private_photo($1::jsonb)", [
+        JSON.stringify(
+          receipt({
+            bucket,
+            path: `seller/photo-${n}.jpg`,
+            source_etag: "d".repeat(32),
+            source_updated_at: "2026-11-01T00:00:00Z",
+          }),
+        ),
+      ]);
+  };
+  return { db, prepare, lease, reserve, finish, fail, receipts };
+}
+test("migration SQL prepares immutable private reviews without granting execution to members", async () => {
+  const f = await runnerFixture();
+  try {
+    assert.equal(await f.prepare(), runId);
+    assert.equal(await f.prepare(), runId);
+    assert.equal(
+      (await f.db.query("select count(*)::int n from public.photo_migration_items")).rows[0].n,
+      2,
+    );
+    for (const role of ["anon", "authenticated"]) {
+      await f.db.exec(`SET ROLE ${role}`);
+      await assert.rejects(
+        () => f.db.query("select * from public.photo_migration_runs"),
+        /permission denied/,
+      );
+      await assert.rejects(() => f.lease(), /permission denied/);
+      await assert.rejects(() => f.reserve(), /permission denied/);
+      await f.db.exec("RESET ROLE");
+    }
+    await f.db.exec("select set_config('test.is_admin','no',false)");
+    await assert.rejects(() => f.lease(), /Administrator/);
+  } finally {
+    await f.db.close();
+  }
+});
+test("migration SQL bounds the approved digest, group range, expiry and replay lease", async () => {
+  const f = await runnerFixture();
+  try {
+    await f.prepare();
+    for (const input of [
+      { hash: "b".repeat(64) },
+      { maxGroups: 3 },
+      { maxBytes: 0 },
+      { expires: "2000-01-01T00:00:00Z" },
+      { maxBytes: null },
+    ])
+      await assert.rejects(() => f.lease(input), /permit/);
+    assert.equal((await f.lease({ maxGroups: 1 })).state, "leased");
+    assert.equal((await f.lease({ token: otherLease })).state, "busy");
+    await assert.rejects(() => f.reserve({ token: otherLease }), /reservation/);
+    await assert.rejects(() => f.reserve({ bytes: 101 }), /reservation/);
+    await f.reserve({ maxBytes: 100 });
+    await assert.rejects(() => f.reserve(), /reservation/);
+    await assert.rejects(() => f.finish(), /receipts/);
+    await f.receipts();
+    await f.finish();
+    assert.equal((await f.lease({ maxGroups: 1 })).state, "complete");
+    const row = (await f.db.query("select * from public.photo_migration_runs")).rows[0];
+    assert.equal(Number(row.source_bytes_reserved), 100);
+    assert.equal(row.completed_groups, 1);
+    assert.equal(row.running_groups, 0);
+  } finally {
+    await f.db.close();
+  }
+});
+test("interrupted copy attempts retain their byte reservations and require explicit, bounded retry", async () => {
+  const f = await runnerFixture();
+  try {
+    await f.prepare();
+    await f.lease();
+    await f.reserve();
+    await f.db.exec(
+      "update public.photo_migration_items set lease_until=now()-interval '1 second' where status='running'",
+    );
+    assert.equal((await f.lease()).state, "stopped");
+    assert.equal((await f.lease({ token: otherLease, retry: true })).state, "leased");
+    await assert.rejects(() => f.reserve({ token: otherLease, maxBytes: 199 }), /budget reached/);
+    await f.reserve({ token: otherLease, maxBytes: 200 });
+    await assert.rejects(() => f.finish(), /lease changed/);
+    await f.receipts();
+    await f.finish({ token: otherLease });
+    assert.equal((await f.lease({ token: leaseId })).state, "leased");
+    await assert.rejects(() => f.reserve({ ordinal: 1 }), /budget reached/);
+    const row = (await f.db.query("select * from public.photo_migration_runs")).rows[0];
+    assert.equal(Number(row.source_bytes_reserved), 200);
+    assert.equal(Number(row.confirmed_download_bytes), 100);
+    assert.equal(row.completed_groups, 1);
+  } finally {
+    await f.db.close();
+  }
+});
+test("already verified target groups resume without consuming source allowance", async () => {
+  const f = await runnerFixture();
+  try {
+    await f.prepare();
+    await f.lease();
+    await f.receipts();
+    await f.finish({ bytes: 0 });
+    const row = (await f.db.query("select * from public.photo_migration_runs")).rows[0];
+    assert.equal(Number(row.source_bytes_reserved), 0);
+    assert.equal(Number(row.confirmed_download_bytes), 0);
+    assert.equal(row.completed_groups, 1);
+  } finally {
+    await f.db.close();
+  }
+});
+
+test("migration retry limit prevents repeated failing copies without hiding their stop reason", async () => {
+  const f = await runnerFixture();
+  try {
+    await f.prepare();
+    for (let n = 0; n < 3; n++) {
+      const result = await f.lease({ retry: n > 0 });
+      assert.equal(result.state, "leased");
+      await f.fail();
+    }
+    const stopped = await f.lease({ retry: true });
+    assert.equal(stopped.state, "stopped");
+    assert.equal(stopped.reason, "retry-limit");
+    const row = (await f.db.query("select * from public.photo_migration_runs")).rows[0];
+    assert.equal(row.failed_groups, 1);
+    assert.equal(row.running_groups, 0);
+    assert.equal(Number(row.source_bytes_reserved), 0);
+  } finally {
+    await f.db.close();
   }
 });

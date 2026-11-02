@@ -314,3 +314,19 @@ deletion. The local gate passed 752 tests, TypeScript, production build and the
 10-case compiled SSR suite. Actual host/bucket readiness, source allowance/grace
 timing, bounded operator transfer and end-to-end migration verification remain
 open Step 3 work. See [the migration controls](photo-storage-migration.md).
+
+### Bounded photo-transfer preparation
+
+PR72's private storage connection is published and live-verified; reads/uploads
+remain Supabase, and no photos have been moved or deleted. A private operator
+review and resumable runner is now prepared for Step 3. It shares the CLI's
+inventory digest, requires an expiring server permit for the exact run/range/
+photo-byte allowance, serializes copy leases, reserves source bytes before GETs,
+preserves failed-attempt reservations and stops for review. It does not schedule
+copies, change public listing layouts, switch reads or delete source photos.
+
+The source allowance/grace gap, owner approval of a bounded pilot/cutover,
+CORS for future native R2 uploads, and verified earned links remain outstanding.
+A Supabase support request and the directory request remain unsent. No future
+rank improvement, completed customer inquiry or public listing submission is
+claimed from internal QA. The full steps 2–8 objective remains active.

@@ -127,9 +127,9 @@ double the download volume.
   ETag-checked download per pair, independently SHA-verifies both isolated
   target originals and the listing preview, and records each successful target.
   Resumes revalidate saved target receipts without source egress. It has no
-  public execution endpoint or deletion operation. The operator batch runner
-  and aggregate source-byte reservation remain a later rollout gate; do not
-  treat the core engine tests as a completed migration.
+  public execution endpoint or deletion operation. The operator runner uses private review and item tables, an expiring server
+  permit and aggregate download reservations. Its preparation does not make
+  the copy or cutover complete.
 
 Validation on November 1: 752 offline tests passed, including actual PostgreSQL
 migration/authorization checks, native upload finalization, source-failure
@@ -139,6 +139,67 @@ TypeScript and the production build passed. The compiled SSR suite exercised
 import to retain the `?module` suffix; a local Node loader supplies the same
 compiled module for the Cloudflare production artifact during smoke tests.
 These checks do not prove a live upload, gallery cutover or existing-photo copy.
+
+## Operator transfer review and execution
+
+PR72 is published at `68e5350f59d924fe3beabe1a2e502b9cccb45a05`.
+Its live storage-only page confirmed both private buckets connected, preview
+processing ready, and zero verified photo records. The active read and upload
+modes are still Supabase. Its receipt migration is installed; the backed-up
+production claim function differs only at the intended existence predicate.
+
+The prepared operator flow is on the existing authenticated admin route
+`/admin/fb-import?storage=check`. Opening **Photo transfer review** loads only
+private review counters. It does not load the seller queue or its photos.
+Choose the metadata inventory JSON (not the preflight report) and click
+**Prepare transfer review**. The server validates the deployment's Supabase
+project and recomputes the exact same digest as the local CLI before storing
+one private review. Preparing or refreshing it performs no photo operations.
+An existing digest reuses its review; it does not reset budgets or progress.
+
+Execution remains disabled with `BLUEBIRD_PHOTO_MIGRATION_PERMIT` unset. Only
+after separate owner approval and resolution of source allowance/grace timing,
+set that server-only value to a JSON object with all five reviewed fields:
+
+- `runId`: the generated review UUID;
+- `inventorySha256`: the exact reviewed 64-character inventory digest;
+- `maxGroups`: the approved prefix of groups, such as a small pilot first;
+- `maxSourceBytes`: the cumulative approved photo-body download allowance;
+- `expiresAt`: an ISO timestamp ending that approval window.
+
+These are controls, not approval supplied by this document. Do not activate a
+permit during preparation. Do not enter it as a browser/public environment value.
+The migration does not create any permit or switch storage modes.
+
+The server leases one group per request. Concurrent requests cannot lease a
+second active group. A source-download reservation is committed immediately
+before the source GET, after metadata and any existing target receipts have
+been checked. The reservation is cumulative across retries and cannot be reused
+within a lease. Interrupted or failed downloads remain charged; no automatic
+refund invents unused headroom. Successful resumes with already verified targets
+need no source reservation or download. A group is complete only after its
+source-matching private receipts exist. Stale workers cannot complete a new
+worker's lease. Failed groups stop the queue and require an explicit retry;
+three attempts require further review.
+
+**Run approved batch** handles at most 25 groups sequentially and stops on a
+failure, busy response, approved-range boundary or user stop. **Stop after current
+group**, closing the review, or leaving the page prevents further client requests;
+a current server request can finish. A retry handles one failed group. No
+scheduler runs copies. The runner has no source-deletion or cutover operation.
+
+The displayed reserved and confirmed-successful bytes have different meanings:
+reservations bound the app's expected photo-body downloads, including uncertain
+failed attempts; confirmed bytes count successful completed downloads only.
+Metadata and ordinary application traffic are additional. They are not a hard
+cap on Supabase's account-wide billing meter, nor a guarantee of free capacity.
+Keep headroom and verify the provider's current allowance before activation.
+
+The known inventory remains 12,758 objects / 6,379 groups with digest
+`1f3e3849f6c01e494fb55b828ce71fcae8bcc86657935485e8245c68c6bb7f20`.
+The current source-allowance review shows 4.982/5 GB uncached egress and
+2.316/1 GB billing-period average storage. The support request addressing
+November 15 versus November 17 is drafted and unsent pending owner approval.
 
 ## Transfer timing and costs
 
@@ -188,3 +249,12 @@ Sources reviewed November 1, 2026:
 - [Supabase transfer usage](https://supabase.com/docs/guides/platform/manage-your-usage/egress)
 - [Supabase storage averaging](https://supabase.com/docs/guides/platform/manage-your-usage/storage-size)
 - [Supabase fair-use restrictions and reset timing](https://supabase.com/docs/guides/platform/billing-faq#fair-use-policy)
+
+
+Operator preparation validation: 765 repository tests passed, including actual
+PostgreSQL tests for private review permissions, lease replay, stale workers,
+expiry, run/digest/group limits, cumulative budgets, interrupted retries,
+verified zero-download resumes and retry limits. Server orchestration tests
+exercise the real copy core with offline stores. TypeScript, scoped lint and
+production build passed. No live copy or billing-cap guarantee follows from
+these checks; the permit remains unset and source-capacity approval is pending.
