@@ -52,6 +52,46 @@ function compile(file, name, globals = {}) {
   return exports.subject;
 }
 const file = "../src/routes/listings.$listingId.tsx";
+
+test("malformed native identifiers are missing without touching live, archive or fallback sources", async () => {
+  for (const name of [
+    "getClassifiedListing",
+    "getEndedClassifiedListing",
+    "getRemovedListingBrowsePath",
+  ]) {
+    const handler = compile(
+      name === "getRemovedListingBrowsePath"
+        ? "../src/lib/place-pages.functions.ts"
+        : "../src/lib/classifieds.functions.ts",
+      name,
+      {
+        publicServerClient: () => {
+          throw new Error("Unexpected source read");
+        },
+        database: {
+          from: () => {
+            throw new Error("Unexpected source read");
+          },
+        },
+        createServerFn: () => ({
+          validator() {
+            return this;
+          },
+          handler: (value) => value,
+        }),
+        mockClassifiedListings: [],
+        mockVehicleListings: [],
+      },
+    );
+    for (const id of [
+      "not-a-real-listing-id",
+      "------------------------------------",
+      "a".repeat(36),
+      "306d4309-9968-4710-9b52-207a4d2cadcZ",
+    ])
+      assert.equal(await handler({ data: { id } }), null, name + ": " + id);
+  }
+});
 const listing = {
   id: "native-id",
   title: "Home",

@@ -201,6 +201,9 @@ native listings redirected to categories and were absent from the sitemap.
 Removed listings now use a real 404 with a browse link; only an equivalent
 same-listing canonical URL receives a permanent redirect. Retained sold/expired
 archives stay readable and noindex. Source errors are not treated as removals.
+Malformed native identifiers are rejected before live, archive or browse-link
+lookups. Invalid UUID syntax is a 404, not a database outage; compiled SSR tests
+assert zero source requests for malformed native and home identifiers.
 
 PR67 passed local checks but failed live verification. PR68 restored the exact
 last verified source; home/native detail requests and direct backend API controls

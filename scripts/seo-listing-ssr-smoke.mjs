@@ -105,6 +105,8 @@ try {
       assert.equal(html.includes("Something went wrong"), false);
     }
     if (expected === 404) assert.ok(html.includes("This listing is no longer live"));
+    if (nextMode === "malformed")
+      assert.equal(calls.length, 0, "malformed identifiers must not query any source");
     if (nextMode === "stalled") {
       assert.ok(milliseconds < 12000, "eight-second SELECT deadline must cover the built route");
       assert.equal(
@@ -119,6 +121,9 @@ try {
   await render("/listings/openwebninja-111261092", 200);
   await render(native, 404);
   await render("/listings/openwebninja-999999999", 404);
+  await render("/listings/not-a-real-listing-id", 404, "malformed");
+  await render("/listings/------------------------------------", 404, "malformed");
+  await render("/listings/openwebninja-abc", 404, "malformed");
   await render(native, 500, "native-offline");
   await render("/listings/openwebninja-111261092", 500, "home-offline");
   await render(native, 500, "stalled");

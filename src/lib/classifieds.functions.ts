@@ -2422,6 +2422,8 @@ export const getClassifiedListing = createServerFn({ method: "GET" })
       (listing) => listing.id === data.id,
     );
     if (mockListing && SHOW_PUBLIC_PREVIEW_FIXTURES) return mockDetail(mockListing);
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.id))
+      return null;
 
     const client = publicServerClient();
     const { data: row, error } = await withCatalogReadDeadline((signal) =>
@@ -2484,7 +2486,8 @@ export const ENDED_LISTING_RETENTION_DAYS = 60;
 export const getEndedClassifiedListing = createServerFn({ method: "GET" })
   .validator((input: { id: string }) => ({ id: String(input.id).slice(0, 64) }))
   .handler(async ({ data }): Promise<ClassifiedDetail | null> => {
-    if (!/^[0-9a-f-]{36}$/i.test(data.id)) return null;
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.id))
+      return null;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: row, error } = await withCatalogReadDeadline((signal) =>
       supabaseAdmin
