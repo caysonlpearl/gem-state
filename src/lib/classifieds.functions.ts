@@ -1,3 +1,4 @@
+import { getPhotoStorageModule } from "./photo-storage-access";
 import { selectLandingCoverage } from "./landing-coverage";
 import { withCatalogReadDeadline } from "./catalog-read-deadline";
 import { listingCardSummary, type ListingCardSummary } from "./listing-card-summary";
@@ -1128,6 +1129,9 @@ const thumbnailLinks = new Map<string, { url: string; reuseUntil: number }>();
 export async function signListingThumbnails(paths: string[]): Promise<Map<string, string>> {
   const unique = [...new Set(paths)];
   if (unique.length === 0) return new Map();
+  const { currentPhotoMode, signPrivatePhotoUrls } = await getPhotoStorageModule();
+  if (currentPhotoMode() === "r2")
+    return signPrivatePhotoUrls("listing-media", unique, THUMBNAIL_LINK_SECONDS, true);
   const now = Date.now();
   const resized = new Map<string, string>();
   for (const path of unique) {
@@ -1198,24 +1202,8 @@ async function signListingMedia(paths: string[]): Promise<Map<string, string>> {
   if (unique.length === 0) return new Map();
 
   try {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data, error } = await supabaseAdmin.storage
-      .from("listing-media")
-      .createSignedUrls(unique, 60 * 60);
-    if (error) {
-      console.error("Could not sign classified listing media", error.message);
-      return new Map();
-    }
-    return new Map(
-      (data ?? [])
-        .filter(
-          (item) =>
-            typeof item.path === "string" &&
-            typeof item.signedUrl === "string" &&
-            item.signedUrl.length > 0,
-        )
-        .map((item) => [item.path as string, item.signedUrl as string]),
-    );
+    const { signPrivatePhotoUrls } = await getPhotoStorageModule();
+    return await signPrivatePhotoUrls("listing-media", unique);
   } catch (error) {
     // A missing storage signing secret must degrade to image-less cards rather
     // than taking down public browse and homepage routes.
@@ -1228,6 +1216,11 @@ async function signedAdminUrls(bucket: string, paths: string[] | null): Promise<
   if (!paths?.length) return [];
 
   try {
+    if (bucket === "listing-media" || bucket === "ask-evidence") {
+      const { signPrivatePhotoUrls } = await getPhotoStorageModule();
+      const signed = await signPrivatePhotoUrls(bucket, paths);
+      return paths.map((path) => signed.get(path)).filter((url): url is string => Boolean(url));
+    }
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data, error } = await supabaseAdmin.storage
       .from(bucket)

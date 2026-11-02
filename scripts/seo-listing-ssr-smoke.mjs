@@ -2,6 +2,12 @@
 // functions and SSR. All source traffic is intercepted; no real API is called.
 import assert from "node:assert/strict";
 import { pathToFileURL } from "node:url";
+import { register } from "node:module";
+
+// The deployed Cloudflare runtime imports a compiled WebAssembly.Module.
+// Node needs an equivalent local loader for that build artifact, without
+// substituting the image library or skipping any production route code.
+register(new URL("./worker-wasm-test-loader.mjs", import.meta.url));
 
 process.env.GEM_STATE_SUPABASE_URL = "http://127.0.0.1:48997";
 process.env.GEM_STATE_SUPABASE_SERVICE_ROLE_KEY = "sb_secret_fixture_only_not_real";
@@ -73,7 +79,7 @@ globalThis.fetch = async (input, init = {}) => {
 
 // The expected source-outage cases log their generic SSR error. Keep that noise
 // out of CI; assertion failures still print normally after cleanup.
-console.error = () => {};
+console.error = process.env.SSR_SMOKE_DEBUG ? originalError : () => {};
 try {
   const worker = (await import(pathToFileURL(process.cwd() + "/.output/server/index.mjs"))).default;
   async function render(path, expected, nextMode = "healthy") {

@@ -302,3 +302,15 @@ request is prepared using the owner-supplied public business number. The owner
 asked its purpose; it remains unsent without submit authorization. The earlier
 CSI Housing and Gem State Realty emails remain parked. Verified public earned
 links remain zero.
+
+### Private-photo adapter preparation (November 1)
+
+The two private R2 buckets and restricted server credential are configured.
+The prepared adapter covers native create/edit, seller administration, import
+staging and claiming, stable SEO photo URLs, original galleries and small card
+previews. Both production flags remain Supabase. Its additive receipt migration
+and read-only diagnostics do not authorize bulk copying, read cutover or source
+deletion. The local gate passed 752 tests, TypeScript, production build and the
+10-case compiled SSR suite. Actual host/bucket readiness, source allowance/grace
+timing, bounded operator transfer and end-to-end migration verification remain
+open Step 3 work. See [the migration controls](photo-storage-migration.md).

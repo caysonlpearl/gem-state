@@ -1,3 +1,4 @@
+import { getPhotoStorageModule } from "./photo-storage-access";
 import { classifiedCategories } from "@/config/classifieds";
 /* eslint-disable @typescript-eslint/no-explicit-any -- generated Supabase types lag newly applied tables until the next type generation */
 import { createServerFn } from "@tanstack/react-start";
@@ -96,13 +97,20 @@ async function signStagedPhotos(admin: any, paths: string[]): Promise<Map<string
   // items x 8 photos) failed whole and showed every item as "No photo".
   for (let start = 0; start < unique.length; start += 500) {
     const chunk = unique.slice(start, start + 500);
-    const { data, error } = await admin.storage.from("listing-media").createSignedUrls(chunk, 3600);
-    if (error) {
-      console.warn("Could not sign staged photos", error.message);
-      continue;
-    }
-    for (const item of data ?? []) {
-      if (item.path && item.signedUrl) signed.set(item.path, item.signedUrl);
+    const { currentPhotoMode, signPrivatePhotoUrls } = await getPhotoStorageModule();
+    if (currentPhotoMode() === "r2") {
+      for (const [path, url] of await signPrivatePhotoUrls("listing-media", chunk))
+        signed.set(path, url);
+    } else {
+      const { data, error } = await admin.storage
+        .from("listing-media")
+        .createSignedUrls(chunk, 3600);
+      if (error) {
+        console.warn("Could not sign staged photos", error.message);
+        continue;
+      }
+      for (const item of data ?? [])
+        if (item.path && item.signedUrl) signed.set(item.path, item.signedUrl);
     }
   }
   return signed;
@@ -134,6 +142,11 @@ async function downloadPhoto(admin: any, batchId: string, url: string): Promise<
   if (buffer.byteLength > MAX_PHOTO_BYTES) throw new Error("Photo is larger than 12 MB.");
   const ext = contentType.includes("png") ? "png" : contentType.includes("webp") ? "webp" : "jpg";
   const path = `_staging/${batchId}/${crypto.randomUUID()}.${ext}`;
+  const { currentPhotoUploadMode, getPhotoStorage } = await getPhotoStorageModule();
+  if (currentPhotoUploadMode() !== "supabase") {
+    await (await getPhotoStorage()).upload(path, buffer, contentType);
+    return path;
+  }
   const evidence = await admin.storage.from("ask-evidence").upload(path, buffer, { contentType });
   if (evidence.error) throw new Error(`Evidence upload failed: ${evidence.error.message}`);
   const publicUpload = await admin.storage
@@ -151,7 +164,13 @@ async function claimPhotosForSeller(
   stagingPaths: string[],
 ): Promise<string[]> {
   const { prepareImportPhotos } = await import("./fb-import-photos.server");
-  return prepareImportPhotos(admin, sellerId, stagingPaths);
+  const { currentPhotoUploadMode, getPhotoStorage } = await getPhotoStorageModule();
+  return prepareImportPhotos(
+    admin,
+    sellerId,
+    stagingPaths,
+    currentPhotoUploadMode() === "supabase" ? undefined : await getPhotoStorage(),
+  );
 }
 
 /** Rows per staging request; the admin page chunks scan results to this size. */

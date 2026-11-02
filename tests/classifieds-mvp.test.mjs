@@ -474,7 +474,7 @@ test("classified listing media stays private until approval", () => {
   assert.match(classifiedMediaSecurityMigrationSource, /can_read_approved_classified_media/);
   assert.match(classifiedMediaSecurityMigrationSource, /a\.approved_at IS NOT NULL/);
   assert.match(classifiedMediaSecurityMigrationSource, /p\.status = 'published'/);
-  assert.match(classifiedsFunctionsSource, /createSignedUrls\(unique, 60 \* 60\)/);
+  assert.match(classifiedsFunctionsSource, /signPrivatePhotoUrls\("listing-media", unique\)/);
   assert.doesNotMatch(classifiedsFunctionsSource, /object\/public\/listing-media/);
 });
 

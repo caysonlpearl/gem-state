@@ -10,6 +10,7 @@ import { findIdahoPlace } from "@/config/idaho-places";
 import { IdahoCityPicker } from "@/components/classifieds/IdahoCityPicker";
 import { supabase } from "@/integrations/supabase/client";
 import { traceMutation, trackEvent } from "@/lib/analytics";
+import { usePhotoUploader } from "@/lib/use-photo-uploader";
 import {
   createClassifiedListing,
   getClassifiedCategoryOptions,
@@ -142,6 +143,7 @@ export function ListingForm(props: ListingFormProps) {
   const fetchCategories = useServerFn(getClassifiedCategoryOptions);
   const create = useServerFn(createClassifiedListing);
   const update = useServerFn(updateClassifiedListing);
+  const uploadPhoto = usePhotoUploader();
   const categories = useQuery({
     queryKey: ["classified-category-options"],
     queryFn: () => fetchCategories(),
@@ -261,26 +263,8 @@ export function ListingForm(props: ListingFormProps) {
             const uid = session.session?.user.id;
             if (!uid) throw new Error("Sign in required.");
             for (const file of files.slice(0, 8)) {
-              const ext =
-                file.name
-                  .split(".")
-                  .pop()
-                  ?.toLowerCase()
-                  .replace(/[^a-z0-9]/g, "") || "jpg";
-              const path = `${uid}/${crypto.randomUUID()}.${ext}`;
-              if (props.mode === "create") {
-                const evidence = await supabase.storage.from("ask-evidence").upload(path, file, {
-                  contentType: file.type || "image/jpeg",
-                });
-                if (evidence.error)
-                  throw new Error(`Private photo upload failed: ${evidence.error.message}`);
-                evidencePaths.push(path);
-              }
-              const publicPhoto = await supabase.storage.from("listing-media").upload(path, file, {
-                contentType: file.type || "image/jpeg",
-              });
-              if (publicPhoto.error)
-                throw new Error(`Listing photo upload failed: ${publicPhoto.error.message}`);
+              const path = await uploadPhoto(file, uid, props.mode === "create");
+              if (props.mode === "create") evidencePaths.push(path);
               publicMediaPaths.push(path);
             }
           }
@@ -561,8 +545,11 @@ export function ListingForm(props: ListingFormProps) {
           <div className="mt-4">
             {isVehicle && (
               <div className="space-y-4">
-                <ItemFields category={form.category} details={form.itemDetails}
-                  set={(key, value) => set("itemDetails", { ...form.itemDetails, [key]: value })} />
+                <ItemFields
+                  category={form.category}
+                  details={form.itemDetails}
+                  set={(key, value) => set("itemDetails", { ...form.itemDetails, [key]: value })}
+                />
                 <VehicleFields form={form} set={set} />
               </div>
             )}

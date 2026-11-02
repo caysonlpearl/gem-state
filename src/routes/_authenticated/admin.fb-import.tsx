@@ -1,11 +1,12 @@
 import { getManagedImportSellers, keepBluebirdImportVersion } from "@/lib/seller-claims.functions";
+import { PhotoStorageStatus } from "@/components/admin/PhotoStorageStatus";
 import {
   ManagedSellerOperations,
   SellerClaimControls,
   ClaimLinkResult,
 } from "@/components/seller/ManagedSellerOperations";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useLocation } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -67,8 +68,22 @@ export const Route = createFileRoute("/_authenticated/admin/fb-import")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
-  component: FbImportPage,
+  component: ImportOrStoragePage,
 });
+
+function ImportOrStoragePage() {
+  const search = useLocation({ select: (location) => location.searchStr });
+  // Checking storage must not download the import queue's photo previews,
+  // especially while the source provider is near its transfer allowance.
+  if (new URLSearchParams(search).get("storage") === "check")
+    return (
+      <main className="mx-auto max-w-[720px] space-y-5 px-4 py-10 sm:px-6">
+        <h1 className="text-[22px] font-semibold">Photo storage</h1>
+        <PhotoStorageStatus />
+      </main>
+    );
+  return <FbImportPage />;
+}
 
 const conditions = [
   ["new_with_tags", "New"],
@@ -1533,6 +1548,7 @@ function FbImportPage() {
         </p>
       </div>
 
+      <PhotoStorageStatus />
       <StageForm />
 
       <ImportedSellers />

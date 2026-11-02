@@ -1,3 +1,4 @@
+import { getPhotoStorageModule } from "./photo-storage-access";
 /* eslint-disable @typescript-eslint/no-explicit-any -- the generated Supabase client types lag the applied seller migration until the next linked type generation */
 import { createServerFn } from "@tanstack/react-start";
 
@@ -132,14 +133,9 @@ function requireText(value: unknown, label: string, max = 100) {
 
 async function signedListingUrls(paths: string[]): Promise<string[]> {
   if (paths.length === 0) return [];
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data, error } = await supabaseAdmin.storage
-    .from("listing-media")
-    .createSignedUrls(paths, 60 * 60);
-  if (error) return [];
-  return (data ?? [])
-    .map((item) => item.signedUrl)
-    .filter((url): url is string => typeof url === "string" && url.length > 0);
+  const { signPrivatePhotoUrls } = await getPhotoStorageModule();
+  const urls = await signPrivatePhotoUrls("listing-media", paths);
+  return paths.map((path) => urls.get(path)).filter((url): url is string => Boolean(url));
 }
 
 function variantLabel(
@@ -871,32 +867,28 @@ export const getPublicSeller = createServerFn({ method: "GET" })
     if (error || !seller) return null;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
-    const [
-      { data: managed },
-      { data: askRows },
-      { data: reviewRows },
-      { data: allRatings },
-    ] = await Promise.all([
-      client.rpc("managed_seller_public_status", { _user: seller.user_id }),
-      admin
-        .from("asks")
-        .select(
-          "id,product_id,variant_id,price_cents,currency,item_condition,seller_note,created_at,ship_by_days,products(slug,name),product_variants(size,color,edition),listing_media(storage_path,position)",
-        )
-        .eq("seller_id", seller.user_id)
-        .eq("status", "active")
-        .not("approved_at", "is", null)
-        .eq("is_demo", false)
-        .gt("expires_at", new Date().toISOString())
-        .order("created_at", { ascending: false }),
-      client
-        .from("seller_reviews")
-        .select("id,rating,comment,created_at,reviewer_id")
-        .eq("seller_id", seller.user_id)
-        .order("created_at", { ascending: false })
-        .limit(20),
-      client.from("seller_reviews").select("rating").eq("seller_id", seller.user_id),
-    ]);
+    const [{ data: managed }, { data: askRows }, { data: reviewRows }, { data: allRatings }] =
+      await Promise.all([
+        client.rpc("managed_seller_public_status", { _user: seller.user_id }),
+        admin
+          .from("asks")
+          .select(
+            "id,product_id,variant_id,price_cents,currency,item_condition,seller_note,created_at,ship_by_days,products(slug,name),product_variants(size,color,edition),listing_media(storage_path,position)",
+          )
+          .eq("seller_id", seller.user_id)
+          .eq("status", "active")
+          .not("approved_at", "is", null)
+          .eq("is_demo", false)
+          .gt("expires_at", new Date().toISOString())
+          .order("created_at", { ascending: false }),
+        client
+          .from("seller_reviews")
+          .select("id,rating,comment,created_at,reviewer_id")
+          .eq("seller_id", seller.user_id)
+          .order("created_at", { ascending: false })
+          .limit(20),
+        client.from("seller_reviews").select("rating").eq("seller_id", seller.user_id),
+      ]);
     const isManaged = managed?.managed === true;
     const reviewCount = allRatings?.length ?? 0;
     const ratingAverage = reviewCount
@@ -914,9 +906,13 @@ export const getPublicSeller = createServerFn({ method: "GET" })
       : { data: [] as any[] };
     const reviewerById = new Map<string, any>((reviewerProfiles ?? []).map((p: any) => [p.id, p]));
     const { signListingThumbnails } = await import("./classifieds.functions");
-    const coverPaths = (askRows ?? []).map((row: any) =>
-      [...(row.listing_media ?? [])].sort((a: any, b: any) => a.position - b.position)[0]?.storage_path,
-    ).filter((path: unknown): path is string => typeof path === "string");
+    const coverPaths = (askRows ?? [])
+      .map(
+        (row: any) =>
+          [...(row.listing_media ?? [])].sort((a: any, b: any) => a.position - b.position)[0]
+            ?.storage_path,
+      )
+      .filter((path: unknown): path is string => typeof path === "string");
     const thumbnails = await signListingThumbnails(coverPaths);
     const listings: PublicListing[] = await Promise.all(
       (askRows ?? []).map(async (row: any) => ({
@@ -935,7 +931,8 @@ export const getPublicSeller = createServerFn({ method: "GET" })
         payoutVerified: !isManaged && seller.payout_verified === true,
         sellerRating: ratingAverage,
         thumbnailUrl: thumbnails.get(
-          [...(row.listing_media ?? [])].sort((a: any, b: any) => a.position - b.position)[0]?.storage_path,
+          [...(row.listing_media ?? [])].sort((a: any, b: any) => a.position - b.position)[0]
+            ?.storage_path,
         ),
         imageUrls: await signedListingUrls(
           [...(row.listing_media ?? [])]

@@ -1,3 +1,4 @@
+import { getPhotoStorageModule } from "./photo-storage-access";
 /* eslint-disable @typescript-eslint/no-explicit-any -- Supabase JSON RPC output is untyped until linked types are regenerated */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -85,6 +86,11 @@ type AdminAskRpcRow = {
 
 async function signedAdminUrls(bucket: string, paths: string[] | null): Promise<string[]> {
   if (!paths?.length) return [];
+  if (bucket === "listing-media" || bucket === "ask-evidence") {
+    const { signPrivatePhotoUrls } = await getPhotoStorageModule();
+    const urls = await signPrivatePhotoUrls(bucket, paths);
+    return paths.map((path) => urls.get(path)).filter((url): url is string => Boolean(url));
+  }
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const { data, error } = await supabaseAdmin.storage.from(bucket).createSignedUrls(paths, 60 * 60);
   if (error) return [];

@@ -2,8 +2,14 @@
 
 Status: R2 Standard activation is owner-approved and the active empty overview
 was verified on November 1, 2026 (Boise). The owner chose to keep Supabase Free.
-No bucket, credential, photo transfer, cutover or deletion has been performed.
-This document and the local preflight tool do not change application behavior.
+The owner subsequently approved and created the two private Standard buckets
+and their bucket-restricted server credential. Their five server secrets are
+saved in the existing Bluebird deployment. No photo transfer, cutover or
+deletion has been performed.
+
+The application adapter is prepared with both production mode flags unset.
+The default remains Supabase, including native uploads. The admin seller-import
+page provides a manual, read-only connection and thumbnail capability check.
 
 ## Capture the inventory without downloading photos
 
@@ -91,6 +97,49 @@ double the download volume.
   current state. Resume from verified receipts, bound concurrency and total
   download bytes, and stop on changed source data or a budget boundary.
 
+## Adapter controls and verified boundaries
+
+- `BLUEBIRD_PHOTO_STORAGE_MODE`: unset/`supabase` keeps existing reads;
+  `mirror` still reads Supabase; `r2` uses verified R2 receipts with retained-source
+  fallback. No browser can set this flag.
+- `BLUEBIRD_PHOTO_UPLOAD_MODE`: unset keeps Supabase while reads are Supabase,
+  and uses mirror writes while R2 reads are being validated. R2-only writes
+  require both flags explicitly set to `r2`. Rollback to Supabase-only reads
+  cannot preserve new R2-only uploads unless they have source copies.
+- Originals remain unchanged. Private listing cards use a prepared preview up
+  to 640px wide/2560px high and 512 KiB; opaque images use JPEG, transparent
+  images use WebP. JPEG EXIF orientation is applied to previews. WASM decoding
+  is guarded at 8 million source pixels on the deployed worker; larger images
+  require a prepared preview before server imports or migration can proceed.
+  Browser native uploads prepare their previews locally.
+- Native uploads use authenticated, expiring tickets, immutable signed PUTs,
+  byte/SHA-256 checks, and private server-only receipts. Ticket verification
+  leases prevent simultaneous replay; six attempts per ticket, 256 tickets
+  per user per 24 hours, and 512 MiB/user/day bound abuse. A cumulative 8 GB
+  reservation ceiling includes unfinished writes. This is an application guard,
+  **not a Cloudflare billing cap**. Review these controls before activation.
+- Direct browser PUTs also require a narrowly scoped R2 CORS rule for the actual
+  Bluebird origin. It is not configured yet; no R2 upload flag is enabled.
+- The additive SQL migration preserves the live seller-claim function and
+  patches only its known photo-existence predicate. It aborts on an unknown
+  definition. Capture the production definition before installation.
+- The copy engine validates both source metadata records and one single-part
+  ETag-checked download per pair, independently SHA-verifies both isolated
+  target originals and the listing preview, and records each successful target.
+  Resumes revalidate saved target receipts without source egress. It has no
+  public execution endpoint or deletion operation. The operator batch runner
+  and aggregate source-byte reservation remain a later rollout gate; do not
+  treat the core engine tests as a completed migration.
+
+Validation on November 1: 752 offline tests passed, including actual PostgreSQL
+migration/authorization checks, native upload finalization, source-failure
+fallback, immutable upload signatures, image decoding and resumable copies.
+TypeScript and the production build passed. The compiled SSR suite exercised
+10 cases without upstream provider calls. Nitro requires Photon's wasm module
+import to retain the `?module` suffix; a local Node loader supplies the same
+compiled module for the Cloudflare production artifact during smoke tests.
+These checks do not prove a live upload, gallery cutover or existing-photo copy.
+
 ## Transfer timing and costs
 
 The first review showed about 2.62 GB in the two photo stores, plus only about
@@ -120,9 +169,9 @@ billing merely to move object storage.
 1. Prepare and test the adapter, copy/resume tooling and checks without live
    credentials. Review the exact object manifest, planned bytes and operation
    ceilings. Resolve source allowance/grace timing.
-2. Obtain approval for the named private buckets, bucket-scoped access and
-   bounded photo copy. Creating credentials and copying private evidence are
-   distinct from the already-approved R2 subscription activation.
+2. Bucket creation and restricted access are already approved and complete.
+   Obtain separate approval for the bounded photo copy after the source quota
+   and operator execution gates are resolved. No bulk copy is currently enabled.
 3. Copy a small reviewed batch, verify source and target bytes, and test listing
    cards, full galleries, unpublished/removed access, admin evidence and upload/
    claim flows. Copy the remainder only within the approved byte ceiling.
