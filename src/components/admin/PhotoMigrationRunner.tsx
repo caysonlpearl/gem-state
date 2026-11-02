@@ -51,6 +51,7 @@ function MigrationControls() {
     },
   });
   const batch = useMutation({
+    retry: false,
     mutationFn: async ({
       run,
       retry,
@@ -61,6 +62,7 @@ function MigrationControls() {
       continuous?: boolean;
     }) => {
       stop.current = false;
+      let prepared = preview?.runId === run.id ? preview.data : undefined;
       const reason = await runPhotoMigrationBatches({
         run,
         retry,
@@ -69,11 +71,15 @@ function MigrationControls() {
           step({
             data: {
               ...input,
-              ...(input.retry && preview?.runId === run.id
-                ? { preparedPreview: preview.data }
-                : {}),
+              ...(input.retry && prepared ? { preparedPreview: prepared } : {}),
             },
           }),
+        prepareProcessingRecovery: async (status) => {
+          setNote("Preparing a small preview for this photo within the approved allowance.");
+          const source = await previewSource({ data: { id: status.id } });
+          prepared = await prepareMigrationPreview(source);
+          setPreview({ runId: status.id, data: prepared });
+        },
         refresh: async () => {
           const result = await runs.refetch();
           if (result.error) throw result.error;
@@ -83,7 +89,10 @@ function MigrationControls() {
         },
         onStatus: (value) => {
           setActive(value);
-          if (value.failedGroups === 0) setPreview(null);
+          if (value.failedGroups === 0) {
+            prepared = undefined;
+            setPreview(null);
+          }
         },
         shouldStop: () => stop.current,
       });
@@ -246,8 +255,10 @@ function MigrationControls() {
             One group runs at a time. A batch handles at most 25 groups. Reservations include
             interrupted downloads and are not automatically refunded. Metadata traffic is separate;
             these counters are not the provider’s account billing meter. Source photos are retained.
-            Continuing approved batches checks the saved state after each batch and stops if the
-            approval changes, expires, fails or you leave this page.
+            Continuous copying may prepare one browser preview and retry a confirmed processing
+            failure once, within the same allowance. Other failures stop the copy. Continuing
+            approved batches checks the saved state after each batch and stops if the approval
+            changes, expires, fails or you leave this page.
           </p>
           <div className="flex flex-wrap gap-2">
             {selected.lastFailure === "processing" && (

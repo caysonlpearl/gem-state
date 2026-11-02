@@ -430,3 +430,14 @@ or resets attempts. A lost acknowledgement is observed by its exact token,
 never replayed. Already-complete verified targets return zero without making a
 reservation or acknowledgement. This preparation is not live verification or
 completion of the remaining transfer.
+
+### Continuous preview recovery
+
+Continuous approved batches may prepare one bounded browser preview after a
+confirmed processing failure, then retry that exact group once. Fresh saved
+state, unchanged approval, expiry, group identity and user-stop checks bracket
+preparation. The original/preview handoff uses the same byte reservations,
+source verification and database attempt limits as manual recovery. Network
+uncertainty, unrelated failures, changed saved state, preparation failure or a
+failed retry stop the run. Manual batches and explicit single retries retain
+their existing behavior; completed-group checkpoints remain at 25.

@@ -198,3 +198,218 @@ test("a lost acknowledgement stops without retrying the uncertain operation", as
   assert.equal(f.state.calls, 1);
   assert.deepEqual(f.state.checkpoints, []);
 });
+
+function processingFixture() {
+  const f = fixture(3);
+  f.options.continuous = true;
+  let failed = false;
+  const step = f.options.step;
+  f.state.preparations = 0;
+  f.options.step = async (input) => {
+    if (!failed && f.state.completed === 1) {
+      failed = true;
+      f.state.calls++;
+      return {
+        state: "stopped",
+        reason: null,
+        status: { ...f.status(), failedGroups: 1, lastFailure: "processing" },
+      };
+    }
+    if (failed && f.state.completed === 1) assert.equal(input.retry, true);
+    return step(input);
+  };
+  f.options.refresh = async () => ({
+    ...f.status(),
+    ...(failed && f.state.completed === 1 ? { failedGroups: 1, lastFailure: "processing" } : {}),
+  });
+  f.options.prepareProcessingRecovery = async (status) => {
+    assert.equal(status.completedGroups, 1);
+    f.state.preparations++;
+  };
+  return f;
+}
+
+test("continuous copying recovers one confirmed processing failure with one preparation and one retry", async () => {
+  const f = processingFixture();
+  assert.equal(await runPhotoMigrationBatches(f.options), "complete");
+  assert.equal(f.state.completed, 3);
+  assert.equal(f.state.calls, 5);
+  assert.equal(f.state.preparations, 1);
+  assert.equal(f.state.events.filter((e) => e[0] === "step" && e[2] === true).length, 1);
+});
+
+test("automatic preview recovery is absent from manual batches and explicit retries", async () => {
+  for (const changes of [{ continuous: false }, { retry: true }]) {
+    const f = processingFixture();
+    Object.assign(f.options, changes);
+    if (changes.retry) f.state.completed = 1;
+    assert.equal(await runPhotoMigrationBatches(f.options), "stopped");
+    assert.equal(f.state.preparations, 0);
+  }
+});
+
+test("network uncertainty and nonprocessing failures never trigger preparation or retry", async () => {
+  for (const changes of [
+    { lastFailure: "copy-failed" },
+    { lastFailure: "source-changed" },
+    { lastFailure: "source-budget" },
+    { runningGroups: 1 },
+    { failedGroups: 2 },
+    { completedGroups: 2 },
+  ]) {
+    const f = processingFixture();
+    f.state.completed = 1;
+    f.options.step = async () => {
+      f.state.calls++;
+      return {
+        state: "stopped",
+        reason: null,
+        status: { ...f.status(), failedGroups: 1, lastFailure: "processing", ...changes },
+      };
+    };
+    assert.equal(await runPhotoMigrationBatches(f.options), "stopped");
+    assert.equal(f.state.calls, 1);
+    assert.equal(f.state.preparations, 0);
+  }
+  const f = processingFixture();
+  f.options.step = async () => {
+    throw new Error("Unknown request outcome");
+  };
+  await assert.rejects(runPhotoMigrationBatches(f.options), /Unknown/);
+  assert.equal(f.state.preparations, 0);
+});
+
+test("changed saved state before or after preparation stops before another mutation", async () => {
+  for (const after of [false, true])
+    for (const changes of [
+      { completedGroups: 2 },
+      { failedGroups: 0 },
+      { runningGroups: 1 },
+      { lastFailure: "copy-failed" },
+    ]) {
+      const f = processingFixture();
+      let reads = 0;
+      f.options.refresh = async () => ({
+        ...f.status(),
+        failedGroups: 1,
+        lastFailure: "processing",
+        ...(++reads === (after ? 2 : 1) ? changes : {}),
+      });
+      assert.equal(await runPhotoMigrationBatches(f.options), "stopped");
+      assert.equal(f.state.calls, 2);
+      assert.equal(f.state.preparations, after ? 1 : 0);
+    }
+});
+
+test("approval changes and user stops are checked before and after browser preparation", async () => {
+  for (const after of [false, true])
+    for (const stop of [false, true]) {
+      const f = processingFixture();
+      let reads = 0;
+      f.options.refresh = async () => {
+        const change = ++reads === (after ? 2 : 1);
+        if (stop && change) f.state.stop = true;
+        return {
+          ...f.status(),
+          failedGroups: 1,
+          lastFailure: "processing",
+          ...(!stop && change ? { permit: null } : {}),
+        };
+      };
+      assert.equal(
+        await runPhotoMigrationBatches(f.options),
+        stop ? "user-stop" : "permit-changed",
+      );
+      assert.equal(f.state.calls, 2);
+      assert.equal(f.state.preparations, after ? 1 : 0);
+    }
+});
+
+test("a failed preparation or failed recovery retry never loops or obtains another preparation", async () => {
+  const f = processingFixture();
+  f.options.prepareProcessingRecovery = async () => {
+    f.state.preparations++;
+    throw new Error("Preparation interrupted");
+  };
+  await assert.rejects(runPhotoMigrationBatches(f.options), /interrupted/);
+  assert.equal(f.state.preparations, 1);
+  assert.equal(f.state.calls, 2);
+  for (const retryState of ["stopped", "busy"]) {
+    const g = processingFixture();
+    const step = g.options.step;
+    g.options.step = async (input) => {
+      if (input.retry) {
+        g.state.calls++;
+        return {
+          state: retryState,
+          reason: null,
+          status: { ...g.status(), failedGroups: 1, lastFailure: "processing" },
+        };
+      }
+      return step(input);
+    };
+    assert.equal(await runPhotoMigrationBatches(g.options), retryState);
+    assert.equal(g.state.calls, 3);
+    assert.equal(g.state.preparations, 1);
+  }
+});
+
+test("recovery checkpoints count completed groups rather than retry requests", async () => {
+  const f = fixture(30);
+  f.options.continuous = true;
+  let failed = false,
+    recovered = false;
+  const step = f.options.step,
+    refresh = f.options.refresh;
+  f.options.step = async (input) => {
+    if (!failed && f.state.completed === 24) {
+      failed = true;
+      f.state.calls++;
+      return {
+        state: "stopped",
+        reason: null,
+        status: { ...f.status(), failedGroups: 1, lastFailure: "processing" },
+      };
+    }
+    if (input.retry) recovered = true;
+    return step(input);
+  };
+  f.options.refresh = async () => {
+    const value = await refresh();
+    return {
+      ...value,
+      ...(failed && !recovered ? { failedGroups: 1, lastFailure: "processing" } : {}),
+    };
+  };
+  f.options.prepareProcessingRecovery = async () => {};
+  assert.equal(await runPhotoMigrationBatches(f.options), "complete");
+  assert.equal(f.state.calls, 32);
+  assert.deepEqual(f.state.checkpoints, [25, 25, 26]);
+  const checkpoint = f.state.events.findIndex(
+    ([kind, count]) => kind === "checkpoint" && count === 26,
+  );
+  assert.deepEqual(f.state.events[checkpoint + 1], ["status", 25]);
+  assert.deepEqual(f.state.events[checkpoint + 2], ["step", 27, false]);
+});
+
+test("a substituted review or an expired permit after preparation never receives a retry", async () => {
+  for (const change of [{ id: "other" }, { digest: "b".repeat(64) }]) {
+    const f = processingFixture();
+    const refresh = f.options.refresh;
+    let calls = 0;
+    f.options.refresh = async () => ({ ...(await refresh()), ...(++calls === 2 ? change : {}) });
+    await assert.rejects(runPhotoMigrationBatches(f.options), /review changed/);
+    assert.equal(f.state.preparations, 1);
+    assert.equal(f.state.calls, 2);
+  }
+  const f = processingFixture();
+  let expired = false;
+  f.options.now = () => Date.parse(expired ? "2100-01-01T00:00:00Z" : "2026-11-02T00:00:00Z");
+  f.options.prepareProcessingRecovery = async () => {
+    f.state.preparations++;
+    expired = true;
+  };
+  assert.equal(await runPhotoMigrationBatches(f.options), "permit-changed");
+  assert.equal(f.state.preparations, 1);
+  assert.equal(f.state.calls, 2);
+});

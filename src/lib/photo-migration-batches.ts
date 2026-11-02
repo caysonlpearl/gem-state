@@ -22,6 +22,7 @@ export async function runPhotoMigrationBatches(options: {
   continuous?: boolean;
   step: (input: { id: string; retry: boolean }) => Promise<StepResult>;
   refresh: () => Promise<PhotoMigrationStatus>;
+  prepareProcessingRecovery?: (status: PhotoMigrationStatus) => Promise<void>;
   onStatus: (status: PhotoMigrationStatus) => void;
   shouldStop: () => boolean;
   now?: () => number;
@@ -49,8 +50,49 @@ export async function runPhotoMigrationBatches(options: {
     for (let group = 0; group < (retry ? 1 : 25); group++) {
       if (shouldStop()) return "user-stop";
       if (!hasApproval()) return "permit-changed";
-      const result = await step({ id: run.id, retry });
+      const completedBefore = current.completedGroups;
+      let result = await step({ id: run.id, retry });
       validateStatus(result.status);
+      // Only a confirmed processing stop from this continuous copy may use
+      // one prepared-preview recovery. Unknown requests are never replayed.
+      if (
+        options.continuous &&
+        !retry &&
+        options.prepareProcessingRecovery &&
+        result.state === "stopped" &&
+        !result.reason &&
+        current.lastFailure === "processing" &&
+        current.failedGroups === 1 &&
+        current.runningGroups === 0 &&
+        current.completedGroups === completedBefore
+      ) {
+        if (shouldStop()) return "user-stop";
+        if (!hasApproval()) return "permit-changed";
+        validateStatus(await refresh());
+        if (shouldStop()) return "user-stop";
+        if (!hasApproval()) return "permit-changed";
+        if (
+          current.lastFailure !== "processing" ||
+          current.failedGroups !== 1 ||
+          current.runningGroups !== 0 ||
+          current.completedGroups !== completedBefore ||
+          current.completedGroups >= current.permit!.maxGroups
+        )
+          return "stopped";
+        await options.prepareProcessingRecovery(current);
+        validateStatus(await refresh());
+        if (shouldStop()) return "user-stop";
+        if (!hasApproval()) return "permit-changed";
+        if (
+          current.lastFailure !== "processing" ||
+          current.failedGroups !== 1 ||
+          current.runningGroups !== 0 ||
+          current.completedGroups !== completedBefore
+        )
+          return "stopped";
+        result = await step({ id: run.id, retry: true });
+        validateStatus(result.status);
+      }
       if (result.state !== "copied")
         return result.state === "complete"
           ? "complete"
