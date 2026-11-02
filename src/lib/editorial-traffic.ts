@@ -1,4 +1,5 @@
 import type { TrafficEvent } from "./traffic-summary";
+import { isNewListingAction } from "./analytics-policy.ts";
 
 /** Aggregate already-excluded events. Clicks, contact actions and delivered
  * inquiries are separate outcomes, and attribution is descriptive. */
@@ -47,7 +48,8 @@ export function summarizeEditorialTraffic(events: TrafficEvent[]) {
     if (event.name === "seller_contacted") row.contacts++;
     if (event.name === "inquiry_completed") row.inquiries++;
     if (event.name === "classified_listing_started") row.postingStarts++;
-    if (event.name === "classified_listing_submit_succeeded") row.submissions++;
+    if (event.name === "classified_listing_submit_succeeded" && isNewListingAction(props))
+      row.submissions++;
     articles.set(article, row);
   }
   return [...articles.values()]

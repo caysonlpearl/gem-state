@@ -76,3 +76,19 @@ test("events from before tracking show as unknown", () => {
   assert.equal(result.byChannel[0].channel, "unknown");
   assert.equal(result.totals.listingViews, 1);
 });
+
+test("new submission totals exclude edits and deduplicate accepted listing IDs", () => {
+  const accepted = {
+    ...fromGoogle("v1"),
+    mode: "create",
+    listing_id: "listing-1",
+    event_id: "create:listing-1",
+  };
+  const result = summarize([
+    event("classified_listing_submit_succeeded", accepted),
+    event("classified_listing_submit_succeeded", accepted),
+    event("classified_listing_submit_succeeded", { ...fromGoogle("v1"), mode: "edit" }),
+    event("classified_listing_submit_succeeded", { ...fromGoogle("old"), kind: "item" }),
+  ]);
+  assert.equal(result.conversions.listingsSubmitted, 2);
+});
