@@ -355,3 +355,30 @@ R2-only browser uploads also require an origin-restricted CORS rule, a real
 native upload/finalization check, and private review/claim verification before
 they can replace Supabase writes. Preparation or successful offline tests do
 not authorize switching the production flags.
+
+
+### Large server-import photos
+
+Before R2-only uploads, seller staging uses a bounded browser-preview handoff
+when the worker decoder cannot prepare an image. The server preflights all of a
+row's photos before starting target writes, returns exact source SHA-256/size
+metadata, and retains small previews where the response budget permits. The
+admin browser receives one bounded original at a time through an admin-only,
+uncacheable same-site function, verifies its hash, and prepares a small preview.
+A single row-specific retry preserves original order, validates source hashes
+again and re-decodes each small preview before writing unchanged originals to
+both private stores. An uncertain request is never automatically replayed.
+
+The existing 12 MiB import-photo limit, eight-photo row limit, source host list,
+seller authorization, draft review and claim/copy paths remain authoritative.
+Public-CDN redirects stay inside that source host list. Worker memory is bounded
+by sequential original reads rather than buffering eight originals. Some photo
+URLs are read again before storage; this is admin staging, never a visitor or
+marketplace data-provider search. Supabase-mode imports and unchanged published
+refresh rows retain their existing behavior. The extension needs no new access.
+
+Offline checks include an actual 12.2MP JPEG, both private R2 original copies,
+no draft writes before preparation, source drift, authorization, interrupted
+responses, row accounting and a real isolated-browser 640x480 preview. These
+checks do not prove production R2-mode import completion. Verify that path as
+part of the approved cutover; current photo read/upload modes remain Supabase.

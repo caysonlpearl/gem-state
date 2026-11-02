@@ -1,3 +1,4 @@
+import { useImportStage } from "@/lib/use-import-stage";
 import { getManagedImportSellers, keepBluebirdImportVersion } from "@/lib/seller-claims.functions";
 import { PhotoStorageStatus } from "@/components/admin/PhotoStorageStatus";
 import { PhotoMigrationRunner } from "@/components/admin/PhotoMigrationRunner";
@@ -27,7 +28,6 @@ import {
   setFacebookImportSourceArchived,
   getFacebookRefreshTargets,
   publishFacebookImportItems,
-  stageFacebookImportBatch,
   updateFacebookImportItem,
   type FbImportItem,
   type FbImportItemInput,
@@ -182,7 +182,7 @@ function ImportedSellers() {
     },
     onError: (e) => toast.error(e.message),
   });
-  const stage = useServerFn(stageFacebookImportBatch);
+  const stage = useImportStage();
   const { data } = useQuery({
     queryKey: ["fb-import-profiles"],
     queryFn: () => fetchProfiles(),
@@ -802,7 +802,7 @@ function ImportedSellers() {
 
 function StageForm() {
   const queryClient = useQueryClient();
-  const stage = useServerFn(stageFacebookImportBatch);
+  const stage = useImportStage();
 
   const [profileUrl, setProfileUrl] = useState("");
   const [itemsJson, setItemsJson] = useState("");

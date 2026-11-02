@@ -3,6 +3,8 @@
 import assert from "node:assert/strict";
 import { pathToFileURL } from "node:url";
 import { register } from "node:module";
+import { readdirSync, readFileSync } from "node:fs";
+import { toJSON } from "seroval";
 
 // The deployed Cloudflare runtime imports a compiled WebAssembly.Module.
 // Node needs an equivalent local loader for that build artifact, without
@@ -165,6 +167,59 @@ try {
     if (mode === "stalled") assert.ok(milliseconds < 12000);
     results.push({ path, mode, status: response.status, milliseconds });
   }
+  // A valid public-CDN descriptor must still be denied before any source read.
+  const importModule = readdirSync(".output/server/_ssr").find(
+    (name) => name.startsWith("fb-import.functions-") && name.endsWith(".mjs"),
+  );
+  assert.ok(importModule, "compiled import module exists");
+  const importCode = readFileSync(".output/server/_ssr/" + importModule, "utf8");
+  const actionId = importCode.match(
+    /id:\s*"([^"]+)",\s*name:\s*"prepareFacebookImportPhotoPreviewSource"/,
+  )?.[1];
+  assert.ok(actionId, "compiled private source handoff action exists");
+  calls.length = 0;
+  const privateResponse = await worker.fetch(
+    new Request("https://onbluebird.com/_serverFn/" + actionId, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Origin: "https://onbluebird.com",
+        "Sec-Fetch-Site": "same-origin",
+        "x-tsr-serverFn": "true",
+      },
+      body: JSON.stringify(
+        toJSON({
+          data: {
+            url: "https://images.vinted.net/never-read.jpg",
+            sourceSha256: "a".repeat(64),
+            bytes: 3,
+            contentType: "image/jpeg",
+          },
+          context: {},
+        }),
+      ),
+    }),
+    {},
+    { waitUntil: (task) => pending.push(task) },
+  );
+  const privateBody = await privateResponse.text();
+  // TanStack RPC transports typed application errors in a 200 JSON envelope.
+  // Inspect that error rather than mistaking transport success for access.
+  assert.equal(privateResponse.status, 200);
+  const envelope = JSON.parse(privateBody);
+  const denied = envelope.p.v[envelope.p.k.indexOf("error")];
+  assert.equal(denied.c, "$TSR/Error");
+  assert.equal(denied.s.message.s, "Unauthorized: No authorization header provided");
+  assert.equal(calls.length, 0, "missing authorization must not read the database or CDN");
+  assert.equal(privateBody.includes("base64"), false);
+  assert.equal(privateBody.includes("sb_secret_fixture"), false);
+  results.push({
+    path: "/_serverFn/[import-photo-source]",
+    mode: "anonymous-denied",
+    status: privateResponse.status,
+    authorized: false,
+    sourceReads: calls.length,
+  });
   assert.deepEqual(external, [], "SSR must not contact a provider or other external host");
   console.log(
     JSON.stringify(
