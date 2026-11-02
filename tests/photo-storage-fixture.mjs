@@ -49,7 +49,7 @@ export function loadPhotoModules(overrides = {}) {
   return load;
 }
 
-export function photoStorageFixture(mode = "r2") {
+export function photoStorageFixture(mode = "r2", controls = {}) {
   const load = loadPhotoModules();
   const { createPhotoStorage } = load("./photo-storage-core.server");
   const { photoSha256, photoSourceMd5 } = load("./r2-photo-storage.server");
@@ -148,6 +148,7 @@ export function photoStorageFixture(mode = "r2") {
   };
   const store = createPhotoStorage({
     mode,
+    ...controls,
     source,
     receipts,
     r2,
@@ -160,5 +161,5 @@ export function photoStorageFixture(mode = "r2") {
     }),
     warn: (message) => state.warnings.push(message),
   });
-  return { store, state, path, content, thumbnail, metadata, load };
+  return { store, state, path, content, thumbnail, metadata, load, source };
 }

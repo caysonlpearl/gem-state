@@ -11,6 +11,7 @@ import {
   photoBucket,
   photoContentType,
   photoMode,
+  photoSourceFallbackPolicy,
   type PhotoBucket,
   type PhotoReceipt,
 } from "./photo-storage";
@@ -19,6 +20,10 @@ import { serverEnv } from "./runtime-env.server";
 
 export function currentPhotoMode() {
   return photoMode(serverEnv("BLUEBIRD_PHOTO_STORAGE_MODE"));
+}
+
+export function currentPhotoSourceFallbackPolicy() {
+  return photoSourceFallbackPolicy(serverEnv("BLUEBIRD_PHOTO_SOURCE_FALLBACK_UNTIL"));
 }
 
 /** Keep new source copies during read validation unless R2-only writes are explicitly enabled. */
@@ -217,6 +222,7 @@ let singleton: { key: string; store: ReturnType<typeof createPhotoStorage> } | n
 export async function getPhotoStorage(forceR2 = false) {
   const mode = currentPhotoMode();
   const uploadMode = currentPhotoUploadMode();
+  const sourceFallback = currentPhotoSourceFallbackPolicy();
   const withR2 = forceR2 || mode !== "supabase" || uploadMode !== "supabase";
   const names = [
     "BLUEBIRD_R2_ACCOUNT_ID",
@@ -226,13 +232,14 @@ export async function getPhotoStorage(forceR2 = false) {
     "BLUEBIRD_R2_EVIDENCE_BUCKET",
   ];
   const env = Object.fromEntries(names.map((name) => [name, serverEnv(name)]));
-  const key = `${mode}:${uploadMode}:${withR2}:${photoSha256(JSON.stringify(env))}`;
+  const key = `${mode}:${uploadMode}:${sourceFallback.expiresAt}:${withR2}:${photoSha256(JSON.stringify(env))}`;
   if (singleton?.key === key) return singleton.store;
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const db = supabaseAdmin as unknown as SupabaseClient;
   const store = createPhotoStorage({
     mode,
     uploadMode,
+    sourceFallbackExpiresAt: sourceFallback.expiresAt,
     source: createSupabasePhotoSource(db),
     receipts: createSupabasePhotoReceipts(db),
     ...(withR2 ? { r2: createR2PhotoStore(readR2PhotoConfig(env)) } : {}),

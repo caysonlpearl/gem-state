@@ -79,7 +79,8 @@ export const checkPrivatePhotoStorage = createServerFn({ method: "POST" })
       _role: "admin",
     });
     if (roleError || !isAdmin) throw new Error("Administrator access required.");
-    const { currentPhotoMode, currentPhotoUploadMode } = await getPhotoStorageModule();
+    const { currentPhotoMode, currentPhotoUploadMode, currentPhotoSourceFallbackPolicy } =
+      await getPhotoStorageModule();
     const { db, r2 } = await storageRuntime();
     const [listing, evidence, receipts] = await Promise.all([
       r2.available("listing-media").catch(() => false),
@@ -105,6 +106,7 @@ export const checkPrivatePhotoStorage = createServerFn({ method: "POST" })
     }
     return {
       mode: currentPhotoMode(),
+      sourceFallback: currentPhotoSourceFallbackPolicy(),
       uploadMode: currentPhotoUploadMode(),
       listing,
       evidence,

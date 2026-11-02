@@ -6,6 +6,26 @@ export const MAX_THUMBNAIL_BYTES = 512 * 1024;
 export const PHOTO_THUMBNAIL_WIDTH = 640;
 export const PHOTO_THUMBNAIL_MAX_HEIGHT = 2560;
 
+/** Empty keeps the existing fallback; malformed explicit cutoffs disable it. */
+export function photoSourceFallbackPolicy(raw: string, now = Date.now()) {
+  const text = raw.trim();
+  if (!text) return { state: "unrestricted" as const, expiresAt: null };
+  const match = text.match(
+    /^(\d{4})-(\d{2})-(\d{2})T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/,
+  );
+  const time = Date.parse(text);
+  if (
+    !match ||
+    !Number.isFinite(time) ||
+    Number(match[2]) < 1 ||
+    Number(match[2]) > 12 ||
+    Number(match[3]) < 1 ||
+    Number(match[3]) > new Date(Date.UTC(Number(match[1]), Number(match[2]), 0)).getUTCDate()
+  )
+    return { state: "invalid" as const, expiresAt: 0 };
+  return { state: time > now ? ("until" as const) : ("expired" as const), expiresAt: time };
+}
+
 export function photoThumbnailDimensions(width: number, height: number) {
   const ratio = Math.min(1, PHOTO_THUMBNAIL_WIDTH / width, PHOTO_THUMBNAIL_MAX_HEIGHT / height);
   return {

@@ -33,7 +33,18 @@ export function PhotoStorageStatus() {
           aria-label="Photo storage checks"
         >
           <dt>Photo reads</dt>
-          <dd>{result.mode === "r2" ? "R2 with retained-source fallback" : "Supabase"}</dd>
+          <dd>{result.mode === "r2" ? "R2" : "Supabase"}</dd>
+          <dt>Retained-source fallback</dt>
+          <dd>
+            {result.sourceFallback.state === "unrestricted"
+              ? "Available; no cutoff set"
+              : result.sourceFallback.state === "until"
+                ? `Links expire by ${new Date(result.sourceFallback.expiresAt!).toISOString()}`
+                : result.sourceFallback.state === "invalid"
+                  ? "Disabled; check cutoff setting"
+                  : "Disabled; cutoff reached"}
+            {result.mode !== "r2" && " (applies to R2 reads)"}
+          </dd>
           <dt>New uploads</dt>
           <dd>
             {result.uploadMode === "r2"
