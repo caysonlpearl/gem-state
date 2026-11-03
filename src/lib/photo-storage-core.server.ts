@@ -150,21 +150,27 @@ export function createPhotoStorage(deps: {
         available(bucket),
       ]);
       if (healthy) {
+        // Start each short HEAD deadline only when a connection can run it.
+        // Hundreds of simultaneous checks otherwise time out in the queue.
+        let next = 0;
         await Promise.all(
-          records.map(async (record) => {
-            if (record.bucket !== bucket || !unique.includes(record.path) || !record.verifiedAt)
-              return;
-            const key = thumbnail ? record.thumbnailKey : record.key;
-            const bytes = thumbnail ? record.thumbnailBytes : record.bytes;
-            const sha256 = thumbnail ? record.thumbnailSha256 : record.sha256;
-            if (!key || !bytes || !sha256) return;
-            // Bucket health alone cannot detect a missing or altered individual photo.
-            // HEAD checks metadata only; full bytes were verified before the receipt.
-            if (!(await objectAvailable(bucket, key, bytes, sha256))) return;
-            try {
-              urls.set(record.path, await r2().sign(bucket, key, seconds));
-            } catch {
-              // Fall back per object, preserving other successfully signed photos.
+          Array.from({ length: Math.min(6, records.length) }, async () => {
+            while (next < records.length) {
+              const record = records[next++];
+              if (record.bucket !== bucket || !unique.includes(record.path) || !record.verifiedAt)
+                continue;
+              const key = thumbnail ? record.thumbnailKey : record.key;
+              const bytes = thumbnail ? record.thumbnailBytes : record.bytes;
+              const sha256 = thumbnail ? record.thumbnailSha256 : record.sha256;
+              if (!key || !bytes || !sha256) continue;
+              // Bucket health alone cannot detect a missing or altered individual photo.
+              // HEAD checks metadata only; full bytes were verified before the receipt.
+              if (!(await objectAvailable(bucket, key, bytes, sha256))) continue;
+              try {
+                urls.set(record.path, await r2().sign(bucket, key, seconds));
+              } catch {
+                // Fall back per object, preserving other successfully signed photos.
+              }
             }
           }),
         );
