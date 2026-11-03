@@ -1,6 +1,7 @@
 import { brand } from "@/config/brand";
 import type { ClassifiedCard, ClassifiedDetail } from "@/lib/classifieds.functions";
 import { listingPath } from "@/lib/listing-url";
+import { listingPhotoUrl } from "@/lib/listing-photo-url";
 import {
   canonicalMake,
   canonicalModel,
@@ -57,11 +58,12 @@ function itemCondition(condition: string) {
   return "https://schema.org/UsedCondition";
 }
 
-/** Stable photo URLs (see routes/media.listings.$listingId.$photo.ts). */
+/** Use the same public photo source as the page's social preview. */
 function photoUrls(listing: ClassifiedDetail) {
-  return listing.images
-    .slice(0, 5)
-    .map((_, index) => absolute(`/media/listings/${listing.id}/${index}`));
+  return listing.images.slice(0, 5).flatMap((_, index) => {
+    const url = listingPhotoUrl(listing, index);
+    return url ? [url.startsWith("/") ? absolute(url) : url] : [];
+  });
 }
 
 function seller(listing: ClassifiedDetail) {

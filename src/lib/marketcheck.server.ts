@@ -621,7 +621,10 @@ export async function marketCheckCards(
     .map(marketCheckCard);
 }
 
-export async function marketCheckDetail(listingId: string): Promise<ClassifiedDetail | null> {
+export async function marketCheckDetail(
+  listingId: string,
+  options?: { cacheOnly?: boolean },
+): Promise<ClassifiedDetail | null> {
   const canonicalId = canonicalMarketCheckId(listingId);
   const parsed = canonicalId ? parseMarketCheckId(canonicalId) : null;
   if (!parsed || !configured()) return null;
@@ -633,7 +636,7 @@ export async function marketCheckDetail(listingId: string): Promise<ClassifiedDe
   });
   // Crawlers see the listing from the cached inventory; only people's visits
   // spend a call on the full details (description).
-  const fromBot = BOT.test(getRequest()?.headers.get("user-agent") ?? "");
+  const fromBot = options?.cacheOnly || BOT.test(getRequest()?.headers.get("user-agent") ?? "");
   const result = fromBot
     ? await cachedOnly<MarketCheckListing | null>(key)
     : await cachedCall(

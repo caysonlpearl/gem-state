@@ -8,6 +8,7 @@ import { createClient } from "@supabase/supabase-js";
 import { withCatalogReadDeadline } from "../src/lib/catalog-read-deadline.ts";
 import { shortCache } from "../src/lib/short-cache.server.ts";
 import { homesFromSavedSearches } from "../src/lib/openwebninja-cache.ts";
+import { listingPhotoUrl } from "../src/lib/listing-photo-url.ts";
 
 function compile(file, name, globals = {}) {
   const source = ts.createSourceFile(
@@ -115,6 +116,7 @@ function routeFixture(result, { failure } = {}) {
     notFound: (options) => ({ kind: "notFound", ...options }),
     redirect: (options) => ({ kind: "redirect", ...options }),
     listingParam: () => "canonical-native-id",
+    listingPhotoUrl,
     isIndexablePartnerDetail: () => true,
     listingStructuredData: () => [],
     formatJobPay: () => "Pay",

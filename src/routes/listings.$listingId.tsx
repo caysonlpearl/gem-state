@@ -62,6 +62,7 @@ import { ListingActions } from "@/components/classifieds/ListingActions";
 import { MobileContactBar } from "@/components/classifieds/MobileContactBar";
 import { OPEN_CONTACT_EVENT } from "@/components/classifieds/ContactSignInSheet";
 import { listingIdFromParam, listingParam, listingPath } from "@/lib/listing-url";
+import { listingPhotoUrl } from "@/lib/listing-photo-url";
 import { canonicalMarketCheckId } from "@/lib/marketcheck-contract";
 import { trackEvent, trackSellerContact } from "@/lib/analytics";
 import { PUBLIC_PAGE_STALE_MS } from "@/lib/query-freshness";
@@ -237,11 +238,7 @@ export const Route = createFileRoute("/listings/$listingId")({
       city: listing.city,
       state: listing.state,
       ended: listing.ended?.reason ?? null,
-      shareImage: listing.externalMerchandise
-        ? listing.images[0]?.url
-        : listing.images.length
-          ? `/media/listings/${listing.id}/0`
-          : undefined,
+      shareImage: listingPhotoUrl(listing),
       leadImage: listing.images[0]?.url,
       // Rich, recently verified directory facts may be useful search results.
       // Truncated jobs and affiliate copies remain followed/noindex.
