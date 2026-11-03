@@ -140,6 +140,73 @@ function targetMatches(check, receipt, captured, now, notBefore) {
   }
 }
 
+/** Exact copy identity, excluding observation timestamps and live-check flags. */
+export function photoRemovalScopeCandidate(row) {
+  const source = metadata(row.source);
+  if (
+    !UUID.test(row.migration?.runId ?? "") ||
+    !Number.isSafeInteger(row.migration.ordinal) ||
+    row.migration.ordinal < 0 ||
+    row.migration.ordinal >= 20000 ||
+    !Array.isArray(row.references)
+  )
+    fail("invalid removal candidate");
+  const copy = (value, prefix, max) => {
+    if (
+      !value ||
+      !SHA.test(value.sha256 ?? "") ||
+      !new RegExp(`^${prefix}/v1/[a-f0-9]{64}/${value.sha256}$`).test(value.key ?? "") ||
+      !Number.isSafeInteger(value.bytes) ||
+      value.bytes < 1 ||
+      value.bytes > max ||
+      !/^image\/[a-z0-9.+-]+$/.test(imageType(value.contentType))
+    )
+      fail("invalid removal copy");
+    return {
+      key: value.key,
+      bytes: value.bytes,
+      sha256: value.sha256,
+      contentType: imageType(value.contentType),
+    };
+  };
+  const original = copy(row.receipt, "original", 52428800);
+  if (original.bytes !== source.bytes || original.contentType !== source.contentType)
+    fail("removal copy does not match source");
+  const thumbnail = row.receipt.thumbnail ? copy(row.receipt.thumbnail, "thumbnail", 524288) : null;
+  if (source.bucket === "listing-media" && !thumbnail) fail("listing preview is missing");
+  const seen = new Set();
+  const references = row.references
+    .map(({ kind, count }) => {
+      if (
+        !CLEANUP_REFERENCE_RELATIONS.includes(kind) ||
+        !Number.isSafeInteger(count) ||
+        count < 1 ||
+        seen.has(kind)
+      )
+        fail("invalid removal references");
+      seen.add(kind);
+      return { kind, count };
+    })
+    .sort((a, b) => a.kind.localeCompare(b.kind, "en") || a.count - b.count);
+  return {
+    source,
+    migration: { runId: row.migration.runId, ordinal: row.migration.ordinal },
+    receipt: { ...original, thumbnail },
+    references,
+  };
+}
+
+export function photoRemovalScopeFingerprint(candidates, options) {
+  return digest({
+    kind: "photo-source-removal-scope",
+    schemaVersion: 1,
+    projectRef: options.projectRef,
+    runIds: [...options.runIds].sort(),
+    notBefore: new Date(instant(options.notBefore).millis).toISOString(),
+    candidates: candidates.map(photoRemovalScopeCandidate),
+  });
+}
+
 /** Local metadata review only. No network, credential, storage-write or deletion operation. */
 export function buildPhotoSourceCleanupReview(snapshot, options, now = new Date()) {
   const nowMs = now.getTime();
@@ -276,34 +343,7 @@ export function buildPhotoSourceCleanupReview(snapshot, options, now = new Date(
   const uniqueGates = [...new Set(gates)];
   // Approval identifies copies, not the time a later observation was made.
   // Keep the full manifest hash below as a separate, time-bound audit digest.
-  const removalScopeSha256 = digest({
-    kind: "photo-source-removal-scope",
-    schemaVersion: 1,
-    projectRef: options.projectRef,
-    runIds: [...options.runIds].sort(),
-    notBefore: new Date(cutoff).toISOString(),
-    candidates: candidates.map((row) => ({
-      source: row.source,
-      migration: row.migration,
-      receipt: {
-        key: row.receipt.key,
-        bytes: row.receipt.bytes,
-        sha256: row.receipt.sha256,
-        contentType: imageType(row.receipt.contentType),
-        thumbnail: row.receipt.thumbnail
-          ? {
-              key: row.receipt.thumbnail.key,
-              bytes: row.receipt.thumbnail.bytes,
-              sha256: row.receipt.thumbnail.sha256,
-              contentType: imageType(row.receipt.thumbnail.contentType),
-            }
-          : null,
-      },
-      references: row.references
-        .map(({ kind, count }) => ({ kind, count }))
-        .sort((a, b) => a.kind.localeCompare(b.kind, "en") || a.count - b.count),
-    })),
-  });
+  const removalScopeSha256 = photoRemovalScopeFingerprint(candidates, options);
   return {
     schemaVersion: 1,
     kind: "photo-source-cleanup-review-only",

@@ -141,6 +141,74 @@ supplied. No source photo bodies were downloaded and no objects were deleted.
 Private evidence: `r2-cleanup-snapshot-20261103.json` and
 `r2-cleanup-preliminary-review-20261103.json`.
 
+## Bounded retained-source removal
+
+`photo_source_cleanup_targets(jsonb)` supplies a fresh, single-statement snapshot
+for at most eight exact bucket/path pairs. It includes the same source versions,
+approved migration entries, receipts, references and unfinished-operation checks
+as the full snapshot, and reports retained receipts/references even when a source
+is already absent. It is STABLE, uses an empty search path and grants execution
+only to `service_role`. Anonymous and ordinary authenticated database callers
+cannot run it. `scripts/sql/photo-source-cleanup-helper-status.sql` verifies the
+installed definition/ACL. Install only in the verified GemList project
+`udxxfuticbxwiehoepeg`; do not rely on this checkout's legacy CLI project setting.
+The existing CLI token did not have access to this backend during preparation.
+No credential was extracted or permission widened to work around that result.
+
+Prepare an exact packet locally after the full review:
+
+```sh
+node scripts/storage-source-removal-plan.mjs \
+  --review /private/path/fresh-review.json \
+  --project udxxfuticbxwiehoepeg \
+  --runs dd2be1fa-2c6d-4fad-b861-f25b3907b1f5,20a1e9c0-5bef-43c7-a172-64bf8c62cddc \
+  --output /private/path/new-removal-plan.json
+```
+
+The CLI writes a new private file and never performs removal. `--preview` permits
+pre-retention preparation, but marks the packet non-executable. Every entry has
+an index-bound membership proof, and the packet root binds project, cutoff,
+migration scope, exact source/target identities, reference counts and totals.
+Reordered, substituted or expanded entries cannot match an approved packet.
+The existing full review, source versions and all freshness gates still apply.
+
+The private storage-only admin page offers **Remove old Supabase photo copies**.
+Choose the packet and use **Check sample batch only** for a read-only check of up
+to eight copies spanning both stores when available. The server verifies administrator role and deployment project;
+R2 keys come from current database receipts. It rechecks the current source,
+reference and operation snapshot after the R2 HEADs, immediately before each
+bucket’s Storage API removal, including after another bucket has finished. Only the exact Supabase Storage API paths in the approved packet can
+be removed. There is no recursive removal, R2 deletion, media-row deletion,
+provider refresh, source-body download or automatic retry.
+
+Removal is disabled unless `BLUEBIRD_PHOTO_SOURCE_REMOVAL_PERMIT` contains an
+explicit `photo-source-removal-permit` for this exact packet and administrator.
+After the owner reviews the fresh exact scope and gives the browser-required
+action-time confirmation, the permit must bind `actorId`, `projectRef`, sorted
+`runIds`, `notBefore`, `rootSha256`, `removalScopeSha256`, `totalObjects`,
+`totalBytes`, `reviewCapturedAt`, `reviewGeneratedAt`, `issuedAt` and `expiresAt`.
+The reviewed source snapshot must postdate retention and be no more than
+15 minutes old when the permit is issued. The permit can last at most two hours.
+Preview packets, wrong actors/projects/roots, premature or expired permits,
+source-mode rollback and enabled copying cannot enable removal. Do not install
+a permit during preparation. General cleanup authorization is already recorded;
+the remaining confirmation concerns the concrete permanent action, not the
+whole migration again.
+
+Revalidation and Storage API removal are separate operations, not an atomic
+version-conditional delete. Keep source writers stopped and use one operator/run.
+**Remove approved Supabase copies** runs sequential batches
+of at most eight entries. Fresh source and R2 checks apply to every batch, even
+when a long operation outlasts the original observation window. After each
+Storage API response, the server verifies source absence, preserved receipts
+and references, and surviving R2 originals/previews. Already-absent exact copies
+are reconciled without another removal call. Unacknowledged operations or failed
+post-checks remain uncertain, stop further batches and preserve partial results;
+they are never silently retried or counted as confirmed removals. Download the
+journal and reconcile actual state before resuming. A browser observation timeout
+is not proof that the operation failed. Keep a fresh final source/reference/R2
+reconciliation and disable the short permit when finished.
+
 ### Live read-only rehearsal — November 3, 2026
 
 PR103 merged as `af26ee743ea21fdad7a323bb8420da955393e665` after CI passed,
