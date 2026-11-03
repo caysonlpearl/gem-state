@@ -107,6 +107,7 @@ export type PhotoRemovalPlan = z.infer<typeof removalPlanSchema>;
 export type PhotoRemovalInput = z.infer<typeof removalInputSchema>;
 export type PhotoRemovalResult = {
   operatorId?: string;
+  permitConfigured?: boolean;
   status: string;
   gates: string[];
   removalEnabled: boolean;

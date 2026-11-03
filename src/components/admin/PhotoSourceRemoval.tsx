@@ -218,6 +218,11 @@ export function PhotoSourceRemoval() {
             ).length
           }{" "}
           copies checked · Removal {check.removalEnabled ? "enabled for this packet" : "disabled"}
+          {!check.removalEnabled && check.permitConfigured !== undefined
+            ? check.permitConfigured
+              ? " · The saved permit does not match this packet or its time window"
+              : " · No removal permit is configured in this published app"
+            : ""}
           {check.gates.length
             ? ` · ${check.gates.map((gate) => gateLabels[gate] ?? "Review the latest check before continuing").join("; ")}`
             : ""}
