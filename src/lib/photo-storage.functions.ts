@@ -252,5 +252,5 @@ export const processPhotoSourceCleanup = createServerFn({ method: "POST" })
           throw new Error("Source removal was not acknowledged; reconcile before resuming.");
       },
     });
-    return { ...result, operatorId: context.userId };
+    return { ...result, operatorId: context.userId, permitConfigured: permit.trim().length > 0 };
   });

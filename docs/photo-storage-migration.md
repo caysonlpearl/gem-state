@@ -6,8 +6,18 @@ and new uploads use the private R2 stores. The copy permit is disabled. The
 owner approved this serving/upload cutover after the copy; permanent deletion
 remains a separate action and has not occurred. Supabase stays Free.
 
-The retained-source fallback cutoff is **November 4, 2026, 03:56 UTC**, or
-**November 3 at 8:56 PM Boise time**. Keep source originals through that time.
+The owner subsequently directed immediate cleanup after the risk to previously
+issued Supabase links was explained. The earlier fallback cutoff was replaced
+with **November 3, 2026, 16:27:22.314 UTC** (9:27 AM Boise). The live app reports
+fallback disabled, with reads and uploads still using R2. A fresh full inventory
+and header verification matched all 12,760 originals and 6,380 listing previews;
+the six sources outside the approved migration remain excluded. No source
+removal is claimed by this preparation update. Private evidence is recorded in
+`r2-owner-directed-early-cleanup-current.json` and
+`r2-cleanup-final-review-early-20261103.json`.
+
+The original compatibility deadline was November 4 at 03:56 UTC, or November 3
+at 8:56 PM Boise; the owner's immediate-cleanup instruction superseded that wait.
 Fallback signatures are clipped to the cutoff; verified R2 reads continue
 normally. A rollback to source reads or renewal of source signing requires a
 new retention review. Do not restart either completed copy run.
