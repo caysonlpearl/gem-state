@@ -17,16 +17,31 @@ Evidence is in the private operational directory
 reconciliation records 12,760 unchanged approved source objects and matching
 receipts, with zero completed-source or receipt mismatches. The subsequent
 rollout tests added six mirrored QA source objects; the final R2-only upload
-added no Supabase duplicates. Current retained sources total 12,766 objects.
-None have been deleted. The receipt count is 12,768 because the final R2-only
-pair has no source counterpart. These counts are dated observations, not a
-deletion manifest.
+added no Supabase duplicates. That checkpoint recorded 12,766 retained source
+objects and 12,768 receipts because the final R2-only pair had no source
+counterpart. No sources were deleted. Later R2-only QA can add receipts without
+adding Supabase objects. These counts are dated observations, not a deletion
+manifest.
 
 Live checks cover native small/large uploads, ordinary server-import staging,
 private cancellation/discard, original galleries and 400 R2-backed native
-homepage cards. Seller-claim acceptance and the automatic large server-import
-handoff have not been exercised end to end in production. Do not describe
-narrower tests as proof of those flows or accept seller terms merely to test.
+homepage cards. The automatic large server-import handoff also passed through
+the normal administrator form on November 2, Boise time. A displayed public
+source photo measured 3024 by 4032 pixels (12.2 MP); both private R2 originals
+matched its 1,747,398 bytes and SHA-256, and the listing receipt included a
+101,177-byte JPEG preview. No Supabase copy, managed seller account or public
+listing was created. The private test draft was subsequently discarded.
+The earlier signed-source attempt failed and staged nothing; it does not
+invalidate the later successful displayed-photo test. Evidence is recorded in
+`r2-displayed-large-photo-source.json`, `r2-automatic-large-import-live.json`
+and `r2-automatic-large-import-cleaned.json` in the operational directory.
+
+Seller-claim acceptance remains unverified. A separate synthetic draft is
+prepared for its existing verified owner with the claim restricted to that
+same account. Its current production function includes unpublished staged
+photos, so no public fixture is needed. The agreement checkbox remains
+unchecked pending the owner's action-time approval. Do not describe a ready
+claim preview as a completed transfer or accept seller terms merely to test.
 
 After the retention cutoff, capture fresh source metadata, reconcile receipts
 and current references, exclude new, changed, unverified or incomplete uploads,
