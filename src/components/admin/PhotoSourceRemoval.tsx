@@ -14,6 +14,7 @@ import {
 export function PhotoSourceRemoval() {
   const process = useServerFn(processPhotoSourceCleanup);
   const [plan, setPlan] = useState<PhotoRemovalPlan | null>(null);
+  const [startIndex, setStartIndex] = useState(0);
   const [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const [check, setCheck] = useState<PhotoRemovalResult | null>(null);
@@ -23,6 +24,12 @@ export function PhotoSourceRemoval() {
   > | null>(null);
   const stop = useRef(false),
     generation = useRef(0);
+  const validStart =
+    !!plan &&
+    Number.isInteger(startIndex) &&
+    startIndex >= 0 &&
+    startIndex < plan.entries.length &&
+    startIndex % 8 === 0;
   useEffect(
     () => () => {
       stop.current = true;
@@ -33,6 +40,7 @@ export function PhotoSourceRemoval() {
   async function choose(file: File | undefined) {
     const current = ++generation.current;
     setPlan(null);
+    setStartIndex(0);
     setCheck(null);
     setJournal(null);
     setError("");
@@ -48,14 +56,20 @@ export function PhotoSourceRemoval() {
     }
   }
   async function inspect() {
-    if (!plan || busy) return;
+    if (!plan || busy || !validStart) return;
     setBusy(true);
     setError("");
     setCheck(null);
     try {
       setCheck(
         await process({
-          data: { header: plan.header, entries: photoRemovalSampleEntries(plan), mode: "check" },
+          data: {
+            header: plan.header,
+            entries: startIndex
+              ? plan.entries.slice(startIndex, startIndex + 8)
+              : photoRemovalSampleEntries(plan),
+            mode: "check",
+          },
           signal: AbortSignal.timeout(30000),
         }),
       );
@@ -66,7 +80,14 @@ export function PhotoSourceRemoval() {
     }
   }
   async function remove() {
-    if (!plan || busy || !check?.removalEnabled || !plan.header.reviewReady || check.gates.length)
+    if (
+      !plan ||
+      busy ||
+      !validStart ||
+      !check?.removalEnabled ||
+      !plan.header.reviewReady ||
+      check.gates.length
+    )
       return;
     setBusy(true);
     setError("");
@@ -76,6 +97,7 @@ export function PhotoSourceRemoval() {
     try {
       const result = await runApprovedSourceRemoval({
         plan,
+        startIndex,
         shouldStop: () => stop.current,
         progress: setProgress,
         step: (data) => process({ data, signal: AbortSignal.timeout(30000) }),
@@ -174,20 +196,46 @@ export function PhotoSourceRemoval() {
           </details>
         </div>
       )}
+      {plan && (
+        <label className="mt-3 block text-[12px]">
+          Start at packet index
+          <input
+            className="ml-2 w-24 rounded border border-border bg-background px-2 py-1"
+            type="number"
+            min={0}
+            max={plan.entries.length - 1}
+            step={8}
+            value={startIndex}
+            disabled={busy}
+            onChange={(event) => {
+              setStartIndex(Number(event.target.value));
+              setCheck(null);
+            }}
+          />
+          <span className="mt-1 block text-muted-foreground">
+            Resume only after reconciling the stopped batch. Completed earlier batches are skipped;
+            the exact packet and all server checks still apply.
+          </span>
+        </label>
+      )}
       <div className="mt-3 flex flex-wrap gap-2">
         <button
           type="button"
           className={button}
-          disabled={!plan || busy}
+          disabled={!validStart || busy}
           onClick={() => void inspect()}
         >
-          Check sample batch only
+          {startIndex ? "Check selected batch only" : "Check sample batch only"}
         </button>
         <button
           type="button"
           className={button}
           disabled={
-            !plan?.header.reviewReady || busy || !check?.removalEnabled || !!check.gates.length
+            !validStart ||
+            !plan?.header.reviewReady ||
+            busy ||
+            !check?.removalEnabled ||
+            !!check.gates.length
           }
           onClick={() => void remove()}
         >
@@ -230,6 +278,7 @@ export function PhotoSourceRemoval() {
       )}
       {(busy || progress.reviewed > 0) && (
         <p role="status" className="mt-3 text-[12px]">
+          {startIndex ? `Starting at index ${startIndex} · ` : ""}
           {progress.reviewed.toLocaleString()} reviewed · {progress.removed.toLocaleString()}{" "}
           confirmed removed · {progress.alreadyAbsent.toLocaleString()} already absent
         </p>
@@ -237,6 +286,9 @@ export function PhotoSourceRemoval() {
       {error && (
         <p role="alert" className="mt-3 text-[12px] text-destructive">
           {error}
+          {journal?.gates.length
+            ? ` Stop reason: ${journal.gates.map((gate) => gateLabels[gate] ?? gate).join("; ")}.`
+            : ""}
         </p>
       )}
     </details>

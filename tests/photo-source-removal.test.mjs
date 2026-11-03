@@ -318,6 +318,58 @@ test("browser removal is bounded, derives actual counts, stops on uncertainty an
   assert.equal(result.unconfirmed.length, 8);
   assert.deepEqual(progress.at(-1), { removed: 8, alreadyAbsent: 0, reviewed: 8 });
 });
+test("manual resume retains exact membership proofs and records the server's stopping gates", async () => {
+  const value = fixture(19);
+  const sent = [];
+  const result = await runApprovedSourceRemoval({
+    plan: value.plan,
+    startIndex: 8,
+    shouldStop: () => false,
+    progress: () => {},
+    step: async (data) => {
+      sent.push(data.entries.map((entry) => entry.index));
+      assert.ok(data.entries.every((entry) => verifyPhotoRemovalProof(data.header, entry)));
+      const stopped = sent.length === 2;
+      return {
+        status: stopped ? "blocked" : "complete",
+        gates: stopped ? ["fresh-snapshot-required"] : [],
+        results: data.entries.map((entry) => ({
+          index: entry.index,
+          status: stopped ? "not-attempted" : "removed",
+          reason: null,
+        })),
+      };
+    },
+  });
+  assert.deepEqual(sent, [
+    [8, 9, 10, 11, 12, 13, 14, 15],
+    [16, 17, 18],
+  ]);
+  assert.equal(result.startIndex, 8);
+  assert.equal(result.removed, 8);
+  assert.equal(result.status, "blocked");
+  assert.deepEqual(result.gates, ["fresh-snapshot-required"]);
+  assert.deepEqual(result.unconfirmed, []);
+});
+test("invalid resume boundaries never issue a storage step", async () => {
+  const value = fixture(19);
+  let calls = 0;
+  for (const startIndex of [-1, 1, 19, 24, NaN])
+    await assert.rejects(
+      runApprovedSourceRemoval({
+        plan: value.plan,
+        startIndex,
+        shouldStop: () => false,
+        progress: () => {},
+        step: async () => {
+          calls++;
+          throw Error("must not run");
+        },
+      }),
+      /valid batch boundary/,
+    );
+  assert.equal(calls, 0);
+});
 test("the offline packet CLI produces a private preview and never overwrites existing evidence", async () => {
   const dir = await mkdtemp(join(tmpdir(), "photo-removal-packet-"));
   try {
