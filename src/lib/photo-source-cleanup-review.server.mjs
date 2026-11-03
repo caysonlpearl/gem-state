@@ -19,6 +19,7 @@ const fail = (message) => {
 };
 const digest = (value) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 const keyOf = (value) => `${value.bucket}/${value.path}`;
+export { identity as normalizeCleanupTarget };
 const imageType = (value) =>
   typeof value === "string" ? value.toLowerCase().replace(/^image\/jpg$/, "image/jpeg") : "";
 const etag = (value) => (typeof value === "string" ? value.trim().replace(/^"|"$/g, "") : "");

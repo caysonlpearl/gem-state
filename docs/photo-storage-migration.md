@@ -102,6 +102,25 @@ The tool always returns `deletionAuthorized: false`, including when every
 review gate passes. Recheck each candidate immediately before a separately
 approved Storage API removal; skip anything that changed.
 
+The administrator's storage-only page, `/admin/fb-import?storage=check`, has
+**Read-only cleanup verification** for collecting those server observations.
+Choose the private snapshot JSON, then select **Verify R2 copies**. The file
+is parsed locally; each server request receives only up to 16 bucket/path
+pairs. The authenticated administrator handler binds the source project,
+reads current receipts and compares original/preview R2 HEAD responses using
+eight concurrent workers. It returns no signed URLs or credentials and sets
+`Cache-Control: private, no-store`. There are no source-body GETs, uploads,
+copies, deletions or marketplace provider calls. Sixteen rows keep each
+request below the worker's subrequest limit, including auth and database reads.
+
+**Stop after this batch** lets the current read-only batch settle before
+stopping. A mismatch, missing receipt or transport failure stops further
+batches and retains completed checks. **Download checked snapshot** preserves
+the original snapshot plus actual checks/runtime controls for the local CLI;
+partial output cannot turn unchecked copies into verified ones. A new run
+starts fresh. Preparation before retention still cannot produce a final
+review-ready manifest: capture and check fresh evidence after the cutoff.
+
 The first preliminary live snapshot at 07:09 UTC November 3 contained 12,766
 source objects. The tool identified 12,760 metadata candidates totaling
 2,618,335,540 bytes and excluded six newer QA source objects outside the

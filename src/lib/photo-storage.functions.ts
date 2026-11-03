@@ -6,6 +6,7 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { MAX_PHOTO_BYTES, MAX_THUMBNAIL_BYTES } from "./photo-storage";
 import { photoReceiptCheck } from "./photo-storage-status";
+import { cleanupProbeInputSchema } from "./photo-source-cleanup";
 
 const imageType = z
   .string()
@@ -114,5 +115,76 @@ export const checkPrivatePhotoStorage = createServerFn({ method: "POST" })
       evidence,
       thumbnails,
       ...receipts,
+    };
+  });
+
+export const checkPhotoCleanupTargets = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: z.input<typeof cleanupProbeInputSchema>) =>
+    cleanupProbeInputSchema.parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { data: isAdmin, error } = await context.supabase.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "admin",
+    });
+    if (error || isAdmin !== true) throw new Error("Administrator access required.");
+    const { setResponseHeader } = await import("@tanstack/react-start/server");
+    setResponseHeader("Cache-Control", "private, no-store");
+    const { serverEnv } = await import("./runtime-env.server");
+    const projectUrl = new URL(serverEnv("GEM_STATE_SUPABASE_URL") || serverEnv("SUPABASE_URL"));
+    const projectRef = projectUrl.hostname.match(/^([a-z0-9]{20})\.supabase\.co$/)?.[1] ?? "";
+    if (projectUrl.protocol !== "https:" || !projectRef || projectRef !== data.projectRef)
+      throw new Error("Photo project does not match.");
+    const { probePhotoSourceCleanupTargets, cleanupCopyPermitDisabled } =
+      await import("./photo-source-cleanup-probe.server.mjs");
+    const { currentPhotoMode, currentPhotoUploadMode, currentPhotoSourceFallbackPolicy } =
+      await getPhotoStorageModule();
+    const { db, r2 } = await storageRuntime();
+    const result = await probePhotoSourceCleanupTargets(data, {
+      projectRef,
+      receipts: async (targets) => {
+        const { data: rows, error: readError } = await db
+          .from("photo_object_receipts")
+          .select("*")
+          .in("path", [...new Set(targets.map((target) => target.path))])
+          .abortSignal(AbortSignal.timeout(5000))
+          .retry(false);
+        if (readError || !rows) throw new Error("Photo receipts are unavailable.");
+        const requested = new Set(targets.map((target) => `${target.bucket}/${target.path}`));
+        return rows
+          .filter((row) => requested.has(`${row["bucket"]}/${row["path"]}`))
+          .map((row) => ({
+            bucket: row["bucket"] as "listing-media" | "ask-evidence",
+            path: String(row["path"]),
+            key: String(row["r2_key"]),
+            bytes: Number(row["byte_size"]),
+            sha256: String(row["sha256"]),
+            thumbnail:
+              row["thumbnail_key"] == null
+                ? null
+                : {
+                    key: String(row["thumbnail_key"]),
+                    bytes: Number(row["thumbnail_bytes"]),
+                    sha256: String(row["thumbnail_sha256"]),
+                  },
+          }));
+      },
+      matches: (bucket, key, bytes, sha256) => r2.matches(bucket, key, bytes, sha256),
+    });
+    const fallback = currentPhotoSourceFallbackPolicy();
+    return {
+      ...result,
+      controls: {
+        checkedAt: new Date().toISOString(),
+        projectRef,
+        readMode: currentPhotoMode(),
+        uploadMode: currentPhotoUploadMode(),
+        copyPermitDisabled: cleanupCopyPermitDisabled(serverEnv("BLUEBIRD_PHOTO_MIGRATION_PERMIT")),
+        sourceFallbackUntil:
+          fallback.expiresAt && Number.isFinite(fallback.expiresAt)
+            ? new Date(fallback.expiresAt).toISOString()
+            : null,
+      },
     };
   });
