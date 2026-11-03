@@ -75,12 +75,28 @@ export function createSupabasePhotoReceipts(db: SupabaseClient): PhotoReceipts {
   return {
     async read(bucket, paths) {
       const rows: PhotoReceipt[] = [];
-      for (let start = 0; start < paths.length; start += 500) {
+      // PostgREST encodes `in` filters in the URL. A homepage's hundreds of
+      // UUID paths can exceed the proxy URL limit even below its row limit.
+      const batches: string[][] = [];
+      let batch: string[] = [];
+      let encodedLength = 0;
+      for (const path of new Set(paths)) {
+        const size = encodeURIComponent(JSON.stringify(path)).length + 3;
+        if (batch.length && (batch.length >= 50 || encodedLength + size > 6000)) {
+          batches.push(batch);
+          batch = [];
+          encodedLength = 0;
+        }
+        batch.push(path);
+        encodedLength += size;
+      }
+      if (batch.length) batches.push(batch);
+      for (const batch of batches) {
         const { data, error } = await db
           .from("photo_object_receipts")
           .select("*")
           .eq("bucket", bucket)
-          .in("path", paths.slice(start, start + 500))
+          .in("path", batch)
           .abortSignal(AbortSignal.timeout(3000))
           .retry(false);
         if (error) throw new Error("Photo verification records are unavailable.");
