@@ -61,9 +61,11 @@ export function PhotoStorageStatus() {
           <dd>{result.thumbnails ? "Ready" : "Needs configuration"}</dd>
           <dt>Verified photo records</dt>
           <dd>
-            {result.receiptsReady
+            {result.receiptsState === "ready"
               ? result.verifiedCopies.toLocaleString()
-              : "Migration not installed"}
+              : result.receiptsState === "missing"
+                ? "Verification table unavailable"
+                : "Unavailable; retry check"}
           </dd>
         </dl>
       )}
