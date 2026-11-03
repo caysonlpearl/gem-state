@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { MAX_PHOTO_BYTES, MAX_THUMBNAIL_BYTES } from "./photo-storage";
+import { photoReceiptCheck } from "./photo-storage-status";
 
 const imageType = z
   .string()
@@ -89,7 +90,8 @@ export const checkPrivatePhotoStorage = createServerFn({ method: "POST" })
         .from("photo_object_receipts")
         .select("path", { count: "exact", head: true })
         .abortSignal(AbortSignal.timeout(3000))
-        .retry(false),
+        .retry(false)
+        .then(photoReceiptCheck, () => photoReceiptCheck({ error: true })),
     ]);
     let thumbnails = false;
     try {
@@ -111,7 +113,6 @@ export const checkPrivatePhotoStorage = createServerFn({ method: "POST" })
       listing,
       evidence,
       thumbnails,
-      receiptsReady: !receipts.error,
-      verifiedCopies: receipts.count ?? 0,
+      ...receipts,
     };
   });
