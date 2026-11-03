@@ -36,12 +36,18 @@ invalidate the later successful displayed-photo test. Evidence is recorded in
 `r2-displayed-large-photo-source.json`, `r2-automatic-large-import-live.json`
 and `r2-automatic-large-import-cleaned.json` in the operational directory.
 
-Seller-claim acceptance remains unverified. A separate synthetic draft is
-prepared for its existing verified owner with the claim restricted to that
-same account. Its current production function includes unpublished staged
-photos, so no public fixture is needed. The agreement checkbox remains
-unchecked pending the owner's action-time approval. Do not describe a ready
-claim preview as a completed transfer or accept seller terms merely to test.
+The owner subsequently approved the exact private seller-claim test. One claim
+completed for the separate synthetic draft, restricted to its existing verified
+owner. The production function transferred both unpublished staged-photo paths
+into the owner namespace. Both receipts retain the original byte sizes,
+SHA-256 values, immutable R2 keys and listing-preview metadata; the claimed
+photo loaded in normal private review. The token was consumed and the single
+two-asset transfer completed. The draft was then discarded, with no public
+listing or new account. Both retained Supabase originals remain present and no
+new Supabase copies were created. This verifies the scoped existing-owner
+private claim, not every claimant or authentication scenario. Evidence:
+`r2-private-claim-completed-live.json`, `r2-private-claim-photo-comparison.json`,
+`r2-private-claim-cleaned-live.json` and `r2-private-claim-completed-ui.png`.
 
 After the retention cutoff, capture fresh source metadata, reconcile receipts
 and current references, exclude new, changed, unverified or incomplete uploads,
