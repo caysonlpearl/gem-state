@@ -3,6 +3,7 @@ import { getManagedImportSellers, keepBluebirdImportVersion } from "@/lib/seller
 import { PhotoStorageStatus } from "@/components/admin/PhotoStorageStatus";
 import { PhotoMigrationRunner } from "@/components/admin/PhotoMigrationRunner";
 import { PhotoSourceCleanupCheck } from "@/components/admin/PhotoSourceCleanupCheck";
+import { PhotoSourceRemoval } from "@/components/admin/PhotoSourceRemoval";
 import {
   ManagedSellerOperations,
   SellerClaimControls,
@@ -83,6 +84,7 @@ function ImportOrStoragePage() {
         <h1 className="text-[22px] font-semibold">Photo storage</h1>
         <PhotoStorageStatus />
         <PhotoSourceCleanupCheck />
+        <PhotoSourceRemoval />
         <PhotoMigrationRunner />
       </main>
     );

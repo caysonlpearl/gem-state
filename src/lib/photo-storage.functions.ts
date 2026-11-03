@@ -7,6 +7,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { MAX_PHOTO_BYTES, MAX_THUMBNAIL_BYTES } from "./photo-storage";
 import { photoReceiptCheck } from "./photo-storage-status";
 import { cleanupProbeInputSchema } from "./photo-source-cleanup";
+import { removalInputSchema } from "./photo-source-removal";
 
 const imageType = z
   .string()
@@ -187,4 +188,69 @@ export const checkPhotoCleanupTargets = createServerFn({ method: "POST" })
             : null,
       },
     };
+  });
+
+export const processPhotoSourceCleanup = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: z.input<typeof removalInputSchema>) => removalInputSchema.parse(input))
+  .handler(async ({ data, context }) => {
+    const { data: isAdmin, error } = await context.supabase.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "admin",
+    });
+    if (error || isAdmin !== true) throw new Error("Administrator access required.");
+    const { setResponseHeader } = await import("@tanstack/react-start/server");
+    setResponseHeader("Cache-Control", "private, no-store");
+    const { serverEnv } = await import("./runtime-env.server");
+    const projectUrl = new URL(serverEnv("GEM_STATE_SUPABASE_URL") || serverEnv("SUPABASE_URL"));
+    const projectRef = projectUrl.hostname.match(/^([a-z0-9]{20})\.supabase\.co$/)?.[1] ?? "";
+    if (projectUrl.protocol !== "https:" || !projectRef || projectRef !== data.header.projectRef)
+      throw new Error("Photo project does not match.");
+    const permit = serverEnv("BLUEBIRD_PHOTO_SOURCE_REMOVAL_PERMIT");
+    const { photoRemovalPermitAllowed } = await import("./photo-source-removal-plan.server.mjs");
+    // Keep disabled removal requests away from credentials and privileged reads.
+    if (data.mode === "remove" && !photoRemovalPermitAllowed(permit, data.header, context.userId))
+      throw new Error("Removal is not enabled for this exact review.");
+    const { currentPhotoMode, currentPhotoUploadMode, currentPhotoSourceFallbackPolicy } =
+      await getPhotoStorageModule();
+    const { cleanupCopyPermitDisabled } = await import("./photo-source-cleanup-probe.server.mjs");
+    const { processPhotoSourceRemoval } = await import("./photo-source-removal.server.mjs");
+    const { db, r2 } = await storageRuntime();
+    const result = await processPhotoSourceRemoval(data, {
+      projectRef,
+      actorId: context.userId,
+      permit,
+      controls: async () => {
+        const fallback = currentPhotoSourceFallbackPolicy();
+        return {
+          checkedAt: new Date().toISOString(),
+          projectRef,
+          readMode: currentPhotoMode(),
+          uploadMode: currentPhotoUploadMode(),
+          copyPermitDisabled: cleanupCopyPermitDisabled(
+            serverEnv("BLUEBIRD_PHOTO_MIGRATION_PERMIT"),
+          ),
+          sourceFallbackUntil:
+            fallback.expiresAt && Number.isFinite(fallback.expiresAt)
+              ? new Date(fallback.expiresAt).toISOString()
+              : null,
+        };
+      },
+      snapshot: async (targets) => {
+        const { data: snapshot, error: readError } = await db
+          .rpc("photo_source_cleanup_targets", { _targets: targets })
+          .abortSignal(AbortSignal.timeout(5000))
+          .retry(false);
+        if (readError || !snapshot) throw new Error("Current source evidence is unavailable.");
+        return snapshot;
+      },
+      matches: (bucket, key, bytes, sha256) => r2.matches(bucket, key, bytes, sha256),
+      remove: async (bucket, paths) => {
+        // Deliberately bypass the R2 adapter: only retained Supabase copies go away.
+        const { error: removeError } = await db.storage.from(bucket).remove(paths);
+        if (removeError)
+          throw new Error("Source removal was not acknowledged; reconcile before resuming.");
+      },
+    });
+    return { ...result, operatorId: context.userId };
   });
