@@ -14,6 +14,7 @@ register(new URL("./worker-wasm-test-loader.mjs", import.meta.url));
 process.env.GEM_STATE_SUPABASE_URL = "http://127.0.0.1:48997";
 process.env.GEM_STATE_SUPABASE_SERVICE_ROLE_KEY = "sb_secret_fixture_only_not_real";
 process.env.GEM_STATE_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_fixture_only_not_real";
+process.env.MARKETCHECK_API_KEY = "fixture_only_not_real";
 
 const home = {
   id: "111261092",
@@ -37,6 +38,18 @@ const extra = {
   amenities: ["Central air"],
   priceHistory: [],
   taxHistory: [],
+};
+const vehicle = {
+  id: "marketcheck-fsbo-fixture-vehicle",
+  providerId: "fixture-vehicle",
+  sourceKind: "fsbo",
+  heading: "Fixture vehicle",
+  price: 20000,
+  location: { city: "Burley", state: "ID", latitude: 42.5, longitude: -113.8 },
+  build: {},
+  raw: {},
+  extra: {},
+  media: { photoLinks: [], photoLinksCached: ["https://images.example.org/vehicle.jpg"] },
 };
 let mode = "healthy";
 const calls = [],
@@ -62,6 +75,12 @@ globalThis.fetch = async (input, init = {}) => {
   if (url.pathname === "/rest/v1/asks" && mode === "native-offline")
     return Response.json({ message: "Fixture database unavailable" }, { status: 503 });
   let body = [];
+  if (
+    url.pathname === "/rest/v1/marketcheck_cache" &&
+    url.searchParams.get("cache_key")?.includes("fixture-vehicle")
+  ) {
+    body = { payload: vehicle };
+  }
   if (url.pathname === "/rest/v1/openwebninja_cache") {
     const searches = url.searchParams.get("cache_key")?.includes("search");
     if (!searches && mode === "home-offline")
@@ -110,6 +129,13 @@ try {
       );
       for (const image of extra.images)
         assert.ok(html.includes(image), "all saved photos reach the existing gallery");
+      assert.match(html, /property="og:image" content="https:\/\/images.example.org\/one.jpg"/);
+      assert.match(html, /name="twitter:image" content="https:\/\/images.example.org\/one.jpg"/);
+      assert.ok(
+        html.includes(
+          '"image":["https://images.example.org/one.jpg","https://images.example.org/two.jpg"]',
+        ),
+      );
       assert.equal(html.includes("Something went wrong"), false);
     }
     if (expected === 404) assert.ok(html.includes("This listing is no longer live"));
@@ -127,6 +153,35 @@ try {
   }
   const native = "/listings/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
   await render("/listings/openwebninja-111261092", 200);
+  // Previously advertised partner image URLs must also recover, even with a
+  // normal browser UA. No API budget reservation or external fetch is allowed.
+  for (const [path, status, location] of [
+    ["/media/listings/openwebninja-111261092/0", 302, extra.images[0]],
+    ["/media/listings/openwebninja-111261092/1", 302, extra.images[1]],
+    ["/media/listings/openwebninja-111261092/2", 404, null],
+    ["/media/listings/marketcheck-fsbo-fixture-vehicle/0", 302, vehicle.media.photoLinksCached[0]],
+    ["/media/listings/marketcheck-fsbo-missing/0", 404, null],
+  ]) {
+    calls.length = 0;
+    const response = await worker.fetch(
+      new Request("https://onbluebird.com" + path, {
+        headers: { "User-Agent": "Mozilla/5.0" },
+      }),
+      {},
+      { waitUntil: (task) => pending.push(task) },
+    );
+    assert.equal(response.status, status, path);
+    assert.equal(response.headers.get("Location"), location);
+    assert.ok(
+      calls.every((call) => call.method === "GET"),
+      "photo lookup cannot reserve provider budget or write cache",
+    );
+    assert.equal(
+      calls.some((call) => call.path === "/rest/v1/asks"),
+      false,
+    );
+    results.push({ path, mode: "partner-photo", status });
+  }
   await render(native, 404);
   await render("/listings/openwebninja-999999999", 404);
   await render("/listings/not-a-real-listing-id", 404, "malformed");

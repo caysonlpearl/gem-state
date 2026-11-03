@@ -4,6 +4,9 @@ import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import ts from "typescript";
 import { withCatalogReadDeadline } from "../src/lib/catalog-read-deadline.ts";
+import { OPENWEBNINJA_ID } from "../src/lib/openwebninja-contract.ts";
+import { MARKETCHECK_ID } from "../src/lib/marketcheck-contract.ts";
+import { listingPhotoUrl } from "../src/lib/listing-photo-url.ts";
 
 const source = readFileSync(
   new URL("../src/routes/media.listings.$listingId.$photo.ts", import.meta.url),
@@ -20,8 +23,23 @@ function fixture({
   signFailure = false,
   signMissing = false,
   stalled = false,
+  partnerListing = null,
+  partnerFailure = false,
 } = {}) {
-  const state = { reads: 0, filters: [], signs: [], signal: null, retry: null, columns: null };
+  const state = {
+    reads: 0,
+    filters: [],
+    signs: [],
+    signal: null,
+    retry: null,
+    columns: null,
+    partners: [],
+  };
+  const partnerDetail = async (key, options) => {
+    state.partners.push({ key, options });
+    if (partnerFailure) throw new Error("Private provider failure");
+    return partnerListing;
+  };
   const record =
     row === undefined
       ? {
@@ -78,6 +96,12 @@ function fixture({
       if (name === "@tanstack/react-router") return { createFileRoute: () => (v) => v };
       if (name === "@/integrations/supabase/client.server") return { supabaseAdmin: db };
       if (name === "@/lib/catalog-read-deadline") return { withCatalogReadDeadline };
+      if (name === "@/lib/openwebninja-contract") return { OPENWEBNINJA_ID };
+      if (name === "@/lib/marketcheck-contract") return { MARKETCHECK_ID };
+      if (name === "@/lib/listing-photo-url") return { listingPhotoUrl };
+      if (name === "@/lib/openwebninja-listings.server")
+        return { openWebNinjaDetail: partnerDetail };
+      if (name === "@/lib/marketcheck.server") return { marketCheckDetail: partnerDetail };
       if (name === "@/lib/classifieds.functions") return { ENDED_LISTING_RETENTION_DAYS: 60 };
       if (name === "@/lib/photo-storage-access")
         return {
@@ -119,6 +143,54 @@ test("malformed stable photo identifiers and invalid indexes perform zero source
   }
   assert.equal(f.state.reads, 0);
   assert.equal(f.state.signs.length, 0);
+});
+test("previously advertised partner URLs redirect to public gallery photos using saved inventory only", async () => {
+  for (const key of [
+    "openwebninja-113847999",
+    "marketcheck-fsbo-2C3CDZBG7FH805437-c24cd85c-6222",
+  ]) {
+    const f = fixture({
+      partnerListing: {
+        id: key,
+        externalHome: key.startsWith("openwebninja-") ? { source: "OpenWeb Ninja" } : undefined,
+        externalVehicle: key.startsWith("marketcheck-") ? {} : undefined,
+        images: [
+          { url: "https://images.example/house.jpg" },
+          { url: "https://images.example/second.jpg" },
+        ],
+      },
+    });
+    const response = await f.render(key, "1");
+    assert.equal(response.status, 302);
+    assert.equal(response.headers.get("Location"), "https://images.example/second.jpg");
+    assert.equal(f.state.reads, 0);
+    assert.equal(f.state.signs.length, 0);
+    assert.equal(f.state.partners.length, 1);
+    if (key.startsWith("marketcheck-")) assert.equal(f.state.partners[0].options.cacheOnly, true);
+  }
+});
+test("missing, unsafe or temporarily unavailable partner photos keep distinct responses", async () => {
+  const key = "openwebninja-113847999";
+  for (const options of [
+    {},
+    { partnerListing: { externalHome: {}, images: [] } },
+    { partnerListing: { externalHome: {}, images: [{ url: "javascript:alert(1)" }] } },
+    {
+      partnerListing: {
+        externalHome: {},
+        images: [{ url: "https://secret@images.example/photo.jpg" }],
+      },
+    },
+  ])
+    assert.equal((await fixture(options).render(key)).status, 404);
+  const f = fixture({ partnerFailure: true });
+  const response = await f.render(key);
+  assert.equal(response.status, 503);
+  assert.equal(response.headers.get("Cache-Control"), "no-store");
+  assert.equal((await response.text()).includes("Private"), false);
+  const invalid = fixture();
+  assert.equal((await invalid.render(key, "20")).status, 404);
+  assert.equal(invalid.state.partners.length, 0);
 });
 test("active photo redirects preserve order and all public visibility predicates with one bounded read", async () => {
   const f = fixture();

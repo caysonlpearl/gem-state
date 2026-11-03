@@ -3,6 +3,9 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { ENDED_LISTING_RETENTION_DAYS } from "@/lib/classifieds.functions";
 import { withCatalogReadDeadline } from "@/lib/catalog-read-deadline";
+import { OPENWEBNINJA_ID } from "@/lib/openwebninja-contract";
+import { MARKETCHECK_ID } from "@/lib/marketcheck-contract";
+import { listingPhotoUrl } from "@/lib/listing-photo-url";
 
 const MAX_PHOTOS = 20;
 
@@ -24,13 +27,38 @@ export const Route = createFileRoute("/media/listings/$listingId/$photo")({
             headers: { "Cache-Control": "no-store" },
           });
         const index = Number(params.photo);
+        if (!Number.isInteger(index) || index < 0 || index >= MAX_PHOTOS) return notFound();
+        // Older crawlers already hold these URLs. Resolve only known public
+        // partner IDs from saved inventory, without spending provider calls or
+        // loosening the native listing visibility/retention checks below.
+        const partner = OPENWEBNINJA_ID.test(params.listingId)
+          ? "home"
+          : MARKETCHECK_ID.test(params.listingId) && params.listingId.length <= 64
+            ? "vehicle"
+            : null;
         if (
+          !partner &&
           !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(params.listingId)
         )
           return notFound();
-        if (!Number.isInteger(index) || index < 0 || index >= MAX_PHOTOS) return notFound();
 
         try {
+          if (partner) {
+            const listing =
+              partner === "home"
+                ? await (
+                    await import("@/lib/openwebninja-listings.server")
+                  ).openWebNinjaDetail(params.listingId)
+                : await (
+                    await import("@/lib/marketcheck.server")
+                  ).marketCheckDetail(params.listingId, { cacheOnly: true });
+            const url = listing && listingPhotoUrl(listing, index);
+            if (!url || url.startsWith("/")) return notFound();
+            return new Response(null, {
+              status: 302,
+              headers: { Location: url, "Cache-Control": "public, max-age=600" },
+            });
+          }
           const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
           const { data: row, error } = await withCatalogReadDeadline((signal) =>
             supabaseAdmin
