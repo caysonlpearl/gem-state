@@ -10,7 +10,7 @@ export const runIds = [
   "20a1e9c0-5bef-43c7-a172-64bf8c62cddc",
 ];
 export const cutoff = "2026-11-04T03:56:00.000Z";
-export const actor = "8b810fde-e0ca-4d6d-bc72-00b35ee2a689";
+export const actor = "11111111-2222-4333-8444-555555555555";
 export const now = new Date("2026-11-04T04:01:00.000Z");
 export function fixture(
   count = 2,

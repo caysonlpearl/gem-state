@@ -216,7 +216,7 @@ export const processPhotoSourceCleanup = createServerFn({ method: "POST" })
     const { cleanupCopyPermitDisabled } = await import("./photo-source-cleanup-probe.server.mjs");
     const { processPhotoSourceRemoval } = await import("./photo-source-removal.server.mjs");
     const { db, r2 } = await storageRuntime();
-    return processPhotoSourceRemoval(data, {
+    const result = await processPhotoSourceRemoval(data, {
       projectRef,
       actorId: context.userId,
       permit,
@@ -252,4 +252,5 @@ export const processPhotoSourceCleanup = createServerFn({ method: "POST" })
           throw new Error("Source removal was not acknowledged; reconcile before resuming.");
       },
     });
+    return { ...result, operatorId: context.userId };
   });

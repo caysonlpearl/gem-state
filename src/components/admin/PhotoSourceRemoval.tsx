@@ -112,6 +112,19 @@ export function PhotoSourceRemoval() {
   }
   const button =
     "rounded-lg border border-border bg-background px-3 py-2 text-[12px] font-semibold disabled:opacity-50";
+  const gateLabels: Record<string, string> = {
+    "retention-cutoff-not-reached": "Waiting for the retention cutoff",
+    "post-retention-snapshot-required": "Capture a new source snapshot after the cutoff",
+    "fresh-snapshot-required": "Refresh the source snapshot",
+    "fresh-runtime-controls-required": "Refresh the server checks after the cutoff",
+    "fresh-matching-r2-object-checks-required": "Refresh copy verification after the cutoff",
+    "final-reviewed-plan-required": "Load the final reviewed packet",
+    "batch-evidence-changed": "Some photos or records changed; review before removal",
+    "current-source-recheck-unavailable": "The current source check is unavailable",
+    "removal-permit-expired": "The removal window expired",
+    "post-removal-verification-unavailable": "Reconcile the last batch before continuing",
+    "approved-migration-incomplete": "The approved migration is incomplete",
+  };
   return (
     <details className="rounded-xl border border-border bg-card px-4 py-3">
       <summary className="cursor-pointer text-[13px] font-semibold">
@@ -134,18 +147,31 @@ export function PhotoSourceRemoval() {
         />
       </label>
       {plan && (
-        <div className="mt-3 space-y-1 break-all text-[12px]">
+        <div className="mt-3 space-y-1 text-[12px]">
           <p>
             {plan.header.totalObjects.toLocaleString()} source copies ·{" "}
-            {(plan.header.totalBytes / 1024 ** 3).toFixed(2)}GiB ·{" "}
+            {(plan.header.totalBytes / 1024 ** 3).toFixed(2)} GiB ·{" "}
             {plan.header.reviewReady
               ? "Final reviewed packet"
               : "Preview only — cannot enable removal"}
           </p>
-          <p>Project: {plan.header.projectRef}</p>
-          <p>Removal scope: {plan.header.removalScopeSha256}</p>
-          <p>Packet root: {plan.header.rootSha256}</p>
-          <p>Retention cutoff: {plan.header.notBefore}</p>
+          <p>
+            Retention ends{" "}
+            {new Intl.DateTimeFormat("en-US", {
+              timeZone: "America/Boise",
+              dateStyle: "medium",
+              timeStyle: "short",
+            }).format(new Date(plan.header.notBefore))}{" "}
+            Boise time
+          </p>
+          <details className="mt-2 break-all">
+            <summary className="cursor-pointer">Exact review identifiers</summary>
+            <p>Project: {plan.header.projectRef}</p>
+            {check?.operatorId && <p>Signed-in operator: {check.operatorId}</p>}
+            <p>Removal scope: {plan.header.removalScopeSha256}</p>
+            <p>Packet root: {plan.header.rootSha256}</p>
+            <p>Source snapshot: {plan.header.sourceCapturedAt}</p>
+          </details>
         </div>
       )}
       <div className="mt-3 flex flex-wrap gap-2">
@@ -192,7 +218,9 @@ export function PhotoSourceRemoval() {
             ).length
           }{" "}
           copies checked · Removal {check.removalEnabled ? "enabled for this packet" : "disabled"}
-          {check.gates.length ? ` · ${check.gates.join(", ")}` : ""}
+          {check.gates.length
+            ? ` · ${check.gates.map((gate) => gateLabels[gate] ?? "Review the latest check before continuing").join("; ")}`
+            : ""}
         </p>
       )}
       {(busy || progress.reviewed > 0) && (

@@ -174,7 +174,8 @@ The existing full review, source versions and all freshness gates still apply.
 
 The private storage-only admin page offers **Remove old Supabase photo copies**.
 Choose the packet and use **Check sample batch only** for a read-only check of up
-to eight copies spanning both stores when available. The server verifies administrator role and deployment project;
+to eight copies spanning both stores when available. The server verifies administrator role and deployment project; the result displays the signed-in
+operator ID for the exact-actor permit, rather than inferring it from old runs;
 R2 keys come from current database receipts. It rechecks the current source,
 reference and operation snapshot after the R2 HEADs, immediately before each
 bucket’s Storage API removal, including after another bucket has finished. Only the exact Supabase Storage API paths in the approved packet can
