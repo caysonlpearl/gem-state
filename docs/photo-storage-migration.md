@@ -102,6 +102,17 @@ The tool always returns `deletionAuthorized: false`, including when every
 review gate passes. Recheck each candidate immediately before a separately
 approved Storage API removal; skip anything that changed.
 
+The output separates `removalScopeSha256` from the existing time-bound
+`manifestSha256` and `snapshotSha256` audit hashes. The removal fingerprint
+binds the project, approved migration runs, retention cutoff, exact source
+versions, R2 original/preview identities and current reference counts. Capture,
+HEAD-check and receipt-verification timestamps do not change that fingerprint.
+This lets refreshed evidence demonstrate the same exact removal scope without
+mistaking a new observation timestamp for a different list of photos. Changed
+copies, targets, references, scope or cutoff do change it. Neither this hash
+nor an old approval bypasses a current `reviewReady` result, fresh checks or
+the separately recorded owner's authorization; no hash authorizes deletion.
+
 The administrator's storage-only page, `/admin/fb-import?storage=check`, has
 **Read-only cleanup verification** for collecting those server observations.
 Choose the private snapshot JSON, then select **Verify R2 copies**. The file
