@@ -91,6 +91,9 @@ export default {
     try {
       registerRuntimeBindings(env);
       const url = new URL(request.url);
+      const runtime = ctx as { waitUntil?: (task: Promise<unknown>) => void } | undefined;
+      const extended = request as Request & { waitUntil?: (task: Promise<unknown>) => void };
+      const background = runtime?.waitUntil?.bind(runtime) ?? extended.waitUntil?.bind(extended);
       const hostPolicy = seoHostPolicy(url);
       if (hostPolicy.redirect && ["GET", "HEAD"].includes(request.method)) {
         return Response.redirect(hostPolicy.redirect, 301);
@@ -102,9 +105,6 @@ export default {
       if (request.method === "GET" && url.pathname === "/") {
         // Refresh outside the response lifetime. Saved public cards render
         // immediately even when a source query or photo signer is slow.
-        const runtime = ctx as { waitUntil?: (task: Promise<unknown>) => void } | undefined;
-        const extended = request as Request & { waitUntil?: (task: Promise<unknown>) => void };
-        const background = runtime?.waitUntil?.bind(runtime) ?? extended.waitUntil?.bind(extended);
         if (background)
           background(
             Promise.all([
@@ -122,16 +122,15 @@ export default {
       const entryMs = performance.now() - entryStarted;
       const renderStarted = performance.now();
       const response = await handler.fetch(request, env, ctx);
-      if (request.method === "GET") {
-        const runtime = ctx as { waitUntil?: (task: Promise<unknown>) => void } | undefined;
-        if (runtime?.waitUntil) {
-          runtime.waitUntil(
-            import("./lib/seo-page-cache.server")
-              .then((module) => Promise.all(module.pendingSeoPageRefreshes()))
-              .catch(() => null),
-          );
-        }
-      }
+      // Hosting may attach waitUntil to the Request rather than the context.
+      // Honor the same hook as homepage warming so stale landing pages also
+      // refresh after their saved HTML has been served.
+      if (request.method === "GET" && background)
+        background(
+          import("./lib/seo-page-cache.server")
+            .then((module) => Promise.all(module.pendingSeoPageRefreshes()))
+            .catch(() => null),
+        );
       const renderMs = performance.now() - renderStarted;
       const normalized = lowerModulePreloadPriority(
         await normalizeCatastrophicSsrResponse(response),
