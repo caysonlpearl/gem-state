@@ -56,6 +56,61 @@ permanently deleting any source object through the Storage API. Removing files
 does not erase already-consumed monthly usage; the owner declined both the
 paid upgrade and the proposed support request. Do not reopen either request.
 
+## Read-only source cleanup review
+
+Preparation can continue before the retention cutoff. The local review tool
+contains no network, credentials, storage writes or deletion operation. A
+preliminary review never substitutes for the fresh post-retention snapshot or
+the owner's approval of an exact removal list.
+
+1. In the verified GemList SQL Editor, run
+   `scripts/sql/photo-source-cleanup-snapshot.sql`. This is one read-only MVCC
+   statement covering both source buckets, the two approved migration runs,
+   receipts, native media references, both import-photo arrays, unfinished
+   claim journals, unverified upload tickets and incomplete migration items.
+2. Export its one `snapshot` cell to a private local JSON file. For large
+   results, use **Export → Download CSV**, parse the single CSV row's `snapshot`
+   JSON, and validate the project and row count. An accessibility view can
+   exceed its size limit; do not rerun a completed query because observation
+   or the browser's download-event observer timed out. Check the actual new
+   download's timestamp and content instead.
+3. Generate a new review file; the CLI refuses to overwrite an earlier review:
+
+```sh
+node scripts/storage-source-cleanup-review.mjs \
+  --snapshot /private/path/cleanup-snapshot.json \
+  --project udxxfuticbxwiehoepeg \
+  --runs dd2be1fa-2c6d-4fad-b861-f25b3907b1f5,20a1e9c0-5bef-43c7-a172-64bf8c62cddc \
+  --not-before 2026-11-04T03:56:00.000Z \
+  --output /private/path/new-cleanup-review.json
+```
+
+The review binds source sizes, ETags, modification timestamps (including
+PostgreSQL microseconds), image types, migration scope and receipt identity.
+It excludes changed/unapproved sources, incomplete operations, missing or
+conflicting receipts, and listing photos without a verified preview. Existing
+native/import references are reported and retained: removing a Supabase copy
+must never remove its application media row or its R2 receipt/object.
+
+`reviewReady` additionally requires a fresh snapshot captured after retention,
+fresh server-observed R2 read/upload modes with copying disabled, and fresh
+matching R2 original/preview HEAD checks bound to the exact receipt keys,
+sizes and SHA-256 metadata. Those checks are absent from the SQL snapshot by
+design. They must come from actual server probes, never be typed as successful
+by hand. A metadata match alone cannot establish that a target still exists.
+The tool always returns `deletionAuthorized: false`, including when every
+review gate passes. Recheck each candidate immediately before a separately
+approved Storage API removal; skip anything that changed.
+
+The first preliminary live snapshot at 07:09 UTC November 3 contained 12,766
+source objects. The tool identified 12,760 metadata candidates totaling
+2,618,335,540 bytes and excluded six newer QA source objects outside the
+approved migration. It remained not review-ready: retention had not elapsed,
+the snapshot preceded the cutoff, and fresh runtime/R2 object checks were not
+supplied. No source photo bodies were downloaded and no objects were deleted.
+Private evidence: `r2-cleanup-snapshot-20261103.json` and
+`r2-cleanup-preliminary-review-20261103.json`.
+
 The evidence files `r2-delivery-rollout-live.json`, `r2-retention-live.json`,
 `r2-source-reconciliation-after-rollout-tests.json` and
 `r2-stable-thumbnail-release.json` record the cutover and later cache checks.
