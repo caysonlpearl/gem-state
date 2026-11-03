@@ -37,6 +37,7 @@ async function main(args) {
   });
   console.log(
     JSON.stringify({
+      removalScopeSha256: review.removalScopeSha256,
       manifestSha256: review.manifestSha256,
       reviewReady: review.reviewReady,
       deletionAuthorized: false,

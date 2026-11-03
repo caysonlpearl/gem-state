@@ -274,6 +274,36 @@ export function buildPhotoSourceCleanupReview(snapshot, options, now = new Date(
   if (pendingR2) gates.push("fresh-matching-r2-object-checks-required");
   if (!candidates.length) gates.push("no-review-candidates");
   const uniqueGates = [...new Set(gates)];
+  // Approval identifies copies, not the time a later observation was made.
+  // Keep the full manifest hash below as a separate, time-bound audit digest.
+  const removalScopeSha256 = digest({
+    kind: "photo-source-removal-scope",
+    schemaVersion: 1,
+    projectRef: options.projectRef,
+    runIds: [...options.runIds].sort(),
+    notBefore: new Date(cutoff).toISOString(),
+    candidates: candidates.map((row) => ({
+      source: row.source,
+      migration: row.migration,
+      receipt: {
+        key: row.receipt.key,
+        bytes: row.receipt.bytes,
+        sha256: row.receipt.sha256,
+        contentType: imageType(row.receipt.contentType),
+        thumbnail: row.receipt.thumbnail
+          ? {
+              key: row.receipt.thumbnail.key,
+              bytes: row.receipt.thumbnail.bytes,
+              sha256: row.receipt.thumbnail.sha256,
+              contentType: imageType(row.receipt.thumbnail.contentType),
+            }
+          : null,
+      },
+      references: row.references
+        .map(({ kind, count }) => ({ kind, count }))
+        .sort((a, b) => a.kind.localeCompare(b.kind, "en") || a.count - b.count),
+    })),
+  });
   return {
     schemaVersion: 1,
     kind: "photo-source-cleanup-review-only",
@@ -282,6 +312,7 @@ export function buildPhotoSourceCleanupReview(snapshot, options, now = new Date(
     capturedAt: snapshot.capturedAt,
     notBefore: options.notBefore,
     snapshotSha256: digest(snapshot),
+    removalScopeSha256,
     manifestSha256: digest({
       projectRef: options.projectRef,
       capturedAt: snapshot.capturedAt,

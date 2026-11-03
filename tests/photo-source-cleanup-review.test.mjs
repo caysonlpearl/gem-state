@@ -93,6 +93,108 @@ test("a fully checked post-retention review preserves live references but never 
   assert.equal(result.summary.metadataCandidates, 1);
   assert.deepEqual(result.candidates[0].references, [{ kind: "listing_media", count: 1 }]);
   assert.match(result.manifestSha256, /^[a-f0-9]{64}$/);
+  assert.match(result.removalScopeSha256, /^[a-f0-9]{64}$/);
+});
+test("refreshing observations preserves the exact removal scope and changes the audit manifest", () => {
+  const first = fixture();
+  first.objects[0].references.push({ kind: "import_public", count: 2 });
+  const later = structuredClone(first);
+  later.capturedAt = "2026-11-04T04:02:00.000Z";
+  later.controls.checkedAt = later.capturedAt;
+  later.targetChecks[0].checkedAt = later.capturedAt;
+  later.objects[0].receipt.verifiedAt = "2026-11-04T04:01:00.000Z";
+  later.objects[0].references.reverse();
+  const before = review(first, options, now);
+  const after = review(later, options, new Date(later.capturedAt));
+  assert.equal(before.reviewReady, true);
+  assert.equal(after.reviewReady, true);
+  assert.equal(after.removalScopeSha256, before.removalScopeSha256);
+  assert.notEqual(after.manifestSha256, before.manifestSha256);
+  assert.notEqual(after.snapshotSha256, before.snapshotSha256);
+  assert.equal(after.deletionAuthorized, false);
+});
+test("removal scope binds source versions, targets, migration and reference counts", () => {
+  const baseline = review(fixture(), options, now).removalScopeSha256;
+  for (const change of [
+    (s) => {
+      s.objects[0].source.bytes++;
+      s.objects[0].receipt.bytes++;
+    },
+    (s) => {
+      s.objects[0].source.etag = "e".repeat(32);
+      s.objects[0].receipt.sourceEtag = s.objects[0].source.etag;
+    },
+    (s) => {
+      s.objects[0].source.updatedAt = "2026-11-01T10:00:00.123457Z";
+      s.objects[0].receipt.sourceUpdatedAt = s.objects[0].source.updatedAt;
+    },
+    (s) => {
+      s.objects[0].source.path = "owner/other.jpg";
+      s.objects[0].receipt.path = s.objects[0].source.path;
+    },
+    (s) => {
+      s.objects[0].receipt.key = `original/v1/${"e".repeat(64)}/${sha}`;
+    },
+    (s) => {
+      s.objects[0].receipt.sha256 = "e".repeat(64);
+      s.objects[0].receipt.key = `original/v1/${partition}/${"e".repeat(64)}`;
+    },
+    (s) => {
+      s.objects[0].receipt.thumbnail.bytes++;
+    },
+    (s) => {
+      s.objects[0].receipt.thumbnail.key = `thumbnail/v1/${"e".repeat(64)}/${thumbSha}`;
+    },
+    (s) => {
+      s.objects[0].references[0].count++;
+    },
+    (s) => {
+      s.objects[0].approvals[0].runId = runIds[1];
+    },
+  ]) {
+    const snapshot = fixture();
+    change(snapshot);
+    snapshot.objects[0].approvals[0].metadata = { ...snapshot.objects[0].source };
+    snapshot.targetChecks = [];
+    const result = review(snapshot, options, now);
+    assert.equal(result.summary.metadataCandidates, 1);
+    assert.notEqual(result.removalScopeSha256, baseline);
+  }
+  const otherProject = fixture();
+  otherProject.projectRef = "x".repeat(20);
+  assert.notEqual(
+    review(otherProject, { ...options, projectRef: otherProject.projectRef }, now)
+      .removalScopeSha256,
+    baseline,
+  );
+  assert.notEqual(
+    review(fixture(), { ...options, notBefore: "2026-11-04T03:55:00Z" }, now).removalScopeSha256,
+    baseline,
+  );
+});
+test("a stable removal fingerprint cannot replace fresh successful checks or approval", () => {
+  const good = review(fixture(), options, now);
+  for (const change of [
+    (s) => {
+      s.targetChecks[0].original.matched = false;
+    },
+    (s) => {
+      s.targetChecks[0].checkedAt = "2026-11-04T03:30:00Z";
+    },
+    (s) => {
+      s.controls.readMode = "supabase";
+    },
+    (s) => {
+      s.capturedAt = "2026-11-04T03:55:00Z";
+    },
+  ]) {
+    const snapshot = fixture();
+    change(snapshot);
+    const result = review(snapshot, options, now);
+    assert.equal(result.removalScopeSha256, good.removalScopeSha256);
+    assert.equal(result.reviewReady, false);
+    assert.equal(result.deletionAuthorized, false);
+  }
 });
 test("retention, stale/future evidence and runtime rollback block final review", () => {
   for (const change of [
