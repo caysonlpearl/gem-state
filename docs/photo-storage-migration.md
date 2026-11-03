@@ -220,6 +220,13 @@ journal and reconcile actual state before resuming. A browser observation timeou
 is not proof that the operation failed. Keep a fresh final source/reference/R2
 reconciliation and disable the short permit when finished.
 
+For a stopped run, the downloaded journal includes the server's exact gate
+labels and the starting packet index. After independently reconciling the last
+batch, an administrator can choose a multiple-of-eight **Start at packet index**
+and check that selected batch before resuming the unchanged approved packet.
+Earlier batches are skipped only by that explicit choice. This does not renew
+the permit, expand scope, remove any server check, or retry an uncertain operation.
+
 ### Live read-only rehearsal — November 3, 2026
 
 PR103 merged as `af26ee743ea21fdad7a323bb8420da955393e665` after CI passed,

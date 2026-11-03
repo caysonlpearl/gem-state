@@ -6,16 +6,33 @@ import type {
 
 export async function runApprovedSourceRemoval(input: {
   plan: PhotoRemovalPlan;
+  startIndex?: number;
   step(data: PhotoRemovalInput): Promise<PhotoRemovalResult>;
   shouldStop(): boolean;
   progress(value: { removed: number; alreadyAbsent: number; reviewed: number }): void;
 }) {
+  const startIndex = input.startIndex ?? 0;
+  if (
+    !Number.isInteger(startIndex) ||
+    startIndex < 0 ||
+    startIndex >= input.plan.entries.length ||
+    startIndex % 8
+  )
+    throw new Error("Choose a valid batch boundary in the reviewed packet.");
   const results: PhotoRemovalResult["results"] = [];
   let removed = 0,
     alreadyAbsent = 0;
-  for (let offset = 0; offset < input.plan.entries.length; offset += 8) {
+  for (let offset = startIndex; offset < input.plan.entries.length; offset += 8) {
     if (input.shouldStop())
-      return { status: "stopped", results, removed, alreadyAbsent, unconfirmed: [] as number[] };
+      return {
+        status: "stopped",
+        startIndex,
+        gates: [] as string[],
+        results,
+        removed,
+        alreadyAbsent,
+        unconfirmed: [] as number[],
+      };
     const entries = input.plan.entries.slice(offset, offset + 8);
     let result: PhotoRemovalResult;
     try {
@@ -28,6 +45,8 @@ export async function runApprovedSourceRemoval(input: {
     } catch {
       return {
         status: "unconfirmed",
+        startIndex,
+        gates: ["request-outcome-unconfirmed"],
         results,
         removed,
         alreadyAbsent,
@@ -44,13 +63,23 @@ export async function runApprovedSourceRemoval(input: {
     )
       return {
         status: result.status,
+        startIndex,
+        gates: result.gates ?? [],
         results,
         removed,
         alreadyAbsent,
         unconfirmed: [] as number[],
       };
   }
-  return { status: "complete", results, removed, alreadyAbsent, unconfirmed: [] as number[] };
+  return {
+    status: "complete",
+    startIndex,
+    gates: [] as string[],
+    results,
+    removed,
+    alreadyAbsent,
+    unconfirmed: [] as number[],
+  };
 }
 
 export function photoRemovalSampleEntries(plan: PhotoRemovalPlan) {
