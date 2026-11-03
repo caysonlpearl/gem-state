@@ -172,6 +172,9 @@ test("Keep browsing excludes the current full row allocation and deduplicates it
     React,
     useState: React.useState,
     useServerFn: (fn) => fn,
+    getClassifiedsHomeFeed: () => {
+      throw new Error("Unexpected cache fetch");
+    },
     browseClassifieds: () => {
       throw new Error("Unexpected fetch");
     },
@@ -243,6 +246,9 @@ test("Keep browsing reveals local cards before requesting a page and never loses
       ];
     },
     useServerFn: (fn) => fn,
+    getClassifiedsHomeFeed: () => {
+      throw new Error("Unexpected cache fetch");
+    },
     browseClassifieds: async () => {
       requests++;
       return { listings: [{ id: "next-page" }], page: 2, pageSize: 24, total: 48 };

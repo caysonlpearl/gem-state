@@ -4,13 +4,16 @@ import type {
   ClassifiedBrowseResult,
   ClassifiedCard,
 } from "../../src/lib/classifieds.functions";
+import { initialHomepagePayload, homepageFeedPage } from "../../src/lib/homepage-initial-payload";
 import { productionHomeLead } from "virtual:production-home-query";
 
 const mode = new URLSearchParams(location.search).get("fixture") ?? "success";
-const allocation = mode.startsWith("allocation");
-const paginated = mode === "allocation-pagination" || mode === "allocation-inflight";
+const cached = mode === "cached-pagination";
+const allocation = mode.startsWith("allocation") || cached;
+const paginated = cached || mode === "allocation-pagination" || mode === "allocation-inflight";
 const calls: ClassifiedBrowseInput[] = [];
 const feedCalls: number[] = [];
+const cacheCalls: number[] = [];
 const feedWaiting = new Map<number, () => void>();
 let release: (() => void) | undefined;
 let attempts = 0;
@@ -84,7 +87,7 @@ const shortCache = <T>(key: string, _ttl: number, load: () => Promise<T>): Promi
 async function runBrowseClassifieds(input: ClassifiedBrowseInput): Promise<ClassifiedBrowseResult> {
   calls.push(input);
   attempts++;
-  if ((mode === "loading" || allocation) && attempts === 1)
+  if ((mode === "loading" || (allocation && !cached)) && attempts === 1)
     await new Promise<void>((resolve) => {
       release = resolve;
     });
@@ -97,6 +100,7 @@ async function runBrowseClassifieds(input: ClassifiedBrowseInput): Promise<Class
 export const fixture = {
   calls,
   feedCalls,
+  cacheCalls,
   pendingFeedPages: () => [...feedWaiting.keys()],
   releaseFeedPage(page: number) {
     const resolve = feedWaiting.get(page);
@@ -119,11 +123,15 @@ export const getClassifiedsHomeLead = () =>
   });
 // The secondary homepage feeds can be warm while the independent lead query
 // loads or fails. Keep their data synthetic and their wider Motors pool intact.
-export const getClassifiedsHome = async () => ({
-  ...categoryData,
-  motors: allocation ? cars.slice(0, 24) : [...noise.slice(0, 2), ...cars],
-  recent: allocation ? cars.slice(0, 24) : [...noise.slice(0, 2), ...cars],
-});
+const cachedHome = { ...categoryData, motors: cars, recent: cars };
+export const getClassifiedsHome = async () =>
+  cached
+    ? initialHomepagePayload(cachedHome, { ...categoryData, motors: cars.slice(0, 24) })
+    : {
+        ...categoryData,
+        motors: allocation ? cars.slice(0, 24) : [...noise.slice(0, 2), ...cars],
+        recent: allocation ? cars.slice(0, 24) : [...noise.slice(0, 2), ...cars],
+      };
 export const browseClassifieds = async ({
   data,
 }: {
@@ -140,6 +148,11 @@ export const browseClassifieds = async ({
     page,
     pageSize: 24,
   };
+};
+export const getClassifiedsHomeFeed = async ({ data }: { data: { excludeIds: string[] } }) => {
+  if (!cached) throw new Error("Unexpected offline cache fetch");
+  cacheCalls.push(data.excludeIds.length);
+  return homepageFeedPage(cachedHome, data.excludeIds);
 };
 export const useServerFn = <T>(fn: T) => fn;
 export const trackEvent = async () => {};

@@ -1,7 +1,6 @@
 import { listingCardImageUrl } from "@/lib/listing-card-image";
 import { afterLeadPaint } from "@/lib/lead-paint-ready";
-import { homepageDistanceRow } from "@/lib/homepage-distance-row";
-import { isGeneralHomepageListing } from "@/lib/homepage-listing-rows";
+import { allocateHomepageRows } from "@/lib/homepage-initial-payload";
 import { requestHomepageLocation } from "@/lib/homepage-geolocation";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
@@ -41,6 +40,7 @@ import {
   browseClassifieds,
   getClassifiedsHome,
   getClassifiedsHomeLead,
+  getClassifiedsHomeFeed,
   type ClassifiedsHome,
 } from "@/lib/classifieds.functions";
 import { useServerFn } from "@tanstack/react-start";
@@ -993,91 +993,29 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
   // IDs so the broader rows do not repeat the featured cars and trucks.
   const { data: homeLead } = useQuery({ ...homeLeadQuery, enabled: false, throwOnError: false });
   const { matchesLocation, withLocation, feedLocation, hasLocalArea } = where;
-  const localRecent = home.recent.filter(
-    (listing) => !listing.externalMerchandise && matchesLocation(listing),
-  );
-  const localMotors = home.motors.filter(matchesLocation);
-  // The homepage shows Idaho homes for now; browse still includes the
-  // surrounding states.
-  const homeListings = localRecent.filter(
-    (listing) => listing.home && listing.state?.toUpperCase() === "ID",
-  );
-  const jobListings = localRecent.filter((listing) => listing.job);
-  const serviceSource = localRecent.filter((listing) => listing.service);
-  const generalSource = localRecent.filter(isGeneralHomepageListing);
-
-  // Every row below draws from the same small pool, so without this the same
-  // few listings repeat row after row. Each listing appears at most once on
-  // the page; rows claim up to four listings in the order they render, and a
-  // row with nothing left shows the "just getting started" card instead.
-  const allLocalListings = [...localRecent];
-  for (const listing of localMotors) {
-    if (!allLocalListings.some((existing) => existing.id === listing.id)) {
-      allLocalListings.push(listing);
-    }
-  }
-  // The route loader has settled both snapshot queries before this renders.
-  const leadMotors = (homeLead?.motors ?? []).filter(matchesLocation).slice(0, HOMEPAGE_ROW_SIZE);
-  const shownIds = new Set<string>(leadMotors.map((listing) => listing.id));
-  const pick = (candidates: ClassifiedsHome["recent"]) => {
-    const unseen = candidates
-      .filter((listing) => !shownIds.has(listing.id))
-      .slice(0, HOMEPAGE_ROW_SIZE);
-    for (const listing of unseen) shownIds.add(listing.id);
-    return unseen;
-  };
-  // Reserve dedicated-category inventory before broad rows consume it.
-  const petListings = pick(localRecent.filter((listing) => listing.pet));
-  // Member firearms lead; online retailer firearms and gear fill the rest.
-  const firearmListings = pick([
-    ...localRecent.filter((listing) => listing.categorySlug === "firearms"),
-    ...(home.onlineMerchandise ?? []).filter((listing) => listing.categorySlug === "firearms"),
-  ]);
-  const freshListings = pick(generalSource);
-  const distanceRow = homepageDistanceRow(
-    [...home.recent, ...home.motors],
-    hasLocalArea,
-    matchesLocation,
+  const {
+    petListings,
+    firearmListings,
+    freshListings,
+    distanceRow,
+    fartherAwayListings,
+    vehicleListings,
+    truckListings,
+    valueVehicleListings,
+    buyHomes,
+    buildHomes,
+    rentalHomes,
+    jobRow,
+    flexibleJobs,
+    serviceListings,
+    homeServices,
+    generalListings,
+    toyAndCollectibleListings,
+    valueFinds,
+    localSellerPicks,
+    feedStart,
     shownIds,
-  );
-  const fartherAwayListings = pick(distanceRow.listings);
-  const vehicleListings = pick(localMotors);
-  const truckListings = pick(
-    localMotors.filter((listing) =>
-      /truck|suv|pickup|jeep|sport utility|chassis/i.test(
-        `${listing.vehicle?.bodyStyle ?? ""} ${listing.title}`,
-      ),
-    ),
-  );
-  const valueVehicleListings = pick([...localMotors].sort((a, b) => a.priceCents - b.priceCents));
-  const buyHomes = pick(homeListings.filter((listing) => listing.home?.mode === "buy"));
-  const buildHomes = pick(homeListings.filter((listing) => listing.home?.mode === "build"));
-  const rentalHomes = pick(homeListings.filter((listing) => listing.home?.mode === "rent"));
-  const jobRow = pick(jobListings);
-  const flexibleJobs = pick(
-    jobListings.filter((listing) =>
-      /part-time|contract|temporary/i.test(listing.job?.employmentType ?? ""),
-    ),
-  );
-  const serviceListings = pick(serviceSource);
-  const homeServices = pick(
-    serviceSource.filter((listing) =>
-      /home|handyman|lawn|landscape|repair|clean|plumb|electric|roof|heating|paint|contractor|pest/i.test(
-        `${listing.title} ${listing.service?.subcategory ?? ""}`,
-      ),
-    ),
-  );
-  const generalListings = pick(generalSource);
-  const toyAndCollectibleListings = pick(
-    generalSource.filter((listing) =>
-      /toy|plush|doll|collectible|ninja|mario/i.test(
-        `${listing.title} ${listing.categoryName ?? ""}`,
-      ),
-    ),
-  );
-  const valueFinds = pick(generalSource.filter((listing) => listing.priceCents <= 10_000));
-  const localSellerPicks = pick(localRecent);
-  const feedStart = allLocalListings.filter((listing) => !shownIds.has(listing.id));
+  } = allocateHomepageRows(home, homeLead, matchesLocation, hasLocalArea);
 
   return (
     <>
@@ -1309,7 +1247,8 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
         key={JSON.stringify(feedLocation)}
         initial={feedStart}
         shownIds={shownIds}
-        hasMore={home.totalActive > home.recent.length}
+        hasMore={home.nativeFeedHasMore ?? home.totalActive > home.recent.length}
+        cachedHasMore={home.cachedFeedHasMore ?? false}
         location={feedLocation}
       />
 
@@ -1391,14 +1330,17 @@ function HomeFeed({
   initial,
   shownIds,
   hasMore,
+  cachedHasMore = false,
   location,
 }: {
   initial: Awaited<ReturnType<typeof getClassifiedsHome>>["recent"];
   shownIds: Set<string>;
   hasMore: boolean;
+  cachedHasMore?: boolean;
   location: Record<string, string | number | undefined>;
 }) {
   const fetchPage = useServerFn(browseClassifieds);
+  const fetchCachedPage = useServerFn(getClassifiedsHomeFeed);
   // The first-page remainder is derived from the current row allocation.
   // Keep only explicitly loaded later pages in state so allocation changes
   // neither retain stale first-page cards nor discard loaded pagination.
@@ -1407,6 +1349,7 @@ function HomeFeed({
   const [nextPage, setNextPage] = useState(2);
   const [done, setDone] = useState(!hasMore);
   const [loading, setLoading] = useState(false);
+  const [moreCached, setMoreCached] = useState(cachedHasMore);
 
   async function loadMore() {
     if (loading) return;
@@ -1417,6 +1360,23 @@ function HomeFeed({
     }
     setLoading(true);
     try {
+      if (moreCached) {
+        const result = await fetchCachedPage({
+          data: {
+            excludeIds: [
+              ...new Set([
+                ...shownIds,
+                ...initial.map((c) => c.id),
+                ...loadedItems.map((c) => c.id),
+              ]),
+            ],
+          },
+        });
+        setLoadedItems((current) => [...current, ...result.listings]);
+        setVisibleLimit((current) => current + 24);
+        setMoreCached(result.hasMore);
+        return;
+      }
       const filters = Object.fromEntries(
         Object.entries(location).filter(([, value]) => value !== undefined && value !== ""),
       );
@@ -1444,7 +1404,7 @@ function HomeFeed({
     seenIds.add(listing.id);
     return true;
   });
-  if (!visibleItems.length && done) return null;
+  if (!visibleItems.length && done && !moreCached) return null;
 
   return (
     <section className="mt-16" aria-labelledby="keep-browsing-heading">
@@ -1460,7 +1420,7 @@ function HomeFeed({
           ))}
         </div>
       )}
-      {(!done || visibleItems.length > visibleLimit) && (
+      {(!done || moreCached || visibleItems.length > visibleLimit) && (
         <div className="mt-6 flex justify-center">
           <button
             type="button"

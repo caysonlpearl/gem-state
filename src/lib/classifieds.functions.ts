@@ -2772,6 +2772,9 @@ export const getRelatedClassifieds = createServerFn({ method: "GET" })
   });
 
 export type ClassifiedsHome = {
+  /** Main-homepage transport only; landing previews retain their full pool. */
+  cachedFeedHasMore?: boolean;
+  nativeFeedHasMore?: boolean;
   onlineMerchandise?: ListingCardSummary[];
   totalActive: number;
   categoryCounts: Record<string, number>;
@@ -2938,9 +2941,33 @@ export const getClassifiedsHome = createServerFn({ method: "GET" }).handler(
       import("./homepage-snapshot.server"),
       import("./homepage-snapshot-contract"),
     ]);
-    return homepagePayload(await readHomepageSnapshot()).home;
+    const payload = homepagePayload(await readHomepageSnapshot());
+    const { initialHomepagePayload } = await import("./homepage-initial-payload");
+    return initialHomepagePayload(payload.home, payload.lead);
   },
 );
+
+/** Additional homepage cards always read saved inventory, never a provider. */
+export const getClassifiedsHomeFeed = createServerFn({ method: "POST" })
+  .validator((input: { excludeIds: string[] }) => {
+    if (
+      !Array.isArray(input?.excludeIds) ||
+      input.excludeIds.length > 2000 ||
+      input.excludeIds.some((id) => typeof id !== "string" || id.length > 200)
+    )
+      throw new Error("Invalid homepage continuation.");
+    return { excludeIds: input.excludeIds };
+  })
+  .handler(async ({ data }) => {
+    const [{ readHomepageSnapshot }, { homepagePayload }, { homepageFeedPage }] = await Promise.all(
+      [
+        import("./homepage-snapshot.server"),
+        import("./homepage-snapshot-contract"),
+        import("./homepage-initial-payload"),
+      ],
+    );
+    return homepageFeedPage(homepagePayload(await readHomepageSnapshot()).home, data.excludeIds);
+  });
 
 /** Category previews may be unfiltered or cross a state boundary. Keep their
  * saved candidate pool separate from the Idaho-focused main homepage. */
