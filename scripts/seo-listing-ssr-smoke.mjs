@@ -64,7 +64,7 @@ globalThis.fetch = async (input, init = {}) => {
     external.push(url.hostname);
     throw new Error("Unexpected external network in SSR fixture");
   }
-  calls.push({ path: url.pathname, method: init.method ?? "GET" });
+  calls.push({ path: url.pathname, method: init.method ?? "GET", search: url.search });
   if (url.pathname.includes("/storage/")) return Response.json({}, { status: 404 });
   if (url.pathname === "/rest/v1/asks" && mode === "stalled") {
     return new Promise((_resolve, reject) => {
@@ -77,9 +77,9 @@ globalThis.fetch = async (input, init = {}) => {
   let body = [];
   if (
     url.pathname === "/rest/v1/marketcheck_cache" &&
-    url.searchParams.get("cache_key")?.includes("fixture-vehicle")
+    url.searchParams.get("payload")?.includes("fixture-vehicle")
   ) {
-    body = { payload: vehicle };
+    body = [{ cache_key: '{"v":1,"kind":"fsbo"}', payload: { listings: [vehicle] } }];
   }
   if (url.pathname === "/rest/v1/openwebninja_cache") {
     const searches = url.searchParams.get("cache_key")?.includes("search");
@@ -180,6 +180,15 @@ try {
       calls.some((call) => call.path === "/rest/v1/asks"),
       false,
     );
+    if (path.includes("fixture-vehicle")) {
+      const searches = calls.filter(
+        (call) => call.path === "/rest/v1/marketcheck_cache" && call.search.includes("limit="),
+      );
+      assert.equal(searches.length, 1);
+      assert.ok(
+        new URLSearchParams(searches[0].search).get("payload").includes("fixture-vehicle"),
+      );
+    }
     results.push({ path, mode: "partner-photo", status });
   }
   await render(native, 404);

@@ -140,19 +140,25 @@ export function openWebNinjaConfigured() {
 
 /** Public reads never reserve provider calls. Regional inventory also covers
  * cities without a separate paid city search, such as Twin Falls. */
-export async function cachedHomes(): Promise<OpenWebNinjaHome[]> {
+export async function cachedHomes(propertyId?: string): Promise<OpenWebNinjaHome[]> {
   const db = cacheDb();
   if (!db) return [];
-  const rows = await shortCache("openwebninja-public-searches", PUBLIC_PAGE_CACHE_MS, async () => {
-    const { data, error } = await withCatalogReadDeadline(
-      db
-        .from("openwebninja_cache")
-        .select("cache_key,payload,expires_at")
-        .like("cache_key", '%search"%')
-        .gt("expires_at", new Date().toISOString())
-        .order("expires_at", { ascending: false })
-        .limit(100),
-    );
+  const key = propertyId
+    ? `openwebninja-public-searches:${propertyId}`
+    : "openwebninja-public-searches";
+  const rows = await shortCache(key, PUBLIC_PAGE_CACHE_MS, async () => {
+    let query = db
+      .from("openwebninja_cache")
+      .select("cache_key,payload,expires_at")
+      .like("cache_key", '%search"%')
+      .gt("expires_at", new Date().toISOString())
+      .order("expires_at", { ascending: false })
+      .limit(100);
+    // A detail needs only feeds that actually contain this property. Keep
+    // the same source/expiry gates and newest-copy selection as browse,
+    // without transferring every statewide search into a cold worker.
+    if (propertyId) query = query.contains("payload", { homes: [{ id: propertyId }] });
+    const { data, error } = await withCatalogReadDeadline(query);
     if (error) throw new Error("Saved homes are temporarily unavailable.");
     const saved = (data ?? []) as SavedHomeSearch[];
     homesFromSavedSearches(saved); // Reject malformed payloads before storing a memory hit.
@@ -259,7 +265,7 @@ export async function propertyDetails(
 
 export async function cachedHome(id: string) {
   // Detail visibility and sale/rent mode agree with the current browse cache.
-  const homes = await cachedHomes();
+  const homes = await cachedHomes(id);
   const home = homes.find((item) => item.id === id);
   return home
     ? {

@@ -347,11 +347,16 @@ async function cachedCall<T>(
 async function cachedOnly<T>(key: string): Promise<{ ok: true; value: T } | { ok: false }> {
   const db = cacheDb();
   if (!db) return { ok: false };
-  const { data } = await (db as any)
-    .from("marketcheck_cache")
-    .select("payload")
-    .eq("cache_key", key)
-    .maybeSingle();
+  const { data, error } = await withCatalogReadDeadline<any>((signal) =>
+    (db as any)
+      .from("marketcheck_cache")
+      .select("payload")
+      .eq("cache_key", key)
+      .abortSignal(signal)
+      .retry(false)
+      .maybeSingle(),
+  );
+  if (error) throw new MarketCheckLookupError("unavailable");
   return data?.payload ? { ok: true, value: data.payload as T } : { ok: false };
 }
 
@@ -484,10 +489,18 @@ async function cachedSearchListing(
 ): Promise<MarketCheckListing | null> {
   const db = cacheDb();
   if (!db) return null;
-  const { data } = await (db as any)
-    .from("marketcheck_cache")
-    .select("cache_key,payload")
-    .limit(100);
+  const { data, error } = await withCatalogReadDeadline<any>(
+    (db as any)
+      .from("marketcheck_cache")
+      .select("cache_key,payload")
+      // The old fallback serialized up to 100 complete search/detail payloads
+      // for each crawler visit. Scope the saved source and matching vehicle
+      // before returning payloads; retain the normalization checks below.
+      .like("cache_key", `%"kind":"${sourceKind}"%`)
+      .contains("payload", { listings: [{ providerId }] })
+      .limit(100),
+  );
+  if (error) throw new MarketCheckLookupError("unavailable");
   for (const row of data ?? []) {
     let cacheKind: string | null = null;
     try {
