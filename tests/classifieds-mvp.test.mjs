@@ -907,12 +907,14 @@ test("main homepage presents category-curated listing rows", async () => {
   assert.doesNotMatch(footerSource, /How listings and seller contact work|Glossary/);
   assert.match(homeSource, /For sellers and businesses/);
   assert.match(homeSource, /A marketplace with a local feel/);
-  assert.match(homeSource, /localRecent\.filter\(\s*\(listing\) => listing\.home/);
-  assert.match(homeSource, /localRecent\.filter\(\(listing\) => listing\.job\)/);
-  assert.match(homeSource, /localRecent\.filter\(\(listing\) => listing\.service\)/);
+  const allocationSource = await read("src/lib/homepage-initial-payload.ts");
+  assert.match(allocationSource, /localRecent\.filter\(\s*\(listing\) => listing\.home/);
+  assert.match(allocationSource, /localRecent\.filter\(\(listing\) => listing\.job\)/);
+  assert.match(allocationSource, /localRecent\.filter\(\(listing\) => listing\.service\)/);
   assert.match(homeSource, /City or ZIP code/);
   assert.match(homeSource, /Search area:/);
-  assert.match(homeSource, /homepageDistanceRow/);
+  assert.match(allocationSource, /homepageDistanceRow/);
+  assert.match(homeSource, /allocateHomepageRows/);
   const distanceRowSource = await read("src/lib/homepage-distance-row.ts");
   assert.match(distanceRowSource, /Farther away/);
   assert.match(distanceRowSource, /Around Idaho/);

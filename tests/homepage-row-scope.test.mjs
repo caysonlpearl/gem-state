@@ -11,6 +11,7 @@ import {
   usStates,
   isWithinClassifiedRadius,
 } from "../src/config/classifieds.ts";
+import { allocateHomepageRows } from "../src/lib/homepage-initial-payload.ts";
 import { homepageDistanceRow } from "../src/lib/homepage-distance-row.ts";
 import { isGeneralHomepageListing } from "../src/lib/homepage-listing-rows.ts";
 
@@ -36,6 +37,7 @@ function context(extra = {}) {
     isWithinClassifiedRadius,
     isGeneralHomepageListing,
     homepageDistanceRow,
+    allocateHomepageRows,
     HOMEPAGE_ROW_SIZE: 4,
     homepageCategoryHighlights: [],
     homeQuery: {},

@@ -2,6 +2,20 @@
 
 The homepage reads `homepage-snapshots/v1/home.json` from public Supabase Storage, rather than running browse queries or calling providers during a page read. The object contains only public card fields. The existing cards, row layout, detail routes and provider refresh budgets are unchanged.
 
+The initial homepage response projects this full saved pool to the cards selected
+by every existing row and the first 24 remaining feed cards. Server projection
+and browser rendering share the same allocation function. This keeps the visible
+row order and cards intact without serializing hundreds of unused candidates.
+Category landing previews and prepared SEO pages still use their complete saved
+pools. Counts retain their original meaning rather than becoming the projected
+array length.
+
+Load more retrieves subsequent 24-card pages from the saved pool, excluding IDs
+already displayed. A failed read leaves the current cards and continuation intact
+for retry. Only after that saved remainder is exhausted does the previous browse
+pagination path continue. Initial reads and these saved continuation pages make
+no upstream provider requests.
+
 A background refresh can run once per five minutes across all server instances. The existing half-hour scheduled endpoint also refreshes it. Each source reads already-saved inventory; a source failure retains that source's prior data for up to six hours. A failed moderation check or storage write retains the complete previous snapshot. Successful empty inventory stays empty. Expired sections are omitted.
 
 ## Deployment

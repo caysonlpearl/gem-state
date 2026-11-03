@@ -367,6 +367,27 @@ try {
         `${mode}: full secondary-row allocation updates without duplicates or missing unique inventory; pagination retained`,
       );
     }
+    await page.goto(origin + "/?fixture=cached-pagination");
+    for (const expected of [44, 68, 72]) {
+      await page.waitForFunction(
+        (n) =>
+          document.querySelectorAll('a[aria-label^="View listing: Synthetic car"]').length === n,
+        expected,
+      );
+      await assertAllCars(expected);
+      if (expected < 72) await feed.getByRole("button", { name: "Load more", exact: true }).click();
+    }
+    assert.equal(await feed.getByRole("button", { name: "Load more", exact: true }).count(), 0);
+    const cachedProof = await page.evaluate(() => ({
+      calls: window.__bluebirdHomepageFixture.cacheCalls,
+      browse: window.__bluebirdHomepageFixture.feedCalls,
+    }));
+    assert.deepEqual(cachedProof.calls, [44, 68]);
+    assert.deepEqual(cachedProof.browse, []);
+    await noOverflow();
+    check.checks.push(
+      "initial transport renders44 unique cars; two cached pages reach all72 with zero browse requests or duplicate cards",
+    );
     await context.close();
   }
   assert.deepEqual(report.browserErrors, []);
