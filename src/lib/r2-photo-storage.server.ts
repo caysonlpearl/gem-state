@@ -51,7 +51,11 @@ export function photoObjectKey(path: string, sha256: string, thumbnail = false) 
 }
 
 /** No bucket creation, public-access changes, deletion or automatic retries. */
-export function createR2PhotoStore(config: R2PhotoConfig, fetcher: typeof fetch = fetch) {
+export function createR2PhotoStore(
+  config: R2PhotoConfig,
+  fetcher: typeof fetch = fetch,
+  clock = Date.now,
+) {
   const signer = new AwsClient({
     accessKeyId: config.accessKeyId,
     secretAccessKey: config.secretAccessKey,
@@ -84,12 +88,20 @@ export function createR2PhotoStore(config: R2PhotoConfig, fetcher: typeof fetch 
     key: string,
     expiresIn: number,
     init: RequestInit = {},
+    signedAt = clock(),
   ) {
     if (!Number.isInteger(expiresIn) || expiresIn < 60 || expiresIn > 86_400)
       throw new Error("Invalid photo link duration.");
     const url = new URL(objectUrl(bucket, key));
     url.searchParams.set("X-Amz-Expires", String(expiresIn));
-    const signed = await signer.sign(url, { ...init, aws: { signQuery: true, allHeaders: true } });
+    const signed = await signer.sign(url, {
+      ...init,
+      aws: {
+        signQuery: true,
+        allHeaders: true,
+        datetime: new Date(signedAt).toISOString().replace(/[:-]|\.\d{3}/g, ""),
+      },
+    });
     return signed;
   }
   return {
@@ -115,7 +127,15 @@ export function createR2PhotoStore(config: R2PhotoConfig, fetcher: typeof fetch 
       );
     },
     async sign(bucket: PhotoBucket, key: string, expiresIn: number) {
-      return (await signedUrl(bucket, key, expiresIn, { method: "GET" })).url;
+      // Immutable public-card previews can share one URL across workers/pages
+      // for an hour. Backdating only shortens the existing 24h lifetime to
+      // 23–24h; originals, evidence and upload tickets retain exact timestamps.
+      const stableCard =
+        bucket === "listing-media" &&
+        expiresIn === 86_400 &&
+        /^thumbnail\/v1\/[a-f0-9]{64}\/[a-f0-9]{64}$/.test(key);
+      const signedAt = stableCard ? Math.floor(clock() / 3_600_000) * 3_600_000 : clock();
+      return (await signedUrl(bucket, key, expiresIn, { method: "GET" }, signedAt)).url;
     },
     async signUpload(
       bucket: PhotoBucket,
