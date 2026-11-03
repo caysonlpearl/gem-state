@@ -14,7 +14,14 @@ export function listingPhotoUrl(listing: ClassifiedDetail, index = 0): string | 
     listing.directory
   ) {
     try {
-      const url = new URL(photo.url);
+      const selected =
+        index === 0 &&
+        listing.externalVehicle &&
+        listing.shareImageUrl &&
+        listing.images.some((image) => image.url === listing.shareImageUrl)
+          ? listing.shareImageUrl
+          : photo.url;
+      const url = new URL(selected);
       return ["https:", "http:"].includes(url.protocol) && !url.username && !url.password
         ? url.href
         : undefined;

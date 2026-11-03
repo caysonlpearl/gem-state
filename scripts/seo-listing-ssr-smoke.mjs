@@ -49,17 +49,38 @@ const vehicle = {
   build: {},
   raw: {},
   extra: {},
-  media: { photoLinks: [], photoLinksCached: ["https://images.example.org/vehicle.jpg"] },
+  media: {
+    photoLinks: [],
+    photoLinksCached: [
+      "https://platform.cstatic-images.com/bluebird-share-fixture-missing.jpg",
+      "https://platform.cstatic-images.com/bluebird-share-fixture-blue.jpg",
+    ],
+  },
 };
 let mode = "healthy";
 const calls = [],
   external = [],
   results = [],
   pending = [];
+const imageChecks = [];
 const originalFetch = globalThis.fetch;
 const originalError = console.error;
 globalThis.fetch = async (input, init = {}) => {
   const url = new URL(typeof input === "string" ? input : (input.url ?? input.href));
+  if (
+    url.hostname === "platform.cstatic-images.com" &&
+    ["/bluebird-share-fixture-missing.jpg", "/bluebird-share-fixture-blue.jpg"].includes(
+      url.pathname,
+    )
+  ) {
+    assert.equal(init.method, "HEAD", "partner fallback must not download image bodies");
+    assert.equal(init.redirect, "manual");
+    imageChecks.push({ path: url.pathname, method: init.method });
+    return new Response(null, {
+      status: url.pathname.includes("missing") ? 404 : 200,
+      headers: { "content-type": "image/jpeg" },
+    });
+  }
   if (!["127.0.0.1", "udxxfuticbxwiehoepeg.supabase.co"].includes(url.hostname)) {
     external.push(url.hostname);
     throw new Error("Unexpected external network in SSR fixture");
@@ -159,7 +180,7 @@ try {
     ["/media/listings/openwebninja-111261092/0", 302, extra.images[0]],
     ["/media/listings/openwebninja-111261092/1", 302, extra.images[1]],
     ["/media/listings/openwebninja-111261092/2", 404, null],
-    ["/media/listings/marketcheck-fsbo-fixture-vehicle/0", 302, vehicle.media.photoLinksCached[0]],
+    ["/media/listings/marketcheck-fsbo-fixture-vehicle/0", 302, vehicle.media.photoLinksCached[1]],
     ["/media/listings/marketcheck-fsbo-missing/0", 404, null],
   ]) {
     calls.length = 0;
@@ -185,9 +206,7 @@ try {
         (call) => call.path === "/rest/v1/marketcheck_cache" && call.search.includes("limit="),
       );
       assert.equal(searches.length, 1);
-      assert.ok(
-        new URLSearchParams(searches[0].search).get("payload").includes("fixture-vehicle"),
-      );
+      assert.ok(new URLSearchParams(searches[0].search).get("payload").includes("fixture-vehicle"));
     }
     results.push({ path, mode: "partner-photo", status });
   }
@@ -285,6 +304,7 @@ try {
     sourceReads: calls.length,
   });
   assert.deepEqual(external, [], "SSR must not contact a provider or other external host");
+  assert.equal(imageChecks.length, 2, "one bounded HEAD per missing lead and valid fallback");
   console.log(
     JSON.stringify(
       { productionBuildSsr: "passed", realExternalRequests: 0, cases: results },

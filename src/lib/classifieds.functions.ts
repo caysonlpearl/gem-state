@@ -197,6 +197,8 @@ export type ClassifiedDetail = ClassifiedCard & {
     sellerType?: string;
   } | null;
   images: { url: string; alt: string }[];
+  /** Metadata-only choice from the existing partner gallery; never changes its order. */
+  shareImageUrl?: string;
   communityListings?: ClassifiedCard[] | undefined;
   communityFloorplans?: ClassifiedFloorplan[] | undefined;
   employerListings?: ClassifiedCard[] | undefined;

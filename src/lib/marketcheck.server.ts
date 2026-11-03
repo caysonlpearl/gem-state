@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import { getRequest } from "@tanstack/react-start/server";
 import { serverEnv } from "./runtime-env.server.ts";
 import { withCatalogReadDeadline } from "./catalog-read-deadline.ts";
+import { selectPartnerSharePhoto } from "./partner-share-photo.server.ts";
 import {
   classifiedCoordinatesForCity,
   classifiedProviderSearchStates,
@@ -683,6 +684,7 @@ export async function marketCheckDetail(
     variantId: listingId,
     seller: null,
     images: images.map((url) => ({ url, alt: normalized.heading })),
+    shareImageUrl: await selectPartnerSharePhoto(images),
   };
 }
 

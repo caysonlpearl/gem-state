@@ -60,10 +60,11 @@ function itemCondition(condition: string) {
 
 /** Use the same public photo source as the page's social preview. */
 function photoUrls(listing: ClassifiedDetail) {
-  return listing.images.slice(0, 5).flatMap((_, index) => {
+  const urls = listing.images.slice(0, 5).flatMap((_, index) => {
     const url = listingPhotoUrl(listing, index);
     return url ? [url.startsWith("/") ? absolute(url) : url] : [];
   });
+  return [...new Set(urls)];
 }
 
 function seller(listing: ClassifiedDetail) {
