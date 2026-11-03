@@ -10,6 +10,54 @@ const config = {
   buckets: { "listing-media": "bluebird-listing-media", "ask-evidence": "bluebird-ask-evidence" },
 };
 
+test("immutable card URLs remain reusable across workers within an hour without extending expiry", async () => {
+  let now = Date.parse("2026-11-03T03:05:00Z");
+  let network = 0;
+  const fetcher = async () => {
+    network++;
+    throw new Error("signing must not fetch");
+  };
+  const key = `thumbnail/v1/${"d".repeat(64)}/${"e".repeat(64)}`;
+  const store = m.createR2PhotoStore(config, fetcher, () => now);
+  const first = await store.sign("listing-media", key, 86400);
+  now = Date.parse("2026-11-03T03:59:59Z");
+  const otherWorker = m.createR2PhotoStore(config, fetcher, () => now);
+  assert.equal(await otherWorker.sign("listing-media", key, 86400), first);
+  const params = new URL(first).searchParams;
+  assert.equal(params.get("X-Amz-Date"), "20261103T030000Z");
+  assert.equal(params.get("X-Amz-Expires"), "86400");
+  const expiry = Date.parse("2026-11-04T03:00:00Z");
+  assert.ok(expiry > now + 23 * 3600000);
+  assert.ok(expiry <= now + 24 * 3600000);
+  now = Date.parse("2026-11-03T04:00:00Z");
+  assert.notEqual(await store.sign("listing-media", key, 86400), first);
+  assert.equal(network, 0);
+});
+
+test("short previews, original photos, evidence and signed uploads keep their exact signing time", async () => {
+  let now = Date.parse("2026-11-03T03:05:37Z");
+  const store = m.createR2PhotoStore(config, undefined, () => now);
+  const thumb = `thumbnail/v1/${"d".repeat(64)}/${"e".repeat(64)}`;
+  for (const [bucket, key, ttl] of [
+    ["listing-media", "original/v1/key", 3600],
+    ["listing-media", thumb, 600],
+    ["ask-evidence", thumb, 86400],
+  ]) {
+    const url = new URL(await store.sign(bucket, key, ttl));
+    assert.equal(url.searchParams.get("X-Amz-Date"), "20261103T030537Z");
+    assert.equal(url.searchParams.get("X-Amz-Expires"), String(ttl));
+  }
+  const ticket = await store.signUpload(
+    "listing-media",
+    "original/v1/key",
+    5,
+    "image/jpeg",
+    "d".repeat(64),
+  );
+  assert.equal(new URL(ticket.url).searchParams.get("X-Amz-Date"), "20261103T030537Z");
+  assert.equal(new URL(ticket.url).searchParams.get("X-Amz-Expires"), "900");
+});
+
 test("R2 presigned uploads bind length, type, immutable key and checksum without exposing secret key", async () => {
   let calls = 0;
   const store = m.createR2PhotoStore(config, async () => {
