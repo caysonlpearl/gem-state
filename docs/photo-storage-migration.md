@@ -1,26 +1,40 @@
 # Photo storage migration preflight
 
-Current status (November 2, Boise time): the approved 6,380 photo pairs finished
-copying and verification. Both production modes are now `r2`: verified reads
-and new uploads use the private R2 stores. The copy permit is disabled. The
-owner approved this serving/upload cutover after the copy; permanent deletion
-remains a separate action and has not occurred. Supabase stays Free.
+Current status (November 3, Boise time): the approved 6,380 photo pairs finished
+copying and verification, and all **12,760 approved Supabase source copies**
+have now been removed through the Storage API. The final independent database
+audit reports zero approved sources and zero approved source bytes remaining.
+All 12,760 R2 receipt records, 6,380 listing previews and listing/evidence/import
+reference digests are unchanged. The six sources outside the approved migration
+remain present with unchanged metadata. Supabase stays Free.
+
+Verified reads and new uploads use the private R2 stores. Source fallback,
+copying and the short source-removal permit are disabled. A freshly reloaded
+native listing photo still loads from R2. The now-unneeded one-time evening
+cleanup follow-up is paused; the November 29 SEO review remains active in the
+current chat.
 
 The owner subsequently directed immediate cleanup after the risk to previously
 issued Supabase links was explained. The earlier fallback cutoff was replaced
 with **November 3, 2026, 16:27:22.314 UTC** (9:27 AM Boise). The live app reports
 fallback disabled, with reads and uploads still using R2. A fresh full inventory
 and header verification matched all 12,760 originals and 6,380 listing previews;
-the six sources outside the approved migration remain excluded. No source
-removal is claimed by this preparation update. Private evidence is recorded in
-`r2-owner-directed-early-cleanup-current.json` and
-`r2-cleanup-final-review-early-20261103.json`.
+the six sources outside the approved migration remained excluded. Private
+evidence is recorded in `r2-owner-directed-early-cleanup-current.json`,
+`r2-cleanup-final-review-early-20261103.json`,
+`r2-source-removal-final-data-preservation-summary.json` and
+`r2-removal-disabled-after-completion.ax.txt`.
 
 The original compatibility deadline was November 4 at 03:56 UTC, or November 3
 at 8:56 PM Boise; the owner's immediate-cleanup instruction superseded that wait.
 Fallback signatures are clipped to the cutoff; verified R2 reads continue
 normally. A rollback to source reads or renewal of source signing requires a
 new retention review. Do not restart either completed copy run.
+
+The cleanup removed 2,618,335,540 bytes (2.44 GiB) of stored source duplicates.
+It does not reverse bandwidth already consumed or establish that the provider's
+usage counters have refreshed. The owner declined the paid upgrade and support
+request; neither was performed.
 
 Evidence is in the private operational directory
 `research/seo/2026-11-01/`, outside this checkout. The completed-copy
