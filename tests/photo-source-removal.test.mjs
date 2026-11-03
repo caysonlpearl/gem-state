@@ -290,6 +290,52 @@ test("worst-shape eight-copy batches fit the worker subrequest allowance", async
     assert.ok(subrequests <= 50, `Batch uses ${subrequests} subrequests`);
   }
 });
+test("a subsecond database clock lead does not reject the immediate source recheck", async () => {
+  for (const lead of [50, 250, 1000]) {
+    const value = fixture(2),
+      state = runtime(value),
+      snapshot = state.deps.snapshot;
+    state.deps.snapshot = async (targets) => {
+      const result = await snapshot(targets);
+      if (state.snapshots === 2) result.capturedAt = new Date(now.getTime() + lead).toISOString();
+      return result;
+    };
+    const result = await processPhotoSourceRemoval({ ...value.plan, mode: "remove" }, state.deps);
+    assert.equal(result.status, "complete");
+    assert.equal(result.removed, 2);
+    assert.equal(state.calls.filter((call) => call.kind === "remove").length, 2);
+  }
+});
+test("larger database clock differences and old snapshots remain blocked without deletion", async () => {
+  for (const offset of [1001, 60000, -16 * 60000]) {
+    const value = fixture(2),
+      state = runtime(value),
+      snapshot = state.deps.snapshot;
+    state.deps.snapshot = async (targets) => {
+      const result = await snapshot(targets);
+      if (state.snapshots === 2) result.capturedAt = new Date(now.getTime() + offset).toISOString();
+      return result;
+    };
+    const result = await processPhotoSourceRemoval({ ...value.plan, mode: "remove" }, state.deps);
+    assert.equal(result.status, "blocked");
+    assert.ok(result.gates.includes("fresh-snapshot-required"));
+    assert.equal(
+      state.calls.some((call) => call.kind === "remove"),
+      false,
+    );
+  }
+});
+test("database timestamp handling cannot extend an expired removal permit", async () => {
+  const value = fixture(2),
+    state = runtime(value);
+  state.deps.now = () => new Date("2026-11-04T05:00:00.000Z");
+  await assert.rejects(
+    processPhotoSourceRemoval({ ...value.plan, mode: "remove" }, state.deps),
+    /not enabled/,
+  );
+  assert.equal(state.snapshots, 0);
+  assert.deepEqual(state.calls, []);
+});
 test("browser removal is bounded, derives actual counts, stops on uncertainty and never retries", async () => {
   const value = fixture(19);
   let calls = 0;
