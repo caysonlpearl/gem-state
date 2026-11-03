@@ -130,6 +130,38 @@ supplied. No source photo bodies were downloaded and no objects were deleted.
 Private evidence: `r2-cleanup-snapshot-20261103.json` and
 `r2-cleanup-preliminary-review-20261103.json`.
 
+### Live read-only rehearsal — November 3, 2026
+
+PR103 merged as `af26ee743ea21fdad7a323bb8420da955393e665` after CI passed,
+and the private checker was published in deployment
+`c094c949-d2c0-4422-850c-468ed3a9e19e`. The normal authenticated admin UI
+completed all 12,760 approved original checks and 6,380 listing-preview checks.
+Every R2 HEAD response matched the expected length and SHA-256 metadata;
+there were zero mismatches. The observations span 08:16:46–08:25:07 UTC
+(8 minutes 21 seconds), within the review tool's 15-minute target-check window.
+Runtime observations confirmed R2 reads/uploads, copying disabled and the
+unchanged source-fallback cutoff. No source bodies were downloaded, copied or
+deleted. Both completed copy runs remain stopped.
+
+The checked snapshot was actually downloaded, parsed and reconciled, despite
+the browser download-event observer timing out; the download was not repeated.
+Evidence: `r2-cleanup-head-verification-live.json`, its screenshot,
+`r2-cleanup-checked-snapshot-20261103.json` and
+`r2-cleanup-checked-preliminary-review-20261103.json` in the private evidence
+directory. Do not commit those private path/receipt exports.
+
+This proves the bounded verification workflow and current matching copies.
+It is not a final deletion review: the source snapshot predates retention and
+is now stale, and pre-cutoff checks cannot satisfy post-retention requirements.
+Capture a fresh snapshot and fresh target/control checks after the cutoff;
+then obtain approval for that exact manifest. Do not change timestamps or
+relax freshness rules to reuse this rehearsal as removal authorization.
+
+An anonymous HTTP probe was rejected at Cloudflare with error1010. That is
+not proof of application authentication behavior; the handler's non-admin
+rejection before privileged access is covered by contract tests. No browser
+security block was bypassed to manufacture a live middleware result.
+
 The evidence files `r2-delivery-rollout-live.json`, `r2-retention-live.json`,
 `r2-source-reconciliation-after-rollout-tests.json` and
 `r2-stable-thumbnail-release.json` record the cutover and later cache checks.
