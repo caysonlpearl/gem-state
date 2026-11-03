@@ -227,6 +227,13 @@ and check that selected batch before resuming the unchanged approved packet.
 Earlier batches are skipped only by that explicit choice. This does not renew
 the permit, expand scope, remove any server check, or retry an uncertain operation.
 
+Runtime source rechecks reconcile at most one second of clock lead from the
+trusted database snapshot, preventing a newly queried snapshot from being
+rejected as future-dated because Postgres is milliseconds ahead of the Worker.
+Larger future differences and snapshots older than fifteen minutes remain
+blocked. Permit issue/expiry and cutoff checks retain the actual Worker clock;
+the offline final-review and permit-issuance rules are unchanged.
+
 ### Live read-only rehearsal — November 3, 2026
 
 PR103 merged as `af26ee743ea21fdad7a323bb8420da955393e665` after CI passed,

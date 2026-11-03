@@ -95,6 +95,15 @@ export async function processPhotoSourceRemoval(input, deps) {
   function assess(snapshot, probes) {
     const rows = currentRows(snapshot);
     const present = new Set(snapshot.objects.map((row) => keyOf(row.source)));
+    const observedAt = now();
+    const databaseTime = Date.parse(snapshot.capturedAt);
+    // A freshly queried Postgres clock can lead the Worker by milliseconds.
+    // Reconcile only this trusted snapshot comparison, bounded to one second.
+    // Permit issue/expiry and cutoff checks always retain the real Worker clock.
+    const reviewNow =
+      databaseTime > observedAt.getTime() && databaseTime <= observedAt.getTime() + 1000
+        ? new Date(databaseTime)
+        : observedAt;
     const review = buildPhotoSourceCleanupReview(
       {
         ...snapshot,
@@ -106,7 +115,7 @@ export async function processPhotoSourceRemoval(input, deps) {
         runIds: header.runIds,
         notBefore: header.notBefore,
       },
-      now(),
+      reviewNow,
     );
     const candidates = new Map(review.candidates.map((row) => [keyOf(row.source), row]));
     const checked = new Map(probes.checks.map((check) => [keyOf(check), check]));
