@@ -8,6 +8,21 @@ do not sum close variants or treat advertising competition as organic difficulty
 
 ## Completion requirements
 
+### November 3 closeout
+
+The initial technical delivery for steps 2–6 and 8 has been implemented and
+verified; the owner removed step 7 outreach from active scope. The accepted
+storage follow-up is also complete: all 12,760 approved Supabase duplicates
+were removed, with zero approved sources left and unchanged R2 receipts,
+previews and listing/evidence references. The six excluded source files remain
+untouched, and the copy/removal permits are disabled. See the final status in
+[the storage runbook](photo-storage-migration.md).
+
+Two approved originals are published; two additional private drafts remain
+subject to owner review. The November 29 read-only review is attached to the
+current chat. Search indexing, traffic and ranking gains remain future measured
+outcomes rather than claims of this implementation's completion.
+
 2. Inventory: cached homes appear on relevant public SEO pages, buy and rent
    remain distinct where selected, geographic and category filters are accurate,
    and available descriptions/specifications reach existing detail components.
