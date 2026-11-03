@@ -1,17 +1,46 @@
 # Photo storage migration preflight
 
-Current status (November 2): the four-format pilot is verified and the owner
-approved the remaining copy within 24 hours and a shared 1.5 GB photo-download
-ceiling. The primary review is now copying through the manual continuation
-control. Completion requires the saved run and receipt checks; it is not yet
-claimed. Reads and uploads remain Supabase, and no source deletion has occurred.
-The owner chose to keep Supabase Free. Both private R2 Standard buckets and
-their restricted server credential are configured in the deployment secret store.
-Earlier preparation observations below retain their original scope and date.
+Current status (November 2, Boise time): the approved 6,380 photo pairs finished
+copying and verification. Both production modes are now `r2`: verified reads
+and new uploads use the private R2 stores. The copy permit is disabled. The
+owner approved this serving/upload cutover after the copy; permanent deletion
+remains a separate action and has not occurred. Supabase stays Free.
 
-The application adapter is prepared with both production mode flags unset.
-The default remains Supabase, including native uploads. The admin seller-import
-page provides a manual, read-only connection and thumbnail capability check.
+The retained-source fallback cutoff is **November 4, 2026, 03:56 UTC**, or
+**November 3 at 8:56 PM Boise time**. Keep source originals through that time.
+Fallback signatures are clipped to the cutoff; verified R2 reads continue
+normally. A rollback to source reads or renewal of source signing requires a
+new retention review. Do not restart either completed copy run.
+
+Evidence is in the private operational directory
+`research/seo/2026-11-01/`, outside this checkout. The completed-copy
+reconciliation records 12,760 unchanged approved source objects and matching
+receipts, with zero completed-source or receipt mismatches. The subsequent
+rollout tests added six mirrored QA source objects; the final R2-only upload
+added no Supabase duplicates. Current retained sources total 12,766 objects.
+None have been deleted. The receipt count is 12,768 because the final R2-only
+pair has no source counterpart. These counts are dated observations, not a
+deletion manifest.
+
+Live checks cover native small/large uploads, ordinary server-import staging,
+private cancellation/discard, original galleries and 400 R2-backed native
+homepage cards. Seller-claim acceptance and the automatic large server-import
+handoff have not been exercised end to end in production. Do not describe
+narrower tests as proof of those flows or accept seller terms merely to test.
+
+After the retention cutoff, capture fresh source metadata, reconcile receipts
+and current references, exclude new, changed, unverified or incomplete uploads,
+and prepare the exact deletion manifest. Obtain action-time approval before
+permanently deleting any source object through the Storage API. Removing files
+does not erase already-consumed monthly usage; the owner declined both the
+paid upgrade and the proposed support request. Do not reopen either request.
+
+The evidence files `r2-delivery-rollout-live.json`, `r2-retention-live.json`,
+`r2-source-reconciliation-after-rollout-tests.json` and
+`r2-stable-thumbnail-release.json` record the cutover and later cache checks.
+Earlier preparation observations below retain their original scope and date;
+their unset flags, active-copy instructions and pending permissions are
+historical, not current operating instructions.
 
 ## Capture the inventory without downloading photos
 
