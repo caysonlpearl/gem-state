@@ -23,9 +23,12 @@ Paragraphs, section headings, lists, tables, and source links are supported. Cov
 
 Idaho Capital Sun, Utah News Dispatch, and Idaho@Work start in headline/link mode. Their article text and photographs are not copied into public pages. Idaho Fish and Game starts paused because its website was under maintenance during setup; verify its RSS address before enabling it.
 
-Idaho Capital Sun and Utah News Dispatch must remain set to review rather than
-automatic publication because their general-news feeds include political stories.
-Select appropriate nonpolitical stories for publication only after reviewing them.
+Feed imports screen the available headline, feed text, and categories for political
+signals. They put political or ambiguous stories in review, and only stories with
+a clear everyday subject can auto-publish when that source has auto-publishing
+enabled. This conservative keyword screen can make mistakes and cannot inspect
+text the publisher does not include in its feed. Periodically review published
+stories and the queue; only enable automatic publication once this code is live.
 
 Record publisher permission covering Bluebird's commercial use before choosing full-story imports. Photograph permission is separate, and imported photos must carry the publisher's credit. A publicly accessible feed is not itself a license.
 

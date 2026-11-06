@@ -17,6 +17,7 @@ import {
 import {
   editorialBodySections,
   editorialPlainText,
+  editorialPoliticsScreen,
   fetchEditorialFeed,
   originalDraftHtml,
   parseEditorialFeed,
@@ -54,6 +55,40 @@ const item = ({
   `<item><title>${title}</title><link>${link.replaceAll("&", "&amp;")}</link><pubDate>${date}</pubDate><dc:creator>Test Author</dc:creator><content:encoded><![CDATA[${content}]]></content:encoded></item>`;
 const feed = (...items) =>
   `<rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel>${items.join("")}</channel></rss>`;
+
+test("feed screening holds political and uncertain articles while allowing varied local topics", async () => {
+  for (const [title, content] of [
+    ["Idaho election results and ballot measures", "Voters elected a new senator."],
+    ["Boise school funding changes", "Lawmakers debated the bill in the legislature."],
+    ["A new Boise restaurant opens", "The governor's campaign is holding a political rally."],
+  ]) {
+    assert.equal(editorialPoliticsScreen(title, content), "political");
+    const [story] = await parseEditorialFeed(feed(item({ title, content })), source(), now);
+    assert.equal(story.status, "review");
+    assert.match(story.reviewReason, /Political content/);
+  }
+  assert.equal(
+    editorialPoliticsScreen("Something big happens in Boise", "An interesting local update."),
+    "uncertain",
+  );
+  assert.equal(editorialPoliticsScreen("A new Boise restaurant opens", ""), "uncertain");
+  for (const title of [
+    "Boise restaurant opens downtown",
+    "New hiking trails in Idaho",
+    "Twin Falls job fair returns",
+    "Local music festival announces lineup",
+    "Idaho homes get new owners",
+  ]) {
+    const [story] = await parseEditorialFeed(
+      feed(item({ title, content: "Idaho residents are enjoying this local community update." })),
+      source(),
+      now,
+    );
+    assert.equal(story.status, "published", title);
+  }
+  const [disabled] = await parseEditorialFeed(feed(item()), source({ autoPublish: false }), now);
+  assert.equal(disabled.status, "review");
+});
 
 test("news filters ignore marketplace location and constrain paging", () => {
   assert.deepEqual(newsFilters({ city: "Twin Falls", radiusMiles: 25, page: -1 }), {
@@ -536,7 +571,7 @@ test("an explicit headline state overrides the publisher's home state", async ()
   );
   assert.equal(story.state, "UT");
   assert.equal(story.city, "Salt Lake City");
-  assert.equal(story.status, "published");
+  assert.equal(story.status, "review");
 });
 test("the article city follows its first mention instead of the city's position in a dictionary", async () => {
   const [story] = await parseEditorialFeed(
