@@ -4,6 +4,13 @@ Public hub: `/news`. Editor: `/admin/news`. Existing guides keep `/guides/...` a
 
 ## Writing and publishing
 
+Bluebird Local should focus on useful, nonpolitical stories: for example, local
+restaurants, schools, outdoor activities, pets, homes, vehicles, jobs, and
+community events. Do not publish election, partisan, or political-policy
+coverage. Consider the subject of the full story, not just its headline. Original
+articles still require owner review before publication; support rankings and
+recommendations with current, transparent sources.
+
 1. Request a researched original article through the Bluebird chat.
 2. Review the draft and its sources. In the editor, choose **New article** and paste the draft, introduction, and headline.
 3. Choose relevant classified categories and an optional city. Bluebird builds browse/post prompts and shows up to four cached related listings.
@@ -15,6 +22,10 @@ Paragraphs, section headings, lists, tables, and source links are supported. Cov
 ## News sources
 
 Idaho Capital Sun, Utah News Dispatch, and Idaho@Work start in headline/link mode. Their article text and photographs are not copied into public pages. Idaho Fish and Game starts paused because its website was under maintenance during setup; verify its RSS address before enabling it.
+
+Idaho Capital Sun and Utah News Dispatch must remain set to review rather than
+automatic publication because their general-news feeds include political stories.
+Select appropriate nonpolitical stories for publication only after reviewing them.
 
 Record publisher permission covering Bluebird's commercial use before choosing full-story imports. Photograph permission is separate, and imported photos must carry the publisher's credit. A publicly accessible feed is not itself a license.
 

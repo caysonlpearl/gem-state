@@ -109,7 +109,8 @@ function fromArticle(article: NewsAdminArticle): Draft {
     authorName: article.authorName,
     authorUrl: article.authorUrl,
     status: article.status,
-    publishedAt: article.publishedAt,
+    // Database timestamps may include an offset; the save endpoint expects UTC ISO.
+    publishedAt: new Date(article.publishedAt).toISOString(),
     featured: article.featured,
     imageUrl: article.imageUrl,
     imageCredit: article.imageCredit,
