@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- registry entries share heterogeneous email payloads */
+import { template as dealerInquiry } from "./dealer-inquiry";
 import type { ComponentType } from "react";
 
 import { template as purchaseConfirmed } from "./purchase-confirmed";
@@ -30,6 +31,7 @@ export interface TemplateEntry {
  * Import and register new templates here after creating them in this directory.
  */
 export const TEMPLATES: Record<string, TemplateEntry> = {
+  "dealer-inquiry": dealerInquiry,
   "purchase-confirmed": purchaseConfirmed,
   "item-sold": itemSold,
   "shopping-job": shoppingJob,

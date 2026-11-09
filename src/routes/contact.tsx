@@ -1,5 +1,6 @@
+import { dealerLandingSearch } from "@/lib/dealer-inquiry-contract";
 import { useEffect, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
@@ -34,12 +35,22 @@ export const Route = createFileRoute("/contact")({
       { name: "twitter:card", content: "summary" },
     ],
   }),
+  beforeLoad: ({ search, location }) => {
+    if (search.interest === "dealership") {
+      throw redirect({
+        to: "/for-dealers",
+        search: dealerLandingSearch(location.search as Record<string, unknown>),
+        replace: true,
+      });
+    }
+  },
   component: ContactPage,
 });
 
 function ContactPage() {
   const search = Route.useSearch();
   const send = useServerFn(submitContactMessage);
+  const navigate = Route.useNavigate();
   const [interest, setInterest] = useState<ContactInterest>(search.interest ?? "general");
   const [dealershipName, setDealershipName] = useState("");
   const [phone, setPhone] = useState("");
@@ -138,7 +149,16 @@ function ContactPage() {
             <select
               id="contact-interest"
               value={interest}
-              onChange={(e) => setInterest(e.target.value as ContactInterest)}
+              onChange={(e) => {
+                if (e.target.value === "dealership")
+                  void navigate({
+                    to: "/for-dealers",
+                    search: dealerLandingSearch(
+                      Object.fromEntries(new URLSearchParams(window.location.search)),
+                    ),
+                  });
+                else setInterest(e.target.value as ContactInterest);
+              }}
               className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
             >
               <option value="general">General question or support</option>

@@ -56,7 +56,9 @@ export async function sendTemplateEmail(
     headers: {
       Authorization: `Bearer ${resendApiKey}`,
       "Content-Type": "application/json",
+      ...(options.idempotencyKey ? { "Idempotency-Key": options.idempotencyKey } : {}),
     },
+    signal: AbortSignal.timeout(7000),
     body: JSON.stringify({
       from,
       to: [recipient],
@@ -64,7 +66,6 @@ export async function sendTemplateEmail(
       html,
       text,
       reply_to: options.replyTo || brand.supportEmail,
-      ...(options.idempotencyKey ? { idempotency_key: options.idempotencyKey } : {}),
     }),
   });
   if (!response.ok) {

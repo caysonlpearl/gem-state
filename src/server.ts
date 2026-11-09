@@ -153,6 +153,9 @@ export default {
   async scheduled(controller: unknown, env: unknown, ctx: unknown) {
     registerRuntimeBindings(env);
     const task = Promise.all([
+      import("./lib/dealer-inquiry.server")
+        .then((module) => module.processDealerInquiryNotifications())
+        .catch(() => console.warn("Dealer notifications deferred; inquiries retained.")),
       import("./lib/seo-review-reports.server")
         .then((module) => module.refreshSeoReviewReports())
         .catch(() => null),

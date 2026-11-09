@@ -17,6 +17,7 @@ import { Route as BrowseRouteImport } from './routes/browse'
 import { Route as ClaimSellerRouteImport } from './routes/claim-seller'
 import { Route as ContactRouteImport } from './routes/contact'
 import { Route as FirearmsSafetyRouteImport } from './routes/firearms-safety'
+import { Route as ForDealersRouteImport } from './routes/for-dealers'
 import { Route as GlossaryRouteImport } from './routes/glossary'
 import { Route as MessagesRouteImport } from './routes/messages'
 import { Route as NewsSitemapDotxmlRouteImport } from './routes/news-sitemap[.]xml'
@@ -53,6 +54,7 @@ import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAdminCatalogRouteImport } from './routes/_authenticated/admin.catalog'
 import { Route as AuthenticatedAdminClassifiedsRouteImport } from './routes/_authenticated/admin.classifieds'
 import { Route as AuthenticatedAdminConversationReportsRouteImport } from './routes/_authenticated/admin.conversation-reports'
+import { Route as AuthenticatedAdminDealerInquiriesRouteImport } from './routes/_authenticated/admin.dealer-inquiries'
 import { Route as AuthenticatedAdminDealerInventoryRouteImport } from './routes/_authenticated/admin.dealer-inventory'
 import { Route as AuthenticatedAdminDealersRouteImport } from './routes/_authenticated/admin.dealers'
 import { Route as AuthenticatedAdminFbImportRouteImport } from './routes/_authenticated/admin.fb-import'
@@ -63,6 +65,7 @@ import { Route as AuthenticatedAdminReviewFlagsRouteImport } from './routes/_aut
 import { Route as AuthenticatedAdminTrafficRouteImport } from './routes/_authenticated/admin.traffic'
 import { Route as AuthenticatedAdminValidationRouteImport } from './routes/_authenticated/admin.validation'
 import { Route as AuthenticatedOrdersOrderIdRouteImport } from './routes/_authenticated/orders.$orderId'
+import { Route as ApiInternalDealerInquiriesRouteImport } from './routes/api/internal/dealer-inquiries'
 import { Route as ApiInternalDealerInventoryRouteImport } from './routes/api/internal/dealer-inventory'
 import { Route as ApiInternalHomepageRefreshRouteImport } from './routes/api/internal/homepage-refresh'
 import { Route as ApiInternalNewsRefreshRouteImport } from './routes/api/internal/news-refresh'
@@ -120,6 +123,11 @@ const ContactRoute = ContactRouteImport.update({
 const FirearmsSafetyRoute = FirearmsSafetyRouteImport.update({
   id: '/firearms-safety',
   path: '/firearms-safety',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForDealersRoute = ForDealersRouteImport.update({
+  id: '/for-dealers',
+  path: '/for-dealers',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GlossaryRoute = GlossaryRouteImport.update({
@@ -311,6 +319,12 @@ const AuthenticatedAdminConversationReportsRoute =
     path: '/conversation-reports',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminDealerInquiriesRoute =
+  AuthenticatedAdminDealerInquiriesRouteImport.update({
+    id: '/dealer-inquiries',
+    path: '/dealer-inquiries',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminDealerInventoryRoute =
   AuthenticatedAdminDealerInventoryRouteImport.update({
     id: '/dealer-inventory',
@@ -369,6 +383,12 @@ const AuthenticatedOrdersOrderIdRoute =
     id: '/orders/$orderId',
     path: '/orders/$orderId',
     getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const ApiInternalDealerInquiriesRoute =
+  ApiInternalDealerInquiriesRouteImport.update({
+    id: '/api/internal/dealer-inquiries',
+    path: '/api/internal/dealer-inquiries',
+    getParentRoute: () => rootRouteImport,
   } as any)
 const ApiInternalDealerInventoryRoute =
   ApiInternalDealerInventoryRouteImport.update({
@@ -483,6 +503,7 @@ export interface FileRoutesByFullPath {
   '/claim-seller': typeof ClaimSellerRoute
   '/contact': typeof ContactRoute
   '/firearms-safety': typeof FirearmsSafetyRoute
+  '/for-dealers': typeof ForDealersRoute
   '/glossary': typeof GlossaryRoute
   '/messages': typeof MessagesRoute
   '/news-sitemap.xml': typeof NewsSitemapDotxmlRoute
@@ -518,6 +539,7 @@ export interface FileRoutesByFullPath {
   '/admin/catalog': typeof AuthenticatedAdminCatalogRoute
   '/admin/classifieds': typeof AuthenticatedAdminClassifiedsRoute
   '/admin/conversation-reports': typeof AuthenticatedAdminConversationReportsRoute
+  '/admin/dealer-inquiries': typeof AuthenticatedAdminDealerInquiriesRoute
   '/admin/dealer-inventory': typeof AuthenticatedAdminDealerInventoryRoute
   '/admin/dealers': typeof AuthenticatedAdminDealersRoute
   '/admin/fb-import': typeof AuthenticatedAdminFbImportRoute
@@ -528,6 +550,7 @@ export interface FileRoutesByFullPath {
   '/admin/traffic': typeof AuthenticatedAdminTrafficRoute
   '/admin/validation': typeof AuthenticatedAdminValidationRoute
   '/orders/$orderId': typeof AuthenticatedOrdersOrderIdRoute
+  '/api/internal/dealer-inquiries': typeof ApiInternalDealerInquiriesRoute
   '/api/internal/dealer-inventory': typeof ApiInternalDealerInventoryRoute
   '/api/internal/homepage-refresh': typeof ApiInternalHomepageRefreshRoute
   '/api/internal/news-refresh': typeof ApiInternalNewsRefreshRoute
@@ -557,6 +580,7 @@ export interface FileRoutesByTo {
   '/claim-seller': typeof ClaimSellerRoute
   '/contact': typeof ContactRoute
   '/firearms-safety': typeof FirearmsSafetyRoute
+  '/for-dealers': typeof ForDealersRoute
   '/glossary': typeof GlossaryRoute
   '/messages': typeof MessagesRoute
   '/news-sitemap.xml': typeof NewsSitemapDotxmlRoute
@@ -591,6 +615,7 @@ export interface FileRoutesByTo {
   '/admin/catalog': typeof AuthenticatedAdminCatalogRoute
   '/admin/classifieds': typeof AuthenticatedAdminClassifiedsRoute
   '/admin/conversation-reports': typeof AuthenticatedAdminConversationReportsRoute
+  '/admin/dealer-inquiries': typeof AuthenticatedAdminDealerInquiriesRoute
   '/admin/dealer-inventory': typeof AuthenticatedAdminDealerInventoryRoute
   '/admin/dealers': typeof AuthenticatedAdminDealersRoute
   '/admin/fb-import': typeof AuthenticatedAdminFbImportRoute
@@ -601,6 +626,7 @@ export interface FileRoutesByTo {
   '/admin/traffic': typeof AuthenticatedAdminTrafficRoute
   '/admin/validation': typeof AuthenticatedAdminValidationRoute
   '/orders/$orderId': typeof AuthenticatedOrdersOrderIdRoute
+  '/api/internal/dealer-inquiries': typeof ApiInternalDealerInquiriesRoute
   '/api/internal/dealer-inventory': typeof ApiInternalDealerInventoryRoute
   '/api/internal/homepage-refresh': typeof ApiInternalHomepageRefreshRoute
   '/api/internal/news-refresh': typeof ApiInternalNewsRefreshRoute
@@ -632,6 +658,7 @@ export interface FileRoutesById {
   '/claim-seller': typeof ClaimSellerRoute
   '/contact': typeof ContactRoute
   '/firearms-safety': typeof FirearmsSafetyRoute
+  '/for-dealers': typeof ForDealersRoute
   '/glossary': typeof GlossaryRoute
   '/messages': typeof MessagesRoute
   '/news-sitemap.xml': typeof NewsSitemapDotxmlRoute
@@ -667,6 +694,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/catalog': typeof AuthenticatedAdminCatalogRoute
   '/_authenticated/admin/classifieds': typeof AuthenticatedAdminClassifiedsRoute
   '/_authenticated/admin/conversation-reports': typeof AuthenticatedAdminConversationReportsRoute
+  '/_authenticated/admin/dealer-inquiries': typeof AuthenticatedAdminDealerInquiriesRoute
   '/_authenticated/admin/dealer-inventory': typeof AuthenticatedAdminDealerInventoryRoute
   '/_authenticated/admin/dealers': typeof AuthenticatedAdminDealersRoute
   '/_authenticated/admin/fb-import': typeof AuthenticatedAdminFbImportRoute
@@ -677,6 +705,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/traffic': typeof AuthenticatedAdminTrafficRoute
   '/_authenticated/admin/validation': typeof AuthenticatedAdminValidationRoute
   '/_authenticated/orders/$orderId': typeof AuthenticatedOrdersOrderIdRoute
+  '/api/internal/dealer-inquiries': typeof ApiInternalDealerInquiriesRoute
   '/api/internal/dealer-inventory': typeof ApiInternalDealerInventoryRoute
   '/api/internal/homepage-refresh': typeof ApiInternalHomepageRefreshRoute
   '/api/internal/news-refresh': typeof ApiInternalNewsRefreshRoute
@@ -708,6 +737,7 @@ export interface FileRouteTypes {
     | '/claim-seller'
     | '/contact'
     | '/firearms-safety'
+    | '/for-dealers'
     | '/glossary'
     | '/messages'
     | '/news-sitemap.xml'
@@ -743,6 +773,7 @@ export interface FileRouteTypes {
     | '/admin/catalog'
     | '/admin/classifieds'
     | '/admin/conversation-reports'
+    | '/admin/dealer-inquiries'
     | '/admin/dealer-inventory'
     | '/admin/dealers'
     | '/admin/fb-import'
@@ -753,6 +784,7 @@ export interface FileRouteTypes {
     | '/admin/traffic'
     | '/admin/validation'
     | '/orders/$orderId'
+    | '/api/internal/dealer-inquiries'
     | '/api/internal/dealer-inventory'
     | '/api/internal/homepage-refresh'
     | '/api/internal/news-refresh'
@@ -782,6 +814,7 @@ export interface FileRouteTypes {
     | '/claim-seller'
     | '/contact'
     | '/firearms-safety'
+    | '/for-dealers'
     | '/glossary'
     | '/messages'
     | '/news-sitemap.xml'
@@ -816,6 +849,7 @@ export interface FileRouteTypes {
     | '/admin/catalog'
     | '/admin/classifieds'
     | '/admin/conversation-reports'
+    | '/admin/dealer-inquiries'
     | '/admin/dealer-inventory'
     | '/admin/dealers'
     | '/admin/fb-import'
@@ -826,6 +860,7 @@ export interface FileRouteTypes {
     | '/admin/traffic'
     | '/admin/validation'
     | '/orders/$orderId'
+    | '/api/internal/dealer-inquiries'
     | '/api/internal/dealer-inventory'
     | '/api/internal/homepage-refresh'
     | '/api/internal/news-refresh'
@@ -856,6 +891,7 @@ export interface FileRouteTypes {
     | '/claim-seller'
     | '/contact'
     | '/firearms-safety'
+    | '/for-dealers'
     | '/glossary'
     | '/messages'
     | '/news-sitemap.xml'
@@ -891,6 +927,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/catalog'
     | '/_authenticated/admin/classifieds'
     | '/_authenticated/admin/conversation-reports'
+    | '/_authenticated/admin/dealer-inquiries'
     | '/_authenticated/admin/dealer-inventory'
     | '/_authenticated/admin/dealers'
     | '/_authenticated/admin/fb-import'
@@ -901,6 +938,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/traffic'
     | '/_authenticated/admin/validation'
     | '/_authenticated/orders/$orderId'
+    | '/api/internal/dealer-inquiries'
     | '/api/internal/dealer-inventory'
     | '/api/internal/homepage-refresh'
     | '/api/internal/news-refresh'
@@ -932,6 +970,7 @@ export interface RootRouteChildren {
   ClaimSellerRoute: typeof ClaimSellerRoute
   ContactRoute: typeof ContactRoute
   FirearmsSafetyRoute: typeof FirearmsSafetyRoute
+  ForDealersRoute: typeof ForDealersRoute
   GlossaryRoute: typeof GlossaryRoute
   MessagesRoute: typeof MessagesRoute
   NewsSitemapDotxmlRoute: typeof NewsSitemapDotxmlRoute
@@ -950,6 +989,7 @@ export interface RootRouteChildren {
   ShoppersSlugRoute: typeof ShoppersSlugRoute
   GuidesIndexRoute: typeof GuidesIndexRoute
   NewsIndexRoute: typeof NewsIndexRoute
+  ApiInternalDealerInquiriesRoute: typeof ApiInternalDealerInquiriesRoute
   ApiInternalDealerInventoryRoute: typeof ApiInternalDealerInventoryRoute
   ApiInternalHomepageRefreshRoute: typeof ApiInternalHomepageRefreshRoute
   ApiInternalNewsRefreshRoute: typeof ApiInternalNewsRefreshRoute
@@ -1025,6 +1065,13 @@ declare module '@tanstack/react-router' {
       path: '/firearms-safety'
       fullPath: '/firearms-safety'
       preLoaderRoute: typeof FirearmsSafetyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/for-dealers': {
+      id: '/for-dealers'
+      path: '/for-dealers'
+      fullPath: '/for-dealers'
+      preLoaderRoute: typeof ForDealersRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/glossary': {
@@ -1279,6 +1326,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminConversationReportsRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/dealer-inquiries': {
+      id: '/_authenticated/admin/dealer-inquiries'
+      path: '/dealer-inquiries'
+      fullPath: '/admin/dealer-inquiries'
+      preLoaderRoute: typeof AuthenticatedAdminDealerInquiriesRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/dealer-inventory': {
       id: '/_authenticated/admin/dealer-inventory'
       path: '/dealer-inventory'
@@ -1348,6 +1402,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/orders/$orderId'
       preLoaderRoute: typeof AuthenticatedOrdersOrderIdRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/internal/dealer-inquiries': {
+      id: '/api/internal/dealer-inquiries'
+      path: '/api/internal/dealer-inquiries'
+      fullPath: '/api/internal/dealer-inquiries'
+      preLoaderRoute: typeof ApiInternalDealerInquiriesRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/internal/dealer-inventory': {
       id: '/api/internal/dealer-inventory'
@@ -1489,6 +1550,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminCatalogRoute: typeof AuthenticatedAdminCatalogRoute
   AuthenticatedAdminClassifiedsRoute: typeof AuthenticatedAdminClassifiedsRoute
   AuthenticatedAdminConversationReportsRoute: typeof AuthenticatedAdminConversationReportsRoute
+  AuthenticatedAdminDealerInquiriesRoute: typeof AuthenticatedAdminDealerInquiriesRoute
   AuthenticatedAdminDealerInventoryRoute: typeof AuthenticatedAdminDealerInventoryRoute
   AuthenticatedAdminDealersRoute: typeof AuthenticatedAdminDealersRoute
   AuthenticatedAdminFbImportRoute: typeof AuthenticatedAdminFbImportRoute
@@ -1507,6 +1569,8 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminClassifiedsRoute: AuthenticatedAdminClassifiedsRoute,
   AuthenticatedAdminConversationReportsRoute:
     AuthenticatedAdminConversationReportsRoute,
+  AuthenticatedAdminDealerInquiriesRoute:
+    AuthenticatedAdminDealerInquiriesRoute,
   AuthenticatedAdminDealerInventoryRoute:
     AuthenticatedAdminDealerInventoryRoute,
   AuthenticatedAdminDealersRoute: AuthenticatedAdminDealersRoute,
@@ -1576,6 +1640,7 @@ const rootRouteChildren: RootRouteChildren = {
   ClaimSellerRoute: ClaimSellerRoute,
   ContactRoute: ContactRoute,
   FirearmsSafetyRoute: FirearmsSafetyRoute,
+  ForDealersRoute: ForDealersRoute,
   GlossaryRoute: GlossaryRoute,
   MessagesRoute: MessagesRoute,
   NewsSitemapDotxmlRoute: NewsSitemapDotxmlRoute,
@@ -1594,6 +1659,7 @@ const rootRouteChildren: RootRouteChildren = {
   ShoppersSlugRoute: ShoppersSlugRoute,
   GuidesIndexRoute: GuidesIndexRoute,
   NewsIndexRoute: NewsIndexRoute,
+  ApiInternalDealerInquiriesRoute: ApiInternalDealerInquiriesRoute,
   ApiInternalDealerInventoryRoute: ApiInternalDealerInventoryRoute,
   ApiInternalHomepageRefreshRoute: ApiInternalHomepageRefreshRoute,
   ApiInternalNewsRefreshRoute: ApiInternalNewsRefreshRoute,

@@ -1,11 +1,24 @@
-# Dealership inquiry measurement
+# Dealership inquiry landing page and measurement
 
-Use `https://onbluebird.com/contact?interest=dealership` as the dealer-acquisition ad destination. The advertising page also links into this form and preserves the OpenAI `oppref` reference across its contact links. The regular contact form can select dealership inventory and partnership explicitly. General support and other advertising messages do not emit dealership conversions.
+Use `https://onbluebird.com/for-dealers` for dealer-acquisition advertising. `/contact?interest=dealership` redirects here and keeps bounded campaign parameters, the OpenAI `oppref` reference, and internal QA flags. Generic contact messages retain their existing intake.
 
-The existing contact intake stores the message before returning an acknowledgement with its normalized interest and a random event ID. Dealership details are retained in that private message, and subjects are labeled `[Dealership]`. No new database permissions or schema are introduced.
+The four required fields are dealership name, website, contact name, and email. Phone, inventory provider/count and notes are optional. The setup explorer populates editable inventory details; it does not configure a feed. The interactive product example contains no actual inventory or provider calls.
 
-After the success screen removes the form, the browser queues the existing Bluebird pixel (`QwZ496FXpY5Z2pc8bAJS2Y`) and the standard `lead_created` / `customer_action` event with the acknowledgement ID. Repeated success effects are deduplicated. No form fields are passed to ad measurement. Pixel errors cannot change an accepted submission. Browser privacy signals, preview hosts, automated browsers and `_qa=1` visits suppress ad measurement. Existing SDK consent denials are not overridden.
+`submitDealerInquiry` validates server-side and calls a service-only atomic reservation function. `dealer_inquiries` is private: anon has no privileges, authenticated members have no qualifying RLS access, administrators can read and change only the inquiry status. A stable per-attempt request key and payload fingerprint prevent retry duplicates and changed-payload reuse. Atomic per-address/email/global limits and a honeypot bound abuse. Only a salted address digest is retained, never the raw IP.
 
-Reference: https://developers.openai.com/ads/measurement-pixel
+Successful storage returns the lead ID as the conversion event ID. The success screen removes all contact fields before loading the existing Bluebird pixel (`QwZ496FXpY5Z2pc8bAJS2Y`) and `lead_created` / `customer_action` event. Duplicate acknowledgements do not count again. No form fields are sent to ad measurement. Preview hosts, privacy signals, bots and `_qa=1` exclude measurement; SDK failures cannot alter accepted requests.
 
-Validation includes accepted/failed persistence, general-contact compatibility, dealer-required fields, exact queued calls, duplicate acknowledgements, SDK failure and privacy/test suppression. Live QA uses `_qa=1` so a synthetic contact submission does not count as an advertising lead. Ads Manager receipt and attribution remain observable after the first genuine qualifying inquiry. This change does not create or start a campaign.
+Notifications use existing Resend configuration, a fixed recipient of bluebirdmarketplaceid@gmail.com, and the dealership contact as Reply-To. A server request attempts notification after persistence. The authenticated `/api/internal/dealer-inquiries` endpoint and existing worker scheduler drain a durable, leased queue every 15 minutes. Each email has a stable HTTP Idempotency-Key. Failed requests back off; eight failed attempts become `failed` and remain visible in `/admin/dealer-inquiries`. “Sent” means provider acceptance, not independently verified mailbox delivery. The admin inbox links from `/admin`; status options are New, Contacted and Closed.
+
+Required migrations: `20261109233000_dealer_inquiries.sql` then `20261109233100_dealer_inquiry_notifications_schedule.sql`. The schedule reuses the existing authenticated news job without exposing its credential or changing other jobs. It must be installed before activation. No account signup, pricing commitment, or feed publication occurs through the form.
+
+## Research used on the page
+
+Cox Automotive’s 2025 Car Buyer Journey Study, published January 13, 2026, reports 75% used third-party websites, 4.6 average sites visited, and 71% began unsure which vehicle to buy. These are U.S. industry findings, not Bluebird audience or sales statistics. The page links the original source and labels the distinction.
+
+Source: https://www.coxautoinc.com/insights/cox-automotive-car-buyer-journey-study-finds-efficiency-digital-tools-and-ai-drive-record-satisfaction/
+
+Pixel reference: https://developers.openai.com/ads/measurement-pixel
+Resend idempotency: https://resend.com/docs/dashboard/emails/idempotency-keys
+
+Live QA must retain `_qa=1`, use a clearly identified test inquiry, check the private inbox and owner mailbox, and mark the inquiry closed. Ad-platform receipt requires a genuine qualifying conversion; no synthetic conversion or campaign activation is part of QA.
