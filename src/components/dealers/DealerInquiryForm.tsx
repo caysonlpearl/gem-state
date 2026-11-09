@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useHydrated } from "@/hooks/useHydrated";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowRight, CheckCircle2, ChevronDown } from "lucide-react";
 import {
@@ -20,6 +21,7 @@ export function DealerInquiryForm({
   onDraftChange: (draft: DealerSetupDraft) => void;
 }) {
   const send = useServerFn(submitDealerInquiry);
+  const hydrated = useHydrated();
   const requestKey = useRef<string | null>(null);
   const busy = useRef(false);
   const lastPayload = useRef("");
@@ -159,6 +161,7 @@ export function DealerInquiryForm({
             </p>
           </div>
           <form
+            method="post"
             onSubmit={(event) => void submit(event)}
             onFocus={() => {
               if (!started.current) {
@@ -222,7 +225,11 @@ export function DealerInquiryForm({
                 {failure}
               </p>
             )}
-            <button className="dealer-button dealer-submit" type="submit" disabled={pending}>
+            <button
+              className="dealer-button dealer-submit"
+              type="submit"
+              disabled={!hydrated || pending}
+            >
               {pending ? "Sending your request…" : "Connect my inventory"}
               <ArrowRight size={19} />
             </button>
