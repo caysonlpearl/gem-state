@@ -59,6 +59,14 @@ function policyBodies(): Record<string, React.ReactNode> {
           anything else you typed into a form.
         </p>
         <p>
+          For successful dealership contact submissions, we use the OpenAI advertising measurement
+          pixel to measure dealership leads. It can use an advertising reference and first-party
+          browser cookies to attribute an inquiry to an ad. We send the lead event and a random
+          event identifier, not the contact message or the contact fields. The pixel loads after the
+          submitted form is removed. We respect browser Do Not Track and Global Privacy Control
+          signals and exclude our internal test visits.
+        </p>
+        <p>
           Listing photos and account data are protected by account and staff permissions. Bluebird
           does not collect payment-card or bank details through the direct-contact listing flow.
         </p>

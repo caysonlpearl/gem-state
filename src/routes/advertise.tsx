@@ -15,6 +15,7 @@ import {
 import { useEffect } from "react";
 
 import { brand } from "@/config/brand";
+import { contactSearch } from "@/lib/contact-contract";
 import { trackEvent } from "@/lib/analytics";
 
 const title = `Advertise with ${brand.name}`;
@@ -22,6 +23,7 @@ const description =
   "Reach local Idaho buyers, sellers, homeowners, job seekers, and service customers with Bluebird Marketplace.";
 
 export const Route = createFileRoute("/advertise")({
+  validateSearch: contactSearch,
   head: () => ({
     meta: [
       { title: `${title} — reach local Idaho buyers` },
@@ -82,6 +84,7 @@ const benefits = [
 ];
 
 function AdvertisePage() {
+  const search = Route.useSearch();
   useEffect(() => {
     void trackEvent("page_view", { route: "/advertise" });
   }, []);
@@ -107,10 +110,18 @@ function AdvertisePage() {
             <div className="mt-8 flex flex-wrap gap-3">
               <Link
                 to="/contact"
+                search={{ interest: "advertising", oppref: search.oppref }}
                 className="inline-flex h-11 items-center gap-2 rounded-md bg-accent px-5 text-[13px] font-semibold text-accent-foreground transition-transform hover:-translate-y-0.5"
               >
                 Start a conversation
                 <ArrowRight size={16} weight="bold" aria-hidden="true" />
+              </Link>
+              <Link
+                to="/contact"
+                search={{ interest: "dealership", oppref: search.oppref }}
+                className="inline-flex h-11 items-center gap-2 rounded-md border border-primary-foreground/35 px-5 text-[13px] font-semibold text-primary-foreground hover:bg-primary-foreground/10"
+              >
+                Connect your dealership <Car size={18} aria-hidden="true" />
               </Link>
               <Link
                 to="/browse"
@@ -249,6 +260,10 @@ function AdvertisePage() {
                 <p className="mt-3 text-[13.5px] leading-relaxed text-muted-foreground">{body}</p>
                 <Link
                   to="/contact"
+                  search={{
+                    interest: eyebrow === "For dealerships" ? "dealership" : "advertising",
+                    oppref: search.oppref,
+                  }}
                   className="mt-6 inline-flex items-center gap-1.5 text-[13px] font-semibold text-primary hover:underline"
                 >
                   Talk about this option
@@ -395,6 +410,7 @@ function AdvertisePage() {
           </p>
           <Link
             to="/contact"
+            search={{ interest: "advertising", oppref: search.oppref }}
             className="mt-7 inline-flex h-11 items-center gap-2 rounded-md bg-accent px-5 text-[13px] font-semibold text-accent-foreground transition-transform hover:-translate-y-0.5"
           >
             Contact the Bluebird Marketplace team
