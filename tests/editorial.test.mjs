@@ -66,6 +66,10 @@ test("feed screening skips political articles entirely while allowing varied loc
     ["Rep. Kennedy announces education plan", "New school funding."],
     ["Tribal chairs tell RFK Jr. they need resources", "Healthcare funding."],
     ["Boise family detained by ICE", "An update from Idaho."],
+    ["Utah’s new House delegation is set", "Race calls for local representatives."],
+    ["Temporary legal status protections extended", "Ukrainians keep protections for now."],
+    ["Government watchdog calls for ICE body cameras", "New federal enforcement oversight."],
+    ["E-bikes rival motorcycles but city laws haven't caught up", "An Idaho transport story."],
   ]) {
     assert.equal(editorialPoliticsScreen(title, content), "political");
     assert.deepEqual(await parseEditorialFeed(feed(item({ title, content })), source(), now), []);
