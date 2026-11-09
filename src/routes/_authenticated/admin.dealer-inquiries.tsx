@@ -34,9 +34,13 @@ function DealerInquiries() {
       </Link>
       <h1 className="mt-5 text-3xl font-semibold">Dealership inquiries</h1>
       <p className="mt-2 text-sm text-muted-foreground">
-        Private inventory connection requests. Notifications go to bluebirdmarketplaceid@gmail.com.
-        Showing the latest 200 requests.
+        Private inventory connection requests. Showing the latest 200 requests.
       </p>
+      {query.data && !query.data.emailEnabled && (
+        <p className="mt-4 rounded-lg border border-border bg-secondary p-3 text-sm">
+          Email notifications are paused. New requests are saved in this private inbox.
+        </p>
+      )}
       <div className="my-6 flex flex-wrap items-center gap-4">
         <label htmlFor="inquiry-filter" className="text-sm">
           Status
@@ -62,11 +66,12 @@ function DealerInquiries() {
         <p>Loading inquiries…</p>
       ) : query.isError ? (
         <p role="alert">Could not load inquiries. Please try Refresh.</p>
-      ) : query.data?.filter((lead) => filter === "all" || lead.status === filter).length === 0 ? (
+      ) : query.data?.inquiries.filter((lead) => filter === "all" || lead.status === filter)
+          .length === 0 ? (
         <p>No inquiries in this view.</p>
       ) : (
-        query.data
-          ?.filter((lead) => filter === "all" || lead.status === filter)
+        query.data?.inquiries
+          .filter((lead) => filter === "all" || lead.status === filter)
           .map((lead) => (
             <article key={lead.id} className="mb-4 rounded-xl border bg-card p-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -119,9 +124,11 @@ function DealerInquiries() {
               <p className="mt-4 text-xs text-muted-foreground">
                 Email notification:{" "}
                 <strong>
-                  {lead.notification_status === "sent"
-                    ? "Accepted by email provider"
-                    : lead.notification_status}
+                  {!query.data?.emailEnabled
+                    ? "Paused — private inbox only"
+                    : lead.notification_status === "sent"
+                      ? "Accepted by email provider"
+                      : lead.notification_status}
                 </strong>{" "}
                 · {lead.notification_attempts} attempt(s)
                 {lead.notification_status === "failed" &&

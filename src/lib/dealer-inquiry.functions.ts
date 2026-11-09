@@ -54,7 +54,10 @@ export const getDealerInquiries = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false })
       .limit(200);
     if (error) throw new Error("Could not load dealership inquiries.");
-    return (data ?? []) as DealerInquiry[];
+    return {
+      inquiries: (data ?? []) as DealerInquiry[],
+      emailEnabled: process.env["DEALER_INQUIRY_EMAIL_ENABLED"] === "true",
+    };
   });
 export const updateDealerInquiry = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
