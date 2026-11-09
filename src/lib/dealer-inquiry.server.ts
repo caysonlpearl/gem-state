@@ -39,6 +39,9 @@ export async function processDealerInquiryNotifications(
   id?: string,
   dependencies?: { client: SupabaseClient; send: (lead: DealerInquiry) => Promise<void> },
 ) {
+  // Email is opt-in only after the owner approves a verified sending domain.
+  if (!dependencies && process.env["DEALER_INQUIRY_EMAIL_ENABLED"] !== "true")
+    return { sent: 0, attempted: 0, paused: true };
   const store = dependencies?.client ?? (await db());
   const { data, error } = await store.rpc("claim_dealer_inquiry_notifications", {
     _id: id ?? null,

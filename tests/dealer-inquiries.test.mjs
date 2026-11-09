@@ -192,3 +192,18 @@ test("actual migration enforces idempotency, rate limits, private RLS, status-on
     await db.close();
   }
 });
+
+test("private-inbox-only mode does not claim records or attempt email when sending is not enabled", async () => {
+  const old = process.env.DEALER_INQUIRY_EMAIL_ENABLED;
+  delete process.env.DEALER_INQUIRY_EMAIL_ENABLED;
+  try {
+    assert.deepEqual(await processDealerInquiryNotifications(), {
+      sent: 0,
+      attempted: 0,
+      paused: true,
+    });
+  } finally {
+    if (old === undefined) delete process.env.DEALER_INQUIRY_EMAIL_ENABLED;
+    else process.env.DEALER_INQUIRY_EMAIL_ENABLED = old;
+  }
+});
