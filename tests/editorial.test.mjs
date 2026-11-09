@@ -24,6 +24,7 @@ import {
   sanitizeEditorialHtml,
 } from "../src/lib/editorial-feed.server.ts";
 import {
+  archivePoliticalImports,
   editorialSourceUpdate,
   ingestEditorialStories,
   storyFingerprint,
@@ -56,16 +57,22 @@ const item = ({
 const feed = (...items) =>
   `<rss xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:content="http://purl.org/rss/1.0/modules/content/"><channel>${items.join("")}</channel></rss>`;
 
-test("feed screening holds political and uncertain articles while allowing varied local topics", async () => {
+test("feed screening skips political articles entirely while allowing varied local topics", async () => {
   for (const [title, content] of [
     ["Idaho election results and ballot measures", "Voters elected a new senator."],
     ["Boise school funding changes", "Lawmakers debated the bill in the legislature."],
     ["A new Boise restaurant opens", "The governor's campaign is holding a political rally."],
+    ["Utah Gov. announces new housing plan", "A local housing update."],
+    ["Rep. Kennedy announces education plan", "New school funding."],
+    ["Tribal chairs tell RFK Jr. they need resources", "Healthcare funding."],
+    ["Boise family detained by ICE", "An update from Idaho."],
+    ["Utah’s new House delegation is set", "Race calls for local representatives."],
+    ["Temporary legal status protections extended", "Ukrainians keep protections for now."],
+    ["Government watchdog calls for ICE body cameras", "New federal enforcement oversight."],
+    ["E-bikes rival motorcycles but city laws haven't caught up", "An Idaho transport story."],
   ]) {
     assert.equal(editorialPoliticsScreen(title, content), "political");
-    const [story] = await parseEditorialFeed(feed(item({ title, content })), source(), now);
-    assert.equal(story.status, "review");
-    assert.match(story.reviewReason, /Political content/);
+    assert.deepEqual(await parseEditorialFeed(feed(item({ title, content })), source(), now), []);
   }
   assert.equal(
     editorialPoliticsScreen("Something big happens in Boise", "An interesting local update."),
@@ -78,6 +85,8 @@ test("feed screening holds political and uncertain articles while allowing varie
     "Twin Falls job fair returns",
     "Local music festival announces lineup",
     "Idaho homes get new owners",
+    "Idaho ice fishing season begins",
+    "Boise ice cream shop opens",
   ]) {
     const [story] = await parseEditorialFeed(
       feed(item({ title, content: "Idaho residents are enjoying this local community update." })),
@@ -86,6 +95,13 @@ test("feed screening holds political and uncertain articles while allowing varie
     );
     assert.equal(story.status, "published", title);
   }
+  assert.equal(
+    editorialPoliticsScreen(
+      "Boise hiring fair",
+      "Contact media@labor.idaho.gov or visit labor.idaho.gov for local employers.",
+    ),
+    "clear",
+  );
   const [disabled] = await parseEditorialFeed(feed(item()), source({ autoPublish: false }), now);
   assert.equal(disabled.status, "review");
 });
@@ -383,7 +399,7 @@ test("failed or oversized responses never become stories", async (t) => {
   await assert.rejects(fetchEditorialFeed(source()), /size limit/);
 });
 
-function memoryDb(initial = []) {
+function memoryDb(initial = [], beforeUpdate = () => {}) {
   const rows = structuredClone(initial),
     writes = [];
   return {
@@ -393,7 +409,8 @@ function memoryDb(initial = []) {
       let action = "select",
         values,
         filters = [],
-        single = false;
+        single = false,
+        rowLimit = Infinity;
       const query = {
         select() {
           return query;
@@ -404,6 +421,27 @@ function memoryDb(initial = []) {
         },
         eq(key, value) {
           filters.push((r) => r[key] === value);
+          return query;
+        },
+        neq(key, value) {
+          filters.push((r) => r[key] !== value);
+          return query;
+        },
+        not(key, operator, value) {
+          assert.equal(operator, "is");
+          filters.push((r) => r[key] != value);
+          return query;
+        },
+        gt(key, value) {
+          filters.push((r) => r[key] > value);
+          return query;
+        },
+        order(key) {
+          assert.equal(key, "id");
+          return query;
+        },
+        limit(value) {
+          rowLimit = value;
           return query;
         },
         maybeSingle() {
@@ -434,7 +472,8 @@ function memoryDb(initial = []) {
             rows.push(...result);
             writes.push(action);
           } else {
-            result = rows.filter((row) => filters.every((f) => f(row)));
+            if (action === "update") beforeUpdate(rows);
+            result = rows.filter((row) => filters.every((f) => f(row))).slice(0, rowLimit);
             if (action === "update") {
               for (const row of result) Object.assign(row, values);
               writes.push(action);
@@ -450,6 +489,92 @@ function memoryDb(initial = []) {
     },
   };
 }
+test("political legacy imports are reversibly archived independently of current feed contents", async () => {
+  const row = {
+    id: "1",
+    title: "Idaho voters elect a senator",
+    excerpt: "",
+    body_html: "Saved publisher text",
+    updated_at: "v1",
+    status: "review",
+    kind: "external",
+    source_id: "source",
+    manual_revision: 2,
+    pending_update: { body_html: "Retained pending text" },
+  };
+  const db = memoryDb([
+    row,
+    { ...row, id: "2", status: "published" },
+    { ...row, id: "3", status: "archived" },
+    { ...row, id: "4", kind: "original", source_id: null },
+    { ...row, id: "5", title: "Boise hiring fair returns", status: "published" },
+    {
+      ...row,
+      id: "6",
+      title: "Idaho weather update",
+      body_html: "Lawmakers debate a bill",
+      status: "scheduled",
+    },
+  ]);
+  assert.equal(await archivePoliticalImports(db), 3);
+  assert.equal(db.rows[0].status, "archived");
+  assert.equal(db.rows[1].status, "archived");
+  assert.equal(db.rows[5].status, "archived");
+  assert.equal(db.rows[3].status, "review");
+  assert.equal(db.rows[4].status, "published");
+  assert.equal(db.rows[0].body_html, row.body_html);
+  assert.equal(db.rows[0].manual_revision, 2);
+  assert.deepEqual(db.rows[0].pending_update, row.pending_update);
+  const writes = db.writes.length;
+  assert.equal(await archivePoliticalImports(db), 0);
+  assert.equal(db.writes.length, writes);
+});
+test("legacy political review reasons survive missing unlicensed feed bodies", async () => {
+  const db = memoryDb([
+    {
+      id: "1",
+      title: "Young home shoppers priced out",
+      excerpt: "Publisher link",
+      body_html: "",
+      updated_at: "v1",
+      status: "review",
+      kind: "external",
+      source_id: "source",
+      review_reason: "Political content: do not publish on Bluebird Local.",
+    },
+  ]);
+  assert.equal(await archivePoliticalImports(db), 1);
+  assert.equal(db.rows[0].status, "archived");
+});
+test("political cleanup respects concurrent article edits and pages past archived rows", async () => {
+  const row = {
+    title: "Idaho election results",
+    updated_at: "v1",
+    status: "review",
+    kind: "external",
+    source_id: "source",
+  };
+  const db = memoryDb(
+    Array.from({ length: 260 }, (_, n) => ({ ...row, id: String(n).padStart(4, "0") })),
+  );
+  assert.equal(await archivePoliticalImports(db), 260);
+  assert.equal(db.rows.filter((r) => r.status === "archived").length, 260);
+  const racing = memoryDb([{ ...row, id: "1" }], (rows) => {
+    rows[0].updated_at = "v2";
+  });
+  assert.equal(await archivePoliticalImports(racing), 0);
+  assert.equal(racing.rows[0].status, "review");
+});
+test("ingestion rejects political records even when a caller bypasses feed parsing", async () => {
+  const [story] = await parseEditorialFeed(feed(item()), source(), now);
+  const db = memoryDb();
+  assert.deepEqual(
+    await ingestEditorialStories(db, source(), [{ ...story, title: "Idaho election results" }]),
+    { created: 0, updated: 0, review: 0 },
+  );
+  assert.equal(db.rows.length, 0);
+  assert.equal(db.writes.length, 0);
+});
 test("ingestion batches first imports and repeated unchanged feeds perform no article writes", async () => {
   const stories = await parseEditorialFeed(feed(item()), source(), now);
   const db = memoryDb();

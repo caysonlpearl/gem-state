@@ -150,18 +150,20 @@ function string(value: unknown): string {
   return "";
 }
 
-// Feeds are untrusted: publish only when the headline clearly describes an
+// Feeds are untrusted: skip political stories entirely and publish only when the headline describes an
 // everyday topic and the available feed text contains no political signals.
-// Everything else stays in review; keyword matching is not a guarantee.
+// Other ambiguous stories stay in review; keyword matching is not a guarantee.
 export function editorialPoliticsScreen(title: string, body: string, categories = "") {
   const text = `${title} ${body} ${categories}`.toLowerCase();
+  // Office abbreviations need whitespace context; .gov addresses are not politics.
+  if (/(?:^|\s)(?:gov|rep|sen)\.?(?=\s)/i.test(text)) return "political";
   const politics =
-    /\b(?:politic(?:al|s|ians?)|elections?|vot(?:e|es|ers?|ing)|ballots?|candidates?|campaigns?|primar(?:y|ies)|midterms?|polling|democrats?|republicans?|partisan|bipartisan|gop|congress(?:ional)?|senat(?:e|ors?)|legislatur(?:e|es)|legislators?|lawmakers?|governors?|presiden(?:t|tial|cy)|white house|administration|mayor|council(?:member|man|woman)?|commissioners?|attorney general|supreme court|justices?|redistricting|gerrymander(?:ing)?|referend(?:um|a)|propositions?|prop\.?\s*\d+|constitutional amendments?|legislation|bill(?:s)? (?:to|would|that)|lobby(?:ist|ing)|pac(?:s)?|protests?|rall(?:y|ies)|immigration|deportation|abortion|medicaid|federal (?:government|agenc(?:y|ies))|trump|biden|obama|harris|risch)\b/i;
+    /\b(?:politic(?:al|s|ians?)|elections?|vot(?:e|es|ers?|ing)|ballots?|candidates?|campaigns?|primar(?:y|ies)|midterms?|polling|democrats?|dems|republicans?|partisan|bipartisan|gop|congress(?:ional)?|senat(?:e|ors?)|legislatur(?:e|es)|legislators?|lawmakers?|governors?|presiden(?:t|tial|cy)|white house|administration|mayor|council(?:member|man|woman)?|commissioners?|attorney general|supreme court|justices?|redistricting|gerrymander(?:ing)?|referend(?:um|a)|propositions?|prop\.?\s*\d+|(?:constitutional )?amendments?|legislation|bill(?:s)? (?:to|would|that)|lobby(?:ist|ing)|pac(?:s)?|protests?|rall(?:y|ies)|immigra(?:tion|nts?)|citizenship|deportation|abortion|medicaid|federal (?:government|agenc(?:y|ies))|trump|biden|obama|harris|risch|vance|rfk|doj|dhs|ice (?:agents?|raids?|detention|operations)|(?:flee|evade|detained by) ice|no kings|political commentary|public policy|house delegation|temporary (?:legal|protected) status|charlie kirk|government|sheriffs?|judges?|courts?|lawsuits?|laws?|policies|regulators?|civil rights|social security|ice body cameras|ag sues)\b/i;
   if (politics.test(text)) return "political";
   // A clearly useful, nonpolitical subject in the headline is needed for
   // automatic publication; unrelated or ambiguous headlines go to review.
   const everyday =
-    /\b(?:restaurants?|food|dining|recipes?|coffee|cafes?|baker(?:y|ies)|schools?|students?|teachers?|education|college|universit(?:y|ies)|famil(?:y|ies)|parents?|children|kids?|pets?|dogs?|cats?|animals?|wildlife|birds?|fishing|hunting|outdoors?|hiking|trails?|parks?|camping|recreation|sports?|football|basketball|baseball|soccer|concerts?|music|arts?|museums?|festivals?|events?|theat(?:er|re)|movies?|books?|libraries|local histor(?:y|ic)|travel|tourism|vacations?|weather|snow|wildfires?|floods?|health|medical|fitness|hospitals?|jobs?|hiring|employers?|careers?|workforce|workshops?|webinars?|business(?:es)?|shops?|shopping|stores?|markets?|farmers?|agriculture|gardens?|landscaping|homes?|housing|rentals?|renting|moving|real estate|vehicles?|cars?|trucks?|bicycles?|e-bikes?|roads?|traffic|furniture|appliances|prices|inflation|econom(?:y|ic)|income|mortgages?|technology|science|research|photograph(?:y|s)|volunteers?|charit(?:y|ies)|nonprofits?|community)\b/i;
+    /\b(?:restaurants?|food|dining|recipes?|coffee|cafes?|baker(?:y|ies)|schools?|students?|teachers?|education|college|universit(?:y|ies)|famil(?:y|ies)|parents?|children|kids?|pets?|dogs?|cats?|animals?|wildlife|birds?|fishing|hunting|outdoors?|hiking|trails?|parks?|camping|recreation|sports?|football|basketball|baseball|soccer|concerts?|music|arts?|museums?|festivals?|events?|theat(?:er|re)|movies?|books?|libraries|local histor(?:y|ic)|travel|tourism|vacations?|weather|snow|wildfires?|floods?|health|healthcare|medical|fitness|hospitals?|jobs?|hiring|employers?|careers?|workforce|employment|unemployment|labor market|economists?|demographics?|household|workshops?|webinars?|business(?:es)?|shops?|shopping|stores?|markets?|farmers?|agriculture|gardens?|landscaping|homes?|housing|rentals?|renting|moving|real estate|vehicles?|cars?|trucks?|bicycles?|e-bikes?|roads?|traffic|furniture|appliances|prices|inflation|econom(?:y|ic)|income|mortgages?|technology|science|research|photograph(?:y|s)|volunteers?|charit(?:y|ies)|nonprofits?|community)\b/i;
   if (!body.trim() || !everyday.test(title)) return "uncertain";
   return "clear";
 }
@@ -233,16 +235,16 @@ export async function parseEditorialFeed(
       analysisText,
       [item.category].flat().map(string).join(" "),
     );
+    // Rejected subjects never become article records or review-queue work.
+    if (screen === "political") continue;
     const reviewReason =
-      screen === "political"
-        ? "Political content: do not publish on Bluebird Local."
-        : screen === "uncertain"
-          ? "Review the story for political content before publishing."
-          : !location.certain
-            ? "Confirm that this story is relevant to Idaho or Utah."
-            : emptyBody
-              ? "The feed did not include a complete article."
-              : null;
+      screen === "uncertain"
+        ? "Review the story for political content before publishing."
+        : !location.certain
+          ? "Confirm that this story is relevant to Idaho or Utah."
+          : emptyBody
+            ? "The feed did not include a complete article."
+            : null;
     const authorName =
       editorialPlainText(string(item.creator || item.author?.name || item.author)) || source.name;
     const publishedAt = new Date(date).toISOString();
@@ -251,7 +253,7 @@ export async function parseEditorialFeed(
       ? editorialPlainText(body).slice(0, 240)
       : `Local reporting from ${source.name}. Read the full story at its original source.`;
     const fingerprint = JSON.stringify({
-      editorialScreen: "nonpolitical-v1",
+      editorialScreen: "nonpolitical-v2-skip",
       title,
       body,
       authorName,

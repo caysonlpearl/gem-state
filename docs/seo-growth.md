@@ -456,3 +456,7 @@ source verification and database attempt limits as manual recovery. Network
 uncertainty, unrelated failures, changed saved state, preparation failure or a
 failed retry stop the run. Manual batches and explicit single retries retain
 their existing behavior; completed-group checkpoints remain at 25.
+
+### November 9: exclude political imports from the editor queue
+
+Political feed items are now skipped before article creation instead of being saved as review work. Ingestion also rejects previously parsed political stories. Each source refresh reversibly archives legacy political imports, including earlier political review flags whose unlicensed body text was never stored; it runs even when sources return 304 or fail. Cleanup preserves article copy, pending edits and original Bluebird drafts and uses the saved update version to respect concurrent editors. Active articles are the default editor view, with archived records available through the status filter.

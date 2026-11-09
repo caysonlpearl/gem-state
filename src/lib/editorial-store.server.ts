@@ -7,7 +7,13 @@ import {
   type EditorialArticle,
   type EditorialSource,
 } from "./editorial-contract.ts";
-import { fetchEditorialFeed, parseEditorialFeed, type FeedStory } from "./editorial-feed.server.ts";
+import {
+  editorialPlainText,
+  editorialPoliticsScreen,
+  fetchEditorialFeed,
+  parseEditorialFeed,
+  type FeedStory,
+} from "./editorial-feed.server.ts";
 
 export async function editorialDb(): Promise<any> {
   return (await import("../integrations/supabase/client.server")).supabaseAdmin;
@@ -142,6 +148,14 @@ export async function ingestEditorialStories(
   stories: FeedStory[],
 ) {
   const counts = { created: 0, updated: 0, review: 0 };
+  // Protect callers using previously parsed stories as well as the feed parser.
+  stories = stories.filter(
+    (story) =>
+      editorialPoliticsScreen(
+        story.title,
+        editorialPlainText(`${story.excerpt} ${story.bodyHtml}`),
+      ) !== "political",
+  );
   if (!stories.length) return counts;
   if (stories.some((story) => story.state === "UT")) {
     const prior = await db
@@ -247,9 +261,61 @@ export async function ingestEditorialStories(
   }
   return counts;
 }
+// Reversibly retire legacy imports, including old review rows and stories no
+// longer present in a publisher feed. Run independently of HTTP 304/failures.
+// Keyset paging stays correct as rows are archived. Never alter original drafts
+// or article text; compare updated_at so a concurrent editor wins.
+export async function archivePoliticalImports(db: any) {
+  let after = "";
+  let archived = 0;
+  for (let page = 0; page < 4; page++) {
+    let query = db
+      .from("editorial_articles")
+      .select("id,title,excerpt,body_html,updated_at,status,kind,source_id,review_reason")
+      .neq("kind", "original")
+      .neq("status", "archived")
+      .not("source_id", "is", null)
+      .order("id")
+      .limit(250);
+    if (after) query = query.gt("id", after);
+    const { data: rows, error } = await query;
+    if (error) throw new Error("Could not check existing imports for political content.");
+    for (const row of rows || []) {
+      after = row.id;
+      if (
+        !row.review_reason?.startsWith("Political content:") &&
+        editorialPoliticsScreen(
+          row.title,
+          editorialPlainText(`${row.excerpt || ""} ${row.body_html || ""}`),
+        ) !== "political"
+      )
+        continue;
+      const result = await db
+        .from("editorial_articles")
+        .update({
+          status: "archived",
+          featured: false,
+          review_reason:
+            "Political import excluded from Bluebird Local. Original content retained in archive.",
+        })
+        .eq("id", row.id)
+        .eq("updated_at", row.updated_at)
+        .eq("status", row.status)
+        .neq("kind", "original")
+        .select("id")
+        .maybeSingle();
+      if (result.error) throw new Error("Could not archive an excluded political import.");
+      if (result.data) archived++;
+    }
+    if (!rows || rows.length < 250) break;
+  }
+  return archived;
+}
+
 export async function refreshEditorialSources(force = false, sourceId?: string) {
   const db = await editorialDb();
   await seedEditorialGuides(db);
+  await archivePoliticalImports(db);
   const { error: dueError } = await db
     .from("editorial_articles")
     .update({ status: "published" })

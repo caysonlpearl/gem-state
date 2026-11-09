@@ -44,8 +44,9 @@ export const Route = createFileRoute("/news/about")({
         <h2>Our coverage</h2>
         <p>
           We prioritize Idaho community life, local businesses, homes, jobs, cars, outdoors, and
-          buying and selling. Selected Utah stories also appear. The newsroom filters are
-          independent of the location you choose when searching classified listings.
+          buying and selling. Political coverage is excluded from our imports. Selected Utah stories
+          also appear. The newsroom filters are independent of the location you choose when
+          searching classified listings.
         </p>
         <h2>Marketplace links</h2>
         <p>
