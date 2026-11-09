@@ -282,7 +282,7 @@ function NewsAdmin() {
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["editorial"] });
   const [tab, setTab] = useState<"stories" | "sources" | "history">("stories");
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState("active");
   const [draft, setDraft] = useState<Draft>(newDraft);
   const [selected, setSelected] = useState<NewsAdminArticle | null>(null);
   const [preview, setPreview] = useState<EditorialArticle | null>(null);
@@ -357,7 +357,8 @@ function NewsAdmin() {
   });
   const articles = (query.data?.articles || []).filter(
     (article) =>
-      (!status || article.status === status) &&
+      (!status ||
+        (status === "active" ? article.status !== "archived" : article.status === status)) &&
       `${article.title} ${article.sourceName || ""}`.toLowerCase().includes(search.toLowerCase()),
   );
   const original = !selected || selected.kind === "original";
@@ -371,7 +372,8 @@ function NewsAdmin() {
           </a>
           <h1 className="mt-2 text-3xl font-bold tracking-tight">Bluebird Local</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Stories, source permissions, and paths into the classifieds.
+            Local stories, useful guides, and paths into the classifieds. Political imports are
+            skipped.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -517,7 +519,8 @@ function NewsAdmin() {
                     value={status}
                     onChange={(e) => setStatus(e.target.value)}
                   >
-                    <option value="">All articles</option>
+                    <option value="active">Active articles</option>
+                    <option value="">All articles, including archived</option>
                     {Object.entries(statusLabels).map(([value, label]) => (
                       <option key={value} value={value}>
                         {label}
