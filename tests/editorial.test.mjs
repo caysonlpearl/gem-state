@@ -95,6 +95,13 @@ test("feed screening skips political articles entirely while allowing varied loc
     );
     assert.equal(story.status, "published", title);
   }
+  assert.equal(
+    editorialPoliticsScreen(
+      "Boise hiring fair",
+      "Contact media@labor.idaho.gov or visit labor.idaho.gov for local employers.",
+    ),
+    "clear",
+  );
   const [disabled] = await parseEditorialFeed(feed(item()), source({ autoPublish: false }), now);
   assert.equal(disabled.status, "review");
 });
