@@ -6,6 +6,12 @@ import { toast } from "sonner";
 
 import { brand } from "@/config/brand";
 import { trackEvent } from "@/lib/analytics";
+import {
+  contactSearch,
+  type ContactAcknowledgement,
+  type ContactInterest,
+} from "@/lib/contact-contract";
+import { trackDealerLead } from "@/lib/dealer-ads";
 import { submitContactMessage } from "@/lib/contact.functions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +23,7 @@ const description =
   "Send the Bluebird Marketplace team a message about an order, listing, payment, delivery, or anything else you need help with.";
 
 export const Route = createFileRoute("/contact")({
+  validateSearch: contactSearch,
   head: () => ({
     meta: [
       { title: `${title} — ${brand.name}` },
@@ -31,10 +38,17 @@ export const Route = createFileRoute("/contact")({
 });
 
 function ContactPage() {
+  const search = Route.useSearch();
   const send = useServerFn(submitContactMessage);
+  const [interest, setInterest] = useState<ContactInterest>(search.interest ?? "general");
+  const [dealershipName, setDealershipName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [acknowledged, setAcknowledged] = useState<ContactAcknowledgement | null>(null);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [subject, setSubject] = useState("");
+  const [subject, setSubject] = useState(
+    search.interest === "dealership" ? "Connect my dealership to Bluebird" : "",
+  );
   const [message, setMessage] = useState("");
   const [sent, setSent] = useState(false);
 
@@ -42,9 +56,18 @@ function ContactPage() {
     void trackEvent("page_view", { route: "/contact" });
   }, []);
 
+  useEffect(() => {
+    if (sent && acknowledged) trackDealerLead(acknowledged);
+  }, [sent, acknowledged]);
+
   const mutation = useMutation({
-    mutationFn: () => send({ data: { name, email, subject, message } }),
-    onSuccess: () => {
+    retry: false,
+    mutationFn: () =>
+      send({ data: { name, email, subject, message, interest, dealershipName, phone } }),
+    onSuccess: (result) => {
+      setAcknowledged(result);
+      setDealershipName("");
+      setPhone("");
       setSent(true);
       setName("");
       setEmail("");
@@ -64,9 +87,13 @@ function ContactPage() {
 
   return (
     <main className="mx-auto w-full max-w-[720px] px-4 py-10 sm:px-6">
-      <h1 className="text-2xl font-semibold tracking-tight text-foreground">{title}</h1>
+      <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+        {interest === "dealership" ? "Get your dealership on Bluebird" : title}
+      </h1>
       <p className="mt-2 text-[13.5px] leading-relaxed text-muted-foreground">
-        {description} Include your order number if your question is about a purchase or a sale.
+        {interest === "dealership"
+          ? "Reach local vehicle buyers in Idaho and Utah. Tell us about your dealership and the inventory you want to list, and our team will help you get started."
+          : `${description} Include your order number if your question is about a purchase or a sale.`}
       </p>
       <p className="mt-3 text-[13.5px] leading-relaxed text-muted-foreground">
         Email us directly at{" "}
@@ -106,6 +133,45 @@ function ContactPage() {
             mutation.mutate();
           }}
         >
+          <div className="space-y-1.5">
+            <Label htmlFor="contact-interest">What can we help with?</Label>
+            <select
+              id="contact-interest"
+              value={interest}
+              onChange={(e) => setInterest(e.target.value as ContactInterest)}
+              className="h-11 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="general">General question or support</option>
+              <option value="dealership">Dealership inventory & partnership</option>
+              <option value="advertising">Advertising & local business</option>
+            </select>
+          </div>
+          {interest === "dealership" && (
+            <div className="grid gap-5 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="contact-dealership">Dealership name</Label>
+                <Input
+                  id="contact-dealership"
+                  value={dealershipName}
+                  onChange={(e) => setDealershipName(e.target.value)}
+                  autoComplete="organization"
+                  maxLength={160}
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="contact-phone">Business phone (optional)</Label>
+                <Input
+                  id="contact-phone"
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  autoComplete="tel"
+                  maxLength={40}
+                />
+              </div>
+            </div>
+          )}
           <div className="grid gap-5 sm:grid-cols-2">
             <div className="space-y-1.5">
               <Label htmlFor="contact-name">Your name</Label>
@@ -150,19 +216,33 @@ function ContactPage() {
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               rows={7}
-              maxLength={4000}
+              maxLength={interest === "dealership" ? 3500 : 4000}
               required
               aria-describedby="contact-message-help"
             />
             <p id="contact-message-help" className="text-[12px] text-muted-foreground">
-              {message.trim().length}/4000 characters. Do not include payment card numbers or
-              passwords.
+              {message.trim().length}/{interest === "dealership" ? 3500 : 4000} characters. Do not
+              include payment card numbers or passwords.
             </p>
           </div>
 
           <Button type="submit" disabled={mutation.isPending}>
-            {mutation.isPending ? "Sending…" : "Send message"}
+            {mutation.isPending
+              ? "Sending…"
+              : interest === "dealership"
+                ? "Contact the dealership team"
+                : "Send message"}
           </Button>
+          {interest === "dealership" && (
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              We use OpenAI ad measurement on successful dealership inquiries to understand which
+              ads bring us new partners.{" "}
+              <a href="/policies#privacy" className="underline">
+                Privacy details
+              </a>
+              .
+            </p>
+          )}
         </form>
       )}
     </main>
