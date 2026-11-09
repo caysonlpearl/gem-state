@@ -1,5 +1,6 @@
 /** Only public page families, never tokens, search terms, or personal route IDs. */
 export function performancePageTemplate(path: string) {
+  if (path === "/for-dealers") return "dealer-landing";
   if (path === "/") return "home";
   if (path === "/browse") return "browse";
   if (path === "/news" || path === "/news/") return "news";
@@ -14,7 +15,7 @@ export function performancePageTemplate(path: string) {
 
 export function isInternalAnalyticsQuery(search: string) {
   const params = new URLSearchParams(search);
-  return params.get("_qa") === "1" || params.has("_verify");
+  return ["1", '"1"'].includes(params.get("_qa") ?? "") || params.has("_verify");
 }
 
 export function isKnownAutomatedAgent(agent: string) {

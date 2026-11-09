@@ -11,6 +11,10 @@ import { isInternalAnalyticsQuery, isKnownAutomatedAgent } from "@/lib/analytics
  * the user typed. Names, ids, counts, lengths and price buckets only.
  */
 export type AnalyticsEventName =
+  | "dealer_cta_clicked"
+  | "dealer_inquiry_started"
+  | "dealer_inquiry_submitted"
+  | "dealer_inquiry_error"
   | "media_article_viewed"
   | "media_cta_clicked"
   | "page_view"

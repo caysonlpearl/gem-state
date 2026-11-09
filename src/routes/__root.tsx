@@ -207,8 +207,12 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <div className="flex min-h-screen flex-col">
-        <PilotBanner />
-        <SiteHeader />
+        {currentPath !== "/for-dealers" && currentPath !== "/for-dealers/" && (
+          <>
+            <PilotBanner />
+            <SiteHeader />
+          </>
+        )}
         {isNavigating && (
           <div
             role="progressbar"
@@ -222,8 +226,12 @@ function RootComponent() {
           {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
           <Outlet />
         </main>
-        <SiteFooter />
-        <MobileTabBar />
+        {currentPath !== "/for-dealers" && currentPath !== "/for-dealers/" && (
+          <>
+            <SiteFooter />
+            <MobileTabBar />
+          </>
+        )}
       </div>
       <Toaster />
     </QueryClientProvider>
