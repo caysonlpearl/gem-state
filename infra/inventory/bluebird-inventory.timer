@@ -1,0 +1,12 @@
+[Unit]
+Description=Check due Bluebird inventory feeds every 15 minutes
+
+[Timer]
+OnActiveSec=1min
+OnCalendar=*-*-* *:00,15,30,45:00
+Persistent=true
+RandomizedDelaySec=20
+Unit=bluebird-inventory.service
+
+[Install]
+WantedBy=timers.target

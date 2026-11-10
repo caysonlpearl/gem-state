@@ -1,0 +1,25 @@
+[Unit]
+Description=Bluebird scheduled dealer inventory import
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+DynamicUser=yes
+LoadCredential=inventory.json:/etc/bluebird/inventory.json
+WorkingDirectory=/opt/bluebird-inventory/current
+ExecStart=/opt/bluebird-node/bin/node /opt/bluebird-inventory/current/run.mjs
+TimeoutStartSec=180
+MemoryMax=512M
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+UMask=0077
+StandardOutput=journal
+StandardError=journal
