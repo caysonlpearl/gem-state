@@ -1,4 +1,4 @@
-import { DealerContactPanel } from "@/components/classifieds/DealerContactPanel";
+import { DealerStorefrontHeader } from "@/components/dealers/DealerStorefrontHeader";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 
@@ -58,79 +58,9 @@ function DealerPage() {
   if (!dealer) return null;
 
   return (
-    <main className="mx-auto max-w-[1180px] px-4 py-10 sm:px-8">
-      <section className="border-b border-border pb-8">
-        <div className="flex flex-col items-start gap-4 sm:flex-row">
-          <div
-            className={
-              dealer.logoUrl
-                ? "grid h-20 w-60 shrink-0 place-items-center overflow-hidden rounded-lg bg-card p-2"
-                : "grid h-16 w-16 shrink-0 place-items-center rounded-lg bg-primary text-[22px] font-semibold text-primary-foreground"
-            }
-          >
-            {dealer.logoUrl ? (
-              <img src={dealer.logoUrl} alt="" className="h-full w-full object-contain" />
-            ) : (
-              dealer.displayName.slice(0, 1).toUpperCase()
-            )}
-          </div>
-          <div className="min-w-0">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-primary">
-              Verified dealership
-            </p>
-            <h1 className="mt-1 font-editorial text-[38px] font-normal tracking-[-0.035em]">
-              {dealer.displayName}
-            </h1>
-            <p className="text-[11.5px] text-muted-foreground">
-              {dealer.city || "Idaho"}
-              {dealer.state ? `, ${dealer.state}` : ""} · /dealers/{dealer.slug}
-            </p>
-            {dealer.description ? (
-              <p className="mt-3 max-w-[680px] text-[13px] leading-relaxed text-muted-foreground">
-                {dealer.description}
-              </p>
-            ) : null}
-          </div>
-        </div>
-        <div className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-[12px] text-muted-foreground">
-          {dealer.addressLine1 ? (
-            <span>
-              {dealer.addressLine1}
-              {dealer.city ? `, ${dealer.city}` : ""}
-              {dealer.state ? `, ${dealer.state}` : ""}
-            </span>
-          ) : null}
-          {dealer.phone ? (
-            <a className="hover:text-foreground" href={`tel:${dealer.phone}`}>
-              {dealer.phone}
-            </a>
-          ) : null}
-          {dealer.email ? (
-            <a className="hover:text-foreground" href={`mailto:${dealer.email}`}>
-              {dealer.email}
-            </a>
-          ) : null}
-          {dealer.website ? (
-            <a
-              className="hover:text-foreground"
-              href={dealer.website}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Website
-            </a>
-          ) : null}
-        </div>
-        {dealer.messagingEnabled ? (
-          <DealerContactPanel
-            dealerId={dealer.id}
-            name={dealer.displayName}
-            slug={dealer.slug}
-            ownerUserId={dealer.ownerUserId}
-          />
-        ) : null}
-      </section>
-      <section className="pt-7">
+    <main className="mx-auto max-w-[1280px] px-4 py-7 sm:px-8 sm:py-10">
+      <DealerStorefrontHeader dealer={dealer} />
+      <section id="dealer-inventory" className="scroll-mt-8 pt-9">
         <div className="mb-5 flex items-end justify-between gap-3">
           <h2 className="font-editorial text-[27px] font-normal">Current inventory</h2>
           <span className="text-[11.5px] text-muted-foreground">
