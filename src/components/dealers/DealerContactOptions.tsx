@@ -42,24 +42,26 @@ export function DealerContactOptions({
             Choose how you’d like to connect with the dealership.
           </DialogDescription>
         </DialogHeader>
-        <div className="mt-2 grid grid-cols-2 gap-3">
+        <div className="mt-2 grid grid-cols-2 gap-3" aria-label="Dealership contact methods">
           {phone ? (
-            <a className={tile} href={`tel:${phone.replace(/[^\d+]/g, "")}`}>
+            <a
+              className={`${tile} ${!website ? "col-span-2" : ""}`}
+              href={`tel:${phone.replace(/[^\d+]/g, "")}`}
+            >
               <Phone size={28} weight="duotone" />
               <span>Call dealership</span>
               <span className="text-xs font-normal text-muted-foreground">{phone}</span>
             </a>
           ) : null}
-          {email ? (
-            <a className={tile} href={`mailto:${email}`}>
-              <Envelope size={28} weight="duotone" />
-              <span>Email dealership</span>
-            </a>
-          ) : null}
-          {textPhone ? (
-            <a className={tile} href={`sms:${textPhone.replace(/[^\d+]/g, "")}`}>
-              <DeviceMobile size={28} weight="duotone" />
-              <span>Text dealership</span>
+          {website ? (
+            <a
+              className={`${tile} ${!phone ? "col-span-2" : ""}`}
+              href={website}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Globe size={28} weight="duotone" />
+              <span>Visit website</span>
             </a>
           ) : null}
           <button
@@ -69,20 +71,24 @@ export function DealerContactOptions({
               onOpenChange(false);
               onMessage();
             }}
-            className={`${tile} disabled:cursor-default disabled:border-dashed disabled:opacity-60`}
+            className={`${tile} ${!email ? "col-span-2" : ""} disabled:cursor-default disabled:border-dashed disabled:opacity-60`}
           >
             <ChatCircleDots size={28} weight="duotone" />
             <span>Message on Bluebird</span>
             {!messagingEnabled ? (
-              <span className="text-xs font-normal text-muted-foreground">
-                Inbox activation pending
-              </span>
+              <span className="text-xs font-normal text-muted-foreground">Inbox unavailable</span>
             ) : null}
           </button>
-          {website ? (
-            <a className={tile} href={website} target="_blank" rel="noopener noreferrer">
-              <Globe size={28} weight="duotone" />
-              <span>Visit website</span>
+          {email ? (
+            <a className={tile} href={`mailto:${email}`}>
+              <Envelope size={28} weight="duotone" />
+              <span>Email dealership</span>
+            </a>
+          ) : null}
+          {textPhone ? (
+            <a className={`${tile} col-span-2`} href={`sms:${textPhone.replace(/[^\d+]/g, "")}`}>
+              <DeviceMobile size={28} weight="duotone" />
+              <span>Text dealership</span>
             </a>
           ) : null}
         </div>

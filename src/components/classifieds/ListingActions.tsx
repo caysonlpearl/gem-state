@@ -14,7 +14,12 @@ import { adoptionPriceLabel, formatClassifiedPrice } from "@/lib/classifieds-dis
 import { trackSellerContact, trackCompletedInquiry } from "@/lib/analytics";
 import { startConversation } from "@/lib/conversation.functions";
 import { nearbyPagePath } from "@/lib/place-pages";
-import { ContactSignInSheet, OPEN_CONTACT_EVENT, consumeContactIntent } from "./ContactSignInSheet";
+import {
+  ContactSignInSheet,
+  OPEN_CONTACT_EVENT,
+  OPEN_LISTING_MESSAGE_EVENT,
+  consumeContactIntent,
+} from "./ContactSignInSheet";
 import { JobApplicationForm } from "./JobApplicationForm";
 
 function looksLikeEmail(value: string) {
@@ -140,15 +145,8 @@ function LiveListingActions({
   const canContactHere =
     !isPreviewListing && !isOwnListing && !isExternalApply && !isPartnerVehicle;
 
-  // Opens the message (or application) form and brings it on screen, or asks
-  // a signed-out buyer to sign in first. Also what the mobile bottom bar
-  // triggers, so both entry points behave identically.
-  const openContact = useCallback(() => {
-    if (!canContactHere) return;
-    if (approvedDealer) {
-      setDealerContactOpen(true);
-      return;
-    }
+  const openMessage = useCallback(() => {
+    if (!canContactHere || !internalMessagesEnabled) return;
     if (!isSignedIn) {
       setSignInOpen(true);
       return;
@@ -158,13 +156,20 @@ function LiveListingActions({
       panelRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       document.getElementById("seller-message")?.focus({ preventScroll: true });
     }, 50);
-  }, [canContactHere, isSignedIn, approvedDealer]);
-
+  }, [canContactHere, internalMessagesEnabled, isSignedIn]);
+  const openContact = useCallback(() => {
+    if (!canContactHere) return;
+    if (approvedDealer) setDealerContactOpen(true);
+    else openMessage();
+  }, [canContactHere, approvedDealer, openMessage]);
   useEffect(() => {
-    const onOpen = () => openContact();
-    window.addEventListener(OPEN_CONTACT_EVENT, onOpen);
-    return () => window.removeEventListener(OPEN_CONTACT_EVENT, onOpen);
-  }, [openContact]);
+    window.addEventListener(OPEN_CONTACT_EVENT, openContact);
+    window.addEventListener(OPEN_LISTING_MESSAGE_EVENT, openMessage);
+    return () => {
+      window.removeEventListener(OPEN_CONTACT_EVENT, openContact);
+      window.removeEventListener(OPEN_LISTING_MESSAGE_EVENT, openMessage);
+    };
+  }, [openContact, openMessage]);
 
   // Back from Google or the full sign-up page: open the form they asked for.
   useEffect(() => {
@@ -199,10 +204,7 @@ function LiveListingActions({
           textPhone={listing.seller?.contactTextPhone}
           website={listing.dealer?.website}
           messagingEnabled={internalMessagesEnabled && Boolean(listing.seller?.userId)}
-          onMessage={() => {
-            if (!isSignedIn) setSignInOpen(true);
-            else setContactOpen(true);
-          }}
+          onMessage={openMessage}
         />
       ) : null}
       {(showPriceHeader || approvedDealer) && (

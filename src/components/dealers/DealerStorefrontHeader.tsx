@@ -1,3 +1,10 @@
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { useState } from "react";
 import { ChatCircleDots } from "@phosphor-icons/react";
 import { DealerActionArt } from "./DealerActionArt";
@@ -8,11 +15,12 @@ import { DealerContactPanel } from "@/components/classifieds/DealerContactPanel"
 
 export function DealerStorefrontHeader({ dealer }: { dealer: PublicDealerProfile }) {
   const [contactOpen, setContactOpen] = useState(false);
+  const [messageOpen, setMessageOpen] = useState(false);
   const location = [dealer.city, dealer.state].filter(Boolean).join(", ");
   const address = [dealer.addressLine1, location, dealer.postalCode].filter(Boolean).join(", ");
   const count = dealer.listingCount ?? dealer.listings.length;
   const actionClass =
-    "group flex min-h-32 items-center gap-3 rounded-2xl border border-border/60 bg-card px-3 py-4 text-left transition-colors hover:border-primary/40 hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+    "group flex min-h-24 items-center gap-3 rounded-2xl border border-border/60 bg-card px-3 py-3 text-left transition-colors hover:border-primary/40 hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
   return (
     <section
       aria-label={`${dealer.displayName} dealership profile`}
@@ -40,7 +48,9 @@ export function DealerStorefrontHeader({ dealer }: { dealer: PublicDealerProfile
           </div>
           <div className="min-w-0 flex-1">
             <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/65">
-              Your local dealership · {location || "Idaho"}
+              {[dealer.city, dealer.state === "ID" ? "Idaho" : dealer.state]
+                .filter(Boolean)
+                .join(", ") || "Idaho"}
             </p>
             <h1 className="flex flex-wrap items-center gap-3 font-editorial text-[34px] font-normal leading-[1.12] tracking-[-0.035em] sm:text-[44px]">
               {dealer.displayName}
@@ -65,7 +75,7 @@ export function DealerStorefrontHeader({ dealer }: { dealer: PublicDealerProfile
           </div>
         </div>
       </div>
-      <div className="p-4 sm:p-6">
+      <div className="p-4 sm:p-5">
         <div
           className={`grid gap-3 sm:grid-cols-2 ${dealer.email ? "xl:grid-cols-5" : "xl:grid-cols-4"}`}
         >
@@ -150,7 +160,7 @@ export function DealerStorefrontHeader({ dealer }: { dealer: PublicDealerProfile
             </span>
           </a>
         </div>
-        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-5">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-4">
           <p className="text-xs text-muted-foreground">
             Questions about a vehicle? Connect directly with the dealership.
           </p>
@@ -170,15 +180,26 @@ export function DealerStorefrontHeader({ dealer }: { dealer: PublicDealerProfile
           email={dealer.email}
           website={dealer.website}
           messagingEnabled={Boolean(dealer.messagingEnabled)}
-          onMessage={() => document.getElementById("dealer-message-trigger")?.click()}
+          onMessage={() => setMessageOpen(true)}
         />
         {dealer.messagingEnabled ? (
-          <DealerContactPanel
-            dealerId={dealer.id}
-            name={dealer.displayName}
-            slug={dealer.slug}
-            ownerUserId={dealer.ownerUserId}
-          />
+          <Dialog open={messageOpen} onOpenChange={setMessageOpen}>
+            <DialogContent className="max-w-[520px] rounded-[28px]">
+              <DialogHeader>
+                <DialogTitle>Message {dealer.displayName}</DialogTitle>
+                <DialogDescription>
+                  Ask about a vehicle or connect with the dealership on Bluebird.
+                </DialogDescription>
+              </DialogHeader>
+              <DealerContactPanel
+                dealerId={dealer.id}
+                name={dealer.displayName}
+                slug={dealer.slug}
+                ownerUserId={dealer.ownerUserId}
+                compose
+              />
+            </DialogContent>
+          </Dialog>
         ) : null}
       </div>
     </section>

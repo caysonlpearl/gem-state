@@ -6,7 +6,7 @@ export function DealerActionArt({ kind }: { kind: "phone" | "map" | "web" | "car
   return (
     <svg
       viewBox="0 0 88 88"
-      className="h-[68px] w-[68px] shrink-0 transition-transform duration-300 group-hover:-translate-y-1"
+      className="h-[52px] w-[52px] shrink-0 transition-transform duration-300 group-hover:-translate-y-1"
       aria-hidden="true"
     >
       <defs>

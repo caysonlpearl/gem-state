@@ -90,6 +90,9 @@ try {
   assert.ok(html.includes(dealer.logo_url));
   assert.ok(html.includes(dealer.email));
   assert.ok(html.includes("Contact dealership"));
+  assert.ok(html.includes('aria-label="Message dealership"'));
+  assert.ok(html.includes('aria-label="Vehicle listing summary"'));
+  assert.ok(html.includes('>Fixture Subaru</a>'));
   assert.ok(html.includes("$39,000") && html.includes("$4,000"));
   assert.ok(html.includes('aria-label="Verified dealership"'));
   assert.ok(!html.includes("Reach the seller through the original listing"));
@@ -105,7 +108,9 @@ try {
   assert.ok(html.includes(dealer.display_name));
   assert.ok(html.includes(dealer.logo_url));
   assert.ok(html.includes(dealer.email));
-  assert.ok(html.includes("Sign in to message dealership"));
+  assert.ok(!html.includes("dealer-message-trigger"), "storefront keeps only the Contact dealership entry point");
+  assert.ok(!html.includes("Your local dealership"));
+  assert.ok(html.includes("Twin Falls, Idaho"));
   assert.ok(html.includes(vehicle.title));
   assert.ok(html.includes('aria-label="Verified dealership"'));
   assert.ok(html.includes('href="tel:2085550100"'));
