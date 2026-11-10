@@ -91,3 +91,25 @@ export const getMyDealerInventory = createServerFn({ method: "GET" })
     if (error) throw Error("Could not load your dealership inventory.");
     return data ?? [];
   });
+
+/** The recipient comes from the operator's account; clients cannot choose an address. */
+export const sendDealerMessageEmailTest = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "admin",
+    });
+    if (error || !data) throw Error("Administrator access required.");
+    const [{ supabaseAdmin }, { sendTemplateEmail }, { sendDealerEmailTest }] = await Promise.all([
+      import("@/integrations/supabase/client.server"),
+      import("./email-templates/send-email"),
+      import("./dealer-email-test.server"),
+    ]);
+    return sendDealerEmailTest(
+      supabaseAdmin as any,
+      context.userId,
+      sendTemplateEmail,
+      crypto.randomUUID(),
+    );
+  });

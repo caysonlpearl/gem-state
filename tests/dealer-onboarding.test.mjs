@@ -380,3 +380,53 @@ test("dealer message email alerts resolve the account recipient and vehicle cont
     delete globalThis.__dealerEmailTest;
   }
 });
+
+test("email setup checks target only the operator's verified mailbox and surface delivery failures", async () => {
+  const { sendDealerEmailTest } = await import("../src/lib/dealer-email-test.server.ts");
+  let receivedUser;
+  let user = {
+    email: "operator@example.com",
+    email_confirmed_at: new Date().toISOString(),
+    app_metadata: {},
+  };
+  const admin = {
+    auth: {
+      admin: {
+        getUserById: async (id) => {
+          receivedUser = id;
+          return { data: { user }, error: null };
+        },
+      },
+    },
+  };
+  const calls = [];
+  const send = async (...args) => {
+    calls.push(args);
+    return { sent: true };
+  };
+  assert.deepEqual(await sendDealerEmailTest(admin, actor, send, "safe-reference"), {
+    accepted: true,
+    testId: "safe-reference",
+  });
+  assert.equal(receivedUser, actor);
+  assert.equal(calls[0][1], "operator@example.com");
+  assert.ok(calls[0][2].templateData.message.includes("safe-reference"));
+  await assert.rejects(
+    sendDealerEmailTest(admin, actor, async () => ({ sent: false }), "suppressed"),
+    /did not accept/,
+  );
+  await assert.rejects(
+    sendDealerEmailTest(
+      admin,
+      actor,
+      async () => {
+        throw Error("Provider unavailable");
+      },
+      "failed",
+    ),
+    /Provider unavailable/,
+  );
+  user = { ...user, email_confirmed_at: undefined };
+  await assert.rejects(sendDealerEmailTest(admin, actor, send, "unverified"), /own verified/);
+  assert.equal(calls.length, 1, "invalid accounts never trigger a send");
+});
