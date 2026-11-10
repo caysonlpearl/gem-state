@@ -848,7 +848,7 @@ function MarketCheckContactCard({ listing }: { listing: ClassifiedDetail }) {
         Listed by
       </p>
       <div className="mt-3 flex items-center gap-3">
-        <EmployerTile name={name} />
+        {listing.dealer?.logoUrl ? <img src={listing.dealer.logoUrl} alt={`${name} logo`} className="h-14 w-40 object-contain"/> : <EmployerTile name={name} />}
         <div className="min-w-0 text-[12.5px]">
           <p className="text-[15px] font-bold">{name}</p>
           {dealer?.dealerType ? (
@@ -871,6 +871,8 @@ function MarketCheckContactCard({ listing }: { listing: ClassifiedDetail }) {
           {[dealer.street, dealer.city, dealer.state, dealer.zip].filter(Boolean).join(", ")}
         </p>
       ) : null}
+      {listing.id.startsWith("dealerfeed-") && listing.seller?.contactEmail ? <a href={`mailto:${listing.seller.contactEmail}`} className="mt-3 block text-sm text-primary">{listing.seller.contactEmail}</a> : null}
+      {listing.id.startsWith("dealerfeed-") && listing.dealer?.slug ? <Link to="/dealers/$slug" params={{slug:listing.dealer.slug}} className="mt-3 block text-sm font-semibold text-primary hover:underline">View dealership and inventory</Link> : null}
       <div className="mt-4 grid grid-cols-2 gap-2">
         {phone ? (
           <a

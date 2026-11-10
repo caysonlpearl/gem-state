@@ -124,7 +124,12 @@ function LiveListingActions({
   const externalPet = listing.externalPet ?? null;
   const partnerVehicleUrl =
     listing.externalVehicle?.sourceUrl ?? originalListing?.url ?? externalPet?.sourceUrl ?? null;
-  const isPartnerVehicle = Boolean(listing.externalVehicle || originalListing || externalPet);
+  const hasDealerInbox =
+    listing.id.startsWith("dealerfeed-") &&
+    Boolean(listing.seller?.userId) &&
+    internalMessagesEnabled;
+  const isPartnerVehicle =
+    !hasDealerInbox && Boolean(listing.externalVehicle || originalListing || externalPet);
   const canContactHere =
     !isPreviewListing && !isOwnListing && !isExternalApply && !isPartnerVehicle;
 
@@ -306,7 +311,13 @@ function LiveListingActions({
                 onClick={() => setContactOpen((open) => !open)}
                 className="h-12 w-full rounded-full bg-nav-accent text-[14.5px] font-semibold text-primary transition-opacity hover:opacity-90"
               >
-                {contactOpen ? "Close" : isJobApply ? "Apply now" : "Contact seller"}
+                {contactOpen
+                  ? "Close"
+                  : isJobApply
+                    ? "Apply now"
+                    : hasDealerInbox
+                      ? "Message dealership"
+                      : "Contact seller"}
               </button>
             ) : isSignedIn ? (
               <div className="rounded-2xl border border-border bg-secondary/45 px-3 py-3 text-[12px] leading-relaxed text-muted-foreground">

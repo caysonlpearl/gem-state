@@ -14,6 +14,11 @@ const dealer = {
   city: "Twin Falls",
   state: "ID",
   postal_code: "83301",
+  dealer_id: "20000000-0000-4000-8000-000000000001",
+  owner_user_id: "30000000-0000-4000-8000-000000000001",
+  logo_url: "https://images.example/dealer-logo.png",
+  email: "sales@dealer.example",
+  inbox_enabled: true,
 };
 const vehicle = {
   id,
@@ -74,6 +79,9 @@ try {
   assert.ok(html.includes(vehicle.title));
   assert.ok(html.includes(vehicle.description));
   assert.ok(html.includes(dealer.phone));
+  assert.ok(html.includes(dealer.logo_url));
+  assert.ok(html.includes(dealer.email));
+  assert.ok(html.includes("Sign in to contact seller"));
   assert.ok(html.includes(vehicle.source_url));
   assert.ok(html.includes(vehicle.photos[1]));
   assert.ok(html.includes("Inventory provided with permission by"));
@@ -84,6 +92,9 @@ try {
   html = await r.text();
   assert.equal(r.status, 200);
   assert.ok(html.includes(dealer.display_name));
+  assert.ok(html.includes(dealer.logo_url));
+  assert.ok(html.includes(dealer.email));
+  assert.ok(html.includes("Sign in to message dealership"));
   assert.ok(html.includes(vehicle.title));
   r = await request(
     "/browse?dealerSlug=" + dealer.slug + "&category=cars-trucks&vehicleMode=results",
@@ -116,7 +127,7 @@ try {
       productionDealerFeedPublication: "passed",
       cases: [
         "authorized detail and dealer contact",
-        "storefront",
+        "branded storefront and dealership inbox",
         "scoped browse",
         "public photos",
         "revoked permission",

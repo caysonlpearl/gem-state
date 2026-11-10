@@ -109,6 +109,7 @@ function AuthPage() {
   const [displayName, setDisplayName] = useState("");
   const [busy, setBusy] = useState(false);
   const [pendingConfirm, setPendingConfirm] = useState(false);
+  const [emailLinkSent, setEmailLinkSent] = useState(false);
   const intent = authIntent(redirect);
   const goToRedirect = () => {
     const listing = listingReturnTarget(redirect);
@@ -116,6 +117,12 @@ function AuthPage() {
       return listing.edit
         ? navigate({ to: "/listings/$listingId/edit", params: { listingId: listing.listingId } })
         : navigate({ to: "/listings/$listingId", params: { listingId: listing.listingId } });
+    }
+    if (redirect.startsWith("/dealers/")) {
+      return navigate({
+        to: "/dealers/$slug",
+        params: { slug: redirect.slice("/dealers/".length) },
+      });
     }
     const query = authReturnSearch(redirect);
     if (redirect.startsWith("/account?")) {
@@ -172,6 +179,29 @@ function AuthPage() {
       await goToRedirect();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Something went wrong.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleEmailLink() {
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim())) {
+      toast.error("Enter your email address first.");
+      return;
+    }
+    setBusy(true);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email.trim(),
+        options: {
+          shouldCreateUser: false,
+          emailRedirectTo: getAuthRedirectUrl(`/auth?redirect=${encodeURIComponent(redirect)}`),
+        },
+      });
+      if (error) throw error;
+      setEmailLinkSent(true);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not send a sign-in link.");
     } finally {
       setBusy(false);
     }
@@ -443,6 +473,24 @@ function AuthPage() {
               </button>
             </form>
 
+            {mode === "signin" ? (
+              <div className="mt-3">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void handleEmailLink()}
+                  className="inline-flex h-11 w-full items-center justify-center rounded-full border border-input bg-card px-4 text-[12.5px] font-medium hover:bg-secondary disabled:opacity-60"
+                >
+                  Email me a sign-in link
+                </button>
+                {emailLinkSent ? (
+                  <p role="status" className="mt-2 text-sm text-muted-foreground">
+                    If this email has an account, a sign-in link is on its way. Open it to access
+                    your account.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
             <div className="mt-3 flex flex-wrap items-stretch justify-center gap-2.5">
               <button
                 type="button"

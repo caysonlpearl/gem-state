@@ -34,7 +34,11 @@ export const AUTH_STATIC_REDIRECTS = [
 export type StaticAuthRedirect = (typeof AUTH_STATIC_REDIRECTS)[number];
 export type ListingAuthRedirect = `/listings/${string}`;
 export type AuthReturnPath =
-  StaticAuthRedirect | ListingAuthRedirect | `/account?${string}` | `/create-listing?${string}`;
+  | StaticAuthRedirect
+  | ListingAuthRedirect
+  | `/dealers/${string}`
+  | `/account?${string}`
+  | `/create-listing?${string}`;
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -61,6 +65,14 @@ export function safeAuthReturnPath(value: unknown): AuthReturnPath {
     params.sort();
     return `${pathname}?${params.toString()}` as AuthReturnPath;
   }
+  if (/^\/dealers\/[a-z0-9]+(?:-[a-z0-9]+)*$/.test(value) && value.length <= 90)
+    return value as `/dealers/${string}`;
+  if (
+    /^\/listings\/dealerfeed-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(
+      value,
+    )
+  )
+    return value as ListingAuthRedirect;
   if (LISTING_PATH.test(value)) return value as ListingAuthRedirect;
   return AUTH_STATIC_REDIRECTS.includes(value as StaticAuthRedirect)
     ? (value as StaticAuthRedirect)

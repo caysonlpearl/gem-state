@@ -1,3 +1,4 @@
+import {DealerInventoryPanel} from "./DealerInventoryPanel";
 import { ImportSyncPanel } from "@/components/seller/ImportSyncPanel";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -403,7 +404,7 @@ export function AccountCenter({
           ) : section === "notifications" ? (
             <NotificationsSection data={notifications.data} />
           ) : section === "listings" ? (
-            <ListingsSection listings={listings.data?.asks ?? []} sellerSetup={sellerSetup.data} />
+            <div className="space-y-6"><DealerInventoryPanel/><ListingsSection listings={listings.data?.asks ?? []} sellerSetup={sellerSetup.data} /></div>
           ) : section === "reviews" ? (
             <ReviewsSection summary={sellerSummary.data} sellerSetup={sellerSetup.data} />
           ) : (
