@@ -66,6 +66,13 @@ test("scheduled inventory leases, atomic snapshots and stable photo identities",
     );
     await db.query("UPDATE dealer_inventory_sources SET status='paused' WHERE id=$1", [source]);
     assert.equal(await claim("2026-11-10T12:00:00Z"), null);
+    await db.query("SELECT touch_dealer_inventory_source($1,false,'fetch stopped')", [source]);
+    assert.equal(
+      (await db.query("SELECT status FROM dealer_inventory_sources WHERE id=$1", [source])).rows[0]
+        .status,
+      "paused",
+      "an in-flight failed fetch cannot undo an operator pause",
+    );
     await db.query("UPDATE dealer_inventory_sources SET status='active' WHERE id=$1", [source]);
     const records = recordsForDatabase(
       parseAndNormalizeInventoryCsv(dealerInventoryFeedV1).records,

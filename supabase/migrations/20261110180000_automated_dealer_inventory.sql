@@ -253,3 +253,25 @@ BEGIN
 END;
 $$;
 
+
+-- A pause requested during an in-flight fetch must remain paused.
+CREATE OR REPLACE FUNCTION public.touch_dealer_inventory_source(_source_id uuid, _ok boolean, _error text DEFAULT NULL)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public', 'pg_temp'
+AS $function$
+BEGIN
+  UPDATE public.dealer_inventory_sources
+  SET status = CASE WHEN status = 'paused' THEN 'paused' WHEN _ok THEN 'active' ELSE 'error' END,
+      last_success_at = CASE WHEN _ok THEN now() ELSE last_success_at END,
+      last_error_at = CASE WHEN _ok THEN last_error_at ELSE now() END,
+      last_error = CASE WHEN _ok THEN NULL ELSE _error END,
+      updated_at = now()
+  WHERE id = _source_id;
+END;
+$function$;
+
+REVOKE ALL ON FUNCTION public.touch_dealer_inventory_source(uuid, boolean, text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.touch_dealer_inventory_source(uuid, boolean, text) TO service_role;
+

@@ -336,11 +336,13 @@ function DealerInventoryPage() {
               disabled={Boolean(selectedSource)}
             >
               <option value="">Unassigned inventory source</option>
-              {(dealers ?? []).map((dealer: any) => (
-                <option key={dealer.id} value={dealer.id}>
-                  {dealer.display_name} · {dealer.status}
-                </option>
-              ))}
+              {(dealers ?? []).map(
+                (dealer: { id: string; display_name: string; status: string }) => (
+                  <option key={dealer.id} value={dealer.id}>
+                    {dealer.display_name} · {dealer.status}
+                  </option>
+                ),
+              )}
             </select>
             <span className="mt-1 block text-[11px] font-normal text-muted-foreground">
               {selectedSource

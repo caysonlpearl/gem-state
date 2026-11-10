@@ -178,7 +178,7 @@ const motiveMapping = { __provider: "motive", __dealer_id: "2592" };
 
 test("Motive maps dealer fields and orders/deduplicates numbered photos", () => {
   const result = parseAndNormalizeInventoryXml(
-    `<inventory>${motiveVehicle()}</inventory>`,
+    `<inventory>${motiveVehicle("<description><![CDATA[Clean SUV <b>with AWD</b>]]></description>")}</inventory>`,
     motiveMapping,
   );
   assert.equal(inventorySnapshotRejection(result, 1), null);
@@ -188,6 +188,7 @@ test("Motive maps dealer fields and orders/deduplicates numbered photos", () => 
   assert.equal(vehicle.priceCents, 3578600);
   assert.equal(vehicle.postalCode, "83301");
   assert.equal(vehicle.vehicleMileage, 5);
+  assert.equal(vehicle.description, "Clean SUV <b>with AWD</b>");
   assert.deepEqual(
     vehicle.media.map((image) => image.mediaUrl),
     ["https://example.com/0.jpg", "https://example.com/2.jpg"],

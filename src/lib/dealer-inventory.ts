@@ -332,7 +332,7 @@ function rowsFromXml(input: string): Record<string, string>[] {
   return matches.map((match) => {
     const row: Record<string, string> = {};
     const body = match[1] ?? "";
-    const leafTags = /<([A-Za-z_][\w:.-]*)\b[^>]*>([^<]*)<\/\1>/gi;
+    const leafTags = /<([A-Za-z_][\w:.-]*)\b[^>]*>(<!\[CDATA\[[\s\S]*?\]\]>|[^<]*)<\/\1>/gi;
     for (const leaf of body.matchAll(leafTags)) {
       const originalKey = leaf[1] ?? "";
       const key = toSnakeCase(originalKey);
