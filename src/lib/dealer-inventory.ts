@@ -1,3 +1,5 @@
+import { XMLValidator } from "fast-xml-parser";
+
 export type InventorySourceType = "manual_upload" | "file_url" | "sftp" | "api" | "webhook";
 export type InventoryFileFormat = "csv" | "xml" | "json";
 
@@ -45,7 +47,10 @@ export type InventoryField =
   | "source_updated_at"
   | "photos";
 
-export type InventoryMapping = Partial<Record<InventoryField, string>>;
+export type InventoryMapping = Partial<Record<InventoryField, string>> & {
+  __provider?: string;
+  __dealer_id?: string;
+};
 
 export const defaultInventoryMapping: InventoryMapping = {
   source_record_key: "stock_number",
@@ -86,7 +91,7 @@ export type NormalizedInventoryRecord = {
   vin: string | null;
   title: string;
   description: string | null;
-  priceCents: number;
+  priceCents: number | null;
   city: string;
   state: string;
   postalCode: string | null;
@@ -169,6 +174,7 @@ const STATUS_ALIASES: Record<string, InventoryStatus> = {
   removed: "removed",
   deleted: "removed",
   stale: "stale",
+  invalid: "invalid",
 };
 
 const clean = (value: unknown) => String(value ?? "").trim();
@@ -307,6 +313,8 @@ function rowsFromXml(input: string): Record<string, string>[] {
   if (/<!DOCTYPE|<!ENTITY/i.test(input)) {
     throw new Error("XML declarations and entities are not allowed in feed uploads.");
   }
+  if (XMLValidator.validate(input) !== true)
+    throw new Error("Inventory XML is malformed or incomplete.");
   const recordTags = ["vehicle", "item", "listing", "ad", "record"];
   let matches: RegExpMatchArray[] = [];
   for (const tag of recordTags) {
@@ -399,6 +407,7 @@ function errorFor(rowNumber: number, field: InventoryField, message: string): In
 export function normalizeInventoryRows(
   rows: Record<string, string>[],
   mapping: InventoryMapping = {},
+  options: { allowUnpriced?: boolean } = {},
 ): InventoryParseResult {
   const errors: InventoryRowError[] = [];
   const records: NormalizedInventoryRecord[] = [];
@@ -415,6 +424,7 @@ export function normalizeInventoryRows(
       valueFor(row, "vin", mapping);
     const vin = normalizeVin(valueFor(row, "vin", mapping));
     for (const [field, label] of REQUIRED_FIELDS) {
+      if (field === "price" && options.allowUnpriced) continue;
       const value = field === "source_record_key" ? sourceRecordKey : valueFor(row, field, mapping);
       if (!value) errors.push(errorFor(rowNumber, field, `Missing ${label}.`));
     }
@@ -436,14 +446,19 @@ export function normalizeInventoryRows(
     if (vin) seenVins.add(vin);
 
     const year = normalizeInteger(valueFor(row, "year", mapping));
-    if (year != null && (year < 1900 || year > 2100))
+    if (year == null || year < 1900 || year > 2100)
       errors.push(errorFor(rowNumber, "year", "Year must be between 1900 and 2100."));
     const mileage = normalizeInteger(valueFor(row, "mileage", mapping));
     if (mileage != null && (mileage < 0 || mileage > 2000000))
       errors.push(errorFor(rowNumber, "mileage", "Mileage must be between 0 and 2,000,000."));
-    const priceCents = normalizePriceCents(valueFor(row, "price", mapping));
-    if (priceCents == null)
+    const priceValue = valueFor(row, "price", mapping);
+    const priceCents = normalizePriceCents(priceValue);
+    const unpriced = options.allowUnpriced && /^(?:0(?:\.0+)?)?$/.test(priceValue.trim());
+    if (priceCents == null && !unpriced)
       errors.push(errorFor(rowNumber, "price", "Price must be a positive dollar amount."));
+    const statusValue = valueFor(row, "status", mapping);
+    if (statusValue && !STATUS_ALIASES[statusValue.toLowerCase()])
+      errors.push(errorFor(rowNumber, "status", "Unrecognized inventory status."));
     if (vin && !/^[A-HJ-NPR-Z0-9]{17}$/.test(vin))
       errors.push(errorFor(rowNumber, "vin", "VIN must contain 17 valid characters."));
     const state = valueFor(row, "state", mapping).toUpperCase();
@@ -483,11 +498,11 @@ export function normalizeInventoryRows(
       vin,
       title,
       description: valueFor(row, "description", mapping) || null,
-      priceCents: priceCents!,
+      priceCents,
       city: valueFor(row, "city", mapping),
       state,
       postalCode,
-      inventoryStatus: normalizeStatus(valueFor(row, "status", mapping)),
+      inventoryStatus: unpriced ? "invalid" : normalizeStatus(statusValue),
       vehicleMake: make,
       vehicleModel: model,
       vehicleYear: year!,
@@ -545,7 +560,47 @@ export function parseAndNormalizeInventoryXml(
   input: string,
   mapping: InventoryMapping = {},
 ): InventoryParseResult {
-  return normalizeInventoryRows(rowsFromXml(input), mapping);
+  const rows = rowsFromXml(input);
+  if (mapping.__provider !== "motive") return normalizeInventoryRows(rows, mapping);
+  if (!mapping.__dealer_id || rows.some((row) => row.dealerid !== mapping.__dealer_id))
+    throw new Error("Motive feed does not match the configured dealership.");
+  // Motive supplies one complete inventory snapshot, numbered image fields and
+  // a comma-separated imageUrls summary. Keep unpriced cars private but present
+  // in reconciliation so they cannot be mistaken for missing/sold vehicles.
+  for (const row of rows) {
+    const images = Object.keys(row)
+      .filter((key) => /^image\d+$/i.test(key))
+      .sort((a, b) => Number(a.replace(/\D/g, "")) - Number(b.replace(/\D/g, "")))
+      .map((key) => row[key]);
+    images.push(...(row.imageUrls ?? row.image_urls ?? "").split(",").map(clean));
+    row.photos = [...new Set(images.filter(Boolean))].join("|");
+  }
+  return normalizeInventoryRows(
+    rows,
+    {
+      source_record_key: "id",
+      stock_number: "stocknumber",
+      postal_code: "zipcode",
+      mileage: "miles",
+      body_style: "vehtype",
+      exterior_color: "color",
+      ...mapping,
+      photos: "photos",
+    },
+    { allowUnpriced: true },
+  );
+}
+
+/** Reject incomplete snapshots before reconciliation can mark inventory missing. */
+export function inventorySnapshotRejection(
+  result: InventoryParseResult,
+  minimumRows: number,
+): string | null {
+  if (result.errors.length > 0)
+    return `Feed rejected: ${new Set(result.errors.map((error) => error.rowNumber)).size} invalid row(s); existing inventory retained.`;
+  if (result.records.length < minimumRows)
+    return `Feed rejected: at least ${minimumRows} valid row(s) are required.`;
+  return null;
 }
 
 export const jsonInventoryAdapter: InventoryFeedAdapter = {

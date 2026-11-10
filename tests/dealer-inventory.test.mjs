@@ -7,6 +7,8 @@ import {
   parseAndNormalizeInventoryJson,
   parseAndNormalizeInventoryCsv,
   parseAndNormalizeInventoryXml,
+  inventorySnapshotRejection,
+  recordsForDatabase,
 } from "../src/lib/dealer-inventory.ts";
 import {
   dealerInventoryFeedV1,
@@ -164,4 +166,65 @@ test("sync-run filenames always match the source format", () => {
   assert.equal(normalizeInventoryFilename("dealer-feed.XML", "csv"), "dealer-feed.csv");
   assert.equal(normalizeInventoryFilename("", "xml"), "dealership-inventory.xml");
   assert.equal(normalizeInventoryFilename(null, "json"), "dealership-inventory.json");
+});
+
+const motiveVehicle = (extra = "") => `<item><id>feed-1</id><dealerid>2592</dealerid>
+  <stocknumber>S100</stocknumber><vin>4S4SLDD6XT3193892</vin><year>2026</year>
+  <make>Subaru</make><model>Forester</model><trim>Premium</trim><price>35786</price>
+  <city>Twin Falls</city><state>ID</state><zipcode>83301</zipcode><miles>5</miles>
+  <image2>https://example.com/2.jpg</image2><image0>https://example.com/0.jpg</image0>
+  <imageUrls>https://example.com/0.jpg, https://example.com/2.jpg</imageUrls>${extra}</item>`;
+const motiveMapping = { __provider: "motive", __dealer_id: "2592" };
+
+test("Motive maps dealer fields and orders/deduplicates numbered photos", () => {
+  const result = parseAndNormalizeInventoryXml(
+    `<inventory>${motiveVehicle()}</inventory>`,
+    motiveMapping,
+  );
+  assert.equal(inventorySnapshotRejection(result, 1), null);
+  const vehicle = result.records[0];
+  assert.equal(vehicle.sourceRecordKey, "feed-1");
+  assert.equal(vehicle.stockNumber, "S100");
+  assert.equal(vehicle.priceCents, 3578600);
+  assert.equal(vehicle.postalCode, "83301");
+  assert.equal(vehicle.vehicleMileage, 5);
+  assert.deepEqual(
+    vehicle.media.map((image) => image.mediaUrl),
+    ["https://example.com/0.jpg", "https://example.com/2.jpg"],
+  );
+});
+
+test("Motive retains an unpriced vehicle privately without inventing a price", () => {
+  const xml = `<inventory>${motiveVehicle().replace("<price>35786</price>", "<price>0</price>")}</inventory>`;
+  const result = parseAndNormalizeInventoryXml(xml, motiveMapping);
+  assert.equal(result.errors.length, 0);
+  assert.equal(result.records[0].priceCents, null);
+  assert.equal(result.records[0].inventoryStatus, "invalid");
+  assert.equal(recordsForDatabase(result.records)[0].price_cents, null);
+});
+
+test("scheduled snapshots reject wrong dealers, truncation, unknown status and partial rows", () => {
+  assert.throws(
+    () =>
+      parseAndNormalizeInventoryXml(`<inventory>${motiveVehicle()}</inventory>`, {
+        ...motiveMapping,
+        __dealer_id: "other",
+      }),
+    /dealership/,
+  );
+  assert.throws(
+    () => parseAndNormalizeInventoryXml(`<inventory>${motiveVehicle()}`, motiveMapping),
+    /incomplete/,
+  );
+  const result = parseAndNormalizeInventoryXml(
+    `<inventory>${motiveVehicle()}${motiveVehicle("<status>mystery</status>").replace("<id>feed-1</id>", "<id>feed-2</id>").replace("4S4SLDD6XT3193892", "4S4SLDD6XT3193893")}</inventory>`,
+    motiveMapping,
+  );
+  assert.equal(result.records.length, 1);
+  assert.match(inventorySnapshotRejection(result, 1), /invalid row/);
+  const valid = parseAndNormalizeInventoryXml(
+    `<inventory>${motiveVehicle()}</inventory>`,
+    motiveMapping,
+  );
+  assert.match(inventorySnapshotRejection(valid, 2), /at least 2/);
 });

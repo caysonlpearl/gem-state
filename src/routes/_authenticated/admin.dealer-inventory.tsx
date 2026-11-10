@@ -64,6 +64,7 @@ function DealerInventoryPage() {
   const [fileFormat, setFileFormat] = useState<"csv" | "json" | "xml">("csv");
   const [feedUrl, setFeedUrl] = useState("");
   const [schedule, setSchedule] = useState("");
+  const [minimumRowCount, setMinimumRowCount] = useState(1);
   const [mappingJson, setMappingJson] = useState("");
   const [sourceId, setSourceId] = useState("");
   const [dealerId, setDealerId] = useState("");
@@ -125,11 +126,11 @@ function DealerInventoryPage() {
           name,
           dealerId: dealerId || null,
           providerName: providerName || null,
-          sourceType: "manual_upload",
+          sourceType: feedUrl ? "file_url" : "manual_upload",
           fileFormat,
           feedUrl: feedUrl || null,
           schedule: schedule || null,
-          minimumRowCount: 1,
+          minimumRowCount,
           deactivationGraceRuns: 2,
           mappingProfile,
         },
@@ -374,7 +375,7 @@ function DealerInventoryPage() {
             ) : null}
           </label>
           <label className="block text-[12px] font-medium">
-            Feed URL (future HTTPS source)
+            HTTPS feed URL
             <Input
               value={feedUrl}
               onChange={(event) => setFeedUrl(event.target.value)}
@@ -383,13 +384,26 @@ function DealerInventoryPage() {
             />
           </label>
           <label className="block text-[12px] font-medium">
-            Schedule note
+            Automatic update schedule
             <Input
               value={schedule}
               onChange={(event) => setSchedule(event.target.value)}
               placeholder="For example: daily at 02:00 UTC"
               className="mt-1"
             />
+          </label>
+          <label className="block text-[12px] font-medium">
+            Minimum vehicles per snapshot
+            <Input
+              type="number"
+              min={1}
+              value={minimumRowCount}
+              onChange={(event) => setMinimumRowCount(Number(event.target.value))}
+              className="mt-1"
+            />
+            <span className="mt-1 block text-[11px] font-normal text-muted-foreground">
+              Smaller feeds are rejected and existing inventory is retained.
+            </span>
           </label>
           <label className="block text-[12px] font-medium">
             Column mapping JSON (optional)
@@ -750,10 +764,11 @@ function DealerInventoryPage() {
                     <td className="px-3 py-2 font-mono">{row.sourceRecordKey}</td>
                     <td className="px-3 py-2">{row.title}</td>
                     <td className="px-3 py-2">
-                      $
-                      {(row.priceCents / 100).toLocaleString(undefined, {
-                        minimumFractionDigits: 2,
-                      })}
+                      {row.priceCents == null
+                        ? "Price not provided"
+                        : `$${(row.priceCents / 100).toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                          })}`}
                     </td>
                     <td className="px-3 py-2">{row.inventoryStatus}</td>
                     <td className="px-3 py-2">{row.photoCount}</td>
