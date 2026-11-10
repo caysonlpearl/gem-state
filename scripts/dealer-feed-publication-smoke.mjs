@@ -58,7 +58,9 @@ globalThis.fetch = async (input, init = {}) => {
       mode === "revoked"
         ? { dealers: [], vehicles: [] }
         : {
-            dealers: [dealer],
+            dealers: [
+              { ...dealer, ...(mode === "no-email" ? { email: null, inbox_enabled: false } : {}) },
+            ],
             vehicles: [
               { ...vehicle, price_cents: mode === "unpriced" ? null : vehicle.price_cents },
             ],
@@ -96,6 +98,20 @@ try {
   assert.ok(html.includes(dealer.email));
   assert.ok(html.includes("Sign in to message dealership"));
   assert.ok(html.includes(vehicle.title));
+  assert.ok(html.includes('aria-label="Verified dealership"'));
+  assert.ok(html.includes('href="tel:2085550100"'));
+  assert.ok(html.includes("maps/search/?api=1"));
+  assert.ok(html.includes(dealer.postal_code));
+  assert.ok(html.includes('href="#dealer-inventory"'));
+  mode = "no-email";
+  r = await request("/dealers/" + dealer.slug);
+  html = await r.text();
+  assert.equal(r.status, 200);
+  assert.ok(!html.includes("mailto:" + dealer.email));
+  assert.ok(!html.includes("Email dealership"));
+  assert.ok(!html.includes("Sign in to message dealership"));
+  assert.ok(html.includes("Call dealership") && html.includes("Get directions"));
+  mode = "active";
   r = await request(
     "/browse?dealerSlug=" + dealer.slug + "&category=cars-trucks&vehicleMode=results",
   );

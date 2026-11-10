@@ -34,13 +34,14 @@ export function DealerInventoryPanel() {
                 your feed.
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
-                {dealer.email} · {dealer.phone}
+                {[dealer.email, dealer.phone].filter(Boolean).join(" · ")}
               </p>
             </div>
             <div className="flex gap-4 text-sm text-primary">
               <Link to="/dealers/$slug" params={{ slug: dealer.slug }}>
                 View dealership
               </Link>
+              <Link to="/dealer-setup">Edit business profile</Link>
               <Link to="/account" search={{ section: "messages" }}>
                 Open inbox
               </Link>
