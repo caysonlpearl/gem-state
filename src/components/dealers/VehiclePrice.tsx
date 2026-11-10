@@ -4,14 +4,24 @@ import { vehiclePriceComparison } from "@/lib/vehicle-shopping";
 export function VehiclePrice({
   listing,
   compact = false,
+  inlineComparison = false,
 }: {
   listing: Parameters<typeof vehiclePriceComparison>[0];
   compact?: boolean;
+  inlineComparison?: boolean;
 }) {
   const comparison = vehiclePriceComparison(listing);
   const money = (cents: number) => formatClassifiedPrice(cents, { wholeDollars: true });
   return (
-    <div className={compact ? "space-y-1" : "space-y-2"}>
+    <div
+      className={
+        inlineComparison
+          ? "flex flex-wrap items-center gap-x-4 gap-y-2"
+          : compact
+            ? "space-y-1"
+            : "space-y-2"
+      }
+    >
       <p
         className={`numeric font-bold leading-none tracking-tight text-primary ${compact ? "text-[22px]" : "text-[38px] sm:text-[44px]"}`}
       >
