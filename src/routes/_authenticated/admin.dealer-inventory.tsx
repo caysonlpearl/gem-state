@@ -71,6 +71,7 @@ function DealerInventoryPage() {
   const [csv, setCsv] = useState("");
   const [filename, setFilename] = useState("dealership-inventory.csv");
   const [preview, setPreview] = useState<PreviewResult | null>(null);
+  const [runError, setRunError] = useState<string | null>(null);
   const { data: dealers } = useQuery({
     queryKey: ["owned-dealers"],
     queryFn: () => fetchDealers(),
@@ -224,6 +225,7 @@ function DealerInventoryPage() {
   });
 
   const remoteRunMutation = useMutation({
+    onMutate: () => setRunError(null),
     mutationFn: () => {
       if (!selectedSourceId) throw new Error("Select an inventory source first.");
       return runConfiguredSource({ data: { sourceId: selectedSourceId } });
@@ -240,11 +242,15 @@ function DealerInventoryPage() {
         `Configured feed applied: ${result.createdCount ?? 0} created, ${result.updatedCount ?? 0} updated.`,
       );
     },
-    onError: (error) =>
-      toast.error(error instanceof Error ? error.message : "Could not run configured feed."),
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : "Could not run configured feed.";
+      setRunError(message);
+      toast.error(message);
+    },
   });
 
   const scheduledRunMutation = useMutation({
+    onMutate: () => setRunError(null),
     mutationFn: () => runScheduledSources(),
     onSuccess: async (results) => {
       await queryClient.invalidateQueries({ queryKey: ["dealer-inventory-sources"] });
@@ -252,10 +258,21 @@ function DealerInventoryPage() {
       await queryClient.invalidateQueries({ queryKey: ["dealer-inventory-records"] });
       const completed = results.filter((result) => result.status === "completed").length;
       const failed = results.filter((result) => result.status === "failed").length;
+      if (failed)
+        setRunError(
+          results
+            .filter((result) => result.status === "failed")
+            .map((result) => result.message)
+            .filter(Boolean)
+            .join(" "),
+        );
       toast.success(`Scheduled feeds checked: ${completed} applied, ${failed} failed.`);
     },
-    onError: (error) =>
-      toast.error(error instanceof Error ? error.message : "Could not run scheduled feeds."),
+    onError: (error) => {
+      const message = error instanceof Error ? error.message : "Could not run scheduled feeds.";
+      setRunError(message);
+      toast.error(message);
+    },
   });
 
   if (isLoading)
@@ -474,6 +491,11 @@ function DealerInventoryPage() {
                 ) : null}
               </div>
             </div>
+          ) : null}
+          {runError ? (
+            <p role="alert" className="text-[12px] text-destructive">
+              {runError}
+            </p>
           ) : null}
         </div>
 
