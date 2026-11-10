@@ -1,3 +1,6 @@
+import { VerifiedDealerBadge } from "@/components/dealers/VerifiedDealerBadge";
+import { VehiclePrice } from "@/components/dealers/VehiclePrice";
+import { hasApprovedDealer } from "@/lib/vehicle-shopping";
 import { retailSavings } from "@/lib/retail-savings";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Link } from "@tanstack/react-router";
@@ -577,12 +580,16 @@ export function ListingCard({
           {listing.directory ? (
             <DirectoryRating directory={listing.directory} />
           ) : (
-            <p className="numeric text-[17px] font-bold leading-none text-foreground">
+            <div className="numeric text-[17px] font-bold leading-none text-foreground">
               {soldAt ? (
                 <span className="mr-1 text-[11px] font-semibold text-muted-foreground">Asked</span>
               ) : null}
-              <Price listing={listing} />
-            </p>
+              {listing.vehicle ? (
+                <VehiclePrice listing={listing} compact />
+              ) : (
+                <Price listing={listing} />
+              )}
+            </div>
           )}
           <h3
             className={`mt-1.5 line-clamp-2 font-semibold leading-[1.3] group-hover:text-primary ${listing.externalMerchandise ? "min-h-[39px] text-[15px]" : "min-h-[34px] text-[13px]"}`}
@@ -591,8 +598,9 @@ export function ListingCard({
           </h3>
           <Facts listing={listing} />
           {vehicleSourceLabel(listing) ? (
-            <p className="mt-1 truncate text-[11.5px] font-medium text-primary">
-              {vehicleSourceLabel(listing)}
+            <p className="mt-1 flex min-w-0 items-center gap-1 text-[11.5px] font-medium text-primary">
+              <span className="truncate">{vehicleSourceLabel(listing)}</span>
+              {hasApprovedDealer(listing) ? <VerifiedDealerBadge size={15} /> : null}
             </p>
           ) : null}
           <p className="mt-2 flex items-center gap-1 truncate text-[11.5px] text-muted-foreground">
@@ -705,8 +713,9 @@ export function ListingRow({ listing }: { listing: ListingCardSummary }) {
           </div>
           <Facts listing={listing} />
           {vehicleSourceLabel(listing) ? (
-            <p className="mt-1 truncate text-[11.5px] font-medium text-primary">
-              {vehicleSourceLabel(listing)}
+            <p className="mt-1 flex min-w-0 items-center gap-1 text-[11.5px] font-medium text-primary">
+              <span className="truncate">{vehicleSourceLabel(listing)}</span>
+              {hasApprovedDealer(listing) ? <VerifiedDealerBadge size={15} /> : null}
             </p>
           ) : null}
           <p className="mt-2 flex items-center gap-1 truncate text-[11.5px] text-muted-foreground">

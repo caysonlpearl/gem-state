@@ -141,6 +141,9 @@ test("dealer ownership, private inventory, recipient routing, two-way messages a
       )
     ).rows[0].id;
     await db.exec(await sql("supabase/migrations/20261110220000_dealer_accounts_and_messages.sql"));
+    await db.exec(
+      await sql("supabase/migrations/20261111000000_dealer_pending_inbox_and_pricing.sql"),
+    );
     const harden = await sql(
       "supabase/migrations/20260920210000_harden_conversation_blocks_reports.sql",
     );
@@ -190,18 +193,45 @@ test("dealer ownership, private inventory, recipient routing, two-way messages a
         .rows[0].agreements_accepted_at,
       null,
     );
+    await db.query("UPDATE dealer_inventory_records SET raw_record=$1::jsonb WHERE id=$2", [
+      JSON.stringify({ msrp: "39000", private_email: "private@example.com" }),
+      record,
+    ]);
     const awaiting = (await db.query("SELECT read_published_dealer_inventory() AS data")).rows[0]
       .data;
     assert.equal(
       awaiting.dealers[0].inbox_enabled,
-      false,
-      "unactivated accounts do not advertise an unattended inbox",
+      true,
+      "authorized dealers accept private messages before owner activation",
     );
+    assert.equal(awaiting.vehicles[0].msrp, 39000);
+    assert.ok(!JSON.stringify(awaiting).includes("private@example.com"));
     await identity(buyer);
-    await assert.rejects(
-      db.query("SELECT start_dealer_conversation($1,$2,$3)", [dealer, record, "Hello dealership"]),
-      /awaiting email activation/,
+    const beforeActivation = (
+      await db.query("SELECT start_dealer_conversation($1,$2,$3) AS id", [
+        dealer,
+        record,
+        "Hello dealership",
+      ])
+    ).rows[0].id;
+    assert.ok(beforeActivation);
+    assert.equal(
+      (await db.query("SELECT seller_id FROM conversations WHERE id=$1", [beforeActivation]))
+        .rows[0].seller_id,
+      owner,
     );
+    assert.equal(awaiting.dealers[0].owner_activated, false);
+    await identity(outsider);
+    await db.exec("SET ROLE authenticated");
+    assert.equal(
+      (
+        await db.query("SELECT * FROM conversation_messages WHERE conversation_id=$1", [
+          beforeActivation,
+        ])
+      ).rows.length,
+      0,
+    );
+    await db.exec("RESET ROLE");
     await db.query("UPDATE auth.users SET email_confirmed_at=now() WHERE id=$1", [owner]);
     const publication = (await db.query("SELECT read_published_dealer_inventory() AS data")).rows[0]
       .data;
@@ -212,6 +242,17 @@ test("dealer ownership, private inventory, recipient routing, two-way messages a
     await identity(outsider);
     assert.deepEqual((await db.query("SELECT my_dealer_inventory() AS data")).rows[0].data, []);
     await identity(owner);
+    await db.exec("SET ROLE authenticated");
+    assert.equal(
+      (
+        await db.query("SELECT body FROM conversation_messages WHERE conversation_id=$1", [
+          beforeActivation,
+        ])
+      ).rows[0].body,
+      "Hello dealership",
+      "saved messages appear in the owner inbox after activation",
+    );
+    await db.exec("RESET ROLE");
     assert.equal(
       (await db.query("SELECT my_dealer_inventory() AS data")).rows[0].data[0].records.length,
       1,
@@ -298,13 +339,19 @@ test("dealer message email alerts resolve the account recipient and vehicle cont
     asks: null,
   };
   let alerts = true;
+  let activated = true;
   globalThis.__dealerEmailTest = {
     deliveries,
     db: {
       auth: {
         admin: {
           getUserById: async (id) => ({
-            data: { user: { email: id === owner ? profile.ownerEmail : "buyer@example.com" } },
+            data: {
+              user: {
+                email: id === owner ? profile.ownerEmail : "buyer@example.com",
+                email_confirmed_at: activated ? new Date().toISOString() : null,
+              },
+            },
           }),
         },
       },
@@ -373,6 +420,10 @@ test("dealer message email alerts resolve the account recipient and vehicle cont
     );
     await emailMarketplaceMessage("fixture-conversation", owner);
     assert.equal(deliveries[1].to, "buyer@example.com");
+    activated = false;
+    await emailMarketplaceMessage("fixture-conversation", buyer);
+    assert.equal(deliveries.length, 2, "unclaimed dealer receives no email before activation");
+    activated = true;
     alerts = false;
     await emailMarketplaceMessage("fixture-conversation", buyer);
     assert.equal(deliveries.length, 2, "notification opt-out is respected");

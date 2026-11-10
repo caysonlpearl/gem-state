@@ -1,3 +1,4 @@
+import { dealerInventoryPage } from "./vehicle-shopping";
 /* eslint-disable @typescript-eslint/no-explicit-any -- publication RPC is migration-backed */
 import { publicServerClient } from "./supabase-public.server";
 import { marketCheckCard, matchesProviderFilters } from "./marketcheck.server";
@@ -92,7 +93,7 @@ export async function dealerFeedDetail(id: string): Promise<ClassifiedDetail | n
     shareImageUrl: vehicle.media.photoLinks[0] ?? null,
   };
 }
-export async function dealerFeedStorefront(slug: string) {
+export async function dealerFeedStorefront(slug: string, page = 1) {
   const feed = await readFeed(slug),
     dealer = feed.dealers[0];
   if (!dealer) return null;
@@ -113,7 +114,6 @@ export async function dealerFeedStorefront(slug: string) {
     postalCode: dealer.postal_code,
     logoUrl: dealer.logo_url ?? null,
     description: `Vehicle inventory provided with permission by ${dealer.display_name}.`,
-    listings: listings.slice(0, 24),
-    listingCount: listings.length,
+    ...dealerInventoryPage(listings, page),
   };
 }

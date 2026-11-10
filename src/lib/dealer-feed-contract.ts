@@ -36,6 +36,7 @@ export function publishedFeedVehicle(
       heading: row.title,
       description: row.description,
       price: Number(row.price_cents) / 100,
+      msrp: row.msrp,
       vin: row.vin,
       stock_no: row.stock_number,
       miles: row.vehicle_mileage ?? undefined,

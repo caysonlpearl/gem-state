@@ -1,3 +1,6 @@
+import { DealerContactOptions } from "@/components/dealers/DealerContactOptions";
+import { VehiclePrice } from "@/components/dealers/VehiclePrice";
+import { hasApprovedDealer } from "@/lib/vehicle-shopping";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -75,6 +78,8 @@ function LiveListingActions({
   calculatorVariant = "auto",
   ctaVerb = "contact",
 }: ListingActionsProps) {
+  const approvedDealer = hasApprovedDealer(listing);
+  const [dealerContactOpen, setDealerContactOpen] = useState(false);
   const isJobApply = ctaVerb === "apply";
   const isPreviewListing = listing.isMock === true;
   const applicationMethod = listing.job?.applicationMethod ?? "gemlist";
@@ -129,7 +134,9 @@ function LiveListingActions({
     Boolean(listing.seller?.userId) &&
     internalMessagesEnabled;
   const isPartnerVehicle =
-    !hasDealerInbox && Boolean(listing.externalVehicle || originalListing || externalPet);
+    !approvedDealer &&
+    !hasDealerInbox &&
+    Boolean(listing.externalVehicle || originalListing || externalPet);
   const canContactHere =
     !isPreviewListing && !isOwnListing && !isExternalApply && !isPartnerVehicle;
 
@@ -138,6 +145,10 @@ function LiveListingActions({
   // triggers, so both entry points behave identically.
   const openContact = useCallback(() => {
     if (!canContactHere) return;
+    if (approvedDealer) {
+      setDealerContactOpen(true);
+      return;
+    }
     if (!isSignedIn) {
       setSignInOpen(true);
       return;
@@ -147,7 +158,7 @@ function LiveListingActions({
       panelRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
       document.getElementById("seller-message")?.focus({ preventScroll: true });
     }, 50);
-  }, [canContactHere, isSignedIn]);
+  }, [canContactHere, isSignedIn, approvedDealer]);
 
   useEffect(() => {
     const onOpen = () => openContact();
@@ -157,8 +168,11 @@ function LiveListingActions({
 
   // Back from Google or the full sign-up page: open the form they asked for.
   useEffect(() => {
-    if (isSignedIn && consumeContactIntent(listing.id)) openContact();
-  }, [isSignedIn, listing.id, openContact]);
+    if (isSignedIn && consumeContactIntent(listing.id)) {
+      if (approvedDealer && internalMessagesEnabled) setContactOpen(true);
+      else openContact();
+    }
+  }, [isSignedIn, listing.id, openContact, approvedDealer, internalMessagesEnabled]);
 
   const inquiryMutation = useMutation({
     mutationFn: () => start({ data: { listingId: listing.id, body: message } }),
@@ -175,18 +189,48 @@ function LiveListingActions({
 
   return (
     <div ref={panelRef} className="floating-card overflow-hidden border-foreground/20">
-      {showPriceHeader && (
-        <div className="bg-primary px-5 py-4 text-primary-foreground">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-primary-foreground/75">
+      {approvedDealer ? (
+        <DealerContactOptions
+          open={dealerContactOpen}
+          onOpenChange={setDealerContactOpen}
+          name={listing.dealer!.displayName}
+          phone={listing.seller?.contactPhone ?? listing.externalVehicle?.dealer?.phone}
+          email={listing.seller?.contactEmail}
+          textPhone={listing.seller?.contactTextPhone}
+          website={listing.dealer?.website}
+          messagingEnabled={internalMessagesEnabled && Boolean(listing.seller?.userId)}
+          onMessage={() => {
+            if (!isSignedIn) setSignInOpen(true);
+            else setContactOpen(true);
+          }}
+        />
+      ) : null}
+      {(showPriceHeader || approvedDealer) && (
+        <div
+          className={
+            approvedDealer
+              ? "border-b border-border px-5 py-5"
+              : "bg-primary px-5 py-4 text-primary-foreground"
+          }
+        >
+          <p
+            className={`text-[11px] font-semibold uppercase tracking-[0.12em] ${approvedDealer ? "text-muted-foreground" : "text-primary-foreground/75"}`}
+          >
             Seller price
           </p>
-          <p className="numeric mt-1 text-[32px] font-bold leading-none">
-            {adoptionPriceLabel(listing) ??
-              formatClassifiedPrice(listing.priceCents, {
-                wholeDollars: Boolean(listing.vehicle || listing.home),
-                monthly: listing.home?.mode === "rent",
-              })}
-          </p>
+          {approvedDealer ? (
+            <div className="mt-3">
+              <VehiclePrice listing={listing} />
+            </div>
+          ) : (
+            <p className="numeric mt-1 text-[32px] font-bold leading-none">
+              {adoptionPriceLabel(listing) ??
+                formatClassifiedPrice(listing.priceCents, {
+                  wholeDollars: Boolean(listing.vehicle || listing.home),
+                  monthly: listing.home?.mode === "rent",
+                })}
+            </p>
+          )}
         </div>
       )}
 
@@ -197,7 +241,7 @@ function LiveListingActions({
               <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                 Estimated payment
               </p>
-              <p className="numeric mt-1 text-[22px] font-bold">
+              <p className="numeric mt-1 text-[18px] font-semibold">
                 {formatUsd(Math.round(monthlyPayment * 100))}
                 <span className="ml-1 text-[12px] font-medium text-muted-foreground">/mo</span>
               </p>
@@ -259,24 +303,34 @@ function LiveListingActions({
           </div>
         )}
 
-        <p className="flex items-start gap-2 text-[12px] leading-relaxed text-muted-foreground">
-          <Info size={15} className="mt-0.5 shrink-0 text-primary" />
-          {isExternalApply
-            ? "This employer accepts applications on their own site or by email."
-            : externalPet
-              ? `Adopt ${listing.pet?.name ?? "this pet"} through ${externalPet.orgName ?? "the rescue"}.`
-              : isPartnerVehicle
-                ? "Reach the seller through the original listing to confirm availability, condition and the final price."
-                : isJobApply
-                  ? "Apply to let the employer know you're interested. They will reach out about next steps."
-                  : "Contact the seller to confirm availability, condition, pickup, shipping, and the final amount."}
-        </p>
+        {!approvedDealer ? (
+          <p className="flex items-start gap-2 text-[12px] leading-relaxed text-muted-foreground">
+            <Info size={15} className="mt-0.5 shrink-0 text-primary" />
+            {isExternalApply
+              ? "This employer accepts applications on their own site or by email."
+              : externalPet
+                ? `Adopt ${listing.pet?.name ?? "this pet"} through ${externalPet.orgName ?? "the rescue"}.`
+                : isPartnerVehicle
+                  ? "Reach the seller through the original listing to confirm availability, condition and the final price."
+                  : isJobApply
+                    ? "Apply to let the employer know you're interested. They will reach out about next steps."
+                    : "Contact the seller to confirm availability, condition, pickup, shipping, and the final amount."}
+          </p>
+        ) : null}
 
         {isPreviewListing ? (
           <div className="rounded-2xl border border-primary/20 bg-primary/5 px-3 py-3 text-[12px] leading-relaxed text-muted-foreground">
             This is a preview listing. Contact and application actions become available on a
             published seller listing.
           </div>
+        ) : approvedDealer ? (
+          <button
+            type="button"
+            onClick={() => setDealerContactOpen(true)}
+            className="flex h-12 w-full items-center justify-center rounded-full bg-nav-accent text-[14.5px] font-semibold text-primary"
+          >
+            Contact dealership
+          </button>
         ) : isPartnerVehicle ? (
           partnerVehicleUrl ? (
             <a
@@ -385,8 +439,9 @@ function LiveListingActions({
             </p>
           )}
           <p className="text-[11px] leading-relaxed text-muted-foreground">
-            Your message will appear in Bluebird Messages. The seller will only see contact details
-            you have explicitly enabled in your profile preferences.
+            Your message will appear in Bluebird Messages, including in the dealership inbox when
+            its owner signs in. The seller will only see contact details you have explicitly enabled
+            in your profile preferences.
           </p>
           <button
             type="submit"

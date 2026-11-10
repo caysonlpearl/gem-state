@@ -26,6 +26,7 @@ const vehicle = {
   title: "2026 Subaru Forester Fixture",
   description: "Authorized dealer description.",
   price_cents: 3500000,
+  msrp: 39000,
   vehicle_year: 2026,
   vehicle_make: "Subaru",
   vehicle_model: "Forester",
@@ -61,9 +62,14 @@ globalThis.fetch = async (input, init = {}) => {
             dealers: [
               { ...dealer, ...(mode === "no-email" ? { email: null, inbox_enabled: false } : {}) },
             ],
-            vehicles: [
-              { ...vehicle, price_cents: mode === "unpriced" ? null : vehicle.price_cents },
-            ],
+            vehicles:
+              mode === "paging"
+                ? Array.from({ length: 49 }, (_, i) => ({
+                    ...vehicle,
+                    id: `10000000-0000-4000-8000-${String(i + 1).padStart(12, "0")}`,
+                    title: `Page fixture vehicle ${i + 1}`,
+                  }))
+                : [{ ...vehicle, price_cents: mode === "unpriced" ? null : vehicle.price_cents }],
           },
     );
   }
@@ -83,10 +89,13 @@ try {
   assert.ok(html.includes(dealer.phone));
   assert.ok(html.includes(dealer.logo_url));
   assert.ok(html.includes(dealer.email));
-  assert.ok(html.includes("Sign in to contact seller"));
+  assert.ok(html.includes("Contact dealership"));
+  assert.ok(html.includes("$39,000") && html.includes("$4,000"));
+  assert.ok(html.includes('aria-label="Verified dealership"'));
+  assert.ok(!html.includes("Reach the seller through the original listing"));
   assert.ok(html.includes(vehicle.source_url));
   assert.ok(html.includes(vehicle.photos[1]));
-  assert.ok(html.includes("Inventory provided with permission by"));
+  assert.ok(!html.includes("Inventory provided with permission by"));
   assert.ok(!html.includes("Vehicle listing data provided by MarketCheck"));
   assert.ok(!html.includes(vehicle.private_extra));
   assert.ok(!html.includes("sb_secret_fixture"));
@@ -111,6 +120,13 @@ try {
   assert.ok(!html.includes("Email dealership"));
   assert.ok(!html.includes("Sign in to message dealership"));
   assert.ok(html.includes("Call dealership") && html.includes("Get directions"));
+  mode = "paging";
+  r = await request("/dealers/" + dealer.slug + "?page=2");
+  html = await r.text();
+  assert.equal(r.status, 200);
+  assert.ok(html.includes("Page fixture vehicle 25") && html.includes("Page fixture vehicle 48"));
+  assert.ok(!html.includes("Page fixture vehicle 1<"));
+  assert.ok(html.includes('aria-label="Dealership inventory pages"'));
   mode = "active";
   r = await request(
     "/browse?dealerSlug=" + dealer.slug + "&category=cars-trucks&vehicleMode=results",

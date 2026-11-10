@@ -1,3 +1,4 @@
+import { z } from "zod";
 /* eslint-disable @typescript-eslint/no-explicit-any -- migration-backed dealer accounts */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -112,4 +113,79 @@ export const sendDealerMessageEmailTest = createServerFn({ method: "POST" })
       sendTemplateEmail,
       crypto.randomUUID(),
     );
+  });
+
+/** Read-only operator preview; never creates a dealer session or sends an invitation. */
+export const getDealerAccountPreview = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) => z.object({ dealerId: z.string().uuid() }).parse(input))
+  .handler(async ({ data, context }) => {
+    const { data: allowed, error: roleError } = await context.supabase.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "admin",
+    });
+    if (roleError || !allowed) throw Error("Administrator access required.");
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const db = supabaseAdmin as any;
+    const { data: dealer, error } = await db
+      .from("dealer_profiles")
+      .select(
+        "id,owner_user_id,display_name,slug,logo_url,email,phone,website,address_line1,city,state,postal_code",
+      )
+      .eq("id", data.dealerId)
+      .single();
+    if (error || !dealer) throw Error("Dealership not found.");
+    const { data: sources, error: sourceError } = await db
+      .from("dealer_inventory_sources")
+      .select("id")
+      .eq("dealer_id", dealer.id);
+    if (sourceError) throw Error("Could not load dealership inventory.");
+    const { data: records, error: recordsError } = sources?.length
+      ? await db
+          .from("dealer_inventory_records")
+          .select("id,title,price_cents,inventory_status,vin,stock_number")
+          .in(
+            "source_id",
+            sources.map((s: any) => s.id),
+          )
+          .order("title")
+          .limit(5000)
+      : { data: [], error: null };
+    if (recordsError) throw Error("Could not load dealership inventory.");
+    const { data: owner, error: ownerError } = await db.auth.admin.getUserById(
+      dealer.owner_user_id,
+    );
+    if (ownerError) throw Error("Could not load dealership login status.");
+    const { count, error: countError } = await db
+      .from("conversations")
+      .select("id", { count: "exact", head: true })
+      .eq("dealer_id", dealer.id)
+      .eq("seller_id", dealer.owner_user_id);
+    if (countError) throw Error("Could not load dealership inbox status.");
+    return {
+      loginEmail: owner.user?.email ?? null,
+      activated: Boolean(owner.user?.email_confirmed_at),
+      messageCount: count ?? 0,
+      postalCode: dealer.postal_code,
+      inventory: {
+        id: dealer.id,
+        name: dealer.display_name,
+        slug: dealer.slug,
+        logoUrl: dealer.logo_url,
+        email: dealer.email,
+        phone: dealer.phone,
+        website: dealer.website,
+        address: dealer.address_line1,
+        city: dealer.city,
+        state: dealer.state,
+        records: (records ?? []).map((r: any) => ({
+          id: r.id,
+          title: r.title,
+          priceCents: r.price_cents,
+          status: r.inventory_status,
+          vin: r.vin,
+          stockNumber: r.stock_number,
+        })),
+      } as DealerAccountInventory,
+    };
   });

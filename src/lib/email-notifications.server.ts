@@ -137,6 +137,9 @@ export async function emailMarketplaceMessage(
 
     const recipientId =
       conversation.buyer_id === senderId ? conversation.seller_id : conversation.buyer_id;
+    // Messages persist immediately, but an unclaimed dealership receives no email alerts.
+    const { data: recipient } = await client.auth.admin.getUserById(recipientId);
+    if (!recipient?.user?.email_confirmed_at) return;
     const { data: preferences } = await client
       .from("account_notification_preferences")
       .select("message_alerts")
