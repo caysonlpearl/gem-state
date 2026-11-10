@@ -10,15 +10,17 @@ export function DealerContactPanel({
   name,
   slug,
   ownerUserId,
+  compose = false,
 }: {
   dealerId: string;
   name: string;
   slug: string;
   ownerUserId?: string;
+  compose?: boolean;
 }) {
   const { isSignedIn, user } = useAuth();
   const [body, setBody] = useState("");
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(compose);
   const start = useServerFn(startDealerConversation);
   const send = useMutation({
     mutationFn: () => start({ data: { dealerId, body } }),
@@ -35,7 +37,7 @@ export function DealerContactPanel({
       </Link>
     );
   return (
-    <div id="dealer-contact-panel" className="mt-5 max-w-xl">
+    <div id="dealer-contact-panel" className={compose ? "max-w-xl" : "mt-5 max-w-xl"}>
       {!isSignedIn ? (
         <Link
           id="dealer-message-trigger"
@@ -45,7 +47,7 @@ export function DealerContactPanel({
         >
           Sign in to message dealership
         </Link>
-      ) : (
+      ) : !compose ? (
         <button
           id="dealer-message-trigger"
           type="button"
@@ -54,7 +56,7 @@ export function DealerContactPanel({
         >
           Message dealership
         </button>
-      )}
+      ) : null}
       {open && isSignedIn ? (
         <form
           className="mt-4 space-y-3"

@@ -63,7 +63,10 @@ import { formatUsd } from "@/config/fees";
 import { BluebirdEmptyState } from "@/components/layout/BluebirdEmptyState";
 import { ListingActions } from "@/components/classifieds/ListingActions";
 import { MobileContactBar } from "@/components/classifieds/MobileContactBar";
-import { OPEN_CONTACT_EVENT } from "@/components/classifieds/ContactSignInSheet";
+import {
+  OPEN_CONTACT_EVENT,
+  OPEN_LISTING_MESSAGE_EVENT,
+} from "@/components/classifieds/ContactSignInSheet";
 import { listingIdFromParam, listingParam, listingPath } from "@/lib/listing-url";
 import { listingPhotoUrl } from "@/lib/listing-photo-url";
 import { canonicalMarketCheckId } from "@/lib/marketcheck-contract";
@@ -847,36 +850,52 @@ function MarketCheckContactCard({ listing }: { listing: ClassifiedDetail }) {
   const phone = dealer?.phone;
   return (
     <section className="soft-card p-5 sm:p-6">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-        Listed by
-      </p>
-      <div className="mt-3 flex items-center gap-3">
-        {listing.dealer?.logoUrl ? (
-          <img
-            src={listing.dealer.logoUrl}
-            alt={`${name} logo`}
-            className="h-14 w-32 shrink-0 object-contain"
-          />
-        ) : (
-          <EmployerTile name={name} />
-        )}
-        <div className="min-w-0 text-[12.5px]">
-          <p className="flex items-center gap-1.5 text-[15px] font-bold">
-            {name}
-            {hasApprovedDealer(listing) ? <VerifiedDealerBadge /> : null}
-          </p>
-          {dealer?.dealerType ? (
-            <p className="mt-0.5 capitalize">{dealer.dealerType} dealer</p>
-          ) : null}
-          {dealer?.city || dealer?.state ? (
-            <p className="mt-1 text-muted-foreground">
-              {[dealer.city, dealer.state].filter(Boolean).join(", ")}
+      <div
+        className={
+          hasApprovedDealer(listing) ? "rounded-2xl border border-[#b8d4e6] bg-[#edf6fc] p-4" : ""
+        }
+      >
+        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+          Listed by
+        </p>
+        <div className="mt-3 flex items-center gap-3">
+          {listing.dealer?.logoUrl ? (
+            <img
+              src={listing.dealer.logoUrl}
+              alt={`${name} logo`}
+              className="h-12 w-24 shrink-0 object-contain"
+            />
+          ) : (
+            <EmployerTile name={name} />
+          )}
+          <div className="min-w-0 text-[12.5px]">
+            <p className="flex items-center gap-1.5 text-[15px] font-bold">
+              {listing.dealer?.slug ? (
+                <Link
+                  to="/dealers/$slug"
+                  params={{ slug: listing.dealer.slug }}
+                  className="hover:underline"
+                >
+                  {name}
+                </Link>
+              ) : (
+                name
+              )}
+              {hasApprovedDealer(listing) ? <VerifiedDealerBadge /> : null}
             </p>
-          ) : source.sourceKind === "fsbo" && (source.location.city || source.location.state) ? (
-            <p className="mt-1 text-[13px] text-muted-foreground">
-              {[source.location.city, source.location.state].filter(Boolean).join(", ")}
-            </p>
-          ) : null}
+            {dealer?.dealerType ? (
+              <p className="mt-0.5 capitalize">{dealer.dealerType} dealer</p>
+            ) : null}
+            {dealer?.city || dealer?.state ? (
+              <p className="mt-1 text-muted-foreground">
+                {[dealer.city, dealer.state].filter(Boolean).join(", ")}
+              </p>
+            ) : source.sourceKind === "fsbo" && (source.location.city || source.location.state) ? (
+              <p className="mt-1 text-[13px] text-muted-foreground">
+                {[source.location.city, source.location.state].filter(Boolean).join(", ")}
+              </p>
+            ) : null}
+          </div>
         </div>
       </div>
       {dealer?.street || dealer?.zip ? (
@@ -902,7 +921,9 @@ function MarketCheckContactCard({ listing }: { listing: ClassifiedDetail }) {
           View dealership and inventory
         </Link>
       ) : null}
-      <div className="mt-4 grid grid-cols-2 gap-2">
+      <div
+        className={`mt-4 grid gap-2 ${hasApprovedDealer(listing) && listing.seller?.userId ? "grid-cols-3" : "grid-cols-2"}`}
+      >
         {phone ? (
           <a
             href={`tel:${phone.replace(/[^\d+]/g, "")}`}
@@ -910,6 +931,17 @@ function MarketCheckContactCard({ listing }: { listing: ClassifiedDetail }) {
           >
             <Phone size={15} aria-hidden="true" /> Call
           </a>
+        ) : null}
+        {hasApprovedDealer(listing) && listing.seller?.userId ? (
+          <button
+            type="button"
+            disabled={listing.seller.allowInternalMessages === false}
+            onClick={() => window.dispatchEvent(new Event(OPEN_LISTING_MESSAGE_EVENT))}
+            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md bg-primary px-2 text-[12px] font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+            aria-label="Message dealership"
+          >
+            <ChatCircle size={15} aria-hidden="true" /> Message
+          </button>
         ) : null}
         {dealer?.website ? (
           <a
@@ -1744,18 +1776,38 @@ function ListingDetailContent() {
       </nav>
 
       <div className="mt-6">
-        <header className="border-b border-border/70 pb-5">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <h1 className="text-[28px] font-bold leading-tight tracking-tight sm:text-[38px]">
-                {title}
-              </h1>
-              {vehicle &&
-                !listing.externalVehicle &&
-                !listing.title.toLowerCase().includes(title.toLowerCase()) &&
-                !title.toLowerCase().includes(listing.title.toLowerCase()) && (
-                  <p className="mt-1 text-[14px] text-muted-foreground">{listing.title}</p>
-                )}
+        <header
+          aria-label="Vehicle listing summary"
+          className="grid gap-3 border-b border-border/70 pb-4 lg:grid-cols-[minmax(0,1fr)_auto]"
+        >
+          <div>
+            <h1 className="text-[28px] font-bold leading-tight tracking-tight sm:text-[38px]">
+              {title}
+            </h1>
+            {vehicle &&
+              !listing.externalVehicle &&
+              !listing.title.toLowerCase().includes(title.toLowerCase()) &&
+              !title.toLowerCase().includes(listing.title.toLowerCase()) && (
+                <p className="mt-1 text-[14px] text-muted-foreground">{listing.title}</p>
+              )}
+          </div>
+
+          <div className="lg:justify-self-end">
+            <VehiclePrice listing={listing} />
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 lg:col-span-2">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[12.5px] text-muted-foreground">
+              <span className="flex items-center gap-1.5 text-primary">
+                <MapPin size={15} weight="fill" /> {placeLabel(listing.city, listing.state)}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Clock size={15} /> Posted {postedAge(listing.createdAt).toLowerCase()}
+              </span>
+              {vehicle?.mileage != null && (
+                <span className="flex items-center gap-1.5">
+                  <Gauge size={15} /> {formatMileage(vehicle.mileage)}
+                </span>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <ListingStatsInline listing={listing} />
@@ -1797,22 +1849,6 @@ function ListingDetailContent() {
                 <Printer size={18} />
               </button>
             </div>
-          </div>
-          <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12.5px] text-muted-foreground">
-            <span className="flex items-center gap-1.5 text-primary">
-              <MapPin size={15} weight="fill" /> {placeLabel(listing.city, listing.state)}
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Clock size={15} /> Posted {postedAge(listing.createdAt).toLowerCase()}
-            </span>
-            {vehicle?.mileage != null && (
-              <span className="flex items-center gap-1.5">
-                <Gauge size={15} /> {formatMileage(vehicle.mileage)}
-              </span>
-            )}
-          </div>
-          <div className="mt-5">
-            <VehiclePrice listing={listing} />
           </div>
         </header>
       </div>
@@ -1962,7 +1998,23 @@ function ListingDetailContent() {
             )}
           </div>
           <section aria-label="Vehicle resources" className="grid gap-5 sm:grid-cols-2">
-            <VehicleHistoryCard vehicle={vehicle} />
+            <section className="soft-card px-5 py-5">
+              <h2 className="text-[14px] font-bold">Before you meet</h2>
+              <ul className="mt-3 space-y-3 text-[12px] leading-relaxed text-muted-foreground">
+                <li className="flex items-start gap-2">
+                  <ShieldCheck size={16} className="mt-0.5 shrink-0 text-primary" /> Meet in a
+                  public place and verify the vehicle and paperwork before paying.
+                </li>
+                <li className="flex items-start gap-2">
+                  <Gauge size={16} className="mt-0.5 shrink-0 text-primary" /> Confirm mileage,
+                  title status, condition, and any fees with the seller.
+                </li>
+                <li className="flex items-start gap-2">
+                  <Flag size={16} className="mt-0.5 shrink-0 text-primary" /> Report anything
+                  misleading or unsafe through Bluebird.
+                </li>
+              </ul>
+            </section>
             <PageStatsCard listing={listing} />
           </section>
           {!hasApprovedDealer(listing) ? <MarketCheckSourceCredit listing={listing} /> : null}
@@ -1976,23 +2028,8 @@ function ListingDetailContent() {
           )}
           <ListingActions listing={listing} showPriceHeader={false} />
 
-          <section className="soft-card px-5 py-5">
-            <h2 className="text-[14px] font-bold">Before you meet</h2>
-            <ul className="mt-3 space-y-3 text-[12px] leading-relaxed text-muted-foreground">
-              <li className="flex items-start gap-2">
-                <ShieldCheck size={16} className="mt-0.5 shrink-0 text-primary" /> Meet in a public
-                place and verify the vehicle and paperwork before paying.
-              </li>
-              <li className="flex items-start gap-2">
-                <Gauge size={16} className="mt-0.5 shrink-0 text-primary" /> Confirm mileage, title
-                status, condition, and any fees with the seller.
-              </li>
-              <li className="flex items-start gap-2">
-                <Flag size={16} className="mt-0.5 shrink-0 text-primary" /> Report anything
-                misleading or unsafe through Bluebird.
-              </li>
-            </ul>
-          </section>
+          <VehicleHistoryCard vehicle={vehicle} />
+
           <TrustSafetyCard listing={listing} />
         </aside>
       </div>

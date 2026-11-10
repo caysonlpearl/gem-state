@@ -13,6 +13,7 @@ import { getAuthRedirectUrl } from "@/lib/auth-redirect";
 
 /** Fired by the mobile contact bar; ListingActions opens the message form. */
 export const OPEN_CONTACT_EVENT = "bluebird:open-contact";
+export const OPEN_LISTING_MESSAGE_EVENT = "bluebird:open-listing-message";
 
 // Survives the round trip through Google or the full sign-up page, so the
 // buyer lands back on the listing with the message form already open.
