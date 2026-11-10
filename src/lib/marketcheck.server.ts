@@ -193,7 +193,7 @@ function matchesBodyStyle(selectedStyles: string[], bodyType: string | null) {
   return selectedStyles.some((style) => (BODY_STYLE_SYNONYMS[style] ?? [style]).includes(actual));
 }
 
-function matchesProviderFilters(listing: MarketCheckListing, data: ClassifiedBrowseInput) {
+export function matchesProviderFilters(listing: MarketCheckListing, data: ClassifiedBrowseInput) {
   if (data.fulfillment) return false;
   if (data.titleStatus && data.titleStatus !== "Clean") return false;
   if (data.titleStatus === "Clean" && !rawHasCleanTitle(listing)) return false;

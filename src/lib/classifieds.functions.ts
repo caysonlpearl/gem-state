@@ -243,7 +243,7 @@ export const reportClassifiedListing = createServerFn({ method: "POST" })
         listingId,
       ) &&
       !/^(?:adzuna|avantlink)-\d{1,20}$/.test(listingId) &&
-      !/^(?:marketcheck-(?:dealer|fsbo)-[A-Za-z0-9._:-]{1,160}|fsq-[0-9a-f]{24})$/.test(listingId)
+      !/^(?:marketcheck-(?:dealer|fsbo)-[A-Za-z0-9._:-]{1,160}|dealerfeed-[0-9a-f-]{36}|fsq-[0-9a-f]{24})$/.test(listingId)
     ) {
       throw new Error("Listing not found.");
     }
@@ -274,9 +274,11 @@ export const reportClassifiedListing = createServerFn({ method: "POST" })
       if (error) throw new Error(error.message);
       return { alreadyReported: false as const };
     }
-    if (data.listingId.startsWith("marketcheck-")) {
-      const { marketCheckDetail } = await import("./marketcheck.server");
-      if (!(await marketCheckDetail(data.listingId)))
+    if (data.listingId.startsWith("marketcheck-") || data.listingId.startsWith("dealerfeed-")) {
+      const exists = data.listingId.startsWith("dealerfeed-")
+        ? await (await import("./dealer-feed.server")).dealerFeedDetail(data.listingId)
+        : await (await import("./marketcheck.server")).marketCheckDetail(data.listingId);
+      if (!exists)
         throw new Error("That listing is no longer available.");
       const { error } = await client.from("partner_vehicle_reports").insert({
         listing_id: data.listingId,
@@ -1920,10 +1922,8 @@ async function runBrowseClassifieds(
         .eq("status", "ready")
         .not("agreements_accepted_at", "is", null)
         .maybeSingle();
-      if (!dealer?.id) {
-        return empty;
-      }
-      query = query.eq("dealer_id", dealer.id);
+      // Authorized syndicated dealers have a public feed, not a member account.
+      query = query.eq("dealer_id", dealer?.id ?? "00000000-0000-0000-0000-000000000000");
     }
     if (data.condition) {
       const conditions = filterValues(data.condition).filter((value) =>
@@ -2133,6 +2133,7 @@ async function runBrowseClassifieds(
       rescueGroups,
       directoryAdapter,
       merchandise,
+      dealerFeed,
     ] = await measure("adapterImports", () =>
       Promise.all([
         import("./adzuna-listings.server"),
@@ -2143,6 +2144,7 @@ async function runBrowseClassifieds(
         import("./rescuegroups.server"),
         import("./service-directory-contract"),
         import("./avantlink-listings.server"),
+        import("./dealer-feed.server"),
       ]),
     );
     const includeAdzuna = adzuna.canIncludeAdzuna(data);
@@ -2152,6 +2154,7 @@ async function runBrowseClassifieds(
       includeOpenWebNinja &&
       (options.readOnlyProviders || openWebNinjaConfig.openWebNinjaConfigured());
     const includeMarketCheck = marketCheck.canIncludeMarketCheck(data);
+    const includeDealerFeed = dealerFeed.canIncludeDealerFeed(data);
     const includeRescueGroups =
       rescueGroups.canIncludeRescueGroups(data) && rescueGroups.rescueGroupsConfigured();
     const includeExternalHomes = includeMashvisor || includeOpenWebNinja;
@@ -2173,6 +2176,7 @@ async function runBrowseClassifieds(
       includeAdzuna ||
       includeExternalHomes ||
       includeMarketCheck ||
+      includeDealerFeed ||
       includeRescueGroups ||
       includeDirectory ||
       includeMerchandise ||
@@ -2185,7 +2189,7 @@ async function runBrowseClassifieds(
     // Independent reads must not form a provider → database waterfall.
     // Eligibility, provider budget guards, paging and merge ordering stay unchanged.
     let jobsUnavailable = false;
-    const [native, jobCards, homeCards, externalVehicles, petCards, merchandiseResult] =
+    const [native, jobCards, homeCards, aggregatedVehicles, petCards, merchandiseResult, directVehicles] =
       await Promise.all([
         (async () => {
           return await measure("nativeRead", () =>
@@ -2218,7 +2222,11 @@ async function runBrowseClassifieds(
           ? rescueGroups.rescueGroupsCards(data, { cacheOnly: options.readOnlyProviders })
           : [],
         includeMerchandise ? merchandise.merchandiseCards(data) : { cards: [], limited: false },
+        includeDealerFeed ? dealerFeed.dealerFeedCards(data) : { cards: [], dealers: [] },
       ]);
+    const externalVehicles = (await import("./dealer-feed-contract")).mergeDealerFeedVehicles(
+      directVehicles.cards, aggregatedVehicles, directVehicles.dealers,
+    );
     const { data: rows, count, error } = native;
     const matchesRegion = (listing: ClassifiedCard) =>
       (!data.region || regionOfListing(listing) === data.region) &&
@@ -2408,6 +2416,9 @@ export const getClassifiedListing = createServerFn({ method: "GET" })
     if (data.id.startsWith("rescuegroups-")) {
       const { rescueGroupsDetail } = await import("./rescuegroups.server");
       return rescueGroupsDetail(data.id);
+    }
+    if (data.id.startsWith("dealerfeed-")) {
+      return (await import("./dealer-feed.server")).dealerFeedDetail(data.id);
     }
     if (data.id.startsWith("marketcheck-")) {
       const { marketCheckDetail } = await import("./marketcheck.server");

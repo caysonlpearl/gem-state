@@ -2,7 +2,7 @@
 
 The production `bluebird-inventory.timer` on the existing DigitalOcean server checks every 15 minutes (and once, one minute after timer activation). It invokes the compiled production inventory endpoint in-process; no HTTP listener is exposed. Each source's schedule determines whether it is due. `hourly` sources run on the first sweep at least 60 minutes after their last success. Failed sources remain eligible for retry; paused sources never run. A ten-minute source lease prevents overlapping scheduled workers from fetching and reconciling the same snapshot. See `infra/inventory/README.md` for deployment and credentials. The old Supabase `dealer-inventory-sweep` job is disabled: Motive returns a browser-check page to the website's hosting network, while the DigitalOcean worker receives XML. Unrelated Supabase jobs remain active.
 
-Apply `20261110180000_automated_dealer_inventory.sql` before deploying the updated scheduler. The migration adds service-role-only lease functions and preserves existing media row identities across imports. Invalid/unpriced inventory also hides any already-linked public listing. It does not publish vehicles or accept agreements for dealerships.
+Apply `20261110180000_automated_dealer_inventory.sql` before deploying the updated scheduler. The migration adds service-role-only lease functions and preserves existing media row identities across imports. Invalid/unpriced inventory also hides any already-linked public listing. Feed publication uses the separately recorded dealer authorization described below.
 
 ## Twin Falls Subaru / Motive
 
@@ -17,7 +17,15 @@ The authorized Motive feed is configured in the private `dealer_inventory_source
 - Zero/blank advertised prices remain `null`, with inventory status `invalid` for private review. They stay present in reconciliation, so an unpriced car is not mistaken for a missing one. No MSRP or invented price is substituted.
 - Current raw records preserve descriptions, condition, certification, dealer contact fields and source vehicle URLs. Sync history stores counts/checksums rather than duplicate full XML payloads.
 
-Imported inventory is private. A real, ready dealership storefront and the existing review/link workflow are required for public marketplace listings; feed authorization does not constitute acceptance of dealership account agreements.
+## Authorized feed publication
+
+Twin Falls Subaru has given written permission to publish its inventory. Its approved source is registered in the service-only `dealer_feed_publications` table with the operator, permission reference and public dealership contact information. The safe `read_published_dealer_inventory` RPC exposes a whitelist of vehicle and dealership fields; private feed URLs, raw records and permission references remain private.
+
+Authorized feed vehicles appear directly in browse, the homepage vehicle source, their own detail pages, and `/dealers/twin-falls-subaru`. They use stable `dealerfeed-<record UUID>` IDs, the dealership's phone and original vehicle pages, and the existing partner save/report/photo paths. No member listings are created. Direct dealer inventory replaces older same-dealer aggregator cars to avoid duplicates and outdated prices.
+
+Only priced current inventory appears publicly. Sold, removed, invalid, moderator-removed and expired inventory is excluded. Missing vehicles retain the source's two-snapshot grace. Source pauses or revoked publication permission hide the feed. Inventory older than 72 hours is hidden until refreshed. Temporary fetch errors retain the latest valid snapshot within that window. New arrivals and price/photo changes become visible with the next successful import, without another publication step.
+
+Written listing permission and dealer account agreements are separate records. The existing ready/account-agreement and moderation checks still apply when operators manually link inventory to member listings.
 
 ## Verification
 

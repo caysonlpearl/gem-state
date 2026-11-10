@@ -2,11 +2,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { ClassifiedCard } from "./classifieds.functions";
-import { MARKETCHECK_ID } from "./marketcheck-contract";
+import { PARTNER_VEHICLE_ID } from "./marketcheck-contract";
 
 const listingIdOf = (value: unknown) => {
   const id = String(value ?? "");
-  return MARKETCHECK_ID.test(id) ? id : "";
+  return PARTNER_VEHICLE_ID.test(id) ? id : "";
 };
 
 export const getPartnerVehicleSaved = createServerFn({ method: "GET" })
@@ -40,8 +40,9 @@ export const setPartnerVehicleSaved = createServerFn({ method: "POST" })
       if (error) throw new Error("Could not remove this vehicle. Try again.");
       return { saved: false };
     }
-    const { marketCheckDetail } = await import("./marketcheck.server");
-    const detail = await marketCheckDetail(data.listingId);
+    const detail = data.listingId.startsWith("dealerfeed-")
+      ? await (await import("./dealer-feed.server")).dealerFeedDetail(data.listingId)
+      : await (await import("./marketcheck.server")).marketCheckDetail(data.listingId);
     if (!detail) throw new Error("This vehicle is no longer listed.");
     const { description: _description, seller: _seller, images: _images, ...snapshot } = detail;
     const { error } = await table.upsert(

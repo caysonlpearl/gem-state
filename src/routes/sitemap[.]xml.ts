@@ -74,10 +74,22 @@ export const Route = createFileRoute("/sitemap.xml")({
         // Reuse that cache without provider requests or writes. Failure is not an empty catalog.
         const { marketCheckCards } = await import("@/lib/marketcheck.server");
         let cachedVehicles;
+        let directVehicles: Awaited<
+          ReturnType<(typeof import("@/lib/dealer-feed.server"))["dealerFeedCards"]>
+        >;
         try {
-          cachedVehicles = await marketCheckCards(
-            { category: "cars-trucks", state: "ID" },
-            { cacheOnly: true },
+          const [aggregated, direct] = await Promise.all([
+            marketCheckCards({ category: "cars-trucks", state: "ID" }, { cacheOnly: true }),
+            (await import("@/lib/dealer-feed.server")).dealerFeedCards({
+              category: "cars-trucks",
+              state: "ID",
+            }),
+          ]);
+          directVehicles = direct;
+          cachedVehicles = (await import("@/lib/dealer-feed-contract")).mergeDealerFeedVehicles(
+            direct.cards,
+            aggregated,
+            direct.dealers,
           );
         } catch {
           return unavailable("vehicles");
@@ -225,6 +237,22 @@ export const Route = createFileRoute("/sitemap.xml")({
               { lastmod: row.updated_at, priority: "0.7" },
             );
           }),
+          ...directVehicles.cards.map((card) =>
+            urlEntry(listingPath({ id: card.id, title: card.title, city: card.city }), {
+              changefreq: "daily",
+              priority: "0.7",
+            }),
+          ),
+          ...directVehicles.dealers
+            .filter((dealer) =>
+              directVehicles.cards.some((card) => card.dealer?.slug === dealer.slug),
+            )
+            .map((dealer) =>
+              urlEntry(`/dealers/${encodeURIComponent(dealer.slug)}`, {
+                changefreq: "daily",
+                priority: "0.5",
+              }),
+            ),
           ...dealers.map(({ path, lastmod }) =>
             urlEntry(path, { lastmod, changefreq: "daily", priority: "0.5" }),
           ),

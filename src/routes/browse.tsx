@@ -125,6 +125,7 @@ const itemCategorySlugs = new Set<string>(
 );
 
 type Search = {
+  dealerSlug?: string | undefined;
   allCategories?: boolean | undefined;
   q?: string | undefined;
   savedSearchId?: string | undefined;
@@ -928,6 +929,7 @@ function inputFromSearch(search: Search): ClassifiedBrowseInput {
       ? "ID"
       : search.state;
   return {
+    dealerSlug: search.dealerSlug,
     q: search.q,
     category: search.category,
     homeTab: search.homeTab,
@@ -1220,6 +1222,7 @@ export const Route = createFileRoute("/browse")({
         search["allCategories"] === true || stringParam(search, "allCategories", 5) === "true"
           ? true
           : undefined,
+      dealerSlug: stringParam(search, "dealerSlug", 80),
       q: stringParam(search, "q"),
       savedSearchId,
       category,

@@ -7,7 +7,8 @@ const idsFor: Record<SavedStateKind, RegExp> = {
   products: uuid,
   jobs: /^(adzuna-\d{1,20}|fsq-[0-9a-f]{24}|rescuegroups-\d{1,20}|avantlink-\d{1,20})$/,
   homes: /^(mashvisor-\d{1,15}|openwebninja-\d{1,20})$/,
-  vehicles: /^marketcheck-(?:dealer|fsbo)-[A-Za-z0-9._:-]{1,160}$/,
+  vehicles:
+    /^(marketcheck-(?:dealer|fsbo)-[A-Za-z0-9._:-]{1,160}|dealerfeed-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/,
 };
 export function savedStateRequest(input: SavedStateRequest): SavedStateRequest {
   if (!input || !Object.hasOwn(idsFor, input.kind) || !uuid.test(input.viewerId))

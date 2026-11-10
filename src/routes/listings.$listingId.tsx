@@ -1043,7 +1043,9 @@ function MarketCheckSourceCredit({ listing }: { listing: ClassifiedDetail }) {
   if (!source) return null;
   return (
     <p className="border-t border-border/70 pt-4 text-[11px] text-muted-foreground">
-      Vehicle listing data provided by MarketCheck.
+      {listing.id.startsWith("dealerfeed-")
+        ? `Inventory provided with permission by ${source.dealer?.name ?? "the dealership"}.`
+        : "Vehicle listing data provided by MarketCheck."}
       {source.sourceUrl ? (
         <a
           href={source.sourceUrl}
@@ -1059,7 +1061,7 @@ function MarketCheckSourceCredit({ listing }: { listing: ClassifiedDetail }) {
 }
 
 const STATS_LISTING_ID =
-  /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|avantlink-\d{1,20}|adzuna-\d{1,20}|mashvisor-\d{1,15}|openwebninja-\d{1,20}|marketcheck-(?:dealer|fsbo)-[A-Za-z0-9._:-]{1,160}|fsq-[0-9a-f]{24})$/;
+  /^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|avantlink-\d{1,20}|adzuna-\d{1,20}|mashvisor-\d{1,15}|openwebninja-\d{1,20}|marketcheck-(?:dealer|fsbo)-[A-Za-z0-9._:-]{1,160}|dealerfeed-[0-9a-f-]{36}|fsq-[0-9a-f]{24})$/;
 
 /** Records this page view and returns views and saves; one request per page. */
 function useListingStats(listing: ClassifiedDetail) {

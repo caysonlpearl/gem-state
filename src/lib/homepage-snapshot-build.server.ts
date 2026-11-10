@@ -31,10 +31,18 @@ const sources: Sources = {
   },
   async vehicles() {
     const adapter = await import("./marketcheck.server");
-    return {
-      cards: await adapter.marketCheckCards(
+    const [aggregated, direct] = await Promise.all([
+      adapter.marketCheckCards(
         { state: "ID" },
         { cacheOnly: true, preparedHomeCache: adapter.prepareHomeMarketCheckCache(8000, true) },
+      ),
+      (await import("./dealer-feed.server")).dealerFeedCards({ state: "ID" }),
+    ]);
+    return {
+      cards: (await import("./dealer-feed-contract")).mergeDealerFeedVehicles(
+        direct.cards,
+        aggregated,
+        direct.dealers,
       ),
     };
   },
