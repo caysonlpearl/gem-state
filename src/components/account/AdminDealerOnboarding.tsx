@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   onboardDealerAccount,
   getDealerMessageEmailStatus,
+  sendDealerMessageEmailTest,
 } from "@/lib/dealer-onboarding.functions";
 import { getDealerInventorySources } from "@/lib/dealer-inventory.functions";
 
@@ -27,6 +28,8 @@ export function AdminDealerOnboarding() {
   const load = useServerFn(getDealerInventorySources);
   const onboard = useServerFn(onboardDealerAccount);
   const checkEmail = useServerFn(getDealerMessageEmailStatus);
+  const sendEmailTest = useServerFn(sendDealerMessageEmailTest);
+  const emailTest = useMutation({ mutationFn: () => sendEmailTest() });
   const emailStatus = useQuery({
     queryKey: ["dealer-message-email-status"],
     queryFn: () => checkEmail(),
@@ -68,6 +71,27 @@ export function AdminDealerOnboarding() {
               {emailStatus.data.message}
             </p>
           ) : null}
+          <div className="space-y-2">
+            <button
+              type="button"
+              disabled={emailTest.isPending || !emailStatus.data?.configured}
+              onClick={() => emailTest.mutate()}
+              className="rounded-full border border-input px-4 py-2 text-sm font-semibold text-primary disabled:opacity-50"
+            >
+              {emailTest.isPending ? "Sending setup test…" : "Send a test to my inbox"}
+            </button>
+            {emailTest.error ? (
+              <p role="alert" className="text-sm text-destructive">
+                {emailTest.error.message}
+              </p>
+            ) : null}
+            {emailTest.data ? (
+              <p role="status" className="text-sm text-muted-foreground">
+                The email provider accepted your test. Check your inbox. Reference:{" "}
+                {emailTest.data.testId}
+              </p>
+            ) : null}
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             {fields.map(([key, label]) => (
               <label key={key} className="block text-sm font-medium">
