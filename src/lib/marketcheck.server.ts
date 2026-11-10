@@ -369,13 +369,16 @@ async function readCachedStateRows(state: string, kind: MarketCheckSourceKind, t
   // keys lexicographically before applying a limit can omit page 50 in favor
   // of later offsets (for example, 0, 100, 150, ...), forcing a slow refresh.
   const pageKeys = marketCheckCachePageKeys(state, kind, pages, PAGE_SIZE);
-  const { data, error } = await withCatalogReadDeadline<any>((db as any)
-    .from("marketcheck_cache")
-    .select("cache_key,payload,expires_at")
-    // Supabase's .in() adds outer quotes but does not escape the quotes
-    // inside these JSON keys. Build quoted literals explicitly so PostgREST
-    // does not reject the bulk lookup and trigger per-page fallback reads.
-    .filter("cache_key", "in", `(${pageKeys.map((key) => JSON.stringify(key)).join(",")})`), timeoutMs);
+  const { data, error } = await withCatalogReadDeadline<any>(
+    (db as any)
+      .from("marketcheck_cache")
+      .select("cache_key,payload,expires_at")
+      // Supabase's .in() adds outer quotes but does not escape the quotes
+      // inside these JSON keys. Build quoted literals explicitly so PostgREST
+      // does not reject the bulk lookup and trigger per-page fallback reads.
+      .filter("cache_key", "in", `(${pageKeys.map((key) => JSON.stringify(key)).join(",")})`),
+    timeoutMs,
+  );
   if (error) throw new Error("Vehicle cache could not be read.");
   return (data ?? []) as any[];
 }
@@ -390,21 +393,31 @@ export function prepareHomeMarketCheckCache(timeoutMs = 2000, cacheOnly = false)
 }
 type PreparedHomeMarketCheckCache = ReturnType<typeof prepareHomeMarketCheckCache>;
 
-async function homeCachedInventory(state: string, kind: MarketCheckSourceKind, prepared?: Promise<any[] | null>) {
+async function homeCachedInventory(
+  state: string,
+  kind: MarketCheckSourceKind,
+  prepared?: Promise<any[] | null>,
+) {
   const rows = await (prepared ?? readCachedStateRows(state, kind, 2000));
   if (!rows) throw new Error("Vehicle cache could not be read.");
   // Browse already permits stale cached inventory when a refresh is limited.
   // The homepage can reuse those same records without triggering a multi-page
   // paid-provider refresh in front of the first row. Scheduled/browse refresh
   // and detail availability checks remain the normal freshness paths.
-  return rows.flatMap((row) => repairCachedSearch(row.payload, kind).listings).map((cached) => {
-    const listing = finalizeMarketCheckListing(cached);
-    return listing.location.state ? listing : { ...listing, location: { ...listing.location, state } };
-  });
+  return rows
+    .flatMap((row) => repairCachedSearch(row.payload, kind).listings)
+    .map((cached) => {
+      const listing = finalizeMarketCheckListing(cached);
+      return listing.location.state
+        ? listing
+        : { ...listing, location: { ...listing.location, state } };
+    });
 }
 
 async function freshCachedStateInventory(
-  state: string, kind: MarketCheckSourceKind, prepared?: Promise<any[] | null>,
+  state: string,
+  kind: MarketCheckSourceKind,
+  prepared?: Promise<any[] | null>,
 ) {
   const rows = await (prepared ?? readCachedStateRows(state, kind));
   // Evaluate expiry when consumed, not when preparation started.
@@ -433,7 +446,12 @@ async function inventoryPage(
 }
 
 /** A state's cached inventory for one source (dealer or private seller). */
-async function stateInventory(state: string, kind: MarketCheckSourceKind, forceRefresh = false, prepared?: Promise<any[] | null>) {
+async function stateInventory(
+  state: string,
+  kind: MarketCheckSourceKind,
+  forceRefresh = false,
+  prepared?: Promise<any[] | null>,
+) {
   if (!forceRefresh) {
     const cached = await freshCachedStateInventory(state, kind, prepared);
     if (cached) return cached;
@@ -566,6 +584,10 @@ export function marketCheckCard(input: MarketCheckListing): ClassifiedCard {
     productSlug: "",
     title: listing.heading,
     priceCents,
+    vehiclePricing: {
+      msrpCents: listing.msrp ? Math.round(listing.msrp * 100) : null,
+      referencePriceCents: listing.referencePrice ? Math.round(listing.referencePrice * 100) : null,
+    },
     currency: "USD",
     city: listing.location.city,
     state: listing.location.state,
@@ -604,18 +626,40 @@ export function marketCheckCard(input: MarketCheckListing): ClassifiedCard {
 
 export async function marketCheckCards(
   data: ClassifiedBrowseInput,
-  options?: { forceRefresh?: boolean; preparedHomeCache?: PreparedHomeMarketCheckCache; cacheOnly?: boolean },
+  options?: {
+    forceRefresh?: boolean;
+    preparedHomeCache?: PreparedHomeMarketCheckCache;
+    cacheOnly?: boolean;
+  },
 ) {
   if (!configured() && !options?.cacheOnly) return [];
   const inventories = await Promise.all(
     marketCheckStatesForBrowse(data).map((state) =>
       Promise.all([
         options?.cacheOnly
-          ? homeCachedInventory(state, "dealer", state === HOME_STATE ? options.preparedHomeCache?.dealer : undefined)
-          : stateInventory(state, "dealer", options?.forceRefresh, state === HOME_STATE ? options?.preparedHomeCache?.dealer : undefined),
+          ? homeCachedInventory(
+              state,
+              "dealer",
+              state === HOME_STATE ? options.preparedHomeCache?.dealer : undefined,
+            )
+          : stateInventory(
+              state,
+              "dealer",
+              options?.forceRefresh,
+              state === HOME_STATE ? options?.preparedHomeCache?.dealer : undefined,
+            ),
         options?.cacheOnly
-          ? homeCachedInventory(state, "fsbo", state === HOME_STATE ? options.preparedHomeCache?.fsbo : undefined)
-          : stateInventory(state, "fsbo", options?.forceRefresh, state === HOME_STATE ? options?.preparedHomeCache?.fsbo : undefined),
+          ? homeCachedInventory(
+              state,
+              "fsbo",
+              state === HOME_STATE ? options.preparedHomeCache?.fsbo : undefined,
+            )
+          : stateInventory(
+              state,
+              "fsbo",
+              options?.forceRefresh,
+              state === HOME_STATE ? options?.preparedHomeCache?.fsbo : undefined,
+            ),
       ]),
     ),
   );

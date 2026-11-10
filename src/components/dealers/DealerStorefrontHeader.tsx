@@ -1,23 +1,18 @@
-import {
-  ArrowUpRight,
-  Car,
-  Globe,
-  MapPin,
-  Phone,
-  SealCheck,
-  Envelope,
-} from "@phosphor-icons/react";
+import { useState } from "react";
+import { ChatCircleDots } from "@phosphor-icons/react";
+import { DealerActionArt } from "./DealerActionArt";
+import { DealerContactOptions } from "./DealerContactOptions";
+import { ArrowUpRight, SealCheck, Envelope } from "@phosphor-icons/react";
 import type { PublicDealerProfile } from "@/lib/dealer.functions";
 import { DealerContactPanel } from "@/components/classifieds/DealerContactPanel";
 
 export function DealerStorefrontHeader({ dealer }: { dealer: PublicDealerProfile }) {
+  const [contactOpen, setContactOpen] = useState(false);
   const location = [dealer.city, dealer.state].filter(Boolean).join(", ");
   const address = [dealer.addressLine1, location, dealer.postalCode].filter(Boolean).join(", ");
   const count = dealer.listingCount ?? dealer.listings.length;
   const actionClass =
-    "group flex min-h-24 items-center gap-3 rounded-2xl border border-border/80 bg-card px-4 py-4 text-left transition-colors hover:border-primary/40 hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
-  const iconClass =
-    "grid h-10 w-10 shrink-0 place-items-center rounded-full bg-secondary text-primary";
+    "group flex min-h-32 items-center gap-3 rounded-2xl border border-border/60 bg-card px-3 py-4 text-left transition-colors hover:border-primary/40 hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
   return (
     <section
       aria-label={`${dealer.displayName} dealership profile`}
@@ -76,9 +71,7 @@ export function DealerStorefrontHeader({ dealer }: { dealer: PublicDealerProfile
         >
           {dealer.phone ? (
             <a href={`tel:${dealer.phone.replace(/[^\d+]/g, "")}`} className={actionClass}>
-              <span className={iconClass}>
-                <Phone size={21} weight="duotone" aria-hidden="true" />
-              </span>
+              <DealerActionArt kind="phone" />
               <span className="min-w-0 flex-1">
                 <span className="block text-[13px] font-semibold">Call dealership</span>
                 <span className="mt-1 block text-[12px] text-muted-foreground">{dealer.phone}</span>
@@ -97,9 +90,7 @@ export function DealerStorefrontHeader({ dealer }: { dealer: PublicDealerProfile
               rel="noopener noreferrer"
               className={actionClass}
             >
-              <span className={iconClass}>
-                <MapPin size={21} weight="duotone" aria-hidden="true" />
-              </span>
+              <DealerActionArt kind="map" />
               <span className="min-w-0 flex-1">
                 <span className="block text-[13px] font-semibold">Get directions</span>
                 <span className="mt-1 block text-[11px] leading-relaxed text-muted-foreground">
@@ -122,9 +113,7 @@ export function DealerStorefrontHeader({ dealer }: { dealer: PublicDealerProfile
               rel="noopener noreferrer"
               className={actionClass}
             >
-              <span className={iconClass}>
-                <Globe size={21} weight="duotone" aria-hidden="true" />
-              </span>
+              <DealerActionArt kind="web" />
               <span className="min-w-0 flex-1">
                 <span className="block text-[13px] font-semibold">Visit website</span>
                 <span className="mt-1 block text-[12px] text-muted-foreground">
@@ -140,7 +129,7 @@ export function DealerStorefrontHeader({ dealer }: { dealer: PublicDealerProfile
           ) : null}
           {dealer.email ? (
             <a href={`mailto:${dealer.email}`} className={actionClass}>
-              <span className={iconClass}>
+              <span className="grid h-16 w-16 shrink-0 place-items-center text-primary">
                 <Envelope size={21} weight="duotone" aria-hidden="true" />
               </span>
               <span className="min-w-0 flex-1">
@@ -152,9 +141,7 @@ export function DealerStorefrontHeader({ dealer }: { dealer: PublicDealerProfile
             </a>
           ) : null}
           <a href="#dealer-inventory" className={actionClass}>
-            <span className={iconClass}>
-              <Car size={21} weight="duotone" aria-hidden="true" />
-            </span>
+            <DealerActionArt kind="car" />
             <span className="min-w-0 flex-1">
               <span className="block text-[13px] font-semibold">View inventory</span>
               <span className="mt-1 block text-[12px] text-muted-foreground">
@@ -163,6 +150,28 @@ export function DealerStorefrontHeader({ dealer }: { dealer: PublicDealerProfile
             </span>
           </a>
         </div>
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-border/60 pt-5">
+          <p className="text-xs text-muted-foreground">
+            Questions about a vehicle? Connect directly with the dealership.
+          </p>
+          <button
+            type="button"
+            onClick={() => setContactOpen(true)}
+            className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground"
+          >
+            <ChatCircleDots size={19} /> Contact dealership
+          </button>
+        </div>
+        <DealerContactOptions
+          open={contactOpen}
+          onOpenChange={setContactOpen}
+          name={dealer.displayName}
+          phone={dealer.phone}
+          email={dealer.email}
+          website={dealer.website}
+          messagingEnabled={Boolean(dealer.messagingEnabled)}
+          onMessage={() => document.getElementById("dealer-message-trigger")?.click()}
+        />
         {dealer.messagingEnabled ? (
           <DealerContactPanel
             dealerId={dealer.id}

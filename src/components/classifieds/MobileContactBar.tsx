@@ -1,3 +1,4 @@
+import { hasApprovedDealer } from "@/lib/vehicle-shopping";
 import { useEffect } from "react";
 import { DeviceMobile, Phone } from "@phosphor-icons/react";
 
@@ -19,6 +20,7 @@ function externalApplyHref(contact: string) {
  */
 export function MobileContactBar({ listing }: { listing: ClassifiedDetail }) {
   const { isSignedIn, user } = useAuth();
+  const approvedDealer = hasApprovedDealer(listing);
   const seller = listing.seller;
   const isOwnListing = Boolean(isSignedIn && seller?.userId && seller.userId === user?.id);
   const isJob = Boolean(listing.job);
@@ -29,7 +31,7 @@ export function MobileContactBar({ listing }: { listing: ClassifiedDetail }) {
   const externalApply =
     isJob && listing.job?.applicationMethod === "external"
       ? listing.job.applicationExternalContact
-      : hasDealerInbox
+      : approvedDealer || hasDealerInbox
         ? null
         : (listing.externalHome?.sourceUrl ??
           listing.externalVehicle?.sourceUrl ??
@@ -38,7 +40,8 @@ export function MobileContactBar({ listing }: { listing: ClassifiedDetail }) {
           null);
   const messagesEnabled = Boolean(seller) && seller?.allowInternalMessages !== false;
   const directoryPhone = listing.directory?.phone ?? null;
-  const showPrimary = Boolean(externalApply) || messagesEnabled || Boolean(directoryPhone);
+  const showPrimary =
+    approvedDealer || Boolean(externalApply) || messagesEnabled || Boolean(directoryPhone);
   const hidden =
     Boolean(listing.ended) ||
     listing.isMock === true ||
@@ -105,6 +108,14 @@ export function MobileContactBar({ listing }: { listing: ClassifiedDetail }) {
           >
             <Phone size={17} aria-hidden="true" className="mr-1.5" /> Call
           </a>
+        ) : approvedDealer ? (
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new Event(OPEN_CONTACT_EVENT))}
+            className={primaryButton}
+          >
+            Contact
+          </button>
         ) : externalApply ? (
           <a
             href={externalApplyHref(externalApply)}

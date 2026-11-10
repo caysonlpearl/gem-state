@@ -176,7 +176,7 @@ test("scoped seller and dealership inventory excludes preview fixtures", () => {
     /const scopedToOwner = Boolean\(data\.dealerSlug \|\| data\.sellerSlug\)/,
   );
   assert.match(classifiedsFunctionsSource, /page === 1 && !scopedToOwner/);
-  assert.match(dealerFunctionsSource, /browseClassifieds\(\{ data: \{ dealerSlug: data\.slug/);
+  assert.match(dealerFunctionsSource, /browseClassifieds\(\{\s*data: \{ dealerSlug: data\.slug/);
 });
 
 test("classified taxonomy includes Idaho categories and automotive inventory", () => {

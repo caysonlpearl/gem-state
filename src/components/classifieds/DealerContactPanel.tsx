@@ -35,9 +35,10 @@ export function DealerContactPanel({
       </Link>
     );
   return (
-    <div className="mt-5 max-w-xl">
+    <div id="dealer-contact-panel" className="mt-5 max-w-xl">
       {!isSignedIn ? (
         <Link
+          id="dealer-message-trigger"
           to="/auth"
           search={{ redirect: `/dealers/${slug}` }}
           className="inline-flex rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground"
@@ -46,8 +47,9 @@ export function DealerContactPanel({
         </Link>
       ) : (
         <button
+          id="dealer-message-trigger"
           type="button"
-          onClick={() => setOpen(!open)}
+          onClick={() => setOpen(true)}
           className="rounded-full bg-primary px-5 py-3 text-sm font-semibold text-primary-foreground"
         >
           Message dealership

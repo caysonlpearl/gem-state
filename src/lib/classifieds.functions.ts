@@ -160,6 +160,7 @@ export type ClassifiedCard = {
   service?: ClassifiedServiceDetails | null;
   isMock?: boolean;
   listingNumber?: string;
+  vehiclePricing?: { msrpCents?: number | null; referencePriceCents?: number | null };
   itemDetails?: Record<string, string>;
   dealer?: {
     displayName: string;
@@ -243,7 +244,9 @@ export const reportClassifiedListing = createServerFn({ method: "POST" })
         listingId,
       ) &&
       !/^(?:adzuna|avantlink)-\d{1,20}$/.test(listingId) &&
-      !/^(?:marketcheck-(?:dealer|fsbo)-[A-Za-z0-9._:-]{1,160}|dealerfeed-[0-9a-f-]{36}|fsq-[0-9a-f]{24})$/.test(listingId)
+      !/^(?:marketcheck-(?:dealer|fsbo)-[A-Za-z0-9._:-]{1,160}|dealerfeed-[0-9a-f-]{36}|fsq-[0-9a-f]{24})$/.test(
+        listingId,
+      )
     ) {
       throw new Error("Listing not found.");
     }
@@ -278,8 +281,7 @@ export const reportClassifiedListing = createServerFn({ method: "POST" })
       const exists = data.listingId.startsWith("dealerfeed-")
         ? await (await import("./dealer-feed.server")).dealerFeedDetail(data.listingId)
         : await (await import("./marketcheck.server")).marketCheckDetail(data.listingId);
-      if (!exists)
-        throw new Error("That listing is no longer available.");
+      if (!exists) throw new Error("That listing is no longer available.");
       const { error } = await client.from("partner_vehicle_reports").insert({
         listing_id: data.listingId,
         reporter_id: context.userId,
@@ -2189,43 +2191,52 @@ async function runBrowseClassifieds(
     // Independent reads must not form a provider → database waterfall.
     // Eligibility, provider budget guards, paging and merge ordering stay unchanged.
     let jobsUnavailable = false;
-    const [native, jobCards, homeCards, aggregatedVehicles, petCards, merchandiseResult, directVehicles] =
-      await Promise.all([
-        (async () => {
-          return await measure("nativeRead", () =>
-            withCatalogReadDeadline(query.range(resultRange.from, resultRange.to)),
-          );
-        })(),
-        includeAdzuna
-          ? adzuna.adzunaCards(
-              data,
-              (status) => {
-                jobsUnavailable = status !== "ok";
-              },
-              { cacheOnly: options.readOnlyProviders },
-            )
+    const [
+      native,
+      jobCards,
+      homeCards,
+      aggregatedVehicles,
+      petCards,
+      merchandiseResult,
+      directVehicles,
+    ] = await Promise.all([
+      (async () => {
+        return await measure("nativeRead", () =>
+          withCatalogReadDeadline(query.range(resultRange.from, resultRange.to)),
+        );
+      })(),
+      includeAdzuna
+        ? adzuna.adzunaCards(
+            data,
+            (status) => {
+              jobsUnavailable = status !== "ok";
+            },
+            { cacheOnly: options.readOnlyProviders },
+          )
+        : [],
+      openWebNinjaEnabled
+        ? openWebNinja.openWebNinjaCards(data)
+        : includeMashvisor
+          ? mashvisor.mashvisorCards(data)
           : [],
-        openWebNinjaEnabled
-          ? openWebNinja.openWebNinjaCards(data)
-          : includeMashvisor
-            ? mashvisor.mashvisorCards(data)
-            : [],
-        includeMarketCheck
-          ? measure("vehicleRead", async () =>
-              marketCheck.marketCheckCards(data, {
-                preparedHomeCache: await preparedHomeCache,
-                cacheOnly: options.readOnlyHome || options.readOnlyProviders,
-              }),
-            )
-          : [],
-        includeRescueGroups
-          ? rescueGroups.rescueGroupsCards(data, { cacheOnly: options.readOnlyProviders })
-          : [],
-        includeMerchandise ? merchandise.merchandiseCards(data) : { cards: [], limited: false },
-        includeDealerFeed ? dealerFeed.dealerFeedCards(data) : { cards: [], dealers: [] },
-      ]);
+      includeMarketCheck
+        ? measure("vehicleRead", async () =>
+            marketCheck.marketCheckCards(data, {
+              preparedHomeCache: await preparedHomeCache,
+              cacheOnly: options.readOnlyHome || options.readOnlyProviders,
+            }),
+          )
+        : [],
+      includeRescueGroups
+        ? rescueGroups.rescueGroupsCards(data, { cacheOnly: options.readOnlyProviders })
+        : [],
+      includeMerchandise ? merchandise.merchandiseCards(data) : { cards: [], limited: false },
+      includeDealerFeed ? dealerFeed.dealerFeedCards(data) : { cards: [], dealers: [] },
+    ]);
     const externalVehicles = (await import("./dealer-feed-contract")).mergeDealerFeedVehicles(
-      directVehicles.cards, aggregatedVehicles, directVehicles.dealers,
+      directVehicles.cards,
+      aggregatedVehicles,
+      directVehicles.dealers,
     );
     const { data: rows, count, error } = native;
     const matchesRegion = (listing: ClassifiedCard) =>

@@ -1,7 +1,11 @@
+import { VerifiedDealerBadge } from "@/components/dealers/VerifiedDealerBadge";
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { getMyDealerInventory } from "@/lib/dealer-onboarding.functions";
+import {
+  getMyDealerInventory,
+  type DealerAccountInventory,
+} from "@/lib/dealer-onboarding.functions";
 
 export function DealerInventoryPanel() {
   const load = useServerFn(getMyDealerInventory);
@@ -15,9 +19,19 @@ export function DealerInventoryPanel() {
       </p>
     );
   if (!query.data?.length) return null;
+  return <DealerInventoryView dealers={query.data} />;
+}
+
+export function DealerInventoryView({
+  dealers,
+  preview = false,
+}: {
+  dealers: DealerAccountInventory[];
+  preview?: boolean;
+}) {
   return (
     <div className="space-y-5">
-      {query.data.map((dealer) => (
+      {dealers.map((dealer) => (
         <section key={dealer.id} className="rounded-2xl border border-border bg-card p-5">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
@@ -28,7 +42,10 @@ export function DealerInventoryPanel() {
                   className="mb-3 h-14 w-56 object-contain object-left"
                 />
               ) : null}
-              <h2 className="text-xl font-semibold">{dealer.name}</h2>
+              <h2 className="flex items-center gap-2 text-xl font-semibold">
+                {dealer.name}
+                <VerifiedDealerBadge />
+              </h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 {dealer.records.length} vehicles assigned to your dealership. Inventory updates from
                 your feed.
@@ -41,10 +58,12 @@ export function DealerInventoryPanel() {
               <Link to="/dealers/$slug" params={{ slug: dealer.slug }}>
                 View dealership
               </Link>
-              <Link to="/dealer-setup">Edit business profile</Link>
-              <Link to="/account" search={{ section: "messages" }}>
-                Open inbox
-              </Link>
+              {!preview ? <Link to="/dealer-setup">Edit business profile</Link> : null}
+              {!preview ? (
+                <Link to="/account" search={{ section: "messages" }}>
+                  Open inbox
+                </Link>
+              ) : null}
             </div>
           </div>
           <div className="mt-4 max-h-[440px] overflow-auto">

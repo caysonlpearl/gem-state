@@ -7,15 +7,20 @@ import { BluebirdEmptyState } from "@/components/layout/BluebirdEmptyState";
 import { isIndexableStorefront } from "@/lib/seo-policy";
 import { getPublicDealer } from "@/lib/dealer.functions";
 
-const dealerQuery = (slug: string) =>
+const dealerQuery = (slug: string, page = 1) =>
   queryOptions({
-    queryKey: ["public-dealer", slug],
-    queryFn: () => getPublicDealer({ data: { slug } }),
+    queryKey: ["public-dealer", slug, page],
+    queryFn: () => getPublicDealer({ data: { slug, page } }),
   });
 
 export const Route = createFileRoute("/dealers/$slug")({
-  loader: async ({ context, params }) => {
-    const dealer = await context.queryClient.ensureQueryData(dealerQuery(params.slug));
+  validateSearch: (search: Record<string, unknown>): { page?: number } =>
+    search["page"] == null
+      ? {}
+      : { page: Math.min(10000, Math.max(1, Math.floor(Number(search["page"]) || 1))) },
+  loaderDeps: ({ search }) => ({ page: search.page ?? 1 }),
+  loader: async ({ context, params, deps }) => {
+    const dealer = await context.queryClient.ensureQueryData(dealerQuery(params.slug, deps.page));
     if (!dealer) throw notFound();
     return { dealer };
   },
@@ -54,7 +59,8 @@ export const Route = createFileRoute("/dealers/$slug")({
 
 function DealerPage() {
   const { slug } = Route.useParams();
-  const { data: dealer } = useSuspenseQuery(dealerQuery(slug));
+  const page = Route.useSearch().page ?? 1;
+  const { data: dealer } = useSuspenseQuery(dealerQuery(slug, page));
   if (!dealer) return null;
 
   return (
@@ -67,15 +73,6 @@ function DealerPage() {
             {dealer.listingCount ?? dealer.listings.length} active listings
           </span>
         </div>
-        {(dealer.listingCount ?? 0) > dealer.listings.length ? (
-          <Link
-            to="/browse"
-            search={{ dealerSlug: dealer.slug, category: "cars-trucks", vehicleMode: "results" }}
-            className="mb-5 inline-block text-sm text-primary underline"
-          >
-            Browse all inventory
-          </Link>
-        ) : null}
         {dealer.listings.length ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {dealer.listings.map((listing) => (
@@ -89,6 +86,61 @@ function DealerPage() {
             className="max-w-3xl"
           />
         )}
+        {(dealer.pageCount ?? 1) > 1 ? (
+          <nav
+            aria-label="Dealership inventory pages"
+            className="mt-9 flex flex-wrap items-center justify-center gap-2 border-t border-border/70 pt-7"
+          >
+            {(dealer.page ?? page) > 1 ? (
+              <Link
+                to="/dealers/$slug"
+                params={{ slug }}
+                search={{ page: (dealer.page ?? page) - 1 }}
+                hash="dealer-inventory"
+                className="rounded-full border border-border px-4 py-3 text-sm font-semibold"
+              >
+                Previous
+              </Link>
+            ) : null}
+            {Array.from({ length: dealer.pageCount ?? 1 }, (_, i) => i + 1)
+              .filter(
+                (n) =>
+                  n === 1 || n === dealer.pageCount || Math.abs(n - (dealer.page ?? page)) <= 2,
+              )
+              .map((n, i, all) => (
+                <span key={n} className="inline-flex items-center gap-2">
+                  {i > 0 && n > all[i - 1] + 1 ? (
+                    <span className="px-1 text-muted-foreground">…</span>
+                  ) : null}
+                  <Link
+                    to="/dealers/$slug"
+                    params={{ slug }}
+                    search={{ page: n }}
+                    hash="dealer-inventory"
+                    aria-label={`Inventory page ${n}`}
+                    aria-current={n === (dealer.page ?? page) ? "page" : undefined}
+                    className={`grid h-11 w-11 place-items-center rounded-full text-sm font-semibold ${n === (dealer.page ?? page) ? "bg-primary text-primary-foreground" : "border border-border hover:bg-secondary"}`}
+                  >
+                    {n}
+                  </Link>
+                </span>
+              ))}
+            {(dealer.page ?? page) < (dealer.pageCount ?? 1) ? (
+              <Link
+                to="/dealers/$slug"
+                params={{ slug }}
+                search={{ page: (dealer.page ?? page) + 1 }}
+                hash="dealer-inventory"
+                className="rounded-full border border-border px-4 py-3 text-sm font-semibold"
+              >
+                Next
+              </Link>
+            ) : null}
+            <p className="mt-3 w-full text-center text-xs text-muted-foreground">
+              Page {dealer.page ?? page} of {dealer.pageCount} · {dealer.listingCount} vehicles
+            </p>
+          </nav>
+        ) : null}
       </section>
     </main>
   );
