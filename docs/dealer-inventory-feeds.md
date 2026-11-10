@@ -1,6 +1,6 @@
 # Automatic dealership inventory feeds
 
-The production `dealer-inventory-sweep` job calls the authenticated internal inventory endpoint every 15 minutes. Each source's schedule determines whether it is due. `hourly` sources run on the first sweep at least 60 minutes after their last success. Failed sources remain eligible for retry; paused sources never run. A ten-minute source lease prevents overlapping scheduled workers from fetching and reconciling the same snapshot.
+The production `bluebird-inventory.timer` on the existing DigitalOcean server checks every 15 minutes (and once, one minute after timer activation). It invokes the compiled production inventory endpoint in-process; no HTTP listener is exposed. Each source's schedule determines whether it is due. `hourly` sources run on the first sweep at least 60 minutes after their last success. Failed sources remain eligible for retry; paused sources never run. A ten-minute source lease prevents overlapping scheduled workers from fetching and reconciling the same snapshot. See `infra/inventory/README.md` for deployment and credentials. The old Supabase `dealer-inventory-sweep` job is disabled: Motive returns a browser-check page to the website's hosting network, while the DigitalOcean worker receives XML. Unrelated Supabase jobs remain active.
 
 Apply `20261110180000_automated_dealer_inventory.sql` before deploying the updated scheduler. The migration adds service-role-only lease functions and preserves existing media row identities across imports. Invalid/unpriced inventory also hides any already-linked public listing. It does not publish vehicles or accept agreements for dealerships.
 
@@ -10,7 +10,7 @@ The authorized Motive feed is configured in the private `dealer_inventory_source
 
 - Source type: `file_url`; format: `xml`; schedule: `hourly`.
 - Mapping profile: `{"__provider":"motive","__dealer_id":"2592"}`.
-- Identify requests with the `BluebirdMarketplace/1.0` inventory-client User-Agent. Motive can return HTTP 200 with a browser-check HTML page to unnamed clients; an HTTP success alone does not prove receipt of XML. Browser-check responses must never reach reconciliation.
+- Identify requests with the `BluebirdMarketplace/1.0` inventory-client User-Agent. Motive can return HTTP 200 with a browser-check HTML page depending on the requesting network/client; an HTTP success alone does not prove receipt of XML. Browser-check responses must never reach reconciliation. Website-hosted manual fetches can still encounter this provider restriction; use the DigitalOcean worker for a scheduled or immediate full sync.
 - Minimum snapshot size: 200 vehicles, set against the initial verified snapshot of 256. A smaller snapshot requires operator review before lowering the minimum.
 - Missing vehicles become stale and linked listings are hidden after two successful complete snapshots. An explicit sold/removed status hides a linked listing immediately. Fetch, XML, validation and minimum-size failures retain existing inventory.
 - Motive's IDs, stock numbers, ZIP codes, mileage, color, body style and numbered photo fields map into the existing inventory model. Both numbered images and the comma-separated image summary are deduplicated in source order.
