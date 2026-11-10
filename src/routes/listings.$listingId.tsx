@@ -1728,7 +1728,7 @@ function ListingDetailContent() {
   }
 
   return (
-    <main className="mx-auto max-w-[1360px] px-4 py-6 sm:px-7 sm:py-8 lg:px-10">
+    <main className="mx-auto max-w-[1360px] px-4 pb-6 pt-3 sm:px-7 sm:pb-8 sm:pt-4 lg:px-10">
       <nav
         aria-label="Breadcrumb"
         className="flex flex-wrap items-center gap-1 text-[11.5px] text-muted-foreground"
@@ -1775,27 +1775,23 @@ function ListingDetailContent() {
         <span className="text-foreground">{placeLabel(listing.city, listing.state)}</span>
       </nav>
 
-      <div className="mt-6">
+      <div className="mt-4">
         <header
           aria-label="Vehicle listing summary"
-          className="grid gap-3 border-b border-border/70 pb-4 lg:grid-cols-[minmax(0,1fr)_auto]"
+          className="space-y-3 border-b border-border/70 pb-4"
         >
-          <div>
-            <h1 className="text-[28px] font-bold leading-tight tracking-tight sm:text-[38px]">
-              {title}
-            </h1>
-            {vehicle &&
-              !listing.externalVehicle &&
-              !listing.title.toLowerCase().includes(title.toLowerCase()) &&
-              !title.toLowerCase().includes(listing.title.toLowerCase()) && (
-                <p className="mt-1 text-[14px] text-muted-foreground">{listing.title}</p>
-              )}
-          </div>
-
-          <div className="lg:justify-self-end">
-            <VehiclePrice listing={listing} />
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-3 lg:col-span-2">
+          <div className="space-y-2">
+            <div>
+              <h1 className="text-[28px] font-bold leading-tight tracking-tight sm:text-[38px]">
+                {title}
+              </h1>
+              {vehicle &&
+                !listing.externalVehicle &&
+                !listing.title.toLowerCase().includes(title.toLowerCase()) &&
+                !title.toLowerCase().includes(listing.title.toLowerCase()) && (
+                  <p className="mt-1 text-[14px] text-muted-foreground">{listing.title}</p>
+                )}
+            </div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[12.5px] text-muted-foreground">
               <span className="flex items-center gap-1.5 text-primary">
                 <MapPin size={15} weight="fill" /> {placeLabel(listing.city, listing.state)}
@@ -1808,6 +1804,11 @@ function ListingDetailContent() {
                   <Gauge size={15} /> {formatMileage(vehicle.mileage)}
                 </span>
               )}
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-3">
+            <div aria-label="Asking price">
+              <VehiclePrice listing={listing} inlineComparison />
             </div>
             <div className="flex items-center gap-2">
               <ListingStatsInline listing={listing} />
