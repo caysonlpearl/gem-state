@@ -1961,6 +1961,10 @@ function ListingDetailContent() {
               </section>
             )}
           </div>
+          <section aria-label="Vehicle resources" className="grid gap-5 sm:grid-cols-2">
+            <VehicleHistoryCard vehicle={vehicle} />
+            <PageStatsCard listing={listing} />
+          </section>
           {!hasApprovedDealer(listing) ? <MarketCheckSourceCredit listing={listing} /> : null}
         </div>
 
@@ -1971,8 +1975,7 @@ function ListingDetailContent() {
             <SellerCard listing={listing} />
           )}
           <ListingActions listing={listing} showPriceHeader={false} />
-          <VehicleHistoryCard vehicle={vehicle} />
-          <PageStatsCard listing={listing} />
+
           <section className="soft-card px-5 py-5">
             <h2 className="text-[14px] font-bold">Before you meet</h2>
             <ul className="mt-3 space-y-3 text-[12px] leading-relaxed text-muted-foreground">
