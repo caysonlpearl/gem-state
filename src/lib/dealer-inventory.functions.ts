@@ -91,6 +91,8 @@ function parseInventoryFeed(
   payload: string,
   mapping: InventoryMapping,
 ) {
+  if (/^\s*(?:<!doctype\s+html\b|<html\b)/i.test(payload))
+    throw new Error("The provider returned a browser-check page instead of inventory data.");
   if (format === "json") return parseAndNormalizeInventoryJson(payload, mapping);
   if (format === "xml") return parseAndNormalizeInventoryXml(payload, mapping);
   return parseAndNormalizeInventoryCsv(payload, mapping);
@@ -502,6 +504,7 @@ export async function processScheduledDealerInventorySources(now = new Date()) {
           signal: controller.signal,
           redirect: "follow",
           cache: "no-store",
+          headers: { "User-Agent": "BluebirdMarketplace/1.0 (authorized inventory sync)" },
         });
       } finally {
         clearTimeout(timeout);
@@ -526,13 +529,17 @@ export async function processScheduledDealerInventorySources(now = new Date()) {
       const message = (
         error instanceof Error ? error.message : "Scheduled feed failed."
       ).replaceAll(source.feed_url, "[private feed]");
-      await admin
-        .rpc("touch_dealer_inventory_source", {
+      try {
+        // PostgREST builders are PromiseLike, not Promises with .catch().
+        // Error bookkeeping must not mask the original feed failure.
+        await admin.rpc("touch_dealer_inventory_source", {
           _source_id: source.id,
           _ok: false,
           _error: message,
-        })
-        .catch(() => undefined);
+        });
+      } catch {
+        /* Keep reporting the original feed failure. */
+      }
       results.push({ sourceId: source.id, status: "failed", message });
     } finally {
       await admin.rpc("release_dealer_inventory_source", {
@@ -600,6 +607,7 @@ export const runConfiguredDealerInventorySource = createServerFn({ method: "POST
         signal: controller.signal,
         redirect: "follow",
         cache: "no-store",
+        headers: { "User-Agent": "BluebirdMarketplace/1.0 (authorized inventory sync)" },
       });
     } catch (fetchError) {
       throw new Error(
