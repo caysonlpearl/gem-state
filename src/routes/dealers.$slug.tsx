@@ -1,3 +1,4 @@
+import { DealerContactPanel } from "@/components/classifieds/DealerContactPanel";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 
@@ -59,10 +60,16 @@ function DealerPage() {
   return (
     <main className="mx-auto max-w-[1180px] px-4 py-10 sm:px-8">
       <section className="border-b border-border pb-8">
-        <div className="flex items-start gap-4">
-          <div className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-lg bg-primary text-[22px] font-semibold text-primary-foreground">
+        <div className="flex flex-col items-start gap-4 sm:flex-row">
+          <div
+            className={
+              dealer.logoUrl
+                ? "grid h-20 w-60 shrink-0 place-items-center overflow-hidden rounded-lg bg-card p-2"
+                : "grid h-16 w-16 shrink-0 place-items-center rounded-lg bg-primary text-[22px] font-semibold text-primary-foreground"
+            }
+          >
             {dealer.logoUrl ? (
-              <img src={dealer.logoUrl} alt="" className="h-full w-full object-cover" />
+              <img src={dealer.logoUrl} alt="" className="h-full w-full object-contain" />
             ) : (
               dealer.displayName.slice(0, 1).toUpperCase()
             )}
@@ -114,6 +121,14 @@ function DealerPage() {
             </a>
           ) : null}
         </div>
+        {dealer.messagingEnabled ? (
+          <DealerContactPanel
+            dealerId={dealer.id}
+            name={dealer.displayName}
+            slug={dealer.slug}
+            ownerUserId={dealer.ownerUserId}
+          />
+        ) : null}
       </section>
       <section className="pt-7">
         <div className="mb-5 flex items-end justify-between gap-3">

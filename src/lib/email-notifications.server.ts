@@ -130,7 +130,7 @@ export async function emailMarketplaceMessage(
     const client = await admin();
     const { data: conversation } = await client
       .from("conversations")
-      .select("id,buyer_id,seller_id,listing_id,asks(products(name))")
+      .select("id,buyer_id,seller_id,listing_id,dealer_context_title,asks(products(name))")
       .eq("id", conversationId)
       .maybeSingle();
     if (!conversation) return;
@@ -158,7 +158,10 @@ export async function emailMarketplaceMessage(
       recipientId,
       "marketplace-message",
       {
-        itemName: conversation.asks?.products?.name ?? "Marketplace listing",
+        itemName:
+          conversation.dealer_context_title ??
+          conversation.asks?.products?.name ??
+          "Marketplace listing",
         message: latestMessage?.body ?? "You have a new marketplace message.",
         conversationPath: `/account?section=messages&conversation=${conversationId}`,
       },

@@ -88,6 +88,8 @@ export type PublicDealerProfile = {
   description: string | null;
   listings: ClassifiedCard[];
   listingCount?: number;
+  messagingEnabled?: boolean;
+  ownerUserId?: string;
 };
 
 export const getPublicDealer = createServerFn({ method: "GET" })
@@ -298,18 +300,26 @@ export const getAdminDealerDirectory = createServerFn({ method: "GET" })
     if (isAdmin !== true) throw new Error("Administrator access is required.");
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
-    const [{ data: dealers, error }, { data: sources, error: sourceError }, { data: members, error: memberError }] = await Promise.all([
+    const [{ data: dealers, error }, { data: sources, error: sourceError }, { data: members, error: memberError }, { data: publications, error: publicationError }] = await Promise.all([
       admin.from("dealer_profiles").select("id,owner_user_id,legal_name,display_name,slug,status,city,state,agreements_accepted_at,created_at,updated_at").order("created_at", { ascending: false }),
       admin.from("dealer_inventory_sources").select("id,dealer_id,status,last_success_at,last_error"),
       admin.from("dealer_members").select("dealer_id,user_id,role,status"),
+      admin.from("dealer_feed_publications").select("dealer_id,enabled,inbox_enabled,revoked_at"),
     ]);
     if (error) throw new Error(error.message);
     if (sourceError) throw new Error(sourceError.message);
     if (memberError) throw new Error(memberError.message);
-    return (dealers ?? []).map((dealer: any) => ({
+    if (publicationError) throw new Error(publicationError.message);
+    return Promise.all((dealers ?? []).map(async (dealer: any) => {
+      const {data: owner} = await admin.auth.admin.getUserById(dealer.owner_user_id);
+      return ({
+      ownerActivated: Boolean(owner?.user?.email_confirmed_at),
       ...dealer,
+      authorizedFeed: (publications ?? []).some((p: any) => p.dealer_id === dealer.id && p.enabled && !p.revoked_at),
+      inboxEnabled: (publications ?? []).some((p: any) => p.dealer_id === dealer.id && p.enabled && p.inbox_enabled && !p.revoked_at),
       sourceCount: (sources ?? []).filter((source: any) => source.dealer_id === dealer.id).length,
       activeSourceCount: (sources ?? []).filter((source: any) => source.dealer_id === dealer.id && source.status === "active").length,
       memberCount: (members ?? []).filter((member: any) => member.dealer_id === dealer.id && member.status === "active").length,
+    });
     }));
   });

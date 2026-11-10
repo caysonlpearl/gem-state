@@ -24,14 +24,18 @@ export function MobileContactBar({ listing }: { listing: ClassifiedDetail }) {
   const isJob = Boolean(listing.job);
   // Partner homes have no Bluebird seller to message; their contact is the
   // listing agent on the original listing.
+  const hasDealerInbox =
+    listing.id.startsWith("dealerfeed-") && seller?.allowInternalMessages && seller?.userId;
   const externalApply =
     isJob && listing.job?.applicationMethod === "external"
       ? listing.job.applicationExternalContact
-      : (listing.externalHome?.sourceUrl ??
-        listing.externalVehicle?.sourceUrl ??
-        listing.originalListing?.url ??
-        listing.externalPet?.sourceUrl ??
-        null);
+      : hasDealerInbox
+        ? null
+        : (listing.externalHome?.sourceUrl ??
+          listing.externalVehicle?.sourceUrl ??
+          listing.originalListing?.url ??
+          listing.externalPet?.sourceUrl ??
+          null);
   const messagesEnabled = Boolean(seller) && seller?.allowInternalMessages !== false;
   const directoryPhone = listing.directory?.phone ?? null;
   const showPrimary = Boolean(externalApply) || messagesEnabled || Boolean(directoryPhone);

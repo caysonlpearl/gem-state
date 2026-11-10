@@ -11,6 +11,11 @@ export type PublishedFeedDealer = {
   city: string;
   state: string;
   postal_code: string | null;
+  dealer_id?: string | null;
+  owner_user_id?: string | null;
+  email?: string | null;
+  logo_url?: string | null;
+  inbox_enabled?: boolean;
 };
 export type PublishedFeedVehicle = Record<string, unknown> & { id: string; dealer_slug: string };
 

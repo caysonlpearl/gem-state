@@ -41,7 +41,14 @@ function cards(feed: Feed, data: ClassifiedBrowseInput): ClassifiedCard[] {
     const vehicle = dealer && publishedFeedVehicle(row, dealer);
     if (!vehicle || !matchesProviderFilters(vehicle, data)) return [];
     const card = marketCheckCard(vehicle);
-    return [{ ...card, dealer: card.dealer ? { ...card.dealer, slug: dealer!.slug } : null }];
+    return [
+      {
+        ...card,
+        dealer: card.dealer
+          ? { ...card.dealer, slug: dealer!.slug, logoUrl: dealer!.logo_url ?? null }
+          : null,
+      },
+    ];
   });
 }
 export async function dealerFeedCards(data: ClassifiedBrowseInput) {
@@ -65,7 +72,22 @@ export async function dealerFeedDetail(id: string): Promise<ClassifiedDetail | n
     expiresAt: null,
     sellerNote: null,
     variantId: id,
-    seller: null,
+    seller: dealer!.owner_user_id
+      ? {
+          userId: dealer!.owner_user_id,
+          slug: dealer!.slug,
+          displayName: dealer!.display_name,
+          bio: null,
+          avatarUrl: dealer!.logo_url ?? null,
+          payoutVerified: false,
+          ratingAverage: null,
+          reviewCount: 0,
+          contactPhone: dealer!.phone,
+          contactEmail: dealer!.email ?? null,
+          allowInternalMessages: dealer!.inbox_enabled === true,
+          sellerType: "Dealer",
+        }
+      : null,
     images: vehicle.media.photoLinks.map((url) => ({ url, alt: vehicle.heading })),
     shareImageUrl: vehicle.media.photoLinks[0] ?? null,
   };
@@ -76,18 +98,20 @@ export async function dealerFeedStorefront(slug: string) {
   if (!dealer) return null;
   const listings = cards(feed, {});
   return {
-    id: `dealerfeed-${slug}`,
+    id: dealer.dealer_id ?? `dealerfeed-${slug}`,
+    messagingEnabled: dealer.inbox_enabled === true && Boolean(dealer.dealer_id),
+    ownerUserId: dealer.owner_user_id ?? undefined,
     legalName: dealer.display_name,
     displayName: dealer.display_name,
     slug: dealer.slug,
     phone: dealer.phone,
-    email: null,
+    email: dealer.email ?? null,
     website: dealer.website,
     addressLine1: dealer.address_line1,
     city: dealer.city,
     state: dealer.state,
     postalCode: dealer.postal_code,
-    logoUrl: null,
+    logoUrl: dealer.logo_url ?? null,
     description: `Vehicle inventory provided with permission by ${dealer.display_name}.`,
     listings: listings.slice(0, 24),
     listingCount: listings.length,

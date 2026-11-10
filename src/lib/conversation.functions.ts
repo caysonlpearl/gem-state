@@ -43,17 +43,23 @@ function summary(
   const participant = (row.conversation_participants ?? []).find(
     (item: any) => item.user_id === userId,
   );
-  const listingTitle = row.asks?.products?.name ?? "Marketplace conversation";
+  const listingTitle =
+    row.dealer_context_title ?? row.asks?.products?.name ?? "Marketplace conversation";
   const otherMemberId = row.buyer_id === userId ? row.seller_id : row.buyer_id;
   return {
     id: row.id,
-    listingId: row.listing_id ?? null,
+    listingId: row.dealer_inventory_record_id
+      ? `dealerfeed-${row.dealer_inventory_record_id}`
+      : (row.listing_id ?? null),
     listingTitle,
     buyerId: row.buyer_id,
     sellerId: row.seller_id,
     memberRole: row.buyer_id === userId ? "buyer" : "seller",
     otherMemberId,
-    otherMemberName: otherMemberNames.get(otherMemberId) ?? "Bluebird member",
+    otherMemberName:
+      row.buyer_id === userId && row.dealerDisplayName
+        ? row.dealerDisplayName
+        : (otherMemberNames.get(otherMemberId) ?? "Bluebird member"),
     lastMessageAt: row.last_message_at,
     lastReadAt: participant?.last_read_at ?? null,
     unread: Boolean(
@@ -88,6 +94,16 @@ async function conversationContext(rows: any[], userId: string) {
         : { data: [], error: null },
     ]);
   if (askError || profileError) throw new Error("Could not load conversation details. Try again.");
+  const dealerIds = [...new Set(rows.map((r) => r.dealer_id).filter(Boolean))];
+  if (dealerIds.length) {
+    const { data: dealers, error } = await db
+      .from("dealer_profiles")
+      .select("id,display_name")
+      .in("id", dealerIds);
+    if (error) throw new Error("Could not load dealership conversation details.");
+    const names = new Map((dealers ?? []).map((dealer: any) => [dealer.id, dealer.display_name]));
+    for (const row of rows) row.dealerDisplayName = names.get(row.dealer_id);
+  }
   const titles = new Map((asks ?? []).map((a: any) => [a.id, a.products]));
   for (const row of rows)
     row.asks = titles.get(row.listing_id) ? { products: titles.get(row.listing_id) } : row.asks;
@@ -106,7 +122,7 @@ export const getMyConversations = createServerFn({ method: "GET" })
     const { data, error } = await client
       .from("conversations")
       .select(
-        "id,listing_id,buyer_id,seller_id,last_message_at,created_at,asks(products(name)),conversation_participants(user_id,last_read_at)",
+        "id,listing_id,dealer_id,dealer_inventory_record_id,dealer_context_title,buyer_id,seller_id,last_message_at,created_at,asks(products(name)),conversation_participants(user_id,last_read_at)",
       )
       .or(`buyer_id.eq.${context.userId},seller_id.eq.${context.userId}`)
       .order("last_message_at", { ascending: false })
@@ -124,7 +140,7 @@ export const getConversation = createServerFn({ method: "GET" })
     const { data: row, error } = await client
       .from("conversations")
       .select(
-        "id,listing_id,buyer_id,seller_id,last_message_at,created_at,asks(products(name)),conversation_participants(user_id,last_read_at)",
+        "id,listing_id,dealer_id,dealer_inventory_record_id,dealer_context_title,buyer_id,seller_id,last_message_at,created_at,asks(products(name)),conversation_participants(user_id,last_read_at)",
       )
       .eq("id", data.id)
       .maybeSingle();
@@ -188,16 +204,36 @@ export const startConversation = createServerFn({ method: "POST" })
   }))
   .handler(async ({ data, context }): Promise<{ conversationId: string }> => {
     const { data: conversationId, error } = await (context.supabase as any).rpc(
-      "start_conversation",
-      {
-        _listing_id: data.listingId,
-        _body: data.body,
-      },
+      data.listingId.startsWith("dealerfeed-") ? "start_dealer_conversation" : "start_conversation",
+      data.listingId.startsWith("dealerfeed-")
+        ? {
+            _dealer_id: null,
+            _record_id: data.listingId.slice("dealerfeed-".length),
+            _body: data.body,
+          }
+        : { _listing_id: data.listingId, _body: data.body },
     );
     if (error || !conversationId)
       throw new Error(error?.message ?? "We could not start this conversation.");
     await emailMarketplaceMessage(conversationId as string, context.userId);
     return { conversationId: conversationId as string };
+  });
+
+export const startDealerConversation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: { dealerId: string; body: string }) => ({
+    dealerId: String(input.dealerId),
+    body: cleanBody(input.body),
+  }))
+  .handler(async ({ data, context }): Promise<{ conversationId: string }> => {
+    const { data: id, error } = await (context.supabase as any).rpc("start_dealer_conversation", {
+      _dealer_id: data.dealerId,
+      _record_id: null,
+      _body: data.body,
+    });
+    if (error || !id) throw Error(error?.message ?? "We could not message the dealership.");
+    await emailMarketplaceMessage(id, context.userId);
+    return { conversationId: id };
   });
 
 export const sendConversationMessage = createServerFn({ method: "POST" })
