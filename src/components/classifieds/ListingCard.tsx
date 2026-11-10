@@ -103,7 +103,8 @@ export function PartnerHomesCredit({ listings }: { listings: readonly ListingCar
 
 /** A single source credit once under a group that includes MarketCheck vehicles. */
 export function PartnerVehiclesCredit({ listings }: { listings: readonly ListingCardSummary[] }) {
-  if (!listings.some((listing) => listing.externalVehicle)) return null;
+  if (!listings.some((listing) => listing.id.startsWith("marketcheck-") && listing.externalVehicle))
+    return null;
   return (
     <p className="mt-3 text-right text-[11px] text-muted-foreground">
       Some vehicle listing data from{" "}

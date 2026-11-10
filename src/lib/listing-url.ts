@@ -6,12 +6,12 @@ const UUID_AT_END = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{1
 const MAX_SLUG = 70;
 
 export function listingIdFromParam(param: string) {
-  return param.match(UUID_AT_END)?.[1] ?? param;
+  return param.startsWith("dealerfeed-") ? param : (param.match(UUID_AT_END)?.[1] ?? param);
 }
 
 export function listingParam(listing: { id: string; title: string; city?: string | null }) {
   // Preview listings use readable non-UUID ids; leave those as they are.
-  if (!UUID_AT_END.test(listing.id)) return listing.id;
+  if (listing.id.startsWith("dealerfeed-") || !UUID_AT_END.test(listing.id)) return listing.id;
   const words = `${listing.title} ${listing.city ?? ""}`
     .toLowerCase()
     .replace(/'/g, "")

@@ -119,9 +119,18 @@ function DealerPage() {
         <div className="mb-5 flex items-end justify-between gap-3">
           <h2 className="font-editorial text-[27px] font-normal">Current inventory</h2>
           <span className="text-[11.5px] text-muted-foreground">
-            {dealer.listings.length} active listings
+            {dealer.listingCount ?? dealer.listings.length} active listings
           </span>
         </div>
+        {(dealer.listingCount ?? 0) > dealer.listings.length ? (
+          <Link
+            to="/browse"
+            search={{ dealerSlug: dealer.slug, category: "cars-trucks", vehicleMode: "results" }}
+            className="mb-5 inline-block text-sm text-primary underline"
+          >
+            Browse all inventory
+          </Link>
+        ) : null}
         {dealer.listings.length ? (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {dealer.listings.map((listing) => (

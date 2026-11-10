@@ -9,6 +9,8 @@ export type MarketCheckJsonValue =
   | { [key: string]: MarketCheckJsonValue };
 
 export const MARKETCHECK_ID = /^marketcheck-(dealer|fsbo)-[A-Za-z0-9._:-]+$/;
+export const PARTNER_VEHICLE_ID =
+  /^(marketcheck-(dealer|fsbo)-[A-Za-z0-9._:-]{1,160}|dealerfeed-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/;
 
 export type MarketCheckMedia = {
   photoLinks: string[];

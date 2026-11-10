@@ -31,11 +31,17 @@ export const Route = createFileRoute("/media/listings/$listingId/$photo")({
         // Older crawlers already hold these URLs. Resolve only known public
         // partner IDs from saved inventory, without spending provider calls or
         // loosening the native listing visibility/retention checks below.
-        const partner = OPENWEBNINJA_ID.test(params.listingId)
-          ? "home"
-          : MARKETCHECK_ID.test(params.listingId) && params.listingId.length <= 64
-            ? "vehicle"
-            : null;
+        const directDealer =
+          /^dealerfeed-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(
+            params.listingId,
+          );
+        const partner = directDealer
+          ? "dealerfeed"
+          : OPENWEBNINJA_ID.test(params.listingId)
+            ? "home"
+            : MARKETCHECK_ID.test(params.listingId) && params.listingId.length <= 64
+              ? "vehicle"
+              : null;
         if (
           !partner &&
           !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(params.listingId)
@@ -45,13 +51,17 @@ export const Route = createFileRoute("/media/listings/$listingId/$photo")({
         try {
           if (partner) {
             const listing =
-              partner === "home"
+              partner === "dealerfeed"
                 ? await (
-                    await import("@/lib/openwebninja-listings.server")
-                  ).openWebNinjaDetail(params.listingId)
-                : await (
-                    await import("@/lib/marketcheck.server")
-                  ).marketCheckDetail(params.listingId, { cacheOnly: true });
+                    await import("@/lib/dealer-feed.server")
+                  ).dealerFeedDetail(params.listingId)
+                : partner === "home"
+                  ? await (
+                      await import("@/lib/openwebninja-listings.server")
+                    ).openWebNinjaDetail(params.listingId)
+                  : await (
+                      await import("@/lib/marketcheck.server")
+                    ).marketCheckDetail(params.listingId, { cacheOnly: true });
             const url = listing && listingPhotoUrl(listing, index);
             if (!url || url.startsWith("/")) return notFound();
             return new Response(null, {

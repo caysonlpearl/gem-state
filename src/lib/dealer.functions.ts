@@ -87,6 +87,7 @@ export type PublicDealerProfile = {
   logoUrl: string | null;
   description: string | null;
   listings: ClassifiedCard[];
+  listingCount?: number;
 };
 
 export const getPublicDealer = createServerFn({ method: "GET" })
@@ -101,7 +102,7 @@ export const getPublicDealer = createServerFn({ method: "GET" })
       .not("agreements_accepted_at", "is", null)
       .maybeSingle();
     if (error) throw new Error(error.message);
-    if (!dealer) return null;
+    if (!dealer) return (await import("./dealer-feed.server")).dealerFeedStorefront(data.slug);
     const result = await browseClassifieds({ data: { dealerSlug: data.slug, page: 1, sort: "newest" } });
     return {
       id: dealer.id,

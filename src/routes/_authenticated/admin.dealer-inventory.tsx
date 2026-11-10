@@ -295,7 +295,7 @@ function DealerInventoryPage() {
             </h1>
             <p className="mt-2 max-w-[780px] text-[13px] leading-relaxed text-muted-foreground">
               Provider-neutral CSV, JSON, and XML intake for the dealership integration foundation.
-              Imported records stay private until an operator reviews and links them to public
+              Imported records stay private until an operator authorizes publication or reviews and links them to public
               Bluebird Marketplace listings.
             </p>
           </div>

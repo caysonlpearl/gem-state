@@ -1,3 +1,4 @@
+import { mergeDealerFeedVehicles } from "../src/lib/dealer-feed-contract.ts";
 import { hasClassifiedRadiusCenter } from "../src/config/classifieds.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -144,6 +145,11 @@ function harness({
       openWebNinjaCards: cards("openwebninja"),
     },
     "./openwebninja.server": { openWebNinjaConfigured: () => true },
+    "./dealer-feed.server": {
+      canIncludeDealerFeed: () => includes.has("dealerfeed"),
+      dealerFeedCards: async () => ({cards: await cards("dealerfeed")(), dealers: []}),
+    },
+    "./dealer-feed-contract": {mergeDealerFeedVehicles},
     "./marketcheck.server": {
       canIncludeMarketCheck: () => includes.has("marketcheck"),
       marketCheckCards: cards("marketcheck"),
