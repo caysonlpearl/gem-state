@@ -23,7 +23,8 @@ Install the service/timer in `/etc/systemd/system`, reload systemd, and enable
 `bluebird-inventory.timer`. Disable only the former Supabase job named
 `dealer-inventory-sweep`, since its website-hosted fetches cannot retrieve this
 provider. Leave unrelated jobs untouched. The timer checks every 15 minutes;
-the database source remains `hourly`, with retry, lease and snapshot safeguards.
+the database source controls actual imports (`every 8 hours` for Twin Falls
+Subaru), with retry, lease and snapshot safeguards.
 The Mac is not involved in scheduled execution.
 
 Run `systemctl start bluebird-inventory.service` for an immediate sweep and

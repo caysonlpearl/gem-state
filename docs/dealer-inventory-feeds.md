@@ -8,14 +8,14 @@ Apply `20261110180000_automated_dealer_inventory.sql` before deploying the updat
 
 The authorized Motive feed is configured in the private `dealer_inventory_sources` table. Never commit its keyed URL, include it in public listing metadata, or put it in client-visible environment variables.
 
-- Source type: `file_url`; format: `xml`; schedule: `hourly`.
+- Source type: `file_url`; format: `xml`; schedule: `every 8 hours` (about three imports per day, on the first due 15-minute sweep).
 - Mapping profile: `{"__provider":"motive","__dealer_id":"2592"}`.
 - Identify requests with the `BluebirdMarketplace/1.0` inventory-client User-Agent. Motive can return HTTP 200 with a browser-check HTML page depending on the requesting network/client; an HTTP success alone does not prove receipt of XML. Browser-check responses must never reach reconciliation. Website-hosted manual fetches can still encounter this provider restriction; use the DigitalOcean worker for a scheduled or immediate full sync.
 - Minimum snapshot size: 200 vehicles, set against the initial verified snapshot of 256. A smaller snapshot requires operator review before lowering the minimum.
 - Missing vehicles become stale and linked listings are hidden after two successful complete snapshots. An explicit sold/removed status hides a linked listing immediately. Fetch, XML, validation and minimum-size failures retain existing inventory.
 - Motive's IDs, stock numbers, ZIP codes, mileage, color, body style and numbered photo fields map into the existing inventory model. Both numbered images and the comma-separated image summary are deduplicated in source order.
 - Zero/blank advertised prices remain `null`, with inventory status `invalid` for private review. They stay present in reconciliation, so an unpriced car is not mistaken for a missing one. No MSRP or invented price is substituted.
-- Current raw records preserve descriptions, condition, certification, dealer contact fields and source vehicle URLs. Hourly sync history stores counts/checksums rather than duplicate full XML payloads.
+- Current raw records preserve descriptions, condition, certification, dealer contact fields and source vehicle URLs. Sync history stores counts/checksums rather than duplicate full XML payloads.
 
 Imported inventory is private. A real, ready dealership storefront and the existing review/link workflow are required for public marketplace listings; feed authorization does not constitute acceptance of dealership account agreements.
 
