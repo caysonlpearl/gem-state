@@ -5,11 +5,11 @@ import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import {
   calculateInventoryDiff,
-  defaultInventoryMapping,
   parseAndNormalizeInventoryJson,
   parseAndNormalizeInventoryCsv,
   parseAndNormalizeInventoryXml,
   recordsForDatabase,
+  inventorySnapshotRejection,
   type InventoryFileFormat,
   type InventoryMapping,
 } from "@/lib/dealer-inventory";
@@ -298,7 +298,6 @@ export const previewDealerInventoryFeed = createServerFn({ method: "POST" })
     if (!source) throw new Error("Inventory source not found.");
 
     const result = parseInventoryFeed(source.file_format as InventoryFileFormat, data.payload, {
-      ...defaultInventoryMapping,
       ...(source.mapping_profile ?? {}),
     } as InventoryMapping);
     const { data: existing, error: existingError } = await (supabaseAdmin as any)
@@ -307,8 +306,17 @@ export const previewDealerInventoryFeed = createServerFn({ method: "POST" })
       .eq("source_id", data.sourceId);
     if (existingError) throw new Error(existingError.message);
 
-    const diff = calculateInventoryDiff(result.records, existing ?? []);
-    const rejected = result.records.length < Number(source.minimum_row_count ?? 1);
+    const diff = calculateInventoryDiff(
+      result.records,
+      (existing ?? []).map((row: any) => ({
+        sourceRecordKey: row.source_record_key,
+        vin: row.vin,
+        contentHash: row.content_hash,
+        inventoryStatus: row.inventory_status,
+      })),
+    );
+    const rejectReason = inventorySnapshotRejection(result, Number(source.minimum_row_count ?? 1));
+    const rejected = Boolean(rejectReason);
     const { data: previewRun, error: previewRunError } = await (supabaseAdmin as any)
       .from("dealer_inventory_sync_runs")
       .insert({
@@ -344,9 +352,7 @@ export const previewDealerInventoryFeed = createServerFn({ method: "POST" })
       duplicateKeys: result.duplicateKeys,
       duplicateVins: result.duplicateVins,
       rejected,
-      rejectReason: rejected
-        ? `Feed must contain at least ${source.minimum_row_count} valid row(s).`
-        : null,
+      rejectReason,
       diff,
       preview: result.records.slice(0, 25).map((record) => ({
         sourceRecordKey: record.sourceRecordKey,
@@ -374,14 +380,10 @@ async function applyInventoryPayload(
   payload: string,
 ) {
   const result = parseInventoryFeed(source.file_format as InventoryFileFormat, payload, {
-    ...defaultInventoryMapping,
     ...(source.mapping_profile ?? {}),
   } as InventoryMapping);
-  if (result.records.length < Number(source.minimum_row_count ?? 1)) {
-    throw new Error(
-      `Feed rejected: at least ${source.minimum_row_count} valid row(s) are required.`,
-    );
-  }
+  const rejectReason = inventorySnapshotRejection(result, Number(source.minimum_row_count ?? 1));
+  if (rejectReason) throw new Error(rejectReason);
   const checksum = result.records.map((record) => record.contentHash).join(":");
   const { data: run, error: runError } = await admin
     .from("dealer_inventory_sync_runs")
@@ -392,7 +394,9 @@ async function applyInventoryPayload(
       status: "running",
       source_filename: data.filename ?? null,
       source_checksum: checksum,
-      raw_payload: payload,
+      // Current per-vehicle raw records preserve source data. Retaining an
+      // entire multi-MB snapshot on every hourly run would exhaust the DB.
+      raw_payload: null,
       received_row_count: result.rows.length,
       valid_row_count: result.records.length,
       invalid_row_count: result.errors.length,
@@ -459,7 +463,7 @@ export async function processScheduledDealerInventorySources(now = new Date()) {
     .select(
       "id,dealer_id,file_format,mapping_profile,minimum_row_count,status,feed_url,schedule,last_success_at",
     )
-    .eq("status", "active")
+    .in("status", ["active", "error"])
     .not("feed_url", "is", null)
     .not("schedule", "is", null);
   if (error) throw new Error(error.message);
@@ -472,6 +476,18 @@ export async function processScheduledDealerInventorySources(now = new Date()) {
   for (const source of sources ?? []) {
     if (!scheduleIsDue(source.schedule, source.last_success_at, now)) {
       results.push({ sourceId: source.id, status: "skipped" });
+      continue;
+    }
+    const { data: lease, error: leaseError } = await admin.rpc("claim_dealer_inventory_source", {
+      _source_id: source.id,
+      _last_success_at: source.last_success_at,
+    });
+    if (leaseError || !lease) {
+      results.push({
+        sourceId: source.id,
+        status: leaseError ? "failed" : "skipped",
+        ...(leaseError ? { message: "Could not claim the scheduled feed." } : {}),
+      });
       continue;
     }
     try {
@@ -507,7 +523,9 @@ export async function processScheduledDealerInventorySources(now = new Date()) {
       );
       results.push({ sourceId: source.id, status: "completed", runId: result.runId });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Scheduled feed failed.";
+      const message = (
+        error instanceof Error ? error.message : "Scheduled feed failed."
+      ).replaceAll(source.feed_url, "[private feed]");
       await admin
         .rpc("touch_dealer_inventory_source", {
           _source_id: source.id,
@@ -516,6 +534,11 @@ export async function processScheduledDealerInventorySources(now = new Date()) {
         })
         .catch(() => undefined);
       results.push({ sourceId: source.id, status: "failed", message });
+    } finally {
+      await admin.rpc("release_dealer_inventory_source", {
+        _source_id: source.id,
+        _lease_token: lease,
+      });
     }
   }
   return results;
