@@ -1814,7 +1814,7 @@ function Browse() {
       <FilterSection title="Category">
         <select name="category" defaultValue={search.category ?? ""} className="filter-input">
           <option value="">All categories</option>
-          {classifiedCategories.map((category) => (
+          {[...classifiedCategories].sort((a, b) => a.name.localeCompare(b.name)).map((category) => (
             <option key={category.slug} value={category.slug}>
               {category.name}
             </option>
