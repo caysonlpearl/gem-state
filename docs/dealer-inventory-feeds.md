@@ -19,6 +19,30 @@ The authorized Motive feed is configured in the private `dealer_inventory_source
 
 ## Authorized feed publication
 
+### M.A.S.S. Motors Fairview / Overfuel
+
+Overfuel delivers `bluebird_mass_motors_fairview_used_car.csv` to its isolated
+SFTP account every four hours. The separate SFTP worker checks for new deliveries
+every five minutes and imports each received file once. The source is bound to
+Overfuel dealer ID `1920` with mapping profile
+`{"__provider":"overfuel","__dealer_id":"1920"}`. The initial file contains
+110 vehicles and 1,736 photo URLs; the minimum snapshot is 90 rows and the
+missing-vehicle grace remains two distinct successful deliveries.
+
+The standard Overfuel header names map directly to inventory fields. Stock
+numbers identify records; modern VINs are validated. Legitimate pre-1981 short
+serial numbers are preserved privately and are not represented as standard
+17-character VINs. Zero/blank prices remain invalid private records rather
+than dropping out of the snapshot. Dealer `Cost` is discarded before database
+storage; only the existing public field whitelist is exposed. Condition,
+certification, MSRP, original vehicle URL and ordered photos are retained.
+
+Scott Brown, General Manager, is the user-confirmed account owner. Use standard
+onboarding and associate this source with the Fairview profile; no password,
+email verification, agreement acceptance or invitation is manufactured.
+
+### Shared publication rules
+
 Twin Falls Subaru has given written permission to publish its inventory. Its approved source is registered in the service-only `dealer_feed_publications` table with the operator, permission reference and public dealership contact information. The safe `read_published_dealer_inventory` RPC exposes a whitelist of vehicle and dealership fields; private feed URLs, raw records and permission references remain private.
 
 Authorized feed vehicles appear directly in browse, the homepage vehicle source, their own detail pages, and `/dealers/twin-falls-subaru`. They use stable `dealerfeed-<record UUID>` IDs, the dealership's phone and original vehicle pages, and the existing partner save/report/photo paths. No member listings are created. Direct dealer inventory replaces older same-dealer aggregator cars to avoid duplicates and outdated prices.

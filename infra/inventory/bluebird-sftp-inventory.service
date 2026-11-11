@@ -1,0 +1,30 @@
+[Unit]
+Description=Import completed authorized SFTP dealer inventory deliveries
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+LoadCredential=inventory.json:/etc/bluebird/inventory.json
+LoadCredential=sftp.json:/etc/bluebird/sftp-inventory.json
+ExecStart=/opt/bluebird-node/bin/node /opt/bluebird-sftp-inventory/current/sftp-run.mjs
+TimeoutStartSec=180
+MemoryMax=256M
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=CAP_DAC_READ_SEARCH
+PrivateDevices=yes
+InaccessiblePaths=/etc/ssh
+ReadOnlyPaths=/srv/bluebird-sftp /etc/bluebird
+UMask=0077
+StandardOutput=journal
+StandardError=journal

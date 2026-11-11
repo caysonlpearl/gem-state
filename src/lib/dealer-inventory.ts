@@ -541,6 +541,61 @@ export function parseAndNormalizeInventoryCsv(
   mapping: InventoryMapping = {},
 ): InventoryParseResult {
   const parsed = parseCsv(input);
+  if (mapping.__provider === "overfuel") {
+    if (
+      !mapping.__dealer_id ||
+      !parsed.headers.includes("Dealer ID") ||
+      parsed.rows.some((row) => clean(row["Dealer ID"]) !== mapping.__dealer_id)
+    )
+      throw new Error("Overfuel feed does not match the configured dealership.");
+    const rows = parsed.rows.map((original) => {
+      const row = { ...original };
+      // Cost is not needed to advertise inventory, even in private raw records.
+      for (const key of Object.keys(row)) if (key.trim().toLowerCase() === "cost") delete row[key];
+      const condition = clean(row.Condition).toLowerCase();
+      row.condition = /^(pre-owned|preowned|used|certified)$/.test(condition) ? "used" : condition;
+      row.certified = clean(row.Certified);
+      row.msrp = clean(row.MSRP).replace(/[$,\s]/g, "");
+      row.url = clean(row["VDP Url"]);
+      const vin = normalizeVin(row.VIN) ?? "";
+      // Pre-1981 vehicles can have a shorter manufacturer serial number.
+      // Preserve it privately without misrepresenting it as a standard VIN.
+      const legacyVin = Number(row.Year) < 1981 && /^[A-Z0-9]{5,16}$/.test(vin);
+      row.__standard_vin = legacyVin ? "" : vin;
+      if (legacyVin) row.legacy_vin = vin;
+      return row;
+    });
+    return {
+      ...normalizeInventoryRows(
+        rows,
+        {
+          source_record_key: "Stock Number",
+          stock_number: "Stock Number",
+          vin: "__standard_vin",
+          description: "Description",
+          price: "Price",
+          city: "Dealer City",
+          state: "Dealer State",
+          postal_code: "Dealer Zip",
+          status: "Status",
+          make: "Make",
+          model: "Model",
+          year: "Year",
+          trim: "Trim",
+          mileage: "Mileage",
+          body_style: "Body",
+          transmission: "Transmission",
+          drivetrain: "Drivetrain",
+          fuel_type: "Fuel",
+          exterior_color: "Exterior Color",
+          photos: "Photos",
+          ...mapping,
+        },
+        { allowUnpriced: true },
+      ),
+      headers: parsed.headers,
+    };
+  }
   return { ...normalizeInventoryRows(parsed.rows, mapping), headers: parsed.headers };
 }
 
