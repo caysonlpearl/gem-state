@@ -16,7 +16,7 @@ import { serverEnv } from "./runtime-env.server.ts";
 export async function valuationCacheKey(input: ValuationInput) {
   const bytes = new TextEncoder().encode(JSON.stringify(input));
   const hash = await crypto.subtle.digest("SHA-256", bytes);
-  return "v1:" + Array.from(new Uint8Array(hash), (b) => b.toString(16).padStart(2, "0")).join("");
+  return "v2:" + Array.from(new Uint8Array(hash), (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 /** Dependencies are injected for deterministic budget/fallback tests. No raw provider payload is stored. */
@@ -155,5 +155,7 @@ export async function listingPriceInsight(listing: Parameters<typeof valuationIn
   const configs = valuationProviders(serverEnv);
   if (!configs.length) return null;
   const estimate = await resolveVehicleEstimate(db, input, configs);
-  return estimate ? compareVehiclePrice(estimate, listing.priceCents) : null;
+  return estimate
+    ? { ...compareVehiclePrice(estimate, listing.priceCents), vehicleDetails: input }
+    : null;
 }

@@ -70,9 +70,15 @@ export function providerRequest(config: ProviderConfig, input: ValuationInput) {
       model: input.model,
       miles: String(input.miles),
       state: input.state,
-      condition: input.condition,
+      condition: input.certified ? "cpo" : input.condition,
     };
     if (input.trim) params.trim = input.trim;
+    if (input.drivetrain) params.drivetrain = input.drivetrain;
+    if (input.fuel) params.fuel = input.fuel;
+    if (input.transmission) params.transmission = input.transmission;
+    if (input.bodyStyle) params.body_style = input.bodyStyle;
+    if (input.color) params.color = input.color;
+    if (input.baseMsrp) params.base_msrp = String(input.baseMsrp);
     for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
   } else if (config.provider === "vinaudit") {
     for (const [key, value] of Object.entries({
@@ -113,6 +119,7 @@ export function normalizeVehicleEstimate(
   let estimateCents: number | null = null;
   let modelErrorPct: number | null = null;
   let dataThrough: string | null = null;
+  let providerInputs: string[] = [];
   if (provider === "vehicles") {
     const used = record(row.inputs);
     const coverage = record(row.coverage);
@@ -135,9 +142,33 @@ export function normalizeVehicleEstimate(
       used.model !== input.model ||
       used.miles !== input.miles ||
       used.state !== input.state ||
-      (input.trim && used.trim !== input.trim)
+      (input.trim && used.trim !== input.trim) ||
+      used.condition !== (input.certified ? "cpo" : input.condition)
     )
       return null;
+    const optionalFeatures = {
+      drivetrain: input.drivetrain,
+      fuel: input.fuel,
+      transmission: input.transmission,
+      body_style: input.bodyStyle,
+      color: input.color,
+      base_msrp: input.baseMsrp,
+    };
+    // Echoed features prove what the model used, rather than presenting submitted fields as confirmed.
+    providerInputs = [
+      "year",
+      "make",
+      "model",
+      "miles",
+      "state",
+      "condition",
+      ...(input.trim ? ["trim"] : []),
+    ];
+    for (const [key, value] of Object.entries(optionalFeatures)) {
+      if (value == null) continue;
+      if (String(used[key]).toLowerCase() !== String(value).toLowerCase()) return null;
+      providerInputs.push(key);
+    }
     estimateCents = price(row.estimateUsd);
     if (
       typeof row.medianApePct !== "number" ||
@@ -162,6 +193,13 @@ export function normalizeVehicleEstimate(
     estimateCents = price(row.marketcheck_price);
   }
   return estimateCents
-    ? { provider, estimateCents, modelErrorPct, updatedAt: now.toISOString(), dataThrough }
+    ? {
+        provider,
+        estimateCents,
+        modelErrorPct,
+        updatedAt: now.toISOString(),
+        dataThrough,
+        providerInputs,
+      }
     : null;
 }

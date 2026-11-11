@@ -2,7 +2,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { PGlite } from "@electric-sql/pglite";
-import { valuationInput, compareVehiclePrice } from "../src/lib/vehicle-price-insights.ts";
+import {
+  valuationInput,
+  compareVehiclePrice,
+  canonicalValuationModel,
+} from "../src/lib/vehicle-price-insights.ts";
 import {
   valuationProviders,
   providerRequest,
@@ -123,6 +127,89 @@ test("reject malformed, mismatched or weak estimates; model error widens compari
   assert.equal(compareVehiclePrice(estimate, 2500000).comparison, "near");
   assert.equal(compareVehiclePrice(estimate, 2000000).comparison, "below");
   assert.equal(compareVehiclePrice(estimate, 3500000).comparison, "above");
+});
+
+test("gauge pointer and status share the same neutral band and clamp extreme prices", () => {
+  const estimate = normalizeVehicleEstimate("vehicles", vehicleBody, input);
+  const near = compareVehiclePrice(estimate, estimate.estimateCents);
+  assert.equal(near.pointerPercent, 50);
+  assert.equal(near.tolerancePct, 12);
+  const tolerance = estimate.estimateCents * 0.12;
+  for (const sign of [-1, 1]) {
+    const at = compareVehiclePrice(estimate, estimate.estimateCents + sign * tolerance);
+    assert.equal(at.comparison, "near");
+    assert.ok(Math.abs(at.pointerPercent - (sign < 0 ? 200 / 3 : 100 / 3)) < 0.001);
+    const outside = compareVehiclePrice(estimate, estimate.estimateCents + sign * (tolerance + 1));
+    assert.equal(outside.comparison, sign < 0 ? "below" : "above");
+  }
+  assert.equal(compareVehiclePrice(estimate, 1).pointerPercent, 97);
+  assert.equal(compareVehiclePrice(estimate, estimate.estimateCents * 10).pointerPercent, 3);
+});
+
+test("specific listing features are normalized, sent, echoed, and separated in the cache key", async () => {
+  const detailed = valuationInput({
+    ...listing,
+    vehiclePricing: { msrpCents: 3500000 },
+    vehicle: {
+      ...listing.vehicle,
+      model: "EDGE",
+      drivetrain: "All Wheel Drive",
+      fuelType: "Gasoline",
+      transmission: "Auto, 8-Speed",
+      bodyStyle: "Sport Utility",
+      exteriorColor: "Magnetic Gray Metallic",
+    },
+  });
+  assert.equal(detailed.model, "Edge");
+  assert.equal(canonicalValuationModel("WRX"), "WRX");
+  assert.equal(canonicalValuationModel("CR-V"), "CR-V");
+  assert.equal(canonicalValuationModel("RAV4"), "RAV4");
+  assert.equal(detailed.color, "gray");
+  const request = providerRequest(configs[0], detailed);
+  const features = {
+    drivetrain: "awd",
+    fuel: "gasoline",
+    transmission: "automatic",
+    body_style: "suv",
+    color: "gray",
+    base_msrp: "35000",
+  };
+  for (const [key, value] of Object.entries(features))
+    assert.equal(request.url.searchParams.get(key), value);
+  const body = { ...vehicleBody, inputs: { ...detailed, ...features, base_msrp: 35000 } };
+  assert.deepEqual(normalizeVehicleEstimate("vehicles", body, detailed).providerInputs, [
+    "year",
+    "make",
+    "model",
+    "miles",
+    "state",
+    "condition",
+    "trim",
+    ...Object.keys(features),
+  ]);
+  for (const field of Object.keys(features)) {
+    const ignored = { ...body.inputs };
+    delete ignored[field];
+    assert.equal(
+      normalizeVehicleEstimate("vehicles", { ...body, inputs: ignored }, detailed),
+      null,
+    );
+  }
+  assert.equal(
+    normalizeVehicleEstimate(
+      "vehicles",
+      { ...body, inputs: { ...body.inputs, condition: "new" } },
+      detailed,
+    ),
+    null,
+  );
+  assert.notEqual(
+    await valuationCacheKey(detailed),
+    await valuationCacheKey({ ...detailed, drivetrain: "fwd" }),
+  );
+  const certified = { ...detailed, certified: true };
+  assert.equal(providerRequest(configs[0], certified).url.searchParams.get("condition"), "cpo");
+  assert.equal(normalizeVehicleEstimate("vehicles", body, certified), null);
 });
 
 function fakeDb({
