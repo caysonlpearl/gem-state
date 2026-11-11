@@ -2785,6 +2785,13 @@ export const getRelatedClassifieds = createServerFn({ method: "GET" })
     }),
   )
   .handler(async ({ data }): Promise<ClassifiedRelated> => {
+    if (/^avantlink-\d{1,20}$/.test(data.excludeId)) {
+      const { merchandiseRelatedCards } = await import("./avantlink-listings.server");
+      return {
+        fromSeller: [],
+        similar: await merchandiseRelatedCards(data.excludeId, data.category),
+      };
+    }
     const fromSellerResult = data.sellerSlug
       ? await browseClassifieds({ data: { sellerSlug: data.sellerSlug, sort: "newest", page: 1 } })
       : null;

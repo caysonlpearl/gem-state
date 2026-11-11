@@ -261,3 +261,14 @@ export async function merchandiseDetail(
     images: p.images.map((url) => ({ url, alt: p.title })),
   };
 }
+
+/** Related products use saved, moderation-filtered inventory and no geographic claim. */
+export async function merchandiseRelatedCards(excludeId: string, category?: string, db?: any) {
+  if (!/^avantlink-\d{1,20}$/.test(excludeId)) return [];
+  const { cards } = await merchandiseCards(
+    { ...(category ? { category } : {}), sort: "newest" },
+    db,
+    64,
+  );
+  return cards.filter((c) => c.id !== excludeId).slice(0, 8);
+}

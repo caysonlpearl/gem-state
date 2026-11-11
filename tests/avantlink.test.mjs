@@ -13,6 +13,7 @@ import {
   merchandiseCard,
   merchandiseCards,
   merchandiseHomeCards,
+  merchandiseRelatedCards,
   merchandiseDetail,
 } from "../src/lib/avantlink-listings.server.ts";
 import { refreshMerchandisePage } from "../src/lib/avantlink.server.ts";
@@ -154,7 +155,10 @@ test("every upstream request is pinned to the account and a positive merchandise
     assert.equal(p.get("search_department"), scope[0]);
     assert.equal(p.get("search_category"), scope[1] || null);
     assert.equal(p.get("search_results_base"), "1000");
-    assert.equal(p.get("search_results_count"), ["Shotguns", "Ammo"].includes(scope[0]) ? "10" : "250");
+    assert.equal(
+      p.get("search_results_count"),
+      ["Shotguns", "Ammo"].includes(scope[0]) ? "10" : "250",
+    );
     assert.equal(p.has("auth_key"), false);
   }
   assert.throws(() => merchandiseSearchUrl(["Unknown", ""]));
@@ -450,29 +454,42 @@ test("failed and unfinished pages yield to other scopes without retiring unseen 
 });
 
 test("shotgun and ammo refreshes use ten-item pages without prematurely retiring inventory", async () => {
-  for (const scope of [["Shotguns", "Pump Action"], ["Ammo", "Rifle Ammo"]]) {
-    const db = database((c) => c.rpc
-      ? { data: { allowed: true, offset: 20, generation: timestamps.first_seen_at }, error: null }
-      : { error: null });
+  for (const scope of [
+    ["Shotguns", "Pump Action"],
+    ["Ammo", "Rifle Ammo"],
+  ]) {
+    const db = database((c) =>
+      c.rpc
+        ? { data: { allowed: true, offset: 20, generation: timestamps.first_seen_at }, error: null }
+        : { error: null },
+    );
     const result = await refreshMerchandisePage(scope, db, async (url) => {
       assert.equal(url.searchParams.get("search_results_count"), "10");
       assert.equal(url.searchParams.get("search_results_base"), "20");
-      return Response.json(Array(10).fill({ ...row, strDepartmentName: scope[0], strCategoryName: scope[1] }));
+      return Response.json(
+        Array(10).fill({ ...row, strDepartmentName: scope[0], strCategoryName: scope[1] }),
+      );
     });
     assert.equal(result.complete, false);
-    const update = db.calls.findLast((c) => c.table === "avantlink_merchandise_scopes").ops.find((o) => o.method === "update").args[0];
+    const update = db.calls
+      .findLast((c) => c.table === "avantlink_merchandise_scopes")
+      .ops.find((o) => o.method === "update").args[0];
     assert.equal(update.next_offset, 30);
-    assert.equal(db.calls.some((c) => c.ops?.some((o) => o.method === "lt")), false);
+    assert.equal(
+      db.calls.some((c) => c.ops?.some((o) => o.method === "lt")),
+      false,
+    );
   }
 });
 
-
 test("background previews use one bulk read and make no provider requests", async (t) => {
-  t.mock.method(globalThis, "fetch", () => { throw Error("upstream request forbidden"); });
-  const db = database(call => {
+  t.mock.method(globalThis, "fetch", () => {
+    throw Error("upstream request forbidden");
+  });
+  const db = database((call) => {
     assert.equal(call.rpc, "homepage_merchandise_previews");
     assert.equal(call.args.p_per_scope, 12);
-    return {data:[{...timestamps,product:row}]};
+    return { data: [{ ...timestamps, product: row }] };
   });
   const cards = await merchandiseHomeCards(db);
   assert.equal(cards.length, 1);
@@ -482,6 +499,36 @@ test("background previews use one bulk read and make no provider requests", asyn
 });
 
 test("a failed bulk read rejects so the builder retains last-good previews", async () => {
-  const db = database(() => ({error:{message:"temporary failure"}}));
+  const db = database(() => ({ error: { message: "temporary failure" } }));
   await assert.rejects(merchandiseHomeCards(db), /Saved product previews/);
+});
+
+test("related merchandise uses saved current products, excludes the current/removed items and never adds geography", async () => {
+  const products = Array.from({ length: 12 }, (_, i) =>
+    normalizeMerchandise({
+      ...row,
+      lngProductId: String(1067506 + i),
+      strBuyURL: row.strBuyURL.replace("1067506", String(1067506 + i)),
+    }),
+  );
+  const db = database((call) => ({
+    data:
+      call.table === "partner_job_reports"
+        ? [{ listing_id: "avantlink-1067507" }]
+        : products.map((payload) => ({ payload, ...timestamps })),
+    error: null,
+  }));
+  const related = await merchandiseRelatedCards("avantlink-1067506", "apparel-accessories", db);
+  assert.equal(related.length, 8);
+  assert.ok(related.every((c) => !["avantlink-1067506", "avantlink-1067507"].includes(c.id)));
+  assert.ok(
+    db.calls.some((c) =>
+      c.ops?.some((op) => op.method === "gte" && op.args[0] === "source_refreshed_at"),
+    ),
+  );
+  assert.ok(db.calls.every((c) => !c.rpc));
+  assert.ok(
+    db.calls.every((c) => !c.ops?.some((op) => ["state", "city", "region"].includes(op.args[0]))),
+  );
+  assert.deepEqual(await merchandiseRelatedCards("bad", "firearms", db), []);
 });

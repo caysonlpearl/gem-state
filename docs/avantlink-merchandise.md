@@ -30,8 +30,7 @@ options, availability, delivery and returns must be confirmed with the retailer.
 Affiliate disclosure is at the bottom of the detail page.
 
 The live merchandise payload has no dealer/item location, state, or shipping
-eligibility fields. Online offers are labelled "Online retailer"; they never
-claim to be Idaho/Utah inventory. Any physical location/radius filter excludes
+eligibility fields. Product details show the actual seller name without a fabricated local address. The Guns.com public profile uses its official logo, support phone and contact page; it has no Bluebird inbox or verification badge. Any physical location/radius filter excludes
 these products. Homepage online rows are separate from local/farther-away rows.
 
 ## Cache, refresh, and budget
@@ -69,3 +68,5 @@ Official module documentation:
 
 - https://www.avantlink.com/api.php?help=1&module=ProductSearch
 - https://www.avantlink.com/api.php?help=1&module=ProductTaxonomy
+
+Product pages share the right-hand sidebar and Listed by identity used on vehicle listings. Related listings read the saved, moderation-filtered product cache without geographic filters or provider calls. Price-refresh timestamps remain internal. The affiliate product link and disclosure remain available at the bottom of the description.
