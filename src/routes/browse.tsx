@@ -3644,8 +3644,7 @@ function CategoryGettingStarted() {
  * one dealer's ten identical trucks don't fill the whole row; repeats only
  * fill in when there aren't enough different ones.
  */
-function varietyOf<T extends { id: string; title: string }>(input: readonly T[], count: number) {
-  const listings = mixPetSpecies(input as readonly (T & { pet?: { subcategory?: string | null } | null })[]);
+function varietyOf<T extends { id: string; title: string }>(listings: readonly T[], count: number) {
   const key = (listing: T) =>
     listing.title
       .toLowerCase()
@@ -3708,7 +3707,7 @@ function LandingListingsShowcase({
 }) {
   // This showcase is a single curated row. Keep it to the desktop row width
   // so a short second row can never appear beneath it.
-  const visibleListings = varietyOf(listings, compact ? 5 : 4);
+  const visibleListings = varietyOf(mixPetSpecies(listings), compact ? 5 : 4);
 
   return (
     <section
@@ -3803,7 +3802,7 @@ function HomepageShowcaseRows({
       ? landingCards(pool, inputFromSearch(showcaseSearch(querySearch, row.href)))
       : [];
     const fresh = varietyOf(
-      matching.filter((listing) => !shownIds.has(listing.id)),
+      mixPetSpecies(matching).filter((listing) => !shownIds.has(listing.id)),
       5,
     );
     const picks =
