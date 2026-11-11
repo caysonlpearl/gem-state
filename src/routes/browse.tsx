@@ -26,6 +26,7 @@ import {
 } from "@phosphor-icons/react";
 
 import { landingCards } from "@/lib/landing-card-pool";
+import { varietyOfPets } from "@/lib/pet-showcase";
 import type { ListingCardSummary } from "@/lib/listing-card-summary";
 import { servicesShowcaseRows } from "@/config/landing-service-rows";
 import { brand } from "@/config/brand";
@@ -85,6 +86,7 @@ import {
 import {
   browseClassifieds,
   getClassifiedsLandingHome,
+  getPetLandingInventory,
   type ClassifiedBrowseInput,
   type ClassifiedCard,
   type ClassifiedBrowseResult,
@@ -822,6 +824,12 @@ const landingHomeQuery = queryOptions({
   queryFn: () => getClassifiedsLandingHome().catch(() => null),
 });
 
+const petLandingQuery = queryOptions({
+  queryKey: ["pet-landing-inventory"],
+  staleTime: 60_000,
+  queryFn: () => getPetLandingInventory(),
+});
+
 function isLandingPage(search: Search) {
   if ((search.page ?? 1) !== 1) return false;
   if (search.allCategories) return true;
@@ -1357,6 +1365,9 @@ export const Route = createFileRoute("/browse")({
     const [result] = await Promise.all([
       context.queryClient.ensureQueryData(classifiedQuery(latestListingsInput(deps))),
       isLandingPage(deps) ? context.queryClient.ensureQueryData(landingHomeQuery) : undefined,
+      deps.category === "pets" && isLandingPage(deps)
+        ? context.queryClient.ensureQueryData(petLandingQuery)
+        : undefined,
     ]);
     if (isOutOfRangePage(deps.page ?? 1, result.total, result.pageSize)) throw notFound();
     return { total: result.total };
@@ -2317,21 +2328,7 @@ function Browse() {
       )}
 
       {pets && petLanding && (
-        <>
-          <LandingListingsShowcase
-            eyebrow="Bluebird Marketplace Pets"
-            title="Latest pet listings"
-            action="Browse all pets"
-            browseSearch={{ category: "pets", petMode: "results" }}
-            listings={result.listings}
-          />
-          <HomepageShowcaseRows
-            topListings={result.listings}
-            eyebrow="Bluebird Marketplace Pets"
-            rows={petShowcaseRows}
-            baseSearch={search}
-          />
-        </>
+        <PetLandingListings search={search} listings={result.listings} />
       )}
 
       {firearms && <FirearmsConsentDialog />}
@@ -3687,6 +3684,34 @@ function varietyOfFirearms(listings: readonly ClassifiedCard[], count: number): 
   ];
 }
 
+function PetLandingListings({ search, listings }: { search: Search; listings: ClassifiedCard[] }) {
+  const { data: inventory } = useSuspenseQuery(petLandingQuery);
+  const { data: saved } = useSuspenseQuery(landingHomeQuery);
+  const matching = landingCards(
+    [...(saved?.recent ?? []), ...listings, ...inventory],
+    inputFromSearch(search),
+  );
+  const latest = varietyOfPets(matching, 4);
+  return (
+    <>
+      <LandingListingsShowcase
+        eyebrow="Bluebird Marketplace Pets"
+        title="Latest pet listings"
+        action="Browse all pets"
+        browseSearch={{ ...search, petMode: "results", page: 1 }}
+        listings={latest}
+      />
+      <HomepageShowcaseRows
+        topListings={latest}
+        extraInventory={inventory}
+        eyebrow="Bluebird Marketplace Pets"
+        rows={petShowcaseRows}
+        baseSearch={search}
+      />
+    </>
+  );
+}
+
 function LandingListingsShowcase({
   eyebrow,
   title,
@@ -3700,7 +3725,7 @@ function LandingListingsShowcase({
   title: string;
   action: string;
   browseSearch: Search;
-  listings: ClassifiedBrowseResult["listings"];
+  listings: readonly ListingCardSummary[];
   compact?: boolean;
   mobileCarousel?: boolean;
 }) {
@@ -3779,13 +3804,15 @@ function HomepageShowcaseRows({
   jobSearch,
   baseSearch,
   topListings,
+  extraInventory,
 }: {
   eyebrow: string;
   rows: readonly HomepagePreviewRow[];
   jobSearch?: Search;
   baseSearch?: Search;
   /** The listings the "Latest" showcase above the rows already shows. */
-  topListings?: readonly ClassifiedCard[];
+  topListings?: readonly ListingCardSummary[];
+  extraInventory?: readonly ListingCardSummary[];
 }) {
   const querySearch = jobSearch ?? baseSearch;
   const { data: saved } = useSuspenseQuery(landingHomeQuery);
@@ -3794,13 +3821,15 @@ function HomepageShowcaseRows({
     ...(saved?.motors ?? []),
     ...(saved?.onlineMerchandise ?? []),
     ...(topListings ?? []),
+    ...(extraInventory ?? []),
   ];
   const shownIds = new Set(varietyOf(topListings ?? [], 5).map((listing) => listing.id));
   const allocated = rows.map((row) => {
     const matching = querySearch
       ? landingCards(pool, inputFromSearch(showcaseSearch(querySearch, row.href)))
       : [];
-    const fresh = varietyOf(
+    const select = querySearch?.category === "pets" ? varietyOfPets : varietyOf;
+    const fresh = select(
       matching.filter((listing) => !shownIds.has(listing.id)),
       5,
     );
@@ -3809,7 +3838,7 @@ function HomepageShowcaseRows({
         ? fresh
         : [
             ...fresh,
-            ...varietyOf(
+            ...select(
               matching.filter((listing) => !fresh.some((pick) => pick.id === listing.id)),
               5 - fresh.length,
             ),

@@ -7849,6 +7849,16 @@ export type Database = {
         Args: { _actor: string; _item: string; _paths?: string[] }
         Returns: string
       }
+      apply_sftp_inventory_delivery: {
+        Args: {
+          _delivery_id: string
+          _filename: string
+          _received_at: string
+          _records: Json
+          _source_id: string
+        }
+        Returns: Json
+      }
       approve_revised_max: {
         Args: { _new_max_cents: number; _order_id: string }
         Returns: undefined
