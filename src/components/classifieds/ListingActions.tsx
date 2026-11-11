@@ -207,7 +207,7 @@ function LiveListingActions({
           onMessage={openMessage}
         />
       ) : null}
-      {(showPriceHeader || approvedDealer) && (
+      {showPriceHeader && (
         <div
           className={
             approvedDealer

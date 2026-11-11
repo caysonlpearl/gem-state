@@ -2074,12 +2074,25 @@ function ListingDetailContent() {
         </div>
 
         <aside className="min-w-0 space-y-5">
-          <ListingActions listing={listing} />
+          {!listing.ended ? (
+            <section
+              aria-label="Vehicle price"
+              className="floating-card border-foreground/20 px-5 py-5"
+            >
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                Seller price
+              </p>
+              <div className="mt-3">
+                <VehiclePrice listing={listing} />
+              </div>
+            </section>
+          ) : null}
           {listing.externalVehicle ? (
             <MarketCheckContactCard listing={listing} />
           ) : (
             <SellerCard listing={listing} />
           )}
+          <ListingActions listing={listing} showPriceHeader={false} />
 
           <VehiclePriceInsight key={listing.id} listingId={listing.id} />
 
