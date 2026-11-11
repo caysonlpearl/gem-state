@@ -120,6 +120,7 @@ export function normalizeVehicleEstimate(
   let modelErrorPct: number | null = null;
   let dataThrough: string | null = null;
   let providerInputs: string[] = [];
+  const unconfirmedInputs: string[] = [];
   if (provider === "vehicles") {
     const used = record(row.inputs);
     const coverage = record(row.coverage);
@@ -166,6 +167,12 @@ export function normalizeVehicleEstimate(
     ];
     for (const [key, value] of Object.entries(optionalFeatures)) {
       if (value == null) continue;
+      // Some model versions accept extra parameters but omit them from the scored vector.
+      // Keep the valid core estimate, but never claim these optional inputs affected it.
+      if (used[key] == null) {
+        unconfirmedInputs.push(key);
+        continue;
+      }
       if (String(used[key]).toLowerCase() !== String(value).toLowerCase()) return null;
       providerInputs.push(key);
     }
@@ -200,6 +207,7 @@ export function normalizeVehicleEstimate(
         updatedAt: now.toISOString(),
         dataThrough,
         providerInputs,
+        unconfirmedInputs,
       }
     : null;
 }

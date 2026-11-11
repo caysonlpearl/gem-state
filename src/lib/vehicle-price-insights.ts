@@ -27,6 +27,7 @@ export type VehicleEstimate = {
   updatedAt: string;
   dataThrough: string | null;
   providerInputs?: string[];
+  unconfirmedInputs?: string[];
 };
 export type VehiclePriceInsight = VehicleEstimate & {
   comparison: "below" | "near" | "above";
@@ -36,6 +37,7 @@ export type VehiclePriceInsight = VehicleEstimate & {
   pointerPercent: number;
   vehicleDetails?: ValuationInput;
   providerInputs?: string[];
+  unconfirmedInputs?: string[];
 };
 
 export const valuationProviderNames: Record<ValuationProvider, string> = {
@@ -203,6 +205,8 @@ function normalizedFeature(value: string | null | undefined, choices: [RegExp, s
 /** Preserve model codes while correcting the all-caps words common in dealer feeds. */
 export function canonicalValuationModel(value: string) {
   const codes = new Set([
+    "PHEV",
+    "MHEV",
     "WRX",
     "BRZ",
     "GTI",
@@ -230,7 +234,7 @@ export function canonicalValuationModel(value: string) {
   ]);
   return value
     .trim()
-    .replace(/\b[A-Z]{3,}\b/g, (word) =>
+    .replace(/\b[A-Z]{4,}\b/g, (word) =>
       codes.has(word) ? word : word[0] + word.slice(1).toLowerCase(),
     );
 }
