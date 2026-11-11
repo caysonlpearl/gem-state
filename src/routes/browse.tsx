@@ -5567,18 +5567,6 @@ function HomesFilterPage({
             multi: false,
           },
           {
-            key: "homeHeating",
-            label: "Heating",
-            options: ["Any heating", "Forced air", "Gas", "Electric", "Heat pump", "Radiant"],
-            multi: true,
-          },
-          {
-            key: "homeCooling",
-            label: "Cooling",
-            options: ["Any cooling", "Central air", "Window unit", "Evaporative", "Heat pump"],
-            multi: true,
-          },
-          {
             key: "homeGarageParking",
             label: "Garage / parking",
             options: ["Any parking", "Attached garage", "Detached garage", "Carport", "No garage"],
