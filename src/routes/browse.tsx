@@ -3816,7 +3816,7 @@ function HomepageShowcaseRows({
               5 - fresh.length,
             ),
           ];
-    if (typeof window !== 'undefined') console.log('DBGROW', row.title, pool.filter((l)=>l.pet?.subcategory==='dogs').map((l)=>[l.state,(l as any).externalPet?1:0, l.pet?.placementType].join(':')).join(','), JSON.stringify(inputFromSearch(showcaseSearch(querySearch!, row.href))));
+    if (typeof window !== 'undefined') console.log('DBGROW', row.title, JSON.stringify(inputFromSearch(showcaseSearch(querySearch!, row.href))), pool.filter((l)=>l.pet?.subcategory==='dogs').map((l)=>[l.state,(l as any).externalPet?1:0, l.pet?.placementType].join(':')).join(','), JSON.stringify(inputFromSearch(showcaseSearch(querySearch!, row.href))));
     for (const listing of picks) shownIds.add(listing.id);
     return { row, picks };
   });
