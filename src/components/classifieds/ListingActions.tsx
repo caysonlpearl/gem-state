@@ -1,3 +1,4 @@
+import { dealerContactPriceLabel } from "@/lib/vehicle-shopping";
 import { DealerContactOptions } from "@/components/dealers/DealerContactOptions";
 import { VehiclePrice } from "@/components/dealers/VehiclePrice";
 import { hasApprovedDealer } from "@/lib/vehicle-shopping";
@@ -226,7 +227,8 @@ function LiveListingActions({
             </div>
           ) : (
             <p className="numeric mt-1 text-[32px] font-bold leading-none">
-              {adoptionPriceLabel(listing) ??
+              {dealerContactPriceLabel(listing) ??
+                adoptionPriceLabel(listing) ??
                 formatClassifiedPrice(listing.priceCents, {
                   wholeDollars: Boolean(listing.vehicle || listing.home),
                   monthly: listing.home?.mode === "rent",
@@ -237,7 +239,7 @@ function LiveListingActions({
       )}
 
       <div className="space-y-4 px-5 py-5">
-        {showPaymentCalculator && (
+        {showPaymentCalculator && listing.priceCents > 0 && (
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
@@ -258,7 +260,7 @@ function LiveListingActions({
           </div>
         )}
 
-        {showPaymentCalculator && calculatorOpen && (
+        {showPaymentCalculator && listing.priceCents > 0 && calculatorOpen && (
           <div className="space-y-3 rounded-2xl border border-border/70 bg-secondary/45 p-3.5">
             <div className="grid grid-cols-2 gap-3">
               <label className="text-[11px] font-medium">

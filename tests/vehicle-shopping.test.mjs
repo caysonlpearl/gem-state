@@ -1,3 +1,4 @@
+import { dealerContactPriceLabel } from "../src/lib/vehicle-shopping.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
@@ -44,4 +45,13 @@ test("only a Bluebird dealership profile enables the approved dealer contact exp
   assert.equal(hasApprovedDealer({ dealer: { slug: "twin-falls-subaru" } }), true);
   assert.equal(hasApprovedDealer({ dealer: { slug: "" } }), false);
   assert.equal(hasApprovedDealer({ dealer: null }), false);
+});
+
+test("only missing dealer feed prices use inquiry pricing", () => {
+  assert.equal(
+    dealerContactPriceLabel({ id: "dealerfeed-example", priceCents: 0 }),
+    "Contact For Price",
+  );
+  assert.equal(dealerContactPriceLabel({ id: "dealerfeed-example", priceCents: 10000 }), null);
+  assert.equal(dealerContactPriceLabel({ id: "native-id", priceCents: 0 }), null);
 });

@@ -502,7 +502,7 @@ export function normalizeInventoryRows(
       city: valueFor(row, "city", mapping),
       state,
       postalCode,
-      inventoryStatus: unpriced ? "invalid" : normalizeStatus(statusValue),
+      inventoryStatus: normalizeStatus(statusValue),
       vehicleMake: make,
       vehicleModel: model,
       vehicleYear: year!,
@@ -620,8 +620,8 @@ export function parseAndNormalizeInventoryXml(
   if (!mapping.__dealer_id || rows.some((row) => row.dealerid !== mapping.__dealer_id))
     throw new Error("Motive feed does not match the configured dealership.");
   // Motive supplies one complete inventory snapshot, numbered image fields and
-  // a comma-separated imageUrls summary. Keep unpriced cars private but present
-  // in reconciliation so they cannot be mistaken for missing/sold vehicles.
+  // a comma-separated imageUrls summary. Preserve unpriced cars and their real
+  // availability; the public projection requires a price or safe photos.
   for (const row of rows) {
     const images = Object.keys(row)
       .filter((key) => /^image\d+$/i.test(key))

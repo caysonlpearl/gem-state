@@ -1,3 +1,4 @@
+import { dealerContactPriceLabel } from "../src/lib/vehicle-shopping.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -121,6 +122,7 @@ function routeFixture(result, { failure } = {}) {
     listingStructuredData: () => [],
     formatJobPay: () => "Pay",
     adoptionPriceLabel: () => null,
+    dealerContactPriceLabel,
     formatClassifiedPrice: () => "$1",
     isSeoTestListing: () => false,
     socialImageMeta: () => [],

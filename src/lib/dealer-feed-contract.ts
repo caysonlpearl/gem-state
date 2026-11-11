@@ -24,18 +24,23 @@ export function publishedFeedVehicle(
   row: PublishedFeedVehicle,
   dealer: PublishedFeedDealer,
 ): MarketCheckListing | null {
-  if (
-    !DEALER_FEED_ID.test(`dealerfeed-${row.id}`) ||
-    !Number.isFinite(Number(row.price_cents)) ||
-    Number(row.price_cents) <= 0
-  )
-    return null;
+  if (!DEALER_FEED_ID.test(`dealerfeed-${row.id}`)) return null;
+  const price = Number(row.price_cents);
+  const hasPrice = Number.isFinite(price) && price > 0;
+  const photos = Array.isArray(row.photos)
+    ? row.photos.filter(
+        (url): url is string =>
+          typeof url === "string" &&
+          /^https:\/\//.test(url) &&
+          !/[?&](api_?key|key|token|access_token)=/i.test(url),
+      )
+    : [];
   const listing = normalizeMarketCheckListing(
     {
       id: row.id,
       heading: row.title,
       description: row.description,
-      price: Number(row.price_cents) / 100,
+      price: hasPrice ? price / 100 : null,
       msrp: row.msrp,
       vin: row.vin,
       stock_no: row.stock_number,
@@ -67,11 +72,13 @@ export function publishedFeedVehicle(
         state: row.state || dealer.state,
         zip: row.postal_code || dealer.postal_code,
       },
-      media: { photo_links: row.photos ?? [] },
+      media: { photo_links: photos },
     },
     "dealer",
   );
-  return listing ? { ...listing, id: `dealerfeed-${row.id}` } : null;
+  return listing && (hasPrice || listing.media.photoLinks.length > 0)
+    ? { ...listing, id: `dealerfeed-${row.id}` }
+    : null;
 }
 
 /** A directly authorized dealer feed wins over older aggregator inventory. */

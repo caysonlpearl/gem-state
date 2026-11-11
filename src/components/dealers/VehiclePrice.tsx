@@ -1,12 +1,12 @@
 import { formatClassifiedPrice } from "@/lib/classifieds-display";
-import { vehiclePriceComparison } from "@/lib/vehicle-shopping";
+import { dealerContactPriceLabel, vehiclePriceComparison } from "@/lib/vehicle-shopping";
 
 export function VehiclePrice({
   listing,
   compact = false,
   inlineComparison = false,
 }: {
-  listing: Parameters<typeof vehiclePriceComparison>[0];
+  listing: Parameters<typeof vehiclePriceComparison>[0] & { id?: string };
   compact?: boolean;
   inlineComparison?: boolean;
 }) {
@@ -23,9 +23,9 @@ export function VehiclePrice({
       }
     >
       <p
-        className={`numeric font-bold leading-none tracking-tight text-primary ${compact ? "text-[22px]" : "text-[38px] sm:text-[44px]"}`}
+        className={`numeric font-bold leading-none tracking-tight text-primary ${dealerContactPriceLabel(listing) ? "text-[22px] sm:text-[26px]" : compact ? "text-[22px]" : "text-[38px] sm:text-[44px]"}`}
       >
-        {money(listing.priceCents)}
+        {dealerContactPriceLabel(listing) ?? money(listing.priceCents)}
       </p>
       {comparison ? (
         <div

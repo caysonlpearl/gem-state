@@ -1,3 +1,4 @@
+import { dealerContactPriceLabel } from "@/lib/vehicle-shopping";
 import { brand } from "@/config/brand";
 import type { ClassifiedCard, ClassifiedDetail } from "@/lib/classifieds.functions";
 import { listingPath } from "@/lib/listing-url";
@@ -182,7 +183,7 @@ function vehicle(listing: ClassifiedDetail, url: string): JsonLd {
     fuelType: car.fuelType ?? undefined,
     color: car.exteriorColor ?? undefined,
     itemCondition: itemCondition(listing.condition),
-    offers: offer(listing, url),
+    offers: dealerContactPriceLabel(listing) ? undefined : offer(listing, url),
   });
 }
 

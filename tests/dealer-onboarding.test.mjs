@@ -144,6 +144,7 @@ test("dealer ownership, private inventory, recipient routing, two-way messages a
     await db.exec(
       await sql("supabase/migrations/20261111000000_dealer_pending_inbox_and_pricing.sql"),
     );
+    await db.exec(await sql("supabase/migrations/20261111230000_dealer_price_or_photos.sql"));
     const harden = await sql(
       "supabase/migrations/20260920210000_harden_conversation_blocks_reports.sql",
     );
