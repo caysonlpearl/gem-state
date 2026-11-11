@@ -8,6 +8,7 @@ import {
   jobsShowcaseRows,
 } from "@/config/landing-preview-rows";
 import { createFileRoute, Link, notFound, useNavigate, useRouter } from "@tanstack/react-router";
+import { mixPetSpecies } from "@/lib/pet-mix";
 import { queryOptions, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -3643,26 +3644,6 @@ function CategoryGettingStarted() {
  * one dealer's ten identical trucks don't fill the whole row; repeats only
  * fill in when there aren't enough different ones.
  */
-/** Round-robins pet listings by species so mixed rows aren't all cats. */
-export function mixPetSpecies<T extends { pet?: { subcategory?: string | null } | null }>(
-  listings: readonly T[],
-): T[] {
-  if (!listings.some((listing) => listing.pet)) return [...listings];
-  const groups = new Map<string, T[]>();
-  for (const listing of listings) {
-    const key = listing.pet?.subcategory ?? "other";
-    groups.set(key, [...(groups.get(key) ?? []), listing]);
-  }
-  const queues = [...groups.values()];
-  const mixed: T[] = [];
-  while (mixed.length < listings.length)
-    for (const queue of queues) {
-      const next = queue.shift();
-      if (next) mixed.push(next);
-    }
-  return mixed;
-}
-
 function varietyOf<T extends { id: string; title: string }>(input: readonly T[], count: number) {
   const listings = mixPetSpecies(input as readonly (T & { pet?: { subcategory?: string | null } | null })[]);
   const key = (listing: T) =>
