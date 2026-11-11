@@ -157,6 +157,12 @@ export function VehiclePriceInsightCard({ insight }: { insight: Insight }) {
               ))}
             </dl>
           ) : null}
+          {insight.unconfirmedInputs?.length ? (
+            <p className="mt-3">
+              Some additional listing specifications are not reflected in this estimate. Only
+              confirmed estimate factors are shown above.
+            </p>
+          ) : null}
           <p className="mt-3">
             Compares the asking price with an estimated retail asking price. “Near market” means
             within {Math.round(insight.tolerancePct)}% of the estimate, allowing for model

@@ -162,6 +162,7 @@ test("specific listing features are normalized, sent, echoed, and separated in t
   });
   assert.equal(detailed.model, "Edge");
   assert.equal(canonicalValuationModel("WRX"), "WRX");
+  assert.equal(canonicalValuationModel("Escalade ESV"), "Escalade ESV");
   assert.equal(canonicalValuationModel("CR-V"), "CR-V");
   assert.equal(canonicalValuationModel("RAV4"), "RAV4");
   assert.equal(detailed.color, "gray");
@@ -190,8 +191,16 @@ test("specific listing features are normalized, sent, echoed, and separated in t
   for (const field of Object.keys(features)) {
     const ignored = { ...body.inputs };
     delete ignored[field];
+    const partial = normalizeVehicleEstimate("vehicles", { ...body, inputs: ignored }, detailed);
+    assert.ok(partial);
+    assert.ok(!partial.providerInputs.includes(field));
+    assert.deepEqual(partial.unconfirmedInputs, [field]);
     assert.equal(
-      normalizeVehicleEstimate("vehicles", { ...body, inputs: ignored }, detailed),
+      normalizeVehicleEstimate(
+        "vehicles",
+        { ...body, inputs: { ...body.inputs, [field]: "wrong" } },
+        detailed,
+      ),
       null,
     );
   }
