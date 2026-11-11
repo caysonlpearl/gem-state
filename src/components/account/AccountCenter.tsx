@@ -1485,7 +1485,7 @@ function SavedPartnerJobsSection({ jobs }: { jobs: ClassifiedCard[] }) {
       <SectionHeader
         eyebrow="Saved partner listings"
         title={`${jobs.length} saved ${jobs.length === 1 ? "listing" : "listings"} from partners`}
-        body="Your saved jobs, businesses, pets, and retailer offers. Confirm current details with the listing source."
+        body="Your saved jobs, businesses, pets, and product listings."
       />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {jobs.map((job) => (

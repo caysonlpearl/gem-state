@@ -278,7 +278,7 @@ export const Route = createFileRoute("/listings/$listingId")({
         ? `${loaderData.title} (${endedLabel}) in ${loaderData.city}, ${loaderData.state}`
         : `${loaderData.title} — ${loaderData.priceLabel} in ${loaderData.city}, ${loaderData.state}`;
     const description = loaderData.onlineRetailer
-      ? `${loaderData.title}, listed online for ${loaderData.priceLabel}. View the retailer's offer and confirm current price and availability.`
+      ? `${loaderData.title}, listed by ${gunsComProfile.name} for ${loaderData.priceLabel} on ${brand.name}.`
       : endedLabel
         ? `${loaderData.title} in ${loaderData.city}, ${loaderData.state} is no longer available. See similar listings from local sellers on ${brand.name}.`
         : `${loaderData.title} listed for ${loaderData.priceLabel} by a seller in ${loaderData.city}, ${loaderData.state} on ${brand.name}.`;

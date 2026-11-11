@@ -57,7 +57,7 @@ export function allocateHomepageRows(
   };
   // Reserve dedicated-category inventory before broad rows consume it.
   const petListings = pick(localRecent.filter((listing) => listing.pet));
-  // Member firearms lead; online retailer firearms and gear fill the rest.
+  // Member firearms lead; Guns.com firearms and gear fill the rest.
   const firearmListings = pick([
     ...localRecent.filter((listing) => listing.categorySlug === "firearms"),
     ...(home.onlineMerchandise ?? []).filter((listing) => listing.categorySlug === "firearms"),
