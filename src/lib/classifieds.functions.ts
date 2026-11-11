@@ -2244,7 +2244,11 @@ async function runBrowseClassifieds(
       (!options.readOnlyProviders || !data.state || listing.state === data.state);
     const externalJobs = jobCards.filter(matchesRegion);
     const externalHomes = homeCards.filter(matchesRegion);
-    const externalPets = petCards.filter(matchesRegion);
+    // Rescue cards already apply the state rule (Idaho keeps border-area
+    // rescues its search centers found), so only the region applies here.
+    const externalPets = petCards.filter(
+      (listing) => !data.region || regionOfListing(listing) === data.region,
+    );
     if (error) console.error("browseClassifieds native read failed", error.message);
 
     const visibleRows = (rows ?? []).filter(
