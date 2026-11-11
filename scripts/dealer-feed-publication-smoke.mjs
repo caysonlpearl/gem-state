@@ -92,7 +92,7 @@ try {
   assert.ok(html.includes("Contact dealership"));
   assert.ok(html.includes('aria-label="Message dealership"'));
   assert.ok(html.includes('aria-label="Vehicle listing summary"'));
-  assert.ok(html.includes('>Fixture Subaru</a>'));
+  assert.ok(html.includes(">Fixture Subaru</a>"));
   assert.ok(html.includes("$39,000") && html.includes("$4,000"));
   assert.ok(html.includes('aria-label="Verified dealership"'));
   assert.ok(!html.includes("Reach the seller through the original listing"));
@@ -102,13 +102,24 @@ try {
   assert.ok(!html.includes("Vehicle listing data provided by MarketCheck"));
   assert.ok(!html.includes(vehicle.private_extra));
   assert.ok(!html.includes("sb_secret_fixture"));
+  const legacyDetail = "/listings/2026-subaru-forester-fixture-twin-falls-dealerfeed-" + id;
+  r = await request(legacyDetail);
+  assert.equal(
+    r.status,
+    301,
+    "older readable dealer links redirect instead of showing unavailable",
+  );
+  assert.equal(new URL(r.headers.get("Location"), "https://onbluebird.com").pathname, detail);
   r = await request("/dealers/" + dealer.slug);
   html = await r.text();
   assert.equal(r.status, 200);
   assert.ok(html.includes(dealer.display_name));
   assert.ok(html.includes(dealer.logo_url));
   assert.ok(html.includes(dealer.email));
-  assert.ok(!html.includes("dealer-message-trigger"), "storefront keeps only the Contact dealership entry point");
+  assert.ok(
+    !html.includes("dealer-message-trigger"),
+    "storefront keeps only the Contact dealership entry point",
+  );
   assert.ok(!html.includes("Your local dealership"));
   assert.ok(html.includes("Twin Falls, Idaho"));
   assert.ok(html.includes(vehicle.title));
@@ -145,6 +156,8 @@ try {
   mode = "revoked";
   r = await request(detail);
   assert.equal(r.status, 404);
+  r = await request(legacyDetail);
+  assert.equal(r.status, 404, "legacy links cannot bypass revoked inventory permission");
   r = await request("/dealers/" + dealer.slug);
   assert.equal(r.status, 404);
   mode = "unpriced";

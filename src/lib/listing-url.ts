@@ -3,10 +3,17 @@
 // The UUID at the end is what identifies the listing; the words in front are
 // for people and search engines, and an outdated or missing slug redirects.
 const UUID_AT_END = /([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
+const DEALER_FEED_ID_AT_END =
+  /(?:^|-)(dealerfeed-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/i;
 const MAX_SLUG = 70;
 
 export function listingIdFromParam(param: string) {
-  return param.startsWith("dealerfeed-") ? param : (param.match(UUID_AT_END)?.[1] ?? param);
+  // Older readable dealer URLs included the title before the provider ID.
+  // Keep that prefix so lookup and canonical redirects use dealer inventory.
+  return (
+    param.match(DEALER_FEED_ID_AT_END)?.[1] ??
+    (param.startsWith("dealerfeed-") ? param : (param.match(UUID_AT_END)?.[1] ?? param))
+  );
 }
 
 export function listingParam(listing: { id: string; title: string; city?: string | null }) {
