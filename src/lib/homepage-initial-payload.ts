@@ -1,4 +1,4 @@
-import { discoverySellerKey, selectDiscoveryCards } from "./discovery-ranking.ts";
+import { discoveryExposureKey, selectDiscoveryCards } from "./discovery-ranking.ts";
 import type { ClassifiedsHome, ClassifiedsHomeLead } from "./classifieds.functions";
 import type { ListingCardSummary } from "./listing-card-summary";
 import { homepageDistanceRow } from "./homepage-distance-row.ts";
@@ -46,7 +46,7 @@ export function allocateHomepageRows(
   );
   const sellerCounts = new Map<string, number>();
   for (const card of leadMotors) {
-    const key = discoverySellerKey(card);
+    const key = discoveryExposureKey(card);
     sellerCounts.set(key, (sellerCounts.get(key) ?? 0) + 1);
   }
   const shownIds = new Set<string>(leadMotors.map((listing) => listing.id));

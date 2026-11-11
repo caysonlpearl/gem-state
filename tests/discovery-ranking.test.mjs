@@ -260,3 +260,23 @@ test("Idaho seller priority preserves mixed pet species and border-area dogs", (
   assert.equal(new Set(localDog.map(discoverySellerKey)).size, 4);
   assert.equal(new Set(localDog.map((c) => c.pet.subcategory)).size, 2);
 });
+
+test("unidentified private listings cannot gain a new exposure bonus for every car", () => {
+  const unknown = Array.from({ length: 30 }, (_, i) => card(`unknown-${i}`, undefined));
+  const known = ["a", "b", "c"].flatMap((s) =>
+    Array.from({ length: 10 }, (_, i) => card(`${s}-${i}`, s)),
+  );
+  const counts = new Map(),
+    seen = new Set();
+  for (let i = 0; i < 4; i++) {
+    const row = selectDiscoveryCards([...unknown, ...known], 4, counts, seen);
+    assert.equal(row.filter((c) => !c.discoverySellerKey).length, 1);
+    assert.equal(new Set(row.filter((c) => c.discoverySellerKey).map(discoverySellerKey)).size, 3);
+    for (const c of row) seen.add(c.id);
+  }
+  assert.equal(
+    selectDiscoveryCards(unknown, 4).length,
+    4,
+    "private-only inventory still fills a row",
+  );
+});

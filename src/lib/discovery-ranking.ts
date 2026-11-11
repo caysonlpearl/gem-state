@@ -5,6 +5,7 @@ type DiscoveryCard = Pick<ListingCardSummary, "id" | "title"> &
     Pick<
       ListingCardSummary,
       | "state"
+      | "categorySlug"
       | "discoverySellerKey"
       | "dealer"
       | "pet"
@@ -56,6 +57,13 @@ export function discoverySellerKey(card: DiscoveryCard): string {
   return `listing:${card.id}`;
 }
 
+/** Unknown ownership gets one discovery budget, not a fresh fairness bonus
+ * for every vehicle. This is a selection cohort, never an asserted owner. */
+export function discoveryExposureKey(card: DiscoveryCard): string {
+  const seller = discoverySellerKey(card);
+  return seller.startsWith("listing:") ? `unidentified:${card.categorySlug ?? "unknown"}` : seller;
+}
+
 /** Idaho first, then round-robin known sellers. Caller ordering breaks ties and
  * is restored for display, preserving price/date intent within the chosen mix.
  * Shared counts balance exposure across consecutive rows without random churn. */
@@ -86,7 +94,7 @@ export function selectDiscoveryCards<T extends DiscoveryCard>(
     const groups = new Map<string, T[]>();
     for (const card of unique) {
       if ((normalized(card.state) === "id") !== local) continue;
-      const key = discoverySellerKey(card);
+      const key = discoveryExposureKey(card);
       const group = groups.get(key) ?? [];
       group.push(card);
       groups.set(key, group);
@@ -151,14 +159,14 @@ export function selectDiscoveryCards<T extends DiscoveryCard>(
             Number(discoverySellerKey(b) === discoverySellerKey(replacement)) -
               Number(discoverySellerKey(a) === discoverySellerKey(replacement)) ||
             Number(normalized(a.state) === "id") - Number(normalized(b.state) === "id") ||
-            (sellerCounts.get(discoverySellerKey(b)) ?? 0) -
-              (sellerCounts.get(discoverySellerKey(a)) ?? 0),
+            (sellerCounts.get(discoveryExposureKey(b)) ?? 0) -
+              (sellerCounts.get(discoveryExposureKey(a)) ?? 0),
         );
       const previous = removable[0];
       if (!previous) continue;
       selected[selected.indexOf(previous)] = replacement;
-      const oldKey = discoverySellerKey(previous),
-        newKey = discoverySellerKey(replacement);
+      const oldKey = discoveryExposureKey(previous),
+        newKey = discoveryExposureKey(replacement);
       sellerCounts.set(oldKey, (sellerCounts.get(oldKey) ?? 1) - 1);
       sellerCounts.set(newKey, (sellerCounts.get(newKey) ?? 0) + 1);
     }

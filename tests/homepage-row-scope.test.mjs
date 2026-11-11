@@ -261,9 +261,20 @@ test("vehicle rows reject cheap parts and unknown prices without removing parts 
     assert.ok(row.every((c) => c.categorySlug !== "auto-parts"));
   }
   assert.ok(rows.valueVehicleListings.every((c) => c.priceCents > 0));
+  const alreadyShown = new Set(
+    [
+      ...cars.slice(0, 4),
+      ...rows.fartherAwayListings,
+      ...rows.vehicleListings,
+      ...rows.truckListings,
+    ].map((c) => c.id),
+  );
   assert.deepEqual(
     rows.valueVehicleListings.map((c) => c.id),
-    cars.slice(12, 16).map((c) => c.id),
+    cars
+      .filter((c) => !alreadyShown.has(c.id))
+      .slice(0, 4)
+      .map((c) => c.id),
   );
   for (const part of parts)
     assert.ok(
