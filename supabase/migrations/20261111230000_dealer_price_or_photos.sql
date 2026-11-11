@@ -1,5 +1,6 @@
 -- Authorized dealer vehicles need an advertised price or a safe public photo.
 -- Preserve permission, moderation, availability, freshness and inbox checks.
+BEGIN;
 CREATE OR REPLACE FUNCTION public.read_published_dealer_inventory(
   _record_id uuid DEFAULT NULL, _dealer_slug text DEFAULT NULL, _full_photos boolean DEFAULT false
 ) RETURNS jsonb LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, pg_temp AS $$
@@ -65,10 +66,6 @@ REVOKE ALL ON FUNCTION public.read_published_dealer_inventory(uuid,text,boolean)
 GRANT EXECUTE ON FUNCTION public.read_published_dealer_inventory(uuid,text,boolean) TO anon, authenticated, service_role;
 
 
-NOTIFY pgrst,'reload schema';
-
-COMMIT;
-
 -- Earlier Motive/Overfuel adapters marked otherwise valid unpriced rows invalid.
 -- Repair only current, successfully imported rows from these known adapters.
 -- Never revive stale, explicitly unavailable or malformed-price records.
@@ -83,3 +80,6 @@ WHERE r.source_id=s.id AND r.last_seen_run_id=run.id AND run.source_id=s.id
   AND coalesce(s.mapping_profile->>'status','Status') IN ('Status','status')
   AND btrim(coalesce(r.raw_record->>'Status',r.raw_record->>'status',''))=''
   AND btrim(coalesce(r.raw_record->>'Price',r.raw_record->>'price','')) ~ '^(0(\.0+)?)?$';
+
+NOTIFY pgrst,'reload schema';
+COMMIT;
