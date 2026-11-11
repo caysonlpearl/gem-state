@@ -28,6 +28,7 @@ export type RescueGroupsPet = {
   houseTrained: boolean | null;
   specialNeeds: boolean | null;
   photos: string[];
+  createdAt?: string | null;
   updatedAt: string | null;
   org: {
     id: string;
@@ -145,6 +146,7 @@ export function normalizeRescueGroupsAnimals(payload: unknown): RescueGroupsPet[
       houseTrained: typeof attrs.isHousetrained === "boolean" ? attrs.isHousetrained : null,
       specialNeeds: typeof attrs.isSpecialNeeds === "boolean" ? attrs.isSpecialNeeds : null,
       photos: [...new Set(photos)].slice(0, 20),
+      createdAt: text(attrs.createdDate),
       updatedAt: text(attrs.updatedDate),
       org,
       sourceUrl: org?.adoptionUrl ?? org?.website ?? null,

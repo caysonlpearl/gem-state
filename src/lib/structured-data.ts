@@ -92,7 +92,7 @@ function offer(listing: ClassifiedDetail, url: string, extra: JsonLd = {}) {
     priceCurrency: listing.currency || brand.defaultCurrency,
     availability: "https://schema.org/InStock",
     itemCondition: itemCondition(listing.condition),
-    validFrom: Number.isFinite(Date.parse(listing.createdAt)) ? listing.createdAt : undefined,
+    validFrom: Date.parse(listing.createdAt) > 0 ? listing.createdAt : undefined,
     priceValidUntil: listing.expiresAt?.slice(0, 10),
     availableAtOrFrom: { "@type": "Place", address: address(listing) },
     seller: seller(listing),

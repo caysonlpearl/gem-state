@@ -1,3 +1,4 @@
+import { selectDiscoveryCards } from "./discovery-ranking.ts";
 import type { ClassifiedCard, ClassifiedsHome, ClassifiedsHomeLead } from "./classifieds.functions";
 import type { ListingCardSummary } from "./listing-card-summary";
 import { landingPreviewInputs } from "./landing-coverage.ts";
@@ -5,7 +6,7 @@ import { matchesLandingCard } from "./landing-card-pool.ts";
 import { classifiedCategories } from "../config/classifieds.ts";
 
 export const HOME_SNAPSHOT_VERSION = 1;
-export const HOME_CACHE_LAYOUT_VERSION = 6;
+export const HOME_CACHE_LAYOUT_VERSION = 7;
 export const HOME_REFRESH_MS = 5 * 60_000;
 export const HOME_MAX_STALE_MS = 6 * 60 * 60_000;
 export const HOME_SOURCE_KEYS = [
@@ -40,6 +41,7 @@ export function homepageCard(card: ClassifiedCard): ListingCardSummary {
   const {
     id,
     title,
+    discoverySellerKey,
     productId,
     productSlug,
     priceCents,
@@ -69,6 +71,7 @@ export function homepageCard(card: ClassifiedCard): ListingCardSummary {
   return {
     id,
     title,
+    discoverySellerKey,
     productId,
     productSlug,
     priceCents,
@@ -192,7 +195,10 @@ export function homepagePayload(
     lead: {
       categoryCounts,
       totalActive,
-      motors: motors.filter((c) => c.categorySlug === "cars-trucks").slice(0, 24),
+      motors: selectDiscoveryCards(
+        motors.filter((c) => c.categorySlug === "cars-trucks"),
+        24,
+      ),
     },
   };
 }

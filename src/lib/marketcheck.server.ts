@@ -1,3 +1,4 @@
+import { discoverySellerToken } from "./discovery-ranking.ts";
 /* eslint-disable @typescript-eslint/no-explicit-any -- Supabase's generated client does not include the new cache tables yet. */
 import { createClient } from "@supabase/supabase-js";
 import { getRequest } from "@tanstack/react-start/server";
@@ -577,12 +578,24 @@ function pickRaw(raw: MarketCheckListing["raw"]): MarketCheckListing["raw"] {
 export function marketCheckCard(input: MarketCheckListing): ClassifiedCard {
   const listing = finalizeMarketCheckListing(input);
   const priceCents = listing.price == null ? 0 : Math.round(listing.price * 100);
-  const createdAt = listing.lastSeenAt ?? listing.firstSeenAt ?? new Date(0).toISOString();
+  const createdAt = listing.firstSeenAt ?? new Date(0).toISOString();
   return {
     id: listing.id,
     productId: listing.id,
     productSlug: "",
     title: listing.heading,
+    ...(listing.sourceKind === "fsbo" &&
+    listing.location.sellerName &&
+    !/^(private(?: seller| party)?|vehicle seller|seller|unknown|owner|individual|n\/a)$/i.test(
+      listing.location.sellerName.trim(),
+    )
+      ? {
+          discoverySellerKey: discoverySellerToken(
+            "private-vehicle",
+            `${listing.location.sellerName.trim().toLowerCase()}|${listing.location.city.toLowerCase()}|${listing.location.state}`,
+          ),
+        }
+      : {}),
     priceCents,
     vehiclePricing: {
       msrpCents: listing.msrp ? Math.round(listing.msrp * 100) : null,

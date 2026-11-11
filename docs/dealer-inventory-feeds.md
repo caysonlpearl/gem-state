@@ -66,3 +66,11 @@ For future feeds: first record written publication permission, then complete the
 ## Verification
 
 `npm run test:inventory` checks parsing, dealer identity, unpriced vehicles, malformed XML, partial-snapshot rejection, retry/lease behavior, snapshot atomicity and media identity in a real local PostgreSQL engine. Run TypeScript and the production build for server/UI changes. `npm run test:seo:ssr` also exercises the compiled inventory cron endpoint with entirely synthetic network traffic, including authentication, complete imports, HTML/truncated responses, and redacted errors. Production verification must include a completed run from the deployed scheduler, matching row/photo counts, and a replay with no duplicate records.
+
+## Discovery row selection
+
+Feed refreshes update availability and pricing without changing a vehicle's posting age. Vehicle cards use the original first-seen date, and unknown posting dates are not presented as freshly posted. Pet listings use the source creation date when supplied.
+
+Homepage and category preview rows prefer Idaho, then balance the available sellers within each eligible location tier. Repeated sellers fill a row when there are fewer alternatives. Native account identifiers are reduced to opaque grouping tokens before the public-card projection; known dealer, employer, business and rescue identities group syndicated records without treating an entire data provider as one seller. Explicit category/location/price filters still apply, and unknown prices never qualify for the affordable row.
+
+Seller variety is reserved before cache limits. The versioned snapshot refresh migrates the saved card pool automatically after deployment, using existing cached provider data. Public page loads do not acquire new provider inventory for this selection rule.

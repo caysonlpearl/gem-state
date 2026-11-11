@@ -1,3 +1,4 @@
+import { selectDiscoveryCards } from "../src/lib/discovery-ranking.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -44,6 +45,11 @@ function render(source, fileName, entry, globals = {}) {
   }).outputText;
   const context = vm.createContext({
     React: { createElement: (type, props, ...children) => ({ type, props, children }) },
+    selectDiscoveryCards,
+    useSuspenseQuery: () => ({ data: { recent: [], motors: [] } }),
+    landingHomeQuery: {},
+    landingCards: (cards) => cards,
+    inputFromSearch: (s) => s,
     ListingCard: "ListingCard",
     Link: "Link",
     ArrowRight: "ArrowRight",
@@ -226,11 +232,17 @@ test("a removed photo becomes a fallback even when its failure preceded hydratio
   const effects = [];
   const image = { complete: true, naturalWidth: 0, dataset: {} };
   const Photo = vm.runInNewContext(`${compiled}\nListingCardPhoto`, {
-    React, listingCardImageUrl,
+    React,
+    listingCardImageUrl,
     retailSavings,
     listingLogoUrl: () => undefined,
     useRef: () => ({ current: image }),
-    useState: () => [failed, (value) => { failed = value; }],
+    useState: () => [
+      failed,
+      (value) => {
+        failed = value;
+      },
+    ],
     useEffect: (fn) => effects.push(fn),
     useCallback: (fn) => fn,
     PlaceholderPhoto: "PlaceholderPhoto",

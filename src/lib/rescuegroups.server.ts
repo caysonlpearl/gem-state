@@ -83,6 +83,7 @@ async function centerPets(
   center: (typeof CENTERS)[number],
   cacheOnly = false,
 ): Promise<RescueGroupsPet[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- adapter includes the not-yet-generated cache table.
   const db = cacheDb() as any;
   const key = apiKey();
   if (!db) return [];
@@ -174,7 +175,7 @@ export function rescueGroupsCard(pet: RescueGroupsPet): ClassifiedCard {
     categoryName: "Pets",
     condition: "not_applicable",
     fulfillmentMode: "",
-    createdAt: pet.updatedAt ?? new Date(0).toISOString(),
+    createdAt: pet.createdAt ?? new Date(0).toISOString(),
     isFeatured: false,
     imageUrl: pet.photos[0] ?? null,
     vehicle: null,
@@ -275,4 +276,3 @@ export async function rescueGroupsDetail(listingId: string): Promise<ClassifiedD
     images: pet.photos.map((url) => ({ url, alt: pet.name })),
   };
 }
-

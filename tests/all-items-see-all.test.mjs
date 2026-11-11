@@ -1,3 +1,5 @@
+import { landingCards } from "../src/lib/landing-card-pool.ts";
+import { selectDiscoveryCards } from "../src/lib/discovery-ranking.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
@@ -7,7 +9,13 @@ import ts from "typescript";
 // Render the actual showcase in isolation: no server imports, database calls,
 // or invented inventory. Both mapped row links must use the real destination.
 const source = await readFile(new URL("../src/routes/browse.tsx", import.meta.url), "utf8");
-const file = ts.createSourceFile("browse.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+const file = ts.createSourceFile(
+  "browse.tsx",
+  source,
+  ts.ScriptTarget.Latest,
+  true,
+  ts.ScriptKind.TSX,
+);
 const showcase = file.statements.find(
   (node) => ts.isFunctionDeclaration(node) && node.name?.text === "GeneralClassifiedShowcase",
 );
@@ -16,6 +24,11 @@ const compiled = ts.transpileModule(showcase.getText(file), {
   compilerOptions: { jsx: ts.JsxEmit.React, target: ts.ScriptTarget.ES2022 },
 }).outputText;
 const context = vm.createContext({
+  selectDiscoveryCards,
+  landingCards,
+  inputFromSearch: (s) => s,
+  useSuspenseQuery: () => ({ data: { recent: [], motors: [] } }),
+  landingHomeQuery: {},
   React: { createElement: (type, props, ...children) => ({ type, props, children }) },
   Link: "Link",
   ArrowRight: "ArrowRight",
@@ -70,9 +83,12 @@ for (const [index, row] of ["Top listings", "Newest listings"].entries()) {
       { ...link.props.search(scoped) },
       { ...scoped, allCategories: undefined, page: 1 },
     );
-    assert.deepEqual({ ...link.props.search({ allCategories: true }) }, {
-      allCategories: undefined,
-      page: 1,
-    });
+    assert.deepEqual(
+      { ...link.props.search({ allCategories: true }) },
+      {
+        allCategories: undefined,
+        page: 1,
+      },
+    );
   });
 }
