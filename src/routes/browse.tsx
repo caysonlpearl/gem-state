@@ -8,6 +8,7 @@ import {
   jobsShowcaseRows,
 } from "@/config/landing-preview-rows";
 import { createFileRoute, Link, notFound, useNavigate, useRouter } from "@tanstack/react-router";
+import { mixPetSpecies } from "@/lib/pet-mix";
 import { queryOptions, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -3706,7 +3707,7 @@ function LandingListingsShowcase({
 }) {
   // This showcase is a single curated row. Keep it to the desktop row width
   // so a short second row can never appear beneath it.
-  const visibleListings = varietyOf(listings, compact ? 5 : 4);
+  const visibleListings = varietyOf(mixPetSpecies(listings), compact ? 5 : 4);
 
   return (
     <section
@@ -3801,7 +3802,7 @@ function HomepageShowcaseRows({
       ? landingCards(pool, inputFromSearch(showcaseSearch(querySearch, row.href)))
       : [];
     const fresh = varietyOf(
-      matching.filter((listing) => !shownIds.has(listing.id)),
+      mixPetSpecies(matching).filter((listing) => !shownIds.has(listing.id)),
       5,
     );
     const picks =
