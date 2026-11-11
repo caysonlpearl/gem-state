@@ -1290,7 +1290,6 @@ test("homes browse has a large landing hero and tab-specific filter views", () =
     "10000+",
     "2.5+",
     "Built 2025 or newer",
-    "Forced air",
     "Attached garage",
     "Pets allowed",
     "No smoking",
@@ -1830,7 +1829,7 @@ test("firearms are a first-class category with linked safety guidance", async ()
 });
 
 test("homes filters no longer offer heating or cooling", () => {
-  const src = readFileSync(new URL("../src/routes/browse.tsx", import.meta.url), "utf8");
+  const src = browseSource;
   assert.doesNotMatch(src, /key: "homeHeating"/);
   assert.doesNotMatch(src, /key: "homeCooling"/);
 });
