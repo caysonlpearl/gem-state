@@ -62,8 +62,22 @@ export function selectDiscoveryCards<T extends DiscoveryCard>(
   cards: readonly T[],
   count: number,
   sellerCounts = new Map<string, number>(),
+  seenIds?: ReadonlySet<string>,
 ): T[] {
-  const unique = [...new Map(cards.map((card) => [card.id, card])).values()];
+  let unique = [...new Map(cards.map((card) => [card.id, card])).values()];
+  if (seenIds?.size) {
+    const fresh = unique.filter((card) => !seenIds.has(card.id));
+    if (!fresh.length) return [];
+    const tier = (card: T) => `${normalized(card.state) === "id"}:${discoverySellerKey(card)}`;
+    const freshSellers = new Set(fresh.map(tier));
+    // Reuse only a known seller who would otherwise disappear from this local
+    // mix. A seller with unseen matching stock always supplies an unseen card.
+    unique = unique.filter(
+      (card) =>
+        !seenIds.has(card.id) ||
+        (!discoverySellerKey(card).startsWith("listing:") && !freshSellers.has(tier(card))),
+    );
+  }
   const indices = new Map(unique.map((card, index) => [card.id, index]));
   const selected: T[] = [];
   const rowCounts = new Map<string, number>();

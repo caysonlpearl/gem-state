@@ -216,3 +216,25 @@ test("missing provider posting dates do not appear as decades-old listings", () 
   assert.equal(context.postedAge(new Date(0).toISOString()), "");
   assert.equal(context.postedAge(new Date().toISOString()), "Today");
 });
+
+test("a rare Idaho seller is not crowded out of later rows after its only card appeared above", () => {
+  const a = Array.from({ length: 20 }, (_, i) => card(`a-${i}`, "a"));
+  const rare = card("rare-b", "b");
+  const c = card("rare-c", "c");
+  const counts = new Map();
+  const pool = [...a, rare, c];
+  const first = selectDiscoveryCards(pool, 4, counts);
+  const seen = new Set(first.map((c) => c.id));
+  const next = selectDiscoveryCards(pool, 4, counts, seen);
+  assert.equal(new Set(next.map(discoverySellerKey)).size, 3);
+  assert.ok(next.some((c) => c.id === rare.id));
+  assert.ok(next.filter((c) => discoverySellerKey(c) === "a").every((c) => !seen.has(c.id)));
+  const regional = [
+    card("ut-a", "ut-a", "UT"),
+    card("ut-b", "ut-b", "UT"),
+    card("ut-c", "ut-c", "UT"),
+  ];
+  const localFirst = selectDiscoveryCards([rare, ...regional], 4, new Map(), new Set([rare.id]));
+  assert.equal(localFirst[0].id, rare.id);
+  assert.equal(selectDiscoveryCards(pool, 4, new Map(), new Set(pool.map((c) => c.id))).length, 0);
+});

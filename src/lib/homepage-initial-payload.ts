@@ -30,9 +30,9 @@ export function allocateHomepageRows(
   const generalSource = localRecent.filter(isGeneralHomepageListing);
 
   // Every row below draws from the same small pool, so without this the same
-  // few listings repeat row after row. Each listing appears at most once on
-  // the page; rows claim up to four listings in the order they render, and a
-  // row with nothing left shows the "just getting started" card instead.
+  // few listings repeat row after row. Prefer unseen cards within each seller;
+  // a known seller with one matching card can reappear to preserve local variety.
+  // Rows without any fresh eligible inventory keep the honest empty state.
   const allLocalListings = [...localRecent];
   for (const listing of localMotors) {
     if (!allLocalListings.some((existing) => existing.id === listing.id)) {
@@ -51,11 +51,7 @@ export function allocateHomepageRows(
   }
   const shownIds = new Set<string>(leadMotors.map((listing) => listing.id));
   const pick = (candidates: ClassifiedsHome["recent"]) => {
-    const unseen = selectDiscoveryCards(
-      candidates.filter((listing) => !shownIds.has(listing.id)),
-      HOMEPAGE_ROW_SIZE,
-      sellerCounts,
-    );
+    const unseen = selectDiscoveryCards(candidates, HOMEPAGE_ROW_SIZE, sellerCounts, shownIds);
     for (const listing of unseen) shownIds.add(listing.id);
     return unseen;
   };

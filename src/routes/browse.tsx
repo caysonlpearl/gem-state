@@ -3548,9 +3548,10 @@ function GeneralClassifiedShowcase({
   const sellerCounts = new Map<string, number>();
   const first = selectDiscoveryCards(generalListings, 4, sellerCounts);
   const second = selectDiscoveryCards(
-    generalListings.filter((card) => !first.some((pick) => pick.id === card.id)),
+    generalListings,
     4,
     sellerCounts,
+    new Set(first.map((card) => card.id)),
   );
   const listingRows = [
     {
@@ -3844,11 +3845,7 @@ function HomepageShowcaseRows({
     const matching = querySearch
       ? landingCards(pool, inputFromSearch(showcaseSearch(querySearch, row.href)))
       : [];
-    const fresh = selectDiscoveryCards(
-      matching.filter((listing) => !shownIds.has(listing.id)),
-      5,
-      sellerCounts,
-    );
+    const fresh = selectDiscoveryCards(matching, 5, sellerCounts, shownIds);
     const picks =
       fresh.length >= 5
         ? fresh
@@ -4075,11 +4072,7 @@ function HomeShowcaseRows({
   const rows = homePreviewRowsByTab[activeTab]
     .map((row) => {
       const matching = pool.filter(homeRowFilters[row.title] ?? (() => false));
-      const fresh = selectDiscoveryCards(
-        matching.filter((listing) => !shownIds.has(listing.id)),
-        4,
-        sellerCounts,
-      );
+      const fresh = selectDiscoveryCards(matching, 4, sellerCounts, shownIds);
       const homes =
         fresh.length >= 4
           ? fresh
