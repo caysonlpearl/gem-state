@@ -173,3 +173,14 @@ test("dealer feed URLs retain their provider prefix instead of becoming native U
   assert.equal(listingIdFromParam(value), value);
   assert.equal(listingParam({ id: value, title: "Car" }), value);
 });
+
+test("older readable dealer links resolve to the dealer record and its current URL", () => {
+  const value = "dealerfeed-" + id;
+  for (const title of ["2016-ford-focus-5dr-hb-se-twin-falls", "2026-subaru-crosstrek-limited"]) {
+    const parsed = listingIdFromParam(`${title}-${value}`);
+    assert.equal(parsed, value);
+    assert.equal(listingParam({ id: parsed, title: "Updated title" }), value);
+  }
+  assert.equal(listingIdFromParam(`private-seller-vehicle-${id}`), id);
+  assert.equal(listingIdFromParam(id), id);
+});
