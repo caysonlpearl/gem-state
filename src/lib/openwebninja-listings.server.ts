@@ -3,6 +3,7 @@ import type {
   ClassifiedCard,
   ClassifiedDetail,
 } from "./classifieds.functions";
+import { hasCompleteHomeDetails } from "./openwebninja-cache";
 import { matchesLandingCard } from "./landing-card-pool";
 import {
   dedupeImageUrls,
@@ -109,9 +110,14 @@ export function openWebNinjaCard(home: OpenWebNinjaHome): ClassifiedCard {
 
 export async function openWebNinjaCards(data: ClassifiedBrowseInput): Promise<ClassifiedCard[]> {
   if (!canIncludeOpenWebNinja(data)) return [];
-  const homes = await (await import("./openwebninja.server")).cachedHomes();
+  const ninja = await import("./openwebninja.server");
+  const [homes, completeIds] = await Promise.all([
+    ninja.cachedHomes(),
+    ninja.completeHomeDetailIds(),
+  ]);
   const q = data.q?.trim().toLowerCase();
   return homes
+    .filter((home) => completeIds.has(home.id))
     .filter(
       (home) =>
         !q || `${home.address} ${home.city} ${home.propertyType ?? ""}`.toLowerCase().includes(q),
@@ -200,21 +206,17 @@ async function advanceHomeFeedFor(provider: HomeProvider) {
   }
 
   // 2. One home without full details, newest first.
-  const homes = searchKeys.flatMap(
-    (entry) => (rowByKey.get(entry.key)?.payload?.homes ?? []) as { id: string }[],
-  );
+  const homes = await ninja.cachedHomes();
   const ids = [...new Set(homes.map((home) => home.id))];
-  const have = new Set<string>();
-  const { data: detailRows } = await db
-    .from("openwebninja_cache")
-    .select("cache_key")
-    .like("cache_key", '%"kind":"property"%')
-    .limit(5000);
-  for (const row of detailRows ?? []) have.add(String(JSON.parse(row.cache_key).id));
+  const have = await ninja.completeHomeDetailIds();
   const next = ids.find((id) => !have.has(id));
   if (!next) return { done: true, homes: ids.length };
   const detail = await ninja.propertyDetails(next, null, { provider });
-  return { detailed: next, ok: detail.ok, remaining: ids.length - have.size - 1 };
+  return {
+    detailed: next,
+    ok: detail.ok,
+    remaining: ids.filter((id) => !have.has(id) && (id !== next || !detail.ok)).length,
+  };
 }
 
 /** Refresh all statewide geographic feeds on the weekly provider schedule. */
@@ -244,6 +246,8 @@ export async function openWebNinjaDetail(listingId: string): Promise<ClassifiedD
   const home = found.home;
   const details = await propertyDetails(home.id, home.sourceUrl, { cacheOnly: true });
   const extra = details.ok ? details.value : null;
+  // Direct links follow the same completeness gate as public browse.
+  if (!hasCompleteHomeDetails(extra)) return null;
   const card = openWebNinjaCard(home);
   // Cached property payloads may predate the provider-variant normalizer, so
   // apply the same dedupe when reading them instead of spending another API

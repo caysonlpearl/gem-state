@@ -33,6 +33,9 @@ const home = {
   isFeatured: false,
 };
 const extra = {
+  bedrooms: 3,
+  bathrooms: 2,
+  squareFeet: 1200,
   description: "Fixture rental description supplied by the saved property cache.",
   images: ["https://images.example.org/one.jpg", "https://images.example.org/two.jpg"],
   amenities: ["Central air"],
@@ -114,7 +117,12 @@ globalThis.fetch = async (input, init = {}) => {
             expires_at: new Date(Date.now() + 86400000).toISOString(),
           },
         ]
-      : [{ cache_key: '{"v":3,"kind":"property","id":"111261092"}', payload: extra }];
+      : [
+          {
+            cache_key: '{"v":3,"kind":"property","id":"111261092"}',
+            payload: mode === "home-incomplete" ? { ...extra, description: null } : extra,
+          },
+        ];
   }
   return Response.json(body, { headers: { "content-range": "0-0/0" } });
 };
@@ -210,6 +218,7 @@ try {
     }
     results.push({ path, mode: "partner-photo", status });
   }
+  await render("/listings/openwebninja-111261092", 404, "home-incomplete");
   await render(native, 404);
   await render("/listings/openwebninja-999999999", 404);
   await render("/listings/not-a-real-listing-id", 404, "malformed");

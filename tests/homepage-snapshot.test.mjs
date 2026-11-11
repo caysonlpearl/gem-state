@@ -281,13 +281,49 @@ test("public snapshot cards never retain raw payloads, private account data or d
 test("regional category previews keep nearby-state matches while the main homepage stays Idaho-focused", () => {
   const now = Date.now();
   const saved = snapshot(now, []);
-  saved.sections.pets = {updatedAt:now, cards:[
-    card("idaho-cat", {categorySlug:"pets", pet:{subcategory:"cats"}}),
-    card("nearby-rabbit", {categorySlug:"pets", state:"MT", pet:{subcategory:"other-pets"}}),
-  ]};
+  saved.sections.pets = {
+    updatedAt: now,
+    cards: [
+      card("idaho-cat", { categorySlug: "pets", pet: { subcategory: "cats" } }),
+      card("nearby-rabbit", {
+        categorySlug: "pets",
+        state: "MT",
+        pet: { subcategory: "other-pets" },
+      }),
+    ],
+  };
   const main = homepagePayload(saved, now).home;
   const category = homepagePayload(saved, now, true).home;
-  assert.deepEqual(main.recent.map(c => c.id), ["idaho-cat"]);
+  assert.deepEqual(
+    main.recent.map((c) => c.id),
+    ["idaho-cat"],
+  );
   assert.equal(category.recent.length, 2);
-  assert.ok(category.recent.some(c => c.id === "nearby-rabbit"));
+  assert.ok(category.recent.some((c) => c.id === "nearby-rabbit"));
+});
+
+test("a homes-source outage cannot restore previews from a snapshot before the completeness gate", async () => {
+  const now = Date.now();
+  const previous = snapshot(now - 1000);
+  previous.layoutVersion = HOME_CACHE_LAYOUT_VERSION - 1;
+  previous.sections.homes = { updatedAt: now - 1000, cards: [card("preview-only-home")] };
+  const sources = Object.fromEntries(
+    HOME_SOURCE_KEYS.map((key) => [key, async () => ({ cards: [] })]),
+  );
+  sources.homes = async () => {
+    throw new Error("timeout");
+  };
+  const next = await buildHomepageSnapshot(previous, {
+    sources,
+    now,
+    removed: async () => new Set(),
+  });
+  assert.equal(next.sections.homes, undefined);
+  previous.layoutVersion = HOME_CACHE_LAYOUT_VERSION;
+  const current = await buildHomepageSnapshot(previous, {
+    sources,
+    now,
+    removed: async () => new Set(),
+  });
+  assert.equal(current.sections.homes.cards[0].id, "preview-only-home");
 });

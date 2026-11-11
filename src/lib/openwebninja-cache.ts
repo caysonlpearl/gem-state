@@ -1,5 +1,5 @@
 import type { OpenWebNinjaHome } from "./openwebninja-contract.ts";
-import { canonicalHomeCity } from "./openwebninja-contract.ts";
+import { canonicalHomeCity, dedupeImageUrls } from "./openwebninja-contract.ts";
 
 export type SavedHomeSearch = {
   cache_key: string;
@@ -36,4 +36,23 @@ export function homesFromSavedSearches(rows: SavedHomeSearch[], now = Date.now()
     }
   }
   return [...homes.values()];
+}
+
+/** A preview is not a publishable home. Count unique photos, not resized
+ * variants, and require a description plus meaningful property specifications. */
+export function hasCompleteHomeDetails(value: unknown): boolean {
+  if (!value || typeof value !== "object") return false;
+  const detail = value as Record<string, unknown>;
+  const images = Array.isArray(detail.images)
+    ? detail.images.filter((image): image is string => typeof image === "string")
+    : [];
+  const facts = [detail.bedrooms, detail.bathrooms, detail.squareFeet, detail.yearBuilt].filter(
+    (fact) => typeof fact === "number" && fact > 0,
+  );
+  return (
+    dedupeImageUrls(images).length >= 2 &&
+    typeof detail.description === "string" &&
+    detail.description.trim().length > 0 &&
+    facts.length >= 2
+  );
 }

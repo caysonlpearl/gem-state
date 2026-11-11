@@ -47,11 +47,8 @@ const sources: Sources = {
     };
   },
   async homes() {
-    const { openWebNinjaCard } = await import("./openwebninja-listings.server");
-    const rows = await cachedRows("openwebninja_cache", '%"kind":"area-search"%');
-    return {
-      cards: rows.flatMap((row: any) => (row.payload?.homes ?? []).map(openWebNinjaCard)),
-    };
+    const { openWebNinjaCards } = await import("./openwebninja-listings.server");
+    return { cards: await openWebNinjaCards({ category: "other-real-estate", state: "ID" }) };
   },
   async jobs() {
     const { adzunaCard } = await import("./adzuna-listings.server");
@@ -130,7 +127,12 @@ export async function buildHomepageSnapshot(
       section = { updatedAt: now, cards, total: value.total, categoryCounts: value.categoryCounts };
     } else {
       const saved = previous?.sections[key];
-      if (saved && now - saved.updatedAt <= HOME_MAX_STALE_MS) section = saved;
+      if (
+        saved &&
+        now - saved.updatedAt <= HOME_MAX_STALE_MS &&
+        (key !== "homes" || previous?.layoutVersion === HOME_CACHE_LAYOUT_VERSION)
+      )
+        section = saved;
       const message = result.reason instanceof Error ? result.reason.message : "";
       const reason = /subrequests|request limit/i.test(message)
         ? "request_limit"

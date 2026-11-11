@@ -2,7 +2,11 @@ import { createClient } from "@supabase/supabase-js";
 import { withCatalogReadDeadline } from "./catalog-read-deadline";
 import { shortCache, PUBLIC_PAGE_CACHE_MS } from "./short-cache.server";
 import { serverEnv } from "./runtime-env.server";
-import { homesFromSavedSearches, type SavedHomeSearch } from "./openwebninja-cache";
+import {
+  hasCompleteHomeDetails,
+  homesFromSavedSearches,
+  type SavedHomeSearch,
+} from "./openwebninja-cache";
 import {
   normalizeOpenWebNinjaProperty,
   normalizeOpenWebNinjaResult,
@@ -169,6 +173,35 @@ export async function cachedHomes(propertyId?: string): Promise<OpenWebNinjaHome
   return homesFromSavedSearches(rows);
 }
 
+/** Cache-only eligibility shared by browse, related results and sitemaps. */
+export async function completeHomeDetailIds(): Promise<Set<string>> {
+  const db = cacheDb();
+  if (!db) return new Set();
+  return shortCache("openwebninja-complete-detail-ids", PUBLIC_PAGE_CACHE_MS, async () => {
+    const { data, error } = await withCatalogReadDeadline(
+      db
+        .from("openwebninja_cache")
+        .select(
+          "cache_key,images:payload->images,description:payload->description,bedrooms:payload->bedrooms,bathrooms:payload->bathrooms,squareFeet:payload->squareFeet,yearBuilt:payload->yearBuilt",
+        )
+        .like("cache_key", '%"kind":"property"%')
+        .limit(5000),
+    );
+    if (error) throw new Error("Saved property details are temporarily unavailable.");
+    const ids = new Set<string>();
+    for (const row of data ?? []) {
+      if (!hasCompleteHomeDetails(row)) continue;
+      try {
+        const key = JSON.parse(row.cache_key);
+        if (key.kind === "property" && typeof key.id === "string") ids.add(key.id);
+      } catch {
+        /* Malformed cache keys cannot publish homes. */
+      }
+    }
+    return ids;
+  });
+}
+
 export type OpenWebNinjaSearchArea = {
   key: string;
   latitude: number;
@@ -252,15 +285,34 @@ export async function propertyDetails(
     if (error) throw new Error("Saved property details are temporarily unavailable.");
     const current = (rows ?? []).find((row: { cache_key: string }) => row.cache_key === key);
     const legacy = (rows ?? []).find((row: { cache_key: string }) => row.cache_key !== key);
-    const saved = current?.payload ?? legacy?.payload;
+    const saved = [
+      current?.payload,
+      legacy?.payload,
+      ...(rows ?? []).map((row) => row.payload),
+    ].find(hasCompleteHomeDetails);
     if (saved) return { ok: true, value: saved as OpenWebNinjaPropertyExtra };
   }
   // Visitors never spend calls: details come from the scheduled homes job.
   if (options?.cacheOnly) return { ok: false, status: "limited" };
-  return cachedCall(key, `property-details?${params.toString()}`, normalizeOpenWebNinjaProperty, {
-    ttlMs: DETAIL_TTL_MS,
-    provider: options?.provider,
-  });
+  const result = await cachedCall(
+    key,
+    `property-details?${params.toString()}`,
+    (payload) => {
+      const value = normalizeOpenWebNinjaProperty(payload);
+      if (!hasCompleteHomeDetails(value)) throw new Error("Incomplete property response");
+      return value;
+    },
+    {
+      ttlMs: DETAIL_TTL_MS,
+      forceRefresh: true,
+      provider: options?.provider,
+    },
+  );
+  // Failed refreshes may retain an old partial payload. It is still not a
+  // completed detail fetch, and must not advance the importer's success count.
+  if (result.ok && !hasCompleteHomeDetails(result.value))
+    return { ok: false, status: "unavailable" };
+  return result;
 }
 
 export async function cachedHome(id: string) {
