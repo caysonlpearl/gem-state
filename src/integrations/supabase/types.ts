@@ -1477,6 +1477,9 @@ export type Database = {
           buyer_id: string
           closed_at: string | null
           created_at: string
+          dealer_context_title: string | null
+          dealer_id: string | null
+          dealer_inventory_record_id: string | null
           id: string
           last_message_at: string
           listing_id: string | null
@@ -1486,6 +1489,9 @@ export type Database = {
           buyer_id: string
           closed_at?: string | null
           created_at?: string
+          dealer_context_title?: string | null
+          dealer_id?: string | null
+          dealer_inventory_record_id?: string | null
           id?: string
           last_message_at?: string
           listing_id?: string | null
@@ -1495,12 +1501,29 @@ export type Database = {
           buyer_id?: string
           closed_at?: string | null
           created_at?: string
+          dealer_context_title?: string | null
+          dealer_id?: string | null
+          dealer_inventory_record_id?: string | null
           id?: string
           last_message_at?: string
           listing_id?: string | null
           seller_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "conversations_dealer_id_fkey"
+            columns: ["dealer_id"]
+            isOneToOne: false
+            referencedRelation: "dealer_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversations_dealer_inventory_record_id_fkey"
+            columns: ["dealer_inventory_record_id"]
+            isOneToOne: false
+            referencedRelation: "dealer_inventory_records"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "conversations_listing_id_fkey"
             columns: ["listing_id"]
@@ -1567,6 +1590,147 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      dealer_feed_publications: {
+        Row: {
+          address_line1: string | null
+          authorization_reference: string
+          authorized_at: string
+          authorized_by: string
+          city: string
+          dealer_id: string | null
+          display_name: string
+          enabled: boolean
+          inbox_enabled: boolean
+          phone: string | null
+          postal_code: string | null
+          revoked_at: string | null
+          slug: string
+          source_id: string
+          state: string
+          website: string
+        }
+        Insert: {
+          address_line1?: string | null
+          authorization_reference: string
+          authorized_at?: string
+          authorized_by: string
+          city: string
+          dealer_id?: string | null
+          display_name: string
+          enabled?: boolean
+          inbox_enabled?: boolean
+          phone?: string | null
+          postal_code?: string | null
+          revoked_at?: string | null
+          slug: string
+          source_id: string
+          state: string
+          website: string
+        }
+        Update: {
+          address_line1?: string | null
+          authorization_reference?: string
+          authorized_at?: string
+          authorized_by?: string
+          city?: string
+          dealer_id?: string | null
+          display_name?: string
+          enabled?: boolean
+          inbox_enabled?: boolean
+          phone?: string | null
+          postal_code?: string | null
+          revoked_at?: string | null
+          slug?: string
+          source_id?: string
+          state?: string
+          website?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dealer_feed_publications_dealer_id_fkey"
+            columns: ["dealer_id"]
+            isOneToOne: false
+            referencedRelation: "dealer_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dealer_feed_publications_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: true
+            referencedRelation: "dealer_inventory_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dealer_inquiries: {
+        Row: {
+          abuse_key: string
+          attribution: Json
+          created_at: string
+          dealership_name: string
+          email: string
+          fingerprint: string
+          id: string
+          inventory_count: string
+          name: string
+          notes: string
+          notification_attempts: number
+          notification_next_at: string
+          notification_sent_at: string | null
+          notification_status: string
+          notification_token: string | null
+          phone: string
+          provider: string
+          request_key: string
+          status: string
+          website: string
+        }
+        Insert: {
+          abuse_key: string
+          attribution?: Json
+          created_at?: string
+          dealership_name: string
+          email: string
+          fingerprint: string
+          id?: string
+          inventory_count?: string
+          name: string
+          notes?: string
+          notification_attempts?: number
+          notification_next_at?: string
+          notification_sent_at?: string | null
+          notification_status?: string
+          notification_token?: string | null
+          phone?: string
+          provider?: string
+          request_key: string
+          status?: string
+          website: string
+        }
+        Update: {
+          abuse_key?: string
+          attribution?: Json
+          created_at?: string
+          dealership_name?: string
+          email?: string
+          fingerprint?: string
+          id?: string
+          inventory_count?: string
+          name?: string
+          notes?: string
+          notification_attempts?: number
+          notification_next_at?: string
+          notification_sent_at?: string | null
+          notification_status?: string
+          notification_token?: string | null
+          phone?: string
+          provider?: string
+          request_key?: string
+          status?: string
+          website?: string
+        }
+        Relationships: []
       }
       dealer_inventory_listing_links: {
         Row: {
@@ -1807,6 +1971,8 @@ export type Database = {
           schedule: string | null
           source_type: string
           status: string
+          sync_lease_token: string | null
+          sync_lease_until: string | null
           updated_at: string
         }
         Insert: {
@@ -1827,6 +1993,8 @@ export type Database = {
           schedule?: string | null
           source_type?: string
           status?: string
+          sync_lease_token?: string | null
+          sync_lease_until?: string | null
           updated_at?: string
         }
         Update: {
@@ -1847,6 +2015,8 @@ export type Database = {
           schedule?: string | null
           source_type?: string
           status?: string
+          sync_lease_token?: string | null
+          sync_lease_until?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -1979,10 +2149,12 @@ export type Database = {
           owner_user_id: string
           phone: string | null
           postal_code: string | null
+          price_insights_enabled: boolean
           slug: string
           state: string | null
           status: string
           updated_at: string
+          valuation_dealer_type: string | null
           website: string | null
         }
         Insert: {
@@ -2001,10 +2173,12 @@ export type Database = {
           owner_user_id: string
           phone?: string | null
           postal_code?: string | null
+          price_insights_enabled?: boolean
           slug: string
           state?: string | null
           status?: string
           updated_at?: string
+          valuation_dealer_type?: string | null
           website?: string | null
         }
         Update: {
@@ -2023,10 +2197,12 @@ export type Database = {
           owner_user_id?: string
           phone?: string | null
           postal_code?: string | null
+          price_insights_enabled?: boolean
           slug?: string
           state?: string | null
           status?: string
           updated_at?: string
+          valuation_dealer_type?: string | null
           website?: string | null
         }
         Relationships: []
@@ -4227,6 +4403,218 @@ export type Database = {
           resolved_at?: string | null
           resolved_by?: string | null
           status?: string
+        }
+        Relationships: []
+      }
+      photo_migration_items: {
+        Row: {
+          attempts: number
+          confirmed_download_bytes: number
+          entries: Json
+          last_failure: string | null
+          lease_source_reserved: boolean
+          lease_token: string | null
+          lease_until: string | null
+          ordinal: number
+          preview_reservations: number
+          run_id: string
+          source_bytes: number
+          status: string
+        }
+        Insert: {
+          attempts?: number
+          confirmed_download_bytes?: number
+          entries: Json
+          last_failure?: string | null
+          lease_source_reserved?: boolean
+          lease_token?: string | null
+          lease_until?: string | null
+          ordinal: number
+          preview_reservations?: number
+          run_id: string
+          source_bytes: number
+          status?: string
+        }
+        Update: {
+          attempts?: number
+          confirmed_download_bytes?: number
+          entries?: Json
+          last_failure?: string | null
+          lease_source_reserved?: boolean
+          lease_token?: string | null
+          lease_until?: string | null
+          ordinal?: number
+          preview_reservations?: number
+          run_id?: string
+          source_bytes?: number
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "photo_migration_items_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "photo_migration_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      photo_migration_runs: {
+        Row: {
+          captured_at: string
+          completed_groups: number
+          confirmed_download_bytes: number
+          created_at: string
+          created_by: string
+          failed_groups: number
+          id: string
+          inventory_sha256: string
+          last_failure: string | null
+          project_ref: string
+          running_groups: number
+          source_bytes_reserved: number
+          total_groups: number
+          total_source_bytes: number
+        }
+        Insert: {
+          captured_at: string
+          completed_groups?: number
+          confirmed_download_bytes?: number
+          created_at?: string
+          created_by: string
+          failed_groups?: number
+          id: string
+          inventory_sha256: string
+          last_failure?: string | null
+          project_ref: string
+          running_groups?: number
+          source_bytes_reserved?: number
+          total_groups: number
+          total_source_bytes: number
+        }
+        Update: {
+          captured_at?: string
+          completed_groups?: number
+          confirmed_download_bytes?: number
+          created_at?: string
+          created_by?: string
+          failed_groups?: number
+          id?: string
+          inventory_sha256?: string
+          last_failure?: string | null
+          project_ref?: string
+          running_groups?: number
+          source_bytes_reserved?: number
+          total_groups?: number
+          total_source_bytes?: number
+        }
+        Relationships: []
+      }
+      photo_object_receipts: {
+        Row: {
+          bucket: string
+          byte_size: number
+          content_type: string
+          path: string
+          r2_key: string
+          sha256: string
+          source_etag: string | null
+          source_updated_at: string | null
+          thumbnail_bytes: number | null
+          thumbnail_content_type: string | null
+          thumbnail_key: string | null
+          thumbnail_sha256: string | null
+          verified_at: string
+        }
+        Insert: {
+          bucket: string
+          byte_size: number
+          content_type: string
+          path: string
+          r2_key: string
+          sha256: string
+          source_etag?: string | null
+          source_updated_at?: string | null
+          thumbnail_bytes?: number | null
+          thumbnail_content_type?: string | null
+          thumbnail_key?: string | null
+          thumbnail_sha256?: string | null
+          verified_at?: string
+        }
+        Update: {
+          bucket?: string
+          byte_size?: number
+          content_type?: string
+          path?: string
+          r2_key?: string
+          sha256?: string
+          source_etag?: string | null
+          source_updated_at?: string | null
+          thumbnail_bytes?: number | null
+          thumbnail_content_type?: string | null
+          thumbnail_key?: string | null
+          thumbnail_sha256?: string | null
+          verified_at?: string
+        }
+        Relationships: []
+      }
+      photo_storage_reservations: {
+        Row: {
+          byte_size: number
+          created_at: string
+          id: string
+          user_id: string | null
+        }
+        Insert: {
+          byte_size: number
+          created_at?: string
+          id: string
+          user_id?: string | null
+        }
+        Update: {
+          byte_size?: number
+          created_at?: string
+          id?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      photo_upload_tickets: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          mode: string
+          path: string
+          payload: Json
+          user_id: string
+          verification_attempts: number
+          verification_lease_until: string | null
+          verified_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string
+          id: string
+          mode: string
+          path: string
+          payload: Json
+          user_id: string
+          verification_attempts?: number
+          verification_lease_until?: string | null
+          verified_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          mode?: string
+          path?: string
+          payload?: Json
+          user_id?: string
+          verification_attempts?: number
+          verification_lease_until?: string | null
+          verified_at?: string | null
         }
         Relationships: []
       }
@@ -6601,6 +6989,69 @@ export type Database = {
         }
         Relationships: []
       }
+      vehicle_price_insight_cache: {
+        Row: {
+          cache_key: string
+          expires_at: string
+          locked_until: string
+          payload: Json | null
+          updated_at: string
+        }
+        Insert: {
+          cache_key: string
+          expires_at?: string
+          locked_until?: string
+          payload?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          cache_key?: string
+          expires_at?: string
+          locked_until?: string
+          payload?: Json | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      vehicle_valuation_provider_state: {
+        Row: {
+          blocked_until: string
+          provider: string
+          reason: string
+        }
+        Insert: {
+          blocked_until: string
+          provider: string
+          reason: string
+        }
+        Update: {
+          blocked_until?: string
+          provider?: string
+          reason?: string
+        }
+        Relationships: []
+      }
+      vehicle_valuation_requests: {
+        Row: {
+          cache_key: string
+          created_at: string
+          id: number
+          provider: string
+        }
+        Insert: {
+          cache_key: string
+          created_at?: string
+          id?: never
+          provider: string
+        }
+        Update: {
+          cache_key?: string
+          created_at?: string
+          id?: never
+          provider?: string
+        }
+        Relationships: []
+      }
       verified_sales: {
         Row: {
           confirmed_by: string
@@ -7145,7 +7596,30 @@ export type Database = {
         Args: { _listing_id: string; _pet?: Json }
         Returns: undefined
       }
+      accept_dealer_inquiry: {
+        Args: {
+          _abuse_key: string
+          _fingerprint: string
+          _key: string
+          _payload: Json
+        }
+        Returns: Json
+      }
       accept_shopper_quote: { Args: { _quote_id: string }; Returns: string }
+      acknowledge_photo_migration_prepared_source: {
+        Args: {
+          _actor: string
+          _bytes: number
+          _digest: string
+          _expires: string
+          _lease: string
+          _max_bytes: number
+          _max_groups: number
+          _ordinal: number
+          _run: string
+        }
+        Returns: undefined
+      }
       admin_add_product_image: {
         Args: {
           _alt?: string
@@ -7384,6 +7858,10 @@ export type Database = {
         Args: { _offer_id: string }
         Returns: string
       }
+      begin_private_photo_upload: {
+        Args: { _ticket: Json }
+        Returns: undefined
+      }
       begin_sourcing_balance_checkout: {
         Args: { _buyer_id: string; _order_id: string }
         Returns: Json
@@ -7419,6 +7897,41 @@ export type Database = {
           error: true
         } & "the function public.catalog_is_featured with parameter or with a single unnamed json/jsonb parameter, but no matches were found in the schema cache"
       }
+      claim_dealer_inquiry_notifications: {
+        Args: { _id?: string }
+        Returns: {
+          abuse_key: string
+          attribution: Json
+          created_at: string
+          dealership_name: string
+          email: string
+          fingerprint: string
+          id: string
+          inventory_count: string
+          name: string
+          notes: string
+          notification_attempts: number
+          notification_next_at: string
+          notification_sent_at: string | null
+          notification_status: string
+          notification_token: string | null
+          phone: string
+          provider: string
+          request_key: string
+          status: string
+          website: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "dealer_inquiries"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      claim_dealer_inventory_source: {
+        Args: { _last_success_at: string; _source_id: string }
+        Returns: string
+      }
       claim_sourcing_tip_payment: {
         Args: {
           _amount_cents: number
@@ -7429,8 +7942,18 @@ export type Database = {
         }
         Returns: boolean
       }
+      claim_vehicle_price_insight: { Args: { _key: string }; Returns: boolean }
       complete_captured_stripe_offer: {
         Args: { _amount_total: number; _charge: string; _offer_id: string }
+        Returns: string
+      }
+      complete_dealer_onboarding: {
+        Args: {
+          _actor: string
+          _owner: string
+          _profile: Json
+          _source?: string
+        }
         Returns: string
       }
       complete_exact_ask_order: {
@@ -7639,6 +8162,10 @@ export type Database = {
         }
         Returns: string
       }
+      dealer_onboarding_owner: {
+        Args: { _actor: string; _email: string }
+        Returns: string
+      }
       delete_seller_review: { Args: { _seller_id: string }; Returns: undefined }
       dispatch_review_email_worker: { Args: never; Returns: undefined }
       editorial_performance: { Args: { _days?: number }; Returns: Json }
@@ -7676,6 +8203,16 @@ export type Database = {
       }
       fail_listing_offer_checkout: {
         Args: { _attempt: string; _offer_id: string }
+        Returns: undefined
+      }
+      fail_photo_migration_item: {
+        Args: {
+          _actor: string
+          _lease: string
+          _ordinal: number
+          _reason: string
+          _run: string
+        }
         Returns: undefined
       }
       finalize_dispute_stripe_refund: {
@@ -7742,6 +8279,16 @@ export type Database = {
           _payment_intent: string
           _payment_status: string
           _tax_cents: number
+        }
+        Returns: undefined
+      }
+      finish_photo_migration_item: {
+        Args: {
+          _actor: string
+          _downloaded: number
+          _lease: string
+          _ordinal: number
+          _run: string
         }
         Returns: undefined
       }
@@ -7832,6 +8379,23 @@ export type Database = {
         Args: { _actor: string; _item: string }
         Returns: undefined
       }
+      lease_photo_migration_item: {
+        Args: {
+          _actor: string
+          _digest: string
+          _expires: string
+          _lease: string
+          _max_bytes: number
+          _max_groups: number
+          _retry?: boolean
+          _run: string
+        }
+        Returns: Json
+      }
+      lease_private_photo_upload: {
+        Args: { _id: string; _user: string }
+        Returns: Json
+      }
       make_listing_offer: {
         Args: { _amount_cents: number; _ask_id: string }
         Returns: string
@@ -7846,6 +8410,7 @@ export type Database = {
       }
       mark_notifications_read: { Args: { _ids?: string[] }; Returns: number }
       member_performance: { Args: { _user_id: string }; Returns: Json }
+      my_dealer_inventory: { Args: never; Returns: Json }
       notify_member: {
         Args: {
           _body: string
@@ -7863,6 +8428,7 @@ export type Database = {
       order_evidence_file: { Args: { _evidence_id: string }; Returns: string }
       order_funding_committed: { Args: { _order_id: string }; Returns: boolean }
       order_payment_captured: { Args: { _order_id: string }; Returns: boolean }
+      photo_source_cleanup_targets: { Args: { _targets: Json }; Returns: Json }
       pilot_feature_enabled: { Args: { _feature: string }; Returns: boolean }
       place_ask: {
         Args: {
@@ -7903,6 +8469,17 @@ export type Database = {
         }
         Returns: string
       }
+      prepare_photo_migration: {
+        Args: {
+          _actor: string
+          _captured: string
+          _digest: string
+          _groups: Json
+          _id: string
+          _project: string
+        }
+        Returns: string
+      }
       prepare_seller_claim: {
         Args: { _claimant: string; _hash: string }
         Returns: Json
@@ -7920,6 +8497,10 @@ export type Database = {
       prepare_stripe_listing_offer: {
         Args: { _amount_cents: number; _ask_id: string }
         Returns: string
+      }
+      private_photo_exists: {
+        Args: { _bucket: string; _path: string }
+        Returns: boolean
       }
       public_shopper_profile: { Args: { _slug: string }; Returns: Json }
       quotes_for_my_requests: {
@@ -7940,6 +8521,14 @@ export type Database = {
           shopper_comp_cents: number
           status: Database["public"]["Enums"]["shopper_quote_status"]
         }[]
+      }
+      read_published_dealer_inventory: {
+        Args: {
+          _dealer_slug?: string
+          _full_photos?: boolean
+          _record_id?: string
+        }
+        Returns: Json
       }
       reconcile_dealer_inventory_records: {
         Args: { _records: Json; _run_id: string; _source_id: string }
@@ -7967,6 +8556,7 @@ export type Database = {
         Args: { _listing_id: string; _visitor_hash: string }
         Returns: number
       }
+      record_private_photo: { Args: { _receipt: Json }; Returns: undefined }
       record_provider_shipment: {
         Args: {
           _carrier: string
@@ -8043,6 +8633,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      release_dealer_inventory_source: {
+        Args: { _lease_token: string; _source_id: string }
+        Returns: undefined
+      }
       release_expired_reservations: { Args: never; Returns: number }
       release_sourcing_checkout_order: {
         Args: { _note?: string; _order_id: string }
@@ -8082,6 +8676,10 @@ export type Database = {
       }
       request_exact_ask: { Args: { _ask_id: string }; Returns: string }
       request_sourcing_ask: { Args: { _ask_id: string }; Returns: string }
+      require_photo_migration_admin: {
+        Args: { _actor: string }
+        Returns: undefined
+      }
       reservation_window: { Args: never; Returns: string }
       reserve_adzuna_search: { Args: { p_query_key: string }; Returns: Json }
       reserve_authorized_offer_for_capture: {
@@ -8121,6 +8719,34 @@ export type Database = {
         Args: { p_cache_key: string; p_provider: string }
         Returns: Json
       }
+      reserve_photo_migration_download: {
+        Args: {
+          _actor: string
+          _bytes: number
+          _digest: string
+          _expires: string
+          _lease: string
+          _max_bytes: number
+          _ordinal: number
+          _run: string
+        }
+        Returns: undefined
+      }
+      reserve_photo_migration_preview: {
+        Args: {
+          _actor: string
+          _digest: string
+          _expires: string
+          _max_bytes: number
+          _max_groups: number
+          _run: string
+        }
+        Returns: Json
+      }
+      reserve_private_photo_bytes: {
+        Args: { _actor?: string; _bytes: number; _id: string }
+        Returns: undefined
+      }
       reserve_rescuegroups_call: {
         Args: { p_cache_key: string; p_daily_limit?: number }
         Returns: Json
@@ -8152,6 +8778,15 @@ export type Database = {
           _variant_id: string
         }
         Returns: string
+      }
+      reserve_vehicle_valuation_call: {
+        Args: {
+          _key: string
+          _lifetime_limit: number
+          _monthly_limit: number
+          _provider: string
+        }
+        Returns: Json
       }
       respond_to_listing_offer: {
         Args: { _action: string; _counter_cents?: number; _offer_id: string }
@@ -8373,6 +9008,10 @@ export type Database = {
       }
       start_conversation: {
         Args: { _body: string; _listing_id: string }
+        Returns: string
+      }
+      start_dealer_conversation: {
+        Args: { _body: string; _dealer_id: string; _record_id: string }
         Returns: string
       }
       start_sourcing_purchase: {
