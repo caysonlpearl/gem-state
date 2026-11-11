@@ -294,7 +294,7 @@ export async function propertyDetails(
   }
   // Visitors never spend calls: details come from the scheduled homes job.
   if (options?.cacheOnly) return { ok: false, status: "limited" };
-  return cachedCall(
+  const result = await cachedCall(
     key,
     `property-details?${params.toString()}`,
     (payload) => {
@@ -308,6 +308,11 @@ export async function propertyDetails(
       provider: options?.provider,
     },
   );
+  // Failed refreshes may retain an old partial payload. It is still not a
+  // completed detail fetch, and must not advance the importer's success count.
+  if (result.ok && !hasCompleteHomeDetails(result.value))
+    return { ok: false, status: "unavailable" };
+  return result;
 }
 
 export async function cachedHome(id: string) {

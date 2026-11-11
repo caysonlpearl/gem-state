@@ -135,3 +135,25 @@ test("direct home links reject previews; complete homes keep photos, description
   assert.equal(listing.home.yearBuilt, 2001);
   assert.equal(providerCalls, 0);
 });
+
+test("a failed refresh retaining a partial cache cannot count as complete import success", async () => {
+  const partial = { ...full, description: null };
+  const db = createClient("https://fixture.invalid", "fixture-key", {
+    auth: { persistSession: false },
+    global: {
+      fetch: async () =>
+        Response.json([{ cache_key: '{"v":3,"kind":"property","id":"1"}', payload: partial }]),
+    },
+  });
+  const read = compileFunction("../src/lib/openwebninja.server.ts", "propertyDetails", {
+    cacheDb: () => db,
+    withCatalogReadDeadline,
+    hasCompleteHomeDetails,
+    URLSearchParams,
+    propertyKey: (id) => JSON.stringify({ v: 3, kind: "property", id }),
+    DETAIL_TTL_MS: 365 * 86400000,
+    cachedCall: async () => ({ ok: true, value: partial }),
+  });
+  assert.equal((await read("1", null, { provider: "realestate" })).ok, false);
+  assert.equal((await read("1", null, { cacheOnly: true })).ok, false);
+});
