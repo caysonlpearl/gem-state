@@ -61,6 +61,7 @@ const configs = [
 
 test("private vehicle insights are standard; missing mileage, ended, demo, branded-title and nonvehicle listings never spend quota", () => {
   assert.equal(valuationInput(listing).sellerType, "private");
+  assert.equal(valuationInput({ ...listing, condition: "new_with_tags" }).condition, "new");
   assert.equal(valuationInput({ ...listing, dealer: { slug: "example" } }).sellerType, "dealer");
   for (const patch of [
     { vehicle: { ...listing.vehicle, mileage: null } },

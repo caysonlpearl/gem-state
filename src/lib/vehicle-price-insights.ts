@@ -116,7 +116,7 @@ export function valuationInput(listing: {
         ? listing.postalCode.slice(0, 5)
         : null,
     vin: v.vin && /^[A-HJ-NPR-Z0-9]{17}$/i.test(v.vin) ? v.vin.toUpperCase() : null,
-    condition: /^new$/i.test(listing.condition) ? "new" : "used",
+    condition: /^new(?:[_\s-]|$)/i.test(listing.condition) ? "new" : "used",
     certified: listing.externalVehicle?.certified === true,
     sellerType: dealer ? "dealer" : "private",
     dealerType: null,

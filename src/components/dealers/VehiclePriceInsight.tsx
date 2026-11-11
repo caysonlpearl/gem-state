@@ -39,7 +39,7 @@ export function VehiclePriceInsightCard({ insight }: { insight: Insight }) {
           {new Date(insight.updatedAt).toLocaleDateString("en-US", {
             month: "short",
             day: "numeric",
-            timeZone: "UTC",
+            timeZone: "America/Boise",
           })}
           .{" "}
           {insight.dataThrough ? (
@@ -49,7 +49,7 @@ export function VehiclePriceInsightCard({ insight }: { insight: Insight }) {
                 month: "short",
                 day: "numeric",
                 year: "numeric",
-                timeZone: "UTC",
+                timeZone: "America/Boise",
               })}
               .{" "}
             </>
