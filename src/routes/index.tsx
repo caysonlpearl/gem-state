@@ -1,6 +1,7 @@
 import { gunsComProfile } from "@/config/retailers";
 import { selectDiscoveryCards } from "@/lib/discovery-ranking";
 import { listingCardImageUrl } from "@/lib/listing-card-image";
+import { suggestLocations } from "@/lib/location-suggest";
 import { afterLeadPaint } from "@/lib/lead-paint-ready";
 import { allocateHomepageRows } from "@/lib/homepage-initial-payload";
 import { requestHomepageLocation } from "@/lib/homepage-geolocation";
@@ -538,7 +539,7 @@ function Home() {
               shortPlaceholder="City or ZIP"
               label="City or ZIP code"
               editable
-              options={marketplaceCities.map((option) => ({ value: option, label: option }))}
+              options={suggestLocations(location)}
             />
             <button
               type="submit"

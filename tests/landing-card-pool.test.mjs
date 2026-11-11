@@ -1,3 +1,4 @@
+import { varietyOfPets } from "../src/lib/pet-showcase.ts";
 import { mixPetSpecies } from "../src/lib/pet-mix.ts";
 import { selectDiscoveryCards } from "../src/lib/discovery-ranking.ts";
 import test from "node:test";
@@ -46,11 +47,13 @@ test("every landing page awaits its shared saved pool; results never add a landi
   }
   visit(ast);
   const context = vm.createContext({
+    varietyOfPets,
     mixPetSpecies,
     isMotorsCategory: (category) => ["cars-trucks", "motorcycles"].includes(category),
     classifiedQuery: (input) => ({ queryKey: ["browse"], input }),
     latestListingsInput: (input) => input,
     landingHomeQuery: { queryKey: ["classifieds-landing-cache"] },
+    petLandingQuery: { queryKey: ["pet-landing-inventory"] },
     isOutOfRangePage: () => false,
   });
 
@@ -101,7 +104,11 @@ test("every landing page awaits its shared saved pool; results never add a landi
     });
     await new Promise(setImmediate);
     assert.equal(ready, false, JSON.stringify(search));
-    assert.deepEqual(calls, ["browse", "classifieds-landing-cache"]);
+    assert.deepEqual(calls, [
+      "browse",
+      "classifieds-landing-cache",
+      ...(search.category === "pets" ? ["pet-landing-inventory"] : []),
+    ]);
     release({ recent: [] });
     await pending;
     assert.equal(ready, true);
@@ -229,6 +236,7 @@ test("landing rows render real cards on the server without scroll observers or p
     card(`car-${index}`, { vehicle: { bodyStyle: "SUV", year: 2024 } }),
   );
   const context = vm.createContext({
+    varietyOfPets,
     mixPetSpecies,
     React,
     selectDiscoveryCards,
@@ -294,6 +302,7 @@ test("category lead previews can select older Idaho sellers beyond a refreshed f
     discoverySellerKey: "other",
   });
   const context = vm.createContext({
+    varietyOfPets,
     mixPetSpecies,
     React,
     URL,
@@ -345,6 +354,7 @@ test("new query cards take precedence over older copies in the saved discovery p
   });
   const stale = { ...current, title: "Old cached details" };
   const context = vm.createContext({
+    varietyOfPets,
     mixPetSpecies,
     React,
     URL,

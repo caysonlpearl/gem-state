@@ -210,6 +210,27 @@ export function rescueGroupsCard(pet: RescueGroupsPet): ClassifiedCard {
   } as ClassifiedCard;
 }
 
+/** Landing candidates use the same last-good cache as browse, not a dated
+ * homepage projection. One saved read; no provider calls or member writes. */
+export async function cachedRescueGroupsCards(): Promise<ClassifiedCard[]> {
+  const db = cacheDb();
+  if (!db) return [];
+  const { data, error } = await withCatalogReadDeadline(
+    db
+      .from("rescuegroups_cache")
+      .select("payload")
+      .like("cache_key", "rescuegroups:v1:%")
+      .gt("expires_at", new Date().toISOString())
+      .limit(50),
+  );
+  if (error) throw new Error("Saved pet listings could not be read.");
+  const pets = (data ?? []).flatMap((row) => {
+    const payload = row.payload as { pets?: RescueGroupsPet[] } | null;
+    return payload?.pets ?? [];
+  });
+  return [...new Map(pets.map((pet) => [pet.id, pet])).values()].map(rescueGroupsCard);
+}
+
 export async function rescueGroupsCards(
   data: ClassifiedBrowseInput,
   options?: { cacheOnly?: boolean },

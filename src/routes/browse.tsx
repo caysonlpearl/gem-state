@@ -1,5 +1,6 @@
 import { selectDiscoveryCards } from "@/lib/discovery-ranking";
 import { FirearmsConsentDialog } from "@/components/FirearmsConsentDialog";
+import { LocationOptions } from "@/components/classifieds/LocationOptions";
 import { homeRowFilters } from "@/lib/landing-home-filters";
 import {
   firearmShowcaseRows,
@@ -28,6 +29,7 @@ import {
 } from "@phosphor-icons/react";
 
 import { landingCards } from "@/lib/landing-card-pool";
+import { varietyOfPets } from "@/lib/pet-showcase";
 import type { ListingCardSummary } from "@/lib/listing-card-summary";
 import { servicesShowcaseRows } from "@/config/landing-service-rows";
 import { brand } from "@/config/brand";
@@ -87,6 +89,7 @@ import {
 import {
   browseClassifieds,
   getClassifiedsLandingHome,
+  getPetLandingInventory,
   type ClassifiedBrowseInput,
   type ClassifiedCard,
   type ClassifiedBrowseResult,
@@ -824,6 +827,12 @@ const landingHomeQuery = queryOptions({
   queryFn: () => getClassifiedsLandingHome().catch(() => null),
 });
 
+const petLandingQuery = queryOptions({
+  queryKey: ["pet-landing-inventory"],
+  staleTime: 60_000,
+  queryFn: () => getPetLandingInventory(),
+});
+
 function isLandingPage(search: Search) {
   if ((search.page ?? 1) !== 1) return false;
   if (search.allCategories) return true;
@@ -1359,6 +1368,9 @@ export const Route = createFileRoute("/browse")({
     const [result] = await Promise.all([
       context.queryClient.ensureQueryData(classifiedQuery(latestListingsInput(deps))),
       isLandingPage(deps) ? context.queryClient.ensureQueryData(landingHomeQuery) : undefined,
+      deps.category === "pets" && isLandingPage(deps)
+        ? context.queryClient.ensureQueryData(petLandingQuery)
+        : undefined,
     ]);
     if (isOutOfRangePage(deps.page ?? 1, result.total, result.pageSize)) throw notFound();
     return { total: result.total };
@@ -2311,23 +2323,7 @@ function Browse() {
         />
       )}
 
-      {pets && petLanding && (
-        <>
-          <LandingListingsShowcase
-            eyebrow="Bluebird Marketplace Pets"
-            title="Latest pet listings"
-            action="Browse all pets"
-            browseSearch={{ category: "pets", petMode: "results" }}
-            listings={result.listings}
-          />
-          <HomepageShowcaseRows
-            topListings={result.listings}
-            eyebrow="Bluebird Marketplace Pets"
-            rows={petShowcaseRows}
-            baseSearch={search}
-          />
-        </>
-      )}
+      {pets && petLanding && <PetLandingListings search={search} listings={result.listings} />}
 
       {firearms && <FirearmsConsentDialog />}
       {firearms && firearmLanding && (
@@ -3228,7 +3224,7 @@ function PetsLandingHero({
   return (
     <section
       aria-label="Bluebird Marketplace pets"
-      className="classifieds-hero-shell relative isolate flex flex-col justify-start overflow-hidden rounded-[32px] border border-brand-blue/20 bg-secondary px-4 py-5 shadow-xl sm:min-h-[430px] sm:justify-center sm:px-10 sm:py-12"
+      className="classifieds-hero-shell relative isolate flex flex-col justify-start overflow-hidden rounded-[32px] border border-brand-blue/20 bg-secondary px-4 py-5 shadow-xl sm:min-h-[430px] sm:justify-center sm:px-10 sm:pb-12 sm:pt-20"
     >
       <span
         className="classifieds-hero-orb classifieds-hero-orb--blue absolute -right-20 -top-24 h-72 w-72 rounded-full bg-brand-blue/12"
@@ -3242,6 +3238,9 @@ function PetsLandingHero({
         className="classifieds-hero-sheen pointer-events-none absolute inset-y-0 -left-1/3 z-0 w-1/3 skew-x-[-18deg] bg-white/20"
         aria-hidden="true"
       />
+      <div className="relative z-20 mb-4 flex justify-end sm:absolute sm:right-10 sm:top-6 sm:mb-0">
+        <SponsoredHeroBadge />
+      </div>
       <div className="relative z-10 mx-auto w-full max-w-[920px] text-center">
         <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">
           Bluebird Marketplace Pets
@@ -3697,6 +3696,34 @@ function varietyOfFirearms(listings: readonly ClassifiedCard[], count: number): 
   return varietyOf([...types, ...firearms.filter((card) => !types.includes(card))], count);
 }
 
+function PetLandingListings({ search, listings }: { search: Search; listings: ClassifiedCard[] }) {
+  const { data: inventory } = useSuspenseQuery(petLandingQuery);
+  const { data: saved } = useSuspenseQuery(landingHomeQuery);
+  const matching = landingCards(
+    [...(saved?.recent ?? []), ...listings, ...inventory],
+    inputFromSearch(search),
+  );
+  const latest = selectDiscoveryCards(varietyOfPets(matching, matching.length), 4);
+  return (
+    <>
+      <LandingListingsShowcase
+        eyebrow="Bluebird Marketplace Pets"
+        title="Latest pet listings"
+        action="Browse all pets"
+        browseSearch={{ ...search, petMode: "results", page: 1 }}
+        listings={latest}
+      />
+      <HomepageShowcaseRows
+        topListings={latest}
+        extraInventory={inventory}
+        eyebrow="Bluebird Marketplace Pets"
+        rows={petShowcaseRows}
+        baseSearch={search}
+      />
+    </>
+  );
+}
+
 function LandingListingsShowcase({
   eyebrow,
   title,
@@ -3710,7 +3737,7 @@ function LandingListingsShowcase({
   title: string;
   action: string;
   browseSearch: Search;
-  listings: ClassifiedBrowseResult["listings"];
+  listings: readonly ListingCardSummary[];
   compact?: boolean;
   mobileCarousel?: boolean;
 }) {
@@ -3799,13 +3826,15 @@ function HomepageShowcaseRows({
   jobSearch,
   baseSearch,
   topListings,
+  extraInventory,
 }: {
   eyebrow: string;
   rows: readonly HomepagePreviewRow[];
   jobSearch?: Search;
   baseSearch?: Search;
   /** The listings the "Latest" showcase above the rows already shows. */
-  topListings?: readonly ClassifiedCard[];
+  topListings?: readonly ListingCardSummary[];
+  extraInventory?: readonly ListingCardSummary[];
 }) {
   const querySearch = jobSearch ?? baseSearch;
   const { data: saved } = useSuspenseQuery(landingHomeQuery);
@@ -3814,6 +3843,7 @@ function HomepageShowcaseRows({
     ...(saved?.motors ?? []),
     ...(saved?.onlineMerchandise ?? []),
     ...(topListings ?? []),
+    ...(extraInventory ?? []),
   ];
   const sellerCounts = new Map<string, number>();
   const topCandidates = querySearch
@@ -3839,13 +3869,19 @@ function HomepageShowcaseRows({
     const matching = querySearch
       ? landingCards(pool, inputFromSearch(showcaseSearch(querySearch, row.href)))
       : [];
-    const fresh = selectDiscoveryCards(mixPetSpecies(matching), 5, sellerCounts, shownIds);
+    const select = querySearch?.category === "pets" ? varietyOfPets : varietyOf;
+    const fresh = selectDiscoveryCards(
+      select(matching, matching.length),
+      5,
+      sellerCounts,
+      shownIds,
+    );
     const picks =
       fresh.length >= 5
         ? fresh
         : [
             ...fresh,
-            ...varietyOf(
+            ...select(
               matching.filter((listing) => !fresh.some((pick) => pick.id === listing.id)),
               5 - fresh.length,
             ),
@@ -4010,10 +4046,12 @@ function HomesLandingHero({
                 type="search"
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
+                list="homes-hero-locations"
                 placeholder="City or ZIP code"
                 aria-label="County, city, neighborhood, or ZIP"
                 className="h-12 w-full min-w-0 flex-1 bg-transparent text-[16px] sm:text-[13px] outline-none placeholder:text-muted-foreground"
               />
+              <LocationOptions id="homes-hero-locations" query={draft} />
             </label>
             <button
               type="submit"
@@ -4924,11 +4962,7 @@ function JobsLandingHero({
                       autoComplete="address-level2"
                       className="h-12 w-full rounded-xl border border-input bg-card pl-9 pr-3 text-[12px] text-foreground outline-none placeholder:text-muted-foreground focus:border-primary"
                     />
-                    <datalist id="jobs-hero-locations">
-                      {marketplaceCities.map((city) => (
-                        <option key={city} value={city} />
-                      ))}
-                    </datalist>
+                    <LocationOptions id="jobs-hero-locations" query={location} />
                   </label>
                   <JobSelect
                     label="Category"
@@ -6472,6 +6506,7 @@ function VehicleResultsPage({
                   setMapPoint(undefined);
                 }}
                 placeholder="Boise or 83702"
+                list="vehicle-location-options"
               />
               <button
                 type="button"
@@ -6681,12 +6716,14 @@ function VehicleTextField({
   onChange,
   placeholder,
   numeric = false,
+  list,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
   numeric?: boolean;
+  list?: string;
 }) {
   return (
     <label className="block min-w-0">
@@ -6698,7 +6735,9 @@ function VehicleTextField({
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         className="filter-input w-full"
+        list={list}
       />
+      {list ? <LocationOptions id={list} query={value} /> : null}
     </label>
   );
 }
@@ -7476,11 +7515,7 @@ function InlineLocationFilter({
         className="filter-input w-full"
         list="bluebird-city-options"
       />
-      <datalist id="bluebird-city-options">
-        {marketplaceCities.map((option) => (
-          <option key={option} value={option} />
-        ))}
-      </datalist>
+      <LocationOptions id="bluebird-city-options" query={city} />
       <button
         type="button"
         onClick={() => setMapOpen((open) => !open)}
@@ -7598,11 +7633,7 @@ function BrowseLocationFields({ search }: { search: Search }) {
         maxLength={80}
         list="bluebird-browse-city-options"
       />
-      <datalist id="bluebird-browse-city-options">
-        {marketplaceCities.map((option) => (
-          <option key={option} value={option} />
-        ))}
-      </datalist>
+      <LocationOptions id="bluebird-browse-city-options" query={city} />
       <button
         type="button"
         onClick={() => setMapOpen((open) => !open)}
