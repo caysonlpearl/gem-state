@@ -1,4 +1,4 @@
-import { test } from "vitest";
+import test from "node:test";
 import assert from "node:assert/strict";
 import { mixPetSpecies } from "../src/lib/pet-mix.ts";
 const pet = (id, subcategory) => ({ id, pet: { subcategory } });
