@@ -3031,3 +3031,15 @@ export const getClassifiedsLandingHome = createServerFn({ method: "GET" }).handl
     return homepagePayload(await readHomepageSnapshot(), Date.now(), true).home;
   },
 );
+
+/** Pet previews need species outside the newest browse page. Saved public
+ * inventory only; the existing location filters remain authoritative. */
+export const getPetLandingInventory = createServerFn({ method: "GET" }).handler(
+  async (): Promise<ListingCardSummary[]> => {
+    const [{ cachedRescueGroupsCards }, { homepageCard }] = await Promise.all([
+      import("./rescuegroups.server"),
+      import("./homepage-snapshot-contract"),
+    ]);
+    return (await cachedRescueGroupsCards()).map(homepageCard);
+  },
+);

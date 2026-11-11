@@ -112,7 +112,7 @@ test("category landing and Pets listing showcases prioritize one card per page",
   assert.match(listItems[4].props.className, /hidden lg:block/);
   assert.match(
     browseSource,
-    /pets && petLanding && \([\s\S]*?title="Latest pet listings"[\s\S]*?listings=\{result\.listings\}/,
+    /pets && petLanding && \([\s\S]*?PetLandingListings search=\{search\} listings=\{result\.listings\}/,
   );
 });
 

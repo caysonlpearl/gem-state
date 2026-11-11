@@ -30,6 +30,7 @@ const nodes = (node) =>
 function context(extra = {}) {
   const c = vm.createContext({
     React,
+    suggestLocations: () => [],
     classifiedCategories,
     idahoRegions,
     marketplaceCities,
