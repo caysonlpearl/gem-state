@@ -1,4 +1,5 @@
 import { FirearmsConsentDialog } from "@/components/FirearmsConsentDialog";
+import { LocationOptions } from "@/components/classifieds/LocationOptions";
 import { homeRowFilters } from "@/lib/landing-home-filters";
 import {
   firearmShowcaseRows,
@@ -3966,10 +3967,12 @@ function HomesLandingHero({
                 type="search"
                 value={draft}
                 onChange={(event) => setDraft(event.target.value)}
+                list="homes-hero-locations"
                 placeholder="City or ZIP code"
                 aria-label="County, city, neighborhood, or ZIP"
                 className="h-12 w-full min-w-0 flex-1 bg-transparent text-[16px] sm:text-[13px] outline-none placeholder:text-muted-foreground"
               />
+              <LocationOptions id="homes-hero-locations" query={draft} />
             </label>
             <button
               type="submit"
@@ -4877,11 +4880,7 @@ function JobsLandingHero({
                       autoComplete="address-level2"
                       className="h-12 w-full rounded-xl border border-input bg-card pl-9 pr-3 text-[12px] text-foreground outline-none placeholder:text-muted-foreground focus:border-primary"
                     />
-                    <datalist id="jobs-hero-locations">
-                      {marketplaceCities.map((city) => (
-                        <option key={city} value={city} />
-                      ))}
-                    </datalist>
+                    <LocationOptions id="jobs-hero-locations" query={location} />
                   </label>
                   <JobSelect
                     label="Category"
@@ -6425,6 +6424,7 @@ function VehicleResultsPage({
                   setMapPoint(undefined);
                 }}
                 placeholder="Boise or 83702"
+                list="vehicle-location-options"
               />
               <button
                 type="button"
@@ -6634,12 +6634,14 @@ function VehicleTextField({
   onChange,
   placeholder,
   numeric = false,
+  list,
 }: {
   label: string;
   value: string;
   onChange: (value: string) => void;
   placeholder: string;
   numeric?: boolean;
+  list?: string;
 }) {
   return (
     <label className="block min-w-0">
@@ -6651,7 +6653,9 @@ function VehicleTextField({
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         className="filter-input w-full"
+        list={list}
       />
+      {list ? <LocationOptions id={list} query={value} /> : null}
     </label>
   );
 }
@@ -7429,11 +7433,7 @@ function InlineLocationFilter({
         className="filter-input w-full"
         list="bluebird-city-options"
       />
-      <datalist id="bluebird-city-options">
-        {marketplaceCities.map((option) => (
-          <option key={option} value={option} />
-        ))}
-      </datalist>
+      <LocationOptions id="bluebird-city-options" query={city} />
       <button
         type="button"
         onClick={() => setMapOpen((open) => !open)}
@@ -7551,11 +7551,7 @@ function BrowseLocationFields({ search }: { search: Search }) {
         maxLength={80}
         list="bluebird-browse-city-options"
       />
-      <datalist id="bluebird-browse-city-options">
-        {marketplaceCities.map((option) => (
-          <option key={option} value={option} />
-        ))}
-      </datalist>
+      <LocationOptions id="bluebird-browse-city-options" query={city} />
       <button
         type="button"
         onClick={() => setMapOpen((open) => !open)}
