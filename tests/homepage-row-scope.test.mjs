@@ -232,3 +232,42 @@ test("GPS and map points affect the submitted search, while homepage rows remain
   assert.equal(navigation.search.longitude, point.longitude);
   assert.equal(navigation.search.radiusMiles, 25);
 });
+
+test("vehicle rows reject cheap parts and unknown prices without removing parts from the general feed", () => {
+  const parts = [
+    card("3 Hose Reel Cabinets", "auto-parts", { priceCents: 30000 }),
+    card("Frame Mounted Storage Box", "auto-parts", { priceCents: 30000 }),
+    card("2 Thermaflow Oil Reservoir and Coolers", "auto-parts", { priceCents: 50000 }),
+    card("Cable Winch", "auto-parts", { priceCents: 70000 }),
+    card("Truck toolbox", "auto-parts", { priceCents: 10000, vehicle: { bodyStyle: "Truck" } }),
+  ];
+  const cars = Array.from({ length: 24 }, (_, i) =>
+    card(`car-${i}`, "cars-trucks", {
+      priceCents: (i + 1) * 100000,
+      vehicle: { bodyStyle: "SUV" },
+    }),
+  );
+  const unpriced = card("dealerfeed-unpriced", "cars-trucks", { priceCents: 0 });
+  const home = {
+    motors: [...parts, ...cars, unpriced],
+    recent: parts,
+    onlineMerchandise: [],
+    totalActive: 30,
+  };
+  const rows = allocateHomepageRows(home, { motors: cars.slice(0, 4) });
+  for (const row of [rows.vehicleListings, rows.truckListings, rows.valueVehicleListings]) {
+    assert.equal(row.length, 4);
+    assert.ok(row.every((c) => c.categorySlug !== "auto-parts"));
+  }
+  assert.ok(rows.valueVehicleListings.every((c) => c.priceCents > 0));
+  assert.deepEqual(
+    rows.valueVehicleListings.map((c) => c.id),
+    cars.slice(12, 16).map((c) => c.id),
+  );
+  for (const part of parts)
+    assert.ok(
+      [...rows.localSellerPicks, ...rows.fartherAwayListings, ...rows.feedStart].some(
+        (c) => c.id === part.id,
+      ),
+    );
+});

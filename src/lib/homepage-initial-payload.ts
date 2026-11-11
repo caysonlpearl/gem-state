@@ -1,7 +1,7 @@
 import type { ClassifiedsHome, ClassifiedsHomeLead } from "./classifieds.functions";
 import type { ListingCardSummary } from "./listing-card-summary";
 import { homepageDistanceRow } from "./homepage-distance-row.ts";
-import { isGeneralHomepageListing } from "./homepage-listing-rows.ts";
+import { isGeneralHomepageListing, isHomepageVehicleListing } from "./homepage-listing-rows.ts";
 
 export const HOMEPAGE_ROW_SIZE = 4;
 export const HOMEPAGE_FEED_SIZE = 24;
@@ -18,6 +18,7 @@ export function allocateHomepageRows(
     (listing) => !listing.externalMerchandise && matchesLocation(listing),
   );
   const localMotors = home.motors.filter(matchesLocation);
+  const localVehicles = localMotors.filter(isHomepageVehicleListing);
   // The homepage shows Idaho homes for now; browse still includes the
   // surrounding states.
   const homeListings = localRecent.filter(
@@ -38,7 +39,10 @@ export function allocateHomepageRows(
     }
   }
   // The route loader has settled both snapshot queries before this renders.
-  const leadMotors = (homeLead?.motors ?? []).filter(matchesLocation).slice(0, HOMEPAGE_ROW_SIZE);
+  const leadMotors = (homeLead?.motors ?? [])
+    .filter(isHomepageVehicleListing)
+    .filter(matchesLocation)
+    .slice(0, HOMEPAGE_ROW_SIZE);
   const shownIds = new Set<string>(leadMotors.map((listing) => listing.id));
   const pick = (candidates: ClassifiedsHome["recent"]) => {
     const unseen = candidates
@@ -62,15 +66,19 @@ export function allocateHomepageRows(
     shownIds,
   );
   const fartherAwayListings = pick(distanceRow.listings);
-  const vehicleListings = pick(localMotors);
+  const vehicleListings = pick(localVehicles);
   const truckListings = pick(
-    localMotors.filter((listing) =>
+    localVehicles.filter((listing) =>
       /truck|suv|pickup|jeep|sport utility|chassis/i.test(
         `${listing.vehicle?.bodyStyle ?? ""} ${listing.title}`,
       ),
     ),
   );
-  const valueVehicleListings = pick([...localMotors].sort((a, b) => a.priceCents - b.priceCents));
+  const valueVehicleListings = pick(
+    localVehicles
+      .filter((listing) => listing.priceCents > 0)
+      .sort((a, b) => a.priceCents - b.priceCents),
+  );
   const buyHomes = pick(homeListings.filter((listing) => listing.home?.mode === "buy"));
   const buildHomes = pick(homeListings.filter((listing) => listing.home?.mode === "build"));
   const rentalHomes = pick(homeListings.filter((listing) => listing.home?.mode === "rent"));
