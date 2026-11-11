@@ -29,3 +29,16 @@ export function isGeneralHomepageListing(listing: ListingCardSummary): boolean {
     !listing.externalMerchandise
   );
 }
+
+const completeVehicleCategories = new Set([
+  "cars-trucks",
+  "motorcycles",
+  "rvs-campers",
+  "powersports",
+  "trailers",
+]);
+
+/** Parts belong in Motors browsing, but never in rows offering whole vehicles. */
+export function isHomepageVehicleListing(listing: ListingCardSummary): boolean {
+  return completeVehicleCategories.has(listing.categorySlug ?? "") && !listing.externalMerchandise;
+}
