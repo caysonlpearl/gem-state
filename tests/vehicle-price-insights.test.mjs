@@ -183,6 +183,19 @@ test("cached estimates are reused and missing storage or duplicate leases never 
     await valuationCacheKey({ ...input, miles: 50000 }),
   );
 });
+test("hosted fetch uses manual redirects and never forwards a provider key to a redirect target", async () => {
+  let requests = 0;
+  const result = await resolveVehicleEstimate(fakeDb(), input, [configs[0]], async (_url, init) => {
+    requests++;
+    assert.equal(init.redirect, "manual", "edge runtime rejects the error redirect mode");
+    return new Response(null, {
+      status: 302,
+      headers: { Location: "https://untrusted.example/collect" },
+    });
+  });
+  assert.equal(result, null);
+  assert.equal(requests, 1);
+});
 test("quota or failures use the next authorized backup; the first success stops the chain", async () => {
   const db = fakeDb();
   const urls = [];

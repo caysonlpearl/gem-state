@@ -66,7 +66,9 @@ export async function resolveVehicleEstimate(
       const response = await fetcher(request.url, {
         headers: request.headers,
         signal: AbortSignal.timeout(17000),
-        redirect: "error",
+        // The edge fetch implementation supports follow/manual only. A redirect
+        // stays an unsuccessful response; credentials never follow it elsewhere.
+        redirect: "manual",
       });
       if (!response.ok) {
         console.warn("Vehicle valuation provider response", config.provider, response.status);
