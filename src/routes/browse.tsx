@@ -3226,7 +3226,7 @@ function PetsLandingHero({
   return (
     <section
       aria-label="Bluebird Marketplace pets"
-      className="classifieds-hero-shell relative isolate flex flex-col justify-start overflow-hidden rounded-[32px] border border-brand-blue/20 bg-secondary px-4 py-5 shadow-xl sm:min-h-[430px] sm:justify-center sm:px-10 sm:py-12"
+      className="classifieds-hero-shell relative isolate flex flex-col justify-start overflow-hidden rounded-[32px] border border-brand-blue/20 bg-secondary px-4 py-5 shadow-xl sm:min-h-[430px] sm:justify-center sm:px-10 sm:pb-12 sm:pt-20"
     >
       <span
         className="classifieds-hero-orb classifieds-hero-orb--blue absolute -right-20 -top-24 h-72 w-72 rounded-full bg-brand-blue/12"
@@ -3240,6 +3240,9 @@ function PetsLandingHero({
         className="classifieds-hero-sheen pointer-events-none absolute inset-y-0 -left-1/3 z-0 w-1/3 skew-x-[-18deg] bg-white/20"
         aria-hidden="true"
       />
+      <div className="relative z-20 mb-4 flex justify-end sm:absolute sm:right-10 sm:top-6 sm:mb-0">
+        <SponsoredHeroBadge />
+      </div>
       <div className="relative z-10 mx-auto w-full max-w-[920px] text-center">
         <p className="font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">
           Bluebird Marketplace Pets
