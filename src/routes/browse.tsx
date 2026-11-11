@@ -1,3 +1,4 @@
+import { selectDiscoveryCards } from "@/lib/discovery-ranking";
 import { FirearmsConsentDialog } from "@/components/FirearmsConsentDialog";
 import { homeRowFilters } from "@/lib/landing-home-filters";
 import {
@@ -1814,11 +1815,13 @@ function Browse() {
       <FilterSection title="Category">
         <select name="category" defaultValue={search.category ?? ""} className="filter-input">
           <option value="">All categories</option>
-          {[...classifiedCategories].sort((a, b) => a.name.localeCompare(b.name)).map((category) => (
-            <option key={category.slug} value={category.slug}>
-              {category.name}
-            </option>
-          ))}
+          {[...classifiedCategories]
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .map((category) => (
+              <option key={category.slug} value={category.slug}>
+                {category.name}
+              </option>
+            ))}
         </select>
       </FilterSection>
 
@@ -2260,7 +2263,7 @@ function Browse() {
               })
             }
           />
-          <GeneralClassifiedShowcase listings={result.listings} />
+          <GeneralClassifiedShowcase listings={result.listings} search={search} />
           <HomepageShowcaseRows
             topListings={result.listings}
             eyebrow="Bluebird Marketplace Classifieds"
@@ -2367,7 +2370,11 @@ function Browse() {
             eyebrow="Bluebird Marketplace Firearms"
             title="Latest firearm listings"
             action="Browse all firearms"
-            browseSearch={{ category: "firearms", firearmMode: "results" }}
+            browseSearch={{
+              category: "firearms",
+              firearmMode: "results",
+              firearmListingType: "Firearm",
+            }}
             listings={varietyOfFirearms(result.listings, 4)}
             mobileCarousel
           />
@@ -3520,16 +3527,34 @@ function ClassifiedsLandingHero({
   );
 }
 
-function GeneralClassifiedShowcase({ listings }: { listings: ClassifiedBrowseResult["listings"] }) {
-  const generalListings = listings.filter((listing) => !listing.vehicle);
+function GeneralClassifiedShowcase({
+  listings,
+  search = {},
+}: {
+  listings: ClassifiedBrowseResult["listings"];
+  search?: Search;
+}) {
+  const { data: saved } = useSuspenseQuery(landingHomeQuery);
+  const generalListings = landingCards(
+    [...(saved?.recent ?? []), ...listings],
+    inputFromSearch(search),
+  ).filter((listing) => !listing.vehicle);
+  const sellerCounts = new Map<string, number>();
+  const first = selectDiscoveryCards(generalListings, 4, sellerCounts);
+  const second = selectDiscoveryCards(
+    generalListings,
+    4,
+    sellerCounts,
+    new Set(first.map((card) => card.id)),
+  );
   const listingRows = [
     {
       title: "Top listings",
-      listings: generalListings.slice(0, 4),
+      listings: first,
     },
     {
       title: "Newest listings",
-      listings: generalListings.slice(4, 8),
+      listings: second,
     },
   ];
 
@@ -3631,9 +3656,8 @@ function CategoryGettingStarted() {
 }
 
 /**
- * Up to `count` listings for a showcase row, preferring different titles so
- * one dealer's ten identical trucks don't fill the whole row; repeats only
- * fill in when there aren't enough different ones.
+ * Idaho and different sellers lead each showcase. Distinct titles break ties;
+ * repeat sellers fill sparse rows only when alternatives are exhausted.
  */
 function varietyOf<T extends { id: string; title: string }>(listings: readonly T[], count: number) {
   const key = (listing: T) =>
@@ -3647,7 +3671,6 @@ function varietyOf<T extends { id: string; title: string }>(listings: readonly T
   const picked: T[] = [];
   const seen = new Set<string>();
   for (const listing of listings) {
-    if (picked.length >= count) break;
     if (seen.has(key(listing))) continue;
     seen.add(key(listing));
     picked.push(listing);
@@ -3656,27 +3679,22 @@ function varietyOf<T extends { id: string; title: string }>(listings: readonly T
     if (picked.length >= count) break;
     if (!picked.includes(listing)) picked.push(listing);
   }
-  return picked;
+  return selectDiscoveryCards(
+    [...picked, ...listings.filter((card) => !picked.includes(card))],
+    count,
+  );
 }
 
 function varietyOfFirearms(listings: readonly ClassifiedCard[], count: number): ClassifiedCard[] {
   const firearms = listings.filter((listing) => listing.itemDetails?.listingType === "Firearm");
   const seenTypes = new Set<string>();
-  const differentTypes = firearms
-    .filter((listing) => {
-      const type = String(listing.itemDetails?.firearmType ?? "Other firearm");
-      if (seenTypes.has(type)) return false;
-      seenTypes.add(type);
-      return true;
-    })
-    .slice(0, count);
-  return [
-    ...differentTypes,
-    ...varietyOf(
-      firearms.filter((listing) => !differentTypes.includes(listing)),
-      count - differentTypes.length,
-    ),
-  ];
+  const types = firearms.filter((listing) => {
+    const type = String(listing.itemDetails?.firearmType ?? "Other firearm");
+    if (seenTypes.has(type)) return false;
+    seenTypes.add(type);
+    return true;
+  });
+  return varietyOf([...types, ...firearms.filter((card) => !types.includes(card))], count);
 }
 
 function LandingListingsShowcase({
@@ -3698,7 +3716,17 @@ function LandingListingsShowcase({
 }) {
   // This showcase is a single curated row. Keep it to the desktop row width
   // so a short second row can never appear beneath it.
-  const visibleListings = varietyOf(mixPetSpecies(listings), compact ? 5 : 4);
+  const { data: saved } = useSuspenseQuery(landingHomeQuery);
+  const candidates = landingCards(
+    [
+      ...(saved?.recent ?? []),
+      ...(saved?.motors ?? []),
+      ...(saved?.onlineMerchandise ?? []),
+      ...listings,
+    ],
+    inputFromSearch(browseSearch),
+  );
+  const visibleListings = varietyOf(mixPetSpecies(candidates), compact ? 5 : 4);
 
   return (
     <section
@@ -3787,15 +3815,31 @@ function HomepageShowcaseRows({
     ...(saved?.onlineMerchandise ?? []),
     ...(topListings ?? []),
   ];
-  const shownIds = new Set(varietyOf(topListings ?? [], 5).map((listing) => listing.id));
+  const sellerCounts = new Map<string, number>();
+  const topCandidates = querySearch
+    ? landingCards(
+        pool,
+        inputFromSearch(
+          querySearch.category === "firearms"
+            ? {
+                ...querySearch,
+                firearmMode: "landing",
+                firearmListingType: "Firearm",
+                firearmType: undefined,
+                firearmBrand: undefined,
+                firearmAccessoryType: undefined,
+              }
+            : querySearch,
+        ),
+      )
+    : [...(topListings ?? [])];
+  const top = selectDiscoveryCards(varietyOf(topCandidates, topCandidates.length), 5, sellerCounts);
+  const shownIds = new Set(top.map((listing) => listing.id));
   const allocated = rows.map((row) => {
     const matching = querySearch
       ? landingCards(pool, inputFromSearch(showcaseSearch(querySearch, row.href)))
       : [];
-    const fresh = varietyOf(
-      mixPetSpecies(matching).filter((listing) => !shownIds.has(listing.id)),
-      5,
-    );
+    const fresh = selectDiscoveryCards(mixPetSpecies(matching), 5, sellerCounts, shownIds);
     const picks =
       fresh.length >= 5
         ? fresh
@@ -4015,15 +4059,18 @@ function HomeShowcaseRows({
   // (or the "Buy listings" showcase) already shows; it repeats a home only
   // when it has fewer than four new ones. A row with nothing that fits stays
   // hidden.
-  const shownIds = new Set(varietyOf(listings, 4).map((listing) => listing.id));
+  const sellerCounts = new Map<string, number>();
+  const shownIds = new Set(
+    selectDiscoveryCards(pool, 4, sellerCounts).map((listing) => listing.id),
+  );
   const rows = homePreviewRowsByTab[activeTab]
     .map((row) => {
       const matching = pool.filter(homeRowFilters[row.title] ?? (() => false));
-      const fresh = matching.filter((listing) => !shownIds.has(listing.id)).slice(0, 4);
+      const fresh = selectDiscoveryCards(matching, 4, sellerCounts, shownIds);
       const homes =
         fresh.length >= 4
           ? fresh
-          : [...fresh, ...matching.filter((listing) => !fresh.includes(listing))].slice(0, 4);
+          : varietyOf([...fresh, ...matching.filter((listing) => !fresh.includes(listing))], 4);
       for (const listing of homes) shownIds.add(listing.id);
       return { row, homes };
     })

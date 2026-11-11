@@ -120,7 +120,7 @@ export function formatMileage(miles: number | null | undefined) {
 /** Compact posting age: classifieds shoppers scan for freshness first. */
 export function postedAge(iso: string) {
   const posted = new Date(iso).getTime();
-  if (!Number.isFinite(posted)) return "";
+  if (!Number.isFinite(posted) || posted <= 0) return "";
   const days = Math.floor((Date.now() - posted) / 86_400_000);
   if (days <= 0) return "Today";
   if (days === 1) return "Yesterday";

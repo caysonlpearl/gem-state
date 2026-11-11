@@ -1,3 +1,4 @@
+import { selectDiscoveryCards } from "@/lib/discovery-ranking";
 import { listingCardImageUrl } from "@/lib/listing-card-image";
 import { afterLeadPaint } from "@/lib/lead-paint-ready";
 import { allocateHomepageRows } from "@/lib/homepage-initial-payload";
@@ -771,7 +772,10 @@ function HomepageLeadVehicles({
 }) {
   const { data: homeLead } = useSuspenseQuery(homeLeadQuery);
   const { motorCategories, matchesLocation, withLocation } = where;
-  const leadMotors = homeLead.motors.filter(matchesLocation).slice(0, HOMEPAGE_ROW_SIZE);
+  const leadMotors = selectDiscoveryCards(
+    homeLead.motors.filter(matchesLocation),
+    HOMEPAGE_ROW_SIZE,
+  );
   const sectionRef = useRef<HTMLElement>(null);
   const firstId = leadMotors[0]?.id;
   const firstImage = leadMotors[0]?.imageUrl;

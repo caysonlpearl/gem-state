@@ -1,3 +1,5 @@
+import { mixPetSpecies } from "../src/lib/pet-mix.ts";
+import { selectDiscoveryCards } from "../src/lib/discovery-ranking.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -44,6 +46,7 @@ test("every landing page awaits its shared saved pool; results never add a landi
   }
   visit(ast);
   const context = vm.createContext({
+    mixPetSpecies,
     isMotorsCategory: (category) => ["cars-trucks", "motorcycles"].includes(category),
     classifiedQuery: (input) => ({ queryKey: ["browse"], input }),
     latestListingsInput: (input) => input,
@@ -57,6 +60,7 @@ test("every landing page awaits its shared saved pool; results never add a landi
       .flatMap((s) => s.declarationList.declarations)
       .find((d) => d.name.getText(ast) === "landingHomeQuery");
     const context = vm.createContext({
+      mixPetSpecies,
       queryOptions: (options) => options,
       getClassifiedsLandingHome: async () => {
         throw new Error("Temporary CDN failure");
@@ -225,12 +229,13 @@ test("landing rows render real cards on the server without scroll observers or p
     card(`car-${index}`, { vehicle: { bodyStyle: "SUV", year: 2024 } }),
   );
   const context = vm.createContext({
+    mixPetSpecies,
     React,
+    selectDiscoveryCards,
     URL,
     useSuspenseQuery: () => ({ data: { recent: [], motors: pool } }),
     landingHomeQuery: {},
     landingCards,
-    mixPetSpecies: (l) => [...l],
     inputFromSearch: (s) => s,
     ListingCard: ({ listing }) =>
       React.createElement("article", { "data-id": listing.id }, listing.title),
@@ -271,4 +276,101 @@ test("navigation retains the current page instead of replacing it with a loading
   const root = readFileSync(new URL("../src/routes/__root.tsx", import.meta.url), "utf8");
   assert.doesNotMatch(router, /defaultPendingComponent|Loading page/);
   assert.match(root, /role="progressbar"/);
+});
+
+test("category lead previews can select older Idaho sellers beyond a refreshed first page without mixing categories", () => {
+  const firstPage = Array.from({ length: 48 }, (_, i) =>
+    card(`batch-${i}`, { discoverySellerKey: "dealer-a" }),
+  );
+  const older = [
+    card("older-b", { discoverySellerKey: "dealer-b" }),
+    card("older-c", { discoverySellerKey: "dealer-c" }),
+    card("older-d", { discoverySellerKey: "dealer-d" }),
+  ];
+  const foreign = card("foreign", { state: "UT", discoverySellerKey: "ut" });
+  const wrong = card("wrong-category", {
+    categorySlug: "jobs",
+    job: { employerName: "Other" },
+    discoverySellerKey: "other",
+  });
+  const context = vm.createContext({
+    mixPetSpecies,
+    React,
+    URL,
+    selectDiscoveryCards,
+    landingCards,
+    inputFromSearch: (s) => s,
+    useSuspenseQuery: () => ({ data: { recent: [wrong], motors: [...older, foreign] } }),
+    landingHomeQuery: {},
+    ListingCard: ({ listing }) =>
+      React.createElement("article", { "data-id": listing.id }, listing.title),
+    Link: ({ children }) => React.createElement("a", null, children),
+    ArrowRight: () => null,
+    CategoryGettingStarted: () => null,
+  });
+  vm.runInContext(
+    compile(`${declaration("varietyOf")}\n${declaration("LandingListingsShowcase")}`),
+    context,
+  );
+  const html = renderToStaticMarkup(
+    React.createElement(context.LandingListingsShowcase, {
+      eyebrow: "Vehicles",
+      title: "Latest",
+      action: "Browse",
+      browseSearch: { category: "cars-trucks" },
+      listings: firstPage,
+    }),
+  );
+  for (const item of older) assert.ok(html.includes(`data-id="${item.id}"`));
+  assert.ok(!html.includes('data-id="foreign"') && !html.includes('data-id="wrong-category"'));
+});
+
+test("generic vehicle discovery excludes parts while the dedicated Auto Parts category retains them", () => {
+  const part = card("Truck toolbox", { categorySlug: "auto-parts", priceCents: 10000 });
+  const car = card("Whole car", { categorySlug: "cars-trucks", priceCents: 1000000 });
+  assert.deepEqual(
+    landingCards([part, car], { group: "motors", sort: "price_low" }).map((c) => c.id),
+    [car.id],
+  );
+  assert.deepEqual(
+    landingCards([part, car], { category: "auto-parts" }).map((c) => c.id),
+    [part.id],
+  );
+});
+
+test("new query cards take precedence over older copies in the saved discovery pool", () => {
+  const current = card("same-listing", {
+    title: "Current listing details",
+    discoverySellerKey: "seller",
+  });
+  const stale = { ...current, title: "Old cached details" };
+  const context = vm.createContext({
+    mixPetSpecies,
+    React,
+    URL,
+    selectDiscoveryCards,
+    landingCards,
+    inputFromSearch: (s) => s,
+    useSuspenseQuery: () => ({ data: { recent: [], motors: [stale] } }),
+    landingHomeQuery: {},
+    ListingCard: ({ listing }) => React.createElement("article", null, listing.title),
+    Link: ({ children }) => React.createElement("a", null, children),
+    ArrowRight: () => null,
+    CategoryGettingStarted: () => null,
+  });
+  vm.runInContext(
+    compile(`${declaration("varietyOf")}\n${declaration("LandingListingsShowcase")}`),
+    context,
+  );
+  const html = renderToStaticMarkup(
+    React.createElement(context.LandingListingsShowcase, {
+      eyebrow: "Vehicles",
+      title: "Latest",
+      action: "Browse",
+      browseSearch: { category: "cars-trucks" },
+      listings: [current],
+    }),
+  );
+  assert.ok(html.includes("Current listing details"));
+  assert.ok(!html.includes("Old cached details"));
 });

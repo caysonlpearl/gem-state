@@ -1,4 +1,5 @@
-import { mixPetSpecies } from "./pet-mix";
+import { discoverySellerToken } from "./discovery-ranking.ts";
+import { mixPetSpecies } from "./pet-mix.ts";
 import { getPhotoStorageModule } from "./photo-storage-access";
 import { selectLandingCoverage } from "./landing-coverage";
 import { withCatalogReadDeadline } from "./catalog-read-deadline";
@@ -86,6 +87,8 @@ export type ClassifiedPet = ClassifiedPetDetails;
 export type ClassifiedCard = {
   id: string;
   title: string;
+  /** Opaque grouping token for seller-balanced discovery; never a login identifier. */
+  discoverySellerKey?: string;
   externalJob?: { source: "Adzuna"; url: string; logoUrl?: string; employerSince?: string };
   externalMerchandise?: {
     source: "Guns.com";
@@ -1257,6 +1260,9 @@ function toCard(row: Record<string, unknown>, urlByPath: Map<string, string>): C
   return {
     id: row["id"] as string,
     title: product.name,
+    ...(row["seller_id"]
+      ? { discoverySellerKey: discoverySellerToken("member", String(row["seller_id"])) }
+      : {}),
     productId: product.id,
     productSlug: product.slug,
     priceCents,
@@ -2339,7 +2345,8 @@ async function runBrowseClassifieds(
       !data.petSubcategory &&
       !data.petSpecies &&
       (!data.sort || data.sort === "newest");
-    if (mixedPets) standardListings.splice(0, standardListings.length, ...mixPetSpecies(standardListings));
+    if (mixedPets)
+      standardListings.splice(0, standardListings.length, ...mixPetSpecies(standardListings));
     const resultLimit =
       data.includeAllMocks && SHOW_PUBLIC_PREVIEW_FIXTURES
         ? Math.max(pageSize, mockSource.length)
@@ -2852,7 +2859,7 @@ export async function loadNativeHomepageInventory() {
       .gt("expires_at", new Date().toISOString())
       .eq("products.status", "published")
       .order("catalog_is_featured", { ascending: false })
-      .order("ranking_at", { ascending: false })
+      .order("created_at", { ascending: false })
       .order("id")
       .limit(1000),
   );

@@ -1,3 +1,4 @@
+import { discoverySellerKey, selectDiscoveryCards } from "./discovery-ranking.ts";
 import type { ClassifiedBrowseInput } from "./classifieds.functions";
 import type { ListingCardSummary } from "./listing-card-summary";
 import {
@@ -45,19 +46,17 @@ export function selectLandingCoverage<T extends ListingCardSummary>(
   const selected = new Map<string, T>();
   const add = (card: ListingCardSummary) => selected.set(card.id, byId.get(card.id)!);
   for (const input of landingPreviewInputs) {
-    landingCards(unique, input).slice(0, 12).forEach(add);
+    selectDiscoveryCards(landingCards(unique, input), 12).forEach(add);
     // Preserve Idaho matches as well as regional results for entry links.
     if (!input.state)
-      landingCards(unique, { ...input, state: "ID" })
-        .slice(0, 12)
-        .forEach(add);
+      selectDiscoveryCards(landingCards(unique, { ...input, state: "ID" }), 12).forEach(add);
   }
   for (const matches of Object.values(homeRowFilters)) {
-    unique.filter(matches).slice(0, 12).forEach(add);
-    unique
-      .filter((card) => card.state === "ID" && matches(card))
-      .slice(0, 12)
-      .forEach(add);
+    selectDiscoveryCards(unique.filter(matches), 12).forEach(add);
+    selectDiscoveryCards(
+      unique.filter((card) => card.state === "ID" && matches(card)),
+      12,
+    ).forEach(add);
   }
 
   // Round-robin the remaining category/type groups rather than slice an
@@ -66,6 +65,7 @@ export function selectLandingCoverage<T extends ListingCardSummary>(
   for (const card of unique) {
     const key = [
       card.categorySlug,
+      discoverySellerKey(card),
       card.state,
       card.home?.mode,
       card.job?.category,

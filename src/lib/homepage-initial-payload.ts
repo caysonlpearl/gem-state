@@ -1,3 +1,4 @@
+import { discoverySellerKey, selectDiscoveryCards } from "./discovery-ranking.ts";
 import type { ClassifiedsHome, ClassifiedsHomeLead } from "./classifieds.functions";
 import type { ListingCardSummary } from "./listing-card-summary";
 import { homepageDistanceRow } from "./homepage-distance-row.ts";
@@ -29,9 +30,9 @@ export function allocateHomepageRows(
   const generalSource = localRecent.filter(isGeneralHomepageListing);
 
   // Every row below draws from the same small pool, so without this the same
-  // few listings repeat row after row. Each listing appears at most once on
-  // the page; rows claim up to four listings in the order they render, and a
-  // row with nothing left shows the "just getting started" card instead.
+  // few listings repeat row after row. Prefer unseen cards within each seller;
+  // a known seller with one matching card can reappear to preserve local variety.
+  // Rows without any fresh eligible inventory keep the honest empty state.
   const allLocalListings = [...localRecent];
   for (const listing of localMotors) {
     if (!allLocalListings.some((existing) => existing.id === listing.id)) {
@@ -39,15 +40,18 @@ export function allocateHomepageRows(
     }
   }
   // The route loader has settled both snapshot queries before this renders.
-  const leadMotors = (homeLead?.motors ?? [])
-    .filter(isHomepageVehicleListing)
-    .filter(matchesLocation)
-    .slice(0, HOMEPAGE_ROW_SIZE);
+  const leadMotors = selectDiscoveryCards(
+    (homeLead?.motors ?? []).filter(isHomepageVehicleListing).filter(matchesLocation),
+    HOMEPAGE_ROW_SIZE,
+  );
+  const sellerCounts = new Map<string, number>();
+  for (const card of leadMotors) {
+    const key = discoverySellerKey(card);
+    sellerCounts.set(key, (sellerCounts.get(key) ?? 0) + 1);
+  }
   const shownIds = new Set<string>(leadMotors.map((listing) => listing.id));
   const pick = (candidates: ClassifiedsHome["recent"]) => {
-    const unseen = candidates
-      .filter((listing) => !shownIds.has(listing.id))
-      .slice(0, HOMEPAGE_ROW_SIZE);
+    const unseen = selectDiscoveryCards(candidates, HOMEPAGE_ROW_SIZE, sellerCounts, shownIds);
     for (const listing of unseen) shownIds.add(listing.id);
     return unseen;
   };
