@@ -63,6 +63,8 @@ function adapter(homes) {
   let reads = 0;
   const provider = new Proxy(
     {
+      completeHomeDetailIds: async () =>
+        new Set(homes.filter((home) => !home.incomplete).map((home) => home.id)),
       cachedHomes: async () => {
         reads++;
         return homes;
@@ -85,6 +87,7 @@ function adapter(homes) {
     console,
     require(name) {
       if (name === "./openwebninja.server") return provider;
+      if (name === "./openwebninja-cache") return { hasCompleteHomeDetails: () => false };
       if (name === "./landing-card-pool") return { matchesLandingCard };
       if (name === "./openwebninja-contract")
         return { canonicalHomePropertyType, listedAt: () => "2026-11-01T00:00:00Z" };
@@ -148,4 +151,13 @@ test("saved homes respect strict location, price, bedrooms, property and unsuppo
     );
   assert.equal((await h.exports.openWebNinjaCards({ ...input, category: "jobs" })).length, 0);
   assert.equal(h.exports.canIncludeOpenWebNinja({ ...input, homeTab: "build" }), false);
+});
+
+test("public home cards omit incomplete previews before pagination or SEO counts", async () => {
+  const h = adapter([home("complete"), home("preview-only", "Boise", "buy", { incomplete: true })]);
+  const result = await h.exports.openWebNinjaCards({ category: "other-real-estate", state: "ID" });
+  assert.deepEqual(
+    Array.from(result, (card) => card.id),
+    ["openwebninja-complete"],
+  );
 });
