@@ -1,3 +1,4 @@
+import { gunsComProfile } from "@/config/retailers";
 import { hasApprovedDealer } from "@/lib/vehicle-shopping";
 import { useEffect } from "react";
 import { DeviceMobile, Phone } from "@phosphor-icons/react";
@@ -36,6 +37,7 @@ export function MobileContactBar({ listing }: { listing: ClassifiedDetail }) {
         : (listing.externalHome?.sourceUrl ??
           listing.externalVehicle?.sourceUrl ??
           listing.originalListing?.url ??
+          (listing.externalMerchandise ? gunsComProfile.contactUrl : null) ??
           listing.externalPet?.sourceUrl ??
           null);
   const messagesEnabled = Boolean(seller) && seller?.allowInternalMessages !== false;
@@ -134,7 +136,9 @@ export function MobileContactBar({ listing }: { listing: ClassifiedDetail }) {
                     ? "Message"
                     : listing.externalVehicle
                       ? "Contact seller"
-                      : "Contact agent"}
+                      : listing.externalMerchandise
+                        ? "Contact seller"
+                        : "Contact agent"}
           </a>
         ) : messagesEnabled ? (
           <button

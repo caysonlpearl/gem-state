@@ -48,6 +48,7 @@ import { Route as NewsIndexRouteImport } from './routes/news.index'
 import { Route as NewsSlugRouteImport } from './routes/news.$slug'
 import { Route as NewsAboutRouteImport } from './routes/news.about'
 import { Route as ProductsSlugRouteImport } from './routes/products.$slug'
+import { Route as RetailersSlugRouteImport } from './routes/retailers.$slug'
 import { Route as SellersSlugRouteImport } from './routes/sellers.$slug'
 import { Route as ShoppersSlugRouteImport } from './routes/shoppers.$slug'
 import { Route as AuthenticatedAdminIndexRouteImport } from './routes/_authenticated/admin.index'
@@ -284,6 +285,11 @@ const NewsAboutRoute = NewsAboutRouteImport.update({
 const ProductsSlugRoute = ProductsSlugRouteImport.update({
   id: '/products/$slug',
   path: '/products/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RetailersSlugRoute = RetailersSlugRouteImport.update({
+  id: '/retailers/$slug',
+  path: '/retailers/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SellersSlugRoute = SellersSlugRouteImport.update({
@@ -532,6 +538,7 @@ export interface FileRoutesByFullPath {
   '/news/$slug': typeof NewsSlugRoute
   '/news/about': typeof NewsAboutRoute
   '/products/$slug': typeof ProductsSlugRoute
+  '/retailers/$slug': typeof RetailersSlugRoute
   '/sellers/$slug': typeof SellersSlugRoute
   '/shoppers/$slug': typeof ShoppersSlugRoute
   '/guides/': typeof GuidesIndexRoute
@@ -608,6 +615,7 @@ export interface FileRoutesByTo {
   '/news/$slug': typeof NewsSlugRoute
   '/news/about': typeof NewsAboutRoute
   '/products/$slug': typeof ProductsSlugRoute
+  '/retailers/$slug': typeof RetailersSlugRoute
   '/sellers/$slug': typeof SellersSlugRoute
   '/shoppers/$slug': typeof ShoppersSlugRoute
   '/guides': typeof GuidesIndexRoute
@@ -687,6 +695,7 @@ export interface FileRoutesById {
   '/news/$slug': typeof NewsSlugRoute
   '/news/about': typeof NewsAboutRoute
   '/products/$slug': typeof ProductsSlugRoute
+  '/retailers/$slug': typeof RetailersSlugRoute
   '/sellers/$slug': typeof SellersSlugRoute
   '/shoppers/$slug': typeof ShoppersSlugRoute
   '/guides/': typeof GuidesIndexRoute
@@ -766,6 +775,7 @@ export interface FileRouteTypes {
     | '/news/$slug'
     | '/news/about'
     | '/products/$slug'
+    | '/retailers/$slug'
     | '/sellers/$slug'
     | '/shoppers/$slug'
     | '/guides/'
@@ -842,6 +852,7 @@ export interface FileRouteTypes {
     | '/news/$slug'
     | '/news/about'
     | '/products/$slug'
+    | '/retailers/$slug'
     | '/sellers/$slug'
     | '/shoppers/$slug'
     | '/guides'
@@ -920,6 +931,7 @@ export interface FileRouteTypes {
     | '/news/$slug'
     | '/news/about'
     | '/products/$slug'
+    | '/retailers/$slug'
     | '/sellers/$slug'
     | '/shoppers/$slug'
     | '/guides/'
@@ -985,6 +997,7 @@ export interface RootRouteChildren {
   NewsSlugRoute: typeof NewsSlugRoute
   NewsAboutRoute: typeof NewsAboutRoute
   ProductsSlugRoute: typeof ProductsSlugRoute
+  RetailersSlugRoute: typeof RetailersSlugRoute
   SellersSlugRoute: typeof SellersSlugRoute
   ShoppersSlugRoute: typeof ShoppersSlugRoute
   GuidesIndexRoute: typeof GuidesIndexRoute
@@ -1282,6 +1295,13 @@ declare module '@tanstack/react-router' {
       path: '/products/$slug'
       fullPath: '/products/$slug'
       preLoaderRoute: typeof ProductsSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/retailers/$slug': {
+      id: '/retailers/$slug'
+      path: '/retailers/$slug'
+      fullPath: '/retailers/$slug'
+      preLoaderRoute: typeof RetailersSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sellers/$slug': {
@@ -1655,6 +1675,7 @@ const rootRouteChildren: RootRouteChildren = {
   NewsSlugRoute: NewsSlugRoute,
   NewsAboutRoute: NewsAboutRoute,
   ProductsSlugRoute: ProductsSlugRoute,
+  RetailersSlugRoute: RetailersSlugRoute,
   SellersSlugRoute: SellersSlugRoute,
   ShoppersSlugRoute: ShoppersSlugRoute,
   GuidesIndexRoute: GuidesIndexRoute,

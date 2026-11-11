@@ -1,3 +1,5 @@
+import { ListingSellerIdentity } from "@/components/listings/ListingSellerIdentity";
+import { gunsComProfile } from "@/config/retailers";
 import { dealerContactPriceLabel } from "@/lib/vehicle-shopping";
 import { VerifiedDealerBadge } from "@/components/dealers/VerifiedDealerBadge";
 import { VehiclePrice } from "@/components/dealers/VehiclePrice";
@@ -539,54 +541,32 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
     "inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-border text-[12px] font-medium transition-colors hover:border-primary hover:bg-primary/5 hover:text-primary";
   return (
     <section className="soft-card p-5 sm:p-6">
-      <div className="flex items-start gap-3">
-        <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-2xl bg-primary text-base font-semibold text-primary-foreground">
-          {seller.avatarUrl ? (
-            <img src={seller.avatarUrl} alt="" className="h-full w-full object-cover" />
-          ) : (
-            seller.displayName.slice(0, 1).toUpperCase()
-          )}
-        </div>
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-[15px] font-bold">{seller.displayName}</h2>
-            {seller.managedByBluebird && (
-              <span className="rounded-full bg-secondary px-2 py-1 text-[10px] font-semibold">
-                Managed by Bluebird
-              </span>
-            )}
-            {seller.payoutVerified && (
-              <span
-                className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary"
-                title="payout identity verified through Bluebird’s payment provider. This does not verify the listing, item condition, ownership, or transaction."
-              >
-                <CheckCircle size={12} weight="fill" /> Verified seller
-              </span>
-            )}
-          </div>
-          <div className="mt-3 space-y-1 text-[12px]">
-            <p>
-              <span className="font-semibold">City:</span> {listing.city}
-              {listing.state ? `, ${listing.state}` : ""}
-            </p>
-            {seller.memberSince && (
-              <p>
-                <span className="font-semibold">Member since:</span> {seller.memberSince}
-                {new Date().getFullYear() - seller.memberSince > 0 && (
-                  <span className="ml-1 rounded-full bg-brand-warm/20 px-1.5 py-0.5 text-[10px] font-bold text-brand-warm">
-                    {new Date().getFullYear() - seller.memberSince} yrs
-                  </span>
-                )}
-              </p>
-            )}
-            {seller.sellerType && (
-              <p>
-                <span className="font-semibold">Seller type:</span> {seller.sellerType}
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
+      <ListingSellerIdentity
+        name={seller.displayName}
+        imageUrl={seller.avatarUrl}
+        title={
+          <Link to="/sellers/$slug" params={{ slug: seller.slug }} className="hover:underline">
+            {seller.displayName}
+          </Link>
+        }
+        subtitle={[listing.city, listing.state].filter(Boolean).join(", ")}
+        badge={
+          seller.payoutVerified ? (
+            <span title="payout identity verified through Bluebird’s payment provider. This does not verify the listing, item condition, ownership, or transaction.">
+              <CheckCircle size={15} weight="fill" />
+            </span>
+          ) : null
+        }
+      />
+      {seller.memberSince ? (
+        <p className="mt-3 text-xs text-muted-foreground">Member since {seller.memberSince}</p>
+      ) : null}
+      {seller.managedByBluebird ? (
+        <p className="mt-2 text-xs text-muted-foreground">Managed by Bluebird</p>
+      ) : null}
+      {seller.sellerType ? (
+        <p className="mt-1 text-xs text-muted-foreground">{seller.sellerType}</p>
+      ) : null}
       <ProfileStrength seller={seller} />
       {listing.dealer ? (
         <div className="mt-4 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-[12px]">
@@ -853,54 +833,27 @@ function MarketCheckContactCard({ listing }: { listing: ClassifiedDetail }) {
   const phone = dealer?.phone;
   return (
     <section className="soft-card p-5 sm:p-6">
-      <div
-        className={
-          hasApprovedDealer(listing) ? "rounded-2xl border border-[#b8d4e6] bg-[#edf6fc] p-4" : ""
-        }
-      >
-        <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
-          Listed by
-        </p>
-        <div className="mt-3 flex items-center gap-3">
-          {listing.dealer?.logoUrl ? (
-            <img
-              src={listing.dealer.logoUrl}
-              alt={`${name} logo`}
-              className="h-12 w-24 shrink-0 object-contain"
-            />
+      <ListingSellerIdentity
+        name={name}
+        imageUrl={listing.dealer?.logoUrl}
+        title={
+          listing.dealer?.slug ? (
+            <Link
+              to="/dealers/$slug"
+              params={{ slug: listing.dealer.slug }}
+              className="hover:underline"
+            >
+              {name}
+            </Link>
           ) : (
-            <EmployerTile name={name} />
-          )}
-          <div className="min-w-0 text-[12.5px]">
-            <p className="flex items-center gap-1.5 text-[15px] font-bold">
-              {listing.dealer?.slug ? (
-                <Link
-                  to="/dealers/$slug"
-                  params={{ slug: listing.dealer.slug }}
-                  className="hover:underline"
-                >
-                  {name}
-                </Link>
-              ) : (
-                name
-              )}
-              {hasApprovedDealer(listing) ? <VerifiedDealerBadge /> : null}
-            </p>
-            {dealer?.dealerType ? (
-              <p className="mt-0.5 capitalize">{dealer.dealerType} dealer</p>
-            ) : null}
-            {dealer?.city || dealer?.state ? (
-              <p className="mt-1 text-muted-foreground">
-                {[dealer.city, dealer.state].filter(Boolean).join(", ")}
-              </p>
-            ) : source.sourceKind === "fsbo" && (source.location.city || source.location.state) ? (
-              <p className="mt-1 text-[13px] text-muted-foreground">
-                {[source.location.city, source.location.state].filter(Boolean).join(", ")}
-              </p>
-            ) : null}
-          </div>
-        </div>
-      </div>
+            name
+          )
+        }
+        subtitle={[dealer?.city ?? source.location.city, dealer?.state ?? source.location.state]
+          .filter(Boolean)
+          .join(", ")}
+        badge={hasApprovedDealer(listing) ? <VerifiedDealerBadge /> : null}
+      />
       {dealer?.street || dealer?.zip ? (
         <p className="mt-4 flex items-start gap-1.5 text-[12px] leading-relaxed text-primary">
           <MapPin size={14} weight="fill" className="mt-0.5 shrink-0" />
@@ -1230,7 +1183,7 @@ function PageStatsCard({ listing }: { listing: ClassifiedDetail }) {
             </dd>
           ) : (
             <dd className="inline-flex items-center gap-1.5 text-right font-medium text-primary">
-              <CheckCircle size={13} weight="fill" /> Active
+              {listing.externalMerchandise ? null : <CheckCircle size={13} weight="fill" />} Active
             </dd>
           )}
         </div>
@@ -1555,14 +1508,22 @@ function RelatedRails({
         : null}
       {similar.length > 0
         ? rail(
-            `Similar ${similarNoun(listing)} near you`,
-            `More ${listing.categoryName ?? "listings"} around ${listing.region || listing.state}`,
+            listing.externalMerchandise
+              ? "Related listings"
+              : `Similar ${similarNoun(listing)} near you`,
+            listing.externalMerchandise
+              ? `More ${listing.categoryName ?? "listings"}`
+              : `More ${listing.categoryName ?? "listings"} around ${listing.region || listing.state}`,
             similar,
             <Link
               to="/browse"
               search={{
                 ...(listing.categorySlug ? { category: listing.categorySlug } : {}),
-                ...(listing.region ? { region: listing.region } : { state: listing.state }),
+                ...(!listing.externalMerchandise
+                  ? listing.region
+                    ? { region: listing.region }
+                    : { state: listing.state }
+                  : {}),
               }}
               className={seeAll}
             >
@@ -3062,8 +3023,7 @@ function JobListingDetail({
         <span className="text-foreground">{placeLabel(listing.city, listing.state)}</span>
       </nav>
 
-      {/* Photo first on phones; on desktop the grid places the header across
-          the top and the photo beside the sidebar, exactly as before. */}
+      {/* Shared listing flow: heading, photos and details, with supporting cards on the right. */}
       <div className="mt-5 grid gap-6 lg:mt-6 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,370px)] lg:grid-rows-[auto_auto_auto] lg:items-start lg:gap-7">
         <div className="min-w-0 lg:col-start-1 lg:row-start-2">
           <Gallery listing={listing} />
@@ -3761,8 +3721,7 @@ function ServiceListingDetail({
         <span className="text-foreground">{placeLabel(listing.city, listing.state)}</span>
       </nav>
 
-      {/* Photo first on phones; on desktop the grid places the header across
-          the top and the photo beside the sidebar, exactly as before. */}
+      {/* Shared listing flow: heading, photos and details, with supporting cards on the right. */}
       <div className="mt-5 grid gap-6 lg:mt-6 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,370px)] lg:grid-rows-[auto_auto_auto] lg:items-start lg:gap-7">
         <div className="min-w-0 lg:col-start-1 lg:row-start-2">
           <Gallery listing={listing} />
@@ -4109,18 +4068,13 @@ function GeneralListingDetail({
         )}
         <span className="text-foreground">
           {listing.externalMerchandise
-            ? "Online retailer"
+            ? gunsComProfile.name
             : placeLabel(listing.city, listing.state)}
         </span>
       </nav>
 
-      {/* Photo first on phones; on desktop the grid places the header across
-          the top and the photo beside the sidebar, exactly as before. */}
-      <div className="mt-5 grid gap-6 lg:grid-cols-[minmax(255px,330px)_minmax(0,1fr)] lg:grid-rows-[auto_auto_auto] lg:items-start lg:gap-7">
-        <div className="min-w-0 lg:col-start-2 lg:row-start-2">
-          <Gallery listing={listing} />
-        </div>
-
+      {/* Shared listing flow: heading, photos and details, with supporting cards on the right. */}
+      <div className="mt-5 grid gap-6 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,370px)] lg:grid-rows-[auto_auto_auto] lg:items-start lg:gap-7">
         <header className="border-b border-border/70 pb-5 lg:col-span-2 lg:row-start-1">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
@@ -4129,9 +4083,13 @@ function GeneralListingDetail({
               </h1>
               <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-[12.5px] text-muted-foreground">
                 <span className="flex items-center gap-1.5 text-primary">
-                  <MapPin size={15} weight="fill" />{" "}
+                  {listing.externalMerchandise ? (
+                    <Globe size={15} />
+                  ) : (
+                    <MapPin size={15} weight="fill" />
+                  )}{" "}
                   {listing.externalMerchandise
-                    ? "Online retailer"
+                    ? gunsComProfile.name
                     : placeLabel(listing.city, listing.state)}
                 </span>
                 <span className="flex items-center gap-1.5">
@@ -4184,35 +4142,15 @@ function GeneralListingDetail({
               </button>
             </div>
           </div>
-          {(() => {
-            const savings = retailSavings(listing);
-            return (
-              <>
-                <div className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-2">
-                  <p className="numeric text-[30px] font-bold leading-none text-primary sm:text-[34px]">
-                    {dealerContactPriceLabel(listing) ??
-                      adoptionPriceLabel(listing) ??
-                      formatClassifiedPrice(listing.priceCents, { wholeDollars: true })}
-                  </p>
-                  {savings ? (
-                    <>
-                      <s className="numeric text-lg text-destructive">
-                        <span className="sr-only">Retail price </span>
-                        {formatClassifiedPrice(savings.retailCents, { wholeDollars: true })}
-                      </s>
-                      <span className="inline-flex items-center rounded-full bg-primary/12 px-2.5 py-1 text-xs font-bold text-primary">
-                        Save {formatClassifiedPrice(savings.savedCents, { wholeDollars: true })} (
-                        {savings.percent}% off)
-                      </span>
-                    </>
-                  ) : null}
-                </div>
-              </>
-            );
-          })()}
+          <div className="mt-3 lg:hidden">
+            <GeneralListingPrice listing={listing} />
+          </div>
         </header>
+        <div className="min-w-0 lg:col-start-1 lg:row-start-2">
+          <Gallery listing={listing} />
+        </div>
 
-        <div className="min-w-0 space-y-7 lg:col-start-2 lg:row-start-3">
+        <div className="min-w-0 space-y-7 lg:col-start-1 lg:row-start-3">
           <section className="soft-card overflow-hidden">
             <div className={listingTabListClass} role="tablist" aria-label="Listing information">
               {(listing.externalMerchandise
@@ -4269,7 +4207,19 @@ function GeneralListingDetail({
                     <p className="mt-6 whitespace-pre-line text-[14px] leading-7 text-muted-foreground">
                       {description || "The seller has not added a description yet."}
                     </p>
-                    {listing.externalMerchandise ? <MerchandiseDetails listing={listing} /> : null}
+                    {listing.externalMerchandise ? (
+                      <>
+                        <MerchandiseDetails listing={listing} />
+                        <a
+                          href={listing.externalMerchandise.buyUrl}
+                          target="_blank"
+                          rel="sponsored nofollow noopener noreferrer"
+                          className="mt-6 inline-flex items-center gap-2 rounded-full border border-border px-5 py-3 text-sm font-semibold text-primary hover:bg-secondary"
+                        >
+                          View item on Guns.com <ArrowSquareOut size={16} />
+                        </a>
+                      </>
+                    ) : null}
                     {!descriptionExpanded && description.length > 560 && (
                       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-card to-transparent" />
                     )}
@@ -4321,7 +4271,16 @@ function GeneralListingDetail({
           </section>
         </div>
 
-        <aside className="min-w-0 space-y-5 lg:sticky lg:top-24 lg:col-start-1 lg:row-start-2 lg:row-span-3">
+        <aside className="min-w-0 space-y-5 lg:sticky lg:top-24 lg:col-start-2 lg:row-start-2 lg:row-span-3">
+          <section
+            aria-label="Listing price"
+            className="floating-card border-foreground/20 px-5 py-5"
+          >
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+              Seller price
+            </p>
+            <GeneralListingPrice listing={listing} />
+          </section>
           {listing.externalMerchandise ? (
             <MerchandiseRetailerCard listing={listing} />
           ) : (
@@ -4356,27 +4315,91 @@ function GeneralListingDetail({
   );
 }
 
-function MerchandiseRetailerCard({ listing }: { listing: ClassifiedDetail }) {
-  const offer = listing.externalMerchandise;
-  if (!offer) return null;
+function GeneralListingPrice({ listing }: { listing: ClassifiedDetail }) {
+  const savings = retailSavings(listing);
   return (
-    <section className="soft-card p-5 sm:p-6">
-      <h2 className="text-[15px] font-bold">Guns.com</h2>
-      <p className="mt-2 text-[12px] leading-relaxed text-muted-foreground">
-        Online retailer. Choose available options and confirm current price, stock, delivery, and
-        return terms on the retailer’s site.
-      </p>
-      <a
-        href={offer.buyUrl}
-        target="_blank"
-        rel="sponsored nofollow noopener noreferrer"
-        className="mt-4 flex min-h-11 items-center justify-center gap-1.5 rounded-md bg-primary px-4 text-[13px] font-semibold text-primary-foreground"
+    <>
+      <div className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-2">
+        <p className="numeric text-[30px] font-bold leading-none text-primary sm:text-[34px]">
+          {dealerContactPriceLabel(listing) ??
+            adoptionPriceLabel(listing) ??
+            formatClassifiedPrice(listing.priceCents, { wholeDollars: true })}
+        </p>
+        {savings ? (
+          <>
+            <s className="numeric text-lg text-destructive">
+              <span className="sr-only">Retail price </span>
+              {formatClassifiedPrice(savings.retailCents, { wholeDollars: true })}
+            </s>
+            <span className="inline-flex items-center rounded-full bg-primary/12 px-2.5 py-1 text-xs font-bold text-primary">
+              Save {formatClassifiedPrice(savings.savedCents, { wholeDollars: true })} (
+              {savings.percent}% off)
+            </span>
+          </>
+        ) : null}
+      </div>
+    </>
+  );
+}
+
+function MerchandiseRetailerCard({ listing }: { listing: ClassifiedDetail }) {
+  if (!listing.externalMerchandise) return null;
+  const button =
+    "inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-border text-[12px] font-medium text-primary hover:border-primary hover:bg-primary/5";
+  return (
+    <section className="soft-card p-5 sm:p-6" aria-label="Listed by Guns.com">
+      <ListingSellerIdentity
+        name={gunsComProfile.name}
+        imageUrl={gunsComProfile.logoUrl}
+        title={
+          <Link
+            to="/retailers/$slug"
+            params={{ slug: gunsComProfile.slug }}
+            search={{ page: 1 }}
+            className="hover:underline"
+          >
+            {gunsComProfile.name}
+          </Link>
+        }
+      />
+      <p className="mt-3 text-[12px] text-muted-foreground">{gunsComProfile.phone}</p>
+      <Link
+        to="/retailers/$slug"
+        params={{ slug: gunsComProfile.slug }}
+        search={{ page: 1 }}
+        className="mt-3 inline-block text-[13px] font-semibold text-primary hover:underline"
       >
-        Message Seller <ArrowSquareOut size={15} aria-hidden="true" />
-      </a>
-      <p className="mt-3 text-[11px] text-muted-foreground">
-        Price checked {new Date(offer.refreshedAt).toLocaleString("en-US")}.
-      </p>
+        View seller profile and listings
+      </Link>
+      <div className="mt-4 grid grid-cols-3 gap-2" aria-label="Seller contact options">
+        <a
+          href={gunsComProfile.phoneHref}
+          className={button}
+          onClick={() => trackSellerContact("call", listing)}
+        >
+          <Phone size={15} />
+          Call
+        </a>
+        <a
+          href={gunsComProfile.contactUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={button}
+          onClick={() => trackSellerContact("apply_external", listing)}
+        >
+          <ChatCircle size={15} />
+          Contact <ArrowSquareOut size={12} />
+        </a>
+        <a
+          href={gunsComProfile.website}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={button}
+        >
+          <Globe size={15} />
+          Website
+        </a>
+      </div>
     </section>
   );
 }
