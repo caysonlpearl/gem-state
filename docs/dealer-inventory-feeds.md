@@ -76,3 +76,5 @@ Homepage and category preview rows prefer Idaho, then balance the available sell
 Seller variety is reserved before cache limits. The versioned snapshot refresh migrates the saved card pool automatically after deployment, using existing cached provider data. Public page loads do not acquire new provider inventory for this selection rule.
 
 Mixed pet previews retain species variety: Idaho animals lead within the available species, with nearby rescues supplying missing types. These adjustments retain at least one matching Idaho listing when one is available and do not reduce the selected seller variety.
+
+Listings without an identifiable owner share a per-category exposure budget so every anonymous vehicle does not get a new fairness bonus. Their ownership is still treated as unknown; private-only rows can fill normally.
