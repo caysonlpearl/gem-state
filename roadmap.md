@@ -1,8 +1,8 @@
 # Gem State Classifieds conversion
 
 ## Pet landing inventory
-- [ ] Restore cached dogs to pet previews and mix available species in both general pet rows.
-- [ ] Verify dog and other-pet sections against actual location-matched inventory; keep honest empty states where none exist.
+- [x] Restore cached dogs to pet previews and mix available species in both general pet rows.
+- [x] Verified both mixed rows, five real dog preview cards and clickable adoption results; 15 focused tests passed. Other-pet adoption inventory is empty in Idaho, so that row remains honest. Not published.
 
 ## Search growth follow-up
 - [x] Recheck remaining SEO findings and vehicle discoverability; corrected the unsupported inventory recommendation. Eight fresh foundations checks pass; fixed cached-vehicle sitemap coverage and generation-time report lastmod; 20 tests and 678 unique preview sitemap URLs verified. Not published.
