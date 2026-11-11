@@ -45,23 +45,12 @@ export function DealerContactOptions({
         <div className="mt-2 grid grid-cols-2 gap-3" aria-label="Dealership contact methods">
           {phone ? (
             <a
-              className={`${tile} ${!website ? "col-span-2" : ""}`}
+              className={`${tile} col-start-1 row-start-1`}
               href={`tel:${phone.replace(/[^\d+]/g, "")}`}
             >
               <Phone size={28} weight="duotone" />
               <span>Call dealership</span>
               <span className="text-xs font-normal text-muted-foreground">{phone}</span>
-            </a>
-          ) : null}
-          {website ? (
-            <a
-              className={`${tile} ${!phone ? "col-span-2" : ""}`}
-              href={website}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Globe size={28} weight="duotone" />
-              <span>Visit website</span>
             </a>
           ) : null}
           <button
@@ -71,7 +60,7 @@ export function DealerContactOptions({
               onOpenChange(false);
               onMessage();
             }}
-            className={`${tile} ${!email ? "col-span-2" : ""} disabled:cursor-default disabled:border-dashed disabled:opacity-60`}
+            className={`${tile} col-start-2 row-start-1 disabled:cursor-default disabled:border-dashed disabled:opacity-60`}
           >
             <ChatCircleDots size={28} weight="duotone" />
             <span>Message on Bluebird</span>
@@ -79,8 +68,19 @@ export function DealerContactOptions({
               <span className="text-xs font-normal text-muted-foreground">Inbox unavailable</span>
             ) : null}
           </button>
+          {website ? (
+            <a
+              className={`${tile} col-start-1 row-start-2`}
+              href={website}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Globe size={28} weight="duotone" />
+              <span>Visit website</span>
+            </a>
+          ) : null}
           {email ? (
-            <a className={tile} href={`mailto:${email}`}>
+            <a className={`${tile} col-start-2 row-start-2`} href={`mailto:${email}`}>
               <Envelope size={28} weight="duotone" />
               <span>Email dealership</span>
             </a>

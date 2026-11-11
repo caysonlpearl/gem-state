@@ -831,6 +831,7 @@ function MarketCheckContactCard({ listing }: { listing: ClassifiedDetail }) {
       ? "Private seller"
       : (dealer?.name ?? source.location.sellerName ?? "Vehicle seller");
   const phone = dealer?.phone;
+  const email = listing.id.startsWith("dealerfeed-") ? listing.seller?.contactEmail : null;
   return (
     <section className="soft-card p-5 sm:p-6">
       <ListingSellerIdentity
@@ -860,14 +861,6 @@ function MarketCheckContactCard({ listing }: { listing: ClassifiedDetail }) {
           {[dealer.street, dealer.city, dealer.state, dealer.zip].filter(Boolean).join(", ")}
         </p>
       ) : null}
-      {listing.id.startsWith("dealerfeed-") && listing.seller?.contactEmail ? (
-        <a
-          href={`mailto:${listing.seller.contactEmail}`}
-          className="mt-3 block text-sm text-primary"
-        >
-          {listing.seller.contactEmail}
-        </a>
-      ) : null}
       {listing.id.startsWith("dealerfeed-") && listing.dealer?.slug ? (
         <Link
           to="/dealers/$slug"
@@ -877,13 +870,11 @@ function MarketCheckContactCard({ listing }: { listing: ClassifiedDetail }) {
           View dealership and inventory
         </Link>
       ) : null}
-      <div
-        className={`mt-4 grid gap-2 ${hasApprovedDealer(listing) && listing.seller?.userId ? "grid-cols-3" : "grid-cols-2"}`}
-      >
+      <div className="mt-4 grid grid-cols-2 gap-2" aria-label="Dealership contact methods">
         {phone ? (
           <a
             href={`tel:${phone.replace(/[^\d+]/g, "")}`}
-            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-border text-[12px] font-medium hover:border-primary hover:bg-primary/5 hover:text-primary"
+            className="col-start-1 row-start-1 inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-border text-[12px] font-medium hover:border-primary hover:bg-primary/5 hover:text-primary"
           >
             <Phone size={15} aria-hidden="true" /> Call
           </a>
@@ -893,7 +884,7 @@ function MarketCheckContactCard({ listing }: { listing: ClassifiedDetail }) {
             type="button"
             disabled={listing.seller.allowInternalMessages === false}
             onClick={() => window.dispatchEvent(new Event(OPEN_LISTING_MESSAGE_EVENT))}
-            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md bg-primary px-2 text-[12px] font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
+            className="col-start-2 row-start-1 inline-flex h-9 items-center justify-center gap-1.5 rounded-md bg-primary px-2 text-[12px] font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50"
             aria-label="Message dealership"
           >
             <ChatCircle size={15} aria-hidden="true" /> Message
@@ -904,9 +895,17 @@ function MarketCheckContactCard({ listing }: { listing: ClassifiedDetail }) {
             href={dealer.website}
             target="_blank"
             rel="noopener noreferrer nofollow"
-            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-border text-[12px] font-medium hover:border-primary hover:bg-primary/5 hover:text-primary"
+            className="col-start-1 row-start-2 inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-border text-[12px] font-medium hover:border-primary hover:bg-primary/5 hover:text-primary"
           >
             <Globe size={15} aria-hidden="true" /> Website
+          </a>
+        ) : null}
+        {email ? (
+          <a
+            href={`mailto:${email}?subject=${encodeURIComponent(listing.title)}`}
+            className="col-start-2 row-start-2 inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-border text-[12px] font-medium hover:border-primary hover:bg-primary/5 hover:text-primary"
+          >
+            <EnvelopeSimple size={15} aria-hidden="true" /> Email
           </a>
         ) : null}
       </div>
