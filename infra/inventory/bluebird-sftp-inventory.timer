@@ -1,0 +1,12 @@
+[Unit]
+Description=Check for new SFTP inventory deliveries every five minutes
+
+[Timer]
+OnActiveSec=1min
+OnCalendar=*-*-* *:00/5:00
+Persistent=true
+RandomizedDelaySec=10
+Unit=bluebird-sftp-inventory.service
+
+[Install]
+WantedBy=timers.target

@@ -34,3 +34,41 @@ sweep within the hour must skip it. Replays must not duplicate records/media.
 Pause a source in Bluebird to stop imports. Disable the timer to stop this
 worker. Keep a previous release for rollback. This imports private records;
 the normal verified dealer/storefront and review process governs publication.
+
+## SFTP deliveries
+
+`bluebird-sftp-inventory.service` is a separate, five-minute delivery watcher;
+it does not change the existing Motive worker or SFTP server permissions. Build
+its single-file artifact with the installed bundler:
+
+```
+node_modules/.bin/rolldown infra/inventory/sftp-run.mjs --file /private/release/sftp-run.mjs --platform node --format esm
+```
+
+Deploy under `/opt/bluebird-sftp-inventory/releases/` and switch `current`
+atomically. Apply `20261111210000_sftp_inventory_delivery.sql` first. Keep the
+root-only `/etc/bluebird/sftp-inventory.json` outside source control:
+
+```
+{"sources":[{"sourceId":"configured-source-uuid","path":"/srv/bluebird-sftp/vendor/incoming/inventory.csv"}]}
+```
+
+systemd loads that manifest and the existing database credentials privately.
+The read-only, restricted service runs as root with only `CAP_DAC_READ_SEARCH`
+to read vendor-owned 0700/0600 uploads, without opening their permissions to
+other users. Home directories and SSH configuration are inaccessible. It opens
+no network listener and follows no database HTTP redirects.
+
+Only pinned CSV files are read. Symlinks, empty/oversized files, deliveries older
+than 72 hours and files modified within the last two minutes are rejected or
+deferred; inode, modification time and size must remain stable while reading.
+Providers should upload to a temporary name and rename once complete. Each
+delivery's content/metadata fingerprint is checkpointed in the same database
+transaction as reconciliation. Replaying a delivery does not advance missing
+vehicle counts; a new received export can refresh identical inventory. Failed
+validation or reconciliation leaves the previous snapshot intact.
+
+`onboard-sftp-dealer.mjs` is an operator-only, one-time helper bundled the same
+way. It reads all contacts and source bindings from a private configuration,
+reuses the standard dealer onboarding function, and never sends an invitation.
+Publication stays disabled until the first import and public-data checks pass.
