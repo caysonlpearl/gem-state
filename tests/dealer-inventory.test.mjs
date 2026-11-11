@@ -195,12 +195,12 @@ test("Motive maps dealer fields and orders/deduplicates numbered photos", () => 
   );
 });
 
-test("Motive retains an unpriced vehicle privately without inventing a price", () => {
+test("Motive preserves unpriced availability without inventing a price", () => {
   const xml = `<inventory>${motiveVehicle().replace("<price>35786</price>", "<price>0</price>")}</inventory>`;
   const result = parseAndNormalizeInventoryXml(xml, motiveMapping);
   assert.equal(result.errors.length, 0);
   assert.equal(result.records[0].priceCents, null);
-  assert.equal(result.records[0].inventoryStatus, "invalid");
+  assert.equal(result.records[0].inventoryStatus, "active");
   assert.equal(recordsForDatabase(result.records)[0].price_cents, null);
 });
 

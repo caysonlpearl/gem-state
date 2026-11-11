@@ -1,3 +1,4 @@
+import { dealerContactPriceLabel } from "@/lib/vehicle-shopping";
 import { VerifiedDealerBadge } from "@/components/dealers/VerifiedDealerBadge";
 import { VehiclePrice } from "@/components/dealers/VehiclePrice";
 import { VehiclePriceInsight } from "@/components/dealers/VehiclePriceInsight";
@@ -237,6 +238,7 @@ export const Route = createFileRoute("/listings/$listingId")({
         : listing.job
           ? formatJobPay(listing.job)
           : (listing.service?.pricing ??
+            dealerContactPriceLabel(listing) ??
             adoptionPriceLabel(listing) ??
             formatClassifiedPrice(listing.priceCents, {
               wholeDollars: Boolean(listing.vehicle || listing.home),
@@ -2094,7 +2096,9 @@ function ListingDetailContent() {
           )}
           <ListingActions listing={listing} showPriceHeader={false} />
 
-          <VehiclePriceInsight key={listing.id} listingId={listing.id} />
+          {listing.priceCents > 0 ? (
+            <VehiclePriceInsight key={listing.id} listingId={listing.id} />
+          ) : null}
 
           <VehicleHistoryCard vehicle={vehicle} />
 
@@ -4186,7 +4190,8 @@ function GeneralListingDetail({
               <>
                 <div className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-2">
                   <p className="numeric text-[30px] font-bold leading-none text-primary sm:text-[34px]">
-                    {adoptionPriceLabel(listing) ??
+                    {dealerContactPriceLabel(listing) ??
+                      adoptionPriceLabel(listing) ??
                       formatClassifiedPrice(listing.priceCents, { wholeDollars: true })}
                   </p>
                   {savings ? (

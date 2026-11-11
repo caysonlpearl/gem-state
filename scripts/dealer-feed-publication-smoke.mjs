@@ -69,7 +69,15 @@ globalThis.fetch = async (input, init = {}) => {
                     id: `10000000-0000-4000-8000-${String(i + 1).padStart(12, "0")}`,
                     title: `Page fixture vehicle ${i + 1}`,
                   }))
-                : [{ ...vehicle, price_cents: mode === "unpriced" ? null : vehicle.price_cents }],
+                : [
+                    {
+                      ...vehicle,
+                      price_cents: ["unpriced", "empty"].includes(mode)
+                        ? null
+                        : vehicle.price_cents,
+                      photos: ["no-photos", "empty"].includes(mode) ? [] : vehicle.photos,
+                    },
+                  ],
           },
     );
   }
@@ -162,6 +170,22 @@ try {
   assert.equal(r.status, 404);
   mode = "unpriced";
   r = await request(detail);
+  html = await r.text();
+  assert.equal(r.status, 200);
+  assert.ok(html.includes("Contact For Price"));
+  assert.ok(!html.includes("Estimated payment"));
+  assert.ok(!html.includes('"price":"0.00"'));
+  assert.ok(!html.includes("$0.00"));
+  assert.ok(html.includes("Contact dealership"));
+  r = await request("/dealers/" + dealer.slug);
+  assert.ok((await r.text()).includes("Contact For Price"));
+  mode = "no-photos";
+  r = await request(detail);
+  html = await r.text();
+  assert.equal(r.status, 200);
+  assert.ok(html.includes("$35,000"));
+  mode = "empty";
+  r = await request(detail);
   assert.equal(r.status, 404);
   mode = "offline";
   r = await request(detail);
@@ -181,7 +205,7 @@ try {
         "scoped browse",
         "public photos",
         "revoked permission",
-        "unpriced exclusion",
+        "photo-only contact pricing, price-only listings and empty exclusion",
         "source outage",
       ],
       externalTraffic: 0,

@@ -51,7 +51,7 @@ test("Overfuel maps the standard file, preserves unpriced vehicles, and discards
   assert.equal(result.records[0].rawRecord.condition, "used");
   assert.equal(result.records[0].rawRecord.msrp, "12000");
   assert.equal(result.records[0].media.length, 2);
-  assert.equal(result.records[1].inventoryStatus, "invalid");
+  assert.equal(result.records[1].inventoryStatus, "active");
   assert.equal(result.records[1].priceCents, null);
   assert.ok(result.records.every((r) => !("Cost" in r.rawRecord)));
   assert.ok(result.rows.every((r) => !("Cost" in r)));

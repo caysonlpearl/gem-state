@@ -48,6 +48,24 @@ test("direct dealer normalization keeps provenance, stock, nullable mileage and 
   );
   assert.equal(publishedFeedVehicle({ id, dealer_slug: dealer.slug }, dealer), null);
 });
+test("dealer publication needs a price or safe photos, and preserves missing prices as unknown", () => {
+  for (const price of [null, 0, -1, "bad", 1250000]) {
+    for (const photos of [
+      [],
+      ["https://images.example/car.jpg"],
+      ["https://images.example/car.jpg?token=private"],
+      ["not-an-image"],
+    ]) {
+      const vehicle = publishedFeedVehicle(
+        { id, dealer_slug: dealer.slug, price_cents: price, photos },
+        dealer,
+      );
+      const eligible = price === 1250000 || photos[0] === "https://images.example/car.jpg";
+      assert.equal(Boolean(vehicle), eligible, JSON.stringify({ price, photos }));
+      if (vehicle) assert.equal(vehicle.price, price === 1250000 ? 12500 : null);
+    }
+  }
+});
 test("direct permission feed replaces duplicated and older same-dealer aggregator cars", () => {
   const card = (id, vin, url) => ({ id, vehicle: { vin }, externalVehicle: { sourceUrl: url } });
   const direct = [card("direct", "VIN1", "https://dealer.example/inventory/new")];
@@ -89,6 +107,19 @@ test("public RPC requires authorization and exposes only safe current eligible i
         "utf8",
       ),
     );
+    await db.exec(`ALTER TABLE auth.users ADD COLUMN email_confirmed_at timestamptz;
+      CREATE TABLE dealer_profiles(id uuid,display_name text,website text,phone text,address_line1 text,city text,state text,postal_code text,owner_user_id uuid,logo_url text,email text,status text);
+      CREATE TABLE account_contact_preferences(user_id uuid,allow_internal_messages boolean);
+      ALTER TABLE dealer_feed_publications ADD COLUMN dealer_id uuid, ADD COLUMN inbox_enabled boolean DEFAULT true;`);
+    await db.exec(
+      await readFile(
+        new URL(
+          "../supabase/migrations/20261111230000_dealer_price_or_photos.sql",
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+    );
     const source = (
       await db.query(
         `INSERT INTO dealer_inventory_sources(owner_user_id,name,feed_url) VALUES ($1,'Authorized feed','https://provider.example/private?key=never-public') RETURNING id`,
@@ -125,6 +156,83 @@ test("public RPC requires authorization and exposes only safe current eligible i
     assert.ok(!JSON.stringify(data).includes("never-public"));
     assert.ok(!JSON.stringify(data).includes("Private written approval"));
     assert.ok(!JSON.stringify(data).includes("feed_url"));
+    // Eligibility is the same in browse, detail and anonymous readers; only safe active photos count.
+    for (const [price, photo, active, eligible] of [
+      [null, null, true, false],
+      [0, null, true, false],
+      [1250000, null, true, true],
+      [null, "https://images.example/photo.jpg", true, true],
+      [0, "https://images.example/photo.jpg", true, true],
+      [null, "https://images.example/photo.jpg", false, false],
+      [null, "https://images.example/photo.jpg?key=secret", true, false],
+      [null, "http://images.example/photo.jpg", true, false],
+    ]) {
+      const extra = (
+        await db.query(
+          `INSERT INTO dealer_inventory_records(source_id,source_record_key,title,price_cents,city,state,content_hash) VALUES ($1,'matrix','Photo or price car',$2,'Boise','ID','matrix') RETURNING id`,
+          [source, price],
+        )
+      ).rows[0].id;
+      if (photo)
+        await db.query(
+          `INSERT INTO dealer_inventory_media(record_id,media_url,position,content_hash,active) VALUES ($1,$2,0,'matrix',$3)`,
+          [extra, photo, active],
+        );
+      const detail = (
+        await db.query("SELECT read_published_dealer_inventory($1,NULL,true) AS data", [extra])
+      ).rows[0].data;
+      assert.equal(
+        detail.vehicles.length,
+        eligible ? 1 : 0,
+        JSON.stringify({ price, photo, active }),
+      );
+      assert.equal((await read()).vehicles.length, eligible ? 2 : 1);
+      await db.query("DELETE FROM dealer_inventory_records WHERE id=$1", [extra]);
+    }
+    const completed = (
+      await db.query(
+        `INSERT INTO dealer_inventory_sync_runs(source_id,mode,status) VALUES ($1,'apply','completed') RETURNING id`,
+        [source],
+      )
+    ).rows[0].id;
+    await db.query(
+      `UPDATE dealer_inventory_sources SET mapping_profile='{"__provider":"motive"}' WHERE id=$1`,
+      [source],
+    );
+    for (const [status, raw, missed, expected] of [
+      ["invalid", { price: "0" }, 0, "active"],
+      ["invalid", { price: "" }, 0, "active"],
+      ["invalid", { price: "0", Status: "invalid" }, 0, "invalid"],
+      ["sold", { price: "0" }, 0, "sold"],
+      ["stale", { price: "0" }, 1, "stale"],
+      ["invalid", { price: "bad" }, 0, "invalid"],
+      ["invalid", { price: "0" }, 1, "invalid"],
+    ]) {
+      const extra = (
+        await db.query(
+          `INSERT INTO dealer_inventory_records(source_id,source_record_key,title,city,state,content_hash,inventory_status,raw_record,missed_run_count,last_seen_run_id) VALUES ($1,'repair','Repair test','Boise','ID','repair',$2,$3,$4,$5) RETURNING id`,
+          [source, status, JSON.stringify(raw), missed, completed],
+        )
+      ).rows[0].id;
+      await db.exec(
+        await readFile(
+          new URL(
+            "../supabase/migrations/20261111230000_dealer_price_or_photos.sql",
+            import.meta.url,
+          ),
+          "utf8",
+        ),
+      );
+      assert.equal(
+        (
+          await db.query("SELECT inventory_status FROM dealer_inventory_records WHERE id=$1", [
+            extra,
+          ])
+        ).rows[0].inventory_status,
+        expected,
+      );
+      await db.query("DELETE FROM dealer_inventory_records WHERE id=$1", [extra]);
+    }
     await db.exec("SET ROLE anon");
     assert.equal((await read()).vehicles.length, 1);
     await assert.rejects(db.query("SELECT * FROM dealer_feed_publications"), /permission denied/);

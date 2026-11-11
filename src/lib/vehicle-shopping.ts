@@ -1,3 +1,10 @@
+/** An absent dealer asking price is an inquiry, never a free vehicle. */
+export function dealerContactPriceLabel(listing: { id?: string; priceCents: number }) {
+  return listing.id?.startsWith("dealerfeed-") && listing.priceCents <= 0
+    ? "Contact For Price"
+    : null;
+}
+
 /** Only approved business profiles have a public Bluebird dealership slug. */
 export function hasApprovedDealer(listing: { dealer?: { slug?: string } | null }) {
   return Boolean(listing.dealer?.slug);

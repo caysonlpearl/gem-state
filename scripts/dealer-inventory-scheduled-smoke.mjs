@@ -91,7 +91,7 @@ try {
   assert.equal(reconciled[0].postal_code, "83301");
   assert.equal(reconciled[0].media.length, 1);
   assert.equal(reconciled[1].price_cents, null);
-  assert.equal(reconciled[1].inventory_status, "invalid");
+  assert.equal(reconciled[1].inventory_status, "active");
   assert.ok(released);
   mode = "truncated";
   reconciled = null;

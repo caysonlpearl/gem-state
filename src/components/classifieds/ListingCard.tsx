@@ -1,3 +1,4 @@
+import { dealerContactPriceLabel } from "@/lib/vehicle-shopping";
 import { VerifiedDealerBadge } from "@/components/dealers/VerifiedDealerBadge";
 import { VehiclePrice } from "@/components/dealers/VehiclePrice";
 import { hasApprovedDealer } from "@/lib/vehicle-shopping";
@@ -496,6 +497,7 @@ function Price({ listing }: { listing: ListingCardSummary }) {
       {listing.job
         ? formatJobPay(listing.job)
         : (listing.service?.pricing ??
+          dealerContactPriceLabel(listing) ??
           adoptionPriceLabel(listing) ??
           formatClassifiedPrice(listing.priceCents, {
             wholeDollars: Boolean(listing.vehicle || listing.home || savings),

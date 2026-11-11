@@ -89,7 +89,7 @@ export async function importSftpSource(config, { database, now = Date.now() }) {
     ...result,
     received: parsed.rows.length,
     priced: parsed.records.filter((r) => r.priceCents > 0).length,
-    unpriced: parsed.records.filter((r) => r.inventoryStatus === "invalid").length,
+    unpriced: parsed.records.filter((r) => r.priceCents == null).length,
     photos: parsed.records.reduce((n, r) => n + r.media.length, 0),
   };
 }
