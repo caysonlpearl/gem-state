@@ -48,6 +48,7 @@ test("every landing page awaits its shared saved pool; results never add a landi
     classifiedQuery: (input) => ({ queryKey: ["browse"], input }),
     latestListingsInput: (input) => input,
     landingHomeQuery: { queryKey: ["classifieds-landing-cache"] },
+    petLandingQuery: { queryKey: ["pet-landing-inventory"] },
     isOutOfRangePage: () => false,
   });
 
@@ -97,7 +98,7 @@ test("every landing page awaits its shared saved pool; results never add a landi
     });
     await new Promise(setImmediate);
     assert.equal(ready, false, JSON.stringify(search));
-    assert.deepEqual(calls, ["browse", "classifieds-landing-cache"]);
+    assert.deepEqual(calls, ["browse", "classifieds-landing-cache", ...(search.category === "pets" ? ["pet-landing-inventory"] : [])]);
     release({ recent: [] });
     await pending;
     assert.equal(ready, true);
