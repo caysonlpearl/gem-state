@@ -1257,8 +1257,6 @@ test("homes browse has a large landing hero and tab-specific filter views", () =
   for (const label of [
     "Square feet",
     "Acres",
-    "Heating",
-    "Cooling",
     "Garage \/ parking",
     "School district",
     "Pet policy",
@@ -1280,8 +1278,6 @@ test("homes browse has a large landing hero and tab-specific filter views", () =
     'label={activeTab === "rent" ? "Bathrooms" : "Bathrooms"} value={bathrooms} options={homeBathroomOptions} multi={false}',
     'label: "Square feet", options: homeSquareFeetOptions, multi: false',
     'label: "Acres", options: homeAcresOptions, multi: false',
-    'label: "Heating", options: ["Any heating", "Forced air", "Gas", "Electric", "Heat pump", "Radiant"], multi: true',
-    'label: "Cooling", options: ["Any cooling", "Central air", "Window unit", "Evaporative", "Heat pump"], multi: true',
     'label: "School district", options: ["Any district", "West Ada", "Boise", "Nampa", "Vallivue", "Twin Falls"], multi: true',
     'label: "Lease length", options: leaseLengthOptions, multi: false',
   ]) {
@@ -1295,7 +1291,6 @@ test("homes browse has a large landing hero and tab-specific filter views", () =
     "2.5+",
     "Built 2025 or newer",
     "Forced air",
-    "Central air",
     "Attached garage",
     "Pets allowed",
     "No smoking",
@@ -1832,4 +1827,10 @@ test("firearms are a first-class category with linked safety guidance", async ()
   for (const variant of firearmsArtworkVariants) {
     assert.equal(variant.subarray(8, 12).toString(), "WEBP");
   }
+});
+
+test("homes filters no longer offer heating or cooling", () => {
+  const src = readFileSync(new URL("../src/routes/browse.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(src, /key: "homeHeating"/);
+  assert.doesNotMatch(src, /key: "homeCooling"/);
 });
