@@ -7,6 +7,7 @@ type DiscoveryCard = Pick<ListingCardSummary, "id" | "title"> &
       | "state"
       | "discoverySellerKey"
       | "dealer"
+      | "pet"
       | "job"
       | "directory"
       | "externalPet"
@@ -106,6 +107,60 @@ export function selectDiscoveryCards<T extends DiscoveryCard>(
       selected.push(groups.get(winner)!.shift()!);
       rowCounts.set(winner, (rowCounts.get(winner) ?? 0) + 1);
       sellerCounts.set(winner, (sellerCounts.get(winner) ?? 0) + 1);
+    }
+  }
+  if (count > 1 && unique.length && unique.every((card) => card.pet)) {
+    const species = (card: T) => card.pet?.subcategory ?? "other";
+    const available = [...new Set(unique.map(species))];
+    for (const kind of available) {
+      if (selected.some((card) => species(card) === kind)) continue;
+      const speciesCounts = new Map<string, number>();
+      for (const card of selected)
+        speciesCounts.set(species(card), (speciesCounts.get(species(card)) ?? 0) + 1);
+      const candidates = unique
+        .filter((card) => species(card) === kind && !selected.some((pick) => pick.id === card.id))
+        .sort(
+          (a, b) =>
+            Number(normalized(b.state) === "id") - Number(normalized(a.state) === "id") ||
+            Number(selected.some((pick) => discoverySellerKey(pick) === discoverySellerKey(a))) -
+              Number(selected.some((pick) => discoverySellerKey(pick) === discoverySellerKey(b))),
+        );
+      const replacement = candidates[0];
+      if (!replacement) continue;
+      const localCount = selected.filter((card) => normalized(card.state) === "id").length;
+      const removable = selected
+        .filter(
+          (card) =>
+            (speciesCounts.get(species(card)) ?? 0) > 1 &&
+            !(
+              selected.some(
+                (pick) => discoverySellerKey(pick) === discoverySellerKey(replacement),
+              ) &&
+              discoverySellerKey(card) !== discoverySellerKey(replacement) &&
+              selected.filter((pick) => discoverySellerKey(pick) === discoverySellerKey(card))
+                .length === 1
+            ) &&
+            !(
+              localCount === 1 &&
+              normalized(card.state) === "id" &&
+              normalized(replacement.state) !== "id"
+            ),
+        )
+        .sort(
+          (a, b) =>
+            Number(discoverySellerKey(b) === discoverySellerKey(replacement)) -
+              Number(discoverySellerKey(a) === discoverySellerKey(replacement)) ||
+            Number(normalized(a.state) === "id") - Number(normalized(b.state) === "id") ||
+            (sellerCounts.get(discoverySellerKey(b)) ?? 0) -
+              (sellerCounts.get(discoverySellerKey(a)) ?? 0),
+        );
+      const previous = removable[0];
+      if (!previous) continue;
+      selected[selected.indexOf(previous)] = replacement;
+      const oldKey = discoverySellerKey(previous),
+        newKey = discoverySellerKey(replacement);
+      sellerCounts.set(oldKey, (sellerCounts.get(oldKey) ?? 1) - 1);
+      sellerCounts.set(newKey, (sellerCounts.get(newKey) ?? 0) + 1);
     }
   }
   return selected.sort(

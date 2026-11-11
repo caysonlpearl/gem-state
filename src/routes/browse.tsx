@@ -9,6 +9,7 @@ import {
   jobsShowcaseRows,
 } from "@/config/landing-preview-rows";
 import { createFileRoute, Link, notFound, useNavigate, useRouter } from "@tanstack/react-router";
+import { mixPetSpecies } from "@/lib/pet-mix";
 import { queryOptions, useQuery, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -1814,11 +1815,13 @@ function Browse() {
       <FilterSection title="Category">
         <select name="category" defaultValue={search.category ?? ""} className="filter-input">
           <option value="">All categories</option>
-          {classifiedCategories.map((category) => (
-            <option key={category.slug} value={category.slug}>
-              {category.name}
-            </option>
-          ))}
+          {[...classifiedCategories]
+            .sort((a, b) => a.name.localeCompare(b.name))
+            .map((category) => (
+              <option key={category.slug} value={category.slug}>
+                {category.name}
+              </option>
+            ))}
         </select>
       </FilterSection>
 
@@ -2248,15 +2251,6 @@ function Browse() {
 
   return (
     <main className="mx-auto max-w-[1400px] px-4 py-10 sm:px-8">
-      {result.limitedResults && (
-        <p
-          role="status"
-          className="mb-5 rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground"
-        >
-          This broad search covers a limited set of marketplace listings. Narrow your location or
-          filters to explore more.
-        </p>
-      )}
       {allCategoriesLanding && (
         <>
           <ClassifiedsLandingHero
@@ -3732,7 +3726,7 @@ function LandingListingsShowcase({
     ],
     inputFromSearch(browseSearch),
   );
-  const visibleListings = varietyOf(candidates, compact ? 5 : 4);
+  const visibleListings = varietyOf(mixPetSpecies(candidates), compact ? 5 : 4);
 
   return (
     <section
@@ -3845,7 +3839,7 @@ function HomepageShowcaseRows({
     const matching = querySearch
       ? landingCards(pool, inputFromSearch(showcaseSearch(querySearch, row.href)))
       : [];
-    const fresh = selectDiscoveryCards(matching, 5, sellerCounts, shownIds);
+    const fresh = selectDiscoveryCards(mixPetSpecies(matching), 5, sellerCounts, shownIds);
     const picks =
       fresh.length >= 5
         ? fresh

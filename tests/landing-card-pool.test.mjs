@@ -1,3 +1,4 @@
+import { mixPetSpecies } from "../src/lib/pet-mix.ts";
 import { selectDiscoveryCards } from "../src/lib/discovery-ranking.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -45,6 +46,7 @@ test("every landing page awaits its shared saved pool; results never add a landi
   }
   visit(ast);
   const context = vm.createContext({
+    mixPetSpecies,
     isMotorsCategory: (category) => ["cars-trucks", "motorcycles"].includes(category),
     classifiedQuery: (input) => ({ queryKey: ["browse"], input }),
     latestListingsInput: (input) => input,
@@ -58,6 +60,7 @@ test("every landing page awaits its shared saved pool; results never add a landi
       .flatMap((s) => s.declarationList.declarations)
       .find((d) => d.name.getText(ast) === "landingHomeQuery");
     const context = vm.createContext({
+      mixPetSpecies,
       queryOptions: (options) => options,
       getClassifiedsLandingHome: async () => {
         throw new Error("Temporary CDN failure");
@@ -226,6 +229,7 @@ test("landing rows render real cards on the server without scroll observers or p
     card(`car-${index}`, { vehicle: { bodyStyle: "SUV", year: 2024 } }),
   );
   const context = vm.createContext({
+    mixPetSpecies,
     React,
     selectDiscoveryCards,
     URL,
@@ -290,6 +294,7 @@ test("category lead previews can select older Idaho sellers beyond a refreshed f
     discoverySellerKey: "other",
   });
   const context = vm.createContext({
+    mixPetSpecies,
     React,
     URL,
     selectDiscoveryCards,
@@ -340,6 +345,7 @@ test("new query cards take precedence over older copies in the saved discovery p
   });
   const stale = { ...current, title: "Old cached details" };
   const context = vm.createContext({
+    mixPetSpecies,
     React,
     URL,
     selectDiscoveryCards,

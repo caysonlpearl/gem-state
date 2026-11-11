@@ -225,7 +225,11 @@ export async function rescueGroupsCards(
   return (await allPets(options?.cacheOnly))
     .filter(
       (pet) =>
-        (!(state && !hasClassifiedRadiusCenter(data)) || pet.org?.state === state) &&
+        // Every search center is in Idaho, so an Idaho-wide search keeps the
+        // border-area rescues those centers found (RescueGroups lists few
+        // Idaho dogs); other states stay strict.
+        (!(state && state !== "ID" && !hasClassifiedRadiusCenter(data)) ||
+          pet.org?.state === state) &&
         (!q ||
           `${pet.name} ${pet.breed ?? ""} ${pet.species ?? ""} ${pet.org?.city ?? ""}`
             .toLowerCase()

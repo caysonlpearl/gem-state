@@ -57,6 +57,7 @@ function render(source, fileName, entry, globals = {}) {
     AllCategoriesPopover: "AllCategoriesPopover",
     CategoryArtwork: "CategoryArtwork",
     generalCategoryHighlights: [],
+    mixPetSpecies: (listings) => [...listings],
     ...globals,
   });
   return vm.runInContext(`${compiled}\n${entry}`, context);

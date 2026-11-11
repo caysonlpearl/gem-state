@@ -238,3 +238,25 @@ test("a rare Idaho seller is not crowded out of later rows after its only card a
   assert.equal(localFirst[0].id, rare.id);
   assert.equal(selectDiscoveryCards(pool, 4, new Map(), new Set(pool.map((c) => c.id))).length, 0);
 });
+
+test("Idaho seller priority preserves mixed pet species and border-area dogs", () => {
+  const cat = (id, seller) =>
+    card(id, seller, "ID", { categorySlug: "pets", vehicle: null, pet: { subcategory: "cats" } });
+  const dog = (id, seller, state = "UT") =>
+    card(id, seller, state, { categorySlug: "pets", vehicle: null, pet: { subcategory: "dogs" } });
+  const pool = [
+    cat("cat-a", "a"),
+    cat("cat-b", "b"),
+    cat("cat-c", "c"),
+    cat("cat-d", "d"),
+    dog("dog-e", "e"),
+  ];
+  const picked = selectDiscoveryCards(pool, 4);
+  assert.equal(new Set(picked.map((c) => c.pet.subcategory)).size, 2);
+  assert.equal(new Set(picked.map(discoverySellerKey)).size, 4);
+  assert.equal(picked[0].state, "ID");
+  const localDog = selectDiscoveryCards([...pool, dog("local-dog-a", "a", "ID")], 4);
+  assert.ok(localDog.every((c) => c.state === "ID"));
+  assert.equal(new Set(localDog.map(discoverySellerKey)).size, 4);
+  assert.equal(new Set(localDog.map((c) => c.pet.subcategory)).size, 2);
+});

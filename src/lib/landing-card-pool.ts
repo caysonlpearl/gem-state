@@ -62,7 +62,16 @@ export function matchesLandingCard(listing: ListingCardSummary, data: Classified
     )
       return false;
   }
-  if (data.state && !hasClassifiedRadiusCenter(data) && data.state !== listing.state) return false;
+  // Idaho-wide pet searches keep the border-area rescues the server returned.
+  const idahoRescue =
+    data.state === "ID" && Boolean((listing as { externalPet?: unknown }).externalPet);
+  if (
+    data.state &&
+    !hasClassifiedRadiusCenter(data) &&
+    data.state !== listing.state &&
+    !idahoRescue
+  )
+    return false;
   if (data.postalCode && !(listing.postalCode ?? "").startsWith(data.postalCode)) return false;
   if (
     data.city &&
