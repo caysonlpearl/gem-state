@@ -35,14 +35,20 @@ export async function refreshMerchandisePage(
   const pageSize = merchandisePageSize(scope);
   try {
     const response = await request(merchandiseSearchUrl(scope, offset), {
-      headers: { Accept: "application/json" },
-      redirect: "error",
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "BluebirdMarketplace/1.0 (+https://onbluebird.com)",
+      },
+      // workerd rejects redirect:"error"; treat any redirect as a failure instead.
+      redirect: "manual",
       signal: AbortSignal.timeout(55000),
     });
-    if (!response.ok) throw new Error("provider_unavailable");
+    if (response.status >= 300 && response.status < 400)
+      throw new Error(`provider_redirect_${response.status}`);
+    if (!response.ok) throw new Error(`provider_http_${response.status}`);
     const body: unknown = await response.json();
     if (!Array.isArray(body) || body.length > pageSize)
-      throw new Error("invalid_response");
+      throw new Error(Array.isArray(body) ? "invalid_response_oversized" : "invalid_response_shape");
     const byId = new Map(
       body
         .map((r) => normalizeMerchandise(r, scope))
@@ -105,13 +111,15 @@ export async function refreshMerchandisePage(
       accepted: products.length,
       complete,
     };
-  } catch {
+  } catch (err) {
+    const reason = refreshFailureReason(err);
+    console.error("[avantlink] merchandise refresh failed", key, reason);
     await bounded(
       db
         .from("avantlink_merchandise_scopes")
         .update({
           lease_until: new Date(Date.now() + 31 * 60000).toISOString(),
-          last_error: "refresh_failed",
+          last_error: `refresh_failed:${reason}`,
         })
         .eq("scope_key", key),
     );
@@ -151,4 +159,13 @@ export async function advanceMerchandiseFeed(db?: Database) {
     );
   });
   return due[0] ? refreshMerchandisePage(due[0], db) : { skipped: true, reason: "fresh" };
+}
+
+/** Short, secret-free description of why a provider refresh failed. */
+export function refreshFailureReason(err: unknown): string {
+  if (err instanceof Error) {
+    const name = err.name === "Error" ? "" : `${err.name}:`;
+    return `${name}${err.message}`.replace(/https?:\/\/\S+/g, "[url]").slice(0, 200);
+  }
+  return "unknown";
 }
