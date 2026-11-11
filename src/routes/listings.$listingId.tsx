@@ -1588,12 +1588,6 @@ function ListingDetailContent() {
   // Cars and trucks link to their make and model page.
   const pageMake = listing.categorySlug === "cars-trucks" ? canonicalMake(vehicle?.make) : null;
   const pageModel = pageMake ? canonicalModel(pageMake, vehicle?.model) : null;
-  const modelPage = pageMake
-    ? {
-        path: vehiclePagePath(pageMake, pageModel),
-        label: pageModel ? `${pageMake} ${pageModel}` : pageMake,
-      }
-    : null;
   // "Not applicable" (animals, homes, jobs, services) isn't worth a line.
   const condition =
     listing.condition === "not_applicable"
@@ -1624,7 +1618,13 @@ function ListingDetailContent() {
         ["Fulfillment", formatFulfillmentLabel(listing.fulfillmentMode)],
       ].filter(([, value]) => Boolean(value)) as [string, string][]);
 
-  const title = vehicle ? vehicleHeadline(vehicle) || listing.title : listing.title;
+  const title = vehicle
+    ? vehicleHeadline({
+        ...vehicle,
+        make: pageMake ?? vehicle.make,
+        model: pageModel ?? vehicle.model,
+      }) || listing.title
+    : listing.title;
   const description = listing.description?.trim() ?? "";
   const exactDealerAddress =
     vehicle && hasApprovedDealer(listing) && listing.dealer?.address
@@ -1732,58 +1732,102 @@ function ListingDetailContent() {
     <main className="mx-auto max-w-[1360px] px-4 pb-6 pt-3 sm:px-7 sm:pb-8 sm:pt-4 lg:px-10">
       <nav
         aria-label="Breadcrumb"
-        className="flex flex-wrap items-center gap-1 text-[11.5px] text-muted-foreground"
+        className="overflow-x-auto pb-1 text-[12px] text-muted-foreground sm:text-[13px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
-        <Link to="/browse" search={{}} className="hover:text-foreground">
-          All listings
-        </Link>
-        <CaretRight size={13} />
-        {listing.categorySlug && (
-          <>
+        <ol className="flex min-w-max items-center gap-2 sm:gap-2.5">
+          <li>
             <Link
-              to="/browse"
-              search={{ category: listing.categorySlug }}
-              className="hover:text-foreground"
+              to="/"
+              aria-label="Home"
+              className="flex items-center rounded-sm text-muted-foreground transition hover:text-primary"
             >
-              {listing.categoryName}
+              <House size={17} aria-hidden="true" />
             </Link>
-            <CaretRight size={13} />
-          </>
-        )}
-        {listing.itemDetails?.itemType && listing.categorySlug && (
-          <>
-            <Link
-              to="/browse"
-              search={classifiedSubcategorySearch(
-                listing.categorySlug,
-                listing.itemDetails.itemType,
-              )}
-              className="hover:text-foreground"
-            >
-              {listing.itemDetails.itemType}
+          </li>
+          <li className="flex items-center gap-2 sm:gap-2.5">
+            <CaretRight size={13} aria-hidden="true" />
+            <Link to="/browse" search={{}} className="transition hover:text-primary">
+              Search
             </Link>
-            <CaretRight size={13} />
-          </>
-        )}
-        {modelPage ? (
-          <>
-            <a href={modelPage.path} className="hover:text-foreground">
-              {modelPage.label}
-            </a>
-            <CaretRight size={13} />
-          </>
-        ) : null}
-        <span className="text-foreground">{placeLabel(listing.city, listing.state)}</span>
+          </li>
+          {listing.categorySlug ? (
+            <li className="flex items-center gap-2 sm:gap-2.5">
+              <CaretRight size={13} aria-hidden="true" />
+              <Link
+                to="/browse"
+                search={{ category: listing.categorySlug }}
+                className="transition hover:text-primary"
+              >
+                {listing.categoryName}
+              </Link>
+            </li>
+          ) : null}
+          {listing.itemDetails?.itemType && listing.categorySlug ? (
+            <li className="flex items-center gap-2 sm:gap-2.5">
+              <CaretRight size={13} aria-hidden="true" />
+              <Link
+                to="/browse"
+                search={classifiedSubcategorySearch(
+                  listing.categorySlug,
+                  listing.itemDetails.itemType,
+                )}
+                className="transition hover:text-primary"
+              >
+                {listing.itemDetails.itemType}
+              </Link>
+            </li>
+          ) : null}
+          {pageMake ? (
+            <li className="flex items-center gap-2 sm:gap-2.5">
+              <CaretRight size={13} aria-hidden="true" />
+              <a href={vehiclePagePath(pageMake)} className="transition hover:text-primary">
+                {pageMake}
+              </a>
+            </li>
+          ) : null}
+          {pageMake && pageModel ? (
+            <li className="flex items-center gap-2 sm:gap-2.5">
+              <CaretRight size={13} aria-hidden="true" />
+              <a
+                href={vehiclePagePath(pageMake, pageModel)}
+                className="transition hover:text-primary"
+              >
+                {pageModel}
+              </a>
+            </li>
+          ) : null}
+          {listing.city ? (
+            <li className="flex items-center gap-2 sm:gap-2.5">
+              <CaretRight size={13} aria-hidden="true" />
+              <Link
+                to="/browse"
+                search={{
+                  category: listing.categorySlug ?? undefined,
+                  make: pageMake ?? undefined,
+                  model: pageModel ?? undefined,
+                  city: listing.city,
+                  state: listing.state,
+                }}
+                className="transition hover:text-primary"
+              >
+                {placeLabel(listing.city, listing.state)}
+              </Link>
+            </li>
+          ) : null}
+          <li className="flex min-w-0 items-center gap-2 sm:gap-2.5">
+            <CaretRight size={13} aria-hidden="true" />
+            <span aria-current="page" className="max-w-[min(50vw,360px)] truncate text-foreground">
+              {title}
+            </span>
+          </li>
+        </ol>
       </nav>
 
-      <div className="mt-4">
-        <header
-          aria-label="Vehicle listing summary"
-          className="space-y-3 border-b border-border/70 pb-4"
-        >
+      <div className="mt-3 sm:mt-4">
+        <header aria-label="Vehicle listing summary" className="space-y-2.5">
           <div className="space-y-2">
             <div>
-              <h1 className="text-[28px] font-bold leading-tight tracking-tight sm:text-[38px]">
+              <h1 className="text-[25px] font-bold leading-[1.2] tracking-tight sm:text-[30px]">
                 {title}
               </h1>
               {vehicle &&
@@ -1793,12 +1837,17 @@ function ListingDetailContent() {
                   <p className="mt-1 text-[14px] text-muted-foreground">{listing.title}</p>
                 )}
             </div>
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-[12.5px] text-muted-foreground">
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-2">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[12.5px] text-muted-foreground">
               <span className="flex items-center gap-1.5 text-primary">
                 <MapPin size={15} weight="fill" /> {placeLabel(listing.city, listing.state)}
               </span>
               <span className="flex items-center gap-1.5">
-                <Clock size={15} /> Posted {postedAge(listing.createdAt).toLowerCase()}
+                <span aria-hidden="true" className="mr-1 text-border">
+                  ·
+                </span>{" "}
+                {postedAge(listing.createdAt)}
               </span>
               {vehicle?.mileage != null && (
                 <span className="flex items-center gap-1.5">
@@ -1806,24 +1855,19 @@ function ListingDetailContent() {
                 </span>
               )}
             </div>
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-x-5 gap-y-3">
-            <div aria-label="Asking price">
-              <VehiclePrice listing={listing} inlineComparison />
-            </div>
             <div className="flex items-center gap-2">
               <ListingStatsInline listing={listing} />
               {listing.externalHome ? (
                 <PartnerHomeHeartButton
                   listingId={listing.id}
                   title={title}
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
                 />
               ) : listing.externalVehicle ? (
                 <PartnerVehicleHeartButton
                   listingId={listing.id}
                   title={title}
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
                 />
               ) : (
                 <WatchHeartButton
@@ -1831,14 +1875,14 @@ function ListingDetailContent() {
                   productSlug={listing.productSlug}
                   productName={title}
                   isDemo={listing.isMock === true}
-                  className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+                  className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-card text-primary transition hover:bg-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
                 />
               )}
               <button
                 type="button"
                 aria-label="Share listing"
                 onClick={() => void handleShare()}
-                className="grid h-11 w-11 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground"
+                className="grid h-9 w-9 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground"
               >
                 <ShareNetwork size={18} />
               </button>
@@ -1846,15 +1890,18 @@ function ListingDetailContent() {
                 type="button"
                 aria-label="Print listing"
                 onClick={() => window.print()}
-                className="hidden h-11 w-11 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground sm:grid"
+                className="hidden h-9 w-9 place-items-center rounded-full border border-border bg-card text-muted-foreground transition hover:text-foreground sm:grid"
               >
                 <Printer size={18} />
               </button>
             </div>
           </div>
+          <div aria-label="Asking price" className="pt-1 lg:hidden">
+            <VehiclePrice listing={listing} compact inlineComparison />
+          </div>
         </header>
       </div>
-      <div className="mt-6 grid items-start gap-7 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,370px)]">
+      <div className="mt-4 grid items-start gap-7 lg:grid-cols-[minmax(0,1.65fr)_minmax(300px,370px)]">
         <div className="min-w-0 space-y-7">
           <div className="min-w-0">
             <Gallery listing={listing} />
@@ -2023,12 +2070,12 @@ function ListingDetailContent() {
         </div>
 
         <aside className="min-w-0 space-y-5">
+          <ListingActions listing={listing} />
           {listing.externalVehicle ? (
             <MarketCheckContactCard listing={listing} />
           ) : (
             <SellerCard listing={listing} />
           )}
-          <ListingActions listing={listing} showPriceHeader={false} />
 
           <VehiclePriceInsight key={listing.id} listingId={listing.id} />
 
