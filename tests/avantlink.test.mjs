@@ -262,10 +262,7 @@ test("temporary cache and moderation failures never masquerade as a removed list
             error: null,
           },
     );
-    await assert.rejects(
-      merchandiseDetail("avantlink-1067506", db),
-      /Could not load this retailer offer/,
-    );
+    await assert.rejects(merchandiseDetail("avantlink-1067506", db), /Could not load this listing/);
   }
 });
 

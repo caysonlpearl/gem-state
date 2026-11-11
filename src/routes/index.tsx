@@ -1,3 +1,4 @@
+import { gunsComProfile } from "@/config/retailers";
 import { selectDiscoveryCards } from "@/lib/discovery-ranking";
 import { listingCardImageUrl } from "@/lib/listing-card-image";
 import { afterLeadPaint } from "@/lib/lead-paint-ready";
@@ -1194,7 +1195,7 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
       {(home.onlineMerchandise?.length ?? 0) > 0 ? (
         <>
           <HomepageListingRow
-            eyebrow="Online retailer offers"
+            eyebrow={gunsComProfile.name}
             title="Outdoor gear available online"
             listings={(home.onlineMerchandise ?? [])
               .filter((listing) => listing.categorySlug === "outdoor-sporting")
@@ -1203,7 +1204,7 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
             action="Browse outdoor gear"
           />
           <HomepageListingRow
-            eyebrow="Online retailer offers"
+            eyebrow={gunsComProfile.name}
             title="Apparel available online"
             listings={(home.onlineMerchandise ?? [])
               .filter((listing) => listing.categorySlug === "apparel-accessories")
@@ -1212,7 +1213,7 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
             action="Browse apparel"
           />
           <HomepageListingRow
-            eyebrow="Online retailer offers"
+            eyebrow={gunsComProfile.name}
             title="Tools and supplies available online"
             listings={(home.onlineMerchandise ?? [])
               .filter((listing) => listing.categorySlug === "tools-equipment")
