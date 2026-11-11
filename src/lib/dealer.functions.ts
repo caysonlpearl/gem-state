@@ -98,6 +98,8 @@ const dealerInput = z.object({
     .nullable(),
   logoUrl: z.string().trim().url().max(500).optional().nullable(),
   description: z.string().trim().max(500).optional().nullable(),
+  priceInsightsEnabled: z.boolean().default(true),
+  valuationDealerType: z.enum(["franchise", "independent"]).optional().nullable(),
   acceptAgreements: z.literal(true),
 });
 
@@ -117,6 +119,8 @@ export type DealerSetup = {
   postalCode: string;
   logoUrl: string;
   description: string;
+  priceInsightsEnabled: boolean;
+  valuationDealerType: "franchise" | "independent" | null;
   status: "draft" | "ready" | "suspended";
   agreementsAccepted: boolean;
   readiness: { identity: boolean; location: boolean; contact: boolean; agreements: boolean };
@@ -257,7 +261,7 @@ export const getDealerSetup = createServerFn({ method: "GET" })
     const { data, error } = await (supabaseAdmin as any)
       .from("dealer_profiles")
       .select(
-        "id,legal_name,display_name,slug,phone,email,website,address_line1,address_line2,city,state,postal_code,logo_url,description,status,agreements_accepted_at",
+        "id,legal_name,display_name,slug,phone,email,website,address_line1,address_line2,city,state,postal_code,logo_url,description,status,agreements_accepted_at,price_insights_enabled,valuation_dealer_type",
       )
       .eq("owner_user_id", context.userId)
       .maybeSingle();
@@ -283,6 +287,8 @@ export const getDealerSetup = createServerFn({ method: "GET" })
       postalCode: row?.postal_code ?? "",
       logoUrl: row?.logo_url ?? "",
       description: row?.description ?? "",
+      priceInsightsEnabled: row?.price_insights_enabled !== false,
+      valuationDealerType: row?.valuation_dealer_type ?? null,
       status: row?.status ?? "draft",
       agreementsAccepted: agreements,
       readiness: { identity, location, contact, agreements },
@@ -310,6 +316,8 @@ export const saveDealerSetup = createServerFn({ method: "POST" })
       postal_code: data.postalCode || null,
       logo_url: data.logoUrl || null,
       description: data.description || null,
+      price_insights_enabled: data.priceInsightsEnabled,
+      valuation_dealer_type: data.valuationDealerType ?? null,
       status: "ready",
       agreements_accepted_at: new Date().toISOString(),
       agreements_version: "dealer-v1",

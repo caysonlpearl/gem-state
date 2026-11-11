@@ -1,5 +1,6 @@
 import { VerifiedDealerBadge } from "@/components/dealers/VerifiedDealerBadge";
 import { VehiclePrice } from "@/components/dealers/VehiclePrice";
+import { VehiclePriceInsight } from "@/components/dealers/VehiclePriceInsight";
 import { hasApprovedDealer } from "@/lib/vehicle-shopping";
 import { retailSavings } from "@/lib/retail-savings";
 import { createFileRoute, Link, notFound, redirect } from "@tanstack/react-router";
@@ -2028,6 +2029,8 @@ function ListingDetailContent() {
             <SellerCard listing={listing} />
           )}
           <ListingActions listing={listing} showPriceHeader={false} />
+
+          <VehiclePriceInsight key={listing.id} listingId={listing.id} />
 
           <VehicleHistoryCard vehicle={vehicle} />
 
