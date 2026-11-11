@@ -69,6 +69,12 @@ export async function resolveVehicleEstimate(
         redirect: "error",
       });
       if (!response.ok) {
+        console.warn("Vehicle valuation provider response", config.provider, response.status);
+        await db.from("vehicle_valuation_provider_state").upsert({
+          provider: config.provider,
+          blocked_until: new Date(now.getTime() + 60000).toISOString(),
+          reason: `http_${response.status}`,
+        });
         if ([401, 402, 403, 429].includes(response.status)) {
           const until =
             response.status === 429
@@ -82,9 +88,35 @@ export async function resolveVehicleEstimate(
         }
         continue;
       }
-      estimate = normalizeVehicleEstimate(config.provider, await response.json(), input, now);
+      const body = await response.json();
+      estimate = normalizeVehicleEstimate(config.provider, body, input, now);
+      if (!estimate)
+        console.warn("Vehicle valuation response rejected", config.provider, {
+          fields: Object.keys(body ?? {}),
+          coverage: body?.coverage?.status ?? "missing",
+        });
+      if (!estimate)
+        await db.from("vehicle_valuation_provider_state").upsert({
+          provider: config.provider,
+          blocked_until: new Date(now.getTime() + 60000).toISOString(),
+          reason: `invalid_response:${Object.keys(body ?? {}).join(",")}`.slice(0, 400),
+        });
       if (estimate) break;
-    } catch {
+    } catch (error) {
+      console.warn(
+        "Vehicle valuation request failed",
+        config.provider,
+        error instanceof Error ? error.name : "Error",
+      );
+      await db.from("vehicle_valuation_provider_state").upsert({
+        provider: config.provider,
+        blocked_until: new Date(now.getTime() + 60000).toISOString(),
+        reason:
+          `request_failed:${error instanceof Error ? `${error.name}:${error.message}` : "Error"}`
+            .replaceAll(config.key, "[redacted]")
+            .replace(/https?:\/\/\S+/g, "[url]")
+            .slice(0, 400),
+      });
       /* provider errors never break the listing or reveal credential-bearing URLs */
     }
   }
