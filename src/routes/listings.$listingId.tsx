@@ -4384,7 +4384,7 @@ function MerchandiseRetailerCard({ listing }: { listing: ClassifiedDetail }) {
           href={gunsComProfile.contactUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className={button}
+          className={`${button} border-primary bg-primary text-primary-foreground hover:bg-primary/90`}
           onClick={() => trackSellerContact("apply_external", listing)}
         >
           <ChatCircle size={15} />
