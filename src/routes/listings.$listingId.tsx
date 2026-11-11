@@ -1755,7 +1755,7 @@ function ListingDetailContent() {
               <CaretRight size={13} aria-hidden="true" />
               <Link
                 to="/browse"
-                search={{ category: listing.categorySlug }}
+                search={{ category: listing.categorySlug, vehicleMode: "results" }}
                 className="transition hover:text-primary"
               >
                 {listing.categoryName}
@@ -1767,10 +1767,13 @@ function ListingDetailContent() {
               <CaretRight size={13} aria-hidden="true" />
               <Link
                 to="/browse"
-                search={classifiedSubcategorySearch(
-                  listing.categorySlug,
-                  listing.itemDetails.itemType,
-                )}
+                search={{
+                  ...classifiedSubcategorySearch(
+                    listing.categorySlug,
+                    listing.itemDetails.itemType,
+                  ),
+                  vehicleMode: "results",
+                }}
                 className="transition hover:text-primary"
               >
                 {listing.itemDetails.itemType}
@@ -1803,6 +1806,7 @@ function ListingDetailContent() {
                 to="/browse"
                 search={{
                   category: listing.categorySlug ?? undefined,
+                  vehicleMode: "results",
                   make: pageMake ?? undefined,
                   model: pageModel ?? undefined,
                   city: listing.city,
