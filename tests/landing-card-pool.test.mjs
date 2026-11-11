@@ -230,6 +230,7 @@ test("landing rows render real cards on the server without scroll observers or p
     useSuspenseQuery: () => ({ data: { recent: [], motors: pool } }),
     landingHomeQuery: {},
     landingCards,
+    mixPetSpecies: (l) => [...l],
     inputFromSearch: (s) => s,
     ListingCard: ({ listing }) =>
       React.createElement("article", { "data-id": listing.id }, listing.title),

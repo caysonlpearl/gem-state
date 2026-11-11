@@ -1,3 +1,4 @@
+import { mixPetSpecies } from "./pet-mix";
 import { getPhotoStorageModule } from "./photo-storage-access";
 import { selectLandingCoverage } from "./landing-coverage";
 import { withCatalogReadDeadline } from "./catalog-read-deadline";
@@ -2244,7 +2245,11 @@ async function runBrowseClassifieds(
       (!options.readOnlyProviders || !data.state || listing.state === data.state);
     const externalJobs = jobCards.filter(matchesRegion);
     const externalHomes = homeCards.filter(matchesRegion);
-    const externalPets = petCards.filter(matchesRegion);
+    // Rescue cards already apply the state rule (Idaho keeps border-area
+    // rescues its search centers found), so only the region applies here.
+    const externalPets = petCards.filter(
+      (listing) => !data.region || regionOfListing(listing) === data.region,
+    );
     if (error) console.error("browseClassifieds native read failed", error.message);
 
     const visibleRows = (rows ?? []).filter(
@@ -2327,6 +2332,14 @@ async function runBrowseClassifieds(
       ...externalPets,
       ...merchandiseResult.cards.filter(matchesRegion),
     ].sort(compareListings);
+    // Mixed pet searches (no species picked, newest first) alternate species so
+    // the newest cats can't crowd dogs and other pets off the first page.
+    const mixedPets =
+      data.category === "pets" &&
+      !data.petSubcategory &&
+      !data.petSpecies &&
+      (!data.sort || data.sort === "newest");
+    if (mixedPets) standardListings.splice(0, standardListings.length, ...mixPetSpecies(standardListings));
     const resultLimit =
       data.includeAllMocks && SHOW_PUBLIC_PREVIEW_FIXTURES
         ? Math.max(pageSize, mockSource.length)
