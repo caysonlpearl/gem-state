@@ -55,6 +55,9 @@ export function openWebNinjaCard(home: OpenWebNinjaHome): ClassifiedCard {
     vehicle: null,
     externalHome: {
       source: "OpenWeb Ninja",
+      address: home.address,
+      latitude: home.latitude,
+      longitude: home.longitude,
       sourceUrl: home.sourceUrl,
       cacheExpiresAt: home.cacheExpiresAt,
     },
@@ -358,6 +361,7 @@ export async function openWebNinjaDetail(listingId: string): Promise<ClassifiedD
       sourceUrl: extra?.url ?? home.sourceUrl,
       // Details cached before attribution was kept have none.
       listedBy: extra?.listedBy ?? null,
+      schools: extra?.schools ?? [],
     },
     listingNumber: home.id,
     description: extra?.description ?? null,

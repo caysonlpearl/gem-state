@@ -7,7 +7,8 @@ const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 const configSource = await read("src/config/classifieds.ts");
 const petsConfigSource = await read("src/config/pets.ts");
 const itemFieldsConfigSource = await read("src/config/classified-item-fields.ts");
-const browseSource = (await read("src/routes/browse.tsx")) + "\n" + (await read("src/config/landing-preview-rows.ts"));
+const browseSource =
+  (await read("src/routes/browse.tsx")) + "\n" + (await read("src/config/landing-preview-rows.ts"));
 const serviceRowsSource = await read("src/config/landing-service-rows.ts");
 const displaySource = await read("src/lib/classifieds-display.ts");
 const querySource = await read("src/lib/classifieds-query.ts");
@@ -1568,11 +1569,11 @@ test("home listings use a rental-specific detail layout", () => {
   assert.match(classifiedsFunctionsSource, /listing\.home\?\.mode !== data\.homeTab/);
   assert.match(detailSource, /listing\.categorySlug === "other-real-estate"/);
   assert.match(detailSource, /function HomeListingDetail/);
-  assert.match(detailSource, /function HomeDetailTabs/);
+  assert.match(detailSource, /function HomeDetailSections/);
   assert.match(detailSource, /Rental terms/);
   assert.match(detailSource, /\["Utilities", utilities\]/);
   assert.match(detailSource, /\["Lease length", details\.leaseLength\]/);
-  assert.match(detailSource, /Important safety tip/);
+  assert.match(detailSource, /Safe\. Simple\. Trusted\./);
   assert.match(detailSource, /Facts &amp; features/);
   assert.match(detailSource, /More from \$\{sellerName/);
 });
