@@ -96,3 +96,20 @@ test("backup reuses shared saved results without issuing a provider request", as
   assert.equal(result.value.alreadySaved, true);
   assert.equal(f.requests.length, 0);
 });
+
+test("scheduled details reserve weekly-update credits with the actual account set", async () => {
+  const f = fixture();
+  await f.api.call("detail", "property-details", (x) => x, {
+    provider: "zillow",
+    account: "backup",
+    budget: { accounts: ["primary", "backup"], reservedSearches: 12 },
+  });
+  assert.equal(f.reservations[0].name, "reserve_openwebninja_home_call");
+  assert.deepEqual(JSON.parse(JSON.stringify(f.reservations[0].args)), {
+    p_cache_key: "detail",
+    p_provider: "zillow",
+    p_account: "backup",
+    p_accounts: ["primary", "backup"],
+    p_reserved_searches: 12,
+  });
+});

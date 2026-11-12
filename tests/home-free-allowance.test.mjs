@@ -35,6 +35,15 @@ async function fixture() {
       "utf8",
     ),
   );
+  await db.exec(
+    readFileSync(
+      new URL(
+        "../supabase/migrations/20261112040000_fill_homes_preserve_weekly_updates.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
   const reserve = async (key, provider = "zillow") =>
     (
       await db.query("select public.reserve_openwebninja_provider_call($1,$2) as result", [
@@ -76,7 +85,55 @@ test("backup budgets do not erase primary usage or exceed 100 per account and pr
   }
 });
 
-test("backup has its own daily cap but shares cache hits and same-property retry locks", async () => {
+test("combined weekly reserve is atomic, shared once, and still usable for searches", async () => {
+  const { db } = await fixture();
+  try {
+    await db.exec(`insert into public.openwebninja_api_requests(cache_key,provider,account)
+   select 'primary-'||i,'zillow','primary' from generate_series(1,100) i;
+   insert into public.openwebninja_api_requests(cache_key,provider,account)
+   select 'backup-'||i,'zillow','backup' from generate_series(1,85) i;`);
+    const detail = async (key) =>
+      (
+        await db.query(
+          "select public.reserve_openwebninja_home_call($1,'zillow','backup',array['primary','backup'],12) as result",
+          [key],
+        )
+      ).rows[0].result;
+    for (let i = 0; i < 3; i++) assert.equal((await detail("detail-" + i)).allowed, true);
+    assert.equal((await detail("would-spend-weekly-credit")).allowed, false);
+    assert.equal(
+      (await db.query("select count(*)::int as n from public.openwebninja_api_requests")).rows[0].n,
+      188,
+    );
+    assert.equal(
+      (
+        await db.query(
+          "select public.reserve_openwebninja_account_call('weekly-search','zillow','backup') as result",
+        )
+      ).rows[0].result.allowed,
+      true,
+    );
+    for (const role of ["anon", "authenticated"])
+      assert.equal(
+        (
+          await db.query(
+            "select has_function_privilege($1,'public.reserve_openwebninja_home_call(text,text,text,text[],integer)','execute') as allowed",
+            [role],
+          )
+        ).rows[0].allowed,
+        false,
+      );
+    await assert.rejects(
+      db.query(
+        "select public.reserve_openwebninja_home_call('bad','zillow','backup',array['backup','backup'],12)",
+      ),
+    );
+  } finally {
+    await db.close();
+  }
+});
+
+test("backup shares cache hits and retry locks while using its full monthly allowance", async () => {
   const { db, reserve } = await fixture();
   try {
     assert.equal((await reserve("same-home")).allowed, true);
@@ -88,8 +145,8 @@ test("backup has its own daily cap but shares cache hits and same-property retry
         )
       ).rows[0].result;
     assert.equal((await backup("same-home")).allowed, false);
-    for (let i = 0; i < 25; i++) assert.equal((await backup("backup-daily-" + i)).allowed, true);
-    assert.equal((await backup("backup-daily-over")).allowed, false);
+    for (let i = 0; i < 100; i++) assert.equal((await backup("backup-daily-" + i)).allowed, true);
+    assert.equal((await backup("backup-monthly-over")).allowed, false);
     assert.equal((await reserve("primary-still-open")).allowed, true);
     await db.exec(
       `insert into public.openwebninja_cache values('saved-home','{"complete":true}',now()+interval '1 day');`,
@@ -101,7 +158,7 @@ test("backup has its own daily cap but shares cache hits and same-property retry
           "select count(*)::int as n from public.openwebninja_api_requests where account='backup'",
         )
       ).rows[0].n,
-      25,
+      100,
     );
     for (const role of ["anon", "authenticated"])
       assert.equal(
@@ -141,11 +198,11 @@ test("the final ten free requests are usable and request 101 is denied", async (
     await db.close();
   }
 });
-test("the 25-per-day ceiling still applies under the full monthly allowance", async () => {
+test("all 100 monthly requests may be used on the same day", async () => {
   const { db, reserve } = await fixture();
   try {
-    for (let i = 1; i <= 25; i++) assert.equal((await reserve("daily-" + i)).allowed, true);
-    assert.equal((await reserve("daily-26")).allowed, false);
+    for (let i = 1; i <= 100; i++) assert.equal((await reserve("daily-" + i)).allowed, true);
+    assert.equal((await reserve("daily-101")).allowed, false);
   } finally {
     await db.close();
   }
@@ -169,7 +226,7 @@ test("same-home retries across providers remain blocked, while cache hits use no
   }
 });
 
-test("Redfin receives an independent 100-request budget and no extra daily capacity", async () => {
+test("Redfin retains an independent 100-request monthly budget", async () => {
   const { db, reserve } = await fixture();
   try {
     await db.exec(

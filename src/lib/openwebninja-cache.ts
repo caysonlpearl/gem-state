@@ -16,6 +16,7 @@ export function homesFromSavedSearches(
   regionalAreas: Set<string> = new Set(),
 ) {
   const homes = new Map<string, OpenWebNinjaHome>();
+  const seenSlots = new Set<string>();
   const observed = (row: SavedHomeSearch) => {
     try {
       const key = JSON.parse(row.cache_key);
@@ -26,7 +27,14 @@ export function homesFromSavedSearches(
   };
   for (const row of [...rows].sort((a, b) => observed(b) - observed(a))) {
     if (!(Date.parse(row.expires_at) > now)) continue;
-    let key: { kind?: string; mode?: string; v?: number };
+    let key: {
+      kind?: string;
+      mode?: string;
+      v?: number;
+      area?: string;
+      provider?: string;
+      page?: number;
+    };
     try {
       key = JSON.parse(row.cache_key);
     } catch {
@@ -35,6 +43,11 @@ export function homesFromSavedSearches(
     if (!["search", "area-search"].includes(key.kind ?? "")) continue;
     if (!["buy", "rent"].includes(key.mode ?? "")) continue;
     if (!Array.isArray(row.payload?.homes)) throw new Error("Saved homes are unavailable.");
+    if ((key.v ?? 1) >= 3 && key.kind === "area-search" && key.area && key.provider) {
+      const slot = JSON.stringify([key.area, key.provider, key.mode, key.page ?? 1]);
+      if (seenSlots.has(slot)) continue;
+      seenSlots.add(slot);
+    }
     for (const home of row.payload.homes) {
       if (!home || home.mode !== key.mode || !home.id || !home.city || !home.state) continue;
       if ((key.v ?? 1) < 3 && regionalAreas.has(homeFeedRegion(home)?.key ?? "")) continue;

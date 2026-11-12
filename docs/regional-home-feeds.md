@@ -10,7 +10,7 @@ Search bounds do not overlap. Redfin uses the coordinate endpoint for the North 
 
 ## Monthly capacity
 
-All three published Free plans include 100 requests/month with a hard limit. The database uses a conservative rolling 31-day cap of 100 per provider and 25/day.
+All three published Free plans include 100 requests/month with a hard limit. The database uses a conservative rolling 31-day cap of 100 per provider/account, with no artificial daily cap.
 
 Searches run weekly. Over 31 days, budget five rounds:
 
@@ -20,15 +20,15 @@ Searches run weekly. Over 31 days, budget five rounds:
 
 Total: **40 search/availability calls + 260 individual detail attempts = 300 calls**. At an assumed 90% usable-detail yield, plan for **234 maintained complete homes**, not 234 guaranteed new homes every month. Monthly renewal of existing records uses the same detail allowance. The theoretical 260 assumes every lookup returns complete usable data and enough eligible homes are available; extra retries reduce capacity.
 
-The two Zillow search APIs return up to 41 summaries per page. Those summaries are not full galleries/descriptions. Redfin allows up to 350 summaries per search. Each complete property record normally needs an individual detail call. The extra sale pages keep the Zillow discovery pool larger than a single 41-sale/41-rental page window.
+The two Zillow search APIs return up to 41 summaries per page. Those summaries are not full galleries/descriptions. Redfin allows up to 350 summaries per search. Its cache key records this requested limit so the original 40-result diagnostic cannot prevent a full-size discovery search. Each complete property record normally needs an individual detail call. The extra sale pages keep the Zillow discovery pool larger than a single 41-sale/41-rental page window.
 
 The importer protects remaining weekly-search credits before using requests on full details. Multiple failed attempts at the same search in one week do not erase the reserve for later weeks. Database reservations remain the final atomic limit.
 
 ### Authorized backup account
 
-The homes scheduler can use a separately activated backup account on the same provider when the primary account reaches its daily allowance, monthly allowance, or protected weekly-search reserve. Set server-only `OPENWEBNINJA_BACKUP_API_KEY` and explicitly list the activated subscriptions in `OPENWEBNINJA_BACKUP_HOME_PROVIDERS` (`zillow,realestate,redfin`). An absent allowlist disables the backup. The same credential cannot be counted as two accounts.
+The homes scheduler can use a separately activated backup account on the same provider when the primary account reaches its monthly allowance. Set server-only `OPENWEBNINJA_BACKUP_API_KEY` and explicitly list the activated subscriptions in `OPENWEBNINJA_BACKUP_HOME_PROVIDERS` (`zillow,realestate,redfin`). An absent allowlist disables the backup. The same credential cannot be counted as two accounts.
 
-Apply `20261112030000_home_backup_account_budget.sql` before deploying backup support. Existing ledger entries remain `primary`; every new request records its actual account. Each account/provider combination retains the 100-per-rolling-31-days and 25-per-rolling-day limits. The primary is preferred, both accounts reserve future weekly searches, and neither changes regional ownership. All accounts share saved searches, full details, address deduplication, expiry rules, and the property retry lock. Public reads still spend no requests. Remove the backup allowlist to stop future backup calls without removing imported homes.
+Apply `20261112030000_home_backup_account_budget.sql` and `20261112040000_fill_homes_preserve_weekly_updates.sql` before deploying backup support without a daily cap. Existing ledger entries remain `primary`; every new request records its actual account. Each account/provider combination retains the 100-per-rolling-31-days limit. There is no daily cap. The primary is preferred; remaining weekly searches are reserved once across the combined activated accounts because they update the same inventory. An atomic database reservation prevents detail calls from spending those protected credits. Neither account changes regional ownership. All accounts share saved searches, full details, address deduplication, expiry rules, and the property retry lock. Public reads still spend no requests. Remove the backup allowlist to stop future backup calls without removing imported homes.
 
 ## Freshness and publication
 
