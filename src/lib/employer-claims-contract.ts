@@ -1,4 +1,4 @@
-import { employerKey } from "./employer-logo-match";
+import { employerKey } from "./employer-logo-match.ts";
 
 /**
  * Validation for an employer's claim on their business's Jobs presence.

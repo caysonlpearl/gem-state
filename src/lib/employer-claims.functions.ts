@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- tables added after the generated types */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { validateEmployerClaimInput } from "./employer-claims-contract";
-import { employerKey } from "./employer-logo-match";
+import { validateEmployerClaimInput } from "./employer-claims-contract.ts";
+import { employerKey } from "./employer-logo-match.ts";
 
 /**
  * Employers claiming their business's presence on Jobs. Partner (Adzuna)
