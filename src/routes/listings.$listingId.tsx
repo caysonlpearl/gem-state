@@ -78,6 +78,7 @@ import { trackEvent, trackSellerContact } from "@/lib/analytics";
 import { PUBLIC_PAGE_STALE_MS } from "@/lib/query-freshness";
 import { recordListingView } from "@/lib/listing-stats.functions";
 import { claimServiceBusiness, getMyServiceClaim } from "@/lib/service-claims.functions";
+import { claimEmployer, getMyEmployerClaim } from "@/lib/employer-claims.functions";
 import {
   EmployerTile,
   ListingCard,
@@ -3364,7 +3365,178 @@ function PartnerEmployerCard({
           All jobs from {employerName} <CaretRight size={13} />
         </Link>
       ) : null}
+      {employerName ? <ClaimEmployerPanel listing={listing} employerName={employerName} /> : null}
     </section>
+  );
+}
+
+/**
+ * The Jobs version of the directory claim: a partner posting names the
+ * employer, but the business never asked to be listed. The owner claims it
+ * to post their jobs directly; an admin verifies each claim first.
+ */
+function ClaimEmployerPanel({
+  listing,
+  employerName,
+}: {
+  listing: ClassifiedDetail;
+  employerName: string;
+}) {
+  const { isSignedIn } = useAuth();
+  const queryClient = useQueryClient();
+  const fetchClaim = useServerFn(getMyEmployerClaim);
+  const submitClaim = useServerFn(claimEmployer);
+  const [open, setOpen] = useState(false);
+  const [role, setRole] = useState<string>(claimRoles[0]);
+  const [contact, setContact] = useState("");
+  const [note, setNote] = useState("");
+  const claim = useQuery({
+    queryKey: ["employer-claim", employerName],
+    queryFn: () => fetchClaim({ data: { employerName } }),
+    enabled: isSignedIn,
+  });
+  const mutation = useMutation({
+    mutationFn: () =>
+      submitClaim({
+        data: {
+          employerName,
+          city: listing.city,
+          state: listing.state ?? "",
+          role,
+          contact,
+          note,
+        },
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["employer-claim", employerName] });
+      toast.success("Claim sent. We'll verify it with the business and email you.");
+      setOpen(false);
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Could not send your claim."),
+  });
+  const mine = claim.data;
+
+  if (mine?.status === "approved") {
+    return (
+      <div className="mt-5 rounded-xl border border-primary/25 bg-primary/5 p-3.5 text-[12px] leading-relaxed">
+        <p className="font-semibold text-primary">You manage this business on Bluebird.</p>
+        <p className="mt-1 text-muted-foreground">
+          Post your jobs directly with your logo, pay details and your own application link.
+        </p>
+        <Link
+          to="/create-listing"
+          className="mt-3 inline-flex h-9 items-center rounded-xl bg-primary px-3 font-semibold text-primary-foreground"
+        >
+          Post a job
+        </Link>
+      </div>
+    );
+  }
+  if (mine?.status === "pending") {
+    return (
+      <p className="mt-5 rounded-xl bg-secondary/50 p-3.5 text-[12px] leading-relaxed text-muted-foreground">
+        Your claim is being reviewed. We'll verify it with the business and email you.
+      </p>
+    );
+  }
+  return (
+    <div className="mt-5 border-t border-border/70 pt-4">
+      <p className="text-[13px] font-semibold">Is this your business?</p>
+      <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
+        Claim it free to post jobs directly, add your logo and reach local candidates on Bluebird.
+      </p>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <button
+            type="button"
+            className="mt-3 flex h-10 w-full items-center justify-center rounded-full border border-primary/40 text-[12.5px] font-semibold text-primary hover:bg-primary/5"
+          >
+            Claim this business
+          </button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Claim {employerName}</DialogTitle>
+            <DialogDescription>
+              We verify every claim with the business before handing it over, usually within one or
+              two business days.
+            </DialogDescription>
+          </DialogHeader>
+          {isSignedIn ? (
+            <form
+              className="space-y-4"
+              onSubmit={(event) => {
+                event.preventDefault();
+                mutation.mutate();
+              }}
+            >
+              <label className="block text-[12px] font-medium">
+                Your role
+                <select
+                  value={role}
+                  onChange={(event) => setRole(event.target.value)}
+                  className="mt-1 h-10 w-full rounded-xl border border-input bg-background px-3 text-[12px]"
+                >
+                  {claimRoles.map((option) => (
+                    <option key={option} value={option}>
+                      {option}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="block text-[12px] font-medium">
+                Business phone or email we can verify you at
+                <input
+                  required
+                  value={contact}
+                  onChange={(event) => setContact(event.target.value.slice(0, 200))}
+                  placeholder="owner@yourbusiness.com"
+                  className="mt-1 h-10 w-full rounded-xl border border-input bg-background px-3 text-[12px]"
+                />
+              </label>
+              <label className="block text-[12px] font-medium">
+                Anything we should know?{" "}
+                <span className="font-normal text-muted-foreground">(optional)</span>
+                <textarea
+                  value={note}
+                  onChange={(event) => setNote(event.target.value.slice(0, 1000))}
+                  rows={3}
+                  className="mt-1 w-full resize-y rounded-xl border border-input bg-background px-3 py-2.5 text-[12px]"
+                  placeholder="For example, a new phone number or that you moved."
+                />
+              </label>
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  className="h-10 rounded-xl border border-input px-4 text-[12px] font-semibold hover:bg-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={mutation.isPending}
+                  className="h-10 rounded-xl bg-primary px-4 text-[12px] font-semibold text-primary-foreground disabled:opacity-60"
+                >
+                  {mutation.isPending ? "Sending…" : "Send claim"}
+                </button>
+              </div>
+            </form>
+          ) : (
+            <div className="rounded-xl border border-border bg-secondary/40 p-4 text-[12px] leading-relaxed text-muted-foreground">
+              Sign in or create a free account to claim your business.
+              <Link
+                to={brand.urls.auth}
+                className="mt-3 inline-flex h-9 items-center rounded-xl bg-primary px-3 font-semibold text-primary-foreground"
+              >
+                Sign in
+              </Link>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }
 

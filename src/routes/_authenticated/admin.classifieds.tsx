@@ -18,6 +18,11 @@ import {
   reviewServiceClaim,
   type AdminServiceClaim,
 } from "@/lib/service-claims.functions";
+import {
+  getAdminEmployerClaims,
+  reviewEmployerClaim,
+  type AdminEmployerClaim,
+} from "@/lib/employer-claims.functions";
 import { RelativeTime } from "@/components/ui/relative-time";
 
 export const Route = createFileRoute("/_authenticated/admin/classifieds")({
@@ -264,6 +269,7 @@ function ClassifiedModerationPage() {
         )}
       </section>
       <ServiceClaimsSection />
+      <EmployerClaimsSection />
       {reports.data?.isAdmin && (
         <section className="rounded-lg border border-border bg-card">
           <div className="border-b border-border px-4 py-3">
@@ -403,6 +409,98 @@ function ServiceClaimsSection() {
         </ul>
       )}
     </section>
+  );
+}
+
+/**
+ * Employers asking to take over their business's Jobs presence. Unlike the
+ * Services directory there is no phone or email on file from the feed, so
+ * verify through the business's public website or listing before approving.
+ */
+function EmployerClaimsSection() {
+  const fetchClaims = useServerFn(getAdminEmployerClaims);
+  const claims = useQuery({ queryKey: ["admin-employer-claims"], queryFn: () => fetchClaims() });
+  return (
+    <section className="rounded-lg border border-border bg-card">
+      <div className="border-b border-border px-4 py-3">
+        <h2 className="text-[13px] font-semibold">
+          Employer claims{" "}
+          <span className="numeric text-muted-foreground">{claims.data?.length ?? 0}</span>
+        </h2>
+        <p className="mt-0.5 text-[11.5px] text-muted-foreground">
+          From Jobs pages. Verify through the business's public website or phone before approving.
+        </p>
+      </div>
+      {claims.isLoading ? (
+        <p className="px-4 py-8 text-[12.5px] text-muted-foreground">Loading employer claims…</p>
+      ) : !claims.data?.length ? (
+        <p className="px-4 py-8 text-[12.5px] text-muted-foreground">No employer claims waiting.</p>
+      ) : (
+        <ul>
+          {claims.data.map((claim) => (
+            <EmployerClaimRow key={claim.id} claim={claim} />
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function EmployerClaimRow({ claim }: { claim: AdminEmployerClaim }) {
+  const queryClient = useQueryClient();
+  const review = useServerFn(reviewEmployerClaim);
+  const mutation = useMutation({
+    mutationFn: (approve: boolean) => review({ data: { claimId: claim.id, approve } }),
+    onSuccess: async (_, approve) => {
+      await queryClient.invalidateQueries({ queryKey: ["admin-employer-claims"] });
+      toast.success(approve ? "Claim approved." : "Claim rejected.");
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "Could not update the claim."),
+  });
+  return (
+    <li className="border-b border-border p-4 text-[12px] last:border-b-0">
+      <p className="text-[13px] font-semibold">
+        {claim.employerName}
+        {claim.city ? (
+          <span className="font-normal text-muted-foreground">
+            {" "}
+            · {claim.city}
+            {claim.state ? `, ${claim.state}` : ""}
+          </span>
+        ) : null}
+      </p>
+      <p className="mt-2">
+        <span className="font-semibold">{claim.role}</span> ·{" "}
+        {claim.claimantEmail ?? "unknown account"} · verify at {claim.contact}
+      </p>
+      {claim.note ? <p className="mt-1 text-muted-foreground">“{claim.note}”</p> : null}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Link
+          to="/browse"
+          search={{ category: "jobs", jobMode: "results", jobEmployer: claim.employerName }}
+          className="text-[11.5px] font-semibold text-primary hover:underline"
+        >
+          Open their jobs
+        </Link>
+        <button
+          type="button"
+          onClick={() => mutation.mutate(true)}
+          disabled={mutation.isPending}
+          className="h-8 rounded-md bg-primary px-2.5 text-[11.5px] font-semibold text-primary-foreground disabled:opacity-50"
+        >
+          Approve claim
+        </button>
+        <button
+          type="button"
+          onClick={() => mutation.mutate(false)}
+          disabled={mutation.isPending}
+          className="h-8 rounded-md border border-input px-2.5 text-[11.5px] font-medium disabled:opacity-50"
+        >
+          Reject
+        </button>
+      </div>
+    </li>
   );
 }
 
