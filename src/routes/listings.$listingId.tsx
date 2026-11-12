@@ -78,6 +78,10 @@ import { listingIdFromParam, listingParam, listingPath } from "@/lib/listing-url
 import { listingPhotoUrl } from "@/lib/listing-photo-url";
 import { canonicalMarketCheckId } from "@/lib/marketcheck-contract";
 import { trackEvent, trackSellerContact } from "@/lib/analytics";
+import { rememberListingBusiness } from "@/lib/business-context";
+import { trackBusinessAnchor } from "@/lib/business-analytics";
+import { businessForListing } from "@/lib/business-performance";
+import { AdminBusinessPerformanceLink } from "@/components/dealers/AdminBusinessPerformanceLink";
 import { PUBLIC_PAGE_STALE_MS } from "@/lib/query-freshness";
 import { recordListingView } from "@/lib/listing-stats.functions";
 import { claimServiceBusiness, getMyServiceClaim } from "@/lib/service-claims.functions";
@@ -878,6 +882,7 @@ function MarketCheckContactCard({ listing }: { listing: ClassifiedDetail }) {
         {phone ? (
           <a
             href={`tel:${phone.replace(/[^\d+]/g, "")}`}
+            onClick={() => trackSellerContact("call", listing)}
             className="col-start-1 row-start-1 inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-border text-[12px] font-medium hover:border-primary hover:bg-primary/5 hover:text-primary"
           >
             <Phone size={15} aria-hidden="true" /> Call
@@ -907,12 +912,14 @@ function MarketCheckContactCard({ listing }: { listing: ClassifiedDetail }) {
         {email ? (
           <a
             href={`mailto:${email}?subject=${encodeURIComponent(listing.title)}`}
+            onClick={() => trackSellerContact("email", listing)}
             className="col-start-2 row-start-2 inline-flex h-9 items-center justify-center gap-1.5 rounded-md border border-border text-[12px] font-medium hover:border-primary hover:bg-primary/5 hover:text-primary"
           >
             <EnvelopeSimple size={15} aria-hidden="true" /> Email
           </a>
         ) : null}
       </div>
+      <AdminBusinessPerformanceLink businessKey={businessForListing(listing)?.key} />
     </section>
   );
 }
@@ -1071,6 +1078,7 @@ function MarketCheckSourceCredit({ listing }: { listing: ClassifiedDetail }) {
       {source.sourceUrl ? (
         <a
           href={source.sourceUrl}
+          data-business-action="vehicle_source"
           target="_blank"
           rel="noopener noreferrer nofollow"
           className="ml-1 font-semibold text-primary hover:underline"
@@ -1380,6 +1388,7 @@ function ListingDetail() {
   useEffect(() => {
     if (!listing || trackedListing.current === listing.id) return;
     trackedListing.current = listing.id;
+    rememberListingBusiness(listing);
     void trackEvent(
       "listing_viewed",
       {
@@ -1426,7 +1435,12 @@ function ListingDetail() {
     }),
   );
   return (
-    <>
+    <div
+      className="contents"
+      onClickCapture={(event) => {
+        if (listing) trackBusinessAnchor(event, listing);
+      }}
+    >
       {listing?.ended ? <EndedListingBanner listing={listing} /> : null}
       <ListingDetailContent />
       {listing ? (
@@ -1438,7 +1452,7 @@ function ListingDetail() {
         />
       ) : null}
       {listing ? <MobileContactBar listing={listing} /> : null}
-    </>
+    </div>
   );
 }
 

@@ -1,3 +1,4 @@
+import { listingBusinessProps } from "../src/lib/business-context.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -82,6 +83,7 @@ function boundary({ start, originAge = 0, internal = false, brokenAnalytics = fa
     navigator: { userAgent: "Offline test" },
     crypto: { randomUUID: () => "offline-session" },
     console: { warn() {} },
+    listingBusinessProps,
     isInternalAnalyticsQuery,
     isKnownAutomatedAgent,
     classifyTrafficSource,

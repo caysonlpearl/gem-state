@@ -6,6 +6,9 @@ import { ListingCard } from "@/components/classifieds/ListingCard";
 import { BluebirdEmptyState } from "@/components/layout/BluebirdEmptyState";
 import { isIndexableStorefront } from "@/lib/seo-policy";
 import { getPublicDealer } from "@/lib/dealer.functions";
+import { useEffect } from "react";
+import { trackBusinessEvent } from "@/lib/business-analytics";
+import { businessForListing } from "@/lib/business-performance";
 
 const dealerQuery = (slug: string, page = 1) =>
   queryOptions({
@@ -61,6 +64,24 @@ function DealerPage() {
   const { slug } = Route.useParams();
   const page = Route.useSearch().page ?? 1;
   const { data: dealer } = useSuspenseQuery(dealerQuery(slug, page));
+  useEffect(() => {
+    if (dealer)
+      trackBusinessEvent(
+        "business_profile_viewed",
+        businessForListing({
+          id: "dealer-profile:" + dealer.slug,
+          city: dealer.city ?? "",
+          state: dealer.state ?? "",
+          dealer: {
+            slug: dealer.slug,
+            displayName: dealer.displayName,
+            website: dealer.website,
+            city: dealer.city,
+            state: dealer.state,
+          },
+        }),
+      );
+  }, [dealer?.id, page]);
   if (!dealer) return null;
 
   return (

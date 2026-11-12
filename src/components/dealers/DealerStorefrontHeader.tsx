@@ -12,6 +12,9 @@ import { DealerContactOptions } from "./DealerContactOptions";
 import { ArrowUpRight, SealCheck, Envelope } from "@phosphor-icons/react";
 import type { PublicDealerProfile } from "@/lib/dealer.functions";
 import { DealerContactPanel } from "@/components/classifieds/DealerContactPanel";
+import { businessForListing } from "@/lib/business-performance";
+import { trackBusinessEvent } from "@/lib/business-analytics";
+import { AdminBusinessPerformanceLink } from "./AdminBusinessPerformanceLink";
 
 export function DealerStorefrontHeader({ dealer }: { dealer: PublicDealerProfile }) {
   const [contactOpen, setContactOpen] = useState(false);
@@ -19,6 +22,19 @@ export function DealerStorefrontHeader({ dealer }: { dealer: PublicDealerProfile
   const location = [dealer.city, dealer.state].filter(Boolean).join(", ");
   const address = [dealer.addressLine1, location, dealer.postalCode].filter(Boolean).join(", ");
   const count = dealer.listingCount ?? dealer.listings.length;
+  const business = businessForListing({
+    id: "dealer-profile:" + dealer.slug,
+    city: dealer.city ?? "",
+    state: dealer.state ?? "",
+    dealer: {
+      slug: dealer.slug,
+      displayName: dealer.displayName,
+      website: dealer.website,
+      city: dealer.city,
+      state: dealer.state,
+    },
+  });
+  const action = (method: string) => trackBusinessEvent("business_action", business, { method });
   const actionClass =
     "group flex min-h-24 items-center gap-3 rounded-2xl border border-border/60 bg-card px-3 py-3 text-left transition-colors hover:border-primary/40 hover:bg-secondary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
   return (
@@ -80,7 +96,11 @@ export function DealerStorefrontHeader({ dealer }: { dealer: PublicDealerProfile
           className={`grid gap-3 sm:grid-cols-2 ${dealer.email ? "xl:grid-cols-5" : "xl:grid-cols-4"}`}
         >
           {dealer.phone ? (
-            <a href={`tel:${dealer.phone.replace(/[^\d+]/g, "")}`} className={actionClass}>
+            <a
+              href={`tel:${dealer.phone.replace(/[^\d+]/g, "")}`}
+              className={actionClass}
+              onClick={() => action("call")}
+            >
               <DealerActionArt kind="phone" />
               <span className="min-w-0 flex-1">
                 <span className="block text-[13px] font-semibold">Call dealership</span>
@@ -99,6 +119,7 @@ export function DealerStorefrontHeader({ dealer }: { dealer: PublicDealerProfile
               target="_blank"
               rel="noopener noreferrer"
               className={actionClass}
+              onClick={() => action("directions")}
             >
               <DealerActionArt kind="map" />
               <span className="min-w-0 flex-1">
@@ -119,6 +140,7 @@ export function DealerStorefrontHeader({ dealer }: { dealer: PublicDealerProfile
           {dealer.website ? (
             <a
               href={dealer.website}
+              onClick={() => action("website")}
               target="_blank"
               rel="noopener noreferrer"
               className={actionClass}
@@ -138,7 +160,11 @@ export function DealerStorefrontHeader({ dealer }: { dealer: PublicDealerProfile
             </a>
           ) : null}
           {dealer.email ? (
-            <a href={`mailto:${dealer.email}`} className={actionClass}>
+            <a
+              href={`mailto:${dealer.email}`}
+              className={actionClass}
+              onClick={() => action("email")}
+            >
               <span className="grid h-16 w-16 shrink-0 place-items-center text-primary">
                 <Envelope size={21} weight="duotone" aria-hidden="true" />
               </span>
@@ -181,6 +207,7 @@ export function DealerStorefrontHeader({ dealer }: { dealer: PublicDealerProfile
           website={dealer.website}
           messagingEnabled={Boolean(dealer.messagingEnabled)}
           onMessage={() => setMessageOpen(true)}
+          onAction={action}
         />
         {dealer.messagingEnabled ? (
           <Dialog open={messageOpen} onOpenChange={setMessageOpen}>
@@ -197,10 +224,12 @@ export function DealerStorefrontHeader({ dealer }: { dealer: PublicDealerProfile
                 slug={dealer.slug}
                 ownerUserId={dealer.ownerUserId}
                 compose
+                business={business ?? undefined}
               />
             </DialogContent>
           </Dialog>
         ) : null}
+        <AdminBusinessPerformanceLink dealerSlug={dealer.slug} />
       </div>
     </section>
   );
