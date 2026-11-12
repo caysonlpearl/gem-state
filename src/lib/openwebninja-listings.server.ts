@@ -140,7 +140,7 @@ const AREA_PROVIDER: Record<string, HomeProvider> = {
   "north-idaho": "realestate",
 };
 const PROVIDERS: HomeProvider[] = ["zillow", "realestate"];
-/** Match the existing database daily ceiling; the independent 90-call monthly
+/** Match the existing database daily ceiling; the independent 100-call monthly
  * guard remains authoritative. Available credits can fill full homes promptly. */
 export const HOME_DETAIL_DAILY_PACE = 25;
 

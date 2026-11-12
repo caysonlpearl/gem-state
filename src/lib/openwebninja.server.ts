@@ -15,8 +15,8 @@ import {
   type OpenWebNinjaPropertyExtra,
 } from "./openwebninja-contract";
 
-// OpenWeb Ninja's free plan allows 100 calls/month. The database reservation
-// function keeps a ten-call buffer for manual testing and transient retries.
+// OpenWeb Ninja's free plans have a hard limit of 100 calls/month. The
+// database reservation enforces that full allowance per existing subscription.
 export const CACHE_MS = 30 * 24 * 60 * 60 * 1000;
 /**
  * Two subscriptions serve the same Zillow endpoints, parameters and home ids,
