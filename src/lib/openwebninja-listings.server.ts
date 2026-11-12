@@ -126,9 +126,10 @@ export async function openWebNinjaCards(data: ClassifiedBrowseInput): Promise<Cl
     .filter((card) => matchesLandingCard(card, { ...data, q: undefined }));
 }
 
-/** Each area's for-sale and rental lists refresh weekly (prices, new and
- * sold homes), each area on one subscription so their budgets split the work. */
-const AREA_REFRESH_DAYS = 7;
+/** Refresh published inventory weekly. Regions without publishable homes
+ * need fewer preview searches, leaving more requests for full property details. */
+export const PUBLISHED_AREA_REFRESH_DAYS = 7;
+export const PREVIEW_AREA_REFRESH_DAYS = 25;
 const AREA_PROVIDER: Record<string, HomeProvider> = {
   "treasure-valley": "zillow",
   "western-idaho": "zillow",
@@ -139,8 +140,9 @@ const AREA_PROVIDER: Record<string, HomeProvider> = {
   "north-idaho": "realestate",
 };
 const PROVIDERS: HomeProvider[] = ["zillow", "realestate"];
-/** Calls per rolling day each subscription's job may use (~90 a month). */
-const DAILY_PACE = 3;
+/** Match the existing database daily ceiling; the independent 90-call monthly
+ * guard remains authoritative. Available credits can fill full homes promptly. */
+export const HOME_DETAIL_DAILY_PACE = 25;
 
 /**
  * One step of the scheduled homes job for each subscription, at most one
@@ -150,27 +152,44 @@ const DAILY_PACE = 3;
  */
 export async function advanceHomeFeed() {
   const results: Record<string, unknown> = {};
+  const sweep = { attempted: new Set<string>(), completed: new Set<string>() };
   for (const provider of PROVIDERS) {
-    results[provider] = await advanceHomeFeedFor(provider).catch((error) => ({
+    results[provider] = await advanceHomeFeedFor(provider, sweep).catch((error) => ({
       error: String(error?.message ?? error),
     }));
   }
   return results;
 }
 
-async function advanceHomeFeedFor(provider: HomeProvider) {
+async function advanceHomeFeedFor(
+  provider: HomeProvider,
+  sweep: { attempted: Set<string>; completed: Set<string> },
+) {
   const ninja = await import("./openwebninja.server");
   const db = ninja.cacheDb();
   if (!db || !ninja.openWebNinjaConfigured()) return { skipped: "not configured" };
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const { count, error: paceError } = await db
+  const { data: recentRequests, error: paceError } = await db
     .from("openwebninja_api_requests")
-    .select("id", { count: "exact", head: true })
-    .eq("provider", provider)
-    .gte("created_at", since);
+    .select("cache_key,provider")
+    .gte("created_at", since)
+    .limit(100);
+  const count = (recentRequests ?? []).filter((row) => row.provider === provider).length;
   // Before the per-provider migration only the original subscription runs.
   if (paceError) return { skipped: "per-provider budgets not set up" };
-  if ((count ?? 0) >= DAILY_PACE) return { skipped: "daily pace reached", usedToday: count };
+  if (count >= HOME_DETAIL_DAILY_PACE) return { skipped: "daily pace reached", usedToday: count };
+  // A failed/partial property must not monopolize the queue or be retried by
+  // the other subscription immediately. Retry it after a day, within DB caps.
+  const attempted = new Set<string>();
+  for (const row of recentRequests ?? []) {
+    try {
+      const key = JSON.parse(row.cache_key);
+      if (key.kind === "property") attempted.add(String(key.id));
+    } catch {
+      /* Old malformed diagnostics are not property candidates. */
+    }
+  }
+  const have = await ninja.completeHomeDetailIds();
 
   const searchKeys = OPENWEBNINJA_AREAS.flatMap((area) =>
     (["buy", "rent"] as const).map((mode) => ({
@@ -179,12 +198,13 @@ async function advanceHomeFeedFor(provider: HomeProvider) {
       key: ninja.areaSearchKey("ID", area.key, mode),
     })),
   );
-  const { data: searchRows } = await db
+  const { data: searchRows, error: searchError } = await db
     .from("openwebninja_cache")
     .select("cache_key,payload,expires_at")
     // A pattern, not .in(): the JSON keys contain commas, which break
     // PostgREST's in-list and silently match nothing.
     .like("cache_key", '%"kind":"area-search"%');
+  if (searchError) return { skipped: "saved searches unavailable" };
   const rowByKey = new Map((searchRows ?? []).map((row) => [row.cache_key, row]));
 
   // 1. This subscription's most overdue area list.
@@ -193,7 +213,11 @@ async function advanceHomeFeedFor(provider: HomeProvider) {
     .map((entry) => {
       const row = rowByKey.get(entry.key);
       const fetchedAt = row ? Date.parse(row.expires_at) - ninja.CACHE_MS : 0;
-      return { ...entry, overdueBy: Date.now() - fetchedAt - AREA_REFRESH_DAYS * 86_400_000 };
+      const published = (row?.payload?.homes ?? []).some((home: { id: string }) =>
+        have.has(home.id),
+      );
+      const refreshDays = published ? PUBLISHED_AREA_REFRESH_DAYS : PREVIEW_AREA_REFRESH_DAYS;
+      return { ...entry, overdueBy: Date.now() - fetchedAt - refreshDays * 86_400_000 };
     })
     .filter((entry) => entry.overdueBy > 0)
     .sort((a, b) => b.overdueBy - a.overdueBy)[0];
@@ -208,18 +232,29 @@ async function advanceHomeFeedFor(provider: HomeProvider) {
   // 2. One home without full details, newest first.
   const homes = await ninja.cachedHomes();
   const ids = [...new Set(homes.map((home) => home.id))];
-  const have = await ninja.completeHomeDetailIds();
-  const next = ids.find((id) => !have.has(id));
-  if (!next) return { done: true, homes: ids.length };
+  const next = ids.find((id) => !have.has(id) && !attempted.has(id) && !sweep.attempted.has(id));
+  if (!next)
+    return {
+      done: ids.every((id) => have.has(id)),
+      homes: ids.length,
+      skipped: "no eligible detail candidates",
+    };
+  sweep.attempted.add(next);
   const detail = await ninja.propertyDetails(next, null, { provider });
+  // A budget rejection reserves no call; the other subscription may still
+  // fetch this home. Upstream attempts are also protected by the DB ledger.
+  if (!detail.ok && detail.status === "limited") sweep.attempted.delete(next);
+  // Skip duplicate work within this sweep without modifying the public
+  // eligibility cache; public visibility still requires a saved detail row.
+  if (detail.ok) sweep.completed.add(next);
   return {
     detailed: next,
     ok: detail.ok,
-    remaining: ids.filter((id) => !have.has(id) && (id !== next || !detail.ok)).length,
+    remaining: ids.filter((id) => !have.has(id) && !sweep.completed.has(id)).length,
   };
 }
 
-/** Refresh all statewide geographic feeds on the weekly provider schedule. */
+/** Operator-only refresh of all statewide geographic feeds. */
 export async function refreshOpenWebNinjaSearches() {
   const { searchHomesArea: searchArea } = await import("./openwebninja.server");
   const responses = await Promise.all(
