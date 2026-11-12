@@ -26,6 +26,15 @@ async function fixture() {
       "utf8",
     ),
   );
+  await db.exec(
+    readFileSync(
+      new URL(
+        "../supabase/migrations/20261112030000_home_backup_account_budget.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
   const reserve = async (key, provider = "zillow") =>
     (
       await db.query("select public.reserve_openwebninja_provider_call($1,$2) as result", [
@@ -35,6 +44,82 @@ async function fixture() {
     ).rows[0].result;
   return { db, reserve };
 }
+
+test("backup budgets do not erase primary usage or exceed 100 per account and provider", async () => {
+  const { db, reserve } = await fixture();
+  try {
+    await db.exec(`insert into public.openwebninja_api_requests(cache_key,provider,created_at)
+      select 'old-'||i,'zillow',now()-interval '2 days' from generate_series(1,100) i;`);
+    assert.equal((await reserve("primary-over")).allowed, false);
+    const backup = async (key) =>
+      (
+        await db.query(
+          "select public.reserve_openwebninja_account_call($1,'zillow','backup') as result",
+          [key],
+        )
+      ).rows[0].result;
+    assert.equal((await backup("backup-first")).allowed, true);
+    await db.exec(`insert into public.openwebninja_api_requests(cache_key,provider,account,created_at)
+      select 'backup-old-'||i,'zillow','backup',now()-interval '2 days' from generate_series(1,99) i;`);
+    assert.equal((await backup("backup-over")).allowed, false);
+    assert.equal((await reserve("different-provider", "realestate")).allowed, true);
+    assert.equal(
+      (
+        await db.query(
+          "select count(*)::int as n from public.openwebninja_api_requests where account='primary' and provider='zillow'",
+        )
+      ).rows[0].n,
+      100,
+    );
+  } finally {
+    await db.close();
+  }
+});
+
+test("backup has its own daily cap but shares cache hits and same-property retry locks", async () => {
+  const { db, reserve } = await fixture();
+  try {
+    assert.equal((await reserve("same-home")).allowed, true);
+    const backup = async (key) =>
+      (
+        await db.query(
+          "select public.reserve_openwebninja_account_call($1,'zillow','backup') as result",
+          [key],
+        )
+      ).rows[0].result;
+    assert.equal((await backup("same-home")).allowed, false);
+    for (let i = 0; i < 25; i++) assert.equal((await backup("backup-daily-" + i)).allowed, true);
+    assert.equal((await backup("backup-daily-over")).allowed, false);
+    assert.equal((await reserve("primary-still-open")).allowed, true);
+    await db.exec(
+      `insert into public.openwebninja_cache values('saved-home','{"complete":true}',now()+interval '1 day');`,
+    );
+    assert.equal((await backup("saved-home")).cached, true);
+    assert.equal(
+      (
+        await db.query(
+          "select count(*)::int as n from public.openwebninja_api_requests where account='backup'",
+        )
+      ).rows[0].n,
+      25,
+    );
+    for (const role of ["anon", "authenticated"])
+      assert.equal(
+        (
+          await db.query(
+            "select has_function_privilege($1,'public.reserve_openwebninja_account_call(text,text,text)','execute') as allowed",
+            [role],
+          )
+        ).rows[0].allowed,
+        false,
+      );
+    await assert.rejects(
+      db.query("select public.reserve_openwebninja_account_call('bad','zillow','untracked')"),
+    );
+  } finally {
+    await db.close();
+  }
+});
 test("the final ten free requests are usable and request 101 is denied", async () => {
   const { db, reserve } = await fixture();
   try {

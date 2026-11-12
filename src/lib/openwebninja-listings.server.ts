@@ -139,16 +139,22 @@ async function advanceHomeFeedFor(
   const today = Date.now() - 86_400_000;
   const { data: recentRequests, error: paceError } = await db
     .from("openwebninja_api_requests")
-    .select("cache_key,provider,created_at")
+    .select("cache_key,provider,account,created_at")
     .gte("created_at", since)
-    .limit(400);
+    .limit(800);
   const providerRequests = (recentRequests ?? []).filter((row) => row.provider === provider);
-  const count = providerRequests.filter(
-    (row) => (Date.parse(row.created_at) || Date.now()) >= today,
-  ).length;
-  // Before the per-provider migration only the original subscription runs.
   if (paceError) return { skipped: "per-provider budgets not set up" };
-  if (count >= HOME_DETAIL_DAILY_PACE) return { skipped: "daily pace reached", usedToday: count };
+  const budgets = ninja.homeProviderAccounts(provider).map((account) => {
+    const requests = providerRequests.filter((row) => (row.account ?? "primary") === account);
+    return {
+      account,
+      requests,
+      usedToday: requests.filter((row) => (Date.parse(row.created_at) || Date.now()) >= today)
+        .length,
+    };
+  });
+  const available = budgets.filter((budget) => budget.usedToday < HOME_DETAIL_DAILY_PACE);
+  if (!available.length) return { skipped: "daily pace reached" };
   // A failed/partial property must not monopolize the queue or be retried by
   // the other subscription immediately. Retry it after a day, within DB caps.
   const attempted = new Set<string>();
@@ -198,27 +204,42 @@ async function advanceHomeFeedFor(
     .filter((entry) => entry.overdueBy > 0)
     .sort((a, b) => b.overdueBy - a.overdueBy)[0];
   if (due) {
+    const budget = available.find((entry) => entry.requests.length < 100);
+    if (!budget) return { skipped: "monthly allowance reached" };
     const result = await searchHomesArea("ID", due.area, due.mode, {
       forceRefresh: true,
       provider,
       page: due.page,
+      account: budget.account,
     });
     return {
       refreshed: `${due.area.key} ${due.mode} page ${due.page}`,
       homes: result.homes.length,
+      account: budget.account,
     };
   }
 
-  const maintenanceReserve = homeSearchReserve(
-    region,
-    providerRequests,
-    new Set(searchKeys.map((entry) => entry.key)),
+  const detailBudgets = available.map((budget) => ({
+    ...budget,
+    maintenanceReserve: homeSearchReserve(
+      region,
+      budget.requests,
+      new Set(searchKeys.map((entry) => entry.key)),
+    ),
+  }));
+  // Use the primary first, then the separately activated backup. Never move
+  // a region to a different provider or spend its weekly maintenance reserve.
+  const budget = detailBudgets.find(
+    (entry) => 100 - entry.requests.length > entry.maintenanceReserve,
   );
-  if (100 - providerRequests.length <= maintenanceReserve)
+  if (!budget)
     return {
       skipped: "weekly refresh allowance protected",
-      usedThisMonth: providerRequests.length,
-      reservedForSearches: maintenanceReserve,
+      budgets: detailBudgets.map((entry) => ({
+        account: entry.account,
+        usedThisMonth: entry.requests.length,
+        reservedForSearches: entry.maintenanceReserve,
+      })),
     };
 
   // 2. Renew monthly details first, then acquire complete new homes.
@@ -247,7 +268,7 @@ async function advanceHomeFeedFor(
       skipped: "no eligible detail candidates",
     };
   sweep.attempted.add(next);
-  const detail = await ninja.propertyDetails(next, null, { provider });
+  const detail = await ninja.propertyDetails(next, null, { provider, account: budget.account });
   // A budget rejection reserves no call. The same region owner may retry
   // later; upstream attempts are also protected by the DB ledger.
   if (!detail.ok && detail.status === "limited") sweep.attempted.delete(next);
@@ -256,6 +277,7 @@ async function advanceHomeFeedFor(
   if (detail.ok) sweep.completed.add(next);
   return {
     detailed: next,
+    account: budget.account,
     ok: detail.ok,
     remaining: ids.filter((id) => !have.has(id) && !sweep.completed.has(id)).length,
   };
