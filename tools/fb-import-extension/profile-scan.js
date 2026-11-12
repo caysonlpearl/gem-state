@@ -46,6 +46,7 @@ async function collectSellerScan(profile, config, notify) {
     height: 1000,
   });
   const tabId = win.tabs[0].id;
+  typeof trackImportReader === "function" && trackImportReader(tabId, true);
   const items = new Map(),
     visited = new Set(),
     sectionCounts = new Map(),
@@ -202,6 +203,7 @@ async function collectSellerScan(profile, config, notify) {
   } catch {
     complete = false;
   } finally {
+    typeof trackImportReader === "function" && trackImportReader(tabId, false);
     await chrome.windows.remove(win.id).catch(() => {});
   }
   return {
@@ -221,12 +223,24 @@ async function collectSellerScan(profile, config, notify) {
 }
 
 async function refreshSellerProfiles(adminTabId, requestId, profiles) {
-  const send = (payload) =>
-    chrome.tabs.sendMessage(adminTabId, { type: "gemlist-ext-event", payload }).catch(() => {});
+  const send = (payload) => {
+    typeof recordImportProgress === "function" && recordImportProgress(payload);
+    return chrome.tabs
+      .sendMessage(adminTabId, { type: "gemlist-ext-event", payload })
+      .catch(() => {});
+  };
   const reports = [];
   const blockedSites = new Map();
   for (const profile of profiles) {
     const config = profileScanConfig(profile.sourceProfileUrl);
+    typeof updateImportRun === "function" &&
+      updateImportRun({
+        sourceProfileUrl: profile.sourceProfileUrl,
+        label: `${config.site} seller refresh`,
+        done: null,
+        total: null,
+        message: "Reading seller profile…",
+      });
     const progress = (message) =>
       send({
         type: "gemlist-fb-refresh-progress",
@@ -245,6 +259,12 @@ async function refreshSellerProfiles(adminTabId, requestId, profiles) {
           scan: { complete: false, challenged: false, termination: "incomplete", unreadable: 0 },
         }
       : await collectSellerScan(profile.sourceProfileUrl, config, progress);
+    typeof updateImportRun === "function" &&
+      updateImportRun({
+        label: report.sellerName
+          ? `${report.sellerName} · ${config.site}`
+          : `${config.site} seller refresh`,
+      });
     if (report.blockedReason) blockedSites.set(config.site, report.blockedReason);
     const known = new Map(
       (profile.targets || []).map((t) => [readerForSource(t.sourceUrl)?.idOf(t.sourceUrl), t]),

@@ -1,4 +1,9 @@
 import {
+  watchImportRun,
+  supportsImportRunStatus,
+  type ImportRunStatus,
+} from "@/lib/import-extension-status";
+import {
   connectImportExtension,
   type ImportExtensionConnection,
 } from "@/lib/import-extension-connection";
@@ -200,6 +205,16 @@ function ImportedSellers() {
   });
   const checkExtension = useRef<() => void>(() => {});
   const extensionReady = extensionConnection.status === "ready";
+  const [runningImport, setRunningImport] = useState<ImportRunStatus | null>(null);
+  const [importStatusKnown, setImportStatusKnown] = useState(false);
+  useEffect(
+    () =>
+      watchImportRun(window, (run) => {
+        setImportStatusKnown(true);
+        setRunningImport(run);
+      }),
+    [],
+  );
   const [activeScan, setActiveScan] = useState("");
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [scanReports, setScanReports] = useState<
@@ -489,7 +504,9 @@ function ImportedSellers() {
         <Button
           type="button"
           onClick={() => refreshMutation.mutate(null)}
-          disabled={!extensionReady || !scanAuthorized || refreshMutation.isPending}
+          disabled={
+            !extensionReady || !scanAuthorized || refreshMutation.isPending || !!runningImport
+          }
           title={
             !extensionReady
               ? "Connect the import extension first."
@@ -537,7 +554,59 @@ function ImportedSellers() {
           {extensionConnection.status === "checking" ? "Checking…" : "Check extension again"}
         </Button>
       </div>
-      {refreshMutation.isPending && activeScan && (
+      {importStatusKnown && !runningImport && (
+        <p role="status" className="border-b border-border px-4 py-2 text-xs text-muted-foreground">
+          No importer running. Ready for your next refresh.
+        </p>
+      )}
+      {runningImport && (
+        <div
+          role="status"
+          className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-blue-50 px-4 py-3 text-xs text-primary"
+        >
+          <div className="min-w-0 flex-1">
+            <p className="font-semibold">
+              Importer running ·{" "}
+              {data?.find((seller) => seller.sourceProfileUrl === runningImport.sourceProfileUrl)
+                ?.sellerName || runningImport.label}
+            </p>
+            <p className="mt-1 break-words">
+              {runningImport.message}
+              {runningImport.done != null && runningImport.total != null
+                ? ` · ${runningImport.done}/${runningImport.total} listings`
+                : ""}
+            </p>
+            <p className="mt-1 text-muted-foreground">
+              Started{" "}
+              {new Date(runningImport.startedAt).toLocaleTimeString([], {
+                hour: "numeric",
+                minute: "2-digit",
+              })}
+              . Reader windows may be behind your other windows. Let this run finish before starting
+              another.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() =>
+              window.postMessage({ type: "gemlist-ext-show-import" }, window.location.origin)
+            }
+          >
+            Show running importer
+          </Button>
+        </div>
+      )}
+      {extensionReady &&
+        extensionConnection.version &&
+        !supportsImportRunStatus(extensionConnection.version) && (
+          <p className="border-b border-border px-4 py-3 text-xs text-muted-foreground">
+            Reload Bluebird Listing Import v1.5.12 to see active scans here, then reload this page.
+            If a scan is running, wait for its reader windows to close first.
+          </p>
+        )}
+      {refreshMutation.isPending && activeScan && !runningImport && (
         <p role="status" className="p-4 text-xs break-words">
           {activeScan}
         </p>
@@ -728,6 +797,7 @@ function ImportedSellers() {
                         !extensionReady ||
                         !scanAuthorized ||
                         refreshMutation.isPending ||
+                        !!runningImport ||
                         profile.syncPaused
                       }
                     >
