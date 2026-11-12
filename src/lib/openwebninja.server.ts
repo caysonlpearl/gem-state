@@ -384,7 +384,16 @@ export const areaSearchKey = (
   page = 1,
 ) =>
   provider
-    ? JSON.stringify({ v: 3, kind: "area-search", state, area, mode, provider, page })
+    ? JSON.stringify({
+        v: 3,
+        kind: "area-search",
+        state,
+        area,
+        mode,
+        provider,
+        page,
+        ...(provider === "redfin" ? { method: "coordinates" } : {}),
+      })
     : JSON.stringify({ v: 1, kind: "area-search", state, area, mode });
 
 export const propertyKey = (id: string) => JSON.stringify({ v: 4, kind: "property", id });

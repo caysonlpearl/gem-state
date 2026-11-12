@@ -96,3 +96,33 @@ test("an inactive Redfin subscription cannot reserve or spend requests", async (
   );
   assert.equal(f.calls.length, 0);
 });
+
+test("coordinate search keys cannot reuse the empty Redfin polygon response", () => {
+  const declaration = source.statements.find(
+    (node) =>
+      ts.isVariableStatement(node) &&
+      node.declarationList.declarations.some((d) => d.name.getText(source) === "areaSearchKey"),
+  );
+  const exports = {};
+  vm.runInNewContext(
+    ts.transpile(declaration.getText(source) + "\nexports.key=areaSearchKey;", {
+      target: ts.ScriptTarget.ES2022,
+      module: ts.ModuleKind.CommonJS,
+    }),
+    { exports },
+  );
+  for (const provider of ["redfin", "zillow", "realestate"]) {
+    const old = JSON.stringify({
+      v: 3,
+      kind: "area-search",
+      state: "ID",
+      area: "north-idaho",
+      mode: "buy",
+      provider,
+      page: 1,
+    });
+    const current = exports.key("ID", "north-idaho", "buy", provider);
+    if (provider === "redfin") assert.notEqual(current, old);
+    else assert.equal(current, old);
+  }
+});
