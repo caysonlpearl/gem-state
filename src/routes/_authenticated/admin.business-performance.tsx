@@ -304,6 +304,14 @@ function BusinessPerformancePage() {
                     >
                       View storefront
                     </Link>
+                  ) : selected.sellerSlug ? (
+                    <Link
+                      to="/sellers/$slug"
+                      params={{ slug: selected.sellerSlug }}
+                      className="rounded-full border border-border px-4 py-2 text-sm"
+                    >
+                      View storefront
+                    </Link>
                   ) : null}
                   <button
                     onClick={() => void copy().catch(() => setCopied(false))}
@@ -319,7 +327,7 @@ function BusinessPerformancePage() {
                 <Stat label="Listing detail views" value={selected.listingViews} />
                 <Stat label="Unique measured browsers" value={selected.uniqueBrowsers} />
                 <Stat label="Business profile views" value={selected.profileViews} />
-                <Stat label="Current vehicle listings" value={selected.activeListings} />
+                <Stat label="Current listings" value={selected.activeListings} />
                 <Stat label="Business website clicks" value={selected.websiteClicks} />
                 <Stat label="Original listing clicks" value={selected.vehicleClicks} />
                 <Stat
@@ -412,7 +420,7 @@ function BusinessPerformancePage() {
                       {[
                         "Business",
                         "Inventory source",
-                        "Current vehicles",
+                        "Current listings",
                         "Card clicks",
                         "Listing views",
                         "Profile views",

@@ -10,6 +10,7 @@ export type BusinessIdentity = {
   state: string;
   website: string;
   dealerSlug: string;
+  sellerSlug?: string;
   postalCode: string;
 };
 export type BusinessListing = {
@@ -19,6 +20,7 @@ export type BusinessListing = {
   state?: string;
   postalCode?: string | null;
   isMock?: boolean;
+  seller?: { slug: string } | null;
   dealer?: {
     slug: string;
     displayName: string;
@@ -160,6 +162,7 @@ export function businessProps(business: BusinessIdentity) {
     business_state: business.state,
     business_site: business.website,
     business_dealer_slug: business.dealerSlug,
+    business_seller_slug: business.sellerSlug ?? "",
     business_postal_code: business.postalCode,
   };
 }
@@ -181,6 +184,7 @@ export function businessFromProps(value: unknown): BusinessIdentity | null {
     state: text(p.business_state).slice(0, 30),
     website: businessHost(p.business_site),
     dealerSlug: text(p.business_dealer_slug).slice(0, 80),
+    sellerSlug: text(p.business_seller_slug).slice(0, 120),
     postalCode: text(p.business_postal_code).slice(0, 20),
   };
 }
@@ -373,7 +377,12 @@ export function summarizeBusinessPerformance(input: {
       continue;
     const p = (event.props ?? {}) as Record<string, unknown>;
     const listingId = text(p.listing_id);
-    const rawKey = text(p.business_key) || attribution.get(listingId)?.businessKey;
+    const rawKey =
+      text(p.business_key) ||
+      attribution.get(listingId)?.businessKey ||
+      (text(p.seller_slug)
+        ? input.businesses.find((b) => b.sellerSlug === text(p.seller_slug))?.key
+        : undefined);
     const identity = (rawKey && identities.get(rawKey)) || businessFromProps(p);
     if (!identity) {
       if (

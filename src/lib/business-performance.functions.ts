@@ -52,3 +52,20 @@ export const saveBusinessSalesAssumption = createServerFn({ method: "POST" })
     if (error) throw Error("Sales assumption could not be saved.");
     return { ok: true };
   });
+
+/** Admin-only resolution of registered business sellers; no public registry dump. */
+export const getBusinessSellerKey = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .validator((input: unknown) =>
+    z.object({ slug: z.string().regex(/^[a-z0-9-]{1,120}$/) }).parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const admin = await requireAdmin(context);
+    const { data: rows, error } = await (admin as any)
+      .from("business_performance_entities")
+      .select("business_key")
+      .eq("metadata->>sellerSlug", data.slug)
+      .limit(2);
+    if (error) throw Error("Business link could not be loaded.");
+    return { businessKey: rows?.length === 1 ? (rows[0].business_key as string) : null };
+  });

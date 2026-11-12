@@ -738,6 +738,7 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
           )}
         </div>
       )}
+      <AdminBusinessPerformanceLink sellerSlug={seller.slug} />
       <Link
         to="/sellers/$slug"
         params={{ slug: seller.slug }}

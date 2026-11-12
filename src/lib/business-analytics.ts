@@ -64,7 +64,15 @@ export function trackBusinessEvent(
   business: BusinessIdentity | null,
   props: Record<string, string | number | boolean | null> = {},
 ) {
-  if (!business || typeof window === "undefined") return;
+  if (typeof window === "undefined") return;
+  if (
+    !business &&
+    !(
+      typeof props.listing_id === "string" ||
+      (name === "business_profile_viewed" && typeof props.seller_slug === "string")
+    )
+  )
+    return;
   const id = typeof props.event_id === "string" ? props.event_id : crypto.randomUUID();
   let internal = isInternalAnalyticsQuery(window.location.search);
   try {
@@ -77,7 +85,7 @@ export function trackBusinessEvent(
     name,
     at: Date.now(),
     props: {
-      ...businessProps(business),
+      ...(business ? businessProps(business) : {}),
       ...props,
       event_id: id,
       is_internal: internal,
@@ -100,7 +108,6 @@ export function trackBusinessAnchor(
       : null;
   if (!anchor) return;
   const business = businessForListing(listing);
-  if (!business) return;
   let target: URL;
   try {
     target = new URL(anchor.href, window.location.origin);
@@ -109,9 +116,12 @@ export function trackBusinessAnchor(
   }
   let method: string | null = null;
   if (target.origin === window.location.origin) {
-    if (business.dealerSlug && target.pathname === `/dealers/${business.dealerSlug}`)
+    if (
+      (business?.dealerSlug && target.pathname === `/dealers/${business.dealerSlug}`) ||
+      (listing.seller?.slug && target.pathname === `/sellers/${listing.seller.slug}`)
+    )
       method = "dealer_profile";
-  } else if (/^https?:$/.test(target.protocol)) {
+  } else if (business && /^https?:$/.test(target.protocol)) {
     let original = "";
     try {
       if (listing.externalVehicle?.sourceUrl)
@@ -131,7 +141,9 @@ export function trackBusinessAnchor(
 export function trackBusinessListingOpen(
   listing: BusinessListing & { businessAttribution?: BusinessIdentity },
 ) {
+  if (listing.isMock) return;
   const business = listing.businessAttribution ?? businessForListing(listing);
+  if (!business && listing.externalVehicle) return;
   trackBusinessEvent("business_listing_clicked", business, {
     listing_id: listing.id,
     business_listing_title: business?.kind === "dealer" ? (listing.title ?? "") : "",
