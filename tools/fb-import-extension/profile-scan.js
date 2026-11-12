@@ -232,14 +232,15 @@ async function refreshSellerProfiles(adminTabId, requestId, profiles) {
   const reports = [];
   const blockedSites = new Map();
   for (const profile of profiles) {
+    const config = profileScanConfig(profile.sourceProfileUrl);
     typeof updateImportRun === "function" &&
       updateImportRun({
         sourceProfileUrl: profile.sourceProfileUrl,
+        label: `${config.site} seller refresh`,
         done: null,
         total: null,
         message: "Reading seller profile…",
       });
-    const config = profileScanConfig(profile.sourceProfileUrl);
     const progress = (message) =>
       send({
         type: "gemlist-fb-refresh-progress",

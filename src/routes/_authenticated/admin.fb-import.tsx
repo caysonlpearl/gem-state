@@ -565,7 +565,11 @@ function ImportedSellers() {
           className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-blue-50 px-4 py-3 text-xs text-primary"
         >
           <div className="min-w-0 flex-1">
-            <p className="font-semibold">Importer running · {runningImport.label}</p>
+            <p className="font-semibold">
+              Importer running ·{" "}
+              {data?.find((seller) => seller.sourceProfileUrl === runningImport.sourceProfileUrl)
+                ?.sellerName || runningImport.label}
+            </p>
             <p className="mt-1 break-words">
               {runningImport.message}
               {runningImport.done != null && runningImport.total != null
