@@ -8772,12 +8772,12 @@ export type Database = {
         Returns: Json
       }
       reserve_mashvisor_search: { Args: { p_query_key: string }; Returns: Json }
-      reserve_openwebninja_call: {
-        Args: { p_cache_key: string }
+      reserve_openwebninja_account_call: {
+        Args: { p_account: string; p_cache_key: string; p_provider: string }
         Returns: Json
       }
-      reserve_openwebninja_account_call: {
-        Args: { p_cache_key: string; p_provider: string; p_account: string }
+      reserve_openwebninja_call: {
+        Args: { p_cache_key: string }
         Returns: Json
       }
       reserve_openwebninja_home_call: {
