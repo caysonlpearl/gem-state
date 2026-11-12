@@ -1,3 +1,4 @@
+import { readableHomeFacts, homeParkingSummary } from "@/lib/home-facts";
 import { homeMapLocation, homePriceCut } from "@/lib/home-shopping";
 import { HomePaymentCalculator } from "@/components/listings/HomePaymentCalculator";
 import { ListingSellerIdentity } from "@/components/listings/ListingSellerIdentity";
@@ -2417,11 +2418,13 @@ function HomeFactRows({ rows }: { rows: [string, string | null | undefined][] })
   const shown = rows.filter((row): row is [string, string] => knownHomeFact(row[1]));
   if (!shown.length) return null;
   return (
-    <dl className="mt-3 divide-y divide-border/70 text-[13px]">
+    <dl className="mt-1 grid gap-x-8 text-[13px] sm:grid-cols-2">
       {shown.map(([label, value]) => (
-        <div key={label} className="flex items-start justify-between gap-4 py-2.5">
-          <dt className="text-muted-foreground">{label}</dt>
-          <dd className="max-w-[65%] text-right font-semibold">{value}</dd>
+        <div key={label} className="min-w-0 border-b border-border/60 py-3">
+          <dt className="text-[12px] text-muted-foreground">{label}</dt>
+          <dd className="mt-1 min-w-0 break-words text-left font-medium leading-6 [overflow-wrap:anywhere]">
+            {value}
+          </dd>
         </div>
       ))}
     </dl>
@@ -2479,12 +2482,13 @@ function HomeFactsAndFeatures({
       ],
     ],
   ];
-  const shown = groups.filter(([, rows]) => rows.some(([, value]) => knownHomeFact(value)));
+  const formatted = readableHomeFacts(groups, details.amenities);
+  const shown = formatted.groups;
   return (
     <div>
       <h2 className="text-[21px] font-bold">Facts &amp; features</h2>
       {shown.length ? (
-        <div className="mt-2 grid gap-x-10 gap-y-6 md:grid-cols-2">
+        <div className="mt-2 space-y-6">
           {shown.map(([title, rows]) => (
             <section key={title}>
               <h3 className="mt-4 rounded-lg bg-[#edf1f4] px-3 py-2.5 text-[14px] font-bold">
@@ -2499,20 +2503,21 @@ function HomeFactsAndFeatures({
           No additional facts were included with this listing.
         </p>
       )}
-      {details.amenities.length > 0 ? (
-        <section className="mt-8 border-t border-border/70 pt-6">
-          <h3 className="text-[15px] font-bold">Features &amp; amenities</h3>
-          <ul className="mt-3 flex flex-wrap gap-2">
-            {details.amenities.map((amenity) => (
-              <li
-                key={amenity}
-                className="inline-flex items-center gap-1.5 rounded-full border border-border/70 bg-secondary/40 px-3 py-1.5 text-[12.5px]"
-              >
-                <CheckCircle size={14} weight="fill" className="text-primary" /> {amenity}
-              </li>
-            ))}
-          </ul>
-        </section>
+      {formatted.links.length ? (
+        <div className="mt-5 flex flex-wrap gap-3">
+          {formatted.links.map((link) => (
+            <a
+              key={link.url}
+              href={link.url}
+              target="_blank"
+              rel="noopener noreferrer nofollow"
+              className="inline-flex min-h-11 items-center gap-2 text-[13px] font-semibold text-primary hover:underline"
+            >
+              {link.label}
+              <ArrowSquareOut size={15} />
+            </a>
+          ))}
+        </div>
       ) : null}
       {!listing.externalHome ? (
         <p className="mt-6 text-[12px] text-muted-foreground">
@@ -2924,28 +2929,38 @@ function HomeListingDetail({
     !details.isRental && home?.squareFeet && listing.priceCents > 0
       ? Math.round(listing.priceCents / 100 / home.squareFeet)
       : null;
-  const chips: [ReactNode, string | null][] = [
-    [<House key="t" size={18} />, home ? homeTypeNoun(home.propertyType) : null],
+  const parkingSummary = homeParkingSummary(details.garageParking, details.amenities);
+  const chips: [ReactNode, string, string | null][] = [
+    [<House key="t" size={20} />, "Home type", home ? homeTypeNoun(home.propertyType) : null],
     [
-      <CalendarBlank key="y" size={18} />,
-      knownHomeFact(details.yearBuilt) ? `Built in ${details.yearBuilt}` : null,
-    ],
-    [<Ruler key="l" size={18} />, knownHomeFact(details.acreage) ? `${details.acreage} lot` : null],
-    [<Tag key="p" size={18} />, pricePerSqft ? `$${pricePerSqft.toLocaleString()}/sqft` : null],
-    [
-      <Buildings key="h" size={18} />,
-      knownHomeFact(details.hoaFees) ? `HOA ${details.hoaFees}` : null,
+      <CalendarBlank key="y" size={20} />,
+      "Year built",
+      knownHomeFact(details.yearBuilt) ? details.yearBuilt : null,
     ],
     [
-      <Car key="g" size={18} />,
-      knownHomeFact(details.garageParking) ? details.garageParking : null,
+      <Ruler key="l" size={20} />,
+      "Lot size",
+      knownHomeFact(details.acreage) ? details.acreage : null,
     ],
     [
-      <PawPrint key="pet" size={18} />,
-      details.isRental && knownHomeFact(details.pets) ? `Pets: ${details.pets}` : null,
+      <Tag key="p" size={20} />,
+      "Price per sq ft",
+      pricePerSqft ? `$${pricePerSqft.toLocaleString()}` : null,
     ],
     [
-      <CalendarBlank key="a" size={18} />,
+      <Buildings key="h" size={20} />,
+      "HOA fees",
+      knownHomeFact(details.hoaFees) ? details.hoaFees : null,
+    ],
+    [<Car key="g" size={20} />, "Parking", parkingSummary],
+    [
+      <PawPrint key="pet" size={20} />,
+      "Pets",
+      details.isRental && knownHomeFact(details.pets) ? details.pets : null,
+    ],
+    [
+      <CalendarBlank key="a" size={20} />,
+      "Availability",
       details.isRental && knownHomeFact(details.availability) ? details.availability : null,
     ],
   ];
@@ -3099,22 +3114,28 @@ function HomeListingDetail({
             </div>
           </header>
 
-          {chips.some(([, label]) => label) ? (
+          {chips.some(([, , value]) => value) ? (
             <ul
-              className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-3"
+              className="grid auto-rows-[80px] grid-cols-2 gap-3 xl:grid-cols-3"
               aria-label="Home highlights"
             >
               {chips
-                .filter((chip): chip is [ReactNode, string] => Boolean(chip[1]))
-                .map(([icon, label]) => (
+                .filter((chip): chip is [ReactNode, string, string] => Boolean(chip[2]))
+                .map(([icon, label, value]) => (
                   <li
                     key={label}
-                    className="flex min-w-0 items-start gap-3 rounded-[14px] border border-[#e1e6e9] bg-[#f0f3f5] px-3.5 py-4 text-[13px] font-semibold leading-5 sm:px-4"
+                    className="flex h-20 min-w-0 items-center gap-3 rounded-[14px] border border-[#e1e6e9] bg-[#f0f3f5] px-3.5 sm:px-4"
                   >
-                    <span className="mt-0.5 shrink-0 text-primary">{icon}</span>
-                    <span className="line-clamp-2 min-w-0" title={label}>
-                      {label}
-                    </span>
+                    <span className="shrink-0 text-primary">{icon}</span>
+                    <div className="min-w-0">
+                      <p className="text-[11px] leading-4 text-muted-foreground">{label}</p>
+                      <p
+                        className="mt-1 line-clamp-2 text-[13px] font-semibold leading-5"
+                        title={value}
+                      >
+                        {value}
+                      </p>
+                    </div>
                   </li>
                 ))}
             </ul>
