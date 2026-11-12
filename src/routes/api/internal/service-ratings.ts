@@ -11,6 +11,12 @@ export const Route = createFileRoute("/api/internal/service-ratings")({
       POST: async ({ request }) => {
         const unauthorized = await authenticateCronRequest(request);
         if (unauthorized) return unauthorized;
+        // Operator-triggered home backfills reuse the same authentication
+        // and database budgets without running unrelated provider imports.
+        if (new URL(request.url).searchParams.get("homesOnly") === "1") {
+          const { advanceHomeFeed } = await import("@/lib/openwebninja-listings.server");
+          return Response.json({ homes: await advanceHomeFeed() });
+        }
         const { rateNextTradeCity } = await import("@/lib/service-directory.server");
         const { advanceHomeFeed } = await import("@/lib/openwebninja-listings.server");
         const { advanceMerchandiseFeed } = await import("@/lib/avantlink.server");
