@@ -213,7 +213,7 @@ function BusinessPerformancePage() {
   };
   const copy = async () => {
     if (!selected) return;
-    let text = `In the last ${days} days, ${selected.name}'s listings on Bluebird received ${selected.listingClicks.toLocaleString()} listing-card clicks and ${selected.listingViews.toLocaleString()} detail-page views. The business had ${selected.uniqueBrowsers.toLocaleString()} measured browsers across its listings and business pages. We recorded ${selected.websiteClicks} dealership website clicks, ${selected.vehicleClicks} original-listing clicks, ${selected.calls} call-button clicks, and ${selected.inquiries} submitted inquiry conversations. Clicks do not verify completed calls or purchases. Business click tracking began ${data ? new Date(data.trackingStartedAt).toLocaleDateString() : "with this report"}; earlier clicks were not recorded.`;
+    let text = `In the last ${days} days, ${selected.name}'s listings on Bluebird received ${selected.listingClicks.toLocaleString()} listing-card clicks and ${selected.listingViews.toLocaleString()} detail-page views. The business had ${selected.uniqueBrowsers.toLocaleString()} measured browsers across its listings and business pages. We recorded ${selected.websiteClicks} dealership website clicks, ${selected.vehicleClicks} original-listing clicks, ${selected.calls} call-button clicks, and ${selected.inquiries} submitted inquiry conversations. Clicks do not verify completed calls or purchases. Business click tracking began ${data ? new Date(data.trackingStartedAt).toLocaleDateString() : "with this report"}; older totals include only events already recorded.`;
     if (selected.modeledSales != null)
       text += ` At an explicitly assumed ${selected.conversionPercent}% conversion from ${selected.interestedBrowsers} interested browsers, this models approximately ${selected.modeledSales} sales. This is an estimate, not confirmed sales.`;
     await navigator.clipboard.writeText(text);
@@ -277,10 +277,10 @@ function BusinessPerformancePage() {
           <p className="rounded-xl bg-secondary/50 p-4 text-xs leading-relaxed text-muted-foreground">
             Staff, business-owner, demonstration, marked test, preview, and recognized bot activity
             is excluded. Views are detail-page visits; website clicks are referrals; call clicks are
-            taps, not verified calls. Contact-click tracking starts{" "}
-            {new Date(data.trackingStartedAt).toLocaleDateString()}; older clicks were not recorded.
-            Counts represent browsers, not verified people; one person using multiple devices may
-            count more than once.
+            taps, not verified calls. New business-click tracking starts{" "}
+            {new Date(data.trackingStartedAt).toLocaleDateString()}. Older totals include only
+            events already recorded. Counts represent browsers, not verified people; one person
+            using multiple devices may count more than once.
           </p>
           {selected ? (
             <>
