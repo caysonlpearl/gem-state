@@ -1,6 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Info } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 import { getVehiclePriceInsight } from "@/lib/vehicle-price-insights.functions";
 import {
@@ -16,172 +15,133 @@ const wholeDollars = (cents: number) =>
   }).format(cents / 100);
 
 const comparisonStyle = {
-  above: {
-    label: "Asking above market",
-  },
-  near: {
-    label: "Asking near market",
-  },
-  below: {
-    label: "Asking below market",
-  },
+  above: { label: "Above market", pill: "border-red-200 bg-red-50 text-red-800" },
+  near: { label: "Fair price", pill: "border-blue-200 bg-blue-50 text-[#143e67]" },
+  below: { label: "Below market", pill: "border-emerald-200 bg-emerald-50 text-emerald-800" },
 } as const;
+
+const roundHundred = (cents: number) => wholeDollars(Math.round(cents / 10000) * 10000);
+const checkedDate = (date: string) => {
+  const value = new Date(date);
+  if (!Number.isFinite(value.getTime())) return null;
+  const today = new Date().toLocaleDateString("en-US", { timeZone: "America/Boise" });
+  return value.toLocaleDateString("en-US", { timeZone: "America/Boise" }) === today
+    ? "checked today"
+    : `checked ${value.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "America/Boise" })}`;
+};
 
 export function VehiclePriceInsightCard({ insight }: { insight: Insight }) {
   const style = comparisonStyle[insight.comparison];
-  const details = insight.vehicleDetails;
+  const evidence = insight.evidence;
+  const percent = (Math.abs(insight.differenceCents) / insight.estimateCents) * 100;
+  const delta =
+    insight.differenceCents === 0
+      ? "at estimate"
+      : `${percent < 0.5 ? "<1" : Math.round(percent)}% ${insight.differenceCents < 0 ? "below" : "above"} estimate`;
   const inputs = new Set(insight.providerInputs ?? []);
-  const delta = Math.abs(insight.differenceCents);
-  const fields = details
-    ? [
-        ["Vehicle", `${details.year} ${details.make} ${details.model}`],
-        ["Trim", details.trim],
-        ["Mileage", `${details.miles.toLocaleString("en-US")} mi`],
-        [
-          "Condition",
-          details.certified ? "Certified pre-owned" : details.condition === "new" ? "New" : "Used",
-        ],
-        ["Market", details.state],
-        ...(inputs.has("drivetrain") ? [["Drive", details.drivetrain?.toUpperCase()]] : []),
-        ...(inputs.has("fuel") ? [["Fuel", details.fuel]] : []),
-        ...(inputs.has("transmission") ? [["Transmission", details.transmission]] : []),
-        ...(inputs.has("body_style") ? [["Body", details.bodyStyle]] : []),
-        ...(inputs.has("color") ? [["Color", details.color]] : []),
-        ...(inputs.has("base_msrp")
-          ? [["MSRP", details.baseMsrp ? wholeDollars(details.baseMsrp * 100) : null]]
-          : []),
-      ].filter(([, value]) => value)
-    : [];
+  const matchSummary = [
+    "same year/model",
+    ...(evidence?.trimMatched ? ["trim"] : []),
+    ...(evidence?.drivetrainMatched ? ["drive"] : []),
+    ...(evidence ? [`±${(evidence.mileageTolerance / 1000).toLocaleString("en-US")}k mi`] : []),
+  ].join("/");
+  const modelInputs = [
+    "year/model",
+    ...(inputs.has("trim") ? ["trim"] : []),
+    "mileage/condition/state",
+  ].join("/");
+  const method = evidence
+    ? `Middle 50%; ${matchSummary} · Vehicles.dev.`
+    : insight.provider === "vehicles"
+      ? `Vehicles.dev model: ${modelInputs}; comparable range unavailable.`
+      : `${valuationProviderNames[insight.provider]} VIN-based retail estimate; comparable range unavailable.`;
   return (
     <section
-      className="overflow-hidden rounded-[18px] border border-[#deded9] bg-white text-[#222b32]"
+      className="overflow-hidden rounded-[18px] border border-[#deded9] bg-white px-5 py-4 text-[#222b32]"
       style={{ fontFamily: "Arial, Helvetica, sans-serif", fontFeatureSettings: "normal" }}
       aria-label="Vehicle price insight"
     >
-      <div className="flex items-center justify-between gap-3 border-b border-[#ecece8] px-5 py-3">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <img
-            src="/images/brand/bluebird-error-bird.webp"
-            alt=""
-            aria-hidden="true"
-            className="size-8 shrink-0 object-contain"
-            width={32}
-            height={32}
-          />
-          <h2
-            className="text-[14px] font-semibold leading-5 tracking-normal text-[#112e44]"
-            style={{ fontFamily: "inherit" }}
-          >
-            Bluebird Insights
-          </h2>
-        </div>
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h2
+          className="text-[14px] font-semibold leading-5 tracking-normal text-[#112e44]"
+          style={{ fontFamily: "inherit" }}
+        >
+          Bluebird Insights
+        </h2>
         <img
-          src="/images/brand/bluebird-insights-rosette.webp"
+          src="/images/brand/bluebird-error-bird.webp"
           alt=""
           aria-hidden="true"
-          className="h-10 w-8 shrink-0 object-contain"
-          width={32}
-          height={40}
+          className="size-6 shrink-0 object-contain"
+          width={24}
+          height={24}
         />
       </div>
-      <div className="px-5 pb-5 pt-4">
-        <p className="text-[12px] leading-5 text-[#666c70]">Estimated retail asking price</p>
-        <p className="mt-1 text-[30px] font-semibold leading-9 tracking-[-0.02em] text-[#112e44] tabular-nums">
-          {wholeDollars(insight.estimateCents)}
-        </p>
-        <div className="mt-4 border-t border-[#ecece8] pt-4">
-          <p
-            aria-label={`Price rating: ${style.label}`}
-            className="text-[14px] font-semibold leading-5"
-          >
-            {style.label}
-          </p>
-          <p className="mt-1 text-[12px] leading-[18px] text-[#666c70]">
-            {delta === 0 ? (
-              "Asking price matches estimate."
-            ) : (
-              <>
-                {wholeDollars(delta)} {insight.differenceCents < 0 ? "below" : "above"} estimate
-              </>
-            )}
-          </p>
-        </div>
-        <div
-          className="mt-4"
-          role="img"
-          aria-label={`${style.label}. Asking price ${wholeDollars(insight.askingCents)}, estimated retail asking price ${wholeDollars(insight.estimateCents)}. The scale shows comparison bands, not a value range.`}
-        >
-          <div className="relative pt-5">
-            <div
-              className="absolute top-0 -translate-x-1/2 text-[#087ab5]"
-              style={{ left: `${insight.pointerPercent}%` }}
-              aria-hidden="true"
-            >
-              <span className="block whitespace-nowrap text-[10px] font-normal leading-3">
-                Asking price
-              </span>
-              <svg viewBox="0 0 20 12" className="mx-auto mt-0.5 h-2 w-3 fill-current">
-                <path d="M1 1h18L10 11z" />
-              </svg>
-            </div>
-            <div
-              className="grid h-2 grid-cols-3 gap-0.5 overflow-hidden rounded-full"
-              aria-hidden="true"
-            >
-              <span className="bg-[#cb8077]" />
-              <span className="bg-[#d9bb69]" />
-              <span className="bg-[#6a9e89]" />
-            </div>
-          </div>
+      <p
+        aria-label={`Price rating: ${style.label}, ${delta}`}
+        className={`inline-flex max-w-full flex-wrap items-center gap-x-1.5 rounded-full border px-3 py-1.5 text-[14px] font-semibold leading-5 ${style.pill}`}
+      >
+        <span>{style.label}</span>
+        <span aria-hidden="true">·</span>
+        <span>{delta}</span>
+      </p>
+      <p className="mt-3 text-[12px] leading-[18px] text-[#606970]">
+        {evidence ? "Typical dealer asking range" : "Approximate model estimate"}
+      </p>
+      <p className="mt-1 text-[24px] font-semibold leading-8 tracking-[-0.02em] text-[#112e44] tabular-nums">
+        {evidence
+          ? `${wholeDollars(Math.floor(evidence.lowerCents / 10000) * 10000)} – ${wholeDollars(Math.ceil(evidence.upperCents / 10000) * 10000)}`
+          : `≈ ${roundHundred(insight.estimateCents)}`}
+      </p>
+      <p className="mt-1 text-[12px] leading-[18px] text-[#606970]">
+        {evidence
+          ? `${evidence.count} similar ${evidence.scope === "state" ? evidence.state : "U.S."} dealer listings · ${checkedDate(evidence.checkedAt) ?? "check date unavailable"}`
+          : `Comparable sample unavailable · ${checkedDate(insight.updatedAt) ?? "check date unavailable"}`}
+      </p>
+      <div
+        className="mt-3"
+        role="img"
+        aria-label={`${style.label}, ${delta}. Asking price ${wholeDollars(insight.askingCents)}. The scale shows price comparison bands, not a statistical confidence interval.`}
+      >
+        <div className="relative pt-5">
           <div
-            className="mt-2 grid grid-cols-3 text-[11px] font-normal leading-4 text-[#666c70]"
+            className="absolute top-0 -translate-x-1/2 text-[#087ab5]"
+            style={{ left: `clamp(34px, ${insight.pointerPercent}%, calc(100% - 34px))` }}
             aria-hidden="true"
           >
-            <span>Above market</span>
-            <span className="text-center">Near market</span>
-            <span className="text-right">Below market</span>
+            <span className="block whitespace-nowrap text-[12px] font-normal leading-3">
+              Asking price
+            </span>
+          </div>
+          <svg
+            viewBox="0 0 20 12"
+            className="absolute top-3.5 h-2 w-3 -translate-x-1/2 fill-[#087ab5]"
+            style={{ left: `${insight.pointerPercent}%` }}
+            aria-hidden="true"
+          >
+            <path d="M1 1h18L10 11z" />
+          </svg>
+          <div
+            className="grid h-2.5 grid-cols-3 gap-0.5 overflow-hidden rounded-full"
+            aria-hidden="true"
+          >
+            <span className="bg-[#ed4c4c]" />
+            <span className="bg-[#f4c542]" />
+            <span className="bg-[#23a76b]" />
           </div>
         </div>
+        <div
+          className="mt-1.5 grid grid-cols-3 text-[12px] font-normal leading-[18px] text-[#606970]"
+          aria-hidden="true"
+        >
+          <span>Above</span>
+          <span className="text-center">Fair</span>
+          <span className="text-right">Below</span>
+        </div>
       </div>
-      <div className="border-t border-[#ecece8] px-5 py-3.5">
-        <details className="group text-[12px] leading-[18px] text-[#666c70]">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 font-normal text-[#112e44]">
-            About this estimate <Info size={16} aria-hidden="true" />
-          </summary>
-          {fields.length ? (
-            <dl className="mt-3 space-y-1.5 rounded-xl bg-secondary/40 p-3">
-              {fields.map(([label, value]) => (
-                <div key={label} className="flex justify-between gap-4">
-                  <dt>{label}</dt>
-                  <dd className="text-right font-medium capitalize text-foreground">{value}</dd>
-                </div>
-              ))}
-            </dl>
-          ) : null}
-          {insight.unconfirmedInputs?.length ? (
-            <p className="mt-3">
-              Some additional listing specifications are not reflected in this estimate. Only
-              confirmed estimate factors are shown above.
-            </p>
-          ) : null}
-          <p className="mt-3">
-            Estimate source: {valuationProviderNames[insight.provider]}. Bluebird compares the
-            asking price with this provider’s estimated retail asking price. “Near market” means
-            within {Math.round(insight.tolerancePct)}% of the estimate, allowing for model
-            uncertainty. The scale is not a confidence interval.
-          </p>
-          <p className="mt-2">
-            Condition uses the listing’s new, used, or certified status. Wear, accident history,
-            options, incentives, and fees may change the value. This is not an inspection,
-            appraisal, or guaranteed sale price.
-          </p>
-          {insight.provider !== "vehicles" ? (
-            <p className="mt-2">
-              This provider identifies the vehicle by VIN; the details above describe the listing.
-            </p>
-          ) : null}
-        </details>
-      </div>
+      <p className="mt-3 border-t border-[#ecece8] pt-3 text-[12px] leading-[18px] text-[#606970]">
+        <span className="font-semibold text-[#112e44]">About this estimate:</span> {method}
+      </p>
     </section>
   );
 }
