@@ -113,7 +113,7 @@ test("provider contracts use documented authentication and only supported retail
   );
   assert.equal(providerRequest(mc, { ...input, dealerType: "franchise", condition: "new" }), null);
 });
-test("reject malformed, mismatched or weak estimates; model error widens comparison threshold without inventing a confidence range", () => {
+test("reject malformed, mismatched or weak estimates; comparison uses Bluebird’s fixed five-percent band without claiming confidence", () => {
   const estimate = normalizeVehicleEstimate("vehicles", vehicleBody, input);
   assert.equal(estimate.estimateCents, 2609600);
   for (const patch of [
@@ -172,8 +172,8 @@ test("gauge pointer and status share the same neutral band and clamp extreme pri
   const estimate = normalizeVehicleEstimate("vehicles", vehicleBody, input);
   const near = compareVehiclePrice(estimate, estimate.estimateCents);
   assert.equal(near.pointerPercent, 50);
-  assert.equal(near.tolerancePct, 12);
-  const tolerance = estimate.estimateCents * 0.12;
+  assert.equal(near.tolerancePct, 5);
+  const tolerance = estimate.estimateCents * 0.05;
   for (const sign of [-1, 1]) {
     const at = compareVehiclePrice(estimate, estimate.estimateCents + sign * tolerance);
     assert.equal(at.comparison, "near");

@@ -52,7 +52,8 @@ export function compareVehiclePrice(
   askingCents: number,
 ): VehiclePriceInsight {
   const differenceCents = askingCents - estimate.estimateCents;
-  const tolerance = Math.max(0.1, (estimate.modelErrorPct ?? 5) / 50);
+  // Bluebird’s chosen comparison band; not a provider confidence interval.
+  const tolerance = 0.05;
   return {
     ...estimate,
     differenceCents,
