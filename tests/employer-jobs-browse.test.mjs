@@ -9,7 +9,7 @@ function harness() {
   const file = ts.createSourceFile(path, readFileSync(new URL(path, import.meta.url), "utf8"), ts.ScriptTarget.Latest, true);
   const source = file.statements.find((node) => ts.isFunctionDeclaration(node) && node.name?.text === "adzunaCards").getText(file)
     .replace(/^export /, "")
-    .replace('import("./adzuna.server")', "Promise.resolve({ searchJobs, cachedJobs })")
+    .replace('import("./adzuna.server")', "Promise.resolve({ searchJobs: mockSearchJobs, cachedJobs: mockCachedJobs })")
     .replace('import("./employer-logos.server")', "Promise.resolve({ withEmployerLogos: async (cards) => cards })");
   const jobs = [
     { id: "5963450403", company: "Mindrift", title: "AI tutor", description: "Remote writing", city: "Boise", state: "ID" },
@@ -23,8 +23,8 @@ function harness() {
     hasClassifiedRadiusCenter: () => false, isWithinClassifiedRadius: () => true,
     adzunaCard: (job) => job, notePartnerEmployers: async () => {},
     removedPartnerJobIds: async () => new Set(),
-    cachedJobs: async () => ({ status: "ok", jobs, total: jobs.length }),
-    searchJobs: async () => { providerCalls++; return { status: "ok", jobs: [jobs[2]], total: 1 }; },
+    mockCachedJobs: async () => ({ status: "ok", jobs, total: jobs.length }),
+    mockSearchJobs: async () => { providerCalls++; return { status: "ok", jobs: [jobs[2]], total: 1 }; },
   });
   return { adapter, providerCalls: () => providerCalls };
 }
