@@ -99,7 +99,14 @@ export function businessForListing(listing: BusinessListing): BusinessIdentity |
     key = slug
       ? "dealer:" + slug
       : dealer?.id != null
-        ? "marketcheck-dealer:" + dealer.id
+        ? "marketcheck-dealer:" +
+          dealer.id +
+          ":" +
+          token(city) +
+          ":" +
+          token(state) +
+          ":" +
+          postalCode
         : "dealer-site:" +
           token(website || name) +
           ":" +
@@ -153,6 +160,7 @@ export function businessProps(business: BusinessIdentity) {
     business_state: business.state,
     business_site: business.website,
     business_dealer_slug: business.dealerSlug,
+    business_postal_code: business.postalCode,
   };
 }
 export function businessFromProps(value: unknown): BusinessIdentity | null {
@@ -173,7 +181,7 @@ export function businessFromProps(value: unknown): BusinessIdentity | null {
     state: text(p.business_state).slice(0, 30),
     website: businessHost(p.business_site),
     dealerSlug: text(p.business_dealer_slug).slice(0, 80),
-    postalCode: "",
+    postalCode: text(p.business_postal_code).slice(0, 20),
   };
 }
 export type BusinessAttribution = {
@@ -253,7 +261,18 @@ export function canonicalBusiness(identity: BusinessIdentity, profiles: Business
   );
   return {
     ...identity,
-    canonicalKey: matches.length === 1 ? matches[0].key : identity.key,
+    canonicalKey:
+      matches.length === 1
+        ? matches[0].key
+        : /^marketcheck-dealer:\d+$/.test(identity.key)
+          ? identity.key +
+            ":" +
+            token(identity.city) +
+            ":" +
+            token(identity.state) +
+            ":" +
+            identity.postalCode
+          : identity.key,
   };
 }
 

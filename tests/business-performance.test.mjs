@@ -263,3 +263,19 @@ test("a later staff or owner account event excludes their anonymous pre-login vi
   assert.equal(result.businesses[0].listingViews, 1);
   assert.equal(result.businesses[0].uniqueBrowsers, 1);
 });
+
+test("reused provider dealer IDs keep different branches separate and old aliases retain their branch", () => {
+  const other = businessForListing({
+    ...listing,
+    city: "Renton",
+    externalVehicle: {
+      ...listing.externalVehicle,
+      dealer: { ...listing.externalVehicle.dealer, city: "Renton", state: "WA", zip: "98057" },
+    },
+  });
+  assert.notEqual(other.key, api.key);
+  const legacy = { ...other, key: "marketcheck-dealer:42", canonicalKey: "marketcheck-dealer:42" };
+  assert.equal(canonicalBusiness(legacy, []).canonicalKey, other.key);
+  const result = report([], { businesses: [api, other, legacy], attributions: [] });
+  assert.equal(result.businesses.length, 2);
+});

@@ -135,7 +135,10 @@ test("reports use cached inventory, retain removed listings, and only persist ch
   assert.deepEqual([...statesRead].sort(), ["ID", "OR", "UT", "WA"]);
   assert.equal(result.businesses.length, 1);
   assert.equal(result.businesses[0].activeListings, 1);
-  assert.equal(result.aliases["marketcheck-dealer:100"], "dealer:mass-motors-fairview");
+  assert.equal(
+    result.aliases["marketcheck-dealer:100:boise:id:83713"],
+    "dealer:mass-motors-fairview",
+  );
   assert.equal(writes, 2);
   await exports.loadBusinessPerformance(db, 30);
   assert.equal(writes, 2, "unchanged report reads must not rewrite the directory");
