@@ -14,7 +14,18 @@ async function fixture() {
   await db.exec(`create role anon; create role authenticated; create role service_role;
     create table public.openwebninja_cache(cache_key text primary key,payload jsonb not null,expires_at timestamptz not null);
     create table public.openwebninja_api_requests(id bigint generated always as identity,cache_key text not null,provider text not null default 'zillow',created_at timestamptz not null default now());`);
+  await db.exec(`create table public.saved_partner_homes(listing_id text check(listing_id ~ '^(mashvisor-[0-9]{1,15}|openwebninja-[0-9]{1,20})$'));
+    create table public.listing_view_counts(listing_id text check(listing_id ~ '^(openwebninja-[0-9]{1,20}|avantlink-[0-9]{1,20})$'));`);
   await db.exec(migration);
+  await db.exec(
+    readFileSync(
+      new URL(
+        "../supabase/migrations/20261112020000_regional_redfin_home_budget.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
   const reserve = async (key, provider = "zillow") =>
     (
       await db.query("select public.reserve_openwebninja_provider_call($1,$2) as result", [
@@ -67,6 +78,36 @@ test("same-home retries across providers remain blocked, while cache hits use no
       (await db.query("select count(*)::int as total from public.openwebninja_api_requests"))
         .rows[0].total,
       1,
+    );
+  } finally {
+    await db.close();
+  }
+});
+
+test("Redfin receives an independent 100-request budget and no extra daily capacity", async () => {
+  const { db, reserve } = await fixture();
+  try {
+    await db.exec(
+      `insert into public.openwebninja_api_requests(cache_key,provider,created_at) select 'redfin-'||i,'redfin',now()-interval '2 days' from generate_series(1,100) i;`,
+    );
+    assert.equal((await reserve("redfin-extra", "redfin")).allowed, false);
+    assert.equal((await reserve("zillow-still-free", "zillow")).allowed, true);
+  } finally {
+    await db.close();
+  }
+});
+test("Redfin saved-home and view-count constraints preserve other provider IDs", async () => {
+  const { db } = await fixture();
+  try {
+    await db.query("insert into public.saved_partner_homes values ($1)", [
+      "openwebninja-redfin-123",
+    ]);
+    await db.query("insert into public.listing_view_counts values ($1)", [
+      "openwebninja-redfin-123",
+    ]);
+    await db.query("insert into public.listing_view_counts values ($1)", ["avantlink-123"]);
+    await assert.rejects(
+      db.query("insert into public.saved_partner_homes values ($1)", ["openwebninja-redfin-bad"]),
     );
   } finally {
     await db.close();

@@ -19,9 +19,9 @@ process.env.MARKETCHECK_API_KEY = "fixture_only_not_real";
 const home = {
   id: "111261092",
   address: "414 4th Ave W",
-  city: "Twin Falls",
+  city: "Idaho Falls",
   state: "ID",
-  zip: "83301",
+  zip: "83401",
   priceCents: 150000,
   mode: "rent",
   propertyType: "House",
@@ -31,6 +31,14 @@ const home = {
   imageUrl: null,
   sourceUrl: "https://example.org/fixture-home",
   isFeatured: false,
+};
+const redfinHome = {
+  ...home,
+  id: "redfin-111261092",
+  provider: "redfin",
+  city: "Sandpoint",
+  zip: "83864",
+  sourceUrl: "https://www.redfin.com/ID/Sandpoint/414-4th-Ave-W/home/111261092",
 };
 const extra = {
   bedrooms: 3,
@@ -112,14 +120,28 @@ globalThis.fetch = async (input, init = {}) => {
     body = searches
       ? [
           {
-            cache_key: '{"v":1,"kind":"area-search","mode":"rent"}',
+            cache_key:
+              '{"v":3,"kind":"area-search","area":"eastern-idaho","mode":"rent","provider":"realestate","page":1}',
             payload: { homes: [home] },
-            expires_at: new Date(Date.now() + 86400000).toISOString(),
+            expires_at: new Date(Date.now() + 8 * 86400000).toISOString(),
+          },
+          {
+            cache_key:
+              '{"v":3,"kind":"area-search","area":"north-idaho","mode":"rent","provider":"redfin","page":1}',
+            payload: { homes: [redfinHome] },
+            expires_at: new Date(Date.now() + 8 * 86400000).toISOString(),
           },
         ]
       : [
           {
-            cache_key: '{"v":3,"kind":"property","id":"111261092"}',
+            cache_key: JSON.stringify({
+              v: 4,
+              kind: "property",
+              id: url.searchParams.get("cache_key")?.includes("redfin-") ? redfinHome.id : home.id,
+            }),
+            expires_at: new Date(
+              Date.now() + (mode === "home-stale" ? -1 : 31) * 86400000,
+            ).toISOString(),
             payload: mode === "home-incomplete" ? { ...extra, description: null } : extra,
           },
         ];
@@ -182,10 +204,12 @@ try {
   }
   const native = "/listings/aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
   await render("/listings/openwebninja-111261092", 200);
+  await render("/listings/openwebninja-redfin-111261092", 200);
   // Previously advertised partner image URLs must also recover, even with a
   // normal browser UA. No API budget reservation or external fetch is allowed.
   for (const [path, status, location] of [
     ["/media/listings/openwebninja-111261092/0", 302, extra.images[0]],
+    ["/media/listings/openwebninja-redfin-111261092/1", 302, extra.images[1]],
     ["/media/listings/openwebninja-111261092/1", 302, extra.images[1]],
     ["/media/listings/openwebninja-111261092/2", 404, null],
     ["/media/listings/marketcheck-fsbo-fixture-vehicle/0", 302, vehicle.media.photoLinksCached[1]],
@@ -219,6 +243,7 @@ try {
     results.push({ path, mode: "partner-photo", status });
   }
   await render("/listings/openwebninja-111261092", 404, "home-incomplete");
+  await render("/listings/openwebninja-redfin-111261092", 404, "home-stale");
   await render(native, 404);
   await render("/listings/openwebninja-999999999", 404);
   await render("/listings/not-a-real-listing-id", 404, "malformed");

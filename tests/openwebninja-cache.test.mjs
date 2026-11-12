@@ -1,3 +1,5 @@
+import * as homeRegions from "../src/lib/home-feed-regions.ts";
+import * as redfin from "../src/lib/redfin-contract.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -7,7 +9,7 @@ import { homesFromSavedSearches } from "../src/lib/openwebninja-cache.ts";
 import { canonicalHomePropertyType } from "../src/lib/openwebninja-contract.ts";
 import { matchesLandingCard } from "../src/lib/landing-card-pool.ts";
 const now = Date.parse("2026-11-01T12:00:00Z");
-const home = (id, city = "Twin Falls", mode = "rent", extra = {}) => ({
+const home = (id, city = "Idaho Falls", mode = "rent", extra = {}) => ({
   id,
   address: "1 Main St",
   city,
@@ -38,11 +40,11 @@ const row = (homes, mode = "rent", extra = {}) => ({
 });
 test("saved regional and city searches deduplicate property ids using the newest saved copy and mode", () => {
   const rows = [
-    row([home("1", "Twin Falls", "rent", { priceCents: 200000 })], "rent", {
+    row([home("1", "Idaho Falls", "rent", { priceCents: 200000 })], "rent", {
       expires_at: "2026-11-12T12:00:00Z",
     }),
     row([home("1")]),
-    row([home("1", "Twin Falls", "buy"), home("2", "Twin Falls", "buy")], "buy"),
+    row([home("1", "Idaho Falls", "buy"), home("2", "Idaho Falls", "buy")], "buy"),
     row([home("expired")], "rent", { expires_at: "2026-11-01T11:00:00Z" }),
     row([home("property")], "rent", { cache_key: JSON.stringify({ kind: "property", id: "5" }) }),
     row([home("bad-mode")], "buy"),
@@ -63,8 +65,8 @@ function adapter(homes) {
   let reads = 0;
   const provider = new Proxy(
     {
-      completeHomeDetailIds: async () =>
-        new Set(homes.filter((home) => !home.incomplete).map((home) => home.id)),
+      completeHomeThumbnails: async () =>
+        new Map(homes.filter((home) => !home.incomplete).map((home) => [home.id, home.imageUrl])),
       cachedHomes: async () => {
         reads++;
         return homes;
@@ -89,6 +91,8 @@ function adapter(homes) {
       if (name === "./openwebninja.server") return provider;
       if (name === "./openwebninja-cache") return { hasCompleteHomeDetails: () => false };
       if (name === "./landing-card-pool") return { matchesLandingCard };
+      if (name === "./home-feed-regions") return homeRegions;
+      if (name === "./redfin-contract") return redfin;
       if (name === "./openwebninja-contract")
         return { canonicalHomePropertyType, listedAt: () => "2026-11-01T00:00:00Z" };
       throw new Error("Unexpected import " + name);
@@ -97,14 +101,14 @@ function adapter(homes) {
   return { exports, reads: () => reads };
 }
 test("generic SEO homes include both modes and every cached city without provider calls", async () => {
-  const h = adapter([home("1"), home("2", "Boise", "buy"), home("3", "Filer")]);
+  const h = adapter([home("1"), home("2", "Boise", "buy"), home("3", "Ammon")]);
   const input = { category: "other-real-estate", state: "ID" };
   assert.equal(h.exports.canIncludeOpenWebNinja(input), true);
   assert.equal((await h.exports.openWebNinjaCards(input)).length, 3);
   const rentals = await h.exports.openWebNinjaCards({
     ...input,
     homeTab: "rent",
-    city: "Twin Falls",
+    city: "Idaho Falls",
     radiusMiles: 25,
   });
   assert.deepEqual(
@@ -116,7 +120,7 @@ test("generic SEO homes include both modes and every cached city without provide
       await h.exports.openWebNinjaCards({
         ...input,
         homeTab: "buy",
-        city: "Twin Falls",
+        city: "Idaho Falls",
         radiusMiles: 25,
       })
     ).length,
@@ -128,9 +132,14 @@ test("saved homes respect strict location, price, bedrooms, property and unsuppo
   const h = adapter([
     home("1"),
     home("2", "Boise", "buy"),
-    home("3", "Twin Falls", "rent", { state: "UT" }),
+    home("3", "Idaho Falls", "rent", { state: "UT" }),
   ]);
-  const input = { category: "other-real-estate", homeTab: "rent", state: "ID", city: "Twin Falls" };
+  const input = {
+    category: "other-real-estate",
+    homeTab: "rent",
+    state: "ID",
+    city: "Idaho Falls",
+  };
   assert.equal((await h.exports.openWebNinjaCards(input)).length, 1);
   assert.equal(
     (await h.exports.openWebNinjaCards({ ...input, homePropertyType: "Single-family home" }))
@@ -159,5 +168,17 @@ test("public home cards omit incomplete previews before pagination or SEO counts
   assert.deepEqual(
     Array.from(result, (card) => card.id),
     ["openwebninja-complete"],
+  );
+});
+
+test("source address aliases are deduplicated after completeness, preserving separate units", async () => {
+  const a = home("1", "Boise", "buy", { address: "111 North Main Street Apt #1" });
+  const b = home("2", "Boise", "buy", { address: "111 N Main St UNIT 1" });
+  const c = home("3", "Boise", "buy", { address: "111 N Main St UNIT 2" });
+  const h = adapter([a, b, c]);
+  const cards = await h.exports.openWebNinjaCards({ category: "other-real-estate", state: "ID" });
+  assert.deepEqual(
+    Array.from(cards, (card) => card.id),
+    ["openwebninja-1", "openwebninja-3"],
   );
 });

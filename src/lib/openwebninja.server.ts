@@ -2,12 +2,19 @@ import { createClient } from "@supabase/supabase-js";
 import { withCatalogReadDeadline } from "./catalog-read-deadline";
 import { shortCache, PUBLIC_PAGE_CACHE_MS } from "./short-cache.server";
 import { serverEnv } from "./runtime-env.server";
+import { normalizeRedfinProperty, normalizeRedfinResult } from "./redfin-contract";
+import { homeFeedRegion, type HomeProvider } from "./home-feed-regions";
+export type { HomeProvider } from "./home-feed-regions";
 import {
   hasCompleteHomeDetails,
+  propertyCacheFetchedAt,
+  propertyCacheFresh,
+  HOME_DETAIL_REFRESH_MS,
   homesFromSavedSearches,
   type SavedHomeSearch,
 } from "./openwebninja-cache";
 import {
+  dedupeImageUrls,
   normalizeOpenWebNinjaProperty,
   normalizeOpenWebNinjaResult,
   type OpenWebNinjaHome,
@@ -18,13 +25,13 @@ import {
 // OpenWeb Ninja's free plans have a hard limit of 100 calls/month. The
 // database reservation enforces that full allowance per existing subscription.
 export const CACHE_MS = 30 * 24 * 60 * 60 * 1000;
+export const REGIONAL_SEARCH_CACHE_MS = 8 * 86_400_000;
 /**
- * Two subscriptions serve the same Zillow endpoints, parameters and home ids,
- * each with its own monthly plan: Real-Time Zillow Data and Real-Time Real
- * Estate Data (under /zillow). Either can fetch any home's details.
+ * Three independent subscriptions own disjoint Idaho regions. Redfin uses
+ * its own endpoint schema and property ID namespace.
  */
-export type HomeProvider = "zillow" | "realestate";
 const API_BASES: Record<HomeProvider, string> = {
+  redfin: "https://api.openwebninja.com/real-time-redfin-data",
   zillow: "https://api.openwebninja.com/realtime-zillow-data",
   realestate: "https://api.openwebninja.com/realtime-real-estate-data/zillow",
 };
@@ -52,7 +59,12 @@ async function cachedCall<T>(
   key: string,
   path: string,
   normalize: (json: unknown) => T,
-  options?: { forceRefresh?: boolean; ttlMs?: number; provider?: HomeProvider },
+  options?: {
+    forceRefresh?: boolean;
+    ttlMs?: number;
+    provider?: HomeProvider;
+    allowStale?: boolean;
+  },
 ): Promise<{ ok: true; value: T } | { ok: false; status: "unavailable" | "limited" }> {
   const ttlMs = options?.ttlMs ?? CACHE_MS;
   const provider = options?.provider ?? "zillow";
@@ -92,12 +104,14 @@ async function cachedCall<T>(
           });
     if (error || !reservation) {
       await restorePrevious();
-      return previousPayload
+      return previousPayload && options?.allowStale !== false
         ? { ok: true, value: previousPayload }
         : { ok: false, status: "unavailable" };
     }
     if (reservation.cached) return { ok: true, value: reservation.payload as T };
     if (!reservation.allowed) {
+      await restorePrevious();
+      if (options?.allowStale === false) return { ok: false, status: "limited" };
       const { data: stale } = await db
         .from("openwebninja_cache")
         .select("payload")
@@ -116,30 +130,66 @@ async function cachedCall<T>(
       signal: AbortSignal.timeout(15_000),
     });
     if (!response.ok) {
-      if (previousPayload) {
-        await restorePrevious();
+      await restorePrevious();
+      if (previousPayload && options?.allowStale !== false) {
         return { ok: true, value: previousPayload };
       }
       return { ok: false, status: response.status === 429 ? "limited" : "unavailable" };
     }
     const value = normalize(await response.json());
-    await db.from("openwebninja_cache").upsert({
+    const saved = await db.from("openwebninja_cache").upsert({
       cache_key: key,
       payload: value,
       expires_at: new Date(Date.now() + ttlMs).toISOString(),
     });
+    if (saved.error) {
+      await restorePrevious();
+      return previousPayload && options?.allowStale !== false
+        ? { ok: true, value: previousPayload }
+        : { ok: false, status: "unavailable" };
+    }
     return { ok: true, value };
   } catch {
     // Provider errors must not expose request details or the API key.
     await restorePrevious();
-    return previousPayload
+    return previousPayload && options?.allowStale !== false
       ? { ok: true, value: previousPayload }
       : { ok: false, status: "unavailable" };
   }
 }
 
-export function openWebNinjaConfigured() {
-  return Boolean(serverEnv("OPENWEBNINJA_API_KEY"));
+export function openWebNinjaConfigured(provider?: HomeProvider) {
+  return (
+    Boolean(serverEnv("OPENWEBNINJA_API_KEY")) &&
+    (provider !== "redfin" || serverEnv("OPENWEBNINJA_REDFIN_ENABLED") === "true")
+  );
+}
+
+/** A regional source remains authoritative even while its price feed is
+ * unavailable. An expired regional feed must never resurrect older legacy data. */
+async function regionalSourceAreas(): Promise<Set<string>> {
+  const db = cacheDb();
+  if (!db) return new Set();
+  return shortCache("openwebninja-regional-source-areas", PUBLIC_PAGE_CACHE_MS, async () => {
+    const { data, error } = await withCatalogReadDeadline(
+      db
+        .from("openwebninja_cache")
+        .select("cache_key")
+        .like("cache_key", '%"v":3,"kind":"area-search"%')
+        .limit(100),
+    );
+    if (error) throw new Error("Saved regional sources are unavailable.");
+    const areas = new Set<string>();
+    for (const row of data ?? [])
+      try {
+        const key = JSON.parse(row.cache_key);
+        if (key.v === 3 && key.kind === "area-search" && typeof key.area === "string")
+          areas.add(key.area);
+      } catch {
+        /* Ignore malformed metadata. */
+      }
+    return areas;
+  });
 }
 
 /** Public reads never reserve provider calls. Regional inventory also covers
@@ -170,36 +220,71 @@ export async function cachedHomes(propertyId?: string): Promise<OpenWebNinjaHome
   });
   // Recheck source expiry on every read, including memory hits. A failed
   // load is evicted; a successful empty search replaces the previous rows.
-  return homesFromSavedSearches(rows);
+  return homesFromSavedSearches(rows, Date.now(), await regionalSourceAreas());
 }
 
 /** Cache-only eligibility shared by browse, related results and sitemaps. */
-export async function completeHomeDetailIds(): Promise<Set<string>> {
+async function completeHomeCacheEntries(): Promise<
+  Map<string, { imageUrl: string; cache_key: string; expires_at: string }>
+> {
   const db = cacheDb();
-  if (!db) return new Set();
-  return shortCache("openwebninja-complete-detail-ids", PUBLIC_PAGE_CACHE_MS, async () => {
+  if (!db) return new Map();
+  return shortCache("openwebninja-complete-detail-monthly-v4", PUBLIC_PAGE_CACHE_MS, async () => {
     const { data, error } = await withCatalogReadDeadline(
       db
         .from("openwebninja_cache")
         .select(
-          "cache_key,images:payload->images,description:payload->description,bedrooms:payload->bedrooms,bathrooms:payload->bathrooms,squareFeet:payload->squareFeet,yearBuilt:payload->yearBuilt",
+          "cache_key,expires_at,images:payload->images,description:payload->description,bedrooms:payload->bedrooms,bathrooms:payload->bathrooms,squareFeet:payload->squareFeet,yearBuilt:payload->yearBuilt",
         )
         .like("cache_key", '%"kind":"property"%')
         .limit(5000),
     );
     if (error) throw new Error("Saved property details are temporarily unavailable.");
-    const ids = new Set<string>();
+    const images = new Map<string, { imageUrl: string; cache_key: string; expires_at: string }>();
     for (const row of data ?? []) {
       if (!hasCompleteHomeDetails(row)) continue;
       try {
         const key = JSON.parse(row.cache_key);
-        if (key.kind === "property" && typeof key.id === "string") ids.add(key.id);
+        if (
+          key.kind === "property" &&
+          typeof key.id === "string" &&
+          (!images.has(key.id) ||
+            propertyCacheFetchedAt(row) > propertyCacheFetchedAt(images.get(key.id)!))
+        )
+          images.set(key.id, {
+            cache_key: row.cache_key,
+            expires_at: row.expires_at,
+            imageUrl: dedupeImageUrls(
+              (row.images as unknown[]).filter(
+                (image): image is string => typeof image === "string",
+              ),
+            )[0],
+          });
       } catch {
         /* Malformed cache keys cannot publish homes. */
       }
     }
-    return ids;
+    return images;
   });
+}
+
+export async function completeHomeThumbnails(): Promise<Map<string, string>> {
+  return new Map(
+    [...(await completeHomeCacheEntries())]
+      .filter(([, row]) => propertyCacheFresh(row))
+      .map(([id, row]) => [id, row.imageUrl]),
+  );
+}
+export async function propertyDetailRefreshIds(): Promise<Set<string>> {
+  return new Set(
+    [...(await completeHomeCacheEntries())]
+      .filter(([, row]) => !propertyCacheFresh(row))
+      .map(([id]) => id),
+  );
+}
+
+export async function completeHomeDetailIds(): Promise<Set<string>> {
+  return new Set((await completeHomeThumbnails()).keys());
 }
 
 export type OpenWebNinjaSearchArea = {
@@ -207,54 +292,95 @@ export type OpenWebNinjaSearchArea = {
   latitude: number;
   longitude: number;
   diameterMiles: number;
+  bounds?: { north: number; south: number; east: number; west: number };
 };
 
 export async function searchHomes(state: string, city: string, mode: OpenWebNinjaMode) {
-  const key = JSON.stringify({ v: 1, kind: "search", state, city: city.toLowerCase(), mode });
-  const params = new URLSearchParams({
-    location: `${city}, ${state}`,
-    home_status: mode === "rent" ? "FOR_RENT" : "FOR_SALE",
-    page: "1",
-    sort: "NEWEST",
-  });
-  const result = await cachedCall(key, `search?${params.toString()}`, (payload) =>
-    normalizeOpenWebNinjaResult(payload, mode),
-  );
-  return result.ok ? result.value : { status: result.status, homes: [] };
+  const region = homeFeedRegion({ city, state, latitude: null, longitude: null });
+  if (!region) return { status: "unavailable" as const, homes: [] };
+  const result = await searchHomesArea(state, region, mode, { provider: region.provider });
+  return {
+    ...result,
+    homes: result.homes.filter((home) => home.city.toLowerCase() === city.toLowerCase()),
+  };
 }
 
 export async function searchHomesArea(
   state: string,
   area: OpenWebNinjaSearchArea,
   mode: OpenWebNinjaMode,
-  options?: { forceRefresh?: boolean; provider?: HomeProvider },
+  options?: { forceRefresh?: boolean; provider?: HomeProvider; page?: number },
 ) {
-  const key = areaSearchKey(state, area.key, mode);
-  const params = new URLSearchParams({
-    lat: String(area.latitude),
-    long: String(area.longitude),
-    diameter: String(area.diameterMiles),
-    home_status: mode === "rent" ? "FOR_RENT" : "FOR_SALE",
-    page: "1",
-    sort: "NEWEST",
-  });
+  const provider = options?.provider ?? "zillow";
+  if (!openWebNinjaConfigured(provider)) return { status: "unavailable" as const, homes: [] };
+  const page = options?.page ?? 1;
+  const key = areaSearchKey(state, area.key, mode, provider, page);
+  const params = new URLSearchParams({ page: String(page) });
+  if (provider === "redfin") {
+    params.set("status", mode === "rent" ? "for_rent" : "for_sale");
+    params.set("sort", "newest");
+    params.set("num_homes", "350");
+    params.set("country_code", "US");
+  } else {
+    params.set("home_status", mode === "rent" ? "FOR_RENT" : "FOR_SALE");
+    params.set("sort", "NEWEST");
+  }
+  let path = "search-coordinates";
+  if (area.bounds) {
+    const b = area.bounds;
+    params.set(
+      "polygon",
+      `${b.west} ${b.south},${b.east} ${b.south},${b.east} ${b.north},${b.west} ${b.north}`,
+    );
+    path = "search-polygon";
+  } else if (provider === "redfin") {
+    const dy = area.diameterMiles / 138,
+      dx = dy / Math.cos((area.latitude * Math.PI) / 180);
+    params.set("ne_lat", String(area.latitude + dy));
+    params.set("ne_lng", String(area.longitude + dx));
+    params.set("sw_lat", String(area.latitude - dy));
+    params.set("sw_lng", String(area.longitude - dx));
+  } else {
+    params.set("lat", String(area.latitude));
+    params.set("long", String(area.longitude));
+    params.set("diameter", String(area.diameterMiles));
+  }
   const result = await cachedCall(
     key,
-    `search-coordinates?${params.toString()}`,
-    (payload) => normalizeOpenWebNinjaResult(payload, mode),
-    options,
+    `${path}?${params}`,
+    (payload) => {
+      const normalized =
+        provider === "redfin"
+          ? normalizeRedfinResult(payload, mode)
+          : normalizeOpenWebNinjaResult(payload, mode);
+      return {
+        ...normalized,
+        homes: normalized.homes
+          .filter((home) => homeFeedRegion(home)?.key === area.key)
+          .map((home) => ({ ...home, provider })),
+      };
+    },
+    { ...options, provider, ttlMs: REGIONAL_SEARCH_CACHE_MS },
   );
   return result.ok ? result.value : { status: result.status, homes: [] };
 }
 
-/** Full details are fetched once per home and kept for a year; the weekly
+/** Full details are fetched once per home and refreshed monthly; the weekly
  * list refresh is what keeps price and availability current. */
-const DETAIL_TTL_MS = 365 * 24 * 60 * 60 * 1000;
+const DETAIL_TTL_MS = HOME_DETAIL_REFRESH_MS;
 
-export const areaSearchKey = (state: string, area: string, mode: OpenWebNinjaMode) =>
-  JSON.stringify({ v: 1, kind: "area-search", state, area, mode });
+export const areaSearchKey = (
+  state: string,
+  area: string,
+  mode: OpenWebNinjaMode,
+  provider?: HomeProvider,
+  page = 1,
+) =>
+  provider
+    ? JSON.stringify({ v: 3, kind: "area-search", state, area, mode, provider, page })
+    : JSON.stringify({ v: 1, kind: "area-search", state, area, mode });
 
-export const propertyKey = (id: string) => JSON.stringify({ v: 3, kind: "property", id });
+export const propertyKey = (id: string) => JSON.stringify({ v: 4, kind: "property", id });
 
 export async function propertyDetails(
   id: string,
@@ -263,12 +389,10 @@ export async function propertyDetails(
 ): Promise<
   { ok: true; value: OpenWebNinjaPropertyExtra } | { ok: false; status: "unavailable" | "limited" }
 > {
-  // v3 invalidates payloads created before rental descriptions were
-  // normalized. The provider's zpid lookup is the most reliable detail path
-  // for both sale and rental records; keep sourceUrl for the caller contract.
+  // v4 uses monthly freshness; legacy complete records are reused only while
+  // still within that same freshness window. Each source retains its own ID.
   void sourceUrl;
   const key = propertyKey(id);
-  const params = new URLSearchParams({ zpid: id });
   // Details fetched before the v3 key were paid for and are still good;
   // use them instead of spending another call (or showing nothing when the
   // daily budget is used up).
@@ -277,34 +401,45 @@ export async function propertyDetails(
     const { data: rows, error } = await withCatalogReadDeadline(
       db
         .from("openwebninja_cache")
-        .select("cache_key,payload")
+        .select("cache_key,payload,expires_at")
         // A pattern, not .in(): these JSON keys contain commas, which break
         // PostgREST's in-list and silently match nothing.
         .like("cache_key", `%"kind":"property","id":"${id.replace(/[^0-9A-Za-z_-]/g, "")}"}`),
     );
     if (error) throw new Error("Saved property details are temporarily unavailable.");
-    const current = (rows ?? []).find((row: { cache_key: string }) => row.cache_key === key);
-    const legacy = (rows ?? []).find((row: { cache_key: string }) => row.cache_key !== key);
-    const saved = [
-      current?.payload,
-      legacy?.payload,
-      ...(rows ?? []).map((row) => row.payload),
-    ].find(hasCompleteHomeDetails);
+    const saved = (rows ?? [])
+      .filter((row) => hasCompleteHomeDetails(row.payload) && propertyCacheFresh(row))
+      .sort((a, b) => propertyCacheFetchedAt(b) - propertyCacheFetchedAt(a))[0]?.payload;
     if (saved) return { ok: true, value: saved as OpenWebNinjaPropertyExtra };
   }
   // Visitors never spend calls: details come from the scheduled homes job.
   if (options?.cacheOnly) return { ok: false, status: "limited" };
+  const provider = options?.provider;
+  if (!provider || !openWebNinjaConfigured(provider)) return { ok: false, status: "unavailable" };
+  const currentHome = await cachedHome(id);
+  if (
+    !currentHome ||
+    homeFeedRegion(currentHome.home)?.provider !== provider ||
+    id.startsWith("redfin-") !== (provider === "redfin")
+  )
+    return { ok: false, status: "unavailable" };
+  const detailParams = new URLSearchParams(
+    provider === "redfin" ? { property_id: id.slice("redfin-".length) } : { zpid: id },
+  );
   const result = await cachedCall(
     key,
-    `property-details?${params.toString()}`,
+    `property-details?${detailParams.toString()}`,
     (payload) => {
-      const value = normalizeOpenWebNinjaProperty(payload);
+      const value =
+        provider === "redfin"
+          ? normalizeRedfinProperty(payload)
+          : normalizeOpenWebNinjaProperty(payload);
       if (!hasCompleteHomeDetails(value)) throw new Error("Incomplete property response");
       return value;
     },
     {
       ttlMs: DETAIL_TTL_MS,
-      forceRefresh: true,
+      allowStale: false,
       provider: options?.provider,
     },
   );

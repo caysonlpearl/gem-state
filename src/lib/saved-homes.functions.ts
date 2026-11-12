@@ -5,7 +5,7 @@ import type { ClassifiedCard } from "./classifieds.functions";
 
 const listingIdOf = (value: unknown) => {
   const id = String(value ?? "");
-  return /^(mashvisor-\d{1,15}|openwebninja-\d{1,20})$/.test(id) ? id : "";
+  return /^(mashvisor-\d{1,15}|openwebninja-(?:redfin-)?\d{1,20})$/.test(id) ? id : "";
 };
 
 export const getPartnerHomeSaved = createServerFn({ method: "GET" })

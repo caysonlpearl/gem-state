@@ -1,3 +1,5 @@
+import * as homeRegions from "../src/lib/home-feed-regions.ts";
+import * as redfin from "../src/lib/redfin-contract.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -11,6 +13,7 @@ function fixture({
   recent = [],
   fail = false,
   limitedProvider = null,
+  due = [],
   searchError = false,
   requestsError = false,
 } = {}) {
@@ -54,12 +57,17 @@ function fixture({
         };
       },
     }),
-    openWebNinjaConfigured: () => true,
+    openWebNinjaConfigured: (provider) => provider !== "redfin",
     CACHE_MS: 30 * 86400000,
     areaSearchKey: (state, area, mode) =>
       JSON.stringify({ v: 1, kind: "area-search", state, area, mode }),
     completeHomeDetailIds: async () => saved,
-    cachedHomes: async () => [{ id: "1" }, { id: "2" }, { id: "3" }],
+    propertyDetailRefreshIds: async () => new Set(due),
+    cachedHomes: async () => [
+      { id: "1", address: "1 Main St", city: "Boise", state: "ID" },
+      { id: "2", address: "2 Main St", city: "Idaho Falls", state: "ID" },
+      { id: "3", address: "3 Main St", city: "Boise", state: "ID" },
+    ],
     searchHomesArea: async (...args) => {
       calls.push({ type: "search", provider: args[3].provider });
       return { homes: [] };
@@ -84,6 +92,8 @@ function fixture({
       console,
       require(name) {
         if (name === "./openwebninja.server") return provider;
+        if (name === "./home-feed-regions") return homeRegions;
+        if (name === "./redfin-contract") return redfin;
         if (name === "./openwebninja-contract") return contract;
         if (name === "./openwebninja-cache") return { hasCompleteHomeDetails };
         if (name === "./landing-card-pool") return {};
@@ -118,17 +128,17 @@ test("the existing 25-call daily ceiling still stops each provider", async () =>
   assert.equal(result.zillow.skipped, "daily pace reached");
   assert.equal(result.realestate.skipped, "daily pace reached");
 });
-test("preview regions do not consume weekly refresh requests before full details are filled", async () => {
+test("configured regions refresh their inventory weekly before filling details", async () => {
   const f = fixture({ age: 8 });
   await f.api.advanceHomeFeed();
-  assert.ok(f.calls.every((call) => call.type === "detail"));
+  assert.ok(f.calls.every((call) => call.type === "search"));
 });
 test("published regions still refresh weekly to maintain prices and availability", async () => {
   const f = fixture({ age: 8, complete: ["1"] });
   await f.api.advanceHomeFeed();
   assert.deepEqual(
     f.calls.map((call) => call.type),
-    ["search", "detail"],
+    ["search", "search"],
   );
 });
 test("preview searches refresh before their 30-day cache expires", async () => {
@@ -141,14 +151,14 @@ test("recent failed detail ids are skipped across subscriptions instead of block
   await f.api.advanceHomeFeed();
   assert.deepEqual(
     f.calls.map((call) => call.id),
-    ["2", "3"],
+    ["3", "2"],
   );
 });
 test("failed calls keep the home incomplete and the remaining count accurate", async () => {
   const f = fixture({ fail: true, recent: [request("1")] });
   const result = await f.api.advanceHomeFeed();
   assert.equal(result.zillow.ok, false);
-  assert.equal(result.zillow.remaining, 3);
+  assert.equal(result.zillow.remaining, 2);
   assert.equal(f.saved.size, 0);
 });
 test("cache or request-ledger outages fail closed without provider calls", async () => {
@@ -159,13 +169,33 @@ test("cache or request-ledger outages fail closed without provider calls", async
   }
 });
 
-test("an exhausted subscription does not prevent the other subscription filling the same home", async () => {
+test("an exhausted subscription never borrows another region's subscription", async () => {
   const f = fixture({ limitedProvider: "zillow" });
   const result = await f.api.advanceHomeFeed();
   assert.equal(result.zillow.ok, false);
   assert.equal(result.realestate.ok, true);
   assert.deepEqual(
     f.calls.map((call) => call.id),
-    ["1", "1"],
+    ["1", "2"],
   );
+});
+
+test("detail acquisition cannot spend credits reserved for future weekly refreshes", async () => {
+  const recent = Array.from({ length: 86 }, (_, i) => ({
+    ...request("old-" + i),
+    created_at: new Date(Date.now() - 2 * 86400000).toISOString(),
+  }));
+  const f = fixture({ recent });
+  const result = await f.api.advanceHomeFeed();
+  assert.equal(result.zillow.skipped, "weekly refresh allowance protected");
+  assert.equal(
+    f.calls.some((call) => call.provider === "zillow"),
+    false,
+  );
+});
+
+test("monthly detail renewals take priority over new acquisitions in each region", async () => {
+  const f = fixture({ due: ["3"] });
+  await f.api.advanceHomeFeed();
+  assert.equal(f.calls.find((call) => call.provider === "zillow").id, "3");
 });

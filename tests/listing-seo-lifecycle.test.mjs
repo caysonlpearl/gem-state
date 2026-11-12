@@ -438,6 +438,7 @@ test("concurrent saved-home reads share one request while source expiry is check
     },
   });
   const read = compile("../src/lib/openwebninja.server.ts", "cachedHomes", {
+    regionalSourceAreas: async () => new Set(),
     cacheDb: () => database,
     withCatalogReadDeadline,
     shortCache: (key, ttl, load) => shortCache("homes-expiry-fixture:" + key, ttl, load),
@@ -465,6 +466,7 @@ test("a failed saved-home read is evicted and successful empty inventory is not 
     },
   });
   const read = compile("../src/lib/openwebninja.server.ts", "cachedHomes", {
+    regionalSourceAreas: async () => new Set(),
     cacheDb: () => database,
     withCatalogReadDeadline,
     shortCache: (key, ttl, load) => shortCache("homes-recovery-fixture:" + key, ttl, load),
@@ -520,6 +522,7 @@ test("malformed saved-home payloads are evicted so the next read can recover", a
     },
   });
   const read = compile("../src/lib/openwebninja.server.ts", "cachedHomes", {
+    regionalSourceAreas: async () => new Set(),
     cacheDb: () => database,
     withCatalogReadDeadline,
     shortCache: (key, ttl, load) => shortCache("homes-malformed-fixture:" + key, ttl, load),
