@@ -23,7 +23,15 @@ const LEGAL_SUFFIXES = new Set([
 ]);
 
 // Feed placeholders that aren't a company.
-const NOT_A_COMPANY = new Set(["", "confidential", "unknown", "private", "anonymous", "na", "n a"]);
+export const NOT_A_COMPANY = new Set([
+  "",
+  "confidential",
+  "unknown",
+  "private",
+  "anonymous",
+  "na",
+  "n a",
+]);
 
 export function employerKey(name: string): string {
   const words = name
