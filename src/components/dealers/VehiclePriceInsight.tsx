@@ -18,15 +18,12 @@ const wholeDollars = (cents: number) =>
 const comparisonStyle = {
   above: {
     label: "Asking above market",
-    dot: "bg-[#ef8b7f]",
   },
   near: {
     label: "Asking near market",
-    dot: "bg-[#f1cf76]",
   },
   below: {
     label: "Asking below market",
-    dot: "bg-[#7ed0aa]",
   },
 } as const;
 
@@ -56,18 +53,25 @@ export function VehiclePriceInsightCard({ insight }: { insight: Insight }) {
       ].filter(([, value]) => value)
     : [];
   return (
-    <section className="soft-card overflow-hidden" aria-label="Vehicle price insight">
-      <div className="flex items-center justify-between gap-3 border-b border-border/60 bg-secondary/25 px-4 py-2">
+    <section
+      className="overflow-hidden rounded-[18px] border border-[#deded9] bg-white text-[#222b32]"
+      style={{ fontFamily: "Arial, Helvetica, sans-serif", fontFeatureSettings: "normal" }}
+      aria-label="Vehicle price insight"
+    >
+      <div className="flex items-center justify-between gap-3 border-b border-[#ecece8] px-5 py-3">
         <div className="flex min-w-0 items-center gap-2.5">
           <img
             src="/images/brand/bluebird-error-bird.webp"
             alt=""
             aria-hidden="true"
-            className="size-9 shrink-0 object-contain"
-            width={36}
-            height={36}
+            className="size-8 shrink-0 object-contain"
+            width={32}
+            height={32}
           />
-          <h2 className="text-[16px] font-extrabold tracking-tight text-[#112e44]">
+          <h2
+            className="text-[14px] font-semibold leading-5 tracking-normal text-[#112e44]"
+            style={{ fontFamily: "inherit" }}
+          >
             Bluebird Insights
           </h2>
         </div>
@@ -75,72 +79,74 @@ export function VehiclePriceInsightCard({ insight }: { insight: Insight }) {
           src="/images/brand/bluebird-insights-rosette.webp"
           alt=""
           aria-hidden="true"
-          className="h-16 w-14 shrink-0 object-contain"
-          width={56}
-          height={64}
+          className="h-10 w-8 shrink-0 object-contain"
+          width={32}
+          height={40}
         />
       </div>
-      <div className="px-4 pb-4 pt-3">
-        <div
-          aria-label={`Price rating: ${style.label}`}
-          className="flex items-center gap-2 text-[14px] font-bold text-primary"
-        >
-          <span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full ${style.dot}`} />
-          {style.label}
-        </div>
-        <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-          {delta === 0 ? (
-            "Asking price matches the estimate."
-          ) : (
-            <>
-              <strong className="font-semibold text-foreground">{wholeDollars(delta)}</strong>{" "}
-              {insight.differenceCents < 0 ? "below" : "above"} the estimate.
-            </>
-          )}
+      <div className="px-5 pb-5 pt-4">
+        <p className="text-[12px] leading-5 text-[#666c70]">Estimated retail asking price</p>
+        <p className="mt-1 text-[30px] font-semibold leading-9 tracking-[-0.02em] text-[#112e44] tabular-nums">
+          {wholeDollars(insight.estimateCents)}
         </p>
+        <div className="mt-4 border-t border-[#ecece8] pt-4">
+          <p
+            aria-label={`Price rating: ${style.label}`}
+            className="text-[14px] font-semibold leading-5"
+          >
+            {style.label}
+          </p>
+          <p className="mt-1 text-[12px] leading-[18px] text-[#666c70]">
+            {delta === 0 ? (
+              "Asking price matches estimate."
+            ) : (
+              <>
+                {wholeDollars(delta)} {insight.differenceCents < 0 ? "below" : "above"} estimate
+              </>
+            )}
+          </p>
+        </div>
         <div
-          className="mt-3"
+          className="mt-4"
           role="img"
           aria-label={`${style.label}. Asking price ${wholeDollars(insight.askingCents)}, estimated retail asking price ${wholeDollars(insight.estimateCents)}. The scale shows comparison bands, not a value range.`}
         >
-          <div className="relative pt-6">
+          <div className="relative pt-5">
             <div
               className="absolute top-0 -translate-x-1/2 text-[#087ab5]"
               style={{ left: `${insight.pointerPercent}%` }}
               aria-hidden="true"
             >
-              <span className="block whitespace-nowrap text-[10px] font-bold">This price</span>
-              <svg viewBox="0 0 20 12" className="mx-auto mt-0.5 h-3 w-5 fill-current">
+              <span className="block whitespace-nowrap text-[10px] font-normal leading-3">
+                Asking price
+              </span>
+              <svg viewBox="0 0 20 12" className="mx-auto mt-0.5 h-2 w-3 fill-current">
                 <path d="M1 1h18L10 11z" />
               </svg>
             </div>
             <div
-              className="grid h-3 grid-cols-3 gap-1 overflow-hidden rounded-full"
+              className="grid h-2 grid-cols-3 gap-0.5 overflow-hidden rounded-full"
               aria-hidden="true"
             >
-              <span className="bg-[#d66b60]" />
-              <span className="bg-[#e8bf58]" />
-              <span className="bg-[#49a887]" />
+              <span className="bg-[#cb8077]" />
+              <span className="bg-[#d9bb69]" />
+              <span className="bg-[#6a9e89]" />
             </div>
           </div>
           <div
-            className="mt-1.5 grid grid-cols-3 text-[10px] font-semibold text-muted-foreground"
+            className="mt-2 grid grid-cols-3 text-[11px] font-normal leading-4 text-[#666c70]"
             aria-hidden="true"
           >
-            <span>Above</span>
+            <span>Above market</span>
             <span className="text-center">Near market</span>
-            <span className="text-right">Below</span>
+            <span className="text-right">Below market</span>
           </div>
         </div>
-        <div className="mt-3 flex items-center justify-between gap-3 rounded-xl bg-secondary/55 px-3 py-2.5">
-          <span className="text-[11px] text-muted-foreground">Est. retail asking price</span>
-          <strong className="text-[20px] tracking-tight text-primary">
-            {wholeDollars(insight.estimateCents)}
-          </strong>
-        </div>
-        <details className="group mt-3 text-[11px] leading-relaxed text-muted-foreground">
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 font-semibold text-primary">
-            Vehicle details &amp; methodology <Info size={16} aria-hidden="true" />
+      </div>
+      <div className="border-t border-[#ecece8] px-5 py-3.5">
+        <details className="group text-[12px] leading-[18px] text-[#666c70]">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-2 font-normal text-[#112e44]">
+            About this estimate <Info size={16} aria-hidden="true" />
           </summary>
           {fields.length ? (
             <dl className="mt-3 space-y-1.5 rounded-xl bg-secondary/40 p-3">
