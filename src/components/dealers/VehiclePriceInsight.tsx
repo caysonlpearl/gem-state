@@ -210,15 +210,20 @@ export function VehiclePriceInsight({ listingId }: { listingId: string }) {
   });
   if (!query.data) return null;
   if ("status" in query.data) {
+    const serviceUnavailable = query.data.reason === "service_unavailable";
     return (
       <PriceAdvisorFrame
         checked={null}
         method="Uses vehicle details and market pricing data. An estimate is shown only when the data passes our checks."
       >
         <div className="px-5 py-5">
-          <p className="text-[20px] font-semibold leading-7 text-[#16223c]">Estimate unavailable</p>
+          <p className="text-[20px] font-semibold leading-7 text-[#16223c]">
+            {serviceUnavailable ? "Price estimates unavailable" : "Estimate unavailable"}
+          </p>
           <p className="mt-2 text-[13px] leading-5 text-[#5b626e]">
-            A reliable price estimate isn’t available for this vehicle right now.
+            {serviceUnavailable
+              ? "Price estimates are temporarily unavailable. Please check again later."
+              : "A reliable price estimate isn’t available for this vehicle right now."}
           </p>
         </div>
       </PriceAdvisorFrame>

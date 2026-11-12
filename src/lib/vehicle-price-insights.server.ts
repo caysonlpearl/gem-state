@@ -155,9 +155,10 @@ export async function listingPriceInsight(listing: Parameters<typeof valuationIn
     input.dealerType = result.data.valuation_dealer_type ?? null;
   }
   const configs = valuationProviders(serverEnv);
-  if (!configs.length) return { status: "unavailable" as const };
+  if (!configs.length)
+    return { status: "unavailable" as const, reason: "service_unavailable" as const };
   const estimate = await resolveVehicleEstimate(db, input, configs);
   return estimate
     ? { ...compareVehiclePrice(estimate, listing.priceCents), vehicleDetails: input }
-    : { status: "unavailable" as const };
+    : { status: "unavailable" as const, reason: "vehicle_estimate_unavailable" as const };
 }

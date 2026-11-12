@@ -153,7 +153,8 @@ test("rejection diagnostics identify the failed check without vehicle identifier
 });
 test("eligible unavailable estimates have a visible status; opt-outs and ineligible items remain hidden", async () => {
   const unavailable = await listingPriceInsight(listing, fakeDb({ missing: true }));
-  assert.deepEqual(unavailable, { status: "unavailable" });
+  assert.equal(unavailable.status, "unavailable");
+  assert.ok(["service_unavailable", "vehicle_estimate_unavailable"].includes(unavailable.reason));
   assert.equal(
     await listingPriceInsight({ ...listing, categorySlug: "furniture" }, fakeDb()),
     null,
