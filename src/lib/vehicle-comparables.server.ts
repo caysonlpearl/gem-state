@@ -13,6 +13,8 @@ type Segment = {
   sourceCount?: number;
   totalMatches?: number;
   unavailableReason?: string;
+  sourceFields?: string[];
+  sourceFieldTypes?: Record<string, string>;
 };
 const normalizedTrim = (trim: string | null) =>
   (trim ?? "")
@@ -112,7 +114,7 @@ export async function resolveComparableEvidence(
       mileageMax,
       scope === "state" ? input.state : "US",
     ];
-    const key = "comps:v2:" + (await hash(JSON.stringify(identity)));
+    const key = "comps:v3:" + (await hash(JSON.stringify(identity)));
     const cached = await db
       .from("vehicle_price_insight_cache")
       .select("payload,expires_at")
@@ -161,13 +163,47 @@ export async function resolveComparableEvidence(
           throw Error(`provider_http_${response.status}`);
         }
         const body = await response.json();
+        // Read a complete second page when needed, never just the cheapest/lowest-mileage slice.
+        if (
+          body.source === "vehicles.dev" &&
+          Array.isArray(body.results) &&
+          Number.isSafeInteger(body.total) &&
+          body.total > 500 &&
+          body.total <= 1000 &&
+          body.results.length === 500
+        ) {
+          const pageBudget = await db.rpc("reserve_vehicle_valuation_call", {
+            _provider: "vehicles",
+            _key: key,
+            _lifetime_limit: config.lifetimeLimit,
+            _monthly_limit: config.monthlyLimit,
+          });
+          if (!pageBudget.error && pageBudget.data?.allowed === true) {
+            url.searchParams.set("offset", "500");
+            const page = await fetcher(url, {
+              headers: { Accept: "application/json", Authorization: `Bearer ${config.key}` },
+              signal: AbortSignal.timeout(17000),
+              redirect: "manual",
+            });
+            if (page.ok) {
+              const more = await page.json();
+              if (
+                more.source === "vehicles.dev" &&
+                more.total === body.total &&
+                Array.isArray(more.results) &&
+                more.results.length === body.total - 500
+              )
+                body.results.push(...more.results);
+            }
+          }
+        }
         // A price/mileage-sorted partial page would bias the range; use complete segments only.
         if (
           body.source !== "vehicles.dev" ||
           !Array.isArray(body.results) ||
           !Number.isSafeInteger(body.total) ||
           body.total !== body.results.length ||
-          body.total > 500
+          body.total > 1000
         ) {
           segment = {
             checkedAt: now.toISOString(),
@@ -180,34 +216,44 @@ export async function resolveComparableEvidence(
         }
         const rows: Comparable[] = [];
         for (const r of body.results) {
+          const numeric = (value: unknown) =>
+            typeof value === "number"
+              ? value
+              : typeof value === "string" && /^\d+(?:\.\d+)?$/.test(value)
+                ? Number(value)
+                : NaN;
+          const currentPrice = numeric(r.price),
+            miles = numeric(r.miles);
+          const condition = typeof r.condition === "string" ? r.condition.toLowerCase() : "";
+          const trueFlag = (value: unknown) =>
+            value === 1 || value === true || value === "1" || value === "true";
           if (
-            !(r.is_active === 1 || r.is_active === true) ||
-            !(r.vin_valid === 1 || r.vin_valid === true) ||
-            r.seller_type !== "dealer" ||
+            (r.is_active != null && !trueFlag(r.is_active)) ||
+            (r.vin_valid != null && !trueFlag(r.vin_valid)) ||
+            (r.seller_type != null && String(r.seller_type).toLowerCase() !== "dealer") ||
             typeof r.vin !== "string" ||
             !/^[A-HJ-NPR-Z0-9]{17}$/i.test(r.vin) ||
-            typeof r.price !== "number" ||
-            !Number.isFinite(r.price) ||
-            r.price < 500 ||
-            r.price > 2000000 ||
-            !Number.isInteger(r.miles) ||
-            !["used", "new", "cpo"].includes(r.condition)
+            !Number.isFinite(currentPrice) ||
+            currentPrice < 500 ||
+            currentPrice > 2000000 ||
+            !Number.isInteger(miles) ||
+            !["used", "new", "cpo"].includes(condition)
           )
             continue;
-          const priceCents = Math.round(r.price * 100);
+          const priceCents = Math.round(currentPrice * 100);
           const vehicle = valuationInput({
             categorySlug: "cars-trucks",
             priceCents,
             state: r.state,
             city: r.city ?? "",
-            condition: r.condition === "new" ? "new" : "used",
-            externalVehicle: { certified: r.condition === "cpo" },
+            condition: condition === "new" ? "new" : "used",
+            externalVehicle: { certified: condition === "cpo" },
             vehicle: {
               year: r.year,
               make: r.make,
               model: r.model,
               trim: r.trim ?? null,
-              mileage: r.miles,
+              mileage: miles,
               vin: null,
               titleStatus: r.title_status ?? null,
               drivetrain: r.drivetrain,
@@ -223,6 +269,10 @@ export async function resolveComparableEvidence(
           rows,
           sourceCount: body.results.length,
           totalMatches: body.total,
+          sourceFields: Object.keys(body.results[0] ?? {}),
+          sourceFieldTypes: Object.fromEntries(
+            Object.entries(body.results[0] ?? {}).map(([key, value]) => [key, typeof value]),
+          ),
         };
       } catch (error) {
         segment ??= {

@@ -212,6 +212,50 @@ test("missing unrelated metadata cannot exclude otherwise complete comparable pr
   assert.equal(result.count, 9);
 });
 
+test("optional verification flags may be omitted after authoritative active/dealer/VIN query filters", async () => {
+  const result = await resolveComparableEvidence(
+    dbFixture(),
+    input,
+    config,
+    async () =>
+      Response.json({
+        source: "vehicles.dev",
+        total: rawRows.length,
+        results: rawRows.map(({ is_active, vin_valid, seller_type, ...row }) => ({
+          ...row,
+          price: String(row.price),
+          miles: String(row.miles),
+        })),
+      }),
+    new Date(checkedAt),
+  );
+  assert.equal(result.count, 9);
+});
+test("a complete second page is reserved before use; partial or unpaid pages never form a range", async () => {
+  const db = dbFixture();
+  let requests = 0;
+  const result = await resolveComparableEvidence(
+    db,
+    input,
+    config,
+    async (url) => {
+      requests++;
+      const more = url.searchParams.get("offset") === "500";
+      return Response.json({
+        source: "vehicles.dev",
+        total: 501,
+        results: more
+          ? [rawRows[0]]
+          : Array.from({ length: 500 }, (_, i) => rawRows[i % rawRows.length]),
+      });
+    },
+    new Date(checkedAt),
+  );
+  assert.equal(requests, 2);
+  assert.equal(result.count, 9);
+  assert.equal(db.calls.filter(([name]) => name === "reserve_vehicle_valuation_call").length, 2);
+});
+
 test("national fallback is explicit and a partial sorted page cannot manufacture an observed range", async () => {
   let calls = 0;
   const result = await resolveComparableEvidence(
