@@ -485,9 +485,9 @@ function Facts({ listing }: { listing: ListingCardSummary }) {
 function vehicleSourceLabel(listing: ListingCardSummary) {
   if (listing.externalVehicle?.sourceKind === "fsbo") return "Private seller";
   if (listing.externalVehicle?.sourceKind === "dealer") {
-    return `${listing.dealer?.displayName ?? "Dealer"} · Dealer inventory`;
+    return listing.dealer?.displayName ?? "Dealer";
   }
-  return listing.dealer ? `${listing.dealer.displayName} · Dealer inventory` : null;
+  return listing.dealer?.displayName ?? null;
 }
 
 function Price({ listing }: { listing: ListingCardSummary }) {
