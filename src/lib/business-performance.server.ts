@@ -163,7 +163,10 @@ export async function loadBusinessPerformance(admin: SupabaseClient, days: numbe
     dealerFeedCards({ category: "cars-trucks" }),
     Promise.all(
       marketplaceStateCodes.map((state) =>
-        marketCheckCards({ category: "cars-trucks", state }, { cacheOnly: true }),
+        marketCheckCards(
+          { category: "cars-trucks", state },
+          { cacheOnly: true, cacheReadTimeoutMs: 8000 },
+        ),
       ),
     ).then((pools) => [...new Map(pools.flat().map((card) => [card.id, card])).values()]),
   ]);

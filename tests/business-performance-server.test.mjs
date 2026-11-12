@@ -121,6 +121,7 @@ test("reports use cached inventory, retain removed listings, and only persist ch
           return {
             marketCheckCards: async (input, options) => {
               assert.equal(options.cacheOnly, true);
+              assert.equal(options.cacheReadTimeoutMs, 8000);
               statesRead.add(input.state);
               return api;
             },

@@ -398,8 +398,9 @@ async function homeCachedInventory(
   state: string,
   kind: MarketCheckSourceKind,
   prepared?: Promise<any[] | null>,
+  timeoutMs = 2000,
 ) {
-  const rows = await (prepared ?? readCachedStateRows(state, kind, 2000));
+  const rows = await (prepared ?? readCachedStateRows(state, kind, timeoutMs));
   if (!rows) throw new Error("Vehicle cache could not be read.");
   // Browse already permits stale cached inventory when a refresh is limited.
   // The homepage can reuse those same records without triggering a multi-page
@@ -643,6 +644,7 @@ export async function marketCheckCards(
     forceRefresh?: boolean;
     preparedHomeCache?: PreparedHomeMarketCheckCache;
     cacheOnly?: boolean;
+    cacheReadTimeoutMs?: number;
   },
 ) {
   if (!configured() && !options?.cacheOnly) return [];
@@ -654,6 +656,7 @@ export async function marketCheckCards(
               state,
               "dealer",
               state === HOME_STATE ? options.preparedHomeCache?.dealer : undefined,
+              options.cacheReadTimeoutMs,
             )
           : stateInventory(
               state,
@@ -666,6 +669,7 @@ export async function marketCheckCards(
               state,
               "fsbo",
               state === HOME_STATE ? options.preparedHomeCache?.fsbo : undefined,
+              options.cacheReadTimeoutMs,
             )
           : stateInventory(
               state,
