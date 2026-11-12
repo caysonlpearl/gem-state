@@ -122,14 +122,14 @@ function PriceAdvisorFrame({ children, method }: { children: ReactNode; method: 
       aria-label="Vehicle price insight"
     >
       <div className="overflow-hidden rounded-[17px]">
-        <header className="flex items-center gap-2.5 bg-[#0874bd] px-4 py-3.5 pr-10">
+        <header className="flex items-center gap-2.5 bg-[#0874bd] px-4 py-2.5 pr-10">
           <img
             src="/images/brand/bluebird-error-bird.webp"
             alt=""
             aria-hidden="true"
-            className="size-9 shrink-0 object-contain"
-            width={36}
-            height={36}
+            className="size-11 shrink-0 object-contain"
+            width={44}
+            height={44}
           />
           <h2
             className="text-[16px] leading-5 tracking-[-0.025em] text-white"
