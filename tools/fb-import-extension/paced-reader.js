@@ -149,6 +149,7 @@ async function readListingJobs(jobs, { onItemDone, blockedSites = new Map() } = 
       height: 1000,
     });
     const tabId = win.tabs[0].id;
+    typeof trackImportReader === "function" && trackImportReader(tabId, true);
     try {
       while (queue.length) {
         if (humanGate) await humanGate;
@@ -253,6 +254,7 @@ async function readListingJobs(jobs, { onItemDone, blockedSites = new Map() } = 
         }
       }
     } finally {
+      typeof trackImportReader === "function" && trackImportReader(tabId, false);
       await chrome.windows.remove(win.id).catch(() => {});
     }
   }

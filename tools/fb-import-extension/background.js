@@ -53,6 +53,13 @@ async function exec(tabId, func, args) {
 }
 
 function overlay(tabId, html) {
+  updateImportRun({
+    message: html
+      .replace(/<[^>]*>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 220),
+  });
   return exec(
     tabId,
     (innerHtml) => {
@@ -695,6 +702,7 @@ async function runWorker(queue, onItemDone, withPhotos = true) {
     height: 1000,
   });
   const tabId = win.tabs[0].id;
+  trackImportReader(tabId, true);
   try {
     while (queue.length) {
       const item = queue.shift();
@@ -709,6 +717,7 @@ async function runWorker(queue, onItemDone, withPhotos = true) {
       onItemDone();
     }
   } finally {
+    trackImportReader(tabId, false);
     await chrome.windows.remove(win.id).catch(() => {});
   }
 }
@@ -838,8 +847,12 @@ function refreshUnreadableReasons(unique, jobs) {
 }
 
 async function refreshListings(adminTabId, requestId, targets) {
-  const send = (payload) =>
-    chrome.tabs.sendMessage(adminTabId, { type: "gemlist-ext-event", payload }).catch(() => {});
+  const send = (payload) => {
+    recordImportProgress(payload);
+    return chrome.tabs
+      .sendMessage(adminTabId, { type: "gemlist-ext-event", payload })
+      .catch(() => {});
+  };
   const unique = [
     ...new Set((Array.isArray(targets) ? targets : []).map((t) => String(t?.sourceUrl || ""))),
   ];
@@ -900,6 +913,84 @@ async function refreshListings(adminTabId, requestId, targets) {
 }
 
 let importInProgress = false;
+let activeImportRun = null;
+const importReaderTabs = new Set();
+
+function beginImportRun(ownerTabId, label, requestId = null) {
+  importInProgress = true;
+  importReaderTabs.clear();
+  activeImportRun = {
+    ownerTabId,
+    requestId,
+    label,
+    startedAt: Date.now(),
+    message: "Starting…",
+    done: null,
+    total: null,
+  };
+}
+function updateImportRun(update) {
+  if (activeImportRun) Object.assign(activeImportRun, update);
+}
+function finishImportRun() {
+  importInProgress = false;
+  activeImportRun = null;
+  importReaderTabs.clear();
+}
+function trackImportReader(tabId, open) {
+  if (!activeImportRun) return;
+  if (open) importReaderTabs.add(tabId);
+  else importReaderTabs.delete(tabId);
+}
+function recordImportProgress(payload) {
+  if (payload.type !== "gemlist-fb-refresh-progress") return;
+  updateImportRun({
+    ...(payload.sourceProfileUrl ? { sourceProfileUrl: payload.sourceProfileUrl } : {}),
+    message:
+      typeof payload.message === "string"
+        ? payload.message.slice(0, 220)
+        : "Reading listing details…",
+    done: Number.isFinite(payload.done) ? payload.done : null,
+    total: Number.isFinite(payload.total) ? payload.total : null,
+  });
+}
+function importRunStatus() {
+  if (!activeImportRun) return null;
+  const { ownerTabId, ...status } = activeImportRun;
+  return status;
+}
+async function showImportRun() {
+  if (!activeImportRun) return false;
+  // Focus existing windows only. Never launch another scan or reopen a closed source.
+  for (const tabId of [...importReaderTabs, activeImportRun.ownerTabId]) {
+    try {
+      const tab = await chrome.tabs.get(tabId);
+      await chrome.tabs.update(tabId, { active: true });
+      await chrome.windows.update(tab.windowId, { focused: true });
+      return true;
+    } catch {
+      /* A reader may close between the status check and the click. */
+    }
+  }
+  return false;
+}
+function trustedImportPage(sender) {
+  try {
+    const url = new URL(sender.url || sender.tab?.url);
+    return (
+      url.protocol === "https:" &&
+      [
+        "onbluebird.com",
+        "www.onbluebird.com",
+        "gem-state.lovable.app",
+        "gemstateclassifieds.lovable.app",
+      ].includes(url.hostname)
+    );
+  } catch {
+    return false;
+  }
+}
+
 chrome.runtime.onMessage.addListener((message, sender) => {
   if (!message || message.type !== "refresh" || !sender.tab?.id) return;
   const sendError = (error) =>
@@ -918,7 +1009,11 @@ chrome.runtime.onMessage.addListener((message, sender) => {
     sendError("An import or refresh is already running. Let it finish before starting another.");
     return;
   }
-  importInProgress = true;
+  beginImportRun(
+    sender.tab.id,
+    message.profiles ? "Seller refresh" : "Listing refresh",
+    message.requestId,
+  );
   (message.profiles
     ? refreshSellerProfiles(sender.tab.id, message.requestId, message.profiles)
     : refreshListings(sender.tab.id, message.requestId, message.targets)
@@ -927,8 +1022,19 @@ chrome.runtime.onMessage.addListener((message, sender) => {
       sendError(String(error?.message || "Refresh failed. Reload the extension and retry.")),
     )
     .finally(() => {
-      importInProgress = false;
+      finishImportRun();
     });
+});
+
+chrome.runtime.onMessage.addListener((message, sender, respond) => {
+  if (!message || !["import-status", "show-import"].includes(message.type)) return;
+  if (!sender.tab?.id || !trustedImportPage(sender)) return;
+  if (message.type === "import-status") {
+    respond({ run: importRunStatus() });
+    return;
+  }
+  showImportRun().then((shown) => respond({ shown, run: importRunStatus() }));
+  return true;
 });
 
 async function run(tabId) {
@@ -1010,7 +1116,7 @@ chrome.action.onClicked.addListener(async (tab) => {
             : null
     : null;
   if (paced) {
-    importInProgress = true;
+    beginImportRun(tab.id, `${paced[0]} import`);
     try {
       await paced[1]();
     } catch (e) {
@@ -1019,7 +1125,7 @@ chrome.action.onClicked.addListener(async (tab) => {
         `<strong>Bluebird import · ${paced[0]}</strong><div style="margin-top:6px;color:#f87171">Failed: ${String((e && e.message) || e)}</div>`,
       );
     } finally {
-      importInProgress = false;
+      finishImportRun();
     }
     return;
   }
@@ -1033,7 +1139,7 @@ chrome.action.onClicked.addListener(async (tab) => {
     });
     return;
   }
-  importInProgress = true;
+  beginImportRun(tab.id, "Facebook seller import");
   try {
     await run(tab.id);
   } catch (e) {
@@ -1042,6 +1148,6 @@ chrome.action.onClicked.addListener(async (tab) => {
       `<strong>GemList import</strong><div style="margin-top:6px;color:#f87171">Failed: ${String((e && e.message) || e)}</div>`,
     );
   } finally {
-    importInProgress = false;
+    finishImportRun();
   }
 });
