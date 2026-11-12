@@ -1,3 +1,4 @@
+import { businessForListing } from "./business-performance.ts";
 import { selectDiscoveryCards } from "./discovery-ranking.ts";
 import type { ClassifiedCard, ClassifiedsHome, ClassifiedsHomeLead } from "./classifieds.functions";
 import type { ListingCardSummary } from "./listing-card-summary";
@@ -69,6 +70,7 @@ export function homepageCard(card: ClassifiedCard): ListingCardSummary {
     externalMerchandise,
   } = card;
   return {
+    ...(businessForListing(card) ? { businessAttribution: businessForListing(card)! } : {}),
     id,
     title,
     discoverySellerKey,

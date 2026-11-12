@@ -4,6 +4,8 @@ import { useServerFn } from "@tanstack/react-start";
 import { Link } from "@tanstack/react-router";
 import { useAuth } from "@/hooks/useAuth";
 import { startDealerConversation } from "@/lib/conversation.functions";
+import { trackBusinessEvent } from "@/lib/business-analytics";
+import type { BusinessIdentity } from "@/lib/business-performance";
 
 export function DealerContactPanel({
   dealerId,
@@ -11,12 +13,14 @@ export function DealerContactPanel({
   slug,
   ownerUserId,
   compose = false,
+  business,
 }: {
   dealerId: string;
   name: string;
   slug: string;
   ownerUserId?: string;
   compose?: boolean;
+  business?: BusinessIdentity;
 }) {
   const { isSignedIn, user } = useAuth();
   const [body, setBody] = useState("");
@@ -24,7 +28,13 @@ export function DealerContactPanel({
   const start = useServerFn(startDealerConversation);
   const send = useMutation({
     mutationFn: () => start({ data: { dealerId, body } }),
-    onSuccess: () => setBody(""),
+    onSuccess: (result) => {
+      setBody("");
+      if (business)
+        trackBusinessEvent("business_inquiry_completed", business, {
+          event_id: "dealer-inquiry:" + result.conversationId,
+        });
+    },
   });
   if (user?.id && user.id === ownerUserId)
     return (

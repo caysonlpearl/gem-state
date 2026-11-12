@@ -19,6 +19,7 @@ export function DealerContactOptions({
   messagingEnabled,
   onMessage,
   children,
+  onAction,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -30,6 +31,7 @@ export function DealerContactOptions({
   messagingEnabled: boolean;
   onMessage: () => void;
   children?: ReactNode;
+  onAction?: (method: string) => void;
 }) {
   const tile =
     "flex min-h-28 flex-col items-center justify-center gap-3 rounded-2xl border border-border bg-card p-4 text-sm font-semibold text-primary transition hover:border-primary/40 hover:bg-secondary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
@@ -47,6 +49,7 @@ export function DealerContactOptions({
             <a
               className={`${tile} col-start-1 row-start-1`}
               href={`tel:${phone.replace(/[^\d+]/g, "")}`}
+              onClick={() => onAction?.("call")}
             >
               <Phone size={28} weight="duotone" />
               <span>Call dealership</span>
@@ -74,19 +77,28 @@ export function DealerContactOptions({
               href={website}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={() => onAction?.("website")}
             >
               <Globe size={28} weight="duotone" />
               <span>Visit website</span>
             </a>
           ) : null}
           {email ? (
-            <a className={`${tile} col-start-2 row-start-2`} href={`mailto:${email}`}>
+            <a
+              className={`${tile} col-start-2 row-start-2`}
+              href={`mailto:${email}`}
+              onClick={() => onAction?.("email")}
+            >
               <Envelope size={28} weight="duotone" />
               <span>Email dealership</span>
             </a>
           ) : null}
           {textPhone ? (
-            <a className={`${tile} col-span-2`} href={`sms:${textPhone.replace(/[^\d+]/g, "")}`}>
+            <a
+              className={`${tile} col-span-2`}
+              href={`sms:${textPhone.replace(/[^\d+]/g, "")}`}
+              onClick={() => onAction?.("text")}
+            >
               <DeviceMobile size={28} weight="duotone" />
               <span>Text dealership</span>
             </a>

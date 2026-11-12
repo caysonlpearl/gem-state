@@ -95,6 +95,13 @@ function AdminDealersPage() {
                     >
                       Preview dealer account
                     </button>
+                    <Link
+                      to="/admin/business-performance"
+                      search={{ dealer: dealer.slug }}
+                      className="mt-2 ml-2 inline-flex rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-primary"
+                    >
+                      View performance
+                    </Link>
                   </td>
                   <td className="px-4 py-3">
                     {dealer.authorizedFeed

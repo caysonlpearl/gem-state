@@ -24,6 +24,7 @@ import { PilotBanner } from "@/components/layout/PilotBanner";
 import { BluebirdEmptyState } from "@/components/layout/BluebirdEmptyState";
 import { Toaster } from "@/components/ui/sonner";
 import { trackBrowserError, ensureVisit, flushEditorialAttribution } from "@/lib/analytics";
+import { flushBusinessEvents } from "@/lib/business-analytics";
 import { startWebVitals } from "@/lib/web-vitals";
 
 function NotFoundComponent() {
@@ -160,6 +161,7 @@ function RootComponent() {
   const isNavigating = useRouterState({ select: (state) => state.isLoading });
   useEffect(() => {
     flushEditorialAttribution();
+    flushBusinessEvents();
   }, [currentPath]);
 
   // Classify where this visit came from on its first page (search, AI

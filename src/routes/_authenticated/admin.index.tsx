@@ -118,6 +118,11 @@ const adminGroups = [
     icon: ChartBar,
     links: [
       {
+        to: "/admin/business-performance",
+        label: "Business performance",
+        detail: "Listing clicks, dealer referrals, contact actions, and per-business reports.",
+      },
+      {
         to: "/admin/traffic",
         label: "Traffic & contacts",
         detail: "Visits, traffic sources, listing views, and contact actions.",

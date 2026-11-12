@@ -2,6 +2,7 @@ import { loadSupabase } from "@/integrations/supabase/lazy-client";
 import { classifyLatency, sanitizeTelemetryText } from "@/lib/release-gate";
 import { classifyTrafficSource } from "@/lib/traffic-source";
 import { isInternalAnalyticsQuery, isKnownAutomatedAgent } from "@/lib/analytics-policy";
+import { listingBusinessProps } from "./business-context";
 
 /**
  * Validation analytics. Instrumented from the foundation phase onward: every
@@ -11,6 +12,10 @@ import { isInternalAnalyticsQuery, isKnownAutomatedAgent } from "@/lib/analytics
  * the user typed. Names, ids, counts, lengths and price buckets only.
  */
 export type AnalyticsEventName =
+  | "business_listing_clicked"
+  | "business_action"
+  | "business_profile_viewed"
+  | "business_inquiry_completed"
   | "dealer_cta_clicked"
   | "dealer_inquiry_started"
   | "dealer_inquiry_submitted"
@@ -194,8 +199,9 @@ export async function trackEvent(
   name: AnalyticsEventName,
   props: Props = {},
   options: { isDemo?: boolean } = {},
-): Promise<void> {
-  if (typeof window === "undefined" || window.location.pathname === "/claim-seller") return;
+): Promise<boolean> {
+  if (typeof window === "undefined" || window.location.pathname === "/claim-seller") return false;
+  props = { ...listingBusinessProps(props.listing_id), ...props };
   const eventAt = Date.now();
   try {
     const supabase = await loadSupabase();
@@ -232,7 +238,7 @@ export async function trackEvent(
         /* Optional attribution must never affect browsing or posting. */
       }
     }
-    let internal = isInternalAnalyticsQuery(window.location.search);
+    let internal = isInternalAnalyticsQuery(window.location.search) || props.is_internal === true;
     try {
       if (internal) window.sessionStorage.setItem("bb_internal_traffic", "1");
       internal ||= window.sessionStorage.getItem("bb_internal_traffic") === "1";
@@ -252,7 +258,7 @@ export async function trackEvent(
             device: window.matchMedia("(max-width: 767px)").matches ? "mobile" : "desktop",
             event_at: eventAt,
             is_internal: internal,
-            is_bot: isKnownAutomatedAgent(navigator.userAgent),
+            is_bot: props.is_bot === true || isKnownAutomatedAgent(navigator.userAgent),
           }
         : props,
       is_demo: options.isDemo ?? false,
@@ -260,9 +266,11 @@ export async function trackEvent(
       user_id: userId,
     });
     if (error) console.warn("analytics event dropped", name, error.code);
+    return !error;
   } catch (error) {
     // Analytics must never break a user flow.
     console.warn("analytics event dropped", name, error);
+    return false;
   }
 }
 

@@ -1,3 +1,4 @@
+import { trackBusinessListingOpen } from "@/lib/business-analytics";
 import { dealerContactPriceLabel } from "@/lib/vehicle-shopping";
 import { VerifiedDealerBadge } from "@/components/dealers/VerifiedDealerBadge";
 import { VehiclePrice } from "@/components/dealers/VehiclePrice";
@@ -49,6 +50,7 @@ function ListingLink({
       params={{ listingId: listingParam(listing) }}
       className={className}
       aria-label={ariaLabel}
+      onClick={() => trackBusinessListingOpen(listing)}
     >
       {children}
     </Link>
