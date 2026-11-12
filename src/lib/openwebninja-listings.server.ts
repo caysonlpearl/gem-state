@@ -248,8 +248,8 @@ async function advanceHomeFeedFor(
     };
   sweep.attempted.add(next);
   const detail = await ninja.propertyDetails(next, null, { provider });
-  // A budget rejection reserves no call; the other subscription may still
-  // fetch this home. Upstream attempts are also protected by the DB ledger.
+  // A budget rejection reserves no call. The same region owner may retry
+  // later; upstream attempts are also protected by the DB ledger.
   if (!detail.ok && detail.status === "limited") sweep.attempted.delete(next);
   // Skip duplicate work within this sweep without modifying the public
   // eligibility cache; public visibility still requires a saved detail row.

@@ -115,6 +115,29 @@ test("Redfin search IDs are namespaced, unit numbers are retained, and inactive 
   assert.match(result.homes[0].sourceUrl, /^https:\/\/www.redfin.com\//);
   assert.throws(() => normalizeRedfinResult({ status: "ERROR" }, "buy"), /unavailable/);
 });
+test("Redfin units already included in the street or unit field are not repeated", () => {
+  for (const street of ["111 Main St", "111 Main St Unit B"])
+    for (const unit of ["B", "Unit B", "#B"]) {
+      const result = normalizeRedfinResult(
+        {
+          data: {
+            results: [
+              {
+                property_id: "123",
+                street_address: street,
+                unit_number: unit,
+                city: "Sandpoint",
+                state: "ID",
+                price: 300000,
+              },
+            ],
+          },
+        },
+        "buy",
+      );
+      assert.equal(homeAddressIdentity(result.homes[0]), "ID|SANDPOINT|111 MAIN ST UNIT B");
+    }
+});
 test("Redfin full records retain actual photos, descriptions, facts, history and attribution", () => {
   const detail = normalizeRedfinProperty({
     data: {

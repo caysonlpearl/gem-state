@@ -22,7 +22,10 @@ const redfinUrl = (v: unknown) => {
 };
 const unitAddress = (row: Record<string, any>) => {
   const street = String(row.street_address ?? ""),
-    unit = String(row.unit_number ?? "").trim();
+    unit = String(row.unit_number ?? "")
+      .trim()
+      .replace(/^(?:(?:UNIT|APT|APARTMENT|SUITE|STE)\s*#?\s*|#\s*)/i, "")
+      .trim();
   if (!unit) return street;
   const normalized = street
     .toUpperCase()
