@@ -65,13 +65,13 @@ const REFRESH_STAGE_CHUNK = 50;
 export const Route = createFileRoute("/_authenticated/admin/fb-import")({
   head: () => ({
     meta: [
-      { title: "Seller profile import · Bluebird Marketplace" },
+      { title: "Seller listing import · Bluebird Marketplace" },
       {
         name: "description",
-        content: "Import a consenting seller's Facebook Marketplace listings onto GemList.",
+        content: "Import and refresh listings from authorized sellers on Bluebird.",
       },
       { name: "robots", content: "noindex" },
-      { property: "og:title", content: "Seller profile import · Bluebird Marketplace" },
+      { property: "og:title", content: "Seller listing import · Bluebird Marketplace" },
       {
         property: "og:description",
         content: "Review authorized seller-profile discoveries and listing updates on Bluebird.",
@@ -1656,13 +1656,13 @@ function FbImportPage() {
     <main className="mx-auto max-w-[1000px] space-y-6 px-4 py-10 sm:px-6">
       <div>
         <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-primary">
-          Gem State operations
+          Bluebird operations
         </p>
-        <h1 className="mt-1 text-[22px] font-semibold tracking-tight">Facebook seller import</h1>
+        <h1 className="mt-1 text-[22px] font-semibold tracking-tight">Seller listing import</h1>
         <p className="mt-1 max-w-[720px] text-[13px] leading-relaxed text-muted-foreground">
-          With a seller's permission, recreate their Facebook Marketplace listings as real GemList
-          listings under their own account. Every extraction is driven by a person in a live,
-          logged-in browser session — nothing here stores a Facebook session or runs on a schedule.
+          Import listings from authorized sellers on Facebook Marketplace, KSL, Vinted, Whatnot, and
+          Diesel Depot. Review new listings and updates before publishing them under the correct
+          seller account.
         </p>
       </div>
 
