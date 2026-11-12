@@ -17,7 +17,6 @@ const comparisonStyle = {
   below: { label: "Below market", pill: "bg-[#e4f3e9] text-[#256845]" },
 } as const;
 
-const roundHundred = (cents: number) => wholeDollars(Math.round(cents / 10000) * 10000);
 const sealPoints = Array.from({ length: 24 }, (_, index) => {
   const angle = ((index * 15 - 90) * Math.PI) / 180;
   const radius = index % 2 === 0 ? 44 : 39;
@@ -32,39 +31,33 @@ export function VehiclePriceInsightCard({ insight }: { insight: Insight }) {
       ? "At the estimate"
       : `${percent < 0.5 ? "<1" : Math.round(percent)}% ${insight.differenceCents < 0 ? "below" : "above"} estimate`;
   const pointer = 100 - insight.pointerPercent;
-  const date = new Date(insight.updatedAt);
-  const checked = Number.isFinite(date.getTime())
-    ? date.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        timeZone: "America/Boise",
-      })
-    : null;
+  const band = insight.tolerancePct / 100;
+  const rangeLow = Math.floor((insight.estimateCents * (1 - band)) / 10000) * 10000;
+  const rangeHigh = Math.ceil((insight.estimateCents * (1 + band)) / 10000) * 10000;
   const inputs = new Set(insight.providerInputs ?? []);
   const method =
     insight.provider === "vehicles"
       ? `Compares the asking price with a market model estimate using this vehicle’s year, make, model${inputs.has("trim") ? ", trim" : ""}, mileage, condition and state. Near market means within ${Math.round(insight.tolerancePct)}% of the estimate. It estimates retail asking prices, rather than completed sale prices.`
       : `Compares the asking price with a VIN- and mileage-based retail estimate. Near market means within ${Math.round(insight.tolerancePct)}% of the estimate.`;
+  const rangeMethod = `${method} The fair price range is Bluebird’s near-market band around that estimate (±${Math.round(insight.tolerancePct)}%), rounded outward to the nearest $100. It is a comparison guide, not a statistical confidence interval.`;
   return (
-    <PriceAdvisorFrame checked={checked} method={method}>
+    <PriceAdvisorFrame method={rangeMethod}>
       <div className="px-5 pb-5 pt-4">
         <p className="text-[12px] font-semibold uppercase leading-[18px] tracking-[0.07em] text-[#5b626e]">
-          Estimated market value
+          Fair price range
         </p>
-        <div className="mt-1 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2">
-          <p className="text-[36px] font-bold leading-[42px] tracking-[-0.035em] text-[#16223c] tabular-nums">
-            {roundHundred(insight.estimateCents)}
+        <div className="mt-1">
+          <p className="whitespace-nowrap text-[28px] font-bold leading-[36px] tracking-[-0.035em] text-[#16223c] tabular-nums">
+            {wholeDollars(rangeLow)} – {wholeDollars(rangeHigh)}
           </p>
-          <div className="pt-0.5 text-right">
+          <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
             <p
               aria-label={`Price rating: ${style.label}, ${delta}`}
               className={`inline-block rounded-full px-3 py-1 text-[14px] font-bold leading-5 ${style.pill}`}
             >
               {style.label}
             </p>
-            <p className="mt-1.5 whitespace-nowrap text-[12px] leading-[18px] text-[#5b626e]">
-              {delta}
-            </p>
+            <p className="whitespace-nowrap text-[12px] leading-[18px] text-[#5b626e]">{delta}</p>
           </div>
         </div>
         <div
@@ -121,15 +114,7 @@ export function VehiclePriceInsightCard({ insight }: { insight: Insight }) {
   );
 }
 
-function PriceAdvisorFrame({
-  children,
-  checked,
-  method,
-}: {
-  children: ReactNode;
-  checked: string | null;
-  method: string;
-}) {
+function PriceAdvisorFrame({ children, method }: { children: ReactNode; method: string }) {
   return (
     <section
       className="relative rounded-[18px] border border-[#d8d5ce] bg-white text-[#18243b] shadow-[0_8px_24px_rgba(24,36,59,0.07)]"
@@ -137,7 +122,7 @@ function PriceAdvisorFrame({
       aria-label="Vehicle price insight"
     >
       <div className="overflow-hidden rounded-[17px]">
-        <header className="flex items-center gap-2.5 bg-[#59cafa] px-4 py-3.5 pr-10">
+        <header className="flex items-center gap-2.5 bg-[#0874bd] px-4 py-3.5 pr-10">
           <img
             src="/images/brand/bluebird-error-bird.webp"
             alt=""
@@ -147,7 +132,7 @@ function PriceAdvisorFrame({
             height={36}
           />
           <h2
-            className="text-[16px] leading-5 tracking-[-0.025em] text-[#123247]"
+            className="text-[16px] leading-5 tracking-[-0.025em] text-white"
             style={{ fontFamily: '"Manrope Variable", "Manrope", Arial, sans-serif' }}
           >
             <span className="font-extrabold">Bluebird</span>{" "}
@@ -156,10 +141,8 @@ function PriceAdvisorFrame({
         </header>
         {children}
         <footer className="border-t border-[#dedbd4] bg-[#f7f4ee] px-5 py-3.5 text-[12px] leading-[18px] text-[#5b626e]">
-          <p>Estimated retail asking price.</p>
-          <details className="mt-1">
+          <details>
             <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-2 gap-y-1">
-              {checked ? <span className="whitespace-nowrap">Checked {checked}.</span> : null}
               <span className="font-semibold text-[#175779] underline underline-offset-2">
                 How it’s calculated
               </span>
@@ -212,10 +195,7 @@ export function VehiclePriceInsight({ listingId }: { listingId: string }) {
   if ("status" in query.data) {
     const serviceUnavailable = query.data.reason === "service_unavailable";
     return (
-      <PriceAdvisorFrame
-        checked={null}
-        method="Uses vehicle details and market pricing data. An estimate is shown only when the data passes our checks."
-      >
+      <PriceAdvisorFrame method="Uses vehicle details and market pricing data. An estimate is shown only when the data passes our checks.">
         <div className="px-5 py-5">
           <p className="text-[20px] font-semibold leading-7 text-[#16223c]">
             {serviceUnavailable ? "Price estimates unavailable" : "Estimate unavailable"}
