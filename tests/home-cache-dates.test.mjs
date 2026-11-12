@@ -1,3 +1,5 @@
+import * as homeRegions from "../src/lib/home-feed-regions.ts";
+import * as redfin from "../src/lib/redfin-contract.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -96,6 +98,8 @@ function cacheFixture(mode) {
         },
         async upsert(value) {
           writes.push(value);
+          if (mode === "storage_error" && value.payload.fresh)
+            return { error: { message: "write failed" } };
           row = value;
           return { error: null };
         },
@@ -126,18 +130,23 @@ function cacheFixture(mode) {
           return { shortCache: (_key, _ttl, load) => load(), PUBLIC_PAGE_CACHE_MS: 60000 };
         if (name === "./runtime-env.server") return { serverEnv: () => "test-only-value" };
         if (name === "./openwebninja-cache") return { homesFromSavedSearches };
+        if (name === "./home-feed-regions") return homeRegions;
+        if (name === "./redfin-contract") return redfin;
         if (name === "./openwebninja-contract") return contract;
         throw new Error(name);
       },
       async fetch() {
         calls++;
         if (mode === "network_error") throw new Error("offline");
-        return new Response(null, { status: 500 });
+        return mode === "storage_error"
+          ? Response.json({ fresh: true })
+          : new Response(null, { status: 500 });
       },
     },
   );
   return {
-    run: () => exports.testCachedCall("key", "search", (value) => value, { forceRefresh: true }),
+    run: (options = {}) =>
+      exports.testCachedCall("key", "search", (value) => value, { forceRefresh: true, ...options }),
     original,
     writes,
     calls: () => calls,
@@ -153,3 +162,16 @@ for (const mode of ["limited", "reservation_error", "network_error", "provider_e
     assert.equal(f.calls(), ["limited", "reservation_error"].includes(mode) ? 0 : 1);
   });
 }
+
+test("monthly detail refreshes do not relabel stale data as fresh when the provider fails", async () => {
+  const f = cacheFixture("provider_error");
+  const result = await f.run({ allowStale: false });
+  assert.equal(result.ok, false);
+  assert.equal(f.writes.at(-1).expires_at, f.original.expires_at);
+});
+test("a failed cache write cannot count a fetched payload as saved", async () => {
+  const f = cacheFixture("storage_error");
+  const result = await f.run({ allowStale: false });
+  assert.equal(result.ok, false);
+  assert.equal(f.writes.at(-1).expires_at, f.original.expires_at);
+});

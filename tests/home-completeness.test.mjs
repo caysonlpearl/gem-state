@@ -1,3 +1,5 @@
+import * as homeRegions from "../src/lib/home-feed-regions.ts";
+import * as redfin from "../src/lib/redfin-contract.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -5,7 +7,7 @@ import vm from "node:vm";
 import ts from "typescript";
 import { createClient } from "@supabase/supabase-js";
 import { withCatalogReadDeadline } from "../src/lib/catalog-read-deadline.ts";
-import { hasCompleteHomeDetails } from "../src/lib/openwebninja-cache.ts";
+import { hasCompleteHomeDetails, propertyCacheFresh } from "../src/lib/openwebninja-cache.ts";
 import * as contract from "../src/lib/openwebninja-contract.ts";
 const full = {
   images: ["https://example.com/a.jpg", "https://example.com/b.jpg"],
@@ -67,14 +69,16 @@ test("bulk eligibility accepts legacy detail keys and omits incomplete, malforme
       },
     },
   });
-  const read = compileFunction("../src/lib/openwebninja.server.ts", "completeHomeDetailIds", {
+  const read = compileFunction("../src/lib/openwebninja.server.ts", "completeHomeCacheEntries", {
     cacheDb: () => db,
     withCatalogReadDeadline,
     hasCompleteHomeDetails,
+    propertyCacheFetchedAt: () => 1,
+    dedupeImageUrls: contract.dedupeImageUrls,
     shortCache: (_key, _ttl, load) => load(),
     PUBLIC_PAGE_CACHE_MS: 60000,
   });
-  assert.deepEqual(Array.from(await read()), ["1"]);
+  assert.deepEqual(Array.from((await read()).keys()), ["1"]);
   fail = true;
   await assert.rejects(read(), /temporarily unavailable/);
 });
@@ -118,6 +122,8 @@ test("direct home links reject previews; complete homes keep photos, description
       exports,
       require(name) {
         if (name === "./openwebninja.server") return provider;
+        if (name === "./home-feed-regions") return homeRegions;
+        if (name === "./redfin-contract") return redfin;
         if (name === "./openwebninja-contract") return contract;
         if (name === "./openwebninja-cache") return { hasCompleteHomeDetails };
         if (name === "./landing-card-pool") return {};
@@ -149,11 +155,45 @@ test("a failed refresh retaining a partial cache cannot count as complete import
     cacheDb: () => db,
     withCatalogReadDeadline,
     hasCompleteHomeDetails,
+    propertyCacheFresh: () => true,
+    propertyCacheFetchedAt: () => 1,
     URLSearchParams,
+    cachedHome: async () => ({
+      home: { city: "Boise", state: "ID", latitude: null, longitude: null },
+    }),
+    homeFeedRegion: homeRegions.homeFeedRegion,
+    openWebNinjaConfigured: () => true,
     propertyKey: (id) => JSON.stringify({ v: 3, kind: "property", id }),
     DETAIL_TTL_MS: 365 * 86400000,
     cachedCall: async () => ({ ok: true, value: partial }),
   });
-  assert.equal((await read("1", null, { provider: "realestate" })).ok, false);
+  assert.equal((await read("1", null, { provider: "zillow" })).ok, false);
   assert.equal((await read("1", null, { cacheOnly: true })).ok, false);
+});
+
+test("monthly publication omits stale details while retaining fresh photos", async () => {
+  const now = Date.now();
+  const rows = new Map([
+    [
+      "fresh",
+      {
+        imageUrl: "https://example.com/fresh.jpg",
+        cache_key: '{"v":4,"kind":"property","id":"fresh"}',
+        expires_at: new Date(now + 30 * 86400000).toISOString(),
+      },
+    ],
+    [
+      "stale",
+      {
+        imageUrl: "https://example.com/stale.jpg",
+        cache_key: '{"v":4,"kind":"property","id":"stale"}',
+        expires_at: new Date(now - 86400000).toISOString(),
+      },
+    ],
+  ]);
+  const read = compileFunction("../src/lib/openwebninja.server.ts", "completeHomeThumbnails", {
+    completeHomeCacheEntries: async () => rows,
+    propertyCacheFresh,
+  });
+  assert.deepEqual(Array.from((await read()).keys()), ["fresh"]);
 });

@@ -70,6 +70,7 @@ test("home details select only matching live source feeds while browse retains t
     );
   });
   const read = compile("../src/lib/openwebninja.server.ts", "cachedHomes", {
+    regionalSourceAreas: async () => new Set(),
     cacheDb: () => db,
     PUBLIC_PAGE_CACHE_MS: 60000,
     shortCache: (key, ttl, load) => {

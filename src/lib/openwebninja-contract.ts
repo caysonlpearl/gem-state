@@ -9,6 +9,7 @@ export type OpenWebNinjaMode = "buy" | "rent";
 
 export type OpenWebNinjaHome = {
   id: string;
+  provider?: "zillow" | "realestate" | "redfin";
   address: string;
   city: string;
   state: string;
@@ -508,7 +509,7 @@ function listedBy(record: Record<string, unknown>): OpenWebNinjaListedBy | null 
   return Object.values(value).some(Boolean) ? value : null;
 }
 
-export const OPENWEBNINJA_ID = /^openwebninja-\d{1,20}$/;
+export const OPENWEBNINJA_ID = /^openwebninja-(?:redfin-)?\d{1,20}$/;
 
 export function listedAt(home: OpenWebNinjaHome, now = Date.now()) {
   const source = Date.parse(home.listedAt ?? "");
