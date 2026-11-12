@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ChartLineUp, Info, SealPercent } from "@phosphor-icons/react";
+import { Info } from "@phosphor-icons/react";
 import { useEffect, useState } from "react";
 import { getVehiclePriceInsight } from "@/lib/vehicle-price-insights.functions";
 import {
@@ -18,15 +18,15 @@ const wholeDollars = (cents: number) =>
 const comparisonStyle = {
   above: {
     label: "Asking above market",
-    badge: "bg-red-100 text-red-900 ring-red-300",
+    dot: "bg-[#ef8b7f]",
   },
   near: {
     label: "Asking near market",
-    badge: "bg-amber-100 text-amber-950 ring-amber-300",
+    dot: "bg-[#f1cf76]",
   },
   below: {
     label: "Asking below market",
-    badge: "bg-emerald-100 text-emerald-900 ring-emerald-300",
+    dot: "bg-[#7ed0aa]",
   },
 } as const;
 
@@ -57,38 +57,40 @@ export function VehiclePriceInsightCard({ insight }: { insight: Insight }) {
     : [];
   return (
     <section className="soft-card overflow-hidden" aria-label="Vehicle price insight">
-      <div className="flex items-center justify-between gap-3 border-b border-border/60 bg-secondary/25 px-4 py-3">
-        {insight.provider === "vehicles" ? (
-          <a
-            href="https://vehicles.dev/"
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label="Vehicles.dev estimate source"
-            className="inline-flex items-center gap-2 text-foreground hover:opacity-80"
-          >
-            <span
-              aria-hidden="true"
-              className="inline-flex size-7 shrink-0 items-center justify-center bg-[#0d120e] font-mono text-[12px] text-[#b9ff4f]"
-            >
-              V
-            </span>
-            <span className="text-[16px] font-extrabold tracking-[-0.035em]">Vehicles.dev</span>
-          </a>
-        ) : (
-          <span className="inline-flex items-center gap-2 text-[15px] font-bold text-primary">
-            <ChartLineUp size={22} aria-hidden="true" />
-            {valuationProviderNames[insight.provider]}
-          </span>
-        )}
-        <h2 className="text-[11px] font-semibold text-muted-foreground">Price insight</h2>
+      <div className="flex items-center gap-2.5 border-b border-border/60 bg-secondary/25 px-4 py-3">
+        <img
+          src="/images/brand/bluebird-bird.png"
+          alt=""
+          aria-hidden="true"
+          className="size-7 object-contain"
+          width={28}
+          height={28}
+        />
+        <h2 className="text-[16px] font-extrabold tracking-tight text-[#112e44]">
+          Bluebird Insights
+        </h2>
       </div>
       <div className="px-4 pb-4 pt-3">
         <div
           aria-label={`Price rating: ${style.label}`}
-          className={`inline-flex items-center gap-2 rounded-xl px-3 py-2 text-[13px] font-bold ring-1 ring-inset ${style.badge}`}
+          className="relative mx-auto flex min-h-10 items-center justify-center gap-2 px-6 py-2 text-[12px] font-bold tracking-[0.01em] text-[#f2d58b]"
         >
-          <SealPercent size={28} weight="duotone" aria-hidden="true" />
-          {style.label}
+          <svg
+            viewBox="0 0 320 40"
+            preserveAspectRatio="none"
+            className="absolute inset-0 size-full"
+            aria-hidden="true"
+          >
+            <path d="M0 5H28V35H0L7 20Z M320 5H292V35H320L313 20Z" fill="#112e44" />
+            <path d="M10 0H310V34H10Z" fill="#112e44" stroke="#c9a654" strokeWidth="1" />
+            <path d="M10 34L28 40V34 M310 34L292 40V34" fill="#8b702f" />
+            <path d="M20 4H300 M20 30H300" stroke="#c9a654" strokeOpacity=".55" strokeWidth=".7" />
+          </svg>
+          <span
+            aria-hidden="true"
+            className={`relative size-1.5 shrink-0 rounded-full ${style.dot}`}
+          />
+          <span className="relative">{style.label}</span>
         </div>
         <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
           {delta === 0 ? (
@@ -161,9 +163,10 @@ export function VehiclePriceInsightCard({ insight }: { insight: Insight }) {
             </p>
           ) : null}
           <p className="mt-3">
-            Bluebird compares the asking price with this provider’s estimated retail asking price.
-            “Near market” means within {Math.round(insight.tolerancePct)}% of the estimate, allowing
-            for model uncertainty. The scale is not a confidence interval.
+            Estimate source: {valuationProviderNames[insight.provider]}. Bluebird compares the
+            asking price with this provider’s estimated retail asking price. “Near market” means
+            within {Math.round(insight.tolerancePct)}% of the estimate, allowing for model
+            uncertainty. The scale is not a confidence interval.
           </p>
           <p className="mt-2">
             Condition uses the listing’s new, used, or certified status. Wear, accident history,
