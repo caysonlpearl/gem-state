@@ -1,26 +1,23 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { toast } from "sonner";
+import {
+  Car,
+  ShieldCheck,
+  ChartBar,
+  NotePencil,
+  Users,
+  DownloadSimple,
+  CaretDown,
+  ArrowUpRight,
+} from "@phosphor-icons/react";
 
 import { brand } from "@/config/brand";
 import { formatUsd } from "@/config/fees";
 import { trackEvent } from "@/lib/analytics";
-import { RelativeTime } from "@/components/ui/relative-time";
-import {
-  getAdminQueues,
-  getShopperApplicationDocumentUrl,
-  reviewShopperApplication,
-} from "@/lib/pilot.functions";
-import { getPaymentEnvironmentReadiness } from "@/lib/stripe-marketplace.functions";
-import {
-  disputeStatusLabels,
-  evidenceKindLabels,
-  orderStatusLabels,
-  originLabels,
-  shopperApplicationStatusLabels,
-} from "@/lib/market-labels";
+import { getAdminQueues } from "@/lib/pilot.functions";
+import { disputeStatusLabels, orderStatusLabels, originLabels } from "@/lib/market-labels";
 
 export const Route = createFileRoute("/_authenticated/admin/")({
   head: () => ({
@@ -70,372 +67,249 @@ function Queue({
   );
 }
 
-function ShopperApplicationRow({
-  application,
-}: {
-  application: {
-    id: string;
-    status: string;
-    parkFrequency: string;
-    applicantNote: string | null;
-    createdAt: string;
-  };
-}) {
-  const queryClient = useQueryClient();
-  const fetchDocumentUrl = useServerFn(getShopperApplicationDocumentUrl);
-  const review = useServerFn(reviewShopperApplication);
-  const [note, setNote] = useState("");
-  const [showNote, setShowNote] = useState(false);
+const adminGroups = [
+  {
+    title: "Moderation",
+    description: "Listing approvals and reported content",
+    icon: ShieldCheck,
+    links: [
+      {
+        to: "/admin/classifieds",
+        label: "Listing approvals & reports",
+        detail: "Review submitted listings, listing reports, and business claims.",
+      },
+      {
+        to: "/admin/review-flags",
+        label: "Reported seller reviews",
+        detail: "Review flags on ratings and written reviews.",
+      },
+      {
+        to: "/admin/conversation-reports",
+        label: "Reported conversations",
+        detail: "Review reports about buyer and seller messages.",
+      },
+    ],
+  },
+  {
+    title: "Dealerships",
+    description: "Inquiries, dealer accounts, and inventory feeds",
+    icon: Car,
+    links: [
+      {
+        to: "/admin/dealer-inquiries",
+        label: "Dealership inquiries",
+        detail: "Follow up with dealerships interested in joining.",
+      },
+      {
+        to: "/admin/dealers",
+        label: "Dealer accounts",
+        detail: "Manage active dealerships, onboarding, staff, and inbox access.",
+      },
+      {
+        to: "/admin/dealer-inventory",
+        label: "Inventory feeds",
+        detail: "Manage dealer imports, schedules, and feed health.",
+      },
+    ],
+  },
+  {
+    title: "Analytics",
+    description: "Traffic, buyer contacts, and site activity",
+    icon: ChartBar,
+    links: [
+      {
+        to: "/admin/traffic",
+        label: "Traffic & contacts",
+        detail: "Visits, traffic sources, listing views, and contact actions.",
+      },
+      {
+        to: "/admin/validation",
+        label: "Site activity & errors",
+        detail: "Activity events, search performance, and browser errors.",
+      },
+    ],
+  },
+  {
+    title: "Content",
+    description: "Local articles and catalog pages",
+    icon: NotePencil,
+    links: [
+      {
+        to: "/admin/news",
+        label: "Bluebird Local editor",
+        detail: "Manage local articles and guides.",
+      },
+      {
+        to: "/admin/products",
+        label: "Catalog pages",
+        detail: "Edit existing product catalog pages.",
+      },
+    ],
+  },
+] as const;
 
-  const documentMutation = useMutation({
-    mutationFn: () => fetchDocumentUrl({ data: { applicationId: application.id } }),
-    onSuccess: (result) => window.open(result.url, "_blank", "noopener,noreferrer"),
-    onError: (error) =>
-      toast.error(error instanceof Error ? error.message : "Could not open the document."),
-  });
-
-  const reviewMutation = useMutation({
-    mutationFn: (approve: boolean) =>
-      review({ data: { applicationId: application.id, approve, note: note || null } }),
-    onSuccess: async (_result, approve) => {
-      await queryClient.invalidateQueries({ queryKey: ["admin-queues"] });
-      toast.success(approve ? "Application approved." : "Application rejected.");
-    },
-    onError: (error) =>
-      toast.error(error instanceof Error ? error.message : "Could not record the decision."),
-  });
-
+function AdminNavigation() {
   return (
-    <li className="hairline-b px-4 py-2.5 last:border-b-0">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <span>
-          {shopperApplicationStatusLabels[application.status] ?? application.status}
-          <span className="block text-[11.5px] text-muted-foreground">
-            Visits parks {application.parkFrequency} · <RelativeTime iso={application.createdAt} />
-          </span>
-          {application.applicantNote && (
-            <span className="mt-0.5 block text-[11.5px] text-muted-foreground">
-              &ldquo;{application.applicantNote}&rdquo;
+    <nav aria-label="Admin tools" className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {adminGroups.map(({ title, description, icon: Icon, links }) => (
+        <details
+          key={title}
+          className="group rounded-xl border border-border bg-card open:shadow-sm"
+        >
+          <summary className="flex min-h-[110px] cursor-pointer list-none items-start gap-3 rounded-xl p-4 transition-colors hover:bg-secondary/50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary [&::-webkit-details-marker]:hidden">
+            <Icon size={22} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold">{title}</span>
+              <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+                {description}
+              </span>
             </span>
-          )}
+            <CaretDown
+              size={15}
+              className="mt-1 shrink-0 transition-transform group-open:rotate-180"
+              aria-hidden="true"
+            />
+          </summary>
+          <div className="space-y-1 border-t border-border p-2">
+            {links.map((link) => (
+              <Link
+                key={link.to}
+                to={link.to}
+                className="block rounded-lg px-3 py-2.5 hover:bg-secondary focus-visible:outline-2 focus-visible:outline-primary"
+              >
+                <span className="block text-[13px] font-medium">{link.label}</span>
+                <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">
+                  {link.detail}
+                </span>
+              </Link>
+            ))}
+          </div>
+        </details>
+      ))}
+      <Link
+        to="/admin/fb-import"
+        className="flex min-h-[110px] items-start gap-3 rounded-xl border border-border bg-card p-4 transition-colors hover:bg-secondary/50 focus-visible:outline-2 focus-visible:outline-primary"
+      >
+        <DownloadSimple size={22} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold">Seller listing import</span>
+          <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+            Import and refresh listings from authorized sellers.
+          </span>
         </span>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => documentMutation.mutate()}
-            disabled={documentMutation.isPending}
-            className="h-8 rounded-md border border-input px-2.5 text-[12px] font-medium hover:bg-secondary disabled:opacity-50"
-          >
-            View ID
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowNote((v) => !v)}
-            className="h-8 rounded-md border border-input px-2.5 text-[12px] font-medium hover:bg-secondary"
-          >
-            {showNote ? "Hide note" : "Add note"}
-          </button>
-          <button
-            type="button"
-            onClick={() => reviewMutation.mutate(true)}
-            disabled={reviewMutation.isPending}
-            className="h-8 rounded-md bg-primary px-2.5 text-[12px] font-medium text-primary-foreground disabled:opacity-50"
-          >
-            Approve
-          </button>
-          <button
-            type="button"
-            onClick={() => reviewMutation.mutate(false)}
-            disabled={reviewMutation.isPending}
-            className="h-8 rounded-md border border-input px-2.5 text-[12px] font-medium text-destructive hover:bg-secondary disabled:opacity-50"
-          >
-            Reject
-          </button>
-        </div>
-      </div>
-      {showNote && (
-        <textarea
-          value={note}
-          onChange={(event) => setNote(event.target.value.slice(0, 500))}
-          placeholder="Reviewer note (shown to the applicant on rejection)"
-          rows={2}
-          className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-[12.5px]"
-        />
-      )}
-    </li>
+        <ArrowUpRight size={15} className="mt-1 shrink-0" aria-hidden="true" />
+      </Link>
+      <Link
+        to="/admin/members"
+        className="flex min-h-[110px] items-start gap-3 rounded-xl border border-border bg-card p-4 transition-colors hover:bg-secondary/50 focus-visible:outline-2 focus-visible:outline-primary"
+      >
+        <Users size={22} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
+        <span className="min-w-0 flex-1">
+          <span className="block text-sm font-semibold">Members</span>
+          <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+            Manage seller and shopper accounts.
+          </span>
+        </span>
+        <ArrowUpRight size={15} className="mt-1 shrink-0" aria-hidden="true" />
+      </Link>
+    </nav>
   );
 }
 
 function AdminPage() {
   const fetchQueues = useServerFn(getAdminQueues);
-  const fetchPaymentReadiness = useServerFn(getPaymentEnvironmentReadiness);
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["admin-queues"],
     queryFn: () => fetchQueues(),
-  });
-  const paymentReadiness = useQuery({
-    queryKey: ["admin-payment-readiness"],
-    queryFn: () => fetchPaymentReadiness(),
-    enabled: Boolean(data?.isAdmin),
   });
 
   useEffect(() => {
     void trackEvent("pilot_console_viewed", {});
   }, []);
 
-  if (isLoading) {
+  if (isLoading)
     return (
-      <p className="mx-auto max-w-[1000px] px-4 py-10 text-[13px] text-muted-foreground">
-        Loading…
+      <p className="mx-auto max-w-[1000px] px-4 py-10 text-sm text-muted-foreground">
+        Loading admin overview…
       </p>
     );
-  }
-  if (!data || !data.isAdmin) {
+  if (isError)
+    return (
+      <div role="alert" className="mx-auto max-w-[1000px] px-4 py-10">
+        <p className="text-sm">The admin overview could not load.</p>
+        <button
+          type="button"
+          onClick={() => void refetch()}
+          className="mt-3 rounded-md border border-input px-3 py-2 text-sm hover:bg-secondary"
+        >
+          Try again
+        </button>
+      </div>
+    );
+  if (!data?.isAdmin)
     return (
       <div className="mx-auto max-w-[760px] px-4 py-16 sm:px-6">
-        <h1 className="text-[20px] font-semibold tracking-tight">Operator access required</h1>
-        <p className="mt-2 text-[13px] text-muted-foreground">
+        <h1 className="text-xl font-semibold">Operator access required</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
           This console is limited to the Bluebird administrator account.
         </p>
       </div>
     );
-  }
 
   return (
     <div className="mx-auto max-w-[1000px] space-y-6 px-4 py-10 sm:px-6">
-      <div>
-        <h1 className="text-[22px] font-semibold tracking-tight">
-          Bluebird Marketplace operations
-        </h1>
+      <header>
+        <h1 className="text-[24px] font-semibold tracking-tight">Admin overview</h1>
         <p className="mt-1 text-[13px] text-muted-foreground">
-          Manage classified moderation, seller activity, listing performance, and marketplace
-          controls from one administrator workspace. Every decision writes an append-only audit
-          entry.
+          Manage listings, dealerships, members, and marketplace activity.
         </p>
-        {data.isAdmin && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Link
-              to="/admin/dealer-inquiries"
-              className="inline-flex h-9 items-center rounded-md bg-primary px-3 text-[12.5px] font-medium text-primary-foreground"
+      </header>
+      <AdminNavigation />
+      <div className="grid items-start gap-4 md:grid-cols-2">
+        <Queue title="Orders" count={data.orders.length} emptyLabel="No marketplace orders yet.">
+          {data.orders.map((o) => (
+            <li
+              key={o.id}
+              className="hairline-b flex items-center justify-between gap-3 px-4 py-2.5 last:border-b-0"
             >
-              Dealership inquiries
-            </Link>
-            <a
-              href="/admin/news"
-              className="inline-flex h-9 items-center rounded-md border border-input px-3 text-[12.5px] font-medium hover:bg-secondary"
-            >
-              Bluebird Local editor
-            </a>
-            <Link
-              to="/admin/classifieds"
-              className="inline-flex h-9 items-center rounded-md bg-primary px-3 text-[12.5px] font-medium text-primary-foreground hover:opacity-90"
-            >
-              Classified moderation
-            </Link>
-            <Link
-              to="/admin/catalog"
-              className="inline-flex h-9 items-center rounded-md border border-input px-3 text-[12.5px] font-medium hover:bg-secondary"
-            >
-              Catalog operations
-            </Link>
-            <Link
-              to="/admin/products"
-              className="inline-flex h-9 items-center rounded-md border border-input px-3 text-[12.5px] font-medium hover:bg-secondary"
-            >
-              Edit catalog pages
-            </Link>
-            <Link
-              to="/admin/members"
-              className="inline-flex h-9 items-center rounded-md border border-input px-3 text-[12.5px] font-medium hover:bg-secondary"
-            >
-              Sellers &amp; shoppers
-            </Link>
-            <Link
-              to="/admin/dealers"
-              className="inline-flex h-9 items-center rounded-md border border-input px-3 text-[12.5px] font-medium hover:bg-secondary"
-            >
-              Dealerships
-            </Link>
+              <span>
+                <Link
+                  to="/admin/orders/$orderId"
+                  params={{ orderId: o.id }}
+                  className="numeric font-medium hover:underline"
+                >
+                  {o.orderNumber}
+                </Link>
+                <span className="block text-[11.5px] text-muted-foreground">
+                  {originLabels[o.origin] ?? o.origin} · {orderStatusLabels[o.status] ?? o.status}
+                </span>
+              </span>
+              <span className="numeric">{formatUsd(o.totalCents)}</span>
+            </li>
+          ))}
+        </Queue>
 
-            <Link
-              to="/admin/validation"
-              className="inline-flex h-9 items-center rounded-md border border-input px-3 text-[12.5px] font-medium hover:bg-secondary"
+        <Queue title="Disputes" count={data.disputes.length} emptyLabel="No open disputes.">
+          {data.disputes.map((d) => (
+            <li
+              key={d.id}
+              className="hairline-b flex items-start justify-between gap-3 px-4 py-2.5 last:border-b-0"
             >
-              Validation summary
-            </Link>
-            <Link
-              to="/admin/traffic"
-              className="inline-flex h-9 items-center rounded-md border border-input px-3 text-[12.5px] font-medium hover:bg-secondary"
-            >
-              Traffic &amp; contacts
-            </Link>
-            <Link
-              to="/admin/dealer-inventory"
-              className="inline-flex h-9 items-center rounded-md border border-input px-3 text-[12.5px] font-medium hover:bg-secondary"
-            >
-              Dealer inventory feeds
-            </Link>
-            <Link
-              to="/admin/review-flags"
-              className="inline-flex h-9 items-center rounded-md border border-input px-3 text-[12.5px] font-medium hover:bg-secondary"
-            >
-              Flagged reviews
-            </Link>
-            <Link
-              to="/admin/conversation-reports"
-              className="inline-flex h-9 items-center rounded-md border border-input px-3 text-[12.5px] font-medium hover:bg-secondary"
-            >
-              Conversation reports
-            </Link>
-            <Link
-              to="/admin/fb-import"
-              className="inline-flex h-9 items-center rounded-md border border-input px-3 text-[12.5px] font-medium hover:bg-secondary"
-            >
-              Facebook seller import
-            </Link>
-          </div>
-        )}
-      </div>
-
-      <Queue title="Orders" count={data.orders.length} emptyLabel="No marketplace orders yet.">
-        {data.orders.map((o) => (
-          <li
-            key={o.id}
-            className="hairline-b flex items-center justify-between gap-3 px-4 py-2.5 last:border-b-0"
-          >
-            <span>
+              <span>
+                {disputeStatusLabels[d.status] ?? d.status}
+                <span className="block text-[11.5px] text-muted-foreground">{d.reason}</span>
+              </span>
               <Link
                 to="/admin/orders/$orderId"
-                params={{ orderId: o.id }}
-                className="numeric font-medium hover:underline"
+                params={{ orderId: d.orderId }}
+                className="shrink-0 text-[12px] text-muted-foreground hover:text-foreground"
               >
-                {o.orderNumber}
+                Open order
               </Link>
-              <span className="block text-[11.5px] text-muted-foreground">
-                {originLabels[o.origin] ?? o.origin} · {orderStatusLabels[o.status] ?? o.status}
-              </span>
-            </span>
-            <span className="numeric">{formatUsd(o.totalCents)}</span>
-          </li>
-        ))}
-      </Queue>
-
-      <section className="rounded-lg border border-border bg-card px-4 py-3">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-[13px] font-semibold tracking-tight">
-            Payment environment readiness
-          </h2>
-          <span
-            className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
-              paymentReadiness.data?.safeForTestExecution
-                ? "bg-emerald-100 text-emerald-800"
-                : "bg-amber-100 text-amber-900"
-            }`}
-          >
-            {paymentReadiness.data?.safeForTestExecution
-              ? "Test mode ready"
-              : "Test execution blocked"}
-          </span>
-        </div>
-        <p className="mt-1 text-[12px] text-muted-foreground">
-          {paymentReadiness.isLoading
-            ? "Checking Stripe configuration…"
-            : (paymentReadiness.data?.message ?? "Payment readiness could not be checked.")}
-        </p>
-        <p className="mt-1 text-[11px] text-muted-foreground">
-          Live credentials are never used for audit transactions. Configure Stripe test credentials
-          and a webhook secret before running a payment test.
-        </p>
-      </section>
-
-      <Queue
-        title="Purchase evidence awaiting review"
-        count={data.evidenceToReview.length}
-        emptyLabel="No receipts or item photographs are waiting for confirmation."
-      >
-        {data.evidenceToReview.map((e) => (
-          <li
-            key={e.id}
-            className="hairline-b flex items-center justify-between gap-3 px-4 py-2.5 last:border-b-0"
-          >
-            <span>
-              {evidenceKindLabels[e.kind] ?? e.kind}
-              <span className="block text-[11.5px] text-muted-foreground">
-                {e.receiptAmountCents != null ? `${formatUsd(e.receiptAmountCents)} · ` : ""}
-                {new Date(e.createdAt).toLocaleString()}
-              </span>
-            </span>
-            <Link
-              to="/admin/orders/$orderId"
-              params={{ orderId: e.orderId }}
-              className="text-[12px] text-muted-foreground hover:text-foreground"
-            >
-              Review
-            </Link>
-          </li>
-        ))}
-      </Queue>
-
-      <Queue title="Disputes" count={data.disputes.length} emptyLabel="No open disputes.">
-        {data.disputes.map((d) => (
-          <li
-            key={d.id}
-            className="hairline-b flex items-start justify-between gap-3 px-4 py-2.5 last:border-b-0"
-          >
-            <span>
-              {disputeStatusLabels[d.status] ?? d.status}
-              <span className="block text-[11.5px] text-muted-foreground">{d.reason}</span>
-            </span>
-            <Link
-              to="/admin/orders/$orderId"
-              params={{ orderId: d.orderId }}
-              className="shrink-0 text-[12px] text-muted-foreground hover:text-foreground"
-            >
-              Open order
-            </Link>
-          </li>
-        ))}
-      </Queue>
-
-      <Queue
-        title="Product suggestions"
-        count={data.suggestions.length}
-        emptyLabel="No product suggestions are waiting for review."
-      >
-        {data.suggestions.map((s) => (
-          <li key={s.id} className="hairline-b px-4 py-2.5 last:border-b-0">
-            {s.proposedName}
-            <span className="block text-[11.5px] text-muted-foreground">
-              {s.status} · {new Date(s.createdAt).toLocaleDateString()}
-            </span>
-          </li>
-        ))}
-      </Queue>
-
-      <Queue
-        title="Flagged sightings"
-        count={data.flaggedSightings.length}
-        emptyLabel="No sightings have been flagged."
-      >
-        {data.flaggedSightings.map((s) => (
-          <li key={s.id} className="hairline-b px-4 py-2.5 last:border-b-0">
-            {s.flagCount} flag(s) · {s.confirmationCount} confirmation(s)
-            <span className="block text-[11.5px] text-muted-foreground">
-              Seen {new Date(s.seenAt).toLocaleString()}
-            </span>
-          </li>
-        ))}
-      </Queue>
-
-      <Queue
-        title="Shopper applications"
-        count={data.shopperApplications.length}
-        emptyLabel="No shopper applications are waiting for review."
-      >
-        {data.shopperApplications.map((a) => (
-          <ShopperApplicationRow key={a.id} application={a} />
-        ))}
-      </Queue>
+            </li>
+          ))}
+        </Queue>
+      </div>
     </div>
   );
 }
