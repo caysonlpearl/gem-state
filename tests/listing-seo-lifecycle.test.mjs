@@ -218,6 +218,7 @@ test("partner-home desktop contact actions are measured without inventing a comp
     trackSellerContact: (method, value) => calls.push({ method, id: value.id }),
     estimatedMonthlyPayment: () => 0,
     EmployerTile() {},
+    SinceAndStrength() {},
     Phone() {},
     ArrowSquareOut() {},
   });
