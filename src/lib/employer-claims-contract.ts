@@ -32,7 +32,12 @@ export function validateEmployerClaimInput(input: EmployerClaimInput): ValidEmpl
   const role = String(input?.role ?? "").trim();
   const contact = String(input?.contact ?? "").trim();
   const note = String(input?.note ?? "").trim();
-  if (employerName.length < 2 || employerName.length > 200 || key.length < 3)
+  if (
+    employerName.length < 2 ||
+    employerName.length > 200 ||
+    key.length < 3 ||
+    NOT_A_COMPANY.has(key)
+  )
     throw new Error("This business can't be claimed.");
   if (city.length > 120 || state.length > 40) throw new Error("That place doesn't look right.");
   if (role.length < 2 || role.length > 80) throw new Error("Tell us your role at the business.");
