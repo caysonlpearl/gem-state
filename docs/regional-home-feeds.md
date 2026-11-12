@@ -24,6 +24,12 @@ The two Zillow search APIs return up to 41 summaries per page. Those summaries a
 
 The importer protects remaining weekly-search credits before using requests on full details. Multiple failed attempts at the same search in one week do not erase the reserve for later weeks. Database reservations remain the final atomic limit.
 
+### Authorized backup account
+
+The homes scheduler can use a separately activated backup account on the same provider when the primary account reaches its daily allowance, monthly allowance, or protected weekly-search reserve. Set server-only `OPENWEBNINJA_BACKUP_API_KEY` and explicitly list the activated subscriptions in `OPENWEBNINJA_BACKUP_HOME_PROVIDERS` (`zillow,realestate,redfin`). An absent allowlist disables the backup. The same credential cannot be counted as two accounts.
+
+Apply `20261112030000_home_backup_account_budget.sql` before deploying backup support. Existing ledger entries remain `primary`; every new request records its actual account. Each account/provider combination retains the 100-per-rolling-31-days and 25-per-rolling-day limits. The primary is preferred, both accounts reserve future weekly searches, and neither changes regional ownership. All accounts share saved searches, full details, address deduplication, expiry rules, and the property retry lock. Public reads still spend no requests. Remove the backup allowlist to stop future backup calls without removing imported homes.
+
 ## Freshness and publication
 
 Prices and availability refresh weekly; regional source caches expire after eight days. Once a regional source has been seeded, legacy searches cannot resurrect its inventory after expiry. Full photos/descriptions/specifications refresh every 31 days, and expired full records are hidden until renewed. Overdue detail renewals run before new acquisitions. Public pages and SSR only read saved data, never spend provider calls.

@@ -26,6 +26,28 @@ import {
 // database reservation enforces that full allowance per existing subscription.
 export const CACHE_MS = 30 * 24 * 60 * 60 * 1000;
 export const REGIONAL_SEARCH_CACHE_MS = 8 * 86_400_000;
+export type HomeProviderAccount = "primary" | "backup";
+
+/** Backup access is opt-in per activated subscription. Keys stay server-side;
+ * the shared property cache and IDs do not change when the account changes. */
+export function homeProviderAccounts(provider: HomeProvider): HomeProviderAccount[] {
+  const accounts: HomeProviderAccount[] = [];
+  if (
+    serverEnv("OPENWEBNINJA_API_KEY") &&
+    (provider !== "redfin" || serverEnv("OPENWEBNINJA_REDFIN_ENABLED") === "true")
+  )
+    accounts.push("primary");
+  const backupProviders = (serverEnv("OPENWEBNINJA_BACKUP_HOME_PROVIDERS") || "")
+    .split(",")
+    .map((value) => value.trim());
+  if (
+    serverEnv("OPENWEBNINJA_BACKUP_API_KEY") &&
+    serverEnv("OPENWEBNINJA_BACKUP_API_KEY") !== serverEnv("OPENWEBNINJA_API_KEY") &&
+    backupProviders.includes(provider)
+  )
+    accounts.push("backup");
+  return accounts;
+}
 /**
  * Three independent subscriptions own disjoint Idaho regions. Redfin uses
  * its own endpoint schema and property ID namespace.
@@ -63,14 +85,19 @@ async function cachedCall<T>(
     forceRefresh?: boolean;
     ttlMs?: number;
     provider?: HomeProvider;
+    account?: HomeProviderAccount;
     allowStale?: boolean;
   },
 ): Promise<{ ok: true; value: T } | { ok: false; status: "unavailable" | "limited" }> {
   const ttlMs = options?.ttlMs ?? CACHE_MS;
   const provider = options?.provider ?? "zillow";
-  const apiKey = serverEnv("OPENWEBNINJA_API_KEY");
+  const account = options?.account ?? "primary";
+  const apiKey = serverEnv(
+    account === "backup" ? "OPENWEBNINJA_BACKUP_API_KEY" : "OPENWEBNINJA_API_KEY",
+  );
   const db = cacheDb();
-  if (!apiKey || !db) return { ok: false, status: "unavailable" };
+  if (!apiKey || !db || !homeProviderAccounts(provider).includes(account))
+    return { ok: false, status: "unavailable" };
   const forceRefresh = options?.forceRefresh === true;
   let previousPayload: T | null = null;
   let previousExpiresAt: string | null = null;
@@ -96,12 +123,18 @@ async function cachedCall<T>(
       await db.from("openwebninja_cache").delete().eq("cache_key", key);
     }
     const { data: reservation, error } =
-      provider === "zillow"
-        ? await db.rpc("reserve_openwebninja_call", { p_cache_key: key })
-        : await db.rpc("reserve_openwebninja_provider_call", {
+      account === "backup"
+        ? await db.rpc("reserve_openwebninja_account_call", {
             p_cache_key: key,
             p_provider: provider,
-          });
+            p_account: account,
+          })
+        : provider === "zillow"
+          ? await db.rpc("reserve_openwebninja_call", { p_cache_key: key })
+          : await db.rpc("reserve_openwebninja_provider_call", {
+              p_cache_key: key,
+              p_provider: provider,
+            });
     if (error || !reservation) {
       await restorePrevious();
       return previousPayload && options?.allowStale !== false
@@ -159,10 +192,7 @@ async function cachedCall<T>(
 }
 
 export function openWebNinjaConfigured(provider?: HomeProvider) {
-  return (
-    Boolean(serverEnv("OPENWEBNINJA_API_KEY")) &&
-    (provider !== "redfin" || serverEnv("OPENWEBNINJA_REDFIN_ENABLED") === "true")
-  );
+  return homeProviderAccounts(provider ?? "zillow").length > 0;
 }
 
 /** A regional source remains authoritative even while its price feed is
@@ -309,7 +339,12 @@ export async function searchHomesArea(
   state: string,
   area: OpenWebNinjaSearchArea,
   mode: OpenWebNinjaMode,
-  options?: { forceRefresh?: boolean; provider?: HomeProvider; page?: number },
+  options?: {
+    forceRefresh?: boolean;
+    provider?: HomeProvider;
+    page?: number;
+    account?: HomeProviderAccount;
+  },
 ) {
   const provider = options?.provider ?? "zillow";
   if (!openWebNinjaConfigured(provider)) return { status: "unavailable" as const, homes: [] };
@@ -401,7 +436,7 @@ export const propertyKey = (id: string) => JSON.stringify({ v: 4, kind: "propert
 export async function propertyDetails(
   id: string,
   sourceUrl?: string | null,
-  options?: { cacheOnly?: boolean; provider?: HomeProvider },
+  options?: { cacheOnly?: boolean; provider?: HomeProvider; account?: HomeProviderAccount },
 ): Promise<
   { ok: true; value: OpenWebNinjaPropertyExtra } | { ok: false; status: "unavailable" | "limited" }
 > {
@@ -457,6 +492,7 @@ export async function propertyDetails(
       ttlMs: DETAIL_TTL_MS,
       allowStale: false,
       provider: options?.provider,
+      account: options?.account,
     },
   );
   // Failed refreshes may retain an old partial payload. It is still not a

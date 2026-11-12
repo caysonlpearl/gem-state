@@ -3685,18 +3685,21 @@ export type Database = {
       }
       openwebninja_api_requests: {
         Row: {
+          account: string
           cache_key: string
           created_at: string
           id: number
           provider: string
         }
         Insert: {
+          account?: string
           cache_key: string
           created_at?: string
           id?: never
           provider?: string
         }
         Update: {
+          account?: string
           cache_key?: string
           created_at?: string
           id?: never
@@ -8771,6 +8774,10 @@ export type Database = {
       reserve_mashvisor_search: { Args: { p_query_key: string }; Returns: Json }
       reserve_openwebninja_call: {
         Args: { p_cache_key: string }
+        Returns: Json
+      }
+      reserve_openwebninja_account_call: {
+        Args: { p_cache_key: string; p_provider: string; p_account: string }
         Returns: Json
       }
       reserve_openwebninja_provider_call: {

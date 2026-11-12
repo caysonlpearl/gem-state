@@ -16,6 +16,7 @@ function fixture({
   due = [],
   searchError = false,
   requestsError = false,
+  backup = false,
 } = {}) {
   const calls = [],
     saved = new Set(complete);
@@ -58,6 +59,7 @@ function fixture({
       },
     }),
     openWebNinjaConfigured: (provider) => provider !== "redfin",
+    homeProviderAccounts: () => (backup ? ["primary", "backup"] : ["primary"]),
     CACHE_MS: 30 * 86400000,
     areaSearchKey: (state, area, mode) =>
       JSON.stringify({ v: 1, kind: "area-search", state, area, mode }),
@@ -69,11 +71,20 @@ function fixture({
       { id: "3", address: "3 Main St", city: "Boise", state: "ID" },
     ],
     searchHomesArea: async (...args) => {
-      calls.push({ type: "search", provider: args[3].provider });
+      calls.push({
+        type: "search",
+        provider: args[3].provider,
+        ...(args[3].account === "backup" ? { account: "backup" } : {}),
+      });
       return { homes: [] };
     },
     propertyDetails: async (id, _url, options) => {
-      calls.push({ type: "detail", id, provider: options.provider });
+      calls.push({
+        type: "detail",
+        id,
+        provider: options.provider,
+        ...(options.account === "backup" ? { account: "backup" } : {}),
+      });
       if (options.provider === limitedProvider) return { ok: false, status: "limited" };
       return fail ? { ok: false, status: "unavailable" } : { ok: true, value: {} };
     },
@@ -198,4 +209,67 @@ test("monthly detail renewals take priority over new acquisitions in each region
   const f = fixture({ due: ["3"] });
   await f.api.advanceHomeFeed();
   assert.equal(f.calls.find((call) => call.provider === "zillow").id, "3");
+});
+
+test("backup fills the same region when primary credits are protected for weekly refreshes", async () => {
+  const f = fixture({
+    backup: true,
+    recent: Array.from({ length: 93 }, (_, i) => ({
+      ...request("primary-" + i),
+      account: "primary",
+      created_at: new Date(Date.now() - 2 * 86400000).toISOString(),
+    })),
+  });
+  await f.api.advanceHomeFeed();
+  assert.deepEqual(
+    f.calls.find((c) => c.provider === "zillow"),
+    { type: "detail", id: "1", provider: "zillow", account: "backup" },
+  );
+  assert.equal(f.calls.find((c) => c.provider === "realestate").account, undefined);
+});
+
+test("primary daily exhaustion uses backup without retrying a failed property", async () => {
+  const f = fixture({
+    backup: true,
+    recent: Array.from({ length: 25 }, (_, i) => ({
+      ...request(i === 0 ? "1" : "primary-" + i),
+      account: "primary",
+    })),
+  });
+  await f.api.advanceHomeFeed();
+  assert.deepEqual(
+    f.calls.find((c) => c.provider === "zillow"),
+    { type: "detail", id: "3", provider: "zillow", account: "backup" },
+  );
+});
+
+test("backup usage is counted independently and cannot exceed its daily allowance", async () => {
+  const f = fixture({
+    backup: true,
+    recent: ["primary", "backup"].flatMap((account) =>
+      Array.from({ length: 25 }, (_, i) => ({ ...request(account + "-" + i), account })),
+    ),
+  });
+  const result = await f.api.advanceHomeFeed();
+  assert.equal(result.zillow.skipped, "daily pace reached");
+  assert.equal(
+    f.calls.some((c) => c.provider === "zillow"),
+    false,
+  );
+});
+
+test("searches use backup only after primary's monthly allowance is exhausted", async () => {
+  const f = fixture({
+    backup: true,
+    age: 8,
+    recent: Array.from({ length: 100 }, (_, i) => ({
+      ...request("primary-" + i),
+      created_at: new Date(Date.now() - 2 * 86400000).toISOString(),
+    })),
+  });
+  await f.api.advanceHomeFeed();
+  assert.deepEqual(
+    f.calls.find((c) => c.provider === "zillow"),
+    { type: "search", provider: "zillow", account: "backup" },
+  );
 });
