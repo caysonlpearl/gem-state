@@ -27,6 +27,7 @@ import {
 export const CACHE_MS = 30 * 24 * 60 * 60 * 1000;
 export const REGIONAL_SEARCH_CACHE_MS = 8 * 86_400_000;
 export type HomeProviderAccount = "primary" | "backup";
+type HomeRequestBudget = { accounts: HomeProviderAccount[]; reservedSearches: number };
 
 /** Backup access is opt-in per activated subscription. Keys stay server-side;
  * the shared property cache and IDs do not change when the account changes. */
@@ -86,6 +87,7 @@ async function cachedCall<T>(
     ttlMs?: number;
     provider?: HomeProvider;
     account?: HomeProviderAccount;
+    budget?: HomeRequestBudget;
     allowStale?: boolean;
   },
 ): Promise<{ ok: true; value: T } | { ok: false; status: "unavailable" | "limited" }> {
@@ -122,8 +124,15 @@ async function cachedCall<T>(
       previousExpiresAt = previous?.expires_at ?? null;
       await db.from("openwebninja_cache").delete().eq("cache_key", key);
     }
-    const { data: reservation, error } =
-      account === "backup"
+    const { data: reservation, error } = options?.budget
+      ? await db.rpc("reserve_openwebninja_home_call", {
+          p_cache_key: key,
+          p_provider: provider,
+          p_account: account,
+          p_accounts: options.budget.accounts,
+          p_reserved_searches: options.budget.reservedSearches,
+        })
+      : account === "backup"
         ? await db.rpc("reserve_openwebninja_account_call", {
             p_cache_key: key,
             p_provider: provider,
@@ -427,7 +436,7 @@ export const areaSearchKey = (
         mode,
         provider,
         page,
-        ...(provider === "redfin" ? { method: "coordinates" } : {}),
+        ...(provider === "redfin" ? { method: "coordinates", numHomes: 350 } : {}),
       })
     : JSON.stringify({ v: 1, kind: "area-search", state, area, mode });
 
@@ -436,7 +445,12 @@ export const propertyKey = (id: string) => JSON.stringify({ v: 4, kind: "propert
 export async function propertyDetails(
   id: string,
   sourceUrl?: string | null,
-  options?: { cacheOnly?: boolean; provider?: HomeProvider; account?: HomeProviderAccount },
+  options?: {
+    cacheOnly?: boolean;
+    provider?: HomeProvider;
+    account?: HomeProviderAccount;
+    budget?: HomeRequestBudget;
+  },
 ): Promise<
   { ok: true; value: OpenWebNinjaPropertyExtra } | { ok: false; status: "unavailable" | "limited" }
 > {
@@ -493,6 +507,7 @@ export async function propertyDetails(
       allowStale: false,
       provider: options?.provider,
       account: options?.account,
+      budget: options?.budget,
     },
   );
   // Failed refreshes may retain an old partial payload. It is still not a

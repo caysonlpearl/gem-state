@@ -15,14 +15,28 @@ export const Route = createFileRoute("/api/internal/service-ratings")({
         // and database budgets without running unrelated provider imports.
         if (new URL(request.url).searchParams.get("homesOnly") === "1") {
           const { advanceHomeFeed } = await import("@/lib/openwebninja-listings.server");
-          return Response.json({ homes: await advanceHomeFeed() });
+          const steps = Math.max(
+            1,
+            Math.min(
+              5,
+              Number.parseInt(new URL(request.url).searchParams.get("steps") ?? "1", 10) || 1,
+            ),
+          );
+          const started = Date.now();
+          let homes = await advanceHomeFeed();
+          let completedSteps = 1;
+          while (completedSteps < steps && Date.now() - started < 15_000) {
+            homes = await advanceHomeFeed();
+            completedSteps++;
+          }
+          return Response.json({ homes, completedSteps });
         }
         const { rateNextTradeCity } = await import("@/lib/service-directory.server");
         const { advanceHomeFeed } = await import("@/lib/openwebninja-listings.server");
         const { advanceMerchandiseFeed } = await import("@/lib/avantlink.server");
         const { refreshHomepageSnapshot } = await import("@/lib/homepage-snapshot.server");
         // Each existing homes subscription advances once per run. Database
-        // reservations enforce its daily and monthly spending ceilings.
+        // reservations enforce monthly caps and preserve weekly-update credits.
         const [ratings, homes, merchandise, homepage] = await Promise.all([
           rateNextTradeCity().catch(() => null),
           advanceHomeFeed().catch((error) => ({ error: String(error?.message ?? error) })),

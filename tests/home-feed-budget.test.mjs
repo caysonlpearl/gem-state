@@ -126,18 +126,15 @@ test("remaining monthly allowance is usable after three calls today, without dup
     { type: "detail", id: "1", provider: "zillow" },
     { type: "detail", id: "2", provider: "realestate" },
   ]);
-  assert.equal(f.api.HOME_DETAIL_DAILY_PACE, 25);
 });
-test("the existing 25-call daily ceiling still stops each provider", async () => {
+test("more than 25 calls today do not stop remaining monthly detail allowance", async () => {
   const f = fixture({
     recent: ["zillow", "realestate"].flatMap((provider) =>
-      Array.from({ length: 25 }, (_, i) => request(String(i), provider)),
+      Array.from({ length: 30 }, (_, i) => request("old-" + i, provider)),
     ),
   });
-  const result = await f.api.advanceHomeFeed();
-  assert.equal(f.calls.length, 0);
-  assert.equal(result.zillow.skipped, "daily pace reached");
-  assert.equal(result.realestate.skipped, "daily pace reached");
+  await f.api.advanceHomeFeed();
+  assert.equal(f.calls.length, 2);
 });
 test("configured regions refresh their inventory weekly before filling details", async () => {
   const f = fixture({ age: 8 });
@@ -211,7 +208,7 @@ test("monthly detail renewals take priority over new acquisitions in each region
   assert.equal(f.calls.find((call) => call.provider === "zillow").id, "3");
 });
 
-test("backup fills the same region when primary credits are protected for weekly refreshes", async () => {
+test("a shared weekly reserve permits use of primary credits while backup remains available", async () => {
   const f = fixture({
     backup: true,
     recent: Array.from({ length: 93 }, (_, i) => ({
@@ -223,15 +220,15 @@ test("backup fills the same region when primary credits are protected for weekly
   await f.api.advanceHomeFeed();
   assert.deepEqual(
     f.calls.find((c) => c.provider === "zillow"),
-    { type: "detail", id: "1", provider: "zillow", account: "backup" },
+    { type: "detail", id: "1", provider: "zillow" },
   );
   assert.equal(f.calls.find((c) => c.provider === "realestate").account, undefined);
 });
 
-test("primary daily exhaustion uses backup without retrying a failed property", async () => {
+test("primary monthly exhaustion uses backup without retrying a failed property", async () => {
   const f = fixture({
     backup: true,
-    recent: Array.from({ length: 25 }, (_, i) => ({
+    recent: Array.from({ length: 100 }, (_, i) => ({
       ...request(i === 0 ? "1" : "primary-" + i),
       account: "primary",
     })),
@@ -243,15 +240,15 @@ test("primary daily exhaustion uses backup without retrying a failed property", 
   );
 });
 
-test("backup usage is counted independently and cannot exceed its daily allowance", async () => {
+test("both accounts stop at their independent monthly allowances", async () => {
   const f = fixture({
     backup: true,
     recent: ["primary", "backup"].flatMap((account) =>
-      Array.from({ length: 25 }, (_, i) => ({ ...request(account + "-" + i), account })),
+      Array.from({ length: 100 }, (_, i) => ({ ...request(account + "-" + i), account })),
     ),
   });
   const result = await f.api.advanceHomeFeed();
-  assert.equal(result.zillow.skipped, "daily pace reached");
+  assert.equal(result.zillow.skipped, "monthly allowance reached");
   assert.equal(
     f.calls.some((c) => c.provider === "zillow"),
     false,

@@ -10,6 +10,31 @@ import { homesFromSavedSearches } from "../src/lib/openwebninja-cache.ts";
 import { hasCurrentHomeCache, isIndexablePlaceInventory } from "../src/lib/seo-policy.ts";
 const now = Date.parse("2026-11-01T12:00:00Z");
 
+test("expanded search pages replace older copies, including successful empty responses", () => {
+  const row = (page, numHomes, age, homes) => ({
+    cache_key: JSON.stringify({
+      v: 3,
+      kind: "area-search",
+      area: "north-idaho",
+      provider: "redfin",
+      mode: "buy",
+      page,
+      numHomes,
+    }),
+    expires_at: new Date(now + (8 - age) * 86400000).toISOString(),
+    payload: { homes },
+  });
+  const home = (id) => ({ id, city: "Sandpoint", state: "ID", mode: "buy" });
+  const result = homesFromSavedSearches(
+    [row(1, 40, 1, [home("old")]), row(1, 350, 0, []), row(2, 350, 1, [home("other-page")])],
+    now,
+  );
+  assert.deepEqual(
+    result.map((h) => h.id),
+    ["other-page"],
+  );
+});
+
 test("source posting dates and observed days-on-market remain stable across cache reads", () => {
   const row = {
     zpid: 1,

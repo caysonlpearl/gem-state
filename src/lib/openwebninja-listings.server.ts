@@ -105,9 +105,6 @@ export async function openWebNinjaCards(data: ClassifiedBrowseInput): Promise<Cl
 export const PUBLISHED_AREA_REFRESH_DAYS = 7;
 export const PREVIEW_AREA_REFRESH_DAYS = 7;
 const PROVIDERS: HomeProvider[] = HOME_FEED_REGIONS.map((region) => region.provider);
-/** Match the existing database daily ceiling; the independent 100-call monthly
- * guard remains authoritative. Available credits can fill full homes promptly. */
-export const HOME_DETAIL_DAILY_PACE = 25;
 
 /**
  * One step of the scheduled homes job for each subscription, at most one
@@ -149,15 +146,10 @@ async function advanceHomeFeedFor(
   if (paceError) return { skipped: "per-provider budgets not set up" };
   const budgets = ninja.homeProviderAccounts(provider).map((account) => {
     const requests = providerRequests.filter((row) => (row.account ?? "primary") === account);
-    return {
-      account,
-      requests,
-      usedToday: requests.filter((row) => (Date.parse(row.created_at) || Date.now()) >= today)
-        .length,
-    };
+    return { account, requests };
   });
-  const available = budgets.filter((budget) => budget.usedToday < HOME_DETAIL_DAILY_PACE);
-  if (!available.length) return { skipped: "daily pace reached" };
+  const available = budgets.filter((budget) => budget.requests.length < 100);
+  if (!available.length) return { skipped: "monthly allowance reached" };
   // A failed/partial property must not monopolize the queue or be retried by
   // the other subscription immediately. Retry it after a day, within DB caps.
   const attempted = new Set<string>();
@@ -222,28 +214,24 @@ async function advanceHomeFeedFor(
     };
   }
 
-  const detailBudgets = available.map((budget) => ({
-    ...budget,
-    maintenanceReserve: homeSearchReserve(
-      region,
-      budget.requests,
-      new Set(searchKeys.map((entry) => entry.key)),
-    ),
-  }));
-  // Use the primary first, then the separately activated backup. Never move
-  // a region to a different provider or spend its weekly maintenance reserve.
-  const budget = detailBudgets.find(
-    (entry) => 100 - entry.requests.length > entry.maintenanceReserve,
+  // Both accounts maintain the same inventory. Reserve the remaining weekly
+  // searches once across their combined allowance, not once per account.
+  const maintenanceReserve = homeSearchReserve(
+    region,
+    providerRequests,
+    new Set(searchKeys.map((entry) => entry.key)),
   );
-  if (!budget)
+  const remaining = budgets.reduce(
+    (sum, budget) => sum + Math.max(0, 100 - budget.requests.length),
+    0,
+  );
+  if (remaining <= maintenanceReserve)
     return {
       skipped: "weekly refresh allowance protected",
-      budgets: detailBudgets.map((entry) => ({
-        account: entry.account,
-        usedThisMonth: entry.requests.length,
-        reservedForSearches: entry.maintenanceReserve,
-      })),
+      remaining,
+      reservedForSearches: maintenanceReserve,
     };
+  const budget = available[0];
 
   // 2. Renew monthly details first, then acquire complete new homes.
   const allHomes = await ninja.cachedHomes();
@@ -271,7 +259,14 @@ async function advanceHomeFeedFor(
       skipped: "no eligible detail candidates",
     };
   sweep.attempted.add(next);
-  const detail = await ninja.propertyDetails(next, null, { provider, account: budget.account });
+  const detail = await ninja.propertyDetails(next, null, {
+    provider,
+    account: budget.account,
+    budget: {
+      accounts: budgets.map((entry) => entry.account),
+      reservedSearches: maintenanceReserve,
+    },
+  });
   // A budget rejection reserves no call. The same region owner may retry
   // later; upstream attempts are also protected by the DB ledger.
   if (!detail.ok && detail.status === "limited") sweep.attempted.delete(next);

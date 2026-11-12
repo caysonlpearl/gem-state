@@ -112,10 +112,26 @@ export function homeSearchReserve(
   now = Date.now(),
 ) {
   const weekly = 7 * 86_400_000;
+  const slot = (key: string) => {
+    try {
+      const value = JSON.parse(key);
+      if (value.kind === "area-search")
+        return JSON.stringify({
+          state: value.state,
+          area: value.area,
+          mode: value.mode,
+          provider: value.provider,
+          page: value.page ?? 1,
+        });
+    } catch {
+      /* Diagnostic keys do not represent weekly search slots. */
+    }
+    return key;
+  };
   let completedSlots = 0;
-  for (const key of keys) {
+  for (const key of new Set([...keys].map(slot))) {
     const times = requests
-      .filter((row) => row.cache_key === key)
+      .filter((row) => slot(row.cache_key) === key)
       .map((row) => Date.parse(row.created_at ?? "") || now)
       .sort((a, b) => b - a);
     let newest = Infinity;

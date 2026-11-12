@@ -73,3 +73,14 @@ test("the existing scheduled maintenance run retains all its source jobs", async
   assert.equal((await f.run()).status, 200);
   assert.deepEqual(f.calls, { homes: 1, ratings: 1, merchandise: 1, homepage: 1 });
 });
+
+test("operator batches are bounded and cannot run unrelated source jobs", async () => {
+  const f = fixture();
+  const response = await f.run("?homesOnly=1&steps=1000");
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).completedSteps, 5);
+  assert.deepEqual(f.calls, { homes: 5, ratings: 0, merchandise: 0, homepage: 0 });
+  const unauth = fixture();
+  assert.equal((await unauth.run("?homesOnly=1&steps=5", false)).status, 401);
+  assert.equal(unauth.calls.homes, 0);
+});

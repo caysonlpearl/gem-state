@@ -8780,6 +8780,10 @@ export type Database = {
         Args: { p_cache_key: string; p_provider: string; p_account: string }
         Returns: Json
       }
+      reserve_openwebninja_home_call: {
+        Args: { p_cache_key: string; p_provider: string; p_account: string; p_accounts: string[]; p_reserved_searches: number }
+        Returns: Json
+      }
       reserve_openwebninja_provider_call: {
         Args: { p_cache_key: string; p_provider: string }
         Returns: Json
