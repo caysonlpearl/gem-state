@@ -93,7 +93,10 @@ export async function adzunaCards(
         ]
       : undefined;
   const { searchJobs, cachedJobs } = await import("./adzuna.server");
-  const result = options?.cacheOnly
+  // Employer links must search the full active catalog, not filter the first
+  // 50 generic Idaho results from a fresh provider search.
+  const useCatalog = options?.cacheOnly || Boolean(data.jobEmployer);
+  const result = useCatalog
     ? await cachedJobs()
     : await searchJobs({
         what: data.q ?? "",
@@ -109,7 +112,7 @@ export async function adzunaCards(
   const cards = result.jobs
     .filter(
       (job) =>
-        (!options?.cacheOnly ||
+        (!useCatalog ||
           !data.q ||
           `${job.title} ${job.description} ${job.company}`
             .toLowerCase()
