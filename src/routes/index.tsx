@@ -1028,18 +1028,20 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
       {/* Everything else */}
       <section className="mt-16">
         <h2 className="text-[26px] font-bold tracking-tight">Browse other classifieds</h2>
-        <div className="mt-5 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="mt-5 grid grid-cols-3 gap-2 sm:gap-4 lg:grid-cols-5">
           {homepageCategoryHighlights.map((option) => (
             <Link
               key={option.slug}
               to="/browse"
               search={{ category: option.slug }}
-              className="group rounded-2xl border border-transparent bg-card px-4 py-5 shadow-sm transition-shadow hover:shadow-md"
+              className="group min-w-0 rounded-xl border border-transparent bg-card px-2.5 py-3 shadow-sm transition-shadow hover:shadow-md sm:rounded-2xl sm:px-4 sm:py-5"
             >
-              <span className="flex h-12 items-center">
+              <span className="mb-1 flex h-10 w-10 items-center sm:mb-0 sm:h-12 sm:w-full">
                 <CategoryArtwork slug={option.slug} size={54} className="category-art--nav" />
               </span>
-              <span className="block text-[13px] font-semibold">{option.name}</span>
+              <span className="block text-[11px] font-semibold leading-4 sm:text-[13px] sm:leading-normal">
+                {option.name}
+              </span>
             </Link>
           ))}
         </div>
