@@ -1598,6 +1598,9 @@ function RelatedRails({
               to="/browse"
               search={{
                 ...(listing.categorySlug ? { category: listing.categorySlug } : {}),
+                ...(listing.home
+                  ? { homeTab: listing.home.mode, homeMode: "results" as const }
+                  : {}),
                 ...(!listing.externalMerchandise
                   ? listing.region
                     ? { region: listing.region }
@@ -2626,19 +2629,19 @@ function HomeDetailSections({
     return () => observer.disconnect();
   }, []);
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
-        if (visible) setActive(visible.target.id.replace("home-", ""));
-      },
-      { rootMargin: `-${headerOffset + 60}px 0px -45% 0px` },
+    const sections = Array.from(
+      sectionRoot.current?.querySelectorAll<HTMLElement>("[data-home-section]") ?? [],
     );
-    sectionRoot.current
-      ?.querySelectorAll("[data-home-section]")
-      .forEach((el) => observer.observe(el));
-    return () => observer.disconnect();
+    const update = () => {
+      const passed = sections.filter(
+        (section) => section.getBoundingClientRect().top <= headerOffset + 100,
+      );
+      const current = passed[passed.length - 1] ?? sections[0];
+      if (current) setActive(current.id.replace("home-", ""));
+    };
+    window.addEventListener("scroll", update, { passive: true });
+    update();
+    return () => window.removeEventListener("scroll", update);
   }, [headerOffset]);
   const links = [
     ["overview", "Overview"],
@@ -3106,7 +3109,7 @@ function HomeListingDetail({
                 .map(([icon, label]) => (
                   <li
                     key={label}
-                    className="flex min-w-0 items-start gap-3 rounded-2xl border border-[#e1e6e9] bg-[#f0f3f5] px-3.5 py-4 text-[13px] font-semibold leading-5 sm:px-4"
+                    className="flex min-w-0 items-start gap-3 rounded-[14px] border border-[#e1e6e9] bg-[#f0f3f5] px-3.5 py-4 text-[13px] font-semibold leading-5 sm:px-4"
                   >
                     <span className="mt-0.5 shrink-0 text-primary">{icon}</span>
                     <span className="line-clamp-2 min-w-0" title={label}>
