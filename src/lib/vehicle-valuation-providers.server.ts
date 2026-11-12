@@ -114,7 +114,12 @@ export function normalizeVehicleEstimate(
   body: unknown,
   input: ValuationInput,
   now = new Date(),
+  diagnostics?: { reason?: string },
 ): VehicleEstimate | null {
+  const reject = (reason: string): null => {
+    if (diagnostics) diagnostics.reason = reason;
+    return null;
+  };
   const row = record(body);
   let estimateCents: number | null = null;
   let modelErrorPct: number | null = null;
@@ -125,28 +130,27 @@ export function normalizeVehicleEstimate(
     const used = record(row.inputs);
     const coverage = record(row.coverage);
     const date = record(row.meta).dataThrough;
-    if (
-      coverage.status !== "in_domain" ||
-      typeof date !== "string" ||
-      !Number.isFinite(Date.parse(date)) ||
-      now.getTime() - Date.parse(date) > 90 * 86400000 ||
-      Date.parse(date) > now.getTime() + 86400000
-    )
-      return null;
+    if (coverage.status !== "in_domain")
+      return reject(`coverage_${String(coverage.status ?? "missing").slice(0, 30)}`);
+    if (typeof date !== "string" || !Number.isFinite(Date.parse(date)))
+      return reject("source_date_missing_or_invalid");
+    if (now.getTime() - Date.parse(date) > 90 * 86400000) return reject("source_data_stale");
+    if (Date.parse(date) > now.getTime() + 86400000) return reject("source_date_future");
     dataThrough = date;
-    // The model always returns a number, even for unrecognized models. Reject lost or altered inputs.
-    if (
-      row.currency !== "USD" ||
-      row.source !== "vehicles.dev" ||
-      used.year !== input.year ||
-      String(used.make).toLowerCase() !== input.make.toLowerCase() ||
-      used.model !== input.model ||
-      used.miles !== input.miles ||
-      used.state !== input.state ||
-      (input.trim && used.trim !== input.trim) ||
-      used.condition !== (input.certified ? "cpo" : input.condition)
-    )
-      return null;
+    // Keep the same strict checks, with field-only diagnostics that contain no VINs or secrets.
+    const identityChecks: [string, boolean][] = [
+      ["currency", row.currency === "USD"],
+      ["source", row.source === "vehicles.dev"],
+      ["year", used.year === input.year],
+      ["make", String(used.make).toLowerCase() === input.make.toLowerCase()],
+      ["model", used.model === input.model],
+      ["mileage", used.miles === input.miles],
+      ["state", used.state === input.state],
+      ["trim", !input.trim || used.trim === input.trim],
+      ["condition", used.condition === (input.certified ? "cpo" : input.condition)],
+    ];
+    const mismatch = identityChecks.find(([, valid]) => !valid);
+    if (mismatch) return reject(`input_${mismatch[0]}_mismatch`);
     const optionalFeatures = {
       drivetrain: input.drivetrain,
       fuel: input.fuel,
@@ -173,7 +177,8 @@ export function normalizeVehicleEstimate(
         unconfirmedInputs.push(key);
         continue;
       }
-      if (String(used[key]).toLowerCase() !== String(value).toLowerCase()) return null;
+      if (String(used[key]).toLowerCase() !== String(value).toLowerCase())
+        return reject(`input_${key}_mismatch`);
       providerInputs.push(key);
     }
     estimateCents = price(row.estimateUsd);
@@ -183,7 +188,7 @@ export function normalizeVehicleEstimate(
       row.medianApePct <= 0 ||
       row.medianApePct > 15
     )
-      return null;
+      return reject("model_error_invalid");
     modelErrorPct = row.medianApePct;
   } else if (provider === "vinaudit") {
     if (
@@ -209,5 +214,5 @@ export function normalizeVehicleEstimate(
         providerInputs,
         unconfirmedInputs,
       }
-    : null;
+    : reject("estimate_invalid");
 }
