@@ -279,3 +279,69 @@ test("reused provider dealer IDs keep different branches separate and old aliase
   const result = report([], { businesses: [api, other, legacy], attributions: [] });
   assert.equal(result.businesses.length, 2);
 });
+test("registered business sellers retain native inventory and storefront activity across categories", () => {
+  const diesel = {
+    ...mass,
+    key: "seller:diesel",
+    canonicalKey: "seller:diesel",
+    name: "Diesel Depot",
+    dealerSlug: "",
+    sellerSlug: "diesel",
+    website: "diesel-depot.com",
+  };
+  const events = [
+    event("listing_viewed", {
+      business_key: null,
+      business_kind: null,
+      business_name: null,
+      listing_id: "industrial-truck",
+    }),
+    event("business_listing_clicked", {
+      business_key: null,
+      business_kind: null,
+      business_name: null,
+      listing_id: "industrial-truck",
+    }),
+    event("business_action", {
+      business_key: null,
+      business_kind: null,
+      business_name: null,
+      listing_id: "industrial-truck",
+      method: "dealer_profile",
+    }),
+    event("business_profile_viewed", {
+      business_key: null,
+      business_kind: null,
+      business_name: null,
+      listing_id: null,
+      seller_slug: "diesel",
+    }),
+    event("business_profile_viewed", {
+      business_key: null,
+      business_kind: null,
+      business_name: null,
+      listing_id: null,
+      seller_slug: "unregistered-private-person",
+    }),
+  ];
+  const result = report(events, {
+    businesses: [diesel],
+    attributions: [
+      {
+        listingId: "industrial-truck",
+        businessKey: diesel.key,
+        title: "Commercial truck",
+        source: "Business seller inventory",
+        active: true,
+      },
+    ],
+  });
+  assert.equal(result.businesses.length, 1);
+  const row = result.businesses[0];
+  assert.equal(row.listingViews, 1);
+  assert.equal(row.listingClicks, 1);
+  assert.equal(row.profileClicks, 1);
+  assert.equal(row.profileViews, 1);
+  assert.equal(row.activeListings, 1);
+  assert.equal(row.modeledSales, null);
+});

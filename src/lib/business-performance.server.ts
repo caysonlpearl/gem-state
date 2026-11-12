@@ -79,6 +79,27 @@ export async function loadBusinessPerformance(admin: SupabaseClient, days: numbe
     ],
   );
   if (release.error) throw Error("Business tracking setup is incomplete.");
+  // A registered business can use an ordinary seller storefront (including
+  // industrial/parts inventory). Do not promote it to a verified dealer account.
+  const businessSlugs = storedEntities
+    .map((row) => row.metadata?.sellerSlug)
+    .filter((slug): slug is string => typeof slug === "string" && /^[a-z0-9-]{1,120}$/.test(slug));
+  const businessSellers = businessSlugs.length
+    ? await readAll((offset) =>
+        db
+          .from("seller_profiles")
+          .select("user_id,slug")
+          .in("slug", businessSlugs)
+          .order("user_id")
+          .range(offset, offset + 499),
+      )
+    : [];
+  const sellerBusinesses = new Map(
+    businessSellers.flatMap((seller) => {
+      const matches = storedEntities.filter((row) => row.metadata?.sellerSlug === seller.slug);
+      return matches.length === 1 ? [[seller.user_id, matches[0].business_key] as const] : [];
+    }),
+  );
   // Include staff/owner events of every type: an admin-only login visit can
   // identify the anonymous listing views that happened before sign-in.
   const accountIds = [
@@ -87,6 +108,7 @@ export async function loadBusinessPerformance(admin: SupabaseClient, days: numbe
         ...staff.map((p) => p.user_id),
         ...profiles.map((p) => p.owner_user_id),
         ...members.map((p) => p.user_id),
+        ...businessSellers.map((p) => p.user_id),
       ].filter(Boolean),
     ),
   ];
@@ -176,8 +198,10 @@ export async function loadBusinessPerformance(admin: SupabaseClient, days: numbe
   const native = await readAll((offset) =>
     db
       .from("asks")
-      .select("id,dealer_id,products(name,status),is_demo,status,approved_at,expires_at")
-      .not("dealer_id", "is", null)
+      .select("id,dealer_id,seller_id,products(name,status),is_demo,status,approved_at,expires_at")
+      .or(
+        `dealer_id.not.is.null${sellerBusinesses.size ? `,seller_id.in.(${[...sellerBusinesses.keys()].join(",")})` : ""}`,
+      )
       .eq("is_demo", false)
       .order("id")
       .range(offset, offset + 499),
@@ -196,15 +220,15 @@ export async function loadBusinessPerformance(admin: SupabaseClient, days: numbe
   }
   for (const listing of native) {
     const p = profiles.find((p) => p.id === listing.dealer_id);
-    if (!p) continue;
-    const key = "dealer:" + p.slug;
+    const key = p ? "dealer:" + p.slug : sellerBusinesses.get(listing.seller_id);
+    if (!key || listing.is_demo) continue;
     if (!identities.has(key)) continue;
     const product = Array.isArray(listing.products) ? listing.products[0] : listing.products;
     links.set(listing.id, {
       listingId: listing.id,
       businessKey: key,
       title: product?.name ?? listing.id,
-      source: "Dealer-posted listing",
+      source: p ? "Dealer-posted listing" : "Business seller inventory",
       active:
         listing.status === "active" &&
         product?.status === "published" &&
@@ -289,6 +313,10 @@ export async function loadBusinessPerformance(admin: SupabaseClient, days: numbe
     if (profile.owner_user_id) ids.add(profile.owner_user_id);
     for (const member of members) if (member.dealer_id === profile.id) ids.add(member.user_id);
     owners.set("dealer:" + profile.slug, ids);
+  }
+  for (const [userId, businessKey] of sellerBusinesses) {
+    if (!owners.has(businessKey)) owners.set(businessKey, new Set());
+    owners.get(businessKey)!.add(userId);
   }
   return {
     period: { since, until, days },

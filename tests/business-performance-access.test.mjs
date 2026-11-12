@@ -55,6 +55,10 @@ test("business reports and model writes reject non-admins before loading privile
       /Administrator access required/,
     );
     await assert.rejects(
+      exports.getBusinessSellerKey({ data: { slug: "diesel" }, context }),
+      /Administrator access required/,
+    );
+    await assert.rejects(
       exports.saveBusinessSalesAssumption({
         data: { businessKey: "dealer:real", conversionPercent: 5 },
         context,

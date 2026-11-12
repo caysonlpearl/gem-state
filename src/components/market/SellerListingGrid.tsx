@@ -1,3 +1,4 @@
+import { trackBusinessListingOpen, trackBusinessEvent } from "@/lib/business-analytics";
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { CheckCircle, Images, X } from "@phosphor-icons/react";
@@ -46,7 +47,10 @@ export function SellerListingGrid({
           <article key={listing.id} className="group min-w-0">
             <button
               type="button"
-              onClick={() => setSelected(listing)}
+              onClick={() => {
+                trackBusinessListingOpen({ id: listing.id });
+                setSelected(listing);
+              }}
               className="block w-full text-left outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
               aria-label={`View listing from ${listing.sellerDisplayName}`}
             >
@@ -103,6 +107,12 @@ export function SellerListingGrid({
             <Link
               to="/sellers/$slug"
               params={{ slug: listing.sellerSlug }}
+              onClick={() =>
+                trackBusinessEvent("business_action", null, {
+                  listing_id: listing.id,
+                  method: "dealer_profile",
+                })
+              }
               className="mt-1.5 inline-flex items-center gap-1 text-[10.5px] text-muted-foreground hover:text-foreground"
             >
               {listing.sellerDisplayName}

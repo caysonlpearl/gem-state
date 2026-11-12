@@ -1,3 +1,5 @@
+import { AdminBusinessPerformanceLink } from "@/components/dealers/AdminBusinessPerformanceLink";
+import { trackBusinessEvent } from "@/lib/business-analytics";
 import { useEffect, useRef, useState } from "react";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import {
@@ -103,6 +105,10 @@ function SellerPage() {
   const { data: seller } = useSuspenseQuery(sellerQuery(slug));
   const { user } = useAuth();
   const formRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (seller?.slug)
+      trackBusinessEvent("business_profile_viewed", null, { seller_slug: seller.slug });
+  }, [seller?.slug]);
 
   useEffect(() => {
     if (focusReview) formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -139,6 +145,7 @@ function SellerPage() {
                 />
               ) : null}
             </h1>
+            <AdminBusinessPerformanceLink sellerSlug={seller.slug} />
             <p className="text-[11.5px] text-muted-foreground">
               @{seller.slug} · Member since {new Date(seller.memberSince).getFullYear()}
             </p>

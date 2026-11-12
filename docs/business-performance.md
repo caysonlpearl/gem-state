@@ -19,6 +19,8 @@ Staff/moderator visits, identified dealer owners/staff viewing their own busines
 
 API dealers use provider dealer IDs; authorized/native dealers use their public profile slug. An API dealer merges into an official profile only when its official website host and branch location match unambiguously. Missing postal codes require an exact normalized business-name match. Other branches are kept separate.
 
+A registered business may use an ordinary seller storefront instead of a dealer account. Its public storefront slug is stored in the private business directory, and its native listings are attributed across all categories, including industrial equipment, trailers, and parts. New listings from that storefront join the report automatically. This does not create a dealer account or classify unrelated private sellers as businesses. Existing listing-view/contact events can be attributed by listing ID; new card/profile events carry only the listing ID or public storefront slug until the server resolves the registered business.
+
 Public business metadata and listing titles are retained in service-only attribution tables when reports are loaded. New listing events also carry the public business identity; vehicle events carry their public title/source. Historical counts do not require a vehicle to remain available. Removed inventory is never labeled sold.
 
 The report uses saved provider inventory and published authorized feeds. It never calls a provider to refresh inventory, spends API allowance, or creates marketplace listings. Unchanged attribution is not rewritten on every report read.

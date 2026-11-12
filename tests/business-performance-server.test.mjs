@@ -21,6 +21,7 @@ test("reports use cached inventory, retain removed listings, and only persist ch
     ],
     user_roles: [{ user_id: "admin", role: "admin" }],
     dealer_members: [],
+    seller_profiles: [],
     business_performance_entities: [],
     business_listing_attribution: [],
     business_sales_assumptions: [],
@@ -40,6 +41,7 @@ test("reports use cached inventory, retain removed listings, and only persist ch
         order: () => query,
         in: () => query,
         or: (filter) => {
+          if (table === "asks") return query;
           assert.match(filter, /name.in.*business_listing_clicked/);
           assert.match(filter, /user_id.in.*admin/);
           assert.match(filter, /user_id.in.*owner/);
@@ -160,4 +162,78 @@ test("reports use cached inventory, retain removed listings, and only persist ch
   assert.equal(result.businesses[0].listings[0].title, "2024 Forester");
   assert.equal(result.businesses[0].listings[0].active, false);
   assert.equal(result.businesses[0].modeledSales, null);
+  const diesel = {
+    key: "seller:diesel",
+    canonicalKey: "seller:diesel",
+    kind: "dealer",
+    name: "Diesel Depot",
+    city: "",
+    state: "",
+    postalCode: "",
+    website: "diesel-depot.com",
+    dealerSlug: "",
+    sellerSlug: "diesel",
+  };
+  tables.business_performance_entities.push({
+    business_key: diesel.key,
+    canonical_key: diesel.key,
+    metadata: diesel,
+  });
+  tables.seller_profiles.push({ user_id: "diesel-owner", slug: "diesel" });
+  tables.asks = [
+    {
+      id: "equipment",
+      seller_id: "diesel-owner",
+      dealer_id: null,
+      products: { name: "Crane", status: "published" },
+      is_demo: false,
+      status: "active",
+      approved_at: new Date().toISOString(),
+      expires_at: new Date(Date.now() + 86400000).toISOString(),
+    },
+    {
+      id: "private",
+      seller_id: "private-person",
+      dealer_id: null,
+      products: { name: "Private listing", status: "published" },
+      is_demo: false,
+      status: "active",
+      approved_at: new Date().toISOString(),
+      expires_at: new Date(Date.now() + 86400000).toISOString(),
+    },
+  ];
+  tables.analytics_events = [
+    {
+      name: "listing_viewed",
+      props: { listing_id: "equipment", traffic_visit: "buyer" },
+      user_id: null,
+      session_id: "buyer",
+      occurred_at: new Date().toISOString(),
+    },
+    {
+      name: "listing_viewed",
+      props: { listing_id: "equipment", traffic_visit: "owner" },
+      user_id: null,
+      session_id: "owner",
+      occurred_at: new Date().toISOString(),
+    },
+    {
+      name: "account_opened",
+      props: { traffic_visit: "owner" },
+      user_id: "diesel-owner",
+      session_id: "owner",
+      occurred_at: new Date().toISOString(),
+    },
+  ];
+  result = await exports.loadBusinessPerformance(db, 30);
+  const row = result.businesses.find((b) => b.key === diesel.key);
+  assert.equal(row.activeListings, 1);
+  assert.equal(row.listingViews, 1);
+  assert.equal(row.listings[0].title, "Crane");
+  assert.equal(row.sellerSlug, "diesel");
+  assert.equal(
+    result.businesses.length,
+    2,
+    "unregistered private sellers do not become business records",
+  );
 });

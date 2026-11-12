@@ -140,3 +140,23 @@ test("slim cards retain dealer attribution without copying provider payloads", a
   });
   assert.equal(f.calls.length, 1);
 });
+test("native card/profile events can be attributed server-side without exposing seller account data", async () => {
+  const f = fixture();
+  f.success();
+  f.api.trackBusinessListingOpen({ id: "native-equipment-listing" });
+  f.api.trackBusinessEvent("business_profile_viewed", null, { seller_slug: "diesel" });
+  f.api.trackBusinessAnchor(
+    { target: new f.Element({ href: "https://onbluebird.com/sellers/diesel", dataset: {} }) },
+    { id: "native-equipment-listing", seller: { slug: "diesel" } },
+  );
+  await drain();
+  assert.deepEqual(
+    f.calls.map((c) => c.name),
+    ["business_listing_clicked", "business_profile_viewed", "business_action"],
+  );
+  assert.equal(f.calls[0].props.business_key, undefined);
+  assert.equal(f.calls[0].props.business_listing_title, "");
+  assert.equal(f.calls[2].props.method, "dealer_profile");
+  f.api.trackBusinessListingOpen({ id: "demo", isMock: true });
+  assert.equal(f.calls.length, 3);
+});
