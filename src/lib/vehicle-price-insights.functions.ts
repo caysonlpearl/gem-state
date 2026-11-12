@@ -29,7 +29,11 @@ export const getVehiclePriceInsight = createServerFn({ method: "POST" })
       // Client only supplies the ID; asking price, seller and vehicle identity come from public inventory.
       const listing = await getClassifiedListing({ data: { id: data.listingId } });
       return listing ? await listingPriceInsight(listing, supabaseAdmin) : null;
-    } catch {
-      return null;
+    } catch (error) {
+      console.warn(
+        "Vehicle price insight lookup unavailable",
+        error instanceof Error ? error.name : "UnknownError",
+      );
+      return { status: "unavailable" as const, reason: "service_unavailable" as const };
     }
   });
