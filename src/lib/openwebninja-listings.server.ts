@@ -241,7 +241,11 @@ async function advanceHomeFeedFor(
   const homes = allHomes.filter(
     (home) =>
       homeFeedRegion(home)?.provider === provider &&
-      home.id.startsWith("redfin-") === (provider === "redfin"),
+      home.id.startsWith("redfin-") === (provider === "redfin") &&
+      // Vacant land with no home facts cannot satisfy the complete-home gate.
+      // Do not spend a full-detail request on an already identifiable lot.
+      (home.propertyType !== "Land" ||
+        [home.beds, home.baths, home.sqft].some((value) => typeof value === "number" && value > 0)),
   );
   const ids = [
     ...new Set(

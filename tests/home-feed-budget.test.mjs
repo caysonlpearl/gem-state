@@ -17,6 +17,7 @@ function fixture({
   searchError = false,
   requestsError = false,
   backup = false,
+  extraHomes = [],
 } = {}) {
   const calls = [],
     saved = new Set(complete);
@@ -66,6 +67,7 @@ function fixture({
     completeHomeDetailIds: async () => saved,
     propertyDetailRefreshIds: async () => new Set(due),
     cachedHomes: async () => [
+      ...extraHomes,
       { id: "1", address: "1 Main St", city: "Boise", state: "ID" },
       { id: "2", address: "2 Main St", city: "Idaho Falls", state: "ID" },
       { id: "3", address: "3 Main St", city: "Boise", state: "ID" },
@@ -206,6 +208,29 @@ test("monthly detail renewals take priority over new acquisitions in each region
   const f = fixture({ due: ["3"] });
   await f.api.advanceHomeFeed();
   assert.equal(f.calls.find((call) => call.provider === "zillow").id, "3");
+});
+
+test("identifiable vacant land does not spend a full-home detail request", async () => {
+  const f = fixture({
+    extraHomes: [
+      {
+        id: "lot",
+        city: "Boise",
+        state: "ID",
+        address: "Vacant lot",
+        propertyType: "Land",
+        beds: null,
+        baths: null,
+        sqft: null,
+      },
+    ],
+  });
+  await f.api.advanceHomeFeed();
+  assert.equal(
+    f.calls.some((call) => call.id === "lot"),
+    false,
+  );
+  assert.equal(f.calls.find((call) => call.provider === "zillow").id, "1");
 });
 
 test("a shared weekly reserve permits use of primary credits while backup remains available", async () => {
