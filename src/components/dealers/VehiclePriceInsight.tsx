@@ -57,40 +57,36 @@ export function VehiclePriceInsightCard({ insight }: { insight: Insight }) {
     : [];
   return (
     <section className="soft-card overflow-hidden" aria-label="Vehicle price insight">
-      <div className="flex items-center gap-2.5 border-b border-border/60 bg-secondary/25 px-4 py-3">
+      <div className="flex items-center justify-between gap-3 border-b border-border/60 bg-secondary/25 px-4 py-2">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <img
+            src="/images/brand/bluebird-error-bird.webp"
+            alt=""
+            aria-hidden="true"
+            className="size-9 shrink-0 object-contain"
+            width={36}
+            height={36}
+          />
+          <h2 className="text-[16px] font-extrabold tracking-tight text-[#112e44]">
+            Bluebird Insights
+          </h2>
+        </div>
         <img
-          src="/images/brand/bluebird-bird.png"
+          src="/images/brand/bluebird-insights-rosette.webp"
           alt=""
           aria-hidden="true"
-          className="size-7 object-contain"
-          width={28}
-          height={28}
+          className="h-16 w-14 shrink-0 object-contain"
+          width={56}
+          height={64}
         />
-        <h2 className="text-[16px] font-extrabold tracking-tight text-[#112e44]">
-          Bluebird Insights
-        </h2>
       </div>
       <div className="px-4 pb-4 pt-3">
         <div
           aria-label={`Price rating: ${style.label}`}
-          className="relative mx-auto flex min-h-10 items-center justify-center gap-2 px-6 py-2 text-[12px] font-bold tracking-[0.01em] text-[#f2d58b]"
+          className="flex items-center gap-2 text-[14px] font-bold text-primary"
         >
-          <svg
-            viewBox="0 0 320 40"
-            preserveAspectRatio="none"
-            className="absolute inset-0 size-full"
-            aria-hidden="true"
-          >
-            <path d="M0 5H28V35H0L7 20Z M320 5H292V35H320L313 20Z" fill="#112e44" />
-            <path d="M10 0H310V34H10Z" fill="#112e44" stroke="#c9a654" strokeWidth="1" />
-            <path d="M10 34L28 40V34 M310 34L292 40V34" fill="#8b702f" />
-            <path d="M20 4H300 M20 30H300" stroke="#c9a654" strokeOpacity=".55" strokeWidth=".7" />
-          </svg>
-          <span
-            aria-hidden="true"
-            className={`relative size-1.5 shrink-0 rounded-full ${style.dot}`}
-          />
-          <span className="relative">{style.label}</span>
+          <span aria-hidden="true" className={`size-1.5 shrink-0 rounded-full ${style.dot}`} />
+          {style.label}
         </div>
         <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
           {delta === 0 ? (
