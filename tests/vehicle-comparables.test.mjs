@@ -149,6 +149,28 @@ test("verdict, percentage reference and pointer share the same observed range", 
     Math.abs(compareComparablePrice(estimate, evidence, 2600000).pointerPercent - 100 / 3) < 0.001,
   );
 });
+test("asymmetric or repeated-price samples keep both quartile boundaries on the fair band", () => {
+  const evidence = { ...summarizeComparables(segment, input, "state", null), medianCents: 2400000 };
+  const estimate = {
+    provider: "vehicles",
+    estimateCents: 3000000,
+    modelErrorPct: 6,
+    updatedAt: checkedAt,
+    dataThrough: null,
+  };
+  assert.ok(
+    Math.abs(
+      compareComparablePrice(estimate, evidence, evidence.lowerCents).pointerPercent - 200 / 3,
+    ) < 0.001,
+  );
+  assert.ok(
+    Math.abs(
+      compareComparablePrice(estimate, evidence, evidence.upperCents).pointerPercent - 100 / 3,
+    ) < 0.001,
+  );
+  assert.equal(compareComparablePrice(estimate, evidence, evidence.medianCents).comparison, "near");
+});
+
 test("requests are budgeted, authenticated, complete and cached without raw VINs or repeated calls", async () => {
   const db = dbFixture();
   let calls = 0;

@@ -98,10 +98,6 @@ export function compareComparablePrice(
     { ...estimate, estimateCents: evidence.medianCents, modelErrorPct: null },
     askingCents,
   );
-  const distance =
-    askingCents >= evidence.medianCents
-      ? evidence.upperCents - evidence.medianCents
-      : evidence.medianCents - evidence.lowerCents;
   return {
     ...result,
     evidence,
