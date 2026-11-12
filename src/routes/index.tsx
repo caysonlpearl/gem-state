@@ -135,6 +135,7 @@ const homepageCategoryHighlights = [
   { slug: "furniture", name: "Furniture" },
   { slug: "electronics", name: "Electronics" },
   { slug: "industrial", name: "Industrial" },
+  { slug: "tools-equipment", name: "Tools" },
 ] as const;
 
 type HomepageBrowseSearch = {
@@ -1028,7 +1029,7 @@ function HomeSections({ where }: { where: ReturnType<typeof homeLocation> }) {
       {/* Everything else */}
       <section className="mt-16">
         <h2 className="text-[26px] font-bold tracking-tight">Browse other classifieds</h2>
-        <div className="mt-5 grid grid-cols-3 gap-2 sm:gap-4 lg:grid-cols-5">
+        <div className="mt-5 grid grid-cols-3 gap-2 sm:gap-4 lg:grid-cols-6">
           {homepageCategoryHighlights.map((option) => (
             <Link
               key={option.slug}
