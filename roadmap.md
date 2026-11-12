@@ -86,3 +86,4 @@
 
 ## Mashvisor homes feed
 - [x] Homes for sale from Mashvisor in Homes browse + listing page, within the 30 requests/month free plan (cap ~20/month, 7-day cache)
+- [ ] Add "On Bluebird since" + profile strength to all listing profile cards (keep verified dealer blue box untouched)
