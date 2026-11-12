@@ -30,6 +30,8 @@ Prices and availability refresh weekly; regional source caches expire after eigh
 
 A public home requires at least two unique photos, a description, and two numeric property facts. Cards use a saved gallery photo rather than requiring the search result to supply a thumbnail. Redfin's documented detail endpoint returns the first 30 photo URLs; Bluebird uses the supplied URLs and does not invent image paths or source facts.
 
+Redfin rental results additionally require an explicit per-property rental status. During live verification, its `for_rent` coordinate search returned known for-sale homes at the identical sale prices with generic `ACTIVE` status. Those results are quarantined and must never become monthly rental prices merely because the request asked for rentals. North Idaho rental inventory can remain empty until the provider supplies verifiable rental results.
+
 ## Activation and rollout
 
 1. Apply `20261112010000_use_full_home_free_allowance.sql` and `20261112020000_regional_redfin_home_budget.sql` to GemList. The second migration adds the Redfin budget and ID constraints while preserving existing permissions and other provider formats.

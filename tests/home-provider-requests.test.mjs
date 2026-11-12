@@ -70,6 +70,7 @@ test("Redfin rentals use coordinate bounds, status, page size and namespaced pro
           city: "Sandpoint",
           state: "ID",
           price: 1800,
+          search_status: "FOR_RENT",
         },
       ],
     },

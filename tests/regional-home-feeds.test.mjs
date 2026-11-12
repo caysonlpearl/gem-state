@@ -9,6 +9,27 @@ import {
   homeSearchReserve,
 } from "../src/lib/home-feed-regions.ts";
 import { normalizeRedfinResult, normalizeRedfinProperty } from "../src/lib/redfin-contract.ts";
+
+test("a Redfin rental search cannot relabel sale prices as monthly rent", () => {
+  const sale = {
+    property_id: "104797099",
+    street_address: "12311 N Pebble Creek Dr",
+    city: "Hayden",
+    state: "ID",
+    price: 1549000,
+    search_status: "ACTIVE",
+    mls_status: "Active",
+  };
+  assert.equal(normalizeRedfinResult({ data: { results: [sale] } }, "buy").homes.length, 1);
+  assert.equal(normalizeRedfinResult({ data: { results: [sale] } }, "rent").homes.length, 0);
+  for (const status of ["FOR_RENT", "For Rent", "for-lease"]) {
+    const rental = { ...sale, price: 1800, search_status: status };
+    const result = normalizeRedfinResult({ data: { results: [rental] } }, "rent");
+    assert.equal(result.homes.length, 1);
+    assert.equal(result.homes[0].priceCents, 180000);
+    assert.equal(result.homes[0].mode, "rent");
+  }
+});
 import {
   hasCompleteHomeDetails,
   propertyCacheFresh,
