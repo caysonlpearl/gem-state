@@ -18,6 +18,11 @@ import {
   reviewServiceClaim,
   type AdminServiceClaim,
 } from "@/lib/service-claims.functions";
+import {
+  getAdminEmployerClaims,
+  reviewEmployerClaim,
+  type AdminEmployerClaim,
+} from "@/lib/employer-claims.functions";
 import { RelativeTime } from "@/components/ui/relative-time";
 
 export const Route = createFileRoute("/_authenticated/admin/classifieds")({
@@ -264,6 +269,7 @@ function ClassifiedModerationPage() {
         )}
       </section>
       <ServiceClaimsSection />
+      <EmployerClaimsSection />
       {reports.data?.isAdmin && (
         <section className="rounded-lg border border-border bg-card">
           <div className="border-b border-border px-4 py-3">
