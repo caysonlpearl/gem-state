@@ -15,7 +15,15 @@ const extra = {
   squareFeet: 2100,
   yearBuilt: 2005,
   url: "https://www.redfin.com/ID/Rathdrum/137-Main-St/home/123",
-  amenities: [],
+  amenities: [
+    "Appliances: Gas Range, Washer, Refrigerator",
+    "Flooring: Tile, Carpet",
+    "Has Attached Garage",
+    "Virtual Tour Unbranded (External Link): https://example.com/tour?view=pano",
+  ],
+  parking: "Parking Features: Paved Parking · Has Attached Garage",
+  specialFeatures:
+    "Appliances: Gas Range, Washer, Refrigerator, Flooring: Tile, Carpet, Virtual Tour Unbranded (External Link): https://example.com/tour?view=pano",
   schools: ["Example School"],
   priceHistory: [
     { label: "Listed for sale", amount: 425500, date: "2026-08-18" },
@@ -113,6 +121,10 @@ for (const [id, rental] of [
   assert.ok(html.includes("137%20Main%20St") || html.includes("138%20Main%20St"));
   assert.ok(!html.includes("Contact details are on the original listing"));
   assert.ok(!html.includes("Opens the original listing in a new tab"));
+  const rendered = html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "");
+  assert.ok(rendered.includes("View virtual tour"));
+  assert.ok(!rendered.includes("Virtual Tour Unbranded (External Link):"));
+  assert.ok(!rendered.includes('class="max-w-[65%] text-right font-semibold"'));
   assert.equal(html.includes('id="home-payment"'), !rental);
   assert.equal(html.includes("Price cut:"), !rental);
 }

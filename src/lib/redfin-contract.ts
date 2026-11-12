@@ -114,7 +114,7 @@ export function normalizeRedfinProperty(payload: unknown) {
   }
   const select = (pattern: RegExp) =>
     entries
-      .filter((e) => pattern.test(`${e.label} ${e.value}`))
+      .filter((e) => pattern.test(e.label))
       .map((e) => (e.label ? `${e.label}: ${e.value}` : e.value));
   const type =
     typeof row.property_type === "string" && !/^\d+$/.test(row.property_type)
@@ -141,6 +141,7 @@ export function normalizeRedfinProperty(payload: unknown) {
         value: tax.assessed_value,
       })),
       schools: row.schools,
+      amenities: entries.map((e) => (e.label ? `${e.label}: ${e.value}` : e.value)),
       hoa:
         row.hoa_dues != null
           ? `$${row.hoa_dues}${row.hoa_frequency ? ` ${row.hoa_frequency}` : ""}`
@@ -153,7 +154,9 @@ export function normalizeRedfinProperty(payload: unknown) {
           .map((e) => (e.label ? `${e.label}: ${e.value}` : e.value)),
         appliances: select(/appliance|dishwasher|refrigerator|washer|dryer/i),
         constructionMaterials: select(/construction|exterior material|roof/i),
-        interiorFeatures: entries.map((e) => (e.label ? `${e.label}: ${e.value}` : e.value)),
+        interiorFeatures: entries
+          .filter((e) => /interior|bedroom|bathroom/i.test(e.group))
+          .map((e) => (e.label ? `${e.label}: ${e.value}` : e.value)),
       },
       attributionInfo: {
         agentName: object(row.listing_agent).name,
