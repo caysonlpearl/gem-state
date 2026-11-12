@@ -563,7 +563,7 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
         }
       />
       {seller.memberSince ? (
-        <p className="mt-3 text-xs text-muted-foreground">Member since {seller.memberSince}</p>
+        <p className="mt-3 text-[12px]"><span className="font-semibold">On Bluebird since:</span> {seller.memberSince}</p>
       ) : null}
       {seller.managedByBluebird ? (
         <p className="mt-2 text-xs text-muted-foreground">Managed by Bluebird</p>
@@ -764,6 +764,26 @@ function ProfileStrength({ seller }: { seller: NonNullable<ClassifiedDetail["sel
   );
 }
 
+function SinceAndStrength({ since, checks }: { since: string | number | null | undefined; checks: boolean[] }) {
+  const year = since == null ? null : typeof since === "number" ? since : new Date(since).getFullYear();
+  const yrs = year ? new Date().getFullYear() - year : 0;
+  return (
+    <>
+      {year && !Number.isNaN(year) ? (
+        <p className="mt-4 text-[12px]">
+          <span className="font-semibold">On Bluebird since:</span> {year}
+          {yrs > 0 && (
+            <span className="ml-1 rounded-full bg-brand-warm/20 px-1.5 py-0.5 text-[10px] font-bold text-brand-warm">
+              {yrs} yrs
+            </span>
+          )}
+        </p>
+      ) : null}
+      <StrengthMeter checks={checks} />
+    </>
+  );
+}
+
 function StrengthMeter({ checks }: { checks: boolean[] }) {
   const score = checks.filter(Boolean).length;
   const label = score >= 4 ? "Strong" : score >= 2 ? "Good" : "New";
@@ -874,6 +894,10 @@ function MarketCheckContactCard({ listing }: { listing: ClassifiedDetail }) {
           View dealership and inventory
         </Link>
       ) : null}
+      <SinceAndStrength
+        since={listing.createdAt}
+        checks={[Boolean(listing.dealer?.logoUrl), hasApprovedDealer(listing), Boolean(phone), Boolean(dealer?.street), Boolean(listing.dealer?.slug)]}
+      />
       <div className="mt-4 grid grid-cols-2 gap-2" aria-label="Dealership contact methods">
         {phone ? (
           <a
@@ -2852,6 +2876,10 @@ function PartnerHomeContactCard({
           ) : null}
         </div>
       </div>
+      <SinceAndStrength
+        since={listing.createdAt}
+        checks={[Boolean(listedBy?.agentName), Boolean(listedBy?.brokerName), Boolean(listedBy?.agentPhone || listedBy?.brokerPhone), Boolean(sourceUrl), Boolean(listing.description)]}
+      />
       {sourceUrl ? (
         <a
           href={sourceUrl}
@@ -3892,6 +3920,10 @@ function DirectoryBusinessCard({ listing }: { listing: ClassifiedDetail }) {
           {listing.service.businessAddress}
         </p>
       ) : null}
+      <SinceAndStrength
+        since={listing.createdAt}
+        checks={[Boolean(business.logoUrl), Boolean(phone), Boolean(business.claimed), business.rating != null, Boolean(listing.service?.businessAddress || listing.service?.licenseNumber)]}
+      />
       <div className="mt-4 grid gap-2">
         {phone ? (
           <a
@@ -4787,6 +4819,10 @@ function MerchandiseRetailerCard({ listing }: { listing: ClassifiedDetail }) {
           </Link>
         }
       />
+      <SinceAndStrength
+        since={listing.createdAt}
+        checks={[Boolean(gunsComProfile.logoUrl), Boolean(gunsComProfile.phone), Boolean(gunsComProfile.website), Boolean(listing.externalMerchandise?.sku), Boolean(listing.externalMerchandise?.brand)]}
+      />
       <p className="mt-3 text-[12px] text-muted-foreground">{gunsComProfile.phone}</p>
       <Link
         to="/retailers/$slug"
@@ -4873,6 +4909,10 @@ function RescueCard({ listing }: { listing: ClassifiedDetail }) {
           </p>
         </div>
       </div>
+      <SinceAndStrength
+        since={listing.createdAt}
+        checks={[Boolean(rescue.orgName), Boolean(rescue.orgPhone), Boolean(rescue.orgEmail), Boolean(listing.city), Boolean(listing.description)]}
+      />
       {rescue.orgPhone || rescue.orgEmail ? (
         <div className="mt-4 grid grid-cols-2 gap-2">
           {rescue.orgPhone ? (

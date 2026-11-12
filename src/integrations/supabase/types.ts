@@ -8781,7 +8781,13 @@ export type Database = {
         Returns: Json
       }
       reserve_openwebninja_home_call: {
-        Args: { p_cache_key: string; p_provider: string; p_account: string; p_accounts: string[]; p_reserved_searches: number }
+        Args: {
+          p_account: string
+          p_accounts: string[]
+          p_cache_key: string
+          p_provider: string
+          p_reserved_searches: number
+        }
         Returns: Json
       }
       reserve_openwebninja_provider_call: {
