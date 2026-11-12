@@ -7,7 +7,13 @@ import {
 import type { ProviderConfig } from "./vehicle-valuation-providers.server.ts";
 
 type Comparable = { key: string; priceCents: number; vehicle: ValuationInput };
-type Segment = { checkedAt: string; rows: Comparable[] };
+type Segment = {
+  checkedAt: string;
+  rows: Comparable[];
+  sourceCount?: number;
+  totalMatches?: number;
+  unavailableReason?: string;
+};
 const normalizedTrim = (trim: string | null) =>
   (trim ?? "")
     .toLowerCase()
@@ -106,7 +112,7 @@ export async function resolveComparableEvidence(
       mileageMax,
       scope === "state" ? input.state : "US",
     ];
-    const key = "comps:v1:" + (await hash(JSON.stringify(identity)));
+    const key = "comps:v2:" + (await hash(JSON.stringify(identity)));
     const cached = await db
       .from("vehicle_price_insight_cache")
       .select("payload,expires_at")
@@ -137,9 +143,7 @@ export async function resolveComparableEvidence(
           condition: input.certified ? "cpo" : input.condition,
           seller_type: "dealer",
           active: "true",
-          sold: "false",
           valid_vin: "true",
-          min_quality: "0.8",
           price_min: "500",
           limit: "500",
           sort: "miles",
@@ -154,7 +158,7 @@ export async function resolveComparableEvidence(
         });
         if (!response.ok) {
           console.warn("Vehicle comparable provider response", response.status);
-          throw Error("Comparable feed unavailable");
+          throw Error(`provider_http_${response.status}`);
         }
         const body = await response.json();
         // A price/mileage-sorted partial page would bias the range; use complete segments only.
@@ -164,16 +168,22 @@ export async function resolveComparableEvidence(
           !Number.isSafeInteger(body.total) ||
           body.total !== body.results.length ||
           body.total > 500
-        )
-          throw Error("Incomplete comparable segment");
+        ) {
+          segment = {
+            checkedAt: now.toISOString(),
+            rows: [],
+            sourceCount: Array.isArray(body.results) ? body.results.length : 0,
+            totalMatches: Number.isSafeInteger(body.total) ? body.total : 0,
+            unavailableReason: "incomplete_segment",
+          };
+          throw Error("incomplete_segment");
+        }
         const rows: Comparable[] = [];
         for (const r of body.results) {
           if (
             !(r.is_active === 1 || r.is_active === true) ||
             !(r.vin_valid === 1 || r.vin_valid === true) ||
             r.seller_type !== "dealer" ||
-            typeof r.data_quality !== "number" ||
-            r.data_quality < 0.8 ||
             typeof r.vin !== "string" ||
             !/^[A-HJ-NPR-Z0-9]{17}$/i.test(r.vin) ||
             typeof r.price !== "number" ||
@@ -208,14 +218,25 @@ export async function resolveComparableEvidence(
           });
           if (vehicle) rows.push({ key: await hash(r.vin.toUpperCase()), priceCents, vehicle });
         }
-        segment = { checkedAt: now.toISOString(), rows };
-      } catch {
-        segment = null;
+        segment = {
+          checkedAt: now.toISOString(),
+          rows,
+          sourceCount: body.results.length,
+          totalMatches: body.total,
+        };
+      } catch (error) {
+        segment ??= {
+          checkedAt: now.toISOString(),
+          rows: [],
+          unavailableReason: error instanceof Error ? error.message : "request_failed",
+        };
       }
       await db.from("vehicle_price_insight_cache").upsert({
         cache_key: key,
         payload: segment,
-        expires_at: new Date(now.getTime() + (segment ? 86400000 : 3600000)).toISOString(),
+        expires_at: new Date(
+          now.getTime() + (segment && !segment.unavailableReason ? 86400000 : 3600000),
+        ).toISOString(),
         locked_until: now.toISOString(),
         updated_at: now.toISOString(),
       });

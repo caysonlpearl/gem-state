@@ -193,6 +193,25 @@ test("requests are budgeted, authenticated, complete and cached without raw VINs
   await resolveComparableEvidence(db, input, config, fetcher, new Date(checkedAt));
   assert.equal(calls, 1);
 });
+test("missing unrelated metadata cannot exclude otherwise complete comparable prices", async () => {
+  const result = await resolveComparableEvidence(
+    dbFixture(),
+    input,
+    config,
+    async (url) => {
+      assert.equal(url.searchParams.has("sold"), false);
+      assert.equal(url.searchParams.has("min_quality"), false);
+      return Response.json({
+        source: "vehicles.dev",
+        total: rawRows.length,
+        results: rawRows.map(({ data_quality, ...row }) => row),
+      });
+    },
+    new Date(checkedAt),
+  );
+  assert.equal(result.count, 9);
+});
+
 test("national fallback is explicit and a partial sorted page cannot manufacture an observed range", async () => {
   let calls = 0;
   const result = await resolveComparableEvidence(
