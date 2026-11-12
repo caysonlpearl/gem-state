@@ -1,3 +1,4 @@
+import { loanPaymentCents } from "@/lib/loan-payment";
 import { dealerContactPriceLabel } from "@/lib/vehicle-shopping";
 import { DealerContactOptions } from "@/components/dealers/DealerContactOptions";
 import { VehiclePrice } from "@/components/dealers/VehiclePrice";
@@ -103,6 +104,7 @@ function LiveListingActions({
   const [message, setMessage] = useState(DEFAULT_MESSAGE);
   const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [loanTerm, setLoanTerm] = useState(isMortgage ? "360" : "60");
+  const [aprPercent, setAprPercent] = useState(isMortgage ? "6.75" : "7.5");
   const start = useServerFn(startConversation);
   const [downPayment, setDownPayment] = useState(
     isMortgage ? String(Math.round((listing.priceCents / 100) * 0.2)) : "0",
@@ -120,11 +122,9 @@ function LiveListingActions({
     listing.priceCents - Math.round((Number(downPayment) || 0) * 100),
   );
   const payments = Number(loanTerm) || (isMortgage ? 360 : 60);
-  const apr = isMortgage ? 0.0675 : 0.075;
-  const monthlyRate = apr / 12;
-  const principal = principalCents / 100;
-  const monthlyPayment =
-    principal === 0 ? 0 : (principal * monthlyRate) / (1 - Math.pow(1 + monthlyRate, -payments));
+  const enteredApr = aprPercent.trim() ? Number(aprPercent) : Number.NaN;
+  const monthlyPayment = loanPaymentCents(principalCents, payments, enteredApr);
+  const aprError = monthlyPayment === null ? "Enter an APR between 0% and 100%." : null;
 
   // Cars from MarketCheck have no Bluebird seller to message: the contact is
   // the dealer or private seller on the original listing.
@@ -245,8 +245,8 @@ function LiveListingActions({
               <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
                 Estimated payment
               </p>
-              <p className="numeric mt-1 text-[18px] font-semibold">
-                {formatUsd(Math.round(monthlyPayment * 100))}
+              <p className="numeric mt-1 text-[18px] font-semibold" aria-live="polite">
+                {monthlyPayment === null ? "—" : formatUsd(monthlyPayment)}
                 <span className="ml-1 text-[12px] font-medium text-muted-foreground">/mo</span>
               </p>
             </div>
@@ -296,13 +296,32 @@ function LiveListingActions({
                   placeholder="$0"
                 />
               </label>
+              <label className="col-span-2 text-[11px] font-medium">
+                APR (%)
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={aprPercent}
+                  onChange={(event) => setAprPercent(event.target.value)}
+                  aria-invalid={Boolean(aprError)}
+                  className="mt-1 h-9 w-full rounded-xl border border-input bg-background px-2 text-[12px]"
+                />
+                {aprError ? <span className="mt-1 block text-destructive">{aprError}</span> : null}
+              </label>
             </div>
             <p className="flex items-start gap-1.5 text-[10.5px] leading-relaxed text-muted-foreground">
-              <Info size={13} className="mt-0.5 shrink-0 text-primary" /> Estimate uses{" "}
-              {isMortgage ? "6.75%" : "7.5%"} APR and does not include{" "}
-              {isMortgage
-                ? "property taxes, homeowners insurance, HOA fees, or lender approval."
-                : "taxes, title, registration, fees, or lender approval."}
+              <Info size={13} className="mt-0.5 shrink-0 text-primary" />
+              <span>
+                {aprError
+                  ? "Estimate requires a valid APR and does not include "
+                  : `Estimate uses ${enteredApr}% APR and does not include `}
+                {isMortgage
+                  ? "property taxes, homeowners insurance, HOA fees, or lender approval."
+                  : "taxes, title, registration, fees, or lender approval."}
+              </span>
             </p>
           </div>
         )}
