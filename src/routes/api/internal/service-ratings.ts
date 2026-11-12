@@ -15,8 +15,8 @@ export const Route = createFileRoute("/api/internal/service-ratings")({
         const { advanceHomeFeed } = await import("@/lib/openwebninja-listings.server");
         const { advanceMerchandiseFeed } = await import("@/lib/avantlink.server");
         const { refreshHomepageSnapshot } = await import("@/lib/homepage-snapshot.server");
-        // The same schedule also advances the homes feed: at most one Zillow
-        // call per run, paced to about three a day.
+        // Each existing homes subscription advances once per run. Database
+        // reservations enforce its daily and monthly spending ceilings.
         const [ratings, homes, merchandise, homepage] = await Promise.all([
           rateNextTradeCity().catch(() => null),
           advanceHomeFeed().catch((error) => ({ error: String(error?.message ?? error) })),
