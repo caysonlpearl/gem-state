@@ -129,6 +129,44 @@ test("reject malformed, mismatched or weak estimates; model error widens compari
   assert.equal(compareVehiclePrice(estimate, 3500000).comparison, "above");
 });
 
+test("rejection diagnostics identify the failed check without vehicle identifiers", () => {
+  for (const [patch, reason] of [
+    [{ coverage: { status: "out_of_domain" } }, "coverage_out_of_domain"],
+    [{ meta: {} }, "source_date_missing_or_invalid"],
+    [{ inputs: { ...vehicleBody.inputs, miles: 1 } }, "input_mileage_mismatch"],
+    [{ medianApePct: 40 }, "model_error_invalid"],
+  ]) {
+    const diagnostics = {};
+    assert.equal(
+      normalizeVehicleEstimate(
+        "vehicles",
+        { ...vehicleBody, ...patch },
+        input,
+        new Date(),
+        diagnostics,
+      ),
+      null,
+    );
+    assert.equal(diagnostics.reason, reason);
+    assert.ok(!JSON.stringify(diagnostics).includes(input.vin));
+  }
+});
+test("eligible unavailable estimates have a visible status; opt-outs and ineligible items remain hidden", async () => {
+  const unavailable = await listingPriceInsight(listing, fakeDb({ missing: true }));
+  assert.deepEqual(unavailable, { status: "unavailable" });
+  assert.equal(
+    await listingPriceInsight({ ...listing, categorySlug: "furniture" }, fakeDb()),
+    null,
+  );
+  assert.equal(
+    await listingPriceInsight(
+      { ...listing, dealer: { slug: "example" } },
+      fakeDb({ enabled: false }),
+    ),
+    null,
+  );
+});
+
 test("gauge pointer and status share the same neutral band and clamp extreme prices", () => {
   const estimate = normalizeVehicleEstimate("vehicles", vehicleBody, input);
   const near = compareVehiclePrice(estimate, estimate.estimateCents);

@@ -91,17 +91,19 @@ export async function resolveVehicleEstimate(
         continue;
       }
       const body = await response.json();
-      estimate = normalizeVehicleEstimate(config.provider, body, input, now);
+      const diagnostics: { reason?: string } = {};
+      estimate = normalizeVehicleEstimate(config.provider, body, input, now, diagnostics);
       if (!estimate)
         console.warn("Vehicle valuation response rejected", config.provider, {
           fields: Object.keys(body ?? {}),
           coverage: body?.coverage?.status ?? "missing",
+          reason: diagnostics.reason ?? "unknown",
         });
       if (!estimate)
         await db.from("vehicle_valuation_provider_state").upsert({
           provider: config.provider,
           blocked_until: new Date(now.getTime() + 60000).toISOString(),
-          reason: `invalid_response:${Object.keys(body ?? {}).join(",")}`.slice(0, 400),
+          reason: `invalid_response:${diagnostics.reason ?? "unknown"}`.slice(0, 400),
         });
       if (estimate) break;
     } catch (error) {
@@ -153,9 +155,9 @@ export async function listingPriceInsight(listing: Parameters<typeof valuationIn
     input.dealerType = result.data.valuation_dealer_type ?? null;
   }
   const configs = valuationProviders(serverEnv);
-  if (!configs.length) return null;
+  if (!configs.length) return { status: "unavailable" as const };
   const estimate = await resolveVehicleEstimate(db, input, configs);
   return estimate
     ? { ...compareVehiclePrice(estimate, listing.priceCents), vehicleDetails: input }
-    : null;
+    : { status: "unavailable" as const };
 }
