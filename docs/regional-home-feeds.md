@@ -6,7 +6,7 @@ Each market has one API owner. Other subscriptions cannot fill that region when 
 - Real-Time Real Estate Data (Zillow endpoints): Eastern Idaho, including Pocatello and Southeast Idaho.
 - Real-Time Redfin Data: North Idaho.
 
-Search polygons do not overlap. The imported city's county-based Bluebird region (or a nearby Idaho place for unknown localities) must match the owner. Property IDs are namespaced for Redfin. Canonical street/city/unit identities prevent duplicate cards and avoid repeat detail work where aliases coexist in the current cache; different units remain distinct.
+Search bounds do not overlap. Redfin uses the coordinate endpoint for the North Idaho rectangle; the polygon endpoint returned no homes for the same bounds during live verification. The imported city's county-based Bluebird region (or a nearby Idaho place for unknown localities) must match the owner. Property IDs are namespaced for Redfin. Canonical street/city/unit identities prevent duplicate cards and avoid repeat detail work where aliases coexist in the current cache; different units remain distinct.
 
 ## Monthly capacity
 

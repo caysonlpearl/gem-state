@@ -60,7 +60,7 @@ test("Zillow region searches filter outside homes and use documented sale pagina
   assert.equal(url.searchParams.get("home_status"), "FOR_SALE");
   assert.equal(f.calls[0].options.provider, "zillow");
 });
-test("Redfin rentals use Redfin status, polygon, page size and namespaced property IDs", async () => {
+test("Redfin rentals use coordinate bounds, status, page size and namespaced property IDs", async () => {
   const f = fixture({
     data: {
       results: [
@@ -77,6 +77,12 @@ test("Redfin rentals use Redfin status, polygon, page size and namespaced proper
   const result = await f.read("ID", regions.HOME_FEED_REGIONS[2], "rent", { provider: "redfin" });
   assert.equal(result.homes[0].id, "redfin-123");
   const url = new URL("https://fixture.invalid/" + f.calls[0].path);
+  assert.equal(url.pathname, "/search-coordinates");
+  assert.equal(url.searchParams.get("ne_lat"), "49.1");
+  assert.equal(url.searchParams.get("ne_lng"), "-115.1");
+  assert.equal(url.searchParams.get("sw_lat"), "47");
+  assert.equal(url.searchParams.get("sw_lng"), "-117.2");
+  assert.equal(url.searchParams.has("polygon"), false);
   assert.equal(url.searchParams.get("status"), "for_rent");
   assert.equal(url.searchParams.get("num_homes"), "350");
   assert.equal(url.searchParams.has("home_status"), false);
@@ -89,4 +95,34 @@ test("an inactive Redfin subscription cannot reserve or spend requests", async (
     "unavailable",
   );
   assert.equal(f.calls.length, 0);
+});
+
+test("coordinate search keys cannot reuse the empty Redfin polygon response", () => {
+  const declaration = source.statements.find(
+    (node) =>
+      ts.isVariableStatement(node) &&
+      node.declarationList.declarations.some((d) => d.name.getText(source) === "areaSearchKey"),
+  );
+  const exports = {};
+  vm.runInNewContext(
+    ts.transpile(declaration.getText(source) + "\nexports.key=areaSearchKey;", {
+      target: ts.ScriptTarget.ES2022,
+      module: ts.ModuleKind.CommonJS,
+    }),
+    { exports },
+  );
+  for (const provider of ["redfin", "zillow", "realestate"]) {
+    const old = JSON.stringify({
+      v: 3,
+      kind: "area-search",
+      state: "ID",
+      area: "north-idaho",
+      mode: "buy",
+      provider,
+      page: 1,
+    });
+    const current = exports.key("ID", "north-idaho", "buy", provider);
+    if (provider === "redfin") assert.notEqual(current, old);
+    else assert.equal(current, old);
+  }
 });

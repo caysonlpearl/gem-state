@@ -326,7 +326,14 @@ export async function searchHomesArea(
     params.set("sort", "NEWEST");
   }
   let path = "search-coordinates";
-  if (area.bounds) {
+  if (area.bounds && provider === "redfin") {
+    // Redfin's polygon endpoint returned no North Idaho homes while its
+    // coordinate endpoint returned inventory for the same rectangular bounds.
+    params.set("ne_lat", String(area.bounds.north));
+    params.set("ne_lng", String(area.bounds.east));
+    params.set("sw_lat", String(area.bounds.south));
+    params.set("sw_lng", String(area.bounds.west));
+  } else if (area.bounds) {
     const b = area.bounds;
     params.set(
       "polygon",
@@ -377,7 +384,16 @@ export const areaSearchKey = (
   page = 1,
 ) =>
   provider
-    ? JSON.stringify({ v: 3, kind: "area-search", state, area, mode, provider, page })
+    ? JSON.stringify({
+        v: 3,
+        kind: "area-search",
+        state,
+        area,
+        mode,
+        provider,
+        page,
+        ...(provider === "redfin" ? { method: "coordinates" } : {}),
+      })
     : JSON.stringify({ v: 1, kind: "area-search", state, area, mode });
 
 export const propertyKey = (id: string) => JSON.stringify({ v: 4, kind: "property", id });
