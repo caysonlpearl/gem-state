@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { brand } from "@/config/brand";
+import { marketplaceStateCodes } from "@/config/classifieds";
 import {
   businessForListing,
   businessFromProps,
@@ -160,7 +161,11 @@ export async function loadBusinessPerformance(admin: SupabaseClient, days: numbe
     ]);
   const [feed, api] = await Promise.all([
     dealerFeedCards({ category: "cars-trucks" }),
-    marketCheckCards({ category: "cars-trucks", state: "ID" }, { cacheOnly: true }),
+    Promise.all(
+      marketplaceStateCodes.map((state) =>
+        marketCheckCards({ category: "cars-trucks", state }, { cacheOnly: true }),
+      ),
+    ).then((pools) => [...new Map(pools.flat().map((card) => [card.id, card])).values()]),
   ]);
   const visible = new Set(
     mergeDealerFeedVehicles(feed.cards, api, feed.dealers).map((card) => card.id),

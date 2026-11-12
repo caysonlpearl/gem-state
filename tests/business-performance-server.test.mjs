@@ -97,6 +97,7 @@ test("reports use cached inventory, retain removed listings, and only persist ch
       },
     },
   ];
+  const statesRead = new Set();
   const exports = {};
   vm.runInNewContext(
     ts.transpile(
@@ -110,6 +111,8 @@ test("reports use cached inventory, retain removed listings, and only persist ch
       Set,
       Error,
       require(name) {
+        if (name === "@/config/classifieds")
+          return { marketplaceStateCodes: ["ID", "UT", "OR", "WA"] };
         if (name === "@/config/brand") return { brand: { domain: "onbluebird.com" } };
         if (name === "./business-performance") return contract;
         if (name === "./dealer-feed.server")
@@ -118,6 +121,7 @@ test("reports use cached inventory, retain removed listings, and only persist ch
           return {
             marketCheckCards: async (input, options) => {
               assert.equal(options.cacheOnly, true);
+              statesRead.add(input.state);
               return api;
             },
           };
@@ -128,6 +132,7 @@ test("reports use cached inventory, retain removed listings, and only persist ch
     },
   );
   let result = await exports.loadBusinessPerformance(db, 30);
+  assert.deepEqual([...statesRead].sort(), ["ID", "OR", "UT", "WA"]);
   assert.equal(result.businesses.length, 1);
   assert.equal(result.businesses[0].activeListings, 1);
   assert.equal(result.aliases["marketcheck-dealer:100"], "dealer:mass-motors-fairview");
