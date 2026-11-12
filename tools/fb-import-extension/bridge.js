@@ -11,6 +11,16 @@ window.addEventListener("message", (event) => {
       { type: "gemlist-ext-pong", version: chrome.runtime.getManifest().version },
       window.location.origin,
     );
+  } else if (data.type === "gemlist-ext-status" || data.type === "gemlist-ext-show-import") {
+    chrome.runtime
+      .sendMessage({ type: data.type === "gemlist-ext-status" ? "import-status" : "show-import" })
+      .then((status) =>
+        window.postMessage(
+          { type: "gemlist-ext-status-result", ...status },
+          window.location.origin,
+        ),
+      )
+      .catch(() => {});
   } else if (data.type === "gemlist-ext-refresh") {
     chrome.runtime.sendMessage({
       type: "refresh",
