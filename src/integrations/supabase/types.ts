@@ -2488,6 +2488,54 @@ export type Database = {
         }
         Relationships: []
       }
+      employer_claims: {
+        Row: {
+          city: string
+          contact: string
+          created_at: string
+          employer_key: string
+          employer_name: string
+          id: string
+          note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          role: string
+          state: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          city?: string
+          contact: string
+          created_at?: string
+          employer_key: string
+          employer_name: string
+          id?: string
+          note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          role: string
+          state?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          city?: string
+          contact?: string
+          created_at?: string
+          employer_key?: string
+          employer_name?: string
+          id?: string
+          note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          role?: string
+          state?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       employer_logo_matches: {
         Row: {
           checked_at: string
