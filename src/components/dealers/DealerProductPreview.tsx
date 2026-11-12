@@ -57,7 +57,7 @@ export function DealerProductPreview() {
               <strong>$28,900</strong>
               <h3>2021 Jeep Wrangler Unlimited</h3>
               <p>2021 · 42,000 mi · Automatic · 4WD</p>
-              <p className="dealer-sample-dealer">Your dealership · Dealer inventory</p>
+              <p className="dealer-sample-dealer">Your dealership</p>
               <p>
                 <MapPin size={12} /> Boise, ID
               </p>
