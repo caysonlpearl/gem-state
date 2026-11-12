@@ -32,29 +32,16 @@ const checkedDate = (date: string) => {
 
 export function VehiclePriceInsightCard({ insight }: { insight: Insight }) {
   const style = comparisonStyle[insight.comparison];
-  const evidence = insight.evidence;
   const percent = (Math.abs(insight.differenceCents) / insight.estimateCents) * 100;
   const delta =
     insight.differenceCents === 0
       ? "at estimate"
       : `${percent < 0.5 ? "<1" : Math.round(percent)}% ${insight.differenceCents < 0 ? "below" : "above"} estimate`;
   const inputs = new Set(insight.providerInputs ?? []);
-  const matchSummary = [
-    "same year/model",
-    ...(evidence?.trimMatched ? ["trim"] : []),
-    ...(evidence?.drivetrainMatched ? ["drive"] : []),
-    ...(evidence ? [`±${(evidence.mileageTolerance / 1000).toLocaleString("en-US")}k mi`] : []),
-  ].join("/");
-  const modelInputs = [
-    "year/model",
-    ...(inputs.has("trim") ? ["trim"] : []),
-    "mileage/condition/state",
-  ].join("/");
-  const method = evidence
-    ? `Middle 50%; ${matchSummary} · Vehicles.dev.`
-    : insight.provider === "vehicles"
-      ? `Vehicles.dev model: ${modelInputs}; comparable range unavailable.`
-      : `${valuationProviderNames[insight.provider]} VIN-based retail estimate; comparable range unavailable.`;
+  const method =
+    insight.provider === "vehicles"
+      ? `${["Year/make/model", ...(inputs.has("trim") ? ["trim"] : []), "mileage/condition/location"].join(", ")} · Vehicles.dev.`
+      : `VIN and mileage retail estimate · ${valuationProviderNames[insight.provider]}.`;
   return (
     <section
       className="overflow-hidden rounded-[18px] border border-[#deded9] bg-white px-5 py-4 text-[#222b32]"
@@ -85,18 +72,12 @@ export function VehiclePriceInsightCard({ insight }: { insight: Insight }) {
         <span aria-hidden="true">·</span>
         <span>{delta}</span>
       </p>
-      <p className="mt-3 text-[12px] leading-[18px] text-[#606970]">
-        {evidence ? "Typical dealer asking range" : "Approximate model estimate"}
-      </p>
+      <p className="mt-3 text-[12px] leading-[18px] text-[#606970]">Estimated asking price</p>
       <p className="mt-1 text-[24px] font-semibold leading-8 tracking-[-0.02em] text-[#112e44] tabular-nums">
-        {evidence
-          ? `${wholeDollars(Math.floor(evidence.lowerCents / 10000) * 10000)} – ${wholeDollars(Math.ceil(evidence.upperCents / 10000) * 10000)}`
-          : `≈ ${roundHundred(insight.estimateCents)}`}
+        ≈ {roundHundred(insight.estimateCents)}
       </p>
       <p className="mt-1 text-[12px] leading-[18px] text-[#606970]">
-        {evidence
-          ? `${evidence.count} similar ${evidence.scope === "state" ? evidence.state : "U.S."} dealer listings · ${checkedDate(evidence.checkedAt) ?? "check date unavailable"}`
-          : `Comparable sample unavailable · ${checkedDate(insight.updatedAt) ?? "check date unavailable"}`}
+        {checkedDate(insight.updatedAt)}
       </p>
       <div
         className="mt-3"
