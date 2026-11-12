@@ -47,6 +47,18 @@ export function normalizeRedfinResult(
     status: "ok" as const,
     homes: (Array.isArray(rows) ? rows : []).flatMap((raw: unknown) => {
       const row = object(raw);
+      // Live for_rent searches returned verified for-sale properties with
+      // their sale prices and generic ACTIVE status. The requested mode is
+      // not evidence that an individual result is a rental.
+      if (
+        mode === "rent" &&
+        ![row.search_status, row.mls_status].some(
+          (status) =>
+            typeof status === "string" &&
+            /^(?:for[ _-]?rent|rental|for[ _-]?lease)$/i.test(status.trim()),
+        )
+      )
+        return [];
       if (
         !/^\d{1,20}$/.test(String(row.property_id ?? "")) ||
         /sold|off.?market|inactive|pending|contingent/i.test(
