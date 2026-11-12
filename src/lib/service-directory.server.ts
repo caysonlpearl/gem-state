@@ -3,6 +3,7 @@ import { withCatalogReadDeadline } from "./catalog-read-deadline.ts";
 import { findIdahoPlace, idahoPlaces } from "../config/idaho-places.ts";
 import { serverEnv } from "./runtime-env.server.ts";
 import { logoImageUrl } from "./employer-logo-match.ts";
+import { logoDomainFor } from "./service-logo-domain.ts";
 import { isIndexablePartnerDetail } from "./partner-seo.ts";
 import {
   DIRECTORY_COLUMNS,
@@ -31,7 +32,7 @@ async function db() {
 
 export function logoFor(row: DirectoryRow) {
   const key = serverEnv("LOGO_DEV_PUBLISHABLE_KEY");
-  const domain = websiteDomain(row.enrichment?.website ?? row.website);
+  const domain = logoDomainFor(row.name, row.website, row.enrichment?.website);
   return key && domain ? logoImageUrl(domain, key) : null;
 }
 
