@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- migration-backed valuation cache */
 import {
   compareVehiclePrice,
+  compareComparablePrice,
   valuationInput,
   type VehicleEstimate,
   type ValuationInput,
@@ -11,6 +12,7 @@ import {
   valuationProviders,
   type ProviderConfig,
 } from "./vehicle-valuation-providers.server.ts";
+import { resolveComparableEvidence } from "./vehicle-comparables.server.ts";
 import { serverEnv } from "./runtime-env.server.ts";
 
 export async function valuationCacheKey(input: ValuationInput) {
@@ -155,7 +157,14 @@ export async function listingPriceInsight(listing: Parameters<typeof valuationIn
   const configs = valuationProviders(serverEnv);
   if (!configs.length) return null;
   const estimate = await resolveVehicleEstimate(db, input, configs);
-  return estimate
-    ? { ...compareVehiclePrice(estimate, listing.priceCents), vehicleDetails: input }
-    : null;
+  if (!estimate) return null;
+  const vehicles = configs.find((config) => config.provider === "vehicles");
+  const evidence = vehicles ? await resolveComparableEvidence(db, input, vehicles) : null;
+  return {
+    ...(evidence
+      ? compareComparablePrice(estimate, evidence, listing.priceCents)
+      : compareVehiclePrice(estimate, listing.priceCents)),
+    vehicleDetails: input,
+    evidence,
+  };
 }

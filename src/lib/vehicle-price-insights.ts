@@ -20,6 +20,20 @@ export type ValuationInput = {
   color?: string | null;
   baseMsrp?: number | null;
 };
+export type VehicleMarketEvidence = {
+  lowerCents: number;
+  upperCents: number;
+  medianCents: number;
+  count: number;
+  checkedAt: string;
+  scope: "state" | "national";
+  state: string;
+  mileageTolerance: number;
+  trimMatched: boolean;
+  drivetrainMatched: boolean;
+  provider: ValuationProvider;
+};
+
 export type VehicleEstimate = {
   provider: ValuationProvider;
   estimateCents: number;
@@ -38,6 +52,7 @@ export type VehiclePriceInsight = VehicleEstimate & {
   vehicleDetails?: ValuationInput;
   providerInputs?: string[];
   unconfirmedInputs?: string[];
+  evidence?: VehicleMarketEvidence | null;
 };
 
 export const valuationProviderNames: Record<ValuationProvider, string> = {
@@ -70,6 +85,36 @@ export function compareVehiclePrice(
         : differenceCents < 0
           ? "below"
           : "above",
+  };
+}
+
+/** The displayed sample range, verdict and pointer must describe the same prices. */
+export function compareComparablePrice(
+  estimate: VehicleEstimate,
+  evidence: VehicleMarketEvidence,
+  askingCents: number,
+): VehiclePriceInsight {
+  const result = compareVehiclePrice(
+    { ...estimate, estimateCents: evidence.medianCents, modelErrorPct: null },
+    askingCents,
+  );
+  const distance =
+    askingCents >= evidence.medianCents
+      ? evidence.upperCents - evidence.medianCents
+      : evidence.medianCents - evidence.lowerCents;
+  return {
+    ...result,
+    evidence,
+    comparison:
+      askingCents > evidence.upperCents
+        ? "above"
+        : askingCents < evidence.lowerCents
+          ? "below"
+          : "near",
+    pointerPercent: Math.max(
+      3,
+      Math.min(97, 50 - ((askingCents - evidence.medianCents) / Math.max(1, distance)) * (100 / 6)),
+    ),
   };
 }
 
