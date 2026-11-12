@@ -109,7 +109,13 @@ export function compareComparablePrice(
           : "near",
     pointerPercent: Math.max(
       3,
-      Math.min(97, 50 - ((askingCents - evidence.medianCents) / Math.max(1, distance)) * (100 / 6)),
+      Math.min(
+        97,
+        200 / 3 -
+          ((askingCents - evidence.lowerCents) /
+            Math.max(1, evidence.upperCents - evidence.lowerCents)) *
+            (100 / 3),
+      ),
     ),
   };
 }
