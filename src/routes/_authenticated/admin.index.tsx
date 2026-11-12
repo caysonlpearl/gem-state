@@ -1,7 +1,5 @@
 import { useEffect } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import {
   Car,
   ShieldCheck,
@@ -14,10 +12,7 @@ import {
 } from "@phosphor-icons/react";
 
 import { brand } from "@/config/brand";
-import { formatUsd } from "@/config/fees";
 import { trackEvent } from "@/lib/analytics";
-import { getAdminQueues } from "@/lib/pilot.functions";
-import { disputeStatusLabels, orderStatusLabels, originLabels } from "@/lib/market-labels";
 
 export const Route = createFileRoute("/_authenticated/admin/")({
   head: () => ({
@@ -26,12 +21,12 @@ export const Route = createFileRoute("/_authenticated/admin/")({
       {
         name: "description",
         content:
-          "Role-protected operator queues for Bluebird Marketplace listings, orders, disputes, and seller activity.",
+          "Role-protected tools for Bluebird Marketplace listings, dealerships, members, and site activity.",
       },
       { property: "og:title", content: `${brand.name} operations console` },
       {
         property: "og:description",
-        content: "Role-protected operator queues for Bluebird Marketplace orders and trust review.",
+        content: "Role-protected Bluebird Marketplace administration and moderation.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
@@ -40,32 +35,6 @@ export const Route = createFileRoute("/_authenticated/admin/")({
   }),
   component: AdminPage,
 });
-
-function Queue({
-  title,
-  emptyLabel,
-  children,
-  count,
-}: {
-  title: string;
-  emptyLabel: string;
-  count: number;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="rounded-lg border border-border bg-card">
-      <div className="hairline-b flex items-center justify-between px-4 py-3">
-        <h2 className="text-[13px] font-semibold tracking-tight">{title}</h2>
-        <span className="numeric text-[12px] text-muted-foreground">{count}</span>
-      </div>
-      {count === 0 ? (
-        <p className="px-4 py-3 text-[12.5px] text-muted-foreground">{emptyLabel}</p>
-      ) : (
-        <ul className="text-[12.5px]">{children}</ul>
-      )}
-    </section>
-  );
-}
 
 const adminGroups = [
   {
@@ -222,44 +191,9 @@ function AdminNavigation() {
 }
 
 function AdminPage() {
-  const fetchQueues = useServerFn(getAdminQueues);
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["admin-queues"],
-    queryFn: () => fetchQueues(),
-  });
-
   useEffect(() => {
     void trackEvent("pilot_console_viewed", {});
   }, []);
-
-  if (isLoading)
-    return (
-      <p className="mx-auto max-w-[1000px] px-4 py-10 text-sm text-muted-foreground">
-        Loading admin overview…
-      </p>
-    );
-  if (isError)
-    return (
-      <div role="alert" className="mx-auto max-w-[1000px] px-4 py-10">
-        <p className="text-sm">The admin overview could not load.</p>
-        <button
-          type="button"
-          onClick={() => void refetch()}
-          className="mt-3 rounded-md border border-input px-3 py-2 text-sm hover:bg-secondary"
-        >
-          Try again
-        </button>
-      </div>
-    );
-  if (!data?.isAdmin)
-    return (
-      <div className="mx-auto max-w-[760px] px-4 py-16 sm:px-6">
-        <h1 className="text-xl font-semibold">Operator access required</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          This console is limited to the Bluebird administrator account.
-        </p>
-      </div>
-    );
 
   return (
     <div className="mx-auto max-w-[1000px] space-y-6 px-4 py-10 sm:px-6">
@@ -270,51 +204,6 @@ function AdminPage() {
         </p>
       </header>
       <AdminNavigation />
-      <div className="grid items-start gap-4 md:grid-cols-2">
-        <Queue title="Orders" count={data.orders.length} emptyLabel="No marketplace orders yet.">
-          {data.orders.map((o) => (
-            <li
-              key={o.id}
-              className="hairline-b flex items-center justify-between gap-3 px-4 py-2.5 last:border-b-0"
-            >
-              <span>
-                <Link
-                  to="/admin/orders/$orderId"
-                  params={{ orderId: o.id }}
-                  className="numeric font-medium hover:underline"
-                >
-                  {o.orderNumber}
-                </Link>
-                <span className="block text-[11.5px] text-muted-foreground">
-                  {originLabels[o.origin] ?? o.origin} · {orderStatusLabels[o.status] ?? o.status}
-                </span>
-              </span>
-              <span className="numeric">{formatUsd(o.totalCents)}</span>
-            </li>
-          ))}
-        </Queue>
-
-        <Queue title="Disputes" count={data.disputes.length} emptyLabel="No open disputes.">
-          {data.disputes.map((d) => (
-            <li
-              key={d.id}
-              className="hairline-b flex items-start justify-between gap-3 px-4 py-2.5 last:border-b-0"
-            >
-              <span>
-                {disputeStatusLabels[d.status] ?? d.status}
-                <span className="block text-[11.5px] text-muted-foreground">{d.reason}</span>
-              </span>
-              <Link
-                to="/admin/orders/$orderId"
-                params={{ orderId: d.orderId }}
-                className="shrink-0 text-[12px] text-muted-foreground hover:text-foreground"
-              >
-                Open order
-              </Link>
-            </li>
-          ))}
-        </Queue>
-      </div>
     </div>
   );
 }
