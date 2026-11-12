@@ -16,7 +16,7 @@ Version 1.5.6 waits for Vinted wardrobe hydration and captures cards before incr
 
 Version 1.5.6 stops treating the gallery favorite button's hidden “Removed!” announcement as an inventory removal. Only item-status notices and structured availability establish removal. It also reads the current itemprop description fallback. Previously applied removals are not automatically reversed; verify their source pages before restoring listings.
 
-In Chrome's Extensions page, reload the installed unpacked extension from this folder, then reload the Bluebird admin import page. The admin page requires version 1.5.10 or later for profile Refresh. Updating the website does not update an unpacked Chrome extension.
+In Chrome's Extensions page, reload the installed unpacked extension from this folder, then reload the Bluebird admin import page. The admin page requires version 1.5.10 or later for profile Refresh. Updating the website does not update an unpacked Chrome extension. The Imported sellers panel now shows whether the extension is connected, missing, or outdated. Its connection check retries briefly and can be run again with Check extension again; checking the seller-authorization box also rechecks a missing bridge. These connection checks never start a scan. Refresh still requires both a supported extension and seller authorization.
 
 Server-side refresh safeguards preserve existing listing visibility even when a source reports unavailable or omits an item.
 

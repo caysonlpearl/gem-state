@@ -1,3 +1,7 @@
+import {
+  connectImportExtension,
+  type ImportExtensionConnection,
+} from "@/lib/import-extension-connection";
 import { useImportStage } from "@/lib/use-import-stage";
 import { getManagedImportSellers, keepBluebirdImportVersion } from "@/lib/seller-claims.functions";
 import { PhotoStorageStatus } from "@/components/admin/PhotoStorageStatus";
@@ -138,7 +142,6 @@ import {
   scannableProfiles,
   sanitizeStagingFailures,
   STAGING_FAILURE_LABELS,
-  supportsSafeSellerRefresh,
   type StagingFailure,
 } from "@/lib/import-refresh";
 import { Button } from "@/components/ui/button";
@@ -192,7 +195,11 @@ function ImportedSellers() {
     queryFn: () => fetchProfiles(),
   });
 
-  const [extensionReady, setExtensionReady] = useState(false);
+  const [extensionConnection, setExtensionConnection] = useState<ImportExtensionConnection>({
+    status: "checking",
+  });
+  const checkExtension = useRef<() => void>(() => {});
+  const extensionReady = extensionConnection.status === "ready";
   const [activeScan, setActiveScan] = useState("");
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [scanReports, setScanReports] = useState<
@@ -216,18 +223,13 @@ function ImportedSellers() {
   const [scanAuthorized, setScanAuthorized] = useState(false);
   const [unreadReport, setUnreadReport] = useState<UnreadableDiagnostic[] | null>(null);
 
-  // The extension's bridge script answers this ping; it's only present on
-  // pages opened after the extension was (re)loaded.
   useEffect(() => {
-    const onMessage = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) return;
-      if ((event.data as { type?: string } | null)?.type === "gemlist-ext-pong") {
-        setExtensionReady(supportsSafeSellerRefresh(event.data.version));
-      }
+    const connection = connectImportExtension(window, setExtensionConnection);
+    checkExtension.current = connection.check;
+    return () => {
+      checkExtension.current = () => {};
+      connection.dispose();
     };
-    window.addEventListener("message", onMessage);
-    window.postMessage({ type: "gemlist-ext-ping" }, window.location.origin);
-    return () => window.removeEventListener("message", onMessage);
   }, []);
 
   const refreshMutation = useMutation({
@@ -471,16 +473,16 @@ function ImportedSellers() {
             takes existing listings offline. Missing, unavailable, blocked, or unreadable source
             pages leave Bluebird listings live. Remove sold listings separately after checking their
             status.
-            {extensionReady
-              ? ""
-              : " Extension 1.5.10 or newer not detected — reload the updated extension, then reload this page."}
           </p>
         </div>
         <label className="text-xs">
           <input
             type="checkbox"
             checked={scanAuthorized}
-            onChange={(e) => setScanAuthorized(e.target.checked)}
+            onChange={(e) => {
+              setScanAuthorized(e.target.checked);
+              if (e.target.checked && !extensionReady) checkExtension.current();
+            }}
           />{" "}
           Sellers authorized these scans.
         </label>
@@ -488,11 +490,51 @@ function ImportedSellers() {
           type="button"
           onClick={() => refreshMutation.mutate(null)}
           disabled={!extensionReady || !scanAuthorized || refreshMutation.isPending}
+          title={
+            !extensionReady
+              ? "Connect the import extension first."
+              : !scanAuthorized
+                ? "Confirm seller authorization first."
+                : undefined
+          }
           className="h-9 rounded-md bg-primary px-3 text-[12px] font-semibold text-primary-foreground disabled:opacity-50"
         >
           {refreshMutation.isPending && progress
             ? `Checking ${progress.done}/${progress.total}…`
             : "Refresh all"}
+        </Button>
+      </div>
+      <div
+        role="status"
+        className={`flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3 text-xs ${extensionReady ? "bg-emerald-50/60 text-emerald-900" : "bg-amber-50 text-amber-950"}`}
+      >
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold">
+            {extensionReady
+              ? `Import extension connected · v${extensionConnection.version}`
+              : extensionConnection.status === "checking"
+                ? "Checking import extension…"
+                : extensionConnection.status === "outdated"
+                  ? `Update the import extension · v${extensionConnection.version} detected`
+                  : "Refresh needs the Bluebird Listing Import extension"}
+          </p>
+          {!extensionReady && extensionConnection.status !== "checking" ? (
+            <p className="mt-1 leading-relaxed">
+              The authorization checkbox confirms permission; the extension provides the scanner. In
+              this Chrome profile, open Extensions → Manage extensions, enable or reload Bluebird
+              Listing Import (1.5.10 or newer), then reload this page. If you only just enabled it,
+              reload the page so it can connect.
+            </p>
+          ) : null}
+        </div>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={extensionConnection.status === "checking" || refreshMutation.isPending}
+          onClick={() => checkExtension.current()}
+        >
+          {extensionConnection.status === "checking" ? "Checking…" : "Check extension again"}
         </Button>
       </div>
       {refreshMutation.isPending && activeScan && (
