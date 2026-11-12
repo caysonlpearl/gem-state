@@ -32,7 +32,8 @@ export function logoDomainFor(
   const enriched = websiteDomain(enrichedWebsite);
   const usable = (d: string | null) => (d && !PARKED.test(d) ? d : null);
   if (usable(own)) return own;
-  if (usable(enriched) && (!own || matchesName(name, enriched!)) && (own || matchesName(name, enriched!) || true))
-    return own ? (matchesName(name, enriched!) ? enriched : null) : enriched;
-  return null;
+  const alt = usable(enriched);
+  if (!alt) return null;
+  // No own site: trust the enrichment. Parked own site: only a name match.
+  return !own || matchesName(name, alt) ? alt : null;
 }
