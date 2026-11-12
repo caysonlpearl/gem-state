@@ -332,15 +332,26 @@ export function summarizeBusinessPerformance(input: {
   const ownVisits = new Set<string>();
   for (const e of eligible) {
     const p = (e.props ?? {}) as Record<string, unknown>;
-    const key = canonical(
-      text(p.business_key) || attribution.get(text(p.listing_id))?.businessKey || "",
-    );
-    if (e.user_id && input.ownerIds?.get(key)?.has(e.user_id) && p.traffic_visit)
-      ownVisits.add(key + ":" + p.traffic_visit);
+    if (e.user_id && p.traffic_visit)
+      for (const [businessKey, users] of input.ownerIds ?? [])
+        if (users.has(e.user_id)) ownVisits.add(canonical(businessKey) + ":" + p.traffic_visit);
   }
   let unattributedEvents = 0;
   const seenInquiries = new Set<string>();
   for (const event of eligible) {
+    if (
+      ![
+        "listing_viewed",
+        "business_listing_clicked",
+        "business_profile_viewed",
+        "watchlist_added",
+        "inquiry_completed",
+        "business_inquiry_completed",
+        "business_action",
+        "seller_contacted",
+      ].includes(event.name)
+    )
+      continue;
     const p = (event.props ?? {}) as Record<string, unknown>;
     const listingId = text(p.listing_id);
     const rawKey = text(p.business_key) || attribution.get(listingId)?.businessKey;

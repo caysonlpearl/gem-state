@@ -228,3 +228,38 @@ test("card activations are distinct from page views and do not imply purchase in
   assert.equal(row.interestedBrowsers, 0);
   assert.equal(row.modeledSales, null);
 });
+
+test("a later staff or owner account event excludes their anonymous pre-login views", () => {
+  const result = report(
+    [
+      event("listing_viewed", { traffic_visit: "admin-visit" }),
+      event(
+        "admin_opened",
+        {
+          listing_id: null,
+          business_key: null,
+          business_kind: null,
+          business_name: null,
+          traffic_visit: "admin-visit",
+        },
+        { user_id: "staff" },
+      ),
+      event("listing_viewed", { traffic_visit: "owner-visit" }),
+      event(
+        "account_opened",
+        {
+          listing_id: null,
+          business_key: null,
+          business_kind: null,
+          business_name: null,
+          traffic_visit: "owner-visit",
+        },
+        { user_id: "dealer-owner" },
+      ),
+      event("listing_viewed", { traffic_visit: "real-buyer" }),
+    ],
+    { ownerIds: new Map([[mass.key, new Set(["dealer-owner"])]]) },
+  );
+  assert.equal(result.businesses[0].listingViews, 1);
+  assert.equal(result.businesses[0].uniqueBrowsers, 1);
+});

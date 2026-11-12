@@ -27,8 +27,8 @@ export async function loadBusinessPerformance(admin: SupabaseClient, days: numbe
   const db = admin as any;
   const until = new Date().toISOString(),
     since = new Date(Date.now() - days * 86400000).toISOString();
-  const [profiles, staff, members, storedEntities, storedLinks, rates, release, events] =
-    await Promise.all([
+  const [profiles, staff, members, storedEntities, storedLinks, rates, release] = await Promise.all(
+    [
       readAll((offset) =>
         db
           .from("dealer_profiles")
@@ -75,31 +75,45 @@ export async function loadBusinessPerformance(admin: SupabaseClient, days: numbe
           .range(offset, offset + 499),
       ),
       db.from("business_tracking_release").select("tracking_started_at").eq("id", true).single(),
-      readAll((offset) =>
-        db
-          .from("analytics_events")
-          .select("id,name,props,user_id,session_id,occurred_at,is_demo")
-          .in("name", [
-            "listing_viewed",
-            "business_listing_clicked",
-            "visit_started",
-            "page_viewed",
-            "business_profile_viewed",
-            "business_action",
-            "seller_contacted",
-            "inquiry_completed",
-            "business_inquiry_completed",
-            "watchlist_added",
-          ])
-          .eq("is_demo", false)
-          .gte("occurred_at", since)
-          .lt("occurred_at", until)
-          .order("occurred_at")
-          .order("id")
-          .range(offset, offset + 499),
-      ),
-    ]);
+    ],
+  );
   if (release.error) throw Error("Business tracking setup is incomplete.");
+  // Include staff/owner events of every type: an admin-only login visit can
+  // identify the anonymous listing views that happened before sign-in.
+  const accountIds = [
+    ...new Set(
+      [
+        ...staff.map((p) => p.user_id),
+        ...profiles.map((p) => p.owner_user_id),
+        ...members.map((p) => p.user_id),
+      ].filter(Boolean),
+    ),
+  ];
+  const eventNames = [
+    "listing_viewed",
+    "business_listing_clicked",
+    "visit_started",
+    "page_viewed",
+    "business_profile_viewed",
+    "business_action",
+    "seller_contacted",
+    "inquiry_completed",
+    "business_inquiry_completed",
+    "watchlist_added",
+  ];
+  const eventFilter = `name.in.(${eventNames.join(",")})${accountIds.length ? `,user_id.in.(${accountIds.join(",")})` : ""}`;
+  const events = await readAll((offset) =>
+    db
+      .from("analytics_events")
+      .select("id,name,props,user_id,session_id,occurred_at,is_demo")
+      .or(eventFilter)
+      .eq("is_demo", false)
+      .gte("occurred_at", since)
+      .lt("occurred_at", until)
+      .order("occurred_at")
+      .order("id")
+      .range(offset, offset + 499),
+  );
   const official: BusinessIdentity[] = profiles
     .map((p) => ({
       key: "dealer:" + p.slug,

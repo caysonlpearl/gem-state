@@ -39,6 +39,12 @@ test("reports use cached inventory, retain removed listings, and only persist ch
         select: () => query,
         order: () => query,
         in: () => query,
+        or: (filter) => {
+          assert.match(filter, /name.in.*business_listing_clicked/);
+          assert.match(filter, /user_id.in.*admin/);
+          assert.match(filter, /user_id.in.*owner/);
+          return query;
+        },
         eq: () => query,
         gte: () => query,
         lt: () => query,
