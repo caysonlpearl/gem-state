@@ -1,3 +1,5 @@
+import { homeMapLocation, homePriceCut } from "@/lib/home-shopping";
+import { HomePaymentCalculator } from "@/components/listings/HomePaymentCalculator";
 import { ListingSellerIdentity } from "@/components/listings/ListingSellerIdentity";
 import { gunsComProfile } from "@/config/retailers";
 import { dealerContactPriceLabel } from "@/lib/vehicle-shopping";
@@ -1402,6 +1404,18 @@ function ListingDetail() {
         getRelatedClassifieds({
           data: {
             excludeId: listingId,
+            ...(listing?.home
+              ? {
+                  homeReference: {
+                    title: listing.title,
+                    city: listing.city,
+                    priceCents: listing.priceCents,
+                    mode: listing.home.mode,
+                    bedrooms: listing.home.bedrooms,
+                    squareFeet: listing.home.squareFeet,
+                  },
+                }
+              : {}),
             ...(listing?.categorySlug ? { category: listing.categorySlug } : {}),
             ...(listing?.seller?.slug ? { sellerSlug: listing.seller.slug } : {}),
             ...(listing?.region ? { region: listing.region } : {}),
@@ -1419,6 +1433,7 @@ function ListingDetail() {
           listing={listing}
           fromSeller={relatedQuery.data?.fromSeller ?? []}
           similar={relatedQuery.data?.similar ?? []}
+          moreHomes={relatedQuery.data?.moreHomes ?? []}
         />
       ) : null}
       {listing ? <MobileContactBar listing={listing} /> : null}
@@ -1461,37 +1476,97 @@ function similarNoun(listing: ClassifiedDetail) {
   return "items";
 }
 
-// Two rails under every listing type, so a shopper who isn't sold on this
-// item has an obvious next step instead of a dead end.
-function RelatedRails({
-  listing,
-  fromSeller,
-  similar,
+function HomeRecommendationRail({
+  title,
+  subtitle,
+  items,
+  action,
 }: {
-  listing: ClassifiedDetail;
-  fromSeller: ClassifiedCard[];
-  similar: ClassifiedCard[];
+  title: string;
+  subtitle: string;
+  items: ClassifiedCard[];
+  action: ReactNode;
 }) {
-  if (!fromSeller.length && !similar.length) return null;
-  const sellerName = listing.seller?.displayName;
-  const rail = (title: string, subtitle: string, items: ClassifiedCard[], href: ReactNode) => (
-    <section className="border-t border-border/70 pt-9">
+  const scroller = useRef<HTMLDivElement>(null);
+  return (
+    <section className="border-t border-border/70 pt-8">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h2 className="text-[23px] font-bold tracking-tight">{title}</h2>
           <p className="mt-1 text-[13px] text-muted-foreground">{subtitle}</p>
         </div>
-        {href}
+        <div className="flex items-center gap-3">
+          {action}
+          <div className="flex gap-2">
+            {([-1, 1] as const).map((direction) => (
+              <button
+                key={direction}
+                type="button"
+                aria-label={`${direction < 0 ? "Previous" : "Next"} ${title.toLowerCase()}`}
+                onClick={() =>
+                  scroller.current?.scrollBy({
+                    left: direction * scroller.current.clientWidth * 0.85,
+                    behavior: "smooth",
+                  })
+                }
+                className="grid size-9 place-items-center rounded-full border border-border bg-card text-primary transition hover:bg-secondary"
+              >
+                {direction < 0 ? <ArrowLeft size={16} /> : <ArrowRight size={16} />}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
-      <div className="no-scrollbar mt-5 flex snap-x gap-4 overflow-x-auto pb-2">
+      <div
+        ref={scroller}
+        className="no-scrollbar mt-5 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-3"
+      >
         {items.map((related) => (
-          <div key={related.id} className="w-[220px] shrink-0 snap-start sm:w-[260px]">
+          <div key={related.id} className="w-[245px] shrink-0 snap-start sm:w-[270px]">
             <ListingCard listing={related} />
           </div>
         ))}
       </div>
     </section>
   );
+}
+
+// Two rails under every listing type, so a shopper who isn't sold on this
+// item has an obvious next step instead of a dead end.
+function RelatedRails({
+  listing,
+  fromSeller,
+  similar,
+  moreHomes,
+}: {
+  listing: ClassifiedDetail;
+  fromSeller: ClassifiedCard[];
+  similar: ClassifiedCard[];
+  moreHomes: ClassifiedCard[];
+}) {
+  if (!fromSeller.length && !similar.length && !moreHomes.length) return null;
+  const sellerName = listing.seller?.displayName;
+  const rail = (title: string, subtitle: string, items: ClassifiedCard[], href: ReactNode) =>
+    listing.home ? (
+      <HomeRecommendationRail title={title} subtitle={subtitle} items={items} action={href} />
+    ) : (
+      <section className="border-t border-border/70 pt-9">
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h2 className="text-[23px] font-bold tracking-tight">{title}</h2>
+            <p className="mt-1 text-[13px] text-muted-foreground">{subtitle}</p>
+          </div>
+          {href}
+        </div>
+        <div className="no-scrollbar mt-5 flex snap-x gap-4 overflow-x-auto pb-2">
+          {items.map((related) => (
+            <div key={related.id} className="w-[220px] shrink-0 snap-start sm:w-[260px]">
+              <ListingCard listing={related} />
+            </div>
+          ))}
+        </div>
+      </section>
+    );
   const seeAll =
     "inline-flex min-h-11 items-center gap-1 text-[12.5px] font-semibold text-primary hover:underline";
   return (
@@ -1510,10 +1585,14 @@ function RelatedRails({
         ? rail(
             listing.externalMerchandise
               ? "Related listings"
-              : `Similar ${similarNoun(listing)} near you`,
+              : listing.home
+                ? "Similar homes"
+                : `Similar ${similarNoun(listing)} near you`,
             listing.externalMerchandise
               ? `More ${listing.categoryName ?? "listings"}`
-              : `More ${listing.categoryName ?? "listings"} around ${listing.region || listing.state}`,
+              : listing.home
+                ? `Homes to consider in ${listing.city} and across ${listing.state}`
+                : `More ${listing.categoryName ?? "listings"} around ${listing.region || listing.state}`,
             similar,
             <Link
               to="/browse"
@@ -1528,6 +1607,25 @@ function RelatedRails({
               className={seeAll}
             >
               View all <CaretRight size={15} />
+            </Link>,
+          )
+        : null}
+      {listing.home && moreHomes.length
+        ? rail(
+            "More homes to explore",
+            "More available homes, with the same sale or rental search",
+            moreHomes,
+            <Link
+              to="/browse"
+              search={{
+                category: "other-real-estate",
+                homeTab: listing.home.mode,
+                homeMode: "results",
+                state: listing.state,
+              }}
+              className={seeAll}
+            >
+              Browse homes <CaretRight size={15} />
             </Link>,
           )
         : null}
@@ -1653,7 +1751,6 @@ function ListingDetailContent() {
           listing={listing}
           title={title}
           description={description}
-          locationQuery={locationQuery}
           handleShare={handleShare}
         />
       );
@@ -2189,14 +2286,14 @@ function HomeSafetyPanel({
   isMock?: boolean;
 }) {
   return (
-    <section className="rounded-2xl border border-brand-warm/50 bg-brand-warm/10 px-5 py-5 sm:px-6">
+    <section className="rounded-[24px] border border-[#153e52] bg-[#113345] px-5 py-6 text-white shadow-[0_12px_30px_-20px_rgba(17,51,69,0.6)] sm:px-6 [&_button]:border-white/40 [&_button]:text-white [&_button:hover]:bg-white/10">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-[18px] font-bold">Important safety tip</h2>
-        <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-1 text-[10px] font-semibold text-primary">
+        <h2 className="text-[18px] font-bold">Safe. Simple. Trusted.</h2>
+        <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-1 text-[10px] font-semibold text-white">
           <ShieldCheck size={13} weight="fill" /> Bluebird Marketplace Safety
         </span>
       </div>
-      <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
+      <p className="mt-2 text-[12px] leading-relaxed text-white/75">
         {isRental
           ? "Never send a deposit before touring the home and verifying the owner or property manager. Review the lease, fees, utilities, and application process before paying."
           : "Never send money before touring the home and verifying ownership. Review disclosures, fees, inspection details, and the offer terms before making a payment."}
@@ -2387,7 +2484,9 @@ function HomeFactsAndFeatures({
         <div className="mt-2 grid gap-x-10 gap-y-6 md:grid-cols-2">
           {shown.map(([title, rows]) => (
             <section key={title}>
-              <h3 className="mt-4 text-[15px] font-bold">{title}</h3>
+              <h3 className="mt-4 rounded-lg bg-[#edf1f4] px-3 py-2.5 text-[14px] font-bold">
+                {title}
+              </h3>
               <HomeFactRows rows={rows} />
             </section>
           ))}
@@ -2497,11 +2596,8 @@ function HomeHistory({ details }: { details: ReturnType<typeof homeRentalDetails
   );
 }
 
-/**
- * KSL-style tabs holding Zillow's sections: the overview (description and
- * rental terms), facts & features, price and tax history, and the map.
- */
-function HomeDetailTabs({
+/** Continuous home sections with a sticky jump menu; no content is hidden behind tabs. */
+function HomeDetailSections({
   listing,
   description,
   locationQuery,
@@ -2517,17 +2613,43 @@ function HomeDetailTabs({
     details.taxHistory.length > 0 ||
     details.zestimate != null ||
     details.rentZestimate != null;
-  const tabs = [
+  const [active, setActive] = useState("overview");
+  const [headerOffset, setHeaderOffset] = useState(220);
+  const sectionRoot = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const header = document.querySelector("header.sticky");
+    if (!header) return;
+    const measure = () => setHeaderOffset(header.getBoundingClientRect().height);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(header);
+    return () => observer.disconnect();
+  }, []);
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+        if (visible) setActive(visible.target.id.replace("home-", ""));
+      },
+      { rootMargin: `-${headerOffset + 60}px 0px -45% 0px` },
+    );
+    sectionRoot.current
+      ?.querySelectorAll("[data-home-section]")
+      .forEach((el) => observer.observe(el));
+    return () => observer.disconnect();
+  }, [headerOffset]);
+  const links = [
     ["overview", "Overview"],
     ["facts", "Facts & features"],
     ...(hasHistory ? [["history", "Price & tax history"]] : []),
-    ["map", "Map"],
-  ] as const;
-  const [activeTab, setActiveTab] = useState<string>("overview");
-  const utilities =
-    details.utilities.length > 0
-      ? details.utilities.map(({ label, paidBy }) => `${label}: ${paidBy}`).join(" · ")
-      : details.utilitiesText;
+    ...(!details.isRental ? [["payment", "Payment calculator"]] : []),
+    ["neighborhood", "Neighborhood"],
+  ];
+  const utilities = details.utilities.length
+    ? details.utilities.map(({ label, paidBy }) => `${label}: ${paidBy}`).join(" · ")
+    : details.utilitiesText;
   const rentalTerms: [string, string | null | undefined][] = [
     ["Available", details.availability],
     ["Lease length", details.leaseLength],
@@ -2538,83 +2660,152 @@ function HomeDetailTabs({
     ["Smoking", details.smoking],
     ["Utilities", utilities],
   ];
-
+  const mapLocation = homeMapLocation(listing);
+  const schools = listing.externalHome?.schools?.filter(knownHomeFact) ?? [];
+  const sectionStyle = { scrollMarginTop: headerOffset + 76 };
   return (
-    <section className="soft-card overflow-hidden">
-      <div className={listingTabListClass} role="tablist" aria-label="Home information">
-        {tabs.map(([tab, label]) => (
-          <button
-            key={tab}
-            type="button"
-            role="tab"
-            aria-selected={activeTab === tab}
-            onClick={() => setActiveTab(tab)}
-            className={listingTabClass(activeTab === tab)}
+    <div ref={sectionRoot} className="min-w-0">
+      <nav
+        aria-label="Home information"
+        style={{ top: headerOffset }}
+        className="no-scrollbar sticky z-20 -mx-1 flex gap-5 overflow-x-auto border-b border-border bg-background/95 px-1 backdrop-blur"
+      >
+        {links.map(([id, label]) => (
+          <a
+            key={id}
+            href={`#home-${id}`}
+            onClick={() => setActive(id)}
+            aria-current={active === id ? "location" : undefined}
+            className={`shrink-0 border-b-[3px] py-4 text-[13px] font-semibold transition ${active === id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-primary"}`}
           >
             {label}
-          </button>
+          </a>
         ))}
-      </div>
-      <div className="p-5 sm:p-7">
-        {activeTab === "overview" ? (
-          <div>
-            <h2 className="text-[21px] font-bold">
-              {details.isRental ? "About this rental" : "About this home"}
-            </h2>
-            <p className="mt-4 whitespace-pre-line text-[14px] leading-7 text-muted-foreground">
-              {description ||
-                (listing.externalHome
-                  ? "No description was included with this listing."
-                  : "The seller hasn't added a description yet.")}
-            </p>
-            {knownHomeFact(details.openHouse) ? (
-              <p className="mt-5 rounded-xl bg-primary/5 px-4 py-3 text-[13px]">
-                <span className="font-semibold">Open house:</span> {details.openHouse}
-              </p>
-            ) : null}
-            {details.isRental ? (
-              <section className="mt-8 border-t border-border/70 pt-6">
-                <h3 className="text-[16px] font-bold">Rental terms</h3>
-                {rentalTerms.some(([, value]) => knownHomeFact(value)) ? (
-                  <HomeFactRows rows={rentalTerms} />
-                ) : (
-                  <p className="mt-2 text-[13px] text-muted-foreground">
-                    Ask about the lease length, deposits, pets and utilities before you apply.
-                  </p>
-                )}
-              </section>
-            ) : null}
+      </nav>
+      <section
+        id="home-overview"
+        data-home-section
+        style={sectionStyle}
+        className="border-b border-border/70 py-7"
+      >
+        <h2 className="text-[23px] font-bold tracking-tight">
+          {details.isRental ? "About this rental" : "About this home"}
+        </h2>
+        <p className="mt-4 whitespace-pre-line text-[14px] leading-7 text-muted-foreground">
+          {description ||
+            (listing.externalHome
+              ? "No description was included with this listing."
+              : "The seller hasn't added a description yet.")}
+        </p>
+        {knownHomeFact(details.openHouse) ? (
+          <p className="mt-5 rounded-xl bg-[#e4f1fb] px-4 py-3 text-[13px]">
+            <strong>Open house:</strong> {details.openHouse}
+          </p>
+        ) : null}
+        {details.isRental ? (
+          <div className="mt-7">
+            <h3 className="text-[17px] font-bold">Rental terms</h3>
+            <HomeFactRows rows={rentalTerms} />
           </div>
-        ) : activeTab === "facts" ? (
-          <HomeFactsAndFeatures listing={listing} details={details} />
-        ) : activeTab === "history" ? (
+        ) : null}
+      </section>
+      <section
+        id="home-facts"
+        data-home-section
+        style={sectionStyle}
+        className="border-b border-border/70 py-7"
+      >
+        <HomeFactsAndFeatures listing={listing} details={details} />
+      </section>
+      {hasHistory ? (
+        <section
+          id="home-history"
+          data-home-section
+          style={sectionStyle}
+          className="border-b border-border/70 py-7"
+        >
           <HomeHistory details={details} />
-        ) : (
-          <div>
-            <h2 className="text-[21px] font-bold">Location</h2>
-            <p className="mt-2 text-[13px] text-muted-foreground">
-              {listing.title}, {placeLabel(listing.city, listing.state)}
-              {listing.postalCode ? ` ${listing.postalCode}` : ""}
-            </p>
-            <div className="mt-4 overflow-hidden rounded-2xl border border-border/70">
-              <ListingMapEmbed
-                locationQuery={locationQuery}
-                title="Home location map"
-                className="h-[360px]"
-              />
-            </div>
-            <a
-              href={`https://www.google.com/maps/search/?api=1&query=${locationQuery}`}
-              target="_blank"
-              rel="noreferrer"
-              className="mt-4 inline-flex items-center gap-1 text-[12.5px] font-semibold text-primary hover:underline"
-            >
-              Get directions <CaretRight size={15} />
-            </a>
+        </section>
+      ) : null}
+      {!details.isRental ? (
+        <section
+          id="home-payment"
+          data-home-section
+          style={sectionStyle}
+          className="border-b border-border/70 py-7"
+        >
+          <HomePaymentCalculator
+            key={listing.id}
+            priceCents={listing.priceCents}
+            annualTax={details.taxHistory[0]?.amount}
+          />
+        </section>
+      ) : null}
+      <section id="home-neighborhood" data-home-section style={sectionStyle} className="py-7">
+        <h2 className="text-[23px] font-bold tracking-tight">Location &amp; neighborhood</h2>
+        <p className="mt-2 text-[13px] text-muted-foreground">{mapLocation.label}</p>
+        <div className="mt-4 overflow-hidden rounded-2xl border border-border/70">
+          <ListingMapEmbed
+            locationQuery={locationQuery}
+            title={mapLocation.exact ? "Property address map" : "Home area map"}
+            className="h-[320px] sm:h-[360px]"
+          />
+        </div>
+        <a
+          href={`https://www.google.com/maps/search/?api=1&query=${locationQuery}`}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-3 inline-flex min-h-11 items-center gap-2 text-[13px] font-semibold text-primary hover:underline"
+        >
+          <MapPin size={17} />
+          Get directions <ArrowSquareOut size={14} />
+        </a>
+        <h3 className="mt-6 text-[20px] font-bold">Getting around</h3>
+        <div className="mt-3 grid gap-3 sm:grid-cols-2">
+          <a
+            href={`https://www.google.com/maps/dir/?api=1&destination=${locationQuery}&travelmode=walking`}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 text-[13px] font-semibold text-primary"
+          >
+            Explore walking routes <ArrowSquareOut size={17} />
+          </a>
+          <a
+            href={`https://www.google.com/maps/dir/?api=1&destination=${locationQuery}&travelmode=bicycling`}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card p-4 text-[13px] font-semibold text-primary"
+          >
+            Explore bike routes <ArrowSquareOut size={17} />
+          </a>
+        </div>
+        <h3 className="mt-7 text-[20px] font-bold">Nearby schools</h3>
+        {schools.length || knownHomeFact(details.schoolDistrict) ? (
+          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+            {(schools.length ? schools : [details.schoolDistrict]).map((name) => (
+              <div key={name} className="rounded-2xl border border-border bg-card p-4">
+                <Buildings size={23} className="text-primary" />
+                <p className="mt-2 text-[14px] font-semibold">{name}</p>
+                <p className="mt-1 text-[12px] text-muted-foreground">
+                  {schools.length ? "School named in the listing" : "School district"}
+                </p>
+              </div>
+            ))}
           </div>
-        )}
-      </div>
-    </section>
+        ) : null}
+        <a
+          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`schools near ${mapLocation.label}`)}`}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-3 inline-flex min-h-11 items-center gap-2 text-[13px] font-semibold text-primary hover:underline"
+        >
+          Explore nearby schools <ArrowSquareOut size={14} />
+        </a>
+        <p className="text-[12px] leading-5 text-muted-foreground">
+          Confirm school assignments and enrollment with the district.
+        </p>
+      </section>
+    </div>
   );
 }
 
@@ -2650,11 +2841,7 @@ function PartnerHomeContactCard({
             >
               <Phone size={13} aria-hidden="true" /> {listedBy.agentPhone || listedBy.brokerPhone}
             </a>
-          ) : (
-            <p className="mt-0.5 text-muted-foreground">
-              Contact details are on the original listing.
-            </p>
-          )}
+          ) : null}
         </div>
       </div>
       {sourceUrl ? (
@@ -2663,26 +2850,43 @@ function PartnerHomeContactCard({
           target="_blank"
           rel="noopener noreferrer nofollow"
           onClick={() => trackSellerContact("apply_external", listing)}
-          className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-nav-accent text-[14.5px] font-semibold text-primary transition-opacity hover:opacity-90"
+          className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#0874bd] text-[14.5px] font-bold text-white transition hover:bg-[#0665a5]"
         >
-          {isRental ? "Request a tour" : "Contact agent"}{" "}
-          <ArrowSquareOut size={16} aria-hidden="true" />
+          Request a tour
         </a>
       ) : null}
-      {sourceUrl ? (
-        <p className="mt-2 text-center text-[11.5px] text-muted-foreground">
-          Opens the original listing in a new tab.
-        </p>
+      {sourceUrl || listedBy?.agentPhone || listedBy?.brokerPhone ? (
+        <a
+          href={
+            listedBy?.agentPhone || listedBy?.brokerPhone
+              ? `tel:${(listedBy.agentPhone || listedBy.brokerPhone)!.replace(/[^\d+]/g, "")}`
+              : (sourceUrl ?? undefined)
+          }
+          target={listedBy?.agentPhone || listedBy?.brokerPhone ? undefined : "_blank"}
+          rel="noopener noreferrer nofollow"
+          onClick={() =>
+            trackSellerContact(
+              listedBy?.agentPhone || listedBy?.brokerPhone ? "call" : "apply_external",
+              listing,
+            )
+          }
+          className="mt-2.5 flex h-12 w-full items-center justify-center rounded-xl border border-[#0874bd] bg-white text-[14.5px] font-bold text-[#0874bd] transition hover:bg-[#eef6fb]"
+        >
+          Contact agent
+        </a>
       ) : null}
       {payment > 0 ? (
-        <div className="mt-5 rounded-2xl bg-secondary/50 px-4 py-3.5">
+        <a href="#home-payment" className="mt-5 block rounded-2xl bg-[#eef6fb] px-4 py-3.5">
           <p className="text-[12px] text-muted-foreground">Estimated payment</p>
-          <p className="numeric mt-0.5 text-[22px] font-bold">{wholeDollars(payment)}/mo</p>
+          <p className="numeric mt-0.5 text-[25px] font-extrabold">{wholeDollars(payment)}/mo</p>
           <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
             Principal &amp; interest at 20% down, 6.75%, 30-year fixed. Taxes, insurance and HOA are
             extra.
           </p>
-        </div>
+          <span className="mt-2 inline-block text-[12px] font-semibold text-primary underline underline-offset-2">
+            Customize payment
+          </span>
+        </a>
       ) : null}
     </section>
   );
@@ -2692,16 +2896,16 @@ function HomeListingDetail({
   listing,
   title,
   description,
-  locationQuery,
   handleShare,
 }: {
   listing: ClassifiedDetail;
   title: string;
   description: string;
-  locationQuery: string;
   handleShare: () => Promise<void>;
 }) {
   const details = homeRentalDetails(listing, description);
+  const mapLocation = homeMapLocation(listing);
+  const priceCut = homePriceCut(listing.priceCents, details.priceHistory);
   const price = formatClassifiedPrice(listing.priceCents, { wholeDollars: true });
   const homeTab = details.isRental ? "rent" : "buy";
   const home = listing.home;
@@ -2782,8 +2986,24 @@ function HomeListingDetail({
                   Part of the {details.community.name} community
                 </a>
               )}
+              {priceCut ? (
+                <p className="mb-3 inline-flex items-center gap-1.5 rounded-lg bg-[#ffe3df] px-3 py-1.5 text-[12px] font-bold text-[#ac2b23]">
+                  Price cut: {wholeDollars(priceCut.amount)}
+                  {priceCut.date ? (
+                    <span className="font-medium">
+                      (
+                      {new Date(priceCut.date).toLocaleDateString("en-US", {
+                        month: "short",
+                        day: "numeric",
+                        timeZone: "UTC",
+                      })}
+                      )
+                    </span>
+                  ) : null}
+                </p>
+              ) : null}
               <div className="flex flex-wrap items-end gap-x-7 gap-y-3">
-                <p className="numeric text-[32px] font-bold leading-none sm:text-[38px]">
+                <p className="numeric text-[36px] font-extrabold tracking-[-0.035em] leading-none sm:text-[42px]">
                   {price}
                   {details.isRental ? (
                     <span className="text-[18px] font-semibold text-muted-foreground">/mo</span>
@@ -2794,7 +3014,9 @@ function HomeListingDetail({
                     {stats.map(([value, label]) => (
                       <div key={label || value} className="flex flex-col-reverse">
                         <dt className="mt-1 text-[12px] text-muted-foreground">{label}</dt>
-                        <dd className="numeric text-[22px] font-bold leading-none">{value}</dd>
+                        <dd className="numeric text-[28px] font-extrabold tracking-tight leading-none">
+                          {value}
+                        </dd>
                       </div>
                     ))}
                   </dl>
@@ -2818,12 +3040,18 @@ function HomeListingDetail({
                   </span>
                 ) : null}
                 {payment > 0 ? (
-                  <span className="text-muted-foreground">
+                  <a
+                    href="#home-payment"
+                    className="inline-flex items-center gap-2 rounded-full bg-[#e4f1fb] px-3 py-2 text-primary transition hover:bg-[#d3e8f8]"
+                  >
                     Est.{" "}
-                    <span className="font-semibold text-foreground">
+                    <strong className="text-[14px] font-extrabold">
                       {wholeDollars(payment)}/mo
+                    </strong>
+                    <span className="ml-1 text-[12px] font-semibold underline underline-offset-2">
+                      Customize
                     </span>
-                  </span>
+                  </a>
                 ) : null}
                 {postedAge(listing.createdAt) && (
                   <span className="inline-flex items-center gap-1.5 text-muted-foreground">
@@ -2878,24 +3106,26 @@ function HomeListingDetail({
                 .map(([icon, label]) => (
                   <li
                     key={label}
-                    className="flex min-w-0 items-center gap-2.5 rounded-xl bg-secondary/55 px-3 py-2.5 text-[12.5px] font-medium sm:gap-3 sm:px-4 sm:py-3 sm:text-[13px]"
+                    className="flex min-w-0 items-start gap-3 rounded-2xl border border-[#e1e6e9] bg-[#f0f3f5] px-3.5 py-4 text-[13px] font-semibold leading-5 sm:px-4"
                   >
-                    <span className="text-primary">{icon}</span>
-                    <span className="min-w-0 truncate">{label}</span>
+                    <span className="mt-0.5 shrink-0 text-primary">{icon}</span>
+                    <span className="line-clamp-2 min-w-0" title={label}>
+                      {label}
+                    </span>
                   </li>
                 ))}
             </ul>
           ) : null}
 
-          <HomeDetailTabs
+          <HomeDetailSections
             listing={listing}
             description={description}
-            locationQuery={locationQuery}
+            locationQuery={mapLocation.query}
             details={details}
           />
         </div>
 
-        <aside className="min-w-0 space-y-5 lg:sticky lg:top-24">
+        <aside className="min-w-0 space-y-5 lg:sticky lg:top-[240px]">
           {listing.externalHome ? (
             <PartnerHomeContactCard listing={listing} isRental={details.isRental} />
           ) : (

@@ -1,3 +1,4 @@
+import { homeRecommendationRows } from "./home-shopping.ts";
 import { discoverySellerToken } from "./discovery-ranking.ts";
 import { mixPetSpecies } from "./pet-mix.ts";
 import { getPhotoStorageModule } from "./photo-storage-access";
@@ -124,6 +125,10 @@ export type ClassifiedCard = {
     sourceUrl?: string | null;
     /** Inventory-cache validity, never a source publication timestamp. */
     cacheExpiresAt?: string;
+    address?: string | null;
+    latitude?: number | null;
+    longitude?: number | null;
+    schools?: string[];
     listedBy?: {
       agentName: string | null;
       agentPhone: string | null;
@@ -2768,7 +2773,11 @@ async function buildClassifiedDetail(
   };
 }
 
-export type ClassifiedRelated = { fromSeller: ClassifiedCard[]; similar: ClassifiedCard[] };
+export type ClassifiedRelated = {
+  fromSeller: ClassifiedCard[];
+  similar: ClassifiedCard[];
+  moreHomes?: ClassifiedCard[];
+};
 
 /**
  * Two rails under a listing: the same seller's other listings, and similar
@@ -2783,7 +2792,34 @@ export const getRelatedClassifieds = createServerFn({ method: "GET" })
       state?: string;
       sellerSlug?: string;
       excludeId: string;
+      homeReference?: {
+        title: string;
+        city: string;
+        priceCents: number;
+        mode: "buy" | "rent" | "build";
+        bedrooms: number | null;
+        squareFeet: number | null;
+      };
     }) => ({
+      homeReference:
+        input?.homeReference && ["buy", "rent", "build"].includes(input.homeReference.mode)
+          ? {
+              title: text(input.homeReference.title, 200) ?? "",
+              city: text(input.homeReference.city, 100) ?? "",
+              mode: input.homeReference.mode,
+              priceCents:
+                Number.isFinite(input.homeReference.priceCents) &&
+                input.homeReference.priceCents > 0
+                  ? input.homeReference.priceCents
+                  : 0,
+              bedrooms: Number.isFinite(input.homeReference.bedrooms)
+                ? input.homeReference.bedrooms
+                : null,
+              squareFeet: Number.isFinite(input.homeReference.squareFeet)
+                ? input.homeReference.squareFeet
+                : null,
+            }
+          : undefined,
       category: text(input?.category, 60),
       region: text(input?.region),
       state: text(input?.state, 2),
@@ -2806,6 +2842,37 @@ export const getRelatedClassifieds = createServerFn({ method: "GET" })
       .filter((row) => row.id !== data.excludeId)
       .slice(0, 8);
 
+    if (data.category === "other-real-estate" && data.homeReference) {
+      const reference = data.homeReference;
+      const homes = await runBrowseClassifieds(
+        {
+          category: data.category,
+          state: data.state || "ID",
+          homeTab: reference.mode,
+          sort: "newest",
+          page: 1,
+        },
+        { readOnlyHome: true, pageSize: 192, includeExactCount: false },
+      );
+      return {
+        fromSeller,
+        ...homeRecommendationRows(
+          {
+            id: data.excludeId,
+            title: String(reference.title).slice(0, 200),
+            city: String(reference.city).slice(0, 100),
+            state: data.state || "ID",
+            priceCents: Number(reference.priceCents),
+            home: {
+              mode: reference.mode,
+              bedrooms: reference.bedrooms,
+              squareFeet: reference.squareFeet,
+            },
+          },
+          homes.listings.filter((row) => !fromSeller.some((sellerRow) => sellerRow.id === row.id)),
+        ),
+      };
+    }
     if (!data.category) return { fromSeller, similar: [] };
     const exclude = new Set([
       data.excludeId,
