@@ -7,13 +7,16 @@ import { brand } from "../../config/brand";
 // Server-only: reads email provider secrets. Never import from client components.
 
 export type SendTemplateEmailResult =
-  { sent: true } | { sent: false; reason: "recipient_suppressed" };
+  { sent: true; providerId?: string } | { sent: false; reason: "recipient_suppressed" };
 
 export interface SendTemplateEmailOptions {
   templateData?: Record<string, any>;
   /** Dedupes retries of the same logical send; defaults to a random UUID (no dedupe). */
   idempotencyKey?: string;
   replyTo?: string;
+  headers?: Record<string, string>;
+  beforeSend?: () => Promise<boolean>;
+  tags?: { name: string; value: string }[];
 }
 
 /**
@@ -51,6 +54,8 @@ export async function sendTemplateEmail(
     throw new Error("RESEND_API_KEY is not configured");
   }
   const from = process.env["RESEND_FROM_EMAIL"] || "Bluebird Marketplace <onboarding@resend.dev>";
+  if (options.beforeSend && !(await options.beforeSend()))
+    return { sent: false, reason: "recipient_suppressed" };
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -66,11 +71,14 @@ export async function sendTemplateEmail(
       html,
       text,
       reply_to: options.replyTo || brand.supportEmail,
+      ...(options.tags ? { tags: options.tags } : {}),
+      ...(options.headers ? { headers: options.headers } : {}),
     }),
   });
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
     throw new Error(`Resend email failed (${response.status}): ${detail.slice(0, 400)}`);
   }
-  return { sent: true };
+  const result = (await response.json().catch(() => null)) as { id?: string } | null;
+  return result?.id ? { sent: true, providerId: result.id } : { sent: true };
 }

@@ -1,5 +1,5 @@
 import { MapPin, NavigationArrow } from "@phosphor-icons/react";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Map as LeafletMap, LayerGroup, Circle, Marker } from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -48,6 +48,7 @@ export function LocationRadiusPicker({
   onChange,
   className,
 }: Props) {
+  const [locationError, setLocationError] = useState("");
   const mapElementRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const cityMarkersRef = useRef<LayerGroup | null>(null);
@@ -104,9 +105,7 @@ export function LocationRadiusPicker({
           latitude: clickedLatitude,
           longitude: clickedLongitude,
           city:
-            clickedNearest && clickedNearest.distanceMiles <= 20
-              ? clickedNearest.city
-              : undefined,
+            clickedNearest && clickedNearest.distanceMiles <= 20 ? clickedNearest.city : undefined,
         });
       });
 
@@ -172,6 +171,39 @@ export function LocationRadiusPicker({
         </span>
         <span className="whitespace-nowrap font-semibold text-foreground">Up to 500 miles</span>
       </div>
+      <button
+        type="button"
+        className="mb-3 text-xs font-semibold text-primary underline"
+        onClick={() => {
+          if (!navigator.geolocation) {
+            setLocationError("Your browser does not support location. Choose a map point instead.");
+            return;
+          }
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              setLocationError("");
+              const nearest = nearestClassifiedCity(
+                position.coords.latitude,
+                position.coords.longitude,
+              );
+              onChange({
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+                city: nearest?.city,
+              });
+            },
+            () => setLocationError("Location was not shared. You can choose a map point instead."),
+            { enableHighAccuracy: false, maximumAge: 300000, timeout: 10000 },
+          );
+        }}
+      >
+        Use my location
+      </button>
+      {locationError && (
+        <p role="status" className="mb-2 text-xs text-muted-foreground">
+          {locationError}
+        </p>
+      )}
       <div
         ref={mapElementRef}
         role="application"
@@ -189,8 +221,8 @@ export function LocationRadiusPicker({
         </span>
       </div>
       <p className="mt-2 text-[10.5px] leading-relaxed text-muted-foreground">
-        Results use the selected point and include listings whose saved city falls inside the circle.
-        City labels are reference points; the map point is the search center.
+        Results use the selected point and include listings whose saved city falls inside the
+        circle. City labels are reference points; the map point is the search center.
       </p>
     </div>
   );

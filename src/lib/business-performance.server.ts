@@ -1,3 +1,4 @@
+import { loadStaffTrafficExclusions } from "./traffic-exclusions.server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { brand } from "@/config/brand";
 import { marketplaceStateCodes } from "@/config/classifieds";
@@ -24,7 +25,11 @@ async function readAll(
     if ((batch.data?.length ?? 0) < 500) return result;
   }
 }
-export async function loadBusinessPerformance(admin: SupabaseClient, days: number) {
+export async function loadBusinessPerformance(
+  admin: SupabaseClient,
+  days: number,
+  options: { persistAttribution?: boolean } = {},
+) {
   const db = admin as any;
   const until = new Date().toISOString(),
     since = new Date(Date.now() - days * 86400000).toISOString();
@@ -79,6 +84,8 @@ export async function loadBusinessPerformance(admin: SupabaseClient, days: numbe
     ],
   );
   if (release.error) throw Error("Business tracking setup is incomplete.");
+  const staffIds = new Set<string>(staff.map((p) => p.user_id));
+  const exclusions = await loadStaffTrafficExclusions(admin, staffIds, Date.parse(until));
   // A registered business can use an ordinary seller storefront (including
   // industrial/parts inventory). Do not promote it to a verified dealer account.
   const businessSlugs = storedEntities
@@ -273,7 +280,11 @@ export async function loadBusinessPerformance(admin: SupabaseClient, days: numbe
       Object.entries(identity).some(([key, value]) => old.metadata?.[key] !== value)
     );
   });
-  for (let offset = 0; offset < entityChanges.length; offset += 200) {
+  for (
+    let offset = 0;
+    offset < (options.persistAttribution === false ? 0 : entityChanges.length);
+    offset += 200
+  ) {
     const { error } = await db.from("business_performance_entities").upsert(
       entityChanges.slice(offset, offset + 200).map((identity) => ({
         business_key: identity.key,
@@ -295,7 +306,11 @@ export async function loadBusinessPerformance(admin: SupabaseClient, days: numbe
       old.source !== link.source
     );
   });
-  for (let offset = 0; offset < linkChanges.length; offset += 200) {
+  for (
+    let offset = 0;
+    offset < (options.persistAttribution === false ? 0 : linkChanges.length);
+    offset += 200
+  ) {
     const { error } = await db.from("business_listing_attribution").upsert(
       linkChanges.slice(offset, offset + 200).map((link) => ({
         listing_id: link.listingId,
@@ -326,7 +341,8 @@ export async function loadBusinessPerformance(admin: SupabaseClient, days: numbe
       events: events as BusinessMetricEvent[],
       businesses: entities,
       attributions: attributes,
-      staffIds: new Set(staff.map((p) => p.user_id)),
+      staffIds,
+      ...exclusions,
       domain: brand.domain,
       rates: new Map(
         rates.map((r) => [

@@ -1,3 +1,5 @@
+import { VisualSimilarShopping } from "@/components/community/ShoppingExperience";
+import { trackActiveListing, shoppingTrack } from "@/lib/shopping-client";
 import { readableHomeFacts, homeParkingSummary } from "@/lib/home-facts";
 import { homeMapLocation, homePriceCut } from "@/lib/home-shopping";
 import { HomePaymentCalculator } from "@/components/listings/HomePaymentCalculator";
@@ -445,6 +447,7 @@ function Gallery({ listing }: { listing: ClassifiedDetail }) {
     return <GalleryPlaceholder listing={listing} />;
   }
   const goToImage = (next: number) => {
+    shoppingTrack("photo", listing.id, { photo: (next + images.length) % images.length });
     setActiveImage((next + images.length) % images.length);
   };
 
@@ -512,7 +515,7 @@ function Gallery({ listing }: { listing: ClassifiedDetail }) {
             <button
               key={image.url}
               type="button"
-              onClick={() => setActiveImage(index)}
+              onClick={() => goToImage(index)}
               aria-label={`Show ${subject} photo ${index + 1}`}
               aria-current={index === activeImage}
               className={`h-16 w-24 shrink-0 overflow-hidden rounded-xl border-2 bg-secondary transition sm:h-[76px] sm:w-[112px] ${index === activeImage ? "border-primary" : "border-transparent opacity-75 hover:opacity-100"}`}
@@ -567,7 +570,9 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
         }
       />
       {seller.memberSince ? (
-        <p className="mt-3 text-[12px]"><span className="font-semibold">On Bluebird since:</span> {seller.memberSince}</p>
+        <p className="mt-3 text-[12px]">
+          <span className="font-semibold">On Bluebird since:</span> {seller.memberSince}
+        </p>
       ) : null}
       {seller.managedByBluebird ? (
         <p className="mt-2 text-xs text-muted-foreground">Managed by Bluebird</p>
@@ -758,6 +763,7 @@ function SellerCard({ listing }: { listing: ClassifiedDetail }) {
 function ProfileStrength({ seller }: { seller: NonNullable<ClassifiedDetail["seller"]> }) {
   return (
     <StrengthMeter
+      unclaimed={!seller.userId || seller.managedByBluebird === true}
       checks={[
         Boolean(seller.avatarUrl),
         Boolean(seller.bio),
@@ -769,41 +775,66 @@ function ProfileStrength({ seller }: { seller: NonNullable<ClassifiedDetail["sel
   );
 }
 
-function SinceAndStrength({ since, checks }: { since: string | number | null | undefined; checks: boolean[] }) {
-  const year = since == null ? null : typeof since === "number" ? since : new Date(since).getFullYear();
-  const yrs = year ? new Date().getFullYear() - year : 0;
+/** Imported listing details cannot establish account tenure or a completed profile. */
+function SinceAndStrength({
+  seller,
+  checks,
+}: {
+  seller?: ClassifiedDetail["seller"];
+  checks: boolean[];
+}) {
+  if (!seller?.userId || seller.managedByBluebird)
+    return <StrengthMeter checks={checks} unclaimed />;
+  const year = seller.memberSince;
   return (
     <>
-      {year && !Number.isNaN(year) ? (
+      {year ? (
         <p className="mt-4 text-[12px]">
           <span className="font-semibold">On Bluebird since:</span> {year}
-          {yrs > 0 && (
-            <span className="ml-1 rounded-full bg-brand-warm/20 px-1.5 py-0.5 text-[10px] font-bold text-brand-warm">
-              {yrs} yrs
-            </span>
-          )}
         </p>
       ) : null}
-      <StrengthMeter checks={checks} />
+      <ProfileStrength seller={seller} />
     </>
   );
 }
 
-function StrengthMeter({ checks }: { checks: boolean[] }) {
-  const score = checks.filter(Boolean).length;
-  const label = score >= 4 ? "Strong" : score >= 2 ? "Good" : "New";
+function StrengthMeter({ checks, unclaimed = false }: { checks: boolean[]; unclaimed?: boolean }) {
+  const completed = Math.min(5, checks.filter(Boolean).length);
+  const score = unclaimed ? completed / 2 : completed;
+  const percentage = Math.round((score / 5) * 100);
+  const label = unclaimed
+    ? `Unclaimed · ${percentage}%`
+    : completed >= 4
+      ? "Strong"
+      : completed >= 2
+        ? "Good"
+        : "New";
   return (
     <div className="mt-4">
       <div className="flex items-center justify-between text-[12px]">
         <span className="font-semibold">Profile strength</span>
         <span className="font-semibold text-primary">{label}</span>
       </div>
-      <div className="mt-1.5 grid grid-cols-5 gap-1" aria-hidden="true">
-        {checks.map((_, index) => (
-          <span
-            key={index}
-            className={`h-1.5 rounded-full ${index < score ? "bg-primary" : "bg-secondary"}`}
-          />
+      <div
+        className="mt-1.5 grid grid-cols-5 gap-1"
+        role="progressbar"
+        aria-label={unclaimed ? "Unclaimed profile completion" : "Profile completion"}
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={percentage}
+        aria-valuetext={
+          unclaimed
+            ? `${percentage}% complete; claiming is required to complete the profile`
+            : label
+        }
+      >
+        {Array.from({ length: 5 }, (_, index) => (
+          <span key={index} className="h-1.5 overflow-hidden rounded-full bg-secondary">
+            <span
+              className="block h-full rounded-full bg-primary"
+              style={{ width: `${Math.max(0, Math.min(1, score - index)) * 100}%` }}
+            />
+          </span>
         ))}
       </div>
     </div>
@@ -900,8 +931,14 @@ function MarketCheckContactCard({ listing }: { listing: ClassifiedDetail }) {
         </Link>
       ) : null}
       <SinceAndStrength
-        since={listing.createdAt}
-        checks={[Boolean(listing.dealer?.logoUrl), hasApprovedDealer(listing), Boolean(phone), Boolean(dealer?.street), Boolean(listing.dealer?.slug)]}
+        seller={listing.seller}
+        checks={[
+          Boolean(listing.dealer?.logoUrl),
+          hasApprovedDealer(listing),
+          Boolean(phone),
+          Boolean(dealer?.street),
+          Boolean(listing.dealer?.slug),
+        ]}
       />
       <div className="mt-4 grid grid-cols-2 gap-2" aria-label="Dealership contact methods">
         {phone ? (
@@ -1424,6 +1461,11 @@ function ListingDetail() {
       { isDemo: listing.isMock === true },
     );
   }, [listing?.id]);
+  useEffect(
+    () =>
+      listing && !listing.isMock && !listing.ended ? trackActiveListing(listing.id) : undefined,
+    [listing?.id],
+  );
   // Related suggestions must not suspend the primary listing during hydration.
   const relatedQuery = useQuery(
     queryOptions({
@@ -1621,6 +1663,7 @@ function RelatedRails({
             </Link>,
           )
         : null}
+      <VisualSimilarShopping listingId={listing.id} />
       {similar.length > 0
         ? rail(
             listing.externalMerchandise
@@ -2892,8 +2935,14 @@ function PartnerHomeContactCard({
         </div>
       </div>
       <SinceAndStrength
-        since={listing.createdAt}
-        checks={[Boolean(listedBy?.agentName), Boolean(listedBy?.brokerName), Boolean(listedBy?.agentPhone || listedBy?.brokerPhone), Boolean(sourceUrl), Boolean(listing.description)]}
+        seller={listing.seller}
+        checks={[
+          Boolean(listedBy?.agentName),
+          Boolean(listedBy?.brokerName),
+          Boolean(listedBy?.agentPhone || listedBy?.brokerPhone),
+          Boolean(sourceUrl),
+          Boolean(listing.description),
+        ]}
       />
       {sourceUrl ? (
         <a
@@ -3600,8 +3649,6 @@ function PartnerEmployerCard({
   employerName: string;
 }) {
   const name = employerName || listing.title;
-  const since = listing.externalJob?.employerSince;
-  const sinceYear = since ? new Date(since).getFullYear() : null;
   return (
     <section className="soft-card p-5 sm:p-6">
       <div className="flex items-start gap-3">
@@ -3623,21 +3670,11 @@ function PartnerEmployerCard({
                 year: "numeric",
               })}
             </p>
-            {sinceYear ? (
-              <p>
-                <span className="font-semibold">On Bluebird since:</span> {sinceYear}
-                {new Date().getFullYear() - sinceYear > 0 && (
-                  <span className="ml-1 rounded-full bg-brand-warm/20 px-1.5 py-0.5 text-[10px] font-bold text-brand-warm">
-                    {new Date().getFullYear() - sinceYear} yrs
-                  </span>
-                )}
-              </p>
-            ) : null}
           </div>
         </div>
       </div>
-      {/* How complete this employer's posting is: what Adzuna gave us. */}
-      <StrengthMeter
+      <SinceAndStrength
+        seller={listing.seller}
         checks={[
           Boolean(listing.externalJob?.logoUrl),
           Boolean(listing.job?.payMin),
@@ -3936,8 +3973,14 @@ function DirectoryBusinessCard({ listing }: { listing: ClassifiedDetail }) {
         </p>
       ) : null}
       <SinceAndStrength
-        since={listing.createdAt}
-        checks={[Boolean(business.logoUrl), Boolean(phone), Boolean(business.claimed), business.rating != null, Boolean(listing.service?.businessAddress || listing.service?.licenseNumber)]}
+        seller={listing.seller}
+        checks={[
+          Boolean(business.logoUrl),
+          Boolean(phone),
+          Boolean(business.claimed),
+          business.rating != null,
+          Boolean(listing.service?.businessAddress || listing.service?.licenseNumber),
+        ]}
       />
       <div className="mt-4 grid gap-2">
         {phone ? (
@@ -4835,8 +4878,14 @@ function MerchandiseRetailerCard({ listing }: { listing: ClassifiedDetail }) {
         }
       />
       <SinceAndStrength
-        since={listing.createdAt}
-        checks={[Boolean(gunsComProfile.logoUrl), Boolean(gunsComProfile.phone), Boolean(gunsComProfile.website), Boolean(listing.externalMerchandise?.sku), Boolean(listing.externalMerchandise?.brand)]}
+        seller={listing.seller}
+        checks={[
+          Boolean(gunsComProfile.logoUrl),
+          Boolean(gunsComProfile.phone),
+          Boolean(gunsComProfile.website),
+          Boolean(listing.externalMerchandise?.sku),
+          Boolean(listing.externalMerchandise?.brand),
+        ]}
       />
       <p className="mt-3 text-[12px] text-muted-foreground">{gunsComProfile.phone}</p>
       <Link
@@ -4925,8 +4974,14 @@ function RescueCard({ listing }: { listing: ClassifiedDetail }) {
         </div>
       </div>
       <SinceAndStrength
-        since={listing.createdAt}
-        checks={[Boolean(rescue.orgName), Boolean(rescue.orgPhone), Boolean(rescue.orgEmail), Boolean(listing.city), Boolean(listing.description)]}
+        seller={listing.seller}
+        checks={[
+          Boolean(rescue.orgName),
+          Boolean(rescue.orgPhone),
+          Boolean(rescue.orgEmail),
+          Boolean(listing.city),
+          Boolean(listing.description),
+        ]}
       />
       {rescue.orgPhone || rescue.orgEmail ? (
         <div className="mt-4 grid grid-cols-2 gap-2">

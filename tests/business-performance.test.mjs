@@ -108,9 +108,21 @@ test("staff, whole QA visits, bots, previews, demonstrations, and own-business t
         { traffic_visit: "staff" },
         { user_id: "staff", session_id: "staff" },
       ),
-      event("listing_viewed", { traffic_visit: "qa", is_internal: true }),
-      event("business_action", { traffic_visit: "qa", method: "website" }),
-      event("listing_viewed", { is_bot: true, traffic_visit: "bot" }),
+      event(
+        "listing_viewed",
+        { traffic_visit: "qa", is_internal: true },
+        { session_id: "qa-browser" },
+      ),
+      event(
+        "business_action",
+        { traffic_visit: "qa", method: "website" },
+        { session_id: "qa-browser" },
+      ),
+      event(
+        "listing_viewed",
+        { is_bot: true, traffic_visit: "bot" },
+        { session_id: "bot-browser" },
+      ),
       event("listing_viewed", { site_host: "preview.lovable.app", traffic_visit: "preview" }),
       event("listing_viewed", {}, { is_demo: true }),
       event("listing_viewed", { traffic_visit: "owner" }, { user_id: "dealer-owner" }),
@@ -232,7 +244,7 @@ test("card activations are distinct from page views and do not imply purchase in
 test("a later staff or owner account event excludes their anonymous pre-login views", () => {
   const result = report(
     [
-      event("listing_viewed", { traffic_visit: "admin-visit" }),
+      event("listing_viewed", { traffic_visit: "admin-visit" }, { session_id: "admin-browser" }),
       event(
         "admin_opened",
         {
@@ -242,7 +254,7 @@ test("a later staff or owner account event excludes their anonymous pre-login vi
           business_name: null,
           traffic_visit: "admin-visit",
         },
-        { user_id: "staff" },
+        { user_id: "staff", session_id: "admin-browser" },
       ),
       event("listing_viewed", { traffic_visit: "owner-visit" }),
       event(

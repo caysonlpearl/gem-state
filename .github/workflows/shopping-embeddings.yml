@@ -1,0 +1,49 @@
+name: Shopping listing embeddings
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "23 * * * *"
+permissions:
+  contents: read
+concurrency:
+  group: shopping-embeddings
+  cancel-in-progress: false
+jobs:
+  changed-listings:
+    if: ${{ vars.SHOPPING_EMBEDDINGS_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: scripts/shopping/requirements.txt
+      - name: Check for changed public listings
+        id: catalog
+        env:
+          SHOPPING_JOB_SECRET: ${{ secrets.SHOPPING_JOB_SECRET }}
+        run: |
+          python - <<'PYTHON'
+          import json,os,urllib.request
+          request=urllib.request.Request('https://onbluebird.com/api/internal/shopping-embeddings',headers={'Authorization':'Bearer '+os.environ['SHOPPING_JOB_SECRET']})
+          with urllib.request.urlopen(request,timeout=90) as response:
+              changed=bool(json.load(response)['items'])
+          with open(os.environ['GITHUB_OUTPUT'],'a') as output:
+              output.write('changed='+str(changed).lower()+'\n')
+          print('Changed public listing content:',changed)
+          PYTHON
+      - uses: actions/cache@v4
+        if: steps.catalog.outputs.changed == 'true'
+        with:
+          path: ~/.cache/huggingface/hub
+          key: siglip2-base-patch16-224-v1
+      - if: steps.catalog.outputs.changed == 'true'
+        run: pip install -r scripts/shopping/requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
+      - name: Embed changed public listing content
+        if: steps.catalog.outputs.changed == 'true'
+        env:
+          SHOPPING_JOB_SECRET: ${{ secrets.SHOPPING_JOB_SECRET }}
+          SHOPPING_ORIGIN: https://onbluebird.com
+        run: python scripts/shopping/embed.py

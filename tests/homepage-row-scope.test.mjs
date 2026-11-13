@@ -44,6 +44,7 @@ function context(extra = {}) {
     homeQuery: {},
     homeLeadQuery: {},
     HomeFeed: "HomeFeed",
+    PersonalizedShopping: "PersonalizedShopping",
     HomepageListingRow: "HomepageListingRow",
     HomepageInfoBand: "HomepageInfoBand",
     CategoryArtwork: "CategoryArtwork",

@@ -54,9 +54,15 @@ function policyBodies(): Record<string, React.ReactNode> {
           listing's seller so they can reply.
         </p>
         <p>
-          Product-usage analytics record event names, counts, route names and price buckets. They
-          never record search text, address contents, receipt contents, government-ID details or
-          anything else you typed into a form.
+          Aggregate product-usage analytics record event names, counts, route names and price
+          buckets. They do not record personal search text, addresses, receipts, government-ID
+          details, or message bodies. With separate personalization permission, private shopping
+          history includes searches, filters, listing interactions, and verified outcomes as
+          described in our{" "}
+          <a href="/privacy" className="underline">
+            Privacy Notice
+          </a>
+          . Shopping-email permission is optional and separate from privacy and browser permissions.
         </p>
         <p>
           For successful dealership contact submissions, we use the OpenAI advertising measurement
@@ -218,6 +224,15 @@ function Policies() {
 
       <div className="min-w-0">
         <h1 className="text-2xl font-semibold tracking-tight">Policies and disclosures</h1>
+        <p className="mt-4 text-sm">
+          <a href="/terms" className="underline">
+            Terms of Service
+          </a>{" "}
+          ·{" "}
+          <a href="/privacy" className="underline">
+            Privacy Notice and shopping choices
+          </a>
+        </p>
         <p className="mt-1.5 text-[11.5px] uppercase tracking-[0.08em] text-muted-foreground">
           Effective {policyEffectiveDate}
         </p>

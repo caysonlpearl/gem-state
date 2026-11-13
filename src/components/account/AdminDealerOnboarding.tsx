@@ -63,8 +63,8 @@ export function AdminDealerOnboarding() {
         >
           <p className="text-sm text-muted-foreground">
             Create or link the dealership login, complete its public business profile, assign its
-            authorized feed and prepare its inbox. The owner verifies their email before public
-            messaging opens.
+            authorized feed and prepare its inbox. Buyer messages are saved before activation; the
+            owner verifies their email to read and reply.
           </p>
           {emailStatus.data ? (
             <p role="status" className="text-sm text-muted-foreground">
@@ -129,9 +129,9 @@ export function AdminDealerOnboarding() {
             </select>
           </label>
           <p className="text-xs text-muted-foreground">
-            Use the dealer’s confirmed contact email. Their inbox receives buyer messages after
-            activation; they sign in with an email link. Existing accounts are reused. No invitation
-            is sent automatically.
+            Use the dealer’s confirmed contact email. Buyer messages are saved immediately; they
+            sign in with an email link. Existing accounts are reused. No invitation is sent
+            automatically.
           </p>
           <button
             disabled={mutation.isPending}
@@ -148,7 +148,7 @@ export function AdminDealerOnboarding() {
             <p role="status" className="text-sm">
               Dealership account and profile are ready.{" "}
               {values.sourceId
-                ? "Its authorized inventory is assigned. The owner must verify their login email to open public messaging."
+                ? "Its authorized inventory is assigned. Buyer messages are saved; the owner verifies their login email to read and reply."
                 : "Assign its authorized inventory feed to complete the inbox setup."}{" "}
               No invitation email has been sent.
             </p>

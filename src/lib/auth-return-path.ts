@@ -26,6 +26,7 @@ export const AUTH_STATIC_REDIRECTS = [
   "/admin/dealers",
   "/admin/validation",
   "/admin/traffic",
+  "/admin/shopping",
   "/admin/dealer-inventory",
   "/admin/review-flags",
   "/admin/conversation-reports",

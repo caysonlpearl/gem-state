@@ -24,6 +24,8 @@ async function routeConfig(path, extra = {}) {
     react: {},
     sonner: {},
     "@/config/brand": {},
+    "@/components/community/ShoppingExperience": {},
+    "@/lib/shopping-contract": {},
     "@/integrations/supabase/client": {},
     "@/lib/auth-redirect": {},
     "@/lib/auth-return-path": returnPaths,
@@ -82,7 +84,13 @@ test("the actual auth route preserves seller edit and admin return paths", async
 
 test("admin sign-in return does not weaken role checks or swallow service errors", async () => {
   let outcome = { isAdmin: true };
+  let marked = 0;
   const route = await routeConfig("src/routes/_authenticated/admin.tsx", {
+    "@/lib/analytics-browser": {
+      markInternalAnalyticsBrowser: () => {
+        marked++;
+      },
+    },
     "@/lib/admin-access.functions": {
       getAdminAccess: async () => {
         if (outcome instanceof Error) throw outcome;
@@ -92,6 +100,7 @@ test("admin sign-in return does not weaken role checks or swallow service errors
   });
   const input = { location: { pathname: "/admin/classifieds" } };
   assert.deepEqual(await route.beforeLoad(input), { isAdmin: true });
+  assert.equal(marked, 1);
   outcome = { isAdmin: false };
   await assert.rejects(route.beforeLoad(input), (error) => error.redirect?.to === "/account");
   outcome = new Error("Unauthorized: No authorization header provided");
@@ -102,6 +111,7 @@ test("admin sign-in return does not weaken role checks or swallow service errors
   );
   outcome = new Error("Database unavailable");
   await assert.rejects(route.beforeLoad(input), (error) => error === outcome);
+  assert.equal(marked, 1, "denied or failed access cannot persist a staff-browser marker");
 });
 
 test("login return retains only bounded account and duplicate-listing intent", () => {

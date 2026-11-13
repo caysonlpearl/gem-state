@@ -1,4 +1,8 @@
-import {DealerInventoryPanel} from "./DealerInventoryPanel";
+import {
+  ShoppingAlertPreference,
+  PersonalizedShopping,
+} from "@/components/community/ShoppingExperience";
+import { DealerInventoryPanel } from "./DealerInventoryPanel";
 import { ImportSyncPanel } from "@/components/seller/ImportSyncPanel";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
@@ -361,25 +365,31 @@ export function AccountCenter({
           ) : !data ? (
             <AccountError message="Could not load your account." />
           ) : section === "overview" ? (
-            <OverviewSection
-              account={data}
-              watchlistCount={watchlist.data?.length ?? 0}
-              savedSearchCount={savedSearches.data?.length ?? 0}
-              unreadMessages={unreadMessages}
-              unreadNotifications={unreadNotifications}
-              listings={listings.data?.asks ?? []}
-              sellerSetup={sellerSetup.data}
-              sellerSummary={sellerSummary.data}
-              notifications={notifications.data?.items ?? []}
-              onSelect={go}
-            />
+            <div className="space-y-6">
+              <DealerInventoryPanel compact />
+              <OverviewSection
+                account={data}
+                watchlistCount={watchlist.data?.length ?? 0}
+                savedSearchCount={savedSearches.data?.length ?? 0}
+                unreadMessages={unreadMessages}
+                unreadNotifications={unreadNotifications}
+                listings={listings.data?.asks ?? []}
+                sellerSetup={sellerSetup.data}
+                sellerSummary={sellerSummary.data}
+                notifications={notifications.data?.items ?? []}
+                onSelect={go}
+              />
+            </div>
           ) : section === "profile" ? (
-            <ProfileSection
-              account={data}
-              contactPreferences={contactPreferences.data}
-              sellerSetup={sellerSetup.data}
-              sellerSummary={sellerSummary.data}
-            />
+            <div className="space-y-6">
+              <DealerInventoryPanel compact />
+              <ProfileSection
+                account={data}
+                contactPreferences={contactPreferences.data}
+                sellerSetup={sellerSetup.data}
+                sellerSummary={sellerSummary.data}
+              />
+            </div>
           ) : section === "settings" ? (
             <SettingsSection
               account={data}
@@ -394,7 +404,10 @@ export function AccountCenter({
               <SavedPartnerVehiclesSection vehicles={savedPartnerVehicles.data ?? []} />
             </>
           ) : section === "searches" ? (
-            <SavedSearchesSection searches={savedSearches.data ?? []} />
+            <>
+              <PersonalizedShopping />
+              <SavedSearchesSection searches={savedSearches.data ?? []} />
+            </>
           ) : section === "messages" ? (
             <MessagesSection
               conversations={conversations.data ?? []}
@@ -404,7 +417,13 @@ export function AccountCenter({
           ) : section === "notifications" ? (
             <NotificationsSection data={notifications.data} />
           ) : section === "listings" ? (
-            <div className="space-y-6"><DealerInventoryPanel/><ListingsSection listings={listings.data?.asks ?? []} sellerSetup={sellerSetup.data} /></div>
+            <div className="space-y-6">
+              <DealerInventoryPanel />
+              <ListingsSection
+                listings={listings.data?.asks ?? []}
+                sellerSetup={sellerSetup.data}
+              />
+            </div>
           ) : section === "reviews" ? (
             <ReviewsSection summary={sellerSummary.data} sellerSetup={sellerSetup.data} />
           ) : (
@@ -1428,6 +1447,7 @@ function SettingsSection({
           onSave={() => saveContact.mutate()}
           saving={saveContact.isPending}
         />
+        <ShoppingAlertPreference />
         <PreferenceCard
           title="Email notifications"
           body="Transactional emails stay on when needed. Marketing is always opt-in."

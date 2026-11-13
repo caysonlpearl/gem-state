@@ -1,4 +1,5 @@
 import { trackBusinessListingOpen } from "@/lib/business-analytics";
+import { observeShoppingCard } from "@/lib/shopping-client";
 import { dealerContactPriceLabel } from "@/lib/vehicle-shopping";
 import { VerifiedDealerBadge } from "@/components/dealers/VerifiedDealerBadge";
 import { VehiclePrice } from "@/components/dealers/VehiclePrice";
@@ -336,7 +337,9 @@ function LogoPhoto({
   logoUrl,
   ratio,
   priority,
+  shoppingContext,
 }: {
+  shoppingContext?: Record<string, unknown>;
   listing: ListingCardSummary;
   logoUrl: string;
   ratio: string;
@@ -360,7 +363,9 @@ export function ListingCardPhoto({
   listing,
   tall,
   priority,
+  shoppingContext,
 }: {
+  shoppingContext?: Record<string, unknown>;
   listing: ListingCardSummary;
   tall?: boolean;
   priority?: boolean;
@@ -533,14 +538,27 @@ export function ListingCard({
   listing,
   soldAt,
   priority,
+  shoppingContext,
 }: {
+  shoppingContext?: Record<string, unknown>;
   listing: ListingCardSummary;
   soldAt?: string;
   /** Load this card's photo eagerly at high priority (the first cards above the fold). */
   priority?: boolean;
 }) {
+  const shoppingRef = useRef<HTMLElement>(null);
+  useEffect(
+    () =>
+      shoppingRef.current && !listing.isMock && !soldAt
+        ? observeShoppingCard(shoppingRef.current, listing.id, shoppingContext ?? {})
+        : undefined,
+    [listing.id, JSON.stringify(shoppingContext)],
+  );
   return (
-    <article className="group relative min-w-0 overflow-hidden rounded-2xl border border-transparent bg-card shadow-sm transition-shadow hover:shadow-md">
+    <article
+      ref={shoppingRef}
+      className="group relative min-w-0 overflow-hidden rounded-2xl border border-transparent bg-card shadow-sm transition-shadow hover:shadow-md"
+    >
       <div className="relative">
         <ListingLink
           listing={listing}

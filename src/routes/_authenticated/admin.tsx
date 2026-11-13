@@ -1,3 +1,4 @@
+import { markInternalAnalyticsBrowser } from "@/lib/analytics-browser";
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 
 import { getAdminAccess } from "@/lib/admin-access.functions";
@@ -22,6 +23,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
     if (!access.isAdmin) {
       throw redirect({ to: "/account" });
     }
+    markInternalAnalyticsBrowser();
     return access;
   },
   component: () => <Outlet />,

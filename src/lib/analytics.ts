@@ -1,7 +1,9 @@
+import { isInternalAnalyticsBrowser, markInternalAnalyticsBrowser } from "./analytics-browser.ts";
 import { loadSupabase } from "@/integrations/supabase/lazy-client";
+import { shoppingAnalytics, shoppingPrivacy } from "./shopping-client";
 import { classifyLatency, sanitizeTelemetryText } from "@/lib/release-gate";
 import { classifyTrafficSource } from "@/lib/traffic-source";
-import { isInternalAnalyticsQuery, isKnownAutomatedAgent } from "@/lib/analytics-policy";
+import { isKnownAutomatedAgent } from "@/lib/analytics-policy";
 import { listingBusinessProps } from "./business-context";
 
 /**
@@ -97,6 +99,7 @@ export type AnalyticsEventName =
   | "mutation_slow"
   | "browser_error"
   | "unhandled_rejection"
+  | "visit_engaged"
   | "visit_started"
   | "listing_viewed"
   | "seller_contacted"
@@ -115,6 +118,7 @@ export type MutationTelemetry = {
 const SESSION_KEY = "pv_session_id";
 
 function sessionId(): string | null {
+  if (!shoppingPrivacy().personalization) return null;
   if (typeof window === "undefined") return null;
   try {
     let id = window.localStorage.getItem(SESSION_KEY);
@@ -126,6 +130,70 @@ function sessionId(): string | null {
   } catch {
     return null;
   }
+}
+
+// One role check per signed-in identity per document, shared by simultaneous events.
+const analyticsStaffChecks = new Map<string, Promise<boolean | null>>();
+async function analyticsStaffStatus(
+  supabase: Awaited<ReturnType<typeof loadSupabase>>,
+  userId: string,
+) {
+  let check = analyticsStaffChecks.get(userId);
+  if (!check) {
+    check = Promise.all(
+      ["admin", "moderator"].map((_role) =>
+        supabase.rpc("has_role", { _user_id: userId, _role: _role as "admin" | "moderator" }),
+      ),
+    )
+      .then((results) =>
+        results.some((r) => r.data === true)
+          ? true
+          : results.some((r) => r.error || typeof r.data !== "boolean")
+            ? null
+            : false,
+      )
+      .catch(() => null);
+    analyticsStaffChecks.set(userId, check);
+    void check.then((value) => {
+      if (value === null) analyticsStaffChecks.delete(userId);
+    });
+  }
+  return check;
+}
+
+/** Genuine page interaction is an engagement signal, not proof of a unique person. */
+export function startTrafficEngagement() {
+  const visit = ensureVisit();
+  if (!visit || typeof document === "undefined") return () => {};
+  try {
+    if (window.sessionStorage.getItem("bb_engaged_visit") === visit.id) return () => {};
+  } catch {
+    /* Optional storage. */
+  }
+  let pending = false;
+  let recorded = false;
+  const onInteraction = (event: Event) => {
+    if (!event.isTrusted || document.visibilityState !== "visible" || pending || recorded) return;
+    pending = true;
+    void trackEvent("visit_engaged", { signal: "interaction" }).then((saved) => {
+      pending = false;
+      if (!saved) return;
+      recorded = true;
+      try {
+        window.sessionStorage.setItem("bb_engaged_visit", visit.id);
+      } catch {
+        /* Optional storage. */
+      }
+      cleanup();
+    });
+  };
+  const events = ["pointerdown", "keydown", "touchstart", "wheel"] as const;
+  const cleanup = () =>
+    events.forEach((name) => document.removeEventListener(name, onInteraction, true));
+  events.forEach((name) =>
+    document.addEventListener(name, onInteraction, { capture: true, passive: true }),
+  );
+  return cleanup;
 }
 
 type Visit = { id: string; source: string; channel: string; landing: string };
@@ -141,6 +209,7 @@ let currentVisit: Visit | null = null;
  * records a visit_started event.
  */
 export function ensureVisit(): Visit | null {
+  if (!shoppingPrivacy().personalization) return null;
   if (typeof window === "undefined") return null;
   if (currentVisit) return currentVisit;
   try {
@@ -201,12 +270,18 @@ export async function trackEvent(
   options: { isDemo?: boolean } = {},
 ): Promise<boolean> {
   if (typeof window === "undefined" || window.location.pathname === "/claim-seller") return false;
+  try {
+    if (!options.isDemo) shoppingAnalytics(name, props);
+  } catch {
+    /* Optional personalization cannot interrupt a marketplace action. */
+  }
   props = { ...listingBusinessProps(props.listing_id), ...props };
   const eventAt = Date.now();
   try {
     const supabase = await loadSupabase();
     const { data } = await supabase.auth.getSession();
-    const userId = data.session?.user.id ?? null;
+    const viewerId = data.session?.user.id ?? null;
+    const userId = shoppingPrivacy().personalization ? viewerId : null;
     const visit = ensureVisit();
     if (
       [
@@ -238,29 +313,42 @@ export async function trackEvent(
         /* Optional attribution must never affect browsing or posting. */
       }
     }
-    let internal = isInternalAnalyticsQuery(window.location.search) || props.is_internal === true;
-    try {
-      if (internal) window.sessionStorage.setItem("bb_internal_traffic", "1");
-      internal ||= window.sessionStorage.getItem("bb_internal_traffic") === "1";
-    } catch {
-      /* Optional QA exclusion must not block user actions. */
+    let internal = isInternalAnalyticsBrowser(window, props.is_internal === true);
+    let internalReason: string | null = internal ? "testing_browser" : null;
+    if (viewerId && !internal) {
+      const staff = await analyticsStaffStatus(supabase, viewerId);
+      if (staff === true) {
+        markInternalAnalyticsBrowser(window);
+        internal = true;
+        internalReason = "staff";
+      } else if (staff === null) {
+        // An unavailable role check must not turn an operator into a public visitor.
+        // This event is excluded; a normal user's browser is not permanently marked.
+        internal = true;
+        internalReason = "role_check_unavailable";
+      }
     }
     const { error } = await supabase.from("analytics_events").insert({
       name,
-      props: visit
-        ? {
-            ...props,
-            traffic_source: visit.source,
-            traffic_channel: visit.channel,
-            traffic_visit: visit.id,
-            // Lets reports drop events from dev servers and preview builds.
-            site_host: window.location.hostname,
-            device: window.matchMedia("(max-width: 767px)").matches ? "mobile" : "desktop",
-            event_at: eventAt,
-            is_internal: internal,
-            is_bot: props.is_bot === true || isKnownAutomatedAgent(navigator.userAgent),
-          }
-        : props,
+      props: {
+        ...props,
+        ...(visit
+          ? {
+              traffic_source: visit.source,
+              traffic_channel: visit.channel,
+              traffic_visit: visit.id,
+            }
+          : {}),
+        site_host: window.location.hostname,
+        device: window.matchMedia("(max-width: 767px)").matches ? "mobile" : "desktop",
+        event_at: eventAt,
+        traffic_policy: 2,
+        is_internal: internal,
+        internal_reason: internalReason,
+        is_bot:
+          props.is_bot === true ||
+          isKnownAutomatedAgent(navigator.userAgent, navigator.webdriver === true),
+      },
       is_demo: options.isDemo ?? false,
       session_id: sessionId(),
       user_id: userId,

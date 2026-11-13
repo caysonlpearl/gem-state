@@ -1,4 +1,5 @@
 import { PUBLIC_SUPABASE_URL } from "@/config/supabase-public";
+import { ShoppingExperience } from "@/components/community/ShoppingExperience";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -23,7 +24,12 @@ import { MobileTabBar } from "@/components/layout/MobileTabBar";
 import { PilotBanner } from "@/components/layout/PilotBanner";
 import { BluebirdEmptyState } from "@/components/layout/BluebirdEmptyState";
 import { Toaster } from "@/components/ui/sonner";
-import { trackBrowserError, ensureVisit, flushEditorialAttribution } from "@/lib/analytics";
+import {
+  trackBrowserError,
+  ensureVisit,
+  flushEditorialAttribution,
+  startTrafficEngagement,
+} from "@/lib/analytics";
 import { flushBusinessEvents } from "@/lib/business-analytics";
 import { startWebVitals } from "@/lib/web-vitals";
 
@@ -169,6 +175,7 @@ function RootComponent() {
   useEffect(() => {
     ensureVisit();
     startWebVitals();
+    return startTrafficEngagement();
   }, []);
 
   useEffect(() => {
@@ -236,6 +243,7 @@ function RootComponent() {
         )}
       </div>
       <Toaster />
+      <ShoppingExperience />
     </QueryClientProvider>
   );
 }

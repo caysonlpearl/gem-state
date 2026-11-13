@@ -87,6 +87,11 @@ const adminGroups = [
     icon: ChartBar,
     links: [
       {
+        to: "/admin/shopping",
+        label: "Shopping performance",
+        detail: "Recommendations, follow-ups, contacts per shopper, and pause controls.",
+      },
+      {
         to: "/admin/business-performance",
         label: "Business performance",
         detail: "Listing clicks, dealer referrals, contact actions, and per-business reports.",
