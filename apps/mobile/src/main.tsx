@@ -1226,4 +1226,6 @@ function Listing({
     </article>
   );
 }
+// Presentation only: native safe-area/keyboard behavior differs between platforms.
+document.documentElement.dataset.nativePlatform = Capacitor.getPlatform();
 createRoot(document.getElementById("root")!).render(<Application />);

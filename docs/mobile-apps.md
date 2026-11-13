@@ -22,9 +22,12 @@ plugins remained disabled. A later local build also compiled successfully for a
 generic ARM64 iPhone with Xcode 27.2 (27B52) and iOS SDK 27.2, with signing disabled.
 Full Xcode is now installed on this Mac. The owner completed Apple Account
 sign-in and authorized free Personal Team signing and installation; Xcode has
-the Personal Team selected, and the owner's iPhone is now paired. The latest
-live device check still reports Developer Mode disabled, so a usable signed
-installation and physical journey remain unverified.
+the Personal Team selected, and the owner's iPhone is paired with Developer Mode
+enabled. The signed app was installed and opened successfully on the real phone.
+Its homepage, listing details, photo gallery and return navigation were observed
+through Apple's Device Hub. Real-device checks exposed duplicate safe-area
+spacing and input-focus zoom; the native iOS fixes and verification are recorded
+in `docs/mobile-ios-build.md`. Authenticated marketplace journeys remain pending.
 The owner has an iPhone only; real Android testing needs a separate tester/device.
 Paid enrollment remains deferred. See `docs/mobile-ios-build.md` for the exact build proof
 and its limits. No physical Android device was attached when checked. An Android 36 ARM emulator

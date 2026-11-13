@@ -103,6 +103,34 @@ try {
     });
     await page.goto(origin);
     await page.getByRole("heading", { name: /^Find / }).waitFor();
+    const homeSearch = page.getByLabel("Search Bluebird", { exact: true });
+    const webHomeFieldSize = await homeSearch.evaluate((field) =>
+      parseFloat(getComputedStyle(field).fontSize),
+    );
+    // Exercise the native iOS presentation against the real shared homepage CSS.
+    // A normal 16px declaration loses to its compact 13px !important exception.
+    await page.evaluate(() => {
+      document.documentElement.dataset.nativePlatform = "ios";
+    });
+    await homeSearch.focus();
+    const iosHomeFieldSize = await homeSearch.evaluate((field) =>
+      parseFloat(getComputedStyle(field).fontSize),
+    );
+    assert(iosHomeFieldSize >= 16, "Native iPhone search fields must avoid focus zoom");
+    assert.equal(
+      await page.evaluate(() => document.documentElement.scrollWidth > innerWidth),
+      false,
+    );
+    await page.screenshot({ path: resolve(output, `native-ios-search-${viewport.width}.png`) });
+    await homeSearch.blur();
+    await page.evaluate(() => {
+      document.documentElement.dataset.nativePlatform = "web";
+    });
+    assert.equal(
+      await homeSearch.evaluate((field) => parseFloat(getComputedStyle(field).fontSize)),
+      webHomeFieldSize,
+      "Website field styling stays intact",
+    );
     const primary = page.getByRole("navigation", { name: "Primary", exact: true });
     assert.deepEqual(await primary.getByRole("link").allTextContents(), [
       "Home",
@@ -179,6 +207,8 @@ try {
     );
     results.push({
       viewport,
+      iosHomeFieldSize,
+      websiteFieldStylingPreserved: true,
       websitePhoneTabs: true,
       vehicleGroupMenuRetainsScope: true,
       appIneligibleCategoryAbsent: true,

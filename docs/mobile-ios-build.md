@@ -34,15 +34,38 @@ Capacitor 8.6.2 and IONGeolocationLib 3.0.0, for repeatable builds. Personal Tea
 selection stays in the local project configuration; do not commit the owner's
 team identifier, certificates, profiles or account/device discovery records.
 
-Xcode has the Personal Team selected. Its initial connection check detected no
-iPhone and provisioning reported no devices from which to generate a profile.
-After the owner reconnected and trusted the phone, `devicectl` detected one
-paired iPhone running iOS 27.0.1. The latest live device check still reports
-Developer Mode disabled, and a destination-specific signed build cannot find an
-available phone. The owner must finish the post-restart Developer Mode
-confirmation directly on the unlocked, connected phone. Signing, profile
-creation, installation and physical journeys must then be verified separately;
-do not describe the unsigned build as installed.
+The owner paired an iPhone 16 Pro Max running iOS 27.0.1, enabled Developer Mode
+and completed the post-restart confirmation. The signed Debug build succeeded;
+deep code-signature verification passed and its provisioning profile included
+that phone. CoreDevice installed the app successfully. The owner then trusted
+the developer on the phone, confirmed Bluebird opens, and a CoreDevice
+foreground launch also succeeded. This is a verified signed installation, not
+App Store distribution.
+
+Apple's Device Hub showed the real phone loading the shared homepage and actual
+listing photos. A vehicle detail page, its next gallery photo and return to the
+homepage worked. These are guest browsing checks; authenticated saves, posting,
+messaging, deletion and actual push delivery remain unverified on the phone.
+
+The phone exposed two viewport defects that browser fixtures did not reveal:
+
+- Native automatic scroll insets duplicated the shared header/tab-bar safe-area
+  padding. The iOS configuration now uses `contentInset: "never"`; a signed
+  reinstall visibly removed the extra header gap on the real phone.
+- Focusing the homepage search field zoomed the viewport and clipped its right
+  edge. Native iOS text controls now have a 16px floor that outranks the shared
+  homepage's compact 13px exception. Website/Android styling remains separate.
+  The actual shared-CSS browser regression failed before the cascade correction
+  and passed afterward at 320, 390 and 768 pixels. Physical focus retesting must
+  also pass before treating this correction as verified on iPhone.
+
+The owner unplugged the cable to switch testing to Wi-Fi. CoreDevice initially
+reported a connected local-network transport and answered a live lock-state
+query. The connection subsequently became unavailable before the updated app
+could install; do not treat that first observation as reliable wireless
+deployment proof. The installed app runs independently of the cable. Further
+live checks and Wi-Fi installation require restoring the paired device's
+network connection. No router, firewall or privacy protection was disabled.
 
 [Apple documents free Personal Team device testing](https://developer.apple.com/help/account/basics/about-your-developer-account).
 Its test profiles expire after seven days, requiring a rebuild/reinstall. This
