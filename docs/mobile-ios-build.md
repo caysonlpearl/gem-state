@@ -34,13 +34,15 @@ Capacitor 8.6.2 and IONGeolocationLib 3.0.0, for repeatable builds. Personal Tea
 selection stays in the local project configuration; do not commit the owner's
 team identifier, certificates, profiles or account/device discovery records.
 
-Xcode has the Personal Team selected. At the latest connection check, both its
-destination list and `devicectl` detected no iPhone. Provisioning reported that
-the team had no devices from which to generate a profile. The owner needs to
-reconnect an unlocked iPhone with a data-capable cable and complete its Trust
-prompt before signing/install verification can proceed. Do not describe the
-unsigned build as installed. Developer Mode and any device-side confirmations
-must also be completed directly by the owner if requested.
+Xcode has the Personal Team selected. Its initial connection check detected no
+iPhone and provisioning reported no devices from which to generate a profile.
+After the owner reconnected and trusted the phone, `devicectl` detected one
+paired iPhone running iOS 27.0.1. The latest live device check still reports
+Developer Mode disabled, and a destination-specific signed build cannot find an
+available phone. The owner must finish the post-restart Developer Mode
+confirmation directly on the unlocked, connected phone. Signing, profile
+creation, installation and physical journeys must then be verified separately;
+do not describe the unsigned build as installed.
 
 [Apple documents free Personal Team device testing](https://developer.apple.com/help/account/basics/about-your-developer-account).
 Its test profiles expire after seven days, requiring a rebuild/reinstall. This
