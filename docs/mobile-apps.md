@@ -272,6 +272,16 @@ Official enrollment references:
 - https://support.google.com/googleplay/android-developer/answer/13628312?hl=en
 - https://support.google.com/googleplay/android-developer/answer/14151465?hl=en
 
+## Account deletion work in progress
+
+The next batch adds durable deletion jobs, server route fences and immediate
+shopping/advertising suppression across web and native. It keeps the existing
+account request/status contract and sign-out routes. The erasure worker remains
+disabled until actual data/media cleanup, identity-provider revocation, session
+and direct database boundaries, retention handling and independent verification
+are complete. Source tests and a received request are not completed deletion.
+See `docs/account-deletion.md` for the current implementation boundary.
+
 ## Apple release automation candidate: Lance
 
 The owner shared Ayo Omolewa's reel about wrapping existing sites and using Lance for release operations. The app is already based on Capacitor; this does not require a new visual design. Lance's official pages, checked November 13, 2026, advertise source-based builds/signing on its cloud Mac, TestFlight, App Store metadata/screenshots, Apple capabilities and submission/review handling through an authenticated MCP connection. This could cover the missing local Xcode build/signing setup. These are vendor claims, not a successful Bluebird build or an approval guarantee. Equivalent Google Play management was not confirmed in the inspected documentation; the Android build continues using the working local project.

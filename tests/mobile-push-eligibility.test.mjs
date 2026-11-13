@@ -18,6 +18,7 @@ function fixture() {
   const rows = {
     shopping_controls: [{ id: true, notifications: true }],
     shopping_accounts: [{ user_id: user, shopping_alerts: true, history_after: "1970-01-01" }],
+    mobile_account_deletions: [],
     shopping_privacy: [{ subject: "u:" + user, personalization: true }],
     shopping_queue: [
       {
@@ -221,5 +222,14 @@ test("phone reminders share durable stop rules without suppressing their own ema
   assert.equal(await f.allowed(), false);
   item.status = "sent";
   f.rows.shopping_choices[0].reminder_step = 3;
+  assert.equal(await f.allowed(), false);
+});
+
+test("pending deletion suppresses phone shopping even when an earlier notification and consent remain present", async () => {
+  const f = fixture();
+  assert.equal(await f.allowed(), true);
+  f.rows.mobile_account_deletions.push({ user_id: randomUUID(), status: "requested" });
+  assert.equal(await f.allowed(), true, "Another account cannot suppress this shopper");
+  f.rows.mobile_account_deletions.push({ user_id: f.user, status: "requested" });
   assert.equal(await f.allowed(), false);
 });

@@ -1,3 +1,7 @@
+import {
+  assertAccountAvailable,
+  accountDeletionPending,
+} from "./account-deletion-access.server.ts";
 /* eslint-disable @typescript-eslint/no-explicit-any -- private migration-backed tables */
 import {
   interests,
@@ -24,6 +28,7 @@ export async function shoppingActor(request: Request, db: any) {
     const result = await db.auth.getUser(authorization.slice(7));
     if (result.error) throw Error("Please sign in again.");
     user = result.data.user;
+    if (user) await assertAccountAvailable(db, user.id);
   }
   const match = request.headers
     .get("cookie")
@@ -372,6 +377,7 @@ export async function updateShoppingConsent(
   return { ok: true };
 }
 export async function shoppingPermission(db: any, subject: string) {
+  if (subject.startsWith("u:") && (await accountDeletionPending(db, subject.slice(2)))) return null;
   const r = await db
     .from("shopping_privacy")
     .select("personalization,advertising,history_after")

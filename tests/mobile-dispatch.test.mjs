@@ -1,3 +1,4 @@
+import * as deletionAccess from "../src/lib/account-deletion-access.server.ts";
 import { storefrontFixture, storefrontActors } from "./support/mobile-storefront-fixture.mjs";
 import * as storefrontHandlers from "../src/lib/mobile-storefront.server.ts";
 import * as storefrontContract from "../src/lib/mobile-storefront-contract.ts";
@@ -162,6 +163,7 @@ function harness({
     },
   };
   const modules = {
+    "./account-deletion-access.server": deletionAccess,
     "@supabase/supabase-js": {
       createClient: () => ({
         ...db,
@@ -1184,4 +1186,25 @@ test("only trusted app-created general dealership contexts enter the mobile inbo
   const notInstalled = harness({ scopedDealerConversation: true });
   assert.equal((await notInstalled.request("conversations/" + id)).status, 404);
   assert(!notInstalled.reads.some((r) => r.table === "mobile_dealer_conversations"));
+});
+
+test("deletion-pending identities cannot read or mutate private native routes, while status and sign-out remain available", async () => {
+  const h = harness({ deleted: true, attachments: true, posting: true, savedSearches: true });
+  for (const [path, method, body] of [
+    ["account", "GET"],
+    ["conversations", "GET"],
+    ["notifications", "GET"],
+    ["saved", "GET"],
+    ["saved-searches", "GET"],
+    ["account/contact-preferences", "GET"],
+    ["advertising?platform=ios", "GET"],
+    ["notifications/read", "PUT", { ids: null }],
+    ["saved", "POST", { listingId: "anything", saved: true }],
+    ["consent", "PUT", { acceptTerms: true, shoppingAlerts: true, version: "2026-11-12" }],
+  ]) {
+    const response = await h.request(path, method, body);
+    assert.equal(response.status, 409, path);
+    assert.equal((await response.json()).error.code, "deletion_pending", path);
+  }
+  assert.equal(h.writes.length, 0);
 });

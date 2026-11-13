@@ -3,6 +3,10 @@ import { createMiddleware } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
+import {
+  assertAccountAvailable,
+  type DeletionAccessDatabase,
+} from "@/lib/account-deletion-access.server";
 
 function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith("sb_publishable_") || value.startsWith("sb_secret_");
@@ -97,6 +101,19 @@ export const requireSupabaseAuth = createMiddleware({ type: "function" }).server
     if (!data.claims.sub) {
       throw new Error("Unauthorized: No user ID found in token");
     }
+
+    // JWT signature validity can outlive account deletion. Confirm that the
+    // identity still exists before any service-backed domain action runs.
+    const identity = await supabase.auth.getUser(token);
+    if (identity.error || identity.data.user?.id !== data.claims.sub) {
+      throw new Error("Unauthorized: Account is unavailable");
+    }
+
+    const { supabaseAdmin } = await import("./client.server");
+    await assertAccountAvailable(
+      supabaseAdmin as unknown as DeletionAccessDatabase,
+      data.claims.sub,
+    );
 
     return next({
       context: {

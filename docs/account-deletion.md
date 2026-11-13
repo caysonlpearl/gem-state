@@ -74,3 +74,57 @@ deletion alone does not remove all application personal data.
 
 - https://supabase.com/docs/reference/javascript/auth-admin-deleteuser
 - https://supabase.com/docs/guides/auth/managing-user-data
+
+## November 13 implementation batch — queue and server access
+
+A fresh read-only inspection of GemList verified 170 public tables, 1,816 public
+columns and 245 foreign keys. This was schema metadata only, with no member
+records read or deleted. Financial cascades, shared conversations, managed
+sellers and both storage providers still require explicit cleanup plans.
+
+The source now contains a private durable job queue and a six-phase orchestrator:
+inventory, authorization revocation, media, records, identity and verification.
+A request creates one job, withdraws first-party shopping and both web/native
+advertising permissions, suppresses queued shopping delivery and removes native
+registrations in the same transaction. Withdrawal records keep their source and
+policy version. Existing requests are backfilled and suppressed when the
+migration is applied. Repeated requests do not reset progress.
+
+Workers claim one phase with a five-minute lease. Checkpoints and retries require
+the current lease and phase; expired workers cannot overwrite a newer claim.
+Successful bounded chunks can continue the same phase. Failures retain the target
+and use coded errors and exponential retry delays without private provider text.
+A job survives an Auth cascade/crash. Completion independently refuses a remaining
+Auth identity and removes the target UUID from the minimal completion receipt.
+
+Shared server authentication checks the current Auth identity as well as JWT
+claims and rejects pending deletion before running domain handlers. Private native
+reads and writes use the same pending-account check. Account deletion status and
+owned device removal remain available for confirmation/sign-out. Shopping
+collection, recommendations, advertising exports and shopping email/push delivery
+recheck deletion state, including explicitly requested saved-search delivery.
+Guest browsing and other accounts retain their previous behavior. No permission
+check is cached between requests.
+
+This is **not operational erasure yet**. The migration is not applied by editing
+source, and the worker defaults to disabled. The real inventory, provider,
+media/record erasure, Auth removal and independent verification adapters remain
+to be connected. No real account or media was deleted by the local SQL and worker
+tests. Session revocation and database-level protection for direct RPC/storage
+access still require implementation before activating full deletion. These server
+route checks do not prove those database/session boundaries.
+
+Tests exercise actual migration SQL in isolated Postgres, queue replay/rollback,
+legacy requests, lease expiry, stale workers, delayed retries, phase order,
+missing adapters, retained targets after Auth deletion, final identity absence,
+minimal receipts, permission withdrawal/account isolation, real website middleware
+and private native dispatch. Phone and email eligibility tests cover pending
+requests even when older consent or notifications still exist. Full release
+regressions remain required before merge.
+
+The real PostgreSQL concurrency gate also passes locally with two simultaneous
+connections: a locked older job is skipped, simultaneous claims select distinct
+jobs, and a reclaimed lease rejects the old worker's checkpoint and retry. The
+cluster is temporary, uses an owner-only Unix socket with TCP disabled, and is
+stopped and removed after the test. CI runs this gate explicitly; the ordinary
+suite does not require a locally running database.
