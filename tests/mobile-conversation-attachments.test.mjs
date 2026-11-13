@@ -190,7 +190,7 @@ test("missing attachment migration and outages keep the capability off with boun
           if (mode === "outage") throw Error("unavailable");
           return mode === "missing"
             ? { error: { code: "PGRST202" }, data: null }
-            : { error: null, data: { attachments: true } };
+            : { error: null, data: { attachments: true, posting: mode === "posting" } };
         },
       },
     }),
@@ -207,11 +207,20 @@ test("missing attachment migration and outages keep the capability off with boun
   assert.equal(calls, 1);
   now = 30001;
   assert.equal(await exports.mobileAttachmentsReady(), true);
+  assert.equal(await exports.mobilePostingReady(), false);
   assert.equal(calls, 2);
   now = 60002;
   mode = "outage";
   assert.equal(await exports.mobileAttachmentsReady(), false);
   assert.equal(calls, 3);
+  assert.equal(await exports.mobilePostingReady(), false);
+  now = 90003;
+  mode = "posting";
+  assert.deepEqual(
+    await Promise.all([exports.mobileAttachmentsReady(), exports.mobilePostingReady()]),
+    [true, true],
+  );
+  assert.equal(calls, 4);
 });
 
 test("uncertain uploads are verified before reupload; private receipts survive restoration and account changes fail closed", async () => {

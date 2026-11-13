@@ -1,3 +1,4 @@
+import { mobileWriteId } from "./mobile-write";
 import { homeRecommendationRows } from "./home-shopping.ts";
 import { discoverySellerToken } from "./discovery-ranking.ts";
 import { mixPetSpecies } from "./pet-mix.ts";
@@ -593,6 +594,7 @@ export const getAdminClassifiedQueue = createServerFn({ method: "GET" })
   });
 
 export type CreateClassifiedListingInput = ClassifiedListingInput & {
+  requestId?: string;
   parcelLengthIn?: number | null;
   parcelWidthIn?: number | null;
   parcelHeightIn?: number | null;
@@ -613,6 +615,7 @@ export const createClassifiedListing = createServerFn({ method: "POST" })
       throw new Error("Add at least one exact-item photo.");
     return {
       ...parsed,
+      requestId: mobileWriteId(input.requestId),
       state: parsed.state.toUpperCase(),
       evidencePaths,
       publicMediaPaths,
@@ -624,6 +627,24 @@ export const createClassifiedListing = createServerFn({ method: "POST" })
   })
   .handler(async ({ data, context }): Promise<{ listingId: string }> => {
     const client = context.supabase as any;
+    if (data.requestId) {
+      const { requestId, ...input } = data;
+      const { data: outcome, error } = await client.rpc("mobile_commit_listing", {
+        _request: requestId,
+        _input: {
+          ...input,
+          itemDetails: normalizeClassifiedItemDetails(data.category, data.itemDetails),
+          vehicle: vehicleForRpc(data.vehicle),
+          home: homeForRpc(data.home),
+          job: jobForRpc(data.job),
+          service: serviceForRpc(data.service),
+          pet: petForRpc(data.pet),
+        },
+      });
+      if (error || !outcome?.listingId)
+        throw new Error(error?.message ?? "We could not submit this listing.");
+      return { listingId: outcome.listingId as string };
+    }
     const { data: category, error: categoryError } = await client
       .from("categories")
       .select("id")

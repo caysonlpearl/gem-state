@@ -20,6 +20,7 @@ export type Bootstrap = {
     paidUpgrades: false;
     advertising: boolean;
     conversationAttachments?: boolean;
+    durablePosting?: boolean;
   };
 };
 export class ApiError extends Error {

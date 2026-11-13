@@ -50,10 +50,10 @@ Provider credits remain visible when shared cards replace the old prototype tile
 
 The sign-in/sign-up/forgot/reset form, phone tab bar, header sizing and mobile category menu also use shared website presenters. The native tab labels/icons/order now follow the website: Home, Search, Sell, Saved, Messages, with account access in the header. This supersedes the prototype's Browse/Saved/Post/Messages/Account arrangement. Auth adapters preserve native callbacks, explicit signup choices and account ownership; the Apple option is the corresponding native requirement.
 
-Remaining parity work includes the full account center and its tabs, account dropdown/unread badges and wider-screen header controls, complete listing-detail body/actions, full posting/seller forms and category-specific browse/landing controls. Do not describe these as already migrated. Compare each screen at the same viewport, data and state before beta; record any difference and its reason. Necessary exceptions are permanent app catalog/payment restrictions, native permission prompts, device integrations and phone system boundaries. A proposed design simplification alone is not a reason to diverge.
+Remaining parity work includes the full account center and its tabs, account dropdown/unread badges and wider-screen header controls, complete listing-detail body/actions, seller dashboard/navigation/own-listing management and category-specific browse/landing controls. Do not describe these as already migrated. Compare each screen at the same viewport, data and state before beta; record any difference and its reason. Necessary exceptions are permanent app catalog/payment restrictions, native permission prompts, device integrations and phone system boundaries. A proposed design simplification alone is not a reason to diverge.
 
 The earlier text-only wordmark and separate listing-card/photo designs are replaced.
-The remaining account and posting presenters and full account-center framing must
+The remaining account presenters, seller management and full account-center framing must
 also reuse the existing website UI before beta. Existing native controllers and phone navigation
 are adapters, not authority to invent a different design. Native notification,
 permission and app catalog differences still follow the approved launch plan.
@@ -69,6 +69,18 @@ The native upload implementation supports the website's JPG/PNG/WebP/PDF and 10 
 Additive API v1 routes are `POST conversations/:id/attachments` (prepare) and `POST conversations/:id/attachments/send` (commit/retry). They reuse the existing private attachment bucket, signed uploads and conversation domain services; there is no new public media bucket or provider request. Install the migration on the verified owning project, record its migration history and privileges, then verify the capability, cross-account/object isolation, upload/receive/open/retry and blocking with test members before release. Abandoned uploads must also be included in media-retention and account-deletion tests before beta.
 
 Storage metadata is read only; files are not deleted by editing `storage.objects`. References used for the implementation: [Supabase Storage schema](https://supabase.com/docs/guides/storage/schema/design), [Storage object metadata types](https://github.com/supabase/storage/blob/master/src/storage/backend/adapter.ts).
+
+## Shared seller setup and listing forms
+
+Native posting imports the website's `SellerSetupView`, `CreateListingHeader`, `ListingFormView`, form state, submission mapping and all six category-specific forms. This replaces the generic schema-driven prototype. Website create/edit/duplicate retain their existing services, mutation acknowledgements, analytics and navigation. Native uses API v1 and account-scoped drafts, keeps existing shipping preferences when saving a public seller profile, and requires the seller agreement. The native heading omits the paid-promotion upsell under the approved payment boundary.
+
+`POST vehicles/vin` reuses the website's authenticated NHTSA lookup and shared field-fill controls; it is user-triggered and does not refresh paid listing providers. Photo upload freezes account/install identity throughout the original upload and mirror fallback. The form preserves Idaho city/region validation, complete structured fields, photo rights, previews and ordering. Draft metadata is scoped to the signed-in account; file bytes and signing tokens are not stored in session drafts.
+
+Native listing submission now carries a stable `Idempotency-Key` and persists its exact payload and own photo references before sending. An uncertain outcome locks those original fields and exposes an explicit retry, including after reload. Permission/session rejection of a retry must retain that original receipt because it cannot prove the first attempt failed. Success clears the draft and confirms moderation review; it does not navigate to an unpublished public listing. The complete selling dashboard, native edit/duplicate and own pending-listing management remain release gates.
+
+**Production dependency remains pending:** `20261113070000_mobile_listing_receipts.sql` delegates to existing classified/free-pet domain functions and commits listing details and the private receipt in the same transaction. Install after migration 500 and alongside pending migration 600 on the verified owning Bluebird project. This migration has not been applied. `features.durablePosting` stays false if its private capability read is missing/unavailable; the new client stops before photo upload or listing submission. The existing website posting path is unchanged. Do not report real native posting as verified until database installation and authenticated device journeys pass.
+
+Validation uses actual SQL in an isolated PostgreSQL runtime for rollback/replay/owner isolation, mocked native upload account changes, and synthetic browser journeys at 320/390/768 pixels for shared seller setup, six form types, VIN, city validation, draft/account isolation and recovery after a lost submission response. Fixtures create no real members, photos or listings. The CI entry is `npm run test:mobile:posting:ui`. Real camera/gallery, keyboard/back behavior, file handling and both physical devices remain beta requirements.
 
 ## Baseline and ownership
 
@@ -168,7 +180,7 @@ Authenticated routes include:
 
 - Account and consent: `GET account`, `PUT consent`, `GET/PUT advertising`.
 - Saves: `GET saved`, `GET saved-state`, `POST saved`.
-- Seller/posting: `GET/POST seller`, `POST listings`, `POST photos/mode|begin|finish`.
+- Seller/posting: `GET/POST seller`, `POST listings`, `POST photos/mode|begin|finish`, `POST vehicles/vin`.
 - Messages: `GET/POST conversations`, `GET conversations/:id`,
   `POST conversations/:id/messages|read|block|report`.
 - Controls: `POST reports`, `PUT/DELETE devices`,
@@ -183,7 +195,8 @@ original result without sending or emailing twice. Pending receipt identifiers
 survive session restoration, carry no message bodies, and never replay automatically.
 The 20261113050000_mobile_message_receipts migration is installed and recorded in
 production; actual authenticated native journeys remain a beta gate. Listing
-creation still needs equivalent retry protection; never silently resend an uncertain post.
+creation has equivalent source-level receipt protection in pending migration 700;
+never silently resend an uncertain post or treat that migration as installed.
 
 The catalog filter is permanent code. It excludes the firearm category,
 firearm merchant inventory, unknown categories, fixtures and obvious weapons

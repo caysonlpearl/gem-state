@@ -58,6 +58,7 @@ function formBoundary(overrides = {}) {
       auth: { getSession: async () => ({ data: { session: { user: { id: "fixture-owner" } } } }) },
     },
     uploadPhoto: async () => "fixture-owner/fixture.jpg",
+    listingFormSubmission: () => ({}),
     buildVehicle: () => null,
     buildHome: () => null,
     buildJob: () => null,

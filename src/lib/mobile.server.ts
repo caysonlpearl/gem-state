@@ -298,6 +298,7 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
         conversationAttachments: await (
           await import("./mobile-messaging.server")
         ).mobileAttachmentsReady(),
+        durablePosting: await (await import("./mobile-messaging.server")).mobilePostingReady(),
         paidUpgrades: false,
         push:
           serverEnv("BLUEBIRD_MOBILE_PUSH_ENABLED") === "true" &&
@@ -708,6 +709,15 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
     await listing(z.string().parse(body.listingId));
     return domain((await import("./classifieds.functions")).reportClassifiedListing, body);
   }
+  if (method === "POST" && path === "vehicles/vin") {
+    const vin = z
+      .string()
+      .trim()
+      .toUpperCase()
+      .regex(/^[A-HJ-NPR-Z0-9]{17}$/)
+      .parse(body.vin);
+    return domain((await import("./vehicle.functions")).decodeVehicleVin, { vin });
+  }
   if (method === "POST" && path === "listings") {
     if (
       !mobileListingAllowed({
@@ -721,7 +731,17 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
         "listing_restricted",
         "This listing is not supported in the mobile app.",
       );
-    return domain((await import("./classifieds.functions")).createClassifiedListing, body);
+    const requestId = mobileWriteId(request.headers.get("Idempotency-Key"));
+    if (requestId && !(await (await import("./mobile-messaging.server")).mobilePostingReady()))
+      throw new MobileApiError(
+        503,
+        "posting_unavailable",
+        "Posting is temporarily unavailable. Your draft is still here.",
+      );
+    return domain((await import("./classifieds.functions")).createClassifiedListing, {
+      ...body,
+      requestId,
+    });
   }
   if (method === "POST" && path.startsWith("photos/")) {
     const f = await import("./photo-storage.functions");
