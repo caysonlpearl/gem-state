@@ -1,3 +1,4 @@
+import { backWithinApp } from "./native-navigation";
 import { browseDestination } from "./browse-state";
 import { mobilePrimaryCategories } from "../../../src/config/mobile-navigation";
 import { useEffect, useRef, useState } from "react";
@@ -68,7 +69,9 @@ export function NativeHeader({
               type="button"
               className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border"
               aria-label="Go back"
-              onClick={() => (history.length > 1 ? history.back() : onNavigate("/"))}
+              onClick={() => {
+                if (!backWithinApp()) onNavigate("/");
+              }}
             >
               <ArrowLeft size={20} />
             </button>

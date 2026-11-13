@@ -131,7 +131,7 @@ export function SavedSearchActions({
         comparable(attempt.input.search as Record<string, unknown>)
       ) {
         params.set("savedSearchId", result.id);
-        history.replaceState(null, "", "#/search?" + params);
+        history.replaceState(history.state, "", "#/search?" + params);
         window.dispatchEvent(new HashChangeEvent("hashchange"));
       }
     }

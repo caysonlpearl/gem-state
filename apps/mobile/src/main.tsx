@@ -1,3 +1,4 @@
+import { trackNativeNavigation, backWithinApp } from "./native-navigation";
 import { dismissNativeOverlay } from "./native-back";
 import { LocationRequestProvider } from "../../../src/components/classifieds/LocationRequest";
 import { requestNearbyLocation } from "./location";
@@ -110,6 +111,7 @@ function Application() {
   const [pushToken, setPushToken] = useState<string | null>(null);
   const signOutInFlight = useRef(false);
   useEffect(() => {
+    const stopNavigation = trackNativeNavigation();
     let alive = true,
       stop = () => {};
     initialize()
@@ -158,6 +160,7 @@ function Application() {
     return () => {
       alive = false;
       stop();
+      stopNavigation();
       window.removeEventListener("hashchange", hash);
     };
   }, []);
@@ -217,9 +220,9 @@ function Application() {
           if (alive) setError(message(e));
         }
       }),
-      NativeApp.addListener("backButton", ({ canGoBack }) => {
+      NativeApp.addListener("backButton", () => {
         if (dismissNativeOverlay()) return;
-        if (canGoBack && currentPath() !== "/") history.back();
+        if (currentPath() !== "/" && backWithinApp()) return;
         else if (currentPath() !== "/") go("/");
         else void NativeApp.exitApp();
       }),
@@ -380,7 +383,7 @@ function Application() {
               ) {
                 const params = browseLocation(location.hash).params;
                 params.set("savedSearchId", id);
-                history.replaceState(null, "", "#/search?" + params);
+                history.replaceState(history.state, "", "#/search?" + params);
                 window.dispatchEvent(new HashChangeEvent("hashchange"));
               }
             }}

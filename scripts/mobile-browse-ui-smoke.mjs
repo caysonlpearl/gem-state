@@ -472,7 +472,10 @@ try {
         .first()
         .click();
       await page.getByRole("heading", { name: "Fixture Ford 20k", exact: true }).waitFor();
-      await page.getByRole("button", { name: "Go back", exact: true }).click();
+      await page.evaluate(async () => {
+        const { backWithinApp } = await import("/src/native-navigation.ts");
+        if (!backWithinApp()) throw Error("Same-document app history was not recognized");
+      });
       await page
         .getByRole("link", { name: /Fixture Ford 20k/ })
         .first()
@@ -637,6 +640,7 @@ try {
         viewport: viewport.width,
         filters: true,
         searchBackNavigation: true,
+        nativeHashHistory: true,
         backClosesFilterDrawer: true,
         locationOnlyOnTap: true,
         approximateLocation: true,
