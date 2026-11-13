@@ -27,7 +27,7 @@ function NativeListingLink({ listing, className, children, ariaLabel }: ListingC
   return (
     <a
       href={`#/listings/${encodeURIComponent(listing.id)}`}
-      className={className}
+      className={`${className} text-inherit`}
       aria-label={ariaLabel}
       onClick={(event) => {
         event.preventDefault();

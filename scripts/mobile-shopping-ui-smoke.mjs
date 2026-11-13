@@ -268,6 +268,7 @@ try {
       0,
       "The owner's latest website correction removes these controls from the app too",
     );
+    await page.mouse.move(0, 0);
     const geometry = [];
     for (const title of ["Recently viewed", "Continue shopping", "Recommended for you"]) {
       const row = page.getByRole("heading", { name: title, exact: true }).locator("..");
@@ -306,6 +307,14 @@ try {
       assert.equal(
         await row.locator("h2").evaluate((node) => getComputedStyle(node).fontSize),
         "18px",
+      );
+      assert.equal(
+        await row
+          .locator("h3")
+          .first()
+          .evaluate((node) => getComputedStyle(node).color),
+        await page.locator("body").evaluate((node) => getComputedStyle(node).color),
+        "The app's legacy link color must not replace the website card-title color",
       );
       geometry.push({ title, columns, boxes });
     }
