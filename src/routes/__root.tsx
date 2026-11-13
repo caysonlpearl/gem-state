@@ -1,4 +1,5 @@
 import { PUBLIC_SUPABASE_URL } from "@/config/supabase-public";
+import { ShoppingExperience } from "@/components/community/ShoppingExperience";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -242,6 +243,7 @@ function RootComponent() {
         )}
       </div>
       <Toaster />
+      <ShoppingExperience />
     </QueryClientProvider>
   );
 }

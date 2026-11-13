@@ -40,7 +40,7 @@ export const brand = {
  * `/policies`. These are the operator's published terms: each section states a
  * binding rule the marketplace actually applies today.
  */
-export const policyEffectiveDate = "September 13, 2026";
+export const policyEffectiveDate = "November 12, 2026";
 
 export const policyTopics = [
   { slug: "marketplace-disclosure", title: "Marketplace disclosure" },

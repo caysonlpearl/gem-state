@@ -1,3 +1,5 @@
+import { VisualSimilarShopping } from "@/components/community/ShoppingExperience";
+import { trackActiveListing, shoppingTrack } from "@/lib/shopping-client";
 import { readableHomeFacts, homeParkingSummary } from "@/lib/home-facts";
 import { homeMapLocation, homePriceCut } from "@/lib/home-shopping";
 import { HomePaymentCalculator } from "@/components/listings/HomePaymentCalculator";
@@ -445,6 +447,7 @@ function Gallery({ listing }: { listing: ClassifiedDetail }) {
     return <GalleryPlaceholder listing={listing} />;
   }
   const goToImage = (next: number) => {
+    shoppingTrack("photo", listing.id, { photo: (next + images.length) % images.length });
     setActiveImage((next + images.length) % images.length);
   };
 
@@ -512,7 +515,7 @@ function Gallery({ listing }: { listing: ClassifiedDetail }) {
             <button
               key={image.url}
               type="button"
-              onClick={() => setActiveImage(index)}
+              onClick={() => goToImage(index)}
               aria-label={`Show ${subject} photo ${index + 1}`}
               aria-current={index === activeImage}
               className={`h-16 w-24 shrink-0 overflow-hidden rounded-xl border-2 bg-secondary transition sm:h-[76px] sm:w-[112px] ${index === activeImage ? "border-primary" : "border-transparent opacity-75 hover:opacity-100"}`}
@@ -1458,6 +1461,11 @@ function ListingDetail() {
       { isDemo: listing.isMock === true },
     );
   }, [listing?.id]);
+  useEffect(
+    () =>
+      listing && !listing.isMock && !listing.ended ? trackActiveListing(listing.id) : undefined,
+    [listing?.id],
+  );
   // Related suggestions must not suspend the primary listing during hydration.
   const relatedQuery = useQuery(
     queryOptions({
@@ -1655,6 +1663,7 @@ function RelatedRails({
             </Link>,
           )
         : null}
+      <VisualSimilarShopping listingId={listing.id} />
       {similar.length > 0
         ? rail(
             listing.externalMerchandise

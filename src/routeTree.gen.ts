@@ -23,9 +23,11 @@ import { Route as MessagesRouteImport } from './routes/messages'
 import { Route as NewsSitemapDotxmlRouteImport } from './routes/news-sitemap[.]xml'
 import { Route as PetsRouteImport } from './routes/pets'
 import { Route as PoliciesRouteImport } from './routes/policies'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as SafetyRouteImport } from './routes/safety'
 import { Route as SellRouteImport } from './routes/sell'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as AuthenticatedAccountRouteImport } from './routes/_authenticated/account'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedBuyingRouteImport } from './routes/_authenticated/buying'
@@ -40,6 +42,8 @@ import { Route as AuthenticatedShopperRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedShopperPayoutsRouteImport } from './routes/_authenticated/shopper-payouts'
 import { Route as AuthenticatedSuggestRouteImport } from './routes/_authenticated/suggest'
 import { Route as AuthenticatedWatchlistRouteImport } from './routes/_authenticated/watchlist'
+import { Route as ApiShoppingRouteImport } from './routes/api/shopping'
+import { Route as ApiShoppingEmailEventsRouteImport } from './routes/api/shopping-email-events'
 import { Route as DealersSlugRouteImport } from './routes/dealers.$slug'
 import { Route as GuidesIndexRouteImport } from './routes/guides.index'
 import { Route as GuidesSlugRouteImport } from './routes/guides.$slug'
@@ -64,6 +68,7 @@ import { Route as AuthenticatedAdminMembersRouteImport } from './routes/_authent
 import { Route as AuthenticatedAdminNewsRouteImport } from './routes/_authenticated/admin.news'
 import { Route as AuthenticatedAdminProductsRouteImport } from './routes/_authenticated/admin.products'
 import { Route as AuthenticatedAdminReviewFlagsRouteImport } from './routes/_authenticated/admin.review-flags'
+import { Route as AuthenticatedAdminShoppingRouteImport } from './routes/_authenticated/admin.shopping'
 import { Route as AuthenticatedAdminTrafficRouteImport } from './routes/_authenticated/admin.traffic'
 import { Route as AuthenticatedAdminValidationRouteImport } from './routes/_authenticated/admin.validation'
 import { Route as AuthenticatedOrdersOrderIdRouteImport } from './routes/_authenticated/orders.$orderId'
@@ -73,7 +78,10 @@ import { Route as ApiInternalHomepageRefreshRouteImport } from './routes/api/int
 import { Route as ApiInternalNewsRefreshRouteImport } from './routes/api/internal/news-refresh'
 import { Route as ApiInternalSavedSearchesRouteImport } from './routes/api/internal/saved-searches'
 import { Route as ApiInternalServiceRatingsRouteImport } from './routes/api/internal/service-ratings'
+import { Route as ApiInternalShoppingRouteImport } from './routes/api/internal/shopping'
+import { Route as ApiInternalShoppingEmbeddingsRouteImport } from './routes/api/internal/shopping-embeddings'
 import { Route as ApiInternalVehicleFeedRouteImport } from './routes/api/internal/vehicle-feed'
+import { Route as ApiShoppingLinkTokenRouteImport } from './routes/api/shopping-link.$token'
 import { Route as CarsMakeIndexRouteImport } from './routes/cars.$make.index'
 import { Route as CarsMakeModelRouteImport } from './routes/cars.$make.$model'
 import { Route as IdahoPlaceIndexRouteImport } from './routes/idaho.$place.index'
@@ -157,6 +165,11 @@ const PoliciesRoute = PoliciesRouteImport.update({
   path: '/policies',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SafetyRoute = SafetyRouteImport.update({
   id: '/safety',
   path: '/safety',
@@ -170,6 +183,11 @@ const SellRoute = SellRouteImport.update({
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAccountRoute = AuthenticatedAccountRouteImport.update({
@@ -247,6 +265,16 @@ const AuthenticatedWatchlistRoute = AuthenticatedWatchlistRouteImport.update({
   id: '/watchlist',
   path: '/watchlist',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const ApiShoppingRoute = ApiShoppingRouteImport.update({
+  id: '/api/shopping',
+  path: '/api/shopping',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiShoppingEmailEventsRoute = ApiShoppingEmailEventsRouteImport.update({
+  id: '/api/shopping-email-events',
+  path: '/api/shopping-email-events',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const DealersSlugRoute = DealersSlugRouteImport.update({
   id: '/dealers/$slug',
@@ -379,6 +407,12 @@ const AuthenticatedAdminReviewFlagsRoute =
     path: '/review-flags',
     getParentRoute: () => AuthenticatedAdminRoute,
   } as any)
+const AuthenticatedAdminShoppingRoute =
+  AuthenticatedAdminShoppingRouteImport.update({
+    id: '/shopping',
+    path: '/shopping',
+    getParentRoute: () => AuthenticatedAdminRoute,
+  } as any)
 const AuthenticatedAdminTrafficRoute =
   AuthenticatedAdminTrafficRouteImport.update({
     id: '/traffic',
@@ -432,9 +466,25 @@ const ApiInternalServiceRatingsRoute =
     path: '/api/internal/service-ratings',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiInternalShoppingRoute = ApiInternalShoppingRouteImport.update({
+  id: '/api/internal/shopping',
+  path: '/api/internal/shopping',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiInternalShoppingEmbeddingsRoute =
+  ApiInternalShoppingEmbeddingsRouteImport.update({
+    id: '/api/internal/shopping-embeddings',
+    path: '/api/internal/shopping-embeddings',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiInternalVehicleFeedRoute = ApiInternalVehicleFeedRouteImport.update({
   id: '/api/internal/vehicle-feed',
   path: '/api/internal/vehicle-feed',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiShoppingLinkTokenRoute = ApiShoppingLinkTokenRouteImport.update({
+  id: '/api/shopping-link/$token',
+  path: '/api/shopping-link/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CarsMakeIndexRoute = CarsMakeIndexRouteImport.update({
@@ -522,9 +572,11 @@ export interface FileRoutesByFullPath {
   '/news-sitemap.xml': typeof NewsSitemapDotxmlRoute
   '/pets': typeof PetsRoute
   '/policies': typeof PoliciesRoute
+  '/privacy': typeof PrivacyRoute
   '/safety': typeof SafetyRoute
   '/sell': typeof SellRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/account': typeof AuthenticatedAccountRoute
   '/admin': typeof AuthenticatedAdminRouteWithChildren
   '/buying': typeof AuthenticatedBuyingRoute
@@ -539,6 +591,8 @@ export interface FileRoutesByFullPath {
   '/shopper-payouts': typeof AuthenticatedShopperPayoutsRoute
   '/suggest': typeof AuthenticatedSuggestRoute
   '/watchlist': typeof AuthenticatedWatchlistRoute
+  '/api/shopping': typeof ApiShoppingRoute
+  '/api/shopping-email-events': typeof ApiShoppingEmailEventsRoute
   '/dealers/$slug': typeof DealersSlugRoute
   '/guides/$slug': typeof GuidesSlugRoute
   '/listings/$listingId': typeof ListingsListingIdRoute
@@ -562,6 +616,7 @@ export interface FileRoutesByFullPath {
   '/admin/news': typeof AuthenticatedAdminNewsRoute
   '/admin/products': typeof AuthenticatedAdminProductsRoute
   '/admin/review-flags': typeof AuthenticatedAdminReviewFlagsRoute
+  '/admin/shopping': typeof AuthenticatedAdminShoppingRoute
   '/admin/traffic': typeof AuthenticatedAdminTrafficRoute
   '/admin/validation': typeof AuthenticatedAdminValidationRoute
   '/orders/$orderId': typeof AuthenticatedOrdersOrderIdRoute
@@ -571,7 +626,10 @@ export interface FileRoutesByFullPath {
   '/api/internal/news-refresh': typeof ApiInternalNewsRefreshRoute
   '/api/internal/saved-searches': typeof ApiInternalSavedSearchesRoute
   '/api/internal/service-ratings': typeof ApiInternalServiceRatingsRoute
+  '/api/internal/shopping': typeof ApiInternalShoppingRoute
+  '/api/internal/shopping-embeddings': typeof ApiInternalShoppingEmbeddingsRoute
   '/api/internal/vehicle-feed': typeof ApiInternalVehicleFeedRoute
+  '/api/shopping-link/$token': typeof ApiShoppingLinkTokenRoute
   '/cars/$make/$model': typeof CarsMakeModelRoute
   '/idaho/$place/$category': typeof IdahoPlaceCategoryRoute
   '/idaho/market-report/$month': typeof IdahoMarketReportMonthRoute
@@ -601,9 +659,11 @@ export interface FileRoutesByTo {
   '/news-sitemap.xml': typeof NewsSitemapDotxmlRoute
   '/pets': typeof PetsRoute
   '/policies': typeof PoliciesRoute
+  '/privacy': typeof PrivacyRoute
   '/safety': typeof SafetyRoute
   '/sell': typeof SellRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/account': typeof AuthenticatedAccountRoute
   '/buying': typeof AuthenticatedBuyingRoute
   '/create-listing': typeof AuthenticatedCreateListingRoute
@@ -617,6 +677,8 @@ export interface FileRoutesByTo {
   '/shopper-payouts': typeof AuthenticatedShopperPayoutsRoute
   '/suggest': typeof AuthenticatedSuggestRoute
   '/watchlist': typeof AuthenticatedWatchlistRoute
+  '/api/shopping': typeof ApiShoppingRoute
+  '/api/shopping-email-events': typeof ApiShoppingEmailEventsRoute
   '/dealers/$slug': typeof DealersSlugRoute
   '/guides/$slug': typeof GuidesSlugRoute
   '/listings/$listingId': typeof ListingsListingIdRoute
@@ -640,6 +702,7 @@ export interface FileRoutesByTo {
   '/admin/news': typeof AuthenticatedAdminNewsRoute
   '/admin/products': typeof AuthenticatedAdminProductsRoute
   '/admin/review-flags': typeof AuthenticatedAdminReviewFlagsRoute
+  '/admin/shopping': typeof AuthenticatedAdminShoppingRoute
   '/admin/traffic': typeof AuthenticatedAdminTrafficRoute
   '/admin/validation': typeof AuthenticatedAdminValidationRoute
   '/orders/$orderId': typeof AuthenticatedOrdersOrderIdRoute
@@ -649,7 +712,10 @@ export interface FileRoutesByTo {
   '/api/internal/news-refresh': typeof ApiInternalNewsRefreshRoute
   '/api/internal/saved-searches': typeof ApiInternalSavedSearchesRoute
   '/api/internal/service-ratings': typeof ApiInternalServiceRatingsRoute
+  '/api/internal/shopping': typeof ApiInternalShoppingRoute
+  '/api/internal/shopping-embeddings': typeof ApiInternalShoppingEmbeddingsRoute
   '/api/internal/vehicle-feed': typeof ApiInternalVehicleFeedRoute
+  '/api/shopping-link/$token': typeof ApiShoppingLinkTokenRoute
   '/cars/$make/$model': typeof CarsMakeModelRoute
   '/idaho/$place/$category': typeof IdahoPlaceCategoryRoute
   '/idaho/market-report/$month': typeof IdahoMarketReportMonthRoute
@@ -681,9 +747,11 @@ export interface FileRoutesById {
   '/news-sitemap.xml': typeof NewsSitemapDotxmlRoute
   '/pets': typeof PetsRoute
   '/policies': typeof PoliciesRoute
+  '/privacy': typeof PrivacyRoute
   '/safety': typeof SafetyRoute
   '/sell': typeof SellRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/_authenticated/account': typeof AuthenticatedAccountRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRouteWithChildren
   '/_authenticated/buying': typeof AuthenticatedBuyingRoute
@@ -698,6 +766,8 @@ export interface FileRoutesById {
   '/_authenticated/shopper-payouts': typeof AuthenticatedShopperPayoutsRoute
   '/_authenticated/suggest': typeof AuthenticatedSuggestRoute
   '/_authenticated/watchlist': typeof AuthenticatedWatchlistRoute
+  '/api/shopping': typeof ApiShoppingRoute
+  '/api/shopping-email-events': typeof ApiShoppingEmailEventsRoute
   '/dealers/$slug': typeof DealersSlugRoute
   '/guides/$slug': typeof GuidesSlugRoute
   '/listings/$listingId': typeof ListingsListingIdRoute
@@ -721,6 +791,7 @@ export interface FileRoutesById {
   '/_authenticated/admin/news': typeof AuthenticatedAdminNewsRoute
   '/_authenticated/admin/products': typeof AuthenticatedAdminProductsRoute
   '/_authenticated/admin/review-flags': typeof AuthenticatedAdminReviewFlagsRoute
+  '/_authenticated/admin/shopping': typeof AuthenticatedAdminShoppingRoute
   '/_authenticated/admin/traffic': typeof AuthenticatedAdminTrafficRoute
   '/_authenticated/admin/validation': typeof AuthenticatedAdminValidationRoute
   '/_authenticated/orders/$orderId': typeof AuthenticatedOrdersOrderIdRoute
@@ -730,7 +801,10 @@ export interface FileRoutesById {
   '/api/internal/news-refresh': typeof ApiInternalNewsRefreshRoute
   '/api/internal/saved-searches': typeof ApiInternalSavedSearchesRoute
   '/api/internal/service-ratings': typeof ApiInternalServiceRatingsRoute
+  '/api/internal/shopping': typeof ApiInternalShoppingRoute
+  '/api/internal/shopping-embeddings': typeof ApiInternalShoppingEmbeddingsRoute
   '/api/internal/vehicle-feed': typeof ApiInternalVehicleFeedRoute
+  '/api/shopping-link/$token': typeof ApiShoppingLinkTokenRoute
   '/cars/$make/$model': typeof CarsMakeModelRoute
   '/idaho/$place/$category': typeof IdahoPlaceCategoryRoute
   '/idaho/market-report/$month': typeof IdahoMarketReportMonthRoute
@@ -762,9 +836,11 @@ export interface FileRouteTypes {
     | '/news-sitemap.xml'
     | '/pets'
     | '/policies'
+    | '/privacy'
     | '/safety'
     | '/sell'
     | '/sitemap.xml'
+    | '/terms'
     | '/account'
     | '/admin'
     | '/buying'
@@ -779,6 +855,8 @@ export interface FileRouteTypes {
     | '/shopper-payouts'
     | '/suggest'
     | '/watchlist'
+    | '/api/shopping'
+    | '/api/shopping-email-events'
     | '/dealers/$slug'
     | '/guides/$slug'
     | '/listings/$listingId'
@@ -802,6 +880,7 @@ export interface FileRouteTypes {
     | '/admin/news'
     | '/admin/products'
     | '/admin/review-flags'
+    | '/admin/shopping'
     | '/admin/traffic'
     | '/admin/validation'
     | '/orders/$orderId'
@@ -811,7 +890,10 @@ export interface FileRouteTypes {
     | '/api/internal/news-refresh'
     | '/api/internal/saved-searches'
     | '/api/internal/service-ratings'
+    | '/api/internal/shopping'
+    | '/api/internal/shopping-embeddings'
     | '/api/internal/vehicle-feed'
+    | '/api/shopping-link/$token'
     | '/cars/$make/$model'
     | '/idaho/$place/$category'
     | '/idaho/market-report/$month'
@@ -841,9 +923,11 @@ export interface FileRouteTypes {
     | '/news-sitemap.xml'
     | '/pets'
     | '/policies'
+    | '/privacy'
     | '/safety'
     | '/sell'
     | '/sitemap.xml'
+    | '/terms'
     | '/account'
     | '/buying'
     | '/create-listing'
@@ -857,6 +941,8 @@ export interface FileRouteTypes {
     | '/shopper-payouts'
     | '/suggest'
     | '/watchlist'
+    | '/api/shopping'
+    | '/api/shopping-email-events'
     | '/dealers/$slug'
     | '/guides/$slug'
     | '/listings/$listingId'
@@ -880,6 +966,7 @@ export interface FileRouteTypes {
     | '/admin/news'
     | '/admin/products'
     | '/admin/review-flags'
+    | '/admin/shopping'
     | '/admin/traffic'
     | '/admin/validation'
     | '/orders/$orderId'
@@ -889,7 +976,10 @@ export interface FileRouteTypes {
     | '/api/internal/news-refresh'
     | '/api/internal/saved-searches'
     | '/api/internal/service-ratings'
+    | '/api/internal/shopping'
+    | '/api/internal/shopping-embeddings'
     | '/api/internal/vehicle-feed'
+    | '/api/shopping-link/$token'
     | '/cars/$make/$model'
     | '/idaho/$place/$category'
     | '/idaho/market-report/$month'
@@ -920,9 +1010,11 @@ export interface FileRouteTypes {
     | '/news-sitemap.xml'
     | '/pets'
     | '/policies'
+    | '/privacy'
     | '/safety'
     | '/sell'
     | '/sitemap.xml'
+    | '/terms'
     | '/_authenticated/account'
     | '/_authenticated/admin'
     | '/_authenticated/buying'
@@ -937,6 +1029,8 @@ export interface FileRouteTypes {
     | '/_authenticated/shopper-payouts'
     | '/_authenticated/suggest'
     | '/_authenticated/watchlist'
+    | '/api/shopping'
+    | '/api/shopping-email-events'
     | '/dealers/$slug'
     | '/guides/$slug'
     | '/listings/$listingId'
@@ -960,6 +1054,7 @@ export interface FileRouteTypes {
     | '/_authenticated/admin/news'
     | '/_authenticated/admin/products'
     | '/_authenticated/admin/review-flags'
+    | '/_authenticated/admin/shopping'
     | '/_authenticated/admin/traffic'
     | '/_authenticated/admin/validation'
     | '/_authenticated/orders/$orderId'
@@ -969,7 +1064,10 @@ export interface FileRouteTypes {
     | '/api/internal/news-refresh'
     | '/api/internal/saved-searches'
     | '/api/internal/service-ratings'
+    | '/api/internal/shopping'
+    | '/api/internal/shopping-embeddings'
     | '/api/internal/vehicle-feed'
+    | '/api/shopping-link/$token'
     | '/cars/$make/$model'
     | '/idaho/$place/$category'
     | '/idaho/market-report/$month'
@@ -1001,9 +1099,13 @@ export interface RootRouteChildren {
   NewsSitemapDotxmlRoute: typeof NewsSitemapDotxmlRoute
   PetsRoute: typeof PetsRoute
   PoliciesRoute: typeof PoliciesRoute
+  PrivacyRoute: typeof PrivacyRoute
   SafetyRoute: typeof SafetyRoute
   SellRoute: typeof SellRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  TermsRoute: typeof TermsRoute
+  ApiShoppingRoute: typeof ApiShoppingRoute
+  ApiShoppingEmailEventsRoute: typeof ApiShoppingEmailEventsRoute
   DealersSlugRoute: typeof DealersSlugRoute
   GuidesSlugRoute: typeof GuidesSlugRoute
   ListingsListingIdRoute: typeof ListingsListingIdRoute
@@ -1021,7 +1123,10 @@ export interface RootRouteChildren {
   ApiInternalNewsRefreshRoute: typeof ApiInternalNewsRefreshRoute
   ApiInternalSavedSearchesRoute: typeof ApiInternalSavedSearchesRoute
   ApiInternalServiceRatingsRoute: typeof ApiInternalServiceRatingsRoute
+  ApiInternalShoppingRoute: typeof ApiInternalShoppingRoute
+  ApiInternalShoppingEmbeddingsRoute: typeof ApiInternalShoppingEmbeddingsRoute
   ApiInternalVehicleFeedRoute: typeof ApiInternalVehicleFeedRoute
+  ApiShoppingLinkTokenRoute: typeof ApiShoppingLinkTokenRoute
   CarsMakeModelRoute: typeof CarsMakeModelRoute
   IdahoPlaceCategoryRoute: typeof IdahoPlaceCategoryRoute
   IdahoMarketReportMonthRoute: typeof IdahoMarketReportMonthRoute
@@ -1135,6 +1240,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PoliciesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/safety': {
       id: '/safety'
       path: '/safety'
@@ -1154,6 +1266,13 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/account': {
@@ -1253,6 +1372,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/watchlist'
       preLoaderRoute: typeof AuthenticatedWatchlistRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/api/shopping': {
+      id: '/api/shopping'
+      path: '/api/shopping'
+      fullPath: '/api/shopping'
+      preLoaderRoute: typeof ApiShoppingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/shopping-email-events': {
+      id: '/api/shopping-email-events'
+      path: '/api/shopping-email-events'
+      fullPath: '/api/shopping-email-events'
+      preLoaderRoute: typeof ApiShoppingEmailEventsRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/dealers/$slug': {
       id: '/dealers/$slug'
@@ -1422,6 +1555,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminReviewFlagsRouteImport
       parentRoute: typeof AuthenticatedAdminRoute
     }
+    '/_authenticated/admin/shopping': {
+      id: '/_authenticated/admin/shopping'
+      path: '/shopping'
+      fullPath: '/admin/shopping'
+      preLoaderRoute: typeof AuthenticatedAdminShoppingRouteImport
+      parentRoute: typeof AuthenticatedAdminRoute
+    }
     '/_authenticated/admin/traffic': {
       id: '/_authenticated/admin/traffic'
       path: '/traffic'
@@ -1485,11 +1625,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiInternalServiceRatingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/internal/shopping': {
+      id: '/api/internal/shopping'
+      path: '/api/internal/shopping'
+      fullPath: '/api/internal/shopping'
+      preLoaderRoute: typeof ApiInternalShoppingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/internal/shopping-embeddings': {
+      id: '/api/internal/shopping-embeddings'
+      path: '/api/internal/shopping-embeddings'
+      fullPath: '/api/internal/shopping-embeddings'
+      preLoaderRoute: typeof ApiInternalShoppingEmbeddingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/internal/vehicle-feed': {
       id: '/api/internal/vehicle-feed'
       path: '/api/internal/vehicle-feed'
       fullPath: '/api/internal/vehicle-feed'
       preLoaderRoute: typeof ApiInternalVehicleFeedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/shopping-link/$token': {
+      id: '/api/shopping-link/$token'
+      path: '/api/shopping-link/$token'
+      fullPath: '/api/shopping-link/$token'
+      preLoaderRoute: typeof ApiShoppingLinkTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cars/$make/': {
@@ -1599,6 +1760,7 @@ interface AuthenticatedAdminRouteChildren {
   AuthenticatedAdminNewsRoute: typeof AuthenticatedAdminNewsRoute
   AuthenticatedAdminProductsRoute: typeof AuthenticatedAdminProductsRoute
   AuthenticatedAdminReviewFlagsRoute: typeof AuthenticatedAdminReviewFlagsRoute
+  AuthenticatedAdminShoppingRoute: typeof AuthenticatedAdminShoppingRoute
   AuthenticatedAdminTrafficRoute: typeof AuthenticatedAdminTrafficRoute
   AuthenticatedAdminValidationRoute: typeof AuthenticatedAdminValidationRoute
   AuthenticatedAdminIndexRoute: typeof AuthenticatedAdminIndexRoute
@@ -1622,6 +1784,7 @@ const AuthenticatedAdminRouteChildren: AuthenticatedAdminRouteChildren = {
   AuthenticatedAdminNewsRoute: AuthenticatedAdminNewsRoute,
   AuthenticatedAdminProductsRoute: AuthenticatedAdminProductsRoute,
   AuthenticatedAdminReviewFlagsRoute: AuthenticatedAdminReviewFlagsRoute,
+  AuthenticatedAdminShoppingRoute: AuthenticatedAdminShoppingRoute,
   AuthenticatedAdminTrafficRoute: AuthenticatedAdminTrafficRoute,
   AuthenticatedAdminValidationRoute: AuthenticatedAdminValidationRoute,
   AuthenticatedAdminIndexRoute: AuthenticatedAdminIndexRoute,
@@ -1689,9 +1852,13 @@ const rootRouteChildren: RootRouteChildren = {
   NewsSitemapDotxmlRoute: NewsSitemapDotxmlRoute,
   PetsRoute: PetsRoute,
   PoliciesRoute: PoliciesRoute,
+  PrivacyRoute: PrivacyRoute,
   SafetyRoute: SafetyRoute,
   SellRoute: SellRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  TermsRoute: TermsRoute,
+  ApiShoppingRoute: ApiShoppingRoute,
+  ApiShoppingEmailEventsRoute: ApiShoppingEmailEventsRoute,
   DealersSlugRoute: DealersSlugRoute,
   GuidesSlugRoute: GuidesSlugRoute,
   ListingsListingIdRoute: ListingsListingIdRoute,
@@ -1709,7 +1876,10 @@ const rootRouteChildren: RootRouteChildren = {
   ApiInternalNewsRefreshRoute: ApiInternalNewsRefreshRoute,
   ApiInternalSavedSearchesRoute: ApiInternalSavedSearchesRoute,
   ApiInternalServiceRatingsRoute: ApiInternalServiceRatingsRoute,
+  ApiInternalShoppingRoute: ApiInternalShoppingRoute,
+  ApiInternalShoppingEmbeddingsRoute: ApiInternalShoppingEmbeddingsRoute,
   ApiInternalVehicleFeedRoute: ApiInternalVehicleFeedRoute,
+  ApiShoppingLinkTokenRoute: ApiShoppingLinkTokenRoute,
   CarsMakeModelRoute: CarsMakeModelRoute,
   IdahoPlaceCategoryRoute: IdahoPlaceCategoryRoute,
   IdahoMarketReportMonthRoute: IdahoMarketReportMonthRoute,

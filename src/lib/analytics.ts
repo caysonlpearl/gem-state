@@ -1,5 +1,6 @@
 import { isInternalAnalyticsBrowser, markInternalAnalyticsBrowser } from "./analytics-browser.ts";
 import { loadSupabase } from "@/integrations/supabase/lazy-client";
+import { shoppingAnalytics, shoppingPrivacy } from "./shopping-client";
 import { classifyLatency, sanitizeTelemetryText } from "@/lib/release-gate";
 import { classifyTrafficSource } from "@/lib/traffic-source";
 import { isKnownAutomatedAgent } from "@/lib/analytics-policy";
@@ -117,6 +118,7 @@ export type MutationTelemetry = {
 const SESSION_KEY = "pv_session_id";
 
 function sessionId(): string | null {
+  if (!shoppingPrivacy().personalization) return null;
   if (typeof window === "undefined") return null;
   try {
     let id = window.localStorage.getItem(SESSION_KEY);
@@ -207,6 +209,7 @@ let currentVisit: Visit | null = null;
  * records a visit_started event.
  */
 export function ensureVisit(): Visit | null {
+  if (!shoppingPrivacy().personalization) return null;
   if (typeof window === "undefined") return null;
   if (currentVisit) return currentVisit;
   try {
@@ -267,12 +270,18 @@ export async function trackEvent(
   options: { isDemo?: boolean } = {},
 ): Promise<boolean> {
   if (typeof window === "undefined" || window.location.pathname === "/claim-seller") return false;
+  try {
+    if (!options.isDemo) shoppingAnalytics(name, props);
+  } catch {
+    /* Optional personalization cannot interrupt a marketplace action. */
+  }
   props = { ...listingBusinessProps(props.listing_id), ...props };
   const eventAt = Date.now();
   try {
     const supabase = await loadSupabase();
     const { data } = await supabase.auth.getSession();
-    const userId = data.session?.user.id ?? null;
+    const viewerId = data.session?.user.id ?? null;
+    const userId = shoppingPrivacy().personalization ? viewerId : null;
     const visit = ensureVisit();
     if (
       [
@@ -306,8 +315,8 @@ export async function trackEvent(
     }
     let internal = isInternalAnalyticsBrowser(window, props.is_internal === true);
     let internalReason: string | null = internal ? "testing_browser" : null;
-    if (userId && !internal) {
-      const staff = await analyticsStaffStatus(supabase, userId);
+    if (viewerId && !internal) {
+      const staff = await analyticsStaffStatus(supabase, viewerId);
       if (staff === true) {
         markInternalAnalyticsBrowser(window);
         internal = true;
@@ -321,24 +330,25 @@ export async function trackEvent(
     }
     const { error } = await supabase.from("analytics_events").insert({
       name,
-      props: visit
-        ? {
-            ...props,
-            traffic_source: visit.source,
-            traffic_channel: visit.channel,
-            traffic_visit: visit.id,
-            // Lets reports drop events from dev servers and preview builds.
-            site_host: window.location.hostname,
-            device: window.matchMedia("(max-width: 767px)").matches ? "mobile" : "desktop",
-            event_at: eventAt,
-            traffic_policy: 2,
-            is_internal: internal,
-            internal_reason: internalReason,
-            is_bot:
-              props.is_bot === true ||
-              isKnownAutomatedAgent(navigator.userAgent, navigator.webdriver === true),
-          }
-        : props,
+      props: {
+        ...props,
+        ...(visit
+          ? {
+              traffic_source: visit.source,
+              traffic_channel: visit.channel,
+              traffic_visit: visit.id,
+            }
+          : {}),
+        site_host: window.location.hostname,
+        device: window.matchMedia("(max-width: 767px)").matches ? "mobile" : "desktop",
+        event_at: eventAt,
+        traffic_policy: 2,
+        is_internal: internal,
+        internal_reason: internalReason,
+        is_bot:
+          props.is_bot === true ||
+          isKnownAutomatedAgent(navigator.userAgent, navigator.webdriver === true),
+      },
       is_demo: options.isDemo ?? false,
       session_id: sessionId(),
       user_id: userId,

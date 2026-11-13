@@ -2910,7 +2910,7 @@ export type ClassifiedsHomeLead = {
 
 /** Background snapshot builder only. Explicit public-visibility predicates
  * replace costly repeated anon RLS joins; no account/evidence data is returned. */
-export async function loadNativeHomepageInventory() {
+export async function loadNativeHomepageInventory(fullOffset?: number) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const selection = LISTING_SELECT.replace(
     "dealer_profiles(display_name,",
@@ -2928,7 +2928,7 @@ export async function loadNativeHomepageInventory() {
       .order("catalog_is_featured", { ascending: false })
       .order("created_at", { ascending: false })
       .order("id")
-      .limit(1000),
+      .range(fullOffset ?? 0, (fullOffset ?? 0) + 999),
   );
   if (error) throw new Error("Native homepage inventory could not be read.");
   const rows = ((data ?? []) as unknown as Record<string, unknown>[]).filter(
@@ -2941,7 +2941,9 @@ export async function loadNativeHomepageInventory() {
     categoryCounts[category] = (categoryCounts[category] ?? 0) + 1;
   }
   const cards = rows.map((row) => toCard(row, new Map()));
-  const selectedIds = new Set(selectLandingCoverage(cards, 400).map((card) => card.id));
+  const selectedIds = new Set(
+    (fullOffset === undefined ? selectLandingCoverage(cards, 400) : cards).map((card) => card.id),
+  );
   const selected = rows.filter((row) => selectedIds.has(row["id"] as string));
   const urls = await signListingThumbnails(
     selected.flatMap((row) => sortedMedia(row as unknown as Record<string, unknown>).slice(0, 1)),

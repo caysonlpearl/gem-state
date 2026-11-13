@@ -1,5 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { SignupShoppingChoices } from "@/components/community/ShoppingExperience";
+import { SHOPPING_POLICY_VERSION } from "@/lib/shopping-contract";
 import { toast } from "sonner";
 import { brand } from "@/config/brand";
 import { supabase } from "@/integrations/supabase/client";
@@ -107,6 +109,8 @@ function AuthPage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [shoppingAlerts, setShoppingAlerts] = useState(false);
   const [busy, setBusy] = useState(false);
   const [pendingConfirm, setPendingConfirm] = useState(false);
   const [emailLinkSent, setEmailLinkSent] = useState(false);
@@ -157,12 +161,18 @@ function AuthPage() {
     setBusy(true);
     try {
       if (mode === "signup") {
+        if (!acceptedTerms)
+          throw new Error("Please agree to the Terms of Service to create your account.");
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
             emailRedirectTo: getAuthRedirectUrl(`/auth?redirect=${encodeURIComponent(redirect)}`),
-            data: { display_name: displayName || email.split("@")[0] },
+            data: {
+              display_name: displayName || email.split("@")[0],
+              shopping_terms_version: SHOPPING_POLICY_VERSION,
+              shopping_alerts: shoppingAlerts,
+            },
           },
         });
         if (error) throw error;
@@ -247,6 +257,20 @@ function AuthPage() {
   }
 
   async function handleOAuth() {
+    if (mode === "signup" && !acceptedTerms) {
+      toast.error("Please agree to the Terms of Service to create your account.");
+      return;
+    }
+    if (mode === "signup") {
+      try {
+        sessionStorage.setItem(
+          "bb.shopping.signup",
+          JSON.stringify({ at: Date.now(), shoppingAlerts }),
+        );
+      } catch {
+        /* Complete choices after sign-in if storage is unavailable. */
+      }
+    }
     setBusy(true);
     try {
       const { error } = await supabase.auth.signInWithOAuth({
@@ -464,6 +488,14 @@ function AuthPage() {
                   className="soft-control mt-1 h-10 w-full px-4 text-sm outline-none"
                 />
               </div>
+              {mode === "signup" && (
+                <SignupShoppingChoices
+                  accepted={acceptedTerms}
+                  alerts={shoppingAlerts}
+                  onAccepted={setAcceptedTerms}
+                  onAlerts={setShoppingAlerts}
+                />
+              )}
               <button
                 type="submit"
                 disabled={busy}

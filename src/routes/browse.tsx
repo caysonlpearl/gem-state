@@ -1,3 +1,4 @@
+import { shoppingTrack } from "@/lib/shopping-client";
 import { selectDiscoveryCards } from "@/lib/discovery-ranking";
 import { FirearmsConsentDialog } from "@/components/FirearmsConsentDialog";
 import { LocationOptions } from "@/components/classifieds/LocationOptions";
@@ -1453,6 +1454,7 @@ function Browse() {
   }, []);
 
   useEffect(() => {
+    shoppingTrack("search", undefined, {}, search as unknown as Record<string, unknown>);
     if (!search.q) return;
     void trackEvent(result.total === 0 ? "search_no_results" : "search_performed", {
       term_length: search.q.length,
@@ -1465,7 +1467,7 @@ function Browse() {
       category: search.category ?? "all",
       region: search.region ?? "all",
     });
-  }, [search.q, search.category, search.region, result.total]);
+  }, [JSON.stringify(search), result.total]);
 
   const scoped = (patch: Partial<Search>): Search =>
     Object.fromEntries(

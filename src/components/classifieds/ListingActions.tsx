@@ -1,3 +1,4 @@
+import { shoppingTrack } from "@/lib/shopping-client";
 import { loanPaymentCents } from "@/lib/loan-payment";
 import { dealerContactPriceLabel } from "@/lib/vehicle-shopping";
 import { DealerContactOptions } from "@/components/dealers/DealerContactOptions";
@@ -152,6 +153,7 @@ function LiveListingActions({
       setSignInOpen(true);
       return;
     }
+    shoppingTrack("contact_open", listing.id, { method: "message" });
     setContactOpen(true);
     window.setTimeout(() => {
       panelRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -483,6 +485,7 @@ function LiveListingActions({
         isJob={isJobApply}
         onSignedIn={() => {
           setSignInOpen(false);
+          shoppingTrack("contact_open", listing.id, { method: "message" });
           setContactOpen(true);
           window.setTimeout(() => {
             panelRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
