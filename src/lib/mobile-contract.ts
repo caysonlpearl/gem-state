@@ -68,7 +68,12 @@ export function mobileMediaUrl(value: unknown): string | null {
     return null;
   }
 }
-export type MobileBrowse = { items: MobileListing[]; nextPage: number | null; incomplete: boolean };
+export type MobileBrowse = {
+  items: MobileListing[];
+  nextPage: number | null;
+  incomplete: boolean;
+  selection?: boolean;
+};
 export type MobileError = { error: { code: string; message: string }; requestId: string };
 /** Native origin headers are not proof of identity; every private API also verifies bearer auth. */
 export function mobileOriginAllowed(origin: string | null, development = false): boolean {

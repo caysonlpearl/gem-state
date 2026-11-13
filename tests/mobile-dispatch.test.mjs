@@ -84,7 +84,29 @@ function harness({ deleted = false, valid = true, restricted = false } = {}) {
     },
     "./vehicle-shopping": { dealerContactPriceLabel: () => undefined },
     "@/integrations/supabase/client.server": { supabaseAdmin: db },
+    "./homepage-snapshot.server": {
+      readHomepageSnapshot: async () => ({
+        sections: {
+          current: {
+            updatedAt: Date.now(),
+            cards: [
+              {
+                id: "dealerfeed-snapshot",
+                title: "A car",
+                categorySlug: "cars-trucks",
+                priceCents: 100,
+                createdAt: new Date().toISOString(),
+              },
+            ],
+          },
+        },
+      }),
+    },
     "./classifieds.functions": {
+      loadMobileBrowseInventory: async () => {
+        writes.push("catalog_read");
+        return { listings: [], page: 1, pageSize: 24, total: 0 };
+      },
       getClassifiedListing: async () => ({
         id: "dealerfeed-test",
         categorySlug: restricted ? "firearms" : "cars-trucks",
@@ -196,4 +218,27 @@ test("deletion requests verify confirmation and are tied to the authenticated ac
   );
   assert.equal(h.writes[0].name, "mobile_request_deletion");
   assert.equal(h.writes[0].args._user, h.user);
+});
+
+test("opening browse reads the published snapshot while explicit search/category/sort use the full catalog", async () => {
+  const h = harness();
+  const first = await h.request("listings");
+  assert.equal(first.status, 200);
+  const body = await first.json();
+  assert.equal(body.data.selection, true);
+  assert.equal(body.data.items.length, 1);
+  assert.equal(h.writes.length, 0);
+  for (const query of [
+    "q=car",
+    "category=cars-trucks",
+    "sort=price_low",
+    "priceMin=100",
+    "city=Boise",
+    "state=ID",
+  ]) {
+    const result = await h.request("listings?" + query);
+    assert.equal(result.status, 200);
+    assert.equal((await result.json()).data.selection, false);
+  }
+  assert.equal(h.writes.length, 6);
 });

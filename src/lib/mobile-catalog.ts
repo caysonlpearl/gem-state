@@ -10,6 +10,19 @@ type Filters = {
   sort?: string;
   page?: number;
 };
+/** Use the published card snapshot for opening discovery. Explicit filters
+ * and sorts still use the full marketplace browse service. */
+export function mobileSnapshotFirst(filters: Filters) {
+  return (
+    !filters.q?.trim() &&
+    !filters.category &&
+    !filters.city &&
+    !filters.state &&
+    filters.priceMin == null &&
+    filters.priceMax == null &&
+    (!filters.sort || filters.sort === "newest")
+  );
+}
 /** Match the website's existing snapshot freshness ceiling. This is a bounded
  * fallback, not a claim that all matching marketplace inventory was searched. */
 export function mobileCachedBrowse(

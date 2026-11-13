@@ -729,7 +729,8 @@ function Feed({
       window.removeEventListener("scroll", remember);
     };
   }, [active]);
-  const [incomplete, setIncomplete] = useState(false);
+  const [incomplete, setIncomplete] = useState(false),
+    [selection, setSelection] = useState(false);
   const [query, setQuery] = useState(""),
     [category, setCategory] = useState(""),
     [sort, setSort] = useState("newest"),
@@ -752,6 +753,7 @@ function Feed({
     api<MobileBrowse>(saved ? "saved" : `listings?${params}`, "GET", undefined, controller.signal)
       .then((result) => {
         setIncomplete(result.incomplete === true);
+        setSelection(result.selection === true);
         setItems((previous) =>
           page === 1 || saved
             ? result.items
@@ -829,7 +831,9 @@ function Feed({
       )}
       {incomplete && (
         <p className="muted" role="status">
-          Some sources are temporarily unavailable. Showing available cached listings.
+          {selection
+            ? "Showing a selection of listings. Search to explore more."
+            : "Some sources are temporarily unavailable. Showing available cached listings."}
         </p>
       )}
       {!saved && !search && !category && sort === "newest" && (

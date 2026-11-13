@@ -5,7 +5,7 @@ import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_PUBLISHABLE_KEY } from "@/config/s
 import { serverEnv } from "./runtime-env.server";
 import { createMobileHandler, MobileApiError, mobileJson } from "./mobile-api";
 import { mobileWriteId } from "./mobile-write";
-import { mobileCachedBrowse } from "./mobile-catalog";
+import { mobileCachedBrowse, mobileSnapshotFirst } from "./mobile-catalog";
 import {
   mobileCategories,
   mobileCategoryAllowed,
@@ -245,18 +245,36 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
       throw new MobileApiError(400, "invalid_filters", "Check your search filters.");
     if (parsed.data.category && !mobileCategoryAllowed(parsed.data.category))
       return { items: [], nextPage: null, incomplete: false };
-    const { loadMobileBrowseInventory } = await import("./classifieds.functions");
     let page;
-    try {
-      page = await loadMobileBrowseInventory(parsed.data);
-    } catch {
-      const snapshot = await (await import("./homepage-snapshot.server")).readHomepageSnapshot();
-      page = mobileCachedBrowse(snapshot, parsed.data);
+    let selection = false;
+    if (mobileSnapshotFirst(parsed.data)) {
+      try {
+        const cached = mobileCachedBrowse(
+          await (await import("./homepage-snapshot.server")).readHomepageSnapshot(),
+          parsed.data,
+        );
+        if (cached.total > 0) {
+          page = cached;
+          selection = true;
+        }
+      } catch {
+        /* A failed snapshot must not prevent a complete catalog attempt. */
+      }
+    }
+    if (!page) {
+      const { loadMobileBrowseInventory } = await import("./classifieds.functions");
+      try {
+        page = await loadMobileBrowseInventory(parsed.data);
+      } catch {
+        const snapshot = await (await import("./homepage-snapshot.server")).readHomepageSnapshot();
+        page = mobileCachedBrowse(snapshot, parsed.data);
+      }
     }
     return {
       items: page.listings.filter(mobileListingAllowed).map(dto),
       nextPage: page.page * page.pageSize < page.total ? page.page + 1 : null,
       incomplete: page.incomplete === true,
+      selection,
     };
   }
   const listingMatch = /^listings\/([^/]+)$/.exec(path);

@@ -14,7 +14,8 @@ locally with Java 21, Android SDK 36 and Capacitor 8.6.2. The owner explicitly
 authorized acceptance of the Android SDK license. No store accounts, store
 agreements, purchases, signing keys, Firebase project or paid capacity were
 created by this batch. Full Xcode is absent, so the iPhone project is not yet
-compiled. No physical Android device was attached when checked.
+compiled. No physical Android device was attached when checked. An Android 36 ARM emulator
+and matching system image are installed for subsequent native testing.
 
 Phone/tablet browser checks verified browsing, detail pages, responsive layout
 and the two signup controls at 320, 390 and 768 pixels. These are not substitutes
@@ -102,8 +103,9 @@ URLs or arbitrary URL/RPC forwarding.
 
 Public reads are `GET bootstrap`, `GET listings`, and `GET listings/:id`.
 Search accepts bounded q/category/city/state/price/sort/page inputs. Browsing
-uses the shared cache-only feed path and a freshness-bounded homepage fallback
-with an explicit incomplete-source notice. Listing validations do not inflate
+opens with a freshness-bounded published snapshot and labels it as a selection.
+Explicit search, category, location, price and sort choices use the shared
+cache-only browse service, with a clearly labeled snapshot fallback on failure. Listing validations do not inflate
 website view counts.
 
 Authenticated routes include:
@@ -259,7 +261,7 @@ Official release references:
 
 Local checks at this milestone: root TypeScript, website production build,
 mobile TypeScript/Vite build, Android debug compile, mobile security/queue/SQL
-tests, full marketplace test suite (1,218 passing), and responsive browser smoke
+tests, full marketplace test suite (1,219 passing), and responsive browser smoke
 checks. Browser evidence is stored outside source at
 `output/mobile-apps-20261112`. The original smoke script makes no account writes or sends. The new shopping UI
 suite uses explicit synthetic API fixtures in real Chromium at all three sizes;
