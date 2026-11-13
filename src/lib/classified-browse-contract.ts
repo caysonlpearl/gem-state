@@ -24,10 +24,12 @@ export type ClassifiedBrowseInput = {
   /** Internal homepage read: keep the full mock catalog available for curation. */
   includeAllMocks?: boolean | undefined;
   q?: string | undefined;
+  searchDescriptions?: boolean | undefined;
   category?: string | undefined;
   homeTab?: "buy" | "rent" | "build" | undefined;
   homePropertyType?: string | undefined;
   homeBedroomsMin?: number | undefined;
+  homeBedroomsMax?: number | undefined;
   homeBathroomsMin?: number | undefined;
   homeSquareFeetMin?: number | undefined;
   homeYearBuiltMin?: number | undefined;
@@ -129,6 +131,8 @@ export const normalizeClassifiedBrowseInput = (
 ): ClassifiedBrowseInput => ({
   mobileCatalog: input?.mobileCatalog === true,
   q: text(input?.q),
+  searchDescriptions:
+    typeof input?.searchDescriptions === "boolean" ? input.searchDescriptions : undefined,
   category: text(input?.category, 60),
   homeTab:
     input?.homeTab === "buy" || input?.homeTab === "rent" || input?.homeTab === "build"
@@ -136,6 +140,7 @@ export const normalizeClassifiedBrowseInput = (
       : undefined,
   homePropertyType: text(input?.homePropertyType, 120),
   homeBedroomsMin: num(input?.homeBedroomsMin),
+  homeBedroomsMax: num(input?.homeBedroomsMax),
   homeBathroomsMin: num(input?.homeBathroomsMin),
   homeSquareFeetMin: num(input?.homeSquareFeetMin),
   homeYearBuiltMin: integerNum(input?.homeYearBuiltMin),

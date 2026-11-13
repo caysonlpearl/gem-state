@@ -1,3 +1,4 @@
+import { browseDestination } from "./browse-state";
 import { mobilePrimaryCategories } from "../../../src/config/mobile-navigation";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, List, UserCircle, X } from "@phosphor-icons/react";
@@ -133,15 +134,13 @@ function NativeMenuLink({ to, search, onClick, className, children }: Marketplac
         {children}
       </a>
     );
-  const destination = to === "/create-listing" ? "/post" : "/search";
+  const destination = to === "/create-listing" ? "/post" : browseDestination(search ?? {});
   return (
     <a
       href={`#${destination}`}
       className={className}
       onClick={() => {
         onClick();
-        if (to === "/browse")
-          window.dispatchEvent(new CustomEvent("bluebird-search", { detail: search ?? {} }));
         // The hash transition remains normal browser history, including Back.
       }}
     >

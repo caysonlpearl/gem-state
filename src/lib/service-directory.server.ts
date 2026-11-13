@@ -93,7 +93,14 @@ export async function directoryCards(
     }
     if (data.postalCode) query = query.eq("postcode", data.postalCode);
     if (data.serviceSubcategory) query = query.contains("trades", [data.serviceSubcategory]);
-    if (q) query = query.or(`name.ilike.%${q}%,trade.ilike.%${q}%`);
+    if (q)
+      query = query.or(
+        data.searchDescriptions === false
+          ? `name.ilike.%${q}%`
+          : data.searchDescriptions === true
+            ? `name.ilike.%${q}%,trade.ilike.%${q}%,enrichment->>summary.ilike.%${q}%`
+            : `name.ilike.%${q}%,trade.ilike.%${q}%`,
+      );
     query = query
       .order("claimed_at", { ascending: false, nullsFirst: false })
       .order("priority", { ascending: true })

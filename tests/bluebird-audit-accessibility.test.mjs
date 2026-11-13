@@ -23,6 +23,7 @@ const listingCardSource =
   ));
 const homeSource = await readFile(new URL("../src/routes/index.tsx", import.meta.url), "utf8");
 const browseSource = await readFile(new URL("../src/routes/browse.tsx", import.meta.url), "utf8");
+const browseResultsSource=await readFile(new URL("../src/components/classifieds/BrowseResultsView.tsx",import.meta.url),"utf8");
 
 function componentSource(source, fileName, name) {
   const file = ts.createSourceFile(
@@ -104,6 +105,7 @@ test("homepage empty rows use a subordinate heading while standalone empty state
 });
 
 test("browse results have a heading before cards and empty-state text stays at h2", () => {
+  const browseSource=browseResultsSource;
   assert.match(
     browseSource,
     /<section id="results" aria-labelledby="browse-results-heading"[^>]*>\s*<h2 id="browse-results-heading" className="sr-only">\s*Search results\s*<\/h2>/,

@@ -1,3 +1,5 @@
+import * as savedSearchWrites from "../src/lib/mobile-saved-search.server.ts";
+import * as savedSearchContracts from "../src/lib/mobile-saved-search-contract.ts";
 import * as mobileSearch from "../src/lib/mobile-search.ts";
 import * as accountContracts from "../src/lib/mobile-account-contract.ts";
 import test from "node:test";
@@ -21,6 +23,7 @@ function harness({
   generalConversation = false,
   blocked = false,
   posting = false,
+  savedSearches = false,
   terms = true,
   catalogError = false,
 } = {}) {
@@ -63,12 +66,13 @@ function harness({
     },
     rpc: async (name, args) => {
       writes.push({ name, args });
-      return { error: null };
+      return { data: { id: user, ok: true }, error: null };
     },
   };
   const modules = {
     "@supabase/supabase-js": {
       createClient: () => ({
+        ...db,
         auth: {
           getUser: async () => ({
             data: { user: valid ? { id: user } : null },
@@ -85,11 +89,14 @@ function harness({
     "./runtime-env.server": { serverEnv: () => undefined },
     "./mobile-api": protocol,
     "./mobile-search": mobileSearch,
+    "./mobile-saved-search-contract": savedSearchContracts,
+    "./mobile-saved-search.server": savedSearchWrites,
     "./mobile-write": mobileWrite,
     "./mobile-account-contract": accountContracts,
     "./mobile-messaging.server": {
       mobileAttachmentsReady: async () => attachments,
       mobilePostingReady: async () => posting,
+      mobileSavedSearchesReady: async () => savedSearches,
     },
     "./conversation.functions": {
       getConversation: async ({ data }) => ({
@@ -150,6 +157,10 @@ function harness({
       },
     },
     "./account-center.functions": {
+      getMySavedSearches: async () => [
+        { id: "allowed", name: "Homes", search: { category: "other-real-estate" } },
+        { id: "restricted", name: "Rifles", search: { category: "firearms" } },
+      ],
       getMyContactPreferences: async () => ({
         allowEmail: true,
         allowPhone: false,
@@ -550,45 +561,107 @@ test("all-device push revocation deletes only the bearer owner's registrations, 
 });
 
 test("full-filter search dispatch retains website aliases, forces app scope and rejects unsupported filters", async () => {
-  const h=harness();
-  const response=await h.request("search?category=other-real-estate&bedrooms=3%2B&propertyType=Single%20Family&homeSquareFeet=1%2C500%2B");
-  assert.equal(response.status,200);
-  assert.equal(h.catalogInputs.length,1);
-  assert.equal(h.catalogInputs[0].mobileCatalog,true);
-  assert.equal(h.catalogInputs[0].homeBedroomsMin,3);
-  assert.equal(h.catalogInputs[0].homePropertyType,"Single Family");
-  assert.equal(h.catalogInputs[0].homeSquareFeetMin,1500);
-  const body=await response.json();
-  assert.equal(body.data.total,0);
-  assert.equal(body.data.page,1);
-  assert.equal(body.data.pageSize,24);
-  assert.equal(body.data.incomplete,false);
-  for (const query of ["futureFilter=true","homeAmenities=Pool","q=one&q=two","mobileCatalog=false"]) {
-    assert.equal((await h.request("search?"+query)).status,400);
-    assert.equal(h.catalogInputs.length,1);
+  const h = harness();
+  const response = await h.request(
+    "search?category=other-real-estate&bedrooms=3%2B&propertyType=Single%20Family&homeSquareFeet=1%2C500%2B",
+  );
+  assert.equal(response.status, 200);
+  assert.equal(h.catalogInputs.length, 1);
+  assert.equal(h.catalogInputs[0].mobileCatalog, true);
+  assert.equal(h.catalogInputs[0].homeBedroomsMin, 3);
+  assert.equal(h.catalogInputs[0].homePropertyType, "Single Family");
+  assert.equal(h.catalogInputs[0].homeSquareFeetMin, 1500);
+  const body = await response.json();
+  assert.equal(body.data.total, 0);
+  assert.equal(body.data.page, 1);
+  assert.equal(body.data.pageSize, 24);
+  assert.equal(body.data.incomplete, false);
+  for (const query of [
+    "futureFilter=true",
+    "homeAmenities=Pool",
+    "q=one&q=two",
+    "mobileCatalog=false",
+  ]) {
+    assert.equal((await h.request("search?" + query)).status, 400);
+    assert.equal(h.catalogInputs.length, 1);
   }
-  const restricted=await h.request("search?category=firearms");
-  assert.equal(restricted.status,200);
-  assert.deepEqual((await restricted.json()).data.items,[]);
-  assert.equal(h.catalogInputs.length,1);
+  const restricted = await h.request("search?category=firearms");
+  assert.equal(restricted.status, 200);
+  assert.deepEqual((await restricted.json()).data.items, []);
+  assert.equal(h.catalogInputs.length, 1);
 });
 
 test("full-filter search never broadens to basic discovery when the catalog read fails", async () => {
-  const h=harness({catalogError:true});
-  const response=await h.request("search?category=cars-trucks&make=Toyota");
-  assert.equal(response.status,200);
-  const result=(await response.json()).data;
-  assert.equal(result.incomplete,true);
-  assert.deepEqual(result.items,[]);
-  assert.equal(result.total,0);
+  const h = harness({ catalogError: true });
+  const response = await h.request("search?category=cars-trucks&make=Toyota");
+  assert.equal(response.status, 200);
+  const result = (await response.json()).data;
+  assert.equal(result.incomplete, true);
+  assert.deepEqual(result.items, []);
+  assert.equal(result.total, 0);
 });
 
 test("full search capability is additive for installed clients", async () => {
-  const h=harness();
-  const result=await h.request("bootstrap");
-  assert.equal(result.status,200);
-  const features=(await result.json()).data.features;
-  assert.equal(features.fullSearch,true);
-  assert.equal(features.push,false);
-  assert.equal(features.advertising,false);
+  const h = harness();
+  const result = await h.request("bootstrap");
+  assert.equal(result.status, 200);
+  const features = (await result.json()).data.features;
+  assert.equal(features.fullSearch, true);
+  assert.equal(features.push, false);
+  assert.equal(features.advertising, false);
+});
+
+test("saved-search dispatch authenticates reads, keeps reads during write outage and enforces server-owned scope", async () => {
+  const off = harness();
+  assert.equal((await off.request("saved-searches", "GET", undefined, null)).status, 401);
+  const read = await off.request("saved-searches");
+  assert.equal(read.status, 200);
+  assert.deepEqual(
+    (await read.json()).data.items.map((x) => x.id),
+    ["allowed"],
+  );
+  const body = { name: "Homes", search: { category: "other-real-estate", bedrooms: "3+" } };
+  assert.equal((await off.request("saved-searches", "POST", body)).status, 503);
+  const on = harness({ savedSearches: true });
+  assert.equal((await on.request("saved-searches", "POST", body)).status, 400);
+  const headers = { "Idempotency-Key": crypto.randomUUID() };
+  assert.equal(
+    (await on.request("saved-searches", "POST", { ...body, userId: "victim" }, "valid", headers))
+      .status,
+    400,
+  );
+  assert.equal(
+    (
+      await on.request(
+        "saved-searches",
+        "POST",
+        { ...body, search: { category: "firearms" } },
+        "valid",
+        headers,
+      )
+    ).status,
+    400,
+  );
+  assert.equal((await on.request("saved-searches", "POST", body, "valid", headers)).status, 200);
+  const write = on.writes.find((x) => x.name === "mobile_commit_saved_search");
+  assert.equal(write.args._input.search.mobileCatalog, true);
+  assert.equal(write.args._input.emailAlerts, false);
+  assert.equal(write.args._request, headers["Idempotency-Key"]);
+  const termsOff = harness({ savedSearches: true, terms: false });
+  assert.equal(
+    (await termsOff.request("saved-searches", "POST", body, "valid", headers)).status,
+    409,
+  );
+  assert.equal(
+    (
+      await termsOff.request(
+        `saved-searches/${on.user}`,
+        "PUT",
+        { paused: true, emailAlerts: false },
+        "valid",
+        headers,
+      )
+    ).status,
+    200,
+  );
 });

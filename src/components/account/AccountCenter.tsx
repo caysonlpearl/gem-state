@@ -1,34 +1,18 @@
-import { websiteAccountSignOut } from "@/lib/account-session";
-import { intentLabels } from "@/config/account";
-import { AccountLayoutView } from "./AccountLayoutView";
-import { AccountProfileView, type AccountLinkProps } from "./AccountProfileView";
-import { useAccountProfileDraft } from "./useAccountProfileDraft";
-import { AccountSettingsView } from "./AccountSettingsView";
-import { SectionTitle, MiniMetric } from "./AccountViewParts";
-import { MessagesSectionView } from "./MessagesSectionView";
 import {
-  AccountSectionHeader as SectionHeader,
-  AccountEmptyState as EmptyState,
-} from "./AccountSectionView";
-import {
-  ShoppingAlertPreference,
   PersonalizedShopping,
+  ShoppingAlertPreference,
 } from "@/components/community/ShoppingExperience";
-import { DealerInventoryPanel } from "./DealerInventoryPanel";
 import { ImportSyncPanel } from "@/components/seller/ImportSyncPanel";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate } from "@tanstack/react-router";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
-import { toast } from "sonner";
+import { intentLabels } from "@/config/account";
+import { websiteAccountSignOut } from "@/lib/account-session";
 import {
   ArrowRight,
   Bell,
   BookmarkSimple,
   ChatCircle,
-  Eye,
   ClipboardText,
   CreditCard,
+  Eye,
   MagnifyingGlass,
   MapPin,
   PencilSimple,
@@ -36,21 +20,32 @@ import {
   ShieldCheck,
   Storefront,
 } from "@phosphor-icons/react";
-
-import { brand } from "@/config/brand";
-import { sellerListingState } from "@/lib/seller-listing-state";
-import { formatUsd } from "@/config/fees";
-import { SavedSearchNameDialog } from "@/components/classifieds/SavedSearchNameDialog";
-import { supabase } from "@/integrations/supabase/client";
-import { trackEvent } from "@/lib/analytics";
-import { getAuthRedirectUrl } from "@/lib/auth-redirect";
-import { formatSavedSearchFilter, formatSavedSearchScope } from "@/lib/classifieds-display";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+import { AccountLayoutView } from "./AccountLayoutView";
+import { AccountProfileView, type AccountLinkProps } from "./AccountProfileView";
 import {
-  getMyAccount,
-  saveMyProfile,
-  updateMyAvatar,
-  type MyAccount,
-} from "@/lib/account.functions";
+  AccountEmptyState as EmptyState,
+  AccountSectionHeader as SectionHeader,
+} from "./AccountSectionView";
+import { AccountSettingsView } from "./AccountSettingsView";
+import { MiniMetric, SectionTitle } from "./AccountViewParts";
+import { DealerInventoryPanel } from "./DealerInventoryPanel";
+import { MessagesSectionView } from "./MessagesSectionView";
+import { SavedSearchesSectionView } from "./SavedSearchesSectionView";
+import { useAccountProfileDraft } from "./useAccountProfileDraft";
+
+import {
+  ListingCard,
+  PartnerJobsCredit,
+  PartnerVehiclesCredit,
+} from "@/components/classifieds/ListingCard";
+import { brand } from "@/config/brand";
+import { formatUsd } from "@/config/fees";
+import { supabase } from "@/integrations/supabase/client";
 import {
   createSavedSearch,
   deleteSavedSearch,
@@ -65,41 +60,40 @@ import {
   type SavedSearch,
 } from "@/lib/account-center.functions";
 import {
+  getMyAccount,
+  saveMyProfile,
+  updateMyAvatar,
+  type MyAccount,
+} from "@/lib/account.functions";
+import { getAdminAccess } from "@/lib/admin-access.functions";
+import { trackEvent } from "@/lib/analytics";
+import { getAuthRedirectUrl } from "@/lib/auth-redirect";
+import type { ClassifiedCard } from "@/lib/classifieds.functions";
+import { getMyWatchlist, setWatchState, type WatchedVariant } from "@/lib/community.functions";
+import {
+  blockConversation,
+  createConversationAttachmentUpload,
   getConversation,
   getMyConversations,
-  blockConversation,
   markConversationRead,
   reportConversation,
-  createConversationAttachmentUpload,
   sendConversationMessage,
   sendConversationMessageWithAttachment,
   type ConversationDetail,
   type ConversationSummary,
 } from "@/lib/conversation.functions";
-import { getMyWatchlist, setWatchState, type WatchedVariant } from "@/lib/community.functions";
-import { getMySavedPartnerJobs } from "@/lib/saved-jobs.functions";
-import { getMySavedPartnerHomes } from "@/lib/saved-homes.functions";
-import { getMySavedPartnerVehicles } from "@/lib/saved-vehicles.functions";
-import type { ClassifiedCard } from "@/lib/classifieds.functions";
-import {
-  ListingCard,
-  PartnerJobsCredit,
-  PartnerVehiclesCredit,
-} from "@/components/classifieds/ListingCard";
+import { cancelListing, getMyListings, type MyListing } from "@/lib/market.functions";
 import {
   getMyNotifications,
   markNotificationsRead,
   type MemberNotification,
 } from "@/lib/notifications.functions";
-import { getAdminAccess } from "@/lib/admin-access.functions";
-import { cancelListing, getMyListings, type MyListing } from "@/lib/market.functions";
+import { getMySavedPartnerHomes } from "@/lib/saved-homes.functions";
+import { getMySavedPartnerJobs } from "@/lib/saved-jobs.functions";
+import { getMySavedPartnerVehicles } from "@/lib/saved-vehicles.functions";
+import { sellerListingState } from "@/lib/seller-listing-state";
 
 import { Button } from "@/components/ui/button";
-import {
-  getSellerDashboardSummary,
-  getSellerSetup,
-  relistSellerListing,
-} from "@/lib/seller.functions";
 import {
   createListingUpgradeCheckout,
   getListingUpgradeOptions,
@@ -108,6 +102,11 @@ import {
   type ListingUpgradeOption,
   type ListingUpgradePurchase,
 } from "@/lib/listing-upgrade.functions";
+import {
+  getSellerDashboardSummary,
+  getSellerSetup,
+  relistSellerListing,
+} from "@/lib/seller.functions";
 import type { AccountSection } from "./account-sections";
 
 type AccountCenterProps = {
@@ -1312,260 +1311,29 @@ function SavedListingCard({
 
 function SavedSearchesSection({ searches }: { searches: SavedSearch[] }) {
   const queryClient = useQueryClient();
-  const create = useServerFn(createSavedSearch);
-  const update = useServerFn(updateSavedSearch);
-  const remove = useServerFn(deleteSavedSearch);
-  const [name, setName] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filter, setFilter] = useState("");
-  const [sort, setSort] = useState<"newest" | "oldest">("newest");
-  const [renameSearchId, setRenameSearchId] = useState<string | null>(null);
-  const [renameSearchName, setRenameSearchName] = useState("");
-  const createMutation = useMutation({
-    mutationFn: () => create({ data: { name, search: { q: searchQuery || undefined } } }),
-    onSuccess: async () => {
-      setName("");
-      setSearchQuery("");
-      await queryClient.invalidateQueries({ queryKey: ["saved-searches"] });
-      toast.success("Saved search created.");
-    },
-    onError: (error) =>
-      toast.error(error instanceof Error ? error.message : "Could not create saved search."),
-  });
-  const updateMutation = useMutation({
-    mutationFn: (input: {
-      id: string;
-      name?: string;
-      search?: Record<string, unknown>;
-      paused?: boolean;
-      emailAlerts?: boolean;
-    }) => update({ data: input }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["saved-searches"] }),
-    onError: (error) =>
-      toast.error(error instanceof Error ? error.message : "Could not update saved search."),
-  });
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => remove({ data: { id } }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["saved-searches"] }),
-    onError: (error) =>
-      toast.error(error instanceof Error ? error.message : "Could not delete saved search."),
-  });
-  function openSearch(item: SavedSearch) {
-    const params = new URLSearchParams();
-    Object.entries(item.search).forEach(([key, value]) => {
-      if (value === undefined || value === null || value === "") return;
-      params.set(key, String(value));
-    });
-    params.set("savedSearchId", item.id);
-    window.location.assign(`/browse?${params.toString()}`);
-  }
-  const visible = searches
-    .filter((item) => item.name.toLowerCase().includes(filter.toLowerCase()))
-    .sort((a, b) =>
-      sort === "oldest"
-        ? new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-        : new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    );
-  function editSearch(item: SavedSearch) {
-    setRenameSearchId(item.id);
-    setRenameSearchName(item.name);
-  }
-  async function renameSearch() {
-    if (!renameSearchId || !renameSearchName.trim()) return;
-    try {
-      await updateMutation.mutateAsync({
-        id: renameSearchId,
-        name: renameSearchName.trim(),
-      });
-      setRenameSearchId(null);
-      setRenameSearchName("");
-    } catch {
-      // The mutation displays its own error toast.
-    }
-  }
+  const create = useServerFn(createSavedSearch),
+    update = useServerFn(updateSavedSearch),
+    remove = useServerFn(deleteSavedSearch);
+  const navigate = useNavigate();
   return (
-    <div className="space-y-6">
-      <SectionHeader
-        eyebrow="Saved searches"
-        title={`${searches.length} saved ${searches.length === 1 ? "search" : "searches"}`}
-        body="Save the filters you use often and get an in-app or email alert when new matches arrive."
-        action={
-          <Link
-            to="/browse"
-            className="inline-flex h-10 items-center gap-2 rounded-xl bg-accent px-4 text-[12.5px] font-semibold text-accent-foreground hover:opacity-90"
-          >
-            <Plus size={16} weight="bold" /> New search
-          </Link>
-        }
-      />
-      <form
-        className="rounded-2xl border border-border bg-card p-4 shadow-sm"
-        onSubmit={(event) => {
-          event.preventDefault();
-          createMutation.mutate();
-        }}
-      >
-        <div className="grid gap-3 sm:grid-cols-[180px_minmax(0,1fr)_auto]">
-          <input
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="Saved search name"
-            className="field"
-            required
-          />
-          <input
-            value={searchQuery}
-            onChange={(event) => setSearchQuery(event.target.value)}
-            placeholder="What should we watch for?"
-            className="field"
-          />
-          <button
-            type="submit"
-            disabled={createMutation.isPending}
-            className="h-10 rounded-xl bg-primary px-4 text-[12px] font-semibold text-primary-foreground disabled:opacity-60"
-          >
-            {createMutation.isPending ? "Saving…" : "Save search"}
-          </button>
-        </div>
-        <p className="mt-2 text-[11px] text-muted-foreground">
-          For the complete workflow, open Browse, set every filter you want, then choose “Save this
-          search.” The entire filter set—including vehicle, home, job, service, price, location, and
-          category values—will be preserved.
-        </p>
-      </form>
-      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_180px]">
-        <label className="field flex items-center gap-2">
-          <MagnifyingGlass size={16} className="text-muted-foreground" />
-          <span className="sr-only">Search saved search names</span>
-          <input
-            value={filter}
-            onChange={(event) => setFilter(event.target.value)}
-            placeholder="Search saved search names"
-            className="min-w-0 flex-1 bg-transparent outline-none"
-          />
-        </label>
-        <select
-          value={sort}
-          onChange={(event) => setSort(event.target.value as "newest" | "oldest")}
-          className="field"
-        >
-          <option value="newest">Newest to oldest</option>
-          <option value="oldest">Oldest to newest</option>
-        </select>
-      </div>
-      {visible.length === 0 ? (
-        <EmptyState
-          title={searches.length === 0 ? "No saved searches yet" : "No saved search matches"}
-          body="Save a search to get back to the filters that matter to you."
-        />
-      ) : (
-        <div className="space-y-3">
-          {visible.map((item) => {
-            const filterEntries = Object.entries(item.search).filter(
-              ([key, value]) =>
-                !["q", "sort", "view", "page", "savedSearchId", "itemDetailKey"].includes(key) &&
-                value !== undefined &&
-                value !== "",
-            );
-            return (
-              <article
-                key={item.id}
-                className="rounded-2xl border border-border bg-card p-4 shadow-sm"
-              >
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-[14px] font-semibold">{item.name}</h3>
-                      {item.paused && (
-                        <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium">
-                          Paused
-                        </span>
-                      )}
-                    </div>
-                    <p className="mt-1 text-[11.5px] text-muted-foreground">
-                      {typeof item.search["q"] === "string" && item.search["q"]
-                        ? `“${item.search["q"]}” · `
-                        : `${formatSavedSearchScope(item.search as Record<string, unknown>)} · `}
-                      {filterEntries.length ? `${filterEntries.length} filters · ` : ""}
-                      {item.emailAlerts ? "Email alerts on" : "In-app only"}
-                    </p>
-                    <div className="mt-3 flex flex-wrap gap-1.5">
-                      {filterEntries.slice(0, 8).map(([key, value]) => (
-                        <span
-                          key={key}
-                          className="rounded-full bg-secondary px-2 py-1 text-[10px] text-muted-foreground"
-                        >
-                          {formatSavedSearchFilter(key, value)}
-                        </span>
-                      ))}
-                      {filterEntries.length > 8 && (
-                        <span className="rounded-full bg-secondary px-2 py-1 text-[10px] text-muted-foreground">
-                          +{filterEntries.length - 8} more
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => openSearch(item)}
-                      aria-label={`Edit all filters for ${item.name}`}
-                      className="h-8 rounded-lg border border-primary px-2.5 text-[11.5px] font-semibold text-primary hover:bg-secondary"
-                    >
-                      Edit filters
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => editSearch(item)}
-                      className="h-8 rounded-lg border border-input px-2.5 text-[11.5px] font-semibold hover:bg-secondary"
-                    >
-                      Rename
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => updateMutation.mutate({ id: item.id, paused: !item.paused })}
-                      className="h-8 rounded-lg border border-input px-2.5 text-[11.5px] font-semibold hover:bg-secondary"
-                    >
-                      {item.paused ? "Resume" : "Pause"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        updateMutation.mutate({ id: item.id, emailAlerts: !item.emailAlerts })
-                      }
-                      className="h-8 rounded-lg border border-input px-2.5 text-[11.5px] font-semibold hover:bg-secondary"
-                    >
-                      {item.emailAlerts ? "Email on" : "Email off"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => deleteMutation.mutate(item.id)}
-                      className="h-8 rounded-lg border border-destructive/30 px-2.5 text-[11.5px] font-semibold text-destructive hover:bg-destructive/5"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      )}
-      <SavedSearchNameDialog
-        open={renameSearchId !== null}
-        name={renameSearchName}
-        mode="rename"
-        pending={updateMutation.isPending}
-        onOpenChange={(open) => {
-          if (!open) {
-            setRenameSearchId(null);
-            setRenameSearchName("");
-          }
-        }}
-        onNameChange={setRenameSearchName}
-        onSubmit={() => void renameSearch()}
-      />
-    </div>
+    <SavedSearchesSectionView
+      searches={searches}
+      onCreate={(data) => create({ data })}
+      onUpdate={(data) => update({ data })}
+      onDelete={(id) => remove({ data: { id } })}
+      onChanged={() => queryClient.invalidateQueries({ queryKey: ["saved-searches"] })}
+      renderBrowseLink={SavedSearchBrowseLink}
+      onOpenSearch={(item) => {
+        const params = new URLSearchParams();
+        Object.entries(item.search).forEach(([key, value]) => {
+          if (key === "mobileCatalog" || value === undefined || value === null || value === "")
+            return;
+          params.set(key, String(value));
+        });
+        params.set("savedSearchId", item.id);
+        window.location.assign("/browse?" + params);
+      }}
+    />
   );
 }
 
@@ -2583,4 +2351,18 @@ function Metric({ label, value }: { label: string; value: number | string }) {
 
 function WebsiteAccountLink({ href, ...props }: AccountLinkProps) {
   return <Link to={href} {...props} />;
+}
+
+function SavedSearchBrowseLink({
+  className,
+  children,
+}: {
+  className: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Link to="/browse" className={className}>
+      {children}
+    </Link>
+  );
 }

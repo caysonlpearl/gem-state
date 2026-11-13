@@ -1,3 +1,4 @@
+import { useLocationRequest } from "./LocationRequest";
 import { MapPin, NavigationArrow } from "@phosphor-icons/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Map as LeafletMap, LayerGroup, Circle, Marker } from "leaflet";
@@ -49,6 +50,19 @@ export function LocationRadiusPicker({
   className,
 }: Props) {
   const [locationError, setLocationError] = useState("");
+  const locate = useLocationRequest();
+  const currentCenter = JSON.stringify([city, latitude, longitude]);
+  const latestCenter = useRef(currentCenter);
+  latestCenter.current = currentCenter;
+  const [locating, setLocating] = useState(false);
+  const requestLock = useRef(false),
+    mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
   const mapElementRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<LeafletMap | null>(null);
   const cityMarkersRef = useRef<LayerGroup | null>(null);
@@ -174,13 +188,15 @@ export function LocationRadiusPicker({
       <button
         type="button"
         className="mb-3 text-xs font-semibold text-primary underline"
+        disabled={locating}
         onClick={() => {
-          if (!navigator.geolocation) {
-            setLocationError("Your browser does not support location. Choose a map point instead.");
-            return;
-          }
-          navigator.geolocation.getCurrentPosition(
-            (position) => {
+          if (requestLock.current) return;
+          const requestedCenter = latestCenter.current;
+          requestLock.current = true;
+          setLocating(true);
+          void locate()
+            .then((position) => {
+              if (!mounted.current || latestCenter.current !== requestedCenter) return;
               setLocationError("");
               const nearest = nearestClassifiedCity(
                 position.coords.latitude,
@@ -191,13 +207,18 @@ export function LocationRadiusPicker({
                 longitude: position.coords.longitude,
                 city: nearest?.city,
               });
-            },
-            () => setLocationError("Location was not shared. You can choose a map point instead."),
-            { enableHighAccuracy: false, maximumAge: 300000, timeout: 10000 },
-          );
+            })
+            .catch(() => {
+              if (mounted.current)
+                setLocationError("Location was not shared. You can choose a map point instead.");
+            })
+            .finally(() => {
+              requestLock.current = false;
+              if (mounted.current) setLocating(false);
+            });
         }}
       >
-        Use my location
+        {locating ? "Finding your location…" : "Use my location"}
       </button>
       {locationError && (
         <p role="status" className="mb-2 text-xs text-muted-foreground">

@@ -102,7 +102,7 @@ try {
           supabaseUrl: "https://fixture.supabase.co",
           supabaseKey: "sb_publishable_fixture",
           categories: mobileCategories,
-          features: { push: false, advertising: false, paidUpgrades: false },
+          features: {fullSearch:true,push: false, advertising: false, paidUpgrades: false },
         };
       else if (path === "home")
         data = { motors: cards.map((card) => ({ ...card, state: "ID" })), recent: [] };
@@ -143,7 +143,7 @@ try {
             dismissed.get(id).add(event.listingId);
           }
         data = { accepted: batch.length };
-      } else if (path === "listings") data = { items: cards, nextPage: null, incomplete: false };
+      } else if (path === "listings" || path === "search") data = {items:cards,nextPage:null,incomplete:false,total:cards.length,page:Number(url.searchParams.get("page")??1),pageSize:24};
       else if (path.startsWith("listings/"))
         data = {
           ...cards.find((card) => card.id === path.slice(9)),
@@ -201,16 +201,16 @@ try {
     );
     await page.getByRole("combobox", { name: "Category", exact: true }).click();
     await page.getByRole("option", { name: "Cars & Trucks", exact: true }).click();
+    await page.getByRole("button",{name:"Search",exact:true}).click();
     await page
       .getByRole("heading", { name: "Recommended for you", exact: true })
       .waitFor({ state: "hidden" });
-    await page.getByRole("combobox", { name: "Category", exact: true }).click();
-    await page.getByRole("option", { name: "All categories", exact: true }).click();
-    await page.getByLabel("Sort listings", { exact: true }).selectOption("price_high");
-    await page
-      .getByRole("heading", { name: "Recommended for you", exact: true })
-      .waitFor({ state: "hidden" });
-    await page.getByLabel("Sort listings", { exact: true }).selectOption("newest");
+    await page.goto(origin+"/#/search?sort=price_high");
+    await page.locator("#sort").selectOption("price_high");
+    await page.getByRole("heading",{name:"Recommended for you",exact:true}).waitFor({state:"hidden"});
+    await page.locator("#sort").selectOption("newest");
+    await page.getByRole("link",{name:"Home",exact:true}).click();
+    await page.getByRole("heading",{name:/^Find /}).waitFor();
     await page.getByRole("button", { name: "Open menu", exact: true }).click();
     await page.getByRole("button", { name: "Privacy choices", exact: true }).click();
     await dialog.getByRole("checkbox").click();

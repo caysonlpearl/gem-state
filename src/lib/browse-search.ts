@@ -360,6 +360,8 @@ export function inputFromSearch(search: Search): ClassifiedBrowseInput {
   return {
     dealerSlug: search.dealerSlug,
     q: search.q ?? search.homeLocation,
+    searchDescriptions:
+      search.category === "services" ? search.serviceExpandSearch === "true" : undefined,
     category: search.category,
     homeTab: search.homeTab,
     group: search.group,
@@ -387,6 +389,7 @@ export function inputFromSearch(search: Search): ClassifiedBrowseInput {
     titleStatus: search.titleStatus,
     homePropertyType: search.propertyType,
     homeBedroomsMin: thresholdValue(search.bedrooms),
+    homeBedroomsMax: search.bedrooms === "Studio" ? 0 : undefined,
     homeBathroomsMin: thresholdValue(search.bathrooms),
     homeSquareFeetMin: thresholdValue(search.homeSquareFeet),
     homeYearBuiltMin: search.homeYearBuilt,
@@ -612,10 +615,63 @@ export function normalizeBrowseSearch(search: Search): Search {
   return next;
 }
 
+/** Earlier saved records used domain names; display and edit them through the same URL fields. */
+export function browseSearchAliases(input: Record<string, unknown>) {
+  const search = { ...input };
+  const scalar = (value: unknown) => ["string", "number", "boolean"].includes(typeof value);
+  const aliases: Record<string, string[]> = {
+    category: ["categorySlug", "section"],
+    q: ["query", "keyword"],
+    propertyType: ["homePropertyType"],
+    homeYearBuilt: ["homeYearBuiltMin"],
+    leaseLength: ["homeLeaseLength"],
+    jobType: ["jobEmploymentType", "employmentType"],
+    jobPayMin: ["jobSalaryMin"],
+  };
+  for (const [key, names] of Object.entries(aliases))
+    if (search[key] === undefined) {
+      const name = names.find((name) => search[name] !== undefined);
+      if (name) search[key] = search[name];
+    }
+  for (const [key, old] of [
+    ["bedrooms", "homeBedroomsMin"],
+    ["bathrooms", "homeBathroomsMin"],
+    ["homeSquareFeet", "homeSquareFeetMin"],
+    ["homeAcres", "homeAcresMin"],
+  ])
+    if (search[key] === undefined && search[old] !== undefined && scalar(search[old]))
+      search[key] = String(search[old]) + "+";
+  if (
+    search.bedrooms === undefined &&
+    scalar(search.homeBedroomsMax) &&
+    Number(search.homeBedroomsMax) === 0 &&
+    search.homeBedroomsMax !== undefined
+  )
+    search.bedrooms = "Studio";
+  for (const [key, old] of [
+    ["priceMin", "minPrice"],
+    ["priceMax", "maxPrice"],
+  ])
+    if (search[key] === undefined && search[old] !== undefined && scalar(search[old]))
+      search[key] = String(search[old]).replace(/[$,]/g, "");
+  if (
+    search.homeTab === undefined &&
+    typeof search.homeMode === "string" &&
+    ["buy", "rent", "build"].includes(search.homeMode)
+  )
+    search.homeTab = search.homeMode;
+  for (const key of ["serviceLicenseRequired", "jobPhotos", "servicePhotos", "serviceExpandSearch"])
+    if (typeof search[key] === "boolean") search[key] = String(search[key]);
+  if (search.serviceExpandSearch === undefined && typeof search.searchDescriptions === "boolean")
+    search.serviceExpandSearch = String(search.searchDescriptions);
+  return search;
+}
+
 export function parseBrowseSearch(
   search: Record<string, unknown>,
   options: { normalizeCategory?: boolean } = {},
 ): Search {
+  search = browseSearchAliases(search);
   const group = stringParam(search, "group", 20);
   const sort = stringParam(search, "sort", 20);
   const view = stringParam(search, "view", 10);

@@ -1,3 +1,4 @@
+import { mobileSavedSearchAllowed } from "./mobile-saved-search-contract";
 import { mobileSearchInput } from "./mobile-search";
 /* eslint-disable @typescript-eslint/no-explicit-any -- existing domain handlers retain their own runtime validators. */
 import { createClient } from "@supabase/supabase-js";
@@ -310,6 +311,9 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
       features: {
         accountControls: true,
         fullSearch: true,
+        durableSavedSearches: await (
+          await import("./mobile-messaging.server")
+        ).mobileSavedSearchesReady(),
         conversationAttachments: await (
           await import("./mobile-messaging.server")
         ).mobileAttachmentsReady(),
@@ -436,6 +440,21 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
   if (method === "GET" && path === "account") {
     const { getMyAccount } = await import("./account.functions");
     return { account: await domain(getMyAccount), consent: await consent(user.id) };
+  }
+  if (method === "GET" && path === "saved-searches") {
+    const all = await domain((await import("./account-center.functions")).getMySavedSearches);
+    return { items: all.filter(mobileSavedSearchAllowed) };
+  }
+  if (
+    (path === "saved-searches" && method === "POST") ||
+    (/^saved-searches\/[0-9a-f-]{36}$/i.test(path) && ["PUT", "DELETE"].includes(method))
+  ) {
+    return (await import("./mobile-saved-search.server")).writeMobileSavedSearch(
+      request,
+      client,
+      await (await import("./mobile-messaging.server")).mobileSavedSearchesReady(),
+      () => requireTerms(user.id),
+    );
   }
   if (method === "GET" && path === "account/contact-preferences")
     return domain((await import("./account-center.functions")).getMyContactPreferences);

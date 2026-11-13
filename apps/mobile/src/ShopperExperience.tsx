@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import {
+  ListingRowView,
   ListingCardView,
   type ListingCardLinkProps,
 } from "../../../src/components/classifieds/ListingCardView";
@@ -43,7 +44,9 @@ export function ListingTile({
   model = "browse-v1",
   learning,
   onOpen,
+  view = "grid",
 }: {
+  view?: "grid" | "list";
   card: MobileListing;
   position: number;
   placement?: string;
@@ -113,9 +116,10 @@ export function ListingTile({
       });
     onOpen(id);
   };
+  const View = view === "list" ? ListingRowView : ListingCardView;
   return (
     <OpenListing.Provider value={open}>
-      <ListingCardView
+      <View
         className="listing-card"
         listing={listingPresentation(card)}
         elementRef={ref}

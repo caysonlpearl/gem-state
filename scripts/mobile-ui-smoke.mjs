@@ -26,6 +26,8 @@ try {
     await page.getByRole("heading", { name: /^Find / }).waitFor();
     await page.getByRole("combobox", { name: "Category", exact: true }).click();
     await page.getByRole("option", { name: "Cars & Trucks", exact: true }).click();
+    await page.getByRole("button", { name: "Search", exact: true }).click();
+    await page.getByRole("heading", { name: "Cars & Trucks", exact: true }).waitFor();
     await page.locator(".listing-card").first().waitFor({ timeout: 60000 });
     const cards = await page.locator(".listing-card").count();
     await page.screenshot({ path: resolve(output, `browse-${viewport.width}.png`) });
@@ -37,16 +39,14 @@ try {
       .waitFor({ timeout: 60000 });
     await page.screenshot({ path: resolve(output, `listing-${viewport.width}.png`) });
     await page.getByRole("button", { name: "Go back", exact: true }).click();
-    await page.getByRole("heading", { name: /^Find / }).waitFor();
-    assert.equal(
-      await page.getByRole("combobox", { name: "Category", exact: true }).innerText(),
-      "Cars & Trucks",
-    );
+    await page.getByRole("heading", { name: "Cars & Trucks", exact: true }).waitFor();
+    assert.equal(new URLSearchParams(page.url().split("?")[1]).get("category"), "cars-trucks");
     await page.waitForFunction((y) => Math.abs(window.scrollY - y) < 3, previousScroll);
+    await page.getByRole("link", { name: "Home", exact: true }).last().click();
     await page.getByLabel("Search Bluebird", { exact: true }).fill("Subaru Outback");
     const queryResponse = page.waitForResponse(
       (response) =>
-        response.url().includes("/api/mobile/v1/listings?") &&
+        response.url().includes("/api/mobile/v1/search?") &&
         new URL(response.url()).searchParams.get("q") === "Subaru Outback",
     );
     await page.getByRole("button", { name: "Search", exact: true }).click();

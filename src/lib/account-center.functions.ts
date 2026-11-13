@@ -1,3 +1,4 @@
+import { savedSearch, type SavedSearch } from "./saved-search-model";
 /* eslint-disable @typescript-eslint/no-explicit-any -- account-center tables are added by the linked migration */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
@@ -64,34 +65,7 @@ export const updateMyContactPreferences = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
-export type SavedSearchFilters = Record<
-  string,
-  string | number | boolean | null | undefined | string[]
->;
-
-export type SavedSearch = {
-  id: string;
-  name: string;
-  search: SavedSearchFilters;
-  emailAlerts: boolean;
-  paused: boolean;
-  lastMatchAt: string | null;
-  createdAt: string;
-  updatedAt: string;
-};
-
-function savedSearch(row: any): SavedSearch {
-  return {
-    id: row.id,
-    name: row.name,
-    search: (row.search ?? {}) as SavedSearchFilters,
-    emailAlerts: row.email_alerts !== false,
-    paused: row.paused === true,
-    lastMatchAt: row.last_match_at ?? null,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
+export type { SavedSearch, SavedSearchFilters } from "./saved-search-model";
 
 export const getMySavedSearches = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
