@@ -2197,6 +2197,7 @@ async function runBrowseClassifieds(
           data,
           Math.max(0, from - orderedListings.length),
           resultLimit - nativePage.length,
+          { failOnError: options.readOnlyProviders === true },
         )
       : { cards: [], total: 0 };
     const pageListings = [...nativePage, ...directory.cards];

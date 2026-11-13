@@ -37,6 +37,14 @@ const row = {
 test("directory businesses only answer filters they can honestly match", () => {
   assert.equal(canIncludeDirectory({ category: "services" }), true);
   assert.equal(
+    canIncludeDirectory({ category: "services", mobileCatalog: true, searchDescriptions: true }),
+    true,
+  );
+  assert.equal(
+    canIncludeDirectory({ category: "services", mobileCatalog: true, priceMax: 100 }),
+    false,
+  );
+  assert.equal(
     canIncludeDirectory({ category: "services", serviceSubcategory: "Plumbers", city: "Nampa" }),
     true,
   );

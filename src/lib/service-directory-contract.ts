@@ -55,6 +55,7 @@ const SUPPORTED_KEYS = new Set([
   "serviceSubcategory",
   "q",
   "searchDescriptions",
+  "mobileCatalog", // Server-owned safety metadata, not an unsupported listing attribute.
   "city",
   "state",
   "region",

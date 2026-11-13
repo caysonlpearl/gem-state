@@ -1,3 +1,4 @@
+import { canIncludeDirectory } from "../src/lib/service-directory-contract.ts";
 import { parseBrowseSearch } from "../src/lib/browse-search.ts";
 import { normalizeClassifiedBrowseInput } from "../src/lib/classified-browse-contract.ts";
 import { mergeDealerFeedVehicles } from "../src/lib/dealer-feed-contract.ts";
@@ -75,6 +76,8 @@ function harness({
   enabled = [],
   external = [],
   directory = [],
+  realDirectoryEligibility = false,
+  directoryError = false,
   rowLimit = Infinity,
   radiusMatch = () => true,
   beforeProvider = async () => {},
@@ -164,14 +167,17 @@ function harness({
       rescueGroupsConfigured: () => true,
       rescueGroupsCards: cards("rescuegroups"),
     },
-    "./service-directory-contract": { canIncludeDirectory: () => includes.has("directory") },
+    "./service-directory-contract": {
+      canIncludeDirectory: (data) => realDirectoryEligibility ? canIncludeDirectory(data) : includes.has("directory"),
+    },
     "./avantlink-listings.server": {
       canIncludeMerchandise: () => includes.has("avantlink"),
       merchandiseCards: async () => ({ cards: await cards("avantlink")(), limited: false }),
     },
     "./service-directory.server": {
-      directoryCards: async (_input, offset, limit) => {
+      directoryCards: async (_input, offset, limit, options) => {
         directoryCalls.push({ offset, limit });
+        if (directoryError && options?.failOnError) throw Error("Saved services could not be read.");
         return { cards: directory.slice(offset, offset + limit), total: directory.length };
       },
     },
@@ -846,4 +852,31 @@ test("SEO city radius never counts nearby out-of-state partner inventory as Idah
   const result = await h.internal({ pageSize: 192, readOnlyProviders: true, readOnlyHome: true });
   assert.equal(result.total, 1);
   assert.equal(result.listings[0].state, "ID");
+});
+
+test("native catalog metadata retains eligible cached services and service outages reach the safe fallback", async () => {
+  const options = {
+    filters: { category: "services", mobileCatalog: true, searchDescriptions: true },
+    records: [],
+    realDirectoryEligibility: true,
+    directory: [
+      {
+        id: "fsq-fixture",
+        title: "Plumbing fixture",
+        categorySlug: "services",
+        state: "ID",
+        createdAt: "2026-10-01T00:00:00Z",
+      },
+    ],
+  };
+  const h = harness(options);
+  const page = await h.internal({ readOnlyProviders: true });
+  assert.deepEqual(
+    Array.from(page.listings, (x) => x.id),
+    ["fsq-fixture"],
+  );
+  assert.equal(h.directoryCalls.length, 1);
+  assert.deepEqual(h.providerReads, []);
+  const outage = harness({ ...options, directoryError: true });
+  await assert.rejects(outage.internal({ readOnlyProviders: true }), /Saved services/);
 });
