@@ -15,7 +15,12 @@ export let auth: SupabaseClient;
 export type Bootstrap = {
   policyVersion: string;
   categories: { slug: string; name: string; group: string }[];
-  features: { push: boolean; paidUpgrades: false; advertising: boolean };
+  features: {
+    push: boolean;
+    paidUpgrades: false;
+    advertising: boolean;
+    conversationAttachments?: boolean;
+  };
 };
 export class ApiError extends Error {
   constructor(

@@ -328,6 +328,13 @@ export const createConversationAttachmentUpload = createServerFn({ method: "POST
       throw new Error(error?.message ?? "You are not a participant in this conversation.");
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: blocked, error: blockError } = await (supabaseAdmin as any)
+      .from("conversation_participants")
+      .select("user_id")
+      .eq("conversation_id", data.conversationId)
+      .not("blocked_at", "is", null);
+    if (blockError) throw new Error("Could not check conversation permissions. Try again.");
+    if (blocked?.length) throw new Error("Messaging is unavailable for this conversation.");
     const path = `${context.userId}/${data.conversationId}/${crypto.randomUUID()}.${attachmentExtensions[data.contentType]}`;
     const { data: upload, error: uploadError } = await supabaseAdmin.storage
       .from("conversation-attachments")
@@ -343,6 +350,7 @@ export const sendConversationMessageWithAttachment = createServerFn({ method: "P
     (input: {
       conversationId: string;
       body: string;
+      requestId?: string;
       attachmentPath: string;
       attachmentContentType: string;
       attachmentSize: number;
@@ -354,6 +362,7 @@ export const sendConversationMessageWithAttachment = createServerFn({ method: "P
         throw new Error("Attachments must be 10 MB or smaller.");
       return {
         conversationId: String(input.conversationId),
+        requestId: mobileWriteId(input.requestId),
         body: cleanBody(input.body),
         attachmentPath: String(input.attachmentPath),
         attachmentContentType: contentType,
@@ -362,6 +371,24 @@ export const sendConversationMessageWithAttachment = createServerFn({ method: "P
     },
   )
   .handler(async ({ data, context }) => {
+    if (data.requestId) {
+      const { data: outcome, error } = await (context.supabase as any).rpc(
+        "mobile_commit_attachment",
+        {
+          _request: data.requestId,
+          _conversation: data.conversationId,
+          _body: data.body,
+          _path: data.attachmentPath,
+          _content_type: data.attachmentContentType,
+          _size: data.attachmentSize,
+        },
+      );
+      if (error || !outcome?.messageId)
+        throw new Error(error?.message ?? "We could not send your attachment.");
+      if (!outcome.replayed)
+        await emailMarketplaceMessage(data.conversationId, context.userId, outcome.messageId);
+      return { messageId: outcome.messageId as string };
+    }
     const { data: messageId, error } = await (context.supabase as any).rpc(
       "send_conversation_message_with_attachment",
       {

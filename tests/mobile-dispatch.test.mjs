@@ -11,7 +11,14 @@ const compiled = ts.transpileModule(
   readFileSync(new URL("../src/lib/mobile.server.ts", import.meta.url), "utf8"),
   { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } },
 ).outputText;
-function harness({ deleted = false, valid = true, restricted = false } = {}) {
+function harness({
+  deleted = false,
+  valid = true,
+  restricted = false,
+  attachments = false,
+  generalConversation = false,
+  blocked = false,
+} = {}) {
   const user = "11111111-1111-4111-8111-111111111111",
     writes = [];
   const db = {
@@ -69,7 +76,22 @@ function harness({ deleted = false, valid = true, restricted = false } = {}) {
     "./runtime-env.server": { serverEnv: () => undefined },
     "./mobile-api": protocol,
     "./mobile-write": mobileWrite,
+    "./mobile-messaging.server": { mobileAttachmentsReady: async () => attachments },
     "./conversation.functions": {
+      getConversation: async ({ data }) => ({
+        id: data.id,
+        listingId: generalConversation ? null : "dealerfeed-test",
+        messages: [],
+      }),
+      createConversationAttachmentUpload: async ({ data }) => {
+        if (blocked) throw Error("Messaging is unavailable for this conversation.");
+        writes.push({ kind: "prepare", ...data });
+        return { path: "private-path", token: "private-token" };
+      },
+      sendConversationMessageWithAttachment: async ({ data }) => {
+        writes.push({ kind: "attachment", ...data });
+        return { messageId: "fixture" };
+      },
       startConversation: async ({ data }) => {
         writes.push(data);
         return { conversationId: "one" };
@@ -241,4 +263,76 @@ test("opening browse reads the published snapshot while explicit search/category
     assert.equal((await result.json()).data.selection, false);
   }
   assert.equal(h.writes.length, 6);
+});
+
+test("native attachment routes enforce readiness, authentication, catalog and a header retry receipt", async () => {
+  const id = crypto.randomUUID(),
+    key = crypto.randomUUID();
+  const path = `conversations/${id}/attachments`;
+  for (const options of [
+    {},
+    { restricted: true, attachments: true },
+    { generalConversation: true, attachments: true },
+    { deleted: true, attachments: true },
+  ]) {
+    const h = harness(options);
+    const r = await h.request(path, "POST", {
+      fileName: "note.pdf",
+      contentType: "application/pdf",
+      size: 10,
+    });
+    assert.equal(
+      r.status,
+      options.deleted ? 409 : options.restricted || options.generalConversation ? 404 : 503,
+    );
+    assert.deepEqual(h.writes, []);
+  }
+  const h = harness({ attachments: true });
+  assert.equal((await h.request(path, "POST", {}, null)).status, 401);
+  assert.equal(
+    (
+      await h.request(path, "POST", {
+        conversationId: "forged",
+        fileName: "note.pdf",
+        contentType: "application/pdf",
+        size: 10,
+      })
+    ).status,
+    200,
+  );
+  assert.equal(h.writes[0].conversationId, id);
+  const payload = {
+    conversationId: "forged",
+    requestId: "forged",
+    body: "Hello",
+    attachmentPath: "private-path",
+    attachmentContentType: "application/pdf",
+    attachmentSize: 10,
+  };
+  assert.equal((await h.request(path + "/send", "POST", payload)).status, 400);
+  assert.equal(
+    (await h.request(path + "/send", "POST", payload, "valid", { "Idempotency-Key": "bad" }))
+      .status,
+    400,
+  );
+  assert.equal(h.writes.length, 1);
+  assert.equal(
+    (await h.request(path + "/send", "POST", payload, "valid", { "Idempotency-Key": key })).status,
+    200,
+  );
+  assert.equal(h.writes[1].conversationId, id);
+  assert.equal(h.writes[1].requestId, key);
+});
+
+test("native attachment preparation returns the shared block state without issuing a token", async () => {
+  const h = harness({ attachments: true, blocked: true }),
+    id = crypto.randomUUID();
+  const r = await h.request(`conversations/${id}/attachments`, "POST", {
+    fileName: "fixture.pdf",
+    contentType: "application/pdf",
+    size: 42,
+  });
+  assert.equal(r.status, 403);
+  assert.equal((await r.json()).error.code, "conversation_unavailable");
+  assert.deepEqual(h.writes, []);
 });

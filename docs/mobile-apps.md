@@ -50,13 +50,25 @@ Provider credits remain visible when shared cards replace the old prototype tile
 
 The sign-in/sign-up/forgot/reset form, phone tab bar, header sizing and mobile category menu also use shared website presenters. The native tab labels/icons/order now follow the website: Home, Search, Sell, Saved, Messages, with account access in the header. This supersedes the prototype's Browse/Saved/Post/Messages/Account arrangement. Auth adapters preserve native callbacks, explicit signup choices and account ownership; the Apple option is the corresponding native requirement.
 
-Remaining parity work includes the full account center and its tabs, account dropdown/unread badges and wider-screen header controls, conversation presenter, complete listing-detail body/actions, full posting/seller forms and category-specific browse/landing controls. Do not describe these as already migrated. Compare each screen at the same viewport, data and state before beta; record any difference and its reason. Necessary exceptions are permanent app catalog/payment restrictions, native permission prompts, device integrations and phone system boundaries. A proposed design simplification alone is not a reason to diverge.
+Remaining parity work includes the full account center and its tabs, account dropdown/unread badges and wider-screen header controls, complete listing-detail body/actions, full posting/seller forms and category-specific browse/landing controls. Do not describe these as already migrated. Compare each screen at the same viewport, data and state before beta; record any difference and its reason. Necessary exceptions are permanent app catalog/payment restrictions, native permission prompts, device integrations and phone system boundaries. A proposed design simplification alone is not a reason to diverge.
 
 The earlier text-only wordmark and separate listing-card/photo designs are replaced.
-The remaining account, posting and messaging presenters must also move toward the
-existing website UI before beta. Existing native controllers and phone navigation
+The remaining account and posting presenters and full account-center framing must
+also reuse the existing website UI before beta. Existing native controllers and phone navigation
 are adapters, not authority to invent a different design. Native notification,
 permission and app catalog differences still follow the approved launch plan.
+
+## Shared conversation screens and attachment readiness
+
+Messages now render the same `MessagesSectionView` and account section presenters as the website: buying/selling/unread/search filters, conversation list and bubbles, signed attachment links, reply box, retry state, report dialog/acknowledgement and block confirmation. The native adapter uses API v1, account-scoped session drafts and explicit atomic retry receipts. A delayed response cannot clear a different conversation's draft or a newer draft. Private message/file content is not shopper activity or advertising input. Real signed-in device journeys and the full surrounding account-center shell remain unverified/incomplete; browser fixtures do not establish those gates.
+
+The native upload implementation supports the website's JPG/PNG/WebP/PDF and 10 MB boundary. A lost upload/commit response reuses the private object reference and logical request before allocating another upload; file bytes, upload tokens and message bodies are excluded from retry receipt storage. Attachment sends require an `Idempotency-Key`. Finalization verifies the authenticated owner/conversation, current terms, deletion/block status and actual private Storage object MIME/size, then commits the message and its receipt in one transaction. The shared web upload preparation also checks the other participant's block before issuing a token.
+
+**Production dependency remains pending:** `20261113060000_mobile_conversation_attachments.sql` is implemented and tested locally, but has not been applied. The available Supabase CLI login cannot access GemList (`udxxfuticbxwiehoepeg`); the dashboard automation timed out during the November 12 preflight. No unrelated project was modified. A server-only, cached `mobile_messaging_capabilities` read keeps `features.conversationAttachments=false` when the migration is missing or its readiness read fails. Text messages and existing signed attachment links remain available. Do not report native attachment delivery as enabled, live-tested or complete until this migration is installed and real account/device tests pass.
+
+Additive API v1 routes are `POST conversations/:id/attachments` (prepare) and `POST conversations/:id/attachments/send` (commit/retry). They reuse the existing private attachment bucket, signed uploads and conversation domain services; there is no new public media bucket or provider request. Install the migration on the verified owning project, record its migration history and privileges, then verify the capability, cross-account/object isolation, upload/receive/open/retry and blocking with test members before release. Abandoned uploads must also be included in media-retention and account-deletion tests before beta.
+
+Storage metadata is read only; files are not deleted by editing `storage.objects`. References used for the implementation: [Supabase Storage schema](https://supabase.com/docs/guides/storage/schema/design), [Storage object metadata types](https://github.com/supabase/storage/blob/master/src/storage/backend/adapter.ts).
 
 ## Baseline and ownership
 
@@ -86,6 +98,16 @@ Official enrollment references:
 - https://developer.apple.com/help/account/membership/program-enrollment
 - https://support.google.com/googleplay/android-developer/answer/6112435?hl=en
 - https://support.google.com/googleplay/android-developer/answer/13628312?hl=en
+
+## Apple release automation candidate: Lance
+
+The owner shared Ayo Omolewa's reel about wrapping existing sites and using Lance for release operations. The app is already based on Capacitor; this does not require a new visual design. Lance's official pages, checked November 12, 2026, advertise source-based builds/signing on its cloud Mac, TestFlight, App Store metadata/screenshots, Apple capabilities and submission/review handling through an authenticated MCP connection. This could cover the missing local Xcode build/signing setup. These are vendor claims, not a successful Bluebird build or an approval guarantee. Equivalent Google Play management was not confirmed in the inspected documentation; the Android build continues using the working local project.
+
+Pricing currently lists 500 free starter credits for the first 30 days after connecting App Store Connect, then a $40/month Pro plan with 2,000 monthly credits. Optional automatic credit top-ups are $20 per 2,000 credits and must not be enabled by assumption. No Lance account/connection, subscription, payment or repository access has been created/granted. Bluebird still needs its owning Apple Developer account and verified entity; nothing in this option completes beta, moderation, privacy, deletion or device testing. Consumer subscriptions/IAP are deferred in the approved launch, so Lance's IAP automation is not a launch dependency.
+
+If adopted after account setup, the release input is the verified pushed repo, `apps/mobile/ios/App/App.xcodeproj`, scheme App, bundle `com.onbluebird.marketplace`, root and `apps/mobile` dependency installation, followed by the existing mobile build/Capacitor sync. Keep the bundled website presenters and canonical API, use the real Apple signing identity, and preserve all catalog/privacy gates. Review the first build and TestFlight results before a store submission. No unverified release build should be reported as published.
+
+Official references: [Lance capabilities](https://www.lance.app/), [pricing](https://www.lance.app/pricing), [connection and tools](https://www.lance.app/docs).
 
 ## Developer setup
 
