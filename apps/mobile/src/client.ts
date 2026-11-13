@@ -16,6 +16,7 @@ export type Bootstrap = {
   policyVersion: string;
   categories: { slug: string; name: string; group: string }[];
   features: {
+    accountControls?: boolean;
     push: boolean;
     paidUpgrades: false;
     advertising: boolean;

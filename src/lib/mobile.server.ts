@@ -5,6 +5,12 @@ import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_PUBLISHABLE_KEY } from "@/config/s
 import { serverEnv } from "./runtime-env.server";
 import { createMobileHandler, MobileApiError, mobileJson } from "./mobile-api";
 import { mobileWriteId } from "./mobile-write";
+import {
+  mobileProfileInput,
+  mobileAvatarInput,
+  mobileContactInput,
+  mobileNotificationPreferencesInput,
+} from "./mobile-account-contract";
 import { mobileCachedBrowse, mobileSnapshotFirst, mobileHomepage } from "./mobile-catalog";
 import {
   mobileCategories,
@@ -295,6 +301,7 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
       supabaseUrl,
       supabaseKey,
       features: {
+        accountControls: true,
         conversationAttachments: await (
           await import("./mobile-messaging.server")
         ).mobileAttachmentsReady(),
@@ -384,6 +391,10 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
     const { getMyAccount } = await import("./account.functions");
     return { account: await domain(getMyAccount), consent: await consent(user.id) };
   }
+  if (method === "GET" && path === "account/contact-preferences")
+    return domain((await import("./account-center.functions")).getMyContactPreferences);
+  if (method === "GET" && path === "account/notification-preferences")
+    return domain((await import("./account-center.functions")).getMyNotificationPreferences);
   if (method === "GET" && path === "advertising") {
     const platform = z
       .enum(["ios", "android"])
@@ -447,6 +458,16 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
     });
     if (error) throw error;
     return consent(user.id);
+  }
+  if (method === "DELETE" && path === "devices/all") {
+    const { error } = await (
+      await database()
+    )
+      .from("mobile_push_devices")
+      .delete()
+      .eq("user_id", user.id);
+    if (error) throw error;
+    return { removed: true };
   }
   if (method === "DELETE" && path === "devices") {
     const body = await mobileJson(request),
@@ -568,6 +589,27 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
     throw new MobileApiError(404, "not_found", "This app action was not found.");
   await requireTerms(user.id);
   const body = await mobileJson(request);
+  if (method === "PUT" && path === "account/profile") {
+    const input = mobileProfileInput.parse(body),
+      functions = await import("./account.functions");
+    const own = await domain(functions.getMyAccount);
+    return domain(functions.saveMyProfile, { ...input, markOnboarded: !own.onboardedAt });
+  }
+  if (method === "PUT" && path === "account/avatar")
+    return domain(
+      (await import("./account.functions")).updateMyAvatar,
+      mobileAvatarInput.parse(body),
+    );
+  if (method === "PUT" && path === "account/contact-preferences")
+    return domain(
+      (await import("./account-center.functions")).updateMyContactPreferences,
+      mobileContactInput.parse(body),
+    );
+  if (method === "PUT" && path === "account/notification-preferences")
+    return domain(
+      (await import("./account-center.functions")).updateMyNotificationPreferences,
+      mobileNotificationPreferencesInput.parse(body),
+    );
   if (method === "PUT" && path === "advertising") {
     const parsed = z
       .object({

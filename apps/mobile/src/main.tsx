@@ -1,3 +1,6 @@
+import { completeAccountSignOut } from "../../../src/lib/account-session";
+import { installIdentifier } from "./identity";
+import { NativeAccount } from "./Account";
 import { NativeMessages } from "./Messages";
 import { clearConversationAttachmentMemory } from "./conversation-attachments";
 /* eslint-disable react-refresh/only-export-components -- application entrypoint mounts its local screens. */
@@ -93,6 +96,7 @@ function Application() {
     [privacyOpen, setPrivacyOpen] = useState(false);
   const learning = shopping?.personalization === true && shopping.trackingAvailable === true;
   const [pushToken, setPushToken] = useState<string | null>(null);
+  const signOutInFlight = useRef(false);
   useEffect(() => {
     let alive = true,
       stop = () => {};
@@ -287,7 +291,11 @@ function Application() {
       void disableAdvertising();
     };
   }, [session?.user.id, bootstrap?.features.advertising, revision]);
-  const signOut = async () => {
+  const signOut = async (scope: "local" | "global" = "local") => {
+    if (signOutInFlight.current) return;
+    signOutInFlight.current = true;
+    const ownerId = session?.user.id;
+    const actor = { userId: ownerId ?? null, installId: installIdentifier() };
     setBusy(true);
     setError("");
     try {
@@ -296,12 +304,17 @@ function Application() {
       setShopping(null);
       setAdvertisingChoice(false);
       if (pushToken) {
-        await api("devices", "DELETE", { token: pushToken });
+        await api("devices", "DELETE", { token: pushToken }, undefined, actor);
         await PushNotifications.unregister();
         setPushToken(null);
       }
-      const { error: e } = await auth.auth.signOut();
-      if (e) throw e;
+      await completeAccountSignOut({
+        auth: auth.auth,
+        expectedOwnerId: ownerId,
+        scope,
+        revokeAll: () =>
+          api("devices/all", "DELETE", undefined, undefined, actor).then(() => undefined),
+      });
       for (const key of Object.keys(sessionStorage))
         if (key.startsWith("bb-draft-")) sessionStorage.removeItem(key);
       setAccount(null);
@@ -309,6 +322,7 @@ function Application() {
     } catch (e) {
       setError(message(e));
     } finally {
+      signOutInFlight.current = false;
       setBusy(false);
     }
   };
@@ -404,7 +418,7 @@ function Application() {
             <button className="primary" disabled={!terms || busy}>
               Continue
             </button>
-            <button type="button" onClick={signOut}>
+            <button type="button" onClick={() => void signOut()}>
               Sign out
             </button>
           </form>
@@ -427,10 +441,11 @@ function Application() {
             revision={revision}
             onError={setError}
           />
-        ) : path === "/post" ? (
+        ) : path === "/post" || path === "/post/profile" ? (
           <Post
-            key={session!.user.id}
+            key={`${session!.user.id}:${path}`}
             ownerId={session!.user.id}
+            initialSetup={path === "/post/profile"}
             bootstrap={bootstrap}
             onSubmitted={() => setRevision((value) => value + 1)}
           />
@@ -444,86 +459,75 @@ function Application() {
             onOpen={(id) => go(`/messages/${id}`)}
             onBrowse={() => go("/search")}
           />
-        ) : path === "/account" ? (
-          <section className="stack">
-            <h1>Your account</h1>
-            <p>{account?.account.displayName || session?.user.email}</p>
-            <label className="check">
-              <input
-                type="checkbox"
-                checked={alerts}
-                onChange={(e) => {
-                  const next = e.target.checked;
-                  setAlerts(next);
-                  setBusy(true);
-                  api("consent", "PUT", {
-                    acceptTerms: true,
-                    shoppingAlerts: next,
-                    version: bootstrap.policyVersion,
-                  })
-                    .catch((error) => {
-                      setAlerts(!next);
-                      setError(message(error));
-                    })
-                    .finally(() => setBusy(false));
-                }}
-                disabled={busy}
-              />
-              Personalized shopping emails and notifications
-            </label>
-            <p className="muted">
-              Bluebird chooses relevant listings and timing. You can turn shopping alerts off at any
-              time.
-            </p>
-            {Capacitor.isNativePlatform() && bootstrap.features.push && (
-              <button
-                onClick={async () => {
-                  try {
-                    const p = await PushNotifications.requestPermissions();
-                    if (p.receive === "granted") await PushNotifications.register();
-                    else
-                      setError(
-                        "Notifications are off. You can enable them in your phone settings.",
-                      );
-                  } catch (e) {
-                    setError(message(e));
-                  }
-                }}
-              >
-                Enable phone notifications
-              </button>
-            )}
-            {Capacitor.isNativePlatform() && bootstrap.features.advertising && (
-              <label className="check">
-                <input
-                  type="checkbox"
-                  checked={advertising}
-                  onChange={async (e) => {
-                    const next = e.target.checked;
-                    try {
-                      const choice = await setAdvertising(next, true);
-                      setAdvertisingChoice(
-                        choice.advertising &&
-                          (choice.platform === "android" || choice.att === "authorized"),
-                      );
-                    } catch (error) {
-                      setAdvertisingChoice(false);
-                      setError(message(error));
-                    }
-                  }}
-                />
-                Allow advertising measurement across apps and websites
-              </label>
-            )}
-            <a href={`${apiOrigin}/terms`} target="_blank" rel="noreferrer">
-              Terms and privacy
-            </a>
-            <a href="mailto:bluebirdmarketplaceid@gmail.com">Contact Bluebird</a>
-            <button disabled={busy} onClick={signOut}>
-              Sign out
-            </button>
-            <DeleteAccount onError={setError} />
-          </section>
+        ) : path.startsWith("/account") ? (
+          <NativeAccount
+            controlsReady={bootstrap.features.accountControls === true}
+            key={session!.user.id}
+            ownerId={session!.user.id}
+            section={path === "/account/settings" ? "settings" : "profile"}
+            policyVersion={bootstrap.policyVersion}
+            onNavigate={go}
+            onSignOut={signOut}
+            onChanged={() => setRevision((value) => value + 1)}
+            signOutBusy={busy}
+            permissions={
+              <>
+                {" "}
+                {Capacitor.isNativePlatform() && bootstrap.features.push && (
+                  <button
+                    onClick={async () => {
+                      try {
+                        const p = await PushNotifications.requestPermissions();
+                        if (p.receive === "granted") await PushNotifications.register();
+                        else
+                          setError(
+                            "Notifications are off. You can enable them in your phone settings.",
+                          );
+                      } catch (e) {
+                        setError(message(e));
+                      }
+                    }}
+                  >
+                    Enable phone notifications
+                  </button>
+                )}
+                {Capacitor.isNativePlatform() && bootstrap.features.advertising && (
+                  <label className="mt-4 flex items-start gap-3 text-[12px]">
+                    <input
+                      type="checkbox"
+                      checked={advertising}
+                      onChange={async (e) => {
+                        const next = e.target.checked;
+                        try {
+                          const choice = await setAdvertising(next, true);
+                          setAdvertisingChoice(
+                            choice.advertising &&
+                              (choice.platform === "android" || choice.att === "authorized"),
+                          );
+                        } catch (error) {
+                          setAdvertisingChoice(false);
+                          setError(message(error));
+                        }
+                      }}
+                    />
+                    Allow advertising measurement across apps and websites
+                  </label>
+                )}
+                <a href={`${apiOrigin}/terms`} target="_blank" rel="noreferrer">
+                  Terms of Service
+                </a>
+                <a href="mailto:bluebirdmarketplaceid@gmail.com">Contact Bluebird</a>
+                <a
+                  className="ml-4 text-[12px] text-primary underline"
+                  href={`${apiOrigin}/privacy`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Privacy policy
+                </a>
+              </>
+            }
+          />
         ) : path === "/saved" ? (
           <Feed saved bootstrap={bootstrap} revision={revision} learning={learning} />
         ) : (
@@ -1059,61 +1063,6 @@ function Listing({
         onOpen={(next) => go(`/listings/${next}`)}
       />
     </article>
-  );
-}
-function DeleteAccount({ onError }: { onError: (s: string) => void }) {
-  const [open, setOpen] = useState(false),
-    [confirmation, setConfirmation] = useState(""),
-    [requested, setRequested] = useState(false);
-  useEffect(() => {
-    api<{ status: string } | null>("account/deletion")
-      .then((result) => setRequested(Boolean(result)))
-      .catch(() => undefined);
-  }, []);
-  return (
-    <section className="stack">
-      <h2>Account deletion</h2>
-      {requested ? (
-        <p role="status">
-          Your deletion request has been received. Bluebird will confirm completion.
-        </p>
-      ) : !open ? (
-        <button className="danger" onClick={() => setOpen(true)}>
-          Delete account
-        </button>
-      ) : (
-        <form
-          className="stack"
-          onSubmit={async (e) => {
-            e.preventDefault();
-            try {
-              await api("account/deletion", "POST", { confirm: confirmation });
-              setRequested(true);
-            } catch (e) {
-              onError(message(e));
-            }
-          }}
-        >
-          <p>
-            This requests removal of your account and associated personal data. Records required for
-            legal obligations or disputes may be retained as explained in the privacy policy.
-          </p>
-          <label>
-            Type DELETE to confirm
-            <input
-              required
-              pattern="DELETE"
-              value={confirmation}
-              onChange={(e) => setConfirmation(e.target.value)}
-            />
-          </label>
-          <button className="danger">Request account deletion</button>
-          <button type="button" onClick={() => setOpen(false)}>
-            Cancel
-          </button>
-        </form>
-      )}
-    </section>
   );
 }
 createRoot(document.getElementById("root")!).render(<Application />);

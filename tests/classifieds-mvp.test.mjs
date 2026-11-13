@@ -58,6 +58,10 @@ const sellingSource = await read("src/routes/_authenticated/selling.tsx");
 const accountSource = await read("src/routes/_authenticated/account.tsx");
 const accountCenterSource =
   (await read("src/components/account/AccountCenter.tsx")) +
+  (await read("src/components/account/AccountProfileView.tsx")) +
+  (await read("src/components/account/AccountSettingsView.tsx")) +
+  (await read("src/components/account/AccountLayoutView.tsx")) +
+  (await read("src/components/account/AccountViewParts.tsx")) +
   (await read("src/components/account/MessagesSectionView.tsx")) +
   (await read("src/components/account/AccountSectionView.tsx"));
 const accountFunctionsSource = await read("src/lib/account.functions.ts");

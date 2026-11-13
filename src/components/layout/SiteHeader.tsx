@@ -1,3 +1,5 @@
+import { toast } from "sonner";
+import { websiteAccountSignOut } from "@/lib/account-session";
 import { SiteHeaderBar } from "./SiteHeaderBar";
 import { MarketplaceMobileMenu, type MarketplaceMenuLinkProps } from "./MarketplaceMobileMenu";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
@@ -56,9 +58,10 @@ const featuredHeaderCategories = [
 ] as const;
 
 export function SiteHeader() {
-  const { isSignedIn } = useAuth();
+  const { isSignedIn, user } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const signOutInFlight = useRef(false);
   const hydrated = useHydrated();
   const [term, setTerm] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -141,12 +144,20 @@ export function SiteHeader() {
   }
 
   async function signOut() {
+    if (signOutInFlight.current) return;
+    signOutInFlight.current = true;
     setAccountMenuOpen(false);
-    await queryClient.cancelQueries();
-    queryClient.clear();
-    const supabase = await loadSupabase();
-    await supabase.auth.signOut({ scope: "global" });
-    await navigate({ to: "/", replace: true });
+    try {
+      const supabase = await loadSupabase();
+      await websiteAccountSignOut(supabase.auth, user?.id, "local");
+      await queryClient.cancelQueries();
+      queryClient.clear();
+      await navigate({ to: "/", replace: true });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not sign out. Please retry.");
+    } finally {
+      signOutInFlight.current = false;
+    }
   }
 
   return (

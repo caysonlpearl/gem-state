@@ -1,6 +1,6 @@
 # Bluebird native apps: implementation and release ledger
 
-Updated November 12, 2026. This is a source/build milestone, not store approval or a completed beta.
+Updated November 13, 2026. This is a source/build milestone, not store approval or a completed beta.
 
 ## Current result
 
@@ -50,10 +50,10 @@ Provider credits remain visible when shared cards replace the old prototype tile
 
 The sign-in/sign-up/forgot/reset form, phone tab bar, header sizing and mobile category menu also use shared website presenters. The native tab labels/icons/order now follow the website: Home, Search, Sell, Saved, Messages, with account access in the header. This supersedes the prototype's Browse/Saved/Post/Messages/Account arrangement. Auth adapters preserve native callbacks, explicit signup choices and account ownership; the Apple option is the corresponding native requirement.
 
-Remaining parity work includes the full account center and its tabs, account dropdown/unread badges and wider-screen header controls, complete listing-detail body/actions, seller dashboard/navigation/own-listing management and category-specific browse/landing controls. Do not describe these as already migrated. Compare each screen at the same viewport, data and state before beta; record any difference and its reason. Necessary exceptions are permanent app catalog/payment restrictions, native permission prompts, device integrations and phone system boundaries. A proposed design simplification alone is not a reason to diverge.
+Remaining parity work includes the account overview and the remaining account tabs, account dropdown/unread badges and wider-screen header controls, complete listing-detail body/actions, seller dashboard/navigation/own-listing management and category-specific browse/landing controls. Profile and account/security now use shared website presenters. Do not describe the remaining sections as already migrated. Compare each screen at the same viewport, data and state before beta; record any difference and its reason. Necessary exceptions are permanent app catalog/payment restrictions, native permission prompts, device integrations and phone system boundaries. A proposed design simplification alone is not a reason to diverge.
 
 The earlier text-only wordmark and separate listing-card/photo designs are replaced.
-The remaining account presenters, seller management and full account-center framing must
+The remaining account presenters and seller management must
 also reuse the existing website UI before beta. Existing native controllers and phone navigation
 are adapters, not authority to invent a different design. Native notification,
 permission and app catalog differences still follow the approved launch plan.
@@ -69,6 +69,20 @@ The native upload implementation supports the website's JPG/PNG/WebP/PDF and 10 
 Additive API v1 routes are `POST conversations/:id/attachments` (prepare) and `POST conversations/:id/attachments/send` (commit/retry). They reuse the existing private attachment bucket, signed uploads and conversation domain services; there is no new public media bucket or provider request. Install the migration on the verified owning project, record its migration history and privileges, then verify the capability, cross-account/object isolation, upload/receive/open/retry and blocking with test members before release. Abandoned uploads must also be included in media-retention and account-deletion tests before beta.
 
 Storage metadata is read only; files are not deleted by editing `storage.objects`. References used for the implementation: [Supabase Storage schema](https://supabase.com/docs/guides/storage/schema/design), [Storage object metadata types](https://github.com/supabase/storage/blob/master/src/storage/backend/adapter.ts).
+
+## Shared profile, account and security controls
+
+The native account prototype is replaced by the website's actual `AccountLayoutView`, `AccountProfileView`, `AccountSettingsView`, form state and preference presenters. This batch provides profile and account/security sections; the full overview, saved-listings, saved-search, notifications, reviews and listing-management account destinations remain to be connected. Existing Saved and Messages phone-tab journeys continue through their existing controllers. This is an incremental migration toward full parity, not a reduced final account-center scope.
+
+Native profiles support display name, primary market/intent, profile photo upload/removal, seller-profile editing and all five contact preferences. The same forms remain on the website with its existing services and query invalidation. Native links reach the shared seller setup through `/post/profile`. A public website storefront is not a native destination until its eligible inventory and native seller page are implemented; the native public-profile link stays absent rather than opening unfiltered inventory. Admin and paid billing controls remain website destinations. Native email settings preserve the existing billing-receipt preference without exposing the paid upgrade flow.
+
+New API v1 endpoints are `PUT account/profile|avatar`, `GET/PUT account/contact-preferences|notification-preferences`, and `DELETE devices/all`. Authenticated domain services retain ownership/RLS; complete, allowlisted preference objects reject extra fields and partial writes. The server derives onboarding state and identity. No migration or provider request is added by these endpoints. `features.accountControls` marks API support; the new client stops before preference reads when the backend lacks that support. Missing/failed preference reads render a retry state, never editable defaults that could overwrite existing settings.
+
+Profile-photo uploads freeze the form's account/install identity through upload and the subsequent avatar write. An account switch cannot publish the photo on the new member. Refreshing a photo does not reset unsaved profile/contact fields, and failed saves retain edits. Shopping alerts continue using their own server consent, independently of legacy email settings, operating-system phone permission and advertising permission. Profile/email/phone values are not shopper activity or advertising inputs. Password recovery returns through the existing native callback.
+
+Ordinary sign-out on the website and app uses the local Supabase scope; the separate global control revokes the authenticated member's push registrations before global session sign-out. Both clients share owner rechecks and stop when revocation fails. Local token removal remains separate. Auth-provider errors leave an error state; neither action claims that revoked access JWTs expire sooner than the provider's actual behavior. In-app deletion still records a request/status and requires explicit confirmation; full deletion/anonymization processing remains unimplemented and a release blocker. The website account deletion link now reaches the existing dedicated deletion-request route.
+
+Validation includes actual profile/avatar domain handlers with authenticated-owner assertions, native upload account-switch checks, API authentication/terms/deletion/field allowlists, and synthetic browser journeys at 320/390/1280px. They cover unavailable API support, failed preference reads, failed saves, unsaved edits across photo updates, both sign-out scopes, password recovery, separate shopping consent and deletion request acknowledgement. Fixtures create no real accounts, photos, emails, or deletion requests. Run `npm run test:mobile:account:ui`; real signed-in phone and production account journeys remain beta gates.
 
 ## Shared seller setup and listing forms
 
@@ -178,12 +192,12 @@ website view counts.
 
 Authenticated routes include:
 
-- Account and consent: `GET account`, `PUT consent`, `GET/PUT advertising`.
+- Account and consent: `GET account`, `PUT account/profile|avatar`, `GET/PUT account/contact-preferences|notification-preferences`, `PUT consent`, `GET/PUT advertising`.
 - Saves: `GET saved`, `GET saved-state`, `POST saved`.
 - Seller/posting: `GET/POST seller`, `POST listings`, `POST photos/mode|begin|finish`, `POST vehicles/vin`.
 - Messages: `GET/POST conversations`, `GET conversations/:id`,
   `POST conversations/:id/messages|read|block|report`.
-- Controls: `POST reports`, `PUT/DELETE devices`,
+- Controls: `POST reports`, `PUT/DELETE devices`, `DELETE devices/all`,
   `GET/POST account/deletion`.
 
 Terms, alert and device-registration writes use validated, server-derived
@@ -349,8 +363,8 @@ Phase status and concrete outstanding checks:
 - Phase 2: consent/request controls implemented; full deletion, Apple provider,
   accurate policy publication and source-wide moderation remain open.
 - Phase 3: shared service, native adapters, no-fingerprint activity and recommendation
-  UI are implemented and tested. Mobile API deployment, real-account cross-device
-  verification and actual-device behavior remain open.
+  UI are implemented and tested. Stable API publication is verified; real-account
+  cross-device verification and actual-device behavior remain open.
 - Phase 4: push outbox/worker implemented but inactive; credential setup,
   shopping suppression integration, unread state and real-device delivery are
   still open.

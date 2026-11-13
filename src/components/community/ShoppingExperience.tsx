@@ -1,3 +1,4 @@
+import { ShoppingAlertPreferenceView } from "./ShoppingAlertPreferenceView";
 import { SignupShoppingChoices } from "./SignupShoppingChoices";
 export { SignupShoppingChoices } from "./SignupShoppingChoices";
 import { ShoppingPrivacyDialog } from "./ShoppingPrivacyDialog";
@@ -150,6 +151,7 @@ export function ShoppingExperience() {
   );
 }
 export function ShoppingAlertPreference() {
+  const [busy, setBusy] = useState(false);
   const [enabled, setEnabled] = useState(false),
     [ready, setReady] = useState(false),
     [error, setError] = useState("");
@@ -163,31 +165,24 @@ export function ShoppingAlertPreference() {
   }, []);
   if (!ready) return null;
   return (
-    <section className="rounded-2xl border p-5">
-      <h3 className="font-semibold">Shopping emails and notifications</h3>
-      <label className="mt-3 flex items-start gap-3 text-sm">
-        <input
-          type="checkbox"
-          checked={enabled}
-          onChange={async (e) => {
-            const next = e.target.checked;
-            try {
-              await shoppingFetch("consent", { shoppingAlerts: next });
-              setEnabled(next);
-              setError("");
-            } catch {
-              setError("Your preference could not be saved. Please retry.");
-            }
-          }}
-        />
-        <span>Send me personalized emails, notifications and recommendations.</span>
-      </label>
-      {error && (
-        <p role="alert" className="mt-2 text-sm">
-          {error}
-        </p>
-      )}
-    </section>
+    <ShoppingAlertPreferenceView
+      enabled={enabled}
+      error={error}
+      busy={busy}
+      onChange={async (next) => {
+        if (busy) return;
+        setBusy(true);
+        try {
+          await shoppingFetch("consent", { shoppingAlerts: next });
+          setEnabled(next);
+          setError("");
+        } catch {
+          setError("Your preference could not be saved. Please retry.");
+        } finally {
+          setBusy(false);
+        }
+      }}
+    />
   );
 }
 export function PersonalizedShopping() {
