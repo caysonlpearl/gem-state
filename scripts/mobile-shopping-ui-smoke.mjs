@@ -219,7 +219,11 @@ try {
           ...cards.find((card) => card.id === path.slice(9)),
           description: "A synthetic listing for privacy and navigation verification.",
         };
-      else if (path === "similar") data = { cards: [], model: "fixture-v1" };
+      else if (path === "similar")
+        data = {
+          cards: cards.filter((card) => card.id !== url.searchParams.get("listingId")),
+          model: "fixture-similar-fallback",
+        };
       else
         return route.fulfill({
           status: 404,
@@ -348,6 +352,13 @@ try {
     const cutoff = events.length;
     await page.locator(".listing-card").first().click();
     await page.getByRole("heading", { name: "Fixture family car", exact: true }).waitFor();
+    const similar = page
+      .getByRole("heading", { name: "More like this", exact: true })
+      .locator("..");
+    await similar.waitFor();
+    assert.equal(await similar.locator("article").count(), 4);
+    assert.equal(await similar.getByRole("link", { name: "Adzuna", exact: true }).count(), 1);
+    await similar.scrollIntoViewIfNeeded();
     await page.waitForTimeout(3000);
     assert.equal(events.length, cutoff, "Withdrawn personalization stops new detail activity");
     await openPrivacy();
@@ -386,6 +397,7 @@ try {
       visibleProviderCredits: true,
       filtersAuthoritative: true,
       withdrawalStopsActivity: true,
+      nonpersonalizedSimilarFallback: true,
       guestIdentifierReset: true,
       consentOutageKeepsBrowsing: true,
       horizontalOverflow: false,
