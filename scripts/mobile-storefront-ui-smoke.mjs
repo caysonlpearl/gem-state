@@ -444,7 +444,17 @@ try {
       0,
       "General dealer chat does not invent a listing context",
     );
-    await page.getByRole("button", { name: "Report conversation", exact: true }).click();
+    const reportConversation = page.getByRole("button", {
+      name: "Report conversation",
+      exact: true,
+    });
+    await reportConversation.evaluate((node) => node.scrollIntoView({ block: "center" }));
+    const reportBounds = await reportConversation.boundingBox();
+    const tabBounds = await page.locator('nav[aria-label="Primary"]').boundingBox();
+    assert(reportBounds && reportBounds.y >= 0);
+    if (viewport.width < 1024) assert(tabBounds, "Phone navigation remains visible");
+    if (tabBounds) assert(reportBounds.y + reportBounds.height <= tabBounds.y);
+    await reportConversation.click();
     await page
       .getByPlaceholder("Reason for reporting")
       .fill("PRIVATE dealership moderation report");
@@ -569,6 +579,7 @@ try {
       profileFailureRetry: true,
       dealerLostResponseRetry: true,
       dealerConversationReadReplyReport: true,
+      reportClearOfNavigation: true,
       dealerReadinessGate: true,
       accountSwitchIsolation: true,
       guestLoginReturn: true,

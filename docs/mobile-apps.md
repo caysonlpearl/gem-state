@@ -69,6 +69,11 @@ authentication, navigation and analytics adapters. Native adapters use the stabl
 mobile API and native consent/activity code; website browser fingerprinting and
 advertising adapters must never be imported into the app bundle.
 
+Native scroll clearance and toast offsets account for the fixed phone tab bar.
+The storefront regression scrolls the conversation report control into reach,
+asserts that it clears the tab bar, and uses an ordinary click without forcing
+pointer events through an overlay.
+
 `GET home` applies the permanent app catalog boundary before using the website's
 homepage snapshot/initial projection. The app uses the same row allocator and
 seller grouping. Search controls use the shared city/ZIP/region/state parser;

@@ -393,7 +393,7 @@ function Application() {
             ready={bootstrap?.features.notificationCenter === true && !needsTerms}
             revision={revision}
           >
-            <Toaster />
+            <Toaster mobileOffset={{ bottom: "calc(68px + env(safe-area-inset-bottom))" }} />
             <NativeSaveSearchDialog
               request={searchRequest?.owner === session?.user.id ? searchRequest : null}
               onClose={() => setSearchRequest(null)}
