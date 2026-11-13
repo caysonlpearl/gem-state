@@ -102,6 +102,14 @@ const LIVE_ANIMALS =
   /\b(pupp(?:y|ies)|kittens?|gelding|stallion|mare|livestock|chickens?|roosters?|cattle|bull|calf|calves|goats?|sheep|piglets?|rabbits?|live animals?|for adoption|pet adoption)\b/i;
 const QA = /^(qa\b|mvp test\b|resend delivery qa\b)|\bdo not (?:buy|contact)\b/i;
 
+export function restrictedFeedItem(title: string, description: string): boolean {
+  return (
+    QA.test(title) ||
+    RESTRICTED.test(`${title}\n${description}`) ||
+    LIVE_ANIMALS.test(`${title}\n${description}`)
+  );
+}
+
 export type FeedDecision = { product: FeedProduct } | { excluded: string };
 export function productForFeed(
   row: FeedListing,

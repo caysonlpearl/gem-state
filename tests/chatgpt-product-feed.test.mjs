@@ -12,6 +12,7 @@ import {
 } from "../src/lib/chatgpt-product-feed.server.ts";
 
 const now = Date.now();
+const noDealers = async () => ({ products: [], scanned: 0, excluded: {} });
 const seller = { user_id: "seller", display_name: "A public seller", slug: "a-seller" };
 const sellers = new Map([[seller.user_id, seller]]);
 function listing(extra = {}) {
@@ -264,7 +265,7 @@ test("reads every page and only public seller fields without provider calls or m
       listing({ id: `11111111-2222-4333-8444-${String(i).padStart(12, "0")}` }),
     ),
   );
-  const r = await readChatgptProductFeed(db, now);
+  const r = await readChatgptProductFeed(db, now, noDealers);
   assert.equal(r.count, 501);
   assert.deepEqual(
     db.calls.filter((c) => c.table === "asks").map((c) => c.range),
@@ -292,13 +293,22 @@ test("inventory and seller failures produce a non-cacheable 503, never partial o
     database(rows, { failPage: 500 }),
     database([listing()], { failSellers: true }),
   ]) {
-    const response = await chatgptFeedResponse(db);
+    const response = await chatgptFeedResponse(db, noDealers);
     assert.equal(response.status, 503);
     assert.equal(response.headers.get("cache-control"), "no-store");
     assert.ok(!(await response.text()).includes("private database error"));
   }
-  const response = await chatgptFeedResponse(database([listing()]));
+  const response = await chatgptFeedResponse(database([listing()]), noDealers);
   assert.equal(response.status, 200);
   assert.equal(response.headers.get("x-bluebird-feed-items"), "1");
   assert.match(response.headers.get("content-type"), /text\/csv/);
+});
+
+test("dealer source failures cannot replace the complete feed with only native products", async () => {
+  const response = await chatgptFeedResponse(database([listing()]), async () => {
+    throw Error("private dealer error");
+  });
+  assert.equal(response.status, 503);
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.ok(!(await response.text()).includes("private dealer error"));
 });

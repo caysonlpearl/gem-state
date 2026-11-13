@@ -767,3 +767,64 @@ export function marketCheckImagesForCard(listing: ClassifiedCard) {
     ? dedupeMarketCheckImages(marketCheckImages(listing.externalVehicle))
     : [];
 }
+
+/** All saved dealer pages in Bluebird's supported state scope. No provider calls or refresh writes. */
+export async function chatgptCachedDealerVehicles(now = Date.now()): Promise<MarketCheckListing[]> {
+  if (!configured()) throw new Error("Dealer cache configuration is unavailable.");
+  const batches = await Promise.all(
+    ["ID", "UT", "OR", "WA"].map(async (state) => {
+      const rows = await readCachedStateRows(state, "dealer");
+      if (!rows) throw new Error("Dealer cache configuration is unavailable.");
+      return rows
+        .filter((row) => row.expires_at && Date.parse(row.expires_at) > now)
+        .flatMap((row) => repairCachedSearch(row.payload, "dealer").listings)
+        .map(finalizeMarketCheckListing);
+    }),
+  );
+  const byId = new Map(batches.flat().map((vehicle) => [vehicle.id, vehicle]));
+  const vehicles = [...byId.values()];
+  const db = cacheDb();
+  if (!db) throw new Error("Dealer cache configuration is unavailable.");
+  // A revoked direct publication must not reappear through its older aggregator cache.
+  const { data: publications, error: publicationError } = await withCatalogReadDeadline<any>(
+    (signal) =>
+      (db as any)
+        .from("dealer_feed_publications")
+        .select("website")
+        .abortSignal(signal)
+        .retry(false),
+  );
+  if (publicationError || !Array.isArray(publications))
+    throw new Error("Dealer publication holds are unavailable.");
+  const host = (value: string | null | undefined) => {
+    try {
+      return new URL(value ?? "").hostname.toLowerCase().replace(/^www\./, "");
+    } catch {
+      return "";
+    }
+  };
+  const directHosts = new Set(publications.map((row) => host(row.website)).filter(Boolean));
+  const held = new Set<string>();
+  for (let offset = 0; offset < vehicles.length; offset += 500) {
+    const { data, error } = await withCatalogReadDeadline<any>((signal) =>
+      (db as any)
+        .from("partner_vehicle_reports")
+        .select("listing_id")
+        .in(
+          "listing_id",
+          vehicles.slice(offset, offset + 500).map((vehicle) => vehicle.id),
+        )
+        .eq("status", "reviewed")
+        .abortSignal(signal)
+        .retry(false),
+    );
+    if (error || !Array.isArray(data)) throw new Error("Dealer report holds are unavailable.");
+    for (const row of data) held.add(row.listing_id);
+  }
+  return vehicles.filter(
+    (vehicle) =>
+      !held.has(vehicle.id) &&
+      !directHosts.has(host(vehicle.sourceUrl)) &&
+      !directHosts.has(host(vehicle.dealer?.website)),
+  );
+}
