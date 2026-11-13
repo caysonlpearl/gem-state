@@ -13,9 +13,20 @@ const browseSource =
 const serviceRowsSource = await read("src/config/landing-service-rows.ts");
 const displaySource = await read("src/lib/classifieds-display.ts");
 const querySource = await read("src/lib/classifieds-query.ts");
-const createSource = await read("src/routes/_authenticated/create-listing.tsx");
-const listingFormSource = await read("src/components/classifieds/listing-form/ListingForm.tsx");
-const vehicleFieldsSource = await read("src/components/classifieds/listing-form/VehicleFields.tsx");
+const createSource =
+  (await read("src/routes/_authenticated/create-listing.tsx")) +
+  (await read("src/components/seller/CreateListingHeader.tsx"));
+const listingFormSource =
+  (await read("src/components/classifieds/listing-form/ListingForm.tsx")) +
+  (await read("src/components/classifieds/listing-form/ListingFormView.tsx")) +
+  (await read("src/components/classifieds/listing-form/useListingFormState.ts")) +
+  (await read("src/components/classifieds/listing-form/model.ts")) +
+  (await read("src/components/classifieds/listing-form/submission.ts"));
+const vehicleFieldsSource =
+  (await read("src/components/classifieds/listing-form/VehicleFields.tsx")) +
+  (await read("src/components/classifieds/listing-form/VehicleVinLookup.tsx")) +
+  (await read("src/components/classifieds/listing-form/VehicleVinLookupView.tsx")) +
+  (await read("src/components/classifieds/listing-form/vin-fields.ts"));
 const homeFieldsSource = await read("src/components/classifieds/listing-form/HomeFields.tsx");
 const jobFieldsSource = await read("src/components/classifieds/listing-form/JobFields.tsx");
 const serviceFieldsSource = await read("src/components/classifieds/listing-form/ServiceFields.tsx");
@@ -40,7 +51,9 @@ const moderationSource = await read("src/routes/_authenticated/admin.classifieds
 const authenticatedRouteSource = await read("src/routes/_authenticated/route.tsx");
 const authMiddlewareSource = await read("src/integrations/supabase/auth-middleware.ts");
 const sellSource = await read("src/routes/sell.tsx");
-const sellerSetupSource = await read("src/routes/_authenticated/seller-setup.tsx");
+const sellerSetupSource =
+  (await read("src/routes/_authenticated/seller-setup.tsx")) +
+  (await read("src/components/seller/SellerSetupView.tsx"));
 const sellingSource = await read("src/routes/_authenticated/selling.tsx");
 const accountSource = await read("src/routes/_authenticated/account.tsx");
 const accountCenterSource =

@@ -18,6 +18,7 @@ function harness({
   attachments = false,
   generalConversation = false,
   blocked = false,
+  posting = false,
 } = {}) {
   const user = "11111111-1111-4111-8111-111111111111",
     writes = [];
@@ -76,7 +77,10 @@ function harness({
     "./runtime-env.server": { serverEnv: () => undefined },
     "./mobile-api": protocol,
     "./mobile-write": mobileWrite,
-    "./mobile-messaging.server": { mobileAttachmentsReady: async () => attachments },
+    "./mobile-messaging.server": {
+      mobileAttachmentsReady: async () => attachments,
+      mobilePostingReady: async () => posting,
+    },
     "./conversation.functions": {
       getConversation: async ({ data }) => ({
         id: data.id,
@@ -124,7 +128,17 @@ function harness({
         },
       }),
     },
+    "./vehicle.functions": {
+      decodeVehicleVin: async ({ data }) => {
+        writes.push({ kind: "vin", ...data });
+        return { vin: data.vin, fields: { make: "Ford", model: "F-150", year: "2024" } };
+      },
+    },
     "./classifieds.functions": {
+      createClassifiedListing: async ({ data }) => {
+        writes.push({ kind: "listing", ...data });
+        return { listingId: "fixture-listing" };
+      },
       loadMobileBrowseInventory: async () => {
         writes.push("catalog_read");
         return { listings: [], page: 1, pageSize: 24, total: 0 };
@@ -335,4 +349,44 @@ test("native attachment preparation returns the shared block state without issui
   assert.equal(r.status, 403);
   assert.equal((await r.json()).error.code, "conversation_unavailable");
   assert.deepEqual(h.writes, []);
+});
+
+test("native VIN and durable posting validate inputs, scope retry headers and fail closed before writes", async () => {
+  const key = crypto.randomUUID();
+  const h = harness({ posting: true });
+  assert.equal((await h.request("vehicles/vin", "POST", { vin: "not-valid" })).status, 400);
+  assert.equal(h.writes.length, 0);
+  assert.equal((await h.request("vehicles/vin", "POST", { vin: "1FTFW1E50JFA00001" })).status, 200);
+  assert.equal(h.writes[0].kind, "vin");
+  const payload = {
+    title: "Fixture desk",
+    description: "Local desk for sale",
+    category: "furniture",
+    requestId: "forged",
+  };
+  assert.equal(
+    (await h.request("listings", "POST", payload, "valid", { "Idempotency-Key": key })).status,
+    200,
+  );
+  assert.equal(h.writes[1].requestId, key);
+  const off = harness();
+  assert.equal(
+    (await off.request("listings", "POST", payload, "valid", { "Idempotency-Key": key })).status,
+    503,
+  );
+  assert.deepEqual(off.writes, []);
+  assert.equal(
+    (
+      await h.request("listings", "POST", { ...payload, category: "firearms" }, "valid", {
+        "Idempotency-Key": key,
+      })
+    ).status,
+    400,
+  );
+  const noUser = harness();
+  assert.equal(
+    (await noUser.request("vehicles/vin", "POST", { vin: "1FTFW1E50JFA00001" }, null)).status,
+    401,
+  );
+  assert.deepEqual(noUser.writes, []);
 });

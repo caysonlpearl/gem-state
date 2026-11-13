@@ -38,3 +38,5 @@ jobs:
         run: npm run test:mobile:auth:ui
       - name: Verify shared conversation screens and account-scoped message retries
         run: npm run test:mobile:messages:ui
+      - name: Verify shared seller and listing forms with durable posting recovery
+        run: npm run test:mobile:posting:ui

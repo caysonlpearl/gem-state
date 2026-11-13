@@ -432,7 +432,7 @@ function Application() {
             key={session!.user.id}
             ownerId={session!.user.id}
             bootstrap={bootstrap}
-            onPublished={(id) => go(`/listings/${id}`)}
+            onSubmitted={() => setRevision((value) => value + 1)}
           />
         ) : path.startsWith("/messages") ? (
           <NativeMessages
