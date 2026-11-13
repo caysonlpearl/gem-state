@@ -150,6 +150,15 @@ async function fixture() {
   await db.exec(`create function extensions.test_distance(double precision[],double precision[]) returns double precision language sql immutable as $$select 0.0::double precision$$;
  create operator extensions.<=> (leftarg=double precision[],rightarg=double precision[],function=extensions.test_distance);`);
   await db.exec(sql);
+  await db.exec(
+    readFileSync(
+      new URL(
+        "../supabase/migrations/20261113023000_shopping_durable_choices.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
   const user = randomUUID();
   await db.query("insert into auth.users(id) values($1)", [user]);
   return { db, user, subject: "u:" + user };
@@ -291,6 +300,58 @@ test("late favorite and advertising writes cannot recreate optional tracking aft
     );
     assert.equal((await db.query("select count(*)::int n from shopping_favorites")).rows[0].n, 0);
     assert.equal((await db.query("select count(*)::int n from shopping_ad_outbox")).rows[0].n, 0);
+  } finally {
+    await db.close();
+  }
+});
+
+test("durable choices and reminder completion survive disposable history cleanup, then clear with withdrawal", async () => {
+  const { db, user, subject } = await fixture();
+  try {
+    await db.query("select set_shopping_privacy($1,$2,true,false,'v1')", [subject, user]);
+    await db.query("select set_shopping_account($1,true,true,'v1')", [user]);
+    const event = async (kind, at) =>
+      db.query(
+        "insert into shopping_events(id,subject,user_id,session_id,kind,listing_id,occurred_at) values($1,$2,$3,$1,$4,'dealerfeed-a',$5)",
+        [randomUUID(), subject, user, kind, at],
+      );
+    const now = Date.now();
+    await event("dismiss", new Date(now).toISOString());
+    await event("save", new Date(now - 1000).toISOString());
+    assert.equal(
+      (await db.query("select dismissed from shopping_choices")).rows[0].dismissed,
+      true,
+      "an older arriving save cannot undo dismissal",
+    );
+    await event("purchase", new Date(now).toISOString());
+    const payload = JSON.stringify({ interest_at: now - 7 * 86400000, step: 7 });
+    await db.query(
+      "insert into shopping_queue(user_id,listing_id,kind,event_key,payload) values($1,'dealerfeed-a','reminder','sequence',$2)",
+      [user, payload],
+    );
+    await db.exec("update shopping_queue set status='sent'");
+    await db.exec("delete from shopping_queue; delete from shopping_events;");
+    let state = (await db.query("select * from shopping_choices")).rows[0];
+    assert.equal(state.reminder_step, 7);
+    assert.equal(Number(state.reminder_anchor), now - 7 * 86400000);
+    assert.equal(state.dismissed, true);
+    assert.ok(state.purchased_at);
+    assert.equal(
+      (
+        await db.query(
+          "select has_table_privilege('authenticated','shopping_choices','select') allowed",
+        )
+      ).rows[0].allowed,
+      false,
+    );
+    await db.query("select set_shopping_privacy($1,$2,false,false,'v1')", [subject, user]);
+    assert.equal((await db.query("select count(*)::int n from shopping_choices")).rows[0].n, 0);
+    await event("dismiss", new Date(now).toISOString());
+    assert.equal(
+      (await db.query("select count(*)::int n from shopping_choices")).rows[0].n,
+      0,
+      "withdrawn tracking cannot recreate choices",
+    );
   } finally {
     await db.close();
   }

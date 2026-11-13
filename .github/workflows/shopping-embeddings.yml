@@ -27,7 +27,7 @@ jobs:
         run: |
           python - <<'PYTHON'
           import json,os,urllib.request
-          request=urllib.request.Request('https://onbluebird.com/api/internal/shopping-embeddings',headers={'Authorization':'Bearer '+os.environ['SHOPPING_JOB_SECRET']})
+          request=urllib.request.Request('https://onbluebird.com/api/internal/shopping-embeddings',headers={'Authorization':'Bearer '+os.environ['SHOPPING_JOB_SECRET'],'User-Agent':'Bluebird-Shopping-Embedding-Worker/1.0'})
           with urllib.request.urlopen(request,timeout=90) as response:
               changed=bool(json.load(response)['items'])
           with open(os.environ['GITHUB_OUTPUT'],'a') as output:

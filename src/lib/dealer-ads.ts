@@ -1,3 +1,4 @@
+import { SHOPPING_POLICY_VERSION } from "./shopping-contract.ts";
 import type { ContactAcknowledgement } from "./contact-contract.ts";
 import { isInternalAnalyticsQuery } from "./analytics-policy.ts";
 
@@ -30,6 +31,8 @@ export function trackDealerLead(acknowledgement: ContactAcknowledgement): boolea
   )
     return false;
   try {
+    const privacy = JSON.parse(w.localStorage.getItem("bb.shopping.privacy.v1") ?? "null");
+    if (privacy?.version !== SHOPPING_POLICY_VERSION || privacy.advertising !== true) return false;
     if (!w.oaiq) {
       const queue: PixelQueue = (...args: unknown[]) => {
         queue.q!.push(args);
