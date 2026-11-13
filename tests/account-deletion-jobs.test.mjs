@@ -231,6 +231,7 @@ test("worker executes only its leased phase and retries without exposing private
     retries = [];
   const queue = {
     claim: async () => job,
+    assertBoundaries: async () => {},
     advance: async () => {
       checkpoints++;
       return true;
@@ -306,6 +307,7 @@ test("missing cleanup adapters and malformed results cannot advance, and short l
     calls = 0;
   const queue = {
     claim: async () => job,
+    assertBoundaries: async () => {},
     advance: async () => {
       writes++;
       return true;
@@ -319,8 +321,13 @@ test("missing cleanup adapters and malformed results cannot advance, and short l
   assert.equal(writes, 0);
   assert.equal(retries, 1);
   assert.equal(
-    (await runAccountDeletion(queue, { verification: async () => ({ done: "yes" }) }, () => now))
-      .status,
+    (
+      await runAccountDeletion(
+        queue,
+        Object.fromEntries(deletionPhases.map((phase) => [phase, async () => ({ done: "yes" })])),
+        () => now,
+      )
+    ).status,
     "retry",
   );
   assert.equal(writes, 0);

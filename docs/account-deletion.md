@@ -210,3 +210,36 @@ Apple/provider revocation, media/record cleanup, identity removal and independen
 final verification adapters remain required before enabling the erasure worker.
 The account batch uses API release marker `2026-11-13-deletion-queue`; publication
 must be verified separately from database installation or a pending deploy request.
+
+## Server queue connection — November 13, 2026
+
+`account-deletion-queue.server.ts` connects the processor to the installed
+service-only claim, checkpoint and retry RPCs. It accepts an explicitly supplied
+privileged server client and has no startup side effects. Every RPC has a
+15-second cancellation deadline. The adapter validates claimed targets, phases,
+leases and response types; a stale lease stays unsuccessful rather than being
+treated as a completed write. Provider/SQL failure details never enter stored
+error codes. Phase adapters receive only an immutable job contract, excluding
+arbitrary fields returned with a queue row.
+
+The processor requires all six cleanup functions before starting any phase. It
+checks the database's three access-boundary counters immediately before work and
+again before saving progress, including during final verification. All counters
+must be numeric zero with the expected response shape. Failed, cancelled,
+missing or newly introduced coverage checks prevent progress. A cleanup adapter
+must still independently bound and settle every operation, honor cancellation,
+preserve replay-safe receipts and verify its own cleanup result; the queue does
+not provide those domain implementations.
+
+Tests connect the actual TypeScript adapter and processor to the actual migration
+SQL in a disposable database under service-role permissions. They exercise the
+disabled-worker default, retry delay, stale leases, every phase, refusal to finish
+while an Auth identity exists, target-free completion receipts and another
+member's preservation. A new member-callable function introduced during cleanup
+prevents the checkpoint and blocks later work until coverage is repaired.
+Malformed responses, private provider errors, missing future adapters, cancelled
+checks and attempted target mutation also fail closed. Only synthetic identities
+are removed in these local tests.
+
+This batch adds no migration, scheduler, worker activation or production erasure.
+The real cleanup adapters and independent final verifier remain outstanding.
