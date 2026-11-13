@@ -1,6 +1,13 @@
 import { api } from "./client";
 import { installIdentifier } from "./identity";
 
+export type MobileMessagePayload = {
+  body: string;
+  listingId?: string;
+  attachmentPath?: string;
+  attachmentContentType?: string;
+  attachmentSize?: number;
+};
 type Attempt = { signature: string; id: string };
 const memory = new Map<string, Attempt>();
 const sending = new Map<string, { payload: string; promise: Promise<unknown> }>();
@@ -9,7 +16,7 @@ const sending = new Map<string, { payload: string; promise: Promise<unknown> }>(
 export function sendMessageOnce<T>(
   userId: string,
   path: string,
-  payload: { body: string; listingId?: string },
+  payload: MobileMessagePayload,
 ): Promise<T> {
   const scope = `${userId}:${path}`;
   const current = sending.get(scope);
@@ -27,11 +34,7 @@ export function sendMessageOnce<T>(
   void promise.then(finished, finished);
   return promise;
 }
-async function sendAttempt<T>(
-  userId: string,
-  path: string,
-  payload: { body: string; listingId?: string },
-) {
+async function sendAttempt<T>(userId: string, path: string, payload: MobileMessagePayload) {
   const actor = { userId, installId: installIdentifier() };
   const key = `bb-draft-retry-${userId}-${path}`;
   const bytes = new TextEncoder().encode(JSON.stringify(payload));

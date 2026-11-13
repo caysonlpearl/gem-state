@@ -26,6 +26,14 @@ async function domain(fn: any, data?: unknown): Promise<any> {
     return await fn(data === undefined ? undefined : { data });
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
+    if (/^Messaging is unavailable for this conversation\.?$/.test(message))
+      throw new MobileApiError(
+        403,
+        "conversation_unavailable",
+        "Messaging is unavailable for this conversation.",
+      );
+    if (message === "Attachment upload is incomplete.")
+      throw new MobileApiError(409, "attachment_upload_missing", message);
     if (/unauthorized/i.test(message))
       throw new MobileApiError(401, "sign_in_required", "Please sign in again.");
     // Domain validation errors are useful, but database/provider diagnostics are not a public API.
@@ -287,6 +295,9 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
       supabaseUrl,
       supabaseKey,
       features: {
+        conversationAttachments: await (
+          await import("./mobile-messaging.server")
+        ).mobileAttachmentsReady(),
         paidUpgrades: false,
         push:
           serverEnv("BLUEBIRD_MOBILE_PUSH_ENABLED") === "true" &&
@@ -632,6 +643,42 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
       listingId: card.id,
       body: body.body,
       requestId: mobileWriteId(request.headers.get("Idempotency-Key")),
+    });
+  }
+  const attachmentMatch = /^conversations\/([0-9a-f-]{36})\/(attachments|attachments\/send)$/.exec(
+    path,
+  );
+  if (method === "POST" && attachmentMatch) {
+    const id = z.string().uuid().parse(attachmentMatch[1]);
+    await allowedConversation(id);
+    if (!(await (await import("./mobile-messaging.server")).mobileAttachmentsReady()))
+      throw new MobileApiError(
+        503,
+        "attachments_unavailable",
+        "Attachments are temporarily unavailable. You can still send a message.",
+      );
+    const f = await import("./conversation.functions");
+    if (attachmentMatch[2] === "attachments")
+      return domain(f.createConversationAttachmentUpload, {
+        conversationId: id,
+        fileName: body.fileName,
+        contentType: body.contentType,
+        size: body.size,
+      });
+    const requestId = mobileWriteId(request.headers.get("Idempotency-Key"));
+    if (!requestId)
+      throw new MobileApiError(
+        400,
+        "request_id_required",
+        "Please retry your attachment from the app.",
+      );
+    return domain(f.sendConversationMessageWithAttachment, {
+      conversationId: id,
+      body: body.body,
+      attachmentPath: body.attachmentPath,
+      attachmentContentType: body.attachmentContentType,
+      attachmentSize: body.attachmentSize,
+      requestId,
     });
   }
   const actionMatch = /^conversations\/([0-9a-f-]{36})\/(messages|read|block|report)$/.exec(path);

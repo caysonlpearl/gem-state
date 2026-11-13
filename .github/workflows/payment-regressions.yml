@@ -36,3 +36,5 @@ jobs:
         run: npm run test:mobile:shopping:ui
       - name: Verify shared website navigation and native authentication screens
         run: npm run test:mobile:auth:ui
+      - name: Verify shared conversation screens and account-scoped message retries
+        run: npm run test:mobile:messages:ui

@@ -188,38 +188,6 @@
   .description {
     white-space: pre-wrap;
   }
-  .conversation {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 5px;
-    text-align: left;
-  }
-  .conversation span {
-    font-size: 12px;
-  }
-  .messages {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-  .message {
-    padding: 13px;
-    border: 1px solid #e0e0dd;
-    background: #fff;
-    border-radius: 10px;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-  }
-  .message strong {
-    font-size: 12px;
-  }
-  .message p {
-    margin: 6px 0;
-  }
-  .message small {
-    font-size: 10px;
-  }
   fieldset {
     border: 1px solid #d8d9d9;
     border-radius: 9px;

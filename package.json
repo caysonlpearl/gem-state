@@ -29,7 +29,8 @@
     "test:mobile": "node --experimental-strip-types --test tests/mobile-*.test.mjs",
     "test:mobile:ui": "node scripts/mobile-ui-smoke.mjs",
     "test:mobile:shopping:ui": "node --experimental-strip-types scripts/mobile-shopping-ui-smoke.mjs",
-    "test:mobile:auth:ui": "node scripts/mobile-auth-ui-smoke.mjs"
+    "test:mobile:auth:ui": "node scripts/mobile-auth-ui-smoke.mjs",
+    "test:mobile:messages:ui": "node scripts/mobile-messages-ui-smoke.mjs"
   },
   "overrides": {
     "rolldown": "1.2.1"

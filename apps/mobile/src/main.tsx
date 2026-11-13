@@ -1,10 +1,8 @@
+import { NativeMessages } from "./Messages";
+import { clearConversationAttachmentMemory } from "./conversation-attachments";
 /* eslint-disable react-refresh/only-export-components -- application entrypoint mounts its local screens. */
 import { useEffect, useState, useRef, type FormEvent } from "react";
 import { createRoot } from "react-dom/client";
-import type {
-  ConversationSummary,
-  ConversationDetail,
-} from "../../../src/lib/conversation.functions";
 import type { MobileAdConsent } from "../../../src/lib/mobile-advertising";
 import type { Session } from "@supabase/supabase-js";
 import { Capacitor } from "@capacitor/core";
@@ -113,6 +111,7 @@ function Application() {
           if (!alive) return;
           if (next?.user.id !== priorUserId) {
             clearMessageRetries();
+            clearConversationAttachmentMemory();
             setAccount(null);
             setAlerts(false);
             void disableAdvertising();
@@ -436,12 +435,14 @@ function Application() {
             onPublished={(id) => go(`/listings/${id}`)}
           />
         ) : path.startsWith("/messages") ? (
-          <Messages
-            key={`${session?.user.id}:${path}`}
+          <NativeMessages
+            key={session!.user.id}
             ownerId={session!.user.id}
             id={path.split("/")[2]}
             revision={revision}
-            onError={setError}
+            attachmentsEnabled={bootstrap.features.conversationAttachments === true}
+            onOpen={(id) => go(`/messages/${id}`)}
+            onBrowse={() => go("/search")}
           />
         ) : path === "/account" ? (
           <section className="stack">
@@ -1058,164 +1059,6 @@ function Listing({
         onOpen={(next) => go(`/listings/${next}`)}
       />
     </article>
-  );
-}
-function Messages({
-  ownerId,
-  id,
-  revision,
-  onError,
-}: {
-  ownerId: string;
-  id?: string;
-  revision: number;
-  onError: (s: string) => void;
-}) {
-  const [data, setData] = useState<ConversationSummary[] | ConversationDetail | null>(null),
-    [body, setBody] = useState(""),
-    [refresh, setRefresh] = useState(0),
-    [busy, setBusy] = useState(false),
-    [error, setError] = useState("");
-  useEffect(() => {
-    try {
-      setBody(sessionStorage.getItem(`bb-draft-message-${ownerId}-${id}`) ?? "");
-    } catch {
-      /* storage optional */
-    }
-  }, [id, ownerId]);
-  const updateBody = (value: string) => {
-    setBody(value);
-    try {
-      sessionStorage.setItem(`bb-draft-message-${ownerId}-${id}`, value);
-    } catch {
-      /* storage optional */
-    }
-  };
-  useEffect(() => {
-    setData(null);
-    setError("");
-    let alive = true;
-    const load = () =>
-      api<ConversationSummary[] | ConversationDetail>(id ? `conversations/${id}` : "conversations")
-        .then((d) => {
-          if (alive) setData(d);
-        })
-        .catch((e) => {
-          if (alive) setError(message(e));
-        });
-    void load();
-    const timer = setInterval(load, 15000);
-    return () => {
-      alive = false;
-      clearInterval(timer);
-    };
-  }, [id, refresh, revision]);
-  const action = async (type: string, payload: object = {}) => {
-    if (!id) return;
-    setBusy(true);
-    try {
-      if (type === "messages")
-        await sendMessageOnce(ownerId, `conversations/${id}/messages`, payload as { body: string });
-      else await api(`conversations/${id}/${type}`, "POST", payload);
-      if (type === "block") go("/messages");
-      else {
-        updateBody("");
-        setRefresh((v) => v + 1);
-      }
-    } catch (e) {
-      onError(message(e));
-    } finally {
-      setBusy(false);
-    }
-  };
-  const detail = data && !Array.isArray(data) ? data : null;
-  const summaries = Array.isArray(data) ? data : [];
-  const messageCount = detail?.messages.length ?? 0;
-  useEffect(() => {
-    if (id && messageCount) void api(`conversations/${id}/read`, "POST", {}).catch(() => undefined);
-  }, [id, messageCount]);
-  return (
-    <section className="stack">
-      <h1>{id ? detail?.listingTitle || "Conversation" : "Messages"}</h1>
-      {error && (
-        <p role="alert" className="error">
-          {error}
-        </p>
-      )}
-      {!data && !error && <p role="status">Loading messages…</p>}
-      {data &&
-        !id &&
-        (summaries.length ? (
-          summaries.map((c) => (
-            <button className="conversation" key={c.id} onClick={() => go(`/messages/${c.id}`)}>
-              <strong>
-                {c.otherMemberName}
-                {c.unread ? " · New" : ""}
-              </strong>
-              <span>{c.listingTitle}</span>
-            </button>
-          ))
-        ) : (
-          <p>Your conversations with buyers and sellers will appear here.</p>
-        ))}
-      {id && detail?.messages && (
-        <>
-          <div className="messages">
-            {detail.messages.map((m) => (
-              <div className="message" key={m.id}>
-                <strong>{m.senderLabel || "Bluebird member"}</strong>
-                <p>{m.body}</p>
-                <small>{new Date(m.createdAt).toLocaleString()}</small>
-              </div>
-            ))}
-          </div>
-          <form
-            className="stack"
-            onSubmit={(e) => {
-              e.preventDefault();
-              void action("messages", { body });
-            }}
-          >
-            <label>
-              Reply
-              <textarea
-                required
-                value={body}
-                maxLength={4000}
-                onChange={(e) => updateBody(e.target.value)}
-              />
-            </label>
-            <button className="primary" disabled={busy}>
-              Send reply
-            </button>
-          </form>
-          <div className="actions">
-            <button
-              disabled={busy}
-              onClick={() => {
-                if (
-                  confirm(
-                    "Block this member? They will no longer be able to send messages in this conversation.",
-                  )
-                )
-                  void action("block");
-              }}
-            >
-              Block member
-            </button>
-            <button
-              disabled={busy}
-              onClick={() => {
-                const reason = prompt("Tell Bluebird why you are reporting this conversation.");
-                if (reason) void action("report", { reason });
-              }}
-            >
-              Report conversation
-            </button>
-          </div>
-        </>
-      )}
-    </section>
   );
 }
 function DeleteAccount({ onError }: { onError: (s: string) => void }) {
