@@ -327,3 +327,33 @@ test("a homes-source outage cannot restore previews from a snapshot before the c
   });
   assert.equal(current.sections.homes.cards[0].id, "preview-only-home");
 });
+
+test("full shopping coverage bounds concurrent source reads and preserves a failed source without extending its freshness", async () => {
+  let active = 0,
+    peak = 0;
+  const now = Date.now();
+  const sources = Object.fromEntries(
+    HOME_SOURCE_KEYS.map((key) => [
+      key,
+      async () => {
+        active++;
+        peak = Math.max(peak, active);
+        await new Promise((resolve) => setTimeout(resolve, 2));
+        active--;
+        if (key === "homes") throw Error("Cache read timeout");
+        return { cards: [card(`capacity-${key}`)] };
+      },
+    ]),
+  );
+  const previous = snapshot(now - 1000);
+  previous.sections.homes = { ...previous.sections.native };
+  const next = await buildHomepageSnapshot(
+    previous,
+    { sources, removed: async () => new Set(), now },
+    true,
+  );
+  assert.equal(peak, 1);
+  assert.equal(next.sections.homes.updatedAt, previous.sections.homes.updatedAt);
+  assert.equal(next.sourceFailures.homes.reason, "timeout");
+  assert.equal(next.sections.vehicles.cards.length, 1);
+});

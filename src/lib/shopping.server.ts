@@ -559,6 +559,7 @@ export async function syncShoppingInventory(db: any) {
         catalogStatus: {
           at: new Date().toISOString(),
           sourceFailures: failedSources,
+          sourceStatus: snapshot.sourceFailures ?? {},
           observed: cards.size,
           elapsedMs: Date.now() - startedAt,
         },
