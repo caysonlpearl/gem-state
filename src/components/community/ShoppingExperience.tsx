@@ -10,7 +10,6 @@ import {
   shoppingFetch,
   shoppingPrivacy,
   shoppingTrack,
-  flushShopping,
   startShopping,
 } from "@/lib/shopping-client";
 import { SHOPPING_POLICY_VERSION, type ShoppingCard } from "@/lib/shopping-contract";
@@ -187,14 +186,12 @@ export function ShoppingAlertPreference() {
 }
 export function PersonalizedShopping() {
   const [enabled, setEnabled] = useState(false),
-    [revision, setRevision] = useState(0),
-    [dismissed, setDismissed] = useState<string[]>([]);
+    [revision, setRevision] = useState(0);
   const cache = useQueryClient();
   useEffect(() => {
     const update = () => {
       setEnabled(shoppingPrivacy().personalization);
       cache.removeQueries({ queryKey: ["personalized-shopping"] });
-      setDismissed([]);
       setRevision((r) => r + 1);
     };
     update();
@@ -224,44 +221,30 @@ export function PersonalizedShopping() {
           <section key={title as string}>
             <h2 className="mb-4 text-lg font-semibold">{title as string}</h2>
             <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-              {(items as ShoppingCard[])
-                .filter((c) => !dismissed.includes(c.id))
-                .slice(0, 4)
-                .map((card, index) => (
-                  <div
-                    key={card.id}
-                    onClick={() =>
-                      shoppingTrack("recommendation_click", card.id, {
-                        placement: title,
-                        position: index,
-                        model: result.data.model,
-                      })
-                    }
-                  >
-                    <ListingCard
-                      listing={card as unknown as ListingCardSummary}
-                      shoppingContext={{
-                        placement: title,
-                        position: index,
-                        model: result.data.model,
-                        source: "recommendation",
-                        ...((card.shoppingFeatures as Record<string, number>) ?? {}),
-                      }}
-                    />
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDismissed((ids) => [...ids, card.id]);
-                        shoppingTrack("dismiss", card.id);
-                        void flushShopping().then(() => result.refetch());
-                      }}
-                      className="mt-2 text-xs text-muted-foreground underline"
-                    >
-                      Not interested
-                    </button>
-                  </div>
-                ))}
+              {(items as ShoppingCard[]).slice(0, 4).map((card, index) => (
+                <div
+                  key={card.id}
+                  className="flex min-w-0 flex-col [&>article]:flex-1"
+                  onClick={() =>
+                    shoppingTrack("recommendation_click", card.id, {
+                      placement: title,
+                      position: index,
+                      model: result.data.model,
+                    })
+                  }
+                >
+                  <ListingCard
+                    listing={card as unknown as ListingCardSummary}
+                    shoppingContext={{
+                      placement: title,
+                      position: index,
+                      model: result.data.model,
+                      source: "recommendation",
+                      ...((card.shoppingFeatures as Record<string, number>) ?? {}),
+                    }}
+                  />
+                </div>
+              ))}
             </div>
           </section>
         ) : null,

@@ -477,6 +477,8 @@ try {
       name: "Report conversation",
       exact: true,
     });
+    // Wait for pending navigation scroll restoration and a stable, unobstructed control.
+    await reportConversation.click({ trial: true });
     let reportBounds,
       tabBounds,
       reportReachable = false;
