@@ -31,6 +31,8 @@ in the release record; local runtime success alone is not a live deployment.
 
 ## Shared website design
 
+The app must match the phone website as closely as possible in every aspect: layout, wording, imagery, controls, spacing, navigation, content, and behavior. Reuse actual screens/presenters rather than rebuilding a lookalike. This is a release acceptance requirement, not a loose branding preference.
+
 The existing website is the visual source of truth. Do not create a separate
 mobile visual system. The native app imports the website stylesheet, self-hosted
 fonts, BrandMark, category artwork, MarketplaceHero, HomeSearchDropdown,
@@ -45,6 +47,10 @@ homepage snapshot/initial projection. The app uses the same row allocator and
 seller grouping. Search controls use the shared city/ZIP/region/state parser;
 explicit searches and sorting still use the complete cached browse service.
 Provider credits remain visible when shared cards replace the old prototype tiles.
+
+The sign-in/sign-up/forgot/reset form, phone tab bar, header sizing and mobile category menu also use shared website presenters. The native tab labels/icons/order now follow the website: Home, Search, Sell, Saved, Messages, with account access in the header. This supersedes the prototype's Browse/Saved/Post/Messages/Account arrangement. Auth adapters preserve native callbacks, explicit signup choices and account ownership; the Apple option is the corresponding native requirement.
+
+Remaining parity work includes the full account center and its tabs, account dropdown/unread badges and wider-screen header controls, conversation presenter, complete listing-detail body/actions, full posting/seller forms and category-specific browse/landing controls. Do not describe these as already migrated. Compare each screen at the same viewport, data and state before beta; record any difference and its reason. Necessary exceptions are permanent app catalog/payment restrictions, native permission prompts, device integrations and phone system boundaries. A proposed design simplification alone is not a reason to diverge.
 
 The earlier text-only wordmark and separate listing-card/photo designs are replaced.
 The remaining account, posting and messaging presenters must also move toward the

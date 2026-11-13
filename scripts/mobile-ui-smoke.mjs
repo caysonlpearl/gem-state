@@ -51,9 +51,9 @@ try {
     );
     await page.getByRole("button", { name: "Search", exact: true }).click();
     assert.equal((await queryResponse).status(), 200);
-    await page.getByRole("button", { name: "Account", exact: true }).click();
-    await page.getByRole("heading", { name: "Welcome back" }).waitFor();
-    await page.getByRole("button", { name: "Create an account", exact: true }).click();
+    await page.getByRole("button", { name: "Sign in", exact: true }).click();
+    await page.getByRole("heading", { name: "Sign in to Bluebird Marketplace" }).waitFor();
+    await page.getByRole("button", { name: "Need an account? Create one", exact: true }).click();
     assert.equal(await page.getByRole("checkbox").count(), 2);
     assert.equal(await page.getByRole("checkbox").nth(1).isChecked(), false);
     assert.equal(

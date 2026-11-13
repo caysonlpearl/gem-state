@@ -166,7 +166,8 @@ try {
     await page.getByRole("heading", { name: /^Find / }).waitFor();
     await page.waitForTimeout(3000);
     assert.equal(events.length, 0, "No activity before personalization permission");
-    await page.getByRole("button", { name: "Privacy", exact: true }).click();
+    await page.getByRole("button", { name: "Open menu", exact: true }).click();
+    await page.getByRole("button", { name: "Privacy choices", exact: true }).click();
     const dialog = page.getByRole("dialog");
     await dialog.getByRole("checkbox").click();
     await page.waitForFunction(() => document.querySelector("dialog input")?.checked === true);
@@ -210,7 +211,8 @@ try {
       .getByRole("heading", { name: "Recommended for you", exact: true })
       .waitFor({ state: "hidden" });
     await page.getByLabel("Sort listings", { exact: true }).selectOption("newest");
-    await page.getByRole("button", { name: "Privacy", exact: true }).click();
+    await page.getByRole("button", { name: "Open menu", exact: true }).click();
+    await page.getByRole("button", { name: "Privacy choices", exact: true }).click();
     await dialog.getByRole("checkbox").click();
     await page.waitForFunction(() => document.querySelector("dialog input")?.checked === false);
     await dialog.getByRole("button", { name: "Done", exact: true }).click();
@@ -223,7 +225,8 @@ try {
     await page.getByRole("heading", { name: "Fixture family car", exact: true }).waitFor();
     await page.waitForTimeout(3000);
     assert.equal(events.length, cutoff, "Withdrawn personalization stops new detail activity");
-    await page.getByRole("button", { name: "Privacy", exact: true }).click();
+    await page.getByRole("button", { name: "Open menu", exact: true }).click();
+    await page.getByRole("button", { name: "Privacy choices", exact: true }).click();
     const oldInstall = await page.evaluate(() =>
       localStorage.getItem("bluebird-mobile-install-v1"),
     );
@@ -242,10 +245,11 @@ try {
     );
     consentUnavailable = true;
     await page.reload();
-    await page.getByRole("button", { name: "Privacy", exact: true }).click();
+    await page.getByRole("button", { name: "Open menu", exact: true }).click();
+    await page.getByRole("button", { name: "Privacy choices", exact: true }).click();
     await dialog.getByText("Privacy choices could not be loaded.", { exact: true }).waitFor();
     await dialog.getByRole("button", { name: "Done", exact: true }).click();
-    await page.getByRole("button", { name: "Browse", exact: true }).click();
+    await page.locator('header a[href="#/"]').click();
     await page.getByRole("heading", { name: /^Find / }).waitFor();
     await page.locator(".listing-card").first().waitFor();
     assert.deepEqual(errors, []);

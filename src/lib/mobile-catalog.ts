@@ -1,3 +1,4 @@
+import { classifiedCategories } from "../config/classifieds.ts";
 import type { ListingCardSummary } from "./listing-card-summary";
 import { mobileListingAllowed } from "./mobile-contract.ts";
 import { homepagePayload, type HomepageSnapshot } from "./homepage-snapshot-contract.ts";
@@ -22,6 +23,7 @@ export function mobileHomepage(snapshot: HomepageSnapshot, now = Date.now()) {
 type Filters = {
   q?: string;
   category?: string;
+  group?: string;
   city?: string;
   region?: string;
   postalCode?: string;
@@ -37,6 +39,7 @@ export function mobileSnapshotFirst(filters: Filters) {
   return (
     !filters.q?.trim() &&
     !filters.category &&
+    !filters.group &&
     !filters.city &&
     !filters.region &&
     !filters.postalCode &&
@@ -64,6 +67,10 @@ export function mobileCachedBrowse(
       mobileListingAllowed(card) &&
       (!card.externalHome?.cacheExpiresAt || Date.parse(card.externalHome.cacheExpiresAt) > now) &&
       (!filters.category || card.categorySlug === filters.category) &&
+      (!filters.group ||
+        classifiedCategories.some(
+          (c) => c.slug === card.categorySlug && c.group === filters.group,
+        )) &&
       (!filters.city || String(card.city).toLowerCase() === filters.city.toLowerCase()) &&
       (!filters.state || String(card.state).toLowerCase() === filters.state.toLowerCase()) &&
       (!filters.region || card.region === filters.region) &&

@@ -14,14 +14,14 @@
     margin: 0;
   }
   button,
-  input:not([class]),
+  input:not([class]):not([type="checkbox"]),
   select:not([class]),
   textarea:not([class]) {
     font: inherit;
   }
   button,
   a,
-  input:not([class]),
+  input:not([class]):not([type="checkbox"]),
   select:not([class]),
   textarea:not([class]) {
     -webkit-tap-highlight-color: transparent;
@@ -55,49 +55,28 @@
   a {
     color: #274c70;
   }
-  .mobile-site-header {
-    padding: calc(env(safe-area-inset-top) + 10px) 12px 10px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-bottom: 1px solid #e1dfda;
-    background: var(--card);
-  }
-  .brand {
-    font-size: 26px;
-    letter-spacing: -1px;
-    font-weight: 800;
-    border: 0;
-    padding: 0;
-    background: none;
-    text-align: left;
-  }
-  .brand span {
-    display: block;
-    font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 0;
-  }
-  .back {
-    display: flex;
-    align-items: center;
-  }
-  main {
+  .mobile-content {
     max-width: 1440px;
     margin: 0 auto;
-    padding: 0 12px calc(100px + env(safe-area-inset-bottom));
+    padding-bottom: calc(68px + env(safe-area-inset-bottom));
   }
-  h1 {
+  .mobile-home {
+    padding-inline: 12px;
+  }
+  .mobile-content > .stack {
+    margin: 20px 12px;
+  }
+  .stack > h1 {
     font-size: 25px;
     line-height: 1.2;
     letter-spacing: -0.6px;
     margin: 0 0 4px;
   }
-  h2 {
+  .stack > h2 {
     font-size: 19px;
     margin: 0;
   }
-  p {
+  .stack > p {
     margin: 0 0 8px;
   }
   small,
@@ -118,7 +97,7 @@
     font-size: 13px;
     font-weight: 600;
   }
-  input:not([class]),
+  input:not([class]):not([type="checkbox"]),
   select:not([class]),
   textarea:not([class]) {
     width: 100%;
@@ -263,46 +242,9 @@
     text-decoration: underline;
     background: none;
   }
-  nav {
-    z-index: 40;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    display: flex;
-    justify-content: center;
-    gap: 0;
-    padding: 8px 8px calc(7px + env(safe-area-inset-bottom));
-    background: #fff;
-    border-top: 1px solid #dedfdc;
-  }
-  nav button {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 3px;
-    flex: 1;
-    max-width: 130px;
-    padding: 6px 2px;
-    border: 0;
-    background: none;
-    color: #6c7785;
-    border-radius: 8px;
-  }
-  nav button[aria-current="page"] {
-    color: #1f3557;
-    background: #f1f3f4;
-  }
-  nav span {
-    font-size: 10px;
-  }
   @media (min-width: 700px) {
     .listing-grid {
       grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-    main {
-      padding-top: 30px;
     }
     .gallery img {
       max-height: 500px;

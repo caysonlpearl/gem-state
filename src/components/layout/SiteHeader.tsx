@@ -1,3 +1,5 @@
+import { SiteHeaderBar } from "./SiteHeaderBar";
+import { MarketplaceMobileMenu, type MarketplaceMenuLinkProps } from "./MarketplaceMobileMenu";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -51,21 +53,6 @@ const featuredHeaderCategories = [
   { slug: "other-real-estate", name: "Homes" },
   { slug: "jobs", name: "Jobs" },
   { slug: "services", name: "Services" },
-] as const;
-
-const mobilePrimaryCategories = [
-  { slug: "general", name: "All items", description: "Everyday local finds" },
-  {
-    slug: "cars-trucks",
-    name: "Vehicles",
-    group: "motors",
-    description: "Cars, trucks, RVs & trailers",
-  },
-  { slug: "other-real-estate", name: "Homes", description: "Homes, rentals & builds" },
-  { slug: "jobs", name: "Jobs", description: "Local work & hiring" },
-  { slug: "services", name: "Services", description: "Help for your next project" },
-  { slug: "firearms", name: "Firearms", description: "Rifles, handguns & range gear" },
-  { slug: "pets", name: "Pets", description: "Dogs, cats & supplies" },
 ] as const;
 
 export function SiteHeader() {
@@ -172,7 +159,7 @@ export function SiteHeader() {
       </a>
 
       {/* Level 1 */}
-      <div className="relative z-30 mx-auto grid min-w-0 h-16 max-w-[1440px] grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 px-3 sm:h-[108px] sm:gap-8 sm:px-8">
+      <SiteHeaderBar>
         <Link to="/" className="flex min-w-0 shrink-0 items-center pr-1 sm:pr-2" {...pinned}>
           <BrandMark className="hidden sm:inline-flex" />
           <BrandMark compact mobile className="sm:hidden" />
@@ -383,7 +370,7 @@ export function SiteHeader() {
             <span className="sr-only">{menuOpen ? "Close menu" : "Open menu"}</span>
           </button>
         </nav>
-      </div>
+      </SiteHeaderBar>
 
       {/* Level 2 — Bluebird classifieds taxonomy. */}
       <nav
@@ -440,86 +427,11 @@ export function SiteHeader() {
       {/* Mobile browse menu. The five primary destinations keep the header useful
           without forcing the desktop artwork row into a narrow viewport. */}
       {menuOpen && (
-        <div id="marketplace-menu" className="border-t border-border bg-surface lg:hidden">
-          <div className="mx-auto w-full min-w-0 max-w-[1360px] overflow-x-hidden px-4 py-4 sm:px-8">
-            <div className="mb-3 flex min-w-0 items-center justify-between gap-3">
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                  Browse marketplace
-                </p>
-                <p className="mt-1 text-[13px] text-foreground">Find your next local gem.</p>
-              </div>
-              <Link
-                to="/create-listing"
-                onClick={() => setMenuOpen(false)}
-                className="inline-flex min-h-10 max-w-[48%] shrink-0 items-center overflow-hidden rounded-full bg-accent px-3 text-[12px] font-semibold whitespace-nowrap text-ellipsis text-accent-foreground"
-                {...pinned}
-              >
-                Post a listing
-              </Link>
-            </div>
-
-            <ul className="grid grid-cols-2 gap-2" aria-label="Main categories">
-              {mobilePrimaryCategories.map((category) => (
-                <li key={category.slug} className={category.slug === "general" ? "col-span-2" : ""}>
-                  <Link
-                    to="/browse"
-                    search={
-                      category.slug === "general"
-                        ? { allCategories: true }
-                        : "group" in category
-                          ? { group: category.group }
-                          : { category: category.slug }
-                    }
-                    onClick={() => setMenuOpen(false)}
-                    className="group flex w-full min-w-0 min-h-[72px] items-center gap-3 rounded-2xl border border-border bg-card px-3 py-2.5 transition-colors hover:border-primary/40 hover:bg-secondary"
-                    {...pinned}
-                  >
-                    <CategoryArtwork slug={category.slug} size={42} className="shrink-0" />
-                    <span className="min-w-0">
-                      <span className="block text-[13px] font-semibold text-foreground">
-                        {category.name}
-                      </span>
-                      <span className="mt-0.5 block text-[11px] leading-snug text-muted-foreground">
-                        {category.description}
-                      </span>
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-
-            <div className="mt-3 grid grid-cols-2 gap-2 border-t border-border pt-3">
-              <Link
-                to="/browse"
-                search={{ sort: "newest" }}
-                onClick={() => setMenuOpen(false)}
-                className="flex min-h-10 items-center rounded-xl border border-border bg-card px-3 text-[12px] font-medium"
-                {...pinned}
-              >
-                Newest listings
-              </Link>
-              {isSignedIn && (
-                <Link
-                  to="/notifications"
-                  onClick={() => setMenuOpen(false)}
-                  className="flex min-h-10 items-center rounded-xl border border-border bg-card px-3 text-[12px] font-medium"
-                  {...pinned}
-                >
-                  Notifications
-                </Link>
-              )}
-              <Link
-                to="/policies"
-                onClick={() => setMenuOpen(false)}
-                className="flex min-h-10 items-center rounded-xl border border-border bg-card px-3 text-[12px] font-medium"
-                {...pinned}
-              >
-                Policies
-              </Link>
-            </div>
-          </div>
-        </div>
+        <MarketplaceMobileMenu
+          isSignedIn={isSignedIn}
+          onClose={() => setMenuOpen(false)}
+          renderLink={WebsiteMenuLink}
+        />
       )}
     </header>
   );
@@ -535,5 +447,13 @@ function UnreadBadge({ count }: { count: number }) {
     >
       {count > 9 ? "9+" : count}
     </span>
+  );
+}
+
+function WebsiteMenuLink({ to, search, onClick, className, children }: MarketplaceMenuLinkProps) {
+  return (
+    <Link to={to} search={search} onClick={onClick} className={className} {...pinned}>
+      {children}
+    </Link>
   );
 }
