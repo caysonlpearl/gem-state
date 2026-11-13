@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
@@ -698,12 +699,18 @@ test("saved search naming works without browser prompts and preserves result mod
   }
 });
 
-test("saved-search alerts honor category-specific filters", () => {
-  assert.match(savedSearchWorkerSource, /vehicle_make/);
-  assert.match(savedSearchWorkerSource, /home_mode/);
-  assert.match(savedSearchWorkerSource, /job_employment_type/);
-  assert.match(savedSearchWorkerSource, /service_subcategory/);
-  assert.match(savedSearchWorkerSource, /classified_listing_details\(\*\)/);
+test("saved-search alerts use shared category-specific eligibility filters", () => {
+  const worker = readFileSync(
+    new URL("../src/lib/shopping-worker.server.ts", import.meta.url),
+    "utf8",
+  );
+  const contract = readFileSync(
+    new URL("../src/lib/shopping-contract.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(savedSearchWorkerSource, /processShoppingWorker/);
+  assert.match(worker, /matchesShoppingSearch/);
+  assert.match(contract, /matchesLandingCard/);
 });
 
 test("seller billing is catalog-backed and settles upgrades through Stripe webhooks", () => {

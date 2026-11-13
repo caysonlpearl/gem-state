@@ -1,5 +1,6 @@
 import { isInternalAnalyticsBrowser, markInternalAnalyticsBrowser } from "./analytics-browser.ts";
 import { loadSupabase } from "@/integrations/supabase/lazy-client";
+import { shoppingAnalytics, shoppingPrivacy } from "./shopping-client";
 import { classifyLatency, sanitizeTelemetryText } from "@/lib/release-gate";
 import { classifyTrafficSource } from "@/lib/traffic-source";
 import { isKnownAutomatedAgent } from "@/lib/analytics-policy";
@@ -117,6 +118,7 @@ export type MutationTelemetry = {
 const SESSION_KEY = "pv_session_id";
 
 function sessionId(): string | null {
+  if (!shoppingPrivacy().personalization) return null;
   if (typeof window === "undefined") return null;
   try {
     let id = window.localStorage.getItem(SESSION_KEY);
@@ -207,6 +209,7 @@ let currentVisit: Visit | null = null;
  * records a visit_started event.
  */
 export function ensureVisit(): Visit | null {
+  if (!shoppingPrivacy().personalization) return null;
   if (typeof window === "undefined") return null;
   if (currentVisit) return currentVisit;
   try {
@@ -267,12 +270,17 @@ export async function trackEvent(
   options: { isDemo?: boolean } = {},
 ): Promise<boolean> {
   if (typeof window === "undefined" || window.location.pathname === "/claim-seller") return false;
+  try {
+    if (!options.isDemo) shoppingAnalytics(name, props);
+  } catch {
+    /* Optional personalization cannot interrupt a marketplace action. */
+  }
   props = { ...listingBusinessProps(props.listing_id), ...props };
   const eventAt = Date.now();
   try {
     const supabase = await loadSupabase();
     const { data } = await supabase.auth.getSession();
-    const userId = data.session?.user.id ?? null;
+    const userId = shoppingPrivacy().personalization ? (data.session?.user.id ?? null) : null;
     const visit = ensureVisit();
     if (
       [

@@ -1,3 +1,7 @@
+import {
+  ShoppingAlertPreference,
+  PersonalizedShopping,
+} from "@/components/community/ShoppingExperience";
 import { DealerInventoryPanel } from "./DealerInventoryPanel";
 import { ImportSyncPanel } from "@/components/seller/ImportSyncPanel";
 import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
@@ -400,7 +404,10 @@ export function AccountCenter({
               <SavedPartnerVehiclesSection vehicles={savedPartnerVehicles.data ?? []} />
             </>
           ) : section === "searches" ? (
-            <SavedSearchesSection searches={savedSearches.data ?? []} />
+            <>
+              <PersonalizedShopping />
+              <SavedSearchesSection searches={savedSearches.data ?? []} />
+            </>
           ) : section === "messages" ? (
             <MessagesSection
               conversations={conversations.data ?? []}
@@ -1440,6 +1447,7 @@ function SettingsSection({
           onSave={() => saveContact.mutate()}
           saving={saveContact.isPending}
         />
+        <ShoppingAlertPreference />
         <PreferenceCard
           title="Email notifications"
           body="Transactional emails stay on when needed. Marketing is always opt-in."

@@ -73,6 +73,8 @@ function boundary({ start, originAge = 0, internal = false, brokenAnalytics = fa
     setItem: (k, v) => storage.set(k, v),
   };
   const runtime = {
+    shoppingAnalytics: () => {},
+    shoppingPrivacy: () => ({ personalization: true }),
     exports: {},
     window: {
       location: {

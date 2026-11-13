@@ -24,6 +24,8 @@ async function routeConfig(path, extra = {}) {
     react: {},
     sonner: {},
     "@/config/brand": {},
+    "@/components/community/ShoppingExperience": {},
+    "@/lib/shopping-contract": {},
     "@/integrations/supabase/client": {},
     "@/lib/auth-redirect": {},
     "@/lib/auth-return-path": returnPaths,

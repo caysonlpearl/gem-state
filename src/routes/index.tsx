@@ -37,6 +37,7 @@ import {
 import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { HomeSearchDropdown } from "@/components/classifieds/HomeSearchDropdown";
 import { ListingCard } from "@/components/classifieds/ListingCard";
+import { PersonalizedShopping } from "@/components/community/ShoppingExperience";
 import { BluebirdEmptyState } from "@/components/layout/BluebirdEmptyState";
 import type { LocationPoint } from "@/components/classifieds/LocationRadiusPicker";
 import {
@@ -615,6 +616,7 @@ function Home() {
           ) : null}
         </div>
       </section>
+      <PersonalizedShopping />
 
       <HomepageFeaturedCategories withLocation={where.withLocation} />
 

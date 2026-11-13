@@ -106,9 +106,53 @@ async function moderatedIds() {
 export async function buildHomepageSnapshot(
   previous: HomepageSnapshot | null,
   injected?: { sources: Sources; removed: () => Promise<Set<string>>; now?: number },
+  fullInventory = false,
 ) {
   const now = injected?.now ?? Date.now();
-  const loaders = injected?.sources ?? sources;
+  const loaders: Sources =
+    injected?.sources ??
+    (fullInventory
+      ? {
+          ...sources,
+          async native() {
+            const { loadNativeHomepageInventory } = await import("./classifieds.functions");
+            const cards: ClassifiedCard[] = [];
+            for (let offset = 0; ; offset += 1000) {
+              const page = await loadNativeHomepageInventory(offset);
+              cards.push(...page.listings);
+              if (offset + 1000 >= page.total) break;
+            }
+            return { cards };
+          },
+          async vehicles() {
+            const adapter = await import("./marketcheck.server");
+            const [aggregated, direct] = await Promise.all([
+              adapter.marketCheckCards(
+                { latitude: 43.6, longitude: -116.2, radiusMiles: 500 },
+                {
+                  cacheOnly: true,
+                  preparedHomeCache: adapter.prepareHomeMarketCheckCache(8000, true),
+                },
+              ),
+              (await import("./dealer-feed.server")).dealerFeedCards({}),
+            ]);
+            return {
+              cards: (await import("./dealer-feed-contract")).mergeDealerFeedVehicles(
+                direct.cards,
+                aggregated,
+                direct.dealers,
+              ),
+            };
+          },
+          async homes() {
+            return {
+              cards: await (
+                await import("./openwebninja-listings.server")
+              ).openWebNinjaCards({ category: "other-real-estate" }),
+            };
+          },
+        }
+      : sources);
   const [results, removed] = await Promise.all([
     Promise.allSettled(HOME_SOURCE_KEYS.map((key) => loaders[key]())),
     (injected?.removed ?? moderatedIds)(),
@@ -120,9 +164,13 @@ export async function buildHomepageSnapshot(
     let section: HomeSection | undefined;
     if (result.status === "fulfilled") {
       const value = result.value;
-      const cards = selectLandingCoverage(
-        value.cards,
-        key === "native" ? 400 : key === "vehicles" ? 200 : 120,
+      const cards = (
+        fullInventory
+          ? value.cards
+          : selectLandingCoverage(
+              value.cards,
+              key === "native" ? 400 : key === "vehicles" ? 200 : 120,
+            )
       ).map(homepageCard);
       section = { updatedAt: now, cards, total: value.total, categoryCounts: value.categoryCounts };
     } else {
