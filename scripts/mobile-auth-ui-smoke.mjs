@@ -31,7 +31,9 @@ try {
     if (Date.now() > deadline) throw Error("Preview did not start");
     await pause(150);
   }
-  browser = await chromium.launch({ channel: process.env.BLUEBIRD_BROWSER_CHANNEL || "chrome" });
+  browser = await chromium.launch(
+    process.env.BLUEBIRD_BROWSER_CHANNEL ? { channel: process.env.BLUEBIRD_BROWSER_CHANNEL } : {},
+  );
   for (const viewport of [
     { width: 320, height: 740 },
     { width: 390, height: 844 },

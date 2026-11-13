@@ -17,7 +17,7 @@ jobs:
       - run: npm ci
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: "3.12"
       - name: Install browser regression dependencies
         run: |
           python -m pip install playwright
@@ -34,3 +34,5 @@ jobs:
         run: npm --prefix apps/mobile exec -- playwright install chromium
       - name: Verify native shopper privacy and recommendation screens
         run: npm run test:mobile:shopping:ui
+      - name: Verify shared website navigation and native authentication screens
+        run: npm run test:mobile:auth:ui
