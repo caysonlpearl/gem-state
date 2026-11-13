@@ -86,6 +86,33 @@ export async function shoppingActivity(db: any, subject: string): Promise<Shoppi
           at: row.saved_at,
         });
   }
+  const choices = await db
+    .from("shopping_choices")
+    .select("listing_id,dismissed,choice_at,purchased_at")
+    .eq("subject", subject)
+    .limit(1500);
+  if (choices.error) throw Error("Shopping choices unavailable.");
+  for (const row of choices.data ?? []) {
+    if (row.dismissed)
+      events.push({
+        id: `dismissed:${row.listing_id}`,
+        kind: "dismiss",
+        listingId: row.listing_id,
+        session: "choice",
+        at: row.choice_at,
+      });
+    if (
+      row.purchased_at &&
+      !events.some((event) => event.kind === "purchase" && event.listingId === row.listing_id)
+    )
+      events.push({
+        id: `purchased:${row.listing_id}`,
+        kind: "purchase",
+        listingId: row.listing_id,
+        session: "choice",
+        at: row.purchased_at,
+      });
+  }
   return events;
 }
 export async function recordShoppingActivity(

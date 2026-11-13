@@ -56,6 +56,20 @@ export async function shoppingAvailable(db: any, row: any) {
   }
   return true;
 }
+async function shoppingReminderProgress(db: any, subject: string) {
+  const result = await db
+    .from("shopping_choices")
+    .select("listing_id,reminder_anchor,reminder_step")
+    .eq("subject", subject)
+    .limit(1500);
+  if (result.error) throw Error("Reminder history unavailable.");
+  return new Map<string, any>((result.data ?? []).map((row: any) => [row.listing_id, row]));
+}
+function completedReminder(progress: any, anchor: number, step: number) {
+  return (
+    progress && Number(progress.reminder_anchor) >= anchor && Number(progress.reminder_step) >= step
+  );
+}
 export async function generateShoppingAlerts(db: any) {
   const controls = await shoppingControls(db),
     now = Date.now();
@@ -85,6 +99,7 @@ export async function generateShoppingAlerts(db: any) {
       candidates.push(row);
     };
     const profile = interests(activity, now);
+    const progress = await shoppingReminderProgress(db, subject);
     for (const row of cards) {
       const matching = searches.filter(
         (s) =>
@@ -157,7 +172,7 @@ export async function generateShoppingAlerts(db: any) {
         }
         if (holdout) continue;
         const step = reminderStep(interest, now);
-        if (step) {
+        if (step && !completedReminder(progress.get(interest.listingId), interest.lastAt, step)) {
           const recent = await db
             .from("shopping_queue")
             .select("id,sent_at")
@@ -238,6 +253,7 @@ async function deliveryCandidates(db: any, delivery: any) {
   const profile = interests(
     permission?.personalization ? await shoppingActivity(db, `u:${delivery.user_id}`) : [],
   );
+  const progress = await shoppingReminderProgress(db, `u:${delivery.user_id}`);
   const eligible: any[] = [];
   for (const item of items) {
     if (Date.parse(item.created_at) < Date.parse(account.history_after)) continue;
@@ -255,6 +271,11 @@ async function deliveryCandidates(db: any, delivery: any) {
     if (
       item.kind === "reminder" &&
       (!interest ||
+        completedReminder(
+          progress.get(item.listing_id),
+          item.payload.interest_at,
+          item.payload.step,
+        ) ||
         !reminderStep(interest) ||
         interest.contactAt > Date.now() - 7 * 86400000 ||
         interest.lastAt !== item.payload.interest_at)
