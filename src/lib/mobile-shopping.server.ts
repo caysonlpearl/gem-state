@@ -6,6 +6,7 @@ import {
   shoppingPermission,
   shoppingControls,
   shoppingRecommendations,
+  shoppingExternalEligibility,
   recordShoppingActivity,
 } from "./shopping.server";
 
@@ -60,10 +61,15 @@ export async function handleMobileShopping(
       return { cards: [], model: "rules-v1" };
     const result = await db.rpc("shopping_visual_candidates", { seed_ids: [id] });
     if (result.error) throw Error("Similar listings unavailable.");
+    const allowed = await shoppingExternalEligibility(db, [
+      id,
+      ...(result.data ?? []).map((r: any) => r.listing_id),
+    ]);
+    if (!allowed.has(id)) return { cards: [], model: "rules-v1" };
     return {
       cards: (result.data ?? [])
         .map((r: any) => r.card)
-        .filter((c: any) => c.id !== id && mobileListingAllowed(c))
+        .filter((c: any) => c.id !== id && allowed.has(c.id) && mobileListingAllowed(c))
         .slice(0, 8),
       model: "siglip2-base-patch16-224-v1",
     };

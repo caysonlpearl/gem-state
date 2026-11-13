@@ -1,3 +1,4 @@
+import { ShoppingPrivacyDialog } from "./ShoppingPrivacyDialog";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -61,10 +62,7 @@ export function SignupShoppingChoices({
           onChange={(e) => onAlerts(e.target.checked)}
           className="mt-1"
         />
-        <span>
-          Send me personalized shopping emails and website notifications about listings,
-          recommendations, price drops, and offers.
-        </span>
+        <span>Send me personalized emails, notifications and recommendations.</span>
       </label>
     </div>
   );
@@ -147,91 +145,19 @@ export function ShoppingExperience() {
   };
   return (
     <>
-      <button
-        type="button"
-        onClick={() => {
-          setPrivacy(shoppingPrivacy());
-          setPrivacyOpen(true);
-        }}
-        className="fixed bottom-20 left-3 z-30 rounded-full border bg-background px-3 py-2 text-xs shadow-sm sm:bottom-3"
-      >
-        Privacy choices
-      </button>
       {privacyOpen && !needsTerms && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Privacy choices"
-          className="fixed bottom-20 left-3 right-3 z-50 max-w-lg rounded-2xl border bg-background p-5 shadow-lg sm:bottom-4 sm:left-4"
-        >
-          <h2 className="font-semibold">Your shopping experience</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            With your permission, Bluebird remembers searches, views, and saved items to personalize
-            recommendations. Advertising measurement is separate.{" "}
-            <a className="underline" href="/privacy">
-              How your information is used
-            </a>
-          </p>
-          <label className="mt-4 flex gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={privacy.personalization}
-              onChange={(e) => setPrivacy({ ...privacy, personalization: e.target.checked })}
-            />
-            Personalize my shopping using activity and browser information
-          </label>
-          <label className="mt-3 flex gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={privacy.advertising}
-              onChange={(e) => setPrivacy({ ...privacy, advertising: e.target.checked })}
-            />
-            Allow advertising measurement and relevant ads
-          </label>
-          <div className="mt-4 flex flex-wrap gap-3">
-            <button
-              type="button"
-              className="rounded-full bg-primary px-4 py-2 text-sm text-primary-foreground"
-              onClick={() => {
-                void setShoppingPrivacy(privacy)
-                  .then(() => {
-                    setPrivacyOpen(false);
-                    setError("");
-                  })
-                  .catch(() => setError("Your choices could not be saved. Please retry."));
-              }}
-            >
-              Save choices
-            </button>
-            <button
-              type="button"
-              className="text-sm underline"
-              onClick={() => {
-                void setShoppingPrivacy({ personalization: false, advertising: false })
-                  .then(() => setPrivacyOpen(false))
-                  .catch(() => setError("Your choices could not be saved. Please retry."));
-              }}
-            >
-              Essential only
-            </button>
-            <button
-              type="button"
-              className="text-sm underline"
-              onClick={() => {
-                void shoppingFetch("clear", {})
-                  .then(() => window.dispatchEvent(new Event("shopping-privacy-changed")))
-                  .catch(() => setError("History could not be cleared. Please retry."));
-              }}
-            >
-              Clear shopping history
-            </button>
-          </div>
-          {error && (
-            <p role="alert" className="mt-2 text-sm">
-              {error}
-            </p>
-          )}
-        </div>
+        <ShoppingPrivacyDialog
+          initialChoices={privacy}
+          onSave={async (choices) => {
+            await setShoppingPrivacy(choices);
+            setPrivacy(shoppingPrivacy());
+            setPrivacyOpen(false);
+          }}
+          onClearHistory={async () => {
+            await shoppingFetch("clear", {});
+            window.dispatchEvent(new Event("shopping-privacy-changed"));
+          }}
+        />
       )}
       {needsTerms && (
         <div
@@ -298,10 +224,7 @@ export function ShoppingAlertPreference() {
             }
           }}
         />
-        <span>
-          Send me personalized shopping emails and website notifications about listings,
-          recommendations, price drops, and offers.
-        </span>
+        <span>Send me personalized emails, notifications and recommendations.</span>
       </label>
       {error && (
         <p role="alert" className="mt-2 text-sm">

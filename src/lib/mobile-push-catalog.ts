@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- server-only cached inventory */
+import { shoppingExternalEligibility } from "./shopping.server.ts";
 import { mobileListingAllowed } from "./mobile-contract.ts";
 /** Phone delivery must not spend listing-provider requests, including details. */
 export async function cachedMobilePushListing(db: any, id: string) {
@@ -24,5 +25,6 @@ export async function cachedMobilePushListing(db: any, id: string) {
     if (live.error) throw Error("push_native_availability_unavailable");
     if (!live.data) return null;
   }
+  if (!(await shoppingExternalEligibility(db, [id])).has(id)) return null;
   return { ...result.data.card, available: true };
 }

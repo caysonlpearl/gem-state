@@ -1,3 +1,4 @@
+import { filterDealerHomepageHolds } from "./dealer-inventory-controls.ts";
 import { serverEnv } from "./runtime-env.server.ts";
 import {
   HOME_MAX_STALE_MS,
@@ -129,5 +130,16 @@ const shared = createHomepageSnapshotCache(
     (await import("./homepage-snapshot-build.server")).buildHomepageSnapshot(previous),
 );
 
-export const readHomepageSnapshot = () => shared.read();
+export const readHomepageSnapshot = async () => {
+  const snapshot = await shared.read();
+  return filterDealerHomepageHolds(snapshot, async (ids) => {
+    const { publicServerClient } = await import("./supabase-public.server");
+    const { data, error } = await (publicServerClient() as any)
+      .rpc("suppressed_dealer_listing_ids", { _ids: ids })
+      .abortSignal(AbortSignal.timeout(2500))
+      .retry(false);
+    if (error || !Array.isArray(data)) throw Error("Dealer visibility could not be checked.");
+    return data as string[];
+  });
+};
 export const refreshHomepageSnapshot = (force = false) => shared.refresh(force);

@@ -1,3 +1,5 @@
+import { isInternalAnalyticsBrowser } from "./analytics-browser";
+import { isKnownAutomatedAgent } from "./analytics-policy";
 import { loadSupabase } from "@/integrations/supabase/lazy-client";
 import {
   SHOPPING_POLICY_VERSION,
@@ -17,7 +19,7 @@ let memoryPrivacy: ShoppingPrivacy | null = null;
 let actor: string | null = null,
   flushing = false,
   timer: ReturnType<typeof setTimeout> | undefined;
-let memoryVisit = { id: crypto.randomUUID(), at: Date.now() };
+let memoryVisit: { id: string; at: number } | null = null;
 let queue: (ShoppingEvent & { owner: string | null })[] = [];
 export function shoppingPrivacy(): ShoppingPrivacy {
   if (memoryPrivacy)
@@ -113,7 +115,8 @@ function visit() {
     return id as string;
   } catch {
     const now = Date.now();
-    if (now - memoryVisit.at >= 30 * 60000) memoryVisit = { id: crypto.randomUUID(), at: now };
+    if (!memoryVisit || now - memoryVisit.at >= 30 * 60000)
+      memoryVisit = { id: crypto.randomUUID(), at: now };
     memoryVisit.at = now;
     return memoryVisit.id;
   }
@@ -127,8 +130,8 @@ export function shoppingTrack(
   if (
     typeof window === "undefined" ||
     !(shoppingPrivacy().personalization || shoppingPrivacy().advertising) ||
-    /[?&](?:_qa|_verify)=/.test(location.search) ||
-    /bot\b|crawler|spider|HeadlessChrome/i.test(navigator.userAgent)
+    isInternalAnalyticsBrowser(window) ||
+    isKnownAutomatedAgent(navigator.userAgent, navigator.webdriver === true)
   )
     return;
   const connection = (navigator as ShoppingNavigator).connection;

@@ -17,7 +17,11 @@ import {
 } from "./shopping.server";
 import { sendTemplateEmail } from "./email-templates/send-email";
 import { brand } from "@/config/brand";
-import { shoppingDeliveryCandidates as deliveryCandidates } from "./shopping-delivery-eligibility.ts";
+import {
+  shoppingDeliveryCandidates as deliveryCandidates,
+  shoppingReminderProgress,
+  completedReminder,
+} from "./shopping-delivery-eligibility.ts";
 
 async function all(db: any, table: string, selection = "*") {
   const rows: any[] = [];
@@ -85,6 +89,7 @@ export async function generateShoppingAlerts(db: any) {
       candidates.push(row);
     };
     const profile = interests(activity, now);
+    const progress = await shoppingReminderProgress(db, subject);
     for (const row of cards) {
       const matching = searches.filter(
         (s) =>
@@ -157,7 +162,7 @@ export async function generateShoppingAlerts(db: any) {
         }
         if (holdout) continue;
         const step = reminderStep(interest, now);
-        if (step) {
+        if (step && !completedReminder(progress.get(interest.listingId), interest.lastAt, step)) {
           const recent = await db
             .from("shopping_queue")
             .select("id,sent_at")
@@ -192,7 +197,42 @@ export async function generateShoppingAlerts(db: any) {
   }
   return queued;
 }
+async function recoverExhaustedDeliveries(db: any) {
+  const stale = await db
+    .from("shopping_queue")
+    .select("delivery_id")
+    .eq("status", "processing")
+    .lt("created_at", new Date(Date.now() - 5 * 60000).toISOString())
+    .limit(100);
+  if (stale.error) throw Error("Delivery recovery unavailable.");
+  const ids = [...new Set((stale.data ?? []).map((r: any) => r.delivery_id).filter(Boolean))];
+  if (!ids.length) return;
+  const deliveries = await db
+    .from("shopping_deliveries")
+    .select("id,status,lease_until")
+    .in("id", ids)
+    .eq("attempts", 6);
+  if (deliveries.error) throw Error("Delivery recovery unavailable.");
+  const expired = (deliveries.data ?? [])
+    .filter(
+      (d: any) => d.status === "failed" || Date.parse(d.lease_until ?? "1970-01-01") < Date.now(),
+    )
+    .map((d: any) => d.id);
+  if (!expired.length) return;
+  const d = await db
+    .from("shopping_deliveries")
+    .update({ status: "failed", lease_until: null })
+    .in("id", expired);
+  if (d.error) throw Error("Delivery recovery unavailable.");
+  const q = await db
+    .from("shopping_queue")
+    .update({ status: "failed" })
+    .in("delivery_id", expired)
+    .eq("status", "processing");
+  if (q.error) throw Error("Queue recovery unavailable.");
+}
 export async function deliverShoppingAlerts(db: any, limit = 20) {
+  await recoverExhaustedDeliveries(db);
   let sent = 0,
     suppressed = 0;
   for (let i = 0; i < limit; i++) {
@@ -309,11 +349,16 @@ export async function deliverShoppingAlerts(db: any, limit = 20) {
           .from("shopping_deliveries")
           .update({
             provider_id: result.providerId ?? null,
-            provider_status: "email.sent",
             email_sent: true,
           })
           .eq("id", delivery.id);
         if (r.error) throw Error("Delivery outcome unavailable.");
+        const status = await db
+          .from("shopping_deliveries")
+          .update({ provider_status: "email.sent" })
+          .eq("id", delivery.id)
+          .is("provider_status", null);
+        if (status.error) throw Error("Delivery status unavailable.");
       }
       if (ids.length) {
         const r = await db
@@ -344,6 +389,14 @@ export async function deliverShoppingAlerts(db: any, limit = 20) {
         })
         .eq("id", delivery.id);
       if (r.error) throw Error("Delivery retry could not be saved.");
+      if (delivery.attempts >= 6) {
+        const q = await db
+          .from("shopping_queue")
+          .update({ status: "failed" })
+          .in("id", delivery.queue_ids)
+          .eq("status", "processing");
+        if (q.error) throw Error("Queue retry outcome unavailable.");
+      }
     }
   }
   return { sent, suppressed };

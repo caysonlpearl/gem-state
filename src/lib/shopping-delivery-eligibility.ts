@@ -1,6 +1,24 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- shared private queue rows */
 import { interests, reminderStep, matchesShoppingSearch } from "./shopping-contract.ts";
-import { shoppingPermission, shoppingActivity } from "./shopping.server.ts";
+import {
+  shoppingPermission,
+  shoppingActivity,
+  shoppingExternalEligibility,
+} from "./shopping.server.ts";
+export async function shoppingReminderProgress(db: any, subject: string) {
+  const result = await db
+    .from("shopping_choices")
+    .select("listing_id,reminder_anchor,reminder_step")
+    .eq("subject", subject)
+    .limit(1500);
+  if (result.error) throw Error("Reminder history unavailable.");
+  return new Map<string, any>((result.data ?? []).map((row: any) => [row.listing_id, row]));
+}
+export function completedReminder(progress: any, anchor: number, step: number) {
+  return (
+    progress && Number(progress.reminder_anchor) >= anchor && Number(progress.reminder_step) >= step
+  );
+}
 export async function shoppingDeliveryCandidates(
   db: any,
   delivery: any,
@@ -56,6 +74,7 @@ export async function shoppingDeliveryCandidates(
   const profile = interests(
     permission?.personalization ? await shoppingActivity(db, `u:${delivery.user_id}`) : [],
   );
+  const progress = await shoppingReminderProgress(db, `u:${delivery.user_id}`);
   const eligible: any[] = [];
   for (const item of items) {
     if (Date.parse(item.created_at) < Date.parse(account.history_after)) continue;
@@ -73,6 +92,17 @@ export async function shoppingDeliveryCandidates(
     if (
       item.kind === "reminder" &&
       (!interest ||
+        (completedReminder(
+          progress.get(item.listing_id),
+          item.payload.interest_at,
+          item.payload.step,
+        ) &&
+          !(
+            statuses.includes("sent") &&
+            item.status === "sent" &&
+            Number(progress.get(item.listing_id)?.reminder_anchor) === item.payload.interest_at &&
+            Number(progress.get(item.listing_id)?.reminder_step) === item.payload.step
+          )) ||
         !reminderStep(interest) ||
         interest.contactAt > Date.now() - 7 * 86400000 ||
         interest.lastAt !== item.payload.interest_at)
@@ -100,5 +130,9 @@ export async function shoppingDeliveryCandidates(
     }
     eligible.push({ ...item, card: inv.card, email });
   }
-  return { account, permission, eligible };
+  const allowed = await shoppingExternalEligibility(
+    db,
+    eligible.map((item) => item.listing_id),
+  );
+  return { account, permission, eligible: eligible.filter((item) => allowed.has(item.listing_id)) };
 }

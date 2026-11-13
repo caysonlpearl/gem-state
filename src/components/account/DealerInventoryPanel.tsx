@@ -1,3 +1,5 @@
+import { DealerInventoryControls } from "./DealerInventoryControls";
+import { dealerInventoryVisibilityLabel } from "@/lib/dealer-inventory-controls";
 import { useState } from "react";
 import { DealerPerformancePanel } from "./DealerPerformancePanel";
 import { VerifiedDealerBadge } from "@/components/dealers/VerifiedDealerBadge";
@@ -94,49 +96,139 @@ export function DealerInventoryView({
             </div>
           ) : null}
           {!compact ? (
-            <div className="mt-4 max-h-[440px] overflow-auto">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr>
-                    <th className="py-2">Vehicle</th>
-                    <th>Price</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {dealer.records.map((record) => (
-                    <tr key={record.id} className="border-t border-border">
-                      <td className="py-3">
-                        {record.status === "active" ? (
-                          <Link
-                            to="/listings/$listingId"
-                            params={{ listingId: `dealerfeed-${record.id}` }}
-                            className="text-primary hover:underline"
-                          >
-                            {record.title}
-                          </Link>
-                        ) : (
-                          record.title
-                        )}
-                      </td>
-                      <td>
-                        {record.priceCents
-                          ? new Intl.NumberFormat("en-US", {
-                              style: "currency",
-                              currency: "USD",
-                              maximumFractionDigits: 0,
-                            }).format(record.priceCents / 100)
-                          : "Contact For Price"}
-                      </td>
-                      <td>{record.status === "invalid" ? "Needs review" : record.status}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <DealerInventoryTable key={dealer.id} dealer={dealer} preview={preview} />
           ) : null}
         </section>
       ))}
+    </div>
+  );
+}
+
+function DealerInventoryTable({
+  dealer,
+  preview,
+}: {
+  dealer: DealerAccountInventory;
+  preview: boolean;
+}) {
+  const [search, setSearch] = useState("");
+  const [page, setPage] = useState(1);
+  const filtered = dealer.records.filter((record) =>
+    [record.title, record.vin, record.stockNumber]
+      .filter(Boolean)
+      .join(" ")
+      .toLowerCase()
+      .includes(search.trim().toLowerCase()),
+  );
+  const pageCount = Math.max(1, Math.ceil(filtered.length / 25));
+  const current = Math.min(page, pageCount);
+  const records = filtered.slice((current - 1) * 25, current * 25);
+  return (
+    <div className="mt-5 space-y-3">
+      <p className="text-xs leading-relaxed text-muted-foreground">
+        Hide or mark sold to remove a vehicle from Bluebird. Your choice stays in place through feed
+        refreshes. Prices and photos continue to come from your feed.
+        {preview ? " These controls are for review only in this preview." : ""}
+      </p>
+      <input
+        aria-label="Search dealership inventory"
+        placeholder="Search vehicle, VIN, or stock number"
+        value={search}
+        onChange={(event) => {
+          setSearch(event.target.value);
+          setPage(1);
+        }}
+        className="h-10 w-full rounded-xl border border-input bg-background px-3 text-sm"
+      />
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[690px] text-left text-sm">
+          <thead>
+            <tr>
+              <th className="py-2 pr-3">Vehicle</th>
+              <th className="pr-3">Price</th>
+              <th className="pr-3">Bluebird status</th>
+              <th>Controls</th>
+            </tr>
+          </thead>
+          <tbody>
+            {records.map((record) => (
+              <tr key={record.id} className="border-t border-border">
+                <td className="py-3 pr-4">
+                  {record.status === "active" &&
+                  (!record.dealerVisibility || record.dealerVisibility === "visible") ? (
+                    <Link
+                      to="/listings/$listingId"
+                      params={{ listingId: `dealerfeed-${record.id}` }}
+                      className="font-medium text-primary hover:underline"
+                    >
+                      {record.title}
+                    </Link>
+                  ) : (
+                    <span className="font-medium">{record.title}</span>
+                  )}
+                  <p className="mt-1 text-[11px] text-muted-foreground">
+                    {[record.stockNumber ? `Stock ${record.stockNumber}` : null, record.vin]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </p>
+                </td>
+                <td className="pr-4 whitespace-nowrap">
+                  {record.priceCents
+                    ? new Intl.NumberFormat("en-US", {
+                        style: "currency",
+                        currency: "USD",
+                        maximumFractionDigits: 0,
+                      }).format(record.priceCents / 100)
+                    : "Contact For Price"}
+                </td>
+                <td className="pr-4">
+                  <span className="text-xs font-semibold">
+                    {dealerInventoryVisibilityLabel(record.dealerVisibility, record.status)}
+                  </span>
+                  {record.dealerVisibility && record.dealerVisibility !== "visible" ? (
+                    <p className="mt-1 text-[11px] text-muted-foreground">Feed: {record.status}</p>
+                  ) : null}
+                  {record.detailReportOpen ? (
+                    <p className="mt-1 text-[11px] text-muted-foreground">Details report pending</p>
+                  ) : null}
+                </td>
+                <td>
+                  <DealerInventoryControls record={record} preview={preview} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {!records.length ? (
+        <p className="py-4 text-sm text-muted-foreground">No matching vehicles.</p>
+      ) : null}
+      <nav
+        aria-label="Dealership inventory pages"
+        className="flex items-center justify-between gap-3 border-t border-border pt-3 text-xs"
+      >
+        <span>
+          {filtered.length} vehicles · Page {current} of {pageCount}
+        </span>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            disabled={current <= 1}
+            onClick={() => setPage(current - 1)}
+            className="rounded-full border border-input px-3 py-2 disabled:opacity-40"
+          >
+            Previous
+          </button>
+          <button
+            type="button"
+            disabled={current >= pageCount}
+            onClick={() => setPage(current + 1)}
+            className="rounded-full border border-input px-3 py-2 disabled:opacity-40"
+          >
+            Next
+          </button>
+        </div>
+      </nav>
     </div>
   );
 }

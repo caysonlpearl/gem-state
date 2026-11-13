@@ -34,6 +34,15 @@ export async function shoppingDatabaseFixture() {
   await db.exec(`create function extensions.test_distance(double precision[],double precision[]) returns double precision language sql immutable as $$select 0.0::double precision$$;
  create operator extensions.<=> (leftarg=double precision[],rightarg=double precision[],function=extensions.test_distance);`);
   await db.exec(sql);
+  await db.exec(
+    readFileSync(
+      new URL(
+        "../../supabase/migrations/20261113023000_shopping_durable_choices.sql",
+        import.meta.url,
+      ),
+      "utf8",
+    ),
+  );
   const user = randomUUID();
   await db.query("insert into auth.users(id) values($1)", [user]);
   return { db, user, subject: "u:" + user };

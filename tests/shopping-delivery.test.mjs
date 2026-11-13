@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import ts from "typescript";
 import * as contract from "../src/lib/shopping-contract.ts";
-import { shoppingDeliveryCandidates } from "../src/lib/shopping-delivery-eligibility.ts";
+import * as deliveryEligibility from "../src/lib/shopping-delivery-eligibility.ts";
 const source = readFileSync(
   new URL("../src/lib/shopping-worker.server.ts", import.meta.url),
   "utf8",
@@ -114,6 +114,10 @@ function harness({ alerts = true, requested = false, beforeHandoff = () => {} } 
         filters.push((r) => values.includes(r[k]));
         return q;
       },
+      lt(k, v) {
+        filters.push((r) => r[k] < v);
+        return q;
+      },
       gte(k, v) {
         filters.push((r) => r[k] >= v);
         return q;
@@ -196,6 +200,8 @@ function harness({ alerts = true, requested = false, beforeHandoff = () => {} } 
     },
     rpc: async (name) => {
       if (name === "shopping_saved_interests") return { data: [], error: null };
+      if (name === "read_published_dealer_inventory")
+        return { data: { vehicles: tables.published_feed ?? [{ id: "a" }] }, error: null };
       assert.equal(name, "claim_shopping_delivery");
       const rows = tables.shopping_queue.filter((r) => r.status === "pending");
       if (!rows.length) return { data: [], error: null };
@@ -213,12 +219,33 @@ function harness({ alerts = true, requested = false, beforeHandoff = () => {} } 
       return { data: [structuredClone(d)], error: null };
     },
   };
+  const externalGateSource = readFileSync(
+    new URL("../src/lib/shopping.server.ts", import.meta.url),
+    "utf8",
+  );
+  const parsed = ts.createSourceFile(
+    "shopping.server.ts",
+    externalGateSource,
+    ts.ScriptTarget.Latest,
+    true,
+  );
+  const gate = parsed.statements.find(
+    (n) => ts.isFunctionDeclaration(n) && n.name?.text === "shoppingExternalEligibility",
+  );
+  const gateExports = {};
+  new Function(
+    "exports",
+    ts.transpileModule(gate.getText(parsed), {
+      compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+    }).outputText,
+  )(gateExports);
   const exports = {};
   new Function("require", "exports", compiled)((name) => {
     if (name === "./shopping-contract") return contract;
-    if (name === "./shopping-delivery-eligibility.ts") return { shoppingDeliveryCandidates };
+    if (name === "./shopping-delivery-eligibility.ts") return deliveryEligibility;
     if (name === "./shopping.server")
       return {
+        shoppingExternalEligibility: gateExports.shoppingExternalEligibility,
         shoppingControls: async () => ({ notifications: true, catalog_ready_at: "2026-01-01" }),
         shoppingPermission: async () => ({ personalization: true }),
         shoppingActivity: async () => [],
@@ -273,4 +300,55 @@ test("the generator batches legacy requested candidates even without broader opt
   await h.worker.generateShoppingAlerts(h.db);
   assert.equal(h.tables.shopping_queue.length, 1);
   assert.equal(h.tables.shopping_queue[0].requested, true);
+});
+
+test("revoked feed publication during rendering prevents provider handoff", async () => {
+  const h = harness({
+    beforeHandoff: (tables) => {
+      tables.published_feed = [];
+    },
+  });
+  await h.worker.deliverShoppingAlerts(h.db);
+  assert.equal(h.emails.length, 0);
+});
+
+test("a crash on the last permitted attempt is recovered without leaving an orphaned processing queue", async () => {
+  const h = harness();
+  const id = randomUUID();
+  h.tables.shopping_queue[0].status = "processing";
+  h.tables.shopping_queue[0].delivery_id = id;
+  h.tables.shopping_queue[0].created_at = "2020-01-01";
+  h.tables.shopping_deliveries.push({
+    id,
+    user_id: h.user,
+    status: "processing",
+    attempts: 6,
+    lease_until: "2020-01-01",
+  });
+  await h.worker.deliverShoppingAlerts(h.db);
+  assert.equal(h.tables.shopping_queue[0].status, "failed");
+  assert.equal(h.tables.shopping_deliveries[0].status, "failed");
+  assert.equal(h.emails.length, 0);
+});
+
+test("browser tracking module does not call random APIs during edge-worker startup", () => {
+  const text = readFileSync(new URL("../src/lib/shopping-client.ts", import.meta.url), "utf8");
+  const parsed = ts.createSourceFile("shopping-client.ts", text, ts.ScriptTarget.Latest, true);
+  const body = parsed.statements
+    .filter((n) => !ts.isImportDeclaration(n))
+    .map((n) => n.getText(parsed))
+    .join("\n");
+  const compiled = ts.transpileModule(body, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  assert.doesNotThrow(() =>
+    new Function("exports", "crypto", compiled)(
+      {},
+      {
+        randomUUID() {
+          throw Error("Random APIs are forbidden during worker module evaluation");
+        },
+      },
+    ),
+  );
 });

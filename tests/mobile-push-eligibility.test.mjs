@@ -40,6 +40,10 @@ function fixture() {
         price_version: "two",
       },
     ],
+    shopping_choices: [],
+    partner_job_reports: [],
+    partner_vehicle_reports: [],
+    published_feed: [{ id: "car" }],
     shopping_events: [],
     shopping_favorites: [],
     saved_searches: [],
@@ -48,6 +52,8 @@ function fixture() {
   };
   const db = {
     rpc: async (name) => {
+      if (name === "read_published_dealer_inventory")
+        return { data: { vehicles: rows.published_feed } };
       assert.equal(name, "shopping_saved_interests");
       return { data: [] };
     },
@@ -179,4 +185,41 @@ test("push listing eligibility uses cached inventory and current native status o
   assert.equal((await cachedMobilePushListing(f.db, id)).available, true);
   f.rows.asks[0].status = "sold";
   assert.equal(await cachedMobilePushListing(f.db, id), null);
+});
+
+test("phone delivery suppresses unpublished or moderated external listings", async () => {
+  const f = fixture();
+  f.rows.published_feed = [];
+  assert.equal(await f.allowed(), false);
+  assert.equal(await cachedMobilePushListing(f.db, f.listing), null);
+  const g = fixture();
+  g.rows.partner_vehicle_reports.push({ listing_id: g.listing, status: "reviewed" });
+  assert.equal(await g.allowed(), false);
+});
+test("phone reminders share durable stop rules without suppressing their own email receipt", async () => {
+  const f = fixture(),
+    anchor = Date.now() - 25 * 3600000;
+  const item = f.rows.shopping_queue[0];
+  item.kind = "reminder";
+  item.payload = { interest_at: anchor, step: 1 };
+  f.rows.shopping_events.push({
+    id: randomUUID(),
+    subject: "u:" + f.user,
+    session_id: randomUUID(),
+    kind: "save",
+    listing_id: f.listing,
+    occurred_at: new Date(anchor).toISOString(),
+  });
+  f.rows.shopping_choices.push({
+    subject: "u:" + f.user,
+    listing_id: f.listing,
+    reminder_anchor: anchor,
+    reminder_step: 1,
+  });
+  assert.equal(await f.allowed(), true);
+  item.status = "pending";
+  assert.equal(await f.allowed(), false);
+  item.status = "sent";
+  f.rows.shopping_choices[0].reminder_step = 3;
+  assert.equal(await f.allowed(), false);
 });

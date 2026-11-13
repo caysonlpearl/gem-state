@@ -18,6 +18,7 @@ async function pixelHarness(changes = {}) {
   const w = {
     location: { hostname: "onbluebird.com", search: "?interest=dealership&oppref=example-ad" },
     navigator: { userAgent: "Test browser", doNotTrack: null },
+    localStorage: { getItem: () => JSON.stringify({ version: "2026-11-12", advertising: true }) },
     document: {
       createElement: () => ({ dataset: {} }),
       head: { appendChild: (s) => scripts.push(s) },
@@ -98,6 +99,12 @@ test("saved dealership conversion queues the exact event and deduplicates repeat
 });
 test("privacy signals, test/preview visits, failed and non-dealer results do not load measurement", async () => {
   for (const changes of [
+    { localStorage: { getItem: () => null } },
+    {
+      localStorage: {
+        getItem: () => JSON.stringify({ version: "2026-11-12", advertising: false }),
+      },
+    },
     { navigator: { globalPrivacyControl: true } },
     { navigator: { doNotTrack: "1" } },
     { navigator: { userAgent: "HeadlessChrome" } },

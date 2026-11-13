@@ -66,6 +66,9 @@ function fixture() {
       first_seen_at: now,
       content_hash: "hash",
     })),
+    shopping_choices: [],
+    partner_job_reports: [],
+    partner_vehicle_reports: [],
     shopping_favorites: [],
     shopping_experiments: [],
     mobile_account_deletions: [],
@@ -73,6 +76,14 @@ function fixture() {
   const db = {
     rpc: async (name, args) => {
       rpc.push({ name, args });
+      if (name === "read_published_dealer_inventory")
+        return {
+          data: {
+            vehicles: tables.shopping_inventory.map((r) => ({
+              id: r.listing_id.replace("dealerfeed-", ""),
+            })),
+          },
+        };
       if (name === "shopping_visual_candidates")
         return {
           data: [
@@ -141,7 +152,9 @@ test("store recommendations reuse shared ranking but never learn from or return 
   const seeds = f.rpc.find((r) => r.name === "shopping_visual_candidates").args.seed_ids;
   assert(!seeds.includes(f.weapon.id));
   assert(
-    f.rpc.every((r) => r.name === "shopping_visual_candidates"),
+    f.rpc.every((r) =>
+      ["shopping_visual_candidates", "read_published_dealer_inventory"].includes(r.name),
+    ),
     "Only private vector lookup; no listing-provider calls",
   );
 });

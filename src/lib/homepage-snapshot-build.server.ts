@@ -128,17 +128,17 @@ export async function buildHomepageSnapshot(
           async vehicles() {
             const adapter = await import("./marketcheck.server");
             const prepared = adapter.prepareHomeMarketCheckCache(8000, true);
-            const [states, direct] = await Promise.all([
-              Promise.all(
-                marketplaceStateCodes.map((state) =>
-                  adapter.marketCheckCards(
-                    { state },
-                    { cacheOnly: true, cacheReadTimeoutMs: 8000, preparedHomeCache: prepared },
-                  ),
+            const states: ClassifiedCard[][] = [];
+            // Edge hosts bound simultaneous outgoing connections. Avoid queuing
+            // four states plus every other inventory source behind short deadlines.
+            for (const state of marketplaceStateCodes)
+              states.push(
+                await adapter.marketCheckCards(
+                  { state },
+                  { cacheOnly: true, cacheReadTimeoutMs: 8000, preparedHomeCache: prepared },
                 ),
-              ),
-              (await import("./dealer-feed.server")).dealerFeedCards({}),
-            ]);
+              );
+            const direct = await (await import("./dealer-feed.server")).dealerFeedCards({});
             return {
               cards: (await import("./dealer-feed-contract")).mergeDealerFeedVehicles(
                 direct.cards,
@@ -156,10 +156,26 @@ export async function buildHomepageSnapshot(
           },
         }
       : sources);
-  const [results, removed] = await Promise.all([
-    Promise.allSettled(HOME_SOURCE_KEYS.map((key) => loaders[key]())),
-    (injected?.removed ?? moderatedIds)(),
-  ]);
+  let results: PromiseSettledResult<Result>[];
+  let removed: Set<string>;
+  if (fullInventory) {
+    removed = await (injected?.removed ?? moderatedIds)();
+    results = [];
+    // Background coverage reads are complete, rather than homepage samples.
+    // Keep connection use bounded while preserving independent source failures.
+    for (const key of HOME_SOURCE_KEYS) {
+      try {
+        results.push({ status: "fulfilled", value: await loaders[key]() });
+      } catch (reason) {
+        results.push({ status: "rejected", reason });
+      }
+    }
+  } else {
+    [results, removed] = await Promise.all([
+      Promise.allSettled(HOME_SOURCE_KEYS.map((key) => loaders[key]())),
+      (injected?.removed ?? moderatedIds)(),
+    ]);
+  }
   const sections: HomepageSnapshot["sections"] = {};
   const sourceFailures: NonNullable<HomepageSnapshot["sourceFailures"]> = {};
   for (const [index, key] of HOME_SOURCE_KEYS.entries()) {
