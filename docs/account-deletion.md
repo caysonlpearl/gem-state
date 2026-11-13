@@ -35,7 +35,7 @@ Important relationships for the processor:
 The mobile request route verifies bearer ownership and the DELETE confirmation,
 stores an idempotent request, removes phone tokens, disables mobile advertising,
 withdraws shopping alerts, suppresses queued shopping delivery and blocks further
-mobile writes. The web deletion-request page uses the same route.
+private website/app access through the session boundaries recorded below. The web deletion-request page uses the same route.
 
 Next processor work must:
 
@@ -107,12 +107,12 @@ recheck deletion state, including explicitly requested saved-search delivery.
 Guest browsing and other accounts retain their previous behavior. No permission
 check is cached between requests.
 
-This is **not operational erasure yet**. The migration is not applied by editing
-source, and the worker defaults to disabled. The real inventory, provider,
+This is **not operational erasure yet**. Both migrations were installed and
+verified on production on November 13 as recorded below; the worker remains disabled. The real inventory, provider,
 media/record erasure, Auth removal and independent verification adapters remain
 to be connected. No real account or media was deleted by the local SQL and worker
-tests. Production installation and verification remain required for the session and
-database boundaries described below. This source work does not activate full
+tests. The production session and database verification is recorded below;
+physical-device and authenticated HTTP journeys remain required. This source work does not activate full
 erasure.
 
 Tests exercise actual migration SQL in isolated Postgres, queue replay/rollback,
@@ -121,7 +121,7 @@ missing adapters, retained targets after Auth deletion, final identity absence,
 minimal receipts, permission withdrawal/account isolation, real website middleware
 and private native dispatch. Phone and email eligibility tests cover pending
 requests even when older consent or notifications still exist. Full release
-regressions remain required before merge.
+regressions passed for this batch; later changes require their own release checks.
 
 The real PostgreSQL concurrency gate also passes locally with two simultaneous
 connections: a locked older job is skipped, simultaneous claims select distinct
@@ -170,3 +170,43 @@ private REST/RPC/storage denial, missing/expired sessions, pending and removed
 identities, preserved function defaults, original exception handlers, idempotent
 protection and coverage drift. The real PostgreSQL gate also exercises function
 wrapping, session removal and denial from a second live connection.
+
+## Production installation — November 13, 2026
+
+Both migrations were committed atomically on GemList at 20:31:55 UTC and independently
+verified at 20:32:36 UTC. Stored migration source hashes matched the reviewed files.
+Coverage reported zero unguarded functions, zero unguarded tables and zero helper
+privilege gaps: 164 member-callable application functions and 176 restrictive
+policies were registered. The four private job/control/rollback-ledger tables had
+RLS enabled, no anonymous/member SELECT privilege, and service access.
+
+An existing active identity/session passed both the service RPC and the self-check;
+a nonexistent session returned unavailable. The two database checks together took
+3.69 ms in this one observation, not an API latency percentile or load guarantee.
+There were zero pending requests and zero jobs; the worker was disabled. No real
+account, content, media or production notification was erased or created by these
+verification checks. The database point observation was 292,662,419 bytes, 18
+connections and zero other active queries. No provider refresh, schedule or paid
+capacity was added.
+
+The first installation attempt was rejected because the original wrapper treated a
+terminal newline as a missing semicolon. A follow-up query verified complete rollback
+with no new tables, functions, policies or migration-history rows. PR #214 corrected
+whitespace trimming; the observed formatting failed in the new regression fixture
+before the fix and passed after it. Original blocks with and without their optional terminal semicolon
+are covered, including CR/LF/tab/space endings. A rollback-only
+rehearsal then compiled all current production guards and asserted zero coverage
+gaps before the successful installation. No compiler validation was disabled.
+
+The final combined source tree `3091a3384d219c7ac57f767af3dbeb087a736402` passed
+1,342 automated tests across the ordinary suite and the explicit real-PostgreSQL
+gate, website types/build/four SSR suites, all nine mobile browser suites, and the
+unsigned iPhone simulator build. The latter is compilation, not physical-device
+or APNs proof. Database proofs, exact source hashes, rejected-attempt/rollback
+records and release checks are under `output/account-deletion-20261113/`.
+
+These installed safeguards still do not erase an account. Real inventory,
+Apple/provider revocation, media/record cleanup, identity removal and independent
+final verification adapters remain required before enabling the erasure worker.
+The account batch uses API release marker `2026-11-13-deletion-queue`; publication
+must be verified separately from database installation or a pending deploy request.

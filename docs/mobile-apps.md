@@ -51,6 +51,26 @@ scheduled job, provider refresh, paid service or push credential was added.
 Physical-device/authenticated delivery, phone push and complete deletion remain
 launch gates. Evidence: `output/mobile-storefronts-20261113/database-verification.*`.
 
+## November 13 account access safeguards
+
+The private deletion queue and session-boundary migrations are installed on GemList.
+Stored source matched both reviewed migration files; all three coverage counters
+were zero, private job/control/rollback ledgers denied member/guest reads, and an
+existing active session passed. Requests now queue durable work, withdraw optional
+collection/delivery and revoke sessions; private web/app access also checks that
+current session and deletion state. The erasure worker remains disabled and actual
+content/media/identity cleanup is not implemented. No real account was deleted.
+See `docs/account-deletion.md` for the production proof, initial rejected attempt,
+verified rollback, corrected rehearsal and remaining erasure work.
+
+The final combined source passed 1,342 automated tests, full website checks, nine
+mobile browser suites and an unsigned iPhone simulator build. Android debug
+compilation also passed with the same native inputs; the later correction changed
+only SQL/tests and release documentation. Neither build establishes physical-device
+journeys, actual push delivery, configured native advertising or store readiness.
+The source release marker is `2026-11-13-deletion-queue`; live API publication is
+tracked independently in the release evidence.
+
 ## Shared website design
 
 Publishing-tool check, November 13: Lance's official site advertises source builds
