@@ -1,0 +1,16 @@
+[Unit]
+Description=Bluebird phone notification deliveries
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=bluebird-mobile
+WorkingDirectory=/opt/bluebird-mobile/current
+LoadCredential=mobile-push.json:/etc/bluebird/mobile-push.json
+Environment=BLUEBIRD_MOBILE_PUSH_CONFIG=%d/mobile-push.json
+ExecStart=/opt/bluebird-node/bin/node --experimental-strip-types infra/mobile/push-worker.mjs
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+TimeoutStartSec=90

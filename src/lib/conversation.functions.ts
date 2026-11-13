@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- conversation tables are added by the linked migration */
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { mobileWriteId } from "./mobile-write";
 import { emailMarketplaceMessage } from "./email-notifications.server";
 
 export type ConversationSummary = {
@@ -198,11 +199,28 @@ function cleanBody(value: unknown) {
 
 export const startConversation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input: { listingId: string; body: string }) => ({
+  .validator((input: { listingId: string; body: string; requestId?: string }) => ({
+    requestId: mobileWriteId(input.requestId),
     listingId: String(input.listingId),
     body: cleanBody(input.body),
   }))
   .handler(async ({ data, context }): Promise<{ conversationId: string }> => {
+    if (data.requestId) {
+      const { data: outcome, error } = await (context.supabase as any).rpc(
+        "mobile_commit_message",
+        {
+          _request: data.requestId,
+          _operation: "start",
+          _target: data.listingId,
+          _body: data.body,
+        },
+      );
+      if (error || !outcome?.conversationId)
+        throw new Error(error?.message ?? "We could not start this conversation.");
+      if (!outcome.replayed)
+        await emailMarketplaceMessage(outcome.conversationId, context.userId, outcome.messageId);
+      return { conversationId: outcome.conversationId };
+    }
     const { data: conversationId, error } = await (context.supabase as any).rpc(
       data.listingId.startsWith("dealerfeed-") ? "start_dealer_conversation" : "start_conversation",
       data.listingId.startsWith("dealerfeed-")
@@ -238,11 +256,28 @@ export const startDealerConversation = createServerFn({ method: "POST" })
 
 export const sendConversationMessage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input: { conversationId: string; body: string }) => ({
+  .validator((input: { conversationId: string; body: string; requestId?: string }) => ({
+    requestId: mobileWriteId(input.requestId),
     conversationId: String(input.conversationId),
     body: cleanBody(input.body),
   }))
   .handler(async ({ data, context }) => {
+    if (data.requestId) {
+      const { data: outcome, error } = await (context.supabase as any).rpc(
+        "mobile_commit_message",
+        {
+          _request: data.requestId,
+          _operation: "reply",
+          _target: data.conversationId,
+          _body: data.body,
+        },
+      );
+      if (error || !outcome?.messageId)
+        throw new Error(error?.message ?? "We could not send your message.");
+      if (!outcome.replayed)
+        await emailMarketplaceMessage(data.conversationId, context.userId, outcome.messageId);
+      return { messageId: outcome.messageId };
+    }
     const { data: messageId, error } = await (context.supabase as any).rpc(
       "send_conversation_message",
       {

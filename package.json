@@ -24,7 +24,11 @@
     "models:setup": "bash scripts/3d/setup.sh",
     "preview": "npm run build:preview && node .output/server/index.mjs",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "build:mobile": "npm --prefix apps/mobile run build",
+    "test:mobile": "node --experimental-strip-types --test tests/mobile-*.test.mjs",
+    "test:mobile:ui": "node scripts/mobile-ui-smoke.mjs",
+    "test:mobile:shopping:ui": "node --experimental-strip-types scripts/mobile-shopping-ui-smoke.mjs"
   },
   "overrides": {
     "rolldown": "1.2.1"

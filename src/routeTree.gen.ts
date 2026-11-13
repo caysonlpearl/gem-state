@@ -16,6 +16,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as BrowseRouteImport } from './routes/browse'
 import { Route as ClaimSellerRouteImport } from './routes/claim-seller'
 import { Route as ContactRouteImport } from './routes/contact'
+import { Route as DeleteAccountRouteImport } from './routes/delete-account'
 import { Route as FirearmsSafetyRouteImport } from './routes/firearms-safety'
 import { Route as ForDealersRouteImport } from './routes/for-dealers'
 import { Route as GlossaryRouteImport } from './routes/glossary'
@@ -90,6 +91,7 @@ import { Route as IdahoMarketReportIndexRouteImport } from './routes/idaho.marke
 import { Route as IdahoMarketReportMonthRouteImport } from './routes/idaho.market-report.$month'
 import { Route as AuthenticatedAdminOrdersOrderIdRouteImport } from './routes/_authenticated/admin.orders.$orderId'
 import { Route as AuthenticatedListingsListingIdEditRouteImport } from './routes/_authenticated/listings.$listingId.edit'
+import { Route as ApiMobileV1SplatRouteImport } from './routes/api/mobile/v1/$'
 import { Route as ApiPublicCatalogMediaSplatRouteImport } from './routes/api/public/catalog-media.$'
 import { Route as LovableEmailAuthPreviewRouteImport } from './routes/lovable/email/auth/preview'
 import { Route as LovableEmailAuthWebhookRouteImport } from './routes/lovable/email/auth/webhook'
@@ -128,6 +130,11 @@ const ClaimSellerRoute = ClaimSellerRouteImport.update({
 const ContactRoute = ContactRouteImport.update({
   id: '/contact',
   path: '/contact',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DeleteAccountRoute = DeleteAccountRouteImport.update({
+  id: '/delete-account',
+  path: '/delete-account',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FirearmsSafetyRoute = FirearmsSafetyRouteImport.update({
@@ -529,6 +536,11 @@ const AuthenticatedListingsListingIdEditRoute =
     path: '/listings/$listingId/edit',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const ApiMobileV1SplatRoute = ApiMobileV1SplatRouteImport.update({
+  id: '/api/mobile/v1/$',
+  path: '/api/mobile/v1/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicCatalogMediaSplatRoute =
   ApiPublicCatalogMediaSplatRouteImport.update({
     id: '/api/public/catalog-media/$',
@@ -565,6 +577,7 @@ export interface FileRoutesByFullPath {
   '/browse': typeof BrowseRoute
   '/claim-seller': typeof ClaimSellerRoute
   '/contact': typeof ContactRoute
+  '/delete-account': typeof DeleteAccountRoute
   '/firearms-safety': typeof FirearmsSafetyRoute
   '/for-dealers': typeof ForDealersRoute
   '/glossary': typeof GlossaryRoute
@@ -639,6 +652,7 @@ export interface FileRoutesByFullPath {
   '/idaho/market-report/': typeof IdahoMarketReportIndexRoute
   '/admin/orders/$orderId': typeof AuthenticatedAdminOrdersOrderIdRoute
   '/listings/$listingId/edit': typeof AuthenticatedListingsListingIdEditRoute
+  '/api/mobile/v1/$': typeof ApiMobileV1SplatRoute
   '/api/public/catalog-media/$': typeof ApiPublicCatalogMediaSplatRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
@@ -652,6 +666,7 @@ export interface FileRoutesByTo {
   '/browse': typeof BrowseRoute
   '/claim-seller': typeof ClaimSellerRoute
   '/contact': typeof ContactRoute
+  '/delete-account': typeof DeleteAccountRoute
   '/firearms-safety': typeof FirearmsSafetyRoute
   '/for-dealers': typeof ForDealersRoute
   '/glossary': typeof GlossaryRoute
@@ -725,6 +740,7 @@ export interface FileRoutesByTo {
   '/idaho/market-report': typeof IdahoMarketReportIndexRoute
   '/admin/orders/$orderId': typeof AuthenticatedAdminOrdersOrderIdRoute
   '/listings/$listingId/edit': typeof AuthenticatedListingsListingIdEditRoute
+  '/api/mobile/v1/$': typeof ApiMobileV1SplatRoute
   '/api/public/catalog-media/$': typeof ApiPublicCatalogMediaSplatRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
@@ -740,6 +756,7 @@ export interface FileRoutesById {
   '/browse': typeof BrowseRoute
   '/claim-seller': typeof ClaimSellerRoute
   '/contact': typeof ContactRoute
+  '/delete-account': typeof DeleteAccountRoute
   '/firearms-safety': typeof FirearmsSafetyRoute
   '/for-dealers': typeof ForDealersRoute
   '/glossary': typeof GlossaryRoute
@@ -814,6 +831,7 @@ export interface FileRoutesById {
   '/idaho/market-report/': typeof IdahoMarketReportIndexRoute
   '/_authenticated/admin/orders/$orderId': typeof AuthenticatedAdminOrdersOrderIdRoute
   '/_authenticated/listings/$listingId/edit': typeof AuthenticatedListingsListingIdEditRoute
+  '/api/mobile/v1/$': typeof ApiMobileV1SplatRoute
   '/api/public/catalog-media/$': typeof ApiPublicCatalogMediaSplatRoute
   '/lovable/email/auth/preview': typeof LovableEmailAuthPreviewRoute
   '/lovable/email/auth/webhook': typeof LovableEmailAuthWebhookRoute
@@ -829,6 +847,7 @@ export interface FileRouteTypes {
     | '/browse'
     | '/claim-seller'
     | '/contact'
+    | '/delete-account'
     | '/firearms-safety'
     | '/for-dealers'
     | '/glossary'
@@ -903,6 +922,7 @@ export interface FileRouteTypes {
     | '/idaho/market-report/'
     | '/admin/orders/$orderId'
     | '/listings/$listingId/edit'
+    | '/api/mobile/v1/$'
     | '/api/public/catalog-media/$'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
@@ -916,6 +936,7 @@ export interface FileRouteTypes {
     | '/browse'
     | '/claim-seller'
     | '/contact'
+    | '/delete-account'
     | '/firearms-safety'
     | '/for-dealers'
     | '/glossary'
@@ -989,6 +1010,7 @@ export interface FileRouteTypes {
     | '/idaho/market-report'
     | '/admin/orders/$orderId'
     | '/listings/$listingId/edit'
+    | '/api/mobile/v1/$'
     | '/api/public/catalog-media/$'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
@@ -1003,6 +1025,7 @@ export interface FileRouteTypes {
     | '/browse'
     | '/claim-seller'
     | '/contact'
+    | '/delete-account'
     | '/firearms-safety'
     | '/for-dealers'
     | '/glossary'
@@ -1077,6 +1100,7 @@ export interface FileRouteTypes {
     | '/idaho/market-report/'
     | '/_authenticated/admin/orders/$orderId'
     | '/_authenticated/listings/$listingId/edit'
+    | '/api/mobile/v1/$'
     | '/api/public/catalog-media/$'
     | '/lovable/email/auth/preview'
     | '/lovable/email/auth/webhook'
@@ -1092,6 +1116,7 @@ export interface RootRouteChildren {
   BrowseRoute: typeof BrowseRoute
   ClaimSellerRoute: typeof ClaimSellerRoute
   ContactRoute: typeof ContactRoute
+  DeleteAccountRoute: typeof DeleteAccountRoute
   FirearmsSafetyRoute: typeof FirearmsSafetyRoute
   ForDealersRoute: typeof ForDealersRoute
   GlossaryRoute: typeof GlossaryRoute
@@ -1133,6 +1158,7 @@ export interface RootRouteChildren {
   CarsMakeIndexRoute: typeof CarsMakeIndexRoute
   IdahoPlaceIndexRoute: typeof IdahoPlaceIndexRoute
   IdahoMarketReportIndexRoute: typeof IdahoMarketReportIndexRoute
+  ApiMobileV1SplatRoute: typeof ApiMobileV1SplatRoute
   ApiPublicCatalogMediaSplatRoute: typeof ApiPublicCatalogMediaSplatRoute
   LovableEmailAuthPreviewRoute: typeof LovableEmailAuthPreviewRoute
   LovableEmailAuthWebhookRoute: typeof LovableEmailAuthWebhookRoute
@@ -1189,6 +1215,13 @@ declare module '@tanstack/react-router' {
       path: '/contact'
       fullPath: '/contact'
       preLoaderRoute: typeof ContactRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/delete-account': {
+      id: '/delete-account'
+      path: '/delete-account'
+      fullPath: '/delete-account'
+      preLoaderRoute: typeof DeleteAccountRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/firearms-safety': {
@@ -1709,6 +1742,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedListingsListingIdEditRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/api/mobile/v1/$': {
+      id: '/api/mobile/v1/$'
+      path: '/api/mobile/v1/$'
+      fullPath: '/api/mobile/v1/$'
+      preLoaderRoute: typeof ApiMobileV1SplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/catalog-media/$': {
       id: '/api/public/catalog-media/$'
       path: '/api/public/catalog-media/$'
@@ -1845,6 +1885,7 @@ const rootRouteChildren: RootRouteChildren = {
   BrowseRoute: BrowseRoute,
   ClaimSellerRoute: ClaimSellerRoute,
   ContactRoute: ContactRoute,
+  DeleteAccountRoute: DeleteAccountRoute,
   FirearmsSafetyRoute: FirearmsSafetyRoute,
   ForDealersRoute: ForDealersRoute,
   GlossaryRoute: GlossaryRoute,
@@ -1886,6 +1927,7 @@ const rootRouteChildren: RootRouteChildren = {
   CarsMakeIndexRoute: CarsMakeIndexRoute,
   IdahoPlaceIndexRoute: IdahoPlaceIndexRoute,
   IdahoMarketReportIndexRoute: IdahoMarketReportIndexRoute,
+  ApiMobileV1SplatRoute: ApiMobileV1SplatRoute,
   ApiPublicCatalogMediaSplatRoute: ApiPublicCatalogMediaSplatRoute,
   LovableEmailAuthPreviewRoute: LovableEmailAuthPreviewRoute,
   LovableEmailAuthWebhookRoute: LovableEmailAuthWebhookRoute,

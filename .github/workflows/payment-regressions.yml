@@ -26,3 +26,11 @@ jobs:
       - run: npx tsc --noEmit
       - run: npm run build
       - run: npm run test:seo:ssr
+      - name: Install mobile app dependencies
+        run: npm ci --prefix apps/mobile
+      - name: Compile bundled mobile app
+        run: npm run build:mobile
+      - name: Install mobile browser test runtime
+        run: npm --prefix apps/mobile exec -- playwright install chromium
+      - name: Verify native shopper privacy and recommendation screens
+        run: npm run test:mobile:shopping:ui

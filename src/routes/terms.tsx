@@ -9,6 +9,15 @@ function Terms() {
     <article className="mx-auto max-w-3xl space-y-5 px-5 py-12 [&_h1]:text-3xl [&_h1]:font-semibold [&_h2]:pt-6 [&_h2]:text-xl [&_h2]:font-semibold [&_p]:text-sm [&_p]:leading-7 [&_a]:underline">
       <h1>Terms of Service</h1>
       <p>Effective {SHOPPING_POLICY_VERSION}</p>
+      <h2>Phone app catalog</h2>
+      <p>
+        Bluebird's phone apps show store-eligible marketplace inventory. Firearms, ammunition,
+        explosives, and other products or services prohibited by the app stores are excluded from
+        app browsing, recommendations, posting, listing-linked conversations, and notifications.
+        Inventory available separately on the website may differ. These restrictions are permanent
+        and apply to all app users.
+      </p>
+
       <p>
         By creating an account or using Bluebird Marketplace, you agree to these terms. You must be
         at least 18 and able to enter a binding agreement. Provide accurate account information and

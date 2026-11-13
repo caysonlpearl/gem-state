@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import ts from "typescript";
 import * as contract from "../src/lib/shopping-contract.ts";
+import * as deliveryEligibility from "../src/lib/shopping-delivery-eligibility.ts";
 const source = readFileSync(
   new URL("../src/lib/shopping-worker.server.ts", import.meta.url),
   "utf8",
@@ -74,6 +75,9 @@ function harness({ alerts = true, requested = false, beforeHandoff = () => {} } 
         created_at: "2026-01-01",
       },
     ],
+    shopping_privacy: [{ subject: "u:" + user, personalization: true }],
+    shopping_events: [],
+    shopping_favorites: [],
     account_notification_preferences: [],
     shopping_deliveries: [],
     notifications: [],
@@ -195,6 +199,7 @@ function harness({ alerts = true, requested = false, beforeHandoff = () => {} } 
       },
     },
     rpc: async (name) => {
+      if (name === "shopping_saved_interests") return { data: [], error: null };
       if (name === "read_published_dealer_inventory")
         return { data: { vehicles: tables.published_feed ?? [{ id: "a" }] }, error: null };
       assert.equal(name, "claim_shopping_delivery");
@@ -237,6 +242,7 @@ function harness({ alerts = true, requested = false, beforeHandoff = () => {} } 
   const exports = {};
   new Function("require", "exports", compiled)((name) => {
     if (name === "./shopping-contract") return contract;
+    if (name === "./shopping-delivery-eligibility.ts") return deliveryEligibility;
     if (name === "./shopping.server")
       return {
         shoppingExternalEligibility: gateExports.shoppingExternalEligibility,
