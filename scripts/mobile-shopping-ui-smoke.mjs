@@ -104,6 +104,8 @@ try {
           categories: mobileCategories,
           features: { push: false, advertising: false, paidUpgrades: false },
         };
+      else if (path === "home")
+        data = { motors: cards.map((card) => ({ ...card, state: "ID" })), recent: [] };
       else if (path === "shopping") {
         if (consentUnavailable)
           return route.fulfill({
@@ -161,7 +163,7 @@ try {
       });
     });
     await page.goto(origin);
-    await page.getByRole("heading", { name: "Discover something good" }).waitFor();
+    await page.getByRole("heading", { name: /^Find / }).waitFor();
     await page.waitForTimeout(3000);
     assert.equal(events.length, 0, "No activity before personalization permission");
     await page.getByRole("button", { name: "Privacy", exact: true }).click();
@@ -196,11 +198,13 @@ try {
       1,
       "Acknowledged dismissals survive reload",
     );
-    await page.getByLabel("Category", { exact: true }).selectOption("cars-trucks");
+    await page.getByRole("combobox", { name: "Category", exact: true }).click();
+    await page.getByRole("option", { name: "Cars & Trucks", exact: true }).click();
     await page
       .getByRole("heading", { name: "Recommended for you", exact: true })
       .waitFor({ state: "hidden" });
-    await page.getByLabel("Category", { exact: true }).selectOption("");
+    await page.getByRole("combobox", { name: "Category", exact: true }).click();
+    await page.getByRole("option", { name: "All categories", exact: true }).click();
     await page.getByLabel("Sort listings", { exact: true }).selectOption("price_high");
     await page
       .getByRole("heading", { name: "Recommended for you", exact: true })
@@ -242,7 +246,7 @@ try {
     await dialog.getByText("Privacy choices could not be loaded.", { exact: true }).waitFor();
     await dialog.getByRole("button", { name: "Done", exact: true }).click();
     await page.getByRole("button", { name: "Browse", exact: true }).click();
-    await page.getByRole("heading", { name: "Discover something good" }).waitFor();
+    await page.getByRole("heading", { name: /^Find / }).waitFor();
     await page.locator(".listing-card").first().waitFor();
     assert.deepEqual(errors, []);
     results.push({

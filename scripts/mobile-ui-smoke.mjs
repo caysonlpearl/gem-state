@@ -23,8 +23,9 @@ try {
       waitUntil: "domcontentloaded",
       timeout: 60000,
     });
-    await page.getByRole("heading", { name: "Discover something good" }).waitFor();
-    await page.getByLabel("Category", { exact: true }).selectOption("cars-trucks");
+    await page.getByRole("heading", { name: /^Find / }).waitFor();
+    await page.getByRole("combobox", { name: "Category", exact: true }).click();
+    await page.getByRole("option", { name: "Cars & Trucks", exact: true }).click();
     await page.locator(".listing-card").first().waitFor({ timeout: 60000 });
     const cards = await page.locator(".listing-card").count();
     await page.screenshot({ path: resolve(output, `browse-${viewport.width}.png`) });
@@ -36,8 +37,11 @@ try {
       .waitFor({ timeout: 60000 });
     await page.screenshot({ path: resolve(output, `listing-${viewport.width}.png`) });
     await page.getByRole("button", { name: "Go back", exact: true }).click();
-    await page.getByRole("heading", { name: "Discover something good" }).waitFor();
-    assert.equal(await page.getByLabel("Category", { exact: true }).inputValue(), "cars-trucks");
+    await page.getByRole("heading", { name: /^Find / }).waitFor();
+    assert.equal(
+      await page.getByRole("combobox", { name: "Category", exact: true }).innerText(),
+      "Cars & Trucks",
+    );
     await page.waitForFunction((y) => Math.abs(window.scrollY - y) < 3, previousScroll);
     await page.getByLabel("Search Bluebird", { exact: true }).fill("Subaru Outback");
     const queryResponse = page.waitForResponse(

@@ -12,7 +12,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 const homeSource = await readFile(new URL("../src/routes/index.tsx", import.meta.url), "utf8");
 const browseSource = await readFile(new URL("../src/routes/browse.tsx", import.meta.url), "utf8");
 const cardSource = await readFile(
-  new URL("../src/components/classifieds/ListingCard.tsx", import.meta.url),
+  new URL("../src/components/classifieds/ListingCardView.tsx", import.meta.url),
   "utf8",
 );
 const placePageSource = await readFile(

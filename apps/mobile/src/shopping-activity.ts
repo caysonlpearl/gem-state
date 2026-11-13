@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { trackShopping } from "./shopping";
 let foreground = true;
+export const shoppingOverlayOpen = () =>
+  Boolean(document.querySelector('dialog[open], [role="dialog"][data-state="open"]'));
 export const isShoppingForeground = () => foreground;
 export function setShoppingForeground(value: boolean) {
   foreground = value;
@@ -13,10 +15,7 @@ export function useListingActivity(id: string | undefined, learning: boolean) {
       viewed = false;
     const sample = () => {
       const now = Date.now(),
-        visible =
-          foreground &&
-          document.visibilityState === "visible" &&
-          !document.querySelector("dialog[open]");
+        visible = foreground && document.visibilityState === "visible" && !shoppingOverlayOpen();
       if (started) {
         const seconds = Math.min(60, Math.floor((now - started) / 1000));
         if (seconds > 0) trackShopping("active", id, { seconds });
@@ -33,12 +32,14 @@ export function useListingActivity(id: string | undefined, learning: boolean) {
     };
     sample();
     const timer = setInterval(sample, 10000);
+    document.addEventListener("focusin", sample);
     document.addEventListener("visibilitychange", sample);
     document.addEventListener("bluebird-visibility-change", sample);
     document.addEventListener("bluebird-shopping-session", session);
     return () => {
       sample();
       clearInterval(timer);
+      document.removeEventListener("focusin", sample);
       document.removeEventListener("visibilitychange", sample);
       document.removeEventListener("bluebird-visibility-change", sample);
       document.removeEventListener("bluebird-shopping-session", session);

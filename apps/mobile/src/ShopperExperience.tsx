@@ -1,7 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useRef, useState } from "react";
+import {
+  ListingCardView,
+  type ListingCardLinkProps,
+} from "../../../src/components/classifieds/ListingCardView";
+import { listingPresentation } from "./listing-presentation";
+import { CardSaveButton } from "./SavedCards";
 import type { MobileListing } from "../../../src/lib/mobile-contract";
 import { api, apiOrigin } from "./client";
-import { isShoppingForeground } from "./shopping-activity";
+import { isShoppingForeground, shoppingOverlayOpen } from "./shopping-activity";
 import {
   applyShopperStatus,
   clearShoppingHistory,
@@ -13,6 +19,23 @@ import {
   type RecommendationRows,
 } from "./shopping";
 
+const OpenListing = createContext<(id: string) => void>(() => {});
+function NativeListingLink({ listing, className, children, ariaLabel }: ListingCardLinkProps) {
+  const open = useContext(OpenListing);
+  return (
+    <a
+      href={`#/listings/${encodeURIComponent(listing.id)}`}
+      className={className}
+      aria-label={ariaLabel}
+      onClick={(event) => {
+        event.preventDefault();
+        open(listing.id);
+      }}
+    >
+      {children}
+    </a>
+  );
+}
 export function ListingTile({
   card,
   position,
@@ -28,8 +51,9 @@ export function ListingTile({
   learning: boolean;
   onOpen: (id: string) => void;
 }) {
-  const ref = useRef<HTMLButtonElement>(null),
-    [failed, setFailed] = useState(false);
+  const ref = useRef<HTMLElement>(null);
+  const recommendation =
+    placement !== "browse" && placement !== "saved" && !placement.startsWith("home:");
   useEffect(() => {
     if (!learning || !ref.current) return;
     let timer: ReturnType<typeof setTimeout> | undefined,
@@ -40,7 +64,7 @@ export function ListingTile({
         !intersecting ||
         !isShoppingForeground() ||
         document.visibilityState !== "visible" ||
-        document.querySelector("dialog[open]")
+        shoppingOverlayOpen()
       )
         return;
       timer = setTimeout(() => {
@@ -48,13 +72,13 @@ export function ListingTile({
           intersecting &&
           isShoppingForeground() &&
           document.visibilityState === "visible" &&
-          !document.querySelector("dialog[open]")
+          !shoppingOverlayOpen()
         )
           trackShopping("impression", card.id, {
             position,
             placement,
             model,
-            source: placement === "browse" || placement === "saved" ? "browse" : "recommendation",
+            source: recommendation ? "recommendation" : "browse",
             ...card.shoppingFeatures,
           });
       }, 1000);
@@ -67,50 +91,38 @@ export function ListingTile({
       { threshold: [0, 0.5] },
     );
     observer.observe(ref.current);
+    document.addEventListener("focusin", assess);
     document.addEventListener("visibilitychange", assess);
     document.addEventListener("bluebird-visibility-change", assess);
     return () => {
       observer.disconnect();
       if (timer) clearTimeout(timer);
+      document.removeEventListener("focusin", assess);
       document.removeEventListener("visibilitychange", assess);
       document.removeEventListener("bluebird-visibility-change", assess);
     };
-  }, [card.id, card.shoppingFeatures, learning, model, placement, position]);
-  const price =
-    card.priceLabel ??
-    new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: card.currency || "USD",
-      maximumFractionDigits: 0,
-    }).format(card.priceCents / 100);
+  }, [card.id, card.shoppingFeatures, learning, model, placement, position, recommendation]);
+  const open = (id: string) => {
+    if (recommendation)
+      trackShopping("recommendation_click", id, {
+        position,
+        placement,
+        model,
+        source: "recommendation",
+        ...card.shoppingFeatures,
+      });
+    onOpen(id);
+  };
   return (
-    <button
-      ref={ref}
-      className="listing-card"
-      onClick={() => {
-        if (placement !== "browse" && placement !== "saved")
-          trackShopping("recommendation_click", card.id, {
-            position,
-            placement,
-            model,
-            source: "recommendation",
-            ...card.shoppingFeatures,
-          });
-        onOpen(card.id);
-      }}
-    >
-      {card.imageUrl && !failed ? (
-        <img src={card.imageUrl} loading="lazy" alt="" onError={() => setFailed(true)} />
-      ) : (
-        <div className="photo-missing">Photo unavailable</div>
-      )}
-      <div>
-        <strong>{price}</strong>
-        <h2>{card.title}</h2>
-        <p>{[card.city, card.state].filter(Boolean).join(", ")}</p>
-        {card.source && <small>{card.source}</small>}
-      </div>
-    </button>
+    <OpenListing.Provider value={open}>
+      <ListingCardView
+        className="listing-card"
+        listing={listingPresentation(card)}
+        elementRef={ref}
+        renderLink={NativeListingLink}
+        saveAction={<CardSaveButton card={card} />}
+      />
+    </OpenListing.Provider>
   );
 }
 export function ShoppingRows({

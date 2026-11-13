@@ -1,3 +1,8 @@
+import { MarketplaceVehicleLeadHeader } from "@/components/classifieds/MarketplaceVehicleLeadHeader";
+import { parseLocationSearch } from "@/lib/location-search";
+import { headlineOptions } from "@/config/homepage-headlines";
+import { MarketplaceListingSection } from "@/components/classifieds/MarketplaceListingSection";
+import { MarketplaceHero } from "@/components/classifieds/MarketplaceHero";
 import { gunsComProfile } from "@/config/retailers";
 import { selectDiscoveryCards } from "@/lib/discovery-ranking";
 import { listingCardImageUrl } from "@/lib/listing-card-image";
@@ -22,15 +27,13 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { ArrowRight, MagnifyingGlass, Car, Crosshair, MapTrifold } from "@phosphor-icons/react";
+import { ArrowRight, MagnifyingGlass, Crosshair, MapTrifold } from "@phosphor-icons/react";
 
 import { brand } from "@/config/brand";
 import {
   classifiedCategories,
   classifiedCoordinatesForCity,
   nearestClassifiedCity,
-  marketplaceCities,
-  idahoRegions,
   isWithinClassifiedRadius,
   usStates,
 } from "@/config/classifieds";
@@ -156,17 +159,6 @@ type HomepageBrowseSearch = {
   longitude?: number;
 };
 
-const headlineOptions = [
-  ["Cars", "Toys", "Appliances", "Fishing Lures"],
-  ["Trucks", "Tools", "Furniture", "Massage Chairs"],
-  ["RVs", "Outdoor Gear", "Electronics", "Air Hockey Tables"],
-  ["Motorcycles", "Farm Equipment", "Home Goods", "Kayaks"],
-  ["Auto Parts", "Camping Gear", "Bikes", "Vintage Signs"],
-  ["Boats", "Garden Gear", "Collectibles", "Smoker Grills"],
-  ["Trailers", "Lawn Equipment", "Appliances", "Arcade Cabinets"],
-  ["SUVs", "Toys", "Tools", "Fishing Tackle"],
-] as const;
-
 const headlineStorageKey = "gem-state-classifieds:last-headline";
 const headlineWindowKey = "gem-state-classifieds:last-headline=";
 
@@ -190,69 +182,6 @@ function pickHeadlineItems() {
     window.name = `${headlineWindowKey}${selected.join("|")}`;
   }
   return selected;
-}
-
-type ParsedLocationSearch = {
-  city?: string;
-  region?: string;
-  state?: string;
-  postalCode?: string;
-};
-
-function parseLocationSearch(value: string): ParsedLocationSearch {
-  const normalized = value.trim().replace(/\s+/g, " ");
-  if (!normalized) return {};
-
-  const zipMatch = normalized.match(/\b\d{5}(?:-\d{4})?\b$/);
-  const postalCode = zipMatch?.[0];
-  const withoutPostalCode = normalized.replace(/\s*\b\d{5}(?:-\d{4})?\b$/, "").trim();
-  const matchingRegion = idahoRegions.find(
-    (option) => option.toLowerCase() === withoutPostalCode.toLowerCase(),
-  );
-  if (matchingRegion) return { region: matchingRegion, ...(postalCode ? { postalCode } : {}) };
-  const matchingStateOnly = usStates.find(
-    ([code, name]) =>
-      code.toLowerCase() === withoutPostalCode.toLowerCase() ||
-      name.toLowerCase() === withoutPostalCode.toLowerCase(),
-  );
-  if (matchingStateOnly) {
-    return { state: matchingStateOnly[0], ...(postalCode ? { postalCode } : {}) };
-  }
-
-  const parts = withoutPostalCode
-    .split(",")
-    .map((part) => part.trim())
-    .filter(Boolean);
-  let city = parts.length > 1 ? parts.slice(0, -1).join(", ") : withoutPostalCode;
-  let stateToken = parts.length > 1 ? parts.at(-1) : undefined;
-
-  if (!stateToken) {
-    const stateSuffix =
-      usStates.find(([, name]) => {
-        const lowerName = name.toLowerCase();
-        const lowerValue = withoutPostalCode.toLowerCase();
-        return lowerValue.endsWith(` ${lowerName}`);
-      }) ??
-      usStates.find(([code]) => withoutPostalCode.toLowerCase().endsWith(` ${code.toLowerCase()}`));
-    if (stateSuffix) {
-      stateToken = stateSuffix[1];
-      city = withoutPostalCode.slice(0, -stateToken.length).trim();
-    }
-  }
-
-  const matchingState = stateToken
-    ? usStates.find(
-        ([code, name]) =>
-          code.toLowerCase() === stateToken?.toLowerCase() ||
-          name.toLowerCase() === stateToken?.toLowerCase(),
-      )
-    : undefined;
-
-  return {
-    ...(city ? { city } : {}),
-    ...(matchingState ? { state: matchingState[0] } : {}),
-    ...(postalCode ? { postalCode } : {}),
-  };
 }
 
 function Home() {
@@ -427,195 +356,136 @@ function Home() {
 
   return (
     <main className="mx-auto max-w-[1360px] px-4 pb-16 sm:px-6">
-      <section className="classifieds-hero-shell homepage-hero-shell relative mt-6 overflow-hidden rounded-[28px] border border-brand-blue/20 bg-secondary px-4 py-4 shadow-lg sm:px-10 sm:py-8">
-        <span
-          className="classifieds-hero-orb classifieds-hero-orb--blue absolute -right-20 -top-24 h-64 w-64 rounded-full bg-brand-blue/12"
-          aria-hidden="true"
-        />
-        <span
-          className="classifieds-hero-orb classifieds-hero-orb--warm absolute -bottom-28 left-1/3 h-72 w-72 rounded-full bg-brand-warm/18"
-          aria-hidden="true"
-        />
-        <span
-          className="classifieds-hero-sheen pointer-events-none absolute inset-y-0 -left-1/3 z-0 w-1/3 skew-x-[-18deg] bg-white/20"
-          aria-hidden="true"
-        />
-        <div className="relative z-10">
-          <div className="homepage-hero-top">
-            <div className="min-w-0">
-              <h1
-                ref={headlineRef}
-                className="homepage-hero-headline block max-w-[34ch] text-[22px] sm:mt-2 font-bold leading-[1.08] tracking-tight sm:text-[48px]"
-              >
-                {/* Phones: fixed three lines "Find A to / B to C / to D."
-                Tablet/desktop: two lines "Find A to B to / C to D." */}
-                <span className="whitespace-nowrap sm:whitespace-normal">
-                  Find{" "}
-                  <span
-                    key={headlineItems.join("|")}
-                    className={`${headlineRotated ? "classifieds-hero-rotating-item " : ""}text-brand-blue`}
-                    aria-live="polite"
-                  >
-                    {headlineItems[0]}
-                  </span>{" "}
-                  to
-                  <br className="sm:hidden" />
-                  <span className="hidden sm:inline"> </span>
-                  {headlineItems[1]} to
-                  <br className="hidden sm:inline" />
-                  <span className="sm:hidden"> </span>
-                  {headlineItems[2]}
-                  <br className="sm:hidden" />
-                  <span className="hidden sm:inline"> </span>
-                  to {headlineItems[3]}.
-                </span>
-              </h1>
-              <p className="mt-1 max-w-[56ch] text-xs leading-snug text-muted-foreground sm:mt-1.5 sm:whitespace-nowrap sm:leading-relaxed">
-                And so much more across Idaho and surrounding states.
-              </p>
-              <div
-                className="classifieds-hero-accent mt-3 hidden sm:flex items-center gap-1.5"
-                aria-hidden="true"
-              >
-                <span className="classifieds-hero-accent-bar h-1.5 w-9 rounded-full bg-brand-blue" />
-                <span className="classifieds-hero-accent-bar classifieds-hero-accent-bar--warm h-1.5 w-5 rounded-full bg-brand-warm" />
-                <span className="classifieds-hero-accent-bar h-1.5 w-2.5 rounded-full bg-brand-blue/60" />
-              </div>
-            </div>
-          </div>
-
-          <form
-            className="floating-card mt-3 grid grid-cols-2 gap-1.5 border border-brand-blue/15 ring-1 ring-brand-warm/10 p-1.5 sm:mt-5 sm:gap-2 sm:p-2 sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:p-3"
-            onSubmit={(event) => {
-              event.preventDefault();
-              const locationSearch = parseLocationSearch(location);
-              void navigate({
-                to: "/browse",
-                search: {
-                  ...(term.trim() ? { q: term.trim() } : {}),
-                  ...(category ? { category } : {}),
-                  ...locationSearch,
-                  ...(locationSearch.city || mapPoint ? { radiusMiles } : {}),
-                  ...(mapPoint
-                    ? { latitude: mapPoint.latitude, longitude: mapPoint.longitude }
-                    : {}),
-                },
-              });
+      <MarketplaceHero items={headlineItems} rotated={headlineRotated} headingRef={headlineRef}>
+        <form
+          className="floating-card mt-3 grid grid-cols-2 gap-1.5 border border-brand-blue/15 ring-1 ring-brand-warm/10 p-1.5 sm:mt-5 sm:gap-2 sm:p-2 sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:p-3"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const locationSearch = parseLocationSearch(location);
+            void navigate({
+              to: "/browse",
+              search: {
+                ...(term.trim() ? { q: term.trim() } : {}),
+                ...(category ? { category } : {}),
+                ...locationSearch,
+                ...(locationSearch.city || mapPoint ? { radiusMiles } : {}),
+                ...(mapPoint ? { latitude: mapPoint.latitude, longitude: mapPoint.longitude } : {}),
+              },
+            });
+          }}
+        >
+          <label className="relative col-span-2 block sm:col-span-1">
+            <MagnifyingGlass
+              size={16}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+            />
+            <input
+              type="search"
+              value={term}
+              onChange={(event) => setTerm(event.target.value)}
+              placeholder="Search listings"
+              aria-label="Search listings"
+              className="h-10 w-full rounded-full border-0 bg-transparent pl-9 sm:h-12 pr-3 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none"
+            />
+          </label>
+          <HomeSearchDropdown
+            value={category}
+            onChange={setCategory}
+            label="Category"
+            placeholder="All categories"
+            options={[
+              { value: "", label: "All categories" },
+              ...classifiedCategories.map((option) => ({
+                value: option.slug,
+                label: option.name,
+              })),
+            ]}
+          />
+          <HomeSearchDropdown
+            value={location}
+            onChange={(next) => {
+              manualLocationRef.current = true;
+              setLocation(next);
+              setMapPoint(undefined);
             }}
+            placeholder="City or ZIP code"
+            shortPlaceholder="City or ZIP"
+            label="City or ZIP code"
+            editable
+            options={suggestLocations(location)}
+          />
+          <button
+            type="submit"
+            className="col-span-2 h-10 rounded-full bg-primary px-7 sm:col-span-1 sm:h-12 text-[13px] font-semibold text-primary-foreground shadow-sm transition-transform hover:scale-[1.02]"
           >
-            <label className="relative col-span-2 block sm:col-span-1">
-              <MagnifyingGlass
-                size={16}
-                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-              />
-              <input
-                type="search"
-                value={term}
-                onChange={(event) => setTerm(event.target.value)}
-                placeholder="Search listings"
-                aria-label="Search listings"
-                className="h-10 w-full rounded-full border-0 bg-transparent pl-9 sm:h-12 pr-3 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none"
-              />
-            </label>
-            <HomeSearchDropdown
-              value={category}
-              onChange={setCategory}
-              label="Category"
-              placeholder="All categories"
-              options={[
-                { value: "", label: "All categories" },
-                ...classifiedCategories.map((option) => ({
-                  value: option.slug,
-                  label: option.name,
-                })),
-              ]}
-            />
-            <HomeSearchDropdown
-              value={location}
-              onChange={(next) => {
-                manualLocationRef.current = true;
-                setLocation(next);
-                setMapPoint(undefined);
-              }}
-              placeholder="City or ZIP code"
-              shortPlaceholder="City or ZIP"
-              label="City or ZIP code"
-              editable
-              options={suggestLocations(location)}
-            />
-            <button
-              type="submit"
-              className="col-span-2 h-10 rounded-full bg-primary px-7 sm:col-span-1 sm:h-12 text-[13px] font-semibold text-primary-foreground shadow-sm transition-transform hover:scale-[1.02]"
-            >
-              Search
-            </button>
-          </form>
-          <div className="mt-3 flex flex-wrap items-center gap-3 text-[12px] text-muted-foreground sm:mt-4">
-            <span className="basis-full font-semibold leading-relaxed text-foreground sm:mr-1 sm:basis-auto">
-              Search area: {locationSummary}
-            </span>
-            <button
-              type="button"
-              disabled={locating}
-              onClick={() => {
-                manualLocationRef.current = false;
-                void locateVisitor(false);
-              }}
-              className={locationActionClass}
-            >
-              <Crosshair size={16} aria-hidden="true" />
-              {locating ? "Finding location…" : "Use my location"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setMapOpen((open) => !open)}
-              className={locationActionClass}
-              aria-expanded={mapOpen}
-            >
-              <MapTrifold size={16} aria-hidden="true" />
-              {mapOpen ? "Hide map" : "Choose anywhere on map"}
-            </button>
-            {/* The radius only means something around a chosen city or map
+            Search
+          </button>
+        </form>
+        <div className="mt-3 flex flex-wrap items-center gap-3 text-[12px] text-muted-foreground sm:mt-4">
+          <span className="basis-full font-semibold leading-relaxed text-foreground sm:mr-1 sm:basis-auto">
+            Search area: {locationSummary}
+          </span>
+          <button
+            type="button"
+            disabled={locating}
+            onClick={() => {
+              manualLocationRef.current = false;
+              void locateVisitor(false);
+            }}
+            className={locationActionClass}
+          >
+            <Crosshair size={16} aria-hidden="true" />
+            {locating ? "Finding location…" : "Use my location"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setMapOpen((open) => !open)}
+            className={locationActionClass}
+            aria-expanded={mapOpen}
+          >
+            <MapTrifold size={16} aria-hidden="true" />
+            {mapOpen ? "Hide map" : "Choose anywhere on map"}
+          </button>
+          {/* The radius only means something around a chosen city or map
                 point; before that, "Search area: Idaho" already says it. */}
-            <label className="flex min-h-9 min-w-[220px] sm:min-h-11 flex-1 items-center gap-2 sm:max-w-[360px]">
-              <span className="whitespace-nowrap">Distance</span>
-              <input
-                aria-label="Search radius in miles"
-                type="range"
-                min="5"
-                max="500"
-                step="5"
-                value={radiusMiles}
-                onPointerDown={openMapWithDefault}
-                onChange={(event) => {
-                  openMapWithDefault();
-                  setRadiusMiles(Number(event.target.value));
-                }}
-                className="w-full accent-primary"
-              />
-              <span className="whitespace-nowrap font-semibold text-foreground">
-                {radiusMiles} mi
-              </span>
-            </label>
-          </div>
-          {mapOpen ? (
-            <Suspense fallback={<div className="mt-3 h-[260px] rounded-xl bg-secondary" />}>
-              <LocationRadiusPicker
-                city={parsedLocation.city}
-                latitude={mapPoint?.latitude}
-                longitude={mapPoint?.longitude}
-                radiusMiles={radiusMiles}
-                onChange={(point) => {
-                  manualLocationRef.current = true;
-                  setMapPoint(point);
-                  setLocation(point.city ?? "");
-                }}
-                className="mt-3"
-              />
-            </Suspense>
-          ) : null}
+          <label className="flex min-h-9 min-w-[220px] sm:min-h-11 flex-1 items-center gap-2 sm:max-w-[360px]">
+            <span className="whitespace-nowrap">Distance</span>
+            <input
+              aria-label="Search radius in miles"
+              type="range"
+              min="5"
+              max="500"
+              step="5"
+              value={radiusMiles}
+              onPointerDown={openMapWithDefault}
+              onChange={(event) => {
+                openMapWithDefault();
+                setRadiusMiles(Number(event.target.value));
+              }}
+              className="w-full accent-primary"
+            />
+            <span className="whitespace-nowrap font-semibold text-foreground">
+              {radiusMiles} mi
+            </span>
+          </label>
         </div>
-      </section>
+        {mapOpen ? (
+          <Suspense fallback={<div className="mt-3 h-[260px] rounded-xl bg-secondary" />}>
+            <LocationRadiusPicker
+              city={parsedLocation.city}
+              latitude={mapPoint?.latitude}
+              longitude={mapPoint?.longitude}
+              radiusMiles={radiusMiles}
+              onChange={(point) => {
+                manualLocationRef.current = true;
+                setMapPoint(point);
+                setLocation(point.city ?? "");
+              }}
+              className="mt-3"
+            />
+          </Suspense>
+        ) : null}
+      </MarketplaceHero>
       <PersonalizedShopping />
 
       <HomepageFeaturedCategories withLocation={where.withLocation} />
@@ -833,23 +703,17 @@ function HomepageLeadVehicles({
 
 function HomepageLeadHeader({ where }: { where: ReturnType<typeof homeLocation> }) {
   return (
-    <div className="flex items-end justify-between gap-3">
-      <div className="min-w-0">
-        <p className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-primary">
-          <Car size={14} weight="fill" /> Cars &amp; trucks
-        </p>
-        <h2 className="mt-1 text-[19px] font-bold tracking-tight sm:whitespace-nowrap sm:text-[26px]">
-          Cars &amp; trucks for sale in Idaho
-        </h2>
-      </div>
-      <Link
-        to="/browse"
-        search={where.withLocation({ category: "cars-trucks" })}
-        className={`${seeAll} shrink-0`}
-      >
-        All cars &amp; trucks <ArrowRight size={12} />
-      </Link>
-    </div>
+    <MarketplaceVehicleLeadHeader
+      action={
+        <Link
+          to="/browse"
+          search={where.withLocation({ category: "cars-trucks" })}
+          className={`${seeAll} shrink-0`}
+        >
+          All cars &amp; trucks <ArrowRight size={12} />
+        </Link>
+      }
+    />
   );
 }
 
@@ -1294,24 +1158,15 @@ function HomepageListingRow({
   action: string;
 }) {
   return (
-    <section
-      className="mt-16"
-      aria-labelledby={`${title.toLowerCase().replaceAll(" ", "-")}-heading`}
-    >
-      <div className="flex items-end justify-between gap-4 border-b border-border pb-3">
-        <div>
-          <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">{eyebrow}</p>
-          <h2
-            id={`${title.toLowerCase().replaceAll(" ", "-")}-heading`}
-            className="mt-1 text-[26px] font-bold tracking-tight"
-          >
-            {title}
-          </h2>
-        </div>
+    <MarketplaceListingSection
+      eyebrow={eyebrow}
+      title={title}
+      action={
         <Link to="/browse" search={search} className={seeAll}>
           {action} <ArrowRight size={12} />
         </Link>
-      </div>
+      }
+    >
       {listings.length > 0 ? (
         <div className="no-scrollbar mt-5 flex gap-4 overflow-x-auto pb-2 lg:grid lg:grid-cols-4 lg:overflow-visible">
           {listings.slice(0, HOMEPAGE_ROW_SIZE).map((listing) => (
@@ -1330,7 +1185,7 @@ function HomepageListingRow({
           </Link>
         </p>
       )}
-    </section>
+    </MarketplaceListingSection>
   );
 }
 
