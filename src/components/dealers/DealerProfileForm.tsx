@@ -1,3 +1,5 @@
+import { DealerLogo } from "./DealerLogo";
+
 export type DealerProfileDraft = Record<string, string | boolean>;
 
 /** Shared by the dealer editor and administrator preview; previews never save. */
@@ -31,6 +33,14 @@ export function DealerProfileForm({
           submitted.
         </p>
       ) : null}
+      <div className="space-y-2">
+        <p className="text-xs font-medium">Dealership logo preview</p>
+        <DealerLogo
+          src={String(draft.logoUrl ?? "")}
+          name={String(draft.displayName || "Dealership")}
+          className="h-16 w-56 object-contain object-left"
+        />
+      </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field
           label="Legal business name"

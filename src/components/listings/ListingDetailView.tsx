@@ -3415,7 +3415,7 @@ function GeneralListingDetail({
   listing,
   title,
   condition,
-  itemDetails,
+  itemDetails: savedItemDetails,
   description,
   locationQuery,
   handleShare,
@@ -3432,6 +3432,9 @@ function GeneralListingDetail({
   const [activeTab, setActiveTab] = useState<"description" | "location">("description");
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
 
+  const itemDetails = listing.catalogBrand
+    ? { ...savedItemDetails, brand: listing.catalogBrand }
+    : savedItemDetails;
   const subcategoryField = classifiedSubcategoryField(listing.categorySlug ?? "general");
   const subcategory = itemDetails[subcategoryField.key];
   const fieldLabels = new Map(
@@ -3439,6 +3442,11 @@ function GeneralListingDetail({
       field.key,
       field.label,
     ]),
+  );
+
+  fieldLabels.set(
+    "brand",
+    listing.categorySlug === "books-media" ? "Publisher / edition" : "Brand",
   );
 
   return (

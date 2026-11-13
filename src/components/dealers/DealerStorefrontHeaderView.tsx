@@ -12,6 +12,7 @@ import type { ComponentProps, ComponentType } from "react";
 import { useState } from "react";
 import { DealerActionArt } from "./DealerActionArt";
 import { DealerContactOptions } from "./DealerContactOptions";
+import { DealerLogo } from "./DealerLogo";
 export function DealerStorefrontHeaderView({
   dealer,
   onAction: action,
@@ -44,9 +45,9 @@ export function DealerStorefrontHeaderView({
         <div className="relative flex flex-col items-start gap-6 lg:flex-row lg:items-center lg:gap-8">
           <div className="grid h-24 w-64 max-w-full shrink-0 place-items-center rounded-2xl bg-white px-4 shadow-sm sm:h-28 sm:w-72">
             {dealer.logoUrl ? (
-              <img
+              <DealerLogo
                 src={dealer.logoUrl}
-                alt={`${dealer.displayName} logo`}
+                name={dealer.displayName}
                 className="max-h-20 w-full object-contain"
               />
             ) : (
