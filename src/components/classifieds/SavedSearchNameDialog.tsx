@@ -55,6 +55,7 @@ export function SavedSearchNameDialog({
               className="field mt-2 w-full"
               placeholder="e.g. AWD SUVs under $30k"
               maxLength={80}
+              disabled={pending}
               autoFocus
               required
             />

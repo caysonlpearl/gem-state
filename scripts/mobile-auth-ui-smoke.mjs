@@ -77,7 +77,7 @@ try {
           ? {
               policyVersion: "2026-11-12",
               categories: [],
-              features: { push: false, advertising: false, paidUpgrades: false },
+              features: {fullSearch:true, push: false, advertising: false, paidUpgrades: false },
               supabaseUrl: "https://fixture.supabase.co",
               supabaseKey: "sb_publishable_fixture",
             }
@@ -120,11 +120,8 @@ try {
       .getByRole("link", { name: "Vehicles Cars, trucks, RVs & trailers", exact: true })
       .click();
     await groupRequest;
-    await page.waitForFunction(() => location.hash === "#/search");
-    assert.equal(
-      await page.getByRole("combobox", { name: "Category", exact: true }).innerText(),
-      "Vehicles",
-    );
+    await page.waitForFunction(() => location.hash.startsWith("#/search?")&&new URLSearchParams(location.hash.split("?")[1]).get("group")==="motors");
+    await page.getByRole("heading",{name:"Vehicles",exact:true}).waitFor();
     await primary.getByRole("link", { name: "Sell", exact: true }).click();
     await page
       .getByRole("heading", { name: "Sign in to post your listing", exact: true })

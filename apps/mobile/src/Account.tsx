@@ -1,3 +1,4 @@
+import { NativeSavedSearches } from "./SavedSearches";
 import { saveProfileAvatar } from "./account-media";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Capacitor } from "@capacitor/core";
@@ -32,7 +33,7 @@ type Loaded = {
 };
 const text = (e: unknown) =>
   e instanceof Error ? e.message : "Your account could not be updated. Please retry.";
-const sections = ["profile", "settings"] as const;
+const sections = ["profile", "settings", "searches"] as const;
 export function NativeAccount({
   ownerId,
   section,
@@ -45,7 +46,7 @@ export function NativeAccount({
   controlsReady,
 }: {
   ownerId: string;
-  section: "profile" | "settings";
+  section: "profile" | "settings" | "searches";
   policyVersion: string;
   onNavigate: (path: string) => void;
   onSignOut: (scope?: "local" | "global") => Promise<void>;
@@ -228,7 +229,13 @@ export function NativeAccount({
       as="section"
       section={section}
       onSelect={(value) =>
-        onNavigate(value === "settings" ? "/account/settings" : "/account/profile")
+        onNavigate(
+          value === "settings"
+            ? "/account/settings"
+            : value === "searches"
+              ? "/account/searches"
+              : "/account/profile",
+        )
       }
       onSignOut={() => void onSignOut()}
       availableSections={sections}
@@ -275,7 +282,9 @@ export function NativeAccount({
       ) : (
         <fieldset disabled={Boolean(busy) || signOutBusy} className="min-w-0 border-0 p-0">
           <legend className="sr-only">Account controls</legend>
-          {section === "profile" ? (
+          {section === "searches" ? (
+            <NativeSavedSearches ownerId={ownerId} onNavigate={onNavigate} />
+          ) : section === "profile" ? (
             <NativeProfile
               key="profile"
               data={data}

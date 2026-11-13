@@ -54,8 +54,8 @@ export function matchesLandingCard(listing: ListingCardSummary, data: Classified
   if (data.q) {
     const needle = data.q.toLowerCase();
     if (
-      !listing.landingKeywords?.includes(needle) &&
-      !`${listing.title} ${listing.job?.jobSummary ?? ""} ${listing.job?.employerName ?? ""} ${listing.service?.serviceSummary ?? ""}`
+      !(data.searchDescriptions !== false && listing.landingKeywords?.includes(needle)) &&
+      !`${listing.title} ${data.searchDescriptions === false ? "" : `${listing.job?.jobSummary ?? ""} ${listing.job?.employerName ?? ""} ${listing.service?.serviceSummary ?? ""}`}`
         .toLowerCase()
         .includes(needle)
     )
@@ -173,6 +173,11 @@ export function matchesLandingCard(listing: ListingCardSummary, data: Classified
   )
     return false;
   if (data.homeBedroomsMin != null && (listing.home?.bedrooms ?? -1) < data.homeBedroomsMin)
+    return false;
+  if (
+    data.homeBedroomsMax != null &&
+    (listing.home?.bedrooms == null || listing.home.bedrooms > data.homeBedroomsMax)
+  )
     return false;
   if (data.homeBathroomsMin != null && (listing.home?.bathrooms ?? -1) < data.homeBathroomsMin)
     return false;

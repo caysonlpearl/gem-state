@@ -5,6 +5,7 @@ const config: CapacitorConfig = {
   includePlugins: [
     "@capacitor/app",
     "@capacitor/browser",
+    "@capacitor/geolocation",
     "@capacitor/push-notifications",
     "@capacitor/share",
     ...(process.env.BLUEBIRD_MOBILE_NATIVE_ADS_READY === "true"
@@ -13,6 +14,7 @@ const config: CapacitorConfig = {
   ],
   appId: "com.onbluebird.marketplace",
   appName: "Bluebird",
+  appendUserAgent: "Bluebird (https://onbluebird.com)",
   webDir: "dist",
   // Production always packages local assets. Never use server.url/live reload in release builds.
   server: { androidScheme: "https" },

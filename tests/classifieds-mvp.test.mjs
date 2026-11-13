@@ -9,6 +9,12 @@ const configSource = await read("src/config/classifieds.ts");
 const petsConfigSource = await read("src/config/pets.ts");
 const itemFieldsConfigSource = await read("src/config/classified-item-fields.ts");
 const browseSource =
+  (await read("src/components/classifieds/BrowseFilterViews.tsx")) + "\n" +
+  (await read("src/components/classifieds/BrowseResultsView.tsx")) + "\n" +
+  (await read("src/components/classifieds/BrowseResultsHeading.tsx")) + "\n" +
+  (await read("src/components/classifieds/GenericBrowseFilters.tsx")) + "\n" +
+  (await read("src/lib/browse-form.ts")) + "\n" +
+  (await read("src/lib/browse-filter-labels.ts")) + "\n" +
   (await read("src/lib/browse-search.ts")) +
   "\n" +
   (await read("src/routes/browse.tsx")) +
@@ -61,7 +67,7 @@ const sellerSetupSource =
 const sellingSource = await read("src/routes/_authenticated/selling.tsx");
 const accountSource = await read("src/routes/_authenticated/account.tsx");
 const accountCenterSource =
-  (await read("src/components/account/AccountCenter.tsx")) +
+  ((await read("src/components/account/AccountCenter.tsx")) + "\n" + (await read("src/components/account/SavedSearchesSectionView.tsx"))) +
   (await read("src/components/account/AccountProfileView.tsx")) +
   (await read("src/components/account/AccountSettingsView.tsx")) +
   (await read("src/components/account/AccountLayoutView.tsx")) +
@@ -1437,7 +1443,7 @@ test("job pay display uses one currency marker and preserves pay units", () => {
 
 test("jobs browse results use real listing data, not static placeholder cards", () => {
   assert.match(browseSource, /listings: ClassifiedBrowseResult\["listings"\]/);
-  assert.match(browseSource, /sortedListings\.map\(\(listing\) => \(/);
+  assert.match(browseSource, /sortedListings\.map\(\(listing, index\) => \(/);
   assert.match(browseSource, /No jobs match these filters\./);
   assert.doesNotMatch(browseSource, /function JobCard/);
   assert.doesNotMatch(browseSource, /jobPreviewRows/);

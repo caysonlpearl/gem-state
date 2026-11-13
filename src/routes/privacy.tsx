@@ -65,10 +65,15 @@ function Privacy() {
       <h2>Location and uploaded content</h2>
       <p>
         We use your selected shopping location and may estimate a general location from connection
-        information. With browser permission, location can help find nearby listings. Precise
-        browser coordinates are used transiently for distance calculations. Uploaded listing photos
-        may contain format, orientation, camera, or location metadata; private metadata is not
-        published as a shopper profile or used to silently change your listing location.
+        information. With browser permission, location can help find nearby listings. Browser
+        coordinates help calculate distances. In the phone apps, location is requested only when you
+        choose “Use my location.” Device coordinates are rounded to an approximate search center
+        before the app uses them. The app does not watch your location in the background, and keeps
+        the app usable if you decline. Coordinates selected for a saved search remain part of that
+        private search until you change or delete it. Location permission does not authorize
+        advertising tracking. Uploaded listing photos may contain format, orientation, camera, or
+        location metadata; private metadata is not published as a shopper profile or used to
+        silently change your listing location.
       </p>
       <h2>Recommendations and communications</h2>
       <p>

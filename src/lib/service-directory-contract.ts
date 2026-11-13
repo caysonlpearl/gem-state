@@ -54,6 +54,7 @@ const SUPPORTED_KEYS = new Set([
   "category",
   "serviceSubcategory",
   "q",
+  "searchDescriptions",
   "city",
   "state",
   "region",

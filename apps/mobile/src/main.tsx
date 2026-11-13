@@ -1,3 +1,13 @@
+import { trackNativeNavigation, backWithinApp } from "./native-navigation";
+import { dismissNativeOverlay } from "./native-back";
+import { LocationRequestProvider } from "../../../src/components/classifieds/LocationRequest";
+import { requestNearbyLocation } from "./location";
+import { NativeBrowse } from "./Browse";
+import { SavedSearchActions } from "./SavedSearchActions";
+import { NativeSaveSearchDialog, type SaveSearchRequest } from "./SavedSearches";
+import { browseDestination, browseLocation } from "./browse-state";
+import { Toaster } from "../../../src/components/ui/sonner";
+import { toast } from "sonner";
 import { completeAccountSignOut } from "../../../src/lib/account-session";
 import { installIdentifier } from "./identity";
 import { NativeAccount } from "./Account";
@@ -95,9 +105,13 @@ function Application() {
   const [shopping, setShopping] = useState<ShopperStatus | null>(null),
     [privacyOpen, setPrivacyOpen] = useState(false);
   const learning = shopping?.personalization === true && shopping.trackingAvailable === true;
+  const [searchRequest, setSearchRequest] = useState<
+    (SaveSearchRequest & { owner: string; originHash: string }) | null
+  >(null);
   const [pushToken, setPushToken] = useState<string | null>(null);
   const signOutInFlight = useRef(false);
   useEffect(() => {
+    const stopNavigation = trackNativeNavigation();
     let alive = true,
       stop = () => {};
     initialize()
@@ -114,6 +128,7 @@ function Application() {
         const listener = auth.auth.onAuthStateChange((event, next) => {
           if (!alive) return;
           if (next?.user.id !== priorUserId) {
+            setSearchRequest(null);
             clearMessageRetries();
             clearConversationAttachmentMemory();
             setAccount(null);
@@ -145,6 +160,7 @@ function Application() {
     return () => {
       alive = false;
       stop();
+      stopNavigation();
       window.removeEventListener("hashchange", hash);
     };
   }, []);
@@ -204,8 +220,9 @@ function Application() {
           if (alive) setError(message(e));
         }
       }),
-      NativeApp.addListener("backButton", ({ canGoBack }) => {
-        if (canGoBack && currentPath() !== "/") history.back();
+      NativeApp.addListener("backButton", () => {
+        if (dismissNativeOverlay()) return;
+        if (currentPath() !== "/" && backWithinApp()) return;
         else if (currentPath() !== "/") go("/");
         else void NativeApp.exitApp();
       }),
@@ -349,213 +366,276 @@ function Application() {
     session && account && bootstrap && account.consent.terms_version !== bootstrap.policyVersion;
   return (
     <SavedCardsProvider userId={session?.user.id ?? null} revision={revision} onError={setError}>
-      <PrivacyChoices
-        open={privacyOpen}
-        onClose={() => setPrivacyOpen(false)}
-        status={shopping}
-        onStatus={(status) => {
-          applyShopperStatus(status);
-          setShopping(status);
-          setRevision((v) => v + 1);
-        }}
-        userId={session?.user.id ?? null}
-      />
-      <NativeHeader
-        path={path}
-        signedIn={Boolean(session)}
-        onNavigate={go}
-        onPrivacy={() => setPrivacyOpen(true)}
-      />
-      <main id="main-content" className="mobile-content">
-        {bootstrap && !needsTerms && (
-          <div hidden={path !== "/" && path !== "/search"}>
-            <Feed
-              key={session?.user.id ?? "guest"}
-              bootstrap={bootstrap}
-              revision={revision}
-              active={path === "/" || path === "/search"}
-              searchMode={path === "/search"}
-              learning={learning}
-            />
-          </div>
-        )}
-        {error && (
-          <div className="error" role="alert">
-            {error}
-            {!bootstrap && <button onClick={() => location.reload()}>Retry connection</button>}
-          </div>
-        )}
-        {!bootstrap ? (
-          <p role="status">Connecting to Bluebird…</p>
-        ) : needsTerms ? (
-          <form onSubmit={saveConsent} className="stack">
-            <h1>Welcome to Bluebird</h1>
-            <p>
-              Review the current terms and choose whether to receive personalized shopping alerts.
-            </p>
-            <label className="check">
-              <input
-                required
-                type="checkbox"
-                checked={terms}
-                onChange={(e) => setTerms(e.target.checked)}
-              />
-              I agree to the{" "}
-              <a href={`${apiOrigin}/terms`} target="_blank" rel="noreferrer">
-                Terms of Service
-              </a>
-              .
-            </label>
-            <label className="check">
-              <input
-                type="checkbox"
-                checked={alerts}
-                onChange={(e) => setAlerts(e.target.checked)}
-              />
-              Send me personalized shopping emails and notifications about listings,
-              recommendations, price drops, and offers.
-            </label>
-            <button className="primary" disabled={!terms || busy}>
-              Continue
-            </button>
-            <button type="button" onClick={() => void signOut()}>
-              Sign out
-            </button>
-          </form>
-        ) : recovery && session ? (
-          <NativeAuth
-            policyVersion={bootstrap.policyVersion}
-            destination={path}
-            recovery
-            onRecovered={() => setRecovery(false)}
+      <SavedSearchActions
+        owner={session?.user.id}
+        ready={bootstrap?.features.durableSavedSearches === true}
+      >
+        <LocationRequestProvider request={requestNearbyLocation}>
+          <Toaster />
+          <NativeSaveSearchDialog
+            request={searchRequest?.owner === session?.user.id ? searchRequest : null}
+            onClose={() => setSearchRequest(null)}
+            onSaved={(id) => {
+              setRevision((v) => v + 1);
+              if (
+                searchRequest?.originHash === location.hash &&
+                browseLocation(location.hash).path === "/search"
+              ) {
+                const params = browseLocation(location.hash).params;
+                params.set("savedSearchId", id);
+                history.replaceState(history.state, "", "#/search?" + params);
+                window.dispatchEvent(new HashChangeEvent("hashchange"));
+              }
+            }}
           />
-        ) : !session &&
-          ["/saved", "/post", "/messages", "/account"].some((p) => path.startsWith(p)) ? (
-          <NativeAuth policyVersion={bootstrap.policyVersion} destination={path} />
-        ) : path === "/" || path === "/search" ? null : path.startsWith("/listings/") ? (
-          <Listing
-            key={`${session?.user.id ?? "guest"}:${path}`}
-            id={path.slice(10)}
-            session={session}
-            learning={learning}
-            revision={revision}
-            onError={setError}
+          <PrivacyChoices
+            open={privacyOpen}
+            onClose={() => setPrivacyOpen(false)}
+            status={shopping}
+            onStatus={(status) => {
+              applyShopperStatus(status);
+              setShopping(status);
+              setRevision((v) => v + 1);
+            }}
+            userId={session?.user.id ?? null}
           />
-        ) : path === "/post" || path === "/post/profile" ? (
-          <Post
-            key={`${session!.user.id}:${path}`}
-            ownerId={session!.user.id}
-            initialSetup={path === "/post/profile"}
-            bootstrap={bootstrap}
-            onSubmitted={() => setRevision((value) => value + 1)}
-          />
-        ) : path.startsWith("/messages") ? (
-          <NativeMessages
-            key={session!.user.id}
-            ownerId={session!.user.id}
-            id={path.split("/")[2]}
-            revision={revision}
-            attachmentsEnabled={bootstrap.features.conversationAttachments === true}
-            onOpen={(id) => go(`/messages/${id}`)}
-            onBrowse={() => go("/search")}
-          />
-        ) : path.startsWith("/account") ? (
-          <NativeAccount
-            controlsReady={bootstrap.features.accountControls === true}
-            key={session!.user.id}
-            ownerId={session!.user.id}
-            section={path === "/account/settings" ? "settings" : "profile"}
-            policyVersion={bootstrap.policyVersion}
+          <NativeHeader
+            path={path}
+            signedIn={Boolean(session)}
             onNavigate={go}
-            onSignOut={signOut}
-            onChanged={() => setRevision((value) => value + 1)}
-            signOutBusy={busy}
-            permissions={
-              <>
-                {" "}
-                {Capacitor.isNativePlatform() && bootstrap.features.push && (
-                  <button
-                    onClick={async () => {
-                      try {
-                        const p = await PushNotifications.requestPermissions();
-                        if (p.receive === "granted") await PushNotifications.register();
-                        else
-                          setError(
-                            "Notifications are off. You can enable them in your phone settings.",
-                          );
-                      } catch (e) {
-                        setError(message(e));
-                      }
-                    }}
-                  >
-                    Enable phone notifications
-                  </button>
-                )}
-                {Capacitor.isNativePlatform() && bootstrap.features.advertising && (
-                  <label className="mt-4 flex items-start gap-3 text-[12px]">
-                    <input
-                      type="checkbox"
-                      checked={advertising}
-                      onChange={async (e) => {
-                        const next = e.target.checked;
-                        try {
-                          const choice = await setAdvertising(next, true);
-                          setAdvertisingChoice(
-                            choice.advertising &&
-                              (choice.platform === "android" || choice.att === "authorized"),
-                          );
-                        } catch (error) {
-                          setAdvertisingChoice(false);
-                          setError(message(error));
-                        }
-                      }}
-                    />
-                    Allow advertising measurement across apps and websites
-                  </label>
-                )}
-                <a href={`${apiOrigin}/terms`} target="_blank" rel="noreferrer">
-                  Terms of Service
-                </a>
-                <a href="mailto:bluebirdmarketplaceid@gmail.com">Contact Bluebird</a>
-                <a
-                  className="ml-4 text-[12px] text-primary underline"
-                  href={`${apiOrigin}/privacy`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Privacy policy
-                </a>
-              </>
-            }
+            onPrivacy={() => setPrivacyOpen(true)}
           />
-        ) : path === "/saved" ? (
-          <Feed saved bootstrap={bootstrap} revision={revision} learning={learning} />
-        ) : (
-          <Feed bootstrap={bootstrap} revision={revision} learning={learning} />
-        )}
-      </main>
-      {bootstrap &&
-        !needsTerms &&
-        !recovery &&
-        !(
-          path.startsWith("/listings/") ||
-          path === "/post" ||
-          (!session && ["/saved", "/messages", "/account"].some((p) => path.startsWith(p)))
-        ) && (
-          <MobileTabBarView
-            pathname={
-              path === "/saved" || path.startsWith("/messages")
-                ? "/account"
-                : path === "/search"
-                  ? "/browse"
-                  : path
-            }
-            section={
-              path === "/saved" ? "saved" : path.startsWith("/messages") ? "messages" : undefined
-            }
-            renderLink={NativeTabLink}
-          />
-        )}
+          <main id="main-content" className="mobile-content">
+            {bootstrap && !needsTerms && (
+              <div hidden={path !== "/"}>
+                <Feed
+                  key={session?.user.id ?? "guest"}
+                  bootstrap={bootstrap}
+                  revision={revision}
+                  active={path === "/"}
+                  learning={learning}
+                />
+              </div>
+            )}
+            {bootstrap && !needsTerms && (
+              <NativeBrowse
+                key={session?.user.id ?? "guest"}
+                active={path === "/search"}
+                bootstrap={bootstrap}
+                learning={learning}
+                revision={revision}
+                onNavigate={go}
+                onSave={(search, id) => {
+                  if (!session) {
+                    toast.error("Sign in to save this search.");
+                    go("/account");
+                    return;
+                  }
+                  if (!bootstrap.features.durableSavedSearches) {
+                    toast.error(
+                      "Saved-search changes are temporarily unavailable. Please try again later.",
+                    );
+                    return;
+                  }
+                  setSearchRequest({
+                    search,
+                    id,
+                    owner: session.user.id,
+                    originHash: location.hash,
+                  });
+                }}
+              />
+            )}
+            {error && (
+              <div className="error" role="alert">
+                {error}
+                {!bootstrap && <button onClick={() => location.reload()}>Retry connection</button>}
+              </div>
+            )}
+            {!bootstrap ? (
+              <p role="status">Connecting to Bluebird…</p>
+            ) : needsTerms ? (
+              <form onSubmit={saveConsent} className="stack">
+                <h1>Welcome to Bluebird</h1>
+                <p>
+                  Review the current terms and choose whether to receive personalized shopping
+                  alerts.
+                </p>
+                <label className="check">
+                  <input
+                    required
+                    type="checkbox"
+                    checked={terms}
+                    onChange={(e) => setTerms(e.target.checked)}
+                  />
+                  I agree to the{" "}
+                  <a href={`${apiOrigin}/terms`} target="_blank" rel="noreferrer">
+                    Terms of Service
+                  </a>
+                  .
+                </label>
+                <label className="check">
+                  <input
+                    type="checkbox"
+                    checked={alerts}
+                    onChange={(e) => setAlerts(e.target.checked)}
+                  />
+                  Send me personalized shopping emails and notifications about listings,
+                  recommendations, price drops, and offers.
+                </label>
+                <button className="primary" disabled={!terms || busy}>
+                  Continue
+                </button>
+                <button type="button" onClick={() => void signOut()}>
+                  Sign out
+                </button>
+              </form>
+            ) : recovery && session ? (
+              <NativeAuth
+                policyVersion={bootstrap.policyVersion}
+                destination={path}
+                recovery
+                onRecovered={() => setRecovery(false)}
+              />
+            ) : !session &&
+              ["/saved", "/post", "/messages", "/account"].some((p) => path.startsWith(p)) ? (
+              <NativeAuth policyVersion={bootstrap.policyVersion} destination={path} />
+            ) : path === "/" || path === "/search" ? null : path.startsWith("/listings/") ? (
+              <Listing
+                key={`${session?.user.id ?? "guest"}:${path}`}
+                id={path.slice(10)}
+                session={session}
+                learning={learning}
+                revision={revision}
+                onError={setError}
+              />
+            ) : path === "/post" || path === "/post/profile" ? (
+              <Post
+                key={`${session!.user.id}:${path}`}
+                ownerId={session!.user.id}
+                initialSetup={path === "/post/profile"}
+                bootstrap={bootstrap}
+                onSubmitted={() => setRevision((value) => value + 1)}
+              />
+            ) : path.startsWith("/messages") ? (
+              <NativeMessages
+                key={session!.user.id}
+                ownerId={session!.user.id}
+                id={path.split("/")[2]}
+                revision={revision}
+                attachmentsEnabled={bootstrap.features.conversationAttachments === true}
+                onOpen={(id) => go(`/messages/${id}`)}
+                onBrowse={() => go("/search")}
+              />
+            ) : path.startsWith("/account") ? (
+              <NativeAccount
+                controlsReady={bootstrap.features.accountControls === true}
+                key={session!.user.id}
+                ownerId={session!.user.id}
+                section={
+                  path === "/account/settings"
+                    ? "settings"
+                    : path === "/account/searches"
+                      ? "searches"
+                      : "profile"
+                }
+                policyVersion={bootstrap.policyVersion}
+                onNavigate={go}
+                onSignOut={signOut}
+                onChanged={() => setRevision((value) => value + 1)}
+                signOutBusy={busy}
+                permissions={
+                  <>
+                    {" "}
+                    {Capacitor.isNativePlatform() && bootstrap.features.push && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            const p = await PushNotifications.requestPermissions();
+                            if (p.receive === "granted") await PushNotifications.register();
+                            else
+                              setError(
+                                "Notifications are off. You can enable them in your phone settings.",
+                              );
+                          } catch (e) {
+                            setError(message(e));
+                          }
+                        }}
+                      >
+                        Enable phone notifications
+                      </button>
+                    )}
+                    {Capacitor.isNativePlatform() && bootstrap.features.advertising && (
+                      <label className="mt-4 flex items-start gap-3 text-[12px]">
+                        <input
+                          type="checkbox"
+                          checked={advertising}
+                          onChange={async (e) => {
+                            const next = e.target.checked;
+                            try {
+                              const choice = await setAdvertising(next, true);
+                              setAdvertisingChoice(
+                                choice.advertising &&
+                                  (choice.platform === "android" || choice.att === "authorized"),
+                              );
+                            } catch (error) {
+                              setAdvertisingChoice(false);
+                              setError(message(error));
+                            }
+                          }}
+                        />
+                        Allow advertising measurement across apps and websites
+                      </label>
+                    )}
+                    <a href={`${apiOrigin}/terms`} target="_blank" rel="noreferrer">
+                      Terms of Service
+                    </a>
+                    <a href="mailto:bluebirdmarketplaceid@gmail.com">Contact Bluebird</a>
+                    <a
+                      className="ml-4 text-[12px] text-primary underline"
+                      href={`${apiOrigin}/privacy`}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      Privacy policy
+                    </a>
+                  </>
+                }
+              />
+            ) : path === "/saved" ? (
+              <Feed saved bootstrap={bootstrap} revision={revision} learning={learning} />
+            ) : (
+              <Feed bootstrap={bootstrap} revision={revision} learning={learning} />
+            )}
+          </main>
+          {bootstrap &&
+            !needsTerms &&
+            !recovery &&
+            !(
+              path.startsWith("/listings/") ||
+              path === "/post" ||
+              (!session && ["/saved", "/messages", "/account"].some((p) => path.startsWith(p)))
+            ) && (
+              <MobileTabBarView
+                pathname={
+                  path === "/saved" || path.startsWith("/messages")
+                    ? "/account"
+                    : path === "/search"
+                      ? "/browse"
+                      : path
+                }
+                section={
+                  path === "/saved"
+                    ? "saved"
+                    : path.startsWith("/messages")
+                      ? "messages"
+                      : undefined
+                }
+                renderLink={NativeTabLink}
+              />
+            )}
+        </LocationRequestProvider>
+      </SavedSearchActions>
     </SavedCardsProvider>
   );
 }
@@ -661,19 +741,18 @@ function Feed({
       setPage(1);
     };
     window.addEventListener("bluebird-home", reset);
-    window.addEventListener("bluebird-search", search);
     return () => {
       window.removeEventListener("bluebird-home", reset);
-      window.removeEventListener("bluebird-search", search);
     };
   }, []);
   useEffect(() => {
+    if (!active) return;
     const controller = new AbortController();
     setLoading(true);
     setError("");
     setHome(null);
     const read = async () => {
-      if (!saved && discovery && !search && !category && sort === "newest" && page === 1) {
+      if (!saved && discovery && page === 1) {
         try {
           const result = await api<MobileHome>("home", "GET", undefined, controller.signal);
           if (controller.signal.aborted) return;
@@ -720,7 +799,7 @@ function Feed({
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [saved, search, category, group, sort, page, revision, discovery, appliedLocation]);
+  }, [active, saved, search, category, group, sort, page, revision, discovery, appliedLocation]);
   return (
     <section className="mobile-home">
       {saved ? (
@@ -731,10 +810,14 @@ function Feed({
             className="floating-card mt-3 grid grid-cols-2 gap-1.5 border border-brand-blue/15 p-1.5 ring-1 ring-brand-warm/10 sm:mt-5 sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:gap-2 sm:p-3"
             onSubmit={(event) => {
               event.preventDefault();
-              setDiscovery(false);
-              setPage(1);
-              setSearch(query);
-              setAppliedLocation(location);
+              go(
+                browseDestination({
+                  q: query.trim() || undefined,
+                  category: category || undefined,
+                  group: group || undefined,
+                  ...parseLocationSearch(location),
+                }),
+              );
               trackShopping("search", undefined, {}, { q: query, category, sort });
             }}
           >
@@ -757,8 +840,6 @@ function Feed({
               onChange={(value) => {
                 setCategory(value.startsWith("group:") ? "" : value);
                 setGroup(value.startsWith("group:") ? value.slice(6) : "");
-                setDiscovery(false);
-                setPage(1);
               }}
               label="Category"
               placeholder="All categories"
@@ -838,12 +919,7 @@ function Feed({
           learning={learning && active}
           onOpen={(id) => go(`/listings/${id}`)}
           onBrowse={(value) => {
-            setDiscovery(false);
-            setCategory(value);
-            setGroup("");
-            setSearch("");
-            setQuery("");
-            setPage(1);
+            go(browseDestination({ category: value }));
           }}
         />
       ) : (

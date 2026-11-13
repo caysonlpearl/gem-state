@@ -11,6 +11,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 const homeSource = await readFile(new URL("../src/routes/index.tsx", import.meta.url), "utf8");
 const browseSource = await readFile(new URL("../src/routes/browse.tsx", import.meta.url), "utf8");
+const resultsSource = await readFile(new URL("../src/components/classifieds/BrowseResultsView.tsx",import.meta.url),"utf8");
 const cardSource = await readFile(
   new URL("../src/components/classifieds/ListingCardView.tsx", import.meta.url),
   "utf8",
@@ -80,10 +81,12 @@ test("homepage and results grids prioritize only their first listing card", () =
     /leadMotors\.map\(\(listing, index\) => \([\s\S]*?ListingCard listing=\{listing\} priority=\{index === 0\}/,
   );
   assert.match(
-    browseSource,
-    /shownListings\.map\(\(listing, index\) => \([\s\S]*?ListingCard listing=\{listing\} priority=\{index === 0\}/,
+    resultsSource,
+    /shownListings\.map\(\(listing, index\) => \([\s\S]*?renderListing\(listing, index, "grid"\)/,
   );
 });
+
+test("website result adapter keeps only the first card high priority",()=>{assert.match(browseSource,/ListingCard listing=\{listing\} priority=\{index === 0\}/);});
 
 test("All Items prioritizes its first Top listings card and leaves the rest lazy", () => {
   const tree = render(

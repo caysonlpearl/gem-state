@@ -27,7 +27,6 @@ const presentationKeys = new Set([
 // Legacy controls without a supported inventory predicate must never broaden an alert.
 const unsupportedKeys = new Set([
   "sellerType",
-  "serviceExpandSearch",
   "serviceVideo",
   "serviceSellerType",
   "jobVideo",
@@ -50,7 +49,7 @@ const aliases = new Set([
   "employmentType",
   "jobSalaryMin",
 ]);
-const booleanKeys = new Set(["hasPhotos", "serviceLicenseRequired"]);
+const booleanKeys = new Set(["hasPhotos", "serviceLicenseRequired", "searchDescriptions"]);
 const active = (value: unknown) =>
   value !== undefined && value !== null && value !== "" && value !== false;
 const defined = (value: Record<string, unknown>) =>
@@ -119,6 +118,8 @@ export function savedSearchBrowseInput(search: Record<string, unknown>): {
     ...defined(inputFromSearch({ ...parsed, vehicleMode: "results", firearmMode: "results" })),
   } as ClassifiedBrowseInput;
   if (canonical.hasPhotos) input.hasPhotos = true;
+  if (raw.serviceExpandSearch === undefined && canonical.searchDescriptions !== undefined)
+    input.searchDescriptions = canonical.searchDescriptions;
   for (const [key, value] of Object.entries(raw)) {
     if (
       !active(value) ||
@@ -131,10 +132,15 @@ export function savedSearchBrowseInput(search: Record<string, unknown>): {
     if (parsed[key as keyof typeof parsed] === undefined) unsupported.add(key);
   }
   for (const key of ["bedrooms", "bathrooms", "homeSquareFeet", "homeAcres"])
-    if (active(raw[key]) && thresholdValue(String(raw[key])) === undefined) unsupported.add(key);
+    if (
+      active(raw[key]) &&
+      thresholdValue(String(raw[key])) === undefined &&
+      !(key === "bedrooms" && raw[key] === "Studio")
+    )
+      unsupported.add(key);
   for (const key of ["jobPosted", "jobTimeOnSite", "serviceTimeOnSite"])
     if (active(raw[key]) && !postedWindow(String(raw[key]))) unsupported.add(key);
-  for (const key of ["jobPhotos", "servicePhotos"])
+  for (const key of ["jobPhotos", "servicePhotos", "serviceExpandSearch"])
     if (active(raw[key]) && !["true", "false"].includes(String(raw[key]))) unsupported.add(key);
   if (
     active(raw.mileageBands) &&

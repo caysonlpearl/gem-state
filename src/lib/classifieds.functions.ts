@@ -1405,7 +1405,12 @@ function mockMatches(
     return false;
   if (data.q) {
     const needle = data.q.toLowerCase();
-    if (!`${listing.title} ${listing.description}`.toLowerCase().includes(needle)) return false;
+    if (
+      !`${listing.title} ${data.searchDescriptions === false ? "" : listing.description}`
+        .toLowerCase()
+        .includes(needle)
+    )
+      return false;
   }
   if (data.state && !hasClassifiedRadiusCenter(data) && data.state !== listing.state) return false;
   if (data.postalCode && !listing.postalCode.startsWith(data.postalCode)) return false;
@@ -1499,6 +1504,11 @@ function mockMatches(
   )
     return false;
   if (data.homeBedroomsMin != null && (listing.home?.bedrooms ?? -1) < data.homeBedroomsMin)
+    return false;
+  if (
+    data.homeBedroomsMax != null &&
+    (listing.home?.bedrooms == null || listing.home.bedrooms > data.homeBedroomsMax)
+  )
     return false;
   if (data.homeBathroomsMin != null && (listing.home?.bathrooms ?? -1) < data.homeBathroomsMin)
     return false;
@@ -1713,9 +1723,14 @@ async function runBrowseClassifieds(
     if (categorySlugs.length) query = query.in("products.categories.slug", categorySlugs);
     if (data.q) {
       const q = escapeFilterValue(data.q);
-      query = query.or(`name.ilike.%${q}%,description.ilike.%${q}%`, {
-        referencedTable: "products",
-      });
+      query = query.or(
+        data.searchDescriptions === false
+          ? `name.ilike.%${q}%`
+          : `name.ilike.%${q}%,description.ilike.%${q}%`,
+        {
+          referencedTable: "products",
+        },
+      );
     }
     // Regions match the way the landing pages derive them (saved region, else
     // the Idaho city's), so older listings saved as "ID" still count; like
@@ -1806,6 +1821,8 @@ async function runBrowseClassifieds(
     }
     if (data.homeBedroomsMin != null)
       query = query.gte("classified_listing_details.home_bedrooms", data.homeBedroomsMin);
+    if (data.homeBedroomsMax != null)
+      query = query.lte("classified_listing_details.home_bedrooms", data.homeBedroomsMax);
     if (data.homeBathroomsMin != null)
       query = query.gte("classified_listing_details.home_bathrooms", data.homeBathroomsMin);
     if (data.homeSquareFeetMin != null)
