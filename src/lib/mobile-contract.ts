@@ -1,4 +1,5 @@
 import { classifiedCategories } from "../config/classifieds.ts";
+import type { ListingCardSummary } from "./listing-card-summary";
 
 export const MOBILE_API_VERSION = 1;
 export const MOBILE_POLICY_VERSION = "2026-11-12";
@@ -37,6 +38,26 @@ export function mobileListingAllowed(card: {
   );
 }
 export type MobileListing = {
+  display?: Pick<
+    ListingCardSummary,
+    | "discoverySellerKey"
+    | "productSlug"
+    | "region"
+    | "condition"
+    | "fulfillmentMode"
+    | "isFeatured"
+    | "vehicle"
+    | "pet"
+    | "home"
+    | "job"
+    | "service"
+    | "vehiclePricing"
+    | "dealer"
+    | "externalVehicle"
+    | "externalJob"
+    | "externalHome"
+    | "directory"
+  >;
   shoppingFeatures?: Record<string, number>;
   available?: boolean;
   canSave?: boolean;
@@ -74,6 +95,7 @@ export type MobileBrowse = {
   incomplete: boolean;
   selection?: boolean;
 };
+export type MobileHome = { motors: MobileListing[]; recent: MobileListing[] };
 export type MobileError = { error: { code: string; message: string }; requestId: string };
 /** Native origin headers are not proof of identity; every private API also verifies bearer auth. */
 export function mobileOriginAllowed(origin: string | null, development = false): boolean {

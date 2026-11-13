@@ -12,10 +12,15 @@ const emptyStateSource = await readFile(
   new URL("../src/components/layout/BluebirdEmptyState.tsx", import.meta.url),
   "utf8",
 );
-const listingCardSource = await readFile(
-  new URL("../src/components/classifieds/ListingCard.tsx", import.meta.url),
-  "utf8",
-);
+const listingCardSource =
+  (await readFile(
+    new URL("../src/components/classifieds/ListingCard.tsx", import.meta.url),
+    "utf8",
+  )) +
+  (await readFile(
+    new URL("../src/components/classifieds/ListingCardView.tsx", import.meta.url),
+    "utf8",
+  ));
 const homeSource = await readFile(new URL("../src/routes/index.tsx", import.meta.url), "utf8");
 const browseSource = await readFile(new URL("../src/routes/browse.tsx", import.meta.url), "utf8");
 

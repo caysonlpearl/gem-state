@@ -1,9 +1,30 @@
 import type { ListingCardSummary } from "./listing-card-summary";
 import { mobileListingAllowed } from "./mobile-contract.ts";
+import { homepagePayload, type HomepageSnapshot } from "./homepage-snapshot-contract.ts";
+import { initialHomepagePayload } from "./homepage-initial-payload.ts";
+
+/** Reuse the website's row projection after applying the permanent app catalog boundary. */
+export function mobileHomepage(snapshot: HomepageSnapshot, now = Date.now()) {
+  const payload = homepagePayload(snapshot, now);
+  const allowed = (card: ListingCardSummary) =>
+    mobileListingAllowed(card) &&
+    (!card.externalHome?.cacheExpiresAt || Date.parse(card.externalHome.cacheExpiresAt) > now);
+  return initialHomepagePayload(
+    {
+      ...payload.home,
+      motors: payload.home.motors.filter(allowed),
+      recent: payload.home.recent.filter(allowed),
+      onlineMerchandise: [],
+    },
+    { ...payload.lead, motors: payload.lead.motors.filter(allowed) },
+  );
+}
 type Filters = {
   q?: string;
   category?: string;
   city?: string;
+  region?: string;
+  postalCode?: string;
   state?: string;
   priceMin?: number;
   priceMax?: number;
@@ -17,6 +38,8 @@ export function mobileSnapshotFirst(filters: Filters) {
     !filters.q?.trim() &&
     !filters.category &&
     !filters.city &&
+    !filters.region &&
+    !filters.postalCode &&
     !filters.state &&
     filters.priceMin == null &&
     filters.priceMax == null &&
@@ -43,6 +66,8 @@ export function mobileCachedBrowse(
       (!filters.category || card.categorySlug === filters.category) &&
       (!filters.city || String(card.city).toLowerCase() === filters.city.toLowerCase()) &&
       (!filters.state || String(card.state).toLowerCase() === filters.state.toLowerCase()) &&
+      (!filters.region || card.region === filters.region) &&
+      (!filters.postalCode || (card.postalCode ?? "").startsWith(filters.postalCode)) &&
       (filters.priceMin == null || card.priceCents >= filters.priceMin * 100) &&
       (filters.priceMax == null || card.priceCents <= filters.priceMax * 100) &&
       query.every((term) => String(card.title).toLowerCase().includes(term)),

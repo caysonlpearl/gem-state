@@ -1,4 +1,5 @@
 import { defineConfig, loadEnv } from "vite";
+import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath } from "node:url";
 export default defineConfig(({ mode }) => {
@@ -10,7 +11,8 @@ export default defineConfig(({ mode }) => {
   )
     throw Error("Release apps must use the canonical HTTPS Bluebird API.");
   return {
-    plugins: [react()],
+    plugins: [react(), tailwindcss()],
+    publicDir: fileURLToPath(new URL("../../public", import.meta.url)),
     server: { watch: { ignored: ["**/android/**", "**/ios/**"] } },
     resolve: {
       alias: { "@": fileURLToPath(new URL("../../src", import.meta.url)) },

@@ -29,6 +29,29 @@ used for end-to-end testing until that API and its dependencies are deployed and
 its canonical HTTPS endpoints pass production checks. Deployment evidence belongs
 in the release record; local runtime success alone is not a live deployment.
 
+## Shared website design
+
+The existing website is the visual source of truth. Do not create a separate
+mobile visual system. The native app imports the website stylesheet, self-hosted
+fonts, BrandMark, category artwork, MarketplaceHero, HomeSearchDropdown,
+ListingCardView, ListingGallery, MarketplaceListingSection and vehicle lead header.
+The website continues using these same presenters with its existing service,
+authentication, navigation and analytics adapters. Native adapters use the stable
+mobile API and native consent/activity code; website browser fingerprinting and
+advertising adapters must never be imported into the app bundle.
+
+`GET home` applies the permanent app catalog boundary before using the website's
+homepage snapshot/initial projection. The app uses the same row allocator and
+seller grouping. Search controls use the shared city/ZIP/region/state parser;
+explicit searches and sorting still use the complete cached browse service.
+Provider credits remain visible when shared cards replace the old prototype tiles.
+
+The earlier text-only wordmark and separate listing-card/photo designs are replaced.
+The remaining account, posting and messaging presenters must also move toward the
+existing website UI before beta. Existing native controllers and phone navigation
+are adapters, not authority to invent a different design. Native notification,
+permission and app catalog differences still follow the approved launch plan.
+
 ## Baseline and ownership
 
 The isolated branch starts from `origin/main` commit `3a733bb`. Existing dealer,
@@ -266,7 +289,7 @@ Official release references:
 
 Local checks at this milestone: root TypeScript, website production build,
 mobile TypeScript/Vite build, Android debug compile, mobile security/queue/SQL
-tests, full marketplace test suite (1,219 passing), and responsive browser smoke
+tests, full marketplace test suite (1,220 passing), and responsive browser smoke
 checks. Browser evidence is stored outside source at
 `output/mobile-apps-20261112`. The original smoke script makes no account writes or sends. The new shopping UI
 suite uses explicit synthetic API fixtures in real Chromium at all three sizes;

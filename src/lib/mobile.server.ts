@@ -5,7 +5,7 @@ import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_PUBLISHABLE_KEY } from "@/config/s
 import { serverEnv } from "./runtime-env.server";
 import { createMobileHandler, MobileApiError, mobileJson } from "./mobile-api";
 import { mobileWriteId } from "./mobile-write";
-import { mobileCachedBrowse, mobileSnapshotFirst } from "./mobile-catalog";
+import { mobileCachedBrowse, mobileSnapshotFirst, mobileHomepage } from "./mobile-catalog";
 import {
   mobileCategories,
   mobileCategoryAllowed,
@@ -79,6 +79,61 @@ async function actor(request: Request) {
 }
 function dto(card: any): MobileListing {
   return {
+    display: {
+      discoverySellerKey: card.discoverySellerKey,
+      productSlug: card.productSlug ?? "",
+      region: card.region ?? "",
+      condition: card.condition ?? "",
+      fulfillmentMode: card.fulfillmentMode ?? "local_pickup",
+      isFeatured: card.isFeatured === true,
+      vehicle: card.vehicle ?? null,
+      pet: card.pet ?? null,
+      home: card.home ?? null,
+      job: card.job ?? null,
+      service: card.service ?? null,
+      vehiclePricing: card.vehiclePricing,
+      dealer: card.dealer
+        ? {
+            displayName: card.dealer.displayName,
+            slug: card.dealer.slug,
+            logoUrl: mobileMediaUrl(card.dealer.logoUrl),
+            city: card.dealer.city,
+            state: card.dealer.state,
+          }
+        : null,
+      externalVehicle: card.externalVehicle
+        ? { sourceKind: card.externalVehicle.sourceKind }
+        : undefined,
+      externalJob: card.externalJob
+        ? {
+            source: "Adzuna",
+            url: mobileMediaUrl(card.externalJob.url) ?? "",
+            logoUrl: mobileMediaUrl(card.externalJob.logoUrl) ?? undefined,
+          }
+        : undefined,
+      externalHome: card.externalHome
+        ? {
+            source: card.externalHome.source,
+            sourceUrl: mobileMediaUrl(card.externalHome.sourceUrl),
+            cacheExpiresAt: card.externalHome.cacheExpiresAt,
+          }
+        : undefined,
+      directory: card.directory
+        ? {
+            source: "Foursquare",
+            claimed: card.directory.claimed === true,
+            logoUrl: mobileMediaUrl(card.directory.logoUrl),
+            phone: card.directory.phone ?? null,
+            website: mobileMediaUrl(card.directory.website),
+            email: null,
+            trades: [],
+            rating: card.directory.rating ?? null,
+            reviewCount: card.directory.reviewCount ?? null,
+            googleUrl: null,
+            hours: [],
+          }
+        : undefined,
+    },
     shoppingFeatures: Object.fromEntries(
       Object.entries(card.shoppingFeatures ?? {})
         .filter(
@@ -200,6 +255,8 @@ const browseSchema = z.object({
   q: z.string().trim().max(80).optional(),
   category: z.string().max(60).optional(),
   city: z.string().max(80).optional(),
+  region: z.string().max(80).optional(),
+  postalCode: z.string().max(12).optional(),
   state: z.string().length(2).optional(),
   sort: z.enum(["newest", "price_low", "price_high", "mileage_low"]).default("newest"),
   priceMin: z.coerce.number().nonnegative().optional(),
@@ -238,6 +295,11 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
           (await mobileControl("advertising_enabled")),
       },
     };
+  }
+  if (method === "GET" && path === "home") {
+    const snapshot = await (await import("./homepage-snapshot.server")).readHomepageSnapshot();
+    const home = mobileHomepage(snapshot);
+    return { motors: home.motors.map(dto), recent: home.recent.map(dto) };
   }
   if (method === "GET" && path === "listings") {
     const parsed = browseSchema.safeParse(Object.fromEntries(new URL(request.url).searchParams));

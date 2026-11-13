@@ -32,6 +32,18 @@ import {
   ApiError,
 } from "./client";
 import { sendMessageOnce, clearMessageRetries } from "./message-retries";
+import { ListingGallery } from "../../../src/components/classifieds/ListingGallery";
+import { listingPresentation } from "./listing-presentation";
+import { MarketplaceHero } from "../../../src/components/classifieds/MarketplaceHero";
+import { HomeSearchDropdown } from "../../../src/components/classifieds/HomeSearchDropdown";
+import { headlineOptions } from "../../../src/config/homepage-headlines";
+import { parseLocationSearch } from "../../../src/lib/location-search";
+import { suggestLocations } from "../../../src/lib/location-suggest";
+import { ListingSourceCredits } from "./ListingSourceCredits";
+import { HomeDiscovery } from "./HomeDiscovery";
+import type { MobileHome } from "../../../src/lib/mobile-contract";
+import { BrandMark } from "../../../src/components/layout/BrandMark";
+import { SavedCardsProvider } from "./SavedCards";
 import { Post } from "./Post";
 import { useListingActivity, setShoppingForeground } from "./shopping-activity";
 import { ListingTile, ShoppingRows, PrivacyChoices } from "./ShopperExperience";
@@ -50,7 +62,6 @@ import {
   setAdvertising,
   trackAdvertising,
 } from "./advertising";
-import "@fontsource-variable/manrope";
 import "./style.css";
 
 const tabs = [
@@ -62,6 +73,7 @@ const tabs = [
 ];
 const currentPath = () => location.hash.slice(1).split("?")[0] || "/";
 function go(path: string) {
+  if (path === "/") window.dispatchEvent(new Event("bluebird-home"));
   location.hash = path;
 }
 const message = (e: unknown) =>
@@ -333,7 +345,7 @@ function Application() {
   const needsTerms =
     session && account && bootstrap && account.consent.terms_version !== bootstrap.policyVersion;
   return (
-    <>
+    <SavedCardsProvider userId={session?.user.id ?? null} revision={revision} onError={setError}>
       <PrivacyChoices
         open={privacyOpen}
         onClose={() => setPrivacyOpen(false)}
@@ -345,9 +357,9 @@ function Application() {
         }}
         userId={session?.user.id ?? null}
       />
-      <header>
+      <header className="mobile-site-header">
         <button className="brand" onClick={() => go("/")}>
-          Bluebird<span>Find your next good thing.</span>
+          <BrandMark mobile />
         </button>
         <button className="text-button" onClick={() => setPrivacyOpen(true)}>
           Privacy
@@ -552,7 +564,7 @@ function Application() {
           </button>
         ))}
       </nav>
-    </>
+    </SavedCardsProvider>
   );
 }
 function Login({ onError }: { onError: (s: string) => void }) {
@@ -740,88 +752,171 @@ function Feed({
     [loading, setLoading] = useState(true),
     [error, setError] = useState(""),
     [search, setSearch] = useState("");
+  const [home, setHome] = useState<MobileHome | null>(null);
+  const [discovery, setDiscovery] = useState(true);
+  const [location, setLocation] = useState("Idaho"),
+    [appliedLocation, setAppliedLocation] = useState("Idaho");
+  const [headline, setHeadline] = useState(0);
+  useEffect(() => {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const timer = setInterval(
+      () => setHeadline((index) => (index + 1) % headlineOptions.length),
+      9000,
+    );
+    return () => clearInterval(timer);
+  }, []);
+  useEffect(() => {
+    const reset = () => {
+      setDiscovery(true);
+      setSearch("");
+      setQuery("");
+      setCategory("");
+      setSort("newest");
+      setPage(1);
+    };
+    window.addEventListener("bluebird-home", reset);
+    return () => window.removeEventListener("bluebird-home", reset);
+  }, []);
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
     setError("");
-    const params = new URLSearchParams({
-      q: search,
-      sort,
-      page: String(page),
-      ...(category ? { category } : {}),
-    });
-    api<MobileBrowse>(saved ? "saved" : `listings?${params}`, "GET", undefined, controller.signal)
-      .then((result) => {
-        setIncomplete(result.incomplete === true);
-        setSelection(result.selection === true);
-        setItems((previous) =>
-          page === 1 || saved
-            ? result.items
-            : [...new Map([...previous, ...result.items].map((c) => [c.id, c])).values()],
-        );
-        setNext(result.nextPage ?? null);
-      })
-      .catch((e) => {
-        if (!controller.signal.aborted) setError(message(e));
+    setHome(null);
+    const read = async () => {
+      if (!saved && discovery && !search && !category && sort === "newest" && page === 1) {
+        try {
+          const result = await api<MobileHome>("home", "GET", undefined, controller.signal);
+          if (controller.signal.aborted) return;
+          setHome(result);
+          setItems([]);
+          setNext(null);
+          setIncomplete(false);
+          setSelection(false);
+          return;
+        } catch (error) {
+          if (controller.signal.aborted) throw error;
+        }
+      }
+      const filters = parseLocationSearch(appliedLocation);
+      const params = new URLSearchParams({
+        q: search,
+        sort,
+        page: String(page),
+        ...(category ? { category } : {}),
+        ...filters,
+      });
+      const result = await api<MobileBrowse>(
+        saved ? "saved" : `listings?${params}`,
+        "GET",
+        undefined,
+        controller.signal,
+      );
+      if (controller.signal.aborted) return;
+      setIncomplete(result.incomplete === true);
+      setSelection(result.selection === true);
+      setItems((previous) =>
+        page === 1 || saved
+          ? result.items
+          : [...new Map([...previous, ...result.items].map((c) => [c.id, c])).values()],
+      );
+      setNext(result.nextPage ?? null);
+    };
+    void read()
+      .catch((error) => {
+        if (!controller.signal.aborted) setError(message(error));
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [saved, search, category, sort, page, revision]);
+  }, [saved, search, category, sort, page, revision, discovery, appliedLocation]);
   return (
-    <section className="stack">
-      <h1>{saved ? "Saved for later" : "Discover something good"}</h1>
-      {!saved && (
-        <>
+    <section className="mobile-home">
+      {saved ? (
+        <h1 className="mt-6">Saved for later</h1>
+      ) : (
+        <MarketplaceHero items={headlineOptions[headline]}>
           <form
-            className="search"
-            onSubmit={(e) => {
-              e.preventDefault();
+            className="floating-card mt-3 grid grid-cols-2 gap-1.5 border border-brand-blue/15 p-1.5 ring-1 ring-brand-warm/10 sm:mt-5 sm:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:gap-2 sm:p-3"
+            onSubmit={(event) => {
+              event.preventDefault();
+              setDiscovery(false);
               setPage(1);
               setSearch(query);
+              setAppliedLocation(location);
               trackShopping("search", undefined, {}, { q: query, category, sort });
             }}
           >
-            <input
-              aria-label="Search Bluebird"
-              placeholder="What are you looking for?"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-            <button className="primary">Search</button>
-          </form>
-          <div className="filters">
-            <select
-              aria-label="Category"
+            <label className="relative col-span-2 block sm:col-span-1">
+              <MagnifyingGlass
+                size={16}
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+              />
+              <input
+                type="search"
+                aria-label="Search Bluebird"
+                placeholder="Search listings"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                className="h-10 w-full rounded-full border-0 bg-transparent pl-9 pr-3 text-[13px] text-foreground placeholder:text-muted-foreground focus:outline-none sm:h-12"
+              />
+            </label>
+            <HomeSearchDropdown
               value={category}
-              onChange={(e) => {
-                setCategory(e.target.value);
+              onChange={(value) => {
+                setCategory(value);
+                setDiscovery(false);
                 setPage(1);
               }}
+              label="Category"
+              placeholder="All categories"
+              options={[
+                { value: "", label: "All categories" },
+                ...bootstrap.categories.map((c) => ({ value: c.slug, label: c.name })),
+              ]}
+            />
+            <HomeSearchDropdown
+              value={location}
+              onChange={setLocation}
+              label="City or ZIP code"
+              placeholder="City or ZIP code"
+              shortPlaceholder="City or ZIP"
+              editable
+              options={suggestLocations(location)}
+            />
+            <button
+              type="submit"
+              className="col-span-2 h-10 rounded-full bg-primary px-7 text-[13px] font-semibold text-primary-foreground shadow-sm sm:col-span-1 sm:h-12"
             >
-              <option value="">All categories</option>
-              {bootstrap.categories.map((c) => (
-                <option key={c.slug} value={c.slug}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-            <select
-              aria-label="Sort listings"
-              value={sort}
-              onChange={(e) => {
-                setSort(e.target.value);
-                setPage(1);
-              }}
-            >
-              <option value="newest">Newest</option>
-              <option value="price_low">Price: low first</option>
-              <option value="price_high">Price: high first</option>
-              <option value="mileage_low">Lowest mileage</option>
-            </select>
-          </div>
-        </>
+              Search
+            </button>
+          </form>
+          <p className="mt-3 text-[12px] text-muted-foreground">
+            Search area:{" "}
+            <span className="font-semibold text-foreground">
+              {appliedLocation || "All locations"}
+            </span>
+          </p>
+        </MarketplaceHero>
+      )}
+      {!saved && !discovery && (
+        <label className="mt-5 block text-xs text-muted-foreground">
+          Sort listings
+          <select
+            aria-label="Sort listings"
+            className="filter-input mt-1"
+            value={sort}
+            onChange={(event) => {
+              setSort(event.target.value);
+              setPage(1);
+            }}
+          >
+            <option value="newest">Newest</option>
+            <option value="price_low">Price: low first</option>
+            <option value="price_high">Price: high first</option>
+            <option value="mileage_low">Lowest mileage</option>
+          </select>
+        </label>
       )}
       {error && (
         <p role="alert" className="error">
@@ -843,21 +938,38 @@ function Feed({
           onOpen={(id) => go(`/listings/${id}`)}
         />
       )}
-      <div className="listing-grid">
-        {items.map((card, position) => (
-          <ListingTile
-            key={card.id}
-            card={card}
-            position={position}
-            placement={saved ? "saved" : "browse"}
-            learning={learning && active}
-            onOpen={(id) => go(`/listings/${id}`)}
-          />
-        ))}
-      </div>
+      {home && discovery && !saved ? (
+        <HomeDiscovery
+          home={home}
+          learning={learning && active}
+          onOpen={(id) => go(`/listings/${id}`)}
+          onBrowse={(value) => {
+            setDiscovery(false);
+            setCategory(value);
+            setSearch("");
+            setQuery("");
+            setPage(1);
+          }}
+        />
+      ) : (
+        <div className="listing-grid">
+          {items.map((card, position) => (
+            <ListingTile
+              key={card.id}
+              card={card}
+              position={position}
+              placement={saved ? "saved" : "browse"}
+              learning={learning && active}
+              onOpen={(id) => go(`/listings/${id}`)}
+            />
+          ))}
+        </div>
+      )}
+
+      {!home && <ListingSourceCredits cards={items} />}
       {loading ? (
         <p role="status">Loading listings…</p>
-      ) : !items.length && !error ? (
+      ) : !items.length && !home && !error ? (
         <p>
           {saved
             ? "Save a listing to find it here."
@@ -869,14 +981,7 @@ function Feed({
     </section>
   );
 }
-function ListingPhoto({ url, alt = "" }: { url: string; alt?: string }) {
-  const [failed, setFailed] = useState(false);
-  return failed ? (
-    <div className="photo-missing">Photo unavailable</div>
-  ) : (
-    <img src={url} loading="lazy" alt={alt} onError={() => setFailed(true)} />
-  );
-}
+
 function Listing({
   id,
   session,
@@ -942,18 +1047,18 @@ function Listing({
   if (!card) return <p role="status">Loading listing…</p>;
   return (
     <article className="stack">
-      <div className="gallery">
-        {(card.images?.length
-          ? card.images
-          : card.imageUrl
-            ? [{ url: card.imageUrl, alt: card.title }]
-            : []
-        ).map((image, i) => (
-          <div key={`${image.url}-${i}`} onClick={() => trackShopping("photo", id, { photo: i })}>
-            <ListingPhoto url={image.url} alt={image.alt || card.title} />
-          </div>
-        ))}
-      </div>
+      <ListingGallery
+        listing={{
+          ...listingPresentation(card),
+          images: card.images?.length
+            ? card.images
+            : card.imageUrl
+              ? [{ url: card.imageUrl, alt: card.title }]
+              : [],
+        }}
+        onPhoto={(photo) => trackShopping("photo", id, { photo })}
+      />
+
       <div className="listing-price">{money(card)}</div>
       <h1>{card.title}</h1>
       {card.available === false && (
@@ -970,6 +1075,7 @@ function Listing({
               act(async () => {
                 await api("saved", "POST", { listingId: id, saved: !saved });
                 setSaved(!saved);
+                window.dispatchEvent(new Event("bluebird-saved-changed"));
                 trackShopping(saved ? "unsave" : "save", id);
                 if (!saved) void trackAdvertising("listing_saved", card.categorySlug);
               })

@@ -146,10 +146,15 @@ const brandMarkSource = await read("src/components/layout/BrandMark.tsx");
 const headerSource = await read("src/components/layout/SiteHeader.tsx");
 const rootSource = await read("src/routes/__root.tsx");
 const allCategoriesSource = await read("src/components/classifieds/AllCategoriesPopover.tsx");
-const homeSource = await read("src/routes/index.tsx");
+const homeSource =
+  (await read("src/routes/index.tsx")) +
+  (await read("src/components/classifieds/MarketplaceHero.tsx")) +
+  (await read("src/config/homepage-headlines.ts"));
 const categoryIconSource = await read("src/components/classifieds/CategoryIcon.tsx");
-const listingCardSource = await read("src/components/classifieds/ListingCard.tsx");
-const detailSource = await read("src/routes/listings.$listingId.tsx");
+const listingCardSource = await read("src/components/classifieds/ListingCardView.tsx");
+const detailSource =
+  (await read("src/routes/listings.$listingId.tsx")) +
+  (await read("src/components/classifieds/ListingGallery.tsx"));
 const mockListingsSource = await read("src/config/classified-mocks.ts");
 const stylesSource = await read("src/styles.css");
 const { classifiedSeedListings } = await import("../scripts/classified-seed-data.mjs");

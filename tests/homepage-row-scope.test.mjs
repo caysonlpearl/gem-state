@@ -15,7 +15,9 @@ import { allocateHomepageRows } from "../src/lib/homepage-initial-payload.ts";
 import { homepageDistanceRow } from "../src/lib/homepage-distance-row.ts";
 import { isGeneralHomepageListing } from "../src/lib/homepage-listing-rows.ts";
 
-const source = readFileSync(new URL("../src/routes/index.tsx", import.meta.url), "utf8");
+const source =
+  readFileSync(new URL("../src/routes/index.tsx", import.meta.url), "utf8") +
+  readFileSync(new URL("../src/lib/location-search.ts", import.meta.url), "utf8");
 const ast = ts.createSourceFile(
   "index.tsx",
   source,
@@ -55,7 +57,10 @@ function context(extra = {}) {
   });
   const functions = ["parseLocationSearch", "homeLocation", "Home", "HomeSections"]
     .map((name) =>
-      ast.statements.find((n) => ts.isFunctionDeclaration(n) && n.name?.text === name).getText(ast),
+      ast.statements
+        .find((n) => ts.isFunctionDeclaration(n) && n.name?.text === name)
+        .getText(ast)
+        .replace(/^export\s+/, ""),
     )
     .join("\n");
   vm.runInContext(
@@ -181,6 +186,7 @@ function renderedHome(location, point) {
     MapTrifold: "MapTrifold",
     locationActionClass: "",
     HomeSearchDropdown: "HomeSearchDropdown",
+    MarketplaceHero: "MarketplaceHero",
     HomepageFeaturedCategories: "HomepageFeaturedCategories",
     QueryErrorResetBoundary: "QueryErrorResetBoundary",
     HomepageLeadErrorBoundary: "HomepageLeadErrorBoundary",
