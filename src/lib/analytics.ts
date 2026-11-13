@@ -1,7 +1,8 @@
+import { isInternalAnalyticsBrowser, markInternalAnalyticsBrowser } from "./analytics-browser.ts";
 import { loadSupabase } from "@/integrations/supabase/lazy-client";
 import { classifyLatency, sanitizeTelemetryText } from "@/lib/release-gate";
 import { classifyTrafficSource } from "@/lib/traffic-source";
-import { isInternalAnalyticsQuery, isKnownAutomatedAgent } from "@/lib/analytics-policy";
+import { isKnownAutomatedAgent } from "@/lib/analytics-policy";
 import { listingBusinessProps } from "./business-context";
 
 /**
@@ -97,6 +98,7 @@ export type AnalyticsEventName =
   | "mutation_slow"
   | "browser_error"
   | "unhandled_rejection"
+  | "visit_engaged"
   | "visit_started"
   | "listing_viewed"
   | "seller_contacted"
@@ -126,6 +128,70 @@ function sessionId(): string | null {
   } catch {
     return null;
   }
+}
+
+// One role check per signed-in identity per document, shared by simultaneous events.
+const analyticsStaffChecks = new Map<string, Promise<boolean | null>>();
+async function analyticsStaffStatus(
+  supabase: Awaited<ReturnType<typeof loadSupabase>>,
+  userId: string,
+) {
+  let check = analyticsStaffChecks.get(userId);
+  if (!check) {
+    check = Promise.all(
+      ["admin", "moderator"].map((_role) =>
+        supabase.rpc("has_role", { _user_id: userId, _role: _role as "admin" | "moderator" }),
+      ),
+    )
+      .then((results) =>
+        results.some((r) => r.data === true)
+          ? true
+          : results.some((r) => r.error || typeof r.data !== "boolean")
+            ? null
+            : false,
+      )
+      .catch(() => null);
+    analyticsStaffChecks.set(userId, check);
+    void check.then((value) => {
+      if (value === null) analyticsStaffChecks.delete(userId);
+    });
+  }
+  return check;
+}
+
+/** Genuine page interaction is an engagement signal, not proof of a unique person. */
+export function startTrafficEngagement() {
+  const visit = ensureVisit();
+  if (!visit || typeof document === "undefined") return () => {};
+  try {
+    if (window.sessionStorage.getItem("bb_engaged_visit") === visit.id) return () => {};
+  } catch {
+    /* Optional storage. */
+  }
+  let pending = false;
+  let recorded = false;
+  const onInteraction = (event: Event) => {
+    if (!event.isTrusted || document.visibilityState !== "visible" || pending || recorded) return;
+    pending = true;
+    void trackEvent("visit_engaged", { signal: "interaction" }).then((saved) => {
+      pending = false;
+      if (!saved) return;
+      recorded = true;
+      try {
+        window.sessionStorage.setItem("bb_engaged_visit", visit.id);
+      } catch {
+        /* Optional storage. */
+      }
+      cleanup();
+    });
+  };
+  const events = ["pointerdown", "keydown", "touchstart", "wheel"] as const;
+  const cleanup = () =>
+    events.forEach((name) => document.removeEventListener(name, onInteraction, true));
+  events.forEach((name) =>
+    document.addEventListener(name, onInteraction, { capture: true, passive: true }),
+  );
+  return cleanup;
 }
 
 type Visit = { id: string; source: string; channel: string; landing: string };
@@ -238,12 +304,20 @@ export async function trackEvent(
         /* Optional attribution must never affect browsing or posting. */
       }
     }
-    let internal = isInternalAnalyticsQuery(window.location.search) || props.is_internal === true;
-    try {
-      if (internal) window.sessionStorage.setItem("bb_internal_traffic", "1");
-      internal ||= window.sessionStorage.getItem("bb_internal_traffic") === "1";
-    } catch {
-      /* Optional QA exclusion must not block user actions. */
+    let internal = isInternalAnalyticsBrowser(window, props.is_internal === true);
+    let internalReason: string | null = internal ? "testing_browser" : null;
+    if (userId && !internal) {
+      const staff = await analyticsStaffStatus(supabase, userId);
+      if (staff === true) {
+        markInternalAnalyticsBrowser(window);
+        internal = true;
+        internalReason = "staff";
+      } else if (staff === null) {
+        // An unavailable role check must not turn an operator into a public visitor.
+        // This event is excluded; a normal user's browser is not permanently marked.
+        internal = true;
+        internalReason = "role_check_unavailable";
+      }
     }
     const { error } = await supabase.from("analytics_events").insert({
       name,
@@ -257,8 +331,12 @@ export async function trackEvent(
             site_host: window.location.hostname,
             device: window.matchMedia("(max-width: 767px)").matches ? "mobile" : "desktop",
             event_at: eventAt,
+            traffic_policy: 2,
             is_internal: internal,
-            is_bot: props.is_bot === true || isKnownAutomatedAgent(navigator.userAgent),
+            internal_reason: internalReason,
+            is_bot:
+              props.is_bot === true ||
+              isKnownAutomatedAgent(navigator.userAgent, navigator.webdriver === true),
           }
         : props,
       is_demo: options.isDemo ?? false,

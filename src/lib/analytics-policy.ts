@@ -18,9 +18,12 @@ export function isInternalAnalyticsQuery(search: string) {
   return ["1", '"1"'].includes(params.get("_qa") ?? "") || params.has("_verify");
 }
 
-export function isKnownAutomatedAgent(agent: string) {
-  return /bot\b|spider|crawler|HeadlessChrome|Lighthouse|Google Page Speed|Google-InspectionTool/i.test(
-    agent,
+export function isKnownAutomatedAgent(agent: string, webdriver = false) {
+  return (
+    webdriver ||
+    /bot\b|spider|crawler|HeadlessChrome|Lighthouse|Google Page Speed|Google-InspectionTool|GoogleOther|Google-Read-Aloud|BingPreview|facebookexternalhit|Facebot|ChatGPT-User|Claude-User|Perplexity-User|Slack-ImgProxy|Discordbot|WhatsApp|Playwright|Puppeteer|Selenium|PhantomJS|Prerender/i.test(
+      agent,
+    )
   );
 }
 

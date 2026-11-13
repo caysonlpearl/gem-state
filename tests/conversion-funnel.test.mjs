@@ -116,7 +116,7 @@ test("admin reads include stage events and timestamps without weakening the role
   assert.match(reader, /"search_completed"/);
   assert.match(reader, /"classified_listing_submit_started"/);
   assert.match(reader, /"classified_listing_started"/);
-  assert.match(reader, /user_id, occurred_at/);
+  assert.match(reader, /user_id, session_id, occurred_at/);
   assert.match(reader, /summarizeConversionVisits\(eligibleTrafficEvents\(events, options\)\)/);
 });
 
