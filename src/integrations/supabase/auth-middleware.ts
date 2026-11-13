@@ -3,6 +3,10 @@ import { createMiddleware } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
+import {
+  assertAccountSession,
+  type AccountSessionDatabase,
+} from "@/lib/account-deletion-access.server";
 
 function isNewSupabaseApiKey(value: string): boolean {
   return value.startsWith("sb_publishable_") || value.startsWith("sb_secret_");
@@ -97,6 +101,15 @@ export const requireSupabaseAuth = createMiddleware({ type: "function" }).server
     if (!data.claims.sub) {
       throw new Error("Unauthorized: No user ID found in token");
     }
+
+    // Signature validity can outlive logout/deletion. One database check binds
+    // this verified subject to a current identity/session and deletion status.
+    const { supabaseAdmin } = await import("./client.server");
+    await assertAccountSession(
+      supabaseAdmin as unknown as AccountSessionDatabase,
+      data.claims.sub,
+      data.claims.session_id,
+    );
 
     return next({
       context: {

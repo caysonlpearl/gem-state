@@ -1,3 +1,4 @@
+import { assertAccountSession, accountDeletionPending } from "./account-deletion-access.server.ts";
 /* eslint-disable @typescript-eslint/no-explicit-any -- private migration-backed tables */
 import {
   interests,
@@ -21,9 +22,10 @@ export async function shoppingActor(request: Request, db: any) {
   const authorization = request.headers.get("authorization") ?? "";
   let user: any = null;
   if (authorization.startsWith("Bearer ")) {
-    const result = await db.auth.getUser(authorization.slice(7));
-    if (result.error) throw Error("Please sign in again.");
-    user = result.data.user;
+    const result = await db.auth.getClaims(authorization.slice(7));
+    if (result.error || !result.data?.claims?.sub) throw Error("Please sign in again.");
+    await assertAccountSession(db, result.data.claims.sub, result.data.claims.session_id);
+    user = { id: result.data.claims.sub };
   }
   const match = request.headers
     .get("cookie")
@@ -372,6 +374,7 @@ export async function updateShoppingConsent(
   return { ok: true };
 }
 export async function shoppingPermission(db: any, subject: string) {
+  if (subject.startsWith("u:") && (await accountDeletionPending(db, subject.slice(2)))) return null;
   const r = await db
     .from("shopping_privacy")
     .select("personalization,advertising,history_after")

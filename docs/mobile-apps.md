@@ -201,7 +201,7 @@ New API v1 endpoints are `PUT account/profile|avatar`, `GET/PUT account/contact-
 
 Profile-photo uploads freeze the form's account/install identity through upload and the subsequent avatar write. An account switch cannot publish the photo on the new member. Refreshing a photo does not reset unsaved profile/contact fields, and failed saves retain edits. Shopping alerts continue using their own server consent, independently of legacy email settings, operating-system phone permission and advertising permission. Profile/email/phone values are not shopper activity or advertising inputs. Password recovery returns through the existing native callback.
 
-Ordinary sign-out on the website and app uses the local Supabase scope; the separate global control revokes the authenticated member's push registrations before global session sign-out. Both clients share owner rechecks and stop when revocation fails. Local token removal remains separate. Auth-provider errors leave an error state; neither action claims that revoked access JWTs expire sooner than the provider's actual behavior. In-app deletion still records a request/status and requires explicit confirmation; full deletion/anonymization processing remains unimplemented and a release blocker. The website account deletion link now reaches the existing dedicated deletion-request route.
+Ordinary sign-out on the website and app uses the local Supabase scope; the separate global control revokes the authenticated member's push registrations before global session sign-out. Both clients share owner rechecks and stop when revocation fails. Local token removal remains separate. Auth-provider errors leave an error state; access JWTs retain their original expiry, while the new session boundary rejects them after the corresponding Auth session is revoked. In-app deletion still records a request/status and requires explicit confirmation; full deletion/anonymization processing remains unimplemented and a release blocker. The website account deletion link now reaches the existing dedicated deletion-request route.
 
 Validation includes actual profile/avatar domain handlers with authenticated-owner assertions, native upload account-switch checks, API authentication/terms/deletion/field allowlists, and synthetic browser journeys at 320/390/1280px. They cover unavailable API support, failed preference reads, failed saves, unsaved edits across photo updates, both sign-out scopes, password recovery, separate shopping consent and deletion request acknowledgement. Fixtures create no real accounts, photos, emails, or deletion requests. Run `npm run test:mobile:account:ui`; real signed-in phone and production account journeys remain beta gates.
 
@@ -235,18 +235,27 @@ compute has been purchased.
 
 On November 13 the owner chose personal/individual developer accounts, using
 `cayson@xstayproperties.com` as the intended login. This supersedes the original
-organization-enrollment default. No developer account has been created yet.
+organization-enrollment default. Paid membership/registration completion has
+not been verified.
 The owner must verify the correct Apple/Google login and personal identity and
 complete agreements/payment. Do not infer private identity details or change
 account credentials. Apple's individual enrollment displays the owner's legal
 name as the store seller; app branding remains Bluebird. Current US fees are
 Apple US$99/year and Google Play US$25 once; tax/local currency may vary.
 
-Enrollment preflight reached Apple's sign-in page and Google's personal-account
-wizard under the intended email. Google's public developer name `Bluebird` is
-already registered; an alternate developer profile name is awaiting the owner.
-The app name remains Bluebird. No credentials, private identity information,
-developer agreement or payment was submitted.
+Enrollment preflight verified Google's intended signed-in email and personal
+account selection. The owner chose `Bluebird Marketplace`, which the Google
+wizard accepted after `Bluebird` was unavailable. It is waiting for a personal
+payments profile. The owner signed into Apple and the individual enrollment
+reached the membership purchase page. No credentials, private identity details,
+developer agreement or payment was submitted by the agent.
+
+The owner then requested completing all possible app work before finishing paid
+enrollment. Registration and fees are deferred, with no store submission
+performed. Continue implementation and local/device testing; return to owner
+registration when the builds are ready for store-based testing. The app name
+remains Bluebird. Do not treat a prepared wizard or purchase page as an active
+paid developer membership.
 
 New Google personal accounts require a closed test with at least 12 testers
 opted in continuously for at least 14 days, followed by an application for
@@ -262,6 +271,16 @@ Official enrollment references:
 - https://support.google.com/googleplay/android-developer/answer/6112435?hl=en
 - https://support.google.com/googleplay/android-developer/answer/13628312?hl=en
 - https://support.google.com/googleplay/android-developer/answer/14151465?hl=en
+
+## Account deletion work in progress
+
+The next batch adds durable deletion jobs, server route fences and immediate
+shopping/advertising suppression across web and native. It keeps the existing
+account request/status contract and sign-out routes. The erasure worker remains
+disabled until actual data/media cleanup, identity-provider revocation, retention handling and independent verification
+are complete. Session and direct database boundaries now have isolated tests;
+production installation and verification remain required. Source tests and a received request are not completed deletion.
+See `docs/account-deletion.md` for the current implementation boundary.
 
 ## Apple release automation candidate: Lance
 

@@ -1,3 +1,4 @@
+import * as deletionAccess from "../src/lib/account-deletion-access.server.ts";
 import { storefrontFixture, storefrontActors } from "./support/mobile-storefront-fixture.mjs";
 import * as storefrontHandlers from "../src/lib/mobile-storefront.server.ts";
 import * as storefrontContract from "../src/lib/mobile-storefront-contract.ts";
@@ -145,6 +146,12 @@ function harness({
       return q;
     },
     rpc: async (name, args) => {
+      if (name === "account_session_state") {
+        assert.equal(args._user, user);
+        assert.equal(args._session, "44444444-4444-4444-8444-444444444444");
+        reads.push({ table: "account_session_state", filters: [] });
+        return { data: deleted ? "deletion_pending" : "active", error: null };
+      }
       writes.push({ name, args });
       return {
         data:
@@ -162,12 +169,17 @@ function harness({
     },
   };
   const modules = {
+    "./account-deletion-access.server": deletionAccess,
     "@supabase/supabase-js": {
       createClient: () => ({
         ...db,
         auth: {
-          getUser: async () => ({
-            data: { user: valid ? { id: user } : null },
+          getClaims: async () => ({
+            data: {
+              claims: valid
+                ? { sub: user, session_id: "44444444-4444-4444-8444-444444444444" }
+                : null,
+            },
             error: valid ? null : { code: "invalid" },
           }),
         },
@@ -1184,4 +1196,25 @@ test("only trusted app-created general dealership contexts enter the mobile inbo
   const notInstalled = harness({ scopedDealerConversation: true });
   assert.equal((await notInstalled.request("conversations/" + id)).status, 404);
   assert(!notInstalled.reads.some((r) => r.table === "mobile_dealer_conversations"));
+});
+
+test("deletion-pending identities cannot read or mutate private native routes, while status and sign-out remain available", async () => {
+  const h = harness({ deleted: true, attachments: true, posting: true, savedSearches: true });
+  for (const [path, method, body] of [
+    ["account", "GET"],
+    ["conversations", "GET"],
+    ["notifications", "GET"],
+    ["saved", "GET"],
+    ["saved-searches", "GET"],
+    ["account/contact-preferences", "GET"],
+    ["advertising?platform=ios", "GET"],
+    ["notifications/read", "PUT", { ids: null }],
+    ["saved", "POST", { listingId: "anything", saved: true }],
+    ["consent", "PUT", { acceptTerms: true, shoppingAlerts: true, version: "2026-11-12" }],
+  ]) {
+    const response = await h.request(path, method, body);
+    assert.equal(response.status, 409, path);
+    assert.equal((await response.json()).error.code, "deletion_pending", path);
+  }
+  assert.equal(h.writes.length, 0);
 });

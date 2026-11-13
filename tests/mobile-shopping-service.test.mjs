@@ -1,3 +1,4 @@
+import * as deletionAccess from "../src/lib/account-deletion-access.server.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID, createHash } from "node:crypto";
@@ -19,7 +20,10 @@ function load(source, modules) {
   }, exports);
   return exports;
 }
-const shared = load(compile("shopping.server.ts"), { "./shopping-contract.ts": contract });
+const shared = load(compile("shopping.server.ts"), {
+  "./shopping-contract.ts": contract,
+  "./account-deletion-access.server.ts": deletionAccess,
+});
 const handle = load(compile("mobile-shopping.server.ts"), {
   "./mobile-api": protocol,
   "./mobile-contract": mobileContract,
