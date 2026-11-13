@@ -18,7 +18,7 @@ const columns =
 const conversationColumns =
   "id,listing_id,dealer_inventory_record_id,buyer_id,seller_id,last_message_at,conversation_participants(user_id,last_read_at,blocked_at)";
 const nativeId = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const readInput = z.object({ ids: z.array(z.string().uuid()).max(60).nullable() }).strict();
+const readInput = z.object({ ids: z.array(z.string().guid()).max(60).nullable() }).strict();
 const result = async (query: any) => {
   const r = await withCatalogReadDeadline<any>(query, 5000);
   if (r.error)

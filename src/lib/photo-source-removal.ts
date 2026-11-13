@@ -23,7 +23,7 @@ const candidate = z
       })
       .strict(),
     migration: z
-      .object({ runId: z.string().uuid(), ordinal: z.number().int().min(0).max(19999) })
+      .object({ runId: z.string().guid(), ordinal: z.number().int().min(0).max(19999) })
       .strict(),
     receipt: descriptor
       .extend({
@@ -55,7 +55,7 @@ export const removalPlanHeaderSchema = z
     schemaVersion: z.literal(1),
     kind: z.literal("photo-source-removal-plan"),
     projectRef: z.string().regex(/^[a-z0-9]{20}$/),
-    runIds: z.array(z.string().uuid()).min(1).max(20),
+    runIds: z.array(z.string().guid()).min(1).max(20),
     notBefore: date,
     removalScopeSha256: sha,
     rootSha256: sha,

@@ -120,7 +120,7 @@ export const sendDealerMessageEmailTest = createServerFn({ method: "POST" })
 /** Read-only operator preview; never creates a dealer session or sends an invitation. */
 export const getDealerAccountPreview = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .validator((input: unknown) => z.object({ dealerId: z.string().uuid() }).parse(input))
+  .validator((input: unknown) => z.object({ dealerId: z.string().guid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { data: allowed, error: roleError } = await context.supabase.rpc("has_role", {
       _user_id: context.userId,

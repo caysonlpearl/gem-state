@@ -67,7 +67,7 @@ export const beginPrivatePhotoUpload = createServerFn({ method: "POST" })
 
 export const finishPrivatePhotoUpload = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input: { id: string }) => z.object({ id: z.string().uuid() }).parse(input))
+  .validator((input: { id: string }) => z.object({ id: z.string().guid() }).parse(input))
   .handler(async ({ data, context }) => {
     const { completePrivatePhotoUpload } = await import("./photo-upload.server");
     const { db, r2 } = await storageRuntime();

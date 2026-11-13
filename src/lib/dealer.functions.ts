@@ -400,7 +400,7 @@ export const getOwnedDealers = createServerFn({ method: "GET" })
 
 export const getDealerMembers = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .validator((input: unknown) => z.object({ dealerId: z.string().uuid() }).parse(input))
+  .validator((input: unknown) => z.object({ dealerId: z.string().guid() }).parse(input))
   .handler(async ({ data, context }): Promise<DealerMemberSummary[]> => {
     const { admin } = await requireDealerManager(context, data.dealerId);
     const { data: members, error } = await admin
@@ -436,7 +436,7 @@ export const addDealerMember = createServerFn({ method: "POST" })
   .validator((input: unknown) =>
     z
       .object({
-        dealerId: z.string().uuid(),
+        dealerId: z.string().guid(),
         email: z.string().trim().email(),
         role: z.enum(["manager", "inventory"]),
       })
@@ -478,8 +478,8 @@ export const updateDealerMember = createServerFn({ method: "POST" })
   .validator((input: unknown) =>
     z
       .object({
-        dealerId: z.string().uuid(),
-        userId: z.string().uuid(),
+        dealerId: z.string().guid(),
+        userId: z.string().guid(),
         role: z.enum(["manager", "inventory"]).optional(),
         status: z.enum(["active", "disabled"]).optional(),
       })

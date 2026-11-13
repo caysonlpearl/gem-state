@@ -46,7 +46,7 @@ const website = z
       }, "Enter a valid dealership website"),
   );
 export const dealerInquirySchema = z.object({
-  requestKey: z.string().uuid(),
+  requestKey: z.string().guid(),
   dealershipName: z.string().trim().min(1, "Enter your dealership name").max(160),
   website,
   name: z.string().trim().min(1, "Enter your name").max(120),

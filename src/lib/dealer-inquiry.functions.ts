@@ -62,7 +62,7 @@ export const getDealerInquiries = createServerFn({ method: "GET" })
 export const updateDealerInquiry = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((value: unknown) =>
-    z.object({ id: z.string().uuid(), status: z.enum(DEALER_INQUIRY_STATUSES) }).parse(value),
+    z.object({ id: z.string().guid(), status: z.enum(DEALER_INQUIRY_STATUSES) }).parse(value),
   )
   .handler(async ({ data, context }) => {
     const client = await admin(context);

@@ -27,7 +27,7 @@ const sourceInput = z.object({
   minimumRowCount: z.number().int().positive().max(1_000_000).default(1),
   deactivationGraceRuns: z.number().int().positive().max(30).default(2),
   mappingProfile: z.record(z.string(), z.string()).default({}),
-  dealerId: z.string().uuid().optional().nullable(),
+  dealerId: z.string().guid().optional().nullable(),
 });
 
 export type DealerInventorySourceSummary = {
@@ -80,7 +80,7 @@ export type DealerInventoryRecordSummary = {
 };
 
 const feedInput = z.object({
-  sourceId: z.string().uuid(),
+  sourceId: z.string().guid(),
   payload: z.string().min(1).max(5_000_000),
   filename: z.string().trim().max(255).optional(),
   dryRun: z.boolean().default(true),
@@ -159,7 +159,7 @@ export const createDealerInventorySource = createServerFn({ method: "POST" })
 
 export const getDealerInventorySyncRuns = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .validator((input: unknown) => z.object({ sourceId: z.string().uuid() }).parse(input))
+  .validator((input: unknown) => z.object({ sourceId: z.string().guid() }).parse(input))
   .handler(async ({ data, context }): Promise<DealerInventorySyncRunSummary[]> => {
     await requireAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -177,7 +177,7 @@ export const getDealerInventorySyncRuns = createServerFn({ method: "GET" })
 export const setDealerInventorySourceStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) =>
-    z.object({ sourceId: z.string().uuid(), status: z.enum(["active", "paused"]) }).parse(input),
+    z.object({ sourceId: z.string().guid(), status: z.enum(["active", "paused"]) }).parse(input),
   )
   .handler(async ({ data, context }) => {
     await requireAdmin(context);
@@ -205,7 +205,7 @@ export const setDealerInventorySourceStatus = createServerFn({ method: "POST" })
 
 export const getDealerInventoryRecords = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .validator((input: unknown) => z.object({ sourceId: z.string().uuid() }).parse(input))
+  .validator((input: unknown) => z.object({ sourceId: z.string().guid() }).parse(input))
   .handler(async ({ data, context }): Promise<DealerInventoryRecordSummary[]> => {
     await requireAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -226,7 +226,7 @@ export const getDealerInventoryRecords = createServerFn({ method: "GET" })
 export const linkDealerInventoryRecord = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) =>
-    z.object({ recordId: z.string().uuid(), listingId: z.string().uuid() }).parse(input),
+    z.object({ recordId: z.string().guid(), listingId: z.string().guid() }).parse(input),
   )
   .handler(async ({ data, context }) => {
     await requireAdmin(context);
@@ -577,7 +577,7 @@ export const applyDealerInventoryFeed = createServerFn({ method: "POST" })
 
 export const runConfiguredDealerInventorySource = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input: unknown) => z.object({ sourceId: z.string().uuid() }).parse(input))
+  .validator((input: unknown) => z.object({ sourceId: z.string().guid() }).parse(input))
   .handler(async ({ data, context }) => {
     await requireAdmin(context);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

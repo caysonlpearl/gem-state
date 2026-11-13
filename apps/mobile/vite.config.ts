@@ -13,7 +13,17 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), tailwindcss()],
     publicDir: fileURLToPath(new URL("../../public", import.meta.url)),
-    server: { watch: { ignored: ["**/android/**", "**/ios/**"] } },
+    server: {
+      watch: { ignored: ["**/android/**", "**/ios/**"] },
+      fs: {
+        allow: [
+          fileURLToPath(new URL(".", import.meta.url)),
+          fileURLToPath(new URL("../../src", import.meta.url)),
+          fileURLToPath(new URL("../../public", import.meta.url)),
+          fileURLToPath(new URL("../../node_modules", import.meta.url)),
+        ],
+      },
+    },
     resolve: {
       alias: { "@": fileURLToPath(new URL("../../src", import.meta.url)) },
       dedupe: ["react", "react-dom"],

@@ -252,7 +252,7 @@ export const getNewsAdmin = createServerFn({ method: "GET" })
   });
 export const getNewsAdminArticle = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .validator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .validator((input: unknown) => z.object({ id: z.string().guid() }).parse(input))
   .handler(async ({ data, context }): Promise<NewsAdminArticle> => {
     await requireNewsAdmin(context);
     const { editorialDb, articleFromRow } = await import("@/lib/editorial-store.server");
@@ -276,7 +276,7 @@ export const getNewsAdminArticle = createServerFn({ method: "GET" })
     };
   });
 const articleInput = scope.extend({
-  id: z.string().uuid().optional(),
+  id: z.string().guid().optional(),
   expectedUpdatedAt: z.string().optional(),
   slug: z
     .string()
@@ -427,7 +427,7 @@ export const updateNewsSource = createServerFn({ method: "POST" })
   .validator((input: unknown) =>
     z
       .object({
-        id: z.string().uuid(),
+        id: z.string().guid(),
         feedUrl: z.string().trim().max(2000),
         enabled: z.boolean(),
         autoPublish: z.boolean(),
@@ -480,7 +480,7 @@ export const updateNewsSource = createServerFn({ method: "POST" })
 export const refreshNewsSources = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) =>
-    z.object({ sourceId: z.string().uuid().optional() }).parse(input || {}),
+    z.object({ sourceId: z.string().guid().optional() }).parse(input || {}),
   )
   .handler(async ({ data, context }) => {
     await requireNewsAdmin(context);
@@ -494,7 +494,7 @@ export const resolveNewsUpdate = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) =>
     z
-      .object({ id: z.string().uuid(), accept: z.boolean(), expectedUpdatedAt: z.string() })
+      .object({ id: z.string().guid(), accept: z.boolean(), expectedUpdatedAt: z.string() })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
@@ -541,7 +541,7 @@ export const resolveNewsUpdate = createServerFn({ method: "POST" })
 
 export const previewNewsPublisherUpdate = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
-  .validator((input: unknown) => z.object({ id: z.string().uuid() }).parse(input))
+  .validator((input: unknown) => z.object({ id: z.string().guid() }).parse(input))
   .handler(async ({ data, context }): Promise<EditorialArticle> => {
     await requireNewsAdmin(context);
     const { editorialDb, articleFromRow } = await import("@/lib/editorial-store.server");
