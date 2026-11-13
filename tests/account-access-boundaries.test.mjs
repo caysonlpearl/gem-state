@@ -19,7 +19,7 @@ async function fixture() {
  grant usage on schema storage to authenticated;grant select,insert,delete on storage.objects to authenticated;
  create policy member_object on storage.objects for all to authenticated using(owner=auth.uid()) with check(owner=auth.uid());
  create function private_sql(_prefix text default '') returns setof text language sql stable security definer set search_path=public as $$select _prefix||value from private_fixture where owner=auth.uid()$$;
- create function private_plpgsql(_prefix text default '') returns text language plpgsql stable security definer set search_path=public as $$declare found text; begin select value into found from private_fixture where owner=auth.uid();return _prefix||found;exception when others then return 'old handler must not catch the guard';end$$;
+ create function private_plpgsql(_prefix text default '') returns text language plpgsql stable security definer set search_path=public as $$declare found text; begin select value into found from private_fixture where owner=auth.uid();return _prefix||found;exception when others then return 'old handler must not catch the guard';end;\r\n\t $$;
  create function private_literal_fixture(_prefix text default 'AS $function$') returns text language sql stable security definer as $outer$select _prefix||'$function$'$outer$;
  create function public_catalog_fixture() returns integer language sql stable security definer as $$select 42$$;`);
   const sql = readFileSync(
