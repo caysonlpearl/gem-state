@@ -6,7 +6,7 @@ export const Route = createFileRoute("/terms")({
 });
 function Terms() {
   return (
-    <article className="prose mx-auto max-w-3xl px-5 py-12">
+    <article className="mx-auto max-w-3xl space-y-5 px-5 py-12 [&_h1]:text-3xl [&_h1]:font-semibold [&_h2]:pt-6 [&_h2]:text-xl [&_h2]:font-semibold [&_p]:text-sm [&_p]:leading-7 [&_a]:underline">
       <h1>Terms of Service</h1>
       <p>Effective {SHOPPING_POLICY_VERSION}</p>
       <p>

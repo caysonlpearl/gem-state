@@ -280,7 +280,8 @@ export async function trackEvent(
   try {
     const supabase = await loadSupabase();
     const { data } = await supabase.auth.getSession();
-    const userId = shoppingPrivacy().personalization ? (data.session?.user.id ?? null) : null;
+    const viewerId = data.session?.user.id ?? null;
+    const userId = shoppingPrivacy().personalization ? viewerId : null;
     const visit = ensureVisit();
     if (
       [
@@ -314,8 +315,8 @@ export async function trackEvent(
     }
     let internal = isInternalAnalyticsBrowser(window, props.is_internal === true);
     let internalReason: string | null = internal ? "testing_browser" : null;
-    if (userId && !internal) {
-      const staff = await analyticsStaffStatus(supabase, userId);
+    if (viewerId && !internal) {
+      const staff = await analyticsStaffStatus(supabase, viewerId);
       if (staff === true) {
         markInternalAnalyticsBrowser(window);
         internal = true;
@@ -329,24 +330,25 @@ export async function trackEvent(
     }
     const { error } = await supabase.from("analytics_events").insert({
       name,
-      props: visit
-        ? {
-            ...props,
-            traffic_source: visit.source,
-            traffic_channel: visit.channel,
-            traffic_visit: visit.id,
-            // Lets reports drop events from dev servers and preview builds.
-            site_host: window.location.hostname,
-            device: window.matchMedia("(max-width: 767px)").matches ? "mobile" : "desktop",
-            event_at: eventAt,
-            traffic_policy: 2,
-            is_internal: internal,
-            internal_reason: internalReason,
-            is_bot:
-              props.is_bot === true ||
-              isKnownAutomatedAgent(navigator.userAgent, navigator.webdriver === true),
-          }
-        : props,
+      props: {
+        ...props,
+        ...(visit
+          ? {
+              traffic_source: visit.source,
+              traffic_channel: visit.channel,
+              traffic_visit: visit.id,
+            }
+          : {}),
+        site_host: window.location.hostname,
+        device: window.matchMedia("(max-width: 767px)").matches ? "mobile" : "desktop",
+        event_at: eventAt,
+        traffic_policy: 2,
+        is_internal: internal,
+        internal_reason: internalReason,
+        is_bot:
+          props.is_bot === true ||
+          isKnownAutomatedAgent(navigator.userAgent, navigator.webdriver === true),
+      },
       is_demo: options.isDemo ?? false,
       session_id: sessionId(),
       user_id: userId,

@@ -75,6 +75,8 @@ function harness({ local, user = null, role = false, webdriver = false } = {}) {
   };
   const context = {
     exports: {},
+    shoppingAnalytics: () => {},
+    shoppingPrivacy: () => ({ personalization: true }),
     window: target,
     document,
     navigator: { userAgent: "Mozilla/5.0 Chrome/153 Safari/537.36", webdriver },
