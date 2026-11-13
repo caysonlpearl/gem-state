@@ -73,7 +73,8 @@ const accountCenterSource =
   (await read("src/components/account/AccountLayoutView.tsx")) +
   (await read("src/components/account/AccountViewParts.tsx")) +
   (await read("src/components/account/MessagesSectionView.tsx")) +
-  (await read("src/components/account/AccountSectionView.tsx"));
+  (await read("src/components/account/AccountSectionView.tsx")) +
+  (await read("src/components/account/NotificationsSectionView.tsx"));
 const accountFunctionsSource = await read("src/lib/account.functions.ts");
 const accountCenterFunctionsSource = await read("src/lib/account-center.functions.ts");
 const conversationFunctionsSource = await read("src/lib/conversation.functions.ts");

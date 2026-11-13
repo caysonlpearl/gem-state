@@ -1,3 +1,9 @@
+import {
+  HeaderAccountMenuView,
+  type HeaderAccountIdentity,
+  type HeaderAccountLinkProps,
+} from "../../../src/components/layout/HeaderAccountMenuView";
+import { NativeNotificationBell, useNativeNotifications } from "./Notifications";
 import { backWithinApp } from "./native-navigation";
 import { browseDestination } from "./browse-state";
 import { mobilePrimaryCategories } from "../../../src/config/mobile-navigation";
@@ -17,12 +23,21 @@ export function NativeHeader({
   signedIn,
   onNavigate,
   onPrivacy,
+  owner,
+  account,
+  onSignOut,
+  signOutBusy = false,
 }: {
   path: string;
   signedIn: boolean;
   onNavigate: (path: string) => void;
   onPrivacy: () => void;
+  owner?: string;
+  account?: HeaderAccountIdentity | null;
+  onSignOut: () => void | Promise<void>;
+  signOutBusy?: boolean;
 }) {
+  const notifications = useNativeNotifications();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuButton = useRef<HTMLButtonElement>(null);
   useEffect(() => {
@@ -76,15 +91,27 @@ export function NativeHeader({
               <ArrowLeft size={20} />
             </button>
           )}
-          <button
-            type="button"
-            aria-label={signedIn ? "Account" : "Sign in"}
-            onClick={() => onNavigate("/account")}
-            className="inline-flex h-11 min-h-11 w-11 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-foreground text-[12px] font-medium transition-colors hover:bg-foreground hover:text-background sm:w-auto sm:px-4 sm:text-[12.5px]"
-          >
-            <UserCircle size={20} aria-hidden="true" />
-            <span className="hidden sm:inline">{signedIn ? "Account" : "Sign in"}</span>
-          </button>
+          {signedIn && <NativeNotificationBell path={path} />}
+          <HeaderAccountMenuView
+            isSignedIn={signedIn}
+            identity={owner}
+            account={account}
+            pathname={path}
+            onSignIn={() => onNavigate("/account")}
+            onSignOut={onSignOut}
+            signOutBusy={signOutBusy}
+            unreadMessages={notifications.data?.unreadMessages ?? 0}
+            unreadNotifications={notifications.data?.unread ?? 0}
+            destinations={{
+              account: "/account/profile",
+              selling: null,
+              saved: "/saved",
+              messages: "/messages",
+              notifications: notifications.ready ? "/account/notifications" : null,
+              settings: "/account/settings",
+            }}
+            renderLink={NativeHeaderAccountLink}
+          />
           <button
             ref={menuButton}
             type="button"
@@ -104,7 +131,7 @@ export function NativeHeader({
           categories={mobilePrimaryCategories.filter((category) =>
             mobileCategoryAllowed(category.slug),
           )}
-          isSignedIn={false}
+          isSignedIn={signedIn && notifications.ready}
           onClose={() => setMenuOpen(false)}
           renderLink={NativeMenuLink}
           privacyAction={
@@ -137,7 +164,12 @@ function NativeMenuLink({ to, search, onClick, className, children }: Marketplac
         {children}
       </a>
     );
-  const destination = to === "/create-listing" ? "/post" : browseDestination(search ?? {});
+  const destination =
+    to === "/create-listing"
+      ? "/post"
+      : to === "/notifications"
+        ? "/account/notifications"
+        : browseDestination(search ?? {});
   return (
     <a
       href={`#${destination}`}
@@ -150,4 +182,8 @@ function NativeMenuLink({ to, search, onClick, className, children }: Marketplac
       {children}
     </a>
   );
+}
+
+function NativeHeaderAccountLink({ href, ...props }: HeaderAccountLinkProps) {
+  return <a href={`#${href}`} {...props} />;
 }

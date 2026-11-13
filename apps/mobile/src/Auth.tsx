@@ -1,3 +1,4 @@
+import { rememberNativeAuthDestination, consumeNativeAuthDestination } from "./auth-destination";
 import { useState, type FormEvent } from "react";
 import { Capacitor } from "@capacitor/core";
 import { AuthPageView, type AuthMode } from "../../../src/components/account/AuthPageView";
@@ -68,6 +69,7 @@ export function NativeAuth({
     void run(async () => {
       requireTerms();
       if (mode === "signup") {
+        rememberNativeAuthDestination(destination);
         const { data, error } = await auth.auth.signUp({
           email: email.trim(),
           password,
@@ -89,6 +91,7 @@ export function NativeAuth({
       } else {
         const { error } = await auth.auth.signInWithPassword({ email: email.trim(), password });
         if (error) throw error;
+        consumeNativeAuthDestination();
       }
     });
   }
@@ -96,6 +99,7 @@ export function NativeAuth({
     event.preventDefault();
     void run(async () => {
       validEmail();
+      rememberNativeAuthDestination(destination);
       const { error } = await auth.auth.resetPasswordForEmail(email.trim(), { redirectTo });
       if (error) throw error;
       setNotice("Password reset email sent. Check your inbox.");
@@ -143,6 +147,7 @@ export function NativeAuth({
       handleEmailLink={() =>
         void run(async () => {
           validEmail();
+          rememberNativeAuthDestination(destination);
           const { error } = await auth.auth.signInWithOtp({
             email: email.trim(),
             options: {
@@ -157,6 +162,7 @@ export function NativeAuth({
       onOAuth={(provider) =>
         void run(async () => {
           requireTerms();
+          rememberNativeAuthDestination(destination);
           await socialLogin(provider);
         })
       }

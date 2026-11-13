@@ -1,3 +1,5 @@
+import * as messageContext from "../src/lib/mobile-message-context.server.ts";
+import * as notificationHandlers from "../src/lib/mobile-notifications.server.ts";
 import * as savedSearchWrites from "../src/lib/mobile-saved-search.server.ts";
 import * as savedSearchContracts from "../src/lib/mobile-saved-search-contract.ts";
 import * as mobileSearch from "../src/lib/mobile-search.ts";
@@ -26,8 +28,11 @@ function harness({
   savedSearches = false,
   terms = true,
   catalogError = false,
+  nativeConversation = false,
+  missingContext = false,
 } = {}) {
   const user = "11111111-1111-4111-8111-111111111111",
+    nativeListing = "22222222-2222-4222-8222-222222222222",
     writes = [],
     catalogInputs = [];
   const db = {
@@ -35,6 +40,27 @@ function harness({
       const filters = [];
       const q = {
         select() {
+          return q;
+        },
+        order() {
+          return q;
+        },
+        limit() {
+          return q;
+        },
+        or() {
+          return q;
+        },
+        in() {
+          return q;
+        },
+        gt() {
+          return q;
+        },
+        abortSignal() {
+          return q;
+        },
+        retry() {
           return q;
         },
         eq(k, v) {
@@ -59,7 +85,23 @@ function harness({
           return q;
         },
         then(resolve) {
-          return Promise.resolve({ data: null, error: null }).then(resolve);
+          return Promise.resolve({
+            data:
+              table === "asks" && nativeConversation && !missingContext
+                ? [
+                    {
+                      id: nativeListing,
+                      is_demo: false,
+                      products: {
+                        name: "Retained listing",
+                        description: "",
+                        categories: { slug: restricted ? "firearms" : "general" },
+                      },
+                    },
+                  ]
+                : null,
+            error: null,
+          }).then(resolve);
         },
       };
       return q;
@@ -91,6 +133,8 @@ function harness({
     "./mobile-search": mobileSearch,
     "./mobile-saved-search-contract": savedSearchContracts,
     "./mobile-saved-search.server": savedSearchWrites,
+    "./mobile-notifications.server": notificationHandlers,
+    "./mobile-message-context.server": messageContext,
     "./mobile-write": mobileWrite,
     "./mobile-account-contract": accountContracts,
     "./mobile-messaging.server": {
@@ -99,9 +143,14 @@ function harness({
       mobileSavedSearchesReady: async () => savedSearches,
     },
     "./conversation.functions": {
+      getMyConversations: async () => [{ id: user, listingId: nativeListing }],
       getConversation: async ({ data }) => ({
         id: data.id,
-        listingId: generalConversation ? null : "dealerfeed-test",
+        listingId: generalConversation
+          ? null
+          : nativeConversation
+            ? nativeListing
+            : "dealerfeed-test",
         messages: [],
       }),
       createConversationAttachmentUpload: async ({ data }) => {
@@ -276,6 +325,18 @@ test("native message retries forward the validated header and ignore a forged bo
   );
   assert.equal(invalid.status, 400);
   assert.equal(h.writes.length, 1);
+});
+test("private retained native conversations do not depend on public availability, while restricted or missing context remains absent", async () => {
+  for (const options of [{}, { restricted: true }, { missingContext: true }]) {
+    const h = harness({ nativeConversation: true, ...options });
+    const allowed = !options.restricted && !options.missingContext;
+    assert.equal((await h.request(`conversations/${h.user}`)).status, allowed ? 200 : 404);
+    const list = await h.request("conversations");
+    assert.equal(list.status, 200);
+    assert.equal((await list.json()).data.length, allowed ? 1 : 0);
+    assert(!h.writes.includes("catalog_read"));
+    assert.equal((await h.request(`conversations/${h.user}`, "GET", undefined, null)).status, 401);
+  }
 });
 test("mobile consent and device registration derive the caller, ignoring forged user ids", async () => {
   const h = harness();
@@ -664,4 +725,24 @@ test("saved-search dispatch authenticates reads, keeps reads during write outage
     ).status,
     200,
   );
+});
+
+test("notifications and read acknowledgements require identity, reject forged scope, and stay separate from shopping consent", async () => {
+  const h = harness({ terms: false });
+  assert.equal((await h.request("notifications", "GET", undefined, null)).status, 401);
+  assert.equal((await h.request("notifications/read", "PUT", { ids: null }, null)).status, 401);
+  const response = await h.request("notifications");
+  assert.equal(response.status, 200);
+  assert.deepEqual((await response.json()).data, {
+    items: [],
+    unread: 0,
+    unreadMessages: 0,
+    ownerId: h.user,
+  });
+  assert.equal(
+    (await h.request("notifications/read", "PUT", { ids: null, userId: "victim" })).status,
+    400,
+  );
+  assert.equal((await h.request("notifications/read", "PUT", { ids: null })).status, 200);
+  assert.deepEqual(h.writes, []);
 });

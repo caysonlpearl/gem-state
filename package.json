@@ -33,7 +33,8 @@
     "test:mobile:messages:ui": "node scripts/mobile-messages-ui-smoke.mjs",
     "test:mobile:posting:ui": "node scripts/mobile-posting-ui-smoke.mjs",
     "test:mobile:account:ui": "node scripts/mobile-account-ui-smoke.mjs",
-    "test:mobile:browse:ui": "node --experimental-strip-types scripts/mobile-browse-ui-smoke.mjs"
+    "test:mobile:browse:ui": "node --experimental-strip-types scripts/mobile-browse-ui-smoke.mjs",
+    "test:mobile:notifications:ui": "node --experimental-strip-types scripts/mobile-notifications-ui-smoke.mjs"
   },
   "overrides": {
     "rolldown": "1.2.1"

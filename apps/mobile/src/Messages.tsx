@@ -138,10 +138,12 @@ export function NativeMessages({
         setError("");
         if (value.unread) {
           await api(`conversations/${selectedId}/read`, "POST", {}, controller.signal, actor);
-          if (!controller.signal.aborted)
+          if (!controller.signal.aborted) {
             setConversations((rows) =>
               rows.map((c) => (c.id === selectedId ? { ...c, unread: false } : c)),
             );
+            document.dispatchEvent(new Event("bluebird-inbox-changed"));
+          }
         }
       } catch (e) {
         if (!controller.signal.aborted) setError(errorText(e));
@@ -265,7 +267,10 @@ export function NativeMessages({
     setError("");
     try {
       await api(`conversations/${target}/block`, "POST", {}, undefined, actor);
-      if (alive.current) setRefresh((n) => n + 1);
+      if (alive.current) {
+        setRefresh((n) => n + 1);
+        document.dispatchEvent(new Event("bluebird-inbox-changed"));
+      }
     } catch (e) {
       if (alive.current && selectedRef.current === target) setError(errorText(e));
     } finally {
