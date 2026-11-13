@@ -1,3 +1,4 @@
+import { normalizeBrowsePage } from "./classifieds-pagination.ts";
 import { savedSearchBrowseInput } from "./saved-search-contract.ts";
 import type { ClassifiedBrowseInput } from "./classified-browse-contract.ts";
 
@@ -9,8 +10,14 @@ export function mobileSearchInput(params: URLSearchParams): ClassifiedBrowseInpu
     raw[key] = value;
   }
   if (Object.keys(raw).length > 160 || params.toString().length > 16000) return null;
-  // Bound public API work. Blank fields mean no filter, never numeric zero.
-  if (raw.page && (!/^\d+$/.test(raw.page) || Number(raw.page) < 1 || Number(raw.page) > 100))
+  // Use the website's safe page-number contract. Each read keeps its existing
+  // fixed row budget; a later page must not make inventory unreachable.
+  if (
+    raw.page &&
+    (!/^\d+$/.test(raw.page) ||
+      Number(raw.page) < 1 ||
+      normalizeBrowsePage(raw.page) !== Number(raw.page))
+  )
     return null;
   const { input, unsupported } = savedSearchBrowseInput(raw);
   return unsupported.length ? null : { ...input, mobileCatalog: true };

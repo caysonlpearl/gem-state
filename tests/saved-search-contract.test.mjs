@@ -241,7 +241,7 @@ test("unsupported, malformed and conflicting constraints never broaden an alert 
   for (const query of [
     "q=one&q=two",
     "page=0",
-    "page=101",
+    "page=9007199254740991",
     "page=1.5",
     "includeAllMocks=true",
     "mobileCatalog=false",
@@ -261,6 +261,7 @@ test("full mobile search and cached fallback preserve advanced filters and store
     }),
   );
   assert.equal(filters.mobileCatalog, true);
+  assert.equal(mobileSearchInput(new URLSearchParams("page=209")).page, 209);
   assert.equal(filters.priceMin, undefined);
   const current = card();
   const result = mobileCachedSearch(
