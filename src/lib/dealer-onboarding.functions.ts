@@ -83,6 +83,8 @@ export type DealerAccountInventory = {
     status: string;
     vin: string | null;
     stockNumber: string | null;
+    dealerVisibility?: "visible" | "hidden" | "sold";
+    detailReportOpen?: boolean;
   }[];
 };
 export const getMyDealerInventory = createServerFn({ method: "GET" })
@@ -143,7 +145,9 @@ export const getDealerAccountPreview = createServerFn({ method: "GET" })
     const { data: records, error: recordsError } = sources?.length
       ? await db
           .from("dealer_inventory_records")
-          .select("id,title,price_cents,inventory_status,vin,stock_number")
+          .select(
+            "id,source_id,source_record_key,title,price_cents,inventory_status,vin,stock_number",
+          )
           .in(
             "source_id",
             sources.map((s: any) => s.id),
@@ -152,6 +156,18 @@ export const getDealerAccountPreview = createServerFn({ method: "GET" })
           .limit(5000)
       : { data: [], error: null };
     if (recordsError) throw Error("Could not load dealership inventory.");
+    const { data: controls, error: controlError } = await db
+      .from("dealer_inventory_controls")
+      .select("record_id,vehicle_key,visibility")
+      .eq("dealer_id", dealer.id);
+    if (controlError) throw Error("Could not load dealership visibility controls.");
+    const { data: reports, error: reportError } = await db
+      .from("partner_vehicle_reports")
+      .select("listing_id")
+      .eq("reporter_id", dealer.owner_user_id)
+      .in("status", ["open", "under_review"]);
+    if (reportError) throw Error("Could not load inventory report status.");
+
     const { data: owner, error: ownerError } = await db.auth.admin.getUserById(
       dealer.owner_user_id,
     );
@@ -203,6 +219,17 @@ export const getDealerAccountPreview = createServerFn({ method: "GET" })
           status: r.inventory_status,
           vin: r.vin,
           stockNumber: r.stock_number,
+          dealerVisibility:
+            (controls ?? []).find(
+              (c: any) =>
+                c.vehicle_key ===
+                (r.vin
+                  ? `vin:${r.vin.toUpperCase()}`
+                  : `source:${r.source_id}:${r.source_record_key}`),
+            )?.visibility ?? "visible",
+          detailReportOpen: (reports ?? []).some(
+            (report: any) => report.listing_id === `dealerfeed-${r.id}`,
+          ),
         })),
       } as DealerAccountInventory,
     };
