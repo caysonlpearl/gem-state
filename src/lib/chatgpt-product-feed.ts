@@ -102,12 +102,20 @@ const LIVE_ANIMALS =
   /\b(pupp(?:y|ies)|kittens?|gelding|stallion|mare|livestock|chickens?|roosters?|cattle|bull|calf|calves|goats?|sheep|piglets?|rabbits?|live animals?|for adoption|pet adoption)\b/i;
 const QA = /^(qa\b|mvp test\b|resend delivery qa\b)|\bdo not (?:buy|contact)\b/i;
 
-export function restrictedFeedItem(title: string, description: string): boolean {
-  return (
-    QA.test(title) ||
-    RESTRICTED.test(`${title}\n${description}`) ||
-    LIVE_ANIMALS.test(`${title}\n${description}`)
-  );
+export function restrictedFeedItem(
+  title: string,
+  description: string,
+  automotive = false,
+): boolean {
+  const source = `${title}\n${description}`;
+  // These exact automotive phrases are towing equipment and a factory paint name.
+  // Other weapon, receiver and unsafe-goods terms retain the ordinary screen.
+  const content = automotive
+    ? source
+        .replace(/\b(?:hitch receivers?|receivers? hitch)\b/gi, "tow hitch")
+        .replace(/\bgun metallic\b/gi, "metallic paint")
+    : source;
+  return QA.test(title) || RESTRICTED.test(content) || LIVE_ANIMALS.test(content);
 }
 
 export type FeedDecision = { product: FeedProduct } | { excluded: string };

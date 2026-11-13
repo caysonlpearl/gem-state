@@ -160,3 +160,25 @@ test("empty or revoked publications remain empty and dealer outages never publis
   assert.equal(response.headers.get("cache-control"), "no-store");
   assert.ok(!(await response.text()).includes("secret"));
 });
+
+test("automotive towing receivers and Gun Metallic paint do not mask actual firearm references", () => {
+  const v = vehicle();
+  for (const text of [
+    "Class IV Trailer Hitch Receiver and brake controller.",
+    "Class IV receiver hitch.",
+    "Exterior in a stylish Gun Metallic color.",
+  ])
+    assert.ok(
+      dealerProductForFeed({ ...v, extra: { ...v.extra, sellerComments: text } }, undefined, now)
+        .product,
+    );
+  for (const text of [
+    "Gun receiver included.",
+    "Gun Metallic paint; rifle and ammunition included.",
+  ])
+    assert.equal(
+      dealerProductForFeed({ ...v, extra: { ...v.extra, sellerComments: text } }, undefined, now)
+        .excluded,
+      "restricted-or-uncertain-item",
+    );
+});

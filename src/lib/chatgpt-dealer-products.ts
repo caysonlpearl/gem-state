@@ -79,7 +79,8 @@ export function dealerProductForFeed(
     description = dealerVehicleDescription(vehicle);
   if (!title || title.length > 150 || !description || description.length > 5000)
     return { excluded: "missing-or-invalid-description" };
-  if (restrictedFeedItem(title, description)) return { excluded: "restricted-or-uncertain-item" };
+  if (restrictedFeedItem(title, description, true))
+    return { excluded: "restricted-or-uncertain-item" };
   const brand = plain(vehicle.build.make);
   if (!brand || brand.length > 100 || /^(unknown|generic|other|n\/?a|unbranded)$/i.test(brand))
     return { excluded: "missing-brand" };
