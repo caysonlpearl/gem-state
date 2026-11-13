@@ -32,6 +32,7 @@ export async function api<T>(
   data?: unknown,
   signal?: AbortSignal,
   expectedActor?: { userId: string | null; installId: string },
+  requestId?: string,
 ): Promise<T> {
   if (!/^[a-z0-9/?=&%+._:-]+$/i.test(path) || path.startsWith("/") || path.includes(".."))
     throw Error("Invalid app destination.");
@@ -48,6 +49,7 @@ export async function api<T>(
   const response = await fetch(`${apiOrigin}/api/mobile/v1/${path}`, {
     method,
     headers: {
+      ...(requestId ? { "Idempotency-Key": requestId } : {}),
       ...(shopping
         ? { "X-Bluebird-Install": expectedActor?.installId ?? installIdentifier() }
         : {}),

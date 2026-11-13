@@ -31,6 +31,7 @@ import {
   type Bootstrap,
   ApiError,
 } from "./client";
+import { sendMessageOnce, clearMessageRetries } from "./message-retries";
 import { Post } from "./Post";
 import { useListingActivity, setShoppingForeground } from "./shopping-activity";
 import { ListingTile, ShoppingRows, PrivacyChoices } from "./ShopperExperience";
@@ -109,6 +110,7 @@ function Application() {
         const listener = auth.auth.onAuthStateChange((event, next) => {
           if (!alive) return;
           if (next?.user.id !== priorUserId) {
+            clearMessageRetries();
             setAccount(null);
             setAlerts(false);
             void disableAdvertising();
@@ -1011,10 +1013,14 @@ function Listing({
           onSubmit={(e) => {
             e.preventDefault();
             void act(async () => {
-              const result = await api<{ conversationId: string }>("conversations", "POST", {
-                listingId: id,
-                body,
-              });
+              const result = await sendMessageOnce<{ conversationId: string }>(
+                session!.user.id,
+                "conversations",
+                {
+                  listingId: id,
+                  body,
+                },
+              );
               trackShopping("contact", id, { method: "message" });
               void trackAdvertising("seller_contacted", card.categorySlug);
               go(`/messages/${result.conversationId}`);
@@ -1108,7 +1114,9 @@ function Messages({
     if (!id) return;
     setBusy(true);
     try {
-      await api(`conversations/${id}/${type}`, "POST", payload);
+      if (type === "messages")
+        await sendMessageOnce(ownerId, `conversations/${id}/messages`, payload as { body: string });
+      else await api(`conversations/${id}/${type}`, "POST", payload);
       if (type === "block") go("/messages");
       else {
         updateBody("");

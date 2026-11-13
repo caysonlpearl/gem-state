@@ -119,8 +119,13 @@ Authenticated routes include:
 Terms, alert and device-registration writes use validated, server-derived
 identity. Current terms are required for marketplace writes; pending deletion
 blocks further writes. Device registration and alert updates are idempotent.
-Message and listing creation still need end-to-end retry/idempotency hardening
-before the beta gate; never silently resend an uncertain creation.
+Native message starts and replies preserve an account-scoped retry identifier.
+The message and its private receipt commit in one transaction; retries return the
+original result without sending or emailing twice. Pending receipt identifiers
+survive session restoration, carry no message bodies, and never replay automatically.
+The 20261113050000_mobile_message_receipts migration is installed and recorded in
+production; actual authenticated native journeys remain a beta gate. Listing
+creation still needs equivalent retry protection; never silently resend an uncertain post.
 
 The catalog filter is permanent code. It excludes the firearm category,
 firearm merchant inventory, unknown categories, fixtures and obvious weapons
@@ -153,7 +158,7 @@ shopping delivery; initial onboarding preserves separately requested web
 saved-search handling. Operating-system permission never substitutes for
 Bluebird's own shopping permission.
 
-The shared shopper implementation merged through PR #187 and is integrated into
+The shared shopper implementation and subsequent fixes through PR #194 are integrated into
 the mobile branch. Native adapters reuse its activity, favorites, ranking, vector
 retrieval, holdout and privacy records. The mobile interface strips fingerprints,
 hardware/browser characteristics and private content before storage. Public
@@ -194,7 +199,10 @@ Use restrictive file permissions/systemd credentials. Never commit those files.
 
 A notifications insert queues one delivery per current device; logical keys,
 SKIP LOCKED claims, lease IDs and provider collapse identifiers protect retries.
-Before provider handoff the worker reloads consent, ownership, unread state,
+Phone shopping delivery reuses the email eligibility service, including durable
+dismissal/purchase/reminder stops, saved-search state, current prices and dealer-feed
+publication. Its own email receipt does not suppress the corresponding phone alert;
+email provider failures do not disable phone delivery. Before provider handoff the worker reloads consent, ownership, unread state,
 blocks, deletion state, pause switch, lease and cached listing eligibility.
 Invalid provider tokens are removed. Push text is generic and excludes private
 message bodies. At-least-once provider handoff can still produce duplicates
@@ -251,7 +259,7 @@ Official release references:
 
 Local checks at this milestone: root TypeScript, website production build,
 mobile TypeScript/Vite build, Android debug compile, mobile security/queue/SQL
-tests, full marketplace test suite (1,189 passing), and responsive browser smoke
+tests, full marketplace test suite (1,218 passing), and responsive browser smoke
 checks. Browser evidence is stored outside source at
 `output/mobile-apps-20261112`. The original smoke script makes no account writes or sends. The new shopping UI
 suite uses explicit synthetic API fixtures in real Chromium at all three sizes;

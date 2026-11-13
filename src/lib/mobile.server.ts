@@ -4,6 +4,7 @@ import { z } from "zod";
 import { PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_PUBLISHABLE_KEY } from "@/config/supabase-public";
 import { serverEnv } from "./runtime-env.server";
 import { createMobileHandler, MobileApiError, mobileJson } from "./mobile-api";
+import { mobileWriteId } from "./mobile-write";
 import { mobileCachedBrowse } from "./mobile-catalog";
 import {
   mobileCategories,
@@ -549,6 +550,7 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
     return domain((await import("./conversation.functions")).startConversation, {
       listingId: card.id,
       body: body.body,
+      requestId: mobileWriteId(request.headers.get("Idempotency-Key")),
     });
   }
   const actionMatch = /^conversations\/([0-9a-f-]{36})\/(messages|read|block|report)$/.exec(path);
@@ -565,7 +567,14 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
           : action === "block"
             ? f.blockConversation
             : f.reportConversation;
-    return domain(fn, { conversationId: id, body: body.body, reason: body.reason });
+    return domain(fn, {
+      conversationId: id,
+      body: body.body,
+      reason: body.reason,
+      ...(action === "messages"
+        ? { requestId: mobileWriteId(request.headers.get("Idempotency-Key")) }
+        : {}),
+    });
   }
   if (method === "POST" && path === "reports") {
     await listing(z.string().parse(body.listingId));

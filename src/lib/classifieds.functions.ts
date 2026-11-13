@@ -1893,7 +1893,10 @@ async function runBrowseClassifieds(
     }
     const requestedCategorySlugs = data.category ? [data.category] : groupSlugs;
     const categorySlugs = data.mobileCatalog
-      ? (requestedCategorySlugs.length ? requestedCategorySlugs : classifiedCategories.map(c => c.slug)).filter(slug => slug !== "firearms")
+      ? (requestedCategorySlugs.length
+          ? requestedCategorySlugs
+          : classifiedCategories.map((c) => c.slug)
+        ).filter((slug) => slug !== "firearms")
       : requestedCategorySlugs;
     if (data.mobileCatalog && !categorySlugs.length) return empty;
     const selection = categorySlugs.length
@@ -2438,7 +2441,10 @@ async function runBrowseClassifieds(
 }
 
 export const getClassifiedListing = createServerFn({ method: "GET" })
-  .validator((input: { id: string; recordView?: boolean }) => ({ id: String(input.id).slice(0, 200), recordView: input.recordView !== false }))
+  .validator((input: { id: string; recordView?: boolean }) => ({
+    id: String(input.id).slice(0, 200),
+    recordView: input.recordView !== false,
+  }))
   .handler(async ({ data }): Promise<ClassifiedDetail | null> => {
     if (data.id.startsWith("avantlink-")) {
       return (await import("./avantlink-listings.server")).merchandiseDetail(data.id);
@@ -2502,11 +2508,12 @@ export const getClassifiedListing = createServerFn({ method: "GET" })
     if (!row || isReleaseQaListing(row as unknown as Record<string, unknown>)) return null;
 
     const record = row as unknown as Record<string, unknown>;
-    if (data.recordView) void import("@/integrations/supabase/client.server")
-      .then(({ supabaseAdmin }) =>
-        (supabaseAdmin as any).rpc("record_classified_listing_view", { _listing_id: data.id }),
-      )
-      .catch(() => undefined);
+    if (data.recordView)
+      void import("@/integrations/supabase/client.server")
+        .then(({ supabaseAdmin }) =>
+          (supabaseAdmin as any).rpc("record_classified_listing_view", { _listing_id: data.id }),
+        )
+        .catch(() => undefined);
     const detail = await buildClassifiedDetail(record, client, { includeContact: true });
     const originalListing = detail ? await importedOriginalListing(data.id) : null;
     return detail && originalListing ? { ...detail, originalListing } : detail;

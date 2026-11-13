@@ -5,6 +5,7 @@ import ts from "typescript";
 import { z } from "zod";
 import * as contract from "../src/lib/mobile-contract.ts";
 import * as protocol from "../src/lib/mobile-api.ts";
+import * as mobileWrite from "../src/lib/mobile-write.ts";
 import * as catalog from "../src/lib/mobile-catalog.ts";
 const compiled = ts.transpileModule(
   readFileSync(new URL("../src/lib/mobile.server.ts", import.meta.url), "utf8"),
@@ -67,6 +68,13 @@ function harness({ deleted = false, valid = true, restricted = false } = {}) {
     },
     "./runtime-env.server": { serverEnv: () => undefined },
     "./mobile-api": protocol,
+    "./mobile-write": mobileWrite,
+    "./conversation.functions": {
+      startConversation: async ({ data }) => {
+        writes.push(data);
+        return { conversationId: "one" };
+      },
+    },
     "./mobile-catalog": catalog,
     "./mobile-contract": contract,
     "./classifieds-display": {
@@ -93,11 +101,12 @@ function harness({ deleted = false, valid = true, restricted = false } = {}) {
     if (!modules[name]) throw Error("Unexpected dependency " + name);
     return modules[name];
   }, exports);
-  const request = (path, method = "GET", body, token = "valid") =>
+  const request = (path, method = "GET", body, token = "valid", headers = {}) =>
     exports.handleMobileRequest(
       new Request(`https://onbluebird.com/api/mobile/v1/${path}`, {
         method,
         headers: {
+          ...headers,
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
           ...(body ? { "Content-Type": "application/json" } : {}),
         },
@@ -127,6 +136,28 @@ test("mobile private routes reject absent or invalid identity before writing", a
     401,
   );
   assert.deepEqual(invalid.writes, []);
+});
+test("native message retries forward the validated header and ignore a forged body receipt", async () => {
+  const h = harness(),
+    id = crypto.randomUUID();
+  const response = await h.request(
+    "conversations",
+    "POST",
+    { listingId: "dealerfeed-test", body: "Hello", requestId: "forged" },
+    "valid",
+    { "Idempotency-Key": id },
+  );
+  assert.equal(response.status, 200);
+  assert.equal(h.writes[0].requestId, id);
+  const invalid = await h.request(
+    "conversations",
+    "POST",
+    { listingId: "dealerfeed-test", body: "Hello" },
+    "valid",
+    { "Idempotency-Key": "bad" },
+  );
+  assert.equal(invalid.status, 400);
+  assert.equal(h.writes.length, 1);
 });
 test("mobile consent and device registration derive the caller, ignoring forged user ids", async () => {
   const h = harness();

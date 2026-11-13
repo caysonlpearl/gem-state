@@ -46,7 +46,7 @@ Next processor work must:
 3. Build a per-account deletion/media plan before erasing references; preserve
    required financial/dispute/security records under explicit retention categories.
 4. Remove personal profiles, original authored public content, private history,
-   saves/settings, uploads and native registrations. Clear or anonymize linked
+   saves/settings, uploads, native registrations and private mobile message-retry receipts. Clear or anonymize linked
    analytics and audit data without changing other members' content or falsely
    preserving access.
 5. Revoke Apple authorization when linked, then remove auth identity. For records
