@@ -15,12 +15,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-type Action = "hidden" | "sold" | "visible" | "report";
+type Action = "hidden" | "sold" | "visible" | "report" | "availability";
 const labels: Record<Action, string> = {
   hidden: "Hide vehicle",
   sold: "Mark sold",
-  visible: "Restore vehicle",
+  visible: "Make available again",
   report: "Report incorrect details",
+  availability: "Make available again",
 };
 export function DealerInventoryControls({
   record,
@@ -34,16 +35,17 @@ export function DealerInventoryControls({
   const client = useQueryClient();
   const setVisibility = useServerFn(setDealerInventoryVisibility);
   const report = useServerFn(reportDealerInventoryDetails);
+  const isReport = action === "report" || action === "availability";
   const mutation = useMutation({
     mutationFn: async () => {
       if (preview || !action) throw Error("This preview cannot save inventory changes.");
-      return action === "report"
+      return isReport
         ? report({ data: { recordId: record.id, details: reason } })
         : setVisibility({ data: { recordId: record.id, visibility: action, reason } });
     },
     onSuccess: async () => {
       toast.success(
-        action === "report"
+        isReport
           ? "Report submitted to Bluebird for review."
           : action === "visible"
             ? "Dealer hold removed. Feed availability and moderation still apply."
@@ -67,6 +69,7 @@ export function DealerInventoryControls({
     setAction(value);
   };
   const suppressed = record.dealerVisibility === "hidden" || record.dealerVisibility === "sold";
+  const feedSold = record.status === "sold";
   return (
     <>
       <div
@@ -75,7 +78,11 @@ export function DealerInventoryControls({
       >
         {suppressed ? (
           <button type="button" onClick={() => open("visible")} className="hover:underline">
-            Restore
+            Make available again
+          </button>
+        ) : feedSold ? (
+          <button type="button" onClick={() => open("availability")} className="hover:underline">
+            Make available again
           </button>
         ) : (
           <>
@@ -103,11 +110,13 @@ export function DealerInventoryControls({
             <DialogDescription>{record.title}</DialogDescription>
           </DialogHeader>
           <p className="text-sm leading-relaxed text-muted-foreground">
-            {action === "report"
-              ? "Tell Bluebird what is incorrect. Reporting does not change the listing or its visibility. Prices and photos should be corrected in your inventory feed."
-              : action === "visible"
-                ? "Remove your dealership’s hold. The vehicle appears only if it is still available in the feed and passes Bluebird’s listing checks."
-                : "This vehicle will be hidden from Bluebird until you restore it. Feed refreshes will not undo this choice. Your feed’s prices, photos, and availability remain unchanged."}
+            {action === "availability"
+              ? "Your inventory feed marks this vehicle as sold. Mark it available in your inventory system; Bluebird will pick up the change on the next successful import. You can also report an availability error below. A report does not republish the vehicle."
+              : action === "report"
+                ? "Tell Bluebird what is incorrect. Reporting does not change the listing or its visibility. Prices and photos should be corrected in your inventory feed."
+                : action === "visible"
+                  ? "Remove your dealership’s hold. The vehicle appears only if it is still available in the feed and passes Bluebird’s listing checks."
+                  : "This vehicle will be hidden from Bluebird until you restore it. Feed refreshes will not undo this choice. Your feed’s prices, photos, and availability remain unchanged."}
           </p>
           <form
             onSubmit={(event) => {
@@ -117,12 +126,12 @@ export function DealerInventoryControls({
             className="space-y-4"
           >
             <label className="block text-sm font-medium">
-              {action === "report" ? "What needs correcting?" : "Note (optional)"}
+              {isReport ? "What needs correcting?" : "Note (optional)"}
               <textarea
                 value={reason}
                 onChange={(event) => setReason(event.target.value)}
-                required={action === "report"}
-                minLength={action === "report" ? 5 : undefined}
+                required={isReport}
+                minLength={isReport ? 5 : undefined}
                 maxLength={500}
                 rows={3}
                 className="mt-2 w-full rounded-xl border border-input bg-background p-3 text-sm"
@@ -149,12 +158,16 @@ export function DealerInventoryControls({
               </button>
               <button
                 type="submit"
-                disabled={
-                  preview || mutation.isPending || (action === "report" && reason.trim().length < 5)
-                }
+                disabled={preview || mutation.isPending || (isReport && reason.trim().length < 5)}
                 className="rounded-full bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
               >
-                {mutation.isPending ? "Saving…" : action ? labels[action] : "Save"}
+                {mutation.isPending
+                  ? "Saving…"
+                  : action === "availability"
+                    ? "Report availability issue"
+                    : action
+                      ? labels[action]
+                      : "Save"}
               </button>
             </div>
           </form>

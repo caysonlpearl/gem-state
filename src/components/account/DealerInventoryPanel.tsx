@@ -1,4 +1,5 @@
 import { DealerInventoryControls } from "./DealerInventoryControls";
+import { DealerLogo } from "@/components/dealers/DealerLogo";
 import { dealerInventoryVisibilityLabel } from "@/lib/dealer-inventory-controls";
 import { useState } from "react";
 import { DealerPerformancePanel } from "./DealerPerformancePanel";
@@ -43,9 +44,9 @@ export function DealerInventoryView({
           <div className="flex flex-wrap items-center justify-between gap-4">
             <div>
               {dealer.logoUrl ? (
-                <img
+                <DealerLogo
                   src={dealer.logoUrl}
-                  alt={`${dealer.name} logo`}
+                  name={dealer.name}
                   className="mb-3 h-14 w-56 object-contain object-left"
                 />
               ) : null}
@@ -54,8 +55,8 @@ export function DealerInventoryView({
                 <VerifiedDealerBadge />
               </h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                {dealer.records.length} vehicles assigned to your dealership. Inventory updates from
-                your feed.
+                {dealer.records.length} {dealer.records.length === 1 ? "vehicle" : "vehicles"}{" "}
+                assigned to your dealership. Inventory updates from your feed.
               </p>
               <p className="mt-1 text-sm text-muted-foreground">
                 {[dealer.email, dealer.phone].filter(Boolean).join(" · ")}
@@ -208,7 +209,8 @@ function DealerInventoryTable({
         className="flex items-center justify-between gap-3 border-t border-border pt-3 text-xs"
       >
         <span>
-          {filtered.length} vehicles · Page {current} of {pageCount}
+          {filtered.length} {filtered.length === 1 ? "vehicle" : "vehicles"} · Page {current} of{" "}
+          {pageCount}
         </span>
         <div className="flex gap-2">
           <button

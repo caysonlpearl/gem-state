@@ -6,6 +6,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { ChatCircleDots, Car, UserCircle, Eye, ChartBar, Key } from "@phosphor-icons/react";
 import { getDealerAccountPreview } from "@/lib/dealer-onboarding.functions";
 import { DealerInventoryView } from "./DealerInventoryPanel";
+import { DealerLogo } from "@/components/dealers/DealerLogo";
 import { VerifiedDealerBadge } from "@/components/dealers/VerifiedDealerBadge";
 
 export function DealerAccountPreview({
@@ -51,9 +52,9 @@ export function DealerAccountPreview({
       <div className="p-5 sm:p-7">
         <div className="mb-6 flex flex-wrap items-center gap-4">
           {dealer.logoUrl ? (
-            <img
+            <DealerLogo
               src={dealer.logoUrl}
-              alt={`${dealer.name} logo`}
+              name={dealer.name}
               className="h-14 w-44 object-contain"
             />
           ) : null}

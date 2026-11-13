@@ -112,6 +112,25 @@ function DealerSetupPage() {
   });
   const set = (key: string, value: string | boolean) =>
     setDraft((current) => ({ ...(current ?? {}), [key]: value }));
+  if (setup.error)
+    return (
+      <main className="mx-auto max-w-[940px] space-y-4 px-4 py-10">
+        <h1 className="text-2xl font-semibold">Business profile</h1>
+        <p role="alert" className="text-sm text-destructive">
+          Your business profile could not be loaded. Please try again.
+        </p>
+        <button
+          type="button"
+          onClick={() => void setup.refetch()}
+          className="rounded-full border border-input px-4 py-2 text-sm"
+        >
+          Try again
+        </button>
+        <Link to="/account" search={{ section: "listings" }} className="ml-4 text-sm text-primary">
+          Back to listings
+        </Link>
+      </main>
+    );
   if (!draft)
     return (
       <p className="mx-auto max-w-[940px] px-4 py-10 text-sm text-muted-foreground">
@@ -128,10 +147,13 @@ function DealerSetupPage() {
         <p className="mt-4 text-[10px] font-semibold uppercase tracking-[0.1em] text-primary">
           Business tools
         </p>
-        <h1 className="mt-1 text-[30px] font-semibold tracking-tight">Set up a dealership</h1>
+        <h1 className="mt-1 text-[30px] font-semibold tracking-tight">
+          {setup.data?.exists ? "Edit business profile" : "Set up a dealership"}
+        </h1>
         <p className="mt-2 max-w-[680px] text-[13px] leading-relaxed text-muted-foreground">
-          This creates a business storefront and inventory identity separate from your individual
-          seller profile. Buyers will see the dealership on linked vehicle listings.
+          {setup.data?.exists
+            ? "Manage your dealership’s name, logo, contact details, address, and price insights."
+            : "Create your dealership storefront. Buyers will see this business profile on your vehicle listings."}
         </p>
       </div>
       <SellerCenterNav storefrontSlug={undefined} />
