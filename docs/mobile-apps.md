@@ -15,14 +15,19 @@ authorized acceptance of the Android SDK license. No store accounts, store
 agreements, purchases, signing keys, Firebase project or paid capacity were
 created by this batch. Full Xcode is absent, so the iPhone project is not yet
 compiled. No physical Android device was attached when checked. An Android 36 ARM emulator
-and matching system image are installed for subsequent native testing.
+and matching system image are installed. The debug app starts, loads bundled assets
+and has no fatal startup or safe-area injection errors in its current process log.
+This does not establish authenticated journeys or actual push delivery.
 
 Phone/tablet browser checks verified browsing, detail pages, responsive layout
 and the two signup controls at 320, 390 and 768 pixels. These are not substitutes
-for real-device journeys. The backend changes in this branch are not live. The private mobile SQL
+for real-device journeys. API publication must be verified independently from a
+branch or app build. The private mobile SQL
 foundation and shopper controls were applied and verified on the owning database
 on November 12. A release build points at the canonical production API and cannot be
-used for end-to-end testing until that API and its dependencies are deployed.
+used for end-to-end testing until that API and its dependencies are deployed and
+its canonical HTTPS endpoints pass production checks. Deployment evidence belongs
+in the release record; local runtime success alone is not a live deployment.
 
 ## Baseline and ownership
 
