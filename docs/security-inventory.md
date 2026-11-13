@@ -87,3 +87,28 @@ Current known gaps, as of 2026-09-03:
 - No automatic trigger sends a payout after a completed order — an admin
   manually initiates each Stripe transfer from the order console.
 - No delivery-confirmation reminder if a buyer never confirms receipt.
+
+
+## Mobile foundation additions (pending application, 2026-11-12)
+
+Migration `20261113030000_mobile_foundation.sql` adds five private tables:
+`mobile_controls`, `mobile_push_devices`, `mobile_push_outbox`,
+`mobile_account_deletions`, and `mobile_ad_consents`. Each has RLS enabled,
+no client policies, and grants only to `service_role`. No privileged keys
+are included in the bundled apps. Identity comes from server-verified bearer
+sessions; released mobile endpoints are versioned under `/api/mobile/v1`.
+
+The service-only definer functions are `mobile_accept_terms`,
+`mobile_register_device`, `claim_mobile_push_delivery`, and
+`mobile_request_deletion`. The `mobile_enqueue_notification` trigger is also
+revoked from public/client roles. Search paths are fixed. Device ownership
+transfer removes previous-account deliveries transactionally. Push claims
+use SKIP LOCKED, expiring leases, and stable delivery identifiers. The worker
+rechecks ownership, lease, consent, availability, account deletion, and blocks
+before provider delivery. Push bodies omit message/listing content.
+
+This section describes source and local SQL tests, not a new production
+introspection result. The migration depends on the shared shopper migration
+and has not been applied by this mobile batch. The deletion queue currently
+receives requests and revokes delivery/advertising privileges; full identity,
+media and retained-record deletion must be completed before store beta.

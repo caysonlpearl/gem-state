@@ -1597,6 +1597,8 @@ function mockMatches(
 }
 
 export type ClassifiedBrowseInput = {
+  /** Store-client catalog boundary; normal website inventory is unaffected. */
+  mobileCatalog?: boolean;
   /** Internal homepage read: keep the full mock catalog available for curation. */
   includeAllMocks?: boolean | undefined;
   q?: string | undefined;
@@ -1703,6 +1705,7 @@ const listedValue = (value: unknown, options: readonly string[], max = 80) => {
 
 export const browseClassifieds = createServerFn({ method: "GET" })
   .validator((input: ClassifiedBrowseInput): ClassifiedBrowseInput => ({
+    mobileCatalog: input?.mobileCatalog === true,
     q: text(input?.q),
     category: text(input?.category, 60),
     homeTab:
@@ -1820,6 +1823,11 @@ export async function loadSeoBrowseInventory(data: ClassifiedBrowseInput) {
   );
 }
 
+/** Mobile discovery reads existing caches; opening the app never spends provider requests. */
+export async function loadMobileBrowseInventory(data: ClassifiedBrowseInput) {
+  return runBrowseClassifieds({ ...data, mobileCatalog: true }, { readOnlyProviders: true });
+}
+
 async function runBrowseClassifieds(
   data: ClassifiedBrowseInput,
   // Internal callers that discard totals can avoid the exact-count query.
@@ -1883,7 +1891,11 @@ async function runBrowseClassifieds(
     ) {
       return empty;
     }
-    const categorySlugs = data.category ? [data.category] : groupSlugs;
+    const requestedCategorySlugs = data.category ? [data.category] : groupSlugs;
+    const categorySlugs = data.mobileCatalog
+      ? (requestedCategorySlugs.length ? requestedCategorySlugs : classifiedCategories.map(c => c.slug)).filter(slug => slug !== "firearms")
+      : requestedCategorySlugs;
+    if (data.mobileCatalog && !categorySlugs.length) return empty;
     const selection = categorySlugs.length
       ? LISTING_SELECT.replace("categories(slug, name)", "categories!inner(slug, name)")
       : LISTING_SELECT;
@@ -2175,7 +2187,7 @@ async function runBrowseClassifieds(
     // Local businesses from the services directory follow members' service
     // listings, paged in the database rather than loaded all at once.
     const includeDirectory = directoryAdapter.canIncludeDirectory(data);
-    const includeMerchandise = merchandise.canIncludeMerchandise(data);
+    const includeMerchandise = !data.mobileCatalog && merchandise.canIncludeMerchandise(data);
     const from = (page - 1) * pageSize;
     // Pay units are deliberately normalized in `comparableJobPay` (hourly
     // annualized, salary/commission/contract kept in their stated units).
@@ -2426,7 +2438,7 @@ async function runBrowseClassifieds(
 }
 
 export const getClassifiedListing = createServerFn({ method: "GET" })
-  .validator((input: { id: string }) => ({ id: String(input.id).slice(0, 64) }))
+  .validator((input: { id: string; recordView?: boolean }) => ({ id: String(input.id).slice(0, 200), recordView: input.recordView !== false }))
   .handler(async ({ data }): Promise<ClassifiedDetail | null> => {
     if (data.id.startsWith("avantlink-")) {
       return (await import("./avantlink-listings.server")).merchandiseDetail(data.id);
@@ -2490,7 +2502,7 @@ export const getClassifiedListing = createServerFn({ method: "GET" })
     if (!row || isReleaseQaListing(row as unknown as Record<string, unknown>)) return null;
 
     const record = row as unknown as Record<string, unknown>;
-    void import("@/integrations/supabase/client.server")
+    if (data.recordView) void import("@/integrations/supabase/client.server")
       .then(({ supabaseAdmin }) =>
         (supabaseAdmin as any).rpc("record_classified_listing_view", { _listing_id: data.id }),
       )

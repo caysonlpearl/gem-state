@@ -4,6 +4,7 @@ import { ACCOUNT_SECTIONS } from "../components/account/account-sections.ts";
 export const AUTH_STATIC_REDIRECTS = [
   "/claim-seller",
   "/account",
+  "/delete-account",
   "/selling",
   "/seller-setup",
   "/dealer-setup",
