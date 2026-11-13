@@ -248,6 +248,7 @@ function product(listing: ClassifiedDetail, url: string): JsonLd {
     image: photoUrls(listing),
     category: listing.categoryName ?? undefined,
     sku: listing.listingNumber ?? undefined,
+    brand: listing.catalogBrand ? { "@type": "Brand", name: listing.catalogBrand } : undefined,
     itemCondition: itemCondition(listing.condition),
     offers: offer(listing, url),
   });

@@ -23,7 +23,7 @@ export async function readChatgptProductFeed(db: SupabaseClient<Database>, now =
         .select(
           "id,seller_id,price_cents,currency,item_condition,status,approved_at,expires_at,is_demo," +
             "products!inner(name,description,status,is_demo,brands(name),categories!inner(slug,name))," +
-            "classified_listing_details!inner(city,state,item_details,vehicle_make),listing_media(position)",
+            "classified_listing_details!inner(city,state,item_details,vehicle_make),listing_media(id,position)",
         )
         .eq("status", "active")
         .eq("is_demo", false)
@@ -78,7 +78,7 @@ export async function chatgptFeedResponse(db: SupabaseClient<Database>) {
         "Content-Disposition": 'inline; filename="bluebird-chatgpt-products.csv"',
         "X-Content-Type-Options": "nosniff",
         "X-Robots-Tag": "noindex",
-        "X-Bluebird-Feed-Version": "2026-11-13-v1",
+        "X-Bluebird-Feed-Version": "2026-11-13-v2",
         "X-Bluebird-Feed-Items": String(feed.count),
       },
     });
