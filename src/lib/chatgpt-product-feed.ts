@@ -1,3 +1,4 @@
+import { resolveListingBrand } from "./listing-brand.ts";
 import { listingPath } from "./listing-url.ts";
 import { marketplaceStateCodes } from "../config/classifieds.ts";
 
@@ -61,7 +62,7 @@ export type FeedListing = {
         vehicle_make: string | null;
       }[]
     | null;
-  listing_media: { position: number | null }[] | null;
+  listing_media: { id?: string; position: number | null }[] | null;
 };
 export type FeedSeller = {
   user_id: string | null;
@@ -89,105 +90,14 @@ export const FEED_COLUMNS = [
 ] as const;
 export type FeedProduct = Record<(typeof FEED_COLUMNS)[number], string>;
 
-// Native classifieds do not require a brand. Only use a supplied brand/maker,
-// vehicle make, or an unambiguous brand at the START of the published title.
-// Never label an unknown item Bluebird/Generic or infer a brand from compatibility text.
-const TITLE_BRANDS = [
-  "The North Face",
-  "Life is Good",
-  "Bath & Body Works",
-  "Victoria's Secret",
-  "American Eagle",
-  "Calvin Klein",
-  "Kate Spade",
-  "Michael Kors",
-  "Ralph Lauren",
-  "Tommy Hilfiger",
-  "Under Armour",
-  "Pop Mart",
-  "Funko",
-  "Disney",
-  "Nike",
-  "Adidas",
-  "Levi's",
-  "Carhartt",
-  "Patagonia",
-  "Columbia",
-  "Lululemon",
-  "Crocs",
-  "Birkenstock",
-  "Vans",
-  "Converse",
-  "Lego",
-  "LEGO",
-  "Nintendo",
-  "Sony",
-  "Samsung",
-  "Apple",
-  "Canon",
-  "Nikon",
-  "Bose",
-  "JBL",
-  "Dell",
-  "Lenovo",
-  "DeWalt",
-  "Milwaukee",
-  "Makita",
-  "Ryobi",
-  "Craftsman",
-  "Husqvarna",
-  "Stihl",
-  "John Deere",
-  "KitchenAid",
-  "Cuisinart",
-  "Pyrex",
-  "Corelle",
-  "CorningWare",
-  "Tupperware",
-  "BonJour",
-  "Fisher-Price",
-  "Little Tikes",
-  "Melissa & Doug",
-  "Hasbro",
-  "Mattel",
-  "Hot Wheels",
-  "Yeti",
-  "Coleman",
-  "Igloo",
-  "Weber",
-  "Traeger",
-  "IKEA",
-  "Ashley",
-  "La-Z-Boy",
-].sort((a, b) => b.length - a.length);
-
 function text(value: unknown): string {
   return typeof value === "string" ? value.replace(/\u0000/g, "").trim() : "";
-}
-function suppliedBrand(value: unknown): string {
-  const brand = text(value);
-  return brand &&
-    brand.length <= 100 &&
-    !/^(unknown|unbranded|generic|none|n\/?a|null|not applicable|not specified|unspecified|other)$/i.test(
-      brand,
-    )
-    ? brand
-    : "";
-}
-function brandAtStart(value: string): string {
-  return (
-    TITLE_BRANDS.find(
-      (brand) =>
-        value.toLowerCase().startsWith(brand.toLowerCase()) &&
-        !/[a-z0-9]/i.test(value.charAt(brand.length)),
-    ) ?? ""
-  );
 }
 
 // A category alone is insufficient: ordinary classifieds can contain restricted goods.
 // Deliberately conservative; a held row can be corrected/reviewed rather than misrepresented.
 const RESTRICTED =
-  /\b(firearms?|ammo|ammunition|gun|guns|rifles?|shotguns?|pistols?|handguns?|receivers?|magazines?|suppressors?|holsters?|gunstocks?|glock|ar[ -]?15|80[ -]?percent|pepper spray|tasers?|stun guns?|brass knuckles|crossbows?|fireworks?|explosives?|gunpowder|ammonium nitrate|cyanide|mercury|radioactive|pesticides?|herbicides?|weed killer|muriatic acid|cannabis|marijuana|\bthc\b|\bcbd\b|psychedelic|nicotine|tobacco|cigarettes?|vapes?|e[ -]?liquids?|bongs?|hookahs?|rolling papers|vodka|whiskey|bourbon|tequila|alcohol|wine|beer|supplements?|creatine|pre[ -]?workout|protein powder|weight loss|detox|prescription|oxycodone|adderall|insulin|sex toys?|vibrators?|dildos?|porn|pornographic|replica|counterfeit|fake id|pirated|cracked software|stolen|recalled|recall notice|unsafe|not safe|for parts|parts only|salvage|non[ -]?running|not running|does not run|doesn.t run|needs repair)\b/i;
+  /\b(firearms?|ammo|ammunition|gun|guns|rifles?|shotguns?|pistols?|handguns?|receivers?|magazines?|suppressors?|holsters?|gunstocks?|glock|ar[ -]?15|80[ -]?percent|pepper spray|tasers?|stun guns?|brass knuckles|crossbows?|fireworks?|explosives?|gunpowder|ammonium nitrate|cyanide|mercury|radioactive|pesticides?|herbicides?|weed killer|muriatic acid|cannabis|marijuana|\bthc\b|\bcbd\b|psychedelic|nicotine|tobacco|cigarettes?|vapes?|e[ -]?liquids?|bongs?|hookahs?|rolling papers|vodka|whiskey|bourbon|tequila|alcohol|wine|beer|supplements?|creatine|pre[ -]?workout|protein powder|weight loss|detox|prescription|oxycodone|adderall|insulin|sex toys?|vibrators?|dildos?|porn|pornographic|replica|counterfeit|not authentic|fake id|pirated|cracked software|stolen|recalled|recall notice|unsafe|not safe|for parts|parts only|salvage|non[ -]?running|not running|does not run|doesn.t run|needs repair)\b/i;
 const LIVE_ANIMALS =
   /\b(pupp(?:y|ies)|kittens?|gelding|stallion|mare|livestock|chickens?|roosters?|cattle|bull|calf|calves|goats?|sheep|piglets?|rabbits?|live animals?|for adoption|pet adoption)\b/i;
 const QA = /^(qa\b|mvp test\b|resend delivery qa\b)|\bdo not (?:buy|contact)\b/i;
@@ -240,13 +150,15 @@ export function productForFeed(
   const seller = sellers.get(row.seller_id);
   if (!text(seller?.display_name) || !text(seller?.slug))
     return { excluded: "missing-public-seller" };
-  const brand =
-    suppliedBrand(item.brand) ||
-    suppliedBrand(item.maker) ||
-    suppliedBrand(product.brands?.name) ||
-    suppliedBrand(details.vehicle_make) ||
-    brandAtStart(text(item.brandModel)) ||
-    brandAtStart(title);
+  const brand = resolveListingBrand({
+    id: row.id,
+    title,
+    description,
+    itemDetails: item,
+    catalogBrand: product.brands?.name,
+    vehicleMake: details.vehicle_make,
+    media: row.listing_media,
+  });
   if (!brand) return { excluded: "missing-brand" };
   const condition = /^(new_with_tags|new_without_tags)$/.test(row.item_condition)
     ? "new"
