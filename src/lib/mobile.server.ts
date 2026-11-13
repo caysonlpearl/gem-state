@@ -254,6 +254,7 @@ async function allowedConversation(id: string) {
 const browseSchema = z.object({
   q: z.string().trim().max(80).optional(),
   category: z.string().max(60).optional(),
+  group: z.enum(["motors", "classifieds"]).optional(),
   city: z.string().max(80).optional(),
   region: z.string().max(80).optional(),
   postalCode: z.string().max(12).optional(),

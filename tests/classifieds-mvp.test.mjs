@@ -70,7 +70,8 @@ const profileAvatarMigrationSource = await read(
 const savedSearchWorkerSource = await read("src/lib/saved-search-worker.server.ts");
 const glossarySource = await read("src/content/glossary.ts");
 const policiesSource = await read("src/routes/policies.tsx");
-const authSource = await read("src/routes/auth.tsx");
+const authSource =
+  (await read("src/routes/auth.tsx")) + (await read("src/components/account/AuthPageView.tsx"));
 const classifiedsFunctionsSource = await read("src/lib/classifieds.functions.ts");
 const pilotFunctionsSource = await read("src/lib/pilot.functions.ts");
 const sellerFunctionsSource = await read("src/lib/seller.functions.ts");
@@ -143,7 +144,10 @@ const approvalRepairSource = await read(
 const emailShellSource = await read("src/lib/email-templates/shell.tsx");
 const authEmailSource = await read("src/routes/lovable/email/auth/webhook.ts");
 const brandMarkSource = await read("src/components/layout/BrandMark.tsx");
-const headerSource = await read("src/components/layout/SiteHeader.tsx");
+const headerSource =
+  (await read("src/components/layout/SiteHeader.tsx")) +
+  (await read("src/components/layout/MarketplaceMobileMenu.tsx")) +
+  (await read("src/config/mobile-navigation.ts"));
 const rootSource = await read("src/routes/__root.tsx");
 const allCategoriesSource = await read("src/components/classifieds/AllCategoriesPopover.tsx");
 const homeSource =

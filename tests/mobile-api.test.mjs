@@ -10,7 +10,7 @@ import {
   mobileMediaUrl,
 } from "../src/lib/mobile-contract.ts";
 import { prepareMobilePush, pushRetryDelay } from "../src/lib/mobile-push.ts";
-import { mobileCachedBrowse } from "../src/lib/mobile-catalog.ts";
+import { mobileCachedBrowse, mobileSnapshotFirst } from "../src/lib/mobile-catalog.ts";
 import { mobileAdvertisingAllowed, mobileAdEvent } from "../src/lib/mobile-advertising.ts";
 
 test("store boundary excludes restricted/unknown inventory and miscategorized weapons", () => {
@@ -225,6 +225,37 @@ test("cache fallback retains filters and sorts, excludes stale sources, and decl
   assert.equal(
     mobileCachedBrowse(snapshot, { category: "other-real-estate" }, now).listings.length,
     0,
+  );
+});
+test("vehicle-group searches retain their scope in the cache fallback", () => {
+  const base = {
+    title: "Local find",
+    priceCents: 10000,
+    city: "Boise",
+    state: "ID",
+    createdAt: new Date(now).toISOString(),
+  };
+  const snapshot = {
+    sections: {
+      fresh: {
+        updatedAt: now,
+        cards: [
+          { ...base, id: "car", categorySlug: "cars-trucks" },
+          { ...base, id: "rv", categorySlug: "rvs-campers" },
+          { ...base, id: "desk", categorySlug: "furniture" },
+          { ...base, id: "weapon", categorySlug: "firearms" },
+        ],
+      },
+    },
+  };
+  assert.equal(mobileSnapshotFirst({ group: "motors" }), false);
+  assert.deepEqual(
+    mobileCachedBrowse(snapshot, { group: "motors" }, now).listings.map((c) => c.id),
+    ["car", "rv"],
+  );
+  assert.deepEqual(
+    mobileCachedBrowse(snapshot, { group: "classifieds" }, now).listings.map((c) => c.id),
+    ["desk"],
   );
 });
 test("advertising requires affirmative consent and iOS tracking permission", () => {

@@ -11,21 +11,13 @@ import { Capacitor } from "@capacitor/core";
 import { App as NativeApp } from "@capacitor/app";
 import { PushNotifications } from "@capacitor/push-notifications";
 import { Share } from "@capacitor/share";
-import {
-  MagnifyingGlass,
-  Heart,
-  PlusCircle,
-  ChatCircle,
-  UserCircle,
-  ArrowLeft,
-} from "@phosphor-icons/react";
+import { MagnifyingGlass, UserCircle, ArrowLeft } from "@phosphor-icons/react";
 import type { MobileListing, MobileBrowse } from "../../../src/lib/mobile-contract";
 import {
   api,
   apiOrigin,
   auth,
   initialize,
-  socialLogin,
   finishLogin,
   mobileLinkTarget,
   type Bootstrap,
@@ -42,9 +34,14 @@ import { suggestLocations } from "../../../src/lib/location-suggest";
 import { ListingSourceCredits } from "./ListingSourceCredits";
 import { HomeDiscovery } from "./HomeDiscovery";
 import type { MobileHome } from "../../../src/lib/mobile-contract";
-import { BrandMark } from "../../../src/components/layout/BrandMark";
+import { NativeHeader } from "./Header";
 import { SavedCardsProvider } from "./SavedCards";
 import { Post } from "./Post";
+import { NativeAuth } from "./Auth";
+import {
+  MobileTabBarView,
+  type MobileTabLinkProps,
+} from "../../../src/components/layout/MobileTabBarView";
 import { useListingActivity, setShoppingForeground } from "./shopping-activity";
 import { ListingTile, ShoppingRows, PrivacyChoices } from "./ShopperExperience";
 import {
@@ -64,13 +61,6 @@ import {
 } from "./advertising";
 import "./style.css";
 
-const tabs = [
-  { path: "/", label: "Browse", Icon: MagnifyingGlass },
-  { path: "/saved", label: "Saved", Icon: Heart },
-  { path: "/post", label: "Post", Icon: PlusCircle },
-  { path: "/messages", label: "Messages", Icon: ChatCircle },
-  { path: "/account", label: "Account", Icon: UserCircle },
-];
 const currentPath = () => location.hash.slice(1).split("?")[0] || "/";
 function go(path: string) {
   if (path === "/") window.dispatchEvent(new Event("bluebird-home"));
@@ -357,31 +347,21 @@ function Application() {
         }}
         userId={session?.user.id ?? null}
       />
-      <header className="mobile-site-header">
-        <button className="brand" onClick={() => go("/")}>
-          <BrandMark mobile />
-        </button>
-        <button className="text-button" onClick={() => setPrivacyOpen(true)}>
-          Privacy
-        </button>
-        {path.startsWith("/listings/") || path.startsWith("/messages/") ? (
-          <button
-            className="back"
-            aria-label="Go back"
-            onClick={() => (history.length > 1 ? history.back() : go("/"))}
-          >
-            <ArrowLeft size={23} />
-          </button>
-        ) : null}
-      </header>
-      <main>
+      <NativeHeader
+        path={path}
+        signedIn={Boolean(session)}
+        onNavigate={go}
+        onPrivacy={() => setPrivacyOpen(true)}
+      />
+      <main id="main-content" className="mobile-content">
         {bootstrap && !needsTerms && (
-          <div hidden={path !== "/"}>
+          <div hidden={path !== "/" && path !== "/search"}>
             <Feed
               key={session?.user.id ?? "guest"}
               bootstrap={bootstrap}
               revision={revision}
-              active={path === "/"}
+              active={path === "/" || path === "/search"}
+              searchMode={path === "/search"}
               learning={learning}
             />
           </div>
@@ -430,11 +410,16 @@ function Application() {
             </button>
           </form>
         ) : recovery && session ? (
-          <PasswordRecovery done={() => setRecovery(false)} />
+          <NativeAuth
+            policyVersion={bootstrap.policyVersion}
+            destination={path}
+            recovery
+            onRecovered={() => setRecovery(false)}
+          />
         ) : !session &&
           ["/saved", "/post", "/messages", "/account"].some((p) => path.startsWith(p)) ? (
-          <Login onError={setError} />
-        ) : path === "/" ? null : path.startsWith("/listings/") ? (
+          <NativeAuth policyVersion={bootstrap.policyVersion} destination={path} />
+        ) : path === "/" || path === "/search" ? null : path.startsWith("/listings/") ? (
           <Listing
             key={`${session?.user.id ?? "guest"}:${path}`}
             id={path.slice(10)}
@@ -544,175 +529,53 @@ function Application() {
           <Feed bootstrap={bootstrap} revision={revision} learning={learning} />
         )}
       </main>
-      <nav aria-label="Main navigation">
-        {tabs.map(({ path: p, label, Icon }) => (
-          <button
-            key={p}
-            aria-current={
-              p === "/"
-                ? path === "/"
-                  ? "page"
-                  : undefined
-                : path.startsWith(p)
-                  ? "page"
-                  : undefined
+      {bootstrap &&
+        !needsTerms &&
+        !recovery &&
+        !(
+          path.startsWith("/listings/") ||
+          path === "/post" ||
+          (!session && ["/saved", "/messages", "/account"].some((p) => path.startsWith(p)))
+        ) && (
+          <MobileTabBarView
+            pathname={
+              path === "/saved" || path.startsWith("/messages")
+                ? "/account"
+                : path === "/search"
+                  ? "/browse"
+                  : path
             }
-            onClick={() => go(p)}
-          >
-            <Icon size={25} weight={path === p ? "fill" : "regular"} />
-            <span>{label}</span>
-          </button>
-        ))}
-      </nav>
+            section={
+              path === "/saved" ? "saved" : path.startsWith("/messages") ? "messages" : undefined
+            }
+            renderLink={NativeTabLink}
+          />
+        )}
     </SavedCardsProvider>
   );
 }
-function Login({ onError }: { onError: (s: string) => void }) {
-  const [email, setEmail] = useState(""),
-    [password, setPassword] = useState(""),
-    [signup, setSignup] = useState(false),
-    [terms, setTerms] = useState(false),
-    [alerts, setAlerts] = useState(false),
-    [busy, setBusy] = useState(false),
-    [notice, setNotice] = useState("");
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
-    setBusy(true);
-    onError("");
-    try {
-      if (signup && !terms) throw Error("Please accept the Terms of Service.");
-      const result = signup
-        ? await auth.auth.signUp({ email, password })
-        : await auth.auth.signInWithPassword({ email, password });
-      if (result.error) throw result.error;
-      if (signup && result.data.session)
-        await api("consent", "PUT", {
-          acceptTerms: true,
-          shoppingAlerts: alerts,
-          version: "2026-11-12",
-        });
-      if (signup && !result.data.session)
-        setNotice(
-          "Check your email to confirm your account. You’ll review your choices when you sign in.",
-        );
-    } catch (e) {
-      onError(message(e));
-    } finally {
-      setBusy(false);
-    }
-  };
+function NativeTabLink({ to, section, children, className }: MobileTabLinkProps) {
+  const destination =
+    to === "/browse"
+      ? "/search"
+      : to === "/create-listing"
+        ? "/post"
+        : section === "saved"
+          ? "/saved"
+          : section === "messages"
+            ? "/messages"
+            : to;
   return (
-    <form className="stack" onSubmit={submit}>
-      <h1>{signup ? "Join Bluebird" : "Welcome back"}</h1>
-      <p>Use the same account as the Bluebird website.</p>
-      {notice && <p role="status">{notice}</p>}
-      <label>
-        Email
-        <input
-          type="email"
-          autoComplete="email"
-          required
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-      </label>
-      <label>
-        Password
-        <input
-          type="password"
-          autoComplete={signup ? "new-password" : "current-password"}
-          required
-          minLength={8}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-      </label>
-      {signup && (
-        <>
-          <label className="check">
-            <input
-              type="checkbox"
-              checked={terms}
-              required
-              onChange={(e) => setTerms(e.target.checked)}
-            />
-            I agree to the{" "}
-            <a href={`${apiOrigin}/terms`} target="_blank" rel="noreferrer">
-              Terms of Service
-            </a>
-            .
-          </label>
-          <label className="check">
-            <input type="checkbox" checked={alerts} onChange={(e) => setAlerts(e.target.checked)} />
-            Send me personalized shopping emails and notifications about listings, recommendations,
-            price drops, and offers.
-          </label>
-        </>
-      )}
-      <button className="primary" disabled={busy}>
-        {busy ? "Please wait…" : signup ? "Create account" : "Sign in"}
-      </button>
-      <button type="button" onClick={() => setSignup(!signup)}>
-        {signup ? "Already have an account? Sign in" : "Create an account"}
-      </button>
-      <button type="button" onClick={() => socialLogin("google").catch((e) => onError(message(e)))}>
-        Continue with Google
-      </button>
-      <button type="button" onClick={() => socialLogin("apple").catch((e) => onError(message(e)))}>
-        Continue with Apple
-      </button>
-      <button
-        type="button"
-        onClick={async () => {
-          if (!email) {
-            onError("Enter your email first.");
-            return;
-          }
-          const { error } = await auth.auth.resetPasswordForEmail(email, {
-            redirectTo: Capacitor.isNativePlatform()
-              ? "com.onbluebird.marketplace://auth/callback"
-              : `${location.origin}/#/auth/callback`,
-          });
-          if (error) onError(error.message);
-          else setNotice("Check your email for the password-reset link.");
-        }}
-      >
-        Reset password
-      </button>
-      <button type="button" onClick={() => go("/")}>
-        Keep browsing
-      </button>
-    </form>
-  );
-}
-function PasswordRecovery({ done }: { done: () => void }) {
-  const [password, setPassword] = useState(""),
-    [error, setError] = useState("");
-  return (
-    <form
-      className="stack"
-      onSubmit={async (e) => {
-        e.preventDefault();
-        const { error } = await auth.auth.updateUser({ password });
-        if (error) setError(error.message);
-        else done();
+    <a
+      href={`#${destination}`}
+      className={className}
+      onClick={(event) => {
+        event.preventDefault();
+        go(destination);
       }}
     >
-      <h1>Choose a new password</h1>
-      {error && <p role="alert">{error}</p>}
-      <label>
-        New password
-        <input
-          required
-          type="password"
-          minLength={8}
-          autoComplete="new-password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        />
-      </label>
-      <button className="primary">Save password</button>
-    </form>
+      {children}
+    </a>
   );
 }
 function Feed({
@@ -721,11 +584,13 @@ function Feed({
   revision,
   active = true,
   learning = false,
+  searchMode = false,
 }: {
   bootstrap: Bootstrap;
   saved?: boolean;
   revision: number;
   active?: boolean;
+  searchMode?: boolean;
   learning?: boolean;
 }) {
   const scroll = useRef(0);
@@ -733,7 +598,7 @@ function Feed({
     if (!active) return;
     const frame = requestAnimationFrame(() => window.scrollTo(0, scroll.current));
     const remember = () => {
-      if (currentPath() === "/") scroll.current = window.scrollY;
+      if (["/", "/search"].includes(currentPath())) scroll.current = window.scrollY;
     };
     window.addEventListener("scroll", remember, { passive: true });
     return () => {
@@ -745,6 +610,7 @@ function Feed({
     [selection, setSelection] = useState(false);
   const [query, setQuery] = useState(""),
     [category, setCategory] = useState(""),
+    [group, setGroup] = useState(""),
     [sort, setSort] = useState("newest"),
     [page, setPage] = useState(1),
     [items, setItems] = useState<MobileListing[]>([]),
@@ -753,7 +619,10 @@ function Feed({
     [error, setError] = useState(""),
     [search, setSearch] = useState("");
   const [home, setHome] = useState<MobileHome | null>(null);
-  const [discovery, setDiscovery] = useState(true);
+  const [discovery, setDiscovery] = useState(!searchMode);
+  useEffect(() => {
+    if (searchMode) setDiscovery(false);
+  }, [searchMode]);
   const [location, setLocation] = useState("Idaho"),
     [appliedLocation, setAppliedLocation] = useState("Idaho");
   const [headline, setHeadline] = useState(0);
@@ -771,11 +640,27 @@ function Feed({
       setSearch("");
       setQuery("");
       setCategory("");
+      setGroup("");
       setSort("newest");
       setPage(1);
     };
+    const search = (event: Event) => {
+      const filters = (event as CustomEvent<{ category?: string; group?: string; sort?: string }>)
+        .detail;
+      setDiscovery(false);
+      setQuery("");
+      setSearch("");
+      setCategory(filters.category ?? "");
+      setGroup(filters.group ?? "");
+      setSort(filters.sort ?? "newest");
+      setPage(1);
+    };
     window.addEventListener("bluebird-home", reset);
-    return () => window.removeEventListener("bluebird-home", reset);
+    window.addEventListener("bluebird-search", search);
+    return () => {
+      window.removeEventListener("bluebird-home", reset);
+      window.removeEventListener("bluebird-search", search);
+    };
   }, []);
   useEffect(() => {
     const controller = new AbortController();
@@ -803,6 +688,7 @@ function Feed({
         sort,
         page: String(page),
         ...(category ? { category } : {}),
+        ...(group ? { group } : {}),
         ...filters,
       });
       const result = await api<MobileBrowse>(
@@ -829,7 +715,7 @@ function Feed({
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [saved, search, category, sort, page, revision, discovery, appliedLocation]);
+  }, [saved, search, category, group, sort, page, revision, discovery, appliedLocation]);
   return (
     <section className="mobile-home">
       {saved ? (
@@ -862,9 +748,10 @@ function Feed({
               />
             </label>
             <HomeSearchDropdown
-              value={category}
+              value={group ? `group:${group}` : category}
               onChange={(value) => {
-                setCategory(value);
+                setCategory(value.startsWith("group:") ? "" : value);
+                setGroup(value.startsWith("group:") ? value.slice(6) : "");
                 setDiscovery(false);
                 setPage(1);
               }}
@@ -872,6 +759,8 @@ function Feed({
               placeholder="All categories"
               options={[
                 { value: "", label: "All categories" },
+                { value: "group:motors", label: "Vehicles" },
+                { value: "group:classifieds", label: "Classifieds" },
                 ...bootstrap.categories.map((c) => ({ value: c.slug, label: c.name })),
               ]}
             />
@@ -946,6 +835,7 @@ function Feed({
           onBrowse={(value) => {
             setDiscovery(false);
             setCategory(value);
+            setGroup("");
             setSearch("");
             setQuery("");
             setPage(1);
