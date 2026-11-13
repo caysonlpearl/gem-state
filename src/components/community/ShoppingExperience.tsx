@@ -230,6 +230,7 @@ export function PersonalizedShopping() {
                 .map((card, index) => (
                   <div
                     key={card.id}
+                    className="flex min-w-0 flex-col [&>article]:flex-1"
                     onClick={() =>
                       shoppingTrack("recommendation_click", card.id, {
                         placement: title,
@@ -256,7 +257,7 @@ export function PersonalizedShopping() {
                         shoppingTrack("dismiss", card.id);
                         void flushShopping().then(() => result.refetch());
                       }}
-                      className="mt-2 text-xs text-muted-foreground underline"
+                      className="mt-2 self-start text-xs text-muted-foreground underline"
                     >
                       Not interested
                     </button>
