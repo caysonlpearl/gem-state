@@ -279,3 +279,19 @@ test("declining broader email during onboarding preserves requested alerts; late
     await db.close();
   }
 });
+
+test("late favorite and advertising writes cannot recreate optional tracking after withdrawal", async () => {
+  const { db, user, subject } = await fixture();
+  try {
+    await db.query("select set_shopping_privacy($1,$2,false,false,'v1')", [subject, user]);
+    await db.query("insert into shopping_favorites(subject,listing_id) values($1,'a')", [subject]);
+    await db.query(
+      "insert into shopping_ad_outbox(id,subject,provider,name,payload) values($1,$2,'meta','ViewContent','{}')",
+      [randomUUID(), subject],
+    );
+    assert.equal((await db.query("select count(*)::int n from shopping_favorites")).rows[0].n, 0);
+    assert.equal((await db.query("select count(*)::int n from shopping_ad_outbox")).rows[0].n, 0);
+  } finally {
+    await db.close();
+  }
+});

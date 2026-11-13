@@ -25,6 +25,7 @@ export async function queueShoppingAdvertising(
   if (!controls.advertising || !permission?.advertising) return;
   const hash = await contentHash(actor.subject),
     config = shoppingAdvertisingConfig();
+  const rows: any[] = [];
   for (const input of inputs.slice(0, 50)) {
     const event = shoppingEvent(input, trusted);
     if (!event || !names[event.kind]) continue;
@@ -70,19 +71,22 @@ export async function queueShoppingAdvertising(
                 },
               ],
             };
-      const r = await db.from("shopping_ad_outbox").upsert(
-        {
-          id: event.id,
-          user_id: actor.user?.id ?? null,
-          subject: actor.subject,
-          provider,
-          name: provider === "meta" ? mapping.meta : mapping.google,
-          payload,
-        },
-        { onConflict: "id,provider", ignoreDuplicates: true },
-      );
-      if (r.error) throw Error("Advertising event unavailable.");
+      rows.push({
+        id: event.id,
+        user_id: actor.user?.id ?? null,
+        subject: actor.subject,
+        provider,
+        name: provider === "meta" ? mapping.meta : mapping.google,
+        payload,
+        created_at: event.at,
+      });
     }
+  }
+  if (rows.length) {
+    const r = await db
+      .from("shopping_ad_outbox")
+      .upsert(rows, { onConflict: "id,provider", ignoreDuplicates: true });
+    if (r.error) throw Error("Advertising events unavailable.");
   }
 }
 export async function deliverShoppingAdvertising(db: any) {

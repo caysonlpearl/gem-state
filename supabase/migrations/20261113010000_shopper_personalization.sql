@@ -343,3 +343,19 @@ begin
 end $$;
 revoke all on function public.guard_shopping_notification() from public,anon,authenticated;
 create trigger guard_shopping_notification before insert on public.notifications for each row execute function public.guard_shopping_notification();
+
+
+create function public.guard_shopping_optional_write() returns trigger language plpgsql security definer set search_path=public,pg_temp as $$
+declare permission shopping_privacy;
+begin
+ select * into permission from shopping_privacy where subject=new.subject for share;
+ if not found then return null; end if;
+ if tg_table_name='shopping_favorites' then
+  if not permission.personalization or new.saved_at<permission.history_after then return null; end if;
+ elsif not permission.advertising or new.created_at<permission.updated_at then return null;
+ end if;
+ return new;
+end $$;
+revoke all on function public.guard_shopping_optional_write() from public,anon,authenticated;
+create trigger guard_shopping_favorite before insert or update on public.shopping_favorites for each row execute function public.guard_shopping_optional_write();
+create trigger guard_shopping_ad before insert on public.shopping_ad_outbox for each row execute function public.guard_shopping_optional_write();

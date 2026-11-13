@@ -133,7 +133,7 @@ export async function recordShoppingActivity(
       await db
         .from("shopping_favorites")
         .upsert(
-          { subject: actor.subject, listing_id: e.listingId },
+          { subject: actor.subject, listing_id: e.listingId, saved_at: e.at },
           { onConflict: "subject,listing_id" },
         );
     if (e.kind === "unsave")
