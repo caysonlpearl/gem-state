@@ -112,24 +112,3 @@ export function resetShoppingSession() {
   if (typeof document !== "undefined")
     document.dispatchEvent(new Event("bluebird-shopping-session"));
 }
-
-/** A dismissal is an explicit control; acknowledge it rather than treating it
- * as expendable passive telemetry. */
-export async function dismissShopping(listingId: string) {
-  if (!allowed) throw Error("Your shopping privacy settings changed. Reopen Privacy choices.");
-  const event = mobileShoppingEvent({
-    id: crypto.randomUUID(),
-    kind: "dismiss",
-    listingId,
-    session,
-    at: new Date().toISOString(),
-  });
-  const result = await api<{ accepted: number }>(
-    "activity",
-    "POST",
-    { events: [event] },
-    undefined,
-    actor(),
-  );
-  if (result.accepted !== 1) throw Error("Your choice could not be saved. Please try again.");
-}

@@ -436,7 +436,9 @@ recommendation or similarity read calls a listing provider.
 The app now includes Recently viewed, Continue shopping, Recommended for you and
 similar listings. Visible impressions carry placement, position, model and ranking
 features. Detail views, foreground viewing time, photo interactions, saves,
-searches, contacts and acknowledged dismissals use the same shopper system.
+searches and contacts use the same shopper system. Previously acknowledged
+dismissals remain enforced by the service for older clients; the current website
+and app have no “Not interested” control, following the owner’s latest correction.
 Explicit searches/categories and nondefault sorts keep recommendation rows out
 of their results. Ordinary browsing remains available when learning is off,
 preferences cannot be loaded, vectors are missing or recommendations fail.
@@ -530,7 +532,7 @@ tests, the full marketplace test suite, and responsive browser smoke
 checks. Browser evidence is stored outside source at
 `output/mobile-apps-20261112` and subsequent dated mobile release folders; use each release's exact-source evidence for current counts. The original smoke script makes no account writes or sends. The new shopping UI
 suite uses explicit synthetic API fixtures in real Chromium at all three sizes;
-it verifies permission-off/on/withdrawn, visible impressions, dismissal persistence,
+it verifies permission-off/on/withdrawn, visible impressions, previous-choice suppression,
 filter precedence, guest identifier reset and a usable browsing fallback during a
 consent outage. This is not a claim of native device or live-account testing.
 Python Playwright is required by the existing full-suite KSL DOM test.
@@ -566,3 +568,27 @@ Keep separate pause switches for recommendations, shopping delivery and ads.
 Rollback the mobile backend compatibly; retain API v1 for installed versions.
 Stop delivery/advertising first during an incident, rather than breaking core
 browsing or message writes. Preserve the website's separately consented work.
+
+## Shared shopping rows — November 13, 2026
+
+Website and app now render Recently viewed, Continue shopping, Recommended for you
+and More like this with the same `ShoppingListingRowView`. The row keeps the
+website's headings, spacing, four-card limit, two phone columns/four columns from
+768px, and equal-height card wrappers. Native navigation, explicit filters,
+permission-gated visible activity and model/position metadata retain their platform
+adapters. The removed Not interested control is not reintroduced in the app;
+older acknowledged suppression still applies on the server. History clearing and
+personalization withdrawal stay available.
+
+`ListingSourceCreditsView` is shared too. Shopping groups now attribute the providers
+of the cards actually rendered, including jobs, feed homes, vehicles, rescue pets
+and directory logos, using existing public metadata with no listing-provider read.
+A hidden fifth result does not cause an unrelated provider credit. The native header
+also exposes its existing Privacy choices action on large screens where its phone
+menu is hidden; this opens the same separate permission controls.
+
+The synthetic browser gate covers 320/390/768/1280px, mixed card heights in every
+grid row, all three personalized headings, current-control removal, older-choice
+suppression, visible-provider credits, permission withdrawal, history reset, explicit
+filter/sort precedence and a browsing fallback when consent reads fail. These are
+browser fixtures, not real-device or production-account activity.
