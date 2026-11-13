@@ -407,6 +407,19 @@ try {
     await page.getByText("1FTFW1E50PFA00000", { exact: true }).waitFor();
     await page.getByRole("tab", { name: "Location", exact: true }).click();
     await page.locator('iframe[title="Listing location map"]').waitFor();
+    await open("buy");
+    const homeHash = await page.evaluate(() => location.hash);
+    await page.locator('a[href="#home-payment"]').first().click();
+    assert.equal(await page.evaluate(() => location.hash), homeHash);
+    await page.waitForFunction(() => {
+      const target = document.getElementById("home-payment")?.getBoundingClientRect();
+      return target && target.top >= 0 && target.top < innerHeight / 2;
+    });
+    for (const section of ["home-overview", "home-facts"]) {
+      await page.locator(`nav[aria-label="Home information"] a[href="#${section}"]`).click();
+      assert.equal(await page.evaluate(() => location.hash), homeHash);
+      await page.locator(`#${section}`).waitFor();
+    }
     await open("service");
     await page.getByRole("tab", { name: "Reviews", exact: true }).click();
     await page.getByText(/Rated 4.6 on Google from 5 reviews/).waitFor();
@@ -585,6 +598,7 @@ try {
       sharedLayouts: true,
       oneMainLandmark: true,
       skipLinkPreservesRoute: true,
+      homeSectionLinksPreserveRoute: true,
       paidReportLinkExcluded: true,
       save: true,
       shareCanonicalUrl: true,

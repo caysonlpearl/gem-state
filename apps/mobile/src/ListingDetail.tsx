@@ -423,7 +423,19 @@ export function NativeListingDetail({
     const a = (event.target as HTMLElement).closest<HTMLAnchorElement>("a[href]");
     if (!a || event.defaultPrevented) return;
     const raw = a.getAttribute("href");
-    if (!raw || raw.startsWith("#")) return;
+    if (!raw || raw.startsWith("#/")) return;
+    if (raw.startsWith("#")) {
+      // Section fragments belong to this page; the hash is already the app router.
+      event.preventDefault();
+      try {
+        document
+          .getElementById(decodeURIComponent(raw.slice(1)))
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      } catch {
+        /* A malformed section identifier cannot replace the current route. */
+      }
+      return;
+    }
     let url: URL;
     try {
       url = new URL(raw, apiOrigin);
