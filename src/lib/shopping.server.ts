@@ -97,8 +97,12 @@ export async function recordShoppingActivity(
   const permission = await shoppingPermission(db, actor.subject);
   if (!controls.tracking || !permission?.personalization) return { accepted: 0 };
   if (actor.user) {
-    const role = await db.rpc("has_role", { _user_id: actor.user.id, _role: "admin" });
-    if (role.error || role.data === true) return { accepted: 0 };
+    const roles = await Promise.all(
+      ["admin", "moderator"].map((role) =>
+        db.rpc("has_role", { _user_id: actor.user.id, _role: role }),
+      ),
+    );
+    if (roles.some((r) => r.error || r.data === true)) return { accepted: 0 };
   }
   // One bounded batch per caller; refuse abnormal bursts rather than growing history indefinitely.
   const recent = await db
@@ -144,6 +148,39 @@ export async function recordShoppingActivity(
         .eq("listing_id", e.listingId);
   }
   return { accepted: inserted?.length ?? 0 };
+}
+/** Public publication and moderation state, without calling listing providers. */
+export async function shoppingExternalEligibility(db: any, ids: string[]) {
+  const allowed = new Set(ids);
+  if (!ids.length) return allowed;
+  const direct = ids.filter((id) => id.startsWith("dealerfeed-"));
+  const [jobs, vehicles, feed] = await Promise.all([
+    db
+      .from("partner_job_reports")
+      .select("listing_id")
+      .in("listing_id", ids)
+      .eq("status", "reviewed"),
+    db
+      .from("partner_vehicle_reports")
+      .select("listing_id")
+      .in("listing_id", ids)
+      .eq("status", "reviewed"),
+    direct.length
+      ? db.rpc("read_published_dealer_inventory", {
+          _dealer_slug: null,
+          _record_id: null,
+          _full_photos: false,
+        })
+      : { data: null },
+  ]);
+  if (jobs.error || vehicles.error || feed.error) throw Error("Publication status unavailable.");
+  for (const row of [...(jobs.data ?? []), ...(vehicles.data ?? [])])
+    allowed.delete(row.listing_id);
+  if (direct.length) {
+    const published = new Set((feed.data?.vehicles ?? []).map((r: any) => `dealerfeed-${r.id}`));
+    for (const id of direct) if (!published.has(id)) allowed.delete(id);
+  }
+  return allowed;
 }
 export async function shoppingRecommendations(db: any, subject: string) {
   const controls = await shoppingControls(db);
@@ -244,7 +281,16 @@ export async function shoppingRecommendations(db: any, subject: string) {
     counts.set(key, (counts.get(key) ?? 0) + 1);
     if (recommended.length === 8) break;
   }
-  return { recent, continuing, recommended, model: controls.model_version, holdout };
+  const allowed = await shoppingExternalEligibility(db, [
+    ...new Set([...recent, ...continuing, ...recommended].map((c) => c.id)),
+  ]);
+  return {
+    recent: recent.filter((c) => allowed.has(c.id)),
+    continuing: continuing.filter((c) => allowed.has(c.id)),
+    recommended: recommended.filter((c) => allowed.has(c.id)),
+    model: controls.model_version,
+    holdout,
+  };
 }
 export async function updateShoppingConsent(
   db: any,
@@ -302,10 +348,14 @@ export async function handleShoppingRequest(request: Request) {
           return Response.json({ cards: [] }, { headers });
         const r = await db.rpc("shopping_visual_candidates", { seed_ids: [id] });
         if (r.error) throw Error("Similar listings unavailable.");
+        const allowed = await shoppingExternalEligibility(
+          db,
+          (r.data ?? []).map((r: any) => r.listing_id),
+        );
         return Response.json(
           {
             cards: (r.data ?? [])
-              .filter((r: any) => r.listing_id !== id)
+              .filter((r: any) => r.listing_id !== id && allowed.has(r.listing_id))
               .slice(0, 8)
               .map((r: any) => r.card),
             model: SHOPPING_MODEL,
@@ -390,6 +440,7 @@ export async function queueShopping(db: any, row: any) {
   if (error) throw Error("Shopping alert could not be queued.");
 }
 export async function syncShoppingInventory(db: any) {
+  const startedAt = Date.now();
   const { readHomepageSnapshot } = await import("./homepage-snapshot.server");
   const { HOME_MAX_STALE_MS } = await import("./homepage-snapshot-contract");
   const snapshot = await (
@@ -482,7 +533,7 @@ export async function syncShoppingInventory(db: any) {
           at: new Date().toISOString(),
           sourceFailures: failedSources,
           observed: cards.size,
-          elapsedMs: Date.now() - now,
+          elapsedMs: Date.now() - startedAt,
         },
       },
     })
