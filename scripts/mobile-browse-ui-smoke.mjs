@@ -529,6 +529,25 @@ try {
         path: resolve(output, `studios-${viewport.width}.png`),
         fullPage: true,
       });
+      await page.goto(origin + "/#/search?category=other-real-estate");
+      await page
+        .getByRole("link", { name: /Fixture family home/ })
+        .first()
+        .waitFor();
+      const homeFiltersButton = page.getByRole("button", { name: /^Filters/ });
+      if (await homeFiltersButton.isVisible()) await homeFiltersButton.click();
+      await page.getByRole("button", { name: "Save search", exact: true }).last().click();
+      await page.getByLabel("Search name", { exact: true }).fill("Buy homes only");
+      const homeNameDialog = page
+        .getByRole("dialog")
+        .filter({ has: page.getByLabel("Search name", { exact: true }) });
+      await homeNameDialog.getByRole("button", { name: "Save search", exact: true }).click();
+      await homeNameDialog.waitFor({ state: "hidden" });
+      const savedBuy = (
+        await db.query("select search from saved_searches where name='Buy homes only'")
+      ).rows[0].search;
+      assert.equal(savedBuy.homeTab, "buy");
+      assert.equal(savedBuy.homeMode, "results");
       await page.goto(origin + "/#/search?category=services&q=drain&serviceExpandSearch=true");
       await page
         .getByRole("link", { name: /Fixture service company/ })
@@ -649,6 +668,7 @@ try {
         studio: true,
         serviceDescriptions: true,
         allSavedFiltersPreserved: true,
+        savedHomeDefaultScope: true,
         reloadRetryReceipt: true,
         retries: writes.length,
         restrictedCatalog: true,

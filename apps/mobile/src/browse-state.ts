@@ -1,3 +1,4 @@
+import { isMotorsCategory } from "../../../src/lib/classifieds-display.ts";
 import { parseBrowseSearch, type Search } from "../../../src/lib/browse-search.ts";
 import { mobileCategoryAllowed } from "../../../src/lib/mobile-contract.ts";
 
@@ -69,14 +70,26 @@ export function browseApiQuery(params: URLSearchParams, page?: number) {
   // Metadata describes the saved resource; catalog scope is always server-owned.
   query.delete("savedSearchId");
   query.delete("mobileCatalog");
-  if (
-    query.get("category") === "other-real-estate" &&
-    !query.has("homeTab") &&
-    !["buy", "rent", "build"].includes(query.get("homeMode") ?? "")
-  )
-    query.set("homeTab", "buy");
+  const effective = parseBrowseSearch(Object.fromEntries(query));
+  if (effective.category === "other-real-estate" && !query.get("homeTab"))
+    query.set("homeTab", effective.homeTab ?? "buy");
   if (page !== undefined) query.set("page", String(page));
   return query;
+}
+
+/** Save the effective inventory scope, including defaults that were not in the URL. */
+export function browseSavedSearchFilters(params: URLSearchParams, patch: Partial<Search> = {}) {
+  const next = browseLocation("#" + browseDestination(patch, params));
+  const raw = Object.fromEntries(browseApiQuery(next.params));
+  const category = next.search.category;
+  if (category === "other-real-estate") raw.homeMode = "results";
+  if (category === "jobs") raw.jobMode = "results";
+  if (category === "services") raw.serviceMode = "results";
+  if (category === "pets") raw.petMode = "results";
+  if (isMotorsCategory(category) || next.search.group === "motors") raw.vehicleMode = "results";
+  delete raw.page;
+  delete raw.view;
+  return raw;
 }
 
 export function savedSearchDestination(search: Record<string, unknown>, id: string) {

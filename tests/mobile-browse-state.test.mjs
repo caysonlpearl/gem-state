@@ -4,8 +4,10 @@ import {
   browseLocation,
   browseDestination,
   browseApiQuery,
+  browseSavedSearchFilters,
   savedSearchDestination,
 } from "../apps/mobile/src/browse-state.ts";
+import { matchesShoppingSearch } from "../src/lib/shopping-contract.ts";
 import { savedSearchBrowseInput } from "../src/lib/saved-search-contract.ts";
 
 test("saved searches open without dropping meaningful legacy or unknown conditions", () => {
@@ -82,4 +84,41 @@ test("legacy restricted-category aliases cannot expose native browse forms", () 
   for (const key of ["category", "categorySlug", "section"])
     assert.equal(browseLocation(`#/search?${key}=firearms`).eligible, false);
   assert.equal(browseLocation("#/search?category=all").eligible, true);
+});
+
+test("native saved Homes retain the displayed Buy default and legacy Rent/Build scope", () => {
+  for (const mode of ["buy", "rent", "build"]) {
+    for (const categoryKey of ["category", "categorySlug"]) {
+      const params = new URLSearchParams({
+        [categoryKey]: "other-real-estate",
+        ...(mode === "buy" ? {} : { homeMode: mode }),
+      });
+      const saved = browseSavedSearchFilters(params);
+      assert.equal(saved.homeTab, mode);
+      assert.equal(saved.homeMode, "results");
+      assert.equal(savedSearchBrowseInput(saved).input.homeTab, mode);
+      for (const candidateMode of ["buy", "rent", "build"]) {
+        assert.equal(
+          matchesShoppingSearch(
+            {
+              id: "home",
+              title: "A home",
+              categorySlug: "other-real-estate",
+              home: { mode: candidateMode },
+            },
+            saved,
+          ),
+          candidateMode === mode,
+        );
+      }
+    }
+  }
+  const explicit = browseSavedSearchFilters(
+    new URLSearchParams({ category: "other-real-estate", homeMode: "rent", homeTab: "build" }),
+  );
+  assert.equal(explicit.homeTab, "build");
+  const invalid = browseApiQuery(
+    new URLSearchParams({ category: "other-real-estate", homeTab: "future-mode" }),
+  );
+  assert.equal(invalid.get("homeTab"), "future-mode");
 });

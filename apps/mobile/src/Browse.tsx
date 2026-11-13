@@ -9,7 +9,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MagnifyingGlass } from "@phosphor-icons/react";
 import { toast } from "sonner";
 import { api, type Bootstrap } from "./client";
-import { browseApiQuery, browseDestination, browseLocation } from "./browse-state";
+import {
+  browseApiQuery,
+  browseDestination,
+  browseLocation,
+  browseSavedSearchFilters,
+} from "./browse-state";
 import { listingPresentation } from "./listing-presentation";
 import { ListingTile } from "./ShopperExperience";
 import type { MobileBrowse, MobileListing } from "../../../src/lib/mobile-contract";
@@ -191,17 +196,7 @@ export function NativeBrowse({
     );
   };
   const save = (patch: Partial<Search> = {}) => {
-    const destination = browseDestination(patch, location.params);
-    const raw = browseLocation("#" + destination).raw;
-    if (search.category === "other-real-estate") raw.homeMode = "results";
-    if (search.category === "jobs") raw.jobMode = "results";
-    if (search.category === "services") raw.serviceMode = "results";
-    if (search.category === "pets") raw.petMode = "results";
-    if (isMotorsCategory(search.category) || search.group === "motors") raw.vehicleMode = "results";
-    delete raw.savedSearchId;
-    delete raw.mobileCatalog;
-    delete raw.page;
-    delete raw.view;
+    const raw = browseSavedSearchFilters(location.params, patch);
     onSave(raw, search.savedSearchId);
   };
   const loadPreview = useCallback(
