@@ -88,8 +88,11 @@ begin
    if tag is null then
     raise exception 'Unsupported account boundary definition: %',f.proname;
    end if;
+   -- PostgreSQL's one-argument rtrim removes spaces only. Typical stored
+   -- bodies end in newlines; trim all SQL whitespace before deciding whether
+   -- the original inner block needs its optional terminal semicolon.
    body:=case when f.lanname='sql' then prefix||f.prosrc
-    else prefix||rtrim(f.prosrc)||case when right(rtrim(f.prosrc),1)=';' then '' else ';' end||E'\nEND;' end;
+    else prefix||rtrim(f.prosrc,E' \t\n\r\f')||case when right(rtrim(f.prosrc,E' \t\n\r\f'),1)=';' then '' else ';' end||E'\nEND;' end;
    -- Replace only the body. Signature, defaults, volatility, permissions,
    -- return shape, search path and all other existing attributes are retained.
    execute overlay(definition placing tag||body||tag from body_start for length(tag||f.prosrc||tag));
