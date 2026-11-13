@@ -477,12 +477,32 @@ try {
       name: "Report conversation",
       exact: true,
     });
-    await reportConversation.evaluate((node) => node.scrollIntoView({ block: "center" }));
-    const reportBounds = await reportConversation.boundingBox();
-    const tabBounds = await page.locator('nav[aria-label="Primary"]').boundingBox();
-    assert(reportBounds && reportBounds.y >= 0);
+    let reportBounds,
+      tabBounds,
+      reportReachable = false;
+    const reportDeadline = Date.now() + 5000;
+    do {
+      await reportConversation.evaluate((node) => {
+        node.scrollIntoView({ block: "center", behavior: "instant" });
+        return new Promise((resolve) =>
+          requestAnimationFrame(() => requestAnimationFrame(resolve)),
+        );
+      });
+      reportBounds = await reportConversation.boundingBox();
+      tabBounds = await page.locator('nav[aria-label="Primary"]').boundingBox();
+      reportReachable = Boolean(
+        reportBounds &&
+        reportBounds.y >= 0 &&
+        (!tabBounds || reportBounds.y + reportBounds.height <= tabBounds.y) &&
+        (await reportConversation.evaluate((node) => {
+          const r = node.getBoundingClientRect();
+          return node.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2));
+        })),
+      );
+      if (!reportReachable) await pause(50);
+    } while (!reportReachable && Date.now() < reportDeadline);
     if (viewport.width < 1024) assert(tabBounds, "Phone navigation remains visible");
-    if (tabBounds) assert(reportBounds.y + reportBounds.height <= tabBounds.y);
+    assert(reportReachable, JSON.stringify({ viewport, reportBounds, tabBounds }));
     await reportConversation.click();
     await page
       .getByPlaceholder("Reason for reporting")

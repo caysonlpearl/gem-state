@@ -31,6 +31,6 @@ export const dealerOnboardingSchema = z.object({
     .trim()
     .regex(/^\d{5}$/),
   description: z.string().trim().max(500).default(""),
-  sourceId: z.string().uuid().optional().nullable(),
+  sourceId: z.string().guid().optional().nullable(),
 });
 export type DealerOnboardingInput = z.infer<typeof dealerOnboardingSchema>;

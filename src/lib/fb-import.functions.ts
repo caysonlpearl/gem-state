@@ -1084,7 +1084,7 @@ export const publishFacebookImportItems = createServerFn({ method: "POST" })
           "Confirm that the seller authorized importing and managing these listings.",
         );
       return {
-        itemIds: z.array(z.string().uuid()).min(1).max(1).parse(input.itemIds),
+        itemIds: z.array(z.string().guid()).min(1).max(1).parse(input.itemIds),
         sellerEmail: String(input.sellerEmail ?? "")
           .trim()
           .toLowerCase(),

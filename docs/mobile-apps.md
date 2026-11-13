@@ -110,11 +110,20 @@ Validation: isolated SQL and HTTP tests cover replay after later deletion, owner
 
 Android 36 emulator verification also loaded the production catalog (12 Ford vehicles under 25,000 miles), showed the operating system’s approximate-only permission prompt, preserved manual map/city entry after denial, closed the filter drawer with hardware Back without changing the search, and returned from a real listing to that exact filtered search with hardware Back. This is emulator evidence only; iPhone compilation and physical-device proof remain pending.
 
-Dependency hardening, November 13: the declared native package tree went from six high-severity findings to zero reported findings after Vite 8.1.6 and a pinned `@grpc/grpc-js` 1.13.6 override. Firebase 12.19.0, its analytics adapter 8.6.0, Capacitor 8.6.2 and app permissions remain unchanged. CI now audits that native manifest tree for high/critical findings. This scoped audit does not cover every shared import or establish store readiness.
+Dependency hardening, November 13: the declared native package tree went from six high-severity findings to zero reported findings after Vite 8.1.6 and a pinned `@grpc/grpc-js` 1.13.6 override. Firebase 12.19.0, its analytics adapter 8.6.0, Capacitor 8.6.2 and app permissions remain unchanged. CI audits both shared and native dependency trees for high/critical findings. Package audits do not establish whole-app security approval or store readiness.
 
-The shared website build also uses Vite 8.1.6. `image-size` 2.1.0 patches malformed-container parser loops in the real thumbnail pipeline; compatible lockfile updates patch brace-expansion and launch-editor. Root findings fell from five high/13 moderate/five low to one high/13 moderate/five low. Shared Zod 3.25.76 remains the high finding and is imported by native posting contracts as well as the backend. Its migration, and review of the remaining findings, remain pre-beta work. Do not use a forced downgrade or import the vulnerable `zod/v3` compatibility entry merely to clear an audit.
+The shared website build also uses Vite 8.1.6. `image-size` 2.1.0 patches malformed-container parser loops in the real thumbnail pipeline; compatible lockfile updates patch brace-expansion and launch-editor. Shared Zod is upgraded to 4.6.7, including deduplicated compiler dependencies and the native posting contracts that import it. Compatible updates also patch Seroval 1.8.1, fast-uri 3.1.9 and fast-xml-parser 5.12.1. Root findings fell from five high/13 moderate/five low to zero high/11 moderate/four low. The remaining 15 lower-severity findings still need release review; the production-only manifest reports four low findings in the email-rendering dependency chain. Current email rendering uses fixed server-owned options, not caller-supplied merge options. No vulnerable `zod/v3` compatibility import or forced Firebase downgrade is used.
 
-Malformed ICNS/JXL payloads now exercise the actual thumbnail handler in a memory/time-bounded child process. Existing real JPEG/PNG/WebP, orientation, upload and storage tests remain the ordinary-image coverage. A nonsecret `X-Bluebird-API-Release` response header identifies this compatible server release (`2026-11-13-sdk`) for deployment verification and support; it is distinct from API contract version 1 and conveys no security-approval claim.
+Existing UUID-shaped identifiers retain their former acceptance through Zod's GUID validator; account authorization and database lookups remain authoritative. Tests cover older identifiers, rejected malformed paths, unchanged create/update shopping-alert defaults, and early rejection of an oversized collection through an actual shared schema in a bounded child process. This protects validation memory without changing the request body limit, terms, catalog scope, or permission handling. The existing full regression suite remains required after the validation upgrade.
+
+Built-in serialization tests verify that spoofed typed-array constructor and RegExp source metadata cannot replace their actual types/data. Malformed ICNS/JXL payloads exercise the actual thumbnail handler in a memory/time-bounded child process. Existing real JPEG/PNG/WebP, orientation, upload and storage tests remain the ordinary-image coverage. A nonsecret `X-Bluebird-API-Release` response header identifies this compatible server release (`2026-11-13-sdk`) for deployment verification and support; it is distinct from API contract version 1 and conveys no security-approval claim.
+
+Local release checks passed: 1,307 automated tests, root type-check, website build,
+four production SSR suites, mobile sync and Android debug compile. Storefront
+browser journeys pass at 320/390/1280px. Changed-file lint has only the two
+unchanged `no-explicit-any` findings in dealer inventory controls, confirmed
+against the previous source; there are no new lint findings. Exact-head CI and
+production publication remain separate release checkpoints.
 
 The native development server explicitly allows the app directory and the shared
 `src`, `public` and root `node_modules` directories. The website font request
@@ -122,7 +131,9 @@ previously returned 403; it now serves the real assets without allowing unrelate
 filesystem paths. Storefront browser tests require loaded Manrope/Sora faces and
 verify that an unrelated, synthetic temporary file stays inaccessible. Production
 assets remain bundled; this changes preview fidelity rather than loading fonts
-from a new outside provider.
+from a new outside provider. The report-control check waits for message-refresh
+layout to settle, confirms navigation clearance and actual pointer reachability,
+and still clicks normally without forcing an overlay.
 
 ## Shared conversation screens and attachment readiness
 
@@ -222,18 +233,35 @@ slow queries, email credentials/delivery configuration and scheduled-job health
 in the owning dashboards before enabling new workloads. No extra hosting or
 compute has been purchased.
 
-The intended owner login is `cayson@xstayproperties.com`; the legal business
-that owns Bluebird has not been identified. An email address does not establish
-the legal entity. Organization enrollment needs that entity's matching legal
-name, address, authority and D-U-N-S information. Owner checkpoints are identity
-verification, agreements and payment. Current published fees are Apple
-US$99/year and Google Play US$25 once; tax/local currency may vary.
+On November 13 the owner chose personal/individual developer accounts, using
+`cayson@xstayproperties.com` as the intended login. This supersedes the original
+organization-enrollment default. No developer account has been created yet.
+The owner must verify the correct Apple/Google login and personal identity and
+complete agreements/payment. Do not infer private identity details or change
+account credentials. Apple's individual enrollment displays the owner's legal
+name as the store seller; app branding remains Bluebird. Current US fees are
+Apple US$99/year and Google Play US$25 once; tax/local currency may vary.
+
+Enrollment preflight reached Apple's sign-in page and Google's personal-account
+wizard under the intended email. Google's public developer name `Bluebird` is
+already registered; an alternate developer profile name is awaiting the owner.
+The app name remains Bluebird. No credentials, private identity information,
+developer agreement or payment was submitted.
+
+New Google personal accounts require a closed test with at least 12 testers
+opted in continuously for at least 14 days, followed by an application for
+production access. This runs alongside the agreed seven-day beta observation
+after critical fixes; both requirements must be satisfied. Google also requires
+the owner to verify access to a physical Android device. No tester invitations,
+production-access application, account payment or agreement acceptance has been
+performed by this batch.
 
 Official enrollment references:
 
 - https://developer.apple.com/help/account/membership/program-enrollment
 - https://support.google.com/googleplay/android-developer/answer/6112435?hl=en
 - https://support.google.com/googleplay/android-developer/answer/13628312?hl=en
+- https://support.google.com/googleplay/android-developer/answer/14151465?hl=en
 
 ## Apple release automation candidate: Lance
 
@@ -481,9 +509,12 @@ Phase status and concrete outstanding checks:
 - Phase 5: permission-gated native measurement adapter implemented but inactive;
   SDK configuration, privacy disclosures and consent/revocation device tests
   remain open. Shared ranking evaluation remains with the shopper service.
-- Phases 6–7: not started. Require no critical/high-impact defects, privacy
+- Phase 6: dependency and boundary hardening is underway; beta is not started.
+  The personal Google account requires 12 continuously opted-in testers for at
+  least 14 days before applying for production access. Require no critical/high-impact defects, privacy
   manifests/labels/Data Safety, real beta users and a seven-day observation
-  window, store metadata/reviewer accounts, owner agreements/payment, review,
+  window after critical fixes.
+- Phase 7: not started. Requires store metadata/reviewer accounts, owner agreements/payment, review,
   gradual release and seven days of post-launch monitoring.
 
 Keep separate pause switches for recommendations, shopping delivery and ads.

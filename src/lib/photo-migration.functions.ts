@@ -56,7 +56,7 @@ export const stepPhotoMigration = createServerFn({ method: "POST" })
   .validator((input: { id: string; retry?: boolean; preparedPreview?: PreparedMigrationPreview }) =>
     z
       .object({
-        id: z.string().uuid(),
+        id: z.string().guid(),
         retry: z.boolean().default(false),
         preparedPreview: z
           .object({
@@ -87,5 +87,5 @@ export const stepPhotoMigration = createServerFn({ method: "POST" })
 
 export const preparePhotoMigrationPreview = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .validator((input: { id: string }) => z.object({ id: z.string().uuid() }).strict().parse(input))
+  .validator((input: { id: string }) => z.object({ id: z.string().guid() }).strict().parse(input))
   .handler(async ({ data, context }) => (await adminRunner(context)).preparePreview(data.id));

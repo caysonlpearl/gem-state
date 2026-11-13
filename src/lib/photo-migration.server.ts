@@ -17,7 +17,7 @@ import { serverEnv } from "./runtime-env.server";
 
 const permitSchema = z
   .object({
-    runId: z.string().uuid(),
+    runId: z.string().guid(),
     inventorySha256: z.string().regex(/^[a-f0-9]{64}$/),
     maxGroups: z.number().int().min(1).max(20000),
     maxSourceBytes: z.number().int().min(1).max(5_000_000_000),

@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 const input = z.object({
-  dealerId: z.string().uuid(),
+  dealerId: z.string().guid(),
   days: z.union([z.literal(7), z.literal(30), z.literal(90)]).default(30),
 });
 async function privateResponse() {

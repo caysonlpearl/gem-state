@@ -7,7 +7,7 @@ export const setDealerInventoryVisibility = createServerFn({ method: "POST" })
   .validator((input: unknown) =>
     z
       .object({
-        recordId: z.string().uuid(),
+        recordId: z.string().guid(),
         visibility: z.enum(["visible", "hidden", "sold"]),
         reason: z.string().trim().max(500).optional(),
       })
@@ -27,7 +27,7 @@ export const reportDealerInventoryDetails = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .validator((input: unknown) =>
     z
-      .object({ recordId: z.string().uuid(), details: z.string().trim().min(5).max(500) })
+      .object({ recordId: z.string().guid(), details: z.string().trim().min(5).max(500) })
       .parse(input),
   )
   .handler(async ({ data, context }) => {

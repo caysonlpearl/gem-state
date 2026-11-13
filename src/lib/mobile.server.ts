@@ -882,7 +882,7 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
       .parse(body);
     const f = await import("./mobile-storefront.server");
     const target = await f.mobileSellerIdentity(await database(), sellerFlagMatch[1]);
-    const reviewId = z.string().uuid().parse(sellerFlagMatch[2]);
+    const reviewId = z.string().guid().parse(sellerFlagMatch[2]);
     await f.mobileReviewVisible(await database(), target.userId, reviewId);
     return domain((await import("./seller.functions")).flagSellerReview, { ...input, reviewId });
   }
@@ -921,7 +921,7 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
         "dealer_unavailable",
         "This dealership is unavailable in the app.",
       );
-    const id = z.string().uuid().safeParse(dealer.id);
+    const id = z.string().guid().safeParse(dealer.id);
     if (!id.success)
       throw new MobileApiError(404, "dealer_unavailable", "The dealership inbox is unavailable.");
     const r = await client.rpc("mobile_start_dealer_conversation", {
@@ -1072,7 +1072,7 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
     path,
   );
   if (method === "POST" && attachmentMatch) {
-    const id = z.string().uuid().parse(attachmentMatch[1]);
+    const id = z.string().guid().parse(attachmentMatch[1]);
     await allowedConversation(id, user.id);
     if (!(await (await import("./mobile-messaging.server")).mobileAttachmentsReady()))
       throw new MobileApiError(
