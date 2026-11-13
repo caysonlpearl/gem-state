@@ -230,7 +230,7 @@ Official release references:
 
 Local checks at this milestone: root TypeScript, website production build,
 mobile TypeScript/Vite build, Android debug compile, mobile security/queue/SQL
-tests, full marketplace test suite (1,141 passing), and responsive browser smoke
+tests, full marketplace test suite (1,144 passing), and responsive browser smoke
 checks. Browser evidence is stored outside source at
 `output/mobile-apps-20261112`. The smoke script makes no account writes or sends.
 Python Playwright is required by the existing full-suite KSL DOM test.

@@ -57,8 +57,8 @@ export async function setAdvertising(
           .status
       : "not_applicable";
   const consent: MobileAdConsent = { advertising: allow, platform, att };
-  await api("advertising", "PUT", consent);
-  if (!mobileAdvertisingAllowed(consent) || generation !== current) return consent;
+  const confirmed = await api<MobileAdConsent>("advertising", "PUT", consent);
+  if (!mobileAdvertisingAllowed(confirmed) || generation !== current) return confirmed;
   await FirebaseAnalytics.setEnabled({ enabled: true });
   for (const type of [
     ConsentType.AdStorage,
@@ -72,7 +72,7 @@ export async function setAdvertising(
   // Automatic events remain off: only the explicit shared allowlist is exported.
   if (generation === current) enabled = true;
   else await disableAdvertising();
-  return consent;
+  return confirmed;
 }
 export async function trackAdvertising(
   kind: string,
@@ -83,6 +83,13 @@ export async function trackAdvertising(
   if (!enabled || !event || seen.has(eventId)) return;
   const current = generation;
   try {
+    if (
+      Capacitor.getPlatform() === "ios" &&
+      (await privacy.trackingStatus()).status !== "authorized"
+    ) {
+      await disableAdvertising();
+      return;
+    }
     const consent = await api<MobileAdConsent | null>(
       `advertising?platform=${Capacitor.getPlatform()}`,
     );
@@ -91,6 +98,7 @@ export async function trackAdvertising(
       return;
     }
   } catch {
+    await disableAdvertising();
     return;
   }
   seen.add(eventId);
