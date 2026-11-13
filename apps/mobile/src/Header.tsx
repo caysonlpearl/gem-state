@@ -1,22 +1,22 @@
+import { ArrowLeft, List, X } from "@phosphor-icons/react";
+import { useEffect, useRef, useState } from "react";
+import { BrandMark } from "../../../src/components/layout/BrandMark";
 import {
   HeaderAccountMenuView,
   type HeaderAccountIdentity,
   type HeaderAccountLinkProps,
 } from "../../../src/components/layout/HeaderAccountMenuView";
-import { NativeNotificationBell, useNativeNotifications } from "./Notifications";
-import { backWithinApp } from "./native-navigation";
-import { browseDestination } from "./browse-state";
-import { mobilePrimaryCategories } from "../../../src/config/mobile-navigation";
-import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, List, UserCircle, X } from "@phosphor-icons/react";
-import { BrandMark } from "../../../src/components/layout/BrandMark";
-import { SiteHeaderBar } from "../../../src/components/layout/SiteHeaderBar";
 import {
   MarketplaceMobileMenu,
   type MarketplaceMenuLinkProps,
 } from "../../../src/components/layout/MarketplaceMobileMenu";
+import { SiteHeaderBar } from "../../../src/components/layout/SiteHeaderBar";
+import { mobilePrimaryCategories } from "../../../src/config/mobile-navigation";
 import { mobileCategoryAllowed } from "../../../src/lib/mobile-contract";
+import { NativeNotificationBell, useNativeNotifications } from "./Notifications";
+import { browseDestination } from "./browse-state";
 import { apiOrigin } from "./client";
+import { backWithinApp } from "./native-navigation";
 
 export function NativeHeader({
   path,
@@ -58,6 +58,12 @@ export function NativeHeader({
     <header className="sticky top-0 z-40 overflow-visible border-0 bg-card/95 backdrop-blur pt-[env(safe-area-inset-top)]">
       <a
         href="#main-content"
+        onClick={(event) => {
+          event.preventDefault();
+          const main = document.getElementById("main-content");
+          main?.focus({ preventScroll: true });
+          main?.scrollIntoView({ block: "start" });
+        }}
         className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-2 focus:z-50 focus:rounded-md focus:bg-primary focus:px-3 focus:py-1.5 focus:text-[12.5px] focus:font-medium focus:text-primary-foreground"
       >
         Skip to main content

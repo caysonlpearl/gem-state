@@ -214,14 +214,21 @@ function anchors(node) {
 }
 test("partner-home desktop contact actions are measured without inventing a completed inquiry", () => {
   const calls = [];
-  const contact = compile(file, "PartnerHomeContactCard", {
-    trackSellerContact: (method, value) => calls.push({ method, id: value.id }),
-    estimatedMonthlyPayment: () => 0,
-    EmployerTile() {},
-    SinceAndStrength() {},
-    Phone() {},
-    ArrowSquareOut() {},
-  });
+  const contact = compile(
+    "../src/components/listings/ListingDetailView.tsx",
+    "PartnerHomeContactCard",
+    {
+      useListingDetailRuntime: () => ({
+        onContact: (method, value) => calls.push({ method, id: value.id }),
+      }),
+      trackSellerContact: (method, value) => calls.push({ method, id: value.id }),
+      estimatedMonthlyPayment: () => 0,
+      EmployerTile() {},
+      SinceAndStrength() {},
+      Phone() {},
+      ArrowSquareOut() {},
+    },
+  );
   const value = {
     ...listing,
     externalHome: {

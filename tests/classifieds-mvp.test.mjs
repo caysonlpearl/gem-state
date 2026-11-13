@@ -9,12 +9,18 @@ const configSource = await read("src/config/classifieds.ts");
 const petsConfigSource = await read("src/config/pets.ts");
 const itemFieldsConfigSource = await read("src/config/classified-item-fields.ts");
 const browseSource =
-  (await read("src/components/classifieds/BrowseFilterViews.tsx")) + "\n" +
-  (await read("src/components/classifieds/BrowseResultsView.tsx")) + "\n" +
-  (await read("src/components/classifieds/BrowseResultsHeading.tsx")) + "\n" +
-  (await read("src/components/classifieds/GenericBrowseFilters.tsx")) + "\n" +
-  (await read("src/lib/browse-form.ts")) + "\n" +
-  (await read("src/lib/browse-filter-labels.ts")) + "\n" +
+  (await read("src/components/classifieds/BrowseFilterViews.tsx")) +
+  "\n" +
+  (await read("src/components/classifieds/BrowseResultsView.tsx")) +
+  "\n" +
+  (await read("src/components/classifieds/BrowseResultsHeading.tsx")) +
+  "\n" +
+  (await read("src/components/classifieds/GenericBrowseFilters.tsx")) +
+  "\n" +
+  (await read("src/lib/browse-form.ts")) +
+  "\n" +
+  (await read("src/lib/browse-filter-labels.ts")) +
+  "\n" +
   (await read("src/lib/browse-search.ts")) +
   "\n" +
   (await read("src/routes/browse.tsx")) +
@@ -51,7 +57,9 @@ const reassertClassifiedSetupMigrationSource = await read(
   "supabase/migrations/20261004090000_reassert_classified_listing_setup_gate.sql",
 );
 const contractsSource = await read("src/lib/classified-listing-contracts.ts");
-const actionsSource = await read("src/components/classifieds/ListingActions.tsx");
+const actionsSource =
+  (await read("src/components/classifieds/ListingActions.tsx")) +
+  (await read("src/components/classifieds/ListingActionsView.tsx"));
 const inquirySource = await read("src/lib/classified-inquiry.functions.ts");
 const emailNotificationsSource = await read("src/lib/email-notifications.server.ts");
 const inquiryEmailTemplateSource = await read(
@@ -67,7 +75,9 @@ const sellerSetupSource =
 const sellingSource = await read("src/routes/_authenticated/selling.tsx");
 const accountSource = await read("src/routes/_authenticated/account.tsx");
 const accountCenterSource =
-  ((await read("src/components/account/AccountCenter.tsx")) + "\n" + (await read("src/components/account/SavedSearchesSectionView.tsx"))) +
+  (await read("src/components/account/AccountCenter.tsx")) +
+  "\n" +
+  (await read("src/components/account/SavedSearchesSectionView.tsx")) +
   (await read("src/components/account/AccountProfileView.tsx")) +
   (await read("src/components/account/AccountSettingsView.tsx")) +
   (await read("src/components/account/AccountLayoutView.tsx")) +
@@ -114,7 +124,10 @@ const dealerInventoryRouteSource = await read(
   "src/routes/_authenticated/admin.dealer-inventory.tsx",
 );
 const dealerFunctionsSource = await read("src/lib/dealer.functions.ts");
-const listingDetailSource = await read("src/routes/listings.$listingId.tsx");
+const listingDetailSource =
+  (await read("src/routes/listings.$listingId.tsx")) +
+  (await read("src/components/listings/ListingDetailView.tsx")) +
+  (await read("src/components/listings/ListingDetailControlsView.tsx"));
 const sellerProfileSource = await read("src/routes/sellers.$slug.tsx");
 const adminClassifiedsSource = await read("src/routes/_authenticated/admin.classifieds.tsx");
 const listingReportsMigrationSource = await read(
@@ -191,8 +204,7 @@ const homeSource =
 const categoryIconSource = await read("src/components/classifieds/CategoryIcon.tsx");
 const listingCardSource = await read("src/components/classifieds/ListingCardView.tsx");
 const detailSource =
-  (await read("src/routes/listings.$listingId.tsx")) +
-  (await read("src/components/classifieds/ListingGallery.tsx"));
+  listingDetailSource + (await read("src/components/classifieds/ListingGallery.tsx"));
 const mockListingsSource = await read("src/config/classified-mocks.ts");
 const stylesSource = await read("src/styles.css");
 const { classifiedSeedListings } = await import("../scripts/classified-seed-data.mjs");

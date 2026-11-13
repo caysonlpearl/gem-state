@@ -1,4 +1,9 @@
-type Capabilities = { attachments: boolean; posting: boolean; savedSearches: boolean };
+type Capabilities = {
+  attachments: boolean;
+  posting: boolean;
+  savedSearches: boolean;
+  applications: boolean;
+};
 let cached: { until: number; enabled: Capabilities } | undefined;
 let pending: Promise<Capabilities> | undefined;
 /** A server-only capability read; no member data or writes. Missing migration
@@ -7,13 +12,23 @@ function capabilities(): Promise<Capabilities> {
   if (cached && cached.until > Date.now()) return Promise.resolve(cached.enabled);
   if (pending) return pending;
   pending = (async () => {
-    let enabled: Capabilities = { attachments: false, posting: false, savedSearches: false };
+    let enabled: Capabilities = {
+      attachments: false,
+      posting: false,
+      savedSearches: false,
+      applications: false,
+    };
     try {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
       const { data, error } = await (
         supabaseAdmin as unknown as {
           rpc: (name: string) => Promise<{
-            data: { attachments?: boolean; posting?: boolean; savedSearches?: boolean } | null;
+            data: {
+              attachments?: boolean;
+              posting?: boolean;
+              savedSearches?: boolean;
+              applications?: boolean;
+            } | null;
             error: unknown;
           }>;
         }
@@ -22,6 +37,7 @@ function capabilities(): Promise<Capabilities> {
         attachments: !error && data?.attachments === true,
         posting: !error && data?.posting === true,
         savedSearches: !error && data?.savedSearches === true,
+        applications: !error && data?.applications === true,
       };
     } catch {
       /* Browsing/text messaging remain usable without attachment readiness. */
@@ -43,4 +59,8 @@ export async function mobilePostingReady() {
 
 export async function mobileSavedSearchesReady() {
   return (await capabilities()).savedSearches;
+}
+
+export async function mobileApplicationsReady() {
+  return (await capabilities()).applications;
 }

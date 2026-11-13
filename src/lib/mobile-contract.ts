@@ -56,6 +56,7 @@ export type MobileListing = {
     | "externalVehicle"
     | "externalJob"
     | "externalHome"
+    | "externalPet"
     | "directory"
   >;
   shoppingFeatures?: Record<string, number>;

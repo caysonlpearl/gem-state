@@ -17,7 +17,7 @@ import { summarizeEditorialTraffic } from "../src/lib/editorial-traffic.ts";
 // The server acknowledgement and analytics store are local fakes. No message,
 // email, listing, browser session or production analytics record is created.
 const component = readFileSync(
-  new URL("../src/components/classifieds/ListingActions.tsx", import.meta.url),
+  new URL("../src/components/classifieds/ListingActionsView.tsx", import.meta.url),
   "utf8",
 );
 const parsed = ts.createSourceFile("ListingActions.tsx", component, ts.ScriptTarget.Latest, true);
@@ -141,7 +141,7 @@ test("pending message acknowledgement cannot record a completed inquiry", async 
   const pending = b.callbacks.mutationFn();
   await settleAnalytics();
   assert.equal(b.calls.length, 1);
-  assert.equal(b.calls[0].data.listingId, listing.id);
+  assert.equal(b.calls[0].listingId, listing.id);
   assert.equal(b.records.length, 0);
   assert.equal(b.notices.length, 0);
   acknowledge({ conversationId: "offline-conversation" });

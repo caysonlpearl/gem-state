@@ -1,0 +1,524 @@
+import type { trackCompletedInquiry, trackSellerContact } from "@/lib/analytics";
+import type { ComponentProps, ComponentType } from "react";
+import type { ContactSignInSheet as WebsiteContactSheet } from "./ContactSignInSheet";
+
+import { DealerContactOptions } from "@/components/dealers/DealerContactOptions";
+import { VehiclePrice } from "@/components/dealers/VehiclePrice";
+import { loanPaymentCents } from "@/lib/loan-payment";
+import { dealerContactPriceLabel, hasApprovedDealer } from "@/lib/vehicle-shopping";
+import { useMutation } from "@tanstack/react-query";
+import { useCallback, useEffect, useRef, useState } from "react";
+
+import { Calculator, Info } from "@phosphor-icons/react";
+import { toast } from "sonner";
+
+import { formatUsd } from "@/config/fees";
+
+import { adoptionPriceLabel, formatClassifiedPrice } from "@/lib/classifieds-display";
+import type { ClassifiedDetail } from "@/lib/classifieds.functions";
+
+import {
+  OPEN_CONTACT_EVENT,
+  OPEN_LISTING_MESSAGE_EVENT,
+  consumeContactIntent,
+} from "@/lib/listing-contact-events";
+import { nearbyPagePath } from "@/lib/place-pages";
+
+function looksLikeEmail(value: string) {
+  return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(value);
+}
+function externalApplyHref(contact: string) {
+  if (looksLikeEmail(contact)) return `mailto:${contact}`;
+  return /^https?:\/\//i.test(contact) ? contact : `https://${contact}`;
+}
+
+// The legacy create_listing_inquiry RPC remains available for existing seller records;
+// new listing contact now starts a two-way conversation through startConversation.
+
+const DEFAULT_MESSAGE = "Hi, is this still available? I would love to learn more.";
+
+/**
+ * Direct-contact controls for the current classifieds MVP. Transactional
+ * checkout and offers remain implemented elsewhere for a future phase, but
+ * classified buyers currently arrange the sale directly with the seller.
+ */
+export type ListingActionsProps = {
+  listing: ClassifiedDetail;
+  showPaymentCalculator?: boolean;
+  showPriceHeader?: boolean;
+  calculatorVariant?: "auto" | "mortgage";
+  ctaVerb?: "contact" | "apply";
+};
+
+export function ListingActionsView(props: ListingActionsProps & { runtime: ListingActionRuntime }) {
+  if (props.listing.ended) return <EndedListingNotice listing={props.listing} />;
+  return <LiveListingActions {...props} />;
+}
+
+/** Takes the place of the contact controls once a listing has sold or expired. */
+function EndedListingNotice({ listing }: { listing: ClassifiedDetail }) {
+  const sold = listing.ended?.reason === "sold";
+  return (
+    <div className="floating-card overflow-hidden border-foreground/20">
+      <div className="space-y-3 px-5 py-5">
+        <p className="text-[17px] font-bold">
+          {sold ? "This listing has sold" : "This listing has expired"}
+        </p>
+        <p className="text-[13px] leading-relaxed text-muted-foreground">
+          The seller is no longer taking messages about it.
+        </p>
+        <a
+          href={nearbyPagePath(listing.categorySlug, listing.city)}
+          className="inline-flex h-11 w-full items-center justify-center rounded-md bg-primary px-4 text-[13.5px] font-semibold text-primary-foreground"
+        >
+          See similar listings nearby
+        </a>
+      </div>
+    </div>
+  );
+}
+
+function LiveListingActions({
+  listing,
+  showPaymentCalculator = true,
+  showPriceHeader = true,
+  calculatorVariant = "auto",
+  ctaVerb = "contact",
+  runtime,
+}: ListingActionsProps & { runtime: ListingActionRuntime }) {
+  const approvedDealer = hasApprovedDealer(listing);
+  const [dealerContactOpen, setDealerContactOpen] = useState(false);
+  const isJobApply = ctaVerb === "apply";
+  const isPreviewListing = listing.isMock === true;
+  const applicationMethod = listing.job?.applicationMethod ?? "gemlist";
+  const isExternalApply = isJobApply && applicationMethod === "external";
+  const isGemlistApply = isJobApply && applicationMethod === "gemlist";
+  const isMortgage = calculatorVariant === "mortgage";
+  const internalMessagesEnabled = listing.seller?.allowInternalMessages !== false;
+  const {
+    isSignedIn,
+    userId,
+    onSend: start,
+    onContact: trackSellerContact,
+    onCompletedInquiry: trackCompletedInquiry,
+    onContactOpened,
+    ContactSignInSheet,
+    JobApplicationForm,
+  } = runtime;
+  const user = { id: userId };
+  const isOwnListing = Boolean(
+    isSignedIn && listing.seller?.userId && listing.seller.userId === user?.id,
+  );
+  const [contactOpen, setContactOpen] = useState(false);
+  const [signInOpen, setSignInOpen] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [message, setMessage] = useState(DEFAULT_MESSAGE);
+  const [calculatorOpen, setCalculatorOpen] = useState(false);
+  const [loanTerm, setLoanTerm] = useState(isMortgage ? "360" : "60");
+  const [aprPercent, setAprPercent] = useState(isMortgage ? "6.75" : "7.5");
+
+  const [downPayment, setDownPayment] = useState(
+    isMortgage ? String(Math.round((listing.priceCents / 100) * 0.2)) : "0",
+  );
+  const messageLength = message.trim().length;
+  const messageError =
+    messageLength === 0
+      ? "Write a message before sending."
+      : messageLength < 10
+        ? "Tell the seller a little more (at least 10 characters)."
+        : null;
+
+  const principalCents = Math.max(
+    0,
+    listing.priceCents - Math.round((Number(downPayment) || 0) * 100),
+  );
+  const payments = Number(loanTerm) || (isMortgage ? 360 : 60);
+  const enteredApr = aprPercent.trim() ? Number(aprPercent) : Number.NaN;
+  const monthlyPayment = loanPaymentCents(principalCents, payments, enteredApr);
+  const aprError = monthlyPayment === null ? "Enter an APR between 0% and 100%." : null;
+
+  // Cars from MarketCheck have no Bluebird seller to message: the contact is
+  // the dealer or private seller on the original listing.
+  // Vinted and Whatnot imports are bought and discussed on the original
+  // listing too.
+  const originalListing = listing.originalListing ?? null;
+  // Rescue pets are adopted through the rescue's own page.
+  const externalPet = listing.externalPet ?? null;
+  const partnerVehicleUrl =
+    listing.externalVehicle?.sourceUrl ?? originalListing?.url ?? externalPet?.sourceUrl ?? null;
+  const hasDealerInbox =
+    listing.id.startsWith("dealerfeed-") &&
+    Boolean(listing.seller?.userId) &&
+    internalMessagesEnabled;
+  const isPartnerVehicle =
+    !approvedDealer &&
+    !hasDealerInbox &&
+    Boolean(listing.externalVehicle || originalListing || externalPet);
+  const canContactHere =
+    !isPreviewListing && !isOwnListing && !isExternalApply && !isPartnerVehicle;
+
+  const openMessage = useCallback(() => {
+    if (!canContactHere || !internalMessagesEnabled) return;
+    if (!isSignedIn) {
+      setSignInOpen(true);
+      return;
+    }
+    onContactOpened();
+    setContactOpen(true);
+    window.setTimeout(() => {
+      panelRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      document.getElementById("seller-message")?.focus({ preventScroll: true });
+    }, 50);
+  }, [canContactHere, internalMessagesEnabled, isSignedIn, onContactOpened]);
+  const openContact = useCallback(() => {
+    if (!canContactHere) return;
+    if (approvedDealer) setDealerContactOpen(true);
+    else openMessage();
+  }, [canContactHere, approvedDealer, openMessage]);
+  useEffect(() => {
+    window.addEventListener(OPEN_CONTACT_EVENT, openContact);
+    window.addEventListener(OPEN_LISTING_MESSAGE_EVENT, openMessage);
+    return () => {
+      window.removeEventListener(OPEN_CONTACT_EVENT, openContact);
+      window.removeEventListener(OPEN_LISTING_MESSAGE_EVENT, openMessage);
+    };
+  }, [openContact, openMessage]);
+
+  // Back from Google or the full sign-up page: open the form they asked for.
+  useEffect(() => {
+    if (isSignedIn && consumeContactIntent(listing.id)) {
+      if (approvedDealer && internalMessagesEnabled) setContactOpen(true);
+      else openContact();
+    }
+  }, [isSignedIn, listing.id, openContact, approvedDealer, internalMessagesEnabled]);
+
+  const inquiryMutation = useMutation({
+    mutationFn: () => start({ listingId: listing.id, body: message }),
+    onSuccess: (result) => {
+      trackSellerContact("message", listing);
+      trackCompletedInquiry("message", result.conversationId, listing);
+      toast.success("Message sent to the seller.");
+      setMessage(DEFAULT_MESSAGE);
+      setContactOpen(false);
+    },
+    onError: (error) =>
+      toast.error(error instanceof Error ? error.message : "We could not send your message."),
+  });
+
+  return (
+    <div ref={panelRef} className="floating-card overflow-hidden border-foreground/20">
+      {approvedDealer ? (
+        <DealerContactOptions
+          open={dealerContactOpen}
+          onOpenChange={setDealerContactOpen}
+          name={listing.dealer!.displayName}
+          phone={listing.seller?.contactPhone ?? listing.externalVehicle?.dealer?.phone}
+          email={listing.seller?.contactEmail}
+          textPhone={listing.seller?.contactTextPhone}
+          website={listing.dealer?.website}
+          messagingEnabled={internalMessagesEnabled && Boolean(listing.seller?.userId)}
+          onMessage={openMessage}
+        />
+      ) : null}
+      {showPriceHeader && (
+        <div
+          className={
+            approvedDealer
+              ? "border-b border-border px-5 py-5"
+              : "bg-primary px-5 py-4 text-primary-foreground"
+          }
+        >
+          <p
+            className={`text-[11px] font-semibold uppercase tracking-[0.12em] ${approvedDealer ? "text-muted-foreground" : "text-primary-foreground/75"}`}
+          >
+            Seller price
+          </p>
+          {approvedDealer ? (
+            <div className="mt-3">
+              <VehiclePrice listing={listing} />
+            </div>
+          ) : (
+            <p className="numeric mt-1 text-[32px] font-bold leading-none">
+              {dealerContactPriceLabel(listing) ??
+                adoptionPriceLabel(listing) ??
+                formatClassifiedPrice(listing.priceCents, {
+                  wholeDollars: Boolean(listing.vehicle || listing.home),
+                  monthly: listing.home?.mode === "rent",
+                })}
+            </p>
+          )}
+        </div>
+      )}
+
+      <div className="space-y-4 px-5 py-5">
+        {showPaymentCalculator && listing.priceCents > 0 && (
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                Estimated payment
+              </p>
+              <p className="numeric mt-1 text-[18px] font-semibold" aria-live="polite">
+                {monthlyPayment === null ? "—" : formatUsd(monthlyPayment)}
+                <span className="ml-1 text-[12px] font-medium text-muted-foreground">/mo</span>
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setCalculatorOpen((open) => !open)}
+              className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-primary hover:underline"
+            >
+              <Calculator size={14} /> {calculatorOpen ? "Hide calculator" : "Edit estimate"}
+            </button>
+          </div>
+        )}
+
+        {showPaymentCalculator && listing.priceCents > 0 && calculatorOpen && (
+          <div className="space-y-3 rounded-2xl border border-border/70 bg-secondary/45 p-3.5">
+            <div className="grid grid-cols-2 gap-3">
+              <label className="text-[11px] font-medium">
+                Term
+                <select
+                  value={loanTerm}
+                  onChange={(event) => setLoanTerm(event.target.value)}
+                  className="mt-1 h-9 w-full rounded-xl border border-input bg-background px-2 text-[12px]"
+                >
+                  {isMortgage ? (
+                    <>
+                      <option value="180">15-year fixed</option>
+                      <option value="240">20-year fixed</option>
+                      <option value="360">30-year fixed</option>
+                    </>
+                  ) : (
+                    <>
+                      <option value="36">36 months</option>
+                      <option value="48">48 months</option>
+                      <option value="60">60 months</option>
+                      <option value="72">72 months</option>
+                    </>
+                  )}
+                </select>
+              </label>
+              <label className="text-[11px] font-medium">
+                Down payment
+                <input
+                  inputMode="decimal"
+                  value={downPayment}
+                  onChange={(event) => setDownPayment(event.target.value.replace(/[^0-9.]/g, ""))}
+                  className="mt-1 h-9 w-full rounded-xl border border-input bg-background px-2 text-[12px]"
+                  placeholder="$0"
+                />
+              </label>
+              <label className="col-span-2 text-[11px] font-medium">
+                APR (%)
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  max="100"
+                  step="0.01"
+                  value={aprPercent}
+                  onChange={(event) => setAprPercent(event.target.value)}
+                  aria-invalid={Boolean(aprError)}
+                  className="mt-1 h-9 w-full rounded-xl border border-input bg-background px-2 text-[12px]"
+                />
+                {aprError ? <span className="mt-1 block text-destructive">{aprError}</span> : null}
+              </label>
+            </div>
+            <p className="flex items-start gap-1.5 text-[10.5px] leading-relaxed text-muted-foreground">
+              <Info size={13} className="mt-0.5 shrink-0 text-primary" />
+              <span>
+                {aprError
+                  ? "Estimate requires a valid APR and does not include "
+                  : `Estimate uses ${enteredApr}% APR and does not include `}
+                {isMortgage
+                  ? "property taxes, homeowners insurance, HOA fees, or lender approval."
+                  : "taxes, title, registration, fees, or lender approval."}
+              </span>
+            </p>
+          </div>
+        )}
+
+        {!approvedDealer ? (
+          <p className="flex items-start gap-2 text-[12px] leading-relaxed text-muted-foreground">
+            <Info size={15} className="mt-0.5 shrink-0 text-primary" />
+            {isExternalApply
+              ? "This employer accepts applications on their own site or by email."
+              : externalPet
+                ? `Adopt ${listing.pet?.name ?? "this pet"} through ${externalPet.orgName ?? "the rescue"}.`
+                : isPartnerVehicle
+                  ? "Reach the seller through the original listing to confirm availability, condition and the final price."
+                  : isJobApply
+                    ? "Apply to let the employer know you're interested. They will reach out about next steps."
+                    : "Contact the seller to confirm availability, condition, pickup, shipping, and the final amount."}
+          </p>
+        ) : null}
+
+        {isPreviewListing ? (
+          <div className="rounded-2xl border border-primary/20 bg-primary/5 px-3 py-3 text-[12px] leading-relaxed text-muted-foreground">
+            This is a preview listing. Contact and application actions become available on a
+            published seller listing.
+          </div>
+        ) : approvedDealer ? (
+          <button
+            type="button"
+            onClick={() => setDealerContactOpen(true)}
+            className="flex h-12 w-full items-center justify-center rounded-full bg-nav-accent text-[14.5px] font-semibold text-primary"
+          >
+            Contact dealership
+          </button>
+        ) : isPartnerVehicle ? (
+          partnerVehicleUrl ? (
+            <a
+              href={partnerVehicleUrl}
+              target="_blank"
+              rel="noopener noreferrer nofollow"
+              onClick={() => trackSellerContact("apply_external", listing)}
+              className="flex h-12 w-full items-center justify-center rounded-full bg-nav-accent text-[14.5px] font-semibold text-primary transition-opacity hover:opacity-90"
+            >
+              {externalPet ? "Adopt" : originalListing ? "Message seller" : "Contact seller"}
+            </a>
+          ) : null
+        ) : isExternalApply && !isOwnListing ? (
+          <a
+            href={externalApplyHref(listing.job?.applicationExternalContact ?? "")}
+            target="_blank"
+            rel={listing.externalJob ? "noopener noreferrer nofollow sponsored" : "noreferrer"}
+            onClick={() => trackSellerContact("apply_external", listing)}
+            className="flex h-12 w-full items-center justify-center rounded-full bg-nav-accent text-[14.5px] font-semibold text-primary transition-opacity hover:opacity-90"
+          >
+            Apply now
+          </a>
+        ) : (
+          <div>
+            {isOwnListing ? (
+              <div className="rounded-2xl border border-border bg-secondary/45 px-3 py-3 text-[12px] leading-relaxed text-muted-foreground">
+                This is your listing. Open Seller Center to manage it or view buyer conversations.
+              </div>
+            ) : isSignedIn && internalMessagesEnabled ? (
+              <button
+                type="button"
+                onClick={() => setContactOpen((open) => !open)}
+                className="h-12 w-full rounded-full bg-nav-accent text-[14.5px] font-semibold text-primary transition-opacity hover:opacity-90"
+              >
+                {contactOpen
+                  ? "Close"
+                  : isJobApply
+                    ? "Apply now"
+                    : hasDealerInbox
+                      ? "Message dealership"
+                      : "Contact seller"}
+              </button>
+            ) : isSignedIn ? (
+              <div className="rounded-2xl border border-border bg-secondary/45 px-3 py-3 text-[12px] leading-relaxed text-muted-foreground">
+                This seller has disabled Gem State messages. Use an enabled contact option on the
+                listing, or choose another seller.
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setSignInOpen(true)}
+                className="flex h-12 w-full items-center justify-center rounded-full bg-nav-accent text-[14.5px] font-semibold text-primary"
+              >
+                {isJobApply ? "Sign in to apply" : "Sign in to contact seller"}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {contactOpen && !isPreviewListing && isSignedIn && isGemlistApply && !isOwnListing ? (
+        <div className="mt-4 border-t border-border px-4 py-4">
+          <JobApplicationForm listingId={listing.id} />
+        </div>
+      ) : null}
+
+      {contactOpen && !isPreviewListing && isSignedIn && !isJobApply && !isOwnListing ? (
+        <form
+          className="mt-4 space-y-3 border-t border-border px-4 py-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (messageError) {
+              toast.error(messageError);
+              return;
+            }
+            inquiryMutation.mutate();
+          }}
+        >
+          <label htmlFor="seller-message" className="block text-[12px] font-medium">
+            Message {listing.seller?.displayName ?? "the seller"}
+          </label>
+          <textarea
+            id="seller-message"
+            name="seller-message"
+            value={message}
+            onChange={(event) => setMessage(event.target.value)}
+            minLength={10}
+            maxLength={2000}
+            rows={5}
+            required
+            aria-invalid={Boolean(messageError)}
+            aria-describedby="seller-message-help seller-message-error"
+            className="w-full resize-y rounded-2xl border border-input bg-background px-3 py-2.5 text-[13px] leading-relaxed outline-none ring-offset-background focus-visible:ring-2 focus-visible:ring-ring"
+            placeholder="Ask about availability, condition, pickup, or shipping…"
+          />
+          <div
+            id="seller-message-help"
+            className="flex justify-between text-[11px] text-muted-foreground"
+          >
+            <span>Minimum 10 characters.</span>
+            <span>{message.length}/2000</span>
+          </div>
+          {messageError && (
+            <p id="seller-message-error" role="alert" className="text-[11px] text-destructive">
+              {messageError}
+            </p>
+          )}
+          <p className="text-[11px] leading-relaxed text-muted-foreground">
+            Your message will appear in Bluebird Messages, including in the dealership inbox when
+            its owner signs in. The seller will only see contact details you have explicitly enabled
+            in your profile preferences.
+          </p>
+          <button
+            type="submit"
+            disabled={inquiryMutation.isPending || Boolean(messageError)}
+            className="inline-flex h-10 items-center rounded-full bg-primary px-4 text-[12.5px] font-semibold text-primary-foreground disabled:opacity-60"
+          >
+            {inquiryMutation.isPending ? "Sending…" : "Send message"}
+          </button>
+        </form>
+      ) : null}
+
+      <ContactSignInSheet
+        open={signInOpen}
+        onOpenChange={setSignInOpen}
+        listingId={listing.id}
+        isJob={isJobApply}
+        onSignedIn={() => {
+          setSignInOpen(false);
+          onContactOpened();
+          setContactOpen(true);
+          window.setTimeout(() => {
+            panelRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+          }, 300);
+        }}
+      />
+
+      <p className="border-t border-border px-5 py-3 text-[11px] leading-relaxed text-muted-foreground">
+        {isJobApply
+          ? "Real employers never charge you to apply. Be wary of any job that asks for money, gift cards, or bank details up front."
+          : "Bluebird does not process payment for this listing. Confirm the item, price, and meeting or shipping details with the seller before exchanging money."}
+      </p>
+    </div>
+  );
+}
+
+export type ListingActionRuntime = {
+  isSignedIn: boolean;
+  userId?: string;
+  onSend: (data: { listingId: string; body: string }) => Promise<{ conversationId: string }>;
+  onContact: typeof trackSellerContact;
+  onCompletedInquiry: typeof trackCompletedInquiry;
+  onContactOpened: () => void;
+  ContactSignInSheet: ComponentType<ComponentProps<typeof WebsiteContactSheet>>;
+  JobApplicationForm: ComponentType<{ listingId: string }>;
+};

@@ -6,7 +6,7 @@ import ts from "typescript";
 import * as jsx from "react/jsx-runtime";
 import { renderToStaticMarkup } from "react-dom/server";
 
-const file = new URL("../src/routes/listings.$listingId.tsx", import.meta.url);
+const file = new URL("../src/components/listings/ListingDetailView.tsx", import.meta.url);
 const source = ts.createSourceFile(
   file.pathname,
   readFileSync(file, "utf8"),

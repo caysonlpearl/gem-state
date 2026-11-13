@@ -1,3 +1,6 @@
+import * as detailProjection from "../src/lib/mobile-listing-detail.ts";
+import * as detailReads from "../src/lib/mobile-listing-detail.server.ts";
+import * as applicationHandlers from "../src/lib/mobile-job-application.server.ts";
 import * as messageContext from "../src/lib/mobile-message-context.server.ts";
 import * as notificationHandlers from "../src/lib/mobile-notifications.server.ts";
 import * as savedSearchWrites from "../src/lib/mobile-saved-search.server.ts";
@@ -30,14 +33,20 @@ function harness({
   catalogError = false,
   nativeConversation = false,
   missingContext = false,
+  listingKind = "vehicle",
+  applications = false,
+  applicationReplay = false,
+  emailFailure = false,
 } = {}) {
   const user = "11111111-1111-4111-8111-111111111111",
     nativeListing = "22222222-2222-4222-8222-222222222222",
     writes = [],
-    catalogInputs = [];
+    catalogInputs = [],
+    reads = [];
   const db = {
     from(table) {
       const filters = [];
+      reads.push({ table, filters });
       const q = {
         select() {
           return q;
@@ -108,7 +117,13 @@ function harness({
     },
     rpc: async (name, args) => {
       writes.push({ name, args });
-      return { data: { id: user, ok: true }, error: null };
+      return {
+        data:
+          name === "mobile_commit_job_application"
+            ? { ok: true, applicationId: user, replayed: applicationReplay }
+            : { id: user, ok: true },
+        error: null,
+      };
     },
   };
   const modules = {
@@ -134,6 +149,9 @@ function harness({
     "./mobile-saved-search-contract": savedSearchContracts,
     "./mobile-saved-search.server": savedSearchWrites,
     "./mobile-notifications.server": notificationHandlers,
+    "./mobile-listing-detail": detailProjection,
+    "./mobile-listing-detail.server": detailReads,
+    "./mobile-job-application.server": applicationHandlers,
     "./mobile-message-context.server": messageContext,
     "./mobile-write": mobileWrite,
     "./mobile-account-contract": accountContracts,
@@ -141,6 +159,7 @@ function harness({
       mobileAttachmentsReady: async () => attachments,
       mobilePostingReady: async () => posting,
       mobileSavedSearchesReady: async () => savedSearches,
+      mobileApplicationsReady: async () => applications,
     },
     "./conversation.functions": {
       getMyConversations: async () => [{ id: user, listingId: nativeListing }],
@@ -241,6 +260,30 @@ function harness({
         return { vin: data.vin, fields: { make: "Ford", model: "F-150", year: "2024" } };
       },
     },
+    "./email-notifications.server": {
+      emailJobApplicationReceived: async (id) => {
+        if (emailFailure) throw Error("Email provider unavailable");
+        writes.push({ kind: "application_email", id });
+      },
+    },
+    "./service-claims.functions": {
+      claimServiceBusiness: async ({ data }) => {
+        writes.push({ kind: "service_claim", ...data });
+        return { status: "pending" };
+      },
+    },
+    "./employer-claims.functions": {
+      claimEmployer: async ({ data }) => {
+        writes.push({ kind: "employer_claim", ...data });
+        return { status: "pending" };
+      },
+    },
+    "./saved-jobs.functions": {
+      setPartnerJobSaved: async ({ data }) => {
+        writes.push({ kind: "partner_save", ...data });
+        return { saved: data.saved };
+      },
+    },
     "./classifieds.functions": {
       createClassifiedListing: async ({ data }) => {
         writes.push({ kind: "listing", ...data });
@@ -252,9 +295,34 @@ function harness({
         writes.push("catalog_read");
         return { listings: [], page: 1, pageSize: 24, total: 0 };
       },
-      getClassifiedListing: async () => ({
-        id: "dealerfeed-test",
-        categorySlug: restricted ? "firearms" : "cars-trucks",
+      getClassifiedListing: async ({ data }) => ({
+        id: data.id,
+        categorySlug: restricted
+          ? "firearms"
+          : listingKind === "service"
+            ? "services"
+            : listingKind === "rescue"
+              ? "pets"
+              : ["job", "partnerJob"].includes(listingKind)
+                ? "jobs"
+                : "cars-trucks",
+        ...(listingKind === "service" ? { directory: { claimed: false } } : {}),
+        ...(["job", "partnerJob"].includes(listingKind)
+          ? { job: { employerName: "Trusted fixture employer", applicationMethod: "gemlist" } }
+          : {}),
+        ...(listingKind === "partnerJob" ? { externalJob: { source: "Adzuna" } } : {}),
+        ...(listingKind === "rescue"
+          ? {
+              externalPet: {
+                sourceUrl: "https://rescue.example.invalid/pet",
+                orgName: "Fixture rescue",
+                size: "Small",
+                orgPhone: "2085550100",
+                orgEmail: "private@example.invalid",
+                unknown: "PRIVATE",
+              },
+            }
+          : {}),
         title: "A listing",
         productId: "",
         priceCents: 100,
@@ -280,7 +348,7 @@ function harness({
         ...(body ? { body: JSON.stringify(body) } : {}),
       }),
     );
-  return { request, writes, user, catalogInputs };
+  return { request, writes, user, catalogInputs, reads };
 }
 test("mobile private routes reject absent or invalid identity before writing", async () => {
   const missing = harness();
@@ -745,4 +813,138 @@ test("notifications and read acknowledgements require identity, reject forged sc
   );
   assert.equal((await h.request("notifications/read", "PUT", { ids: null })).status, 200);
   assert.deepEqual(h.writes, []);
+});
+
+test("rich listing reads are additive, strip unknown data, keep stats read-only, and apply the same catalog boundary", async () => {
+  const h = harness(),
+    r = await h.request("listings/dealerfeed-test/detail");
+  assert.equal(r.status, 200);
+  const detail = (await r.json()).data;
+  assert.equal(detail.listing.id, "dealerfeed-test");
+  assert.equal(detail.listing.categorySlug, "cars-trucks");
+  assert.equal(detail.stats, null);
+  assert.equal(h.writes.length, 0);
+  const denied = harness({ restricted: true });
+  assert.equal((await denied.request("listings/dealerfeed-test/detail")).status, 404);
+  assert.equal((await denied.request("listings/avantlink-123/detail")).status, 404);
+  const bootstrap = (await (await h.request("bootstrap")).json()).data;
+  assert.equal(bootstrap.features.listingDetails, true);
+  assert.equal(bootstrap.features.durableApplications, false);
+});
+test("private application and claim routes authenticate first, and a missing application migration stops uploads and submissions", async () => {
+  const h = harness(),
+    id = "33333333-3333-4333-8333-333333333333";
+  for (const [path, method] of [
+    [`listings/${id}/application`, "GET"],
+    [`listings/${id}/application`, "POST"],
+    [`listings/${id}/application/resume`, "POST"],
+    ["listings/dealerfeed-test/claim", "GET"],
+    ["listings/dealerfeed-test/claim", "POST"],
+  ])
+    assert.equal(
+      (await h.request(path, method, method === "POST" ? {} : undefined, null)).status,
+      401,
+    );
+  assert.equal(
+    (
+      await h.request(`listings/${id}/application/resume`, "POST", {
+        contentType: "application/pdf",
+        size: 12,
+      })
+    ).status,
+    503,
+  );
+  assert.equal(
+    (
+      await h.request(`listings/${id}/application`, "POST", {
+        resumePath: "victim/path",
+        coverLetter: null,
+      })
+    ).status,
+    503,
+  );
+  assert.equal(h.writes.length, 0);
+});
+
+test("app claims derive the business and owner from eligible inventory, never from forged form fields", async () => {
+  for (const [listingKind, id, kind] of [
+    ["service", "fsq-aaaaaaaaaaaaaaaaaaaaaaaa", "service_claim"],
+    ["partnerJob", "adzuna-123", "employer_claim"],
+  ]) {
+    const h = harness({ listingKind });
+    assert.equal((await h.request(`listings/${id}/claim`)).status, 200);
+    assert(
+      h.reads.some(
+        (r) =>
+          ["service_directory_claims", "employer_claims"].includes(r.table) &&
+          r.filters.some(([key, value]) => key === "user_id" && value === h.user),
+      ),
+    );
+    assert.equal(
+      (
+        await h.request(`listings/${id}/claim`, "POST", {
+          role: "Owner",
+          contact: "owner@example.invalid",
+          note: "Fixture",
+        })
+      ).status,
+      200,
+    );
+    assert.equal(h.writes[0].kind, kind);
+    if (listingKind === "service") assert.equal(h.writes[0].directoryId, id);
+    else assert.equal(h.writes[0].employerName, "Trusted fixture employer");
+    assert.equal(
+      (
+        await h.request(`listings/${id}/claim`, "POST", {
+          role: "Owner",
+          contact: "owner@example.invalid",
+          note: "",
+          userId: "victim",
+          employerName: "Forged",
+        })
+      ).status,
+      400,
+    );
+    assert.equal(h.writes.length, 1);
+  }
+});
+test("an application acknowledgement survives email failure and a replay sends no second email", async () => {
+  const id = "33333333-3333-4333-8333-333333333333",
+    key = "44444444-4444-4444-8444-444444444444";
+  for (const options of [{ emailFailure: true }, { applicationReplay: true }]) {
+    const h = harness({ listingKind: "job", applications: true, ...options });
+    const r = await h.request(
+      `listings/${id}/application`,
+      "POST",
+      { resumePath: `${h.user}/${id}/${key}.pdf`, coverLetter: "Private fixture letter" },
+      "valid",
+      { "Idempotency-Key": key },
+    );
+    assert.equal(r.status, 200);
+    assert.equal((await r.json()).data.applicationId, h.user);
+    assert.equal(h.writes.filter((w) => w.name === "mobile_commit_job_application").length, 1);
+    assert.equal(h.writes.filter((w) => w.kind === "application_email").length, 0);
+  }
+});
+
+test("native directory and rescue saves use the existing partner domain and public pet cards omit contact fields", async () => {
+  for (const [listingKind, id] of [
+    ["service", "fsq-fixture"],
+    ["rescue", "rescuegroups-123"],
+  ]) {
+    const h = harness({ listingKind });
+    const saved = await h.request("saved", "POST", { listingId: id, saved: true });
+    assert.equal(saved.status, 200);
+    assert.deepEqual(h.writes, [{ kind: "partner_save", listingId: id, saved: true }]);
+    assert.equal((await saved.json()).data.saved, true);
+    assert(h.reads.some((r) => r.table === "saved_partner_jobs"));
+    if (listingKind === "rescue") {
+      const card = (await (await h.request(`listings/${id}`, "GET", undefined, null)).json()).data;
+      assert.equal(card.display.externalPet.orgName, "Fixture rescue");
+      assert.equal(card.display.externalPet.size, "Small");
+      assert.equal(card.display.externalPet.orgEmail, null);
+      assert.equal(card.display.externalPet.orgPhone, null);
+      assert(!JSON.stringify(card).includes("PRIVATE"));
+    }
+  }
 });

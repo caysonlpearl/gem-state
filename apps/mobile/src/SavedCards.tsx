@@ -78,10 +78,16 @@ export function SavedCardsProvider({
     setBusy(new Set(pending.current));
     const saved = !ids.has(card.id);
     try {
-      await api("saved", "POST", { listingId: card.id, saved }, undefined, {
-        userId,
-        installId: installIdentifier(),
-      });
+      const outcome = await api<{ stats?: { views: number; favorites: number } | null }>(
+        "saved",
+        "POST",
+        { listingId: card.id, saved },
+        undefined,
+        {
+          userId,
+          installId: installIdentifier(),
+        },
+      );
       if (current.current !== userId) return;
       setState((previous) => {
         const next = new Set(previous.ids);
@@ -89,6 +95,16 @@ export function SavedCardsProvider({
         else next.delete(card.id);
         return { owner: userId, ids: next, ready: true };
       });
+      if (
+        outcome?.stats &&
+        Number.isFinite(outcome.stats.views) &&
+        Number.isFinite(outcome.stats.favorites)
+      )
+        document.dispatchEvent(
+          new CustomEvent("bluebird-listing-stats", {
+            detail: { listingId: card.id, stats: outcome.stats },
+          }),
+        );
       trackShopping(saved ? "save" : "unsave", card.id);
       if (saved) void trackAdvertising("listing_saved", card.categorySlug);
     } catch (error) {
@@ -109,7 +125,17 @@ export function SavedCardsProvider({
     </SavedCards.Provider>
   );
 }
-export function CardSaveButton({ card }: { card: MobileListing }) {
+export function CardSaveButton({
+  card,
+  className,
+  iconSize = 14,
+  onSignIn,
+}: {
+  card: MobileListing;
+  className?: string;
+  iconSize?: number;
+  onSignIn?: () => void;
+}) {
   const state = useContext(SavedCards);
   if (!state || !card.canSave) return null;
   const saved = state.ids.has(card.id),
@@ -129,12 +155,16 @@ export function CardSaveButton({ card }: { card: MobileListing }) {
       onClick={(event) => {
         event.preventDefault();
         event.stopPropagation();
-        void state.toggle(card);
+        if (!state.userId && onSignIn) onSignIn();
+        else void state.toggle(card);
       }}
-      className="relative inline-flex h-7 w-7 items-center justify-center rounded-full border border-border bg-card/95 p-0 text-muted-foreground shadow-sm backdrop-blur before:absolute before:-inset-2 before:content-[''] hover:border-primary hover:text-primary disabled:opacity-60"
+      className={
+        className ??
+        "relative inline-flex h-7 w-7 items-center justify-center rounded-full border border-border bg-card/95 p-0 text-muted-foreground shadow-sm backdrop-blur before:absolute before:-inset-2 before:content-[''] hover:border-primary hover:text-primary disabled:opacity-60"
+      }
     >
       <Heart
-        size={14}
+        size={iconSize}
         weight={saved ? "fill" : "regular"}
         className={saved ? "text-brand-warm" : undefined}
       />
