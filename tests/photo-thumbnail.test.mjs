@@ -1,10 +1,35 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { PhotonImage } from "@cf-wasm/photon";
 import { imageSize } from "image-size";
 import { loadPhotoModules } from "./photo-storage-fixture.mjs";
 
 const { makePhotoThumbnail, orientPreviewPixels } = loadPhotoModules()("./photo-thumbnail.server");
+
+test("malformed image containers cannot stall the actual thumbnail pipeline", () => {
+  const fixture = new URL("./photo-storage-fixture.mjs", import.meta.url).href;
+  const child = spawnSync(
+    process.execPath,
+    [
+      "--max-old-space-size=128",
+      "--input-type=module",
+      "-e",
+      `import assert from 'node:assert/strict';
+       import {loadPhotoModules} from ${JSON.stringify(fixture)};
+       const {makePhotoThumbnail}=loadPhotoModules()('./photo-thumbnail.server');
+       for(const hex of [
+         '69636e73000000106963703400000000',
+         '0000000c4a584c200d0a870a00000014667479706a786c20000000006a786c20000000006a786c63'
+       ]) await assert.rejects(()=>makePhotoThumbnail(Buffer.from(hex,'hex'),'image/png'));
+       console.log('rejected');`,
+    ],
+    { encoding: "utf8", timeout: 10000, killSignal: "SIGKILL" },
+  );
+  assert.ifError(child.error);
+  assert.equal(child.status, 0, child.stderr);
+  assert.equal(child.stdout.trim(), "rejected");
+});
 
 test("all eight EXIF orientations preserve exact pixel positions", () => {
   const rgba = Uint8Array.from([1, 2, 3, 4, 5, 6].flatMap((red) => [red, 0, 0, 255]));

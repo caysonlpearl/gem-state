@@ -28,6 +28,8 @@ jobs:
       - run: npm run test:seo:ssr
       - name: Install mobile app dependencies
         run: npm ci --prefix apps/mobile
+      - name: Audit declared mobile dependencies for high and critical advisories
+        run: npm --prefix apps/mobile audit --audit-level=high
       - name: Compile bundled mobile app
         run: npm run build:mobile
       - name: Install mobile browser test runtime

@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdir, writeFile, rm } from "node:fs/promises";
-import { resolve } from "node:path";
+import { mkdir, writeFile, rm, mkdtemp } from "node:fs/promises";
+import { resolve, join } from "node:path";
+import { tmpdir } from "node:os";
 import { setTimeout as pause } from "node:timers/promises";
 import {
   storefrontFixture,
@@ -62,6 +63,23 @@ try {
     if (server.exitCode !== null || Date.now() > deadline)
       throw Error("Storefront preview did not start");
     await pause(150);
+  }
+  const sharedFont = await fetch(
+    origin +
+      "/@fs" +
+      resolve("node_modules/@fontsource-variable/sora/files/sora-latin-wght-normal.woff2"),
+  );
+  assert.equal(sharedFont.status, 200, "The app preview must serve the actual website font");
+  assert((await sharedFont.arrayBuffer()).byteLength > 1000);
+  const outside = await mkdtemp(join(tmpdir(), "bluebird-fs-boundary-"));
+  try {
+    const probe = join(outside, "unrelated-file.txt");
+    await writeFile(probe, "synthetic fixture outside the app's shared asset directories");
+    const denied = await fetch(origin + "/@fs" + probe);
+    assert.equal(denied.status, 403, "Unrelated local files must remain unavailable");
+    await denied.body?.cancel();
+  } finally {
+    await rm(outside, { recursive: true, force: true });
   }
   browser = await chromium.launch(
     process.env.BLUEBIRD_BROWSER_CHANNEL ? { channel: process.env.BLUEBIRD_BROWSER_CHANNEL } : {},
@@ -360,6 +378,17 @@ try {
       );
     await openSeller();
     await page.getByRole("heading", { name: "Leave a review", exact: true }).waitFor();
+    const loadedFonts = await page.evaluate(async () => {
+      await document.fonts.ready;
+      return [...document.fonts]
+        .filter((font) => font.status === "loaded")
+        .map((font) => font.family);
+    });
+    for (const family of ["Manrope Variable", "Sora Variable"])
+      assert(
+        loadedFonts.some((font) => font.includes(family)),
+        `Actual ${family} must load`,
+      );
     assert.equal(await page.locator("main main").count(), 0);
     await noOverflow();
     await page.screenshot({ path: resolve(output, `seller-${viewport.width}.png`) });
@@ -569,6 +598,7 @@ try {
     results.push({
       viewport: viewport.width,
       sellerProfile: true,
+      sharedWebsiteFontsLoaded: true,
       dealerProfile: true,
       sharedInventoryCards: true,
       listingBackReturnsToSeller: true,

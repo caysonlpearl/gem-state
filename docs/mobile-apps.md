@@ -110,7 +110,19 @@ Validation: isolated SQL and HTTP tests cover replay after later deletion, owner
 
 Android 36 emulator verification also loaded the production catalog (12 Ford vehicles under 25,000 miles), showed the operating system’s approximate-only permission prompt, preserved manual map/city entry after denial, closed the filter drawer with hardware Back without changing the search, and returned from a real listing to that exact filtered search with hardware Back. This is emulator evidence only; iPhone compilation and physical-device proof remain pending.
 
-Dependency audit: the native dependency tree currently reports six high-severity advisories in existing Vite dev-server tooling and the unused Firestore/grpc dependency chain pulled by Firebase. Geolocation is not their source. Do not apply the audit's forced Firebase/analytics downgrade. Resolve with compatible, verified upgrades in a separate measured dependency batch before beta; this change does not claim a clean audit.
+Dependency hardening, November 13: the declared native package tree went from six high-severity findings to zero reported findings after Vite 8.1.6 and a pinned `@grpc/grpc-js` 1.13.6 override. Firebase 12.19.0, its analytics adapter 8.6.0, Capacitor 8.6.2 and app permissions remain unchanged. CI now audits that native manifest tree for high/critical findings. This scoped audit does not cover every shared import or establish store readiness.
+
+The shared website build also uses Vite 8.1.6. `image-size` 2.1.0 patches malformed-container parser loops in the real thumbnail pipeline; compatible lockfile updates patch brace-expansion and launch-editor. Root findings fell from five high/13 moderate/five low to one high/13 moderate/five low. Shared Zod 3.25.76 remains the high finding and is imported by native posting contracts as well as the backend. Its migration, and review of the remaining findings, remain pre-beta work. Do not use a forced downgrade or import the vulnerable `zod/v3` compatibility entry merely to clear an audit.
+
+Malformed ICNS/JXL payloads now exercise the actual thumbnail handler in a memory/time-bounded child process. Existing real JPEG/PNG/WebP, orientation, upload and storage tests remain the ordinary-image coverage. A nonsecret `X-Bluebird-API-Release` response header identifies this compatible server release (`2026-11-13-sdk`) for deployment verification and support; it is distinct from API contract version 1 and conveys no security-approval claim.
+
+The native development server explicitly allows the app directory and the shared
+`src`, `public` and root `node_modules` directories. The website font request
+previously returned 403; it now serves the real assets without allowing unrelated
+filesystem paths. Storefront browser tests require loaded Manrope/Sora faces and
+verify that an unrelated, synthetic temporary file stays inaccessible. Production
+assets remain bundled; this changes preview fidelity rather than loading fonts
+from a new outside provider.
 
 ## Shared conversation screens and attachment readiness
 
