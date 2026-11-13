@@ -323,11 +323,25 @@ try {
     await waitSelected(b);
     await reply.waitFor();
     await reply.fill("Keep this other conversation draft");
+    await reply.evaluate((input) => {
+      window.fixtureReply = input;
+      input.focus();
+    });
+    const refreshedOther = page.waitForResponse((response) =>
+      response.url().endsWith(`/conversations/${b}`),
+    );
     release();
+    await refreshedOther;
     await page.getByRole("button", { name: "Send", exact: true }).waitFor();
     await page.waitForTimeout(200);
     await reply.waitFor();
     assert.equal(await reply.inputValue(), "Keep this other conversation draft");
+    assert.equal(
+      await page.evaluate(
+        () => window.fixtureReply === document.activeElement && window.fixtureReply.isConnected,
+      ),
+      true,
+    );
     await page.getByRole("button", { name: /Fixture bicycle/ }).click();
     await waitSelected(a);
     await reply.waitFor();
@@ -435,6 +449,7 @@ try {
       filters: true,
       textRetrySurvivesReload: true,
       lateResponsePreservesOtherDraft: true,
+      lateResponsePreservesKeyboardFocus: true,
       attachmentRetryExactlyOnce: true,
       removedAndSentFileSelectionClears: true,
       reportFailurePreservesReason: true,

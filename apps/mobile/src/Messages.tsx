@@ -110,7 +110,7 @@ export function NativeMessages({
   const selectedRef = useRef(selectedId);
   selectedRef.current = selectedId;
   useEffect(() => {
-    setDetail(null);
+    setDetail((previous) => (previous?.id === selectedId ? previous : null));
     setReportOpen(false);
     setBlockOpen(false);
     setReportReason("");
