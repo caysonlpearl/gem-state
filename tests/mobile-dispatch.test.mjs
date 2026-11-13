@@ -1,3 +1,4 @@
+import * as accountContracts from "../src/lib/mobile-account-contract.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -19,6 +20,7 @@ function harness({
   generalConversation = false,
   blocked = false,
   posting = false,
+  terms = true,
 } = {}) {
   const user = "11111111-1111-4111-8111-111111111111",
     writes = [];
@@ -40,7 +42,10 @@ function harness({
                 ? { status: "requested" }
                 : null
               : table === "shopping_accounts"
-                ? { terms_version: contract.MOBILE_POLICY_VERSION, shopping_alerts: false }
+                ? {
+                    terms_version: terms ? contract.MOBILE_POLICY_VERSION : null,
+                    shopping_alerts: false,
+                  }
                 : null,
         }),
         delete() {
@@ -77,6 +82,7 @@ function harness({
     "./runtime-env.server": { serverEnv: () => undefined },
     "./mobile-api": protocol,
     "./mobile-write": mobileWrite,
+    "./mobile-account-contract": accountContracts,
     "./mobile-messaging.server": {
       mobileAttachmentsReady: async () => attachments,
       mobilePostingReady: async () => posting,
@@ -127,6 +133,43 @@ function harness({
           },
         },
       }),
+    },
+    "./account.functions": {
+      getMyAccount: async () => ({ userId: user, onboardedAt: null }),
+      saveMyProfile: async ({ data }) => {
+        writes.push({ kind: "profile", ...data });
+        return { ok: true };
+      },
+      updateMyAvatar: async ({ data }) => {
+        writes.push({ kind: "avatar", ...data });
+        return { ok: true };
+      },
+    },
+    "./account-center.functions": {
+      getMyContactPreferences: async () => ({
+        allowEmail: true,
+        allowPhone: false,
+        allowText: false,
+        showContactButtons: true,
+        allowInternalMessages: true,
+      }),
+      getMyNotificationPreferences: async () => ({
+        messageAlerts: true,
+        listingActivity: true,
+        savedSearchMatches: true,
+        reviewRequests: true,
+        listingUpgradeReceipts: true,
+        productUpdates: false,
+        marketingEmail: false,
+      }),
+      updateMyContactPreferences: async ({ data }) => {
+        writes.push({ kind: "contact", ...data });
+        return { ok: true };
+      },
+      updateMyNotificationPreferences: async ({ data }) => {
+        writes.push({ kind: "preferences", ...data });
+        return { ok: true };
+      },
     },
     "./vehicle.functions": {
       decodeVehicleVin: async ({ data }) => {
@@ -389,4 +432,113 @@ test("native VIN and durable posting validate inputs, scope retry headers and fa
     401,
   );
   assert.deepEqual(noUser.writes, []);
+});
+
+test("account updates use full allowlisted settings, require terms, and cannot select another owner", async () => {
+  const h = harness();
+  assert.equal((await h.request("account/contact-preferences")).status, 200);
+  assert.equal((await h.request("account/notification-preferences")).status, 200);
+  assert.equal(
+    (
+      await h.request("account/profile", "PUT", {
+        displayName: "Fixture member",
+        homeResortCode: "ID",
+        primaryIntent: "buying",
+      })
+    ).status,
+    200,
+  );
+  assert.deepEqual(h.writes[0], {
+    kind: "profile",
+    displayName: "Fixture member",
+    homeResortCode: "ID",
+    primaryIntent: "buying",
+    markOnboarded: true,
+  });
+  assert.equal(
+    (
+      await h.request("account/profile", "PUT", {
+        displayName: "Fixture",
+        homeResortCode: "ID",
+        primaryIntent: "buying",
+        userId: "forged",
+      })
+    ).status,
+    400,
+  );
+  assert.equal(
+    (await h.request("account/contact-preferences", "PUT", { allowPhone: true })).status,
+    400,
+  );
+  const settings = {
+    allowEmail: false,
+    allowPhone: true,
+    allowText: false,
+    showContactButtons: true,
+    allowInternalMessages: false,
+  };
+  assert.equal((await h.request("account/contact-preferences", "PUT", settings)).status, 200);
+  assert.deepEqual(h.writes[1], { kind: "contact", ...settings });
+  const preferences = {
+    messageAlerts: false,
+    listingActivity: true,
+    savedSearchMatches: false,
+    reviewRequests: true,
+    listingUpgradeReceipts: true,
+    productUpdates: false,
+    marketingEmail: false,
+  };
+  assert.equal(
+    (await h.request("account/notification-preferences", "PUT", preferences)).status,
+    200,
+  );
+  assert.deepEqual(h.writes[2], { kind: "preferences", ...preferences });
+  assert.equal(
+    (
+      await h.request("account/notification-preferences", "PUT", {
+        ...preferences,
+        advertising: true,
+      })
+    ).status,
+    400,
+  );
+  assert.equal((await h.request("account/avatar", "PUT", { path: null })).status, 200);
+  const noTerms = harness({ terms: false });
+  assert.equal(
+    (
+      await noTerms.request("account/profile", "PUT", {
+        displayName: "Fixture member",
+        homeResortCode: "ID",
+        primaryIntent: "buying",
+      })
+    ).status,
+    409,
+  );
+  assert.deepEqual(noTerms.writes, []);
+  const denied = harness({ deleted: true });
+  assert.equal(
+    (
+      await denied.request("account/profile", "PUT", {
+        displayName: "Fixture member",
+        homeResortCode: "ID",
+        primaryIntent: "buying",
+      })
+    ).status,
+    409,
+  );
+  assert.deepEqual(denied.writes, []);
+  const missing = harness();
+  assert.equal(
+    (await missing.request("account/contact-preferences", "PUT", settings, null)).status,
+    401,
+  );
+  assert.deepEqual(missing.writes, []);
+});
+test("all-device push revocation deletes only the bearer owner's registrations, including while deletion is pending", async () => {
+  const h = harness({ deleted: true });
+  assert.equal((await h.request("devices/all", "DELETE", { userId: "forged" })).status, 200);
+  assert.deepEqual(h.writes, [{ table: "mobile_push_devices", filters: [["user_id", h.user]] }]);
+  const denied = harness();
+  assert.equal((await denied.request("devices/all", "DELETE", undefined, null)).status, 401);
+  assert.deepEqual(denied.writes, []);
 });

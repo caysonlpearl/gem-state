@@ -40,15 +40,17 @@ export function Post({
   bootstrap,
   ownerId,
   onSubmitted,
+  initialSetup = false,
 }: {
   bootstrap: Bootstrap;
   ownerId: string;
   onSubmitted: (id: string) => void;
+  initialSetup?: boolean;
 }) {
   const actor = useMemo(() => ({ userId: ownerId, installId: installIdentifier() }), [ownerId]);
   const [seller, setSeller] = useState<SellerSetup | null>(null),
     [error, setError] = useState(""),
-    [showSetup, setShowSetup] = useState(false);
+    [showSetup, setShowSetup] = useState(initialSetup);
   const [submitted, setSubmitted] = useState(false),
     [version, setVersion] = useState(0);
   useEffect(() => {

@@ -1,3 +1,10 @@
+import { websiteAccountSignOut } from "@/lib/account-session";
+import { intentLabels } from "@/config/account";
+import { AccountLayoutView } from "./AccountLayoutView";
+import { AccountProfileView, type AccountLinkProps } from "./AccountProfileView";
+import { useAccountProfileDraft } from "./useAccountProfileDraft";
+import { AccountSettingsView } from "./AccountSettingsView";
+import { SectionTitle, MiniMetric } from "./AccountViewParts";
 import { MessagesSectionView } from "./MessagesSectionView";
 import {
   AccountSectionHeader as SectionHeader,
@@ -9,7 +16,7 @@ import {
 } from "@/components/community/ShoppingExperience";
 import { DealerInventoryPanel } from "./DealerInventoryPanel";
 import { ImportSyncPanel } from "@/components/seller/ImportSyncPanel";
-import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -18,25 +25,16 @@ import {
   ArrowRight,
   Bell,
   BookmarkSimple,
-  Camera,
-  CheckCircle,
   ChatCircle,
   Eye,
   ClipboardText,
   CreditCard,
-  Gear,
-  LockKey,
   MagnifyingGlass,
   MapPin,
-  PaperPlaneTilt,
   PencilSimple,
   Plus,
   ShieldCheck,
-  SignOut,
-  Star,
   Storefront,
-  Tag,
-  UserCircle,
 } from "@phosphor-icons/react";
 
 import { brand } from "@/config/brand";
@@ -51,8 +49,6 @@ import {
   getMyAccount,
   saveMyProfile,
   updateMyAvatar,
-  MEMBER_INTENTS,
-  type MemberIntent,
   type MyAccount,
 } from "@/lib/account.functions";
 import {
@@ -97,24 +93,7 @@ import {
 } from "@/lib/notifications.functions";
 import { getAdminAccess } from "@/lib/admin-access.functions";
 import { cancelListing, getMyListings, type MyListing } from "@/lib/market.functions";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+
 import { Button } from "@/components/ui/button";
 import {
   getSellerDashboardSummary,
@@ -138,31 +117,12 @@ type AccountCenterProps = {
   purchaseId?: string | undefined;
 };
 
-const intentLabels: Record<MemberIntent, string> = {
-  buying: "Buying items",
-  selling: "Selling items",
-  shopping_in_park: "Buying and selling locally",
-  browsing: "Browsing classifieds",
-};
-
 const roleLabels: Record<string, string> = {
   user: "Member",
   shopper: "Member",
   moderator: "Moderator",
   admin: "Administrator",
 };
-
-const navItems: { section: AccountSection; label: string; icon: typeof UserCircle }[] = [
-  { section: "overview", label: "Overview", icon: UserCircle },
-  { section: "profile", label: "Profile", icon: UserCircle },
-  { section: "settings", label: "Account & security", icon: Gear },
-  { section: "listings", label: "Listings", icon: Tag },
-  { section: "saved", label: "Saved listings", icon: BookmarkSimple },
-  { section: "searches", label: "Saved searches", icon: MagnifyingGlass },
-  { section: "messages", label: "Messages", icon: ChatCircle },
-  { section: "notifications", label: "Notifications", icon: Bell },
-  { section: "reviews", label: "Reviews & reputation", icon: Star },
-];
 
 export function AccountCenter({
   section,
@@ -172,6 +132,7 @@ export function AccountCenter({
 }: AccountCenterProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const signOutInFlight = useRef(false);
   const fetchAccount = useServerFn(getMyAccount);
   const fetchWatchlist = useServerFn(getMyWatchlist);
   const fetchNotifications = useServerFn(getMyNotifications);
@@ -302,11 +263,19 @@ export function AccountCenter({
     void navigate({ to: "/account", search: { section: next, ...extra } });
   }
 
-  async function signOut() {
-    await queryClient.cancelQueries();
-    queryClient.clear();
-    await supabase.auth.signOut();
-    await navigate({ to: "/", replace: true });
+  async function signOut(scope: "local" | "global" = "local") {
+    if (signOutInFlight.current) return;
+    signOutInFlight.current = true;
+    try {
+      await websiteAccountSignOut(supabase.auth, account.data?.userId, scope);
+      await queryClient.cancelQueries();
+      queryClient.clear();
+      await navigate({ to: "/", replace: true });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not sign out. Please retry.");
+    } finally {
+      signOutInFlight.current = false;
+    }
   }
 
   if (account.isError) {
@@ -322,28 +291,15 @@ export function AccountCenter({
   const adminVisible = adminAccess.data?.isAdmin === true;
 
   return (
-    <main id="main-content" className="mx-auto max-w-[1320px] px-4 py-8 sm:px-6 lg:px-8">
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-4 lg:hidden">
-        <div>
-          <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">
-            Member center
-          </p>
-          <h1 className="mt-1 text-[24px] font-bold tracking-tight">Your account</h1>
-        </div>
-        <select
-          aria-label="Account section"
-          value={section}
-          onChange={(event) => go(event.target.value as AccountSection)}
-          className="h-10 max-w-[170px] rounded-xl border border-input bg-card px-3 text-[12px] font-medium"
-        >
-          {navItems.map((item) => (
-            <option key={item.section} value={item.section}>
-              {item.label}
-            </option>
-          ))}
-          {sellerVisible && <option value="billing">Billing</option>}
-        </select>
-        {adminVisible && (
+    <AccountLayoutView
+      section={section}
+      onSelect={go}
+      onSignOut={() => void signOut()}
+      unreadMessages={unreadMessages}
+      unreadNotifications={unreadNotifications}
+      sellerVisible={sellerVisible}
+      phoneAdminLink={
+        adminVisible ? (
           <Link
             to="/admin"
             className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-primary px-3 text-[12px] font-semibold text-primary-foreground shadow-sm"
@@ -351,185 +307,93 @@ export function AccountCenter({
             <ShieldCheck size={16} weight="fill" aria-hidden="true" />
             Admin panel
           </Link>
-        )}
-      </div>
-
-      <div className="grid gap-8 lg:grid-cols-[236px_minmax(0,1fr)]">
-        <AccountSidebar
-          section={section}
-          onSelect={go}
-          onSignOut={signOut}
-          unreadMessages={unreadMessages}
-          unreadNotifications={unreadNotifications}
-          sellerVisible={sellerVisible}
-          adminVisible={adminVisible}
-        />
-        <div className="min-w-0">
-          {account.isLoading ? (
-            <AccountSectionSkeleton section={section} />
-          ) : !data ? (
-            <AccountError message="Could not load your account." />
-          ) : section === "overview" ? (
-            <div className="space-y-6">
-              <DealerInventoryPanel compact />
-              <OverviewSection
-                account={data}
-                watchlistCount={watchlist.data?.length ?? 0}
-                savedSearchCount={savedSearches.data?.length ?? 0}
-                unreadMessages={unreadMessages}
-                unreadNotifications={unreadNotifications}
-                listings={listings.data?.asks ?? []}
-                sellerSetup={sellerSetup.data}
-                sellerSummary={sellerSummary.data}
-                notifications={notifications.data?.items ?? []}
-                onSelect={go}
-              />
-            </div>
-          ) : section === "profile" ? (
-            <div className="space-y-6">
-              <DealerInventoryPanel compact />
-              <ProfileSection
-                account={data}
-                contactPreferences={contactPreferences.data}
-                sellerSetup={sellerSetup.data}
-                sellerSummary={sellerSummary.data}
-              />
-            </div>
-          ) : section === "settings" ? (
-            <SettingsSection
-              account={data}
-              contactPreferences={contactPreferences.data}
-              notificationPreferences={notificationPreferences.data}
-            />
-          ) : section === "saved" ? (
-            <>
-              <SavedListingsSection items={watchlist.data ?? []} />
-              <SavedPartnerJobsSection jobs={savedPartnerJobs.data ?? []} />
-              <SavedPartnerHomesSection homes={savedPartnerHomes.data ?? []} />
-              <SavedPartnerVehiclesSection vehicles={savedPartnerVehicles.data ?? []} />
-            </>
-          ) : section === "searches" ? (
-            <>
-              <PersonalizedShopping />
-              <SavedSearchesSection searches={savedSearches.data ?? []} />
-            </>
-          ) : section === "messages" ? (
-            <MessagesSection
-              conversations={conversations.data ?? []}
-              conversationId={conversationId}
-              onOpen={(id) => go("messages", { conversation: id })}
-            />
-          ) : section === "notifications" ? (
-            <NotificationsSection data={notifications.data} />
-          ) : section === "listings" ? (
-            <div className="space-y-6">
-              <DealerInventoryPanel />
-              <ListingsSection
-                listings={listings.data?.asks ?? []}
-                sellerSetup={sellerSetup.data}
-              />
-            </div>
-          ) : section === "reviews" ? (
-            <ReviewsSection summary={sellerSummary.data} sellerSetup={sellerSetup.data} />
-          ) : (
-            <BillingSection
-              sellerSetup={sellerSetup.data}
-              listings={listings.data?.asks ?? []}
-              options={upgradeOptions.data ?? []}
-              history={billingHistory.data ?? []}
-            />
-          )}
-        </div>
-      </div>
-    </main>
-  );
-}
-
-function AccountSidebar({
-  section,
-  onSelect,
-  onSignOut,
-  unreadMessages,
-  unreadNotifications,
-  sellerVisible,
-  adminVisible,
-}: {
-  section: AccountSection;
-  onSelect: (section: AccountSection) => void;
-  onSignOut: () => void;
-  unreadMessages: number;
-  unreadNotifications: number;
-  sellerVisible: boolean;
-  adminVisible: boolean;
-}) {
-  return (
-    <aside className="hidden lg:block">
-      <div className="sticky top-[108px] overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-        <div className="border-b border-border bg-secondary/45 px-5 py-5">
-          <p className="font-mono text-[9px] uppercase tracking-[0.18em] text-primary">Bluebird</p>
-          <h1 className="mt-1 text-[24px] font-bold tracking-tight">My account</h1>
-        </div>
-        <nav aria-label="Account sections" className="p-2">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const active = item.section === section;
-            const badge =
-              item.section === "messages"
-                ? unreadMessages
-                : item.section === "notifications"
-                  ? unreadNotifications
-                  : 0;
-            return (
-              <button
-                key={item.section}
-                type="button"
-                onClick={() => onSelect(item.section)}
-                className={`flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-[12.5px] font-medium transition-colors ${active ? "bg-primary text-primary-foreground shadow-sm" : "text-foreground hover:bg-secondary"}`}
-              >
-                <Icon size={18} weight={active ? "fill" : "regular"} aria-hidden="true" />
-                <span className="min-w-0 flex-1">{item.label}</span>
-                {badge > 0 && (
-                  <span
-                    className={`rounded-full px-1.5 text-[10px] leading-5 ${active ? "bg-primary-foreground/15" : "bg-accent text-accent-foreground"}`}
-                  >
-                    {badge > 9 ? "9+" : badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-          {sellerVisible && (
-            <button
-              type="button"
-              onClick={() => onSelect("billing")}
-              className={`flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-[12.5px] font-medium transition-colors ${section === "billing" ? "bg-primary text-primary-foreground shadow-sm" : "text-foreground hover:bg-secondary"}`}
-            >
-              <CreditCard size={18} aria-hidden="true" />
-              <span className="flex-1">Billing</span>
-            </button>
-          )}
-          {adminVisible && (
-            <Link
-              to="/admin"
-              className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-[12.5px] font-medium text-foreground transition-colors hover:bg-secondary"
-            >
-              <ShieldCheck size={18} weight="fill" aria-hidden="true" />
-              <span className="flex-1">Admin panel</span>
-            </Link>
-          )}
-        </nav>
-        <div className="border-t border-border p-2">
-          <button
-            type="button"
-            onClick={onSignOut}
-            className="flex min-h-10 w-full items-center gap-3 rounded-xl px-3 text-left text-[12.5px] text-muted-foreground hover:bg-secondary hover:text-foreground"
+        ) : undefined
+      }
+      adminLink={
+        adminVisible ? (
+          <Link
+            to="/admin"
+            className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 text-left text-[12.5px] font-medium text-foreground transition-colors hover:bg-secondary"
           >
-            <SignOut size={18} />
-            Sign out
-          </button>
+            <ShieldCheck size={18} weight="fill" aria-hidden="true" />
+            <span className="flex-1">Admin panel</span>
+          </Link>
+        ) : undefined
+      }
+    >
+      {account.isLoading ? (
+        <AccountSectionSkeleton section={section} />
+      ) : !data ? (
+        <AccountError message="Could not load your account." />
+      ) : section === "overview" ? (
+        <div className="space-y-6">
+          <DealerInventoryPanel compact />
+          <OverviewSection
+            account={data}
+            watchlistCount={watchlist.data?.length ?? 0}
+            savedSearchCount={savedSearches.data?.length ?? 0}
+            unreadMessages={unreadMessages}
+            unreadNotifications={unreadNotifications}
+            listings={listings.data?.asks ?? []}
+            sellerSetup={sellerSetup.data}
+            sellerSummary={sellerSummary.data}
+            notifications={notifications.data?.items ?? []}
+            onSelect={go}
+          />
         </div>
-      </div>
-    </aside>
+      ) : section === "profile" ? (
+        <div className="space-y-6">
+          <DealerInventoryPanel compact />
+          <ProfileSection
+            account={data}
+            contactPreferences={contactPreferences.data}
+            sellerSetup={sellerSetup.data}
+            sellerSummary={sellerSummary.data}
+          />
+        </div>
+      ) : section === "settings" ? (
+        <SettingsSection
+          account={data}
+          contactPreferences={contactPreferences.data}
+          notificationPreferences={notificationPreferences.data}
+          onSignOutAll={() => signOut("global")}
+        />
+      ) : section === "saved" ? (
+        <>
+          <SavedListingsSection items={watchlist.data ?? []} />
+          <SavedPartnerJobsSection jobs={savedPartnerJobs.data ?? []} />
+          <SavedPartnerHomesSection homes={savedPartnerHomes.data ?? []} />
+          <SavedPartnerVehiclesSection vehicles={savedPartnerVehicles.data ?? []} />
+        </>
+      ) : section === "searches" ? (
+        <>
+          <PersonalizedShopping />
+          <SavedSearchesSection searches={savedSearches.data ?? []} />
+        </>
+      ) : section === "messages" ? (
+        <MessagesSection
+          conversations={conversations.data ?? []}
+          conversationId={conversationId}
+          onOpen={(id) => go("messages", { conversation: id })}
+        />
+      ) : section === "notifications" ? (
+        <NotificationsSection data={notifications.data} />
+      ) : section === "listings" ? (
+        <div className="space-y-6">
+          <DealerInventoryPanel />
+          <ListingsSection listings={listings.data?.asks ?? []} sellerSetup={sellerSetup.data} />
+        </div>
+      ) : section === "reviews" ? (
+        <ReviewsSection summary={sellerSummary.data} sellerSetup={sellerSetup.data} />
+      ) : (
+        <BillingSection
+          sellerSetup={sellerSetup.data}
+          listings={listings.data?.asks ?? []}
+          options={upgradeOptions.data ?? []}
+          history={billingHistory.data ?? []}
+        />
+      )}
+    </AccountLayoutView>
   );
 }
 
@@ -908,25 +772,18 @@ function ProfileSection({
   const save = useServerFn(saveMyProfile);
   const saveAvatar = useServerFn(updateMyAvatar);
   const updatePreferences = useServerFn(updateMyContactPreferences);
-  const [displayName, setDisplayName] = useState(account.displayName ?? "");
-  const [market, setMarket] = useState(account.homeResortCode ?? "");
-  const [intent, setIntent] = useState(account.primaryIntent ?? "");
-  const [allowPhone, setAllowPhone] = useState(contactPreferences?.allowPhone ?? false);
-  const [allowText, setAllowText] = useState(contactPreferences?.allowText ?? false);
-  const [allowEmail, setAllowEmail] = useState(contactPreferences?.allowEmail ?? true);
-  const [showButtons, setShowButtons] = useState(contactPreferences?.showContactButtons ?? true);
-  const [allowInternalMessages, setAllowInternalMessages] = useState(
-    contactPreferences?.allowInternalMessages ?? true,
-  );
+  const draft = useAccountProfileDraft(account, contactPreferences);
+  const {
+    displayName,
+    market,
+    intent,
+    allowPhone,
+    allowText,
+    allowEmail,
+    showButtons,
+    allowInternalMessages,
+  } = draft;
   const [avatarBusy, setAvatarBusy] = useState(false);
-  useEffect(() => {
-    if (!contactPreferences) return;
-    setAllowPhone(contactPreferences.allowPhone);
-    setAllowText(contactPreferences.allowText);
-    setAllowEmail(contactPreferences.allowEmail);
-    setShowButtons(contactPreferences.showContactButtons);
-    setAllowInternalMessages(contactPreferences.allowInternalMessages);
-  }, [contactPreferences]);
   const profileMutation = useMutation({
     mutationFn: () =>
       save({
@@ -1002,262 +859,18 @@ function ProfileSection({
       ),
   });
   return (
-    <div className="space-y-8">
-      <SectionHeader
-        eyebrow="Public profile"
-        title="Build trust before the first message"
-        body="Show members enough context to feel comfortable while keeping your email, phone, and street address private by default."
-      />
-      <section className="grid gap-5 rounded-2xl border border-border bg-card p-5 shadow-sm md:grid-cols-[auto_minmax(0,1fr)_auto]">
-        <div className="grid size-20 place-items-center overflow-hidden rounded-full bg-primary text-xl font-bold text-primary-foreground">
-          {account.avatarUrl ? (
-            <img src={account.avatarUrl} alt="" className="size-full object-cover" />
-          ) : (
-            (displayName || "GS").slice(0, 2).toUpperCase()
-          )}
-        </div>
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-[17px] font-bold">{displayName || "Your public profile"}</h3>
-            {sellerSetup?.exists && (
-              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-                Seller profile
-              </span>
-            )}
-          </div>
-          <p className="mt-1 text-[12px] text-muted-foreground">
-            Your public name appears next to listings and reviews. Your email is never public.
-          </p>
-          <div className="mt-4 flex flex-wrap gap-2">
-            <TrustBadge
-              label={account.emailVerified ? "Email verified" : "Email not verified"}
-              icon={account.emailVerified ? CheckCircle : ShieldCheck}
-            />
-            <TrustBadge
-              label={account.phoneVerified ? "Phone verified" : "Bluebird member"}
-              icon={account.phoneVerified ? CheckCircle : ShieldCheck}
-            />
-            {sellerSummary?.ratingAverage != null && (
-              <TrustBadge
-                label={`${sellerSummary.ratingAverage.toFixed(1)} rating · ${sellerSummary.reviews.length} reviews`}
-                icon={Star}
-              />
-            )}
-          </div>
-        </div>
-        {sellerSetup?.slug ? (
-          <Link
-            to="/sellers/$slug"
-            params={{ slug: sellerSetup.slug }}
-            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-input px-3 text-[12px] font-semibold hover:bg-secondary"
-          >
-            View public profile
-            <ArrowRight size={14} />
-          </Link>
-        ) : (
-          <Link
-            to="/seller-setup"
-            className="inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-input px-3 text-[12px] font-semibold hover:bg-secondary"
-          >
-            Become a seller
-            <ArrowRight size={14} />
-          </Link>
-        )}
-      </section>
-      <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-        <SectionTitle title="Profile picture" />
-        <div className="mt-4 flex flex-wrap items-center gap-4">
-          <div className="grid size-20 shrink-0 place-items-center overflow-hidden rounded-full bg-primary text-xl font-bold text-primary-foreground">
-            {account.avatarUrl ? (
-              <img
-                src={account.avatarUrl}
-                alt={`${displayName || "Your"} profile`}
-                className="size-full object-cover"
-              />
-            ) : (
-              (displayName || "GS").slice(0, 2).toUpperCase()
-            )}
-          </div>
-          <div className="min-w-[220px] flex-1">
-            <p className="text-[13px] font-semibold">Add a photo people recognize</p>
-            <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
-              This appears on your public seller profile, listings, reviews, and messages. Use a
-              JPG, PNG, or WebP up to 5 MB.
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <label
-                htmlFor="profile-photo-upload"
-                className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-xl bg-primary px-3 text-[12px] font-semibold text-primary-foreground hover:opacity-90 has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60"
-              >
-                <Camera size={15} />
-                {avatarBusy ? "Uploading…" : account.avatarUrl ? "Change photo" : "Add photo"}
-              </label>
-              <input
-                id="profile-photo-upload"
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="sr-only"
-                disabled={avatarBusy}
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  event.target.value = "";
-                  if (file) void uploadAvatar(file);
-                }}
-              />
-              {account.avatarUrl && (
-                <button
-                  type="button"
-                  onClick={() => removeAvatar.mutate()}
-                  disabled={removeAvatar.isPending || avatarBusy}
-                  className="h-9 rounded-xl border border-input px-3 text-[12px] font-semibold hover:bg-secondary disabled:opacity-60"
-                >
-                  {removeAvatar.isPending ? "Removing…" : "Remove"}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      </section>
-      {sellerSetup?.exists ? (
-        <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-          <SectionTitle
-            title="Seller profile"
-            action={
-              <Link
-                to="/seller-setup"
-                className="text-[12px] font-semibold text-primary hover:underline"
-              >
-                Edit seller profile
-              </Link>
-            }
-          />
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <SettingLine label="Public handle" value={`@${sellerSetup.slug || "not set"}`} />
-            <SettingLine
-              label="Seller type"
-              value={
-                account.primaryIntent === "selling"
-                  ? "Individual seller"
-                  : "Local marketplace member"
-              }
-            />
-            <SettingLine
-              label="Public location"
-              value={account.homeResortCode === "ID" ? "Idaho" : "Not set"}
-            />
-            <SettingLine
-              label="About"
-              value={sellerSetup.bio || "Add a short seller description."}
-            />
-          </div>
-        </section>
-      ) : null}
-      <form
-        className="rounded-2xl border border-border bg-card p-5 shadow-sm"
-        onSubmit={(event) => {
-          event.preventDefault();
-          profileMutation.mutate();
-        }}
-      >
-        <SectionTitle
-          title="Public details"
-          action={<span className="text-[11px] text-muted-foreground">Edit the fields below</span>}
-        />
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <Field label="Display name">
-            <input
-              value={displayName}
-              onChange={(event) => setDisplayName(event.target.value)}
-              className="mt-2 block h-11 w-full rounded-xl border border-input bg-background px-3 text-[13px] outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-ring/30"
-              maxLength={40}
-            />
-          </Field>
-          <Field label="Primary market">
-            <select
-              value={market}
-              onChange={(event) => setMarket(event.target.value)}
-              className="mt-2 block h-11 w-full rounded-xl border border-input bg-background px-3 text-[13px] outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-ring/30"
-            >
-              <option value="">Select a market</option>
-              {brand.markets.map((item) => (
-                <option key={item.code} value={item.code}>
-                  {item.label}
-                </option>
-              ))}
-            </select>
-          </Field>
-        </div>
-        <Field label="What you mainly do" className="mt-4">
-          <select
-            value={intent}
-            onChange={(event) => setIntent(event.target.value as MemberIntent)}
-            className="mt-2 block h-11 w-full rounded-xl border border-input bg-background px-3 text-[13px] outline-none transition-colors focus:border-primary focus:ring-2 focus:ring-ring/30"
-          >
-            <option value="">Select an option</option>
-            {MEMBER_INTENTS.map((value) => (
-              <option key={value} value={value}>
-                {intentLabels[value]}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <button
-          type="submit"
-          disabled={profileMutation.isPending}
-          className="mt-5 inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-4 text-[12.5px] font-semibold text-primary-foreground disabled:opacity-60"
-        >
-          {profileMutation.isPending ? "Saving…" : "Save profile"}
-          <ArrowRight size={14} />
-        </button>
-      </form>
-      <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-        <SectionTitle title="Contact preferences" />
-        <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">
-          These settings control which contact buttons appear on your listings and whether members
-          can start Bluebird conversations with you.
-        </p>
-        <div className="mt-4 divide-y divide-border">
-          <ToggleRow
-            label="Allow email contact"
-            body="Let interested members email you about a listing."
-            checked={allowEmail}
-            onChange={setAllowEmail}
-          />
-          <ToggleRow
-            label="Allow phone calls"
-            body="Show a call option when you provide a phone number."
-            checked={allowPhone}
-            onChange={setAllowPhone}
-          />
-          <ToggleRow
-            label="Allow text messages"
-            body="Show a text option when your phone is enabled."
-            checked={allowText}
-            onChange={setAllowText}
-          />
-          <ToggleRow
-            label="Show contact buttons"
-            body="Display your enabled contact methods on public listings."
-            checked={showButtons}
-            onChange={setShowButtons}
-          />
-          <ToggleRow
-            label="Allow Bluebird messages"
-            body="Let members contact you through the marketplace inbox."
-            checked={allowInternalMessages}
-            onChange={setAllowInternalMessages}
-          />
-        </div>
-        <button
-          type="button"
-          onClick={() => contactMutation.mutate()}
-          disabled={contactMutation.isPending}
-          className="mt-5 h-10 rounded-xl border border-input px-4 text-[12.5px] font-semibold hover:bg-secondary disabled:opacity-60"
-        >
-          {contactMutation.isPending ? "Saving…" : "Save contact settings"}
-        </button>
-      </section>
-    </div>
+    <AccountProfileView
+      account={account}
+      sellerSetup={sellerSetup}
+      sellerSummary={sellerSummary}
+      draft={draft}
+      profileMutation={profileMutation}
+      contactMutation={contactMutation}
+      removeAvatar={removeAvatar}
+      avatarBusy={avatarBusy}
+      uploadAvatar={uploadAvatar}
+      link={WebsiteAccountLink}
+    />
   );
 }
 
@@ -1265,10 +878,12 @@ function SettingsSection({
   account,
   contactPreferences,
   notificationPreferences,
+  onSignOutAll,
 }: {
   account: MyAccount;
   contactPreferences?: ContactPreferences | undefined;
   notificationPreferences?: NotificationPreferences | undefined;
+  onSignOutAll: () => Promise<void>;
 }) {
   const queryClient = useQueryClient();
   const updateContact = useServerFn(updateMyContactPreferences);
@@ -1329,149 +944,33 @@ function SettingsSection({
     toast.success("Password reset email sent.");
   }
   return (
-    <div className="space-y-8">
-      <SectionHeader
-        eyebrow="Account settings"
-        title="Control your account"
-        body="Manage your sign-in, contact visibility, and the updates Bluebird sends you."
-      />
-      <div className="rounded-2xl border border-border bg-card shadow-sm">
-        <SettingsBlock icon={UserCircle} title="Account details">
-          <SettingLine label="Email address" value={account.email ?? "Not available"}>
-            <span
-              className={`text-[11px] font-semibold ${account.emailVerified ? "text-primary" : "text-muted-foreground"}`}
-            >
-              {account.emailVerified ? "Verified" : "Needs verification"}
-            </span>
-          </SettingLine>
-          <SettingLine
-            label="Member since"
-            value={account.createdAt ? new Date(account.createdAt).toLocaleDateString() : "Today"}
-          />
-          <SettingLine
-            label="Last login"
-            value={
-              account.lastSignInAt
-                ? new Date(account.lastSignInAt).toLocaleString()
-                : "Not available"
-            }
-          />
-          <SettingLine label="Account ID" value={account.userId.slice(0, 8) + "…"} />
-        </SettingsBlock>
-        <SettingsBlock icon={LockKey} title="Security">
-          <SettingLine label="Password" value="Protected">
-            <button
-              type="button"
-              onClick={() => void requestPasswordReset()}
-              className="text-[12px] font-semibold text-primary hover:underline"
-            >
-              Reset password
-            </button>
-          </SettingLine>
-          <SettingLine
-            label="Google sign-in"
-            value={account.googleConnected ? "Connected" : "Not connected"}
-          />
-          <SettingLine
-            label="Phone verification"
-            value={account.phoneVerified ? "Verified" : "Not verified"}
-          >
-            <span className="text-[11px] text-muted-foreground">
-              {account.phoneVerified ? "Available for direct contact" : "Optional"}
-            </span>
-          </SettingLine>
-          <button
-            type="button"
-            onClick={() => void supabase.auth.signOut({ scope: "global" })}
-            className="mt-3 text-[12px] font-semibold text-primary hover:underline"
-          >
-            Sign out of all devices
-          </button>
-        </SettingsBlock>
-        <SettingsBlock icon={ShieldCheck} title="Account deletion">
+    <AccountSettingsView
+      account={account}
+      contact={contact}
+      setContact={setContact}
+      notifications={notifications}
+      setNotifications={setNotifications}
+      saveContact={saveContact}
+      saveNotifications={saveNotifications}
+      requestPasswordReset={requestPasswordReset}
+      signOutAll={onSignOutAll}
+      shoppingAlerts={<ShoppingAlertPreference />}
+      deletionControls={
+        <>
           <p className="text-[12px] leading-relaxed text-muted-foreground">
             To protect active listings, messages, and transaction records, account deletion requests
             are reviewed by Bluebird support.
           </p>
           <Link
-            to="/contact"
+            to="/delete-account"
             className="mt-3 inline-flex text-[12px] font-semibold text-primary hover:underline"
           >
             Request account deletion
             <ArrowRight size={13} className="ml-1" />
           </Link>
-        </SettingsBlock>
-      </div>
-      <div className="grid gap-6 xl:grid-cols-2">
-        <PreferenceCard
-          title="Contact information"
-          body="Your phone and email remain private unless you enable public contact options."
-          rows={[
-            { key: "allowEmail", label: "Allow email contact", value: contact.allowEmail },
-            { key: "allowPhone", label: "Allow phone calls", value: contact.allowPhone },
-            { key: "allowText", label: "Allow text messages", value: contact.allowText },
-            {
-              key: "showContactButtons",
-              label: "Show contact buttons",
-              value: contact.showContactButtons,
-            },
-            {
-              key: "allowInternalMessages",
-              label: "Allow Bluebird messages",
-              value: contact.allowInternalMessages,
-            },
-          ]}
-          onChange={(key, value) => setContact((current) => ({ ...current, [key]: value }))}
-          onSave={() => saveContact.mutate()}
-          saving={saveContact.isPending}
-        />
-        <ShoppingAlertPreference />
-        <PreferenceCard
-          title="Email notifications"
-          body="Transactional emails stay on when needed. Marketing is always opt-in."
-          rows={[
-            {
-              key: "messageAlerts",
-              label: "New marketplace messages",
-              value: notifications.messageAlerts,
-            },
-            {
-              key: "listingActivity",
-              label: "Listing approval and expiry",
-              value: notifications.listingActivity,
-            },
-            {
-              key: "savedSearchMatches",
-              label: "Saved-search matches",
-              value: notifications.savedSearchMatches,
-            },
-            {
-              key: "reviewRequests",
-              label: "Review requests",
-              value: notifications.reviewRequests,
-            },
-            {
-              key: "listingUpgradeReceipts",
-              label: "Listing upgrade receipts",
-              value: notifications.listingUpgradeReceipts,
-            },
-            {
-              key: "productUpdates",
-              label: "Bluebird product updates",
-              value: notifications.productUpdates,
-            },
-            {
-              key: "marketingEmail",
-              label: "Marketing email",
-              value: notifications.marketingEmail,
-            },
-          ]}
-          onChange={(key, value) => setNotifications((current) => ({ ...current, [key]: value }))}
-          onSave={() => saveNotifications.mutate()}
-          saving={saveNotifications.isPending}
-        />
-      </div>
-    </div>
+        </>
+      }
+    />
   );
 }
 
@@ -3003,22 +2502,6 @@ function BillingSection({
     </div>
   );
 }
-function SectionTitle({ title, action }: { title: string; action?: ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <h3 className="text-[14px] font-bold tracking-tight">{title}</h3>
-      {action}
-    </div>
-  );
-}
-function MiniMetric({ label, value }: { label: string; value: number | string }) {
-  return (
-    <div className="rounded-xl bg-secondary/55 p-3">
-      <p className="text-[21px] font-bold">{value}</p>
-      <p className="mt-1 text-[11px] text-muted-foreground">{label}</p>
-    </div>
-  );
-}
 function NextStep({
   icon: Icon,
   title,
@@ -3089,138 +2572,6 @@ function QuickAction({
     </button>
   );
 }
-function TrustBadge({ icon: Icon, label }: { icon: typeof CheckCircle; label: string }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-2.5 py-1 text-[10.5px] font-medium text-muted-foreground">
-      <Icon size={13} className="text-primary" weight="fill" />
-      {label}
-    </span>
-  );
-}
-function Field({
-  label,
-  children,
-  className = "",
-}: {
-  label: string;
-  children: ReactNode;
-  className?: string;
-}) {
-  return (
-    <label className={`block text-[12px] font-medium ${className}`}>
-      <span className="block">{label}</span>
-      {children}
-    </label>
-  );
-}
-function SettingLine({
-  label,
-  value,
-  children,
-}: {
-  label: string;
-  value: string;
-  children?: ReactNode;
-}) {
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border py-3 first:border-t-0">
-      <div>
-        <p className="text-[12px] font-semibold">{label}</p>
-        <p className="mt-0.5 text-[12px] text-muted-foreground">{value}</p>
-      </div>
-      {children}
-    </div>
-  );
-}
-function SettingsBlock({
-  icon: Icon,
-  title,
-  children,
-}: {
-  icon: typeof UserCircle;
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <section className="border-b border-border p-5 last:border-b-0">
-      <div className="flex items-center gap-2">
-        <Icon size={18} className="text-primary" />
-        <h3 className="text-[14px] font-bold">{title}</h3>
-      </div>
-      <div className="mt-3">{children}</div>
-    </section>
-  );
-}
-function PreferenceCard({
-  title,
-  body,
-  rows,
-  onChange,
-  onSave,
-  saving,
-}: {
-  title: string;
-  body: string;
-  rows: { key: string; label: string; value: boolean }[];
-  onChange: (key: string, value: boolean) => void;
-  onSave: () => void;
-  saving: boolean;
-}) {
-  return (
-    <section className="rounded-2xl border border-border bg-card p-5 shadow-sm">
-      <h3 className="text-[14px] font-bold">{title}</h3>
-      <p className="mt-1 text-[12px] leading-relaxed text-muted-foreground">{body}</p>
-      <div className="mt-4 divide-y divide-border">
-        {rows.map((row) => (
-          <ToggleRow
-            key={row.key}
-            label={row.label}
-            checked={row.value}
-            onChange={(value) => onChange(row.key, value)}
-          />
-        ))}
-      </div>
-      <button
-        type="button"
-        onClick={onSave}
-        disabled={saving}
-        className="mt-5 h-9 rounded-xl bg-primary px-3 text-[12px] font-semibold text-primary-foreground disabled:opacity-60"
-      >
-        {saving ? "Saving…" : "Save changes"}
-      </button>
-    </section>
-  );
-}
-function ToggleRow({
-  label,
-  body,
-  checked,
-  onChange,
-}: {
-  label: string;
-  body?: string;
-  checked: boolean;
-  onChange: (value: boolean) => void;
-}) {
-  return (
-    <label className="flex cursor-pointer items-center justify-between gap-4 py-3">
-      <span>
-        <span className="block text-[12px] font-medium">{label}</span>
-        {body && (
-          <span className="mt-0.5 block text-[11px] leading-relaxed text-muted-foreground">
-            {body}
-          </span>
-        )}
-      </span>
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(event) => onChange(event.target.checked)}
-        className="size-4 accent-[var(--color-primary)]"
-      />
-    </label>
-  );
-}
 function Metric({ label, value }: { label: string; value: number | string }) {
   return (
     <div>
@@ -3228,4 +2579,8 @@ function Metric({ label, value }: { label: string; value: number | string }) {
       <dd className="mt-0.5 font-semibold">{value}</dd>
     </div>
   );
+}
+
+function WebsiteAccountLink({ href, ...props }: AccountLinkProps) {
+  return <Link to={href} {...props} />;
 }

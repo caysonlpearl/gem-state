@@ -1,8 +1,8 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
-export const MEMBER_INTENTS = ["buying", "selling", "shopping_in_park", "browsing"] as const;
-export type MemberIntent = (typeof MEMBER_INTENTS)[number];
+import { MEMBER_INTENTS, type MemberIntent } from "@/config/account";
+export { MEMBER_INTENTS, type MemberIntent };
 
 export type MyAccount = {
   userId: string;
@@ -50,7 +50,9 @@ export const getMyAccount = createServerFn({ method: "GET" })
     ] = await Promise.all([
       supabase
         .from("profiles")
-        .select("display_name, avatar_url, home_resort_code, primary_intent, onboarded_at, created_at")
+        .select(
+          "display_name, avatar_url, home_resort_code, primary_intent, onboarded_at, created_at",
+        )
         .eq("id", userId)
         .maybeSingle(),
       supabase.from("user_roles").select("role").eq("user_id", userId),

@@ -40,3 +40,5 @@ jobs:
         run: npm run test:mobile:messages:ui
       - name: Verify shared seller and listing forms with durable posting recovery
         run: npm run test:mobile:posting:ui
+      - name: Verify shared account controls and account-scoped security actions
+        run: npm run test:mobile:account:ui
