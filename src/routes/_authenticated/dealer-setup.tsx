@@ -5,7 +5,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 
-import { SellerCenterNav } from "@/components/seller/SellerCenterNav";
 import {
   addDealerMember,
   getDealerMembers,
@@ -26,10 +25,11 @@ function DealerSetupPage() {
   const addMember = useServerFn(addDealerMember);
   const updateMember = useServerFn(updateDealerMember);
   const setup = useQuery({ queryKey: ["dealer-setup"], queryFn: () => fetchSetup() });
+  const [membersOpen, setMembersOpen] = useState(false);
   const members = useQuery({
     queryKey: ["dealer-members", setup.data?.id],
     queryFn: () => fetchMembers({ data: { dealerId: setup.data!.id! } }),
-    enabled: Boolean(setup.data?.id),
+    enabled: Boolean(setup.data?.id) && membersOpen,
   });
   const [draft, setDraft] = useState<Record<string, string | boolean> | null>(null);
   const [memberEmail, setMemberEmail] = useState("");
@@ -80,8 +80,13 @@ function DealerSetupPage() {
         },
       }),
     onSuccess: async () => {
-      await client.invalidateQueries({ queryKey: ["dealer-setup"] });
-      toast.success("Dealership profile saved and ready for inventory.");
+      await Promise.all([
+        client.invalidateQueries({ queryKey: ["dealer-setup"] }),
+        client.invalidateQueries({ queryKey: ["my-dealer-inventory"] }),
+        client.invalidateQueries({ queryKey: ["public-dealer"] }),
+        client.invalidateQueries({ queryKey: ["dealer-account-preview"] }),
+      ]);
+      toast.success("Business profile saved.");
     },
     onError: (error) =>
       toast.error(error instanceof Error ? error.message : "Could not save dealership profile."),
@@ -137,15 +142,18 @@ function DealerSetupPage() {
         Loading dealership setup…
       </p>
     );
-  const readiness = setup.data?.readiness;
   return (
     <main className="mx-auto max-w-[940px] space-y-6 px-4 py-10 sm:px-6">
       <div>
-        <Link to="/selling" className="text-[12px] text-muted-foreground hover:text-foreground">
-          Back to seller center
+        <Link
+          to="/account"
+          search={{ section: "listings" }}
+          className="text-[12px] text-muted-foreground hover:text-foreground"
+        >
+          Back to dealership listings
         </Link>
         <p className="mt-4 text-[10px] font-semibold uppercase tracking-[0.1em] text-primary">
-          Business tools
+          Dealership profile
         </p>
         <h1 className="mt-1 text-[30px] font-semibold tracking-tight">
           {setup.data?.exists ? "Edit business profile" : "Set up a dealership"}
@@ -156,23 +164,6 @@ function DealerSetupPage() {
             : "Create your dealership storefront. Buyers will see this business profile on your vehicle listings."}
         </p>
       </div>
-      <SellerCenterNav storefrontSlug={undefined} />
-      <section className="grid gap-2 sm:grid-cols-4">
-        {[
-          ["Identity", readiness?.identity],
-          ["Location", readiness?.location],
-          ["Contact", readiness?.contact],
-          ["Agreement", readiness?.agreements],
-        ].map(([label, complete]) => (
-          <div
-            key={String(label)}
-            className={`border p-3 text-[12px] ${complete ? "border-primary/40 bg-primary/5" : "border-border bg-card"}`}
-          >
-            <span className="font-semibold">{complete ? "Ready" : "Needed"}</span>
-            <span className="ml-2 text-muted-foreground">{label}</span>
-          </div>
-        ))}
-      </section>
       <DealerProfileForm
         draft={draft}
         set={set}
@@ -181,21 +172,15 @@ function DealerSetupPage() {
         lockSlug={setup.data?.exists}
       />
       {setup.data?.exists ? (
-        <p className="text-[12px] text-muted-foreground">
-          Status: <span className="font-medium text-foreground">{setup.data.status}</span>.
-          Inventory sources can now be associated with this dealership from the admin inventory
-          workspace.
-        </p>
-      ) : null}
-      {setup.data?.exists ? (
-        <section className="space-y-4 border border-border bg-card p-5">
-          <div>
-            <h2 className="text-[16px] font-semibold">Staff access</h2>
-            <p className="mt-1 text-[12px] text-muted-foreground">
-              Add existing Bluebird members to help manage this dealership. Inventory staff can work
-              feeds; managers can update dealership members.
-            </p>
-          </div>
+        <details
+          open={membersOpen}
+          onToggle={(event) => setMembersOpen(event.currentTarget.open)}
+          className="space-y-4 rounded-2xl border border-border bg-card p-5"
+        >
+          <summary className="cursor-pointer text-sm font-semibold">Team access</summary>
+          <p className="text-xs text-muted-foreground">
+            Optional: give existing Bluebird members access to your dealership.
+          </p>
           <form
             className="grid gap-3 sm:grid-cols-[1fr_180px_auto]"
             onSubmit={(event) => {
@@ -301,7 +286,7 @@ function DealerSetupPage() {
               </table>
             </div>
           )}
-        </section>
+        </details>
       ) : null}
     </main>
   );

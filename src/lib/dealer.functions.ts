@@ -340,11 +340,17 @@ export const saveDealerSetup = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
+    const { data: existing, error: existingError } = await admin
+      .from("dealer_profiles")
+      .select("id,slug,status,agreements_accepted_at,agreements_version")
+      .eq("owner_user_id", context.userId)
+      .maybeSingle();
+    if (existingError) throw new Error(existingError.message);
     const payload = {
       owner_user_id: context.userId,
       legal_name: data.legalName,
       display_name: data.displayName,
-      slug: data.slug,
+      slug: existing?.slug ?? data.slug,
       phone: data.phone || null,
       email: data.email || null,
       website: data.website || null,
@@ -357,9 +363,9 @@ export const saveDealerSetup = createServerFn({ method: "POST" })
       description: data.description || null,
       price_insights_enabled: data.priceInsightsEnabled,
       valuation_dealer_type: data.valuationDealerType ?? null,
-      status: "ready",
-      agreements_accepted_at: new Date().toISOString(),
-      agreements_version: "dealer-v1",
+      status: existing?.status === "suspended" ? "suspended" : "ready",
+      agreements_accepted_at: existing?.agreements_accepted_at ?? new Date().toISOString(),
+      agreements_version: existing?.agreements_version ?? "dealer-v1",
     };
     const { data: dealer, error } = await admin
       .from("dealer_profiles")

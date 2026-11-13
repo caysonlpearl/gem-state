@@ -1,4 +1,5 @@
-import { DealerLogo } from "./DealerLogo";
+import { useState } from "react";
+import { DealerLogoEditor } from "./DealerLogoEditor";
 
 export type DealerProfileDraft = Record<string, string | boolean>;
 
@@ -18,13 +19,14 @@ export function DealerProfileForm({
   preview?: boolean;
   lockSlug?: boolean;
 }) {
+  const [logoBusy, setLogoBusy] = useState(false);
   return (
     <form
       aria-label="Dealership business profile"
-      className="space-y-5 border border-border bg-card p-5"
+      className="space-y-6 rounded-2xl border border-border bg-card p-5 sm:p-6"
       onSubmit={(event) => {
         event.preventDefault();
-        if (!preview) onSave?.();
+        if (!preview && !logoBusy) onSave?.();
       }}
     >
       {preview ? (
@@ -33,15 +35,16 @@ export function DealerProfileForm({
           submitted.
         </p>
       ) : null}
-      <div className="space-y-2">
-        <p className="text-xs font-medium">Dealership logo preview</p>
-        <DealerLogo
-          src={String(draft.logoUrl ?? "")}
-          name={String(draft.displayName || "Dealership")}
-          className="h-16 w-56 object-contain object-left"
-        />
-      </div>
+      <DealerLogoEditor
+        url={String(draft.logoUrl ?? "")}
+        name={String(draft.displayName || "Dealership")}
+        onChange={(url) => set("logoUrl", url)}
+        onBusyChange={setLogoBusy}
+        disabled={saving}
+        preview={preview}
+      />
       <div className="grid gap-4 sm:grid-cols-2">
+        <h2 className="text-base font-semibold sm:col-span-2">Dealership details</h2>
         <Field
           label="Legal business name"
           value={String(draft.legalName)}
@@ -54,13 +57,15 @@ export function DealerProfileForm({
           onChange={(v) => set("displayName", v)}
           required
         />
-        <Field
-          label="Unique storefront slug"
-          disabled={lockSlug}
-          value={String(draft.slug)}
-          onChange={(v) => set("slug", v.toLowerCase().replace(/[^a-z0-9-]/g, "-"))}
-          required
-        />
+        {!lockSlug && (
+          <Field
+            label="Dealership page address"
+            value={String(draft.slug)}
+            onChange={(v) => set("slug", v.toLowerCase().replace(/[^a-z0-9-]/g, "-"))}
+            required
+          />
+        )}
+        <h2 className="mt-2 text-base font-semibold sm:col-span-2">Contact information</h2>
         <Field
           label="Business phone"
           value={String(draft.phone)}
@@ -78,6 +83,7 @@ export function DealerProfileForm({
           onChange={(v) => set("website", v)}
           type="url"
         />
+        <h2 className="mt-2 text-base font-semibold sm:col-span-2">Location</h2>
         <Field
           label="Address"
           value={String(draft.addressLine1)}
@@ -99,12 +105,6 @@ export function DealerProfileForm({
           label="ZIP code"
           value={String(draft.postalCode)}
           onChange={(v) => set("postalCode", v)}
-        />
-        <Field
-          label="Logo URL"
-          value={String(draft.logoUrl)}
-          onChange={(v) => set("logoUrl", v)}
-          type="url"
         />
       </div>
       <label className="block text-[12px] font-medium">
@@ -148,22 +148,24 @@ export function DealerProfileForm({
           </select>
         </label>
       </div>
-      <label className="flex items-start gap-2 border-t border-border pt-4 text-[12px] leading-relaxed text-muted-foreground">
-        <input
-          type="checkbox"
-          checked={Boolean(draft.acceptAgreements)}
-          onChange={(e) => set("acceptAgreements", e.target.checked)}
-          className="mt-0.5"
-        />
-        <span>
-          I confirm this business identity and authorize Bluebird to display this storefront and its
-          inventory.
-        </span>
-      </label>
+      {(!lockSlug || !draft.acceptAgreements) && (
+        <label className="flex items-start gap-2 border-t border-border pt-4 text-[12px] leading-relaxed text-muted-foreground">
+          <input
+            type="checkbox"
+            checked={Boolean(draft.acceptAgreements)}
+            onChange={(e) => set("acceptAgreements", e.target.checked)}
+            className="mt-0.5"
+          />
+          <span>
+            I confirm this business identity and authorize Bluebird to display this storefront and
+            its inventory.
+          </span>
+        </label>
+      )}
       <button
         type="submit"
-        disabled={preview || saving || !draft.acceptAgreements}
-        className="h-10 bg-primary px-4 text-[12.5px] font-semibold text-primary-foreground disabled:opacity-50"
+        disabled={preview || saving || logoBusy || !draft.acceptAgreements}
+        className="min-h-11 rounded-full bg-primary px-6 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50"
       >
         {saving ? "Saving…" : "Save business profile"}
       </button>
