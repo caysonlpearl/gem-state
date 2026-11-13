@@ -6,6 +6,8 @@
     font-synthesis: none;
     color-scheme: light;
     line-height: 1.5;
+    scroll-padding-block-start: calc(80px + env(safe-area-inset-top));
+    scroll-padding-block-end: calc(100px + env(safe-area-inset-bottom));
   }
   * {
     box-sizing: border-box;
@@ -59,6 +61,9 @@
     max-width: 1440px;
     margin: 0 auto;
     padding-bottom: calc(68px + env(safe-area-inset-bottom));
+  }
+  .mobile-content :is(button, a, input, textarea, select) {
+    scroll-margin-block: 100px;
   }
   .mobile-home {
     padding-inline: 12px;

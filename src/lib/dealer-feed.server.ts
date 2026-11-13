@@ -93,11 +93,14 @@ export async function dealerFeedDetail(id: string): Promise<ClassifiedDetail | n
     shareImageUrl: vehicle.media.photoLinks[0] ?? null,
   };
 }
-export async function dealerFeedStorefront(slug: string, page = 1) {
+export async function dealerFeedStorefront(slug: string, page = 1, mobileCatalog = false) {
   const feed = await readFeed(slug),
     dealer = feed.dealers[0];
   if (!dealer) return null;
-  const listings = cards(feed, {});
+  const mobile = mobileCatalog ? await import("./mobile-storefront-contract.ts") : null;
+  if (mobile && !mobile.mobileStorefrontIdentityAllowed(dealer.display_name, null)) return null;
+  const all = cards(feed, {});
+  const listings = mobile ? all.filter((card) => mobile.mobileStorefrontCardAllowed(card)) : all;
   return {
     id: dealer.dealer_id ?? `dealerfeed-${slug}`,
     messagingEnabled: dealer.inbox_enabled === true && Boolean(dealer.dealer_id),

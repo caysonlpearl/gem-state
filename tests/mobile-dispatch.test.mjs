@@ -1,3 +1,6 @@
+import { storefrontFixture, storefrontActors } from "./support/mobile-storefront-fixture.mjs";
+import * as storefrontHandlers from "../src/lib/mobile-storefront.server.ts";
+import * as storefrontContract from "../src/lib/mobile-storefront-contract.ts";
 import * as detailProjection from "../src/lib/mobile-listing-detail.ts";
 import * as detailReads from "../src/lib/mobile-listing-detail.server.ts";
 import * as applicationHandlers from "../src/lib/mobile-job-application.server.ts";
@@ -37,6 +40,10 @@ function harness({
   applications = false,
   applicationReplay = false,
   emailFailure = false,
+  dealerMessages = false,
+  dealerReplay = false,
+  reviewBlocked = false,
+  scopedDealerConversation = false,
 } = {}) {
   const user = "11111111-1111-4111-8111-111111111111",
     nativeListing = "22222222-2222-4222-8222-222222222222",
@@ -60,7 +67,8 @@ function harness({
         or() {
           return q;
         },
-        in() {
+        in(k, v) {
+          filters.push([k, v]);
           return q;
         },
         gt() {
@@ -82,12 +90,21 @@ function harness({
               ? deleted
                 ? { status: "requested" }
                 : null
-              : table === "shopping_accounts"
+              : table === "seller_storefronts"
                 ? {
-                    terms_version: terms ? contract.MOBILE_POLICY_VERSION : null,
-                    shopping_alerts: false,
+                    user_id: storefrontActors.seller,
+                    slug: "fixture-seller",
+                    display_name: "Fixture Seller",
+                    bio: "Local seller",
                   }
-                : null,
+                : table === "seller_reviews"
+                  ? storefrontFixture().seller.reviews[0]
+                  : table === "shopping_accounts"
+                    ? {
+                        terms_version: terms ? contract.MOBILE_POLICY_VERSION : null,
+                        shopping_alerts: false,
+                      }
+                    : null,
         }),
         delete() {
           writes.push({ table, filters });
@@ -108,7 +125,19 @@ function harness({
                       },
                     },
                   ]
-                : null,
+                : table === "mobile_dealer_conversations" && scopedDealerConversation
+                  ? [
+                      {
+                        conversation_id:
+                          filters.find(([k]) => k === "conversation_id")?.[1]?.[0] ?? user,
+                        dealer_id: storefrontActors.dealer,
+                        buyer_id: user,
+                        seller_id: storefrontActors.seller,
+                      },
+                    ]
+                  : table === "conversations" && reviewBlocked
+                    ? [{ conversation_participants: [{ blocked_at: "2026-11-13" }] }]
+                    : null,
             error: null,
           }).then(resolve);
         },
@@ -119,9 +148,15 @@ function harness({
       writes.push({ name, args });
       return {
         data:
-          name === "mobile_commit_job_application"
-            ? { ok: true, applicationId: user, replayed: applicationReplay }
-            : { id: user, ok: true },
+          name === "mobile_start_dealer_conversation"
+            ? {
+                conversationId: storefrontActors.conversation,
+                messageId: storefrontActors.review,
+                replayed: dealerReplay,
+              }
+            : name === "mobile_commit_job_application"
+              ? { ok: true, applicationId: user, replayed: applicationReplay }
+              : { id: user, ok: true },
         error: null,
       };
     },
@@ -150,6 +185,8 @@ function harness({
     "./mobile-saved-search.server": savedSearchWrites,
     "./mobile-notifications.server": notificationHandlers,
     "./mobile-listing-detail": detailProjection,
+    "./mobile-storefront.server": storefrontHandlers,
+    "./mobile-storefront-contract": storefrontContract,
     "./mobile-listing-detail.server": detailReads,
     "./mobile-job-application.server": applicationHandlers,
     "./mobile-message-context.server": messageContext,
@@ -160,16 +197,33 @@ function harness({
       mobilePostingReady: async () => posting,
       mobileSavedSearchesReady: async () => savedSearches,
       mobileApplicationsReady: async () => applications,
+      mobileDealerMessagesReady: async () => dealerMessages,
     },
     "./conversation.functions": {
-      getMyConversations: async () => [{ id: user, listingId: nativeListing }],
+      sendConversationMessage: async ({ data }) => {
+        writes.push({ kind: "reply", ...data });
+        return { ok: true };
+      },
+      markConversationRead: async ({ data }) => {
+        writes.push({ kind: "read", ...data });
+        return { ok: true };
+      },
+      getMyConversations: async () => [
+        {
+          id: user,
+          listingId: scopedDealerConversation ? null : nativeListing,
+          ...(scopedDealerConversation ? { buyerId: user, sellerId: storefrontActors.seller } : {}),
+        },
+      ],
       getConversation: async ({ data }) => ({
         id: data.id,
-        listingId: generalConversation
-          ? null
-          : nativeConversation
-            ? nativeListing
-            : "dealerfeed-test",
+        ...(scopedDealerConversation ? { buyerId: user, sellerId: storefrontActors.seller } : {}),
+        listingId:
+          generalConversation || scopedDealerConversation
+            ? null
+            : nativeConversation
+              ? nativeListing
+              : "dealerfeed-test",
         messages: [],
       }),
       createConversationAttachmentUpload: async ({ data }) => {
@@ -260,7 +314,35 @@ function harness({
         return { vin: data.vin, fields: { make: "Ford", model: "F-150", year: "2024" } };
       },
     },
+    "./dealer.functions": {
+      getPublicDealer: async ({ data }) => {
+        catalogInputs.push(data);
+        return storefrontFixture().dealer;
+      },
+    },
+    "./seller.functions": {
+      getPublicSeller: async ({ data }) => {
+        catalogInputs.push(data);
+        return storefrontFixture().seller;
+      },
+      getMySellerReview: async ({ data }) => {
+        reads.push({ table: "own_review_domain", filters: [["seller_id", data.sellerId]] });
+        return null;
+      },
+      submitSellerReview: async ({ data }) => {
+        writes.push({ kind: "seller_review", ...data });
+        return { ok: true };
+      },
+      flagSellerReview: async ({ data }) => {
+        writes.push({ kind: "review_flag", ...data });
+        return { ok: true };
+      },
+    },
     "./email-notifications.server": {
+      emailMarketplaceMessage: async (id, sender) => {
+        if (emailFailure) throw Error("Fixture email outage");
+        writes.push({ kind: "dealer_email", id, sender });
+      },
       emailJobApplicationReceived: async (id) => {
         if (emailFailure) throw Error("Email provider unavailable");
         writes.push({ kind: "application_email", id });
@@ -947,4 +1029,159 @@ test("native directory and rescue saves use the existing partner domain and publ
       assert(!JSON.stringify(card).includes("PRIVATE"));
     }
   }
+});
+
+test("public storefront reads retain page/catalog scope and private seller actions derive the target and authenticate before mutations", async () => {
+  const h = harness();
+  const seller = await h.request("sellers/fixture-seller", "GET", undefined, null);
+  assert.equal(seller.status, 200);
+  assert.equal((await seller.json()).data.activeListingCount, 1);
+  assert.deepEqual(h.catalogInputs[0], { slug: "fixture-seller", mobileCatalog: true });
+  const dealer = await h.request("dealers/fixture-motors?page=2", "GET", undefined, null);
+  assert.equal(dealer.status, 200);
+  assert.deepEqual(h.catalogInputs[1], { slug: "fixture-motors", page: 2, mobileCatalog: true });
+  for (const path of [
+    "dealers/fixture-motors?mobileCatalog=false",
+    "dealers/fixture-motors?page=0",
+    "dealers/fixture-motors?page=2&page=1",
+    "sellers/fixture-seller?page=2",
+  ])
+    assert.equal((await h.request(path, "GET", undefined, null)).status, 400);
+  for (const [path, method, body] of [
+    ["sellers/fixture-seller/review", "GET"],
+    ["sellers/fixture-seller/review", "PUT", { rating: 4, comment: null }],
+    [`sellers/fixture-seller/reviews/${storefrontActors.review}/report`, "POST", { reason: null }],
+    ["dealers/fixture-motors/conversations", "POST", { body: "A message" }],
+  ])
+    assert.equal((await h.request(path, method, body, null)).status, 401);
+  assert.equal(
+    (
+      await h.request("sellers/fixture-seller/review", "PUT", {
+        rating: 4,
+        comment: null,
+        sellerId: h.user,
+      })
+    ).status,
+    400,
+  );
+  assert.equal(h.writes.length, 0);
+  assert.equal(
+    (
+      await h.request("sellers/fixture-seller/review", "PUT", {
+        rating: 4,
+        comment: "Helpful seller",
+      })
+    ).status,
+    200,
+  );
+  assert.deepEqual(h.writes[0], {
+    kind: "seller_review",
+    rating: 4,
+    comment: "Helpful seller",
+    sellerId: storefrontActors.seller,
+  });
+  assert.equal(
+    (
+      await h.request(`sellers/fixture-seller/reviews/${storefrontActors.review}/report`, "POST", {
+        reason: "Please review",
+      })
+    ).status,
+    200,
+  );
+  assert.equal(h.writes[1].reviewId, storefrontActors.review);
+  const blocked = harness({ reviewBlocked: true });
+  assert.equal(
+    (await blocked.request("sellers/fixture-seller/review", "PUT", { rating: 4, comment: null }))
+      .status,
+    403,
+  );
+  assert.equal(blocked.writes.length, 0);
+  const old = harness({ terms: false });
+  assert.equal(
+    (await old.request("sellers/fixture-seller/review", "PUT", { rating: 4, comment: null }))
+      .status,
+    409,
+  );
+});
+test("native dealer sends stop before the missing migration, require original receipt keys and derive dealer identity without coupling business success to email", async () => {
+  const off = harness();
+  assert.equal(
+    (
+      await off.request("dealers/fixture-motors/conversations", "POST", {
+        body: "A private message",
+      })
+    ).status,
+    503,
+  );
+  assert.equal(off.writes.length, 0);
+  for (const replay of [false, true]) {
+    const h = harness({ dealerMessages: true, dealerReplay: replay, emailFailure: true });
+    assert.equal(
+      (
+        await h.request("dealers/fixture-motors/conversations", "POST", {
+          body: "A private message",
+        })
+      ).status,
+      400,
+    );
+    assert.equal(
+      (
+        await h.request(
+          "dealers/fixture-motors/conversations",
+          "POST",
+          { body: "A private message", dealerId: h.user },
+          "valid",
+          { "Idempotency-Key": crypto.randomUUID() },
+        )
+      ).status,
+      400,
+    );
+    const key = crypto.randomUUID();
+    const response = await h.request(
+      "dealers/fixture-motors/conversations",
+      "POST",
+      { body: "A private message" },
+      "valid",
+      { "Idempotency-Key": key },
+    );
+    assert.equal(response.status, 200);
+    assert.equal((await response.json()).data.conversationId, storefrontActors.conversation);
+    const write = h.writes.find((w) => w.name === "mobile_start_dealer_conversation");
+    assert.deepEqual(write.args, {
+      _request: key,
+      _dealer: storefrontActors.dealer,
+      _body: "A private message",
+    });
+  }
+});
+
+test("only trusted app-created general dealership contexts enter the mobile inbox and private message routes", async () => {
+  const on = harness({ dealerMessages: true, scopedDealerConversation: true });
+  const list = await on.request("conversations");
+  assert.equal(list.status, 200);
+  const rows = (await list.json()).data;
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].listingId, null);
+  assert(on.reads.some((r) => r.table === "mobile_dealer_conversations"));
+  const id = crypto.randomUUID();
+  assert.equal((await on.request("conversations/" + id)).status, 200);
+  assert.equal(
+    (
+      await on.request(
+        `conversations/${id}/messages`,
+        "POST",
+        { body: "A private reply" },
+        "valid",
+        { "Idempotency-Key": crypto.randomUUID() },
+      )
+    ).status,
+    200,
+  );
+  assert(on.writes.some((w) => w.kind === "reply" && w.conversationId === id));
+  const off = harness({ generalConversation: true, dealerMessages: true });
+  assert.equal((await off.request("conversations/" + id)).status, 404);
+  assert.equal(off.writes.length, 0);
+  const notInstalled = harness({ scopedDealerConversation: true });
+  assert.equal((await notInstalled.request("conversations/" + id)).status, 404);
+  assert(!notInstalled.reads.some((r) => r.table === "mobile_dealer_conversations"));
 });

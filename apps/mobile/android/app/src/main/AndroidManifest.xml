@@ -38,6 +38,8 @@
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="onbluebird.com" android:pathPrefix="/listings/" />
+                <data android:scheme="https" android:host="onbluebird.com" android:pathPrefix="/sellers/" />
+                <data android:scheme="https" android:host="onbluebird.com" android:pathPrefix="/dealers/" />
             </intent-filter>
         </activity>
 

@@ -165,6 +165,7 @@ export const getPublicDealer = createServerFn({ method: "GET" })
   .validator((input: unknown) =>
     z
       .object({
+        mobileCatalog: z.boolean().optional().default(false),
         slug: z.string().trim().toLowerCase().min(1).max(80),
         page: z.number().int().min(1).max(10000).optional().default(1),
       })
@@ -175,7 +176,7 @@ export const getPublicDealer = createServerFn({ method: "GET" })
     const { data: dealer, error } = await client
       .from("dealer_profiles")
       .select(
-        "id,legal_name,display_name,slug,phone,email,website,address_line1,city,state,postal_code,logo_url,description",
+        "id,legal_name,display_name,slug,phone,email,website,address_line1,city,state,postal_code,logo_url,description,owner_user_id",
       )
       .eq("slug", data.slug)
       .eq("status", "ready")
@@ -183,12 +184,50 @@ export const getPublicDealer = createServerFn({ method: "GET" })
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!dealer)
-      return (await import("./dealer-feed.server")).dealerFeedStorefront(data.slug, data.page);
-    const result = await browseClassifieds({
-      data: { dealerSlug: data.slug, page: data.page, sort: "newest" },
-    });
+      return (await import("./dealer-feed.server")).dealerFeedStorefront(
+        data.slug,
+        data.page,
+        data.mobileCatalog,
+      );
+    if (
+      data.mobileCatalog &&
+      !(await import("./mobile-storefront-contract.ts")).mobileStorefrontIdentityAllowed(
+        dealer.display_name,
+        dealer.description,
+      )
+    )
+      return null;
+    let messagingEnabled = false;
+    if (dealer.owner_user_id) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const pref = await (supabaseAdmin as any)
+        .from("account_contact_preferences")
+        .select("allow_internal_messages")
+        .eq("user_id", dealer.owner_user_id)
+        .abortSignal(AbortSignal.timeout(5000))
+        .retry(false)
+        .maybeSingle();
+      if (pref.error) throw Error("Dealership contact options are temporarily unavailable.");
+      messagingEnabled = pref.data?.allow_internal_messages !== false;
+    }
+    const result = data.mobileCatalog
+      ? await (
+          await import("./classifieds.functions")
+        ).loadMobileBrowseInventory({
+          dealerSlug: data.slug,
+          page: data.page,
+          sort: "newest",
+          mobileCatalog: true,
+        })
+      : await browseClassifieds({
+          data: { dealerSlug: data.slug, page: data.page, sort: "newest" },
+        });
+    if (data.mobileCatalog && result.incomplete)
+      throw Error("Dealership inventory is temporarily unavailable. Please retry.");
     return {
       id: dealer.id,
+      messagingEnabled,
+      ownerUserId: dealer.owner_user_id ?? undefined,
       legalName: dealer.legal_name,
       displayName: dealer.display_name,
       slug: dealer.slug,

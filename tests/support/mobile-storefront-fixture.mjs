@@ -1,0 +1,96 @@
+import { detailFixture, detailActors } from "./mobile-detail-fixture.mjs";
+export const storefrontActors = {
+  ...detailActors,
+  other: "77777777-7777-4777-8777-777777777777",
+  dealer: "33333333-3333-4333-8333-333333333333",
+  review: "99999999-9999-4999-8999-999999999999",
+  conversation: "88888888-8888-4888-8888-888888888888",
+};
+export function storefrontFixture() {
+  const f = detailFixture();
+  const seller = {
+    managedByBluebird: false,
+    userId: detailActors.seller,
+    slug: "fixture-seller",
+    displayName: "Fixture Seller",
+    avatarUrl: null,
+    bio: "Local listings and friendly service.",
+    memberSince: "2024-01-01T12:00:00Z",
+    payoutVerified: false,
+    completedSalesCount: 0,
+    reviewCount: 1,
+    ratingAverage: 4,
+    activeListingCount: 1,
+    listings: [
+      {
+        id: f.general.listing.id,
+        productId: f.general.listing.productId,
+        variantId: f.general.listing.variantId,
+        categorySlug: f.general.listing.categorySlug,
+        productName: f.general.listing.title,
+        productSlug: f.general.listing.productSlug,
+        variantLabel: "Blue",
+        priceCents: 12500,
+        currency: "USD",
+        condition: "used_good",
+        note: "Public listing note",
+        sellerSlug: "fixture-seller",
+        sellerDisplayName: "Fixture Seller",
+        payoutVerified: false,
+        sellerRating: 4,
+        imageUrls: f.general.listing.images.map((i) => i.url),
+        thumbnailUrl: f.general.listing.imageUrl,
+        createdAt: "2026-11-01T12:00:00Z",
+        shipFromCity: "Boise",
+        shipFromRegion: "ID",
+        shipFromCountry: "US",
+        shippingMethod: "local_pickup",
+        handlingTimeDays: 1,
+      },
+    ],
+    reviews: [
+      {
+        id: storefrontActors.review,
+        rating: 4,
+        comment: "Friendly and helpful seller.",
+        createdAt: "2026-11-01T12:00:00Z",
+        reviewerName: "Another member",
+      },
+    ],
+  };
+  const vehicle = {
+    ...f.vehicle.listing,
+    dealer: {
+      slug: "fixture-motors",
+      displayName: "Fixture Motors",
+      website: "https://dealer.example.invalid",
+      city: "Boise",
+      state: "ID",
+      logoUrl: null,
+      address: "100 Example Avenue",
+    },
+  };
+  const dealer = {
+    id: storefrontActors.dealer,
+    legalName: "Fixture Motors LLC",
+    displayName: "Fixture Motors",
+    slug: "fixture-motors",
+    phone: "2085550100",
+    email: "dealer@example.invalid",
+    website: "https://dealer.example.invalid",
+    addressLine1: "100 Example Avenue",
+    city: "Boise",
+    state: "ID",
+    postalCode: "83701",
+    logoUrl: null,
+    description: "Local vehicles and friendly service.",
+    messagingEnabled: true,
+    ownerUserId: detailActors.seller,
+    listings: [vehicle],
+    listingCount: 2,
+    page: 1,
+    pageCount: 2,
+    pageSize: 1,
+  };
+  return { seller, dealer, details: f, vehicle };
+}

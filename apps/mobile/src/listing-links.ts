@@ -1,3 +1,4 @@
+import { storefrontDestination } from "../../../src/lib/storefront-url.ts";
 import { listingIdFromParam } from "../../../src/lib/listing-url.ts";
 import { mobileCategoryAllowed } from "../../../src/lib/mobile-contract.ts";
 import {
@@ -19,18 +20,20 @@ export function nativeListingDestination(
   if (to === "/browse") return browseDestination(search);
   if (to === "/auth") return "/auth";
   if (to === "/create-listing") return "/post";
-  if (to === "/sellers/$slug")
-    return /^[a-z0-9-]{1,60}$/i.test(params.slug ?? "")
-      ? browseDestination({ sellerSlug: params.slug })
-      : null;
-  if (to === "/dealers/$slug")
-    return /^[a-z0-9-]{1,80}$/i.test(params.slug ?? "")
-      ? browseDestination({
-          dealerSlug: params.slug,
-          category: "cars-trucks",
-          vehicleMode: "results",
-        })
-      : null;
+  if (to === "/sellers/$slug" || to === "/dealers/$slug")
+    return storefrontDestination(to.replace("$slug", params.slug ?? ""), search);
+  if (/^\/(sellers|dealers)\//i.test(to)) return storefrontDestination(to, search);
+  if (to === "/account") {
+    if (search.section === "messages")
+      return typeof search.conversation === "string" && /^[0-9a-f-]{36}$/i.test(search.conversation)
+        ? `/messages/${search.conversation}`
+        : "/messages";
+    return ["profile", "settings", "searches", "notifications"].includes(String(search.section))
+      ? `/account/${search.section}`
+      : Object.keys(search).length
+        ? null
+        : "/account/profile";
+  }
   const listing = /^\/listings\/([a-z0-9][a-z0-9._:-]{0,279})$/i.exec(to);
   if (listing) {
     const id = listingIdFromParam(listing[1]);

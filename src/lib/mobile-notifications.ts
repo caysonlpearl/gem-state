@@ -64,6 +64,7 @@ export function projectMobileNotification(
   conversations: Map<string, NotificationConversation>,
   facts: Map<string, MobileNotificationFact>,
   applications: Map<string, string> = new Map(),
+  dealerConversations: Set<string> = new Set(),
 ): MemberNotification | null {
   if (item.orderId || /billing|upgrade|payment|subscription/i.test(item.kind)) return null;
   if (!mobileListingAllowed({ categorySlug: "general", title: item.title, description: item.body }))
@@ -74,7 +75,11 @@ export function projectMobileNotification(
     const row = item.entityId ? conversations.get(item.entityId) : undefined;
     if (!row || !notificationConversationAllowed(row, user)) return null;
     const id = conversationListingId(row),
-      fact = id ? facts.get(id) : null;
+      fact = id
+        ? facts.get(id)
+        : dealerConversations.has(row.id)
+          ? { allowed: true, conversation: true, available: false, owned: false }
+          : null;
     if (!fact?.allowed || !(fact.conversation ?? fact.available)) return null;
     const target = `/messages/${row.id}`;
     if (url && mobileLinkTarget(url.href) !== target) return null;
@@ -135,20 +140,27 @@ export function mobileNotificationInbox(
   conversations: NotificationConversation[],
   facts: Map<string, MobileNotificationFact>,
   applications: Map<string, string> = new Map(),
+  dealerConversations: Set<string> = new Set(),
 ) {
   const context = new Map(conversations.map((c) => [c.id, c]));
   const visible = items
-    .map((n) => projectMobileNotification(n, user, context, facts, applications))
+    .map((n) =>
+      projectMobileNotification(n, user, context, facts, applications, dealerConversations),
+    )
     .filter((n): n is MemberNotification => Boolean(n));
   return {
     items: visible,
     unread: visible.filter((n) => !n.readAt).length,
     unreadMessages: conversations.filter((c) => {
       const id = conversationListingId(c);
+      const fact = id
+        ? facts.get(id)
+        : dealerConversations.has(c.id)
+          ? { allowed: true, conversation: true }
+          : null;
       if (
-        !id ||
-        !facts.get(id)?.allowed ||
-        !(facts.get(id)?.conversation ?? facts.get(id)?.available) ||
+        !fact?.allowed ||
+        !(fact.conversation ?? ("available" in fact && fact.available)) ||
         !notificationConversationAllowed(c, user)
       )
         return false;

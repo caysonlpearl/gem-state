@@ -1,4 +1,5 @@
-import { mobileListingDetail } from "../../../src/lib/mobile-listing-detail";
+import { Share } from "@capacitor/share";
+import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import {
   createContext,
   useContext,
@@ -6,50 +7,47 @@ import {
   useMemo,
   useState,
   type ComponentProps,
-  type MouseEvent,
 } from "react";
-import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
-import { Browser } from "@capacitor/browser";
-import { Capacitor } from "@capacitor/core";
-import { Share } from "@capacitor/share";
 import { toast } from "sonner";
-import { api, apiOrigin, auth, socialLogin } from "./client";
-import { CardSaveButton } from "./SavedCards";
-import { ListingTile, ShoppingRows } from "./ShopperExperience";
-import { installIdentifier } from "./identity";
-import { sendMessageOnce } from "./message-retries";
-import { rememberNativeAuthDestination } from "./auth-destination";
-import { nativeListingDestination } from "./listing-links";
-import { trackShopping } from "./shopping";
-import { trackAdvertising } from "./advertising";
-import { useListingActivity } from "./shopping-activity";
-import {
-  ListingDetailView,
-  listingDetailTitle,
-  EndedListingBanner,
-} from "../../../src/components/listings/ListingDetailView";
+import type { ContactSignInSheet } from "../../../src/components/classifieds/ContactSignInSheet";
+import { ContactSignInSheetView } from "../../../src/components/classifieds/ContactSignInSheetView";
+import type { ListingActionsProps } from "../../../src/components/classifieds/ListingActionsView";
 import { ListingActionsView } from "../../../src/components/classifieds/ListingActionsView";
 import { MobileContactBarView } from "../../../src/components/classifieds/MobileContactBarView";
-import { ContactSignInSheetView } from "../../../src/components/classifieds/ContactSignInSheetView";
-import {
-  FlagListingDialogView,
-  ClaimEmployerPanelView,
-  ClaimBusinessPanelView,
-  type ClaimRuntime,
-} from "../../../src/components/listings/ListingDetailControlsView";
 import { VehiclePriceInsightView } from "../../../src/components/dealers/VehiclePriceInsightView";
-import { rememberContactIntent } from "../../../src/lib/listing-contact-events";
-import { listingIdFromParam, listingPath } from "../../../src/lib/listing-url";
-import type { ClassifiedDetail } from "../../../src/lib/classifieds.functions";
-import type { MobileListing } from "../../../src/lib/mobile-contract";
-import type { VehiclePriceInsight } from "../../../src/lib/vehicle-price-insights";
 import type {
   DetailLinkProps,
   ListingDetailRuntime,
 } from "../../../src/components/listings/listing-detail-runtime";
-import type { ListingActionsProps } from "../../../src/components/classifieds/ListingActionsView";
-import type { ContactSignInSheet } from "../../../src/components/classifieds/ContactSignInSheet";
+import {
+  ClaimBusinessPanelView,
+  ClaimEmployerPanelView,
+  FlagListingDialogView,
+  type ClaimRuntime,
+} from "../../../src/components/listings/ListingDetailControlsView";
+import {
+  EndedListingBanner,
+  ListingDetailView,
+  listingDetailTitle,
+} from "../../../src/components/listings/ListingDetailView";
+import type { ClassifiedDetail } from "../../../src/lib/classifieds.functions";
+import { rememberContactIntent } from "../../../src/lib/listing-contact-events";
+import { listingIdFromParam, listingPath } from "../../../src/lib/listing-url";
+import { mobileListingDetail } from "../../../src/lib/mobile-listing-detail";
+import type { VehiclePriceInsight } from "../../../src/lib/vehicle-price-insights";
+import { trackAdvertising } from "./advertising";
+import { rememberNativeAuthDestination } from "./auth-destination";
+import { api, apiOrigin, auth, socialLogin } from "./client";
+import { installIdentifier } from "./identity";
+import { detailCard } from "./listing-card-data";
+import { nativeListingDestination } from "./listing-links";
 import { NativeJobApplicationForm } from "./ListingJobApplication";
+import { sendMessageOnce } from "./message-retries";
+import { handleNativePublicLink } from "./public-links";
+import { CardSaveButton } from "./SavedCards";
+import { ListingTile, ShoppingRows } from "./ShopperExperience";
+import { trackShopping } from "./shopping";
+import { useListingActivity } from "./shopping-activity";
 export type MobileDetailResult = {
   listing: ClassifiedDetail;
   stats: { views: number; favorites: number } | null;
@@ -67,43 +65,6 @@ export function useCurrentListingDetail() {
   const d = useContext(Detail);
   if (!d) throw Error("Missing listing details");
   return d;
-}
-export function detailCard(card: ClassifiedDetail, canSave = true): MobileListing {
-  return {
-    id: card.id,
-    productId: card.productId,
-    title: card.title,
-    categorySlug: card.categorySlug ?? "general",
-    categoryName: card.categoryName ?? "",
-    priceCents: card.priceCents,
-    currency: card.currency,
-    city: card.city,
-    state: card.state,
-    imageUrl: card.imageUrl,
-    createdAt: card.createdAt,
-    canSave,
-    display: {
-      productSlug: card.productSlug,
-      region: card.region,
-      condition: card.condition,
-      fulfillmentMode: card.fulfillmentMode,
-      isFeatured: card.isFeatured,
-      vehicle: card.vehicle,
-      pet: card.pet,
-      home: card.home,
-      job: card.job,
-      service: card.service,
-      dealer: card.dealer,
-      vehiclePricing: card.vehiclePricing,
-      externalVehicle: card.externalVehicle
-        ? { sourceKind: card.externalVehicle.sourceKind }
-        : undefined,
-      externalHome: card.externalHome,
-      externalPet: card.externalPet,
-      externalJob: card.externalJob,
-      directory: card.directory,
-    },
-  };
 }
 function NativeDetailLink({ to, params, search, onClick, ...props }: DetailLinkProps) {
   const current = useCurrentListingDetail();
@@ -419,53 +380,6 @@ export function NativeListingDetail({
     }),
     [data?.stats, listingId],
   );
-  function link(event: MouseEvent<HTMLElement>) {
-    const a = (event.target as HTMLElement).closest<HTMLAnchorElement>("a[href]");
-    if (!a || event.defaultPrevented) return;
-    const raw = a.getAttribute("href");
-    if (!raw || raw.startsWith("#/")) return;
-    if (raw.startsWith("#")) {
-      // Section fragments belong to this page; the hash is already the app router.
-      event.preventDefault();
-      try {
-        document
-          .getElementById(decodeURIComponent(raw.slice(1)))
-          ?.scrollIntoView({ behavior: "smooth", block: "start" });
-      } catch {
-        /* A malformed section identifier cannot replace the current route. */
-      }
-      return;
-    }
-    let url: URL;
-    try {
-      url = new URL(raw, apiOrigin);
-    } catch {
-      event.preventDefault();
-      return;
-    }
-    if (["tel:", "sms:", "mailto:"].includes(url.protocol)) return;
-    if (url.protocol !== "https:" || url.username || url.password) {
-      event.preventDefault();
-      toast.error("This link is unavailable.");
-      return;
-    }
-    if (["onbluebird.com", "www.onbluebird.com"].includes(url.hostname)) {
-      const dest = nativeListingDestination(url.pathname, {}, Object.fromEntries(url.searchParams));
-      event.preventDefault();
-      if (dest) location.hash = dest;
-      else if (["/terms", "/privacy", "/support"].includes(url.pathname)) {
-        if (Capacitor.isNativePlatform()) void Browser.open({ url: url.href });
-        else window.open(url.href, "_blank", "noopener,noreferrer");
-      } else toast.error("This destination is unavailable in the app.");
-      return;
-    }
-    if (Capacitor.isNativePlatform()) {
-      event.preventDefault();
-      void Browser.open({ url: url.href }).catch(() =>
-        toast.error("This link could not be opened."),
-      );
-    }
-  }
   if (error)
     return (
       <div role="alert" className="mx-4 my-6 rounded-2xl border border-border bg-card p-5 text-sm">
@@ -484,7 +398,7 @@ export function NativeListingDetail({
   return (
     <QueryClientProvider client={queryClient}>
       <Detail.Provider value={{ data, owner, learning, applicationsReady }}>
-        <div onClickCapture={link}>
+        <div onClickCapture={handleNativePublicLink}>
           {data.listing.ended && <EndedListingBanner listing={data.listing} />}
           <ListingDetailView
             listing={data.listing}

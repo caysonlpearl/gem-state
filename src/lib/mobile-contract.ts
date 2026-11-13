@@ -1,3 +1,4 @@
+import { storefrontDestination } from "./storefront-url.ts";
 import { classifiedCategories } from "../config/classifieds.ts";
 import type { ListingCardSummary } from "./listing-card-summary";
 
@@ -129,6 +130,11 @@ export function mobileLinkTarget(raw: string): string | null {
     )
       return null;
     if (/^\/listings\/[a-z0-9._:-]{1,200}$/i.test(url.pathname)) return url.pathname;
+    if (/^\/(sellers|dealers)\//i.test(url.pathname)) {
+      if (url.hash || new Set(url.searchParams.keys()).size !== [...url.searchParams.keys()].length)
+        return null;
+      return storefrontDestination(url.pathname, Object.fromEntries(url.searchParams));
+    }
     if (
       (url.pathname === "/notifications" && !url.search && !url.hash) ||
       (url.pathname === "/account" && url.search === "?section=notifications" && !url.hash)
@@ -143,5 +149,21 @@ export function mobileLinkTarget(raw: string): string | null {
     return null;
   } catch {
     return null;
+  }
+}
+
+/** The named firearm merchant stays outside native business/contact destinations. */
+export function mobileCatalogLinkAllowed(raw: string) {
+  try {
+    const url = new URL(raw);
+    return (
+      url.protocol === "https:" &&
+      !url.username &&
+      !url.password &&
+      url.hostname !== "guns.com" &&
+      !url.hostname.endsWith(".guns.com")
+    );
+  } catch {
+    return false;
   }
 }
