@@ -130,7 +130,7 @@ export const getDealerAccountPreview = createServerFn({ method: "GET" })
     const { data: dealer, error } = await db
       .from("dealer_profiles")
       .select(
-        "id,owner_user_id,display_name,slug,logo_url,email,phone,website,address_line1,city,state,postal_code",
+        "id,owner_user_id,legal_name,display_name,slug,logo_url,email,phone,website,address_line1,address_line2,city,state,postal_code,description,agreements_accepted_at,price_insights_enabled,valuation_dealer_type",
       )
       .eq("id", data.dealerId)
       .single();
@@ -164,7 +164,25 @@ export const getDealerAccountPreview = createServerFn({ method: "GET" })
     if (countError) throw Error("Could not load dealership inbox status.");
     return {
       loginEmail: owner.user?.email ?? null,
-      activated: Boolean(owner.user?.email_confirmed_at),
+      activated: Boolean(owner.user?.last_sign_in_at),
+      profile: {
+        legalName: dealer.legal_name,
+        displayName: dealer.display_name,
+        slug: dealer.slug,
+        phone: dealer.phone ?? "",
+        email: dealer.email ?? "",
+        website: dealer.website ?? "",
+        addressLine1: dealer.address_line1 ?? "",
+        addressLine2: dealer.address_line2 ?? "",
+        city: dealer.city ?? "",
+        state: dealer.state ?? "",
+        postalCode: dealer.postal_code ?? "",
+        logoUrl: dealer.logo_url ?? "",
+        description: dealer.description ?? "",
+        acceptAgreements: Boolean(dealer.agreements_accepted_at),
+        priceInsightsEnabled: dealer.price_insights_enabled !== false,
+        valuationDealerType: dealer.valuation_dealer_type ?? "",
+      },
       messageCount: count ?? 0,
       postalCode: dealer.postal_code,
       inventory: {

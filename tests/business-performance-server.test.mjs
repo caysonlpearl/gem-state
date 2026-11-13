@@ -144,6 +144,8 @@ test("reports use cached inventory, retain removed listings, and only persist ch
       },
     },
   );
+  await exports.loadBusinessPerformance(db, 30, { persistAttribution: false });
+  assert.equal(writes, 0, "owner analytics must not persist global attribution");
   let result = await exports.loadBusinessPerformance(db, 30);
   assert.deepEqual([...statesRead].sort(), ["ID", "OR", "UT", "WA"]);
   assert.equal(result.businesses.length, 1);
