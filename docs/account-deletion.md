@@ -193,8 +193,8 @@ The first installation attempt was rejected because the original wrapper treated
 terminal newline as a missing semicolon. A follow-up query verified complete rollback
 with no new tables, functions, policies or migration-history rows. PR #214 corrected
 whitespace trimming; the observed formatting failed in the new regression fixture
-before the fix and passed after it. Both semicolon-terminated and unterminated
-original blocks are covered, including CR/LF/tab/space endings. A rollback-only
+before the fix and passed after it. Original blocks with and without their optional terminal semicolon
+are covered, including CR/LF/tab/space endings. A rollback-only
 rehearsal then compiled all current production guards and asserted zero coverage
 gaps before the successful installation. No compiler validation was disabled.
 
