@@ -1,6 +1,19 @@
 @import "../../../src/styles.css";
 @source "./";
 
+/* iPhone focus zoom on smaller fields can leave the whole app clipped after
+   navigation. Keep native iOS controls readable without changing shared web or
+   Android styles, or disabling the viewport's accessibility zoom settings. */
+html[data-native-platform="ios"]
+  :is(
+    input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+    textarea,
+    select
+  ) {
+  /* Outrank the shared homepage's compact-field exception on native iOS. */
+  font-size: 16px !important;
+}
+
 @layer components {
   :root {
     font-synthesis: none;

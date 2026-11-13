@@ -18,7 +18,9 @@ const config: CapacitorConfig = {
   webDir: "dist",
   // Production always packages local assets. Never use server.url/live reload in release builds.
   server: { androidScheme: "https" },
-  ios: { contentInset: "automatic" },
+  // Shared header/tab-bar CSS already reserves the iPhone safe areas.
+  // Native automatic insets would reserve the same space a second time.
+  ios: { contentInset: "never" },
   plugins: {
     // Use native insets plus the standard CSS env() values. This avoids a
     // document-start CSS injection race on Android's initial blank page.
