@@ -1,3 +1,4 @@
+import { loadStaffTrafficExclusions } from "./traffic-exclusions.server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { brand } from "@/config/brand";
 import { marketplaceStateCodes } from "@/config/classifieds";
@@ -79,6 +80,8 @@ export async function loadBusinessPerformance(admin: SupabaseClient, days: numbe
     ],
   );
   if (release.error) throw Error("Business tracking setup is incomplete.");
+  const staffIds = new Set<string>(staff.map((p) => p.user_id));
+  const exclusions = await loadStaffTrafficExclusions(admin, staffIds, Date.parse(until));
   // A registered business can use an ordinary seller storefront (including
   // industrial/parts inventory). Do not promote it to a verified dealer account.
   const businessSlugs = storedEntities
@@ -326,7 +329,8 @@ export async function loadBusinessPerformance(admin: SupabaseClient, days: numbe
       events: events as BusinessMetricEvent[],
       businesses: entities,
       attributions: attributes,
-      staffIds: new Set(staff.map((p) => p.user_id)),
+      staffIds,
+      ...exclusions,
       domain: brand.domain,
       rates: new Map(
         rates.map((r) => [

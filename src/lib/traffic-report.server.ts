@@ -1,3 +1,4 @@
+import { loadStaffTrafficExclusions } from "./traffic-exclusions.server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { brand } from "@/config/brand";
 import { eligibleTrafficEvents, summarizeTraffic, type TrafficEvent } from "./traffic-summary";
@@ -8,6 +9,7 @@ import { summarizeEditorialTraffic } from "./editorial-traffic";
 const EVENTS = [
   "media_article_viewed",
   "media_cta_clicked",
+  "visit_engaged",
   "visit_started",
   "search_completed",
   "classified_listing_submit_started",
@@ -36,7 +38,7 @@ export async function loadTrafficReport(
   for (let offset = 0; ; offset += 500) {
     const { data: batch, error } = await supabase
       .from("analytics_events")
-      .select("id, name, props, user_id, occurred_at")
+      .select("id, name, props, user_id, session_id, occurred_at")
       .in("name", [...EVENTS])
       .eq("is_demo", false)
       .gte("occurred_at", since)
@@ -49,6 +51,7 @@ export async function loadTrafficReport(
     if ((batch?.length ?? 0) < 500) break;
   }
   const staffIds = new Set((staff ?? []).map((row) => row.user_id as string));
+  const exclusions = await loadStaffTrafficExclusions(supabase, staffIds, untilTime);
   // Operational milestones come from saved records, not a click or a signup attempt.
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const admin = supabaseAdmin as unknown as SupabaseClient;
@@ -97,7 +100,7 @@ export async function loadTrafficReport(
     ),
   ]);
   const realSeller = (id: unknown) => !staffIds.has(String(id));
-  const options = { staffIds, domain: brand.domain, windowDays: windowDays };
+  const options = { staffIds, ...exclusions, domain: brand.domain, windowDays: windowDays };
   return {
     isAdmin: true,
     period: { since, until },

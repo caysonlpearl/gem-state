@@ -1,3 +1,4 @@
+import { loadStaffTrafficExclusions } from "../src/lib/traffic-exclusions.server.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
 import vm from "node:vm";
@@ -36,10 +37,14 @@ test("reports use cached inventory, retain removed listings, and only persist ch
       let start = 0,
         end = 499,
         single = false;
+      const filters = [];
       const query = {
         select: () => query,
         order: () => query,
-        in: () => query,
+        in: (column, values) => {
+          filters.push((row) => values.includes(row[column]));
+          return query;
+        },
         or: (filter) => {
           if (table === "asks") return query;
           assert.match(filter, /name.in.*business_listing_clicked/);
@@ -72,7 +77,11 @@ test("reports use cached inventory, retain removed listings, and only persist ch
         },
         then(resolve, reject) {
           return Promise.resolve({
-            data: single ? tables[table][0] : tables[table].slice(start, end + 1),
+            data: single
+              ? tables[table][0]
+              : tables[table]
+                  .filter((row) => filters.every((filter) => filter(row)))
+                  .slice(start, end + 1),
             error: null,
           }).then(resolve, reject);
         },
@@ -117,6 +126,7 @@ test("reports use cached inventory, retain removed listings, and only persist ch
           return { marketplaceStateCodes: ["ID", "UT", "OR", "WA"] };
         if (name === "@/config/brand") return { brand: { domain: "onbluebird.com" } };
         if (name === "./business-performance") return contract;
+        if (name === "./traffic-exclusions.server") return { loadStaffTrafficExclusions };
         if (name === "./dealer-feed.server")
           return { dealerFeedCards: async () => ({ cards: [], dealers: [] }) };
         if (name === "./marketcheck.server")

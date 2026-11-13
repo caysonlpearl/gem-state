@@ -285,6 +285,8 @@ export function summarizeBusinessPerformance(input: {
   businesses: BusinessIdentity[];
   attributions: BusinessAttribution[];
   staffIds: Set<string>;
+  excludedBrowserIds?: Set<string>;
+  excludedVisitIds?: Set<string>;
   domain: string;
   rates: Map<string, number | null>;
   ownerIds?: Map<string, Set<string>>;
@@ -350,7 +352,12 @@ export function summarizeBusinessPerformance(input: {
   }
   const eligible = eligibleTrafficEvents(
     input.events.filter((e) => e.is_demo !== true),
-    { staffIds: input.staffIds, domain: input.domain },
+    {
+      staffIds: input.staffIds,
+      excludedBrowserIds: input.excludedBrowserIds,
+      excludedVisitIds: input.excludedVisitIds,
+      domain: input.domain,
+    },
   ) as BusinessMetricEvent[];
   const ownVisits = new Set<string>();
   for (const e of eligible) {

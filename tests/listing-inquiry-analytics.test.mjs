@@ -1,3 +1,7 @@
+import {
+  isInternalAnalyticsBrowser,
+  markInternalAnalyticsBrowser,
+} from "../src/lib/analytics-browser.ts";
 import { listingBusinessProps } from "../src/lib/business-context.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -85,9 +89,12 @@ function boundary({ start, originAge = 0, internal = false, brokenAnalytics = fa
     console: { warn() {} },
     listingBusinessProps,
     isInternalAnalyticsQuery,
+    isInternalAnalyticsBrowser,
+    markInternalAnalyticsBrowser,
     isKnownAutomatedAgent,
     classifyTrafficSource,
     loadSupabase: async () => ({
+      rpc: async () => ({ data: false, error: null }),
       auth: { getSession: async () => ({ data: { session: { user: { id: "offline-buyer" } } } }) },
       from: (table) => {
         assert.equal(table, "analytics_events");

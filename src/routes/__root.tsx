@@ -23,7 +23,12 @@ import { MobileTabBar } from "@/components/layout/MobileTabBar";
 import { PilotBanner } from "@/components/layout/PilotBanner";
 import { BluebirdEmptyState } from "@/components/layout/BluebirdEmptyState";
 import { Toaster } from "@/components/ui/sonner";
-import { trackBrowserError, ensureVisit, flushEditorialAttribution } from "@/lib/analytics";
+import {
+  trackBrowserError,
+  ensureVisit,
+  flushEditorialAttribution,
+  startTrafficEngagement,
+} from "@/lib/analytics";
 import { flushBusinessEvents } from "@/lib/business-analytics";
 import { startWebVitals } from "@/lib/web-vitals";
 
@@ -169,6 +174,7 @@ function RootComponent() {
   useEffect(() => {
     ensureVisit();
     startWebVitals();
+    return startTrafficEngagement();
   }, []);
 
   useEffect(() => {

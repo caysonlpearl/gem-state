@@ -1,5 +1,6 @@
+import { markInternalAnalyticsBrowser } from "@/lib/analytics-browser";
 import type { ConversionRow } from "@/lib/conversion-funnel";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
@@ -61,10 +62,10 @@ function TrafficTable({ rows, label }: { rows: TrafficRow[]; label: "channel" | 
             <th className="px-3 py-2 font-semibold">
               {label === "channel" ? "Channel" : "Source"}
             </th>
-            <th className="px-3 py-2 text-right font-semibold">Visits</th>
+            <th className="px-3 py-2 text-right font-semibold">Sessions</th>
             <th className="px-3 py-2 text-right font-semibold">Listing views</th>
             <th className="px-3 py-2 text-right font-semibold">Contact actions</th>
-            <th className="px-3 py-2 text-right font-semibold">Visits that contacted</th>
+            <th className="px-3 py-2 text-right font-semibold">Contacting sessions</th>
             <th className="px-3 py-2 text-right font-semibold">Contact rate</th>
           </tr>
         </thead>
@@ -153,6 +154,10 @@ function ConversionTable({ rows }: { rows: ConversionRow[] }) {
 
 function TrafficPage() {
   const [windowDays, setWindowDays] = useState<number>(30);
+  const [testingLinkStatus, setTestingLinkStatus] = useState("");
+  useEffect(() => {
+    markInternalAnalyticsBrowser();
+  }, []);
   const fetchSummary = useServerFn(getTrafficSummary);
   const summary = useQuery({
     queryKey: ["admin-traffic", windowDays],
@@ -229,13 +234,10 @@ function TrafficPage() {
         <>
           <dl className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
             {[
-              ["Visits", data.totals.visits],
-              ["Listing views", data.totals.listingViews],
+              ["Engaged visitors", data.audience.engagedVisitors],
+              ["Engaged listing views", data.audience.engagedListingViews],
+              ["Visitor estimate", data.audience.visitors],
               ["Contact actions", data.totals.contacts],
-              [
-                "Visits that contacted",
-                `${data.totals.contactingVisits} (${rate(data.totals.contactingVisits, data.totals.visits)})`,
-              ],
             ].map(([label, value]) => (
               <div key={label} className="rounded-lg border border-border bg-card px-4 py-3">
                 <dt className="text-[11.5px] text-muted-foreground">{label}</dt>
@@ -243,6 +245,64 @@ function TrafficPage() {
               </div>
             ))}
           </dl>
+
+          <section
+            aria-label="Traffic accuracy"
+            className="mt-4 rounded-xl border border-border bg-secondary/40 p-4 text-xs leading-relaxed"
+          >
+            <h2 className="text-sm font-semibold">Filtered traffic &amp; engagement</h2>
+            <p className="mt-2">
+              Engaged visitors interacted with a page, contacted or saved a listing, or used a
+              posting form. Engaged listing views come from those sessions. Quiet readers may be
+              missed; these are browser-based estimates, not verified people.
+            </p>
+            <p className="mt-2">
+              {data.audience.sessions.toLocaleString()} filtered sessions ·{" "}
+              {data.totals.listingViews.toLocaleString()} filtered listing views ·{" "}
+              {data.totals.contactingVisits.toLocaleString()} contacting sessions. A listing counts
+              once per session, so reloading it does not add another view.
+            </p>
+            <p className="mt-2">
+              {data.audience.excludedSessions.toLocaleString()} sessions excluded for staff/testing,
+              recognized automation, or non-production traffic. Staff and testing exclusions follow
+              recognized browsers across tabs and sign-outs.
+            </p>
+            {data.audience.legacySessions > 0 && (
+              <p className="mt-2 text-muted-foreground">
+                {data.audience.legacySessions.toLocaleString()} sessions use older tracking.
+                Historical engagement is incomplete and unidentified bots may remain in the visitor
+                estimate.
+              </p>
+            )}
+            {data.audience.unidentifiedSessions > 0 && (
+              <p className="mt-2 text-muted-foreground">
+                {data.audience.unidentifiedSessions.toLocaleString()} sessions have no browser
+                identifier and are counted separately in the visitor estimate.
+              </p>
+            )}
+            <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-border pt-3">
+              <span>This testing browser is excluded, including after sign-out.</span>
+              <button
+                type="button"
+                className="rounded-full border border-input bg-background px-3 py-2 font-medium hover:bg-secondary"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(`${window.location.origin}/?_qa=1`);
+                    setTestingLinkStatus(
+                      "Testing link copied. Open it in another testing browser to exclude that browser too.",
+                    );
+                  } catch {
+                    setTestingLinkStatus(
+                      "Open Bluebird with ?_qa=1 in the other testing browser to exclude it.",
+                    );
+                  }
+                }}
+              >
+                Copy testing link
+              </button>
+              <span role="status">{testingLinkStatus}</span>
+            </div>
+          </section>
 
           <section className="mt-8">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -285,9 +345,10 @@ function TrafficPage() {
           >
             <h2 className="text-[17px] font-semibold">Weekly and monthly SEO reviews</h2>
             <p className="mt-2 max-w-[90ch] text-xs leading-relaxed text-muted-foreground">
-              Weekly reports save after 9am Boise time on Mondays; calendar-month reports save on
-              the first. They cover completed UTC periods, exclude marked internal traffic, and
-              remain private to administrators. Search Console indexing and keyword impressions are
+              Saved reports retain the filters that were active when they were captured. Weekly
+              reports save after 9am Boise time on Mondays; calendar-month reports save on the
+              first. They cover completed UTC periods, exclude marked internal traffic, and remain
+              private to administrators. Search Console indexing and keyword impressions are
               reviewed alongside these reports.
             </p>
             <button
@@ -537,12 +598,12 @@ function TrafficPage() {
           </div>
 
           <p className="mt-10 text-[12px] leading-relaxed text-muted-foreground">
-            A visit is one browser tab session, classified on its first page from the referring site
-            or utm_ tags; only the referring domain is stored. Demo listings and signed-in staff
-            accounts, marked QA visits, and recognized automated browsers are excluded. Anonymous
-            events in a visit that later signs in as staff are excluded too; unmarked signed-out
-            staff browsing can still be counted. Some apps and browsers hide the referrer, so part
-            of &ldquo;Direct&rdquo; is really from elsewhere.
+            Sessions are browser-tab sessions; visitor estimates use a browser identifier, with a
+            session fallback when it is missing. Demo listings, known automated agents,
+            automation-controlled browsers, marked testing browsers, and browsers recognized as
+            staff are excluded. Historical records are re-filtered without deleting the originals.
+            Unknown automation can still be counted. Some apps and browsers hide the referrer, so
+            Direct does not necessarily mean the address was typed in.
           </p>
         </>
       )}

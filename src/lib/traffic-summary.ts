@@ -1,4 +1,4 @@
-import { isNewListingAction } from "./analytics-policy.ts";
+import { isNewListingAction, isKnownAutomatedAgent } from "./analytics-policy.ts";
 
 /**
  * Pure aggregation behind the admin traffic page, kept free of app imports so
@@ -23,9 +23,26 @@ export type TrafficSummary = {
   contactMethods: { method: string; count: number }[];
   topLandingPages: { path: string; visits: number; fromSearchOrAi: number }[];
   conversions: { inquiriesSent: number; saveActions: number; listingsSubmitted: number };
+  audience: {
+    visitors: number;
+    engagedVisitors: number;
+    engagedListingViews: number;
+    sessions: number;
+    excludedSessions: number;
+    legacySessions: number;
+    unidentifiedSessions: number;
+  };
 };
 
+export type TrafficExclusions = {
+  staffIds: Set<string>;
+  domain: string;
+  excludedBrowserIds?: Set<string>;
+  excludedVisitIds?: Set<string>;
+};
 export type TrafficEvent = {
+  id?: string;
+  session_id?: string | null;
   name: string;
   props: unknown;
   user_id: string | null;
@@ -37,11 +54,9 @@ function emptyRow(channel: string, source: string): TrafficRow {
 }
 
 /** Exclude the whole staff/QA visit, including its anonymous pre-login events. */
-export function eligibleTrafficEvents(
-  events: TrafficEvent[],
-  options: { staffIds: Set<string>; domain: string },
-) {
-  const excludedVisits = new Set<string>();
+export function eligibleTrafficEvents(events: TrafficEvent[], options: TrafficExclusions) {
+  const excludedVisits = new Set(options.excludedVisitIds);
+  const excludedBrowsers = new Set(options.excludedBrowserIds);
   const excluded = (event: TrafficEvent) => {
     const props = (event.props ?? {}) as Record<string, unknown>;
     const host = String(props.site_host ?? "").replace(/^www\./, "");
@@ -49,18 +64,37 @@ export function eligibleTrafficEvents(
       Boolean(event.user_id && options.staffIds.has(event.user_id)) ||
       props.is_internal === true ||
       props.is_bot === true ||
+      props.webdriver === true ||
+      (typeof props.user_agent === "string" && isKnownAutomatedAgent(props.user_agent)) ||
       Boolean(host && host !== options.domain)
     );
   };
   for (const event of events) {
     const props = (event.props ?? {}) as Record<string, unknown>;
+    // Staff/test/automation markers apply to the browser across tabs and sign-outs.
+    // Preview-host traffic alone does not establish that a browser is an operator.
+    const marked =
+      Boolean(event.user_id && options.staffIds.has(event.user_id)) ||
+      (props.is_internal === true && props.internal_reason !== "role_check_unavailable") ||
+      props.is_bot === true ||
+      props.webdriver === true ||
+      (typeof props.user_agent === "string" && isKnownAutomatedAgent(props.user_agent));
+    if (marked && event.session_id) excludedBrowsers.add(event.session_id);
     if (excluded(event) && props.traffic_visit) excludedVisits.add(String(props.traffic_visit));
   }
   const seen = new Set<string>();
   return events.filter((event) => {
     const props = (event.props ?? {}) as Record<string, unknown>;
-    if (excluded(event) || excludedVisits.has(String(props.traffic_visit))) return false;
-    const id = props.event_id ?? (event.name === "visit_started" ? props.traffic_visit : undefined);
+    if (
+      excluded(event) ||
+      (event.session_id && excludedBrowsers.has(event.session_id)) ||
+      excludedVisits.has(String(props.traffic_visit))
+    )
+      return false;
+    const id =
+      event.name === "listing_viewed" && props.traffic_visit && props.listing_id
+        ? `${props.traffic_visit}:${props.listing_id}`
+        : (props.event_id ?? (event.name === "visit_started" ? props.traffic_visit : event.id));
     if (!id) return true;
     const key = `${event.name}:${id}`;
     if (seen.has(key)) return false;
@@ -71,7 +105,7 @@ export function eligibleTrafficEvents(
 
 export function summarizeTraffic(
   events: TrafficEvent[],
-  options: { staffIds: Set<string>; domain: string; windowDays: number },
+  options: TrafficExclusions & { windowDays: number },
 ): Omit<TrafficSummary, "isAdmin"> {
   const { staffIds, domain } = options;
   const summary: Omit<TrafficSummary, "isAdmin"> = {
@@ -82,6 +116,15 @@ export function summarizeTraffic(
     contactMethods: [],
     topLandingPages: [],
     conversions: { inquiriesSent: 0, saveActions: 0, listingsSubmitted: 0 },
+    audience: {
+      visitors: 0,
+      engagedVisitors: 0,
+      engagedListingViews: 0,
+      sessions: 0,
+      excludedSessions: 0,
+      legacySessions: 0,
+      unidentifiedSessions: 0,
+    },
   };
   const channels = new Map<string, TrafficRow>();
   const sources = new Map<string, TrafficRow>();
@@ -93,14 +136,61 @@ export function summarizeTraffic(
   const methods = new Map<string, number>();
   const landings = new Map<string, { visits: number; fromSearchOrAi: number }>();
 
-  for (const event of eligibleTrafficEvents(events, options)) {
+  const eligible = eligibleTrafficEvents(events, options);
+  const browserKey = (event: TrafficEvent) =>
+    event.session_id
+      ? `browser:${event.session_id}`
+      : ((event.props ?? {}) as Record<string, unknown>).traffic_visit
+        ? `visit:${((event.props ?? {}) as Record<string, unknown>).traffic_visit}`
+        : null;
+  const visitors = new Set<string>();
+  const engaged = new Set<string>();
+  const rawVisits = new Set(
+    events
+      .filter((e) => e.name === "visit_started")
+      .map((e) => String((e.props as Record<string, unknown> | null)?.traffic_visit ?? e.id ?? ""))
+      .filter(Boolean),
+  );
+  const eligibleVisits = new Set<string>();
+  const engagedVisits = new Set<string>();
+  for (const event of eligible) {
+    const props = (event.props ?? {}) as Record<string, unknown>;
+    if (
+      props.traffic_visit &&
+      (event.name === "visit_engaged" ||
+        (event.name === "web_vital" &&
+          props.metric === "INP" &&
+          typeof props.value === "number" &&
+          props.value > 0) ||
+        [
+          "seller_contacted",
+          "inquiry_completed",
+          "watchlist_added",
+          "classified_listing_submit_started",
+          "classified_listing_submit_succeeded",
+        ].includes(event.name))
+    ) {
+      engagedVisits.add(String(props.traffic_visit));
+    }
+  }
+  for (const event of eligible) {
+    const props = (event.props ?? {}) as Record<string, unknown>;
+    const key = browserKey(event);
+    if (key) visitors.add(key);
+    if (key && engagedVisits.has(String(props.traffic_visit))) engaged.add(key);
+    if (event.name === "visit_started") {
+      if (props.traffic_visit) eligibleVisits.add(String(props.traffic_visit));
+      if (props.traffic_policy !== 2) summary.audience.legacySessions++;
+      if (!event.session_id) summary.audience.unidentifiedSessions++;
+    }
+    if (event.name === "listing_viewed" && engagedVisits.has(String(props.traffic_visit)))
+      summary.audience.engagedListingViews++;
     if (event.name === "inquiry_completed") summary.conversions.inquiriesSent += 1;
     if (event.name === "watchlist_added") summary.conversions.saveActions += 1;
     if (event.name === "classified_listing_submit_succeeded" && isNewListingAction(event.props))
       summary.conversions.listingsSubmitted += 1;
     if (!["visit_started", "listing_viewed", "seller_contacted"].includes(event.name)) continue;
     if (event.user_id && staffIds.has(event.user_id)) continue;
-    const props = (event.props ?? {}) as Record<string, unknown>;
     const host = props["site_host"] ? String(props["site_host"]).replace(/^www\./, "") : null;
     if (host && host !== domain) continue;
     const channel = String(props["traffic_channel"] ?? "unknown");
@@ -138,6 +228,10 @@ export function summarizeTraffic(
     }
   }
 
+  summary.audience.visitors = visitors.size;
+  summary.audience.engagedVisitors = engaged.size;
+  summary.audience.sessions = summary.totals.visits;
+  summary.audience.excludedSessions = [...rawVisits].filter((id) => !eligibleVisits.has(id)).length;
   summary.totals.contactingVisits = contactingVisits.all.size;
   for (const [channel, row] of channels)
     row.contactingVisits = contactingVisits.channel.get(channel)?.size ?? 0;
