@@ -1,3 +1,7 @@
+import {
+  readChatgptDealerProducts,
+  type DealerFeedResult,
+} from "./chatgpt-dealer-products.server.ts";
 import { withCatalogReadDeadline } from "./catalog-read-deadline.ts";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "../integrations/supabase/types.ts";
@@ -11,8 +15,12 @@ import {
 
 const PAGE_SIZE = 500;
 const MAX_ROWS = 10_000;
-/** Only the approved native catalog. No calls to providers, writes, or paid API usage. */
-export async function readChatgptProductFeed(db: SupabaseClient<Database>, now = Date.now()) {
+/** Approved native listings plus the owner's authorized public dealer inventory. No provider calls or writes. */
+export async function readChatgptProductFeed(
+  db: SupabaseClient<Database>,
+  now = Date.now(),
+  readDealers: () => Promise<DealerFeedResult> = () => readChatgptDealerProducts(db, now),
+) {
   const listings: FeedListing[] = [];
   const deadline = now + 30_000;
   for (let offset = 0; ; offset += PAGE_SIZE) {
@@ -60,17 +68,25 @@ export async function readChatgptProductFeed(db: SupabaseClient<Database>, now =
     if ("product" in decision) products.push(decision.product);
     else excluded[decision.excluded] = (excluded[decision.excluded] ?? 0) + 1;
   }
+  const dealerFeed = await readDealers();
+  if (Date.now() > deadline) throw new Error("Feed read deadline reached");
+  products.push(...dealerFeed.products);
+  for (const [reason, count] of Object.entries(dealerFeed.excluded))
+    excluded[reason] = (excluded[reason] ?? 0) + count;
   return {
-    csv: serializeProductFeed(products),
+    csv: serializeProductFeed(products.sort((a, b) => a.item_id.localeCompare(b.item_id))),
     count: products.length,
-    scanned: listings.length,
+    scanned: listings.length + dealerFeed.scanned,
     excluded,
   };
 }
 
-export async function chatgptFeedResponse(db: SupabaseClient<Database>) {
+export async function chatgptFeedResponse(
+  db: SupabaseClient<Database>,
+  readDealers?: () => Promise<DealerFeedResult>,
+) {
   try {
-    const feed = await readChatgptProductFeed(db);
+    const feed = await readChatgptProductFeed(db, Date.now(), readDealers);
     return new Response(feed.csv, {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",
@@ -78,7 +94,7 @@ export async function chatgptFeedResponse(db: SupabaseClient<Database>) {
         "Content-Disposition": 'inline; filename="bluebird-chatgpt-products.csv"',
         "X-Content-Type-Options": "nosniff",
         "X-Robots-Tag": "noindex",
-        "X-Bluebird-Feed-Version": "2026-11-13-v2",
+        "X-Bluebird-Feed-Version": "2026-11-13-v3",
         "X-Bluebird-Feed-Items": String(feed.count),
       },
     });

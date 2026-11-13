@@ -2,7 +2,7 @@
 
 Hosted address: `https://onbluebird.com/feeds/chatgpt.csv`.
 
-This endpoint generates a complete CSV from current, approved Bluebird catalog listings, using an anonymous, row-security-limited database client. It has no scheduled job, database writes, provider refresh, paid API calls, or OpenAI credentials. HTTP caching is five minutes; OpenAI's retrieval and ingestion cadence adds a separate delay. It is a discovery feed, with Ads and checkout explicitly disabled. Active classified stock is `unknown`, since Bluebird does not independently confirm seller availability.
+This endpoint generates a complete CSV from current, approved Bluebird catalog listings and the owner-authorized dealer inventories. Native listings and direct dealer publications use an anonymous, row-security-limited database client; saved dealer cache/report reads use the existing server-only cache client. It has no scheduled job, database writes, provider refresh, paid API calls, or OpenAI credentials. HTTP caching is five minutes; OpenAI's retrieval and ingestion cadence adds a separate delay. It is a discovery feed, with Ads and checkout explicitly disabled. Active classified stock is `unknown`, since Bluebird does not independently confirm seller availability.
 
 ## Category review — November 13, 2026
 
@@ -18,7 +18,11 @@ Allowlisting a category is not a guarantee that every item fits. The item screen
 
 ## Source and field requirements
 
-Only `asks` already approved for publication on Bluebird are read, including seller imports that have been published into that catalog through Bluebird's authorized import process. External provider caches (MarketCheck, home/job aggregators, RescueGroups, business directories, Guns.com) and direct dealer-feed inventory are not exported. Website visibility alone does not establish a provider's onward redistribution permission. Adding those sources requires confirming feed rights and preserving the actual seller's identity and terms.
+The owner confirmed permission to list dealer inventories on November 13, 2026. The feed includes native approved `asks`, authorized direct dealer publications returned by `read_published_dealer_inventory`, and saved dealer vehicle pages in Bluebird's four-state marketplace. Direct publications retain their enabled/revoked, 72-hour freshness, owner hidden/sold, reviewed-report and safe-media controls. Direct dealer sources replace older same-dealer aggregator offers; ID/VIN checks deduplicate the saved vehicle sources. Cached dealer pages must be unexpired and vehicles seen within seven days, with reviewed reports excluded. Every direct-publication dealer domain is excluded from older aggregator offers, including after publication is disabled or revoked. Empty/missing cache pages do not request provider refreshes. Failed database, report or publication reads return 503 instead of a partial catalog.
+
+Each vehicle needs a real make, current fixed positive USD price, explicit new/used condition, safe photo, actual dealer name and supported location. When dealer comments are absent, the description uses year/make/model/mileage/specifications already displayed on the listing page. Each row links to its Bluebird vehicle page and the specific dealer storefront or public dealer website. Photos use the same safe public image sources displayed on the page. Availability stays unknown; Ads and checkout remain disabled. Unpriced/contact-for-price vehicles remain outside the product feed.
+
+Private-owner provider vehicles, home/job aggregators, RescueGroups, directories and Guns.com remain outside this dealer-inventory expansion. The feed never refreshes providers, spends provider calls or creates marketplace rows. The direct publication RPC has a 5,000-row bound: reaching that bound fails the feed rather than silently claiming a complete snapshot; pagination must be added before exceeding it.
 
 Rows must be non-demo, active, unexpired, approved, have a published non-demo product, a supported marketplace location (Idaho, Utah, Oregon, or Washington), a positive integer USD price, a photo, a known condition, and a public seller storefront. The state scope reuses the shared marketplace configuration. No private seller-profile fields, contact details, government IDs, messages, credentials, or storage paths are selected.
 
