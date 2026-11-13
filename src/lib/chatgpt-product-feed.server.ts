@@ -6,6 +6,7 @@ import {
   serializeProductFeed,
   type FeedListing,
   type FeedSeller,
+  CHATGPT_FEED_STATES,
 } from "./chatgpt-product-feed.ts";
 
 const PAGE_SIZE = 500;
@@ -30,7 +31,7 @@ export async function readChatgptProductFeed(db: SupabaseClient<Database>, now =
         .gt("expires_at", new Date(now).toISOString())
         .eq("products.status", "published")
         .eq("products.is_demo", false)
-        .eq("classified_listing_details.state", "ID")
+        .in("classified_listing_details.state", [...CHATGPT_FEED_STATES])
         .order("id", { ascending: true })
         .range(offset, offset + PAGE_SIZE - 1),
     );

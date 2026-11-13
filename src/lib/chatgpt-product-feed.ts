@@ -1,4 +1,7 @@
 import { listingPath } from "./listing-url.ts";
+import { marketplaceStateCodes } from "../config/classifieds.ts";
+
+export const CHATGPT_FEED_STATES = new Set<string>(marketplaceStateCodes);
 
 /** Product discovery only. Category eligibility is not OpenAI approval. */
 export const CHATGPT_FEED_CATEGORIES = new Set([
@@ -212,7 +215,8 @@ export function productForFeed(
   const details = Array.isArray(row.classified_listing_details)
     ? row.classified_listing_details[0]
     : row.classified_listing_details;
-  if (!details || details.state?.toUpperCase() !== "ID") return { excluded: "outside-idaho" };
+  if (!details || !CHATGPT_FEED_STATES.has(details.state?.toUpperCase() ?? ""))
+    return { excluded: "outside-marketplace" };
   const title = text(product.name);
   const description = text(product.description);
   const item = details.item_details ?? {};

@@ -75,6 +75,22 @@ test("publication gates reject sold, withdrawn, expired, unapproved, demo and dr
     assert.equal(productForFeed(listing(extra), sellers, now).excluded, "not-public-active");
   }
 });
+test("includes the surrounding-state marketplace without expanding outside its supported locations", () => {
+  for (const state of ["ID", "UT", "OR", "WA"])
+    product(
+      listing({ classified_listing_details: { ...listing().classified_listing_details, state } }),
+    );
+  assert.equal(
+    productForFeed(
+      listing({
+        classified_listing_details: { ...listing().classified_listing_details, state: "BC" },
+      }),
+      sellers,
+      now,
+    ).excluded,
+    "outside-marketplace",
+  );
+});
 test("holds non-product categories and screens prohibited goods inside otherwise allowed categories", () => {
   for (const slug of [
     "firearms",
