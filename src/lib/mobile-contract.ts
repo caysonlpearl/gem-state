@@ -113,6 +113,7 @@ export function mobileOriginAllowed(origin: string | null, development = false):
 export function mobileLinkTarget(raw: string): string | null {
   try {
     const url = new URL(raw);
+    if (url.username || url.password) return null;
     if (
       url.protocol === "com.onbluebird.marketplace:" &&
       url.host === "auth" &&
@@ -127,6 +128,11 @@ export function mobileLinkTarget(raw: string): string | null {
     )
       return null;
     if (/^\/listings\/[a-z0-9._:-]{1,200}$/i.test(url.pathname)) return url.pathname;
+    if (
+      (url.pathname === "/notifications" && !url.search && !url.hash) ||
+      (url.pathname === "/account" && url.search === "?section=notifications" && !url.hash)
+    )
+      return "/account/notifications";
     if (url.pathname === "/account" && url.searchParams.get("section") === "messages") {
       const conversation = url.searchParams.get("conversation");
       return conversation && /^[0-9a-f-]{36}$/i.test(conversation)

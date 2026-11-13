@@ -18,6 +18,7 @@ export type Bootstrap = {
   features: {
     accountControls?: boolean;
     fullSearch?: boolean;
+    notificationCenter?: boolean;
     durableSavedSearches?: boolean;
     push: boolean;
     paidUpgrades: false;

@@ -11,18 +11,8 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
  * RLS by their owner alone.
  */
 
-export type MemberNotification = {
-  id: string;
-  kind: string;
-  title: string;
-  body: string;
-  orderId: string | null;
-  entityType: string | null;
-  entityId: string | null;
-  destinationUrl: string | null;
-  readAt: string | null;
-  createdAt: string;
-};
+import { memberNotification, type MemberNotification } from "./notification-model";
+export type { MemberNotification } from "./notification-model";
 
 export const getMyNotifications = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
@@ -37,18 +27,7 @@ export const getMyNotifications = createServerFn({ method: "GET" })
       .limit(60);
     if (error) throw new Error(error.message);
 
-    const items = (data ?? []).map((row: any) => ({
-      id: row.id,
-      kind: row.kind,
-      title: row.title,
-      body: row.body,
-      orderId: row.order_id,
-      entityType: row.entity_type ?? null,
-      entityId: row.entity_id ?? null,
-      destinationUrl: row.destination_url ?? null,
-      readAt: row.read_at,
-      createdAt: row.created_at,
-    }));
+    const items = (data ?? []).map(memberNotification);
     return { items, unread: items.filter((i: { readAt: string | null }) => !i.readAt).length };
   });
 

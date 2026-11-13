@@ -260,6 +260,21 @@ async function requireTerms(userId: string) {
       "Please accept the current Terms of Service first.",
     );
 }
+async function allowedConversationListing(id: string, native?: Set<string>) {
+  const { isNativeConversationListing, mobileNativeConversationListings } =
+    await import("./mobile-message-context.server");
+  if (isNativeConversationListing(id)) {
+    const eligible = native ?? (await mobileNativeConversationListings(await database(), [id]));
+    if (!eligible.has(id))
+      throw new MobileApiError(
+        404,
+        "conversation_unavailable",
+        "This conversation is unavailable in the app.",
+      );
+    return;
+  }
+  await listing(id);
+}
 async function allowedConversation(id: string) {
   const { getConversation } = await import("./conversation.functions");
   const detail = await domain(getConversation, { id });
@@ -270,7 +285,7 @@ async function allowedConversation(id: string) {
       "conversation_unavailable",
       "This conversation is unavailable in the app.",
     );
-  await listing(detail.listingId);
+  await allowedConversationListing(detail.listingId);
   return detail;
 }
 const browseSchema = z.object({
@@ -311,6 +326,7 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
       features: {
         accountControls: true,
         fullSearch: true,
+        notificationCenter: true,
         durableSavedSearches: await (
           await import("./mobile-messaging.server")
         ).mobileSavedSearchesReady(),
@@ -437,6 +453,19 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
     return result;
   }
   const { user, client } = await actor(request);
+  if (method === "GET" && path === "notifications")
+    return (await import("./mobile-notifications.server")).loadMobileNotifications(
+      client,
+      await database(),
+      user.id,
+    );
+  if (method === "PUT" && path === "notifications/read")
+    return (await import("./mobile-notifications.server")).markMobileNotificationsRead(
+      request,
+      client,
+      await database(),
+      user.id,
+    );
   if (method === "GET" && path === "account") {
     const { getMyAccount } = await import("./account.functions");
     return { account: await domain(getMyAccount), consent: await consent(user.id) };
@@ -634,11 +663,17 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
   if (method === "GET" && path === "conversations") {
     const { getMyConversations } = await import("./conversation.functions");
     const all = await domain(getMyConversations);
+    const native = await (
+      await import("./mobile-message-context.server")
+    ).mobileNativeConversationListings(
+      await database(),
+      all.flatMap((c: any) => (c.listingId ? [c.listingId] : [])),
+    );
     const safe = await Promise.all(
       all.map(async (c: any) => {
         if (!c.listingId) return null;
         try {
-          await listing(c.listingId);
+          await allowedConversationListing(c.listingId, native);
           return c;
         } catch (error) {
           if (error instanceof MobileApiError && error.status === 404) return null;

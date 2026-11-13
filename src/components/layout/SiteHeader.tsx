@@ -1,34 +1,25 @@
-import { toast } from "sonner";
 import { websiteAccountSignOut } from "@/lib/account-session";
-import { SiteHeaderBar } from "./SiteHeaderBar";
-import { MarketplaceMobileMenu, type MarketplaceMenuLinkProps } from "./MarketplaceMobileMenu";
-import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { List, MagnifyingGlass, PlusCircle, X } from "@phosphor-icons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import {
-  Bell,
-  BookmarkSimple,
-  ChatCircle,
-  List,
-  MagnifyingGlass,
-  PlusCircle,
-  SignOut,
-  Storefront,
-  UserCircle,
-  X,
-} from "@phosphor-icons/react";
+import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
+import type { AccountSection } from "../account/account-sections";
+import { HeaderAccountMenuView, type HeaderAccountLinkProps } from "./HeaderAccountMenuView";
+import { MarketplaceMobileMenu, type MarketplaceMenuLinkProps } from "./MarketplaceMobileMenu";
+import { SiteHeaderBar } from "./SiteHeaderBar";
 
-import { NotificationBell } from "@/components/layout/NotificationBell";
+import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 import { BrandMark } from "@/components/layout/BrandMark";
+import { NotificationBell } from "@/components/layout/NotificationBell";
 import { brand } from "@/config/brand";
 import { useAuth } from "@/hooks/useAuth";
 import { useHydrated } from "@/hooks/useHydrated";
+import { loadSupabase } from "@/integrations/supabase/lazy-client";
 import { getMyAccount } from "@/lib/account.functions";
 import { getMyConversations } from "@/lib/conversation.functions";
 import { getMyNotifications } from "@/lib/notifications.functions";
-import { loadSupabase } from "@/integrations/supabase/lazy-client";
-import { CategoryArtwork } from "@/components/classifieds/CategoryIcon";
 
 /*
  * Two-level classifieds header.
@@ -65,10 +56,7 @@ export function SiteHeader() {
   const hydrated = useHydrated();
   const [term, setTerm] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
-  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
-  const accountButtonRef = useRef<HTMLButtonElement>(null);
-  const accountMenuRef = useRef<HTMLDivElement>(null);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   const fetchAccount = useServerFn(getMyAccount);
@@ -111,32 +99,6 @@ export function SiteHeader() {
     return () => window.removeEventListener("keydown", onKey);
   }, [menuOpen]);
 
-  useEffect(() => {
-    setAccountMenuOpen(false);
-  }, [pathname]);
-
-  useEffect(() => {
-    if (!accountMenuOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setAccountMenuOpen(false);
-        accountButtonRef.current?.focus();
-      }
-    };
-    const onPointer = (e: MouseEvent) => {
-      const target = e.target as Node;
-      if (accountMenuRef.current?.contains(target) || accountButtonRef.current?.contains(target))
-        return;
-      setAccountMenuOpen(false);
-    };
-    window.addEventListener("keydown", onKey);
-    window.addEventListener("mousedown", onPointer);
-    return () => {
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("mousedown", onPointer);
-    };
-  }, [accountMenuOpen]);
-
   function submitSearch(e: React.FormEvent) {
     e.preventDefault();
     setMenuOpen(false);
@@ -146,7 +108,6 @@ export function SiteHeader() {
   async function signOut() {
     if (signOutInFlight.current) return;
     signOutInFlight.current = true;
-    setAccountMenuOpen(false);
     try {
       const supabase = await loadSupabase();
       await websiteAccountSignOut(supabase.auth, user?.id, "local");
@@ -224,150 +185,17 @@ export function SiteHeader() {
             equal the current location, and the router's active-state attribute
             would then differ between SSR and the client-resolved sign-in page.
           */}
-          <div className="relative z-50">
-            <button
-              ref={accountButtonRef}
-              type="button"
-              onClick={() => {
-                if (!isSignedIn) {
-                  void navigate({ to: brand.urls.auth });
-                  return;
-                }
-                setAccountMenuOpen((v) => !v);
-              }}
-              aria-expanded={isSignedIn ? accountMenuOpen : undefined}
-              aria-haspopup={isSignedIn ? "menu" : undefined}
-              aria-label={isSignedIn ? "Account" : "Sign in"}
-              className="inline-flex h-11 min-h-11 w-11 shrink-0 items-center justify-center gap-1.5 whitespace-nowrap rounded-full border border-foreground text-[12px] font-medium transition-colors hover:bg-foreground hover:text-background sm:w-auto sm:px-4 sm:text-[12.5px]"
-            >
-              <UserCircle size={20} aria-hidden="true" />
-              <span className="hidden sm:inline">{isSignedIn ? "Account" : "Sign in"}</span>
-            </button>
-            {isSignedIn && accountMenuOpen && (
-              <div
-                ref={accountMenuRef}
-                role="menu"
-                aria-label="Account menu"
-                className="absolute right-0 top-[calc(100%+6px)] z-50 w-[244px] max-w-[calc(100vw-1.5rem)] overflow-hidden rounded-xl border border-border bg-card shadow-xl"
-              >
-                <Link
-                  to={brand.urls.account}
-                  role="menuitem"
-                  onClick={() => setAccountMenuOpen(false)}
-                  className="hairline-b block px-3.5 pb-3 pt-3 transition-colors hover:bg-secondary/60"
-                  {...pinned}
-                >
-                  <span className="flex items-center gap-3">
-                    {account.data?.avatarUrl ? (
-                      <img
-                        src={account.data.avatarUrl}
-                        alt=""
-                        className="h-9 w-9 shrink-0 rounded-full border border-border object-cover"
-                      />
-                    ) : (
-                      <UserCircle
-                        size={36}
-                        weight="duotone"
-                        aria-hidden="true"
-                        className="shrink-0 text-muted-foreground"
-                      />
-                    )}
-                    <span className="min-w-0">
-                      <span className="block text-[9.5px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                        Signed in as
-                      </span>
-                      <span className="mt-0.5 block truncate text-[13px] font-semibold leading-tight text-foreground">
-                        {account.data?.displayName ?? account.data?.email ?? "Your account"}
-                      </span>
-                      {account.data?.displayName && account.data?.email && (
-                        <span className="mt-0.5 block truncate text-[11.5px] leading-tight text-muted-foreground">
-                          {account.data.email}
-                        </span>
-                      )}
-                    </span>
-                  </span>
-                </Link>
-
-                <div className="p-1.5">
-                  <p className="px-2.5 pb-1 pt-1.5 text-[9.5px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
-                    Marketplace
-                  </p>
-                  <Link
-                    to="/account"
-                    search={{ section: "listings" }}
-                    role="menuitem"
-                    onClick={() => setAccountMenuOpen(false)}
-                    className="flex h-10 items-center gap-2.5 rounded-md px-2.5 text-[12.5px] font-medium transition-colors hover:bg-secondary"
-                    {...pinned}
-                  >
-                    <Storefront size={17} weight="duotone" aria-hidden="true" />
-                    Selling
-                  </Link>
-                  <Link
-                    to="/account"
-                    search={{ section: "saved" }}
-                    role="menuitem"
-                    onClick={() => setAccountMenuOpen(false)}
-                    className="flex h-10 items-center gap-2.5 rounded-md px-2.5 text-[12.5px] font-medium transition-colors hover:bg-secondary"
-                    {...pinned}
-                  >
-                    <BookmarkSimple size={17} weight="duotone" aria-hidden="true" />
-                    Saved
-                  </Link>
-                  <Link
-                    to="/account"
-                    search={{ section: "messages" }}
-                    role="menuitem"
-                    onClick={() => setAccountMenuOpen(false)}
-                    className="flex h-10 items-center gap-2.5 rounded-md px-2.5 text-[12.5px] font-medium transition-colors hover:bg-secondary"
-                    {...pinned}
-                  >
-                    <ChatCircle size={17} weight="duotone" aria-hidden="true" />
-                    Messages
-                    {unreadMessages > 0 && <UnreadBadge count={unreadMessages} />}
-                  </Link>
-                  <Link
-                    to="/account"
-                    search={{ section: "notifications" }}
-                    role="menuitem"
-                    onClick={() => setAccountMenuOpen(false)}
-                    className="flex h-10 items-center gap-2.5 rounded-md px-2.5 text-[12.5px] font-medium transition-colors hover:bg-secondary"
-                    {...pinned}
-                  >
-                    <Bell size={17} weight="duotone" aria-hidden="true" />
-                    Notifications
-                    {unreadNotifications > 0 && <UnreadBadge count={unreadNotifications} />}
-                  </Link>
-                </div>
-
-                <div className="hairline-t p-1.5">
-                  <Link
-                    to="/account"
-                    search={{ section: "overview" }}
-                    role="menuitem"
-                    onClick={() => setAccountMenuOpen(false)}
-                    className="flex h-10 items-center gap-2.5 rounded-md px-2.5 text-[12.5px] font-medium transition-colors hover:bg-secondary"
-                    {...pinned}
-                  >
-                    <UserCircle size={17} weight="duotone" aria-hidden="true" />
-                    Account settings
-                  </Link>
-                </div>
-
-                <div className="hairline-t p-1.5 pb-1.5">
-                  <button
-                    type="button"
-                    role="menuitem"
-                    onClick={() => void signOut()}
-                    className="flex h-10 w-full items-center gap-2.5 rounded-md px-2.5 text-[12.5px] font-medium transition-colors hover:bg-secondary"
-                  >
-                    <SignOut size={17} weight="duotone" aria-hidden="true" />
-                    Sign out
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+          <HeaderAccountMenuView
+            isSignedIn={isSignedIn}
+            identity={user?.id}
+            account={account.data?.userId === user?.id ? account.data : null}
+            pathname={pathname}
+            onSignIn={() => void navigate({ to: brand.urls.auth })}
+            onSignOut={signOut}
+            unreadMessages={unreadMessages}
+            unreadNotifications={unreadNotifications}
+            renderLink={WebsiteHeaderAccountLink}
+          />
           <button
             ref={menuButtonRef}
             type="button"
@@ -448,16 +276,17 @@ export function SiteHeader() {
   );
 }
 
-/** Small count pill beside Messages and Notifications in the account menu,
- * matching the header bell's badge styling. */
-function UnreadBadge({ count }: { count: number }) {
+function WebsiteHeaderAccountLink({ href, ...props }: HeaderAccountLinkProps) {
+  const url = new URL(href, "https://onbluebird.com");
   return (
-    <span
-      aria-label={`${count} unread`}
-      className="numeric ml-auto inline-flex min-w-[17px] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold leading-[16px] text-primary-foreground"
-    >
-      {count > 9 ? "9+" : count}
-    </span>
+    <Link
+      to="/account"
+      search={{
+        section: (url.searchParams.get("section") ?? undefined) as AccountSection | undefined,
+      }}
+      {...props}
+      {...pinned}
+    />
   );
 }
 

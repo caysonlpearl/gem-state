@@ -44,3 +44,5 @@ jobs:
         run: npm run test:mobile:account:ui
       - name: Verify shared browse filters and durable saved-search recovery
         run: npm run test:mobile:browse:ui
+      - name: Verify shared notification screens and app-scoped unread state
+        run: npm run test:mobile:notifications:ui

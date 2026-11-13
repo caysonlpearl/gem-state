@@ -1,3 +1,5 @@
+import { rememberNativeAuthDestination } from "./auth-destination";
+import { NativeNotifications, useNativeNotifications } from "./Notifications";
 import { NativeSavedSearches } from "./SavedSearches";
 import { saveProfileAvatar } from "./account-media";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -33,7 +35,7 @@ type Loaded = {
 };
 const text = (e: unknown) =>
   e instanceof Error ? e.message : "Your account could not be updated. Please retry.";
-const sections = ["profile", "settings", "searches"] as const;
+const sections = ["profile", "settings", "searches", "messages", "notifications"] as const;
 export function NativeAccount({
   ownerId,
   section,
@@ -46,7 +48,7 @@ export function NativeAccount({
   controlsReady,
 }: {
   ownerId: string;
-  section: "profile" | "settings" | "searches";
+  section: "profile" | "settings" | "searches" | "notifications";
   policyVersion: string;
   onNavigate: (path: string) => void;
   onSignOut: (scope?: "local" | "global") => Promise<void>;
@@ -55,6 +57,7 @@ export function NativeAccount({
   signOutBusy?: boolean;
   controlsReady: boolean;
 }) {
+  const inbox = useNativeNotifications();
   const actor = useMemo(() => ({ userId: ownerId, installId: installIdentifier() }), [ownerId]);
   const [data, setData] = useState<Loaded | null>(null),
     [error, setError] = useState(""),
@@ -63,6 +66,7 @@ export function NativeAccount({
     [version, setVersion] = useState(0);
   const locked = useRef(false);
   useEffect(() => {
+    if (section === "notifications") return;
     if (!controlsReady) {
       setError("Account controls are temporarily unavailable. Please retry shortly.");
       return;
@@ -77,6 +81,7 @@ export function NativeAccount({
       get<SellerSetup>("seller"),
     ])
       .then(([member, contact, notifications, seller]) => {
+        if (controller.signal.aborted) return;
         if (member.account.userId !== ownerId)
           throw Error("Your account changed. Please sign in again.");
         setData({ member, contact, notifications, seller });
@@ -85,7 +90,7 @@ export function NativeAccount({
         if (!controller.signal.aborted) setError(text(e));
       });
     return () => controller.abort();
-  }, [actor, version, ownerId, controlsReady]);
+  }, [actor, version, ownerId, controlsReady, section]);
   const put = (path: string, payload: unknown) => api(path, "PUT", payload, undefined, actor);
   async function refreshAccount() {
     const member = await api<AccountData>("account", "GET", undefined, undefined, actor);
@@ -182,6 +187,7 @@ export function NativeAccount({
           const redirectTo = Capacitor.isNativePlatform()
             ? MOBILE_AUTH_REDIRECT
             : `${location.origin}/#/auth/callback`;
+          rememberNativeAuthDestination("/account/settings");
           const result = await auth.auth.resetPasswordForEmail(data.member.account.email, {
             redirectTo,
           });
@@ -230,18 +236,24 @@ export function NativeAccount({
       section={section}
       onSelect={(value) =>
         onNavigate(
-          value === "settings"
-            ? "/account/settings"
-            : value === "searches"
-              ? "/account/searches"
-              : "/account/profile",
+          value === "messages"
+            ? "/messages"
+            : value === "notifications"
+              ? "/account/notifications"
+              : value === "settings"
+                ? "/account/settings"
+                : value === "searches"
+                  ? "/account/searches"
+                  : "/account/profile",
         )
       }
       onSignOut={() => void onSignOut()}
       availableSections={sections}
+      unreadMessages={inbox.data?.unreadMessages ?? 0}
+      unreadNotifications={inbox.data?.unread ?? 0}
       signOutBusy={Boolean(busy) || signOutBusy}
     >
-      {error && (
+      {section !== "notifications" && error && (
         <div
           className="mb-5 rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm"
           role="alert"
@@ -268,12 +280,14 @@ export function NativeAccount({
           )}
         </div>
       )}
-      {notice && (
+      {section !== "notifications" && notice && (
         <p className="mb-5 rounded-xl border border-border bg-card p-4 text-sm" role="status">
           {notice}
         </p>
       )}
-      {!data ? (
+      {section === "notifications" ? (
+        <NativeNotifications />
+      ) : !data ? (
         !error && (
           <p role="status" className="text-sm text-muted-foreground">
             Loading your account…

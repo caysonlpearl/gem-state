@@ -35,6 +35,7 @@ import { AccountSettingsView } from "./AccountSettingsView";
 import { MiniMetric, SectionTitle } from "./AccountViewParts";
 import { DealerInventoryPanel } from "./DealerInventoryPanel";
 import { MessagesSectionView } from "./MessagesSectionView";
+import { NotificationsSectionView } from "./NotificationsSectionView";
 import { SavedSearchesSectionView } from "./SavedSearchesSectionView";
 import { useAccountProfileDraft } from "./useAccountProfileDraft";
 
@@ -43,7 +44,6 @@ import {
   PartnerJobsCredit,
   PartnerVehiclesCredit,
 } from "@/components/classifieds/ListingCard";
-import { brand } from "@/config/brand";
 import { formatUsd } from "@/config/fees";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -1526,125 +1526,21 @@ function MessagesSection({
 function NotificationsSection({
   data,
 }: {
-  data?: { items: MemberNotification[]; unread: number } | undefined;
+  data?: { items: MemberNotification[]; unread: number };
 }) {
   const queryClient = useQueryClient();
   const markRead = useServerFn(markNotificationsRead);
-  const [filter, setFilter] = useState("all");
   const mutation = useMutation({
-    mutationFn: () => markRead({ data: { ids: null } }),
+    mutationFn: (ids: string[] | null) => markRead({ data: { ids } }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
   });
-  const markOne = useMutation({
-    mutationFn: (id: string) => markRead({ data: { ids: [id] } }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["notifications"] }),
-  });
-  const items = data?.items ?? [];
-  const visible = items.filter((item) => filter === "all" || item.kind === filter);
-  const kinds = [...new Set(items.map((item) => item.kind).filter(Boolean))];
-  const kindLabels: Record<string, string> = {
-    message: "Messages",
-    saved_search_match: "Saved search matches",
-    listing_reviewed: "Listing review",
-    listing_upgrade: "Listing promotion",
-    review_request: "Review requests",
-  };
-  const notificationText = (value: string) =>
-    value.replaceAll("ParkVault", brand.name).replaceAll("Gem State", brand.name);
   return (
-    <div className="space-y-6">
-      <SectionHeader
-        eyebrow="Activity"
-        title={`${data?.unread ?? 0} unread notifications`}
-        body="Listing updates, messages, saved-search matches, reviews, and seller billing activity will appear here."
-        action={
-          (data?.unread ?? 0) > 0 ? (
-            <button
-              type="button"
-              onClick={() => mutation.mutate()}
-              className="h-9 rounded-xl border border-input px-3 text-[12px] font-semibold hover:bg-secondary"
-            >
-              Mark all read
-            </button>
-          ) : undefined
-        }
-      />
-      <div className="flex flex-wrap items-center gap-3">
-        <label
-          className="text-[12px] font-medium text-muted-foreground"
-          htmlFor="notification-filter"
-        >
-          Filter
-        </label>
-        <select
-          id="notification-filter"
-          value={filter}
-          onChange={(event) => setFilter(event.target.value)}
-          className="field max-w-[220px]"
-        >
-          <option value="all">All activity</option>
-          {kinds.map((kind) => (
-            <option key={kind} value={kind}>
-              {kindLabels[kind] ?? kind.replaceAll("_", " ")}
-            </option>
-          ))}
-        </select>
-      </div>
-      {visible.length === 0 ? (
-        <EmptyState
-          title={items.length === 0 ? "No notifications yet" : "No matching notifications"}
-          body="Your account activity will appear here as you use Bluebird."
-        />
-      ) : (
-        <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-sm">
-          <ul className="divide-y divide-border">
-            {visible.map((item) => (
-              <li
-                key={item.id}
-                className={`flex items-start gap-3 p-4 ${item.readAt ? "" : "bg-secondary/30"}`}
-              >
-                <span
-                  className={`mt-1 size-2 shrink-0 rounded-full ${item.readAt ? "bg-border" : "bg-primary"}`}
-                />
-                <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-semibold">{notificationText(item.title)}</p>
-                  <p className="mt-1 text-[12.5px] leading-relaxed text-muted-foreground">
-                    {notificationText(item.body)}
-                  </p>
-                  <p className="mt-1 text-[11px] text-muted-foreground">
-                    {new Date(item.createdAt).toLocaleString()}
-                  </p>
-                  <div className="mt-2 flex flex-wrap items-center gap-3">
-                    {item.destinationUrl && (
-                      <a
-                        href={item.destinationUrl}
-                        className="inline-flex text-[11.5px] font-semibold text-primary hover:underline"
-                      >
-                        {item.entityType === "conversation"
-                          ? "Open conversation"
-                          : item.entityType === "listing"
-                            ? "Open listing"
-                            : "Open related activity"}
-                        <ArrowRight size={13} className="ml-1" />
-                      </a>
-                    )}
-                    {!item.readAt && (
-                      <button
-                        type="button"
-                        onClick={() => markOne.mutate(item.id)}
-                        className="text-[11.5px] font-semibold text-muted-foreground hover:text-foreground"
-                      >
-                        Mark read
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </div>
+    <NotificationsSectionView
+      data={data}
+      onMarkRead={(ids) => mutation.mutate(ids)}
+      pending={mutation.isPending}
+      error={mutation.error instanceof Error ? mutation.error.message : undefined}
+    />
   );
 }
 
