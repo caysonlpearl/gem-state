@@ -19,6 +19,8 @@ export type Bootstrap = {
     accountControls?: boolean;
     fullSearch?: boolean;
     notificationCenter?: boolean;
+    listingDetails?: boolean;
+    durableApplications?: boolean;
     durableSavedSearches?: boolean;
     push: boolean;
     paidUpgrades: false;
@@ -70,6 +72,14 @@ export async function api<T>(
     signal: signal ?? AbortSignal.timeout(20000),
   });
   const payload = await response.json().catch(() => null);
+  if (expectedActor) {
+    const current = (await auth.auth.getSession()).data.session;
+    if (
+      (current?.user.id ?? null) !== expectedActor.userId ||
+      installIdentifier() !== expectedActor.installId
+    )
+      throw new ApiError("account_changed", "Your account changed. Please try again.", 409);
+  }
   if (!response.ok)
     throw new ApiError(
       payload?.error?.code ?? "unavailable",

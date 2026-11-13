@@ -126,6 +126,15 @@ function dto(card: any): MobileListing {
       externalVehicle: card.externalVehicle
         ? { sourceKind: card.externalVehicle.sourceKind }
         : undefined,
+      externalPet: card.externalPet
+        ? {
+            sourceUrl: mobileMediaUrl(card.externalPet.sourceUrl),
+            orgName: card.externalPet.orgName,
+            orgPhone: null,
+            orgEmail: null,
+            size: card.externalPet.size,
+          }
+        : undefined,
       externalJob: card.externalJob
         ? {
             source: "Adzuna",
@@ -169,7 +178,9 @@ function dto(card: any): MobileListing {
     available: !card.ended && (!card.expiresAt || Date.parse(card.expiresAt) > Date.now()),
     canSave:
       /^[0-9a-f-]{36}$/i.test(card.productId ?? "") ||
-      /^(dealerfeed-|marketcheck-|openwebninja-|mashvisor-|adzuna-)/.test(card.id),
+      /^(dealerfeed-|marketcheck-|openwebninja-|mashvisor-|adzuna-|fsq-|rescuegroups-)/.test(
+        card.id,
+      ),
     canMessage:
       Boolean(card.seller?.allowInternalMessages) &&
       (/^[0-9a-f-]{36}$/i.test(card.id) || card.id.startsWith("dealerfeed-")),
@@ -327,6 +338,10 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
         accountControls: true,
         fullSearch: true,
         notificationCenter: true,
+        listingDetails: true,
+        durableApplications: await (
+          await import("./mobile-messaging.server")
+        ).mobileApplicationsReady(),
         durableSavedSearches: await (
           await import("./mobile-messaging.server")
         ).mobileSavedSearchesReady(),
@@ -425,6 +440,44 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
       selection,
     };
   }
+  const richDetailMatch = /^listings\/([^/]+)\/detail$/.exec(path);
+  if (method === "GET" && richDetailMatch) {
+    const id = richDetailMatch[1]!;
+    if (!/^[a-z0-9][a-z0-9._:-]{0,199}$/i.test(id) || id.startsWith("avantlink-"))
+      throw new MobileApiError(
+        404,
+        "listing_unavailable",
+        "This listing is unavailable in the app.",
+      );
+    const f = await import("./classifieds.functions");
+    const card =
+      (await domain(f.getClassifiedListing, { id, recordView: false })) ??
+      (await domain(f.getEndedClassifiedListing, { id }));
+    const safe = card && (await import("./mobile-listing-detail")).mobileListingDetail(card);
+    if (!safe)
+      throw new MobileApiError(
+        404,
+        "listing_unavailable",
+        "This listing is unavailable in the app.",
+      );
+    return {
+      listing: safe,
+      stats: await (
+        await import("./mobile-listing-detail.server")
+      ).mobileListingStats(await database(), safe),
+      canSave: !safe.ended && dto(safe).canSave,
+      canMessage: !safe.ended && dto(safe).canMessage,
+    };
+  }
+  const insightMatch = /^listings\/([^/]+)\/price-insight$/.exec(path);
+  if (method === "GET" && insightMatch) {
+    const card = await listing(insightMatch[1]!);
+    if (!card.vehicle || card.ended) return null;
+    return (await import("./vehicle-price-insights.server")).listingPriceInsight(
+      card,
+      await database(),
+    );
+  }
   const listingMatch = /^listings\/([^/]+)$/.exec(path);
   if (method === "GET" && listingMatch) return dto(await listing(listingMatch[1]!));
 
@@ -453,6 +506,28 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
     return result;
   }
   const { user, client } = await actor(request);
+  const applicationMatch = /^listings\/([0-9a-f-]{36})\/application(?:\/(resume))?$/.exec(path);
+  if (method === "GET" && applicationMatch && !applicationMatch[2]) {
+    const card = await listing(applicationMatch[1]!);
+    if (card.categorySlug !== "jobs" || card.job?.applicationMethod === "external")
+      throw new MobileApiError(
+        404,
+        "application_unavailable",
+        "This job uses an external application.",
+      );
+    return domain((await import("./job-applications.functions")).getMyJobApplicationForListing, {
+      listingId: card.id,
+    });
+  }
+  const claimMatch = /^listings\/([^/]+)\/claim$/.exec(path);
+  if (method === "GET" && claimMatch) {
+    const card = await listing(claimMatch[1]!);
+    return (await import("./mobile-listing-detail.server")).mobileOwnListingClaim(
+      client,
+      user.id,
+      card,
+    );
+  }
   if (method === "GET" && path === "notifications")
     return (await import("./mobile-notifications.server")).loadMobileNotifications(
       client,
@@ -651,7 +726,7 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
       return domain((await import("./saved-homes.functions")).getPartnerHomeSaved, {
         listingId: card.id,
       });
-    if (card.id.startsWith("adzuna-"))
+    if (/^(adzuna-|fsq-|rescuegroups-)/.test(card.id))
       return domain((await import("./saved-jobs.functions")).getPartnerJobSaved, {
         listingId: card.id,
       });
@@ -754,31 +829,39 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
   if (method === "POST" && path === "saved") {
     const card = await listing(z.string().parse(body.listingId));
     const saved = z.boolean().parse(body.saved);
-    if (/^(marketcheck-|dealerfeed-)/.test(card.id))
-      return domain((await import("./saved-vehicles.functions")).setPartnerVehicleSaved, {
-        listingId: card.id,
-        saved,
+    const outcome = await (async () => {
+      if (/^(marketcheck-|dealerfeed-)/.test(card.id))
+        return domain((await import("./saved-vehicles.functions")).setPartnerVehicleSaved, {
+          listingId: card.id,
+          saved,
+        });
+      if (/^(openwebninja-|mashvisor-)/.test(card.id))
+        return domain((await import("./saved-homes.functions")).setPartnerHomeSaved, {
+          listingId: card.id,
+          saved,
+        });
+      if (/^(adzuna-|fsq-|rescuegroups-)/.test(card.id))
+        return domain((await import("./saved-jobs.functions")).setPartnerJobSaved, {
+          listingId: card.id,
+          saved,
+        });
+      if (!/^[0-9a-f-]{36}$/.test(card.productId))
+        throw new MobileApiError(
+          400,
+          "save_unavailable",
+          "This listing does not support saving yet.",
+        );
+      return domain((await import("./community.functions")).setProductWatchState, {
+        productId: card.productId,
+        watching: saved,
       });
-    if (/^(openwebninja-|mashvisor-)/.test(card.id))
-      return domain((await import("./saved-homes.functions")).setPartnerHomeSaved, {
-        listingId: card.id,
-        saved,
-      });
-    if (card.id.startsWith("adzuna-"))
-      return domain((await import("./saved-jobs.functions")).setPartnerJobSaved, {
-        listingId: card.id,
-        saved,
-      });
-    if (!/^[0-9a-f-]{36}$/.test(card.productId))
-      throw new MobileApiError(
-        400,
-        "save_unavailable",
-        "This listing does not support saving yet.",
-      );
-    return domain((await import("./community.functions")).setProductWatchState, {
-      productId: card.productId,
-      watching: saved,
-    });
+    })();
+    return {
+      ...outcome,
+      stats: await (
+        await import("./mobile-listing-detail.server")
+      ).mobileListingStats(await database(), card),
+    };
   }
   if (method === "POST" && path === "conversations") {
     const card = await listing(z.string().parse(body.listingId));
@@ -846,6 +929,69 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
         ? { requestId: mobileWriteId(request.headers.get("Idempotency-Key")) }
         : {}),
     });
+  }
+  if (method === "POST" && applicationMatch) {
+    const f = await import("./mobile-job-application.server");
+    f.mobileApplicationAvailable(
+      await (await import("./mobile-messaging.server")).mobileApplicationsReady(),
+    );
+    const card = await listing(applicationMatch[1]!);
+    if (
+      card.categorySlug !== "jobs" ||
+      card.job?.applicationMethod === "external" ||
+      card.seller?.userId === user.id
+    )
+      throw new MobileApiError(
+        404,
+        "application_unavailable",
+        "This job is not accepting this application.",
+      );
+    if (applicationMatch[2]) return f.prepareMobileResume(request, client, user.id, card.id, body);
+    const outcome = await f.commitMobileApplication(request, client, card.id, body);
+    if (!outcome.replayed) {
+      try {
+        await (
+          await import("./email-notifications.server")
+        ).emailJobApplicationReceived(outcome.applicationId);
+      } catch {
+        console.warn("Mobile application email unavailable");
+      }
+    }
+    return outcome;
+  }
+  if (method === "POST" && claimMatch) {
+    const card = await listing(claimMatch[1]!);
+    const existing = await (
+      await import("./mobile-listing-detail.server")
+    ).mobileOwnListingClaim(client, user.id, card);
+    if (existing?.status === "rejected")
+      throw new MobileApiError(
+        409,
+        "claim_review_required",
+        "Your prior claim was not approved. Contact Bluebird support to request another review.",
+      );
+    const input = z
+      .object({
+        role: z.string().trim().min(2).max(80),
+        contact: z.string().trim().min(3).max(200),
+        note: z.string().trim().max(1000),
+      })
+      .strict()
+      .parse(body);
+    if (existing) return { status: existing.status, duplicate: true };
+    if (card.directory && card.categorySlug === "services")
+      return domain((await import("./service-claims.functions")).claimServiceBusiness, {
+        ...input,
+        directoryId: card.id,
+      });
+    if (card.externalJob && card.categorySlug === "jobs" && card.job?.employerName)
+      return domain((await import("./employer-claims.functions")).claimEmployer, {
+        ...input,
+        employerName: card.job.employerName,
+        city: card.city,
+        state: card.state ?? "",
+      });
+    throw new MobileApiError(404, "claim_unavailable", "This business cannot be claimed here.");
   }
   if (method === "POST" && path === "reports") {
     await listing(z.string().parse(body.listingId));

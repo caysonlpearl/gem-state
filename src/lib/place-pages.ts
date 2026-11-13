@@ -4,12 +4,12 @@ import {
   idahoRegions,
   vehicleModelsByMake,
   vehicleOptions,
-} from "@/config/classifieds";
+} from "../config/classifieds.ts";
 import {
   seoCollectionFromSlug,
   collectionAvailableIn,
   type SeoCollection,
-} from "./seo-collections";
+} from "./seo-collections.ts";
 
 /**
  * URL shapes for the search landing pages:
@@ -108,7 +108,7 @@ export function categoryPhrase(slug: string, name: string) {
 export {
   SEO_MIN_LISTINGS as PLACE_PAGE_MIN_LISTINGS,
   SEO_FRESH_DAYS as PLACE_PAGE_FRESH_DAYS,
-} from "@/lib/seo-policy";
+} from "./seo-policy.ts";
 /** Make pages use the same bar; a single model needs fewer to be useful. */
 export const MAKE_PAGE_MIN_LISTINGS = 5;
 export const MODEL_PAGE_MIN_LISTINGS = 3;

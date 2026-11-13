@@ -28,9 +28,9 @@ const compile = (file, deps) => {
   return exports;
 };
 const places = compile("../src/lib/place-pages.ts", {
-  "@/config/classifieds": config,
-  "@/lib/seo-policy": policy,
-  "./seo-collections": collections,
+  "../config/classifieds.ts": config,
+  "./seo-policy.ts": policy,
+  "./seo-collections.ts": collections,
 });
 const landings = compile("../src/lib/landing-pages.server.ts", {
   "@/lib/place-pages": places,

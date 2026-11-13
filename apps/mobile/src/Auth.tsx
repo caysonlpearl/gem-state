@@ -1,5 +1,5 @@
 import { rememberNativeAuthDestination, consumeNativeAuthDestination } from "./auth-destination";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Capacitor } from "@capacitor/core";
 import { AuthPageView, type AuthMode } from "../../../src/components/account/AuthPageView";
 import { authIntent } from "../../../src/lib/auth-intent";
@@ -12,14 +12,26 @@ export function NativeAuth({
   policyVersion,
   destination,
   recovery = false,
+  initialMode = "signin",
   onRecovered,
 }: {
   policyVersion: string;
   destination: string;
   recovery?: boolean;
+  initialMode?: AuthMode;
   onRecovered?: () => void;
 }) {
-  const [mode, setMode] = useState<AuthMode>(recovery ? "reset" : "signin");
+  const [mode, setMode] = useState<AuthMode>(recovery ? "reset" : initialMode);
+  useEffect(() => {
+    if (recovery) return;
+    const update = () => {
+      if (location.hash.split("?")[0] !== "#/auth") return;
+      const requested = new URLSearchParams(location.hash.split("?")[1]).get("mode");
+      setMode(requested === "signup" || requested === "forgot" ? requested : "signin");
+    };
+    window.addEventListener("hashchange", update);
+    return () => window.removeEventListener("hashchange", update);
+  }, [recovery]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
@@ -35,8 +47,9 @@ export function NativeAuth({
   const redirectTo = Capacitor.isNativePlatform()
     ? MOBILE_AUTH_REDIRECT
     : `${location.origin}/#/auth/callback`;
-  const returnPath: AuthReturnPath =
-    destination === "/saved"
+  const returnPath: AuthReturnPath = destination.startsWith("/listings/")
+    ? (destination as AuthReturnPath)
+    : destination === "/saved"
       ? "/watchlist"
       : destination === "/post"
         ? "/create-listing"
@@ -91,7 +104,7 @@ export function NativeAuth({
       } else {
         const { error } = await auth.auth.signInWithPassword({ email: email.trim(), password });
         if (error) throw error;
-        consumeNativeAuthDestination();
+        if (!location.hash.startsWith("#/auth")) consumeNativeAuthDestination();
       }
     });
   }

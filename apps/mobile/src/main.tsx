@@ -1,3 +1,4 @@
+import { peekNativeAuthDestination } from "./auth-destination";
 import { completeNativeAuthNavigation } from "./auth-destination";
 import { NativeNotificationsProvider } from "./Notifications";
 import type { HeaderAccountIdentity } from "../../../src/components/layout/HeaderAccountMenuView";
@@ -17,7 +18,7 @@ import { NativeAccount } from "./Account";
 import { NativeMessages } from "./Messages";
 import { clearConversationAttachmentMemory } from "./conversation-attachments";
 /* eslint-disable react-refresh/only-export-components -- application entrypoint mounts its local screens. */
-import { useEffect, useState, useRef, type FormEvent } from "react";
+import { useEffect, useState, useRef, lazy, Suspense, type FormEvent } from "react";
 import { createRoot } from "react-dom/client";
 import type { MobileAdConsent } from "../../../src/lib/mobile-advertising";
 import type { Session } from "@supabase/supabase-js";
@@ -75,6 +76,9 @@ import {
 } from "./advertising";
 import "./style.css";
 
+const NativeListingDetail = lazy(() =>
+  import("./ListingDetail").then((m) => ({ default: m.NativeListingDetail })),
+);
 const currentPath = () => location.hash.slice(1).split("?")[0] || "/";
 function go(path: string) {
   if (path === "/") window.dispatchEvent(new Event("bluebird-home"));
@@ -194,7 +198,10 @@ function Application() {
     api<{
       account: HeaderAccountIdentity & { userId: string };
       consent: { terms_version: string | null; shopping_alerts: boolean };
-    }>("account")
+    }>("account", "GET", undefined, undefined, {
+      userId: session.user.id,
+      installId: installIdentifier(),
+    })
       .then((a) => {
         if (alive) {
           setAccount(a);
@@ -365,6 +372,9 @@ function Application() {
       setBusy(false);
     }
   };
+  useEffect(() => {
+    if (session?.user.id && path === "/auth" && !recovery) completeNativeAuthNavigation();
+  }, [session?.user.id, path, recovery]);
   const needsTerms =
     session && account && bootstrap && account.consent.terms_version !== bootstrap.policyVersion;
   return (
@@ -412,13 +422,13 @@ function Application() {
               path={path}
               signedIn={Boolean(session)}
               owner={session?.user.id}
-              account={account?.account}
+              account={account?.account.userId === session?.user.id ? account?.account : null}
               onSignOut={() => signOut()}
               signOutBusy={busy}
               onNavigate={go}
               onPrivacy={() => setPrivacyOpen(true)}
             />
-            <main id="main-content" className="mobile-content">
+            <main id="main-content" tabIndex={-1} className="mobile-content scroll-mt-20">
               {bootstrap && !needsTerms && (
                 <div hidden={path !== "/"}>
                   <Feed
@@ -513,17 +523,51 @@ function Application() {
                   onRecovered={() => setRecovery(false)}
                 />
               ) : !session &&
-                ["/saved", "/post", "/messages", "/account"].some((p) => path.startsWith(p)) ? (
-                <NativeAuth policyVersion={bootstrap.policyVersion} destination={path} />
-              ) : path === "/" || path === "/search" ? null : path.startsWith("/listings/") ? (
-                <Listing
-                  key={`${session?.user.id ?? "guest"}:${path}`}
-                  id={path.slice(10)}
-                  session={session}
-                  learning={learning}
-                  revision={revision}
-                  onError={setError}
+                ["/saved", "/post", "/messages", "/account", "/auth"].some((p) =>
+                  path.startsWith(p),
+                ) ? (
+                <NativeAuth
+                  key={path === "/auth" ? location.hash : path}
+                  policyVersion={bootstrap.policyVersion}
+                  destination={path === "/auth" ? peekNativeAuthDestination() : path}
+                  initialMode={
+                    path === "/auth" &&
+                    new URLSearchParams(location.hash.split("?")[1]).get("mode") === "signup"
+                      ? "signup"
+                      : path === "/auth" &&
+                          new URLSearchParams(location.hash.split("?")[1]).get("mode") === "forgot"
+                        ? "forgot"
+                        : "signin"
+                  }
                 />
+              ) : path === "/" || path === "/search" ? null : path.startsWith("/listings/") ? (
+                bootstrap.features.listingDetails ? (
+                  <Suspense
+                    fallback={
+                      <p role="status" className="p-5 text-sm text-muted-foreground">
+                        Loading listing…
+                      </p>
+                    }
+                  >
+                    <NativeListingDetail
+                      key={`${session?.user.id ?? "guest"}:${path}`}
+                      id={path.slice(10)}
+                      owner={session?.user.id}
+                      learning={learning}
+                      revision={revision}
+                      applicationsReady={bootstrap.features.durableApplications === true}
+                    />
+                  </Suspense>
+                ) : (
+                  <Listing
+                    key={`${session?.user.id ?? "guest"}:${path}`}
+                    id={path.slice(10)}
+                    session={session}
+                    learning={learning}
+                    revision={revision}
+                    onError={setError}
+                  />
+                )
               ) : path === "/post" || path === "/post/profile" ? (
                 <Post
                   key={`${session!.user.id}:${path}`}
