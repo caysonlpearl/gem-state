@@ -1,0 +1,95 @@
+name: iPhone simulator build
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/mobile-ios-build.yml
+      - apps/mobile/**
+      - src/**
+      - public/**
+      - package.json
+      - package-lock.json
+      - tsconfig.json
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/mobile-ios-build.yml
+      - apps/mobile/**
+      - src/**
+      - public/**
+      - package.json
+      - package-lock.json
+      - tsconfig.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-ios-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios-simulator:
+    # Standard public-repository runner; no larger runner, cache or artifact storage.
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      BLUEBIRD_MOBILE_NATIVE_ADS_READY: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Select the installed Xcode 26 toolchain
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import glob, os, re
+          candidates = []
+          for path in glob.glob('/Applications/Xcode_26*.app'):
+              version = re.fullmatch(r'Xcode_(26(?:\.\d+)*)\.app', os.path.basename(path))
+              if version:
+                  candidates.append((tuple(map(int, version[1].split('.'))), path))
+          if not candidates:
+              raise SystemExit('Capacitor 8 requires Xcode 26; this runner has no supported toolchain.')
+          selected = max(candidates)[1] + '/Contents/Developer'
+          with open(os.environ['GITHUB_ENV'], 'a') as output:
+              output.write('DEVELOPER_DIR=' + selected + '\n')
+          print('Selected ' + selected)
+          PY
+      - name: Record compiler and simulator SDK versions
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphonesimulator --show-sdk-version
+          node --version
+      - run: npm ci
+      - run: npm ci --prefix apps/mobile
+      - name: Compile the shared website screens for mobile
+        run: npm run build:mobile
+      - name: Bundle assets and sync core iOS plugins
+        working-directory: apps/mobile
+        run: npx cap sync ios
+      - name: Compile the unsigned iPhone simulator app
+        shell: bash
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project apps/mobile/ios/App/App.xcodeproj \
+            -scheme App \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/bluebird-ios-derived-data" \
+            -clonedSourcePackagesDirPath "$RUNNER_TEMP/bluebird-ios-packages" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY= \
+            build
+      - name: Describe this build's verification boundary
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'SUMMARY'
+          Built the bundled Bluebird screens and core Capacitor plugins for the iPhone simulator without signing credentials. No app was submitted, uploaded, or distributed. Native advertising plugins remain disabled. This compile does not verify physical-device journeys, APNs delivery, configured advertising SDKs, store signing, or App Review readiness.
+          SUMMARY

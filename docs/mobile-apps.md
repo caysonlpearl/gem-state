@@ -13,8 +13,13 @@ Both native projects are checked in. Android debug compilation has succeeded
 locally with Java 21, Android SDK 36 and Capacitor 8.6.2. The owner explicitly
 authorized acceptance of the Android SDK license. No store accounts, store
 agreements, purchases, signing keys, Firebase project or paid capacity were
-created by this batch. Full Xcode is absent, so the iPhone project is not yet
-compiled. No physical Android device was attached when checked. An Android 36 ARM emulator
+created by this batch. Full Xcode remains absent locally. On November 13, the
+unsigned iPhone simulator project compiled successfully on the standard GitHub
+macOS runner with Xcode 26.3 (17C529), iOS simulator SDK 26.2 and Node 22.23.4.
+The job bundled the shared website screens and core Capacitor plugins without
+signing credentials, artifact uploads or a store submission; native advertising
+plugins remained disabled. See `docs/mobile-ios-build.md` for the exact build proof
+and its limits. No physical Android device was attached when checked. An Android 36 ARM emulator
 and matching system image are installed. The debug app starts, loads bundled assets
 and has no fatal startup or safe-area injection errors in its current process log.
 This does not establish authenticated journeys or actual push delivery.
@@ -514,8 +519,9 @@ Phase status and concrete outstanding checks:
 
 - Phase 0: baseline documented; enrollment, provider approvals and measured
   database/email/job capacity remain open. No validated hour estimate yet.
-- Phase 1: bundled project and stable API implemented; iPhone compilation and
-  both real-device authenticated journeys remain open. Complete those before
+- Phase 1: bundled project and stable API implemented; Android debug and unsigned
+  iPhone simulator compilation have passed. Both real-device authenticated journeys
+  and configured native advertising builds remain open. Complete those before
   revising the remaining effort estimate or scaling the feature set.
 - Phase 2: consent/request controls implemented; full deletion, Apple provider,
   accurate policy publication and source-wide moderation remain open.
