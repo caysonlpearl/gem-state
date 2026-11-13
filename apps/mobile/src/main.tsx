@@ -84,7 +84,8 @@ function Application() {
     initialize()
       .then(async (b) => {
         if (!alive) return;
-        configureAdvertising(b.features.advertising);
+        const advertisingReady = configureAdvertising(b.features.advertising);
+        b.features.advertising = advertisingReady;
         await disableAdvertising();
         setBootstrap(b);
         const { data } = await auth.auth.getSession();

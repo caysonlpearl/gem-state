@@ -189,7 +189,12 @@ owned by the shared 15-minute worker; do not create a second reminder schedule.
 Push activation requires BOTH `BLUEBIRD_MOBILE_PUSH_ENABLED=true` on the backend
 and `mobile_controls.push_enabled=true` in the database. Advertising similarly
 requires `BLUEBIRD_MOBILE_ADS_ENABLED=true` and
-`mobile_controls.advertising_enabled=true`. Both default off. Configure Firebase
+`mobile_controls.advertising_enabled=true`. Both default off. Advertising plugins are also excluded from native projects by
+default, preventing missing Meta configuration from breaking prototype startup.
+After configuring both providers, set `BLUEBIRD_MOBILE_NATIVE_ADS_READY=true`
+when running `npm run sync` to include the native advertising plugins. The app
+checks native plugin availability before showing advertising controls. Android
+FCM auto-initialization is off until explicit device registration. Configure Firebase
 and Meta project IDs privately before enabling. Android/iOS static defaults
 turn automatic advertising collection off. Native event exports use the shared
 allowlist and stable event IDs, check server consent before export, do not

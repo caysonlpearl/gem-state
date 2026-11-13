@@ -16,7 +16,12 @@ let enabled = false,
   configured = false,
   generation = 0;
 export function configureAdvertising(available: boolean) {
-  configured = available;
+  configured =
+    available &&
+    Capacitor.isNativePlatform() &&
+    Capacitor.isPluginAvailable("FirebaseAnalytics") &&
+    Capacitor.isPluginAvailable("FacebookLogin");
+  return configured;
 }
 const seen = new Set<string>();
 export async function disableAdvertising() {
