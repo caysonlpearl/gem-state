@@ -80,7 +80,7 @@ export function NativeMessages({
       }
     };
     void load();
-    const timer = setInterval(load, 15000);
+    const timer = setInterval(load, 60000);
     const foreground = () => {
       if (document.visibilityState === "visible") void load();
     };
