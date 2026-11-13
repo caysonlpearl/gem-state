@@ -62,8 +62,7 @@ export function SignupShoppingChoices({
           className="mt-1"
         />
         <span>
-          Send me personalized shopping emails and website notifications about listings,
-          recommendations, price drops, and offers.
+          Send me personalized emails, notifications and recommendations.
         </span>
       </label>
     </div>
@@ -147,16 +146,6 @@ export function ShoppingExperience() {
   };
   return (
     <>
-      <button
-        type="button"
-        onClick={() => {
-          setPrivacy(shoppingPrivacy());
-          setPrivacyOpen(true);
-        }}
-        className="fixed bottom-20 left-3 z-30 rounded-full border bg-background px-3 py-2 text-xs shadow-sm sm:bottom-3"
-      >
-        Privacy choices
-      </button>
       {privacyOpen && !needsTerms && (
         <div
           role="dialog"
@@ -299,8 +288,7 @@ export function ShoppingAlertPreference() {
           }}
         />
         <span>
-          Send me personalized shopping emails and website notifications about listings,
-          recommendations, price drops, and offers.
+          Send me personalized emails, notifications and recommendations.
         </span>
       </label>
       {error && (
