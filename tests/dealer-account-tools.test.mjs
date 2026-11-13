@@ -135,6 +135,10 @@ test("owner reports exclude other businesses, aliases and internal sales assumpt
 
 test("the shared profile preview shows real controls but cannot invoke a save", () => {
   const component = compile("../src/components/dealers/DealerProfileForm.tsx", (name) => {
+    if (name === "./DealerLogo")
+      return {
+        DealerLogo: (props) => jsx.jsx("img", { alt: `${props.name} logo`, src: props.src }),
+      };
     assert.equal(name, "react/jsx-runtime");
     return jsx;
   }).DealerProfileForm;

@@ -5,6 +5,8 @@ export function dealerInventoryVisibilityLabel(
 ) {
   if (visibility === "hidden") return "Hidden by dealership";
   if (visibility === "sold") return "Marked sold by dealership";
+  if (feedStatus === "sold") return "Sold in inventory feed";
+  if (feedStatus === "active") return "Available";
   return feedStatus === "invalid" ? "Needs review" : feedStatus;
 }
 
