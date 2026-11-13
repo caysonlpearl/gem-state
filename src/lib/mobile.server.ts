@@ -1,4 +1,8 @@
-import { assertAccountAvailable, AccountDeletionPending } from "./account-deletion-access.server";
+import {
+  assertAccountSession,
+  AccountDeletionPending,
+  AccountSessionUnavailable,
+} from "./account-deletion-access.server";
 import { mobileSavedSearchAllowed } from "./mobile-saved-search-contract";
 import { mobileSearchInput } from "./mobile-search";
 /* eslint-disable @typescript-eslint/no-explicit-any -- existing domain handlers retain their own runtime validators. */
@@ -95,20 +99,27 @@ async function actor(request: Request, allowDeletionStatus = false) {
     auth: { persistSession: false, autoRefreshToken: false },
     global: { headers: { Authorization: authorization } },
   });
-  const { data, error } = await client.auth.getUser(token);
-  if (error || !data.user)
+  const { data, error } = await client.auth.getClaims(token);
+  const claims = data?.claims;
+  if (error || !claims?.sub)
     throw new MobileApiError(401, "sign_in_required", "Please sign in again.");
-  if (!allowDeletionStatus) {
-    try {
-      await assertAccountAvailable(await database(), data.user.id);
-    } catch (error) {
-      if (error instanceof AccountDeletionPending)
-        throw new MobileApiError(409, "deletion_pending", error.message);
-      throw error;
-    }
+  try {
+    await assertAccountSession(
+      await database(),
+      claims.sub,
+      claims.session_id,
+      allowDeletionStatus,
+    );
+  } catch (error) {
+    if (error instanceof AccountDeletionPending)
+      throw new MobileApiError(409, "deletion_pending", error.message);
+    if (error instanceof AccountSessionUnavailable)
+      throw new MobileApiError(401, "sign_in_required", "Please sign in again.");
+    throw error;
   }
-  return { user: data.user, client };
+  return { user: { id: claims.sub }, client };
 }
+
 function dto(card: any): MobileListing {
   return {
     display: {

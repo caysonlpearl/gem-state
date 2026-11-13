@@ -201,7 +201,7 @@ New API v1 endpoints are `PUT account/profile|avatar`, `GET/PUT account/contact-
 
 Profile-photo uploads freeze the form's account/install identity through upload and the subsequent avatar write. An account switch cannot publish the photo on the new member. Refreshing a photo does not reset unsaved profile/contact fields, and failed saves retain edits. Shopping alerts continue using their own server consent, independently of legacy email settings, operating-system phone permission and advertising permission. Profile/email/phone values are not shopper activity or advertising inputs. Password recovery returns through the existing native callback.
 
-Ordinary sign-out on the website and app uses the local Supabase scope; the separate global control revokes the authenticated member's push registrations before global session sign-out. Both clients share owner rechecks and stop when revocation fails. Local token removal remains separate. Auth-provider errors leave an error state; neither action claims that revoked access JWTs expire sooner than the provider's actual behavior. In-app deletion still records a request/status and requires explicit confirmation; full deletion/anonymization processing remains unimplemented and a release blocker. The website account deletion link now reaches the existing dedicated deletion-request route.
+Ordinary sign-out on the website and app uses the local Supabase scope; the separate global control revokes the authenticated member's push registrations before global session sign-out. Both clients share owner rechecks and stop when revocation fails. Local token removal remains separate. Auth-provider errors leave an error state; access JWTs retain their original expiry, while the new session boundary rejects them after the corresponding Auth session is revoked. In-app deletion still records a request/status and requires explicit confirmation; full deletion/anonymization processing remains unimplemented and a release blocker. The website account deletion link now reaches the existing dedicated deletion-request route.
 
 Validation includes actual profile/avatar domain handlers with authenticated-owner assertions, native upload account-switch checks, API authentication/terms/deletion/field allowlists, and synthetic browser journeys at 320/390/1280px. They cover unavailable API support, failed preference reads, failed saves, unsaved edits across photo updates, both sign-out scopes, password recovery, separate shopping consent and deletion request acknowledgement. Fixtures create no real accounts, photos, emails, or deletion requests. Run `npm run test:mobile:account:ui`; real signed-in phone and production account journeys remain beta gates.
 
@@ -277,9 +277,9 @@ Official enrollment references:
 The next batch adds durable deletion jobs, server route fences and immediate
 shopping/advertising suppression across web and native. It keeps the existing
 account request/status contract and sign-out routes. The erasure worker remains
-disabled until actual data/media cleanup, identity-provider revocation, session
-and direct database boundaries, retention handling and independent verification
-are complete. Source tests and a received request are not completed deletion.
+disabled until actual data/media cleanup, identity-provider revocation, retention handling and independent verification
+are complete. Session and direct database boundaries now have isolated tests;
+production installation and verification remain required. Source tests and a received request are not completed deletion.
 See `docs/account-deletion.md` for the current implementation boundary.
 
 ## Apple release automation candidate: Lance

@@ -44,8 +44,9 @@ begin
  update mobile_ad_consents set advertising=false,updated_at=now() where user_id=_user;
  delete from mobile_push_devices where user_id=_user;
  insert into shopping_consents(user_id,subject,purpose,allowed,version,source)
- select _user,'u:'||_user,purpose,false,'2026-11-12','account_deletion'
- from unnest(array['shopping_alerts','personalization','advertising']) as purpose;
+ select _user,'u:'||_user,p.purpose,false,'2026-11-12','account_deletion'
+ from unnest(array['shopping_alerts','personalization','advertising']) as p(purpose)
+ where not exists(select 1 from shopping_consents c where c.user_id=_user and c.purpose=p.purpose and not c.allowed and c.source='account_deletion');
 end $$;
 
 create function public.queue_account_deletion() returns trigger

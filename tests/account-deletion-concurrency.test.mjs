@@ -5,6 +5,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { mkdtemp, mkdir, readdir, access, rm } from "node:fs/promises";
 import { join } from "node:path";
+import { readFileSync } from "node:fs";
 import pg from "pg";
 import { installDeletionSchema } from "./helpers/account-deletion-database.mjs";
 const exec = promisify(execFile);
@@ -140,6 +141,43 @@ test(
         2,
         "Simultaneous connections never claim one logical job twice",
       );
+      await a.query(`alter table auth.users add column deleted_at timestamptz,add column banned_until timestamptz;
+        create table auth.sessions(id uuid primary key,user_id uuid references auth.users(id) on delete cascade,not_after timestamptz);
+        create function auth.jwt() returns jsonb language sql stable as $$select coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb$$;
+        create function auth.uid() returns uuid language sql stable as $$select nullif(auth.jwt()->>'sub','')::uuid$$;
+        create function real_boundary_fixture(_value integer default 12) returns integer language plpgsql stable security definer as $$begin return _value;exception when others then return -1;end$$;`);
+      const member = randomUUID(),
+        session = randomUUID();
+      await a.query("insert into auth.users(id)values($1)", [member]);
+      await a.query("insert into auth.sessions(id,user_id)values($1,$2)", [session, member]);
+      await a.query(
+        readFileSync(
+          new URL(
+            "../supabase/migrations/20261113120000_account_access_boundaries.sql",
+            import.meta.url,
+          ),
+          "utf8",
+        ),
+      );
+      await a.query("select set_config('request.jwt.claims',$1,false)", [
+        JSON.stringify({ sub: member, session_id: session, role: "authenticated" }),
+      ]);
+      await a.query("set role authenticated");
+      assert.equal((await a.query("select real_boundary_fixture() n")).rows[0].n, 12);
+      await b.query("select mobile_request_deletion($1)", [member]);
+      assert.equal(
+        (await b.query("select count(*)::int n from auth.sessions where user_id=$1", [member]))
+          .rows[0].n,
+        0,
+      );
+      await assert.rejects(
+        () => a.query("select real_boundary_fixture()"),
+        /Account access is unavailable/,
+      );
+      assert.deepEqual((await b.query("select account_access_coverage() c")).rows[0].c, {
+        unguarded_functions: 0,
+        unguarded_tables: 0,
+      });
     } finally {
       await Promise.allSettled([a?.end(), b?.end()]);
       if (initialized) {

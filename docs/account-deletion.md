@@ -97,8 +97,9 @@ and use coded errors and exponential retry delays without private provider text.
 A job survives an Auth cascade/crash. Completion independently refuses a remaining
 Auth identity and removes the target UUID from the minimal completion receipt.
 
-Shared server authentication checks the current Auth identity as well as JWT
-claims and rejects pending deletion before running domain handlers. Private native
+Shared server authentication verifies JWT claims, then checks the current Auth
+identity, matching live session and deletion state in one indexed database RPC
+before running domain handlers. Private native
 reads and writes use the same pending-account check. Account deletion status and
 owned device removal remain available for confirmation/sign-out. Shopping
 collection, recommendations, advertising exports and shopping email/push delivery
@@ -110,9 +111,9 @@ This is **not operational erasure yet**. The migration is not applied by editing
 source, and the worker defaults to disabled. The real inventory, provider,
 media/record erasure, Auth removal and independent verification adapters remain
 to be connected. No real account or media was deleted by the local SQL and worker
-tests. Session revocation and database-level protection for direct RPC/storage
-access still require implementation before activating full deletion. These server
-route checks do not prove those database/session boundaries.
+tests. Production installation and verification remain required for the session and
+database boundaries described below. This source work does not activate full
+erasure.
 
 Tests exercise actual migration SQL in isolated Postgres, queue replay/rollback,
 legacy requests, lease expiry, stale workers, delayed retries, phase order,
@@ -128,3 +129,43 @@ jobs, and a reclaimed lease rejects the old worker's checkpoint and retry. The
 cluster is temporary, uses an owner-only Unix socket with TCP disabled, and is
 stopped and removed after the test. CI runs this gate explicitly; the ordinary
 suite does not require a locally running database.
+
+## Database and session boundary layer
+
+The second migration adds a service-only session-state RPC and an authenticated
+self-check for RLS. A still-signed token must match a live, unexpired session for
+the same existing member; pending deletion, deleted identities, banned identities
+and removed sessions cannot access private data. Public anonymous catalog access
+and existing privileged server work retain their previous authorization.
+
+Restrictive policies cover current RLS-enabled public tables and Storage objects
+and buckets. Guards also wrap current authenticated-callable application
+security-definer RPCs, preserving signatures, defaults, permissions, result types,
+volatility and other attributes. The guard sits outside an original PL/pgSQL
+exception handler so that handler cannot swallow a denied session. The original
+function definition stays in a private rollback ledger, never in public output.
+
+A new request checks boundary coverage before becoming visible and atomically
+removes that member's Auth sessions after queuing and permission withdrawal.
+Status and owned-device sign-out routes can still handle a pending request while
+the Auth identity exists. This is session revocation and access blocking, not
+identity/content/media deletion.
+
+The production preflight found 164 authenticated-callable application
+security-definer RPCs, all SQL or PL/pgSQL, and RLS enabled on Storage objects and
+buckets. There were zero deletion requests and no deletion-job table at that
+observation. Read-only metadata inspection does not prove the new migration is
+installed.
+
+The coverage RPC detects new/redefined member RPCs, missing policies and modified
+policy expressions. Relevant later SQL migrations must call
+`protect_account_access_boundaries()` and require zero coverage gaps before
+release. Changes to already protected definitions/policies require review; do not
+blindly bless a different policy. The erasure worker must require this preflight
+before any destructive cleanup and independent final verification.
+
+Isolated Postgres tests exercise member isolation, public anonymous access,
+private REST/RPC/storage denial, missing/expired sessions, pending and removed
+identities, preserved function defaults, original exception handlers, idempotent
+protection and coverage drift. The real PostgreSQL gate also exercises function
+wrapping, session removal and denial from a second live connection.

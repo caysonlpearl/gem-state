@@ -7,8 +7,22 @@ import * as access from "../src/lib/account-deletion-access.server.ts";
 function database(owner) {
   const pending = new Set(),
     reads = [];
-  let failed = false;
+  let failed = false,
+    identityPresent = true;
   const db = {
+    rpc: async (name, args) => {
+      assert.equal(name, "account_session_state");
+      assert.equal(args._user, owner);
+      reads.push(args._user);
+      return {
+        data: !identityPresent
+          ? "unavailable"
+          : pending.has(args._user)
+            ? "deletion_pending"
+            : "active",
+        error: failed ? {} : null,
+      };
+    },
     from(table) {
       assert.equal(table, "mobile_account_deletions");
       return {
@@ -32,6 +46,9 @@ function database(owner) {
   };
   return {
     db,
+    dropIdentity: () => {
+      identityPresent = false;
+    },
     pending,
     reads,
     fail: () => {
@@ -44,12 +61,9 @@ test("account availability is fresh, server-owned, isolated and fails closed on 
     other = randomUUID(),
     f = database(owner);
   f.pending.add(other);
-  await access.assertAccountAvailable(f.db, owner);
+  assert.equal(await access.accountDeletionPending(f.db, owner), false);
   f.pending.add(owner);
-  await assert.rejects(
-    () => access.assertAccountAvailable(f.db, owner),
-    access.AccountDeletionPending,
-  );
+  assert.equal(await access.accountDeletionPending(f.db, owner), true);
   assert.deepEqual(f.reads, [owner, owner]);
   f.fail();
   await assert.rejects(
@@ -62,7 +76,7 @@ test("account availability is fresh, server-owned, isolated and fails closed on 
 test("the actual website authentication middleware rejects a deletion request before running any domain handler", async () => {
   const owner = randomUUID(),
     f = database(owner);
-  let identityPresent = true;
+
   const previousUrl = process.env.GEM_STATE_SUPABASE_URL,
     previousKey = process.env.GEM_STATE_SUPABASE_PUBLISHABLE_KEY;
   process.env.GEM_STATE_SUPABASE_URL = "https://fixture.invalid";
@@ -80,9 +94,10 @@ test("the actual website authentication middleware rejects a deletion request be
         "@supabase/supabase-js": {
           createClient: () => ({
             auth: {
-              getClaims: async () => ({ data: { claims: { sub: owner } }, error: null }),
-              getUser: async () => ({
-                data: { user: identityPresent ? { id: owner } : null },
+              getClaims: async () => ({
+                data: {
+                  claims: { sub: owner, session_id: "44444444-4444-4444-8444-444444444444" },
+                },
                 error: null,
               }),
             },
@@ -117,7 +132,7 @@ test("the actual website authentication middleware rejects a deletion request be
     assert.equal(runs, 1);
     assert.deepEqual(f.reads, [owner, owner]);
     f.pending.clear();
-    identityPresent = false;
+    f.dropIdentity();
     await assert.rejects(
       () => exports.requireSupabaseAuth({ next }),
       /Unauthorized: Account is unavailable/,
@@ -129,4 +144,50 @@ test("the actual website authentication middleware rejects a deletion request be
     if (previousKey === undefined) delete process.env.GEM_STATE_SUPABASE_PUBLISHABLE_KEY;
     else process.env.GEM_STATE_SUPABASE_PUBLISHABLE_KEY = previousKey;
   }
+});
+
+test("verified-session gates reject malformed claims, missing controls and removed identities; pending exceptions are limited", async () => {
+  const user = randomUUID(),
+    session = randomUUID();
+  let state = "active",
+    error = null,
+    reads = 0;
+  const db = {
+    rpc: async (name, args) => {
+      reads++;
+      assert.equal(name, "account_session_state");
+      assert.deepEqual(args, { _user: user, _session: session });
+      return { data: state, error };
+    },
+  };
+  await access.assertAccountSession(db, user, session);
+  state = "deletion_pending";
+  await assert.rejects(
+    () => access.assertAccountSession(db, user, session),
+    access.AccountDeletionPending,
+  );
+  await access.assertAccountSession(db, user, session, true);
+  state = "unavailable";
+  await assert.rejects(
+    () => access.assertAccountSession(db, user, session, true),
+    access.AccountSessionUnavailable,
+  );
+  state = { unexpected: "private@example.com" };
+  await assert.rejects(
+    () => access.assertAccountSession(db, user, session),
+    /temporarily unavailable/,
+  );
+  state = "active";
+  error = { message: "private-token" };
+  await assert.rejects(
+    () => access.assertAccountSession(db, user, session),
+    (e) => e.message === "Account controls are temporarily unavailable.",
+  );
+  const before = reads;
+  for (const id of [null, undefined, "not-a-session"])
+    await assert.rejects(
+      () => access.assertAccountSession(db, user, id),
+      access.AccountSessionUnavailable,
+    );
+  assert.equal(reads, before);
 });

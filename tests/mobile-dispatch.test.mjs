@@ -146,6 +146,12 @@ function harness({
       return q;
     },
     rpc: async (name, args) => {
+      if (name === "account_session_state") {
+        assert.equal(args._user, user);
+        assert.equal(args._session, "44444444-4444-4444-8444-444444444444");
+        reads.push({ table: "account_session_state", filters: [] });
+        return { data: deleted ? "deletion_pending" : "active", error: null };
+      }
       writes.push({ name, args });
       return {
         data:
@@ -168,8 +174,12 @@ function harness({
       createClient: () => ({
         ...db,
         auth: {
-          getUser: async () => ({
-            data: { user: valid ? { id: user } : null },
+          getClaims: async () => ({
+            data: {
+              claims: valid
+                ? { sub: user, session_id: "44444444-4444-4444-8444-444444444444" }
+                : null,
+            },
             error: valid ? null : { code: "invalid" },
           }),
         },

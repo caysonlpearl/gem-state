@@ -34,6 +34,40 @@ export async function accountDeletionPending(db: DeletionAccessDatabase, userId:
     throw new Error("Account controls are temporarily unavailable.");
   }
 }
-export async function assertAccountAvailable(db: DeletionAccessDatabase, userId: string) {
-  if (await accountDeletionPending(db, userId)) throw new AccountDeletionPending();
+
+export type AccountSessionDatabase = {
+  rpc(
+    name: "account_session_state",
+    args: { _user: string; _session: string },
+  ): PromiseLike<{ data: unknown; error: unknown }>;
+};
+export class AccountSessionUnavailable extends Error {
+  constructor() {
+    super("Unauthorized: Account is unavailable");
+  }
+}
+/** Caller must first verify the JWT signature/expiry; identity and session are
+ * then checked together in one indexed database read, without cross-request caching. */
+export async function assertAccountSession(
+  db: AccountSessionDatabase,
+  userId: string,
+  sessionId: unknown,
+  allowPending = false,
+) {
+  const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuid.test(userId) || typeof sessionId !== "string" || !uuid.test(sessionId))
+    throw new AccountSessionUnavailable();
+  let result;
+  try {
+    result = await db.rpc("account_session_state", { _user: userId, _session: sessionId });
+  } catch {
+    throw new Error("Account controls are temporarily unavailable.");
+  }
+  if (!result || result.error) throw new Error("Account controls are temporarily unavailable.");
+  if (result.data === "unavailable") throw new AccountSessionUnavailable();
+  if (result.data === "deletion_pending") {
+    if (!allowPending) throw new AccountDeletionPending();
+    return;
+  }
+  if (result.data !== "active") throw new Error("Account controls are temporarily unavailable.");
 }

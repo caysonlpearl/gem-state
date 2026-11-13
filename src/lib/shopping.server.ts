@@ -1,7 +1,4 @@
-import {
-  assertAccountAvailable,
-  accountDeletionPending,
-} from "./account-deletion-access.server.ts";
+import { assertAccountSession, accountDeletionPending } from "./account-deletion-access.server.ts";
 /* eslint-disable @typescript-eslint/no-explicit-any -- private migration-backed tables */
 import {
   interests,
@@ -25,10 +22,10 @@ export async function shoppingActor(request: Request, db: any) {
   const authorization = request.headers.get("authorization") ?? "";
   let user: any = null;
   if (authorization.startsWith("Bearer ")) {
-    const result = await db.auth.getUser(authorization.slice(7));
-    if (result.error) throw Error("Please sign in again.");
-    user = result.data.user;
-    if (user) await assertAccountAvailable(db, user.id);
+    const result = await db.auth.getClaims(authorization.slice(7));
+    if (result.error || !result.data?.claims?.sub) throw Error("Please sign in again.");
+    await assertAccountSession(db, result.data.claims.sub, result.data.claims.session_id);
+    user = { id: result.data.claims.sub };
   }
   const match = request.headers
     .get("cookie")
