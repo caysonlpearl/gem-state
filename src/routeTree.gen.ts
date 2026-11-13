@@ -46,6 +46,7 @@ import { Route as AuthenticatedWatchlistRouteImport } from './routes/_authentica
 import { Route as ApiShoppingRouteImport } from './routes/api/shopping'
 import { Route as ApiShoppingEmailEventsRouteImport } from './routes/api/shopping-email-events'
 import { Route as DealersSlugRouteImport } from './routes/dealers.$slug'
+import { Route as FeedsChatgptDotcsvRouteImport } from './routes/feeds.chatgpt[.]csv'
 import { Route as GuidesIndexRouteImport } from './routes/guides.index'
 import { Route as GuidesSlugRouteImport } from './routes/guides.$slug'
 import { Route as ListingsListingIdRouteImport } from './routes/listings.$listingId'
@@ -286,6 +287,11 @@ const ApiShoppingEmailEventsRoute = ApiShoppingEmailEventsRouteImport.update({
 const DealersSlugRoute = DealersSlugRouteImport.update({
   id: '/dealers/$slug',
   path: '/dealers/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FeedsChatgptDotcsvRoute = FeedsChatgptDotcsvRouteImport.update({
+  id: '/feeds/chatgpt.csv',
+  path: '/feeds/chatgpt.csv',
   getParentRoute: () => rootRouteImport,
 } as any)
 const GuidesIndexRoute = GuidesIndexRouteImport.update({
@@ -607,6 +613,7 @@ export interface FileRoutesByFullPath {
   '/api/shopping': typeof ApiShoppingRoute
   '/api/shopping-email-events': typeof ApiShoppingEmailEventsRoute
   '/dealers/$slug': typeof DealersSlugRoute
+  '/feeds/chatgpt.csv': typeof FeedsChatgptDotcsvRoute
   '/guides/$slug': typeof GuidesSlugRoute
   '/listings/$listingId': typeof ListingsListingIdRoute
   '/news/$slug': typeof NewsSlugRoute
@@ -695,6 +702,7 @@ export interface FileRoutesByTo {
   '/api/shopping': typeof ApiShoppingRoute
   '/api/shopping-email-events': typeof ApiShoppingEmailEventsRoute
   '/dealers/$slug': typeof DealersSlugRoute
+  '/feeds/chatgpt.csv': typeof FeedsChatgptDotcsvRoute
   '/guides/$slug': typeof GuidesSlugRoute
   '/listings/$listingId': typeof ListingsListingIdRoute
   '/news/$slug': typeof NewsSlugRoute
@@ -786,6 +794,7 @@ export interface FileRoutesById {
   '/api/shopping': typeof ApiShoppingRoute
   '/api/shopping-email-events': typeof ApiShoppingEmailEventsRoute
   '/dealers/$slug': typeof DealersSlugRoute
+  '/feeds/chatgpt.csv': typeof FeedsChatgptDotcsvRoute
   '/guides/$slug': typeof GuidesSlugRoute
   '/listings/$listingId': typeof ListingsListingIdRoute
   '/news/$slug': typeof NewsSlugRoute
@@ -877,6 +886,7 @@ export interface FileRouteTypes {
     | '/api/shopping'
     | '/api/shopping-email-events'
     | '/dealers/$slug'
+    | '/feeds/chatgpt.csv'
     | '/guides/$slug'
     | '/listings/$listingId'
     | '/news/$slug'
@@ -965,6 +975,7 @@ export interface FileRouteTypes {
     | '/api/shopping'
     | '/api/shopping-email-events'
     | '/dealers/$slug'
+    | '/feeds/chatgpt.csv'
     | '/guides/$slug'
     | '/listings/$listingId'
     | '/news/$slug'
@@ -1055,6 +1066,7 @@ export interface FileRouteTypes {
     | '/api/shopping'
     | '/api/shopping-email-events'
     | '/dealers/$slug'
+    | '/feeds/chatgpt.csv'
     | '/guides/$slug'
     | '/listings/$listingId'
     | '/news/$slug'
@@ -1132,6 +1144,7 @@ export interface RootRouteChildren {
   ApiShoppingRoute: typeof ApiShoppingRoute
   ApiShoppingEmailEventsRoute: typeof ApiShoppingEmailEventsRoute
   DealersSlugRoute: typeof DealersSlugRoute
+  FeedsChatgptDotcsvRoute: typeof FeedsChatgptDotcsvRoute
   GuidesSlugRoute: typeof GuidesSlugRoute
   ListingsListingIdRoute: typeof ListingsListingIdRoute
   NewsSlugRoute: typeof NewsSlugRoute
@@ -1425,6 +1438,13 @@ declare module '@tanstack/react-router' {
       path: '/dealers/$slug'
       fullPath: '/dealers/$slug'
       preLoaderRoute: typeof DealersSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/feeds/chatgpt.csv': {
+      id: '/feeds/chatgpt.csv'
+      path: '/feeds/chatgpt.csv'
+      fullPath: '/feeds/chatgpt.csv'
+      preLoaderRoute: typeof FeedsChatgptDotcsvRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/guides/': {
@@ -1901,6 +1921,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiShoppingRoute: ApiShoppingRoute,
   ApiShoppingEmailEventsRoute: ApiShoppingEmailEventsRoute,
   DealersSlugRoute: DealersSlugRoute,
+  FeedsChatgptDotcsvRoute: FeedsChatgptDotcsvRoute,
   GuidesSlugRoute: GuidesSlugRoute,
   ListingsListingIdRoute: ListingsListingIdRoute,
   NewsSlugRoute: NewsSlugRoute,
