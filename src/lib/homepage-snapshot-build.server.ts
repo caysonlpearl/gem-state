@@ -1,3 +1,4 @@
+import { marketplaceStateCodes } from "../config/classifieds.ts";
 /* eslint-disable @typescript-eslint/no-explicit-any -- cached provider schemas */
 import {
   homepageCard,
@@ -126,20 +127,22 @@ export async function buildHomepageSnapshot(
           },
           async vehicles() {
             const adapter = await import("./marketcheck.server");
-            const [aggregated, direct] = await Promise.all([
-              adapter.marketCheckCards(
-                { latitude: 43.6, longitude: -116.2, radiusMiles: 500 },
-                {
-                  cacheOnly: true,
-                  preparedHomeCache: adapter.prepareHomeMarketCheckCache(8000, true),
-                },
+            const prepared = adapter.prepareHomeMarketCheckCache(8000, true);
+            const [states, direct] = await Promise.all([
+              Promise.all(
+                marketplaceStateCodes.map((state) =>
+                  adapter.marketCheckCards(
+                    { state },
+                    { cacheOnly: true, cacheReadTimeoutMs: 8000, preparedHomeCache: prepared },
+                  ),
+                ),
               ),
               (await import("./dealer-feed.server")).dealerFeedCards({}),
             ]);
             return {
               cards: (await import("./dealer-feed-contract")).mergeDealerFeedVehicles(
                 direct.cards,
-                aggregated,
+                states.flat(),
                 direct.dealers,
               ),
             };

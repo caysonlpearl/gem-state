@@ -23,7 +23,7 @@ export const getShoppingReport = createServerFn({ method: "GET" })
       db
         .from("shopping_controls")
         .select(
-          "tracking,recommendations,embeddings,learning,notifications,advertising,model_version,updated_at",
+          "tracking,recommendations,embeddings,learning,notifications,advertising,model,model_version,updated_at",
         )
         .single(),
       db

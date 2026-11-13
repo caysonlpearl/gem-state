@@ -103,6 +103,13 @@ function ShoppingReport() {
           </div>
           <section className="rounded-2xl border p-5">
             <h2 className="font-semibold">Delivery and capacity</h2>
+            {r.controls.model?.catalogStatus?.sourceFailures?.length > 0 && (
+              <p className="mt-2 text-sm">
+                Sources awaiting a successful refresh:{" "}
+                {r.controls.model.catalogStatus.sourceFailures.join(", ")}. Previously saved
+                candidates retain only their original expiry.
+              </p>
+            )}
             <p className="mt-3 text-sm">
               {r.deliveries.sent} deliveries · {r.deliveries.clicked} clicked ·{" "}
               {r.deliveries.opened_approximate} approximate opens · {r.deliveries.failed} failed ·{" "}

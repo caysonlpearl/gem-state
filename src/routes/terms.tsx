@@ -45,6 +45,10 @@ function Terms() {
         shopping updates off in your account or use an email unsubscribe link. Account, security,
         transaction, and requested conversation messages are handled separately.
       </p>
+      <p>
+        The <a href="/policies">marketplace policies and disclosures</a>, including buyer, seller,
+        cancellation, prohibited-item, and evidence-privacy rules, also form part of these terms.
+      </p>
       <h2>Payments and third-party services</h2>
       <p>
         Applicable payment, verification, delivery, and external seller services have their own

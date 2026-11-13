@@ -398,7 +398,9 @@ export async function syncShoppingInventory(db: any) {
     now = Date.now();
   const expiry = new Map<string, number>();
   const cards = new Map<string, ShoppingCard>();
-  for (const section of Object.values(snapshot.sections)) {
+  const failedSources = Object.keys(snapshot.sourceFailures ?? {});
+  for (const [source, section] of Object.entries(snapshot.sections)) {
+    if (failedSources.includes(source)) continue;
     if (!section || now - section.updatedAt > HOME_MAX_STALE_MS) continue;
     for (const card of section.cards) {
       cards.set(card.id, card as unknown as ShoppingCard);
@@ -426,7 +428,9 @@ export async function syncShoppingInventory(db: any) {
   }
   const prior = new Map(oldRows.map((r) => [r.listing_id, r]));
   // Missing candidates lose recommendation eligibility; disappearance is never a sale.
-  const absent = oldRows.filter((r) => !cards.has(r.listing_id)).map((r) => r.listing_id);
+  const absent = failedSources.length
+    ? []
+    : oldRows.filter((r) => !cards.has(r.listing_id)).map((r) => r.listing_id);
   for (let i = 0; i < absent.length; i += 200) {
     const r = await db
       .from("shopping_inventory")
@@ -468,11 +472,28 @@ export async function syncShoppingInventory(db: any) {
       if (result.error) throw Error("Inventory projection could not be saved.");
     }
   }
-  await db
+  const controls = await shoppingControls(db);
+  const saved = await db
     .from("shopping_controls")
-    .update({ catalog_ready_at: new Date().toISOString() })
-    .eq("id", true)
-    .is("catalog_ready_at", null);
+    .update({
+      model: {
+        ...controls.model,
+        catalogStatus: {
+          at: new Date().toISOString(),
+          sourceFailures: failedSources,
+          observed: cards.size,
+          elapsedMs: Date.now() - now,
+        },
+      },
+    })
+    .eq("id", true);
+  if (saved.error) throw Error("Catalog status unavailable.");
+  if (!failedSources.length)
+    await db
+      .from("shopping_controls")
+      .update({ catalog_ready_at: new Date().toISOString() })
+      .eq("id", true)
+      .is("catalog_ready_at", null);
   return cards.size;
 }
 export async function contentHash(text: string) {
