@@ -8,7 +8,7 @@ ENDPOINT = ORIGIN + "/api/internal/shopping-embeddings"
 
 def api(body=None):
     data = json.dumps(body).encode() if body is not None else None
-    request = urllib.request.Request(ENDPOINT, data=data, headers={"Authorization": "Bearer " + TOKEN, "Content-Type": "application/json"})
+    request = urllib.request.Request(ENDPOINT, data=data, headers={"Authorization": "Bearer " + TOKEN, "Content-Type": "application/json", "User-Agent": "Bluebird-Shopping-Embedding-Worker/1.0"})
     with urllib.request.urlopen(request, timeout=90) as response:
         return json.load(response)
 
@@ -71,7 +71,8 @@ if __name__ == "__main__":
                     pass  # Text remains useful when a public thumbnail is unavailable.
                 vector=vector/vector.norm(dim=-1,keepdim=True)
                 results.append({"id":item["id"],"hash":item["hash"],"vector":vector[0].tolist()})
-        stored+=api({"model":batch["model"],"items":results})["stored"]
+        for offset in range(0,len(results),32):
+            stored+=api({"model":batch["model"],"items":results[offset:offset+32]})["stored"]
         print(f"Stored {stored} current listing vectors; {photos} include images.",flush=True)
         if time.monotonic()-started>2100:break
         batch=api()

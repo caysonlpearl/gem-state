@@ -440,11 +440,16 @@ export async function deliverShoppingAlerts(db: any, limit = 20) {
           .from("shopping_deliveries")
           .update({
             provider_id: result.providerId ?? null,
-            provider_status: "email.sent",
             email_sent: true,
           })
           .eq("id", delivery.id);
         if (r.error) throw Error("Delivery outcome unavailable.");
+        const status = await db
+          .from("shopping_deliveries")
+          .update({ provider_status: "email.sent" })
+          .eq("id", delivery.id)
+          .is("provider_status", null);
+        if (status.error) throw Error("Delivery status unavailable.");
       }
       if (ids.length) {
         const r = await db

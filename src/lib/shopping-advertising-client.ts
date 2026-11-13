@@ -55,6 +55,8 @@ export function revokeShoppingAdvertising() {
     ad_personalization: "denied",
   });
   document.querySelectorAll("script[data-shopping-ad]").forEach((s) => s.remove());
+  if (!shoppingPrivacy().advertising)
+    document.querySelectorAll("script[data-bluebird-dealer-pixel]").forEach((s) => s.remove());
   for (const cookie of document.cookie.split(";")) {
     const name = cookie.split("=")[0].trim();
     if (/^(_ga|_gid|_gat|_fbp|_fbc)/.test(name))
