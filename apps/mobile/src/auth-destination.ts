@@ -1,8 +1,11 @@
+import { storefrontAuthDestination } from "../../../src/lib/storefront-url.ts";
 const key = "bluebird:auth-return";
 const supported =
   /^(?:\/(?:saved|post)|\/post\/profile|\/account(?:\/(?:profile|settings|searches|notifications))?|\/messages(?:\/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})?)$/i;
 /** Essential login state only: no tokens, member details or tracking identifier. */
 function normalize(path: string) {
+  const storefront = storefrontAuthDestination(path);
+  if (storefront) return storefront;
   const listing = /^\/listings\/([a-z0-9][a-z0-9._:-]{0,199})$/i.exec(path);
   return listing && !listing[1].startsWith("avantlink-")
     ? `/listings/${listing[1]}`

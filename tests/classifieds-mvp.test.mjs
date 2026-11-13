@@ -128,7 +128,10 @@ const listingDetailSource =
   (await read("src/routes/listings.$listingId.tsx")) +
   (await read("src/components/listings/ListingDetailView.tsx")) +
   (await read("src/components/listings/ListingDetailControlsView.tsx"));
-const sellerProfileSource = await read("src/routes/sellers.$slug.tsx");
+const sellerProfileSource =
+  (await read("src/routes/sellers.$slug.tsx")) +
+  (await read("src/components/storefronts/SellerStorefrontView.tsx")) +
+  (await read("src/components/storefronts/SellerReviewViews.tsx"));
 const adminClassifiedsSource = await read("src/routes/_authenticated/admin.classifieds.tsx");
 const listingReportsMigrationSource = await read(
   "supabase/migrations/20260920110000_add_classified_listing_reports.sql",

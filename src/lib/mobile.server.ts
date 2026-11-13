@@ -286,16 +286,22 @@ async function allowedConversationListing(id: string, native?: Set<string>) {
   }
   await listing(id);
 }
-async function allowedConversation(id: string) {
+async function allowedConversation(id: string, userId: string) {
   const { getConversation } = await import("./conversation.functions");
   const detail = await domain(getConversation, { id });
-  // Store apps may not use general dealer chats to bypass catalog restrictions.
-  if (!detail.listingId)
-    throw new MobileApiError(
-      404,
-      "conversation_unavailable",
-      "This conversation is unavailable in the app.",
-    );
+  if (!detail.listingId) {
+    const ready = await (await import("./mobile-messaging.server")).mobileDealerMessagesReady();
+    const allowed = await (
+      await import("./mobile-storefront.server")
+    ).mobileGeneralDealerContexts(await database(), userId, [detail], ready);
+    if (!allowed.has(detail.id))
+      throw new MobileApiError(
+        404,
+        "conversation_unavailable",
+        "This conversation is unavailable in the app.",
+      );
+    return detail;
+  }
   await allowedConversationListing(detail.listingId);
   return detail;
 }
@@ -339,6 +345,10 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
         fullSearch: true,
         notificationCenter: true,
         listingDetails: true,
+        storefronts: true,
+        durableDealerMessages: await (
+          await import("./mobile-messaging.server")
+        ).mobileDealerMessagesReady(),
         durableApplications: await (
           await import("./mobile-messaging.server")
         ).mobileApplicationsReady(),
@@ -440,6 +450,59 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
       selection,
     };
   }
+  const storefrontMatch = /^(sellers|dealers)\/([a-z0-9][a-z0-9-]{0,79})$/.exec(path);
+  if (method === "GET" && storefrontMatch) {
+    const [, kind, slug] = storefrontMatch;
+    const url = new URL(request.url);
+    const keys = [...url.searchParams.keys()];
+    if (keys.some((k) => k !== "page") || url.searchParams.getAll("page").length > 1)
+      throw new MobileApiError(400, "invalid_request", "Check the storefront page.");
+    const page = z.coerce
+      .number()
+      .int()
+      .min(1)
+      .max(10000)
+      .parse(url.searchParams.get("page") ?? 1);
+    const f = await import("./mobile-storefront-contract");
+    if (kind === "sellers") {
+      if (slug.length > 60 || page !== 1)
+        throw new MobileApiError(400, "invalid_request", "Check the seller profile.");
+      const profile = await domain((await import("./seller.functions")).getPublicSeller, {
+        slug,
+        mobileCatalog: true,
+      });
+      if (!profile || !f.mobileStorefrontIdentityAllowed(profile.displayName, profile.bio))
+        throw new MobileApiError(
+          404,
+          "seller_unavailable",
+          "This seller is unavailable in the app.",
+        );
+      return f.mobilePublicSeller(profile);
+    }
+    const profile = await domain((await import("./dealer.functions")).getPublicDealer, {
+      slug,
+      page,
+      mobileCatalog: true,
+    });
+    if (!profile || !f.mobileStorefrontIdentityAllowed(profile.displayName, profile.description))
+      throw new MobileApiError(
+        404,
+        "dealer_unavailable",
+        "This dealership is unavailable in the app.",
+      );
+    const { mobileListingSummary } = await import("./mobile-listing-detail");
+    const cards = profile.listings.flatMap((card: any) => {
+      const safe = mobileListingSummary(card);
+      return safe ? [safe] : [];
+    });
+    if (cards.length !== profile.listings.length)
+      throw new MobileApiError(
+        503,
+        "dealer_unavailable",
+        "Dealership inventory could not be verified. Please retry.",
+      );
+    return f.mobilePublicDealer(profile, cards);
+  }
   const richDetailMatch = /^listings\/([^/]+)\/detail$/.exec(path);
   if (method === "GET" && richDetailMatch) {
     const id = richDetailMatch[1]!;
@@ -506,6 +569,21 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
     return result;
   }
   const { user, client } = await actor(request);
+  const sellerReviewMatch = /^sellers\/([a-z0-9][a-z0-9-]{0,59})\/review$/.exec(path);
+  const sellerFlagMatch =
+    /^sellers\/([a-z0-9][a-z0-9-]{0,59})\/reviews\/([0-9a-f-]{36})\/report$/.exec(path);
+  const dealerMessageMatch = /^dealers\/([a-z0-9][a-z0-9-]{0,79})\/conversations$/.exec(path);
+  if (method === "GET" && sellerReviewMatch) {
+    const { mobileSellerIdentity } = await import("./mobile-storefront.server");
+    const target = await mobileSellerIdentity(await database(), sellerReviewMatch[1]);
+    const review = await domain((await import("./seller.functions")).getMySellerReview, {
+      sellerId: target.userId,
+    });
+    const f = await import("./mobile-storefront-contract");
+    if (review && !f.mobileStorefrontReviewAllowed(review))
+      throw new MobileApiError(404, "review_unavailable", "This review is unavailable in the app.");
+    return review ? f.mobilePublicReview(review) : null;
+  }
   const applicationMatch = /^listings\/([0-9a-f-]{36})\/application(?:\/(resume))?$/.exec(path);
   if (method === "GET" && applicationMatch && !applicationMatch[2]) {
     const card = await listing(applicationMatch[1]!);
@@ -533,6 +611,7 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
       client,
       await database(),
       user.id,
+      await (await import("./mobile-messaging.server")).mobileDealerMessagesReady(),
     );
   if (method === "PUT" && path === "notifications/read")
     return (await import("./mobile-notifications.server")).markMobileNotificationsRead(
@@ -540,6 +619,7 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
       client,
       await database(),
       user.id,
+      await (await import("./mobile-messaging.server")).mobileDealerMessagesReady(),
     );
   if (method === "GET" && path === "account") {
     const { getMyAccount } = await import("./account.functions");
@@ -744,9 +824,17 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
       await database(),
       all.flatMap((c: any) => (c.listingId ? [c.listingId] : [])),
     );
+    const scoped = await (
+      await import("./mobile-storefront.server")
+    ).mobileGeneralDealerContexts(
+      await database(),
+      user.id,
+      all,
+      await (await import("./mobile-messaging.server")).mobileDealerMessagesReady(),
+    );
     const safe = await Promise.all(
       all.map(async (c: any) => {
-        if (!c.listingId) return null;
+        if (!c.listingId) return scoped.has(c.id) ? c : null;
         try {
           await allowedConversationListing(c.listingId, native);
           return c;
@@ -759,11 +847,120 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
     return safe.filter(Boolean);
   }
   const conversationMatch = /^conversations\/([0-9a-f-]{36})$/.exec(path);
-  if (method === "GET" && conversationMatch) return allowedConversation(conversationMatch[1]!);
+  if (method === "GET" && conversationMatch)
+    return allowedConversation(conversationMatch[1]!, user.id);
   if (!["POST", "PUT"].includes(method))
     throw new MobileApiError(404, "not_found", "This app action was not found.");
   await requireTerms(user.id);
   const body = await mobileJson(request);
+  if (method === "PUT" && sellerReviewMatch) {
+    const input = z
+      .object({
+        rating: z.number().int().min(1).max(5),
+        comment: z.string().trim().max(1000).nullable(),
+      })
+      .strict()
+      .parse(body);
+    const f = await import("./mobile-storefront.server");
+    const target = await f.mobileSellerIdentity(await database(), sellerReviewMatch[1]);
+    if (!(await import("./mobile-storefront-contract")).mobileStorefrontReviewAllowed(input))
+      throw new MobileApiError(
+        400,
+        "invalid_review",
+        "This review cannot be published in the app.",
+      );
+    await f.mobileReviewRelationship(await database(), user.id, target.userId);
+    return domain((await import("./seller.functions")).submitSellerReview, {
+      ...input,
+      sellerId: target.userId,
+    });
+  }
+  if (method === "POST" && sellerFlagMatch) {
+    const input = z
+      .object({ reason: z.string().trim().max(500).nullable() })
+      .strict()
+      .parse(body);
+    const f = await import("./mobile-storefront.server");
+    const target = await f.mobileSellerIdentity(await database(), sellerFlagMatch[1]);
+    const reviewId = z.string().uuid().parse(sellerFlagMatch[2]);
+    await f.mobileReviewVisible(await database(), target.userId, reviewId);
+    return domain((await import("./seller.functions")).flagSellerReview, { ...input, reviewId });
+  }
+  if (method === "POST" && dealerMessageMatch) {
+    if (!(await (await import("./mobile-messaging.server")).mobileDealerMessagesReady()))
+      throw new MobileApiError(
+        503,
+        "dealer_messages_unavailable",
+        "Dealership messaging is temporarily unavailable. Please use the dealership’s other contact options.",
+      );
+    const input = z
+      .object({ body: z.string().trim().min(1).max(5000) })
+      .strict()
+      .parse(body);
+    const key = mobileWriteId(request.headers.get("Idempotency-Key"));
+    if (!key)
+      throw new MobileApiError(
+        400,
+        "invalid_request",
+        "Retry this message with its original identifier.",
+      );
+    const dealer = await domain((await import("./dealer.functions")).getPublicDealer, {
+      slug: dealerMessageMatch[1],
+      mobileCatalog: true,
+      page: 1,
+    });
+    if (
+      !dealer ||
+      !(await import("./mobile-storefront-contract")).mobileStorefrontIdentityAllowed(
+        dealer.displayName,
+        dealer.description,
+      )
+    )
+      throw new MobileApiError(
+        404,
+        "dealer_unavailable",
+        "This dealership is unavailable in the app.",
+      );
+    const id = z.string().uuid().safeParse(dealer.id);
+    if (!id.success)
+      throw new MobileApiError(404, "dealer_unavailable", "The dealership inbox is unavailable.");
+    const r = await client.rpc("mobile_start_dealer_conversation", {
+      _request: key,
+      _dealer: id.data,
+      _body: input.body,
+    });
+    if (r.error) {
+      if (/retry does not match/i.test(r.error.message ?? ""))
+        throw new MobileApiError(409, "retry_mismatch", "Retry your original message.");
+      if (/Messaging is unavailable|Dealership messaging unavailable/i.test(r.error.message ?? ""))
+        throw new MobileApiError(
+          403,
+          "conversation_unavailable",
+          "Messaging is unavailable for this dealership.",
+        );
+      throw new MobileApiError(
+        503,
+        "message_unavailable",
+        "The message result could not be confirmed. Please retry your original message.",
+      );
+    }
+    if (!r.data?.conversationId)
+      throw new MobileApiError(
+        503,
+        "message_unavailable",
+        "The message result could not be confirmed. Please retry.",
+      );
+    if (!r.data.replayed) {
+      try {
+        await (
+          await import("./email-notifications.server")
+        ).emailMarketplaceMessage(r.data.conversationId, user.id);
+      } catch {
+        console.warn("Mobile dealership message email unavailable");
+      }
+    }
+    return r.data;
+  }
   if (method === "PUT" && path === "account/profile") {
     const input = mobileProfileInput.parse(body),
       functions = await import("./account.functions");
@@ -876,7 +1073,7 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
   );
   if (method === "POST" && attachmentMatch) {
     const id = z.string().uuid().parse(attachmentMatch[1]);
-    await allowedConversation(id);
+    await allowedConversation(id, user.id);
     if (!(await (await import("./mobile-messaging.server")).mobileAttachmentsReady()))
       throw new MobileApiError(
         503,
@@ -911,7 +1108,7 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
   if (method === "POST" && actionMatch) {
     const id = actionMatch[1]!,
       action = actionMatch[2];
-    await allowedConversation(id);
+    await allowedConversation(id, user.id);
     const f = await import("./conversation.functions");
     const fn =
       action === "messages"

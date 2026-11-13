@@ -68,7 +68,7 @@ test("native internal detail destinations keep seller and make filters, preserve
   assert.equal(nativeListingDestination("/account", {}, { section: "billing" }), null);
   assert.equal(
     nativeListingDestination("/sellers/$slug", { slug: "fixture-seller" }),
-    "/search?sellerSlug=fixture-seller",
+    "/sellers/fixture-seller",
   );
   assert.match(nativeListingDestination("/cars/ford/f-150"), /make=Ford/);
   assert.match(nativeListingDestination("/idaho/boise/homes"), /category=other-real-estate/);

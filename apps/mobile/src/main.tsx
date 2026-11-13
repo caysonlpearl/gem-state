@@ -76,6 +76,9 @@ import {
 } from "./advertising";
 import "./style.css";
 
+const NativeStorefront = lazy(() =>
+  import("./Storefronts").then((m) => ({ default: m.NativeStorefront })),
+);
 const NativeListingDetail = lazy(() =>
   import("./ListingDetail").then((m) => ({ default: m.NativeListingDetail })),
 );
@@ -540,6 +543,25 @@ function Application() {
                         : "signin"
                   }
                 />
+              ) : /^\/(sellers|dealers)\//.test(path) ? (
+                <Suspense
+                  fallback={
+                    <p role="status" className="p-5">
+                      Loading storefront…
+                    </p>
+                  }
+                >
+                  <NativeStorefront
+                    key={`${session?.user.id ?? "guest"}:${path}`}
+                    kind={path.startsWith("/sellers/") ? "sellers" : "dealers"}
+                    slug={path.split("/")[2]}
+                    owner={session?.user.id}
+                    ready={bootstrap.features.storefronts === true}
+                    dealerMessagesReady={bootstrap.features.durableDealerMessages === true}
+                    learning={learning}
+                    revision={revision}
+                  />
+                </Suspense>
               ) : path === "/" || path === "/search" ? null : path.startsWith("/listings/") ? (
                 bootstrap.features.listingDetails ? (
                   <Suspense
@@ -589,6 +611,7 @@ function Application() {
               ) : path.startsWith("/account") ? (
                 <NativeAccount
                   controlsReady={bootstrap.features.accountControls === true}
+                  storefrontsReady={bootstrap.features.storefronts === true}
                   key={session!.user.id}
                   ownerId={session!.user.id}
                   section={

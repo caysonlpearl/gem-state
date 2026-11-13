@@ -1,3 +1,4 @@
+import { mobileGeneralDealerContexts } from "./mobile-storefront.server.ts";
 import { withCatalogReadDeadline } from "./catalog-read-deadline.ts";
 /* eslint-disable @typescript-eslint/no-explicit-any -- shared production database projections */
 import { z } from "zod";
@@ -28,7 +29,12 @@ const result = async (query: any) => {
     );
   return r.data ?? [];
 };
-export async function loadMobileNotifications(client: any, db: any, user: string) {
+export async function loadMobileNotifications(
+  client: any,
+  db: any,
+  user: string,
+  dealerMessagesReady = false,
+) {
   const [rows, recent] = await Promise.all([
     result(
       client
@@ -225,10 +231,30 @@ export async function loadMobileNotifications(client: any, db: any, user: string
       });
     }
   }
-  const inbox = mobileNotificationInbox(items, user, conversations, facts, applications);
+  const dealerContexts = await mobileGeneralDealerContexts(
+    db,
+    user,
+    conversations,
+    dealerMessagesReady,
+  );
+  const inbox = mobileNotificationInbox(
+    items,
+    user,
+    conversations,
+    facts,
+    applications,
+    dealerContexts,
+  );
   // Badge parity follows the website's latest 100 conversations. Older context
   // may authorize an inbox row, but must not silently enlarge the badge count.
-  inbox.unreadMessages = mobileNotificationInbox([], user, recent, facts).unreadMessages;
+  inbox.unreadMessages = mobileNotificationInbox(
+    [],
+    user,
+    recent,
+    facts,
+    new Map(),
+    dealerContexts,
+  ).unreadMessages;
   return { ...inbox, ownerId: user };
 }
 export async function markMobileNotificationsRead(
@@ -236,9 +262,10 @@ export async function markMobileNotificationsRead(
   client: any,
   db: any,
   user: string,
+  dealerMessagesReady = false,
 ) {
   const input = readInput.parse(await mobileJson(request));
-  const inbox = await loadMobileNotifications(client, db, user);
+  const inbox = await loadMobileNotifications(client, db, user, dealerMessagesReady);
   const requested = input.ids && new Set(input.ids);
   const ids = inbox.items
     .filter((n) => !n.readAt && (!requested || requested.has(n.id)))

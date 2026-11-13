@@ -3,6 +3,7 @@ type Capabilities = {
   posting: boolean;
   savedSearches: boolean;
   applications: boolean;
+  dealerMessages: boolean;
 };
 let cached: { until: number; enabled: Capabilities } | undefined;
 let pending: Promise<Capabilities> | undefined;
@@ -17,6 +18,7 @@ function capabilities(): Promise<Capabilities> {
       posting: false,
       savedSearches: false,
       applications: false,
+      dealerMessages: false,
     };
     try {
       const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
@@ -28,6 +30,7 @@ function capabilities(): Promise<Capabilities> {
               posting?: boolean;
               savedSearches?: boolean;
               applications?: boolean;
+              dealerMessages?: boolean;
             } | null;
             error: unknown;
           }>;
@@ -38,6 +41,7 @@ function capabilities(): Promise<Capabilities> {
         posting: !error && data?.posting === true,
         savedSearches: !error && data?.savedSearches === true,
         applications: !error && data?.applications === true,
+        dealerMessages: !error && data?.dealerMessages === true,
       };
     } catch {
       /* Browsing/text messaging remain usable without attachment readiness. */
@@ -63,4 +67,8 @@ export async function mobileSavedSearchesReady() {
 
 export async function mobileApplicationsReady() {
   return (await capabilities()).applications;
+}
+
+export async function mobileDealerMessagesReady() {
+  return (await capabilities()).dealerMessages;
 }

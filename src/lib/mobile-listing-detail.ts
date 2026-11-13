@@ -195,3 +195,7 @@ export function mobileListingDetail(card: ClassifiedDetail): ClassifiedDetail | 
   });
   return out;
 }
+
+export function mobileListingSummary(card: ClassifiedCard): ClassifiedCard | null {
+  return cardProjection(card);
+}

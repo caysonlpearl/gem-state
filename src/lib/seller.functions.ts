@@ -51,6 +51,7 @@ export type SellerSetup = {
 };
 
 export type PublicListing = {
+  categorySlug?: string;
   id: string;
   productId: string;
   variantId: string;
@@ -856,7 +857,10 @@ export const getActiveListingsForVariant = createServerFn({ method: "GET" })
   });
 
 export const getPublicSeller = createServerFn({ method: "GET" })
-  .validator((input: { slug: string }) => ({ slug: cleanSlug(input.slug) }))
+  .validator((input: { slug: string; mobileCatalog?: boolean }) => ({
+    slug: cleanSlug(input.slug),
+    mobileCatalog: input.mobileCatalog === true,
+  }))
   .handler(async ({ data }): Promise<PublicSeller | null> => {
     const client = publicServerClient() as any;
     const { data: seller, error } = await client
@@ -864,31 +868,52 @@ export const getPublicSeller = createServerFn({ method: "GET" })
       .select("*")
       .eq("slug", data.slug)
       .maybeSingle();
+    if (error && data.mobileCatalog) throw Error("Seller profile is temporarily unavailable.");
     if (error || !seller) return null;
+    const mobile = data.mobileCatalog ? await import("./mobile-storefront-contract.ts") : null;
+    if (mobile && !mobile.mobileStorefrontIdentityAllowed(seller.display_name, seller.bio))
+      return null;
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const admin = supabaseAdmin as any;
-    const [{ data: managed }, { data: askRows }, { data: reviewRows }, { data: allRatings }] =
-      await Promise.all([
-        client.rpc("managed_seller_public_status", { _user: seller.user_id }),
-        admin
-          .from("asks")
-          .select(
-            "id,product_id,variant_id,price_cents,currency,item_condition,seller_note,created_at,ship_by_days,products(slug,name),product_variants(size,color,edition),listing_media(storage_path,position)",
-          )
-          .eq("seller_id", seller.user_id)
-          .eq("status", "active")
-          .not("approved_at", "is", null)
-          .eq("is_demo", false)
-          .gt("expires_at", new Date().toISOString())
-          .order("created_at", { ascending: false }),
-        client
-          .from("seller_reviews")
-          .select("id,rating,comment,created_at,reviewer_id")
-          .eq("seller_id", seller.user_id)
-          .order("created_at", { ascending: false })
-          .limit(20),
-        client.from("seller_reviews").select("rating").eq("seller_id", seller.user_id),
-      ]);
+    const [managedResult, askResult, reviewResult, ratingResult] = await Promise.all([
+      client.rpc("managed_seller_public_status", { _user: seller.user_id }),
+      admin
+        .from("asks")
+        .select(
+          "id,seller_id,status,approved_at,expires_at,is_demo,product_id,variant_id,price_cents,currency,item_condition,seller_note,created_at,ship_by_days,products(slug,name,description,status,categories(slug)),product_variants(size,color,edition),listing_media(storage_path,position)",
+        )
+        .eq("seller_id", seller.user_id)
+        .eq("status", "active")
+        .not("approved_at", "is", null)
+        .eq("is_demo", false)
+        .gt("expires_at", new Date().toISOString())
+        .order("created_at", { ascending: false }),
+      client
+        .from("seller_reviews")
+        .select("id,rating,comment,created_at,reviewer_id")
+        .eq("seller_id", seller.user_id)
+        .order("created_at", { ascending: false })
+        .limit(20),
+      client
+        .from("seller_reviews")
+        .select(data.mobileCatalog ? "rating,comment" : "rating")
+        .eq("seller_id", seller.user_id),
+    ]);
+    if (
+      data.mobileCatalog &&
+      [managedResult, askResult, reviewResult, ratingResult].some((r) => r.error)
+    )
+      throw Error("Seller profile data is temporarily unavailable.");
+    const managed = managedResult.data;
+    const askRows = mobile
+      ? (askResult.data ?? []).filter(mobile.mobileStorefrontAskAllowed)
+      : (askResult.data ?? []);
+    const reviewRows = mobile
+      ? (reviewResult.data ?? []).filter(mobile.mobileStorefrontReviewAllowed)
+      : (reviewResult.data ?? []);
+    const allRatings = mobile
+      ? (ratingResult.data ?? []).filter(mobile.mobileStorefrontReviewAllowed)
+      : (ratingResult.data ?? []);
     const isManaged = managed?.managed === true;
     const reviewCount = allRatings?.length ?? 0;
     const ratingAverage = reviewCount
@@ -898,12 +923,14 @@ export const getPublicSeller = createServerFn({ method: "GET" })
     // no foreign key for PostgREST to embed "profiles!reviewer_id(...)" through --
     // look profiles up separately by id instead.
     const reviewerIds = [...new Set((reviewRows ?? []).map((row: any) => row.reviewer_id))];
-    const { data: reviewerProfiles } = reviewerIds.length
+    const { data: reviewerProfiles, error: reviewerError } = reviewerIds.length
       ? await client
           .from("public_profile_display")
           .select("id,display_name,avatar_url")
           .in("id", reviewerIds)
       : { data: [] as any[] };
+    if (data.mobileCatalog && reviewerError)
+      throw Error("Reviewer details are temporarily unavailable.");
     const reviewerById = new Map<string, any>((reviewerProfiles ?? []).map((p: any) => [p.id, p]));
     const { signListingThumbnails } = await import("./classifieds.functions");
     const coverPaths = (askRows ?? [])
@@ -917,6 +944,7 @@ export const getPublicSeller = createServerFn({ method: "GET" })
     const listings: PublicListing[] = await Promise.all(
       (askRows ?? []).map(async (row: any) => ({
         id: row.id,
+        categorySlug: row.products?.categories?.slug,
         productId: row.product_id,
         variantId: row.variant_id,
         productSlug: row.products?.slug ?? "",
@@ -959,7 +987,9 @@ export const getPublicSeller = createServerFn({ method: "GET" })
       completedSalesCount: Number(seller.completed_sales_count ?? 0),
       reviewCount,
       ratingAverage,
-      activeListingCount: Number(seller.active_listing_count ?? 0),
+      activeListingCount: data.mobileCatalog
+        ? listings.length
+        : Number(seller.active_listing_count ?? 0),
       listings,
       reviews: (reviewRows ?? []).map((row: any) => ({
         id: row.id,

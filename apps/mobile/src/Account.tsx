@@ -1,3 +1,4 @@
+import { nativeListingDestination } from "./listing-links";
 import { rememberNativeAuthDestination } from "./auth-destination";
 import { NativeNotifications, useNativeNotifications } from "./Notifications";
 import { NativeSavedSearches } from "./SavedSearches";
@@ -46,6 +47,7 @@ export function NativeAccount({
   permissions,
   signOutBusy = false,
   controlsReady,
+  storefrontsReady = false,
 }: {
   ownerId: string;
   section: "profile" | "settings" | "searches" | "notifications";
@@ -56,6 +58,7 @@ export function NativeAccount({
   permissions?: ReactNode;
   signOutBusy?: boolean;
   controlsReady: boolean;
+  storefrontsReady?: boolean;
 }) {
   const inbox = useNativeNotifications();
   const actor = useMemo(() => ({ userId: ownerId, installId: installIdentifier() }), [ownerId]);
@@ -217,13 +220,19 @@ export function NativeAccount({
       }),
   };
   function AccountLink({ href, children, className }: AccountLinkProps) {
+    const dest =
+      href === "/seller-setup"
+        ? "/post/profile"
+        : storefrontsReady
+          ? nativeListingDestination(href)
+          : null;
     return (
       <a
-        href="#/post/profile"
+        href={dest ? "#" + dest : undefined}
         className={className}
         onClick={(e) => {
           e.preventDefault();
-          if (href === "/seller-setup") onNavigate("/post/profile");
+          if (dest) onNavigate(dest);
         }}
       >
         {children}
@@ -301,6 +310,7 @@ export function NativeAccount({
           ) : section === "profile" ? (
             <NativeProfile
               key="profile"
+              publicProfileReady={storefrontsReady}
               data={data}
               actions={actions}
               busy={busy}
@@ -336,7 +346,9 @@ function NativeProfile({
   actions,
   busy,
   link,
+  publicProfileReady,
 }: {
+  publicProfileReady: boolean;
   data: Loaded;
   actions: Actions;
   busy: string;
@@ -349,7 +361,7 @@ function NativeProfile({
       sellerSetup={data.seller}
       draft={draft}
       link={link}
-      publicProfileLink={false}
+      publicProfileLink={publicProfileReady}
       profileMutation={{
         isPending: busy === "profile",
         mutate: () =>

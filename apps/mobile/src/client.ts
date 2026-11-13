@@ -20,6 +20,8 @@ export type Bootstrap = {
     fullSearch?: boolean;
     notificationCenter?: boolean;
     listingDetails?: boolean;
+    storefronts?: boolean;
+    durableDealerMessages?: boolean;
     durableApplications?: boolean;
     durableSavedSearches?: boolean;
     push: boolean;

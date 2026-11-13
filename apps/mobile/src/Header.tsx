@@ -85,7 +85,10 @@ export function NativeHeader({
           aria-label="Account and utilities"
           className="flex min-w-0 shrink-0 items-center justify-end gap-1.5"
         >
-          {(path.startsWith("/listings/") || path.startsWith("/messages/")) && (
+          {(path.startsWith("/listings/") ||
+            path.startsWith("/messages/") ||
+            path.startsWith("/sellers/") ||
+            path.startsWith("/dealers/")) && (
             <button
               type="button"
               className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-border"

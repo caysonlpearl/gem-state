@@ -48,3 +48,5 @@ jobs:
         run: npm run test:mobile:notifications:ui
       - name: Verify shared listing details and account-scoped contact actions
         run: npm run test:mobile:details:ui
+      - name: Verify shared seller and dealership storefronts with private account isolation
+        run: npm run test:mobile:storefronts:ui
