@@ -1,3 +1,4 @@
+import { mobileSearchInput } from "./mobile-search";
 /* eslint-disable @typescript-eslint/no-explicit-any -- existing domain handlers retain their own runtime validators. */
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
@@ -11,7 +12,13 @@ import {
   mobileContactInput,
   mobileNotificationPreferencesInput,
 } from "./mobile-account-contract";
-import { mobileCachedBrowse, mobileSnapshotFirst, mobileHomepage } from "./mobile-catalog";
+import {
+  mobileCachedSearch,
+  mobileSearchPage,
+  mobileCachedBrowse,
+  mobileSnapshotFirst,
+  mobileHomepage,
+} from "./mobile-catalog";
 import {
   mobileCategories,
   mobileCategoryAllowed,
@@ -302,6 +309,7 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
       supabaseKey,
       features: {
         accountControls: true,
+        fullSearch: true,
         conversationAttachments: await (
           await import("./mobile-messaging.server")
         ).mobileAttachmentsReady(),
@@ -320,6 +328,44 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
     const snapshot = await (await import("./homepage-snapshot.server")).readHomepageSnapshot();
     const home = mobileHomepage(snapshot);
     return { motors: home.motors.map(dto), recent: home.recent.map(dto) };
+  }
+  if (method === "GET" && path === "search") {
+    const filters = mobileSearchInput(new URL(request.url).searchParams);
+    if (!filters)
+      throw new MobileApiError(
+        400,
+        "invalid_filters",
+        "Check your search filters. Some saved filters may need to be updated.",
+      );
+    if (filters.category && !mobileCategoryAllowed(filters.category))
+      return {
+        items: [],
+        nextPage: null,
+        incomplete: false,
+        total: 0,
+        page: filters.page,
+        pageSize: 24,
+      };
+    let page;
+    try {
+      page = mobileSearchPage(
+        await (await import("./classifieds.functions")).loadMobileBrowseInventory(filters),
+        filters,
+      );
+    } catch {
+      page = mobileCachedSearch(
+        await (await import("./homepage-snapshot.server")).readHomepageSnapshot(),
+        filters,
+      );
+    }
+    return {
+      items: page.listings.filter(mobileListingAllowed).map(dto),
+      nextPage: page.page * page.pageSize < page.total ? page.page + 1 : null,
+      incomplete: page.incomplete === true,
+      total: page.total,
+      page: page.page,
+      pageSize: page.pageSize,
+    };
   }
   if (method === "GET" && path === "listings") {
     const parsed = browseSchema.safeParse(Object.fromEntries(new URL(request.url).searchParams));

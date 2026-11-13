@@ -1,5 +1,6 @@
+import { savedSearchBrowseInput } from "./saved-search-contract.ts";
+import { mobileListingAllowed } from "./mobile-contract.ts";
 import { matchesLandingCard } from "./landing-card-pool.ts";
-import type { ClassifiedBrowseInput } from "./classifieds.functions";
 import type { ListingCardSummary } from "./listing-card-summary";
 /** Public listing facts and private shopping intent only; never payment or message bodies. */
 export const SHOPPING_POLICY_VERSION = "2026-11-12";
@@ -294,22 +295,9 @@ export function matchesShoppingSearch(
   card: ShoppingCard,
   search: Record<string, unknown>,
 ): boolean {
-  const filters = {
-    ...search,
-    category: search.category ?? search.categorySlug ?? search.section,
-    q: search.q ?? search.query ?? search.keyword,
-    homeTab: search.homeTab ?? search.homeMode,
-    priceMin: search.priceMin ?? search.minPrice,
-    priceMax: search.priceMax ?? search.maxPrice,
-  } as Record<string, unknown>;
-  for (const key of ["category", "q", "homeTab"])
-    if (filters[key] === "all" || filters[key] === "") delete filters[key];
-  for (const key of ["priceMin", "priceMax"])
-    if (filters[key] !== undefined) {
-      const n = Number(String(filters[key]).replace(/[$,]/g, ""));
-      if (Number.isFinite(n)) filters[key] = n;
-      else delete filters[key];
-    }
+  if (search.mobileCatalog === true && !mobileListingAllowed(card)) return false;
+  const { input: filters, unsupported } = savedSearchBrowseInput(search);
+  if (unsupported.length) return false;
   if (
     search.location &&
     !`${card.city ?? ""} ${card.state ?? ""} ${card.region ?? ""}`
@@ -319,13 +307,12 @@ export function matchesShoppingSearch(
     return false;
   if (
     filters.homeTab &&
-    card.home &&
-    (card.home as Record<string, unknown>).mode !== filters.homeTab
+    (card.home as Record<string, unknown> | undefined)?.mode !== filters.homeTab
   )
     return false;
   return matchesLandingCard(
     { ...card, city: card.city ?? "" } as unknown as ListingCardSummary,
-    filters as ClassifiedBrowseInput,
+    filters,
   );
 }
 export function rankShopping(

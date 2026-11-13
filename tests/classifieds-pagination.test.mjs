@@ -1,3 +1,5 @@
+import { parseBrowseSearch } from "../src/lib/browse-search.ts";
+import { normalizeClassifiedBrowseInput } from "../src/lib/classified-browse-contract.ts";
 import { mergeDealerFeedVehicles } from "../src/lib/dealer-feed-contract.ts";
 import { hasClassifiedRadiusCenter } from "../src/config/classifieds.ts";
 import test from "node:test";
@@ -18,7 +20,9 @@ const serverSource = readFileSync(
   new URL("../src/lib/classifieds.functions.ts", import.meta.url),
   "utf8",
 );
-const routeSource = readFileSync(new URL("../src/routes/browse.tsx", import.meta.url), "utf8");
+const routeSource =
+  readFileSync(new URL("../src/lib/browse-search.ts", import.meta.url), "utf8").replace(/^export /gm, "") + "\n" +
+  readFileSync(new URL("../src/routes/browse.tsx", import.meta.url), "utf8");
 const sourceNode = (source, predicate) => {
   const file = ts.createSourceFile(
     "fixture.tsx",
@@ -179,6 +183,8 @@ function harness({
     Map,
     Set,
     normalizeBrowsePage,
+    parseBrowseSearch,
+    normalizeClassifiedBrowseInput,
     CLASSIFIEDS_MERGE_READ_LIMIT,
     comparableJobPay,
     PAGE_SIZE: 24,

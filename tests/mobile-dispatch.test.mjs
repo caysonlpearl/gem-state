@@ -1,3 +1,4 @@
+import * as mobileSearch from "../src/lib/mobile-search.ts";
 import * as accountContracts from "../src/lib/mobile-account-contract.ts";
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -21,9 +22,11 @@ function harness({
   blocked = false,
   posting = false,
   terms = true,
+  catalogError = false,
 } = {}) {
   const user = "11111111-1111-4111-8111-111111111111",
-    writes = [];
+    writes = [],
+    catalogInputs = [];
   const db = {
     from(table) {
       const filters = [];
@@ -81,6 +84,7 @@ function harness({
     },
     "./runtime-env.server": { serverEnv: () => undefined },
     "./mobile-api": protocol,
+    "./mobile-search": mobileSearch,
     "./mobile-write": mobileWrite,
     "./mobile-account-contract": accountContracts,
     "./mobile-messaging.server": {
@@ -182,7 +186,9 @@ function harness({
         writes.push({ kind: "listing", ...data });
         return { listingId: "fixture-listing" };
       },
-      loadMobileBrowseInventory: async () => {
+      loadMobileBrowseInventory: async (input) => {
+        catalogInputs.push(input);
+        if (catalogError) throw Error("catalog unavailable");
         writes.push("catalog_read");
         return { listings: [], page: 1, pageSize: 24, total: 0 };
       },
@@ -214,7 +220,7 @@ function harness({
         ...(body ? { body: JSON.stringify(body) } : {}),
       }),
     );
-  return { request, writes, user };
+  return { request, writes, user, catalogInputs };
 }
 test("mobile private routes reject absent or invalid identity before writing", async () => {
   const missing = harness();
@@ -541,4 +547,48 @@ test("all-device push revocation deletes only the bearer owner's registrations, 
   const denied = harness();
   assert.equal((await denied.request("devices/all", "DELETE", undefined, null)).status, 401);
   assert.deepEqual(denied.writes, []);
+});
+
+test("full-filter search dispatch retains website aliases, forces app scope and rejects unsupported filters", async () => {
+  const h=harness();
+  const response=await h.request("search?category=other-real-estate&bedrooms=3%2B&propertyType=Single%20Family&homeSquareFeet=1%2C500%2B");
+  assert.equal(response.status,200);
+  assert.equal(h.catalogInputs.length,1);
+  assert.equal(h.catalogInputs[0].mobileCatalog,true);
+  assert.equal(h.catalogInputs[0].homeBedroomsMin,3);
+  assert.equal(h.catalogInputs[0].homePropertyType,"Single Family");
+  assert.equal(h.catalogInputs[0].homeSquareFeetMin,1500);
+  const body=await response.json();
+  assert.equal(body.data.total,0);
+  assert.equal(body.data.page,1);
+  assert.equal(body.data.pageSize,24);
+  assert.equal(body.data.incomplete,false);
+  for (const query of ["futureFilter=true","homeAmenities=Pool","q=one&q=two","mobileCatalog=false"]) {
+    assert.equal((await h.request("search?"+query)).status,400);
+    assert.equal(h.catalogInputs.length,1);
+  }
+  const restricted=await h.request("search?category=firearms");
+  assert.equal(restricted.status,200);
+  assert.deepEqual((await restricted.json()).data.items,[]);
+  assert.equal(h.catalogInputs.length,1);
+});
+
+test("full-filter search never broadens to basic discovery when the catalog read fails", async () => {
+  const h=harness({catalogError:true});
+  const response=await h.request("search?category=cars-trucks&make=Toyota");
+  assert.equal(response.status,200);
+  const result=(await response.json()).data;
+  assert.equal(result.incomplete,true);
+  assert.deepEqual(result.items,[]);
+  assert.equal(result.total,0);
+});
+
+test("full search capability is additive for installed clients", async () => {
+  const h=harness();
+  const result=await h.request("bootstrap");
+  assert.equal(result.status,200);
+  const features=(await result.json()).data.features;
+  assert.equal(features.fullSearch,true);
+  assert.equal(features.push,false);
+  assert.equal(features.advertising,false);
 });

@@ -1,5 +1,5 @@
-import { classifiedCategories } from "@/config/classifieds";
-import { formatUsd } from "@/config/fees";
+import { classifiedCategories } from "../config/classifieds.ts";
+import { formatUsd } from "../config/fees.ts";
 
 export const conditionLabels: Record<string, string> = {
   new_with_tags: "New",

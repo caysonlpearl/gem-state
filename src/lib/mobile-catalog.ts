@@ -1,3 +1,5 @@
+import { matchesLandingCard, landingCards } from "./landing-card-pool.ts";
+import type { ClassifiedBrowseInput } from "./classified-browse-contract.ts";
 import { classifiedCategories } from "../config/classifieds.ts";
 import type { ListingCardSummary } from "./listing-card-summary";
 import { mobileListingAllowed } from "./mobile-contract.ts";
@@ -98,5 +100,51 @@ export function mobileCachedBrowse(
     page,
     pageSize,
     incomplete: true,
+  };
+}
+
+/** Full-filter fallback uses the website predicate, never the older basic discovery filter. */
+export function mobileCachedSearch(
+  snapshot: {
+    sections: Record<string, { cards: ListingCardSummary[]; updatedAt: number } | undefined>;
+  },
+  filters: ClassifiedBrowseInput,
+  now = Date.now(),
+) {
+  const cards = Object.values(snapshot.sections)
+    .filter((section) => section && now - section.updatedAt <= 6 * 3600000)
+    .flatMap((section) => section!.cards)
+    .filter(
+      (card) =>
+        mobileListingAllowed(card) &&
+        (!card.externalHome?.cacheExpiresAt || Date.parse(card.externalHome.cacheExpiresAt) > now),
+    );
+  const matches = landingCards(cards, filters);
+  const page = filters.page ?? 1,
+    pageSize = 24;
+  return {
+    listings: matches.slice((page - 1) * pageSize, page * pageSize),
+    total: matches.length,
+    page,
+    pageSize,
+    incomplete: true,
+  };
+}
+
+/** Source adapters can return a broader cache than a specialized query. Recheck every
+ * public predicate before exposing a full-search page. Ownership filtering was already
+ * resolved by the domain service; a snapshot cannot establish it and stays fail-closed. */
+export function mobileSearchPage<T extends ListingCardSummary>(
+  page: { listings: T[]; total: number; page: number; pageSize: number; incomplete?: boolean },
+  filters: ClassifiedBrowseInput,
+) {
+  const publicFilters = { ...filters, sellerSlug: undefined, dealerSlug: undefined };
+  const listings = page.listings.filter(
+    (card) => mobileListingAllowed(card) && matchesLandingCard(card, publicFilters),
+  );
+  return {
+    ...page,
+    listings,
+    incomplete: page.incomplete === true || listings.length !== page.listings.length,
   };
 }
