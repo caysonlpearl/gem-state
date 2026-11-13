@@ -2,6 +2,8 @@ import { ShoppingAlertPreferenceView } from "./ShoppingAlertPreferenceView";
 import { SignupShoppingChoices } from "./SignupShoppingChoices";
 export { SignupShoppingChoices } from "./SignupShoppingChoices";
 import { ShoppingPrivacyDialog } from "./ShoppingPrivacyDialog";
+import { ShoppingListingRowView } from "./ShoppingListingRowView";
+import { ListingSourceCreditsView } from "@/components/classifieds/ListingSourceCreditsView";
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -210,43 +212,42 @@ export function PersonalizedShopping() {
     retry: false,
   });
   if (!enabled || !result.data) return null;
+  const groups: [string, ShoppingCard[]][] = [
+    ["Recently viewed", result.data.recent],
+    ["Continue shopping", result.data.continuing],
+    ["Recommended for you", result.data.recommended],
+  ];
   return (
     <div className="mt-8 space-y-8">
-      {[
-        ["Recently viewed", result.data.recent],
-        ["Continue shopping", result.data.continuing],
-        ["Recommended for you", result.data.recommended],
-      ].map(([title, items]) =>
-        Array.isArray(items) && items.length > 0 ? (
-          <section key={title as string}>
-            <h2 className="mb-4 text-lg font-semibold">{title as string}</h2>
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-              {(items as ShoppingCard[]).slice(0, 4).map((card, index) => (
-                <div
-                  key={card.id}
-                  className="flex min-w-0 flex-col [&>article]:flex-1"
-                  onClick={() =>
-                    shoppingTrack("recommendation_click", card.id, {
-                      placement: title,
-                      position: index,
-                      model: result.data.model,
-                    })
-                  }
-                >
-                  <ListingCard
-                    listing={card as unknown as ListingCardSummary}
-                    shoppingContext={{
-                      placement: title,
-                      position: index,
-                      model: result.data.model,
-                      source: "recommendation",
-                      ...((card.shoppingFeatures as Record<string, number>) ?? {}),
-                    }}
-                  />
-                </div>
-              ))}
-            </div>
-          </section>
+      {groups.map(([title, items]) =>
+        Array.isArray(items) ? (
+          <ShoppingListingRowView
+            key={title}
+            title={title}
+            items={items}
+            onCardClick={(card, index) =>
+              shoppingTrack("recommendation_click", card.id, {
+                placement: title,
+                position: index,
+                model: result.data.model,
+              })
+            }
+            renderCard={(card, index) => (
+              <ListingCard
+                listing={card as unknown as ListingCardSummary}
+                shoppingContext={{
+                  placement: title,
+                  position: index,
+                  model: result.data.model,
+                  source: "recommendation",
+                  ...((card.shoppingFeatures as Record<string, number>) ?? {}),
+                }}
+              />
+            )}
+            renderFooter={(visible) => (
+              <ListingSourceCreditsView listings={visible as unknown as ListingCardSummary[]} />
+            )}
+          />
         ) : null,
       )}
     </div>
@@ -262,22 +263,24 @@ export function VisualSimilarShopping({ listingId }: { listingId: string }) {
   });
   if (!query.data?.cards?.length) return null;
   return (
-    <section className="mt-8">
-      <h2 className="mb-4 text-lg font-semibold">More like this</h2>
-      <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-        {query.data.cards.slice(0, 4).map((card: ShoppingCard, index: number) => (
-          <ListingCard
-            key={card.id}
-            listing={card as unknown as ListingCardSummary}
-            shoppingContext={{
-              placement: "visual_similar",
-              source: "siglip2",
-              model: query.data.model,
-              position: index,
-            }}
-          />
-        ))}
-      </div>
-    </section>
+    <ShoppingListingRowView
+      className="mt-8"
+      title="More like this"
+      items={query.data.cards as ShoppingCard[]}
+      renderCard={(card, index) => (
+        <ListingCard
+          listing={card as unknown as ListingCardSummary}
+          shoppingContext={{
+            placement: "visual_similar",
+            source: "siglip2",
+            model: query.data.model,
+            position: index,
+          }}
+        />
+      )}
+      renderFooter={(visible) => (
+        <ListingSourceCreditsView listings={visible as unknown as ListingCardSummary[]} />
+      )}
+    />
   );
 }

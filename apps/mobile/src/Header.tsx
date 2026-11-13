@@ -101,6 +101,14 @@ export function NativeHeader({
             </button>
           )}
           {signedIn && <NativeNotificationBell path={path} />}
+          <button
+            type="button"
+            className="hidden min-h-11 items-center rounded-full border border-border px-3 text-[12px] font-medium lg:inline-flex"
+            aria-haspopup="dialog"
+            onClick={onPrivacy}
+          >
+            Privacy choices
+          </button>
           <HeaderAccountMenuView
             isSignedIn={signedIn}
             identity={owner}

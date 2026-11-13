@@ -5,6 +5,8 @@ import {
   type ListingCardLinkProps,
 } from "../../../src/components/classifieds/ListingCardView";
 import { listingPresentation } from "./listing-presentation";
+import { ListingSourceCredits } from "./ListingSourceCredits";
+import { ShoppingListingRowView } from "../../../src/components/community/ShoppingListingRowView";
 import { CardSaveButton } from "./SavedCards";
 import type { MobileListing } from "../../../src/lib/mobile-contract";
 import { api, apiOrigin } from "./client";
@@ -12,7 +14,6 @@ import { isShoppingForeground, shoppingOverlayOpen } from "./shopping-activity";
 import {
   applyShopperStatus,
   clearShoppingHistory,
-  dismissShopping,
   shopperStatus,
   trackShopping,
   updatePersonalization,
@@ -140,14 +141,9 @@ export function ShoppingRows({
   revision: number;
   similarId?: string;
 }) {
-  const [pending, setPending] = useState<string | null>(null);
-  const [rows, setRows] = useState<RecommendationRows | null>(null),
-    [dismissed, setDismissed] = useState<string[]>([]),
-    [error, setError] = useState("");
+  const [rows, setRows] = useState<RecommendationRows | null>(null);
   useEffect(() => {
     setRows(null);
-    setDismissed([]);
-    setError("");
     if (!learning && !similarId) return;
     const controller = new AbortController();
     const load = similarId
@@ -165,66 +161,36 @@ export function ShoppingRows({
   }, [learning, revision, similarId]);
   if (!rows || (!learning && !similarId)) return null;
   const groups: [string, string, MobileListing[]][] = similarId
-    ? [["Similar listings", "similar", rows.recommended]]
+    ? [["More like this", "similar", rows.recommended]]
     : [
         ["Recently viewed", "recent", rows.recent],
         ["Continue shopping", "continuing", rows.continuing],
         ["Recommended for you", "recommended", rows.recommended],
       ];
   return (
-    <div className="stack recommendations">
-      {groups.map(([label, placement, items]) => {
-        const visible = items.filter((c) => !dismissed.includes(c.id));
-        if (!visible.length) return null;
-        return (
-          <section className="stack" key={placement}>
-            <h2>{label}</h2>
-            <div className="listing-grid">
-              {visible.map((card, position) => (
-                <div className="recommendation-item" key={card.id}>
-                  <ListingTile
-                    card={card}
-                    position={position}
-                    placement={placement}
-                    model={rows.model}
-                    learning={learning}
-                    onOpen={onOpen}
-                  />
-                  {learning && (
-                    <button
-                      className="dismiss"
-                      aria-label={`Dismiss ${card.title}`}
-                      disabled={pending === card.id}
-                      onClick={async () => {
-                        setPending(card.id);
-                        setError("");
-                        try {
-                          await dismissShopping(card.id);
-                          setDismissed((d) => [...d, card.id]);
-                        } catch (error) {
-                          setError(
-                            error instanceof Error
-                              ? error.message
-                              : "Your choice could not be saved.",
-                          );
-                        } finally {
-                          setPending(null);
-                        }
-                      }}
-                    >
-                      Not interested
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </section>
-        );
-      })}
-      {error && <p role="alert">{error}</p>}
+    <div className="mt-8 space-y-8 recommendations">
+      {groups.map(([label, placement, items]) => (
+        <ShoppingListingRowView
+          key={placement}
+          title={label}
+          items={items}
+          renderCard={(card, position) => (
+            <ListingTile
+              card={card}
+              position={position}
+              placement={placement}
+              model={rows.model}
+              learning={learning}
+              onOpen={onOpen}
+            />
+          )}
+          renderFooter={(visible) => <ListingSourceCredits cards={visible} />}
+        />
+      ))}
     </div>
   );
 }
+
 export function PrivacyChoices({
   open,
   onClose,
