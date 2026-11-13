@@ -1,3 +1,8 @@
+import {
+  assertAccountSession,
+  AccountDeletionPending,
+  AccountSessionUnavailable,
+} from "./account-deletion-access.server";
 import { mobileSavedSearchAllowed } from "./mobile-saved-search-contract";
 import { mobileSearchInput } from "./mobile-search";
 /* eslint-disable @typescript-eslint/no-explicit-any -- existing domain handlers retain their own runtime validators. */
@@ -73,7 +78,7 @@ async function mobileControl(name: "push_enabled" | "advertising_enabled") {
     .single();
   return !result.error && result.data?.[name] === true;
 }
-async function actor(request: Request) {
+async function actor(request: Request, allowDeletionStatus = false) {
   const authorization = request.headers.get("authorization");
   if (!authorization?.startsWith("Bearer "))
     throw new MobileApiError(401, "sign_in_required", "Please sign in to continue.");
@@ -94,11 +99,27 @@ async function actor(request: Request) {
     auth: { persistSession: false, autoRefreshToken: false },
     global: { headers: { Authorization: authorization } },
   });
-  const { data, error } = await client.auth.getUser(token);
-  if (error || !data.user)
+  const { data, error } = await client.auth.getClaims(token);
+  const claims = data?.claims;
+  if (error || !claims?.sub)
     throw new MobileApiError(401, "sign_in_required", "Please sign in again.");
-  return { user: data.user, client };
+  try {
+    await assertAccountSession(
+      await database(),
+      claims.sub,
+      claims.session_id,
+      allowDeletionStatus,
+    );
+  } catch (error) {
+    if (error instanceof AccountDeletionPending)
+      throw new MobileApiError(409, "deletion_pending", error.message);
+    if (error instanceof AccountSessionUnavailable)
+      throw new MobileApiError(401, "sign_in_required", "Please sign in again.");
+    throw error;
+  }
+  return { user: { id: claims.sub }, client };
 }
+
 function dto(card: any): MobileListing {
   return {
     display: {
@@ -568,7 +589,11 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
     if (path === "similar" && "cards" in result) return { ...result, cards: result.cards.map(dto) };
     return result;
   }
-  const { user, client } = await actor(request);
+  const { user, client } = await actor(
+    request,
+    path === "account/deletion" ||
+      (method === "DELETE" && (path === "devices" || path === "devices/all")),
+  );
   const sellerReviewMatch = /^sellers\/([a-z0-9][a-z0-9-]{0,59})\/review$/.exec(path);
   const sellerFlagMatch =
     /^sellers\/([a-z0-9][a-z0-9-]{0,59})\/reviews\/([0-9a-f-]{36})\/report$/.exec(path);
@@ -666,22 +691,6 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
             (await mobileControl("advertising_enabled")),
         }
       : null;
-  }
-  if (["POST", "PUT"].includes(method) && path !== "account/deletion") {
-    const pending = await (
-      await database()
-    )
-      .from("mobile_account_deletions")
-      .select("status")
-      .eq("user_id", user.id)
-      .maybeSingle();
-    if (pending.error) throw pending.error;
-    if (pending.data)
-      throw new MobileApiError(
-        409,
-        "deletion_pending",
-        "Your account deletion is pending. Contact Bluebird if you need help.",
-      );
   }
   if (method === "PUT" && path === "consent") {
     const body = await mobileJson(request);

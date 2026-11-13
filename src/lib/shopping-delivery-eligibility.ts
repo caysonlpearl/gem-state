@@ -1,3 +1,4 @@
+import { accountDeletionPending } from "./account-deletion-access.server.ts";
 /* eslint-disable @typescript-eslint/no-explicit-any -- shared private queue rows */
 import { interests, reminderStep, matchesShoppingSearch } from "./shopping-contract.ts";
 import {
@@ -24,6 +25,8 @@ export async function shoppingDeliveryCandidates(
   delivery: any,
   statuses = ["processing"],
 ) {
+  if (await accountDeletionPending(db, delivery.user_id))
+    return { account: { delivery_blocked: true }, permission: null, eligible: [] };
   const [accountResult, permission, queued, searches, prefs] = await Promise.all([
     db.from("shopping_accounts").select("*").eq("user_id", delivery.user_id).single(),
     shoppingPermission(db, `u:${delivery.user_id}`),

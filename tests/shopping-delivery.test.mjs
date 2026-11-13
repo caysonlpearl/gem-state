@@ -75,6 +75,7 @@ function harness({ alerts = true, requested = false, beforeHandoff = () => {} } 
         created_at: "2026-01-01",
       },
     ],
+    mobile_account_deletions: [],
     shopping_privacy: [{ subject: "u:" + user, personalization: true }],
     shopping_events: [],
     shopping_favorites: [],
@@ -351,4 +352,13 @@ test("browser tracking module does not call random APIs during edge-worker start
       },
     ),
   );
+});
+
+test("pending account deletion suppresses requested saved-search email as well as personalized email", async () => {
+  for (const requested of [false, true]) {
+    const f = harness({ requested });
+    f.tables.mobile_account_deletions.push({ user_id: f.user, status: "requested" });
+    await f.worker.deliverShoppingAlerts(f.db);
+    assert.equal(f.emails.length, 0);
+  }
 });
