@@ -11,3 +11,39 @@ A passing job proves compilation on that recorded toolchain. It does not prove t
 ## First verified result — November 13, 2026
 
 [The first simulator job passed](https://github.com/caysonlpearl/gem-state/actions/runs/43498602027/job/132138141036) with Xcode 26.3 (17C529), iOS simulator SDK 26.2 and Node 22.23.4. It tested source `06599b4a9422e79109dc946d01b9ad2de656b2b4`, merged against main `59fb76146edf5a22b9ee8cef1be1fb46089183c4`, with resulting source tree `cf9792103139daf14cc85a7e6ab8cbee684205c1`. The native build reported `BUILD SUCCEEDED`; there was no signing, simulator launch, physical-device test or store distribution. The recorded log and proof are under `output/mobile-ios-build-20261113/`. Subsequent relevant source changes must pass their own workflow before release.
+
+## Local iPhone build and owner setup — November 13, 2026
+
+Official App Store Xcode 27.2 (27B52) is now installed on the owner's Mac. Its
+first-launch agreement was cleared and the owner explicitly authorized acceptance.
+The owner completed Apple Account sign-in and authorized Personal Team signing,
+credential/profile creation and installation of the test app. Paid developer
+enrollment and all store submission steps remain deferred.
+
+The local build bundled the shared website screens, synced only the core
+Capacitor plugins and compiled the App scheme for `generic/platform=iOS`, Debug,
+ARM64, with iOS SDK 27.2 and `CODE_SIGNING_ALLOWED=NO`. It reported
+`BUILD SUCCEEDED` on main `9bf1d1f3a7a5ab0bc1eaf7de0412fc2fc5c4fc35`, source tree
+`39141e1ecb6ea4fcf24bf69b1708ad3309443e4a`. Native advertising plugins remained
+disabled. Logs, binary hash and the exact build boundary are recorded under
+`output/iphone-device-setup-20261113/`. This is a device-architecture compilation,
+not a signed install or physical-device test.
+
+The project now records the resolved native package revisions, including
+Capacitor 8.6.2 and IONGeolocationLib 3.0.0, for repeatable builds. Personal Team
+selection stays in the local project configuration; do not commit the owner's
+team identifier, certificates, profiles or account/device discovery records.
+
+Xcode has the Personal Team selected. At the latest connection check, both its
+destination list and `devicectl` detected no iPhone. Provisioning reported that
+the team had no devices from which to generate a profile. The owner needs to
+reconnect an unlocked iPhone with a data-capable cable and complete its Trust
+prompt before signing/install verification can proceed. Do not describe the
+unsigned build as installed. Developer Mode and any device-side confirmations
+must also be completed directly by the owner if requested.
+
+[Apple documents free Personal Team device testing](https://developer.apple.com/help/account/basics/about-your-developer-account).
+Its test profiles expire after seven days, requiring a rebuild/reinstall. This
+does not provide App Store/TestFlight distribution or establish APNs delivery.
+The owner has an iPhone only; physical Android testing still needs another
+tester/device before release.

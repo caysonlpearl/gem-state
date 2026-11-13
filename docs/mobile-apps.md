@@ -13,12 +13,19 @@ Both native projects are checked in. Android debug compilation has succeeded
 locally with Java 21, Android SDK 36 and Capacitor 8.6.2. The owner explicitly
 authorized acceptance of the Android SDK license. No store accounts, store
 agreements, purchases, signing keys, Firebase project or paid capacity were
-created by this batch. Full Xcode remains absent locally. On November 13, the
+created by the initial project batch. On November 13, the
 unsigned iPhone simulator project compiled successfully on the standard GitHub
 macOS runner with Xcode 26.3 (17C529), iOS simulator SDK 26.2 and Node 22.23.4.
 The job bundled the shared website screens and core Capacitor plugins without
 signing credentials, artifact uploads or a store submission; native advertising
-plugins remained disabled. See `docs/mobile-ios-build.md` for the exact build proof
+plugins remained disabled. A later local build also compiled successfully for a
+generic ARM64 iPhone with Xcode 27.2 (27B52) and iOS SDK 27.2, with signing disabled.
+Full Xcode is now installed on this Mac. The owner completed Apple Account
+sign-in and authorized free Personal Team signing and installation; Xcode has
+the Personal Team selected, but has not detected the owner's iPhone or produced
+a usable test profile. No phone installation or physical journey is verified.
+The owner has an iPhone only; real Android testing needs a separate tester/device.
+Paid enrollment remains deferred. See `docs/mobile-ios-build.md` for the exact build proof
 and its limits. No physical Android device was attached when checked. An Android 36 ARM emulator
 and matching system image are installed. The debug app starts, loads bundled assets
 and has no fatal startup or safe-area injection errors in its current process log.
