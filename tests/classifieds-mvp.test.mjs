@@ -9,7 +9,11 @@ const configSource = await read("src/config/classifieds.ts");
 const petsConfigSource = await read("src/config/pets.ts");
 const itemFieldsConfigSource = await read("src/config/classified-item-fields.ts");
 const browseSource =
-  (await read("src/routes/browse.tsx")) + "\n" + (await read("src/config/landing-preview-rows.ts"));
+  (await read("src/lib/browse-search.ts")) +
+  "\n" +
+  (await read("src/routes/browse.tsx")) +
+  "\n" +
+  (await read("src/config/landing-preview-rows.ts"));
 const serviceRowsSource = await read("src/config/landing-service-rows.ts");
 const displaySource = await read("src/lib/classifieds-display.ts");
 const querySource = await read("src/lib/classifieds-query.ts");
@@ -92,7 +96,10 @@ const glossarySource = await read("src/content/glossary.ts");
 const policiesSource = await read("src/routes/policies.tsx");
 const authSource =
   (await read("src/routes/auth.tsx")) + (await read("src/components/account/AuthPageView.tsx"));
-const classifiedsFunctionsSource = await read("src/lib/classifieds.functions.ts");
+const classifiedsFunctionsSource =
+  (await read("src/lib/classifieds.functions.ts")) +
+  "\n" +
+  (await read("src/lib/classified-browse-contract.ts"));
 const pilotFunctionsSource = await read("src/lib/pilot.functions.ts");
 const sellerFunctionsSource = await read("src/lib/seller.functions.ts");
 const adminReviewFlagsSource = await read("src/routes/_authenticated/admin.review-flags.tsx");

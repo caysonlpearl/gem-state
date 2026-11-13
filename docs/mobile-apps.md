@@ -58,6 +58,16 @@ also reuse the existing website UI before beta. Existing native controllers and 
 are adapters, not authority to invent a different design. Native notification,
 permission and app catalog differences still follow the approved launch plan.
 
+## Shared browse rules and saved-search matching
+
+The website now imports its actual search types, parsing, category normalization and input mapping from `browse-search.ts`. Its server validator is shared in `classified-browse-contract.ts`. Website layout stays unchanged. Mileage bands now enforce their numerical ceiling, and comma-formatted home thresholds keep their full value.
+
+`GET /api/mobile/v1/search` accepts the full supported website filter contract and returns `items`, `total`, `page`, `pageSize`, `nextPage` and `incomplete`. `features.fullSearch` advertises this additive API. The older `GET listings` discovery contract remains compatible with installed clients. Full search uses existing marketplace reads with `readOnlyProviders: true` and rechecks public predicates on returned source cards. If a source returned broader results, the page is marked incomplete and its total is a candidate upper bound rather than an exact match count. Its fallback applies the shared full card predicate and reports `incomplete: true`. It cannot fall back to a broader basic search. Duplicate query keys, unsupported meaningful conditions and invalid filters return 400. App catalog scope is server-owned; internal mock/scope overrides are rejected. No database migration or paid capacity is required.
+
+Saved-search candidate generation and immediate pre-delivery checks now translate website names such as `bedrooms`, `propertyType`, `jobType` and posting windows through those same rules. Earlier canonical filter names remain supported. Matching preserves all geographic constraints and avoids landing-page location defaults or category-switch resets. Unsupported legacy conditions fail closed rather than generating unrelated alerts. An app-origin `mobileCatalog: true` scope permanently excludes prohibited inventory in the shared matcher; eligible separately saved website searches keep website catalog behavior. This does not change the existing consent distinction between explicitly requested saved-search matches and broader personalized alerts, or later-unsubscribe suppression.
+
+This is the search dependency for the next parity batch. Native category-specific filter presenters and full saved-search account controls are still pending; do not describe this API work as completed screen migration or authenticated device proof.
+
 ## Shared conversation screens and attachment readiness
 
 Messages now render the same `MessagesSectionView` and account section presenters as the website: buying/selling/unread/search filters, conversation list and bubbles, signed attachment links, reply box, retry state, report dialog/acknowledgement and block confirmation. The native adapter uses API v1, account-scoped session drafts and explicit atomic retry receipts. A delayed response cannot clear a different conversation's draft or a newer draft. Private message/file content is not shopper activity or advertising input. Real signed-in device journeys and the full surrounding account-center shell remain unverified/incomplete; browser fixtures do not establish those gates.

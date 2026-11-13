@@ -42,8 +42,7 @@ export function matchesLandingCard(listing: ListingCardSummary, data: Classified
   if (data.group === "motors" && !data.category && !isHomepageVehicleListing(listing)) return false;
   if (data.group === "classifieds" && listing.vehicle) return false;
   if (data.category && data.category !== listing.categorySlug) return false;
-  if (data.category === "other-real-estate" && data.homeTab && listing.home?.mode !== data.homeTab)
-    return false;
+  if (data.homeTab && listing.home?.mode !== data.homeTab) return false;
   if (
     data.group === "classifieds" &&
     !classifiedCategories.some(

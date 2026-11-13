@@ -1,3 +1,5 @@
+import { mileageCeiling } from "../src/lib/browse-search.ts";
+import { optionalNonNegativeNumber } from "../src/lib/classifieds-query.ts";
 import { selectDiscoveryCards } from "../src/lib/discovery-ranking.ts";
 import { firearmShowcaseRows } from "../src/config/landing-preview-rows.ts";
 import test from "node:test";
@@ -6,7 +8,13 @@ import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import ts from "typescript";
 
-const source = readFileSync(new URL("../src/routes/browse.tsx", import.meta.url), "utf8");
+const source =
+  readFileSync(new URL("../src/lib/browse-search.ts", import.meta.url), "utf8").replace(
+    /^export /gm,
+    "",
+  ) +
+  "\n" +
+  readFileSync(new URL("../src/routes/browse.tsx", import.meta.url), "utf8");
 const file = ts.createSourceFile(
   "browse.tsx",
   source,
@@ -20,6 +28,8 @@ const declaration = file.statements.find(
 assert.ok(declaration);
 const context = vm.createContext({
   selectDiscoveryCards,
+  mileageCeiling,
+  optionalNonNegativeNumber,
   isMotorsCategory: (category) => category === "cars-trucks",
   normalizedCondition: (value) => value,
   thresholdValue: () => undefined,
