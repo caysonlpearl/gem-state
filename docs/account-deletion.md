@@ -157,8 +157,9 @@ buckets. There were zero deletion requests and no deletion-job table at that
 observation. Read-only metadata inspection does not prove the new migration is
 installed.
 
-The coverage RPC detects new/redefined member RPCs, missing policies and modified
-policy expressions. Relevant later SQL migrations must call
+The coverage RPC detects new/redefined member RPCs (including helper-name
+overloads), missing or modified policies, disabled row security and helper grant
+drift. Relevant later SQL migrations must call
 `protect_account_access_boundaries()` and require zero coverage gaps before
 release. Changes to already protected definitions/policies require review; do not
 blindly bless a different policy. The erasure worker must require this preflight

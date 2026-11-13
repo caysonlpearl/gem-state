@@ -179,7 +179,7 @@ test("coverage detects new functions, redefinitions and changed policies; protec
     { db } = f;
   try {
     let c = (await db.query("select account_access_coverage() c")).rows[0].c;
-    assert.deepEqual(c, { unguarded_functions: 0, unguarded_tables: 0 });
+    assert.deepEqual(c, { unguarded_functions: 0, unguarded_tables: 0, helper_privilege_gaps: 0 });
     assert.deepEqual((await db.query("select protect_account_access_boundaries() c")).rows[0].c, {
       functions_added: 0,
       policies_added: 0,
@@ -249,6 +249,54 @@ test("expired, malformed, cross-member and banned sessions fail closed even with
     assert.equal(
       (await db.query("select private_sql() value")).rows[0].value,
       "second member private data",
+    );
+  } finally {
+    await db.close();
+  }
+});
+
+test("boundary coverage catches disabled row security, helper permission drift and similarly named new RPCs", async () => {
+  const f = await fixture(),
+    { db } = f;
+  try {
+    await db.exec("alter table private_fixture disable row level security");
+    assert.equal(
+      (await db.query("select account_access_coverage() c")).rows[0].c.unguarded_tables,
+      1,
+    );
+    await assert.rejects(
+      () => db.query("select protect_account_access_boundaries()"),
+      /requires row security/,
+    );
+    await db.exec("alter table private_fixture enable row level security");
+    await db.exec("grant execute on function account_session_state(uuid,uuid) to authenticated");
+    assert.equal(
+      (await db.query("select account_access_coverage() c")).rows[0].c.helper_privilege_gaps,
+      1,
+    );
+    await assert.rejects(
+      () => db.query("select protect_account_access_boundaries()"),
+      /helper permissions require review/,
+    );
+    await db.exec("revoke execute on function account_session_state(uuid,uuid) from authenticated");
+    await db.exec(
+      "create function account_current_session_active(_extra boolean) returns boolean language sql security definer as $$select true$$",
+    );
+    assert.equal(
+      (await db.query("select account_access_coverage() c")).rows[0].c.unguarded_functions,
+      1,
+    );
+    await db.query("select protect_account_access_boundaries()");
+    assert.deepEqual((await db.query("select account_access_coverage() c")).rows[0].c, {
+      unguarded_functions: 0,
+      unguarded_tables: 0,
+      helper_privilege_gaps: 0,
+    });
+    await db.query("delete from auth.sessions where id=$1", [f.sa]);
+    await f.as(f.a, f.sa);
+    await assert.rejects(
+      () => db.query("select account_current_session_active(true)"),
+      /Account access is unavailable/,
     );
   } finally {
     await db.close();

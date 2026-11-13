@@ -177,6 +177,7 @@ test(
       assert.deepEqual((await b.query("select account_access_coverage() c")).rows[0].c, {
         unguarded_functions: 0,
         unguarded_tables: 0,
+        helper_privilege_gaps: 0,
       });
     } finally {
       await Promise.allSettled([a?.end(), b?.end()]);

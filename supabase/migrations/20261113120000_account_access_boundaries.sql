@@ -53,13 +53,15 @@ create function public.protect_account_access_boundaries() returns jsonb
 language plpgsql security definer set search_path=pg_catalog,public,pg_temp as $protect$
 declare f record; r record; definition text; body text; tag text; prefix text; body_start integer; reverse_at integer; changed integer:=0; policies integer:=0;
 begin
+ if (public.account_access_coverage()->>'helper_privilege_gaps')::int<>0 then raise exception 'Account boundary helper permissions require review'; end if;
  -- These helpers must not acquire their own guard or expose arbitrary identity checks.
  for f in
   select p.oid,p.proname,p.prosrc,p.prosqlbody,l.lanname
   from pg_proc p join pg_namespace n on n.oid=p.pronamespace join pg_language l on l.oid=p.prolang
   where n.nspname='public' and p.prosecdef and p.prokind='f'
   and p.prorettype not in ('trigger'::regtype,'event_trigger'::regtype)
-  and p.proname not in ('account_session_state','account_current_session_active','assert_current_account_access','protect_account_access_boundaries','account_access_coverage')
+  and p.oid not in (to_regprocedure('public.account_session_state(uuid,uuid)'),to_regprocedure('public.account_current_session_active()'),
+  to_regprocedure('public.assert_current_account_access()'),to_regprocedure('public.protect_account_access_boundaries()'),to_regprocedure('public.account_access_coverage()'))
   and has_function_privilege('authenticated',p.oid,'EXECUTE')
   and not exists(select 1 from pg_depend d where d.classid='pg_proc'::regclass and d.objid=p.oid and d.deptype='e')
   order by p.oid
@@ -99,11 +101,14 @@ begin
   end if;
  end loop;
  for r in
-  select c.oid,n.nspname,c.relname from pg_class c join pg_namespace n on n.oid=c.relnamespace
-  where c.relkind in ('r','p') and c.relrowsecurity
+  select c.oid,n.nspname,c.relname,c.relrowsecurity from pg_class c join pg_namespace n on n.oid=c.relnamespace
+  where c.relkind in ('r','p')
   and (n.nspname='public' or (n.nspname='storage' and c.relname in ('objects','buckets')))
+  and (c.relrowsecurity or has_table_privilege('authenticated',c.oid,'SELECT,INSERT,UPDATE,DELETE')
+   or exists(select 1 from public.account_access_protected_policies g where g.table_oid=c.oid))
   and not exists(select 1 from pg_depend d where d.classid='pg_class'::regclass and d.objid=c.oid and d.deptype='e')
  loop
+  if not r.relrowsecurity then raise exception 'Account boundary requires row security: %.%',r.nspname,r.relname; end if;
   if not exists(select 1 from pg_policy where polrelid=r.oid and polname='bluebird_account_session_boundary') then
    execute format('create policy bluebird_account_session_boundary on %I.%I as restrictive for all to authenticated using ((select public.account_current_session_active())) with check ((select public.account_current_session_active()))',r.nspname,r.relname);
    insert into public.account_access_protected_policies(table_oid,policy_md5)
@@ -125,17 +130,26 @@ language sql stable security definer set search_path=pg_catalog,public,pg_temp a
  select jsonb_build_object(
  'unguarded_functions',(select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace
  where n.nspname='public' and p.prosecdef and p.prokind='f' and p.prorettype not in ('trigger'::regtype,'event_trigger'::regtype)
- and p.proname not in ('account_session_state','account_current_session_active','assert_current_account_access','protect_account_access_boundaries','account_access_coverage')
+ and p.oid not in (to_regprocedure('public.account_session_state(uuid,uuid)'),to_regprocedure('public.account_current_session_active()'),
+  to_regprocedure('public.assert_current_account_access()'),to_regprocedure('public.protect_account_access_boundaries()'),to_regprocedure('public.account_access_coverage()'))
  and has_function_privilege('authenticated',p.oid,'EXECUTE')
  and not exists(select 1 from pg_depend d where d.classid='pg_proc'::regclass and d.objid=p.oid and d.deptype='e')
  and not exists(select 1 from public.account_access_protected_functions g where g.function_oid=p.oid and g.protected_body_md5=md5(p.prosrc))),
  'unguarded_tables',(select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace
- where c.relkind in ('r','p') and c.relrowsecurity
+ where c.relkind in ('r','p')
  and (n.nspname='public' or (n.nspname='storage' and c.relname in ('objects','buckets')))
+ and (c.relrowsecurity or has_table_privilege('authenticated',c.oid,'SELECT,INSERT,UPDATE,DELETE')
+  or exists(select 1 from public.account_access_protected_policies g where g.table_oid=c.oid))
  and not exists(select 1 from pg_depend d where d.classid='pg_class'::regclass and d.objid=c.oid and d.deptype='e')
- and not exists(select 1 from pg_policy p join public.account_access_protected_policies g on g.table_oid=p.polrelid
+ and (not c.relrowsecurity or not exists(select 1 from pg_policy p join public.account_access_protected_policies g on g.table_oid=p.polrelid
  where p.polrelid=c.oid and p.polname='bluebird_account_session_boundary' and not p.polpermissive
- and g.policy_md5=md5(p.polqual::text||p.polwithcheck::text||p.polroles::text||p.polcmd::text||p.polpermissive::text)))
+ and g.policy_md5=md5(p.polqual::text||p.polwithcheck::text||p.polroles::text||p.polcmd::text||p.polpermissive::text)))),
+ 'helper_privilege_gaps',(
+  select count(*) from unnest(array[to_regprocedure('public.account_session_state(uuid,uuid)'),to_regprocedure('public.assert_current_account_access()'),
+   to_regprocedure('public.protect_account_access_boundaries()'),to_regprocedure('public.account_access_coverage()')]) f(oid)
+  where has_function_privilege('authenticated',f.oid,'EXECUTE') or has_function_privilege('anon',f.oid,'EXECUTE')
+ )+case when not has_function_privilege('authenticated',to_regprocedure('public.account_current_session_active()'),'EXECUTE')
+ or has_function_privilege('anon',to_regprocedure('public.account_current_session_active()'),'EXECUTE') then 1 else 0 end
  );
 $$;
 revoke all on function public.account_session_state(uuid,uuid),public.account_current_session_active(),
@@ -145,7 +159,7 @@ grant execute on function public.account_current_session_active() to authenticat
 select public.protect_account_access_boundaries();
 do $$ declare coverage jsonb; begin
  coverage:=public.account_access_coverage();
- if (coverage->>'unguarded_functions')::int<>0 or (coverage->>'unguarded_tables')::int<>0 then
+ if (coverage->>'unguarded_functions')::int<>0 or (coverage->>'unguarded_tables')::int<>0 or (coverage->>'helper_privilege_gaps')::int<>0 then
   raise exception 'Account access boundary coverage is incomplete';
  end if;
 end $$;
@@ -157,7 +171,7 @@ declare coverage jsonb;
 begin
  perform public.protect_account_access_boundaries();
  coverage:=public.account_access_coverage();
- if (coverage->>'unguarded_functions')::int<>0 or (coverage->>'unguarded_tables')::int<>0 then
+ if (coverage->>'unguarded_functions')::int<>0 or (coverage->>'unguarded_tables')::int<>0 or (coverage->>'helper_privilege_gaps')::int<>0 then
   raise exception 'Account access boundary coverage is incomplete';
  end if;
  insert into public.account_deletion_jobs(user_id,requested_at) values(new.user_id,new.requested_at)
@@ -174,7 +188,7 @@ begin
  if not found then
   perform public.protect_account_access_boundaries();
   coverage:=public.account_access_coverage();
-  if (coverage->>'unguarded_functions')::int<>0 or (coverage->>'unguarded_tables')::int<>0 then
+  if (coverage->>'unguarded_functions')::int<>0 or (coverage->>'unguarded_tables')::int<>0 or (coverage->>'helper_privilege_gaps')::int<>0 then
    raise exception 'Account access boundary coverage is incomplete';
   end if;
   insert into public.account_deletion_jobs(user_id,requested_at)
