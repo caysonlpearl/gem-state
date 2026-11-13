@@ -449,6 +449,8 @@ try {
       exact: true,
     });
     await reportConversation.evaluate((node) => node.scrollIntoView({ block: "center" }));
+    // Wait for pending navigation scroll restoration and a stable, unobstructed control.
+    await reportConversation.click({ trial: true });
     const reportBounds = await reportConversation.boundingBox();
     const tabBounds = await page.locator('nav[aria-label="Primary"]').boundingBox();
     assert(reportBounds && reportBounds.y >= 0);
