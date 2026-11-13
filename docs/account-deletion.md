@@ -61,6 +61,13 @@ Next processor work must:
 These steps have not yet been completed. Do not submit the app or present a
 pending request as a completed deletion.
 
+The owner deferred finishing paid developer enrollment on November 13 so app
+implementation can continue first. Deletion processing, synthetic account/media
+cleanup tests and shared website/app enforcement can proceed before enrollment.
+Apple authorization revocation must have a tested provider adapter and must fail
+closed for linked accounts until its required credentials are configured. Do not
+delete real accounts to prove the processor or silently skip a failed cleanup.
+
 Sources: Supabase's deleteUser and user-data-management documentation, checked
 during this preflight. Soft deletion is irreversible in Supabase Auth, but auth
 deletion alone does not remove all application personal data.

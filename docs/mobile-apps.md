@@ -235,18 +235,27 @@ compute has been purchased.
 
 On November 13 the owner chose personal/individual developer accounts, using
 `cayson@xstayproperties.com` as the intended login. This supersedes the original
-organization-enrollment default. No developer account has been created yet.
+organization-enrollment default. Paid membership/registration completion has
+not been verified.
 The owner must verify the correct Apple/Google login and personal identity and
 complete agreements/payment. Do not infer private identity details or change
 account credentials. Apple's individual enrollment displays the owner's legal
 name as the store seller; app branding remains Bluebird. Current US fees are
 Apple US$99/year and Google Play US$25 once; tax/local currency may vary.
 
-Enrollment preflight reached Apple's sign-in page and Google's personal-account
-wizard under the intended email. Google's public developer name `Bluebird` is
-already registered; an alternate developer profile name is awaiting the owner.
-The app name remains Bluebird. No credentials, private identity information,
-developer agreement or payment was submitted.
+Enrollment preflight verified Google's intended signed-in email and personal
+account selection. The owner chose `Bluebird Marketplace`, which the Google
+wizard accepted after `Bluebird` was unavailable. It is waiting for a personal
+payments profile. The owner signed into Apple and the individual enrollment
+reached the membership purchase page. No credentials, private identity details,
+developer agreement or payment was submitted by the agent.
+
+The owner then requested completing all possible app work before finishing paid
+enrollment. Registration and fees are deferred, with no store submission
+performed. Continue implementation and local/device testing; return to owner
+registration when the builds are ready for store-based testing. The app name
+remains Bluebird. Do not treat a prepared wizard or purchase page as an active
+paid developer membership.
 
 New Google personal accounts require a closed test with at least 12 testers
 opted in continuously for at least 14 days, followed by an application for
