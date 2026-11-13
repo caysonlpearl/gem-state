@@ -37,6 +37,31 @@ function Privacy() {
         we do not treat a browser identifier as proof of identity. You can disable personalization
         or clear shopping history through Privacy choices.
       </p>
+      <h2>Bluebird phone apps</h2>
+      <p>
+        The phone apps use resettable first-party installation and session identifiers for guest
+        shopping choices. Optional shopping activity includes visible listing impressions and their
+        positions, searches, detail visits, time actively viewing a listing, photo interactions,
+        saves, dismissals, and seller-contact actions. The apps do not use device fingerprinting or
+        merge guest shopping history into a different person's account. Signed-in shopping history
+        and personalization choices are shared with your Bluebird account on other devices.
+      </p>
+      <p>
+        App privacy controls let you turn optional personalization off and clear shopping history.
+        Clearing guest history resets the installation identifier; clearing signed-in history
+        applies across your Bluebird account and preserves your explicitly saved listings.
+        Notification permission from your phone is separate from the optional
+        shopping-email/notification choice. Declining phone notifications leaves the marketplace
+        usable.
+      </p>
+      <p>
+        Native advertising measurement is off in unconfigured app builds. If enabled later, it
+        requires a separate applicable advertising choice and, for tracking on iPhone, permission
+        through Apple's App Tracking Transparency prompt. Declining tracking does not prevent
+        first-party recommendations you separately allow. App advertising choices do not authorize
+        website advertising, or vice versa. Advertising payloads exclude private messages, precise
+        location, identity/payment information, and prohibited inventory.
+      </p>
       <h2>Location and uploaded content</h2>
       <p>
         We use your selected shopping location and may estimate a general location from connection

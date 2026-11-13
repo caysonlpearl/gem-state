@@ -5,11 +5,11 @@ privileged function, view, or storage policy is added or changed.
 
 ## Finding-count reconciliation
 
-| Checkpoint | Reported findings | Composition |
-| --- | --- | --- |
-| Phase 6.5 close | 31 | 1 RLS-enabled/no-policy table, 3 SECURITY DEFINER views, 27 authenticated-only definer functions |
-| Phase 7 close | 50 | 1 RLS-enabled/no-policy table, 3 definer views, 46 authenticated-only definer functions |
-| Phase 8 | 53 | 1 RLS-enabled/no-policy table, 6 definer views, 46 authenticated-only definer functions |
+| Checkpoint      | Reported findings | Composition                                                                                      |
+| --------------- | ----------------- | ------------------------------------------------------------------------------------------------ |
+| Phase 6.5 close | 31                | 1 RLS-enabled/no-policy table, 3 SECURITY DEFINER views, 27 authenticated-only definer functions |
+| Phase 7 close   | 50                | 1 RLS-enabled/no-policy table, 3 definer views, 46 authenticated-only definer functions          |
+| Phase 8         | 53                | 1 RLS-enabled/no-policy table, 6 definer views, 46 authenticated-only definer functions          |
 
 The 31 → 50 increase is entirely Phase 7 trust-operations functions (+19
 definer functions): external payment and payout recording, order state
@@ -88,8 +88,7 @@ Current known gaps, as of 2026-09-03:
   manually initiates each Stripe transfer from the order console.
 - No delivery-confirmation reminder if a buyer never confirms receipt.
 
-
-## Mobile foundation additions (pending application, 2026-11-12)
+## Mobile foundation additions (applied and verified, 2026-11-12)
 
 Migration `20261113030000_mobile_foundation.sql` adds five private tables:
 `mobile_controls`, `mobile_push_devices`, `mobile_push_outbox`,
@@ -108,7 +107,21 @@ rechecks ownership, lease, consent, availability, account deletion, and blocks
 before provider delivery. Push bodies omit message/listing content.
 
 This section describes source and local SQL tests, not a new production
-introspection result. The migration depends on the shared shopper migration
-and has not been applied by this mobile batch. The deletion queue currently
+introspection result. The migration depends on the shared shopper migration and was applied to GemList
+with 20261113040000_mobile_shopper_controls. A live schema query verified all five
+tables have RLS enabled, no anon/authenticated SELECT, and no anon/authenticated
+execution of native privacy control RPCs. Both mobile pause switches remain off.
+Migration history records both source versions. A synthetic production transaction
+verified first-party withdrawal cannot change website advertising consent and was
+rolled back. The deletion queue currently
 receives requests and revokes delivery/advertising privileges; full identity,
 media and retained-record deletion must be completed before store beta.
+
+Native shopper interfaces add only service-role execution of
+mobile_set_personalization and mobile_clear_shopping_history. Identity is derived
+from a verified account or validated resettable guest install UUID, never a body
+user id. Native context excludes the website's optional fingerprint and hardware
+fields. Activity references, ranking seeds and returned recommendations apply the
+permanent app catalog boundary against existing private inventory. Private
+history is never returned as a raw event stream. Deferred batches check account
+and install ownership before fetching; withdrawal also serializes in Postgres.

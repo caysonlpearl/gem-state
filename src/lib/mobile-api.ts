@@ -61,7 +61,10 @@ export function createMobileHandler(
       );
     if (origin) headers.set("Access-Control-Allow-Origin", origin);
     headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-    headers.set("Access-Control-Allow-Headers", "Authorization, Content-Type, Idempotency-Key");
+    headers.set(
+      "Access-Control-Allow-Headers",
+      "Authorization, Content-Type, Idempotency-Key, X-Bluebird-Install",
+    );
     if (request.method === "OPTIONS") return new Response(null, { status: 204, headers });
     try {
       const path = new URL(request.url).pathname

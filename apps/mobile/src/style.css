@@ -340,3 +340,34 @@ nav span {
     max-height: 500px;
   }
 }
+
+.privacy-dialog {
+  width: min(92vw, 540px);
+  max-height: 85dvh;
+  overflow: auto;
+  border: 1px solid #d9d7d1;
+  border-radius: 18px;
+  padding: 24px;
+  background: #faf8f4;
+  color: #203b5e;
+}
+.privacy-dialog::backdrop {
+  background: rgb(10 25 45 / 55%);
+}
+.recommendations h2 {
+  font-size: 1.2rem;
+}
+.recommendation-item {
+  min-width: 0;
+}
+.recommendation-item .listing-card {
+  width: 100%;
+}
+.dismiss {
+  margin-top: 6px;
+  font-size: 0.85rem;
+}
+.gallery > div {
+  flex: 0 0 100%;
+  min-width: 0;
+}

@@ -3,6 +3,9 @@ import { readFile } from "node:fs/promises";
 import { createPrivateKey, sign } from "node:crypto";
 import { connect } from "node:http2";
 import { pathToFileURL } from "node:url";
+import { cachedMobilePushListing } from "../../src/lib/mobile-push-catalog.ts";
+import { shoppingDeliveryCandidates } from "../../src/lib/shopping-delivery-eligibility.ts";
+import { shoppingControls } from "../../src/lib/shopping.server.ts";
 import { prepareMobilePush, pushRetryDelay } from "../../src/lib/mobile-push.ts";
 
 const b64 = (value) =>
@@ -210,7 +213,7 @@ async function eligiblePush(db, row, listing, now) {
   if (!listingId || (listing && listing.id !== listingId)) return null;
   // First pass resolves only the reference. Second pass repeats all mutable
   // checks after the cached listing lookup and immediately before provider I/O.
-  if (!listing) return { listingId };
+  if (!listing) return blocked ? null : { listingId, kind: n.kind, queueId: n.entity_id };
   const payload = prepareMobilePush(
     {
       kind: n.kind,
@@ -229,7 +232,24 @@ async function eligiblePush(db, row, listing, now) {
   );
   return payload ? { device: d, payload } : null;
 }
-export async function runMobilePushWorker({ db, send, lookupListing, now = Date.now, max = 50 }) {
+export async function shoppingPushStillEligible(db, userId, queueId, listingId) {
+  if (!(await shoppingControls(db)).notifications) return false;
+  const current = await shoppingDeliveryCandidates(db, { user_id: userId, queue_ids: [queueId] }, [
+    "pending",
+    "processing",
+    "sent",
+    "failed",
+  ]);
+  return current.eligible.some((row) => row.listing_id === listingId);
+}
+export async function runMobilePushWorker({
+  db,
+  send,
+  lookupListing,
+  checkShopping = shoppingPushStillEligible,
+  now = Date.now,
+  max = 50,
+}) {
   const counts = { sent: 0, suppressed: 0, retried: 0 };
   for (let i = 0; i < max; i++) {
     const claimed = await db.rpc("claim_mobile_push_delivery");
@@ -248,7 +268,10 @@ export async function runMobilePushWorker({ db, send, lookupListing, now = Date.
     try {
       const reference = await eligiblePush(db, row, null, now);
       const listing = reference ? await lookupListing(reference.listingId) : null;
-      const latest = listing ? await eligiblePush(db, row, listing, now) : null;
+      const shoppingAllowed =
+        reference?.kind !== "shopping_alert" ||
+        (await checkShopping(db, row.user_id, reference.queueId, reference.listingId));
+      const latest = listing && shoppingAllowed ? await eligiblePush(db, row, listing, now) : null;
       if (!latest?.payload) {
         await finish({ status: "suppressed" });
         counts.suppressed++;
@@ -286,15 +309,7 @@ async function main() {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   const send = createPushSender(config);
-  const lookupListing = async (id) => {
-    const response = await fetch(
-      `https://onbluebird.com/api/mobile/v1/listings/${encodeURIComponent(id)}`,
-      { signal: AbortSignal.timeout(15000) },
-    );
-    if (response.status === 404) return null;
-    if (!response.ok) throw Error("push_listing_unavailable");
-    return (await response.json()).data;
-  };
+  const lookupListing = (id) => cachedMobilePushListing(db, id);
   const result = await runMobilePushWorker({ db, send, lookupListing });
   console.log(JSON.stringify(result));
 }

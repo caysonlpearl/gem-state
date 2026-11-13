@@ -7,7 +7,7 @@ import {
   SHOPPING_POLICY_VERSION,
   type ShoppingCard,
   type ShoppingEvent,
-} from "./shopping-contract";
+} from "./shopping-contract.ts";
 
 export async function shoppingDb(): Promise<any> {
   return (await import("@/integrations/supabase/client.server")).supabaseAdmin;
@@ -145,12 +145,16 @@ export async function recordShoppingActivity(
   }
   return { accepted: inserted?.length ?? 0 };
 }
-export async function shoppingRecommendations(db: any, subject: string) {
+export async function shoppingRecommendations(
+  db: any,
+  subject: string,
+  options: { eligible?: (card: ShoppingCard) => boolean } = {},
+) {
   const controls = await shoppingControls(db);
   const permission = await shoppingPermission(db, subject);
   if (!permission?.personalization || !controls.recommendations)
     return { recent: [], continuing: [], recommended: [], model: controls.model_version };
-  const [activity, inventory, experiment] = await Promise.all([
+  const [allActivity, inventory, experiment] = await Promise.all([
     shoppingActivity(db, subject),
     db
       .from("shopping_inventory")
@@ -162,6 +166,34 @@ export async function shoppingRecommendations(db: any, subject: string) {
   ]);
   if (inventory.error) throw Error("Recommendations could not be loaded.");
   const holdout = experiment;
+  let activity = allActivity;
+  if (options.eligible) {
+    // Store clients cannot learn from or seed recommendations with restricted
+    // website inventory. Resolve references from our own projection only.
+    const ids = [...new Set(allActivity.flatMap((e) => (e.listingId ? [e.listingId] : [])))];
+    const permitted = new Set<string>();
+    for (let offset = 0; offset < ids.length; offset += 200) {
+      const rows = await db
+        .from("shopping_inventory")
+        .select("listing_id,card")
+        .in("listing_id", ids.slice(offset, offset + 200));
+      if (rows.error) throw Error("Recommendation references unavailable.");
+      for (const row of rows.data ?? [])
+        if (options.eligible(row.card)) permitted.add(row.listing_id);
+    }
+    activity = allActivity.filter((e) =>
+      e.listingId
+        ? permitted.has(e.listingId)
+        : !e.search?.category ||
+          options.eligible!({
+            id: "search",
+            title: "",
+            categorySlug: String(e.search.category),
+            priceCents: 0,
+            createdAt: "",
+          }),
+    );
+  }
   const profile = interests(activity),
     seedIds = [...profile.values()]
       .filter((i) => !i.dismissed)
@@ -185,7 +217,9 @@ export async function shoppingRecommendations(db: any, subject: string) {
       ...(inventory.data ?? []),
       ...(references.data ?? []).filter((r: any) => Date.parse(r.valid_until) > Date.now()),
       ...(visualRows.data ?? []),
-    ].map((r: any) => [r.card.id, r.card]),
+    ]
+      .filter((r: any) => !options.eligible || options.eligible(r.card))
+      .map((r: any) => [r.card.id, r.card]),
   );
   // SQL eligibility applies to vector candidates. Native references receive the same current-state gate.
   const nativeIds = [...current.keys()].filter((id) => /^[0-9a-f-]{36}$/i.test(id));
@@ -205,9 +239,12 @@ export async function shoppingRecommendations(db: any, subject: string) {
   }
   const cards = [
     ...new Map(
-      [...current.values(), ...(references.data ?? []).map((r: any) => r.card as ShoppingCard)].map(
-        (c) => [c.id, c],
-      ),
+      [
+        ...current.values(),
+        ...(references.data ?? [])
+          .filter((r: any) => !options.eligible || options.eligible(r.card))
+          .map((r: any) => r.card as ShoppingCard),
+      ].map((c) => [c.id, c]),
     ).values(),
   ];
   const recent = [...profile.values()]

@@ -18,8 +18,9 @@ compiled. No physical Android device was attached when checked.
 
 Phone/tablet browser checks verified browsing, detail pages, responsive layout
 and the two signup controls at 320, 390 and 768 pixels. These are not substitutes
-for real-device journeys. The backend changes and SQL in this branch are not
-live. A release build points at the canonical production API and cannot be
+for real-device journeys. The backend changes in this branch are not live. The private mobile SQL
+foundation and shopper controls were applied and verified on the owning database
+on November 12. A release build points at the canonical production API and cannot be
 used for end-to-end testing until that API and its dependencies are deployed.
 
 ## Baseline and ownership
@@ -136,8 +137,12 @@ Apply `20261113030000_mobile_foundation.sql` only AFTER the linked chat's
 `20261113010000_shopper_personalization.sql` is merged and applied. This batch
 adds native-specific controls/devices/outbox/deletion/advertising records and
 reuses shared `shopping_accounts`/`shopping_consents`/`shopping_queue`.
-The migration is locally tested with PostgreSQL-compatible fixtures, not yet
-applied by this branch to production.
+The foundation and 20261113040000_mobile_shopper_controls migrations are applied
+to production and recorded in Supabase migration history. A live post-check
+verified RLS on all five mobile tables, denied anon/member reads and execution,
+and confirmed push/advertising remain paused. An isolated production transaction
+verified native personalization withdrawal preserves website ad consent; its
+synthetic changes were rolled back.
 
 Exactly two signup choices are present, including a social-account onboarding
 step: required terms and optional initially-unchecked shopping alerts. There is
@@ -148,19 +153,35 @@ shopping delivery; initial onboarding preserves separately requested web
 saved-search handling. Operating-system permission never substitutes for
 Bluebird's own shopping permission.
 
-The shared shopper-learning implementation is being authored in
-`work/shopper-personalization-20261112` by the referenced chat. It is deliberately
-not copied while uncommitted. The mobile app still needs adapters for native
-activity, guest install identifiers, recommendations and history controls after
-that shared implementation is available. The app must exclude all browser
-fingerprinting inputs, keep first-party learning separate from advertising,
-respect explicit filters/sorts and make zero listing-provider requests from
-recommendations. SigLIP embeddings belong on the separate private runner;
-never add inference to API requests or the small inventory machine.
+The shared shopper implementation merged through PR #187 and is integrated into
+the mobile branch. Native adapters reuse its activity, favorites, ranking, vector
+retrieval, holdout and privacy records. The mobile interface strips fingerprints,
+hardware/browser characteristics and private content before storage. Public
+cached inventory validates activity references and filters restricted website
+interests before choosing seeds or returning app recommendations. No native
+recommendation or similarity read calls a listing provider.
 
-Terms/privacy links currently use the website's policies page. Switch them to
-the accurate published shared terms/privacy pages after integration; publish
-retention, moderation and app catalog explanations before enabling collection.
+The app now includes Recently viewed, Continue shopping, Recommended for you and
+similar listings. Visible impressions carry placement, position, model and ranking
+features. Detail views, foreground viewing time, photo interactions, saves,
+searches, contacts and acknowledged dismissals use the same shopper system.
+Explicit searches/categories and nondefault sorts keep recommendation rows out
+of their results. Ordinary browsing remains available when learning is off,
+preferences cannot be loaded, vectors are missing or recommendations fail.
+
+Privacy choices are separate from the two signup controls. Signed-in preferences
+and history are account-scoped across web/apps; guest identifiers are installation
+specific, reset on guest-history clearing and account changes, and never merge
+guest history into another account. Collection starts only after server-confirmed
+personalization. Pending telemetry is discarded on withdrawal/account changes,
+and the API checks the expected account/install again after session resolution
+so a delayed batch cannot be reassigned. Native background time does not count
+as active viewing. Mobile privacy writes preserve website advertising consent.
+
+App links use the shared terms/privacy pages. This branch adds accurate phone-app
+privacy/catalog explanations; publish them with the mobile API before collecting
+app activity. Full legal-entity, moderation and deletion disclosures remain release
+gates. Embeddings stay on the independent private runner.
 
 ## Push and advertising setup
 
@@ -208,7 +229,7 @@ claim measurement is active from an SDK dependency alone.
 The app and `/delete-account` website route currently RECEIVE a verified,
 idempotent deletion request. That request immediately removes push tokens,
 disables mobile advertising, withdraws shopping alerts and suppresses queued
-shopping delivery. It is not yet full account deletion. Identity, photos,
+shopping delivery. It is not yet full account deletion. See docs/account-deletion.md for the live relationship audit. Identity, photos,
 public posts, recommendation history, Apple token revocation and retained
 transaction/dispute records need a tested deletion/anonymization processor
 with documented retention exceptions. Do not present a pending request as
@@ -230,9 +251,13 @@ Official release references:
 
 Local checks at this milestone: root TypeScript, website production build,
 mobile TypeScript/Vite build, Android debug compile, mobile security/queue/SQL
-tests, full marketplace test suite (1,144 passing), and responsive browser smoke
+tests, full marketplace test suite (1,189 passing), and responsive browser smoke
 checks. Browser evidence is stored outside source at
-`output/mobile-apps-20261112`. The smoke script makes no account writes or sends.
+`output/mobile-apps-20261112`. The original smoke script makes no account writes or sends. The new shopping UI
+suite uses explicit synthetic API fixtures in real Chromium at all three sizes;
+it verifies permission-off/on/withdrawn, visible impressions, dismissal persistence,
+filter precedence, guest identifier reset and a usable browsing fallback during a
+consent outage. This is not a claim of native device or live-account testing.
 Python Playwright is required by the existing full-suite KSL DOM test.
 
 Phase status and concrete outstanding checks:
@@ -244,8 +269,9 @@ Phase status and concrete outstanding checks:
   revising the remaining effort estimate or scaling the feature set.
 - Phase 2: consent/request controls implemented; full deletion, Apple provider,
   accurate policy publication and source-wide moderation remain open.
-- Phase 3: shared website service is in progress elsewhere; native adapters,
-  no-fingerprint activity and recommendation UI are still open.
+- Phase 3: shared service, native adapters, no-fingerprint activity and recommendation
+  UI are implemented and tested. Mobile API deployment, real-account cross-device
+  verification and actual-device behavior remain open.
 - Phase 4: push outbox/worker implemented but inactive; credential setup,
   shopping suppression integration, unread state and real-device delivery are
   still open.

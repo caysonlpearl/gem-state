@@ -2,6 +2,7 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { Capacitor } from "@capacitor/core";
 import { Browser } from "@capacitor/browser";
 import { MOBILE_AUTH_REDIRECT, mobileLinkTarget } from "../../../src/lib/mobile-contract";
+import { installIdentifier } from "./identity";
 export { mobileLinkTarget };
 export const apiOrigin = new URL(import.meta.env.VITE_MOBILE_API_ORIGIN || "https://onbluebird.com")
   .origin;
@@ -30,13 +31,26 @@ export async function api<T>(
   method = "GET",
   data?: unknown,
   signal?: AbortSignal,
+  expectedActor?: { userId: string | null; installId: string },
 ): Promise<T> {
   if (!/^[a-z0-9/?=&%+._:-]+$/i.test(path) || path.startsWith("/") || path.includes(".."))
     throw Error("Invalid app destination.");
   const session = auth ? (await auth.auth.getSession()).data.session : null;
+  if (
+    expectedActor &&
+    ((session?.user.id ?? null) !== expectedActor.userId ||
+      installIdentifier() !== expectedActor.installId)
+  )
+    throw new ApiError("account_changed", "Your account changed. Please try again.", 409);
+  const shopping = /^(shopping(?:[/?]|$)|recommendations(?:[?]|$)|similar(?:[?]|$)|activity$)/.test(
+    path,
+  );
   const response = await fetch(`${apiOrigin}/api/mobile/v1/${path}`, {
     method,
     headers: {
+      ...(shopping
+        ? { "X-Bluebird-Install": expectedActor?.installId ?? installIdentifier() }
+        : {}),
       ...(data === undefined ? {} : { "Content-Type": "application/json" }),
       ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}),
     },

@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import ts from "typescript";
 import * as contract from "../src/lib/shopping-contract.ts";
+import { shoppingDeliveryCandidates } from "../src/lib/shopping-delivery-eligibility.ts";
 const source = readFileSync(
   new URL("../src/lib/shopping-worker.server.ts", import.meta.url),
   "utf8",
@@ -74,6 +75,9 @@ function harness({ alerts = true, requested = false, beforeHandoff = () => {} } 
         created_at: "2026-01-01",
       },
     ],
+    shopping_privacy: [{ subject: "u:" + user, personalization: true }],
+    shopping_events: [],
+    shopping_favorites: [],
     account_notification_preferences: [],
     shopping_deliveries: [],
     notifications: [],
@@ -191,6 +195,7 @@ function harness({ alerts = true, requested = false, beforeHandoff = () => {} } 
       },
     },
     rpc: async (name) => {
+      if (name === "shopping_saved_interests") return { data: [], error: null };
       assert.equal(name, "claim_shopping_delivery");
       const rows = tables.shopping_queue.filter((r) => r.status === "pending");
       if (!rows.length) return { data: [], error: null };
@@ -211,6 +216,7 @@ function harness({ alerts = true, requested = false, beforeHandoff = () => {} } 
   const exports = {};
   new Function("require", "exports", compiled)((name) => {
     if (name === "./shopping-contract") return contract;
+    if (name === "./shopping-delivery-eligibility.ts") return { shoppingDeliveryCandidates };
     if (name === "./shopping.server")
       return {
         shoppingControls: async () => ({ notifications: true, catalog_ready_at: "2026-01-01" }),

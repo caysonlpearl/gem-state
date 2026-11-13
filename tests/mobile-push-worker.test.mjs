@@ -85,6 +85,7 @@ function fixture(change = () => {}, kind = "shopping_alert") {
   const run = () =>
     runMobilePushWorker({
       db,
+      checkShopping: async () => data.shoppingEligible !== false,
       now: () => now,
       lookupListing: async () => {
         change(data);
@@ -106,6 +107,9 @@ test("push hands off a generic message once using the stable delivery id", async
   assert.equal(f.data.mobile_push_outbox.status, "sent");
 });
 for (const [name, change] of Object.entries({
+  dismissedOrPurchased: (d) => {
+    d.shoppingEligible = false;
+  },
   unsubscribe: (d) => {
     d.shopping_accounts.shopping_alerts = false;
   },

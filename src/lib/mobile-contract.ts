@@ -37,6 +37,7 @@ export function mobileListingAllowed(card: {
   );
 }
 export type MobileListing = {
+  shoppingFeatures?: Record<string, number>;
   available?: boolean;
   canSave?: boolean;
   canMessage?: boolean;

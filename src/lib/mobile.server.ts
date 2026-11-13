@@ -78,6 +78,16 @@ async function actor(request: Request) {
 }
 function dto(card: any): MobileListing {
   return {
+    shoppingFeatures: Object.fromEntries(
+      Object.entries(card.shoppingFeatures ?? {})
+        .filter(
+          ([key, value]) =>
+            /^rank_(visual|budget|location|freshness)$/.test(key) &&
+            typeof value === "number" &&
+            Number.isFinite(value),
+        )
+        .map(([key, value]) => [key, value as number]),
+    ),
     available: !card.ended && (!card.expiresAt || Date.parse(card.expiresAt) > Date.now()),
     canSave:
       /^[0-9a-f-]{36}$/i.test(card.productId ?? "") ||
@@ -100,7 +110,7 @@ function dto(card: any): MobileListing {
         card.directory?.website,
     ),
     id: card.id,
-    productId: card.productId,
+    productId: card.productId ?? "",
     title: card.title,
     categorySlug: card.categorySlug,
     categoryName: card.categoryName ?? "",
@@ -114,7 +124,7 @@ function dto(card: any): MobileListing {
           wholeDollars: true,
           monthly: card.home?.mode === "rent",
         })),
-    currency: card.currency,
+    currency: card.currency ?? "USD",
     city: card.city,
     state: card.state,
     imageUrl: mobileMediaUrl(card.imageUrl),
@@ -251,6 +261,30 @@ export const handleMobileRequest = createMobileHandler(async (request, path) => 
   const listingMatch = /^listings\/([^/]+)$/.exec(path);
   if (method === "GET" && listingMatch) return dto(await listing(listingMatch[1]!));
 
+  if (
+    [
+      "shopping",
+      "recommendations",
+      "similar",
+      "activity",
+      "shopping/privacy",
+      "shopping/clear",
+    ].includes(path)
+  ) {
+    const user = request.headers.has("authorization") ? (await actor(request)).user : null;
+    const result = await (
+      await import("./mobile-shopping.server")
+    ).handleMobileShopping(request, path, await database(), user);
+    if (path === "recommendations" && "recent" in result)
+      return {
+        ...result,
+        recent: result.recent.map(dto),
+        continuing: result.continuing.map(dto),
+        recommended: result.recommended.map(dto),
+      };
+    if (path === "similar" && "cards" in result) return { ...result, cards: result.cards.map(dto) };
+    return result;
+  }
   const { user, client } = await actor(request);
   if (method === "GET" && path === "account") {
     const { getMyAccount } = await import("./account.functions");

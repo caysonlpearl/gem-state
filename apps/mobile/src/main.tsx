@@ -32,6 +32,17 @@ import {
   ApiError,
 } from "./client";
 import { Post } from "./Post";
+import { useListingActivity, setShoppingForeground } from "./shopping-activity";
+import { ListingTile, ShoppingRows, PrivacyChoices } from "./ShopperExperience";
+import {
+  setShopperIdentity,
+  applyShopperStatus,
+  shopperStatus,
+  trackShopping,
+  flushShopping,
+  resetShoppingSession,
+  type ShopperStatus,
+} from "./shopping";
 import {
   configureAdvertising,
   disableAdvertising,
@@ -77,6 +88,9 @@ function Application() {
     [terms, setTerms] = useState(false),
     [busy, setBusy] = useState(false);
   const [advertising, setAdvertisingChoice] = useState(false);
+  const [shopping, setShopping] = useState<ShopperStatus | null>(null),
+    [privacyOpen, setPrivacyOpen] = useState(false);
+  const learning = shopping?.personalization === true && shopping.trackingAvailable === true;
   const [pushToken, setPushToken] = useState<string | null>(null);
   useEffect(() => {
     let alive = true,
@@ -89,6 +103,7 @@ function Application() {
         await disableAdvertising();
         setBootstrap(b);
         const { data } = await auth.auth.getSession();
+        setShopperIdentity(data.session?.user.id ?? null);
         if (alive) setSession(data.session);
         let priorUserId = data.session?.user.id;
         const listener = auth.auth.onAuthStateChange((event, next) => {
@@ -97,6 +112,9 @@ function Application() {
             setAccount(null);
             setAlerts(false);
             void disableAdvertising();
+            setShopperIdentity(next?.user.id ?? null);
+            setShopping(null);
+            setPrivacyOpen(false);
           }
           priorUserId = next?.user.id;
           setSession(next);
@@ -124,6 +142,27 @@ function Application() {
     };
   }, []);
   useEffect(() => {
+    if (!bootstrap) return;
+    setShopperIdentity(session?.user.id ?? null);
+    let alive = true;
+    shopperStatus()
+      .then((status) => {
+        if (alive) {
+          applyShopperStatus(status);
+          setShopping(status);
+        }
+      })
+      .catch(() => {
+        if (alive) {
+          applyShopperStatus(null);
+          setShopping(null);
+        }
+      });
+    return () => {
+      alive = false;
+    };
+  }, [session?.user.id, bootstrap, revision]);
+  useEffect(() => {
     if (!session?.user.id || !bootstrap) return;
     let alive = true;
     api<{
@@ -146,6 +185,7 @@ function Application() {
   useEffect(() => {
     if (!bootstrap || !Capacitor.isNativePlatform()) return;
     let alive = true;
+    let lastActive = Date.now();
     const handlers = [
       NativeApp.addListener("appUrlOpen", async ({ url }) => {
         try {
@@ -163,12 +203,21 @@ function Application() {
         else void NativeApp.exitApp();
       }),
       NativeApp.addListener("appStateChange", ({ isActive }) => {
+        setShoppingForeground(isActive);
         if (isActive) {
+          if (Date.now() - lastActive > 30 * 60000) resetShoppingSession();
           void auth.auth.startAutoRefresh();
           setRevision((v) => v + 1);
-        } else auth.auth.stopAutoRefresh();
+        } else {
+          lastActive = Date.now();
+          void flushShopping();
+          auth.auth.stopAutoRefresh();
+        }
       }),
     ];
+    void NativeApp.getState()
+      .then((state) => setShoppingForeground(state.isActive))
+      .catch(() => undefined);
     void NativeApp.getLaunchUrl()
       .then(async (result) => {
         if (!result || !alive) return;
@@ -240,6 +289,8 @@ function Application() {
     setError("");
     try {
       await disableAdvertising();
+      applyShopperStatus(null);
+      setShopping(null);
       setAdvertisingChoice(false);
       if (pushToken) {
         await api("devices", "DELETE", { token: pushToken });
@@ -281,9 +332,23 @@ function Application() {
     session && account && bootstrap && account.consent.terms_version !== bootstrap.policyVersion;
   return (
     <>
+      <PrivacyChoices
+        open={privacyOpen}
+        onClose={() => setPrivacyOpen(false)}
+        status={shopping}
+        onStatus={(status) => {
+          applyShopperStatus(status);
+          setShopping(status);
+          setRevision((v) => v + 1);
+        }}
+        userId={session?.user.id ?? null}
+      />
       <header>
         <button className="brand" onClick={() => go("/")}>
           Bluebird<span>Find your next good thing.</span>
+        </button>
+        <button className="text-button" onClick={() => setPrivacyOpen(true)}>
+          Privacy
         </button>
         {path.startsWith("/listings/") || path.startsWith("/messages/") ? (
           <button
@@ -298,7 +363,13 @@ function Application() {
       <main>
         {bootstrap && !needsTerms && (
           <div hidden={path !== "/"}>
-            <Feed bootstrap={bootstrap} revision={revision} active={path === "/"} />
+            <Feed
+              key={session?.user.id ?? "guest"}
+              bootstrap={bootstrap}
+              revision={revision}
+              active={path === "/"}
+              learning={learning}
+            />
           </div>
         )}
         {error && (
@@ -323,7 +394,7 @@ function Application() {
                 onChange={(e) => setTerms(e.target.checked)}
               />
               I agree to the{" "}
-              <a href={`${apiOrigin}/policies`} target="_blank" rel="noreferrer">
+              <a href={`${apiOrigin}/terms`} target="_blank" rel="noreferrer">
                 Terms of Service
               </a>
               .
@@ -354,6 +425,8 @@ function Application() {
             key={`${session?.user.id ?? "guest"}:${path}`}
             id={path.slice(10)}
             session={session}
+            learning={learning}
+            revision={revision}
             onError={setError}
           />
         ) : path === "/post" ? (
@@ -442,7 +515,7 @@ function Application() {
                 Allow advertising measurement across apps and websites
               </label>
             )}
-            <a href={`${apiOrigin}/policies`} target="_blank" rel="noreferrer">
+            <a href={`${apiOrigin}/terms`} target="_blank" rel="noreferrer">
               Terms and privacy
             </a>
             <a href="mailto:bluebirdmarketplaceid@gmail.com">Contact Bluebird</a>
@@ -452,9 +525,9 @@ function Application() {
             <DeleteAccount onError={setError} />
           </section>
         ) : path === "/saved" ? (
-          <Feed saved bootstrap={bootstrap} revision={revision} />
+          <Feed saved bootstrap={bootstrap} revision={revision} learning={learning} />
         ) : (
-          <Feed bootstrap={bootstrap} revision={revision} />
+          <Feed bootstrap={bootstrap} revision={revision} learning={learning} />
         )}
       </main>
       <nav aria-label="Main navigation">
@@ -550,7 +623,7 @@ function Login({ onError }: { onError: (s: string) => void }) {
               onChange={(e) => setTerms(e.target.checked)}
             />
             I agree to the{" "}
-            <a href={`${apiOrigin}/policies`} target="_blank" rel="noreferrer">
+            <a href={`${apiOrigin}/terms`} target="_blank" rel="noreferrer">
               Terms of Service
             </a>
             .
@@ -633,11 +706,13 @@ function Feed({
   saved = false,
   revision,
   active = true,
+  learning = false,
 }: {
   bootstrap: Bootstrap;
   saved?: boolean;
   revision: number;
   active?: boolean;
+  learning?: boolean;
 }) {
   const scroll = useRef(0);
   useEffect(() => {
@@ -701,6 +776,7 @@ function Feed({
               e.preventDefault();
               setPage(1);
               setSearch(query);
+              trackShopping("search", undefined, {}, { q: query, category, sort });
             }}
           >
             <input
@@ -754,21 +830,23 @@ function Feed({
           Some sources are temporarily unavailable. Showing available cached listings.
         </p>
       )}
+      {!saved && !search && !category && sort === "newest" && (
+        <ShoppingRows
+          learning={learning}
+          revision={revision}
+          onOpen={(id) => go(`/listings/${id}`)}
+        />
+      )}
       <div className="listing-grid">
-        {items.map((card) => (
-          <button className="listing-card" key={card.id} onClick={() => go(`/listings/${card.id}`)}>
-            {card.imageUrl ? (
-              <ListingPhoto url={card.imageUrl} />
-            ) : (
-              <div className="photo-missing">Photo unavailable</div>
-            )}
-            <div>
-              <strong>{money(card)}</strong>
-              <h2>{card.title}</h2>
-              <p>{[card.city, card.state].filter(Boolean).join(", ")}</p>
-              {card.source && <small>{card.source}</small>}
-            </div>
-          </button>
+        {items.map((card, position) => (
+          <ListingTile
+            key={card.id}
+            card={card}
+            position={position}
+            placement={saved ? "saved" : "browse"}
+            learning={learning && active}
+            onOpen={(id) => go(`/listings/${id}`)}
+          />
         ))}
       </div>
       {loading ? (
@@ -796,9 +874,13 @@ function ListingPhoto({ url, alt = "" }: { url: string; alt?: string }) {
 function Listing({
   id,
   session,
+  learning,
+  revision,
   onError,
 }: {
   id: string;
+  learning: boolean;
+  revision: number;
   session: Session | null;
   onError: (s: string) => void;
 }) {
@@ -835,6 +917,7 @@ function Listing({
       alive = false;
     };
   }, [session?.user.id, card?.id, card?.canSave, id, onError]);
+  useListingActivity(card?.id, learning);
   const act = async (work: () => Promise<unknown>) => {
     if (!session) {
       go("/account");
@@ -860,7 +943,9 @@ function Listing({
             ? [{ url: card.imageUrl, alt: card.title }]
             : []
         ).map((image, i) => (
-          <ListingPhoto key={`${image.url}-${i}`} url={image.url} alt={image.alt || card.title} />
+          <div key={`${image.url}-${i}`} onClick={() => trackShopping("photo", id, { photo: i })}>
+            <ListingPhoto url={image.url} alt={image.alt || card.title} />
+          </div>
         ))}
       </div>
       <div className="listing-price">{money(card)}</div>
@@ -879,6 +964,7 @@ function Listing({
               act(async () => {
                 await api("saved", "POST", { listingId: id, saved: !saved });
                 setSaved(!saved);
+                trackShopping(saved ? "unsave" : "save", id);
                 if (!saved) void trackAdvertising("listing_saved", card.categorySlug);
               })
             }
@@ -902,10 +988,20 @@ function Listing({
         <section className="stack">
           <h2>{card.seller.displayName}</h2>
           {card.seller.contactPhone && (
-            <a href={`tel:${card.seller.contactPhone.replace(/[^+0-9]/g, "")}`}>Call seller</a>
+            <a
+              onClick={() => trackShopping("contact_open", id, { method: "phone" })}
+              href={`tel:${card.seller.contactPhone.replace(/[^+0-9]/g, "")}`}
+            >
+              Call seller
+            </a>
           )}
           {card.seller.contactEmail && (
-            <a href={`mailto:${card.seller.contactEmail}`}>Email seller</a>
+            <a
+              onClick={() => trackShopping("contact_open", id, { method: "email" })}
+              href={`mailto:${card.seller.contactEmail}`}
+            >
+              Email seller
+            </a>
           )}
         </section>
       )}
@@ -919,6 +1015,7 @@ function Listing({
                 listingId: id,
                 body,
               });
+              trackShopping("contact", id, { method: "message" });
               void trackAdvertising("seller_contacted", card.categorySlug);
               go(`/messages/${result.conversationId}`);
             });
@@ -948,6 +1045,12 @@ function Listing({
       >
         Report listing
       </button>
+      <ShoppingRows
+        similarId={id}
+        learning={learning}
+        revision={revision}
+        onOpen={(next) => go(`/listings/${next}`)}
+      />
     </article>
   );
 }
