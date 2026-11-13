@@ -17,6 +17,11 @@ const config: CapacitorConfig = {
   // Production always packages local assets. Never use server.url/live reload in release builds.
   server: { androidScheme: "https" },
   ios: { contentInset: "automatic" },
-  plugins: { PushNotifications: { presentationOptions: ["badge", "sound", "banner", "list"] } },
+  plugins: {
+    // Use native insets plus the standard CSS env() values. This avoids a
+    // document-start CSS injection race on Android's initial blank page.
+    SystemBars: { insetsHandling: "native", initialViewportFitValueHint: "cover" },
+    PushNotifications: { presentationOptions: ["badge", "sound", "banner", "list"] },
+  },
 };
 export default config;
