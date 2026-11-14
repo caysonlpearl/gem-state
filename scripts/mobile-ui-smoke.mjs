@@ -68,9 +68,8 @@ try {
     await page.evaluate(() => window.scrollTo(0, 150));
     const previousScroll = await page.evaluate(() => window.scrollY);
     await page.locator(".listing-card").first().click();
-    await page
-      .getByRole("button", { name: "Save listing", exact: true })
-      .waitFor({ timeout: 60000 });
+    await page.waitForURL("**/#/listings/*");
+    await page.getByRole("main").getByRole("heading", { level: 1 }).waitFor({ timeout: 60000 });
     await page.screenshot({ path: resolve(output, `listing-${viewport.width}.png`) });
     await page.getByRole("button", { name: "Go back", exact: true }).click();
     await page.getByRole("heading", { name: "Cars & Trucks", exact: true }).waitFor();
@@ -128,6 +127,19 @@ try {
     ),
   );
   console.log(JSON.stringify({ results, javascriptErrors: errors }));
+} catch (error) {
+  const current = browser
+    .contexts()
+    .flatMap((context) => context.pages())
+    .at(-1);
+  if (current) {
+    await current.screenshot({ path: resolve(output, "failed-journey.png") });
+    await writeFile(
+      resolve(output, "failed-journey.txt"),
+      (await current.locator("body").innerText()) + "\n" + current.url(),
+    );
+  }
+  throw error;
 } finally {
   await browser.close();
 }
