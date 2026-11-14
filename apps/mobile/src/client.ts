@@ -17,6 +17,7 @@ export type Bootstrap = {
   categories: { slug: string; name: string; group: string }[];
   features: {
     accountControls?: boolean;
+    accountOverview?: boolean;
     fullSearch?: boolean;
     notificationCenter?: boolean;
     listingDetails?: boolean;

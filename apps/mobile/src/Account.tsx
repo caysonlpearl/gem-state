@@ -2,6 +2,7 @@ import { nativeListingDestination } from "./listing-links";
 import { rememberNativeAuthDestination } from "./auth-destination";
 import { NativeNotifications, useNativeNotifications } from "./Notifications";
 import { NativeSavedSearches } from "./SavedSearches";
+import { NativeAccountOverview } from "./AccountOverview";
 import { saveProfileAvatar } from "./account-media";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Capacitor } from "@capacitor/core";
@@ -36,7 +37,15 @@ type Loaded = {
 };
 const text = (e: unknown) =>
   e instanceof Error ? e.message : "Your account could not be updated. Please retry.";
-const sections = ["profile", "settings", "searches", "messages", "notifications"] as const;
+const sections = [
+  "overview",
+  "profile",
+  "settings",
+  "saved",
+  "searches",
+  "messages",
+  "notifications",
+] as const;
 export function NativeAccount({
   ownerId,
   section,
@@ -48,9 +57,10 @@ export function NativeAccount({
   signOutBusy = false,
   controlsReady,
   storefrontsReady = false,
+  overviewReady = false,
 }: {
   ownerId: string;
-  section: "profile" | "settings" | "searches" | "notifications";
+  section: "overview" | "profile" | "settings" | "searches" | "notifications";
   policyVersion: string;
   onNavigate: (path: string) => void;
   onSignOut: (scope?: "local" | "global") => Promise<void>;
@@ -59,6 +69,7 @@ export function NativeAccount({
   signOutBusy?: boolean;
   controlsReady: boolean;
   storefrontsReady?: boolean;
+  overviewReady?: boolean;
 }) {
   const inbox = useNativeNotifications();
   const actor = useMemo(() => ({ userId: ownerId, installId: installIdentifier() }), [ownerId]);
@@ -69,7 +80,7 @@ export function NativeAccount({
     [version, setVersion] = useState(0);
   const locked = useRef(false);
   useEffect(() => {
-    if (section === "notifications") return;
+    if (section === "notifications" || section === "overview") return;
     if (!controlsReady) {
       setError("Account controls are temporarily unavailable. Please retry shortly.");
       return;
@@ -223,7 +234,7 @@ export function NativeAccount({
     const dest =
       href === "/seller-setup"
         ? "/post/profile"
-        : storefrontsReady
+        : ["/browse", "/create-listing"].includes(href) || storefrontsReady
           ? nativeListingDestination(href)
           : null;
     return (
@@ -239,30 +250,28 @@ export function NativeAccount({
       </a>
     );
   }
+  const selectSection = (value: string) =>
+    onNavigate(
+      value === "messages"
+        ? "/messages"
+        : value === "saved"
+          ? "/saved"
+          : value === "overview"
+            ? "/account"
+            : `/account/${value}`,
+    );
   return (
     <AccountLayoutView
       as="section"
       section={section}
-      onSelect={(value) =>
-        onNavigate(
-          value === "messages"
-            ? "/messages"
-            : value === "notifications"
-              ? "/account/notifications"
-              : value === "settings"
-                ? "/account/settings"
-                : value === "searches"
-                  ? "/account/searches"
-                  : "/account/profile",
-        )
-      }
+      onSelect={selectSection}
       onSignOut={() => void onSignOut()}
-      availableSections={sections}
+      availableSections={sections.filter((value) => value !== "overview" || overviewReady)}
       unreadMessages={inbox.data?.unreadMessages ?? 0}
       unreadNotifications={inbox.data?.unread ?? 0}
       signOutBusy={Boolean(busy) || signOutBusy}
     >
-      {section !== "notifications" && error && (
+      {section !== "notifications" && section !== "overview" && error && (
         <div
           className="mb-5 rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm"
           role="alert"
@@ -289,12 +298,18 @@ export function NativeAccount({
           )}
         </div>
       )}
-      {section !== "notifications" && notice && (
+      {section !== "notifications" && section !== "overview" && notice && (
         <p className="mb-5 rounded-xl border border-border bg-card p-4 text-sm" role="status">
           {notice}
         </p>
       )}
-      {section === "notifications" ? (
+      {section === "overview" && overviewReady && controlsReady ? (
+        <NativeAccountOverview ownerId={ownerId} onSelect={selectSection} link={AccountLink} />
+      ) : section === "overview" ? (
+        <p role="alert" className="text-sm">
+          Account overview is temporarily unavailable. Please retry shortly.
+        </p>
+      ) : section === "notifications" ? (
         <NativeNotifications />
       ) : !data ? (
         !error && (

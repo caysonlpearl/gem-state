@@ -89,7 +89,7 @@ export function NativeNavigation({
         unreadMessages={notifications.data?.unreadMessages ?? 0}
         unreadNotifications={notifications.data?.unread ?? 0}
         destinations={{
-          account: "/account/profile",
+          account: "/account",
           selling: null,
           saved: "/saved",
           messages: "/messages",
