@@ -572,6 +572,14 @@ names, signed URLs or arbitrary metadata. Store fingerprints match the existing
 private erasure transport; neither a path prefix nor this inventory authorizes
 erasure.
 
+Claimed/transferred photos may reuse a physical key created under an older
+logical path. Tasks therefore pin the physical path hash separately from the
+logical reference and include canonical prefixes, receipt aliases and older
+task prefixes. Each known verified key is reconciled by its matching physical
+prefix task. Shared references stay intact; an alias is not an instruction to
+erase the other member's copy. The eventual ownership/removal adapter must
+resolve those shared keys explicitly before binding erasure.
+
 The transport copies configuration/targets, checks live authority before and
 after HTTP, uses no automatic retries, limits pages to 100 objects (default 50),
 bounds streamed XML to 1 MiB and applies a 15-second deadline. It rejects DTDs,

@@ -12,11 +12,19 @@ import {
 const load = loadPhotoModules();
 const { createAccountDeletionMediaInventory } = load("./account-deletion-media-inventory.server");
 const { createAccountDeletionR2Inventory } = load("./account-deletion-r2-inventory.server");
-const { photoObjectKey } = load("./r2-photo-storage.server");
+const { photoObjectKey, photoSha256 } = load("./r2-photo-storage.server");
 const signal = () => AbortSignal.timeout(15000);
 const unavailable = (e) =>
   e.code === "inventory_unavailable" && e.message === "inventory_unavailable" && !e.cause;
-async function setup({ response, after, pin = true, paths = 1, receipt = false } = {}) {
+async function setup({
+  response,
+  after,
+  pin = true,
+  paths = 1,
+  receipt = false,
+  aliasPath = null,
+  beforeDelete,
+} = {}) {
   const db = await r2InventoryDatabase(),
     user = randomUUID(),
     r2 = r2FixtureConfig(),
@@ -45,12 +53,13 @@ async function setup({ response, after, pin = true, paths = 1, receipt = false }
       "insert into photo_object_receipts(bucket,path,r2_key,sha256,byte_size,content_type,thumbnail_key,thumbnail_sha256,thumbnail_bytes,thumbnail_content_type) values('listing-media',$1,$2,$3,100,'image/jpeg',$4,$5,100,'image/webp')",
       [
         objects[0].key,
-        photoObjectKey(objects[0].key, "b".repeat(64)),
+        photoObjectKey(aliasPath ?? objects[0].key, "b".repeat(64)),
         "b".repeat(64),
-        photoObjectKey(objects[0].key, "c".repeat(64), true),
+        photoObjectKey(aliasPath ?? objects[0].key, "c".repeat(64), true),
         "c".repeat(64),
       ],
     );
+  await beforeDelete?.(db, objects, user);
   await db.query("select mobile_request_deletion($1)", [user]);
   await db.exec("update account_deletion_controls set worker_enabled=true");
   const job = (await db.query("select * from claim_account_deletion()")).rows[0];
@@ -220,6 +229,13 @@ test("owner-pinned store identities are mandatory and cannot be changed by membe
         f.db.exec("delete from account_deletion_r2_objects"),
         /permission denied/,
       );
+      await assert.rejects(
+        f.db.query("select * from account_deletion_r2_candidates($1,$2)", [
+          f.job.id,
+          f.job.user_id,
+        ]),
+        /permission denied/,
+      );
       await f.db.exec("reset role");
     }
     const p = createAccountDeletionR2Inventory(f.r2, async () => true);
@@ -335,6 +351,75 @@ test("R2 task preparation is bounded and later generations preserve older discov
     assert(
       (await f.db.query("select count(*)::int n from account_deletion_r2_objects")).rows[0].n > 0,
     );
+  } finally {
+    await f.db.close();
+  }
+});
+test("claimed-photo aliases discover their actual physical prefix while preserving another member's shared receipt", async () => {
+  const other = randomUUID(),
+    aliasPath = `${other}/old-claim-photo.jpg`,
+    prefixHash = photoSha256(aliasPath);
+  const f = await setup({
+    receipt: true,
+    aliasPath,
+    beforeDelete: async (db) => {
+      await db.query("insert into auth.users(id) values($1)", [other]);
+      await db.query(
+        "insert into photo_object_receipts(bucket,path,r2_key,sha256,byte_size,content_type,thumbnail_key,thumbnail_sha256,thumbnail_bytes,thumbnail_content_type) values('listing-media',$1,$2,$3,100,'image/jpeg',$4,$5,100,'image/webp')",
+        [
+          aliasPath,
+          photoObjectKey(aliasPath, "b".repeat(64)),
+          "b".repeat(64),
+          photoObjectKey(aliasPath, "c".repeat(64), true),
+          "c".repeat(64),
+        ],
+      );
+    },
+    response: (url) => {
+      const prefix = url.searchParams.get("prefix");
+      const hashes = prefix.includes(prefixHash)
+        ? prefix.startsWith("original")
+          ? ["a".repeat(64), "b".repeat(64)]
+          : ["c".repeat(64)]
+        : [];
+      return r2XmlResponse(r2ListXml(url, hashes));
+    },
+  });
+  try {
+    await untilR2(f);
+    let complete = false;
+    for (let i = 0; i < 10; i++) {
+      const p = await f.inventory.step(f.job, signal());
+      if (p.stage === "r2_hash_copies" && p.passDone) {
+        complete = true;
+        break;
+      }
+    }
+    assert.equal(complete, true);
+    const tasks = (await f.db.query("select path,path_hash from account_deletion_r2_scans")).rows;
+    assert.equal(tasks.length, 4);
+    assert(tasks.some((t) => t.path === f.objects[0].key && t.path_hash === prefixHash));
+    const copies = (await f.db.query("select key from account_deletion_r2_objects")).rows;
+    assert.equal(copies.length, 3);
+    assert(copies.every((o) => o.key.includes(prefixHash)));
+    assert.equal(
+      (
+        await f.db.query("select count(*)::int n from photo_object_receipts where path=$1", [
+          aliasPath,
+        ])
+      ).rows[0].n,
+      1,
+    );
+    assert.equal(
+      (await f.db.query("select count(*)::int n from auth.users where id=$1", [other])).rows[0].n,
+      1,
+    );
+    const exported = (
+      await f.db.query(
+        "select snapshot from account_deletion_media_observations where source='r2_storage_provider'",
+      )
+    ).rows;
+    assert(exported.every((o) => o.snapshot.reference.path === f.objects[0].key));
   } finally {
     await f.db.close();
   }

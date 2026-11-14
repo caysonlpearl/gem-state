@@ -33,6 +33,7 @@ function fixture({ authorize = async () => true, response, config = r2FixtureCon
   const target = {
     bucket: "listing-media",
     path: "fixture-member/photo.jpg",
+    pathHash: photoSha256("fixture-member/photo.jpg"),
     variant: "original",
     storeFingerprint: provider.fingerprint("listing-media"),
   };
@@ -140,12 +141,14 @@ test("R2 discovery pins copied configuration and literal path hashes even if the
       f.config.accountId = "f".repeat(32);
       f.config.buckets["listing-media"] = "other-bucket";
       f.target.path = "different/path";
+      f.target.pathHash = "f".repeat(64);
       f.target.variant = "thumbnail";
       return true;
     },
   });
   const originalPath = "fixture/%?literal#name\\.jpg";
   f.target.path = originalPath;
+  f.target.pathHash = photoSha256(originalPath);
   await f.provider.scan(f.target, signal());
   const url = new URL(f.requests[0].url);
   assert.equal(url.hostname, `${"a".repeat(32)}.r2.cloudflarestorage.com`);
@@ -156,6 +159,7 @@ test("R2 discovery pins copied configuration and literal path hashes even if the
     { bucket: "profile-avatars" },
     { bucket: "ask-evidence", variant: "thumbnail" },
     { path: "" },
+    { pathHash: "invalid" },
   ]) {
     const denied = fixture();
     await assert.rejects(

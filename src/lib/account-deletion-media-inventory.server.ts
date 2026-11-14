@@ -89,7 +89,7 @@ export function createAccountDeletionMediaInventory(
         const row = prepared["target"];
         if (
           !object(row) ||
-          Object.keys(row).length !== 8 ||
+          Object.keys(row).length !== 9 ||
           prepared["pass_done"] !== false ||
           typeof row["id"] !== "string" ||
           !uuid.test(row["id"]) ||
@@ -99,6 +99,7 @@ export function createAccountDeletionMediaInventory(
           (row["page"] as number) < 0 ||
           typeof row["bucket"] !== "string" ||
           typeof row["path"] !== "string" ||
+          typeof row["path_hash"] !== "string" ||
           (row["variant"] !== "original" && row["variant"] !== "thumbnail") ||
           typeof row["store_fingerprint"] !== "string" ||
           (row["cursor"] !== null && typeof row["cursor"] !== "string")
@@ -110,6 +111,7 @@ export function createAccountDeletionMediaInventory(
           page: row["page"] as number,
           bucket: row["bucket"] as PhotoBucket,
           path: row["path"],
+          pathHash: row["path_hash"],
           variant: row["variant"],
           storeFingerprint: row["store_fingerprint"],
           cursor: row["cursor"] as string | null,
@@ -122,6 +124,7 @@ export function createAccountDeletionMediaInventory(
             if (
               target.bucket !== task.bucket ||
               target.path !== task.path ||
+              target.pathHash !== task.pathHash ||
               target.variant !== task.variant ||
               target.storeFingerprint !== task.storeFingerprint ||
               (await rpc("account_deletion_r2_task_current", context, deadline)) !== true

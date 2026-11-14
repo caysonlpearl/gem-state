@@ -8,6 +8,7 @@ import { photoBucket, type PhotoBucket } from "./photo-storage";
 export type DeletionR2Target = Readonly<{
   bucket: PhotoBucket;
   path: string;
+  pathHash: string;
   variant: "original" | "thumbnail";
   storeFingerprint: string;
 }>;
@@ -27,7 +28,8 @@ const cursorValid = (value: unknown): value is string =>
   Buffer.byteLength(value) <= 4096 &&
   !/[\u0000-\u001f\u007f]/.test(value);
 
-/** Lists every current content-hash copy under one logical photo's prefix.
+/** Lists current content-hash copies under an authorized physical prefix,
+ * preserving the separate logical reference for claimed/shared photo aliases.
  * Discovery is read-only and does not establish ownership, complete multipart
  * inventory, historical provider versions or authority to erase anything. */
 export function createAccountDeletionR2Inventory(
@@ -87,6 +89,7 @@ export function createAccountDeletionR2Inventory(
         const target = Object.freeze({
           bucket: photoBucket(suppliedTarget.bucket),
           path: suppliedTarget.path,
+          pathHash: suppliedTarget.pathHash,
           variant: suppliedTarget.variant,
           storeFingerprint: suppliedTarget.storeFingerprint,
         });
@@ -95,6 +98,8 @@ export function createAccountDeletionR2Inventory(
           !target.path ||
           Buffer.byteLength(target.path) > 1024 ||
           target.path.includes("\u0000") ||
+          typeof target.pathHash !== "string" ||
+          !/^[a-f0-9]{64}$/.test(target.pathHash) ||
           !["original", "thumbnail"].includes(target.variant) ||
           (target.variant === "thumbnail" && target.bucket !== "listing-media") ||
           target.storeFingerprint !== fingerprint(target.bucket) ||
@@ -104,7 +109,7 @@ export function createAccountDeletionR2Inventory(
           (cursor !== null && !cursorValid(cursor))
         )
           throw failed();
-        const prefix = `${target.variant}/v1/${photoSha256(target.path)}/`;
+        const prefix = `${target.variant}/v1/${target.pathHash}/`;
         const signal = AbortSignal.any([parent, AbortSignal.timeout(15000)]);
         const authorized = async () => {
           signal.throwIfAborted();

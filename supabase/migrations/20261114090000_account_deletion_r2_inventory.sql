@@ -19,13 +19,14 @@ CREATE TABLE public.account_deletion_r2_scans (
  generation integer NOT NULL CHECK(generation>0),
  bucket text NOT NULL REFERENCES public.account_deletion_r2_stores(bucket),
  path text NOT NULL CHECK(octet_length(path) BETWEEN 1 AND 1024),
+ path_hash text NOT NULL CHECK(path_hash ~ '^[a-f0-9]{64}$'),
  variant text NOT NULL CHECK(variant IN ('original','thumbnail') AND (variant='original' OR bucket='listing-media')),
  store_fingerprint text NOT NULL CHECK(store_fingerprint ~ '^[a-f0-9]{64}$'),
  page_number integer NOT NULL DEFAULT 0 CHECK(page_number>=0),
  cursor text CHECK(cursor IS NULL OR (octet_length(cursor) BETWEEN 1 AND 4096 AND cursor !~ '[[:cntrl:]]')),
  last_key text NOT NULL DEFAULT '',
  done boolean NOT NULL DEFAULT false,
- UNIQUE(job_id,generation,bucket,path,variant)
+ UNIQUE(job_id,generation,bucket,path,variant,path_hash)
 );
 CREATE TABLE public.account_deletion_r2_pages (
  scan_id uuid NOT NULL REFERENCES public.account_deletion_r2_scans(id),
@@ -55,6 +56,36 @@ REVOKE ALL ON public.account_deletion_r2_stores,public.account_deletion_r2_scans
 GRANT SELECT ON public.account_deletion_r2_stores,public.account_deletion_r2_scans,
  public.account_deletion_r2_pages,public.account_deletion_r2_objects TO service_role;
 
+-- A transferred receipt can alias an older path's physical key. Keep the
+-- logical reference and the physical prefix separate; neither proves ownership.
+CREATE FUNCTION public.account_deletion_r2_candidates(_id uuid,_user uuid)
+RETURNS TABLE(bucket text,path text,variant text,path_hash text)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path='' AS $$
+ WITH refs AS (
+  SELECT o.snapshot->'reference'->>'bucket' bucket,o.snapshot->'reference'->>'path' path
+   FROM public.account_deletion_media_observations o
+   WHERE o.job_id=_id AND o.snapshot->'reference'->>'state'='resolved'
+  UNION SELECT s.bucket,s.path FROM public.account_deletion_storage_scans s WHERE s.job_id=_id
+  UNION SELECT r.bucket,r.path FROM public.photo_object_receipts r WHERE split_part(r.path,'/',1)=_user::text
+   OR public.account_deletion_inventory_linked(_id,r.bucket,r.path)
+ ), candidates AS (
+  SELECT r.bucket,r.path,v.variant,encode(sha256(convert_to(r.path,'UTF8')),'hex') path_hash
+   FROM refs r CROSS JOIN (VALUES('original'),('thumbnail')) v(variant)
+  UNION SELECT o.snapshot->'reference'->>'bucket',o.snapshot->'reference'->>'path',v.variant,
+   split_part(o.snapshot->v.variant->>'key','/',3) FROM public.account_deletion_media_observations o
+   CROSS JOIN (VALUES('original'),('thumbnail')) v(variant)
+   WHERE o.job_id=_id AND o.snapshot->'reference'->>'state'='resolved'
+    AND o.snapshot->v.variant->>'key' ~ ('^'||v.variant||'/v1/[a-f0-9]{64}/[a-f0-9]{64}$')
+  UNION SELECT r.bucket,r.path,v.variant,split_part(v.key,'/',3) FROM public.photo_object_receipts r
+   CROSS JOIN LATERAL (VALUES('original',r.r2_key),('thumbnail',r.thumbnail_key)) v(variant,key)
+   WHERE (split_part(r.path,'/',1)=_user::text OR public.account_deletion_inventory_linked(_id,r.bucket,r.path))
+    AND v.key ~ ('^'||v.variant||'/v1/[a-f0-9]{64}/[a-f0-9]{64}$')
+  UNION SELECT s.bucket,s.path,s.variant,s.path_hash FROM public.account_deletion_r2_scans s WHERE s.job_id=_id
+ ) SELECT DISTINCT c.bucket,c.path,c.variant,c.path_hash FROM candidates c
+ JOIN public.account_deletion_r2_stores p USING(bucket)
+ WHERE c.path IS NOT NULL AND (c.variant='original' OR c.bucket='listing-media');
+$$;
+
 CREATE FUNCTION public.prepare_account_deletion_r2_inventory(_id uuid,_user uuid,_lease uuid)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path='' AS $$
 DECLARE scan_generation integer; prepared integer; target public.account_deletion_r2_scans; missing boolean;
@@ -64,40 +95,24 @@ BEGIN
   SELECT 1 FROM public.account_deletion_r2_scans s JOIN public.account_deletion_r2_stores p USING(bucket)
   WHERE s.job_id=_id AND s.store_fingerprint<>p.store_fingerprint)
  THEN RAISE EXCEPTION 'Deletion inventory unavailable'; END IF;
- INSERT INTO public.account_deletion_r2_scans(job_id,generation,bucket,path,variant,store_fingerprint)
- SELECT _id,scan_generation,v.bucket,v.path,variants.variant,p.store_fingerprint FROM (
-  SELECT o.snapshot->'reference'->>'bucket' bucket,o.snapshot->'reference'->>'path' path
-  FROM public.account_deletion_media_observations o
-  WHERE o.job_id=_id AND o.snapshot->'reference'->>'state'='resolved'
-  UNION SELECT s.bucket,s.path FROM public.account_deletion_storage_scans s WHERE s.job_id=_id
-  UNION SELECT r.bucket,r.path FROM public.photo_object_receipts r WHERE split_part(r.path,'/',1)=_user::text
-   OR public.account_deletion_inventory_linked(_id,r.bucket,r.path)
- ) v JOIN public.account_deletion_r2_stores p USING(bucket)
- CROSS JOIN (VALUES('original'),('thumbnail')) variants(variant)
- WHERE (variants.variant='original' OR v.bucket='listing-media') AND NOT EXISTS(
+ INSERT INTO public.account_deletion_r2_scans(job_id,generation,bucket,path,variant,path_hash,store_fingerprint)
+ SELECT _id,scan_generation,v.bucket,v.path,v.variant,v.path_hash,p.store_fingerprint
+ FROM public.account_deletion_r2_candidates(_id,_user) v JOIN public.account_deletion_r2_stores p USING(bucket)
+ WHERE NOT EXISTS(
   SELECT 1 FROM public.account_deletion_r2_scans s WHERE s.job_id=_id AND s.generation=scan_generation
-   AND s.bucket=v.bucket AND s.path=v.path AND s.variant=variants.variant)
- ORDER BY v.bucket COLLATE "C",v.path COLLATE "C",variants.variant COLLATE "C" LIMIT 50 ON CONFLICT DO NOTHING;
+   AND s.bucket=v.bucket AND s.path=v.path AND s.variant=v.variant AND s.path_hash=v.path_hash)
+ ORDER BY v.bucket COLLATE "C",v.path COLLATE "C",v.variant COLLATE "C",v.path_hash COLLATE "C" LIMIT 50 ON CONFLICT DO NOTHING;
  GET DIAGNOSTICS prepared=ROW_COUNT;
  SELECT * INTO target FROM public.account_deletion_r2_scans s WHERE s.job_id=_id AND s.generation=scan_generation AND NOT s.done
- ORDER BY s.bucket COLLATE "C",s.path COLLATE "C",s.variant COLLATE "C" LIMIT 1;
- SELECT EXISTS(SELECT 1 FROM (
-  SELECT o.snapshot->'reference'->>'bucket' bucket,o.snapshot->'reference'->>'path' path
-  FROM public.account_deletion_media_observations o
-  WHERE o.job_id=_id AND o.snapshot->'reference'->>'state'='resolved'
-  UNION SELECT s.bucket,s.path FROM public.account_deletion_storage_scans s WHERE s.job_id=_id
-  UNION SELECT r.bucket,r.path FROM public.photo_object_receipts r WHERE split_part(r.path,'/',1)=_user::text
-   OR public.account_deletion_inventory_linked(_id,r.bucket,r.path)
- ) v JOIN public.account_deletion_r2_stores p USING(bucket)
- CROSS JOIN (VALUES('original'),('thumbnail')) variants(variant)
- WHERE (variants.variant='original' OR v.bucket='listing-media') AND NOT EXISTS(
+ ORDER BY s.bucket COLLATE "C",s.path COLLATE "C",s.variant COLLATE "C",s.path_hash COLLATE "C" LIMIT 1;
+ SELECT EXISTS(SELECT 1 FROM public.account_deletion_r2_candidates(_id,_user) v WHERE NOT EXISTS(
   SELECT 1 FROM public.account_deletion_r2_scans s WHERE s.job_id=_id AND s.generation=scan_generation
-   AND s.bucket=v.bucket AND s.path=v.path AND s.variant=variants.variant)) INTO missing;
+   AND s.bucket=v.bucket AND s.path=v.path AND s.variant=v.variant AND s.path_hash=v.path_hash)) INTO missing;
  IF NOT public.account_deletion_lease_current(_id,_user,_lease,'inventory')
  THEN RAISE EXCEPTION 'Deletion inventory unavailable'; END IF;
  RETURN jsonb_build_object('prepared',prepared,'pass_done',target.id IS NULL AND NOT missing,
   'target',CASE WHEN target.id IS NULL THEN NULL ELSE jsonb_build_object('id',target.id,'generation',target.generation,
-   'bucket',target.bucket,'path',target.path,'variant',target.variant,'store_fingerprint',target.store_fingerprint,
+   'bucket',target.bucket,'path',target.path,'variant',target.variant,'path_hash',target.path_hash,'store_fingerprint',target.store_fingerprint,
    'page',target.page_number,'cursor',target.cursor) END);
 END $$;
 
@@ -143,7 +158,7 @@ BEGIN
   IF EXISTS(SELECT 1 FROM public.account_deletion_r2_pages WHERE scan_id=_task AND next_cursor_sha256=next_hash)
   THEN RAISE EXCEPTION 'Deletion inventory unavailable'; END IF;
  END IF;
- prefix:=scan.variant||'/v1/'||encode(sha256(convert_to(scan.path,'UTF8')),'hex')||'/';
+ prefix:=scan.variant||'/v1/'||scan.path_hash||'/';
  observed_last_key:=scan.last_key;
  FOR item IN SELECT value FROM jsonb_array_elements(_objects) LOOP
   IF jsonb_typeof(item)<>'object' OR (SELECT count(*) FROM jsonb_object_keys(item))<>5
@@ -175,7 +190,7 @@ BEGIN
     AND o.snapshot->'reference'->>'bucket'=scan.bucket AND o.snapshot->'reference'->>'path'=scan.path
   UNION SELECT CASE WHEN scan.variant='original' THEN r.r2_key ELSE r.thumbnail_key END
    FROM public.photo_object_receipts r WHERE r.bucket=scan.bucket AND r.path=scan.path
- ) expected WHERE expected.key IS NOT NULL AND NOT EXISTS(
+ ) expected WHERE left(expected.key,length(prefix))=prefix AND NOT EXISTS(
   SELECT 1 FROM public.account_deletion_r2_objects found WHERE found.scan_id=_task AND found.key=expected.key))
  THEN RAISE EXCEPTION 'Deletion inventory unavailable'; END IF;
  INSERT INTO public.account_deletion_r2_pages(scan_id,page_number,request_sha256,next_cursor_sha256,object_count)
@@ -186,7 +201,7 @@ BEGIN
  THEN RAISE EXCEPTION 'Deletion inventory unavailable'; END IF;
  RETURN true;
 END $$;
-REVOKE ALL ON FUNCTION public.prepare_account_deletion_r2_inventory(uuid,uuid,uuid),
+REVOKE ALL ON FUNCTION public.account_deletion_r2_candidates(uuid,uuid),public.prepare_account_deletion_r2_inventory(uuid,uuid,uuid),
  public.account_deletion_r2_task_current(uuid,uuid,uuid,uuid,integer,integer),
  public.commit_account_deletion_r2_page(uuid,uuid,uuid,uuid,integer,integer,text,jsonb,text,boolean)
  FROM PUBLIC,anon,authenticated,service_role;
