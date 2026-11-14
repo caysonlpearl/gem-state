@@ -1,3 +1,4 @@
+import { requestScope } from "./request-scope";
 import { createPhotoUploader } from "../../../src/lib/photo-upload";
 import { browserPhotoThumbnail } from "../../../src/lib/photo-thumbnail.browser";
 import { api, auth } from "./client";
@@ -40,16 +41,21 @@ export async function uploadPhoto(file: File, userId: string, evidence = true) {
         .join(""),
     put: async (url, headers, body) => {
       await guard();
-      const response = await fetch(url, {
-        method: "PUT",
-        headers,
-        body,
-        credentials: "omit",
-        referrerPolicy: "no-referrer",
-        signal: AbortSignal.timeout(60000),
-      });
-      if (!response.ok && response.status !== 412)
-        throw Error("Photo upload failed. Please retry.");
+      const scope = requestScope(60000);
+      try {
+        const response = await fetch(url, {
+          method: "PUT",
+          headers,
+          body,
+          credentials: "omit",
+          referrerPolicy: "no-referrer",
+          signal: scope.signal,
+        });
+        if (!response.ok && response.status !== 412)
+          throw Error("Photo upload failed. Please retry.");
+      } finally {
+        scope.dispose();
+      }
     },
   });
   return upload(file, userId, evidence);

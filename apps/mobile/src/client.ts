@@ -1,3 +1,4 @@
+import { requestScope } from "./request-scope";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { Capacitor } from "@capacitor/core";
 import { Browser } from "@capacitor/browser";
@@ -63,35 +64,48 @@ export async function api<T>(
   const shopping = /^(shopping(?:[/?]|$)|recommendations(?:[?]|$)|similar(?:[?]|$)|activity$)/.test(
     path,
   );
-  const response = await fetch(`${apiOrigin}/api/mobile/v1/${path}`, {
-    method,
-    headers: {
-      ...(requestId ? { "Idempotency-Key": requestId } : {}),
-      ...(shopping
-        ? { "X-Bluebird-Install": expectedActor?.installId ?? installIdentifier() }
-        : {}),
-      ...(data === undefined ? {} : { "Content-Type": "application/json" }),
-      ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}),
-    },
-    ...(data === undefined ? {} : { body: JSON.stringify(data) }),
-    signal: signal ?? AbortSignal.timeout(20000),
-  });
-  const payload = await response.json().catch(() => null);
-  if (expectedActor) {
-    const current = (await auth.auth.getSession()).data.session;
-    if (
-      (current?.user.id ?? null) !== expectedActor.userId ||
-      installIdentifier() !== expectedActor.installId
-    )
-      throw new ApiError("account_changed", "Your account changed. Please try again.", 409);
+  const scope = requestScope(20000, signal);
+  try {
+    if (scope.signal.aborted) throw scope.signal.reason;
+    const response = await fetch(`${apiOrigin}/api/mobile/v1/${path}`, {
+      method,
+      headers: {
+        ...(requestId ? { "Idempotency-Key": requestId } : {}),
+        ...(shopping
+          ? { "X-Bluebird-Install": expectedActor?.installId ?? installIdentifier() }
+          : {}),
+        ...(data === undefined ? {} : { "Content-Type": "application/json" }),
+        ...(session ? { Authorization: `Bearer ${session.access_token}` } : {}),
+      },
+      ...(data === undefined ? {} : { body: JSON.stringify(data) }),
+      signal: scope.signal,
+    });
+    const payload = await response.json().catch(() => null);
+    if (scope.signal.aborted) throw scope.signal.reason;
+    if (expectedActor) {
+      const current = (await auth.auth.getSession()).data.session;
+      if (
+        (current?.user.id ?? null) !== expectedActor.userId ||
+        installIdentifier() !== expectedActor.installId
+      )
+        throw new ApiError("account_changed", "Your account changed. Please try again.", 409);
+    }
+    if (!response.ok)
+      throw new ApiError(
+        payload?.error?.code ?? "unavailable",
+        payload?.error?.message ?? "Bluebird could not complete this request. Try again.",
+        response.status,
+      );
+    if (!payload || typeof payload !== "object")
+      throw new ApiError(
+        "invalid_response",
+        "Bluebird returned an incomplete response. Please retry.",
+        503,
+      );
+    return payload.data as T;
+  } finally {
+    scope.dispose();
   }
-  if (!response.ok)
-    throw new ApiError(
-      payload?.error?.code ?? "unavailable",
-      payload?.error?.message ?? "Bluebird could not complete this request. Try again.",
-      response.status,
-    );
-  return payload.data as T;
 }
 export async function initialize(): Promise<Bootstrap> {
   const b = await api<Bootstrap & { supabaseUrl: string; supabaseKey: string }>("bootstrap");

@@ -23,7 +23,7 @@ export function NativeAccountReviews({
     [sharing, setSharing] = useState(false);
   useEffect(() => {
     const controller = new AbortController();
-    const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(20000)]);
+    const signal = controller.signal;
     setLoaded(null);
     setError("");
     api<MobileAccountReviews>("account/reviews", "GET", undefined, signal, actor)
@@ -35,11 +35,7 @@ export function NativeAccountReviews({
       .catch((e) => {
         if (!controller.signal.aborted && installIdentifier() === actor.installId)
           setError(
-            signal.aborted
-              ? "Your reviews could not be loaded. Please retry."
-              : e instanceof Error
-                ? e.message
-                : "Your reviews could not be loaded. Please retry.",
+            e instanceof Error ? e.message : "Your reviews could not be loaded. Please retry.",
           );
       });
     return () => controller.abort();

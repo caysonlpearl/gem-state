@@ -38,6 +38,10 @@ jobs:
         run: npm run build:mobile
       - name: Install mobile browser test runtime
         run: npm --prefix apps/mobile exec -- playwright install chromium
+      - name: Verify bundled startup and outdated-runtime recovery
+        run: npm run test:mobile:runtime:ui
+        env:
+          BLUEBIRD_SKIP_RUNTIME_SCREENSHOTS: "true"
       - name: Verify native shopper privacy and recommendation screens
         run: npm run test:mobile:shopping:ui
       - name: Verify shared website navigation and native authentication screens
@@ -48,6 +52,8 @@ jobs:
         run: npm run test:mobile:posting:ui
       - name: Verify shared account controls and account-scoped security actions
         run: npm run test:mobile:account:ui
+        env:
+          BLUEBIRD_RUNTIME_COMPAT_MODE: "true"
       - name: Verify shared browse filters and durable saved-search recovery
         run: npm run test:mobile:browse:ui
       - name: Verify shared notification screens and app-scoped unread state
