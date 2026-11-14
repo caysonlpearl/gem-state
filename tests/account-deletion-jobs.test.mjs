@@ -232,6 +232,7 @@ test("worker executes only its leased phase and retries without exposing private
   const queue = {
     claim: async () => job,
     assertBoundaries: async () => {},
+    isCurrent: async () => true,
     advance: async () => {
       checkpoints++;
       return true;
@@ -308,6 +309,7 @@ test("missing cleanup adapters and malformed results cannot advance, and short l
   const queue = {
     claim: async () => job,
     assertBoundaries: async () => {},
+    isCurrent: async () => true,
     advance: async () => {
       writes++;
       return true;
