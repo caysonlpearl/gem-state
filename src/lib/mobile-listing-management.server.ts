@@ -126,6 +126,24 @@ export async function commitOwnedMobileListing(
           "listing_changed",
           "This listing changed. Reload it before making another change.",
         );
+      if (r.error.code === "P0001" && r.error.message === "Listing unavailable")
+        throw new MobileApiError(
+          404,
+          "listing_unavailable",
+          "This listing is no longer available.",
+        );
+      if (
+        r.error.code === "P0001" &&
+        [
+          "Only open listings can be edited",
+          "Only removed or expired listings can be relisted",
+        ].includes(r.error.message)
+      )
+        throw new MobileApiError(
+          409,
+          "listing_state_changed",
+          "This listing's status changed. Reload your listings before trying again.",
+        );
       throw unavailable();
     }
     const d = r.data;

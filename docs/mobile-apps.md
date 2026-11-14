@@ -818,12 +818,13 @@ mechanical design check reported no findings. These are synthetic source/browser
 checks; physical iPhone/Android journeys and actual OS share sheets remain separate
 release gates. Publication and native installation require their own evidence.
 
-## Listing management transaction foundation — November 14, 2026
+## Native Listings workspace and transactions — November 14, 2026
 
-The native Listings workspace still needs its shared website presenter, owned
-listing read, editor/duplicate integration and account-scoped retry UI. This
-batch prepares the write foundation first; no Listings capability or API route
-is activated and no production migration or mutation has run.
+The draft native Listings workspace reuses the website presenter and listing
+model, with owned listing reads, edit/duplicate forms and account-scoped retries.
+Stable API routes are source-complete behind a separate versioned management
+capability. No production migration, publication or real seller mutation has run.
+The new native code is not in the build currently installed on the owner phone.
 
 Migration `20261114150000_mobile_listing_management.sql` adds private owned
 editor snapshots and one atomic edit/archive/relist operation. An exact request
@@ -856,15 +857,50 @@ budgets. The SQL requests statement limits and a one-second lock-wait timeout;
 verify the effective PostgREST/database timeouts in the deployment preflight.
 A timeout remains uncertain: the app must retain the same original request and
 payload. A stale snapshot receives a reload conflict, and private database/provider
-diagnostics are never exposed. These adapters are not a raw-row public endpoint;
-the eventual editor route must project domain fields and sign owned media.
+diagnostics are never exposed. The editor API projects the shared domain editor from a single versioned
+snapshot and signs scoped media; raw snapshots and storage paths stay private.
+Version-only reads do not sign images. Visible rows request one thumbnail each,
+separately from the metadata read. Existing storage signing still needs its
+effective transport timeout checked during production preflight.
 
 Before activation: regain owning-database access; inspect current domain function
 signatures, definitions, privileges, triggers, indexes and capacity; rehearse the
 additive migration and account-boundary checks against that actual schema; apply
-and verify source/capability agreement; connect and test the shared workspace,
-owned listing/editor reads, duplicate/new-photo behavior, durable retry UI and
-listing actions; then complete authenticated iPhone/Android journeys. The fixtures
+and verify source/capability agreement; then complete authenticated production
+and physical iPhone/Android journeys. Source/browser validation is described below. The fixtures
 execute real transaction/access-boundary SQL with synthetic domain stand-ins.
 They prove rollback, receipt/ownership/session behavior and concurrency, not the
-uninspected production domain definitions or a complete working seller workspace.
+uninspected production domain definitions or a live seller workspace.
+
+The metadata read uses the verified member client, stable 500-row pages, exact
+counts and a 5,000-row safety bound; incomplete/capped results are unavailable.
+It avoids reservation writes, bulk photo signing, buyer content and billing reads.
+Views/impressions, leads and offer counts are optional and explicitly unavailable
+when their scoped reads fail, rather than displaying a false zero. Restricted,
+unknown, demo and foreign-owned inventory never reaches the presenter.
+
+The native menu opens above its row to stay clear of the floating navigation.
+Paid promotion/billing links and the website import module are excluded. The
+website keeps its original presenter behavior, paid links and import panel;
+pre-extraction empty/no-seller/populated markup and the original model mapping
+were compared separately. Class order/whitespace is the only website markup
+normalization. The shared vehicle SQL compatibility mapping is reused by both
+website and mobile edits.
+
+Edit drafts keep their original content version. A stale response preserves the
+form and offers an explicit confirmed reload; it never silently rebases an old
+draft onto newer data. Uncertain writes retain their exact request ID, payload
+and uploaded paths through reload. Retrying from the Listings screen can confirm
+an edit even when its editor can no longer load. An original receipt is never
+used to patch current UI status; successful actions reload authoritative metadata.
+Fresh policy rejections can unlock correction, while uncertain prior attempts
+remain pending until confirmed or an explicit post-receipt conflict proves no
+commit. Duplicate copies fields and requires new photos/rights, using the existing
+durable creation flow. Editing without new files retains existing photos.
+
+`test:mobile:listings:ui` covers the full workspace, archive/relist, committed
+response-loss retries, edit draft recovery, stale edits, duplication with new
+photos, unavailable metrics, owner mismatch and delayed account switches at
+320/390/1280 pixels. It also checks no paid/import actions, no horizontal overflow,
+failed reads, independent feature readiness and exclusion of private activity.
+These use synthetic browser accounts; real devices and production remain gates.

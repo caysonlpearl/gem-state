@@ -49,6 +49,7 @@ import { NativeHeader } from "./Header";
 import { NativeNavigation } from "./Navigation";
 import { SavedCardsProvider } from "./SavedCards";
 import { Post } from "./Post";
+import { NativeManageListing } from "./ManageListing";
 import { NativeAuth } from "./Auth";
 import { type MobileTabLinkProps } from "../../../src/components/layout/MobileTabBarView";
 import { useListingActivity, setShoppingForeground } from "./shopping-activity";
@@ -584,6 +585,16 @@ function Application() {
                     onError={setError}
                   />
                 )
+              ) : /^\/post\/(edit|duplicate)\/[0-9a-f-]{36}$/i.test(path) ? (
+                <NativeManageListing
+                  key={`${session!.user.id}:${path}`}
+                  ownerId={session!.user.id}
+                  listingId={path.split("/")[3]}
+                  mode={path.split("/")[2] as "edit" | "duplicate"}
+                  bootstrap={bootstrap}
+                  onNavigate={go}
+                  onChanged={() => setRevision((v) => v + 1)}
+                />
               ) : path === "/post" || path === "/post/profile" ? (
                 <Post
                   key={`${session!.user.id}:${path}`}
@@ -610,24 +621,28 @@ function Application() {
                   overviewReady={bootstrap.features.accountOverview === true}
                   savedReady={bootstrap.features.accountSaved === true}
                   reviewsReady={bootstrap.features.accountReviews === true}
+                  listingsReady={bootstrap.features.accountListings === true}
+                  managementReady={bootstrap.features.listingManagement === true}
                   key={session!.user.id}
                   ownerId={session!.user.id}
                   section={
                     ["/saved", "/account/saved"].includes(path) &&
                     bootstrap.features.accountSaved === true
                       ? "saved"
-                      : path === "/account/reviews"
-                        ? "reviews"
-                        : path === "/account/settings"
-                          ? "settings"
-                          : path === "/account/notifications"
-                            ? "notifications"
-                            : path === "/account/searches"
-                              ? "searches"
-                              : ["/account", "/account/overview"].includes(path) &&
-                                  bootstrap.features.accountOverview === true
-                                ? "overview"
-                                : "profile"
+                      : path === "/account/listings"
+                        ? "listings"
+                        : path === "/account/reviews"
+                          ? "reviews"
+                          : path === "/account/settings"
+                            ? "settings"
+                            : path === "/account/notifications"
+                              ? "notifications"
+                              : path === "/account/searches"
+                                ? "searches"
+                                : ["/account", "/account/overview"].includes(path) &&
+                                    bootstrap.features.accountOverview === true
+                                  ? "overview"
+                                  : "profile"
                   }
                   policyVersion={bootstrap.policyVersion}
                   onNavigate={go}

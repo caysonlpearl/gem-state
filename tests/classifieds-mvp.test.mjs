@@ -5,6 +5,7 @@ import { readFile } from "node:fs/promises";
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
+const listingRpcSource = await read("src/lib/classified-listing-rpc.ts");
 const configSource = await read("src/config/classifieds.ts");
 const petsConfigSource = await read("src/config/pets.ts");
 const itemFieldsConfigSource = await read("src/config/classified-item-fields.ts");
@@ -901,8 +902,8 @@ test("step five seed fixtures cover realistic Idaho vehicle browse cases", () =>
 
 test("step five preserves vehicle filters and keeps seeded records safe to review", () => {
   assert.match(classifiedsFunctionsSource, /vehicleForRpc/);
-  assert.match(classifiedsFunctionsSource, /body_style: vehicle\.bodyStyle/);
-  assert.match(classifiedsFunctionsSource, /title_status: vehicle\.titleStatus/);
+  assert.match(listingRpcSource, /body_style: vehicle\.bodyStyle/);
+  assert.match(listingRpcSource, /title_status: vehicle\.titleStatus/);
   assert.match(classifiedsFunctionsSource, /_vehicle: vehicleForRpc\(data\.vehicle\)/);
   assert.match(seedRunnerSource, /--apply/);
   assert.match(seedRunnerSource, /SUPABASE_SERVICE_ROLE_KEY/);
